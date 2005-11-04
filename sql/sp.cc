@@ -208,7 +208,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   /*
@@ -275,7 +275,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   ulong sql_mode;
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("db_find_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
@@ -479,7 +479,8 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   char olddb[128];
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",type,sp->m_name.length,sp->m_name.str));
+  DBUG_PRINT("enter", ("type: %d name: %.*s",type,sp->m_name.length,
+                       sp->m_name.str));
 
   dbchanged= FALSE;
   if ((ret= sp_use_new_db(thd, sp->m_db.str, olddb, sizeof(olddb),
@@ -606,7 +607,7 @@ db_drop_routine(THD *thd, int type, sp_name *name)
   TABLE *table;
   int ret;
   DBUG_ENTER("db_drop_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -628,7 +629,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   int ret;
   bool opened;
   DBUG_ENTER("db_update_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s",
+  DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -922,7 +923,7 @@ sp_find_procedure(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_procedure");
-  DBUG_PRINT("enter", ("name: %*s.%*s",
+  DBUG_PRINT("enter", ("name: %.*s.%.*s",
 		       name->m_db.length, name->m_db.str,
 		       name->m_name.length, name->m_name.str));
 
@@ -980,7 +981,7 @@ sp_create_procedure(THD *thd, sp_head *sp)
 {
   int ret;
   DBUG_ENTER("sp_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", sp->m_name.length, sp->m_name.str));
 
   ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp);
   DBUG_RETURN(ret);
@@ -992,7 +993,7 @@ sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
   if (!ret)
@@ -1006,7 +1007,7 @@ sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, chistics);
   if (!ret)
@@ -1020,7 +1021,7 @@ sp_show_create_procedure(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_procedure(thd, name)))
   {
@@ -1072,7 +1073,7 @@ sp_find_function(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
       !cache_only)
@@ -1089,7 +1090,7 @@ sp_create_function(THD *thd, sp_head *sp)
 {
   int ret;
   DBUG_ENTER("sp_create_function");
-  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", sp->m_name.length, sp->m_name.str));
 
   ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, sp);
   DBUG_RETURN(ret);
@@ -1101,7 +1102,7 @@ sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
   if (!ret)
@@ -1115,7 +1116,7 @@ sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, chistics);
   if (!ret)
@@ -1129,7 +1130,7 @@ sp_show_create_function(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_function");
-  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_function(thd, name)))
   {

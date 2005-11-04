@@ -303,6 +303,44 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 #endif
 
+  record_offset= (ulong) (uint2korr(head+6)+
+                          ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+47) : uint2korr(head+14))));
+ 
+  if ((n_length= uint2korr(head+55)))
+  {
+    /* Read extra data segment */
+    char *buff, *next_chunk, *buff_end;
+    if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
+      goto err;
+    buff_end= buff + n_length;
+    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
+                 MYF(MY_NABP)))
+    {
+      my_free(buff, MYF(0));
+      goto err;
+    }
+    share->connect_string.length= uint2korr(buff);
+    if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
+            next_chunk + 2, share->connect_string.length)))
+    {
+      my_free(buff, MYF(0));
+      goto err;
+    }
+    next_chunk+= share->connect_string.length + 2;
+    if (next_chunk + 2 < buff_end)
+    {
+      uint str_db_type_length= uint2korr(next_chunk);
+      share->db_type= ha_resolve_by_name(next_chunk + 2, str_db_type_length);
+      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n",
+                           share->db_type,
+                           str_db_type_length, str_db_type_length,
+                           next_chunk + 2));
+      next_chunk+= str_db_type_length + 2;
+    }
+    my_free(buff, MYF(0));
+  }
+
   error=4;
   outparam->reginfo.lock_type= TL_UNLOCK;
   outparam->current_lock=F_UNLCK;
@@ -322,9 +360,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     goto err;                                   /* purecov: inspected */
   share->default_values= (byte *) record;
 
-  record_offset= (ulong) (uint2korr(head+6)+
-                          ((uint2korr(head+14) == 0xffff ?
-                            uint4korr(head+47) : uint2korr(head+14))));
   if (my_pread(file,(byte*) record, (uint) share->reclength,
                record_offset, MYF(MY_NABP)))
     goto err; /* purecov: inspected */
@@ -342,20 +377,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
-
-  if ((n_length= uint2korr(head+55)))
-  {
-    /* Read extra block information */
-    char *buff;
-    if (!(buff= alloc_root(&outparam->mem_root, n_length)))
-      goto err;
-    if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
-                 MYF(MY_NABP)))
-      goto err;
-    share->connect_string.length= uint2korr(buff);
-    share->connect_string.str= buff+2;
-  }
-
+ 
 #ifdef HAVE_purify
   /*
     We need this because when we read var-length rows, we are not updating
@@ -463,7 +485,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   file= -1;
 
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
+  if (!(outparam->file= get_new_handler(outparam, &outparam->mem_root,
+                                        share->db_type)))
     goto err;
 
   record= (char*) outparam->record[0]-1;	/* Fieldstart = 1 */
@@ -471,9 +494,11 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     outparam->null_flags=null_pos=(uchar*) record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
-    /* null_bytes below is only correct under the condition that
-       there are no bit fields.  Correct values is set below after the
-       table struct is initialized */
+    /*
+      null_bytes below is only correct under the condition that
+      there are no bit fields.  Correct values is set below after the
+      table struct is initialized
+    */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
   else
@@ -897,8 +922,12 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 #endif
       goto err;
   
-  /* the correct null_bytes can now be set, since bitfields have been taken into account */
-  share->null_bytes= null_pos - (uchar*) outparam->null_flags + (null_bit_pos + 7) / 8;
+  /*
+    the correct null_bytes can now be set, since bitfields have been taken
+    into account
+  */
+  share->null_bytes= (null_pos - (uchar*) outparam->null_flags +
+                      (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
 
   /* The table struct is now initialized;  Open the table */
@@ -1410,14 +1439,9 @@ File create_frm(THD *thd, my_string name, const char *db,
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
-  uint extra_size;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
-
-  extra_size= 0;
-  if (create_info->connect_string.length)
-    extra_size= 2+create_info->connect_string.length;
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
@@ -1446,7 +1470,8 @@ File create_frm(THD *thd, my_string name, const char *db,
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
-    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+extra_size));
+    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
+                                  create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
@@ -1468,7 +1493,7 @@ File create_frm(THD *thd, my_string name, const char *db,
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
-    int2store(fileinfo+55, extra_size);
+    int2store(fileinfo+55, create_info->extra_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -1709,29 +1734,6 @@ bool check_column_name(const char *name)
 }
 
 /*
-** Get type of table from .frm file
-*/
-
-db_type get_table_type(THD *thd, const char *name)
-{
-  File	 file;
-  uchar head[4];
-  int error;
-  DBUG_ENTER("get_table_type");
-  DBUG_PRINT("enter",("name: '%s'",name));
-
-  if ((file=my_open(name,O_RDONLY, MYF(0))) < 0)
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  error=my_read(file,(byte*) head,4,MYF(MY_NABP));
-  my_close(file,MYF(0));
-  if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       (head[2] < FRM_VER+3 || head[2] > FRM_VER+4)))
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
-}
-
-/*
   Create Item_field for each column in the table.
 
   SYNPOSIS
@@ -1814,41 +1816,43 @@ void  st_table_list::calc_md5(char *buffer)
 
 
 /*
-  set ancestor TABLE for table place holder of VIEW
+  set underlying TABLE for table place holder of VIEW
 
   DESCRIPTION
     Replace all views that only uses one table with the table itself.
     This allows us to treat the view as a simple table and even update
-    it
+    it (it is a kind of optimisation)
 
   SYNOPSIS
-    st_table_list::set_ancestor()
+    st_table_list::set_underlying_merge()
 */
 
-void st_table_list::set_ancestor()
+void st_table_list::set_underlying_merge()
 {
   TABLE_LIST *tbl;
 
-  if ((tbl= ancestor))
+  if ((tbl= merge_underlying_list))
   {
     /* This is a view. Process all tables of view */
-    DBUG_ASSERT(view);
+    DBUG_ASSERT(view && effective_algorithm == VIEW_ALGORITHM_MERGE);
     do
     {
-      if (tbl->ancestor)                        // This is a view
+      if (tbl->merge_underlying_list)          // This is a view
       {
+        DBUG_ASSERT(tbl->view &&
+                    tbl->effective_algorithm == VIEW_ALGORITHM_MERGE);
         /*
           This is the only case where set_ancestor is called on an object
           that may not be a view (in which case ancestor is 0)
         */
-        tbl->ancestor->set_ancestor();
+        tbl->merge_underlying_list->set_underlying_merge();
       }
     } while ((tbl= tbl->next_local));
 
     if (!multitable_view)
     {
-      table= ancestor->table;
-      schema_table= ancestor->schema_table;
+      table= merge_underlying_list->table;
+      schema_table= merge_underlying_list->schema_table;
     }
   }
 }
@@ -1858,11 +1862,8 @@ void st_table_list::set_ancestor()
   setup fields of placeholder of merged VIEW
 
   SYNOPSIS
-    st_table_list::setup_ancestor()
+    st_table_list::setup_underlying()
     thd		    - thread handler
-
-  NOTES
-    ancestor is list of tables and views used by view (underlying tables/views)
 
   DESCRIPTION
     It is:
@@ -1874,10 +1875,11 @@ void st_table_list::set_ancestor()
     TRUE  - error
 */
 
-bool st_table_list::setup_ancestor(THD *thd)
+bool st_table_list::setup_underlying(THD *thd)
 {
-  DBUG_ENTER("st_table_list::setup_ancestor");
-  if (!field_translation)
+  DBUG_ENTER("st_table_list::setup_underlying");
+
+  if (!field_translation && merge_underlying_list)
   {
     Field_translator *transl;
     SELECT_LEX *select= &view->select_lex;
@@ -1891,10 +1893,10 @@ bool st_table_list::setup_ancestor(THD *thd)
       DBUG_RETURN(TRUE);
     }
 
-    for (tbl= ancestor; tbl; tbl= tbl->next_local)
+    for (tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
-      if (tbl->ancestor &&
-          tbl->setup_ancestor(thd))
+      if (tbl->merge_underlying_list &&
+          tbl->setup_underlying(thd))
       {
         DBUG_RETURN(TRUE);
       }
@@ -1957,7 +1959,7 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
 {
   DBUG_ENTER("st_table_list::prep_where");
 
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     if (tbl->view && tbl->prep_where(thd, conds, no_where_clause))
     {
@@ -2039,7 +2041,7 @@ bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
 {
   DBUG_ENTER("st_table_list::prep_check_option");
 
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     /* see comment of check_opt_type parameter */
     if (tbl->view &&
@@ -2062,7 +2064,7 @@ bool st_table_list::prep_check_option(THD *thd, uint8 check_opt_type)
     }
     if (check_opt_type == VIEW_CHECK_CASCADED)
     {
-      for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+      for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       {
         if (tbl->check_option)
           item= and_conds(item, tbl->check_option);
@@ -2101,16 +2103,21 @@ void st_table_list::hide_view_error(THD *thd)
 {
   /* Hide "Unknown column" or "Unknown function" error */
   if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
-      thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
+      thd->net.last_errno == ER_SP_DOES_NOT_EXIST ||
+      thd->net.last_errno == ER_PROCACCESS_DENIED_ERROR ||
+      thd->net.last_errno == ER_COLUMNACCESS_DENIED_ERROR)
   {
+    TABLE_LIST *top= top_table();
     thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
+    my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
   }
   else if (thd->net.last_errno == ER_NO_DEFAULT_FOR_FIELD)
   {
+    TABLE_LIST *top= top_table();
     thd->clear_error();
     // TODO: make correct error message
-    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), view_db.str, view_name.str);
+    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+             top->view_db.str, top->view_name.str);
   }
 }
 
@@ -2131,10 +2138,10 @@ void st_table_list::hide_view_error(THD *thd)
 st_table_list *st_table_list::find_underlying_table(TABLE *table_to_find)
 {
   /* is this real table and table which we are looking for? */
-  if (table == table_to_find && ancestor == 0)
+  if (table == table_to_find && merge_underlying_list == 0)
     return this;
 
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     TABLE_LIST *result;
     if ((result= tbl->find_underlying_table(table_to_find)))
@@ -2217,7 +2224,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 bool st_table_list::check_single_table(st_table_list **table, table_map map,
                                        st_table_list *view)
 {
-  for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     if (tbl->table)
     {
@@ -2259,8 +2266,8 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
   }
   else
   {
-    DBUG_ASSERT(view && ancestor);
-    for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
+    DBUG_ASSERT(view && merge_underlying_list);
+    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
         return TRUE;
   }
@@ -2406,6 +2413,157 @@ TABLE_LIST *st_table_list::last_leaf_for_name_resolution()
 }
 
 
+/*
+  Register access mode which we need for underlying tables
+
+  SYNOPSIS
+    register_want_access()
+    want_access          Acess which we require
+*/
+
+void st_table_list::register_want_access(ulong want_access)
+{
+  /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
+  want_access&= ~SHOW_VIEW_ACL;
+  if (belong_to_view)
+  {
+    grant.want_privilege= want_access;
+    if (table)
+      table->grant.want_privilege= want_access;
+  }
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+    tbl->register_want_access(want_access);
+}
+
+
+/*
+  Load security context information for this view
+
+  SYNOPSIS
+    st_table_list::prepare_view_securety_context()
+    thd                  [in] thread handler
+
+  RETURN
+    FALSE  OK
+    TRUE   Error
+*/
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool st_table_list::prepare_view_securety_context(THD *thd)
+{
+  DBUG_ENTER("st_table_list::prepare_view_securety_context");
+  DBUG_PRINT("enter", ("table: %s", alias));
+
+  DBUG_ASSERT(!prelocking_placeholder && view);
+  if (view_suid)
+  {
+    DBUG_PRINT("info", ("This table is suid view => load contest"));
+    DBUG_ASSERT(view && view_sctx);
+    if (acl_getroot_no_password(view_sctx,
+                                definer.user.str,
+                                definer.host.str,
+                                definer.host.str,
+                                thd->db))
+    {
+      my_error(ER_NO_SUCH_USER, MYF(0), definer.user.str, definer.host.str);
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+#endif
+
+
+/*
+  Find security context of current view
+
+  SYNOPSIS
+    st_table_list::find_view_security_context()
+    thd                  [in] thread handler
+
+*/
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+Security_context *st_table_list::find_view_security_context(THD *thd)
+{
+  Security_context *sctx;
+  TABLE_LIST *upper_view= this;
+  DBUG_ENTER("st_table_list::find_view_security_context");
+
+  DBUG_ASSERT(view);
+  while (upper_view && !upper_view->view_suid)
+  {
+    DBUG_ASSERT(!upper_view->prelocking_placeholder);
+    upper_view= upper_view->referencing_view;
+  }
+  if (upper_view)
+  {
+    DBUG_PRINT("info", ("Securety context of view %s will be used",
+                        upper_view->alias));
+    sctx= upper_view->view_sctx;
+    DBUG_ASSERT(sctx);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Current global context will be used"));
+    sctx= thd->security_ctx;
+  }
+  DBUG_RETURN(sctx);
+}
+#endif
+
+
+/*
+  Prepare security context and load underlying tables priveleges for view
+
+  SYNOPSIS
+    st_table_list::prepare_security()
+    thd                  [in] thread handler
+
+  RETURN
+    FALSE  OK
+    TRUE   Error
+*/
+
+bool st_table_list::prepare_security(THD *thd)
+{
+  List_iterator_fast<TABLE_LIST> tb(*view_tables);
+  TABLE_LIST *tbl;
+  DBUG_ENTER("st_table_list::prepare_security");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= thd->security_ctx;
+
+  DBUG_ASSERT(!prelocking_placeholder);
+  if (prepare_view_securety_context(thd))
+    DBUG_RETURN(TRUE);
+  thd->security_ctx= find_view_security_context(thd);
+  while ((tbl= tb++))
+  {
+    DBUG_ASSERT(tbl->referencing_view);
+    char *db, *table_name;
+    if (tbl->view)
+    {
+      db= tbl->view_db.str;
+      table_name= tbl->view_name.str;
+    }
+    else
+    {
+      db= tbl->db;
+      table_name= tbl->table_name;
+    }
+    fill_effective_table_privileges(thd, &tbl->grant, db, table_name);
+    if (tbl->table)
+      tbl->table->grant= grant;
+  }
+  thd->security_ctx= save_security_ctx;
+#else
+  while ((tbl= tb++))
+    tbl->grant.privilege= ~NO_ACCESS;
+#endif
+  DBUG_RETURN(FALSE);
+}
+
+
 Natural_join_column::Natural_join_column(Field_translator *field_param,
                                          TABLE_LIST *tab)
 {
@@ -2514,6 +2672,9 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
+  Security_context *save_security_ctx= thd->security_ctx;
+  Security_context *new_sctx= table_ref->security_ctx;
+  bool res;
 
   if (view_field)
   {
@@ -2530,7 +2691,11 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
     table_name= table_ref->table->s->table_name;
   }
 
-  return check_grant_column(thd, grant, db_name, table_name, name, length);
+  if (new_sctx)
+    thd->security_ctx= new_sctx;
+  res= check_grant_column(thd, grant, db_name, table_name, name, length);
+  thd->security_ctx= save_security_ctx;
+  return res;
 }
 #endif
 

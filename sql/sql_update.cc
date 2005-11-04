@@ -121,8 +121,9 @@ int mysql_update(THD *thd,
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, will_batch;
   int           res;
-  int		error=0, loc_error;
-  uint		used_index, dup_key_found;
+  int		error, loc_error;
+  uint		used_index= MAX_KEY, dup_key_found;
+  bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -194,6 +195,7 @@ int mysql_update(THD *thd,
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
+  table_list->register_want_access(want_privilege);
 #endif
   /*
     Indicate that the set of fields is to be updated by passing 2 for
@@ -233,11 +235,18 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);				/* purecov: inspected */
   }
 
+  if (conds)
+  {
+    Item::cond_result cond_value;
+    conds= remove_eq_conds(thd, conds, &cond_value);
+    if (cond_value == Item::COND_FALSE)
+      limit= 0;                                   // Impossible WHERE
+  }
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys.clear_all();
   select= make_select(table, 0, 0, conds, 0, &error);
-  if (error ||
-      (select && select->check_quick(thd, safe_update, limit)) || !limit)
+  if (error || !limit ||
+      (select && select->check_quick(thd, safe_update, limit)))
   {
     delete select;
     free_underlaid_joins(thd, select_lex);
@@ -247,6 +256,11 @@ int mysql_update(THD *thd,
     }
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
+  }
+  if (!select && limit != HA_POS_ERROR)
+  {
+    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
+      need_sort= FALSE;
   }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -268,10 +282,14 @@ int mysql_update(THD *thd,
     used_key_is_modified= (!select->quick->unique_key_range() &&
                           select->quick->check_if_keys_used(&fields));
   }
-  else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
-    used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
-    used_key_is_modified=0;
+  {
+    used_key_is_modified= 0;
+    if (used_index == MAX_KEY)                  // no index for sort order
+      used_index= table->file->key_used_on_scan;
+    if (used_index != MAX_KEY)
+      used_key_is_modified= check_if_key_used(table, used_index, fields);
+  }
 
 #ifdef HAVE_PARTITION_DB
   if (used_key_is_modified || order ||
@@ -291,7 +309,8 @@ int mysql_update(THD *thd,
       table->file->extra(HA_EXTRA_KEYREAD);
     }
 
-    if (order)
+    /* note: can actually avoid sorting below.. */
+    if (order && (need_sort || used_key_is_modified))
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -301,6 +320,7 @@ int mysql_update(THD *thd,
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 
+      used_index= MAX_KEY;                   // For call to init_read_record()
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length)) ||
@@ -335,7 +355,10 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
-      init_read_record(&info,thd,table,select,0,1);
+      if (used_index == MAX_KEY || (select && select->quick))
+        init_read_record(&info,thd,table,select,0,1);
+      else
+        init_read_record_idx(&info, thd, table, 1, used_index);
 
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
@@ -364,6 +387,7 @@ int mysql_update(THD *thd,
 	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
+     
       /* Change select to use tempfile */
       if (select)
       {
@@ -671,6 +695,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= table->grant.want_privilege= 
     (SELECT_ACL & ~table->grant.privilege);
+  table_list->register_want_access(SELECT_ACL);
 #endif
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
@@ -945,9 +970,6 @@ bool mysql_multi_update(THD *thd,
 {
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
-
-  if (mysql_multi_update_prepare(thd))
-    DBUG_RETURN(TRUE);
 
   if (!(result= new multi_update(table_list,
 				 thd->lex->select_lex.leaf_tables,

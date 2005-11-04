@@ -123,7 +123,7 @@ then
   c_u="$c_u CREATE TABLE user ("
   c_u="$c_u   Host char(60) binary DEFAULT '' NOT NULL,"
   c_u="$c_u   User char(16) binary DEFAULT '' NOT NULL,"
-  c_u="$c_u   Password binary(41) DEFAULT '' NOT NULL,"
+  c_u="$c_u   Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL,"
   c_u="$c_u   Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"

@@ -720,3 +720,17 @@ bool st_select_lex::cleanup()
   DBUG_RETURN(error);
 }
 
+
+void st_select_lex::cleanup_all_joins(bool full)
+{
+  SELECT_LEX_UNIT *unit;
+  SELECT_LEX *sl;
+
+  if (join)
+    join->cleanup(full);
+
+  for (unit= first_inner_unit(); unit; unit= unit->next_unit())
+    for (sl= unit->first_select(); sl; sl= sl->next_select())
+      sl->cleanup_all_joins(full);
+}
+

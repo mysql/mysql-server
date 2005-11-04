@@ -186,15 +186,18 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   THD *thd= current_thd;
   show_table_alias_st *table_alias;
   handlerton **types;
-  const char *ptr= name;
 
-  if (thd && !my_strcasecmp(&my_charset_latin1, ptr, "DEFAULT"))
+  if (thd && !my_strnncoll(&my_charset_latin1,
+                           (const uchar *)name, namelen,
+                           (const uchar *)"DEFAULT", 7))
     return (enum db_type) thd->variables.table_type;
 
 retest:
   for (types= sys_table_types; *types; types++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, ptr, (*types)->name))
+    if (!my_strnncoll(&my_charset_latin1,
+                      (const uchar *)name, namelen,
+                      (const uchar *)(*types)->name, strlen((*types)->name)))
       return (enum db_type) (*types)->db_type;
   }
 
@@ -203,15 +206,21 @@ retest:
   */
   for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
   {
-    if (!my_strcasecmp(&my_charset_latin1, ptr, table_alias->alias))
+    if (!my_strnncoll(&my_charset_latin1,
+                      (const uchar *)name, namelen,
+                      (const uchar *)table_alias->alias,
+                      strlen(table_alias->alias)))
     {
-      ptr= table_alias->type;
+      name= table_alias->type;
+      namelen= strlen(name);
       goto retest;
     }
   }
 
   return DB_TYPE_UNKNOWN;
 }
+
+
 const char *ha_get_storage_engine(enum db_type db_type)
 {
   handlerton **types;
@@ -220,9 +229,9 @@ const char *ha_get_storage_engine(enum db_type db_type)
     if (db_type == (*types)->db_type)
       return (*types)->name;
   }
-
-  return "none";
+  return "*NONE*";
 }
+
 
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
 {
@@ -230,15 +239,9 @@ bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
   for (types= sys_table_types; *types; types++)
   {
     if (db_type == (*types)->db_type)
-    {
-      if ((*types)->flags & flag)
-        return TRUE;
-      else
-        return FALSE;
-    }
+      return test((*types)->flags & flag);
   }
-
-  return FALSE;
+  return FALSE;                                 // No matching engine
 }
 
 
@@ -299,26 +302,26 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 } /* ha_checktype */
 
 
-handler *get_new_handler(TABLE *table, enum db_type db_type)
+handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
 {
   handler *file;
   switch (db_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-    file= new ha_hash(table);
+    file= new (alloc) ha_hash(table);
     break;
 #endif
   case DB_TYPE_MRG_ISAM:
-    file= new ha_myisammrg(table);
+    file= new (alloc) ha_myisammrg(table);
     break;
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    file= new ha_berkeley(table);
+    file= new (alloc) ha_berkeley(table);
     break;
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    file= new ha_innobase(table);
+    file= new (alloc) ha_innobase(table);
     break;
 #endif
 #ifdef HAVE_EXAMPLE_DB
@@ -329,51 +332,51 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_PARTITION_DB
   case DB_TYPE_PARTITION_DB:
   {
-    file= new ha_partition(table);
+    file= new (alloc) ha_partition(table);
     break;
   }
 #endif
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
-    file= new ha_archive(table);
+    file= new (alloc) ha_archive(table);
     break;
 #endif
 #ifdef HAVE_BLACKHOLE_DB
   case DB_TYPE_BLACKHOLE_DB:
-    file= new ha_blackhole(table);
+    file= new (alloc) ha_blackhole(table);
     break;
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
-    file= new ha_federated(table);
+    file= new (alloc) ha_federated(table);
     break;
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:
-    file= new ha_tina(table);
+    file= new (alloc) ha_tina(table);
     break;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
-    file= new ha_ndbcluster(table);
+    file= new (alloc) ha_ndbcluster(table);
     break;
 #endif
   case DB_TYPE_HEAP:
-    file= new ha_heap(table);
+    file= new (alloc) ha_heap(table);
     break;
   default:					// should never happen
   {
     enum db_type def=(enum db_type) current_thd->variables.table_type;
     /* Try first with 'default table type' */
     if (db_type != def)
-      return get_new_handler(table, def);
+      return get_new_handler(table, alloc, def);
   }
   /* Fall back to MyISAM */
   case DB_TYPE_MYISAM:
-    file= new ha_myisam(table);
+    file= new (alloc) ha_myisam(table);
     break;
   case DB_TYPE_MRG_MYISAM:
-    file= new ha_myisammrg(table);
+    file= new (alloc) ha_myisammrg(table);
     break;
   }
   if (file)
@@ -383,8 +386,6 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
       delete file;
       file=0;
     }
-  }
-  return file;
 }
 
 
@@ -912,17 +913,24 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
+
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
   handlerton **types;
   int res= 1;
 
   for (types= sys_table_types; *types; types++)
+  {
     if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
-      res= res &&
-        (*(commit ? (*types)->commit_by_xid : (*types)->rollback_by_xid))(xid);
+    {
+      if ((*(commit ? (*types)->commit_by_xid :
+             (*types)->rollback_by_xid))(xid));
+      res= 0;
+    }
+  }
   return res;
 }
+
 
 #ifndef DBUG_OFF
 /* this does not need to be multi-byte safe or anything */
@@ -1352,7 +1360,7 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == DB_TYPE_UNKNOWN ||
-      ! (file=get_new_handler(&dummy_table, table_type)))
+      ! (file=get_new_handler(&dummy_table, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
@@ -2173,7 +2181,7 @@ int ha_create_table_from_engine(THD* thd,
     DBUG_RETURN(3);
 
   update_create_info_from_table(&create_info, &table);
-  create_info.table_options|= HA_CREATE_FROM_ENGINE;
+  create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -2626,6 +2634,7 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
 
 TYPELIB *ha_known_exts(void)
 {
+  MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     handlerton **types;
@@ -2640,7 +2649,8 @@ TYPELIB *ha_known_exts(void)
     {
       if ((*types)->state == SHOW_OPTION_YES)
       {
-	handler *file= get_new_handler(0,(enum db_type) (*types)->db_type);
+	handler *file= get_new_handler(0, mem_root,
+                                       (enum db_type) (*types)->db_type);
 	for (ext= file->bas_ext(); *ext; ext++)
 	{
 	  while ((old_ext= it++))

@@ -4,6 +4,10 @@
 
 source include/master-slave.inc;
 
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
  b int unsigned
@@ -31,5 +35,28 @@ connection slave;
 sync_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
+
+connection master;
+drop table t1,t2;
+sync_slave_with_master;
+
+#
+# BUG#13236 multi-update with subquery & --replicate-ignore-table
+#
+reset master;
+
+connection master;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (0);
+UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
+select * from t1;
+sync_slave_with_master;
+
+connection slave;
+select * from t1;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
 
 # End of 4.1 tests

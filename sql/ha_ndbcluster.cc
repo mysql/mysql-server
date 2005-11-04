@@ -599,9 +599,9 @@ static bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:         
   case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_GEOMETRY:
     return TRUE;
   case MYSQL_TYPE_NULL:   
-  case MYSQL_TYPE_GEOMETRY:
     break;
   }
   return FALSE;
@@ -3216,7 +3216,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
-      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK))) 
+      if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
       {
         // Autocommit transaction
         DBUG_ASSERT(!thd_ndb->stmt);
@@ -3388,11 +3388,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 }
 
 /*
-  When using LOCK TABLE's external_lock is only called when the actual
-  TABLE LOCK is done.
-  Under LOCK TABLES, each used tables will force a call to start_stmt.
-  Ndb doesn't currently support table locks, and will do ordinary
-  startTransaction for each transaction/statement.
+  Start a transaction for running a statement if one is not
+  already running in a transaction. This will be the case in
+  a BEGIN; COMMIT; block
+  When using LOCK TABLE's external_lock will start a transaction
+  since ndb does not currently does not support table locking
 */
 
 int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
@@ -3402,17 +3402,10 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
   PRINT_OPTION_FLAGS(thd);
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  NdbTransaction *trans= thd_ndb->stmt;
+  NdbTransaction *trans= (thd_ndb->stmt)?thd_ndb->stmt:thd_ndb->all;
   if (!trans){
     Ndb *ndb= thd_ndb->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
-
-#if 0    
-    NdbTransaction *tablock_trans= thd_ndb->all;
-    DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
-    DBUG_ASSERT(tablock_trans);
-//    trans= ndb->hupp(tablock_trans);
-#endif
     trans= ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
@@ -3709,6 +3702,7 @@ static int create_ndb_column(NDBCOL &col,
     col.setStripeSize(0);
     break;
   //mysql_type_blob:
+  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_BLOB:    
     if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
       col.setType(NDBCOL::Blob);
@@ -3774,7 +3768,6 @@ static int create_ndb_column(NDBCOL &col,
     break;
   }
   case MYSQL_TYPE_NULL:        
-  case MYSQL_TYPE_GEOMETRY:
     goto mysql_type_unsupported;
   mysql_type_unsupported:
   default:
@@ -3806,7 +3799,8 @@ int ha_ndbcluster::create(const char *name,
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
   char name2[FN_HEADLEN];
-  bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
+  bool create_from_engine= test(info->table_options &
+                                HA_OPTION_CREATE_FROM_ENGINE);
    
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -3876,6 +3870,7 @@ int ha_ndbcluster::create(const char *name,
      * 5 - from extra words added by tup/dict??
      */
     switch (form->field[i]->real_type()) {
+    case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
     case MYSQL_TYPE_MEDIUM_BLOB:   
     case MYSQL_TYPE_LONG_BLOB: 
@@ -4140,7 +4135,12 @@ ulonglong ha_ndbcluster::get_auto_increment()
            --retries &&
            ndb->getNdbError().status == NdbError::TemporaryError);
   if (auto_value == NDB_FAILED_AUTO_INCREMENT)
-    ERR_RETURN(ndb->getNdbError());
+  {
+    const NdbError err= ndb->getNdbError();
+    sql_print_error("Error %lu in ::get_auto_increment(): %s",
+                    (ulong) err.code, err.message);
+    DBUG_RETURN(~(ulonglong) 0);
+  }
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -4161,6 +4161,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_AUTO_PART_KEY |
                 HA_NO_PREFIX_CHAR_KEYS |
                 HA_NEED_READ_RANGE_BUFFER |
+                HA_CAN_GEOMETRY |
                 HA_CAN_BIT_FIELD),
   m_share(0),
   m_part_info(NULL),
@@ -6008,7 +6009,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb* ndb;
-  int error= 0;
   struct timespec abstime;
 
   my_thread_init();
@@ -6037,9 +6037,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   {
 
     pthread_mutex_lock(&LOCK_ndb_util_thread);
-    error= pthread_cond_timedwait(&COND_ndb_util_thread,
-                                  &LOCK_ndb_util_thread,
-                                  &abstime);
+    pthread_cond_timedwait(&COND_ndb_util_thread,
+                           &LOCK_ndb_util_thread,
+                           &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
     DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d",

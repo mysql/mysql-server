@@ -14,6 +14,9 @@ DOCID VARCHAR(32)BINARY NOT NULL
 , PRIMARY KEY ( DOCID )
 ) ENGINE=InnoDB
 ;
+INSERT INTO t1 (DOCID) VALUES ("1"), ("2");
+Warnings:
+Warning	1364	Field 'UUID' doesn't have a default value
 CREATE TABLE t2
 (
 DOCID VARCHAR(32)BINARY NOT NULL

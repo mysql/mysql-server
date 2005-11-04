@@ -171,7 +171,9 @@ our $exe_mysqladmin;
 our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
+our $exe_mysqlcheck;             # Called from test case
 our $exe_mysqldump;              # Called from test case
+our $exe_mysqlimport;              # Called from test case
 our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
@@ -186,6 +188,11 @@ our $opt_big_test= 0;            # Send --big-test to mysqltest
 our @opt_extra_mysqld_opt;
 
 our $opt_compress;
+our $opt_ssl;
+our $opt_skip_ssl;
+our $opt_ssl_supported;
+our $opt_ps_protocol;
+
 our $opt_current_test;
 our $opt_ddd;
 our $opt_debug;
@@ -233,15 +240,15 @@ our $opt_result_ext;
 our $opt_skip;
 our $opt_skip_rpl;
 our $opt_skip_test;
+our $opt_skip_im;
 
 our $opt_sleep;
-our $opt_ps_protocol;
 
 our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
-my  $default_testcase_timeout=     10; # 10 min max
+my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       120; # 2 hours max
 
 our $opt_socket;
@@ -276,7 +283,6 @@ our $opt_udiff;
 
 our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
-our $opt_with_openssl;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
@@ -297,7 +303,8 @@ sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
 sub kill_and_cleanup ();
-sub ndbcluster_support ();
+sub check_ssl_support ();
+sub check_ndbcluster_support ();
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -332,11 +339,9 @@ sub main () {
   initial_setup();
   command_line_setup();
   executable_setup();
-  
-  if (! $opt_skip_ndbcluster and ! $opt_with_ndbcluster)
-  {
-    $opt_with_ndbcluster= ndbcluster_support();
-  }
+
+  check_ndbcluster_support();
+  check_ssl_support();
 
   environment_setup();
   signal_setup();
@@ -471,6 +476,16 @@ sub command_line_setup () {
   my $im_mysqld1_port=   9312;
   my $im_mysqld2_port=   9314;
 
+  if ( $ENV{'MTR_BUILD_THREAD'} )
+  {
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
+    $opt_slave_myport=    $opt_master_myport + 16;
+    $opt_ndbcluster_port= $opt_master_myport + 24;
+    $im_port=             $opt_master_myport + 10;
+    $im_mysqld1_port=     $opt_master_myport + 12;
+    $im_mysqld2_port=     $opt_master_myport + 14;
+  }
+
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
@@ -479,6 +494,9 @@ sub command_line_setup () {
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
+             'ssl|with-openssl'         => \$opt_ssl,
+             'skip-ssl'                 => \$opt_skip_ssl,
+             'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'no-manager'               => \$opt_no_manager, # Currently not used
@@ -490,6 +508,7 @@ sub command_line_setup () {
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
+             'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
 
              # Specify ports
@@ -530,7 +549,6 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
-             'compress'                 => \$opt_compress,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
              'local'                    => \$opt_local,
@@ -555,7 +573,6 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
-             'with-openssl'             => \$opt_with_openssl,
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -840,8 +857,8 @@ sub command_line_setup () {
    server_id    => 1,
    port         => $im_mysqld1_port,
    path_datadir => "$opt_vardir/im_mysqld_1.data",
-   path_sock    => "$opt_vardir/mysqld_1.sock",
-   path_pid     => "$opt_vardir/mysqld_1.pid",
+   path_sock    => "$opt_tmpdir/mysqld_1.sock",
+   path_pid     => "$opt_vardir/run/mysqld_1.pid",
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -849,8 +866,8 @@ sub command_line_setup () {
    server_id    => 2,
    port         => $im_mysqld2_port,
    path_datadir => "$opt_vardir/im_mysqld_2.data",
-   path_sock    => "$opt_vardir/mysqld_2.sock",
-   path_pid     => "$opt_vardir/mysqld_2.pid",
+   path_sock    => "$opt_tmpdir/mysqld_2.sock",
+   path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
   };
 
@@ -879,7 +896,9 @@ sub executable_setup () {
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
                                            "$glob_basedir/bin");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+                                           "$path_client_bindir/mysqld",
+                                           "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
     }
@@ -909,7 +928,9 @@ sub executable_setup () {
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
 		       "/usr/bin/false");
     }
+    $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -924,6 +945,7 @@ sub executable_setup () {
   else
   {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
+    $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
@@ -939,9 +961,18 @@ sub executable_setup () {
                                          "$glob_basedir/share/english/");
     $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/mysql/charsets",
                                          "$glob_basedir/share/charsets");
-    $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
-                                         "$glob_basedir/bin/mysqld");
 
+    if ( $glob_win32 )
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/bin/mysqld-nt",
+                                           "$glob_basedir/bin/mysqld",
+                                           "$glob_basedir/bin/mysqld-debug",);
+    }
+    else
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
+                                           "$glob_basedir/bin/mysqld");
+    }
     $exe_im= mtr_exe_exists("$glob_basedir/libexec/mysqlmanager",
                             "$glob_basedir/bin/mysqlmanager");
     if ( $glob_use_embedded_server )
@@ -1035,6 +1066,15 @@ sub environment_setup () {
       chomp($ENV{$key});
     }
   }
+
+  # We are nice and report a bit about our settings
+  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
+  print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
+  print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
+  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
+  print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
 }
 
 
@@ -1118,7 +1158,7 @@ sub kill_and_cleanup () {
   
   foreach my $instance (@{$instance_manager->{'instances'}})
   {
-    push (@data_dir_lst, $instance->{'path_datadir'});
+    push(@data_dir_lst, $instance->{'path_datadir'});
   }
 
   foreach my $data_dir (@data_dir_lst)
@@ -1140,13 +1180,59 @@ sub kill_and_cleanup () {
 }
 
 
+sub check_ssl_support () {
+
+  if ($opt_skip_ssl)
+  {
+    mtr_report("Skipping SSL");
+    $opt_ssl_supported= 0;
+    $opt_ssl= 0;
+    return;
+  }
+
+  # check ssl support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--ssl",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    if ( $opt_ssl)
+    {
+      mtr_error("Couldn't find support for SSL");
+      return;
+    }
+    mtr_report("Skipping SSL, mysqld not compiled with SSL");
+    $opt_ssl_supported= 0;
+    $opt_ssl= 0;
+    return;
+  }
+  mtr_report("Setting mysqld to support SSL connections");
+  $opt_ssl_supported= 1;
+}
+
+
 ##############################################################################
 #
 #  Start the ndb cluster
 #
 ##############################################################################
 
-sub ndbcluster_support () {
+sub check_ndbcluster_support () {
+
+  if ($opt_skip_ndbcluster)
+  {
+    mtr_report("Skipping ndbcluster");
+    $opt_with_ndbcluster= 0;
+    return;
+  }
+
+  if ($opt_with_ndbcluster)
+  {
+    mtr_report("Using ndbcluster");
+    return;
+  }
 
   # check ndbcluster support by testing using a switch
   # that is only available in that case
@@ -1156,11 +1242,13 @@ sub ndbcluster_support () {
 	        "--help"],
 	       "", "/dev/null", "/dev/null", "") != 0 )
   {
-    mtr_report("No ndbcluster support");
-    return 0;
+    mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
+    $opt_with_ndbcluster= 0;
+    return;
   }
-  mtr_report("Has ndbcluster support");
-  return 1;
+  mtr_report("Using ndbcluster, mysqld supports it");
+  $opt_with_ndbcluster= 1;
+  return;
 }
 
 # FIXME why is there a different start below?!
@@ -1364,7 +1452,7 @@ sub mysql_install_db () {
   install_db('slave',  $slave->[1]->{'path_myddir'});
   install_db('slave',  $slave->[2]->{'path_myddir'});
 
-  if ( defined $exe_im)
+  if ( ! $opt_skip_im )
   {
     im_prepare_env($instance_manager);
   }
@@ -1513,12 +1601,7 @@ skip-ndbcluster
 EOF
 ;
 
-    if ( exists $instance->{nonguarded} and
-      defined $instance->{nonguarded} )
-    {
-      print OUT "nonguarded\n";
-    }
-
+    print OUT "nonguarded\n" if $instance->{'nonguarded'};
     print OUT "\n";
   }
 
@@ -1678,7 +1761,7 @@ sub run_testcase ($) {
         $master->[0]->{'running_master_is_special'}= 1;
       }
     }
-    elsif ( $tinfo->{'component_id'} eq 'im')
+    elsif ( ! $opt_skip_im and $tinfo->{'component_id'} eq 'im' )
     {
       # We have to create defaults file every time, in order to ensure that it
       # will be the same for each test. The problem is that test can change the
@@ -1776,7 +1859,8 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
 
-  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
+  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' and
+       $instance_manager->{'pid'} )
   {
     im_stop($instance_manager);
   }
@@ -2049,7 +2133,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
 
-  if ( $opt_with_openssl )
+  if ( $opt_ssl_supported )
   {
     mtr_add_arg($args, "%s--ssl-ca=%s/std_data/cacert.pem", $prefix,
                 $glob_mysql_test_dir);
@@ -2195,7 +2279,7 @@ sub stop_masters_slaves () {
 
   print  "Ending Tests\n";
 
-  if (defined $instance_manager->{'pid'})
+  if ( $instance_manager->{'pid'} )
   {
     print  "Shutting-down Instance Manager\n";
     im_stop($instance_manager);
@@ -2269,14 +2353,10 @@ sub im_start($$) {
   my $instance_manager = shift;
   my $opts = shift;
 
-  if ( ! defined $exe_im)
-  {
-    return;
-  }
-
   my $args;
   mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=" . $instance_manager->{'defaults_file'});
+  mtr_add_arg($args, "--defaults-file=%s",
+              $instance_manager->{'defaults_file'});
 
   foreach my $opt (@{$opts})
   {
@@ -2294,7 +2374,7 @@ sub im_start($$) {
       { append_log_file => 1 }          # append log files
       );
 
-  if ( ! defined $instance_manager->{'pid'} )
+  if ( ! $instance_manager->{'pid'} )
   {
     mtr_report('Could not start Instance Manager');
     return;
@@ -2304,10 +2384,14 @@ sub im_start($$) {
   # several processes and the parent process, created by mtr_spawn(), exits just
   # after start. So, we have to obtain Instance Manager PID from the PID file.
 
-  sleep_until_file_created(
-    $instance_manager->{'path_pid'},
-    $instance_manager->{'start_timeout'},
-    -1); # real PID is still unknown
+  if ( ! sleep_until_file_created(
+                                  $instance_manager->{'path_pid'},
+                                  $instance_manager->{'start_timeout'},
+                                  -1)) # real PID is still unknown
+  {
+    mtr_report("Instance Manager PID file is missing");
+    return;
+  }
 
   $instance_manager->{'pid'} =
     mtr_get_pid_from_file($instance_manager->{'path_pid'});
@@ -2316,16 +2400,12 @@ sub im_start($$) {
 sub im_stop($) {
   my $instance_manager = shift;
 
-  if (! defined $instance_manager->{'pid'})
-  {
-    return;
-  }
-
   # Re-read pid from the file, since during tests Instance Manager could have
   # been restarted, so its pid could have been changed.
 
   $instance_manager->{'pid'} =
-    mtr_get_pid_from_file($instance_manager->{'path_pid'});
+    mtr_get_pid_from_file($instance_manager->{'path_pid'})
+      if -f $instance_manager->{'path_pid'};
 
   # Inspired from mtr_stop_mysqld_servers().
 
@@ -2340,12 +2420,12 @@ sub im_stop($) {
 
   if ( -r $instances->[0]->{'path_pid'} )
   {
-    push @pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'});
+    push(@pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}));
   }
 
   if ( -r $instances->[1]->{'path_pid'} )
   {
-    push @pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'});
+    push(@pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}));
   }
 
   # Kill processes.
@@ -2360,6 +2440,15 @@ sub im_stop($) {
 sub run_mysqltest ($) {
   my $tinfo=       shift;
 
+  my $cmdline_mysqlcheck= "$exe_mysqlcheck --no-defaults -uroot " .
+                          "--port=$master->[0]->{'path_myport'} " .
+                          "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlcheck .=
+      " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
+  }
+
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
@@ -2367,6 +2456,14 @@ sub run_mysqltest ($) {
   {
     $cmdline_mysqldump .=
       " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
+  }
+  my $cmdline_mysqlimport= "$exe_mysqlimport -uroot " .
+                         "--port=$master->[0]->{'path_myport'} " .
+                         "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlimport .=
+      " --debug=d:t:A,$opt_vardir/log/mysqlimport.trace";
   }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
@@ -2419,7 +2516,9 @@ sub run_mysqltest ($) {
   # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
+  $ENV{'MYSQL_CHECK'}=              $cmdline_mysqlcheck;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
+  $ENV{'MYSQL_IMPORT'}=             $cmdline_mysqlimport;
   $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
@@ -2504,14 +2603,26 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir);
   }
 
-  if ( $opt_with_openssl )
+  if ( $opt_ssl_supported )
   {
     mtr_add_arg($args, "--ssl-ca=%s/std_data/cacert.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
     mtr_add_arg($args, "--ssl-cert=%s/std_data/client-cert.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
     mtr_add_arg($args, "--ssl-key=%s/std_data/client-key.pem",
-                $glob_mysql_test_dir);
+	        $glob_mysql_test_dir);
+  }
+
+  # Turn on SSL for all test cases
+  if ( $opt_ssl )
+  {
+    mtr_add_arg($args, "--ssl",
+		$glob_mysql_test_dir);
+  }
+  elsif ( $opt_ssl_supported )
+  {
+    mtr_add_arg($args, "--skip-ssl",
+		$glob_mysql_test_dir);
   }
 
   # ----------------------------------------------------------------------
@@ -2590,6 +2701,9 @@ Options to control what engine/variation to run
 
   embedded-server       Use the embedded server, i.e. no mysqld daemons
   ps-protocol           Use the binary protocol between client and server
+  compress              Use the compressed protocol between client and server
+  ssl                   Use ssl protocol between client and server
+  skip-ssl              Dont start sterver with support for ssl connections
   bench                 Run the benchmark suite FIXME
   small-bench           FIXME
 
@@ -2597,10 +2711,12 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster       Use cluster, and enable test cases that requres it
+  skip-ndb[cluster]     Skip the ndb test cases, don't start cluster
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
   suite=NAME            Run the test suite named NAME. The default is "main"
   skip-rpl              Skip the replication test cases.
+  skip-im               Don't start IM, and skip the IM test cases
   skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
 
 Options that specify ports
@@ -2620,7 +2736,7 @@ Options that pass on options
 Options to run test on running server
 
   extern                Use running server for tests FIXME DANGEROUS
-  ndbconnectstring=STR  Use running cluster, and connect using STR      
+  ndbconnectstring=STR  Use running cluster, and connect using STR
   user=USER             User for connect to server
 
 Options for debugging the product
@@ -2648,7 +2764,6 @@ Misc options
 
   verbose               Verbose output from this script
   script-debug          Debug this script itself
-  compress              Use the compressed protocol between client and server
   timer                 Show test case execution time
   start-and-exit        Only initiate and start the "mysqld" servers, use the startup
                         settings for the specified test case if any
@@ -2660,6 +2775,9 @@ Misc options
 
   testcase-timeout=MINUTES Max test case run time (default 5)
   suite-timeout=MINUTES    Max test suite run time (default 120)
+
+Deprecated options
+  with-openssl          Deprecated option for ssl
 
 
 Options not yet described, or that I want to look into more
@@ -2677,7 +2795,6 @@ Options not yet described, or that I want to look into more
   wait-timeout=SECONDS  
   warnings              
   log-warnings          
-  with-openssl          
 
 HERE
   mtr_exit(1);

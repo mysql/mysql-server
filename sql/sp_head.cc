@@ -280,7 +280,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
       DBUG_PRINT("info", ("STRING_RESULT: null"));
       goto return_null_item;
     }
-    DBUG_PRINT("info",("STRING_RESULT: %*s",
+    DBUG_PRINT("info",("STRING_RESULT: %.*s",
                        s->length(), s->c_ptr_quick()));
     /*
       Reuse mechanism in sp_eval_func_item() is only employed for assignments
@@ -292,6 +292,22 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
     */
     if (it == reuse)
       DBUG_RETURN(it);
+
+    /*
+      For some functions, 's' is now pointing to an argument of the
+      function, which might be a local variable that is to be reused.
+      In this case, new(reuse, &rsize) below will call the destructor
+      and 's' ends up pointing to freed memory.
+      A somewhat ugly fix is to simply copy the string to our local one
+      (which is unused by most functions anyway), but only if 's' is
+      pointing somewhere else than to 'tmp' or 'it->str_value'.
+     */
+    if (reuse && s != &tmp && s != &it->str_value)
+    {
+      if (tmp.copy((const String)(*s)))
+        DBUG_RETURN(NULL);
+      s= &tmp;
+    }
 
     CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize)
                             Item_string(it->collation.collation),
@@ -323,7 +339,7 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
 
 return_null_item:
   CREATE_ON_CALLERS_ARENA(it= new(reuse, &rsize) Item_null(),
-                    use_callers_arena, &backup_arena);
+                          use_callers_arena, &backup_arena);
 end:
   it->rsize= rsize;
 
@@ -354,7 +370,7 @@ sp_name::init_qname(THD *thd)
     return;
   m_qname.length= m_sroutines_key.length - 1;
   m_qname.str= m_sroutines_key.str + 1;
-  sprintf(m_qname.str, "%*s.%*s",
+  sprintf(m_qname.str, "%.*s.%.*s",
 	  m_db.length, (m_db.length ? m_db.str : ""),
 	  m_name.length, m_name.str);
 }
@@ -794,6 +810,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
          splocal < sp_vars_uses.back(); splocal++)
     {
       Item *val;
+      (*splocal)->thd= thd;            // fix_fields() is not yet done
       /* append the text between sp ref occurences */
       res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
@@ -1051,8 +1068,10 @@ int sp_head::execute(THD *thd)
      original thd->db will then have been freed */
   if (dbchanged)
   {
+    /* No access check when changing back to where we came from.
+       (It would generate an error from mysql_change_db() when olddb=="") */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddb, 0);
+      ret= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_RETURN(ret);
@@ -1110,7 +1129,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     DBUG_RETURN(-1);
 
   // QQ Should have some error checking here? (types, etc...)
-  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
     goto end;
   for (i= 0 ; i < argcount ; i++)
   {
@@ -1254,7 +1273,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   save_spcont= octx= thd->spcont;
   if (! octx)
   {				// Create a temporary old context
-    if (!(octx= new sp_rcontext(csize, hmax, cmax)))
+    if (!(octx= new sp_rcontext(octx, csize, hmax, cmax)))
       DBUG_RETURN(-1);
     thd->spcont= octx;
 
@@ -1262,7 +1281,7 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont->callers_arena= thd;
   }
 
-  if (!(nctx= new sp_rcontext(csize, hmax, cmax)))
+  if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
   {
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
@@ -2390,7 +2409,10 @@ sp_instr_hreturn::print(String *str)
   str->append("hreturn ");
   str->qs_append(m_frame);
   if (m_dest)
+  {
+    str->append(' ');
     str->qs_append(m_dest);
+  }
 }
 
 
@@ -2650,9 +2672,24 @@ sp_change_security_context(THD *thd, sp_head *sp, Security_context **backup)
                                 sp->m_definer_host.str,
                                 sp->m_db.str))
     {
+#ifdef NOT_YET_REPLICATION_SAFE
+      /*
+        Until we don't properly replicate information about stored routine
+        definer with stored routine creation statement all stored routines
+        on slave are created under ''@'' definer. Therefore we won't be able
+        to run any routine which was replicated from master on slave server
+        if we emit error here. This will cause big problems for users
+        who use slave for fail-over. So until we fully implement WL#2897
+        "Complete definer support in the stored routines" we run suid
+        stored routines for which we were unable to find definer under
+        invoker security context.
+      */
       my_error(ER_NO_SUCH_USER, MYF(0), sp->m_definer_user.str,
                sp->m_definer_host.str);
       return TRUE;
+#else
+      return FALSE;
+#endif
     }
     *backup= thd->security_ctx;
     thd->security_ctx= &sp->m_security_ctx;

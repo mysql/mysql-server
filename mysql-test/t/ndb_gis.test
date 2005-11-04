@@ -1,0 +1,5 @@
+--source include/have_ndb.inc
+SET storage_engine=ndbcluster;
+--source include/gis_generic.inc
+set engine_condition_pushdown = on;
+--source include/gis_generic.inc

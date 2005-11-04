@@ -44,6 +44,8 @@
 */
 char internal_table_name[2]= "*";
 
+const char * const THD::DEFAULT_WHERE= "field list";
+
 
 /*****************************************************************************
 ** Instansiate templates
@@ -218,6 +220,7 @@ THD::THD()
 #ifndef EMBEDDED_LIBRARY
   net.vio=0;
 #endif
+  client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
   net.query_cache_query=0;                      // If error on boot
   ull=0;
@@ -233,7 +236,7 @@ THD::THD()
 
   /* Variables with default values */
   proc_info="login";
-  where="field list";
+  where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   slave_net = 0;
   command=COM_CONNECT;
@@ -544,6 +547,8 @@ void THD::cleanup_after_query()
   }
   /* Free Items that were created during this execution */
   free_items();
+  /* Reset where. */
+  where= THD::DEFAULT_WHERE;
 }
 
 /*
@@ -1703,15 +1708,19 @@ Statement_map::Statement_map() :
 
 int Statement_map::insert(Statement *statement)
 {
-  int rc= my_hash_insert(&st_hash, (byte *) statement);
+  int res= my_hash_insert(&st_hash, (byte *) statement);
+  if (res)
+    return res;
   if (statement->name.str)
   {
-    if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
+    if ((res= my_hash_insert(&names_hash, (byte*)statement)))
+    {
       hash_delete(&st_hash, (byte*)statement);
+      return res;
+    }
   }
-  if (rc == 0)
-    last_found_statement= statement;
-  return rc;
+  last_found_statement= statement;
+  return res;
 }
 
 

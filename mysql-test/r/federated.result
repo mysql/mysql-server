@@ -74,6 +74,12 @@ CREATE TABLE federated.t2 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SHOW CREATE TABLE federated.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(20) NOT NULL,
+  `name` varchar(32) NOT NULL default ''
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1'
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t2;
@@ -504,7 +510,7 @@ DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int NOT NULL auto_increment,
 `name` char(32) NOT NULL DEFAULT '',
-`bincol` binary(4) NOT NULL,
+`bincol` binary(1) NOT NULL,
 `floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
 `other` int NOT NULL DEFAULT 0,
 PRIMARY KEY (id),
@@ -515,7 +521,7 @@ DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int NOT NULL auto_increment,
 `name` char(32) NOT NULL DEFAULT '',
-`bincol` binary(4) NOT NULL,
+`bincol` binary(1) NOT NULL,
 `floatval` decimal(5,2) NOT NULL DEFAULT 0.0,
 `other` int NOT NULL DEFAULT 0,
 PRIMARY KEY (id),
@@ -1483,6 +1489,33 @@ id	name
 2	David
 DROP TABLE federated.alter_me;
 DROP TABLE federated.normal_table;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`bitty` bit(3)
+) DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+`bitty` bit(3)
+) ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+INSERT INTO federated.t1 VALUES (b'001');
+INSERT INTO federated.t1 VALUES (b'010');
+INSERT INTO federated.t1 VALUES (b'011');
+INSERT INTO federated.t1 VALUES (b'100');
+INSERT INTO federated.t1 VALUES (b'101');
+INSERT INTO federated.t1 VALUES (b'110');
+INSERT INTO federated.t1 VALUES (b'111');
+select * FROM federated.t1;
+bitty
+
+
+
+
+
+
+
+drop table federated.t1;
+drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

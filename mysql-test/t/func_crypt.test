@@ -49,4 +49,10 @@ select old_password(' i 	 d k f a ');
 
 explain extended select password('idkfa '), old_password('idkfa');
 
+#
+# Bug #13619: Crash on FreeBSD with salt like '_.'
+#
+--replace_column 1 #
+select encrypt('1234','_.');
+
 # End of 4.1 tests

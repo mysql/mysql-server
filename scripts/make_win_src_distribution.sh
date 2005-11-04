@@ -289,7 +289,7 @@ cd $SOURCE
 for i in COPYING ChangeLog README EXCEPTIONS-CLIENT\
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
-         Docs/INSTALL-BINARY
+         Docs/INSTALL-BINARY Docs/manual.chm
 do
   print_debug "Copying file '$i'"
   if [ -f $i ]

@@ -149,10 +149,18 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
 	    vio->sd);
 #if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
 #if !defined(NO_FCNTL_NONBLOCK)
-#if defined(__FreeBSD__)
-    fcntl(sd, F_SETFL, vio->fcntl_mode); /* Yahoo! FreeBSD patch */
-#endif
-    vio->fcntl_mode = fcntl(sd, F_GETFL);
+    /*
+      We call fcntl() to set the flags and then immediately read them back
+      to make sure that we and the system are in agreement on the state of
+      things.
+
+      An example of why we need to do this is FreeBSD (and apparently some
+      other BSD-derived systems, like Mac OS X), where the system sometimes
+      reports that the socket is set for non-blocking when it really will
+      block.
+    */
+    fcntl(sd, F_SETFL, 0);
+    vio->fcntl_mode= fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
     (void) ioctl(sd,FIOSNBIO,0);

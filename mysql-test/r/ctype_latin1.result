@@ -296,6 +296,9 @@ FD	C3BD	FD	1
 FE	C3BE	FE	1
 FF	C3BF	FF	1
 DROP TABLE t1;
+SELECT 1 as ƒ, 2 as Š, 3 as Œ, 4 as Ž, 5 as š, 6 as œ, 7 as ž, 8 as Ÿ;
+ƒ	Š	Œ	Ž	š	œ	ž	Ÿ
+1	2	3	4	5	6	7	8
 select 'a' regexp 'A' collate latin1_general_ci;
 'a' regexp 'A' collate latin1_general_ci
 1

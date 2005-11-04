@@ -137,6 +137,7 @@ public:
   virtual bool eq_def(Field *field);
   virtual uint32 pack_length() const { return (uint32) field_length; }
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
+  virtual uint32 sort_length() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
   virtual void set_default()
@@ -1065,6 +1066,11 @@ public:
   void reset(void) { bzero(ptr,field_length+length_bytes); }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
+  uint32 sort_length() const
+  {
+    return (uint32) field_length + (field_charset == &my_charset_bin ?
+                                    length_bytes : 0);
+  }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(longlong nr, bool unsigned_val);
   int  store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
@@ -1144,6 +1150,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->s->blob_ptr_size); }
+  uint32 sort_length() const;
   inline uint32 max_data_length() const
   {
     return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
@@ -1390,7 +1397,15 @@ public:
   LEX_STRING comment;			// Comment for field
   Item	*def;				// Default value
   enum	enum_field_types sql_type;
+  /*
+    At various stages in execution this can be length of field in bytes or
+    max number of characters. 
+  */
   ulong length;
+  /*
+    The value of 'length' before a call to create_length_to_internal_length
+  */
+  uint32 chars_length;
   uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use

@@ -404,4 +404,28 @@ delimiter ;//
 call t_sysdate();
 drop procedure t_sysdate;
 
+#
+# Bug #13534: timestampdiff() returned incorrect results across leap years
+#
+select timestampdiff(month,'2004-09-11','2004-09-11');
+select timestampdiff(month,'2004-09-11','2005-09-11');
+select timestampdiff(month,'2004-09-11','2006-09-11');
+select timestampdiff(month,'2004-09-11','2007-09-11');
+select timestampdiff(month,'2005-09-11','2004-09-11');
+select timestampdiff(month,'2005-09-11','2003-09-11');
+
+select timestampdiff(month,'2004-02-28','2005-02-28');
+select timestampdiff(month,'2004-02-29','2005-02-28');
+select timestampdiff(month,'2004-02-28','2005-02-28');
+select timestampdiff(month,'2004-03-29','2005-03-28');
+select timestampdiff(month,'2003-02-28','2004-02-29');
+select timestampdiff(month,'2003-02-28','2005-02-28');
+
+select timestampdiff(month,'1999-09-11','2001-10-10');
+select timestampdiff(month,'1999-09-11','2001-9-11');
+
+select timestampdiff(year,'1999-09-11','2001-9-11');
+select timestampdiff(year,'2004-02-28','2005-02-28');
+select timestampdiff(year,'2004-02-29','2005-02-28');
+
 # End of 5.0 tests

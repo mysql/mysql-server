@@ -537,6 +537,7 @@ public:
     { return is_time_format ? "time_format" : "date_format"; }
   void fix_length_and_dec();
   uint format_length(const String *format);
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
@@ -844,6 +845,7 @@ public:
   {
     decimals=0;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    maybe_null= 1;
   }
   Field *tmp_table_field(TABLE *t_arg)
   {

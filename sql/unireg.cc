@@ -76,6 +76,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		      uint keys, KEY *key_info,
 		      handler *db_file)
 {
+  LEX_STRING str_db_type;
   uint reclength,info_length,screens,key_info_length,maxlength;
   ulong key_buff_length;
   File file;
@@ -83,6 +84,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
+  char buff[2];
 #ifdef HAVE_PARTITION_DB
   partition_info *part_info= thd->lex->part_info;
 #endif
@@ -121,6 +123,12 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     }
   }
   reclength=uint2korr(forminfo+266);
+
+  /* Calculate extra data segment length */
+  str_db_type.str= (char *) ha_get_storage_engine(create_info->db_type);
+  str_db_type.length= strlen(str_db_type.str);
+  create_info->extra_size= (2 + str_db_type.length +
+                            2 + create_info->connect_string.length);
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -163,16 +171,19 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
-  if (create_info->connect_string.length)
-  {
-    char buff[2];
-    int2store(buff,create_info->connect_string.length);
-    if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
-        my_write(file, (const byte*)create_info->connect_string.str,
-                 create_info->connect_string.length, MYF(MY_NABP)))
-      goto err;
-  }
 
+  int2store(buff, create_info->connect_string.length);
+  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+      my_write(file, (const byte*)create_info->connect_string.str,
+               create_info->connect_string.length, MYF(MY_NABP)))
+      goto err;
+
+  int2store(buff, str_db_type.length);
+  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+      my_write(file, (const byte*)str_db_type.str,
+               str_db_type.length, MYF(MY_NABP)))
+    goto err;
+ 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
       my_write(file,(byte*) screen_buff,info_length,MYF_RW) ||
@@ -497,16 +508,10 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
           char *dst;
           uint length= field->interval->type_lengths[pos], hex_length;
           const char *src= field->interval->type_names[pos];
-          const char *srcend= src + length;
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
           field->interval->type_names[pos]= dst= sql_alloc(hex_length + 1);
-          for ( ; src < srcend; src++)
-          {
-            *dst++= _dig_vec_upper[((uchar) *src) >> 4];
-            *dst++= _dig_vec_upper[((uchar) *src) & 15];
-          }
-          *dst= '\0';
+          octet2hex(dst, src, length);
         }
       }
 

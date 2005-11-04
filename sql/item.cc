@@ -696,6 +696,32 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
+Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  if (const_item())
+  {
+    Item_string *conv;
+    uint cnv_errors;
+    char buf[MAX_FIELD_WIDTH];
+    String tmp(buf, sizeof(buf), &my_charset_bin);
+    String cstr, *ostr= val_str(&tmp);
+    /*
+      As safe_charset_converter is not executed for
+      a parameter bound to NULL, ostr should never be 0.
+    */
+    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                              cstr.charset(),
+                                              collation.derivation)))
+      return NULL;
+    conv->str_value.copy();
+    conv->str_value.mark_as_const();
+    return conv;
+  }
+  return NULL;
+}
+
+
 Item *Item_static_string_func::safe_charset_converter(CHARSET_INFO *tocs)
 {
   Item_string *conv;
@@ -729,7 +755,8 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   {
     if (binary_cmp)
       return !stringcmp(&str_value, &item->str_value);
-    return !sortcmp(&str_value, &item->str_value, collation.collation);
+    return (collation.collation == item->collation.collation &&
+	    !sortcmp(&str_value, &item->str_value, collation.collation));
   }
   return 0;
 }
@@ -817,9 +844,12 @@ String *Item_splocal::val_str(String *sp)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
-  String *ret= it->val_str(sp);
+  String *res= it->val_str(sp);
 
   null_value= it->null_value;
+  if (!res)
+    return NULL;
+
   /*
     This way we mark returned value of val_str as const,
     so that various functions (e.g. CONCAT) won't try to
@@ -836,12 +866,11 @@ String *Item_splocal::val_str(String *sp)
     Item_param class contain some more details on the topic.
   */
 
-  if (!ret)
-    return NULL;
-
-  str_value_ptr.set(ret->ptr(), ret->length(),
-                    ret->charset());
-  return &str_value_ptr;
+  if (res != &str_value)
+    str_value.set(res->ptr(), res->length(), res->charset());
+  else
+    res->mark_as_const();
+  return &str_value;
 }
 
 
@@ -858,17 +887,13 @@ my_decimal *Item_splocal::val_decimal(my_decimal *decimal_value)
 bool Item_splocal::is_null()
 {
   Item *it= this_item();
-  bool ret= it->is_null();
-  null_value= it->null_value;
-  return ret;
+  return it->is_null();
 }
 
 
 Item *
 Item_splocal::this_item()
 {
-  THD *thd= current_thd;
-
   return thd->spcont->get_item(m_offset);
 }
 
@@ -882,25 +907,23 @@ Item_splocal::this_item_addr(THD *thd, Item **addr)
 Item *
 Item_splocal::this_const_item() const
 {
-  THD *thd= current_thd;
-
   return thd->spcont->get_item(m_offset);
 }
 
 Item::Type
 Item_splocal::type() const
 {
-  THD *thd= current_thd;
-
-  if (thd->spcont)
+  if (thd && thd->spcont)
     return thd->spcont->get_item(m_offset)->type();
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 
 
-bool Item_splocal::fix_fields(THD *, Item **)
+bool Item_splocal::fix_fields(THD *thd_arg, Item **ref)
 {
-  Item *it= this_item();
+  Item *it;
+  thd= thd_arg;                 // Must be set before this_item()
+  it= this_item();
   DBUG_ASSERT(it->fixed);
   max_length= it->max_length;
   decimals= it->decimals;
@@ -928,6 +951,7 @@ void Item_splocal::print(String *str)
 /*****************************************************************************
   Item_name_const methods
 *****************************************************************************/
+
 double Item_name_const::val_real()
 {
   DBUG_ASSERT(fixed);
@@ -966,9 +990,7 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
 
 bool Item_name_const::is_null()
 {
-  bool ret= value_item->is_null();
-  null_value= value_item->null_value;
-  return ret;
+  return value_item->is_null();
 }
 
 Item::Type Item_name_const::type() const
@@ -977,7 +999,7 @@ Item::Type Item_name_const::type() const
 }
 
 
-bool Item_name_const::fix_fields(THD *thd, Item **)
+bool Item_name_const::fix_fields(THD *thd, Item **ref)
 {
   char buf[128];
   String *item_name;
@@ -1356,7 +1378,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (arena)
+    if (arena && arena->is_conventional())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
@@ -2783,7 +2805,7 @@ int Item_copy_string::save_in_field(Field *field, bool no_conversions)
 */
 
 /* ARGSUSED */
-bool Item::fix_fields(THD *thd, Item ** ref)
+bool Item::fix_fields(THD *thd, Item **ref)
 {
 
   // We do not check fields which are fixed during construction
@@ -3213,11 +3235,26 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                           context->last_name_resolution_table,
                                           reference,
                                           IGNORE_EXCEPT_NON_UNIQUE,
-                                          !any_privileges &&
-                                          context->check_privileges,
+                                          !any_privileges,
                                           TRUE)) ==
 	not_found_field)
     {
+
+      /* Look up in current select's item_list to find aliased fields */
+      if (thd->lex->current_select->is_item_list_lookup)
+      {
+        uint counter;
+        bool not_used;
+        Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
+                                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                                      &not_used);
+        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        {
+          set_field((*((Item_field**)res))->field);
+          return 0;
+        }
+      }
+
       /*
         If there are outer contexts (outer selects, but current select is
         not derived table or view) try to resolve this reference in the
@@ -3260,9 +3297,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                                 last_name_resolution_table,
                                               reference,
                                               IGNORE_EXCEPT_NON_UNIQUE,
-                                              outer_context->
-                                              check_privileges,
-                                              TRUE)) !=
+                                              TRUE, TRUE)) !=
             not_found_field)
         {
           if (from_field)
@@ -3337,7 +3372,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                                context->last_name_resolution_table,
                                reference, REPORT_ALL_ERRORS,
                                !any_privileges &&
-                               context->check_privileges, TRUE);
+                               TRUE, TRUE);
 	}
 	goto error;
       }
@@ -3412,7 +3447,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       We can leave expression substituted from view for next PS/SP rexecution
       (i.e. do not register this substitution for reverting on cleupup()
       (register_item_tree_changing())), because this subtree will be
-      fix_field'ed during setup_tables()->setup_ancestor() (i.e. before
+      fix_field'ed during setup_tables()->setup_underlying() (i.e. before
       all other expressions of query, and references on tables which do
       not present in query will not make problems.
 
@@ -4512,8 +4547,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                                              last_name_resolution_table,
                                            reference,
                                            IGNORE_EXCEPT_NON_UNIQUE,
-                                           outer_context->check_privileges,
-                                           TRUE);
+                                           TRUE, TRUE);
           if (! from_field)
             goto error;
           if (from_field == view_ref_found)
@@ -4638,7 +4672,7 @@ void Item_ref::cleanup()
 
 void Item_ref::print(String *str)
 {
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     Item_ident::print(str);
@@ -4770,8 +4804,7 @@ String *Item_ref::val_str(String* tmp)
 bool Item_ref::is_null()
 {
   DBUG_ASSERT(fixed);
-  (void) (*ref)->val_int_result();
-  return (*ref)->null_value;
+  return (*ref)->is_null();
 }
 
 
@@ -4825,7 +4858,7 @@ void Item_ref::make_field(Send_field *field)
 void Item_ref_null_helper::print(String *str)
 {
   str->append("<ref_null_helper>(", 18);
-  if (ref && *ref)
+  if (ref)
     (*ref)->print(str);
   else
     str->append('?');
@@ -5053,8 +5086,17 @@ bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 bool Item_insert_value::fix_fields(THD *thd, Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (!arg->fixed && arg->fix_fields(thd, &arg))
-    return TRUE;
+  /* We should only check that arg is in first table */
+  if (!arg->fixed)
+  {
+    bool res;
+    st_table_list *orig_next_table= context->last_name_resolution_table;
+    context->last_name_resolution_table= context->first_name_resolution_table;
+    res= arg->fix_fields(thd, &arg);
+    context->last_name_resolution_table= orig_next_table;
+    if (res)
+      return TRUE;
+  }
 
   if (arg->type() == REF_ITEM)
   {
@@ -5066,6 +5108,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     arg= ref->ref[0];
   }
   Item_field *field_arg= (Item_field *)arg;
+
   if (field_arg->field->table->insert_values)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
@@ -5126,7 +5169,7 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     set field_idx properly.
   */
   (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
-                            0, 0, &field_idx);
+                            0, 0, &field_idx, 0);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;
 }
@@ -5241,32 +5284,21 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   }
   case ROW_RESULT:
   {
+    Item_row *item_row= (Item_row*) item;
+    Item_row *comp_item_row= (Item_row*) comp_item;
+    uint col;
     new_item= 0;
     /*
       If item and comp_item are both Item_rows and have same number of cols
-      then process items in Item_row one by one. If Item_row contain nulls
-      substitute it by Item_null. Otherwise just return.
+      then process items in Item_row one by one.
+      We can't ignore NULL values here as this item may be used with <=>, in
+      which case NULL's are significant.
     */
-    if (item->result_type() == comp_item->result_type() &&
-        ((Item_row*)item)->cols() == ((Item_row*)comp_item)->cols())
-    {
-      Item_row *item_row= (Item_row*)item,*comp_item_row= (Item_row*)comp_item;
-      if (item_row->null_inside())
-        new_item= (Item*) new Item_null(name);
-      else
-      {
-        int i= item_row->cols() - 1;
-        for (; i >= 0; i--)
-        {
-          if (item_row->maybe_null && item_row->el(i)->is_null())
-          {
-            new_item= (Item*) new Item_null(name);
-            break;
-          }
-          resolve_const_item(thd, item_row->addr(i), comp_item_row->el(i));
-        }
-      }
-    }
+    DBUG_ASSERT(item->result_type() == comp_item->result_type());
+    DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
+    col= item_row->cols();
+    while (col-- > 0)
+      resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
     break;
   }
   case REAL_RESULT:
@@ -5721,6 +5753,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint max_length_orig= max_length;
+  uint decimals_orig= decimals;
   DBUG_ENTER("Item_type_holder::join_types");
   DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
                        fld_type, max_length, decimals,
@@ -5747,7 +5781,10 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   else
     max_length= max(max_length, display_length(item));
-  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+ 
+  switch (Field::result_merge_type(fld_type))
+  {
+  case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
     old_cs= collation.collation->name;
@@ -5761,7 +5798,23 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       DBUG_RETURN(TRUE);
     }
+    break;
   }
+  case REAL_RESULT:
+  {
+    if (decimals != NOT_FIXED_DEC)
+    {
+      int delta1= max_length_orig - decimals_orig;
+      int delta2= item->max_length - item->decimals;
+      max_length= min(max(delta1, delta2) + decimals,
+                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+    }
+    else
+      max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
+    break;
+  }
+  default:;
+  };
   maybe_null|= item->maybe_null;
   get_full_info(item);
 

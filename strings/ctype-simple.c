@@ -904,7 +904,7 @@ int my_longlong10_to_str_8bit(CHARSET_INFO *cs __attribute__((unused)),
   while (long_val != 0)
   {
     long quo= long_val/10;
-    *--p = '0' + (char)(long_val - quo*10);
+    *--p = (char) ('0' + (long_val - quo*10));
     long_val= quo;
   }
   
@@ -1316,6 +1316,7 @@ static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(uint))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
+  cs->pad_char= ' ';
   return create_fromuni(cs, alloc);
 }
 

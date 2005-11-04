@@ -1044,3 +1044,25 @@ drop procedure wg2;
 #
 
 select cast(@non_existing_user_var/2 as DECIMAL);
+
+#
+# Bug #13667 (Inconsistency for decimal(m,d) specification
+#
+--error 1427
+create table t (d decimal(0,10));
+
+#
+# Bug #13573 (Wrong data inserted for too big values)
+#
+
+create table t1 (c1 decimal(64));
+--disable_ps_protocol
+insert into t1 values(
+89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
+insert into t1 values(
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
+99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
+--enable_ps_protocol
+insert into t1 values(1e100);
+select * from t1;
+drop table t1;

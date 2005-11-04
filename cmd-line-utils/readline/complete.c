@@ -21,7 +21,7 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#ifndef _XOPEN_SOURCE
+#if !defined(_XOPEN_SOURCE) && !defined(__FreeBSD__)
 #define _XOPEN_SOURCE 500
 #endif
 

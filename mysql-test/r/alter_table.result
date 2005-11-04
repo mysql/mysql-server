@@ -436,7 +436,7 @@ alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
 ÔÅÓÔ	F2E5F1F2
-alter table t1 change a a binary(10);
+alter table t1 change a a binary(4);
 select a,hex(a) from t1;
 a	hex(a)
 òåñò	F2E5F1F2
@@ -541,16 +541,16 @@ create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
 ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
 drop table t1;
-create database mysqltest1;
+create database mysqltest;
 create table t1 (c1 int);
-alter table t1 rename mysqltest1.t1;
+alter table t1 rename mysqltest.t1;
 drop table t1;
 ERROR 42S02: Unknown table 't1'
-alter table mysqltest1.t1 rename t1;
+alter table mysqltest.t1 rename t1;
 drop table t1;
 create table t1 (c1 int);
-use mysqltest1;
-drop database mysqltest1;
+use mysqltest;
+drop database mysqltest;
 alter table test.t1 rename t1;
 ERROR 3D000: No database selected
 alter table test.t1 rename test.t1;

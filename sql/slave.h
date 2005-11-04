@@ -304,6 +304,17 @@ typedef struct st_relay_log_info
   */
   ulong trans_retries, retried_trans;
 
+  /*
+    If the end of the hot relay log is made of master's events ignored by the
+    slave I/O thread, these two keep track of the coords (in the master's
+    binlog) of the last of these events seen by the slave I/O thread. If not,
+    ign_master_log_name_end[0] == 0.
+    As they are like a Rotate event read/written from/to the relay log, they
+    are both protected by rli->relay_log.LOCK_log.
+  */
+  char ign_master_log_name_end[FN_REFLEN];
+  ulonglong ign_master_log_pos_end;
+
   st_relay_log_info();
   ~st_relay_log_info();
 

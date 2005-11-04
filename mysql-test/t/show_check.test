@@ -386,6 +386,19 @@ create table t1 (
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+# Test for BUG#93: 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
+
+flush tables;
+
+# Create a junk frm file on disk
+system echo "this is a junk file for test" >> var/master-data/test/t1.frm ;
+--replace_column 6 # 7 # 8 # 9 #
+SHOW TABLE STATUS like 't1';
+--error 1033
+show create table t1;
+drop table t1;
+
+
 # End of 4.1 tests
 #
 # BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar

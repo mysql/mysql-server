@@ -1,9 +1,0 @@
-include ..\include\makefile.i
-
-thr.lib: thr0loc.obj
-	lib -out:..\libs\thr.lib thr0loc.obj
-
-thr0loc.obj: thr0loc.c
-	$(CCOM) $(CFL) -c thr0loc.c
-
-

@@ -148,7 +148,7 @@ SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 
 
-ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL default '';
+ALTER TABLE t1 ADD bin_f CHAR(1) BYTE NOT NULL default '';
 UPDATE t1 SET bin_f=koi8_ru_f;
 SELECT COUNT(DISTINCT bin_f),COUNT(DISTINCT koi8_ru_f),COUNT(DISTINCT utf8_f) FROM t1;
 
@@ -204,7 +204,7 @@ UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE
 UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
 UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
-SELECT * FROM t1;
+SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 SET CHARACTER SET 'binary';
 SELECT * FROM t1;
 SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;

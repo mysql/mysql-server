@@ -1823,11 +1823,14 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
 /*******************************/
 /* DISCONNECT_REP             */
 /*******************************/
+const char *lookupConnectionError(Uint32 err);
+
 void Qmgr::execDISCONNECT_REP(Signal* signal) 
 {
   jamEntry();
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 nodeId = rep->nodeId;
+  const Uint32 err = rep->err;
   c_connectedNodes.clear(nodeId);
 
   NodeRecPtr nodePtr;
@@ -1838,10 +1841,17 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     jam();
     break;
   case ZINIT:
+    ndbrequire(false);
   case ZSTARTING:
+    progError(__LINE__, NDBD_EXIT_CONNECTION_SETUP_FAILED,
+	      lookupConnectionError(err));
+    ndbrequire(false);
   case ZPREPARE_FAIL:
+    ndbrequire(false);
   case ZFAIL_CLOSING:
+    ndbrequire(false);
   case ZAPI_ACTIVE:
+    ndbrequire(false);
   case ZAPI_INACTIVE:
     ndbrequire(false);
   }

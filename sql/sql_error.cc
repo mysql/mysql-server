@@ -144,6 +144,8 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
                                  thd->really_abort_on_warning()) ?
                                 MYSQL_ERROR::WARN_LEVEL_ERROR : level))
   {
+    if (! thd->spcont->found_handler_here())
+      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_RETURN(NULL);
   }
   query_cache_abort(&thd->net);

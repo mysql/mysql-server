@@ -21,7 +21,7 @@ instance_name	status	version
 mysqld2	online	VERSION
 SHOW VARIABLES LIKE 'port';
 Variable_name	Value
-port	9312
+port	IM_MYSQLD1_PORT
 STOP INSTANCE mysqld2;
 SHOW INSTANCES;
 instance_name	status

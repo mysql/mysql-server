@@ -932,7 +932,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   THD *thd= current_thd;
-  if (!(file= get_new_handler(head, head->s->db_type)))
+  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
   if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
@@ -1362,6 +1362,95 @@ SEL_ARG *SEL_ARG::clone_tree()
   if (root)					// If not OOM
     root->use_count= 0;
   return root;
+}
+
+
+/*
+  Find the best index to retrieve first N records in given order
+
+  SYNOPSIS
+    get_index_for_order()
+      table  Table to be accessed
+      order  Required ordering
+      limit  Number of records that will be retrieved
+
+  DESCRIPTION
+    Find the best index that allows to retrieve first #limit records in the 
+    given order cheaper then one would retrieve them using full table scan.
+
+  IMPLEMENTATION
+    Run through all table indexes and find the shortest index that allows
+    records to be retrieved in given order. We look for the shortest index
+    as we will have fewer index pages to read with it.
+
+    This function is used only by UPDATE/DELETE, so we take into account how
+    the UPDATE/DELETE code will work:
+     * index can only be scanned in forward direction
+     * HA_EXTRA_KEYREAD will not be used
+    Perhaps these assumptions could be relaxed
+
+  RETURN
+    index number
+    MAX_KEY if no such index was found.
+*/
+
+uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit)
+{
+  uint idx;
+  uint match_key= MAX_KEY, match_key_len= MAX_KEY_LENGTH + 1;
+  ORDER *ord;
+  
+  for (ord= order; ord; ord= ord->next)
+    if (!ord->asc)
+      return MAX_KEY;
+
+  for (idx= 0; idx < table->s->keys; idx++)
+  {
+    if (!(table->keys_in_use_for_query.is_set(idx)))
+      continue;
+    KEY_PART_INFO *keyinfo= table->key_info[idx].key_part;
+    uint partno= 0;
+    
+    /* 
+      The below check is sufficient considering we now have either BTREE 
+      indexes (records are returned in order for any index prefix) or HASH 
+      indexes (records are not returned in order for any index prefix).
+    */
+    if (!(table->file->index_flags(idx, 0, 1) & HA_READ_ORDER))
+      continue;
+    for (ord= order; ord; ord= ord->next, partno++)
+    {
+      Item *item= order->item[0];
+      if (!(item->type() == Item::FIELD_ITEM &&
+           ((Item_field*)item)->field->eq(keyinfo[partno].field)))
+        break;
+    }
+    
+    if (!ord && table->key_info[idx].key_length < match_key_len)
+    {
+      /* 
+        Ok, the ordering is compatible and this key is shorter then
+        previous match (we want shorter keys as we'll have to read fewer
+        index pages for the same number of records)
+      */
+      match_key= idx;
+      match_key_len= table->key_info[idx].key_length;
+    }
+  }
+
+  if (match_key != MAX_KEY)
+  {
+    /* 
+      Found an index that allows records to be retrieved in the requested 
+      order. Now we'll check if using the index is cheaper then doing a table
+      scan.
+    */
+    double full_scan_time= table->file->scan_time();
+    double index_scan_time= table->file->read_time(match_key, 1, limit);
+    if (index_scan_time > full_scan_time)
+      match_key= MAX_KEY;
+  }
+  return match_key;
 }
 
 
@@ -3692,6 +3781,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   char *str;
+  ulong orig_sql_mode;
   DBUG_ENTER("get_mm_leaf");
 
   /*
@@ -3837,13 +3927,20 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
     goto end;
-
+  /* For comparison purposes allow invalid dates like 2000-01-32 */
+  orig_sql_mode= field->table->in_use->variables.sql_mode;
+  if (value->real_item()->type() == Item::STRING_ITEM &&
+      (field->type() == FIELD_TYPE_DATE ||
+       field->type() == FIELD_TYPE_DATETIME))
+    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   if (value->save_in_field_no_warnings(field, 1) < 0)
   {
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
+  field->table->in_use->variables.sql_mode= orig_sql_mode;
   str= (char*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -7045,19 +7142,15 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         */
         if (thd->query_id == cur_field->query_id)
         {
-          bool is_covered= FALSE;
           KEY_PART_INFO *key_part= cur_index_info->key_part;
           KEY_PART_INFO *key_part_end= key_part + cur_index_info->key_parts;
-          for (; key_part != key_part_end ; key_part++)
+          for (;;)
           {
             if (key_part->field == cur_field)
-            {
-              is_covered= TRUE;
               break;
-            }
+            if (++key_part == key_part_end)
+              goto next_index;                  // Field was not part of key
           }
-          if (!is_covered)
-            goto next_index;
         }
       }
     }

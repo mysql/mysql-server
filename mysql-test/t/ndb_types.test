@@ -12,7 +12,7 @@ CREATE TABLE t1 (
   auto int(5) unsigned NOT NULL auto_increment,
   string char(10) default "hello",
   vstring varchar(10) default "hello",
-  bin binary(7),
+  bin binary(2),
   vbin varbinary(7),
   tiny tinyint(4) DEFAULT '0' NOT NULL ,
   short smallint(6) DEFAULT '1' NOT NULL ,

@@ -77,7 +77,6 @@
 #define PAD_SIZE	128
 #define MAX_CONS	128
 #define MAX_INCLUDE_DEPTH 16
-#define LAZY_GUESS_BUF_SIZE 8192
 #define INIT_Q_LINES	  1024
 #define MIN_VAR_ALLOC	  32
 #define BLOCK_STACK_DEPTH  32
@@ -143,7 +142,8 @@ typedef struct
   long        code;
 } st_error;
 
-static st_error global_error[] = {
+static st_error global_error[] =
+{
 #include <mysqld_ername.h>
   { 0, 0 }
 };
@@ -218,7 +218,8 @@ static int ps_match_re(char *);
 static char *ps_eprint(int);
 static void ps_free_reg(void);
 
-static const char *embedded_server_groups[] = {
+static const char *embedded_server_groups[]=
+{
   "server",
   "embedded",
   "mysqltest_SERVER",
@@ -735,9 +736,7 @@ err:
 static int check_result(DYNAMIC_STRING* ds, const char *fname,
 			my_bool require_option)
 {
-  int error= RESULT_OK;
   int res= dyn_string_cmp(ds, fname);
-
   DBUG_ENTER("check_result");
 
   if (res && require_option)
@@ -747,18 +746,16 @@ static int check_result(DYNAMIC_STRING* ds, const char *fname,
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
     verbose_msg("Result length mismatch");
-    error= RESULT_LENGTH_MISMATCH;
     break;
   case RESULT_CONTENT_MISMATCH:
     verbose_msg("Result content mismatch");
-    error= RESULT_CONTENT_MISMATCH;
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
   }
-  if (error)
+  if (res != RESULT_OK)
     reject_dump(fname, ds->str, ds->length);
-  DBUG_RETURN(error);
+  DBUG_RETURN(res);
 }
 
 
@@ -1286,7 +1283,7 @@ int do_modify_var(struct st_query *query, const char *name,
   if (*p != '$')
     die("First argument to %s must be a variable (start with $)", name);
   v= var_get(p, &p, 1, 0);
-  switch (operator){
+  switch (operator) {
   case DO_DEC:
     v->int_val--;
     break;
@@ -1839,23 +1836,28 @@ void free_replace()
   DBUG_VOID_RETURN;
 }
 
-
-int select_connection_name(const char *name)
+struct connection * find_connection_by_name(const char *name)
 {
   struct connection *con;
-  DBUG_ENTER("select_connection2");
-  DBUG_PRINT("enter",("name: '%s'", name));
-
   for (con= cons; con < next_con; con++)
   {
     if (!strcmp(con->name, name))
     {
-      cur_con= con;
-      DBUG_RETURN(0);
+      return con;
     }
   }
-  die("connection '%s' not found in connection pool", name);
-  DBUG_RETURN(1);				/* Never reached */
+  return 0; /* Connection not found */
+}
+
+
+int select_connection_name(const char *name)
+{
+  DBUG_ENTER("select_connection2");
+  DBUG_PRINT("enter",("name: '%s'", name));
+
+  if (!(cur_con= find_connection_by_name(name)))
+    die("connection '%s' not found in connection pool", name);
+  DBUG_RETURN(0);
 }
 
 
@@ -1885,7 +1887,7 @@ int close_connection(struct st_query *q)
   DBUG_PRINT("enter",("name: '%s'",p));
 
   if (!*p)
-    die("Missing connection name in connect");
+    die("Missing connection name in disconnect");
   name= p;
   while (*p && !my_isspace(charset_info,*p))
     p++;
@@ -1908,6 +1910,14 @@ int close_connection(struct st_query *q)
       }
 #endif
       mysql_close(&con->mysql);
+      my_free(con->name, MYF(0));
+      /*
+         When the connection is closed set name to "closed_connection"
+         to make it possible to reuse the connection name.
+         The connection slot will not be reused
+       */
+      if (!(con->name = my_strdup("closed_connection", MYF(MY_WME))))
+        die("Out of memory");
       DBUG_RETURN(0);
     }
   }
@@ -1921,20 +1931,35 @@ int close_connection(struct st_query *q)
    future to handle quotes. For now we assume that anything that is not
    a comma, a space or ) belongs to the argument. space is a chopper, comma or
    ) are delimiters/terminators
+
+  SYNOPSIS
+  safe_get_param
+  str - string to get param from
+  arg - pointer to string where result will be stored 
+  msg - Message to display if param is not found
+       if msg is 0 this param is not required and param may be empty
+  
+  RETURNS
+  pointer to str after param
+  
 */
 
 char* safe_get_param(char *str, char** arg, const char *msg)
 {
   DBUG_ENTER("safe_get_param");
+  if(!*str)
+  {
+    if (msg) 
+      die(msg);
+    *arg= str;
+    DBUG_RETURN(str);
+  }
   while (*str && my_isspace(charset_info,*str))
     str++;
   *arg= str;
-  for (; *str && *str != ',' && *str != ')' ; str++)
-  {
-    if (my_isspace(charset_info,*str))
-      *str= 0;
-  }
-  if (!*str)
+  while (*str && *str != ',' && *str != ')')
+    str++;
+  if (msg && !*arg)
     die(msg);
 
   *str++= 0;
@@ -2119,71 +2144,137 @@ err:
 }
 
 
+/*
+  Open a new connection to MySQL Server with the parameters
+  specified
+
+  SYNOPSIS
+   do_connect()
+    q	       called command
+
+  DESCRIPTION
+    connect(<name>,<host>,<user>,<pass>,<db>,[<port>,<sock>[<opts>]]);
+
+      <name> - name of the new connection
+      <host> - hostname of server
+      <user> - user to connect as
+      <pass> - password used when connecting
+      <db>   - initial db when connected
+      <port> - server port
+      <sock> - server socket
+      <opts> - options to use for the connection
+               SSL - use SSL if available
+               COMPRESS - use compression if available
+
+ */
+
 int do_connect(struct st_query *q)
 {
   char *con_name, *con_user,*con_pass, *con_host, *con_port_str,
-    *con_db, *con_sock;
-  char *p= q->first_argument;
+    *con_db, *con_sock, *con_options;
+  char *con_buf, *p;
   char buff[FN_REFLEN];
   int con_port;
+  bool con_ssl= 0;
+  bool con_compress= 0;
   int free_con_sock= 0;
   int error= 0;
   int create_conn= 1;
+  VAR *var_port, *var_sock;
 
   DBUG_ENTER("do_connect");
-  DBUG_PRINT("enter",("connect: %s",p));
+  DBUG_PRINT("enter",("connect: %s", q->first_argument));
+
+  /* Make a copy of query before parsing, safe_get_param will modify */
+  if (!(con_buf= my_strdup(q->first_argument, MYF(MY_WME))))
+    die("Could not allocate con_buf");
+  p= con_buf;
 
   if (*p != '(')
     die("Syntax error in connect - expected '(' found '%c'", *p);
   p++;
-  p= safe_get_param(p, &con_name, "missing connection name");
-  p= safe_get_param(p, &con_host, "missing connection host");
-  p= safe_get_param(p, &con_user, "missing connection user");
-  p= safe_get_param(p, &con_pass, "missing connection password");
-  p= safe_get_param(p, &con_db, "missing connection db");
-  if (!*p || *p == ';')				/* Default port and sock */
+  p= safe_get_param(p, &con_name, "Missing connection name");
+  p= safe_get_param(p, &con_host, "Missing connection host");
+  p= safe_get_param(p, &con_user, "Missing connection user");
+  p= safe_get_param(p, &con_pass, "Missing connection password");
+  p= safe_get_param(p, &con_db, "Missing connection db");
+
+  /* Port */
+  p= safe_get_param(p, &con_port_str, 0);
+  if (*con_port_str)
   {
-    con_port= port;
-    con_sock= (char*) unix_sock;
-  }
-  else
-  {
-    VAR* var_port, *var_sock;
-    p= safe_get_param(p, &con_port_str, "missing connection port");
     if (*con_port_str == '$')
     {
       if (!(var_port= var_get(con_port_str, 0, 0, 0)))
-	die("Unknown variable '%s'", con_port_str+1);
+        die("Unknown variable '%s'", con_port_str+1);
       con_port= var_port->int_val;
     }
     else
+    {
       con_port= atoi(con_port_str);
-    p= safe_get_param(p, &con_sock, "missing connection socket");
+      if (con_port == 0)
+        die("Illegal argument for port: '%s'", con_port_str);
+    }
+  }
+  else
+  {
+    con_port= port;
+  }
+
+  /* Sock */
+  p= safe_get_param(p, &con_sock, 0);
+  if (*con_sock)
+  {
     if (*con_sock == '$')
     {
       if (!(var_sock= var_get(con_sock, 0, 0, 0)))
-	die("Unknown variable '%s'", con_sock+1);
+        die("Unknown variable '%s'", con_sock+1);
       if (!(con_sock= (char*)my_malloc(var_sock->str_val_len+1, MYF(0))))
-	die("Out of memory");
+        die("Out of memory");
       free_con_sock= 1;
       memcpy(con_sock, var_sock->str_val, var_sock->str_val_len);
       con_sock[var_sock->str_val_len]= 0;
     }
   }
-  q->last_argument= p;
+  else
+  {
+    con_sock= (char*) unix_sock;
+  }
+
+  /* Options */
+  p= safe_get_param(p, &con_options, 0);
+  while (*con_options)
+  {
+    char* str= con_options;
+    while (*str && !my_isspace(charset_info, *str))
+      str++;
+    *str++= 0;
+    if (!strcmp(con_options, "SSL"))
+      con_ssl= 1;
+    else if (!strcmp(con_options, "COMPRESS"))
+      con_compress= 1;
+    else
+      die("Illegal option to connect: %s", con_options);
+    con_options= str;
+  }
+  /* Note: 'p' is pointing into the copy 'con_buf' */
+  q->last_argument= q->first_argument + (p - con_buf);
 
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
+  if (find_connection_by_name(con_name))
+    die("Connection %s already exists", con_name);
+
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
-  if (opt_compress)
+  if (opt_compress || con_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
   mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
+  if (opt_use_ssl || con_ssl)
     mysql_ssl_set(&next_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
@@ -2214,6 +2305,7 @@ int do_connect(struct st_query *q)
   }
   if (free_con_sock)
     my_free(con_sock, MYF(MY_WME));
+  my_free(con_buf, MYF(MY_WME));
   DBUG_RETURN(error);
 }
 
@@ -3524,18 +3616,23 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
         /* Read result from each column */
         for (col_idx= 0; col_idx < num_fields; col_idx++)
         {
-          /* FIXME is string terminated? */
-          const char *val= (const char *)bind[col_idx].buffer;
-          ulonglong len= *bind[col_idx].length;
+          const char *val;
+          ulonglong len;
           if (col_idx < max_replace_column && replace_column[col_idx])
           {
             val= replace_column[col_idx];
             len= strlen(val);
           }
-          if (*bind[col_idx].is_null)
+          else if (*bind[col_idx].is_null)
           {
             val= "NULL";
             len= 4;
+          }
+          else
+          {
+            /* FIXME is string terminated? */
+            val= (const char *) bind[col_idx].buffer;
+            len= *bind[col_idx].length;
           }
           if (!display_result_vertically)
           {

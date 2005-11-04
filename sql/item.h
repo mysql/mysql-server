@@ -294,15 +294,15 @@ struct Name_resolution_context: Sql_alloc
   bool resolve_in_select_list;
 
   /*
-    When FALSE we do not check columns right of resolving items, used to
-    prevent rights check on underlying tables of view
+    Security context of this name resolution context. It's used for views
+    and is non-zero only if the view is defined with SQL SECURITY DEFINER.
   */
-  bool check_privileges;
+  Security_context *security_ctx;
 
   Name_resolution_context()
     :outer_context(0), table_list(0), select_lex(0),
     error_processor_data(0),
-    check_privileges(TRUE)
+    security_ctx(0)
     {}
 
   void init()
@@ -526,6 +526,7 @@ public:
   double val_real_from_decimal();
 
   virtual Field *get_tmp_table_field() { return 0; }
+  /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
 
@@ -721,13 +722,7 @@ class Item_splocal : public Item
 
 public:
   LEX_STRING m_name;
-
-  /*
-    Buffer, pointing to the string value of the item. We need it to
-    protect internal buffer from changes. See comment to analogous
-    member in Item_param for more details.
-  */
-  String str_value_ptr;
+  THD	     *thd;
 
   /* 
     Position of this reference to SP variable in the statement (the
@@ -739,10 +734,10 @@ public:
     Value of 0 means that this object doesn't corresponding to reference to
     SP variable in query text.
   */
-  int pos_in_query;
+  uint pos_in_query;
 
-  Item_splocal(LEX_STRING name, uint offset, int pos_in_q=0)
-    : m_offset(offset), m_name(name), pos_in_query(pos_in_q)
+  Item_splocal(LEX_STRING name, uint offset, uint pos_in_q=0)
+    : m_offset(offset), m_name(name), thd(0), pos_in_query(pos_in_q)
   {
     maybe_null= TRUE;
   }
@@ -1200,6 +1195,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   Item *new_item();
   /*
     Implement by-value equality evaluation if parameter value
@@ -1337,6 +1333,14 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
+    if (value <= (double) LONGLONG_MIN)
+    {
+       return LONGLONG_MIN;
+    }
+    else if (value >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      return LONGLONG_MAX;
+    }
     return (longlong) (value+(value > 0 ? 0.5 : -0.5));
   }
   String *val_str(String*);
@@ -1622,7 +1626,7 @@ public:
   }
   Item *real_item()
   {
-    return (ref && *ref) ? (*ref)->real_item() : this;
+    return ref ? (*ref)->real_item() : this;
   }
   bool walk(Item_processor processor, byte *arg)
   { return (*ref)->walk(processor, arg); }
@@ -1746,6 +1750,7 @@ public:
     return ref->save_in_field(field, no_conversions);
   }
   Item *new_item();
+  virtual Item *real_item() { return ref; }
 };
 
 

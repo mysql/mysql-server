@@ -34,8 +34,8 @@
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
-#include <Base64.hpp>
 
+#include <base64.h>
 
 #define MGM_CMD(name, fun, desc) \
  { name, \
@@ -1770,11 +1770,15 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
     } while(start < len);
     if(buf64 == 0)
       break;
-    
+
+    void *tmp_data = malloc(base64_needed_decoded_length((size_t) (len - 1)));
+    const int res = base64_decode(buf64, len-1, tmp_data);
+    delete[] buf64;
     UtilBuffer tmp;
-    const int res = base64_decode(buf64, len-1, tmp);
-    delete[] buf64; 
-    if(res != 0){
+    tmp.append((void *) tmp_data, res);
+    free(tmp_data);
+    if (res < 0)
+    {
       fprintf(handle->errstream, "Failed to decode buffer\n");
       break;
     }

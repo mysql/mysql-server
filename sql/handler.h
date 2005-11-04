@@ -664,6 +664,7 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;
+  uint extra_size;                      /* length of extra data segment */
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
@@ -1389,7 +1390,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
-handler *get_new_handler(TABLE *table, enum db_type db_type);
+handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type);
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error);
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);
