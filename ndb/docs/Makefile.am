@@ -1,14 +1,12 @@
 DOXYDIR = doxygen
 noinst_HEADERS = $(DOXYDIR)/predoxy.pl $(DOXYDIR)/postdoxy.pl $(DOXYDIR)/Doxyfile.ndbapi $(DOXYDIR)/Doxyfile.mgmapi $(DOXYDIR)/header.ndbapi.tex $(DOXYDIR)/header.mgmapi.tex
 
-all: 	do-check ndbapidoc mgmapidoc
-
 DOXYTMP =	.doxytmp
 DOXYOUT =	.doxyout
 
 NDB_RELEASE = @NDB_VERSION_MAJOR@.@NDB_VERSION_MINOR@.@NDB_VERSION_BUILD@-@NDB_VERSION_STATUS@
 
-clean:
+clean-local:
 	rm -rf ndbapi.pdf ndbapi.html mgmapi.pdf mgmapi.html
 	rm -rf $(DOXYTMP) $(DOXYOUT)
 
