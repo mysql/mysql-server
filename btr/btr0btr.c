@@ -1101,7 +1101,8 @@ btr_root_raise_and_insert(
 
 	btr_set_min_rec_mark(node_ptr_rec, NULL, mtr);
 		
-	if (!UNIV_UNLIKELY(page_zip_compress(page_zip, root))) {
+	if (UNIV_LIKELY_NULL(page_zip)
+	    && !UNIV_UNLIKELY(page_zip_compress(page_zip, root))) {
 		/* The root page should only contain the
 		node pointer to new_page at this point.
 		Thus, the data should fit. */

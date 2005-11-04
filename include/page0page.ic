@@ -653,7 +653,12 @@ page_rec_set_next(
 	ut_ad(!next || ut_align_down(rec, UNIV_PAGE_SIZE)
 			== ut_align_down(next, UNIV_PAGE_SIZE));
 
-	offs = ut_align_offset(next, UNIV_PAGE_SIZE);
+	if (UNIV_LIKELY(next != NULL)) {
+		offs = ut_align_offset(next, UNIV_PAGE_SIZE);
+	} else {
+		offs = 0;
+	}
+
 	if (page_rec_is_comp(rec)) {
 		rec_set_next_offs_new(rec, page_zip, offs);
 	} else {

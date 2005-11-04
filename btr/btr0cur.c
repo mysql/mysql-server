@@ -1518,8 +1518,10 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	page_zip = buf_block_get_page_zip(block);
-	if (UNIV_UNLIKELY(!page_zip_alloc(page_zip, buf_block_get_frame(block),
-					  4 + rec_offs_size(offsets)))) {
+	if (UNIV_LIKELY_NULL(page_zip)
+	    && UNIV_UNLIKELY(!page_zip_alloc(page_zip,
+					buf_block_get_frame(block),
+					4 + rec_offs_size(offsets)))) {
 		return(DB_OVERFLOW);
 	}
 
