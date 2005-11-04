@@ -1244,7 +1244,7 @@ page_copy_rec_list_end_to_created_page(
 
 			slot = page_dir_get_nth_slot(new_page, slot_index);
 
-			page_dir_slot_set_rec(slot, insert_rec);
+			page_dir_slot_set_rec(slot, NULL, insert_rec);
 			page_dir_slot_set_n_owned(slot, NULL, count);
 
 			count = 0;
@@ -1297,7 +1297,7 @@ page_copy_rec_list_end_to_created_page(
 
 	slot = page_dir_get_nth_slot(new_page, 1 + slot_index);
 
-	page_dir_slot_set_rec(slot, page_get_supremum_rec(new_page));
+	page_dir_slot_set_rec(slot, NULL, page_get_supremum_rec(new_page));
 	page_dir_slot_set_n_owned(slot, NULL, count + 1);
 
 	page_dir_set_n_slots(new_page, NULL, 2 + slot_index);
@@ -1482,7 +1482,7 @@ page_cur_delete_rec(
 	ut_ad(cur_n_owned > 1);
 
 	if (current_rec == page_dir_slot_get_rec(cur_dir_slot)) {
-		page_dir_slot_set_rec(cur_dir_slot, prev_rec);
+		page_dir_slot_set_rec(cur_dir_slot, page_zip, prev_rec);
 	}
 	
 	/* 5. Update the number of owned records of the slot */

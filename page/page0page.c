@@ -485,10 +485,10 @@ page_create(
 	/* Set the slots to point to infimum and supremum. */
 
 	slot = page_dir_get_nth_slot(page, 0);
-	page_dir_slot_set_rec(slot, infimum_rec);
+	page_dir_slot_set_rec(slot, NULL, infimum_rec);
 
 	slot = page_dir_get_nth_slot(page, 1);
-	page_dir_slot_set_rec(slot, supremum_rec);
+	page_dir_slot_set_rec(slot, NULL, supremum_rec);
 
 	/* Set the next pointers in infimum and supremum */
 
@@ -928,7 +928,8 @@ page_delete_rec_list_end(
 	slot_index = page_dir_find_owner_slot(rec2);
 	slot = page_dir_get_nth_slot(page, slot_index);
 	
-	page_dir_slot_set_rec(slot, page_get_supremum_rec(page));
+	page_dir_slot_set_rec(slot, page_zip_temp,
+			page_get_supremum_rec(page));
 	page_dir_slot_set_n_owned(slot, page_zip_temp, n_owned);
 
 	page_dir_set_n_slots(page, page_zip_temp, slot_index + 1);
@@ -1119,7 +1120,8 @@ page_dir_delete_slot(
 	for (i = slot_no + 1; i < n_slots; i++) {
 		rec_t*	rec;
 		rec = page_dir_slot_get_rec(page_dir_get_nth_slot(page, i));
-		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i), rec);
+		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i),
+				page_zip, rec);
 	}
 
 	/* 4. Update the page header */
@@ -1163,14 +1165,7 @@ page_dir_add_slots(
 		rec = page_dir_slot_get_rec(slot);
 
 		slot = page_dir_get_nth_slot(page, i + n);
-		page_dir_slot_set_rec(slot, rec);
-	}
-
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* TODO: test this */
-		page_zip_write_trailer(page_zip,
-				page_dir_get_nth_slot(page, n_slots + n - 1),
-				(n_slots + n - start) * PAGE_DIR_SLOT_SIZE);
+		page_dir_slot_set_rec(slot, page_zip, rec);
 	}
 }
 
@@ -1227,7 +1222,7 @@ page_dir_split_slot(
 
 	/* 3. We store the appropriate values to the new slot. */
 	
-	page_dir_slot_set_rec(new_slot, rec);
+	page_dir_slot_set_rec(new_slot, page_zip, rec);
 	page_dir_slot_set_n_owned(new_slot, page_zip, n_owned / 2);
 	
 	/* 4. Finally, we update the number of records field of the 
@@ -1293,13 +1288,13 @@ page_dir_balance_slot(
 		
 			rec_set_n_owned_new(old_rec, page_zip, 0);
 			rec_set_n_owned_new(new_rec, page_zip, n_owned + 1);
-			page_dir_slot_set_rec(slot, new_rec);
+			page_dir_slot_set_rec(slot, page_zip, new_rec);
 		} else {
 			new_rec = rec_get_next_ptr(old_rec, FALSE);
 		
 			rec_set_n_owned_old(old_rec, 0);
 			rec_set_n_owned_old(new_rec, n_owned + 1);
-			page_dir_slot_set_rec(slot, new_rec);
+			page_dir_slot_set_rec(slot, page_zip, new_rec);
 		}
 
 		page_dir_slot_set_n_owned(up_slot, page_zip, up_n_owned -1);

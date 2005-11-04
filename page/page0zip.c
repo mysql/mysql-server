@@ -44,9 +44,7 @@ page_zip_compress(
 	buf = mem_alloc(page_zip->size - PAGE_DATA);
 
 	/* Determine the length of the page trailer. */
-	trailer_len = page + UNIV_PAGE_SIZE
-			- page_dir_get_nth_slot((page_t*) page,
-				page_dir_get_n_slots((page_t*) page) - 1);
+	trailer_len = page_trailer_get_len(page);
 	ut_ad(trailer_len < UNIV_PAGE_SIZE - PAGE_DATA);
 
 	/* Compress the data payload. */
