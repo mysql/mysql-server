@@ -66,7 +66,7 @@ class sp_rcontext : public Sql_alloc
   */
   Query_arena *callers_arena;
 
-  sp_rcontext(uint fsize, uint hmax, uint cmax);
+  sp_rcontext(sp_rcontext *prev, uint fsize, uint hmax, uint cmax);
 
   ~sp_rcontext()
   {
@@ -149,6 +149,13 @@ class sp_rcontext : public Sql_alloc
     return m_handler[m_hfound].type;
   }
 
+  // Returns true if we found a handler in this context
+  inline bool
+  found_handler_here()
+  {
+    return (m_hfound >= 0);
+  }
+
   // Clears the handler find state
   inline void
   clear_handler()
@@ -225,6 +232,8 @@ private:
 
   sp_cursor **m_cstack;
   uint m_ccount;
+
+  sp_rcontext *m_prev_ctx;      // Previous context (NULL if none)
 
 }; // class sp_rcontext : public Sql_alloc
 

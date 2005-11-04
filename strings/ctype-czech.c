@@ -628,6 +628,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
     0,			/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler

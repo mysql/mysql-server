@@ -427,6 +427,18 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   do
   {
 #ifdef __BORLANDC__
+    attrib= find.ff_attrib;
+#else
+    attrib= find.attrib;
+    /*
+      Do not show hidden and system files which Windows sometimes create.
+      Note. Because Borland's findfirst() is called with the third
+      argument = 0 hidden/system files are excluded from the search.
+    */
+    if (attrib & (_A_HIDDEN | _A_SYSTEM))
+      continue;
+#endif    
+#ifdef __BORLANDC__
     if (!(finfo.name= strdup_root(names_storage, find.ff_name)))
       goto error;
 #else
@@ -442,11 +454,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       bzero(finfo.mystat, sizeof(MY_STAT));
 #ifdef __BORLANDC__
       finfo.mystat->st_size=find.ff_fsize;
-      mode=MY_S_IREAD; attrib=find.ff_attrib;
 #else
       finfo.mystat->st_size=find.size;
-      mode=MY_S_IREAD; attrib=find.attrib;
 #endif
+      mode=MY_S_IREAD;
       if (!(attrib & _A_RDONLY))
 	mode|=MY_S_IWRITE;
       if (attrib & _A_SUBDIR)

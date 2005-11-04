@@ -97,7 +97,7 @@ select 1 in ('1.1',2.0);
 
 # Test case for bug #6365
 
-create table t1 (a char(20) character set binary);
+create table t1 (a char(2) character set binary);
 insert into t1 values ('aa'), ('bb');
 select * from t1 where a in (NULL, 'aa');
 drop table t1;

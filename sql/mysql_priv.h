@@ -702,11 +702,11 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
-int mysql_handle_derived(LEX *lex, int (*processor)(THD *thd,
-                                                    LEX *lex,
-                                                    TABLE_LIST *table));
-int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
-int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
+                                                      LEX *lex,
+                                                      TABLE_LIST *table));
+bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item,
@@ -780,7 +780,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh, uint flags);
-TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table);
+bool reopen_name_locked_table(THD* thd, TABLE_LIST* table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_table(TABLE *table,bool locked);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
@@ -816,8 +816,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name,
                     uint length, bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr);
-
+                    uint *cached_field_index_ptr,
+                    Security_context *sctx);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
 
@@ -1323,7 +1323,6 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
@@ -1362,6 +1361,8 @@ void change_byte(byte *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
+void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
+                          bool print_error, uint idx);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 uint s_length, SQL_SELECT *select,

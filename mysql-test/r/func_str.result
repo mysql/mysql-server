@@ -21,6 +21,9 @@ length(_latin1'\n\t\n\b\0\\_\\%\\')
 select concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h');
 concat('monty',' was here ','again')	length('hello')	char(ascii('h'))	ord('h')
 monty was here again	5	h	104
+select hex(char(256));
+hex(char(256))
+0100
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 1	0	4
@@ -598,7 +601,7 @@ collation(hex(130))	coercibility(hex(130))
 latin1_swedish_ci	4
 select collation(char(130)), coercibility(hex(130));
 collation(char(130))	coercibility(hex(130))
-latin1_swedish_ci	4
+binary	4
 select collation(format(130,10)), coercibility(format(130,10));
 collation(format(130,10))	coercibility(format(130,10))
 latin1_swedish_ci	4
@@ -720,7 +723,7 @@ t1	CREATE TABLE `t1` (
   `oct(130)` varchar(64) NOT NULL default '',
   `conv(130,16,10)` varchar(64) NOT NULL default '',
   `hex(130)` varchar(6) NOT NULL default '',
-  `char(130)` varchar(1) NOT NULL default '',
+  `char(130)` varbinary(1) NOT NULL default '',
   `format(130,10)` varchar(4) NOT NULL default '',
   `left(_latin2'a',1)` varchar(1) character set latin2 NOT NULL default '',
   `right(_latin2'a',1)` varchar(1) character set latin2 NOT NULL default '',
@@ -818,6 +821,9 @@ lpad(12345, 5, "#")
 SELECT conv(71, 10, 36), conv('1Z', 36, 10);
 conv(71, 10, 36)	conv('1Z', 36, 10)
 1Z	71
+SELECT conv(71, 10, 37), conv('1Z', 37, 10), conv(0,1,10),conv(0,0,10), conv(0,-1,10);
+conv(71, 10, 37)	conv('1Z', 37, 10)	conv(0,1,10)	conv(0,0,10)	conv(0,-1,10)
+NULL	NULL	NULL	NULL	NULL
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
 create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;

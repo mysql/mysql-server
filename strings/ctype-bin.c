@@ -86,6 +86,14 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
+uint my_lengthsp_binary(CHARSET_INFO *cs __attribute__((unused)),
+		        const char *ptr __attribute__((unused)),
+		        uint length)
+{
+  return length;
+}
+
+
 /*
   Compare two strings. Result is sign(first_argument - second_argument)
 
@@ -491,7 +499,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_numchars_8bit,
     my_charpos_8bit,
     my_well_formed_len_8bit,
-    my_lengthsp_8bit,
+    my_lengthsp_binary,
     my_numcells_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
@@ -516,7 +524,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 CHARSET_INFO my_charset_bin =
 {
     63,0,0,			/* number        */
-    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state        */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state */
     "binary",			/* cs name    */
     "binary",			/* name          */
     "",				/* comment       */
@@ -539,6 +547,7 @@ CHARSET_INFO my_charset_bin =
     1,				/* mbmaxlen      */
     0,				/* min_sort_char */
     255,			/* max_sort_char */
+    0,                          /* pad char      */
     0,                          /* escape_with_backslash_is_dangerous */
     &my_charset_handler,
     &my_collation_binary_handler

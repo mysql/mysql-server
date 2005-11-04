@@ -29,9 +29,9 @@
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 
-sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
+sp_rcontext::sp_rcontext(sp_rcontext *prev, uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
-    m_ihsp(0), m_hfound(-1), m_ccount(0)
+    m_ihsp(0), m_hfound(-1), m_ccount(0), m_prev_ctx(prev)
 {
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
@@ -116,7 +116,11 @@ sp_rcontext::find_handler(uint sql_errno,
     }
   }
   if (found < 0)
+  {
+    if (m_prev_ctx)
+      return m_prev_ctx->find_handler(sql_errno, level);
     return FALSE;
+  }
   m_hfound= found;
   return TRUE;
 }

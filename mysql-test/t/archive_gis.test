@@ -1,0 +1,3 @@
+--source include/have_archive.inc
+SET storage_engine=archive;
+--source include/gis_generic.inc

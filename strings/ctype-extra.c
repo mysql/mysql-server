@@ -43,6 +43,7 @@ CHARSET_INFO compiled_charsets[] = {
     0,			/* mbmaxlen     */
     0,			/* min_sort_ord */
     0,			/* max_sort_ord */
+    ' ',                /* pad char     */
     0,                  /* escape_with_backslash_is_dangerous */
     NULL,		/* cset handler */
     NULL		/* coll handler */

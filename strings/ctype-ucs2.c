@@ -1063,7 +1063,7 @@ int my_ll10tostr_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   while (long_val != 0)
   {
     long quo= long_val/10;
-    *--p = '0' + (char)(long_val - quo*10);
+    *--p = (char) ('0' + (long_val - quo*10));
     long_val= quo;
   }
   
@@ -1623,6 +1623,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
@@ -1654,6 +1655,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     2,			/* mbmaxlen     */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler

@@ -372,8 +372,10 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
   
   if (revision > 0 && !access(arc_path, F_OK))
   {
-    ulonglong limit= (revision > num_view_backups) ? revision - num_view_backups : 0;
-    while (revision > limit) {
+    ulonglong limit= ((revision > num_view_backups) ?
+                      revision - num_view_backups : 0);
+    for (; revision > limit ; revision--)
+    {
       my_snprintf(old_path, FN_REFLEN, "%s/%s%s-%04lu",
 		  arc_path, old_name, reg_ext, (ulong)revision);
       (void) unpack_filename(old_path, old_path);
@@ -381,7 +383,6 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
 		  arc_path, new_name, reg_ext, (ulong)revision);
       (void) unpack_filename(new_path, new_path);
       my_rename(old_path, new_path, MYF(0));
-      revision--;
     }
   }
   return 0;

@@ -20,7 +20,6 @@
 #include "Parser.hpp"
 #include <NdbOut.hpp>
 #include <Properties.hpp>
-#include <Base64.hpp>
 
 #undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
@@ -316,11 +315,7 @@ ParserImpl::parseArg(Context * ctx,
   }
 
   case DummyRow::Properties: {
-    Properties *sp = new Properties();
-    BaseString v(value);
-    UtilBuffer b;
-    base64_decode(v, b);
-    sp->unpack((const Uint32 *)b.get_data(), b.length());
+    abort();
     break;
   }
   default:

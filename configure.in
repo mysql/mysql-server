@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.1.2-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.3-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1022,7 +1022,7 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN5_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1032,23 +1032,13 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *darwin[[7-8]]*)
-    # don't forget to escape [] like above
-    if test "$ac_cv_prog_gcc" = "yes"
-    then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
-      CFLAGS="$CFLAGS $FLAGS"
-      CXXFLAGS="$CXXFLAGS $FLAGS"
-      MAX_C_OPTIMIZE="-O"
-    fi
-    ;;
-  *darwin9*)
+  *darwin*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
       FLAGS="-D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
@@ -1140,7 +1130,7 @@ dnl Is this the right match for DEC OSF on alpha?
         sql/Makefile.in)
           # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(ndbcluster_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
+          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(ndbcluster_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs) \$(yassl_libs)"
           cat > $filesed << EOF
 s,\(^.*\$(MAKE) gen_lex_hash\)\$(EXEEXT),#\1,
 s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
@@ -2283,10 +2273,14 @@ AC_ARG_WITH(man,
 if test "$with_man" = "yes"
 then
   man_dirs="man"
+  man1_files=`ls -1 $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
+  man1_files=`echo $man1_files`
 else
   man_dirs=""
+  man1_files=""
 fi
 AC_SUBST(man_dirs)
+AC_SUBST(man1_files)
 
 # Shall we build the bench code?
 AC_ARG_WITH(bench,

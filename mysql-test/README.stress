@@ -1,0 +1,116 @@
+
+Overview
+--------
+
+Stress script is designed to perform testsing of mysql server in 
+multi-thread environment. 
+
+Stress script allows:
+ 
+ - to use for stress testing mysqltest binary as test engine
+ - to use for stress testing both regular test suite and any
+   additional test suites (e.g. mysql-test-extra-5.0)
+ - to specify files with lists of tests both for initialization of
+   stress db and for further testing itself
+ - to define number of threads that will be concurrently used in testing
+ - to define limitations for test run. e.g. number of tests or loops
+   for execution or duration of testing, delay between test executions, etc.
+ - to get readable log file which can be used for identification of
+   errors arose during testing
+
+All functionality regarding stress testing was implemeted in 
+mysql-stress-test.pl script and there are two ways to run stress test:
+
+ - for most cases it is enough to use options below for starting of
+   stress test from mysql-test-run wrapper. In this case server will 
+   be run automatically, all preparation steps will be performed
+   and after that stress test will be started.
+
+ - in advanced case one can run mysql-stress-test.pl script directly. 
+   But it requires to perform some preparation steps and to specify a 
+   bunch of options as well so this way may look a bit complicate.
+
+Usage
+-----
+
+Below is list of stress test specific options for mysql-test-run:
+
+--stress 
+  Enable stress mode
+
+--stress-suite=<suite name>
+  Test suite name that will be used in stress testing.
+  We assume that all suites are located in mysql-test/suite directory
+  There is one special suite name - <main|default> that corresponds
+  to regular test suite located in mysql-test directory. 
+  
+--stress-threads=<number of threads>
+  Number of threads that will be used in stress testing
+  
+--stress-tests-file=<filename with list of tests>
+  Filename with list of tests(without .test suffix) that will be used in 
+  stress testing. Default filename is stress_tests.txt and default 
+  location of this file is suite/<suite name>/stress_tests.txt
+
+--stress-init-file=<filename with list of tests>
+  Filename with list of tests(without .test suffix) that will be used in 
+  stress testing for initialization of stress db. These tests will be 
+  executed only once before starting of test itself. Default filename 
+  is stress_init.txt and default location of this file is 
+  suite/<suite name>/stress_init.txt
+
+--stress-mode=<method which will be used for choosing tests from the list>
+  Possible values are: random(default), seq 
+
+  There are two possible modes which affect order of selecting of tests
+  from the list:
+    - in random mode tests will be selected in random order
+    - in seq mode each thread will execute tests in the loop one by one as
+      they specified in the list file.
+
+--stress-test-count= <number>
+  Total number of tests that will be executed concurrently by all threads
+
+--stress-loop-count= <number>
+  Total number of loops in seq mode that will be executed concurrently 
+  by all threads
+
+--stress-test-duration= <number>
+  Duration of stress testing in seconds
+
+Examples
+-------- 
+
+1. Example of simple command line to start stress test:
+
+ mysql-test-run --stress alias
+
+Runs stress test with default values for number of threads and number of tests,
+with test 'alias' from suite 'main'.
+
+2. Using in stress testing tests from other suites:
+
+ - mysql-test-run --stress --stress-threads=10 --stress-test-count=1000 \
+                 --stress-suite=example  --stress-tests-file=testslist.txt
+
+   Will run stress test with 10 threads, will execute 1000 tests by all 
+   threads, test will be used from suite 'example', list of test will be 
+   taken from file 'testslist.txt'
+
+ - mysql-test-run --stress --stress-threads=10 --stress-test-count=1000 \
+                  --stress-suite=example sum_distinct
+
+   Will run stress test with 10 threads, will execute 1000 tests by all 
+   threads, test will be used from suite 'example', list of test contains 
+   only one test 'sum_distinct'
+
+3. Debugging of issues found with stress test
+
+ Right now stress test is not fully integrated in mysql-test-run
+ and does not support --gdb option so to debug issue found with stress 
+ test you have to start separately mysql server under debuger and then 
+ run stress test as:
+ 
+ - mysql-test-run --extern --stress --stress-threads=10 \
+                  --stress-test-count=1000 --stress-suite=example \
+                  sum_distinct

@@ -643,7 +643,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->lex->create_view_select_start;
   view->source.length= (thd->query_length -
-                        (thd->lex->create_view_select_start - thd->query));
+                        (thd->lex->create_view_select_start -
+                         thd->lex->create_view_start));
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -721,44 +722,59 @@ loop_out:
 }
 
 
+
 /*
   read VIEW .frm and create structures
 
   SYNOPSIS
     mysql_make_view()
-    parser		- parser object;
-    table		- TABLE_LIST structure for filling
+    thd			Thread handler
+    parser		parser object
+    table		TABLE_LIST structure for filling
 
   RETURN
     0 ok
     1 error
 */
 
-my_bool
-mysql_make_view(File_parser *parser, TABLE_LIST *table)
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
 {
+  SELECT_LEX *end, *view_select;
+  LEX *old_lex, *lex;
+  Query_arena *arena, backup;
+  int res;
+  bool result;
   DBUG_ENTER("mysql_make_view");
-  DBUG_PRINT("info", ("table=%p (%s)", table, table->table_name));
+  DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
 
   if (table->view)
   {
+    /*
+      It's an execution of a PS/SP and the view has already been unfolded
+      into a list of used tables. Now we only need to update the information
+      about granted privileges in the view tables with the actual data
+      stored in MySQL privilege system.  We don't need to restore the
+      required privileges (by calling register_want_access) because they has
+      not changed since PREPARE or the previous execution: the only case
+      when this information is changed is execution of UPDATE on a view, but
+      the original want_access is restored in its end.
+    */
+    if (!table->prelocking_placeholder && table->prepare_security(thd))
+    {
+      DBUG_RETURN(1);
+    }
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
     DBUG_RETURN(0);
   }
 
-  SELECT_LEX *end;
-  THD *thd= current_thd;
-  LEX *old_lex= thd->lex, *lex;
-  SELECT_LEX *view_select;
-  int res= 0;
-
   /*
     For now we assume that tables will not be changed during PS life (it
     will be TRUE as far as we make new table cache).
   */
-  Query_arena *arena= thd->stmt_arena, backup;
+  old_lex= thd->lex;
+  arena= thd->stmt_arena;
   if (arena->is_conventional())
     arena= 0;
   else
@@ -768,7 +784,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   if (!table->timestamp.str)
     table->timestamp.str= table->timestamp_buffer;
   /* prepare default values for old format */
-  table->view_suid= 1;
+  table->view_suid= TRUE;
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
@@ -879,6 +895,10 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         goto err;
     }
 
+
+    if (!(table->view_tables=
+          (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
+      goto err;
     /*
       mark to avoid temporary table using and put view reference and find
       last view table
@@ -889,6 +909,22 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       tbl->skip_temporary= 1;
       tbl->belong_to_view= top_view;
+      tbl->referencing_view= table;
+      /*
+        First we fill want_privilege with SELECT_ACL (this is needed for the
+        tables which belongs to view subqueries and temporary table views,
+        then for the merged view underlying tables we will set wanted
+        privileges of top_view
+      */
+      tbl->grant.want_privilege= SELECT_ACL;
+      /*
+        After unfolding the view we lose the list of tables referenced in it
+        (we will have only a list of underlying tables in case of MERGE
+        algorithm, which does not include the tables referenced from
+        subqueries used in view definition).
+        Let's build a list of all tables referenced in the view.
+      */
+      table->view_tables->push_back(tbl);
     }
 
     /*
@@ -914,16 +950,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     /*
-      Let us set proper lock type for tables of the view's main select
-      since we may want to perform update or insert on view. This won't
-      work for view containing union. But this is ok since we don't
-      allow insert and update on such views anyway.
-    */
-    if (!lex->select_lex.next_select())
-      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
-        tbl->lock_type= table->lock_type;
-
-    /*
       If we are opening this view as part of implicit LOCK TABLES, then
       this view serves as simple placeholder and we should not continue
       further processing.
@@ -931,7 +957,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (table->prelocking_placeholder)
       goto ok2;
 
-    old_lex->derived_tables|= DERIVED_VIEW;
+    old_lex->derived_tables|= (DERIVED_VIEW | lex->derived_tables);
 
     /* move SQL_NO_CACHE & Co to whole query */
     old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
@@ -939,6 +965,37 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     /* move SQL_CACHE to whole query */
     if (view_select->options & OPTION_TO_QUERY_CACHE)
       old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+
+    if (table->view_suid)
+    {
+      /*
+        Prepare a security context to check underlying objects of the view
+      */
+      Security_context *save_security_ctx= thd->security_ctx;
+      if (!(table->view_sctx= (Security_context *)
+            thd->stmt_arena->alloc(sizeof(Security_context))))
+        goto err;
+      /* Assign the context to the tables referenced in the view */
+      for (tbl= view_tables; tbl; tbl= tbl->next_global)
+        tbl->security_ctx= table->view_sctx;
+      /* assign security context to SELECT name resolution contexts of view */
+      for(SELECT_LEX *sl= lex->all_selects_list;
+          sl;
+          sl= sl->next_select_in_list())
+        sl->context.security_ctx= table->view_sctx;
+    }
+
+    /*
+      Setup an error processor to hide error messages issued by stored
+      routines referenced in the view
+    */
+    for (SELECT_LEX *sl= lex->all_selects_list;
+         sl;
+         sl= sl->next_select_in_list())
+    {
+      sl->context.error_processor= &view_error_processor;
+      sl->context.error_processor_data= (void *)table;
+    }
 
     /*
       check MERGE algorithm ability
@@ -961,24 +1018,28 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
+      table->merge_underlying_list= view_tables;
+      /*
+        Let us set proper lock type for tables of the view's main select
+        since we may want to perform update or insert on view. This won't
+        work for view containing union. But this is ok since we don't
+        allow insert and update on such views anyway.
+
+        Also we fill correct wanted privileges.
+      */
+      for (tbl= table->merge_underlying_list; tbl; tbl= tbl->next_local)
+      {
+        tbl->lock_type= table->lock_type;
+        tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
+      }
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(table->ancestor=
-                                                         view_tables);
+      lex->select_lex.context.resolve_in_table_list_only(view_tables);
       lex->select_lex.context.outer_context= 0;
       lex->select_lex.context.select_lex= table->select_lex;
       lex->select_lex.select_n_having_items+=
         table->select_lex->select_n_having_items;
 
-      /* do not check privileges & hide errors for view underlyings */
-      for (SELECT_LEX *sl= lex->all_selects_list;
-           sl;
-           sl= sl->next_select_in_list())
-      {
-        sl->context.check_privileges= FALSE;
-        sl->context.error_processor= &view_error_processor;
-        sl->context.error_processor_data= (void *)table;
-      }
       /*
         Tables of the main select of the view should be marked as belonging
         to the same select as original view (again we can use LEX::select_lex
@@ -1011,7 +1072,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         }
       }
 
-      /* Store WHERE clause for post-processing in setup_ancestor */
+      /* Store WHERE clause for post-processing in setup_underlying */
       table->where= view_select->where;
       /*
         Add subqueries units to SELECT into which we merging current view.
@@ -1072,20 +1133,21 @@ ok:
     (st_select_lex_node**)&old_lex->all_selects_list;
 
 ok2:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   if (!old_lex->time_zone_tables_used && thd->lex->time_zone_tables_used)
     old_lex->time_zone_tables_used= thd->lex->time_zone_tables_used;
-  thd->lex= old_lex;
-  DBUG_RETURN(0);
+  result= !table->prelocking_placeholder && table->prepare_security(thd);
 
-err:
+end:
   if (arena)
     thd->restore_active_arena(arena, &backup);
+  thd->lex= old_lex;
+  DBUG_RETURN(result);
+
+err:
   delete table->view;
   table->view= 0;	// now it is not VIEW placeholder
-  thd->lex= old_lex;
-  DBUG_RETURN(1);
+  result= 1;
+  goto end;
 }
 
 
@@ -1109,6 +1171,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   char path[FN_REFLEN];
   TABLE_LIST *view;
   bool type= 0;
+  db_type not_used;
 
   for (view= views; view; view= view->next_local)
   {
@@ -1116,7 +1179,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
-    if (access(path, F_OK) || (type= (mysql_frm_type(path) != FRMTYPE_VIEW)))
+    if (access(path, F_OK) ||
+	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1163,24 +1227,36 @@ err:
     FRMTYPE_VIEW	view
 */
 
-frm_type_enum mysql_frm_type(char *path)
+frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt)
 {
   File file;
-  char header[10];	//"TYPE=VIEW\n" it is 10 characters
-  int length;
+  uchar header[10];	//"TYPE=VIEW\n" it is 10 characters
+  int error;
   DBUG_ENTER("mysql_frm_type");
 
+  *dbt= DB_TYPE_UNKNOWN;
+
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-  {
     DBUG_RETURN(FRMTYPE_ERROR);
-  }
-  length= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME));
+  error= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME | MY_NABP));
   my_close(file, MYF(MY_WME));
-  if (length == (int) MY_FILE_ERROR)
+
+  if (error)
     DBUG_RETURN(FRMTYPE_ERROR);
-  if (length < (int) sizeof(header) ||
-      !strncmp(header, "TYPE=VIEW\n", sizeof(header)))
+  if (!strncmp((char*) header, "TYPE=VIEW\n", sizeof(header)))
     DBUG_RETURN(FRMTYPE_VIEW);
+
+  /*
+    This is just a check for DB_TYPE. We'll return default unknown type
+    if the following test is true (arg #3). This should not have effect
+    on return value from this function (default FRMTYPE_TABLE)
+  */
+  if (header[0] != (uchar) 254 || header[1] != 1 ||
+      (header[2] != FRM_VER && header[2] != FRM_VER+1 &&
+       (header[2] < FRM_VER+3 || header[2] > FRM_VER+4)))
+    DBUG_RETURN(FRMTYPE_TABLE);
+
+  *dbt= ha_checktype(thd, (enum db_type) (uint) *(header + 3), 0, 0);
   DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }
 
@@ -1427,7 +1503,7 @@ mysql_rename_view(THD *thd,
 
     /* get view definition and source */
     if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
-                      sizeof(view_parameters)/sizeof(view_parameters[0])-1))
+                      array_elements(view_parameters)-1))
       goto err;
 
     /* rename view and it's backups */

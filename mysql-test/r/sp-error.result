@@ -444,9 +444,9 @@ set b = a;
 end if;
 end|
 call bug2653_1(1, @b)|
-ERROR 42S22: Unknown column 'aa' in 'order clause'
+ERROR 42S22: Unknown column 'aa' in 'field list'
 call bug2653_2(2, @b)|
-ERROR 42S22: Unknown column 'aa' in 'order clause'
+ERROR 42S22: Unknown column 'aa' in 'field list'
 drop procedure bug2653_1|
 drop procedure bug2653_2|
 create procedure bug4344() drop procedure bug4344|
@@ -834,3 +834,85 @@ ERROR HY000: Not allowed to set autocommit from a stored function or trigger
 create trigger bug12712
 before insert on t1 for each row set session autocommit = 0;
 ERROR HY000: Not allowed to set autocommit from a stored function or trigger
+drop procedure if exists bug13510_1|
+drop procedure if exists bug13510_2|
+drop procedure if exists bug13510_3|
+drop procedure if exists bug13510_4|
+create procedure bug13510_1()
+begin
+declare password varchar(10);
+set password = 'foo1';
+select password;
+end|
+ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
+create procedure bug13510_2()
+begin
+declare names varchar(10);
+set names = 'foo2';
+select names;
+end|
+ERROR 42000: Variable 'names' must be quoted with `...`, or renamed
+create procedure bug13510_3()
+begin
+declare password varchar(10);
+set `password` = 'foo3';
+select password;
+end|
+create procedure bug13510_4()
+begin
+declare names varchar(10);
+set `names` = 'foo4';
+select names;
+end|
+call bug13510_3()|
+password
+foo3
+call bug13510_4()|
+names
+foo4
+drop procedure bug13510_3|
+drop procedure bug13510_4|
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+create function f1() returns int return 1;
+ERROR 3D000: No database selected
+create procedure p1(out param1 int)
+begin
+select count(*) into param1 from t3;
+end|
+ERROR 3D000: No database selected
+use test;
+DROP PROCEDURE IF EXISTS bug13037_p1;
+DROP PROCEDURE IF EXISTS bug13037_p2;
+DROP PROCEDURE IF EXISTS bug13037_p3;
+CREATE PROCEDURE bug13037_p1()
+BEGIN
+IF bug13037_foo THEN
+SELECT 1;
+END IF;
+END|
+CREATE PROCEDURE bug13037_p2()
+BEGIN
+SET @bug13037_foo = bug13037_bar;
+END|
+CREATE PROCEDURE bug13037_p3()
+BEGIN
+SELECT bug13037_foo;
+END|
+
+CALL bug13037_p1();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p2();
+ERROR 42S22: Unknown column 'bug13037_bar' in 'field list'
+CALL bug13037_p3();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p1();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+CALL bug13037_p2();
+ERROR 42S22: Unknown column 'bug13037_bar' in 'field list'
+CALL bug13037_p3();
+ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
+DROP PROCEDURE bug13037_p1;
+DROP PROCEDURE bug13037_p2;
+DROP PROCEDURE bug13037_p3;

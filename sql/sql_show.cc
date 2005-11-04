@@ -1031,6 +1031,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(" COMMENT=", 9);
       append_unescaped(packet, share->comment, strlen(share->comment));
     }
+    if (share->connect_string.length)
+    {
+      packet->append(" CONNECTION=", 12);
+      append_unescaped(packet, share->connect_string.str, share->connect_string.length);
+    }
     if (file->raid_type)
     {
       uint length;
@@ -1283,9 +1288,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *sctx;
-#endif
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
@@ -1665,6 +1667,9 @@ static bool show_status_array(THD *thd, const char *wild,
 	  value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
+        case SHOW_NET_COMPRESSION:
+          end= strmov(buff, thd->net.compress ? "ON" : "OFF");
+          break;
         case SHOW_UNDEF:				// Show never happen
         case SHOW_SYS:
           break;					// Return empty string
@@ -2026,6 +2031,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
+  db_type not_used;
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("get_all_tables");
 
@@ -2137,7 +2143,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               else
               {
                 my_snprintf(end, len, "/%s%s", file_name, reg_ext);
-                switch (mysql_frm_type(path)) {
+                switch (mysql_frm_type(thd, path, &not_used)) {
                 case FRMTYPE_ERROR:
                   table->field[3]->store("ERROR", 5, system_charset_info);
                   break;
@@ -2356,14 +2362,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       table->field[7]->store((longlong) file->records, TRUE);
       table->field[7]->set_notnull();
     }
-    table->field[8]->store((longlong) file->mean_rec_length);
-    table->field[9]->store((longlong) file->data_file_length);
+    table->field[8]->store((longlong) file->mean_rec_length, TRUE);
+    table->field[9]->store((longlong) file->data_file_length, TRUE);
     if (file->max_data_file_length)
     {
-      table->field[10]->store((longlong) file->max_data_file_length);
+      table->field[10]->store((longlong) file->max_data_file_length, TRUE);
     }
-    table->field[11]->store((longlong) file->index_file_length);
-    table->field[12]->store((longlong) file->delete_length);
+    table->field[11]->store((longlong) file->index_file_length, TRUE);
+    table->field[12]->store((longlong) file->delete_length, TRUE);
     if (show_table->found_next_number_field)
     {
       table->field[13]->store((longlong) file->auto_increment_value, TRUE);
@@ -2582,11 +2588,12 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     is_blob= (field->type() == FIELD_TYPE_BLOB);
     if (field->has_charset() || is_blob)
     {
-      longlong c_octet_len= is_blob ? (longlong) field->max_length() :
-        (longlong) field->max_length()/field->charset()->mbmaxlen;
-      table->field[8]->store(c_octet_len, TRUE);
+      longlong char_max_len= is_blob ? 
+        (longlong) field->max_length() / field->charset()->mbminlen :
+        (longlong) field->max_length() / field->charset()->mbmaxlen;
+      table->field[8]->store(char_max_len, TRUE);
       table->field[8]->set_notnull();
-      table->field[9]->store((longlong) field->max_length());
+      table->field[9]->store((longlong) field->max_length(), TRUE);
       table->field[9]->set_notnull();
     }
 
@@ -2627,7 +2634,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 
     if (field_length >= 0)
     {
-      table->field[10]->store((longlong) field_length);
+      table->field[10]->store((longlong) field_length, TRUE);
       table->field[10]->set_notnull();
     }
     if (decimals >= 0)

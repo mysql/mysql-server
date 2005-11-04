@@ -122,3 +122,75 @@ SELECT * FROM t1;
 i	j	x	y	z
 1	2	23	24	71
 DROP TABLE t1, t2, t3;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (
+idp int(11) NOT NULL default '0',
+idpro int(11) default NULL,
+price decimal(19,4) default NULL,
+PRIMARY KEY (idp)
+);
+CREATE TABLE t2 (
+idpro int(11) NOT NULL default '0',
+price decimal(19,4) default NULL,
+nbprice int(11) default NULL,
+PRIMARY KEY (idpro)
+);
+INSERT INTO t1 VALUES 
+(1,1,'3.0000'),
+(2,2,'1.0000'),
+(3,1,'1.0000'),
+(4,1,'4.0000'),
+(5,3,'2.0000'),
+(6,2,'4.0000');
+INSERT INTO t2 VALUES 
+(1,'0.0000',0),
+(2,'0.0000',0),
+(3,'0.0000',0);
+update 
+t2
+join 
+( select    idpro, min(price) as min_price, count(*) as nbr_price
+from      t1 
+where     idpro>0 and price>0 
+group by  idpro
+) as table_price
+on   t2.idpro = table_price.idpro 
+set  t2.price = table_price.min_price, 
+t2.nbprice = table_price.nbr_price;
+select "-- MASTER AFTER JOIN --" as "";
+
+-- MASTER AFTER JOIN --
+select * from t1;
+idp	idpro	price
+1	1	3.0000
+2	2	1.0000
+3	1	1.0000
+4	1	4.0000
+5	3	2.0000
+6	2	4.0000
+select * from t2;
+idpro	price	nbprice
+1	1.0000	3
+2	1.0000	2
+3	2.0000	1
+select "-- SLAVE AFTER JOIN --" as "";
+
+-- SLAVE AFTER JOIN --
+select * from t1;
+idp	idpro	price
+1	1	3.0000
+2	2	1.0000
+3	1	1.0000
+4	1	4.0000
+5	3	2.0000
+6	2	4.0000
+select * from t2;
+idpro	price	nbprice
+1	1.0000	3
+2	1.0000	2
+3	2.0000	1

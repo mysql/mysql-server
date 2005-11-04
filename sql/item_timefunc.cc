@@ -1610,6 +1610,7 @@ void Item_func_date_format::fix_length_and_dec()
   if (args[1]->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
+
     /*
       The result is a binary string (no reason to use collation->mbmaxlen
       This is becasue make_date_time() only returns binary strings
@@ -1625,6 +1626,30 @@ void Item_func_date_format::fix_length_and_dec()
   }
   maybe_null=1;					// If wrong date
 }
+
+
+bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const
+{
+  Item_func_date_format *item_func;
+  if (item->type() != FUNC_ITEM)
+    return 0;
+  if (func_name() != ((Item_func*) item)->func_name())
+    return 0;
+  if (this == item)
+    return 1;
+  item_func= (Item_func_date_format*) item;
+  if (!args[0]->eq(item_func->args[0], binary_cmp))
+    return 0;
+  /*
+    We must compare format string case sensitive.
+    This needed because format modifiers with different case,
+    for example %m and %M, have different meaning.
+  */
+  if (!args[1]->eq(item_func->args[1], 1))
+    return 0;
+  return 1;
+}
+
 
 
 uint Item_func_date_format::format_length(const String *format)
@@ -2479,6 +2504,7 @@ void Item_func_add_time::fix_length_and_dec()
   enum_field_types arg0_field_type;
   decimals=0;
   max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
 
   /*
     The field type for the result of an Item_func_add_time function is defined
@@ -2723,16 +2749,16 @@ longlong Item_func_timestamp_diff::val_int()
       int_type == INTERVAL_QUARTER ||
       int_type == INTERVAL_MONTH)
   {
-    uint year;
-    uint year_beg, year_end, month_beg, month_end;
-    uint diff_days= (uint) (seconds/86400L);
-    uint diff_years= 0;
+    uint year_beg, year_end, month_beg, month_end, day_beg, day_end;
+    uint years= 0;
     if (neg == -1)
     {
       year_beg= ltime2.year;
       year_end= ltime1.year;
       month_beg= ltime2.month;
       month_end= ltime1.month;
+      day_beg= ltime2.day;
+      day_end= ltime1.day;
     }
     else
     {
@@ -2740,53 +2766,32 @@ longlong Item_func_timestamp_diff::val_int()
       year_end= ltime2.year;
       month_beg= ltime1.month;
       month_end= ltime2.month;
-    }
-    /* calc years*/
-    for (year= year_beg;year < year_end; year++)
-    {
-      uint days=calc_days_in_year(year);
-      if (days > diff_days)
-	break;
-      diff_days-= days;
-      diff_years++;
+      day_beg= ltime1.day;
+      day_end= ltime2.day;
     }
 
-    /* calc months;  Current year is in the 'year' variable */
-    month_beg--;	/* Change months to be 0-11 for easier calculation */
-    month_end--;
+    /* calc years */
+    years= year_end - year_beg;
+    if (month_end < month_beg || (month_end == month_beg && day_end < day_beg))
+      years-= 1;
 
-    months= 12*diff_years;
-    while (month_beg != month_end)
-    {
-      uint m_days= (uint) days_in_month[month_beg];
-      if (month_beg == 1)
-      {
-	/* This is only calculated once so there is no reason to cache it*/
-	uint leap= (uint) ((year & 3) == 0 && (year%100 ||
-					       (year%400 == 0 && year)));
-	m_days+= leap;
-      }
-      if (m_days > diff_days)
-	break;
-      diff_days-= m_days;
-      months++;
-      if (month_beg++ == 11)		/* if we wrap to next year */
-      {
-	month_beg= 0;
-	year++;
-      }
-    }
-    if (neg == -1)
-      months= -months;
+    /* calc months */
+    months= 12*years;
+    if (month_end < month_beg || (month_end == month_beg && day_end < day_beg))
+      months+= 12 - (month_beg - month_end);
+    else
+      months+= (month_end - month_beg);
+    if (day_end < day_beg)
+      months-= 1;
   }
 
   switch (int_type) {
   case INTERVAL_YEAR:
-    return months/12;
+    return months/12*neg;
   case INTERVAL_QUARTER:
-    return months/3;
+    return months/3*neg;
   case INTERVAL_MONTH:
-    return months;
+    return months*neg;
   case INTERVAL_WEEK:          
     return seconds/86400L/7L*neg;
   case INTERVAL_DAY:		

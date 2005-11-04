@@ -362,8 +362,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
-  friend my_bool mysql_make_view (File_parser *parser,
-				  TABLE_LIST *table);
+  friend bool mysql_make_view(THD *thd, File_parser *parser,
+                              TABLE_LIST *table);
 private:
   void fast_exclude();
 };
@@ -387,12 +387,12 @@ protected:
   select_result *result;
   ulong found_rows_for_union;
   bool res;
+public:
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     cleaned;
 
-public:
   // list of fields which points to temporary table for union
   List<Item> item_list;
   /*
@@ -483,6 +483,7 @@ public:
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
+  bool	              is_item_list_lookup;
   /* 
     Usualy it is pointer to ftfunc_list_alloc, but in union used to create fake
     select_lex for calling mysql_select under results of union
@@ -639,6 +640,11 @@ public:
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).
   */
   bool cleanup();
+  /*
+    Recursively cleanup the join of this select lex and of all nested
+    select lexes.
+  */
+  void cleanup_all_joins(bool full);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -746,6 +752,7 @@ typedef struct st_lex
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   st_lex_user *create_view_definer;
+  char *create_view_start;
   char *create_view_select_start;
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
@@ -810,6 +817,11 @@ typedef struct st_lex
   */
   uint table_count;
   uint8 describe;
+  /*
+    A flag that indicates what kinds of derived tables are present in the
+    query (0 if no derived tables, otherwise a combination of flags
+    DERIVED_SUBQUERY and DERIVED_VIEW).
+  */
   uint8 derived_tables;
   uint8 create_view_algorithm;
   uint8 create_view_check;
@@ -904,6 +916,8 @@ typedef struct st_lex
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
   uchar *fname_start, *fname_end;
+  
+  bool escape_used;
 
   st_lex();
 

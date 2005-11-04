@@ -1,0 +1,11 @@
+#
+# Bug #8731: wait_timeout does not work on Mac OS X
+#
+--disable_reconnect
+select 1;
+# wait_timeout is 2, so we should get disconnected now
+--sleep 5
+--error 2006
+select 2;
+--enable_reconnect
+select 3;

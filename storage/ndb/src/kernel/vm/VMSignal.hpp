@@ -42,6 +42,16 @@ struct NodeReceiverGroup {
   NodeBitmask m_nodes;
 };
 
+template <unsigned T> struct SignalT
+{
+  SignalHeader header;
+  SegmentedSectionPtr m_sectionPtr[3]; 
+  union {
+    Uint32 theData[T];
+    Uint64 dummyAlign;
+  };
+};
+
 /**
  * class used for passing argumentes to blocks
  */

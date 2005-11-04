@@ -19,7 +19,7 @@
 bool mysql_create_view(THD *thd,
                        enum_view_create_mode mode);
 
-my_bool mysql_make_view(File_parser *parser, TABLE_LIST *table);
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table);
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
@@ -27,7 +27,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST * view);
 
 bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
 
-frm_type_enum mysql_frm_type(char *path);
+frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt);
 
 int view_checksum(THD *thd, TABLE_LIST *view);
 

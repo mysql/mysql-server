@@ -2431,7 +2431,7 @@ create function bug3788() returns date return cast("2005-03-04" as date)|
 select bug3788()|
 drop function bug3788|
 
-create function bug3788() returns binary(5) return 5|
+create function bug3788() returns binary(1) return 5|
 select bug3788()|
 drop function bug3788|
  
@@ -4037,28 +4037,6 @@ begin
 end|
 drop function bug9048|
 
-#
-# BUG#12812 create view calling a function works without execute right
-#           on function
---disable_warnings
-drop function if exists bug12812|
---enable_warnings
-create function bug12812() returns char(2)
-begin
-  return 'ok';
-end;
-create user user_bug12812@localhost IDENTIFIED BY 'ABC'|
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
-connect (test_user_12812,localhost,user_bug12812,ABC,test)|
---error 1370
-SELECT test.bug12812()|
---error 1370
-CREATE VIEW v1 AS SELECT test.bug12812()|
-# Cleanup
-connection default|
-disconnect test_user_12812|
-DROP USER user_bug12812@localhost|
-drop function bug12812|
 # Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
 # 'INOUT' parameter
 #
@@ -4314,6 +4292,254 @@ call bug12589_1()|
 call bug12589_2()|
 call bug12589_3()|
 
+#
+# BUG#7049: Stored procedure CALL errors are ignored
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug7049_1|
+drop procedure if exists bug7049_2|
+drop procedure if exists bug7049_3|
+drop procedure if exists bug7049_4|
+drop procedure if exists bug7049_5|
+drop procedure if exists bug7049_6|
+drop function if exists bug7049_1|
+drop function if exists bug7049_2|
+--enable_warnings
+
+create table t3 ( x int unique )|
+
+create procedure bug7049_1()
+begin
+  insert into t3 values (42);
+  insert into t3 values (42);
+end|
+
+create procedure bug7049_2()
+begin
+  declare exit handler for sqlexception
+    select 'Caught it' as 'Result';
+
+  call bug7049_1();
+  select 'Missed it' as 'Result';
+end|
+
+create procedure bug7049_3()
+  call bug7049_1()|
+
+create procedure bug7049_4()
+begin
+  declare exit handler for sqlexception
+    select 'Caught it' as 'Result';
+
+  call bug7049_3();
+  select 'Missed it' as 'Result';
+end|
+
+create procedure bug7049_5()
+begin
+  declare x decimal(2,1);
+
+  set x = 'zap';
+end|
+
+create procedure bug7049_6()
+begin
+  declare exit handler for sqlwarning
+    select 'Caught it' as 'Result';
+
+  call bug7049_5();
+  select 'Missed it' as 'Result';
+end|
+
+create function bug7049_1()
+  returns int
+begin
+  insert into t3 values (42);
+  insert into t3 values (42);
+  return 42;
+end|
+
+create function bug7049_2()
+  returns int
+begin
+  declare x int default 0;
+  declare continue handler for sqlexception
+    set x = 1;
+
+  set x = bug7049_1();
+  return x;
+end|
+
+call bug7049_2()|
+select * from t3|
+delete from t3|
+call bug7049_4()|
+select * from t3|
+call bug7049_6()|
+select bug7049_2()|
+
+drop table t3|
+drop procedure bug7049_1|
+drop procedure bug7049_2|
+drop procedure bug7049_3|
+drop procedure bug7049_4|
+drop procedure bug7049_5|
+drop procedure bug7049_6|
+drop function bug7049_1|
+drop function bug7049_2|
+
+
+#
+# BUG#13941: replace() string fuction behaves badly inside stored procedure
+# (BUG#13914: IFNULL is returning garbage in stored procedure)
+#
+--disable_warnings
+drop function if exists bug13941|
+drop procedure if exists bug13941|
+--enable_warnings
+
+create function bug13941(p_input_str text)
+  returns text
+begin
+  declare p_output_str text;
+
+  set p_output_str = p_input_str;
+
+  set p_output_str = replace(p_output_str, 'xyzzy', 'plugh');
+  set p_output_str = replace(p_output_str, 'test', 'prova');
+  set p_output_str = replace(p_output_str, 'this', 'questo');
+  set p_output_str = replace(p_output_str, ' a ', 'una ');
+  set p_output_str = replace(p_output_str, 'is', '');
+
+  return p_output_str;
+end|
+
+create procedure bug13941(out sout varchar(128))
+begin
+  set sout = 'Local';
+  set sout = ifnull(sout, 'DEF');
+end|
+
+# Note: The bug showed different behaviour in different types of builds,
+#  giving garbage results in some, and seemingly working in others.
+#  Running with valgrind (or purify) is the safe way to check that it's
+#  really working correctly.
+select bug13941('this is a test')|
+call bug13941(@a)|
+select @a|
+
+drop function bug13941|
+drop procedure bug13941|
+
+
+#
+# BUG#13095: Cannot create VIEWs in prepared statements
+#
+
+delimiter ;|
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug13095;
+DROP TABLE IF EXISTS bug13095_t1;
+DROP VIEW IF EXISTS bug13095_v1;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE bug13095(tbl_name varchar(32))
+BEGIN
+  SET @str =
+    CONCAT("CREATE TABLE ", tbl_name, "(stuff char(15))");
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SET @str =
+    CONCAT("INSERT INTO ", tbl_name, " VALUES('row1'),('row2'),('row3')" );
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SET @str =
+    CONCAT("CREATE VIEW bug13095_v1(c1) AS SELECT stuff FROM ", tbl_name);
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+
+  SELECT * FROM bug13095_v1;
+
+  SET @str =
+    "DROP VIEW bug13095_v1";
+  SELECT @str;
+  PREPARE stmt FROM @str;
+  EXECUTE stmt;
+END|
+
+delimiter ;|
+
+CALL bug13095('bug13095_t1');
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug13095;
+DROP VIEW IF EXISTS bug13095_v1;
+DROP TABLE IF EXISTS bug13095_t1;
+--enable_warnings
+
+delimiter |;
+
+#
+# BUG#14210: "Simple query with > operator on large table gives server
+# crash"
+# Check that cursors work in case when HEAP tables are converted to
+# MyISAM
+#
+--disable_warnings
+drop procedure if exists bug14210|
+--enable_warnings
+set @@session.max_heap_table_size=16384|
+select @@session.max_heap_table_size|
+# To trigger the memory corruption the original table must be InnoDB.
+# No harm if it's not, so don't warn if the suite is run with --skip-innodb
+--disable_warnings
+create table t3 (a char(255)) engine=InnoDB|
+--enable_warnings
+create procedure bug14210_fill_table()
+begin
+  declare table_size, max_table_size int default 0;
+  select @@session.max_heap_table_size into max_table_size;
+  delete from t3;
+  insert into t3 (a) values (repeat('a', 255));
+  repeat
+    insert into t3 select a from t3;
+    select count(*)*255 from t3 into table_size;
+  until table_size > max_table_size*2 end repeat;
+end|
+call bug14210_fill_table()|
+drop procedure bug14210_fill_table|
+create table t4 like t3|
+
+create procedure bug14210()
+begin
+  declare a char(255);
+  declare done int default 0;
+  declare c cursor for select * from t3;
+  declare continue handler for sqlstate '02000' set done = 1;
+  open c;
+  repeat
+    fetch c into a;
+    if not done then
+       insert into t4 values (upper(a));
+    end if;
+  until done end repeat;
+  close c;
+end|
+call bug14210()|
+select count(*) from t4|
+
+drop table t3, t4|
+drop procedure bug14210|
+set @@session.max_heap_table_size=default|
 
 #
 # BUG#NNNN: New bug synopsis

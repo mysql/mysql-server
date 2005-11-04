@@ -122,11 +122,15 @@ void Listener_thread::run()
   n++;
 
   timeval tv;
-  tv.tv_sec= 0;
-  tv.tv_usec= 100000;
   while (!thread_registry.is_shutdown())
   {
     fd_set read_fds_arg= read_fds;
+    /*
+      We should reintialize timer as on linux it is modified
+      to reflect amount of time not slept.
+    */
+    tv.tv_sec= 0;
+    tv.tv_usec= 100000;
 
     /*
       When using valgrind 2.0 this syscall doesn't get kicked off by a
@@ -358,12 +362,13 @@ void Listener_thread::handle_new_mysql_connection(Vio *vio)
     pthread_attr_t mysql_thd_attr;
     pthread_attr_init(&mysql_thd_attr);
     pthread_attr_setdetachstate(&mysql_thd_attr, PTHREAD_CREATE_DETACHED);
-    if (pthread_create(&mysql_thd_id, &mysql_thd_attr, mysql_connection,
-                       mysql_thread_args))
+    if (set_stacksize_n_create_thread(&mysql_thd_id, &mysql_thd_attr,
+                                      mysql_connection, mysql_thread_args))
     {
       delete mysql_thread_args;
       vio_delete(vio);
-      log_error("handle_one_mysql_connection(): pthread_create(mysql) failed");
+      log_error("handle_one_mysql_connection():"
+                "set_stacksize_n_create_thread(mysql) failed");
     }
     pthread_attr_destroy(&mysql_thd_attr);
   }

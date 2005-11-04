@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4;
+drop table if exists t1,t2,t3,t4,t11;
 drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
 drop view if exists v1;
 CREATE TABLE t1 (
@@ -2620,6 +2620,16 @@ select found_rows();
 found_rows()
 1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;
 create table t1(f1 int, f2 int);
 create table t2(f3 int);
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,1));
@@ -2628,6 +2638,75 @@ select f1 from t1,t2 where f1=f2 and (f1,NULL) = ((1,1));
 f1
 select f1 from t1,t2 where f1=f2 and (f1,f2) = ((1,NULL));
 f1
+insert into t1 values(1,1),(2,null);
+insert into t2 values(2);
+select * from t1,t2 where f1=f3 and (f1,f2) = (2,null);
+f1	f2	f3
+select * from t1,t2 where f1=f3 and (f1,f2) <=> (2,null);
+f1	f2	f3
+2	NULL	2
+drop table t1,t2;
+create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
+create table t11 like t1;
+insert into t1 values(1,""),(2,"");
+show table status like 't1%';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Dynamic	2	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+select 123 as a from t1 where f1 is null;
+a
+drop table t1,t11;
+CREATE TABLE t1 (a INT, b INT);
+(SELECT a, b AS c FROM t1) ORDER BY c+1;
+a	c
+(SELECT a, b AS c FROM t1) ORDER BY b+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY c+1;
+a	c
+SELECT a, b AS c FROM t1 ORDER BY b+1;
+a	c
+drop table t1;
+CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, UNIQUE idx (a,b) );
+INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4);
+CREATE TABLE t2 ( a INT NOT NULL, b INT NOT NULL, e INT );
+INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),(1,2,3);
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
+a	b	c	d
+1	2	1	1
+1	2	2	1
+1	2	3	1
+1	10		2
+1	11		2
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t1.a, t1.b, c;
+a	b	c	d
+1	10		4
+1	2	1	1
+1	2	2	1
+1	2	3	1
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
+t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t2.a, t2.b, c;
+a	b	c	d
+1	2	1	1
+1	2	2	1
+1	2	3	1
+1	10		2
+1	11		2
+SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2,t1
+WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
+a	b	c	d
+1	2	1	1
+1	2	2	1
+1	2	3	1
+DROP TABLE IF EXISTS t1, t2;
+create table t1 (f1 int primary key, f2 int);
+create table t2 (f3 int, f4 int, primary key(f3,f4));
+insert into t1 values (1,1);
+insert into t2 values (1,1),(1,2);
+select distinct count(f2) >0 from t1 left join t2 on f1=f3 group by f1;
+count(f2) >0
+1
 drop table t1,t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
@@ -2894,6 +2973,63 @@ NULL
 SELECT IFNULL(NULL, NULL);
 IFNULL(NULL, NULL)
 NULL
+SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	
+CREATE TABLE BUG_12595(a varchar(100));
+INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+a
+hakan%
+hakank
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha%%an' ESCAPE '%';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE '\\';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
+a
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
+a
+hakan%
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan**%' ESCAPE '**';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '\\';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan%' ESCAPE '';
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'ha|%an' ESCAPE '|';
+a
+ha%an
+SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\n%' ESCAPE '\n';
+ERROR HY000: Incorrect arguments to ESCAPE
+SET @@SQL_MODE=@OLD_SQL_MODE12595;
+DROP TABLE BUG_12595;
 create table t1 (a char(1));
 create table t2 (a char(1));
 insert into t1 values ('a'),('b'),('c');
@@ -3038,26 +3174,70 @@ id
 102
 drop table t1, t2;
 drop view v1, v2, v3;
-create table a (
-id int(11) not null default '0'
-) engine=myisam default charset=latin1;
-insert into a values (123),(191),(192);
-create table b (
-id char(16) character set utf8 not null default ''
-) engine=myisam default charset=latin1;
-insert into b values ('58013'),('58014'),('58015'),('58016');
-create table c (
-a_id int(11) not null default '0',
-b_id char(16) character set utf8 default null
-) engine=myisam default charset=latin1;
-insert into c values
-(123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
+create table t1 (id int(11) not null default '0');
+insert into t1 values (123),(191),(192);
+create table t2 (id char(16) character set utf8 not null);
+insert into t2 values ('58013'),('58014'),('58015'),('58016');
+create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
+insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 select count(*)
-from a inner join (c left join b on b.id = c.b_id) on a.id = c.a_id;
+from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;
 count(*)
 6
 select count(*)
-from a inner join (b right join c on b.id = c.b_id) on a.id = c.a_id;
+from t1 inner join (t2 right join t3 on t2.id = t3.b_id) on t1.id = t3.a_id;
 count(*)
 6
-drop table a, b, c;
+drop table t1,t2,t3;
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+select * from t1 join t2 join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 left join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 right join t3 on (t1.a=t3.c);
+a	b	c
+select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
+a	b	c
+drop table t1, t2 ,t3;
+create table t1(f1 int, f2 date);
+insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
+(4,'2005-10-01'),(5,'2005-12-30');
+select * from t1 where f2 >= 0;
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '0000-00-00';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-31';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-3a';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+select * from t1 where f2 <= '2005-09-31';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+select * from t1 where f2 <= '2005-09-3a';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+drop table t1;

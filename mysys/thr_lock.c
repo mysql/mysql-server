@@ -408,9 +408,10 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     set_timespec(wait_timeout, table_lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
-    int rc= can_deadlock ? pthread_cond_timedwait(cond, &data->lock->mutex,
-                                                  &wait_timeout) :
-                           pthread_cond_wait(cond, &data->lock->mutex);
+    int rc= (can_deadlock ?
+             pthread_cond_timedwait(cond, &data->lock->mutex,
+                                    &wait_timeout) :
+             pthread_cond_wait(cond, &data->lock->mutex));
     /*
       We must break the wait if one of the following occurs:
       - the connection has been aborted (!thread_var->abort), but
@@ -426,7 +427,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     */
     if (data->cond == 0)
       break;
-    if (rc == ETIMEDOUT)
+    if (rc == ETIMEDOUT || rc == ETIME)
     {
       result= THR_LOCK_WAIT_TIMEOUT;
       break;

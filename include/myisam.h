@@ -392,7 +392,9 @@ typedef enum
   /* Treat NULLs as inequal when collecting statistics (default for 4.1/5.0) */
   MI_STATS_METHOD_NULLS_NOT_EQUAL,
   /* Treat NULLs as equal when collecting statistics (like 4.0 did) */
-  MI_STATS_METHOD_NULLS_EQUAL
+  MI_STATS_METHOD_NULLS_EQUAL,
+  /* Ignore NULLs - count only tuples without NULLs in the index components */
+  MI_STATS_METHOD_IGNORE_NULLS
 } enum_mi_stats_method;
 
 typedef struct st_mi_check_param
@@ -419,7 +421,14 @@ typedef struct st_mi_check_param
   int tmpfile_createflag;
   myf myf_rw;
   IO_CACHE read_cache;
+  
+  /* 
+    The next two are used to collect statistics, see update_key_parts for
+    description.
+  */
   ulonglong unique_count[MI_MAX_KEY_SEG+1];
+  ulonglong notnull_count[MI_MAX_KEY_SEG+1];
+  
   ha_checksum key_crc[MI_MAX_POSSIBLE_KEY];
   ulong rec_per_key_part[MI_MAX_KEY_SEG*MI_MAX_POSSIBLE_KEY];
   void *thd;
@@ -479,7 +488,8 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info,uint update);
 void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
-			     ulonglong *unique, ulonglong records);
+                      ulonglong *unique, ulonglong *notnull, 
+                      ulonglong records);
 int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type);
 int movepoint(MI_INFO *info,byte *record,my_off_t oldpos,

@@ -499,8 +499,8 @@ drop table t1;
 #
 
 grant select on test.* to mysqltest_4@localhost;
-connect (user4,localhost,mysqltest_4,,);
-connection user4;
+connect (user10261,localhost,mysqltest_4,,);
+connection user10261;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 connection default;
@@ -715,3 +715,24 @@ select  ROUTINE_NAME from routines;
 grant all on information_schema.* to 'user1'@'localhost';
 --error 1044
 grant select on information_schema.* to 'user1'@'localhost';
+
+#
+# Bug#14089 FROM list subquery always fails when information_schema is current database
+#
+use test;
+create table t1(id int);
+insert into t1(id) values (1);
+select 1 from (select 1 from test.t1) a;
+use information_schema;
+select 1 from (select 1 from test.t1) a;
+use test;
+drop table t1;
+
+#
+# Bug #14290: character_maximum_length for text fields
+#
+
+create table t1(a blob, b text charset utf8, c text charset ucs2);
+select data_type, character_octet_length, character_maximum_length 
+  from information_schema.columns where table_name='t1';
+drop table t1;

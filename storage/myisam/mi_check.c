@@ -392,7 +392,10 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     found_keys++;
 
     param->record_checksum=init_checksum;
+    
     bzero((char*) &param->unique_count,sizeof(param->unique_count));
+    bzero((char*) &param->notnull_count,sizeof(param->notnull_count));
+
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
     if (keyinfo->flag & HA_FULLTEXT)
@@ -497,7 +500,9 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 
     if (param->testflag & T_STATISTICS)
       update_key_parts(keyinfo, rec_per_key_part, param->unique_count,
-		       (ulonglong) info->state->records);
+                       param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
+                       param->notnull_count: NULL, 
+                       (ulonglong)info->state->records);
   }
   if (param->testflag & T_INFO)
   {
@@ -553,6 +558,96 @@ err:
   return 1;
 }
 
+
+/*
+  "Ignore NULLs" statistics collection method: process first index tuple.
+
+  SYNOPSIS
+    mi_collect_stats_nonulls_first()
+      keyseg   IN     Array of key part descriptions
+      notnull  INOUT  Array, notnull[i] = (number of {keypart1...keypart_i}
+                                           tuples that don't contain NULLs)
+      key      IN     Key values tuple
+
+  DESCRIPTION
+    Process the first index tuple - find out which prefix tuples don't
+    contain NULLs, and update the array of notnull counters accordingly.
+*/
+
+static
+void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg, ulonglong *notnull,
+                                    uchar *key)
+{
+  uint first_null, kp;
+  first_null= ha_find_null(keyseg, key) - keyseg;
+  /*
+    All prefix tuples that don't include keypart_{first_null} are not-null
+    tuples (and all others aren't), increment counters for them.
+  */
+  for (kp= 0; kp < first_null; kp++)
+    notnull[kp]++;
+}
+
+
+/*
+  "Ignore NULLs" statistics collection method: process next index tuple.
+
+  SYNOPSIS
+    mi_collect_stats_nonulls_next()
+      keyseg   IN     Array of key part descriptions
+      notnull  INOUT  Array, notnull[i] = (number of {keypart1...keypart_i}
+                                           tuples that don't contain NULLs)
+      prev_key IN     Previous key values tuple
+      last_key IN     Next key values tuple
+
+  DESCRIPTION
+    Process the next index tuple:
+    1. Find out which prefix tuples of last_key don't contain NULLs, and
+       update the array of notnull counters accordingly.
+    2. Find the first keypart number where the prev_key and last_key tuples
+       are different(A), or last_key has NULL value(B), and return it, so the 
+       caller can count number of unique tuples for each key prefix. We don't 
+       need (B) to be counted, and that is compensated back in 
+       update_key_parts().
+
+  RETURN
+    1 + number of first keypart where values differ or last_key tuple has NULL
+*/
+
+static
+int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
+                                  uchar *prev_key, uchar *last_key)
+{
+  uint diffs[2];
+  uint first_null_seg, kp;
+  HA_KEYSEG *seg;
+
+  /* 
+     Find the first keypart where values are different or either of them is
+     NULL. We get results in diffs array:
+     diffs[0]= 1 + number of first different keypart
+     diffs[1]=offset: (last_key + diffs[1]) points to first value in
+                      last_key that is NULL or different from corresponding
+                      value in prev_key.
+  */
+  ha_key_cmp(keyseg, prev_key, last_key, USE_WHOLE_KEY, 
+             SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diffs);
+  seg= keyseg + diffs[0] - 1;
+
+  /* Find first NULL in last_key */
+  first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
+  for (kp= 0; kp < first_null_seg; kp++)
+    notnull[kp]++;
+
+  /* 
+    Return 1+ number of first key part where values differ. Don't care if
+    these were NULLs and not .... We compensate for that in
+    update_key_parts.
+  */
+  return diffs[0];
+}
+
+
 	/* Check if index is ok */
 
 static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
@@ -564,7 +659,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
   char llbuff[22];
-  uint diff_pos;
+  uint diff_pos[2];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -622,7 +717,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if ((*keys)++ &&
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
-			 comp_flag, &diff_pos)) >=0)
+			 comp_flag, diff_pos)) >=0)
     {
       DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
       DBUG_DUMP("new",(byte*) key, key_length);
@@ -641,8 +736,20 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
         if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
           ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,
                      SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-                     &diff_pos);
-	param->unique_count[diff_pos-1]++;
+                     diff_pos);
+        else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
+        {
+          diff_pos[0]= mi_collect_stats_nonulls_next(keyinfo->seg, 
+                                                  param->notnull_count,
+                                                  info->lastkey, key);
+        }
+	param->unique_count[diff_pos[0]-1]++;
+      }
+      else
+      {  
+        if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
+          mi_collect_stats_nonulls_first(keyinfo->seg, param->notnull_count,
+                                         key);
       }
     }
     (*key_checksum)+= mi_byte_checksum((byte*) key,
@@ -1047,9 +1154,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	      /* We don't need to lock the key tree here as we don't allow
 		 concurrent threads when running myisamchk
 	      */
-              int search_result= (keyinfo->flag & HA_SPATIAL) ?
+              int search_result=
+#ifdef HAVE_RTREE_KEYS
+                (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
                                  SEARCH_SAME) : 
+#endif
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
@@ -1291,25 +1401,30 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     param->calc_checksum=1;
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+  /*
+    Clear all keys. Note that all key blocks allocated until now remain
+    "dead" parts of the key file. (Bug #4692)
+  */
   for (i=0 ; i < info->s->base.keys ; i++)
     share->state.key_root[i]= HA_OFFSET_ERROR;
+
+  /* Drop the delete chain. */
   for (i=0 ; i < share->state.header.max_block_size ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
   /*
-    I think mi_repair and mi_repair_by_sort should do the same
-    (according, e.g. to ha_myisam::repair), but as mi_repair doesn't
-    touch key_map it cannot be used to T_CREATE_MISSING_KEYS.
-    That is what the next line is for
+    If requested, activate (enable) all keys in key_map. In this case,
+    all indexes will be (re-)built.
   */
-
   if (param->testflag & T_CREATE_MISSING_KEYS)
-    mi_copy_keys_active(share->state.key_map, share->base.keys,
-                        param->keys_in_use);
+    mi_set_all_keys_active(share->state.key_map, share->base.keys);
 
   info->state->key_file_length=share->base.keystart;
 
   lock_memory(param);			/* Everything is alloced */
+
+  /* Re-create all keys, which are set in key_map. */
   while (!(error=sort_get_next_record(&sort_param)))
   {
     if (writekeys(param,info,(byte*)sort_param.record,sort_param.filepos))
@@ -1732,9 +1847,10 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	_mi_kpointer(info,keypos-nod_flag,param->new_file_pos); /* Save new pos */
 	if (sort_one_index(param,info,keyinfo,next_page,new_file))
 	{
-	  DBUG_PRINT("error",("From page: %ld, keyoffset: %d  used_length: %d",
-			      (ulong) pagepos, (int) (keypos - buff),
-			      (int) used_length));
+	  DBUG_PRINT("error",
+		     ("From page: %ld, keyoffset: %lu  used_length: %d",
+		      (ulong) pagepos, (ulong) (keypos - buff),
+		      (int) used_length));
 	  DBUG_DUMP("buff",(byte*) buff,used_length);
 	  goto err;
 	}
@@ -2089,7 +2205,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
     if (param->testflag & T_STATISTICS)
       update_key_parts(sort_param.keyinfo, rec_per_key_part, sort_param.unique,
-		       (ulonglong) info->state->records);
+                       param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
+                       sort_param.notnull: NULL,(ulonglong) info->state->records);
     mi_set_key_active(share->state.key_map, sort_param.key);
 
     if (sort_param.fix_datafile)
@@ -3233,15 +3350,15 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 static int sort_key_cmp(MI_SORT_PARAM *sort_param, const void *a,
 			const void *b)
 {
-  uint not_used;
+  uint not_used[2];
   return (ha_key_cmp(sort_param->seg, *((uchar**) a), *((uchar**) b),
-		     USE_WHOLE_KEY, SEARCH_SAME,&not_used));
+		     USE_WHOLE_KEY, SEARCH_SAME, not_used));
 } /* sort_key_cmp */
 
 
 static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
 {
-  uint diff_pos;
+  uint diff_pos[2];
   char llbuff[22],llbuff2[22];
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param= sort_info->param;
@@ -3251,16 +3368,26 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
   {
     cmp=ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
 		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
-		   &diff_pos);
+		   diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
       ha_key_cmp(sort_param->seg,sort_info->key_block->lastkey,
                  (uchar*) a, USE_WHOLE_KEY, 
-                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, &diff_pos);
-    sort_param->unique[diff_pos-1]++;
+                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diff_pos);
+    else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
+    {
+      diff_pos[0]= mi_collect_stats_nonulls_next(sort_param->seg,
+                                                 sort_param->notnull,
+                                                 sort_info->key_block->lastkey,
+                                                 (uchar*)a);
+    }
+    sort_param->unique[diff_pos[0]-1]++;
   }
   else
   {
     cmp= -1;
+    if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
+      mi_collect_stats_nonulls_first(sort_param->seg, sort_param->notnull,
+                                     (uchar*)a);
   }
   if ((sort_param->keyinfo->flag & HA_NOSAME) && cmp == 0)
   {
@@ -3978,24 +4105,34 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 
 /*
   Update statistics for each part of an index
-  
+
   SYNOPSIS
     update_key_parts()
-      keyinfo               Index information (only key->keysegs used)
+      keyinfo           IN  Index information (only key->keysegs used)
       rec_per_key_part  OUT Store statistics here
-      unique            IN  Array of #distinct values collected over index
-                            run.
+      unique            IN  Array of (#distinct tuples)
+      notnull_tuples    IN  Array of (#tuples), or NULL
       records               Number of records in the table
-      
-  NOTES
+
+  DESCRIPTION
+    This function is called produce index statistics values from unique and 
+    notnull_tuples arrays after these arrays were produced with sequential
+    index scan (the scan is done in two places: chk_index() and
+    sort_key_write()).
+
+    This function handles all 3 index statistics collection methods.
+
     Unique is an array:
-    unique[0]= (#different values of {keypart1}) - 1
-    unique[1]= (#different values of {keypart2,keypart1} tuple) - unique[0] - 1
-    ...
-    The 'unique' array is collected in one sequential scan through the entire
-    index. This is done in two places: in chk_index() and in sort_key_write().
-    Statistics collection may consider NULLs as either equal or unequal (see
-    SEARCH_NULL_ARE_NOT_EQUAL, MI_STATS_METHOD_*).
+      unique[0]= (#different values of {keypart1}) - 1
+      unique[1]= (#different values of {keypart1,keypart2} tuple)-unique[0]-1
+      ...
+
+    For MI_STATS_METHOD_IGNORE_NULLS method, notnull_tuples is an array too:
+      notnull_tuples[0]= (#of {keypart1} tuples such that keypart1 is not NULL)
+      notnull_tuples[1]= (#of {keypart1,keypart2} tuples such that all 
+                          keypart{i} are not NULL)
+      ...
+    For all other statistics collection methods notnull_tuples==NULL.
 
     Output is an array:
     rec_per_key_part[k] = 
@@ -4007,25 +4144,53 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
         index tuples}
      
      = #tuples-in-the-index / #distinct-tuples-in-the-index.
+    
+    The #tuples-in-the-index and #distinct-tuples-in-the-index have different 
+    meaning depending on which statistics collection method is used:
+    
+    MI_STATS_METHOD_*  how are nulls compared?  which tuples are counted?
+     NULLS_EQUAL            NULL == NULL           all tuples in table
+     NULLS_NOT_EQUAL        NULL != NULL           all tuples in table
+     IGNORE_NULLS               n/a             tuples that don't have NULLs
 */
 
 void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
-			     ulonglong *unique, ulonglong records)
+                      ulonglong *unique, ulonglong *notnull,
+                      ulonglong records)
 {
-  ulonglong count=0,tmp;
+  ulonglong count=0,tmp, unique_tuples;
+  ulonglong tuples= records;
   uint parts;
   for (parts=0 ; parts < keyinfo->keysegs  ; parts++)
   {
     count+=unique[parts];
-    if (count == 0)
-      tmp=records;
+    unique_tuples= count + 1;    
+    if (notnull)
+    {
+      tuples= notnull[parts];
+      /* 
+        #(unique_tuples not counting tuples with NULLs) = 
+          #(unique_tuples counting tuples with NULLs as different) - 
+          #(tuples with NULLs)
+      */
+      unique_tuples -= (records - notnull[parts]);
+    }
+    
+    if (unique_tuples == 0)
+      tmp= 1;
+    else if (count == 0)
+      tmp= tuples; /* 1 unique tuple */
     else
-      tmp= (records + (count+1)/2) / (count+1);
-    /* for some weird keys (e.g. FULLTEXT) tmp can be <1 here.
-       let's ensure it is not */
+      tmp= (tuples + unique_tuples/2) / unique_tuples;
+
+    /* 
+      for some weird keys (e.g. FULLTEXT) tmp can be <1 here. 
+      let's ensure it is not
+    */
     set_if_bigger(tmp,1);
     if (tmp >= (ulonglong) ~(ulong) 0)
       tmp=(ulonglong) ~(ulong) 0;
+
     *rec_per_key_part=(ulong) tmp;
     rec_per_key_part++;
   }

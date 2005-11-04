@@ -1630,6 +1630,7 @@ bool Field::needs_quotes(void)
   case FIELD_TYPE_MEDIUM_BLOB :
   case FIELD_TYPE_LONG_BLOB :
   case FIELD_TYPE_GEOMETRY :
+  case FIELD_TYPE_BIT:
     DBUG_RETURN(1);
 
   case FIELD_TYPE_DECIMAL : 
@@ -5883,7 +5884,8 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
-			      field_length-copy_length,' ');
+			      field_length-copy_length,
+                              field_charset->pad_char);
   
   if ((copy_length < length) && table->in_use->count_cuted_fields)
   {					// Check if we loosed some info
@@ -6426,6 +6428,17 @@ int Field_varstring::key_cmp(const byte *a,const byte *b)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+
+  if (field_charset == &my_charset_bin)
+  {
+    /* Store length last in high-byte order to sort longer strings first */
+    if (length_bytes == 1)
+      to[length-1]= tot_length;
+    else
+      mi_int2store(to+length-2, tot_length);
+    length-= length_bytes;
+  }
+ 
   tot_length= my_strnxfrm(field_charset,
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
@@ -7073,8 +7086,7 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type)
       return;
     }
     get_ptr(&blob);
-    gobj= Geometry::create_from_wkb(&buffer,
-				    blob + SRID_SIZE, blob_length - SRID_SIZE);
+    gobj= Geometry::construct(&buffer, blob, blob_length);
     if (gobj->get_mbr(&mbr, &dummy))
       bzero(buff, SIZEOF_STORED_DOUBLE*4);
     else
@@ -7136,6 +7148,13 @@ int Field_blob::key_cmp(const byte *a,const byte *b)
 }
 
 
+uint32 Field_blob::sort_length() const
+{
+  return (uint32) (current_thd->variables.max_sort_length + 
+                   (field_charset == &my_charset_bin ? 0 : packlength));
+}
+
+
 void Field_blob::sort_string(char *to,uint length)
 {
   char *blob;
@@ -7145,6 +7164,31 @@ void Field_blob::sort_string(char *to,uint length)
     bzero(to,length);
   else
   {
+    if (field_charset == &my_charset_bin)
+    {
+      char *pos;
+
+      /*
+        Store length of blob last in blob to shorter blobs before longer blobs
+      */
+      length-= packlength;
+      pos= to+length;
+
+      switch (packlength) {
+      case 1:
+        *pos= (char) blob_length;
+        break;
+      case 2:
+        mi_int2store(pos, blob_length);
+        break;
+      case 3:
+        mi_int3store(pos, blob_length);
+        break;
+      case 4:
+        mi_int4store(pos, blob_length);
+        break;
+      }
+    }
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
     blob_length=my_strnxfrm(field_charset,
@@ -7371,8 +7415,7 @@ void Field_geom::get_key_image(char *buff, uint length, imagetype type)
     return;
   }
   get_ptr(&blob);
-  gobj= Geometry::create_from_wkb(&buffer,
-				  blob + SRID_SIZE, blob_length - SRID_SIZE);
+  gobj= Geometry::construct(&buffer, blob, blob_length);
   if (gobj->get_mbr(&mbr, &dummy))
     bzero(buff, SIZEOF_STORED_DOUBLE*4);
   else
@@ -7453,7 +7496,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     uint32 wkb_type;
     if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
       goto err;
-    wkb_type= uint4korr(from + WKB_HEADER_SIZE);
+    wkb_type= uint4korr(from + SRID_SIZE + 1);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
       goto err;
@@ -8226,8 +8269,20 @@ void Field_bit_as_char::sql_type(String &res) const
   Handling of field and create_field
 *****************************************************************************/
 
+/*
+  Convert create_field::length from number of characters to number of bytes
+
+  SYNOPSIS
+    create_field::create_length_to_internal_length()
+  
+  DESCRIPTION
+    Convert create_field::length from number of characters to number of bytes,
+    save original value in chars_length.
+*/
+
 void create_field::create_length_to_internal_length(void)
 {
+  chars_length= length;
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:

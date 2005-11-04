@@ -22,7 +22,7 @@
 #else
 #include <unistd.h>
 #endif
-
+#include "my_pthread.h"
 
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;
@@ -79,5 +79,9 @@ extern unsigned int test_flags;
 extern unsigned long bytes_sent, bytes_received;
 extern unsigned long mysqld_net_retry_count;
 extern unsigned long open_files_limit;
+
+
+int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
+                                  void *(*start_routine)(void *), void *arg);
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_PRIV_H

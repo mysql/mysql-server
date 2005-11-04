@@ -40,7 +40,7 @@ TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
 const char *myisam_stats_method_names[] = {"nulls_unequal", "nulls_equal",
-                                           NullS};
+                                           "nulls_ignored", NullS};
 TYPELIB myisam_stats_method_typelib= {
   array_elements(myisam_stats_method_names) - 1, "",
   myisam_stats_method_names, NULL};
@@ -985,11 +985,16 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d, retrying",
                         my_errno);
-      thd->clear_error();
+      /* Repairing by sort failed. Now try standard repair method. */
       param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd,param,0) != HA_ADMIN_OK);
-      if (!error && thd->net.report_error)
-        error= HA_ERR_CRASHED;
+      /*
+        If the standard repair succeeded, clear all error messages which
+        might have been set by the first repair. They can still be seen
+        with SHOW WARNINGS then.
+      */
+      if (! error)
+        thd->clear_error();
     }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;

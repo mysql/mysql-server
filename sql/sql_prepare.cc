@@ -101,6 +101,11 @@ public:
 class Prepared_statement: public Statement
 {
 public:
+  enum flag_values
+  {
+    IS_IN_USE= 1
+  };
+
   THD *thd;
   Select_fetch_protocol_prep result;
   Protocol *protocol;
@@ -131,19 +136,8 @@ public:
   bool execute(String *expanded_query, bool open_cursor);
   /* Destroy this statement */
   bool deallocate();
-
-  /* Possible values of flags */
-#if defined(_MSC_VER) && _MSC_VER < 1300
-  static const int IS_IN_USE;
-#else
-  static const int IS_IN_USE= 1;
-#endif
 };
 
-/* VC6 can't handle initializing in declaration */
-#if defined(_MSC_VER) && _MSC_VER < 1300
-const int Prepared_statement::IS_IN_USE= 1;
-#endif
 
 /******************************************************************************
   Implementation
@@ -1164,6 +1158,7 @@ static int mysql_test_update(Prepared_statement *stmt,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege= want_privilege;
   table_list->table->grant.want_privilege= want_privilege;
+  table_list->register_want_access(want_privilege);
 #endif
   thd->lex->select_lex.no_wrap_view_item= TRUE;
   res= setup_fields(thd, 0, select->item_list, 1, 0, 0);
@@ -1175,6 +1170,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->grant.want_privilege=
   table_list->table->grant.want_privilege=
     (SELECT_ACL & ~table_list->table->grant.privilege);
+  table_list->register_want_access(SELECT_ACL);
 #endif
   if (setup_fields(thd, 0, stmt->lex->value_list, 0, 0, 0))
     goto error;
@@ -1748,6 +1744,8 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
   case SQLCOM_CALL:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_DROP_VIEW:
     break;
 
   default:
@@ -1830,7 +1828,7 @@ static bool init_param_array(Prepared_statement *stmt)
 void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 {
   Prepared_statement *stmt= new Prepared_statement(thd, &thd->protocol_prep);
-  bool rc;
+  bool error;
   DBUG_ENTER("mysql_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
@@ -1853,12 +1851,12 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-  rc= stmt->prepare(packet, packet_length);
+  error= stmt->prepare(packet, packet_length);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
 
-  if (rc)
+  if (error)
   {
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
@@ -1900,7 +1898,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
     CHARSET_INFO *to_cs= thd->variables.collation_connection;
     bool needs_conversion;
     user_var_entry *entry;
-    String *pstr= &str;
+    String *var_value= &str;
     uint32 unused, len;
     /*
       Convert @var contents to string in connection character set. Although
@@ -1914,13 +1912,13 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
         && entry->value)
     {
       my_bool is_var_null;
-      pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+      var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
       /*
         NULL value of variable checked early as entry->value so here
         we can't get NULL in normal conditions
       */
       DBUG_ASSERT(!is_var_null);
-      if (!pstr)
+      if (!var_value)
         goto end;
     }
     else
@@ -1932,22 +1930,25 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
       str.set("NULL", 4, &my_charset_latin1);
     }
 
-    needs_conversion= String::needs_conversion(pstr->length(),
-                                              pstr->charset(), to_cs, &unused);
+    needs_conversion= String::needs_conversion(var_value->length(),
+                                               var_value->charset(), to_cs,
+                                               &unused);
 
-    len= needs_conversion ? pstr->length() * to_cs->mbmaxlen : pstr->length();
+    len= (needs_conversion ? var_value->length() * to_cs->mbmaxlen :
+          var_value->length());
     if (!(query_str= alloc_root(thd->mem_root, len+1)))
       goto end;
 
     if (needs_conversion)
     {
       uint dummy_errors;
-      len= copy_and_convert(query_str, len, to_cs, pstr->ptr(), pstr->length(),
-                            pstr->charset(), &dummy_errors);
+      len= copy_and_convert(query_str, len, to_cs, var_value->ptr(),
+                            var_value->length(), var_value->charset(),
+                            &dummy_errors);
     }
     else
-      memcpy(query_str, pstr->ptr(), pstr->length());
-    query_str[len]= '\0';
+      memcpy(query_str, var_value->ptr(), var_value->length());
+    query_str[len]= '\0';                       // Safety (mostly for debug)
     *query_len= len;
   }
   else
@@ -1997,10 +1998,9 @@ void mysql_sql_stmt_prepare(THD *thd)
   Prepared_statement *stmt;
   const char *query;
   uint query_len;
-
   DBUG_ENTER("mysql_sql_stmt_prepare");
-
   DBUG_ASSERT(thd->protocol == &thd->protocol_simple);
+
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     /*
@@ -2172,8 +2172,9 @@ static void reset_stmt_params(Prepared_statement *stmt)
     client, otherwise an error message is set in THD.
 */
 
-void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
+void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 {
+  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
   /* Query text for binary, general or slow log, if any of them is open */
@@ -2182,7 +2183,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   uchar *packet_end= (uchar *) packet + packet_length - 1;
 #endif
   Prepared_statement *stmt;
-  bool rc;
+  bool error;
   DBUG_ENTER("mysql_stmt_execute");
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
@@ -2217,12 +2218,11 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 #endif
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
-  rc= stmt->execute(&expanded_query,
-                    test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
+  error= stmt->execute(&expanded_query,
+                       test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
-
-  if (rc == 0)
+  if (error == 0)
     mysql_log.write(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
 
   DBUG_VOID_RETURN;
@@ -2261,9 +2261,7 @@ void mysql_sql_stmt_execute(THD *thd)
   LEX_STRING *name= &lex->prepared_stmt_name;
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
-
   DBUG_ENTER("mysql_sql_stmt_execute");
-
   DBUG_PRINT("info", ("EXECUTE: %.*s\n", name->length, name->str));
 
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
@@ -2408,7 +2406,6 @@ void mysql_stmt_close(THD *thd, char *packet)
   /* There is always space for 4 bytes in packet buffer */
   ulong stmt_id= uint4korr(packet);
   Prepared_statement *stmt;
-
   DBUG_ENTER("mysql_stmt_close");
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
@@ -2418,7 +2415,7 @@ void mysql_stmt_close(THD *thd, char *packet)
     The only way currently a statement can be deallocated when it's
     in use is from within Dynamic SQL.
   */
-  DBUG_ASSERT(! (stmt->flags & Prepared_statement::IS_IN_USE));
+  DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
 
   DBUG_VOID_RETURN;
@@ -2462,7 +2459,7 @@ void mysql_sql_stmt_close(THD *thd)
     mysql_stmt_get_longdata()
       thd                Thread handle
       packet             String to append
-      packet_length      Length of string
+      packet_length      Length of string (including end \0)
 
   DESCRIPTION
     Get a part of a long data. To make the protocol efficient, we are
@@ -2479,13 +2476,12 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   Prepared_statement *stmt;
   Item_param *param;
   char *packet_end= packet + packet_length - 1;
-
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   statistic_increment(thd->status_var.com_stmt_send_long_data, &LOCK_status);
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
-  if ((ulong) (packet_end - packet) < MYSQL_LONG_DATA_HEADER)
+  if (packet_length <= MYSQL_LONG_DATA_HEADER)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
     DBUG_VOID_RETURN;
@@ -2592,7 +2588,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
   param_array(0),
   param_count(0),
   last_errno(0),
-  flags(IS_IN_USE)
+   flags((uint) IS_IN_USE)
 {
   *last_error= '\0';
 }
@@ -2709,7 +2705,7 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
 
 bool Prepared_statement::prepare(const char *packet, uint packet_len)
 {
-  bool rc;
+  bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
   DBUG_ENTER("Prepared_statement::prepare");
@@ -2739,7 +2735,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd, (uchar*) thd->query, thd->query_length);
   lex->stmt_prepare_mode= TRUE;
 
-  rc= yyparse((void *)thd) || thd->is_fatal_error ||
+  error= yyparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
   lex->safe_to_cache_query= FALSE;
   /*
@@ -2764,10 +2760,10 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   DBUG_ASSERT(thd->free_list == NULL);
 
-  if (rc == 0)
-    rc= check_prepared_statement(this, name.str != 0);
+  if (error == 0)
+    error= check_prepared_statement(this, name.str != 0);
 
-  if (rc && lex->sphead)
+  if (error && lex->sphead)
   {
     delete lex->sphead;
     lex->sphead= NULL;
@@ -2777,14 +2773,14 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if (rc == 0)
+  if (error == 0)
   {
     setup_set_params();
     init_stmt_after_parse(lex);
     state= Query_arena::PREPARED;
-    flags&= ~IS_IN_USE;
+    flags&= ~ (uint) IS_IN_USE;
   }
-  DBUG_RETURN(rc);
+  DBUG_RETURN(error);
 }
 
 /*
@@ -2806,6 +2802,10 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       Preconditions, postconditions.
       ------------------------------
       See the comment for Prepared_statement::prepare().
+
+  RETURN
+    FALSE		ok
+    TRUE		Error
 */
 
 bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
@@ -2813,7 +2813,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
   Item *old_free_list;
-  bool rc= TRUE;
+  bool error= TRUE;
 
   statistic_increment(thd->status_var.com_stmt_execute, &LOCK_status);
 
@@ -2823,7 +2823,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_message(last_errno, last_error, MYF(0));
     return TRUE;
   }
-  if (flags & IS_IN_USE)
+  if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return TRUE;
@@ -2885,13 +2885,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   reinit_stmt_before_use(thd, lex);
 
   thd->protocol= protocol;                      /* activate stmt protocol */
-  rc= open_cursor ? mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
-                                      &result, &cursor) :
-                    mysql_execute_command(thd);
+  error= (open_cursor ?
+          mysql_open_cursor(thd, (uint) ALWAYS_MATERIALIZED_CURSOR,
+                            &result, &cursor) :
+          mysql_execute_command(thd));
   thd->protocol= &thd->protocol_simple;         /* use normal protocol */
 
   /* Assert that if an error, no cursor is open */
-  DBUG_ASSERT(! (rc && cursor));
+  DBUG_ASSERT(! (error && cursor));
 
   if (! cursor)
   {
@@ -2906,8 +2907,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     state= Query_arena::EXECUTED;
 
 error:
-  flags&= ~IS_IN_USE;
-  return rc;
+  flags&= ~ (uint) IS_IN_USE;
+  return error;
 }
 
 
@@ -2917,7 +2918,7 @@ bool Prepared_statement::deallocate()
 {
   /* We account deallocate in the same manner as mysql_stmt_close */
   statistic_increment(thd->status_var.com_stmt_close, &LOCK_status);
-  if (flags & IS_IN_USE)
+  if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
     return TRUE;

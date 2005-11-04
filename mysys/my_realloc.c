@@ -52,7 +52,7 @@ gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
   if ((point = (char*)realloc(oldpoint,size)) == NULL)
   {
     if (my_flags & MY_FREE_ON_ERROR)
-      my_free(oldpoint,MyFLAGS);
+      my_free(oldpoint, my_flags);
     if (my_flags & MY_HOLD_ON_ERROR)
       DBUG_RETURN(oldpoint);
     my_errno=errno;
