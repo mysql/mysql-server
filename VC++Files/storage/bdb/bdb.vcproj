@@ -3,6 +3,7 @@
 	ProjectType="Visual C++"
 	Version="7.10"
 	Name="bdb"
+	ProjectGUID="{B3BFA8E5-90CF-4794-96E0-0B03ACA57A30}"
 	SccProjectName=""
 	SccLocalPath="">
 	<Platforms>
@@ -23,7 +24,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../bdb/build_win32,../bdb"
+				AdditionalIncludeDirectories="../bdb/build_win32,../bdb,../bdb/dbinc"
 				PreprocessorDefinitions="NDEBUG;DBUG_OFF;_WINDOWS"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
