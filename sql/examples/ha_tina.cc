@@ -58,12 +58,16 @@ static int tina_init= 0;
  ** TINA tables
  *****************************************************************************/
 
-/* 
-  Used for sorting  chains.
+/*
+  Used for sorting chains with qsort().
 */
 int sort_set (tina_set *a, tina_set *b)
 {
-  return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
+  /*
+    We assume that intervals do not intersect. So, it is enought to compare
+    any two points. Here we take start of intervals for comparison.
+  */
+  return ( a->begin > b->begin ? -1 : ( a->begin < b->begin ? 1 : 0 ) );
 }
 
 static byte* tina_get_key(TINA_SHARE *share,uint *length,
@@ -739,13 +743,8 @@ int ha_tina::rnd_end()
     qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set), (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
     {
-      /* We peek a head to see if this is the last chain */
-      if (ptr+1 == chain_ptr)
-        memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
-                length - (size_t)ptr->end);
-      else
-        memmove((caddr_t)share->mapped_file + ptr->begin, (caddr_t)share->mapped_file + ptr->end,
-                (size_t)((ptr++)->begin - ptr->end));
+      memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
+              length - (size_t)ptr->end);
       length= length - (size_t)(ptr->end - ptr->begin);
     }
 
