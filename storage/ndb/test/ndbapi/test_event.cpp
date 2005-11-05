@@ -462,6 +462,7 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "FAIL " << __LINE__ << endl;
       return NDBT_FAILED;
     }
+
     if (hugoTrans.pkDelRecords(GETNDB(step), 3*records, 1, true, 1) != 0){
       g_err << "FAIL " << __LINE__ << endl;
       return NDBT_FAILED;
@@ -482,14 +483,15 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "FAIL " << __LINE__ << endl;
       return NDBT_FAILED;
     }
-    
+
     ctx->setProperty("LastGCI", hugoTrans.m_latest_gci);
     if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
     {
+      g_err << "FAIL " << __LINE__ << endl;
       return NDBT_FAILED;
     }
   }
-  
+  ctx->stopTest();  
   return NDBT_OK;
 }
 
@@ -519,7 +521,6 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_ENTER("runEventApplier");
 
   int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
   const NdbDictionary::Table * table= ctx->getTab();
   HugoTransactions hugoTrans(* table);
 
@@ -557,7 +558,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     goto end;
   }
 
-  while(loops-- && !ctx->isTestStopped())
+  while(!ctx->isTestStopped())
   {
     int r;
     int count= 0;
