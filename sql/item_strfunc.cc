@@ -1864,7 +1864,7 @@ String *Item_func_elt::val_str(String *str)
 void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
-  item->split_sum_func2(thd, ref_pointer_array, fields, &item);
+  item->split_sum_func2(thd, ref_pointer_array, fields, &item, TRUE);
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
