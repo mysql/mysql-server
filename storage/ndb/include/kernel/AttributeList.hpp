@@ -26,9 +26,13 @@
 
 typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
 
-struct AttributeList {
+template <Uint32 SZ>
+struct Id_array
+{
   Uint32 sz;
-  Uint32 id[MAX_ATTRIBUTES_IN_INDEX];
+  Uint32 id[SZ];
 };
+
+typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> AttributeList;
 
 #endif

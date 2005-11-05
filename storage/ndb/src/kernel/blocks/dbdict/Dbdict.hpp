@@ -1263,7 +1263,7 @@ private:
     // original request plus buffer for attribute lists
     BuildIndxReq m_request;
     AttributeList m_attrList;
-    AttributeList m_tableKeyList;
+    Id_array<MAX_ATTRIBUTES_IN_INDEX+1> m_tableKeyList;
     // coordinator DICT
     Uint32 m_coordinatorRef;
     bool m_isMaster;
@@ -2048,7 +2048,8 @@ private:
   void alterTrigger_sendSlaveReq(Signal* signal, OpAlterTriggerPtr opPtr);
   void alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr, bool);
   // support
-  void getTableKeyList(TableRecordPtr tablePtr, AttributeList& list);
+  void getTableKeyList(TableRecordPtr, 
+		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);
   void getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id);
   void getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list);
   void getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask);

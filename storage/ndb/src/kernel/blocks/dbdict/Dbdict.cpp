@@ -12128,7 +12128,8 @@ Dbdict::alterTrigger_sendReply(Signal* signal, OpAlterTriggerPtr opPtr,
 */
 
 void
-Dbdict::getTableKeyList(TableRecordPtr tablePtr, AttributeList& list)
+Dbdict::getTableKeyList(TableRecordPtr tablePtr, 
+			Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list)
 {
   jam();
   list.sz = 0;
@@ -12139,6 +12140,7 @@ Dbdict::getTableKeyList(TableRecordPtr tablePtr, AttributeList& list)
       list.id[list.sz++] = aRec->attributeId;
     tAttr = aRec->nextAttrInTable;
   }
+  ndbrequire(list.sz <= MAX_ATTRIBUTES_IN_INDEX + 1);
 }
 
 // XXX should store the primary attribute id
