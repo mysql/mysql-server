@@ -166,7 +166,8 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
 
-    if ((share->data_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
+    if ((share->data_file= my_open(data_file_name, O_RDWR|O_APPEND,
+                                   MYF(0))) == -1)
       goto error2;
 
     /* We only use share->data_file for writing, so we scan to the end to append */
