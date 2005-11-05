@@ -501,6 +501,10 @@ rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 pthread_cond_t COND_refresh,COND_thread_count;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
+pthread_mutex_t  LOCK_server_started;
+pthread_cond_t  COND_server_started;
+
+int mysqld_server_started= 0;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint master_port= MYSQL_PORT, master_connect_retry = 60;
@@ -2765,6 +2769,8 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
 #endif
+  (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
+  (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
@@ -3450,6 +3456,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
 
+  // Signal threads waiting for server to be started
+  mysqld_server_started= 1;
+  pthread_cond_signal(&COND_server_started);
+
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
@@ -3497,6 +3507,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       CloseHandle(hEventShutdown);
   }
 #endif
+  clean_up(1);
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
