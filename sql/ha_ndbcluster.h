@@ -25,6 +25,7 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+#include <ndbapi/NdbApi.hpp>
 #include <ndbapi_limits.h>
 
 class Ndb;             // Forward declaration
@@ -36,10 +37,13 @@ class NdbScanFilter;
 class NdbIndexScanOperation; 
 class NdbBlob;
 class NdbIndexStat;
+class NdbEventOperation;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 extern ulong ndb_cache_check_time;
+extern ulong ndb_report_thresh_binlog_epoch_slip;
+extern ulong ndb_report_thresh_binlog_mem_usage;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -63,13 +67,25 @@ typedef struct ndb_index_data {
   uint index_stat_query_count;
 } NDB_INDEX_DATA;
 
+typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
+
+typedef enum {
+  NSS_INITIAL= 0,
+  NSS_DROPPED
+} NDB_SHARE_STATE;
+
 typedef struct st_ndbcluster_share {
+  MEM_ROOT mem_root;
   THR_LOCK lock;
   pthread_mutex_t mutex;
-  char *table_name;
-  uint table_name_length,use_count;
+  char *key;
+  uint key_length;
+  THD *util_lock;
+  uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
+  char *db;
+  char *table_name;
 } NDB_SHARE;
 
 typedef enum ndb_item_type {
@@ -595,9 +611,16 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
+  static void invalidate_dictionary_cache(TABLE *table, Ndb *ndb,
+					  const char *tabname, bool global);
 
 private:
+  friend int ndbcluster_drop_database(const char *path);
   int alter_table_name(const char *to);
+  static int delete_table(ha_ndbcluster *h, Ndb *ndb,
+			  const char *path,
+			  const char *db,
+			  const char *table_name);
   int drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
@@ -643,7 +666,8 @@ private:
                       uint fieldnr, const byte* field_ptr);
   int set_ndb_key(NdbOperation*, Field *field,
                   uint fieldnr, const byte* field_ptr);
-  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr, bool *set_blob_value= 0);
+  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr,
+		    int row_offset= 0, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
@@ -688,6 +712,7 @@ private:
                            NdbScanOperation* op);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 
@@ -704,7 +729,6 @@ private:
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   // NdbRecAttr has no reference to blob
-  typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   partition_info *m_part_info;
   byte *m_rec0;
@@ -715,6 +739,7 @@ private:
   bool m_ignore_dup_key;
   bool m_primary_key_update;
   bool m_write_op;
+  bool m_ignore_no_key;
   ha_rows m_rows_to_insert;
   ha_rows m_rows_inserted;
   ha_rows m_bulk_insert_rows;
@@ -760,3 +785,4 @@ int ndbcluster_drop_database(const char* path);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 int ndbcluster_show_status(THD*);
+

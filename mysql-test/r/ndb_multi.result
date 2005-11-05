@@ -29,7 +29,12 @@ drop table t1;
 create table t1 (a int) engine=ndbcluster;
 insert into t1 value (2);
 select * from t1;
-ERROR HY000: Got error 241 'Invalid schema object version' from NDBCLUSTER
+ERROR HY000: Table definition has changed, please retry transaction
+show warnings;
+Level	Code	Message
+Error	1296	Got error 241 'Invalid schema object version' from NDB
+Error	1412	Table definition has changed, please retry transaction
+Error	1105	Unknown error
 select * from t1;
 a
 2
