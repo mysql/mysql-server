@@ -5540,3 +5540,5 @@ ER_DROP_PARTITION_FAILURE
 ER_DROP_PARTITION_WHEN_FK_DEFINED
         eng "Cannot drop a partition when a foreign key constraint is defined on the table"
         swe "Kan inte ta bort en partition när en främmande nyckel är definierad på tabellen"
+ER_PLUGIN_IS_NOT_LOADED
+	eng "Plugin '%-.64s' is not loaded"
