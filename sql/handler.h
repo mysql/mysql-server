@@ -126,7 +126,7 @@
       example + csv + heap + blackhole + federated + 0
   (yes, the sum is deliberately inaccurate)
 */
-#define MAX_HA 14
+#define MAX_HA 15
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
@@ -722,8 +722,8 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
-bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
-                            TABLE *table, enum db_type default_db_type);
+bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
+                            TABLE* table, enum db_type default_db_type);
 #endif
 
 

@@ -62,6 +62,13 @@ handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
 #endif
 #ifdef HAVE_PARTITION_DB
 #include "ha_partition.h"
+extern handlerton partition_hton;
+#else
+handlerton partition_hton = { "partition", SHOW_OPTION_NO,
+  "Partition engine", 
+  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL, 
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+  HTON_NO_FLAGS };
 #endif
 #ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
@@ -155,6 +162,7 @@ handlerton *sys_table_types[]=
   &myisammrg_hton,
   &binlog_hton,
   &isam_hton,
+  &partition_hton,
   NULL
 };
 
@@ -386,6 +394,8 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
       delete file;
       file=0;
     }
+  }
+  return file;
 }
 
 

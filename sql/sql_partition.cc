@@ -42,18 +42,18 @@
 /*
   Partition related functions declarations and some static constants;
 */
-static char *hash_str= "HASH";
-static char *range_str= "RANGE";
-static char *list_str= "LIST";
-static char *part_str= "PARTITION";
-static char *sub_str= "SUB";
-static char *by_str= "BY";
-static char *key_str= "KEY";
-static char *space_str= " ";
-static char *equal_str= "=";
-static char *end_paren_str= ")";
-static char *begin_paren_str= "(";
-static char *comma_str= ",";
+static const char *hash_str= "HASH";
+static const char *range_str= "RANGE";
+static const char *list_str= "LIST";
+static const char *part_str= "PARTITION";
+static const char *sub_str= "SUB";
+static const char *by_str= "BY";
+static const char *key_str= "KEY";
+static const char *space_str= " ";
+static const char *equal_str= "=";
+static const char *end_paren_str= ")";
+static const char *begin_paren_str= "(";
+static const char *comma_str= ",";
 static char buff[22];
 
 bool get_partition_id_list(partition_info *part_info,
@@ -571,7 +571,7 @@ static bool set_up_default_partitions(partition_info *part_info,
 
   if (part_info->part_type != HASH_PARTITION)
   {
-    char *error_string;
+    const char *error_string;
     if (part_info->part_type == RANGE_PARTITION)
       error_string= range_str;
     else
@@ -1704,7 +1704,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   }
   else
   {
-    char *error_str;
+    const char *error_str;
     if (part_info->part_type == RANGE_PARTITION)
     {
       error_str= range_str; 
@@ -1764,7 +1764,7 @@ end:
 
 static int add_write(File fptr, const char *buf, uint len)
 {
-  uint len_written= my_write(fptr, buf, len, MYF(0));
+  uint len_written= my_write(fptr, (const byte*)buf, len, MYF(0));
   if (likely(len == len_written))
     return 0;
   else
@@ -2117,7 +2117,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!buf)
     goto close_file;
 
-  if (unlikely(my_read(fptr, buf, *buf_length, MYF(MY_FNABP))))
+  if (unlikely(my_read(fptr, (byte*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
       my_free(buf, MYF(0));
@@ -2896,7 +2896,8 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
 {
   partition_info *part_info= table->s->part_info;
   uint no_parts= get_tot_partitions(part_info), i, part_id;
-  uint sub_part= no_parts, part_part= no_parts;
+  uint sub_part= no_parts;
+  uint32 part_part= no_parts;
   KEY *key_info= NULL;
   bool found_part_field= FALSE;
   DBUG_ENTER("get_partition_set");
@@ -3080,17 +3081,14 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
      possible to retrace this given an item tree.
 */
 
-bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
+bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
                             TABLE* table, enum db_type default_db_type)
 {
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
-  uchar* part_buf= NULL;
   partition_info *part_info;
   LEX *old_lex= thd->lex, lex;
   DBUG_ENTER("mysql_unpack_partition");
-  if (read_string(file, (gptr*)&part_buf, part_info_len))
-    DBUG_RETURN(result);
   thd->lex= &lex;
   lex_start(thd, part_buf, part_info_len);
   /*
@@ -3160,7 +3158,6 @@ bool mysql_unpack_partition(File file, THD *thd, uint part_info_len,
   result= FALSE;
 end:
   thd->free_list= thd_free_list;
-  x_free((gptr)part_buf);
   thd->lex= old_lex;
   DBUG_RETURN(result);
 }
@@ -3229,4 +3226,3 @@ void set_key_field_ptr(KEY *key_info, const byte *new_buf,
   } while (++i < key_parts);
   DBUG_VOID_RETURN;
 }
-

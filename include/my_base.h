@@ -209,12 +209,8 @@ enum ha_base_keytype {
 #define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
 #define HA_VAR_LENGTH_KEY	 8
 #define HA_NULL_PART_KEY	 64
-#ifndef ISAM_LIBRARY
+#define HA_USES_PARSER           16384  /* Fulltext index uses [pre]parser */
 #define HA_SORT_ALLOWS_SAME      512    /* Intern bit when sorting records */
-#else
-/* poor old NISAM has 8-bit flags :-( */
-#define HA_SORT_ALLOWS_SAME	 128	/* Intern bit when sorting records */
-#endif
 /*
   Key has a part that can have end space.  If this is an unique key
   we have to handle it differently from other unique keys as we can find

@@ -70,7 +70,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   int	 j,error, errarg= 0;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
-  uint	 key_info_length, com_length, part_info_len, extra_rec_buf_length;
+  uint	 key_info_length, com_length, part_info_len=0, extra_rec_buf_length;
   ulong  pos, record_offset;
   char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
   uchar  head[288],*disk_buff,new_field_pack_flag;
@@ -154,7 +154,6 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     goto err;                                   /* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
-  part_info_len= uint4korr(head+55);
   share->frm_version= head[2];
   /*
     Check if .frm file created by MySQL 5.0. In this case we want to
@@ -311,9 +310,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     /* Read extra data segment */
     char *buff, *next_chunk, *buff_end;
+    DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
     if (!(next_chunk= buff= my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    buff_end= buff + n_length;
     if (my_pread(file, (byte*)buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
@@ -328,15 +327,81 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
+    buff_end= buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
-      share->db_type= ha_resolve_by_name(next_chunk + 2, str_db_type_length);
-      DBUG_PRINT("enter", ("Setting dbtype to: %d - %d - '%.*s'\n",
-                           share->db_type,
-                           str_db_type_length, str_db_type_length,
-                           next_chunk + 2));
+      enum db_type tmp_db_type= ha_resolve_by_name(next_chunk + 2,
+                                                   str_db_type_length);
+      if (tmp_db_type != DB_TYPE_UNKNOWN)
+      {
+        share->db_type= tmp_db_type;
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            share->db_type));
+      }
+#ifdef HAVE_PARTITION_DB
+      else
+      {
+        if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
+        {
+          /* Use partition handler */
+          share->db_type= DB_TYPE_PARTITION_DB;
+          DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                              str_db_type_length, next_chunk + 2,
+                              share->db_type));
+        }
+      }
+#endif
       next_chunk+= str_db_type_length + 2;
+    }
+    if (next_chunk + 4 < buff_end)
+    {
+      part_info_len= uint4korr(next_chunk);
+      if (part_info_len > 0)
+      {
+#ifdef HAVE_PARTITION_DB
+        if (mysql_unpack_partition(thd, (uchar *)(next_chunk + 4),
+                                   part_info_len, outparam,
+                                   default_part_db_type))
+        {
+          DBUG_PRINT("info", ("mysql_unpack_partition failed"));
+          my_free(buff, MYF(0));
+          goto err;
+        }
+#else
+        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
+        my_free(buff, MYF(0));
+        goto err;
+#endif
+      }
+      next_chunk+= part_info_len + 5;
+    }
+    keyinfo= outparam->key_info;
+    for (i= 0; i < keys; i++, keyinfo++)
+    {
+      if (keyinfo->flags & HA_USES_PARSER)
+      {
+        LEX_STRING parser_name;
+        if (next_chunk >= buff_end)
+        {
+          DBUG_PRINT("EDS",
+              ("fulltext key uses parser that is not defined in .frm"));
+          my_free(buff, MYF(0));
+          goto err;
+        }
+        parser_name.str= next_chunk;
+        parser_name.length= strlen(next_chunk);
+        keyinfo->parser= plugin_lock(&parser_name, MYSQL_FTPARSER_PLUGIN);
+        if (! keyinfo->parser)
+        {
+          DBUG_PRINT("EDS", ("parser plugin is not loaded"));
+          my_free(buff, MYF(0));
+          my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
+          error_reported= 1;
+          goto err;
+        }
+      }
     }
     my_free(buff, MYF(0));
   }
@@ -471,16 +536,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   if (keynames)
     fix_type_pointers(&int_array, &share->keynames, 1, &keynames);
-  if (part_info_len > 0)
-  {
-#ifdef HAVE_PARTITION_DB
-    if (mysql_unpack_partition(file, thd, part_info_len,
-                               outparam, default_part_db_type)) 
-      goto err;
-#else
-    goto err;
-#endif
-  }
+
   VOID(my_close(file,MYF(MY_WME)));
   file= -1;
 

@@ -40,8 +40,8 @@ public:
   }
   const char *index_type(uint inx)
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ? "BTREE" :
-	    "HASH");
+    return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
+            "BTREE" : "HASH");
   }
   /* Rows also use a fixed-size format */
   enum row_type get_row_type() const { return ROW_TYPE_FIXED; }

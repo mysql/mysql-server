@@ -67,10 +67,10 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
-static handlerton partition_hton = {
+handlerton partition_hton = {
   "partition",
   SHOW_OPTION_YES,
-  "", /* A comment used by SHOW to describe an engine */
+  "Partition engine", /* A comment used by SHOW to describe an engine */
   DB_TYPE_PARTITION_DB,
   0, /* Method that initizlizes a storage engine */
   0, /* slot */
@@ -701,7 +701,8 @@ bool ha_partition::create_handlers()
   bzero(m_file, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
-    if (!(m_file[i]= get_new_handler(table, (enum db_type) m_engine_array[i])))
+    if (!(m_file[i]= get_new_handler(table, current_thd->mem_root,
+                                     (enum db_type) m_engine_array[i])))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
   }
@@ -727,6 +728,7 @@ bool ha_partition::new_handlers_from_part_info()
   partition_element *part_elem;
   uint alloc_len= (m_tot_parts + 1) * sizeof(handler*);
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
+  THD *thd= current_thd;
   DBUG_ENTER("ha_partition::new_handlers_from_part_info");
 
   if (!(m_file= (handler **) sql_alloc(alloc_len)))
@@ -743,14 +745,16 @@ bool ha_partition::new_handlers_from_part_info()
   do
   {
     part_elem= part_it++;
-    if (!(m_file[i]= get_new_handler(table, part_elem->engine_type)))
+    if (!(m_file[i]= get_new_handler(table, thd->mem_root,
+                                     part_elem->engine_type)))
       goto error;
     DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
     if (m_is_sub_partitioned)
     {
       for (j= 0; j < m_part_info->no_subparts; j++)
       {
-	if (!(m_file[i]= get_new_handler(table, part_elem->engine_type)))
+	if (!(m_file[i]= get_new_handler(table, thd->mem_root,
+                                         part_elem->engine_type)))
           goto error;
 	DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
       }
