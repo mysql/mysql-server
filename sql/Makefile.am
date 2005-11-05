@@ -66,7 +66,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_array.h sql_cursor.h \
 			examples/ha_example.h ha_archive.h \
 			examples/ha_tina.h ha_blackhole.h  \
-			ha_federated.h ha_partition.h
+			ha_federated.h ha_partition.h \
+			sql_plugin.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -104,8 +105,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			examples/ha_example.cc ha_archive.cc \
 			examples/ha_tina.cc ha_blackhole.cc \
                         ha_partition.cc sql_partition.cc \
-			ha_federated.cc
-
+			ha_federated.cc \
+			sql_plugin.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc

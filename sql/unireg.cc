@@ -77,14 +77,14 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 		      handler *db_file)
 {
   LEX_STRING str_db_type;
-  uint reclength,info_length,screens,key_info_length,maxlength;
+  uint reclength,info_length,screens,key_info_length,maxlength,i;
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  char buff[2];
+  char buff[5];
 #ifdef HAVE_PARTITION_DB
   partition_info *part_info= thd->lex->part_info;
 #endif
@@ -127,8 +127,21 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   /* Calculate extra data segment length */
   str_db_type.str= (char *) ha_get_storage_engine(create_info->db_type);
   str_db_type.length= strlen(str_db_type.str);
+  /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
+  /* Partition */
+  create_info->extra_size+= 5;
+#ifdef HAVE_PARTITION_DB
+  if (part_info)
+    create_info->extra_size+= part_info->part_info_len;
+#endif
+
+  for (i= 0; i < keys; i++)
+  {
+    if (key_info[i].parser_name)
+      create_info->extra_size+= key_info[i].parser_name->length + 1;
+  }
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -155,10 +168,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 
 #ifdef HAVE_PARTITION_DB
   if (part_info)
-  {
-    int4store(fileinfo+55,part_info->part_info_len);
     fileinfo[61]= (uchar) part_info->default_engine_type;
-  }
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
@@ -173,31 +183,49 @@ bool mysql_create_frm(THD *thd, my_string file_name,
     goto err;
 
   int2store(buff, create_info->connect_string.length);
-  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
       my_write(file, (const byte*)create_info->connect_string.str,
                create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
 
   int2store(buff, str_db_type.length);
-  if (my_write(file, (const byte*)buff, sizeof(buff), MYF(MY_NABP)) ||
+  if (my_write(file, (const byte*)buff, 2, MYF(MY_NABP)) ||
       my_write(file, (const byte*)str_db_type.str,
                str_db_type.length, MYF(MY_NABP)))
     goto err;
- 
+
+#ifdef HAVE_PARTITION_DB
+  if (part_info)
+  {
+    int4store(buff, part_info->part_info_len);
+    if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
+        my_write(file, (const byte*)part_info->part_info_string,
+                 part_info->part_info_len + 1, MYF_RW))
+      goto err;
+  }
+  else
+#endif
+  {
+    bzero(buff, 5);
+    if (my_write(file, (byte*) buff, 5, MYF_RW))
+      goto err;
+  }
+  for (i= 0; i < keys; i++)
+  {
+    if (key_info[i].parser_name)
+    {
+      if (my_write(file, (const byte*)key_info[i].parser_name->str,
+                   key_info[i].parser_name->length + 1, MYF(MY_NABP)))
+        goto err;
+    }
+  }
+        
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
       my_write(file,(byte*) screen_buff,info_length,MYF_RW) ||
       pack_fields(file, create_fields, data_offset))
     goto err;
 
-#ifdef HAVE_PARTITION_DB
-  if (part_info)
-  {
-    if (my_write(file, (byte*) part_info->part_info_string,
-                 part_info->part_info_len, MYF_RW))
-      goto err;
-  }
-#endif
 #ifdef HAVE_CRYPTED_FRM
   if (create_info->password)
   {

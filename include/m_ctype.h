@@ -399,6 +399,8 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
+extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
+                       char c);
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, uint len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, uint len);

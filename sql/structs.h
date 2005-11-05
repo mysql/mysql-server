@@ -89,6 +89,15 @@ typedef struct st_key {
   uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
   enum  ha_key_alg algorithm;
+  /*
+    Note that parser is used when the table is opened for use, and
+    parser_name is used when the table is being created.
+  */
+  union
+  {
+    struct st_plugin_int *parser;       /* Fulltext [pre]parser */
+    LEX_STRING *parser_name;            /* Fulltext [pre]parser name */
+  };
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
   /*

@@ -65,7 +65,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   table->status=0;			/* And it's always found */
   if (!table->file->inited)
   {
-    table->file->ha_index_init(idx);
+    table->file->ha_index_init(idx, 1);
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
   }
   /* read_record will be changed to rr_index in rr_index_first */

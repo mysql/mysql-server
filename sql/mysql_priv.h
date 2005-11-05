@@ -489,6 +489,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_error.h"
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
+#include "sql_plugin.h"
 #include "sql_udf.h"
 class user_var_entry;
 class Security_context;
