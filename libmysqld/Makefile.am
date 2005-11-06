@@ -20,11 +20,13 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
+MYSQLLIBdir=            $(libdir)
 
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
+			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+			-DLIBDIR="\"$(MYSQLLIBdir)\""
 INCLUDES=		@bdb_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \

@@ -9,6 +9,7 @@ help_keyword
 help_relation
 help_topic
 host
+plugin
 proc
 procs_priv
 tables_priv
@@ -36,6 +37,7 @@ help_keyword
 help_relation
 help_topic
 host
+plugin
 proc
 procs_priv
 tables_priv
@@ -71,6 +73,7 @@ help_keyword
 help_relation
 help_topic
 host
+plugin
 proc
 procs_priv
 tables_priv
