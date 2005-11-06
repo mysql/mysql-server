@@ -85,6 +85,11 @@ private:
    *
    * TODO use more compact key format
    */
+  struct Pointer;
+  friend struct Pointer;
+  struct Entry;
+  friend struct Entry;
+  struct Area;
   friend struct Area;
   struct Pointer {
     Uint16 m_pos;
