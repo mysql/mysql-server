@@ -96,25 +96,25 @@ extern void bitmap_lock_invert(MY_BITMAP *map);
 #define _bitmap_is_set(MAP, BIT) (((uchar*)(MAP)->bitmap)[(BIT) / 8] \
                                   & (1 << ((BIT) & 7)))
 #ifndef DBUG_OFF
-inline uint32
+static inline uint32
 bitmap_set_bit(MY_BITMAP *map,uint bit)
 {
   DBUG_ASSERT(bit < (map)->n_bits);
   return _bitmap_set_bit(map,bit);
 }
-inline uint32
+static inline uint32
 bitmap_flip_bit(MY_BITMAP *map,uint bit)
 {
   DBUG_ASSERT(bit < (map)->n_bits);
   return _bitmap_flip_bit(map,bit);
 }
-inline uint32
+static inline uint32
 bitmap_clear_bit(MY_BITMAP *map,uint bit)
 {
   DBUG_ASSERT(bit < (map)->n_bits);
   return _bitmap_clear_bit(map,bit);
 }
-inline uint32
+static inline uint32
 bitmap_is_set(const MY_BITMAP *map,uint bit)
 {
   DBUG_ASSERT(bit < (map)->n_bits);

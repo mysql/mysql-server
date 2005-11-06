@@ -30,7 +30,7 @@ subdirs = btree build_vxworks build_win32 clib common cxx db dbinc \
   db_verify dbm dbreg dist env examples_c examples_cxx fileops hash \
 	hsearch hmac include java libdb_java lock log mp mutex os os_vxworks \
 	os_win32 perl.BerkeleyDB perl.DB_File qam rep rpc_client rpc_server tcl \
-	test txn xa
+	test txn xa sequence
 
 @SET_MAKE@
 
