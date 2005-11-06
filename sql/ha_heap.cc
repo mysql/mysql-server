@@ -477,6 +477,14 @@ int ha_heap::delete_table(const char *name)
   return error == ENOENT ? 0 : error;
 }
 
+
+void ha_heap::drop_table(const char *name)
+{
+  heap_drop_table(file);
+  close();
+}
+
+
 int ha_heap::rename_table(const char * from, const char * to)
 {
   return heap_rename(from,to);

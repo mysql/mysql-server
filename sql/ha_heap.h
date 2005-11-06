@@ -94,6 +94,7 @@ public:
   int indexes_are_disabled(void);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from);
+  void drop_table(const char *name);
   int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   void update_create_info(HA_CREATE_INFO *create_info);

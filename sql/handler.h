@@ -1287,6 +1287,7 @@ public:
   */
   virtual int rename_table(const char *from, const char *to);
   virtual int delete_table(const char *name);
+  virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
   virtual int create_handler_files(const char *name) { return FALSE;}
