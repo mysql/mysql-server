@@ -335,6 +335,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INSENSITIVE_SYM
 %token  INSERT
 %token  INSERT_METHOD
+%token  INSTALL_SYM
 %token  INTERVAL_SYM
 %token  INTO
 %token  INT_SYM
@@ -470,12 +471,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OUTFILE
 %token  OUT_SYM
 %token  PACK_KEYS_SYM
+%token  PARSER_SYM
 %token  PARTIAL
 %token  PARTITION_SYM
 %token  PARTITIONS_SYM
 %token  PASSWORD
 %token  PARAM_MARKER
 %token  PHASE_SYM
+%token  PLUGIN_SYM
 %token  POINTFROMTEXT
 %token  POINT_SYM
 %token  POLYFROMTEXT
@@ -560,6 +563,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SLAVE
 %token  SMALLINT
 %token  SNAPSHOT_SYM
+%token  SONAME_SYM
 %token  SOUNDS_SYM
 %token  SPATIAL_SYM
 %token  SPECIFIC_SYM
@@ -621,13 +625,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TYPES_SYM
 %token  TYPE_SYM
 %token  UDF_RETURNS_SYM
-%token  UDF_SONAME_SYM
 %token  ULONGLONG_NUM
 %token  UNCOMMITTED_SYM
 %token  UNDEFINED_SYM
 %token  UNDERSCORE_CHARSET
 %token  UNDO_SYM
 %token  UNICODE_SYM
+%token  UNINSTALL_SYM
 %token  UNION_SYM
 %token  UNIQUE_SYM
 %token  UNIQUE_USERS
@@ -696,7 +700,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident
 
 %type <lex_str_ptr>
-	opt_table_alias
+	opt_table_alias opt_fulltext_parser
 
 %type <table>
 	table_ident table_ident_nodb references xid
@@ -844,7 +848,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        view_user view_suid
+        install uninstall view_user view_suid
         partition_entry
 END_OF_INPUT
 
@@ -906,6 +910,7 @@ statement:
 	| handler
 	| help
 	| insert
+        | install
 	| kill
 	| load
 	| lock
@@ -930,6 +935,7 @@ statement:
 	| slave
 	| start
 	| truncate
+        | uninstall
 	| unlock
 	| update
 	| use
@@ -1187,11 +1193,15 @@ create:
 	    lex->col_list.empty();
 	    lex->change=NullS;
 	  }
-	   '(' key_list ')'
+	   '(' key_list ')' opt_fulltext_parser
 	  {
 	    LEX *lex=Lex;
-
-	    lex->key_list.push_back(new Key($2,$4.str, $5, 0, lex->col_list));
+	    if ($2 != Key::FULLTEXT && $12)
+	    {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+	    lex->key_list.push_back(new Key($2,$4.str,$5,0,lex->col_list,$12));
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
@@ -1382,7 +1392,7 @@ sp_name:
 	;
 
 create_function_tail:
-	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
+	  RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
@@ -3302,10 +3312,15 @@ column_def:
 	;
 
 key_def:
-	key_type opt_ident key_alg '(' key_list ')'
+	key_type opt_ident key_alg '(' key_list ')' opt_fulltext_parser
 	  {
 	    LEX *lex=Lex;
-	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list));
+	    if ($1 != Key::FULLTEXT && $7)
+	    {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+	    lex->key_list.push_back(new Key($1,$2, $3, 0, lex->col_list, $7));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
@@ -3339,6 +3354,20 @@ key_def:
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	;
+
+opt_fulltext_parser:
+        /* empty */               { $$= (LEX_STRING *)0; }
+	| WITH PARSER_SYM IDENT_sys
+          {
+            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
+              $$= (LEX_STRING *)sql_memdup(&$3, sizeof(LEX_STRING));
+            else
+            {
+              my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
+              YYABORT;
+            }
+          }
+        ;
 
 opt_check_constraint:
 	/* empty */
@@ -8153,10 +8182,13 @@ keyword:
 	| FLUSH_SYM		{}
 	| HANDLER_SYM		{}
 	| HELP_SYM		{}
+        | INSTALL_SYM           {}
 	| LANGUAGE_SYM          {}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
+        | PARSER_SYM            {}
 	| PARTITION_SYM		{}
+        | PLUGIN_SYM            {}
         | PREPARE_SYM           {}
 	| REPAIR		{}
 	| RESET_SYM		{}
@@ -8166,10 +8198,12 @@ keyword:
 	| SECURITY_SYM		{}
 	| SIGNED_SYM		{}
 	| SLAVE			{}
+        | SONAME_SYM            {}
 	| START_SYM		{}
 	| STOP_SYM		{}
 	| TRUNCATE_SYM		{}
 	| UNICODE_SYM		{}
+        | UNINSTALL_SYM         {}
         | XA_SYM                {}
 	;
 
@@ -9732,4 +9766,19 @@ opt_migrate:
     | FOR_SYM MIGRATE_SYM   { Lex->xa_opt=XA_FOR_MIGRATE; }
     ;
 
+install:
+  INSTALL_SYM PLUGIN_SYM IDENT_sys SONAME_SYM TEXT_STRING_sys
+  {
+    LEX *lex= Lex;
+    lex->sql_command= SQLCOM_INSTALL_PLUGIN;
+    lex->comment= $3;
+    lex->ident= $5;
+  };
 
+uninstall:
+  UNINSTALL_SYM PLUGIN_SYM IDENT_sys
+  {
+    LEX *lex= Lex;
+    lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
+    lex->comment= $3;
+  };
