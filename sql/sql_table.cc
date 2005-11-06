@@ -2335,7 +2335,7 @@ send_result_message:
       {
         char buf[ERRMSGSIZE+20];
         uint length= my_snprintf(buf, ERRMSGSIZE,
-				 ER(ER_CHECK_NOT_BASE_TABLE), operator_name);
+                                 ER(ER_BAD_TABLE_ERROR), table_name);
         protocol->store("note", 4, system_charset_info);
         protocol->store(buf, length, system_charset_info);
       }
