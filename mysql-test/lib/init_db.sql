@@ -121,6 +121,15 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='User defined functions';
 
 
+CREATE TABLE plugin (
+  name char(64) binary DEFAULT '' NOT NULL,
+  dl char(128) DEFAULT '' NOT NULL,
+  PRIMARY KEY (name)
+) engine=MyISAM
+CHARACTER SET utf8 COLLATE utf8_bin
+comment='MySQL plugins';
+
+
 CREATE TABLE tables_priv (
   Host char(60) binary DEFAULT '' NOT NULL,
   Db char(64) binary DEFAULT '' NOT NULL,
