@@ -234,6 +234,16 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
        HP_PTRS_IN_NOD * block->level_info[i - 1].records_under_level);
 }
 
+
+static inline void heap_try_free(HP_SHARE *share)
+{
+  if (share->open_count == 0)
+    hp_free(share);
+  else
+    share->delete_on_close= 1;
+}
+
+
 int heap_delete_table(const char *name)
 {
   int result;
@@ -243,10 +253,7 @@ int heap_delete_table(const char *name)
   pthread_mutex_lock(&THR_LOCK_heap);
   if ((share= hp_find_named_heap(name)))
   {
-    if (share->open_count == 0)
-      hp_free(share);
-    else
-     share->delete_on_close= 1;
+    heap_try_free(share);
     result= 0;
   }
   else
@@ -256,6 +263,17 @@ int heap_delete_table(const char *name)
   pthread_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);
 }
+
+
+void heap_drop_table(HP_INFO *info)
+{
+  DBUG_ENTER("heap_drop_table");
+  pthread_mutex_lock(&THR_LOCK_heap);
+  heap_try_free(info->s);
+  pthread_mutex_unlock(&THR_LOCK_heap);
+  DBUG_VOID_RETURN;
+}
+
 
 void hp_free(HP_SHARE *share)
 {

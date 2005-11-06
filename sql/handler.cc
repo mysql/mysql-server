@@ -2062,6 +2062,14 @@ int handler::rename_table(const char * from, const char * to)
   return error;
 }
 
+
+void handler::drop_table(const char *name)
+{
+  close();
+  delete_table(name);
+}
+
+
 /*
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for

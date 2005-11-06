@@ -8848,16 +8848,8 @@ free_tmp_table(THD *thd, TABLE *entry)
   if (entry->file)
   {
     if (entry->db_stat)
-    {
-      (void) entry->file->close();
-    }
-    /*
-      We can't call ha_delete_table here as the table may created in mixed case
-      here and we have to ensure that delete_table gets the table name in
-      the original case.
-    */
-    if (!(test_flags & TEST_KEEP_TMP_TABLES) ||
-        entry->s->db_type == DB_TYPE_HEAP)
+      entry->file->drop_table(entry->s->table_name);
+    else
       entry->file->delete_table(entry->s->table_name);
     delete entry->file;
   }
