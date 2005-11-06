@@ -24,6 +24,14 @@ typedef struct st_ft_docstat {
   double sum;
 } FT_DOCSTAT;
 
+
+typedef struct st_my_ft_parser_param
+{
+  TREE *wtree;
+  my_bool with_alloc;
+} MY_FT_PARSER_PARAM;
+
+
 static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
 {
   return mi_compare_text(cs, (uchar*) w1->pos, w1->len,
@@ -102,13 +110,14 @@ my_bool ft_boolean_check_syntax_string(const byte *str)
   4 - stopword found
 */
 byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
-                 FT_WORD *word, FTB_PARAM *param)
+                 FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
   byte *doc=*start;
   uint mwc, length, mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
-  param->plusminus=param->pmsign=0;
+  param->weight_adjust= param->wasign= 0;
+  param->type= FT_TOKEN_EOF;
 
   while (doc<end)
   {
@@ -119,7 +128,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       {
         param->quot=doc;
         *start=doc+1;
-        return 3; /* FTB_RBR */
+        param->type= FT_TOKEN_RIGHT_PAREN;
+        goto ret;
       }
       if (!param->quot)
       {
@@ -128,21 +138,22 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
           /* param->prev=' '; */
           *start=doc+1;
           if (*doc == FTB_LQUOT) param->quot=*start;
-          return (*doc == FTB_RBR)+2;
+          param->type= (*doc == FTB_RBR ? FT_TOKEN_RIGHT_PAREN : FT_TOKEN_LEFT_PAREN);
+          goto ret;
         }
         if (param->prev == ' ')
         {
           if (*doc == FTB_YES ) { param->yesno=+1;    continue; } else
           if (*doc == FTB_EGAL) { param->yesno= 0;    continue; } else
           if (*doc == FTB_NO  ) { param->yesno=-1;    continue; } else
-          if (*doc == FTB_INC ) { param->plusminus++; continue; } else
-          if (*doc == FTB_DEC ) { param->plusminus--; continue; } else
-          if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
+          if (*doc == FTB_INC ) { param->weight_adjust++; continue; } else
+          if (*doc == FTB_DEC ) { param->weight_adjust--; continue; } else
+          if (*doc == FTB_NEG ) { param->wasign= !param->wasign; continue; }
         }
       }
       param->prev=*doc;
       param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
-      param->plusminus=param->pmsign=0;
+      param->weight_adjust= param->wasign= 0;
     }
 
     mwc=length=0;
@@ -161,20 +172,24 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
          || param->trunc) && length < ft_max_word_len)
     {
       *start=doc;
-      return 1;
+      param->type= FT_TOKEN_WORD;
+      goto ret;
     }
     else if (length) /* make sure length > 0 (if start contains spaces only) */
     {
       *start= doc;
-      return 4;
+      param->type= FT_TOKEN_STOPWORD;
+      goto ret;
     }
   }
   if (param->quot)
   {
     param->quot=*start=doc;
-    return 3; /* FTB_RBR */
+    param->type= 3; /* FT_RBR */
+    goto ret;
   }
-  return 0;
+ret:
+  return param->type;
 }
 
 byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
@@ -220,30 +235,67 @@ void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
   DBUG_VOID_RETURN;
 }
 
-int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc)
-{
-  byte   *end=doc+doclen;
-  FT_WORD w;
-  DBUG_ENTER("ft_parse");
 
-  while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
+static int ft_add_word(void *param, byte *word, uint word_len,
+             MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
+{
+  TREE *wtree;
+  FT_WORD w;
+  DBUG_ENTER("ft_add_word");
+  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
+  if (((MY_FT_PARSER_PARAM *)param)->with_alloc)
   {
-    if (with_alloc)
-    {
-      byte *ptr;
-      /* allocating the data in the tree - to avoid mallocs and frees */
-      DBUG_ASSERT(wtree->with_delete==0);
-      ptr=(byte *)alloc_root(& wtree->mem_root,w.len);
-      memcpy(ptr, w.pos, w.len);
-      w.pos=ptr;
-    }
-    if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
-      goto err;
+    byte *ptr;
+    /* allocating the data in the tree - to avoid mallocs and frees */
+    DBUG_ASSERT(wtree->with_delete == 0);
+    ptr= (byte *)alloc_root(&wtree->mem_root, word_len);
+    memcpy(ptr, word, word_len);
+    w.pos= ptr;
+  }
+  else
+    w.pos= word;
+  w.len= word_len;
+  if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
+  {
+    delete_tree(wtree);
+    DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
-
-err:
-  delete_tree(wtree);
-  DBUG_RETURN(1);
 }
 
+
+static int ft_parse_internal(void *param, byte *doc, uint doc_len)
+{
+  byte   *end=doc+doc_len;
+  FT_WORD w;
+  TREE *wtree;
+  DBUG_ENTER("ft_parse_internal");
+
+  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
+  while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
+    if (ft_add_word(param, w.pos, w.len, 0))
+      DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
+int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
+                    struct st_mysql_ftparser *parser)
+{
+  MYSQL_FTPARSER_PARAM param;
+  MY_FT_PARSER_PARAM my_param;
+  DBUG_ENTER("ft_parse");
+  DBUG_ASSERT(parser);
+  my_param.wtree= wtree;
+  my_param.with_alloc= with_alloc;
+
+  param.mysql_parse= ft_parse_internal;
+  param.mysql_add_word= ft_add_word;
+  param.ftparser_state= 0;
+  param.mysql_ftparam= &my_param;
+  param.cs= wtree->custom_arg;
+  param.doc= doc;
+  param.length= doclen;
+  param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
+  DBUG_RETURN(parser->parse(&param));
+}

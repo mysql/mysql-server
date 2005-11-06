@@ -1087,6 +1087,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	break;
     case Key::FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
+	if ((key_info->parser_name= key->parser_name))
+          key_info->flags|= HA_USES_PARSER;
 	break;
     case Key::SPATIAL:
 #ifdef HAVE_SPATIAL
