@@ -1074,7 +1074,10 @@ int closefrm(register TABLE *table)
   for (idx= table->s->keys; idx; idx--, key_info++)
   {
     if (key_info->flags & HA_USES_PARSER)
+    {
       plugin_unlock(key_info->parser);
+      key_info->flags= 0;
+    }
   }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;

@@ -1380,16 +1380,6 @@ do { doubleget_union _tmp; \
 #define dlerror() ""
 #endif
 
-#ifdef HAVE_DLOPEN
-#if defined(__WIN__)
-#define dlsym(lib, name) GetProcAddress((HMODULE)lib, name)
-#define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
-#define dlclose(lib) FreeLibrary((HMODULE)lib)
-#elif !defined(OS2)
-#include <dlfcn.h>
-#endif
-#endif
-
 /* FreeBSD 2.2.2 does not define RTLD_NOW) */
 #ifndef RTLD_NOW
 #define RTLD_NOW 1
