@@ -948,6 +948,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       }
     }
     packet->append(')');
+    if (key_info->parser)
+    {
+      packet->append(" WITH PARSER ", 13);
+      append_identifier(thd, packet, key_info->parser->name.str,
+                        key_info->parser->name.length);
+    }
   }
 
   /*

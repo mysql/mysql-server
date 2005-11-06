@@ -1047,6 +1047,7 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
    keydef->block_size	= keydef->block_length/MI_MIN_KEY_BLOCK_LENGTH-1;
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
+   keydef->parser       = &ft_default_parser;
    return ptr;
 }
 

@@ -39,8 +39,8 @@ c_hc=""
 c_hr="" 
 c_hk="" 
 i_ht=""
-c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls=""
-i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls=""
+c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls="" c_pl=""
+i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls="" i_pl=""
 c_p="" c_pp=""
 
 # Check for old tables
@@ -200,6 +200,21 @@ then
   c_f="$c_f ) engine=MyISAM"
   c_f="$c_f CHARACTER SET utf8 COLLATE utf8_bin"
   c_f="$c_f   comment='User defined functions';"
+fi
+
+if test ! -f $mdata/plugin.frm
+then
+  if test "$1" = "verbose" ; then
+    echo "Preparing plugin table" 1>&2;
+  fi
+
+  c_pl="$c_pl CREATE TABLE plugin ("
+  c_pl="$c_pl   name char(64) binary DEFAULT '' NOT NULL,"
+  c_pl="$c_pl   dl char(128) DEFAULT '' NOT NULL,"
+  c_pl="$c_pl   PRIMARY KEY (name)"
+  c_pl="$c_pl ) engine=MyISAM"
+  c_pl="$c_pl CHARACTER SET utf8 COLLATE utf8_bin"
+  c_pl="$c_pl   comment='MySQL plugins';"
 fi
 
 if test ! -f $mdata/tables_priv.frm
@@ -740,6 +755,9 @@ $i_u
 
 $c_f
 $i_f
+
+$c_pl
+$i_pl
 
 $c_t
 $c_c

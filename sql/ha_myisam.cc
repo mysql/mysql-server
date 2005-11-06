@@ -280,6 +280,7 @@ err:
 
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
+  uint i;
   if (!(file=mi_open(name, mode, test_if_locked)))
     return (my_errno ? my_errno : -1);
   
@@ -292,6 +293,14 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     int_table_flags|=HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags|=HA_HAS_CHECKSUM;
+
+  for (i= 0; i < table->s->keys; i++)
+  {
+    struct st_plugin_int *parser= table->key_info[i].parser;
+    if (table->key_info[i].flags & HA_USES_PARSER)
+      file->s->keyinfo[i].parser=
+        (struct st_mysql_ftparser *)parser->plugin->info;
+  }
   return (0);
 }
 
