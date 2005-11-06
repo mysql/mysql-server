@@ -148,6 +148,7 @@ public:
    * Subscriptions
    */
   class Table;
+  friend class Table;
   typedef Ptr<Table> TablePtr;
 
   struct SyncRecord {
