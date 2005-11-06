@@ -19,6 +19,7 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
+MYSQLLIBdir=            $(pkglibdir)
 INCLUDES =		@ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
@@ -116,6 +117,7 @@ DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+			-DLIBDIR="\"$(MYSQLLIBdir)\"" \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h

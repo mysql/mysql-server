@@ -323,6 +323,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
             next_chunk + 2, share->connect_string.length)))
     {
+      DBUG_PRINT("EDS", ("strmake_root failed for connect_string"));
       my_free(buff, MYF(0));
       goto err;
     }
@@ -1064,9 +1065,17 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 int closefrm(register TABLE *table)
 {
   int error=0;
+  uint idx;
+  KEY *key_info;
   DBUG_ENTER("closefrm");
   if (table->db_stat)
     error=table->file->close();
+  key_info= table->key_info;
+  for (idx= table->s->keys; idx; idx--, key_info++)
+  {
+    if (key_info->flags & HA_USES_PARSER)
+      plugin_unlock(key_info->parser);
+  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)

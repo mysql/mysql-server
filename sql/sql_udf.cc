@@ -38,35 +38,9 @@
 #ifdef HAVE_DLOPEN
 extern "C"
 {
-#if defined(__WIN__)
-  void* dlsym(void* lib,const char* name)
-  {
-    return GetProcAddress((HMODULE)lib,name);
-  }
-  void* dlopen(const char* libname,int unused)
-  {
-    return LoadLibraryEx(libname,NULL,0);
-  }
-  void dlclose(void* lib)
-  {
-    FreeLibrary((HMODULE)lib);
-  }
-
-#elif !defined(OS2)
-#include <dlfcn.h>
-#endif
-
 #include <stdarg.h>
 #include <hash.h>
 }
-
-#ifndef RTLD_NOW
-#define RTLD_NOW 1				// For FreeBSD 2.2.2
-#endif
-
-#ifndef HAVE_DLERROR
-#define dlerror() ""
-#endif
 
 static bool initialized = 0;
 static MEM_ROOT mem;
@@ -194,8 +168,10 @@ void udf_init()
       This is done to ensure that only approved dll from the system
       directories are used (to make this even remotely secure).
     */
-    if (strchr(dl_name, '/') ||
-        IF_WIN(strchr(dl_name, '\\'),0) ||
+    if (my_strchr(files_charset_info, dl_name,
+                  dl_name + strlen(dl_name), '/') ||
+        IF_WIN(my_strchr(files_charset_info, dl_name,
+                         dl_name + strlen(dl_name), '\\'),0) ||
         strlen(name.str) > NAME_LEN)
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
@@ -214,10 +190,13 @@ void udf_init()
     void *dl = find_udf_dl(tmp->dl);
     if (dl == NULL)
     {
-      if (!(dl = dlopen(tmp->dl, RTLD_NOW)))
+      char dlpath[FN_REFLEN];
+      strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
+               NullS);
+      if (!(dl= dlopen(dlpath, RTLD_NOW)))
       {
 	/* Print warning to log */
-	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl,errno,dlerror());
+	sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, dlerror());
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -412,7 +391,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
     This is done to ensure that only approved dll from the system
     directories are used (to make this even remotely secure).
   */
-  if (strchr(udf->dl, '/') || IF_WIN(strchr(udf->dl, '\\'),0))
+  if (my_strchr(files_charset_info, udf->dl, udf->dl + strlen(udf->dl), '/') ||
+      IF_WIN(strchr(files_charset_info, udf->dl,
+                    udf->dl + strlen(udf->dl), '\\'),0))
   {
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
@@ -431,12 +412,14 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   if (!(dl = find_udf_dl(udf->dl)))
   {
-    if (!(dl = dlopen(udf->dl, RTLD_NOW)))
+    char dlpath[FN_REFLEN];
+    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
+    if (!(dl = dlopen(dlpath, RTLD_NOW)))
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
-			  udf->dl,errno,dlerror()));
+			  dlpath, errno, dlerror()));
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0),
-                      udf->dl, errno, dlerror());
+                      dlpath, errno, dlerror());
       goto err;
     }
     new_dl=1;
