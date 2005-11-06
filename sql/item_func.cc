@@ -1138,11 +1138,8 @@ longlong Item_func_find_in_set::val_int()
 longlong Item_func_bit_count::val_int()
 {
   ulonglong value= (ulonglong) args[0]->val_int();
-  if (args[0]->null_value)
-  {
-    null_value=1; /* purecov: inspected */
+  if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
-  }
   return (longlong) my_count_bits(value);
 }
 
