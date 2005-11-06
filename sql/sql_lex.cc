@@ -28,7 +28,8 @@
   We are using pointer to this variable for distinguishing between assignment
   to NEW row field (when parsing trigger definition) and structured variable.
 */
-sys_var_long_ptr trg_new_row_fake_var(0, 0);
+
+sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
 /* Macros to look like lex */
 
