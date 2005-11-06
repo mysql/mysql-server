@@ -22,6 +22,7 @@
 #include <m_ctype.h>
 #include <my_tree.h>
 #include <queues.h>
+#include <plugin.h>
 
 #define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
 #define misc_word_char(X)	((X)=='\'')
@@ -98,20 +99,12 @@ typedef struct st_ft_word {
   double weight;
 } FT_WORD;
 
-typedef struct st_ftb_param {
-  byte prev;
-  int  yesno;
-  int  plusminus;
-  bool pmsign;
-  bool trunc;
-  byte *quot;
-} FTB_PARAM;
-
 int is_stopword(char *word, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
-byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *, FTB_PARAM *);
+byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *,
+                 MYSQL_FTPARSER_BOOLEAN_INFO *);
 byte ft_simple_get_word(CHARSET_INFO *, byte **, const byte *,
                         FT_WORD *, my_bool);
 
@@ -126,7 +119,7 @@ void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, byte *, int, my_bool);
+int ft_parse(TREE *, byte *, int, my_bool, struct st_mysql_ftparser *parser);
 FT_WORD * ft_linearize(TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
 uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool);

@@ -99,15 +99,17 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
                   const byte *record, my_bool with_alloc)
 {
   FT_SEG_ITERATOR ftsi;
+  struct st_mysql_ftparser *parser;
   DBUG_ENTER("_mi_ft_parse");
 
   _mi_ft_segiterator_init(info, keynr, record, &ftsi);
 
   ft_parse_init(parsed, info->s->keyinfo[keynr].seg->charset);
+  parser= info->s->keyinfo[keynr].parser;
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc))
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc, parser))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
