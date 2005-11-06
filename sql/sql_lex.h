@@ -702,7 +702,7 @@ struct st_trg_chistics
   enum trg_event_type event;
 };
 
-extern sys_var_long_ptr trg_new_row_fake_var;
+extern sys_var *trg_new_row_fake_var;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
