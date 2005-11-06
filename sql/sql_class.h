@@ -413,11 +413,13 @@ public:
   List<key_part_spec> columns;
   const char *name;
   bool generated;
+  LEX_STRING *parser_name;
 
   Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
-      bool generated_arg, List<key_part_spec> &cols)
+      bool generated_arg, List<key_part_spec> &cols,
+      LEX_STRING *parser_arg= 0)
     :type(type_par), algorithm(alg_par), columns(cols), name(name_arg),
-    generated(generated_arg)
+    generated(generated_arg), parser_name(parser_arg)
   {}
   ~Key() {}
   /* Equality comparison of keys (ignoring name) */

@@ -3006,7 +3006,7 @@ ER_CANT_FIND_DL_ENTRY
 	cze "Nemohu naj-BМt funkci '%-.64s' v knihovnЛ'"
 	dan "Kan ikke finde funktionen '%-.64s' i bibliotek'"
 	nla "Kan functie '%-.64s' niet in library vinden"
-	eng "Can't find function '%-.64s' in library'"
+	eng "Can't find symbol '%-.64s' in library'"
 	jps "function '%-.64s' ┌П┐┴┐C┐u┐┴┐┼│[▓├┌и▄╘∙t┌╞┌И▌√┌╙┌е┌╚┌э┌╧┌Я",
 	est "Ei leia funktsiooni '%-.64s' antud teegis"
 	fre "Impossible de trouver la fonction '%-.64s' dans la bibliothХque'"
@@ -3018,7 +3018,7 @@ ER_CANT_FIND_DL_ENTRY
 	kor "╤Сюл╧Ж╥╞╦╝©║╪╜ '%-.64s' гт╪Ж╦╕ цёю╩ ╪Ж ╬Ь╫ю╢о╢ы."
 	por "NЦo pode encontrar a funГЦo '%-.64s' na biblioteca"
 	rum "Nu pot gasi functia '%-.64s' in libraria"
-	rus "Невозможно отыскать функцию '%-.64s' в библиотеке"
+	rus "Невозможно отыскать символ '%-.64s' в библиотеке"
 	serbian "Ne mogu da pronadjem funkciju '%-.64s' u biblioteci"
 	slo "NemТ╬em nАjs╩ funkciu '%-.64s' v kni╬nici'"
 	spa "No puedo encontrar funciСn '%-.64s' en libraria'"

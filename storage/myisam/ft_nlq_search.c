@@ -230,7 +230,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
             NULL, NULL);
 
   ft_parse_init(&wtree, aio.charset);
-  if (ft_parse(&wtree,query,query_len,0))
+  if (ft_parse(&wtree, query, query_len, 0, info->s->keyinfo[keynr].parser))
     goto err;
 
   if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
