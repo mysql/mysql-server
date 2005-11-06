@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS func (
   PRIMARY KEY (name)
 ) CHARACTER SET utf8 COLLATE utf8_bin;
 
+CREATE TABLE IF NOT EXISTS plugin (
+  name char(64) binary DEFAULT '' NOT NULL,
+  dl char(128) DEFAULT '' NOT NULL,
+  PRIMARY KEY (name)
+) CHARACTER SET utf8 COLLATE utf8_bin;
+
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
 -- Detect whether or not we had the Grant_priv column

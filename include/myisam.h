@@ -32,6 +32,7 @@ extern "C" {
 #include "keycache.h"
 #endif
 #include "my_handler.h"
+#include <plugin.h>
 
 	/* defines used by myisam-funktions */
 
@@ -196,6 +197,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint32 version;			/* For concurrent read/write */
 
   HA_KEYSEG *seg,*end;
+  struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
   int (*bin_search)(struct st_myisam_info *info,struct st_mi_keydef *keyinfo,
 		    uchar *page,uchar *key,
 		    uint key_len,uint comp_flag,uchar * *ret_pos,

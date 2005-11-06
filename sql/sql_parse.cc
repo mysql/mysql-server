@@ -4780,6 +4780,15 @@ end_with_restore_list:
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
     break;
+  case SQLCOM_INSTALL_PLUGIN:
+    if (! (res= mysql_install_plugin(thd, &thd->lex->comment,
+                                     &thd->lex->ident)))
+      send_ok(thd);
+    break;
+  case SQLCOM_UNINSTALL_PLUGIN:
+    if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment)))
+      send_ok(thd);
+    break;
   default:
     DBUG_ASSERT(0);                             /* Impossible */
     send_ok(thd);
