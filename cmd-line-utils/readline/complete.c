@@ -33,7 +33,8 @@
 
 #include <fcntl.h>
 
-#if defined (HAVE_SYS_FILE_H)
+/* FreeBSD 5.3 will not declare u_int in sys/types.h, file.h needs it */
+#if defined (HAVE_SYS_FILE_H) && !defined(__FreeBSD__)
 #  include <sys/file.h>
 #endif
 
