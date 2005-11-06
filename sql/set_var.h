@@ -39,6 +39,9 @@ typedef byte *(*sys_value_ptr_func)(THD *thd);
 class sys_var
 {
 public:
+  static sys_var *first;
+  static uint sys_vars;
+  sys_var *next;
   struct my_option *option_limits;	/* Updated by by set_var_init() */
   uint name_length;			/* Updated by by set_var_init() */
   const char *name;
@@ -48,12 +51,18 @@ public:
   sys_var(const char *name_arg)
     :name(name_arg), after_update(0)
     , no_support_one_shot(1)
-    {}
+  { add_sys_var(); }
   sys_var(const char *name_arg,sys_after_update_func func)
     :name(name_arg), after_update(func)
     , no_support_one_shot(1)
-  {}
+  { add_sys_var(); }
   virtual ~sys_var() {}
+  void add_sys_var()
+  {
+    next= first;
+    first= this;
+    sys_vars++;
+  }
   virtual bool check(THD *thd, set_var *var);
   bool check_enum(THD *thd, set_var *var, TYPELIB *enum_names);
   bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
@@ -700,6 +709,30 @@ public:
   SHOW_TYPE type() { return show_type; }
   bool is_readonly() const { return 1; }
 };
+
+
+class sys_var_have_variable: public sys_var
+{
+  SHOW_COMP_OPTION *have_variable;
+
+public:
+  sys_var_have_variable(const char *variable_name,
+                        SHOW_COMP_OPTION *have_variable_arg):
+    sys_var(variable_name),
+    have_variable(have_variable_arg)
+  { }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  {
+    return (byte*) show_comp_option_name[*have_variable];
+  }
+  bool update(THD *thd, set_var *var) { return 1; }
+  bool check_default(enum_var_type type) { return 1; }
+  bool check_type(enum_var_type type) { return type != OPT_GLOBAL; }
+  bool check_update_type(Item_result type) { return 1; }
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool is_readonly() const { return 1; }
+};
+
 
 class sys_var_thd_time_zone :public sys_var_thd
 {

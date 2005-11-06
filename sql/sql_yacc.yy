@@ -8529,7 +8529,7 @@ sys_option_value:
         {
           LEX *lex=Lex;
 
-          if ($2.var == &trg_new_row_fake_var)
+          if ($2.var == trg_new_row_fake_var)
           {
             /* We are in trigger and assigning value to field of new row */
             Item *it;
@@ -8750,7 +8750,7 @@ internal_variable_name:
                 YYABORT;
               }
               /* This special combination will denote field of NEW row */
-              $$.var= &trg_new_row_fake_var;
+              $$.var= trg_new_row_fake_var;
               $$.base_name= $3;
             }
             else
