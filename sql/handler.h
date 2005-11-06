@@ -491,7 +491,6 @@ typedef struct {
   longlong list_value;
   uint partition_id;
 } LIST_PART_ENTRY;
-enum Item_result;
 
 class partition_info;
 
