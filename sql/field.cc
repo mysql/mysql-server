@@ -7931,7 +7931,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   int delta;
 
-  for (; !*from && length; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--);          // skip left 0's
   delta= field_length - length;
 
   if (delta < -1 ||
@@ -8151,7 +8151,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
   int delta;
   uchar bits= create_length & 7;
 
-  for (; !*from && length; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--);          // skip left 0's
   delta= field_length - length;
 
   if (delta < 0 ||
