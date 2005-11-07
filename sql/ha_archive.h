@@ -109,5 +109,5 @@ public:
 };
 
 bool archive_db_init(void);
-bool archive_db_end(void);
+int archive_db_end(ha_panic_function type);
 

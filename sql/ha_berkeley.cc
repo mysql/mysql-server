@@ -53,7 +53,6 @@
 
 #include "mysql_priv.h"
 
-#ifdef HAVE_BERKELEY_DB
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <hash.h>
@@ -72,6 +71,9 @@
 #define STATUS_ROW_COUNT_INIT	2
 #define STATUS_BDB_ANALYZE	4
 
+const u_int32_t bdb_DB_TXN_NOSYNC= DB_TXN_NOSYNC;
+const u_int32_t bdb_DB_RECOVER= DB_RECOVER;
+const u_int32_t bdb_DB_PRIVATE= DB_PRIVATE;
 const char *ha_berkeley_ext=".db";
 bool berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
@@ -107,6 +109,7 @@ static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
 static int berkeley_close_connection(THD *thd);
 static int berkeley_commit(THD *thd, bool all);
 static int berkeley_rollback(THD *thd, bool all);
+static handler *berkeley_create_handler(TABLE *table);
 
 handlerton berkeley_hton = {
   "BerkeleyDB",
@@ -129,8 +132,22 @@ handlerton berkeley_hton = {
   NULL, /* create_cursor_read_view */
   NULL, /* set_cursor_read_view */
   NULL, /* close_cursor_read_view */
-  HTON_CLOSE_CURSORS_AT_COMMIT
+  berkeley_create_handler, /* Create a new handler */
+  NULL, /* Drop a database */
+  berkeley_end, /* Panic call */
+  NULL, /* Release temporary latches */
+  NULL, /* Update Statistics */
+  NULL, /* Start Consistent Snapshot */
+  berkeley_flush_logs, /* Flush logs */
+  berkeley_show_status, /* Show status */
+  NULL, /* Replication Report Sent Binlog */
+  HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME
 };
+
+handler *berkeley_create_handler(TABLE *table)
+{
+  return new ha_berkeley(table);
+}
 
 typedef struct st_berkeley_trx_data {
   DB_TXN *all;
@@ -215,18 +232,19 @@ error:
 }
 
 
-bool berkeley_end(void)
+int berkeley_end(ha_panic_function type)
 {
-  int error;
+  int error= 0;
   DBUG_ENTER("berkeley_end");
-  if (!db_env)
-    return 1; /* purecov: tested */
-  berkeley_cleanup_log_files();
-  error=db_env->close(db_env,0);		// Error is logged
-  db_env=0;
-  hash_free(&bdb_open_tables);
-  pthread_mutex_destroy(&bdb_mutex);
-  DBUG_RETURN(error != 0);
+  if (db_env)
+  {
+    berkeley_cleanup_log_files();
+    error= db_env->close(db_env,0);		// Error is logged
+    db_env= 0;
+    hash_free(&bdb_open_tables);
+    pthread_mutex_destroy(&bdb_mutex);
+  }
+  DBUG_RETURN(error);
 }
 
 static int berkeley_close_connection(THD *thd)
@@ -280,7 +298,7 @@ static int berkeley_rollback(THD *thd, bool all)
 }
 
 
-int berkeley_show_logs(Protocol *protocol)
+static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
 {
   char **all_logs, **free_logs, **a, **f;
   int error=1;
@@ -307,21 +325,19 @@ int berkeley_show_logs(Protocol *protocol)
   {
     for (a = all_logs, f = free_logs; *a; ++a)
     {
-      protocol->prepare_for_resend();
-      protocol->store(*a, system_charset_info);
-      protocol->store("BDB", 3, system_charset_info);
+      const char *status;
       if (f && *f && strcmp(*a, *f) == 0)
       {
-	f++;
-	protocol->store(SHOW_LOG_STATUS_FREE, system_charset_info);
+        f++;
+        status= SHOW_LOG_STATUS_FREE;
       }
       else
-	protocol->store(SHOW_LOG_STATUS_INUSE, system_charset_info);
-
-      if (protocol->write())
+        status= SHOW_LOG_STATUS_INUSE;
+  
+      if (stat_print(thd, berkeley_hton.name, *a, status))
       {
-	error=1;
-	goto err;
+        error=1;
+        goto err;
       }
     }
   }
@@ -331,6 +347,16 @@ err:
   DBUG_RETURN(error);
 }
 
+bool berkeley_show_status(THD *thd, stat_print_fn *stat_print,
+                          enum ha_stat_type stat_type)
+{
+  switch (stat_type) {
+  case HA_ENGINE_LOGS:
+    return berkeley_show_logs(thd, stat_print);
+  default:
+    return FALSE;
+  }
+}
 
 static void berkeley_print_error(const DB_ENV *db_env, const char *db_errpfx,
                                  const char *buffer)
@@ -344,9 +370,7 @@ static void berkeley_noticecall(DB_ENV *db_env, db_notices notice)
   switch (notice)
   {
   case DB_NOTICE_LOGFILE_CHANGED: /* purecov: tested */
-    pthread_mutex_lock(&LOCK_manager);
-    manager_status |= MANAGER_BERKELEY_LOG_CLEANUP;
-    pthread_mutex_unlock(&LOCK_manager);
+    mysql_manager_submit(berkeley_cleanup_log_files);
     pthread_cond_signal(&COND_manager);
     break;
   }
@@ -2669,4 +2693,3 @@ bool ha_berkeley::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 
-#endif /* HAVE_BERKELEY_DB */

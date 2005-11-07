@@ -291,7 +291,7 @@ int mysql_update(THD *thd,
       used_key_is_modified= check_if_key_used(table, used_index, fields);
   }
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
       partition_key_modified(table, fields))
 #else

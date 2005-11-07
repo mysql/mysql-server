@@ -23,6 +23,9 @@
 #include <myisampack.h>
 #include "ha_heap.h"
 
+
+static handler *heap_create_handler(TABLE *table);
+
 handlerton heap_hton= {
   "MEMORY",
   SHOW_OPTION_YES,
@@ -44,8 +47,23 @@ handlerton heap_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  heap_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  heap_panic,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
+
+static handler *heap_create_handler(TABLE *table)
+{
+  return new ha_heap(table);
+}
+
 
 /*****************************************************************************
 ** HEAP tables

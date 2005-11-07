@@ -341,7 +341,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
                             str_db_type_length, next_chunk + 2,
                             share->db_type));
       }
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
       else
       {
         if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
@@ -361,7 +361,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       part_info_len= uint4korr(next_chunk);
       if (part_info_len > 0)
       {
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
         if (mysql_unpack_partition(thd, (uchar *)(next_chunk + 4),
                                    part_info_len, outparam,
                                    default_part_db_type))
@@ -974,7 +974,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   /* Fix the partition functions and ensure they are not constant functions*/
   if (part_info_len > 0)
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (fix_partition_func(thd,name,outparam))
 #endif
       goto err;
@@ -1044,7 +1044,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (! error_reported)
     frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG, errarg);
   delete outparam->file;
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (outparam->s->part_info)
   {
     free_items(outparam->s->part_info->item_free_list);
@@ -1088,7 +1088,7 @@ int closefrm(register TABLE *table)
     table->field= 0;
   }
   delete table->file;
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->s->part_info)
   {
     free_items(table->s->part_info->item_free_list);
