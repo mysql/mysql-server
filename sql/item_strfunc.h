@@ -35,6 +35,7 @@ public:
   double val_real();
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
+  String *check_well_formed_result(String *str);
 };
 
 class Item_func_md5 :public Item_str_func
