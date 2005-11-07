@@ -396,7 +396,8 @@ system echo "this is a junk file for test" >> var/master-data/test/t1.frm ;
 SHOW TABLE STATUS like 't1';
 --error 1033
 show create table t1;
-drop table t1;
+drop table if exists t1;
+system rm -f var/master-data/test/t1.frm ;
 
 
 # End of 4.1 tests

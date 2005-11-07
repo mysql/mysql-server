@@ -1726,7 +1726,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_SHOW_COLUMN_TYPES:
   case SQLCOM_SHOW_STATUS:
   case SQLCOM_SHOW_VARIABLES:
-  case SQLCOM_SHOW_LOGS:
+  case SQLCOM_SHOW_ENGINE_LOGS:
+  case SQLCOM_SHOW_ENGINE_STATUS:
+  case SQLCOM_SHOW_ENGINE_MUTEX:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_CHARSETS:

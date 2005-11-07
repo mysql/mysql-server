@@ -54,7 +54,6 @@
 
 #include <mysql_priv.h>
 
-#ifdef HAVE_PARTITION_DB
 #include "ha_partition.h"
 
 static const char *ha_par_ext= ".par";
@@ -67,12 +66,14 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
+static handler* partition_create_handler(TABLE *table);
+
 handlerton partition_hton = {
   "partition",
   SHOW_OPTION_YES,
-  "Partition engine", /* A comment used by SHOW to describe an engine */
+  "Partition Storage Engine Helper", /* A comment used by SHOW to describe an engine */
   DB_TYPE_PARTITION_DB,
-  0, /* Method that initizlizes a storage engine */
+  0, /* Method that initializes a storage engine */
   0, /* slot */
   0, /* savepoint size */
   NULL /*ndbcluster_close_connection*/,
@@ -88,8 +89,22 @@ handlerton partition_hton = {
   NULL,
   NULL,
   NULL,
-  HTON_NO_FLAGS
+  partition_create_handler, /* Create a new handler */
+  NULL, /* Drop a database */
+  NULL, /* Panic call */
+  NULL, /* Release temporary latches */
+  NULL, /* Update Statistics */
+  NULL, /* Start Consistent Snapshot */
+  NULL, /* Flush logs */
+  NULL, /* Show status */
+  NULL, /* Replication Report Sent Binlog */
+  HTON_NOT_USER_SELECTABLE
 };
+
+static handler* partition_create_handler(TABLE *table)
+{
+  return new ha_partition(table);
+}
 
 ha_partition::ha_partition(TABLE *table)
   :handler(&partition_hton, table), m_part_info(NULL), m_create_handler(FALSE),
@@ -947,6 +962,8 @@ int ha_partition::close(void)
 {
   handler **file;
   DBUG_ENTER("ha_partition::close");
+
+  delete_queue(&queue);
   file= m_file;
   do
   {
@@ -3252,4 +3269,3 @@ static int free_share(PARTITION_SHARE *share)
   return 0;
 }
 #endif /* NOT_USED */
-#endif						/* HAVE_PARTITION_DB */

@@ -15,12 +15,6 @@ DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
 SHARED_LIB_VERSION=15:0:0
 
-# ndb version
-NDB_VERSION_MAJOR=5
-NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=2
-NDB_VERSION_STATUS="alpha"
-
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
@@ -36,15 +30,9 @@ sinclude(config/ac-macros/alloca.m4)
 sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
-sinclude(config/ac-macros/ha_archive.m4)
+sinclude(config/ac-macros/storage.m4)
 sinclude(config/ac-macros/ha_berkeley.m4)
-sinclude(config/ac-macros/ha_blackhole.m4)
-sinclude(config/ac-macros/ha_example.m4)
-sinclude(config/ac-macros/ha_federated.m4)
-sinclude(config/ac-macros/ha_innodb.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
-sinclude(config/ac-macros/ha_partition.m4)
-sinclude(config/ac-macros/ha_tina.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/openssl.m4)
@@ -61,6 +49,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 #####
 #####
 
+
 AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
@@ -73,19 +62,6 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
-
-AC_SUBST([NDB_VERSION_MAJOR])
-AC_SUBST([NDB_VERSION_MINOR])
-AC_SUBST([NDB_VERSION_BUILD])
-AC_SUBST([NDB_VERSION_STATUS])
-AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR],
-                   [NDB major version])
-AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR],
-                   [NDB minor version])
-AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD],
-                   [NDB build version])
-AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
-                   [NDB status version])
 
 
 # Canonicalize the configuration name.
@@ -417,15 +393,6 @@ fi
 AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
-
-# for build ndb docs
-
-AC_PATH_PROG(DOXYGEN, doxygen, no)
-AC_PATH_PROG(PDFLATEX, pdflatex, no)
-AC_PATH_PROG(MAKEINDEX, makeindex, no)
-AC_SUBST(DOXYGEN)
-AC_SUBST(PDFLATEX)
-AC_SUBST(MAKEINDEX)
 
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
@@ -917,24 +884,6 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
-ndb_cxxflags_fix=
-case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
-# workaround for Sun Forte/x86 see BUG#4681
-  *solaris*-i?86-no)
-    CFLAGS="$CFLAGS -DBIG_TABLES"
-    CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
-    ;;
-  *) ;;
-esac
-case $SYSTEM_TYPE-$ac_cv_prog_gcc in
-# workaround for Sun Forte compile problem for ndb
-  *solaris*-no)
-    ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
-    ;;
-  *) ;;
-esac
-
-
 case $SYSTEM_TYPE in
   *solaris2.7*)
     # Solaris 2.7 has a broken /usr/include/widec.h
@@ -1130,7 +1079,7 @@ dnl Is this the right match for DEC OSF on alpha?
         sql/Makefile.in)
           # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(ndbcluster_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs) \$(yassl_libs)"
+          lib_DEPENDENCIES="\$(pstack_libs) \$(openssl_libs) \$(yassl_libs)"
           cat > $filesed << EOF
 s,\(^.*\$(MAKE) gen_lex_hash\)\$(EXEEXT),#\1,
 s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
@@ -2340,7 +2289,8 @@ readline_dir=""
 readline_h_ln_cmd=""
 readline_link=""
 
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
+then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
@@ -2376,7 +2326,8 @@ else
     then
         # Use the new readline interface
         readline_link="-lreadline"
-    elif [test "$mysql_cv_libedit_interface" = "yes"]; then
+    elif [test "$mysql_cv_libedit_interface" = "yes"]
+    then
         # Use libedit
         readline_link="-ledit"
     else
@@ -2394,18 +2345,65 @@ AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
 MYSQL_CHECK_BIG_TABLES
-MYSQL_CHECK_BDB
-MYSQL_CHECK_INNODB
-MYSQL_CHECK_EXAMPLEDB
-MYSQL_CHECK_ARCHIVEDB
-MYSQL_CHECK_CSVDB
-MYSQL_CHECK_BLACKHOLEDB
-MYSQL_CHECK_NDBCLUSTER
-MYSQL_CHECK_FEDERATED
-MYSQL_CHECK_PARTITIONDB
+
+MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
+  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
+  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
+  \$(top_builddir)/storage/innobase/dict/libdict.a dnl
+  \$(top_builddir)/storage/innobase/que/libque.a dnl
+  \$(top_builddir)/storage/innobase/srv/libsrv.a dnl
+  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
+  \$(top_builddir)/storage/innobase/row/librow.a dnl
+  \$(top_builddir)/storage/innobase/pars/libpars.a dnl
+  \$(top_builddir)/storage/innobase/btr/libbtr.a dnl
+  \$(top_builddir)/storage/innobase/trx/libtrx.a dnl
+  \$(top_builddir)/storage/innobase/read/libread.a dnl
+  \$(top_builddir)/storage/innobase/usr/libusr.a dnl
+  \$(top_builddir)/storage/innobase/buf/libbuf.a dnl
+  \$(top_builddir)/storage/innobase/ibuf/libibuf.a dnl
+  \$(top_builddir)/storage/innobase/eval/libeval.a dnl
+  \$(top_builddir)/storage/innobase/log/liblog.a dnl
+  \$(top_builddir)/storage/innobase/fsp/libfsp.a dnl
+  \$(top_builddir)/storage/innobase/fut/libfut.a dnl
+  \$(top_builddir)/storage/innobase/fil/libfil.a dnl
+  \$(top_builddir)/storage/innobase/lock/liblock.a dnl
+  \$(top_builddir)/storage/innobase/mtr/libmtr.a dnl
+  \$(top_builddir)/storage/innobase/page/libpage.a dnl
+  \$(top_builddir)/storage/innobase/rem/librem.a dnl
+  \$(top_builddir)/storage/innobase/thr/libthr.a dnl
+  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
+  \$(top_builddir)/storage/innobase/data/libdata.a dnl
+  \$(top_builddir)/storage/innobase/mach/libmach.a dnl
+  \$(top_builddir)/storage/innobase/ha/libha.a dnl
+  \$(top_builddir)/storage/innobase/dyn/libdyn.a dnl
+  \$(top_builddir)/storage/innobase/mem/libmem.a dnl
+  \$(top_builddir)/storage/innobase/sync/libsync.a dnl
+  \$(top_builddir)/storage/innobase/ut/libut.a dnl
+  \$(top_builddir)/storage/innobase/os/libos.a dnl
+  \$(top_builddir)/storage/innobase/ut/libut.a],[
+  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+  AC_SUBST(innodb_includes)
+  AC_SUBST(innodb_libs)
+  AC_SUBST(innodb_system_libs)
+  other_configures="$other_configures storage/innobase/configure"
+])
+
+MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,storage/bdb,,,[
+  MYSQL_SETUP_BERKELEY_DB
+])
+MYSQL_STORAGE_ENGINE(example)
+MYSQL_STORAGE_ENGINE(archive)
+MYSQL_STORAGE_ENGINE(csv,,,,,tina_hton,,ha_tina.o)
+MYSQL_STORAGE_ENGINE(blackhole)
+MYSQL_STORAGE_ENGINE(federated)
+MYSQL_STORAGE_ENGINE(ndbcluster,,ndbcluster,,,,storage/ndb,,,[
+  MYSQL_SETUP_NDBCLUSTER
+])
+MYSQL_STORAGE_ENGINE(partition,,partition)
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
+sql_server=
 server_scripts=
 thread_dirs=
 
@@ -2432,7 +2430,8 @@ AC_SUBST(linked_client_targets)
 # If configuring for NetWare, set up to link sources from and build the netware directory
 netware_dir=
 linked_netware_sources=
-if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null
+then
   netware_dir="netware"
   linked_netware_sources="linked_netware_sources"
 fi
@@ -2453,115 +2452,8 @@ then
   AC_SUBST(THREAD_LOBJECTS)
   server_scripts="mysqld_safe mysql_install_db"
   sql_server_dirs="strings mysys dbug extra regex"
-
-
-  #
-  # Configuration for optional table handlers
-  #
-
-  if test X"$have_berkeley_db" != Xno; then
-    if test X"$have_berkeley_db" != Xyes; then
-      # we must build berkeley db from source
-      sql_server_dirs="$sql_server_dirs $have_berkeley_db"
-      AC_CONFIG_FILES(storage/bdb/Makefile)
-
-      echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags="--disable-shared --build=$build_alias"
-      if test $with_debug = "yes"
-      then
-        bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
-      fi
-      # NOTICE: if you're compiling BDB, it needs to be a SUBDIR
-      # of $srcdir (i.e., you can 'cd $srcdir/$bdb').  It won't
-      # work otherwise.
-      if test -d "$bdb"; then :
-      else
-	# This should only happen when doing a VPATH build
-	echo "NOTICE: I have to make the BDB directory: `pwd`:$bdb"
-	mkdir "$bdb" || exit 1
-      fi
-      if test -d "$bdb"/build_unix; then :
-      else
-	# This should only happen when doing a VPATH build
-	echo "NOTICE: I have to make the build_unix directory: `pwd`:$bdb/build_unix"
-	mkdir "$bdb/build_unix" || exit 1
-      fi
-      rel_srcdir=
-      case "$srcdir" in
-	/* ) rel_srcdir="$srcdir" ;;
-	* )  rel_srcdir="../../../$srcdir" ;;
-      esac
-      echo $bdb/build_unix
-      echo $rel_srcdir/$bdb/dist/configure
-      (cd $bdb/build_unix && \
-       sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
-        AC_MSG_ERROR([could not configure Berkeley DB])
-
-dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
-      echo "END OF BERKELEY DB CONFIGURATION"
-    fi
-
-    AC_DEFINE([HAVE_BERKELEY_DB], [1], [Have berkeley db installed])
-  else
-    if test -d bdb; then :
-    else
-      mkdir storage/bdb && mkdir storage/bdb/build_unix
-    fi
-
-    if test -r storage/bdb/build_unix/db.h; then :
-    else
-      cat <<EOF > storage/bdb/build_unix/db.h
-
-This file is a placeholder to fool make.  The way that automake
-and GNU make work together causes some files to depend on this
-header, even if we're not building with Berkeley DB.
-
-Obviously, if this file *is* used, it'll break and hopefully we can find
-out why this file was generated by ${top_srcdir}/configure instead of
-the real db.h.
-
-If you run into some problems because of this file, please use mysql_bug
-to generate a bug report, and give the exact output of make and any
-details you can think of.  Send the message to bugs@lists.mysql.com.
-
-Thank you!
-
-EOF
-    fi
-  fi
-
-  if test X"$have_innodb" = Xyes
-  then
-    innodb_conf_flags=""
-    sql_server_dirs="$sql_server_dirs storage/innobase"
-    AC_CONFIG_SUBDIRS(storage/innobase)
-  fi
-
-case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
-  *solaris*-i?86-no-yes)
-  # ndb fail for whatever strange reason to link Sun Forte/x86
-  # unless using incremental linker
-  CXXFLAGS="$CXXFLAGS -xildon"
-  ;;
-  *) ;;
-esac
-
-  if test X"$have_ndbcluster" = Xyes
-  then
-    if test X"$mysql_cv_compress" != Xyes
-    then
-      echo
-      echo "MySQL Cluster table handler ndbcluster requires compress/uncompress."
-      echo "Commonly available in libzlib.a.  Please install and rerun configure."
-      echo
-      exit 1
-    fi
-    sql_server_dirs="$sql_server_dirs storage/ndb"
-  fi
-  #
-  # END of configuration for optional table handlers
-  #
-  sql_server_dirs="$sql_server_dirs storage/myisam storage/myisammrg storage/heap vio sql"
+  mysql_se_dirs="storage/myisam storage/myisammrg storage/heap $mysql_se_dirs"
+  sql_server="$sql_server vio sql"
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2572,8 +2464,16 @@ LDFLAGS="$LDFLAGS $OTHER_LIBC_LIB"
 LIBS="$LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(sql_server_dirs)
+AC_SUBST(sql_server)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
+
+AC_SUBST(mysql_se_dirs)
+AC_SUBST(mysql_se_libs)
+AC_SUBST(mysql_se_objs)
+AC_SUBST(mysql_se_htons)
+AC_SUBST(mysql_se_decls)
+
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
 # Start with the (longer) server list, add each client item not yet present.
@@ -2603,142 +2503,9 @@ case $SYSTEM_TYPE in
     ;;
 esac
 
-
-if test X"$have_ndbcluster" = Xyes
-then
-  MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
-
-  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
-  if test "$have_ndb_debug" = "default"
-  then
-    have_ndb_debug=$with_debug
-  fi
-
-  if test "$have_ndb_debug" = "yes"
-  then
-    # Medium debug.
-    NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  elif test "$have_ndb_debug" = "full"
-  then
-    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  else
-    # no extra ndb debug but still do asserts if debug version
-    if test "$with_debug" = "yes" -o "$with_debug" = "full"
-    then
-      NDB_DEFS=""
-    else
-      NDB_DEFS="-DNDEBUG"
-    fi
-  fi
-
-AC_SUBST([NDB_DEFS])
-AC_SUBST([ndb_cxxflags_fix])
-
-
-if test X"$ndb_port" = Xdefault
-then
-  ndb_port="1186"
-fi
-AC_SUBST([ndb_port])
-
-ndb_transporter_opt_objs=""
-if test "$ac_cv_func_shmget" = "yes" &&
-   test "$ac_cv_func_shmat" = "yes" &&
-   test "$ac_cv_func_shmdt" = "yes" &&
-   test "$ac_cv_func_shmctl" = "yes" &&
-   test "$ac_cv_func_sigaction" = "yes" &&
-   test "$ac_cv_func_sigemptyset" = "yes" &&
-   test "$ac_cv_func_sigaddset" = "yes" &&
-   test "$ac_cv_func_pthread_sigmask" = "yes"
-then
-   AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
-             [Including Ndb Cluster DB shared memory transporter])
-   AC_MSG_RESULT([Including ndb shared memory transporter])
-   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
-else
-   AC_MSG_RESULT([Not including ndb shared memory transporter])
-fi
-
-if test X"$have_ndb_sci" = Xyes
-then
-  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
-fi
-AC_SUBST([ndb_transporter_opt_objs])
-
-ndb_opt_subdirs=
-ndb_bin_am_ldflags="-static"
-if test X"$have_ndb_test" = Xyes
-then
-  ndb_opt_subdirs="test"
-  ndb_bin_am_ldflags=""
-fi
-if test X"$have_ndb_docs" = Xyes
-then
-  ndb_opt_subdirs="$ndb_opt_subdirs docs"
-  ndb_bin_am_ldflags=""
-fi
-AC_SUBST([ndb_bin_am_ldflags])
-AC_SUBST([ndb_opt_subdirs])
-
-NDB_SIZEOF_CHARP="$ac_cv_sizeof_charp"
-NDB_SIZEOF_CHAR="$ac_cv_sizeof_char"
-NDB_SIZEOF_SHORT="$ac_cv_sizeof_short"
-NDB_SIZEOF_INT="$ac_cv_sizeof_int"
-NDB_SIZEOF_LONG="$ac_cv_sizeof_long"
-NDB_SIZEOF_LONG_LONG="$ac_cv_sizeof_long_long"
-AC_SUBST([NDB_SIZEOF_CHARP])
-AC_SUBST([NDB_SIZEOF_CHAR])
-AC_SUBST([NDB_SIZEOF_SHORT])
-AC_SUBST([NDB_SIZEOF_INT])
-AC_SUBST([NDB_SIZEOF_LONG])
-AC_SUBST([NDB_SIZEOF_LONG_LONG])
-
-AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
-   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
-   storage/ndb/docs/Makefile dnl
-   storage/ndb/tools/Makefile dnl
-   storage/ndb/src/common/debugger/Makefile dnl
-   storage/ndb/src/common/debugger/signaldata/Makefile dnl
-   storage/ndb/src/common/portlib/Makefile dnl
-   storage/ndb/src/common/util/Makefile dnl
-   storage/ndb/src/common/logger/Makefile dnl
-   storage/ndb/src/common/transporter/Makefile dnl
-   storage/ndb/src/common/mgmcommon/Makefile dnl
-   storage/ndb/src/kernel/Makefile dnl
-   storage/ndb/src/kernel/error/Makefile dnl
-   storage/ndb/src/kernel/blocks/Makefile dnl
-   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
-   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
-   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
-   storage/ndb/src/kernel/blocks/trix/Makefile dnl
-   storage/ndb/src/kernel/blocks/backup/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
-   storage/ndb/src/kernel/blocks/suma/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
-   storage/ndb/src/kernel/vm/Makefile dnl
-   storage/ndb/src/mgmapi/Makefile dnl
-   storage/ndb/src/ndbapi/Makefile dnl
-   storage/ndb/src/mgmsrv/Makefile dnl
-   storage/ndb/src/mgmclient/Makefile dnl
-   storage/ndb/src/cw/Makefile dnl
-   storage/ndb/src/cw/cpcd/Makefile dnl
-   storage/ndb/test/Makefile dnl
-   storage/ndb/test/src/Makefile dnl
-   storage/ndb/test/ndbapi/Makefile dnl
-   storage/ndb/test/ndbapi/bank/Makefile dnl
-   storage/ndb/test/tools/Makefile dnl
-   storage/ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
-   storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
-   storage/ndb/include/ndb_types.h dnl
-   )
-fi
+for CONF in $other_configures; do
+  (cd `dirname $CONF`; ./`basename $CONF`)
+done
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
@@ -2751,13 +2518,13 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
- sql-common/Makefile SSL/Makefile dnl
+ sql/handlerton.cc sql-common/Makefile SSL/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
- netware/Makefile dnl
+ mysql-test/ndb/Makefile netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl

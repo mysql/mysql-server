@@ -51,7 +51,7 @@ handlerton binlog_hton = {
   "binlog",
   SHOW_OPTION_YES,
   "This is a meta storage engine to represent the binlog in a transaction",
-  DB_TYPE_UNKNOWN,              /* IGNORE  for now */
+  DB_TYPE_BINLOG,               /* IGNORE  for now */
   binlog_init,
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
@@ -68,8 +68,18 @@ handlerton binlog_hton = {
   NULL,                         /* create_cursor_read_view */
   NULL,                         /* set_cursor_read_view */
   NULL,                         /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  NULL,                         /* Create a new handler */
+  NULL,                         /* Drop a database */
+  NULL,                         /* Panic call */
+  NULL,                         /* Release temporary latches */
+  NULL,                         /* Update Statistics */
+  NULL,                         /* Start Consistent Snapshot */
+  NULL,                         /* Flush logs */
+  NULL,                         /* Show status */
+  NULL,                         /* Replication Report Sent Binlog */
+  HTON_NOT_USER_SELECTABLE
 };
+
 
 /*
   this function is mostly a placeholder.

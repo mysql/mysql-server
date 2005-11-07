@@ -24,24 +24,16 @@
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
-#ifdef HAVE_BERKELEY_DB
-#include "ha_berkeley.h"
-#endif
-#ifdef HAVE_INNOBASE_DB
-#include "ha_innodb.h"
-#endif
-#include "ha_myisam.h"
-#ifdef HAVE_NDBCLUSTER_DB
-#include "ha_ndbcluster.h"
-#endif
 
-#ifdef HAVE_INNOBASE_DB
+#include "ha_myisam.h"
+
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 #define OPT_INNODB_DEFAULT 1
 #else
 #define OPT_INNODB_DEFAULT 0
 #endif
 #define OPT_BDB_DEFAULT 0
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define OPT_NDBCLUSTER_DEFAULT 0
 #if defined(NOT_ENOUGH_TESTED) \
   && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
@@ -330,7 +322,7 @@ static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
 static my_bool opt_sync_bdb_logs;
 #endif
 
@@ -355,7 +347,59 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+extern struct show_var_st innodb_status_variables[];
+extern uint innobase_init_flags, innobase_lock_type;
+extern uint innobase_flush_log_at_trx_commit;
+extern ulong innobase_cache_size, innobase_fast_shutdown;
+extern ulong innobase_large_page_size;
+extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
+extern long innobase_lock_scan_time;
+extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
+extern long innobase_log_file_size, innobase_log_buffer_size;
+extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern long innobase_buffer_pool_awe_mem_mb;
+extern long innobase_file_io_threads, innobase_lock_wait_timeout;
+extern long innobase_force_recovery;
+extern long innobase_open_files;
+extern char *innobase_data_home_dir, *innobase_data_file_path;
+extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
+extern char *innobase_unix_file_flush_method;
+/* The following variables have to be my_bool for SHOW VARIABLES to work */
+extern my_bool innobase_log_archive,
+               innobase_use_doublewrite,
+               innobase_use_checksums,
+               innobase_use_large_pages,
+               innobase_use_native_aio,
+               innobase_file_per_table, innobase_locks_unsafe_for_binlog,
+               innobase_create_status_file;
+extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
+                                            calling innobase_end() if you want
+                                            InnoDB to shut down without
+                                            flushing the buffer pool: this
+                                            is equivalent to a 'crash' */
+extern "C" {
+extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_max_purge_lag;
+extern ulong srv_auto_extend_increment;
+extern ulong srv_n_spin_wait_rounds;
+extern ulong srv_n_free_tickets_to_enter;
+extern ulong srv_thread_sleep_delay;
+extern ulong srv_thread_concurrency;
+extern ulong srv_commit_concurrency;
+}
+#endif
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
+extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
+extern bool berkeley_shared_data;
+extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
+                 berkeley_lock_types[];
+extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
+extern long berkeley_lock_scan_time;
+extern TYPELIB berkeley_lock_typelib;
+#endif
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024];
@@ -365,11 +409,11 @@ ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 
-const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
-TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
-				    "", ndb_distribution_names, NULL };
-const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
-enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
+extern struct show_var_st ndb_status_variables[];
+extern const char *ndb_distribution_names[];
+extern TYPELIB ndb_distribution_typelib;
+extern const char *opt_ndb_distribution;
+extern enum ndb_distribution opt_ndb_distribution_id;
 #endif
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -474,14 +518,9 @@ MY_BITMAP temp_pool;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db, have_csv_db;
-SHOW_COMP_OPTION have_federated_db;
-SHOW_COMP_OPTION have_partition_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
-SHOW_COMP_OPTION have_blackhole_db;
 
 /* Thread specific variables */
 
@@ -2465,7 +2504,7 @@ pthread_handler_t handle_shutdown(void *arg)
 
 
 static const char *load_default_groups[]= {
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
@@ -2585,7 +2624,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
       my_use_large_pages= 1;
       my_large_page_size= opt_large_page_size;
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
       innobase_use_large_pages= 1;
       innobase_large_page_size= opt_large_page_size;
 #endif
@@ -3130,7 +3169,7 @@ server.");
 static void create_maintenance_thread()
 {
   if (
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
       (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
@@ -4629,7 +4668,7 @@ struct my_option my_long_options[] =
 Disable with --skip-bdb (will save memory).",
    (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, OPT_BDB_DEFAULT, 0, 0,
    0, 0, 0},
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
   {"bdb-home", OPT_BDB_HOME, "Berkeley home directory.", (gptr*) &berkeley_home,
    (gptr*) &berkeley_home, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-lock-detect", OPT_BDB_LOCK,
@@ -4650,7 +4689,7 @@ Disable with --skip-bdb (will save memory).",
   {"bdb-tmpdir", OPT_BDB_TMP, "Berkeley DB tempfile name.",
    (gptr*) &berkeley_tmpdir, (gptr*) &berkeley_tmpdir, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* HAVE_BERKELEY_DB */
+#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -4786,7 +4825,7 @@ Disable with --skip-large-pages.",
 Disable with --skip-innodb (will save memory).",
    (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
    0, 0, 0},
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
 Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
    (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -4794,7 +4833,7 @@ Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_data_home_dir", OPT_INNODB_DATA_HOME_DIR,
    "The common part for InnoDB table spaces.", (gptr*) &innobase_data_home_dir,
    (gptr*) &innobase_data_home_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
@@ -4865,7 +4904,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &global_system_variables.innodb_support_xa,
    (gptr*) &global_system_variables.innodb_support_xa,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-#endif /* End HAVE_INNOBASE_DB */
+#endif /* End WITH_INNOBASE_STORAGE_ENGINE */
   {"isam", OPT_ISAM, "Obsolete. ISAM storage engine is no longer supported.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -5025,7 +5064,7 @@ master-ssl",
 Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG,
    OPT_NDBCLUSTER_DEFAULT, 0, 0, 0, 0, 0},
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   {"ndb-connectstring", OPT_NDB_CONNECTSTRING,
    "Connect string for ndbcluster.",
    (gptr*) &opt_ndb_connectstring,
@@ -5356,7 +5395,7 @@ log and this option does nothing anymore.",
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
     (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
     "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
@@ -5373,7 +5412,7 @@ log and this option does nothing anymore.",
    "The maximum number of locks you can have active on a BDB table.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
-#endif /* HAVE_BERKELEY_DB */
+#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
    (gptr*) &binlog_cache_size, (gptr*) &binlog_cache_size, 0, GET_ULONG,
@@ -5449,7 +5488,7 @@ log and this option does nothing anymore.",
     (gptr*) &global_system_variables.group_concat_max_len,
     (gptr*) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, (long) ~0, 0, 1, 0},
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_additional_mem_pool_size", OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
    "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
    (gptr*) &innobase_additional_mem_pool_size,
@@ -5526,7 +5565,7 @@ log and this option does nothing anymore.",
    (gptr*) &srv_thread_sleep_delay,
    (gptr*) &srv_thread_sleep_delay,
    0, GET_LONG, REQUIRED_ARG, 10000L, 0L, ~0L, 0, 1L, 0},
-#endif /* HAVE_INNOBASE_DB */
+#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",
    (gptr*) &global_system_variables.net_interactive_timeout,
@@ -5846,12 +5885,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
    MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
    1, 0},
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
   {"sync-bdb-logs", OPT_BDB_SYNC,
    "Synchronously flush Berkeley DB logs. Enabled by default",
    (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif /* HAVE_BERKELEY_DB */
+#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"sync-binlog", OPT_SYNC_BINLOG,
    "Synchronously flush binary log to disk after every #th event. "
    "Use 0 (default) to disable synchronous flushing.",
@@ -6003,14 +6042,14 @@ struct show_var_st status_vars[]= {
   {"Com_show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
   {"Com_show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]), SHOW_LONG_STATUS},
   {"Com_show_databases",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_DATABASES]), SHOW_LONG_STATUS},
+  {"Com_show_engine_logs",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_LOGS]), SHOW_LONG_STATUS},
+  {"Com_show_engine_mutex",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_MUTEX]), SHOW_LONG_STATUS},
+  {"Com_show_engine_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_errors",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
   {"Com_show_fields",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
   {"Com_show_grants",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
-  {"Com_show_innodb_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_INNODB_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_keys",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
-  {"Com_show_logs",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_LOGS]), SHOW_LONG_STATUS},
   {"Com_show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
-  {"Com_show_ndb_status",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NDBCLUSTER_STATUS]), SHOW_LONG_STATUS},
   {"Com_show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"Com_show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"Com_show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
@@ -6065,9 +6104,9 @@ struct show_var_st status_vars[]= {
   {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
   {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"Innodb_",                  (char*) &innodb_status_variables, SHOW_VARS},
-#endif /*HAVE_INNOBASE_DB*/
+#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed, SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused, SHOW_KEY_CACHE_CONST_LONG},
   {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used, SHOW_KEY_CACHE_CONST_LONG},
@@ -6077,9 +6116,9 @@ struct show_var_st status_vars[]= {
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
-#endif /*HAVE_NDBCLUSTER_DB*/
+#endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
@@ -6343,48 +6382,7 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
-#ifdef HAVE_BERKELEY_DB
-  have_berkeley_db= SHOW_OPTION_YES;
-#else
-  have_berkeley_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_INNOBASE_DB
-  have_innodb=SHOW_OPTION_YES;
-#else
-  have_innodb=SHOW_OPTION_NO;
-#endif
-  have_isam=SHOW_OPTION_NO;
-#ifdef HAVE_EXAMPLE_DB
-  have_example_db= SHOW_OPTION_YES;
-#else
-  have_example_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_PARTITION_DB
-  have_partition_db= SHOW_OPTION_YES;
-#else
-  have_partition_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_ARCHIVE_DB
-  have_archive_db= SHOW_OPTION_YES;
-#else
-  have_archive_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_BLACKHOLE_DB
-  have_blackhole_db= SHOW_OPTION_YES;
-#else
-  have_blackhole_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_FEDERATED_DB
-  have_federated_db= SHOW_OPTION_YES;
-#else
-  have_federated_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_CSV_DB
-  have_csv_db= SHOW_OPTION_YES;
-#else
-  have_csv_db= SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   have_ndbcluster=SHOW_OPTION_DISABLED;
   global_system_variables.ndb_index_stat_enable=TRUE;
   max_system_variables.ndb_index_stat_enable=TRUE;
@@ -6803,19 +6801,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     global_system_variables.tx_isolation= (type-1);
     break;
   }
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
   case OPT_BDB_NOSYNC:
     /* Deprecated option */
     opt_sync_bdb_logs= 0;
     /* Fall through */
   case OPT_BDB_SYNC:
     if (!opt_sync_bdb_logs)
-      berkeley_env_flags|= DB_TXN_NOSYNC;
+      berkeley_env_flags|= bdb_DB_TXN_NOSYNC;
     else
-      berkeley_env_flags&= ~DB_TXN_NOSYNC;
+      berkeley_env_flags&= ~bdb_DB_TXN_NOSYNC;
     break;
   case OPT_BDB_NO_RECOVER:
-    berkeley_init_flags&= ~(DB_RECOVER);
+    berkeley_init_flags&= ~(bdb_DB_RECOVER);
     break;
   case OPT_BDB_LOCK:
   {
@@ -6839,12 +6837,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case OPT_BDB_SHARED:
-    berkeley_init_flags&= ~(DB_PRIVATE);
+    berkeley_init_flags&= ~(bdb_DB_PRIVATE);
     berkeley_shared_data= 1;
     break;
-#endif /* HAVE_BERKELEY_DB */
+#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   case OPT_BDB:
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
     if (opt_bdb)
       have_berkeley_db= SHOW_OPTION_YES;
     else
@@ -6852,14 +6850,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
   case OPT_NDBCLUSTER:
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
     if (opt_ndbcluster)
       have_ndbcluster= SHOW_OPTION_YES;
     else
       have_ndbcluster= SHOW_OPTION_DISABLED;
 #endif
     break;
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   case OPT_NDB_MGMD:
   case OPT_NDB_NODEID:
   {
@@ -6899,7 +6897,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif
   case OPT_INNODB:
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
     if (opt_innodb)
       have_innodb= SHOW_OPTION_YES;
     else
@@ -6907,15 +6905,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
     innobase_data_file_path= argument;
 #endif
     break;
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   case OPT_INNODB_LOG_ARCHIVE:
     innobase_log_archive= argument ? test(atoi(argument)) : 1;
     break;
-#endif /* HAVE_INNOBASE_DB */
+#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   case OPT_MYISAM_RECOVER:
   {
     if (!argument || !argument[0])
@@ -7061,19 +7059,19 @@ static void get_options(int argc,char **argv)
                                 get_one_option)))
     exit(ho_error);
 
-#ifndef HAVE_NDBCLUSTER_DB
+#ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (opt_ndbcluster)
     sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
 #endif
-#ifndef HAVE_INNOBASE_DB
+#ifndef WITH_INNOBASE_STORAGE_ENGINE
   if (opt_innodb)
     sql_print_warning("this binary does not contain INNODB storage engine");
 #endif
-#ifndef HAVE_ISAM
+#ifndef WITH_ISAM_STORAGE_ENGINE
   if (opt_isam)
     sql_print_warning("this binary does not contain ISAM storage engine");
 #endif
-#ifndef HAVE_BERKELEY_DB
+#ifndef WITH_BERKELEY_STORAGE_ENGINE
   if (opt_bdb)
     sql_print_warning("this binary does not contain BDB storage engine");
 #endif
@@ -7386,6 +7384,70 @@ static void create_pid_file()
 
 
 /*****************************************************************************
+  Instantiate have_xyx for missing storage engines
+*****************************************************************************/
+#undef have_isam
+#undef have_berkeley_db
+#undef have_innodb
+#undef have_ndbcluster
+#undef have_example_db
+#undef have_archive_db
+#undef have_csv_db
+#undef have_federated_db
+#undef have_partition_db
+#undef have_blackhole_db
+
+SHOW_COMP_OPTION have_berkeley_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_isam= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
+
+#ifndef WITH_BERKELEY_STORAGE_ENGINE
+bool berkeley_shared_data;
+ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
+#endif
+
+#ifndef WITH_INNOBASE_STORAGE_ENGINE
+uint innobase_flush_log_at_trx_commit;
+ulong innobase_fast_shutdown;
+long innobase_mirrored_log_groups, innobase_log_files_in_group;
+long innobase_log_file_size, innobase_log_buffer_size;
+long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+long innobase_buffer_pool_awe_mem_mb;
+long innobase_file_io_threads, innobase_lock_wait_timeout;
+long innobase_force_recovery;
+long innobase_open_files;
+char *innobase_data_home_dir, *innobase_data_file_path;
+char *innobase_log_group_home_dir, *innobase_log_arch_dir;
+char *innobase_unix_file_flush_method;
+my_bool innobase_log_archive,
+        innobase_use_doublewrite,
+        innobase_use_checksums,
+        innobase_file_per_table,
+        innobase_locks_unsafe_for_binlog;
+
+ulong srv_max_buf_pool_modified_pct;
+ulong srv_max_purge_lag;
+ulong srv_auto_extend_increment;
+ulong srv_n_spin_wait_rounds;
+ulong srv_n_free_tickets_to_enter;
+ulong srv_thread_sleep_delay;
+ulong srv_thread_concurrency;
+ulong srv_commit_concurrency;
+#endif
+
+#ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
+ulong ndb_cache_check_time;
+#endif
+
+/*****************************************************************************
   Instantiate templates
 *****************************************************************************/
 
@@ -7399,3 +7461,5 @@ template class I_List<NAMED_LIST>;
 template class I_List<Statement>;
 template class I_List_iterator<Statement>;
 #endif
+
+

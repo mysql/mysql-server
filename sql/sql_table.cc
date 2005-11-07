@@ -17,9 +17,6 @@
 /* drop and alter of tables */
 
 #include "mysql_priv.h"
-#ifdef HAVE_BERKELEY_DB
-#include "ha_berkeley.h"
-#endif
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
@@ -1607,7 +1604,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_OUTOFMEMORY, MYF(0), 128);//128 bytes invented
     DBUG_RETURN(TRUE);
   }
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->lex->part_info;
   if (part_info)
   {
@@ -3392,7 +3389,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   uint need_copy_table= 0;
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool online_add_empty_partition= FALSE;
   bool online_drop_partition= FALSE;
   bool partition_changed= FALSE;
@@ -3474,7 +3471,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type= old_db_type;
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
    We need to handle both partition management command such as Add Partition
    and others here as well as an ALTER TABLE that completely changes the
@@ -4251,7 +4248,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   set_table_default_charset(thd, create_info, db);
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (thd->variables.old_alter_table || partition_changed)
 #else
   if (thd->variables.old_alter_table)
@@ -4270,7 +4267,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!need_copy_table)
     create_info->frm_only= 1;
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (partition_changed)
   {
     if (online_drop_partition)
@@ -4626,12 +4623,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   write_bin_log(thd, TRUE);
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
-#ifdef HAVE_BERKELEY_DB
   /*
     TODO RONM: This problem needs to handled for Berkeley DB partitions
     as well
   */
-  if (old_db_type == DB_TYPE_BERKELEY_DB)
+  if (ha_check_storage_engine_flag(old_db_type,HTON_FLUSH_AFTER_RENAME))
   {
     /*
       For the alter table to be properly flushed to the logs, we
@@ -4647,11 +4643,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       my_free((char*) table, MYF(0));
     }
     else
-      sql_print_warning("Could not open BDB table %s.%s after rename\n",
+      sql_print_warning("Could not open table %s.%s after rename\n",
                         new_db,table_name);
-    (void) berkeley_flush_logs();
+    ha_flush_logs(old_db_type);
   }
-#endif
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 

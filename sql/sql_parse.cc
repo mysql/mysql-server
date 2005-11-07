@@ -22,14 +22,6 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-#ifdef HAVE_INNOBASE_DB
-#include "ha_innodb.h"
-#endif
-
-#ifdef HAVE_NDBCLUSTER_DB
-#include "ha_ndbcluster.h"
-#endif
-
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -1767,8 +1759,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     LEX_STRING conv_name;
     /* Saved variable value */
-    my_bool old_innodb_table_locks= 
-              IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
+    my_bool old_innodb_table_locks=  thd->variables.innodb_table_locks;
+
+
     /* used as fields initializator */
     lex_start(thd, 0, 0);
 
@@ -2685,29 +2678,20 @@ mysql_execute_command(THD *thd)
       res = load_master_data(thd);
     break;
 #endif /* HAVE_REPLICATION */
-#ifdef HAVE_NDBCLUSTER_DB
-  case SQLCOM_SHOW_NDBCLUSTER_STATUS:
-    {
-      res = ndbcluster_show_status(thd);
-      break;
-    }
-#endif
-#ifdef HAVE_INNOBASE_DB
-  case SQLCOM_SHOW_INNODB_STATUS:
-    {
-      if (check_global_access(thd, SUPER_ACL))
-	goto error;
-      res = innodb_show_status(thd);
-      break;
-    }
-  case SQLCOM_SHOW_MUTEX_STATUS:
+  case SQLCOM_SHOW_ENGINE_STATUS:
     {
       if (check_global_access(thd, SUPER_ACL))
         goto error;
-      res = innodb_mutex_show_status(thd);
+      res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_STATUS);
       break;
     }
-#endif
+  case SQLCOM_SHOW_ENGINE_MUTEX:
+    {
+      if (check_global_access(thd, SUPER_ACL))
+        goto error;
+      res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_MUTEX);
+      break;
+    }
 #ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
   {
@@ -3431,7 +3415,7 @@ end_with_restore_list:
   case SQLCOM_SHOW_COLUMN_TYPES:
     res= mysqld_show_column_types(thd);
     break;
-  case SQLCOM_SHOW_LOGS:
+  case SQLCOM_SHOW_ENGINE_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
                MYF(0));	/* purecov: inspected */
@@ -3440,7 +3424,7 @@ end_with_restore_list:
     {
       if (grant_option && check_access(thd, FILE_ACL, any_db,0,0,0,0))
 	goto error;
-      res= mysqld_show_logs(thd);
+      res= ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_LOGS);
       break;
     }
 #endif

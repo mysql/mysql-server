@@ -25,7 +25,7 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
-#include <ndbapi/NdbApi.hpp>
+#include <NdbApi.hpp>
 #include <ndbapi_limits.h>
 
 class Ndb;             // Forward declaration
@@ -136,7 +136,6 @@ struct negated_function_mapping
   NDB_FUNC_TYPE neg_fun;
 };
 
-enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
 
 /*
   Define what functions can be negated in condition pushdown.
@@ -615,7 +614,7 @@ static void set_tabname(const char *pathname, char *tabname);
 					  const char *tabname, bool global);
 
 private:
-  friend int ndbcluster_drop_database(const char *path);
+  friend int ndbcluster_drop_database_impl(const char *path);
   int alter_table_name(const char *to);
   static int delete_table(ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
@@ -772,7 +771,7 @@ private:
 extern struct show_var_st ndb_status_variables[];
 
 bool ndbcluster_init(void);
-bool ndbcluster_end(void);
+int ndbcluster_end(ha_panic_function flag);
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
@@ -780,9 +779,9 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
                           const char *wild, bool dir, List<char> *files);
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
-int ndbcluster_drop_database(const char* path);
+void ndbcluster_drop_database(char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
-int ndbcluster_show_status(THD*);
+bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
 

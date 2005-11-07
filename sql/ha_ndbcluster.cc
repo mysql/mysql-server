@@ -26,7 +26,6 @@
 
 #include "mysql_priv.h"
 
-#ifdef HAVE_NDBCLUSTER_DB
 #include <my_dir.h>
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
@@ -36,8 +35,13 @@
 
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
-extern enum ndb_distribution opt_ndb_distribution_id;
 extern const char *opt_ndbcluster_connectstring;
+
+const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
+TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
+                                    "", ndb_distribution_names, NULL };
+const char *opt_ndb_distribution= ndb_distribution_names[ND_KEYHASH];
+enum ndb_distribution opt_ndb_distribution_id= ND_KEYHASH;
 
 // Default value for parallelism
 static const int parallelism= 0;
@@ -52,6 +56,7 @@ static const char share_prefix[]= "./";
 static int ndbcluster_close_connection(THD *thd);
 static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
+static handler* ndbcluster_create_handler(TABLE *table);
 
 handlerton ndbcluster_hton = {
   "ndbcluster",
@@ -74,8 +79,22 @@ handlerton ndbcluster_hton = {
   NULL, /* create_cursor_read_view */
   NULL, /* set_cursor_read_view */
   NULL, /* close_cursor_read_view */
+  ndbcluster_create_handler, /* Create a new handler */
+  ndbcluster_drop_database, /* Drop a database */
+  ndbcluster_end, /* Panic call */
+  NULL, /* Release temporary latches */
+  NULL, /* Update Statistics */
+  NULL, /* Start Consistent Snapshot */
+  NULL, /* Flush logs */
+  ndbcluster_show_status, /* Show status */
+  NULL, /* Replication Report Sent Binlog */
   HTON_NO_FLAGS
 };
+
+static handler *ndbcluster_create_handler(TABLE *table)
+{
+  return new ha_ndbcluster(table);
+}
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
@@ -4653,9 +4672,10 @@ extern "C" byte* tables_get_key(const char *entry, uint *length,
 
 /*
   Drop a database in NDB Cluster
- */
+  NOTE add a dummy void function, since stupid handlerton is returning void instead of int...
+*/
 
-int ndbcluster_drop_database(const char *path)
+int ndbcluster_drop_database_impl(const char *path)
 {
   DBUG_ENTER("ndbcluster_drop_database");
   THD *thd= current_thd;
@@ -4670,13 +4690,13 @@ int ndbcluster_drop_database(const char *path)
   DBUG_PRINT("enter", ("db: %s", dbname));
   
   if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(-1);
   
   // List tables in NDB
   NDBDICT *dict= ndb->getDictionary();
   if (dict->listObjects(list, 
                         NdbDictionary::Object::UserTable) != 0)
-    ERR_RETURN(dict->getNdbError());
+    DBUG_RETURN(-1);
   for (i= 0 ; i < list.count ; i++)
   {
     NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
@@ -4709,6 +4729,10 @@ int ndbcluster_drop_database(const char *path)
   DBUG_RETURN(ret);      
 }
 
+void ndbcluster_drop_database(char *path)
+{
+  ndbcluster_drop_database_impl(path);
+}
 /*
   find all tables in ndb and discover those needed
 */
@@ -5080,7 +5104,7 @@ ndbcluster_init_error:
     ndbcluster_init()
 */
 
-bool ndbcluster_end()
+int ndbcluster_end(ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
 
@@ -7964,29 +7988,21 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 /*
   Implements the SHOW NDB STATUS command.
 */
-int
-ndbcluster_show_status(THD* thd)
+bool
+ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
+                       enum ha_stat_type stat_type)
 {
-  Protocol *protocol= thd->protocol;
-  
+  char buf[IO_SIZE];
   DBUG_ENTER("ndbcluster_show_status");
   
   if (have_ndbcluster != SHOW_OPTION_YES) 
   {
-    my_message(ER_NOT_SUPPORTED_YET,
-	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
-	       MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(FALSE);
   }
-  
-  List<Item> field_list;
-  field_list.push_back(new Item_empty_string("free_list", 255));
-  field_list.push_back(new Item_return_int("created", 10,MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
-
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+  if (stat_type != HA_ENGINE_STATUS)
+  {
+    DBUG_RETURN(FALSE);
+  }
   
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
@@ -7994,14 +8010,11 @@ ndbcluster_show_status(THD* thd)
     Ndb::Free_list_usage tmp; tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
-      protocol->prepare_for_resend();
-      
-      protocol->store(tmp.m_name, &my_charset_bin);
-      protocol->store((uint)tmp.m_created);
-      protocol->store((uint)tmp.m_free);
-      protocol->store((uint)tmp.m_sizeof);
-      if (protocol->write())
-	DBUG_RETURN(TRUE);
+      my_snprintf(buf, sizeof(buf),
+                  "created=%u, free=%u, sizeof=%u",
+                  tmp.m_created, tmp.m_free, tmp.m_sizeof);
+      if (stat_print(thd, ndbcluster_hton.name, tmp.m_name, buf))
+        DBUG_RETURN(TRUE);
     }
   }
   send_eof(thd);
@@ -8433,5 +8446,3 @@ int ha_ndbcluster::alter_tablespace(st_alter_tablespace *info)
 }
 
 #endif /* NDB_DISKDATA */
-
-#endif /* HAVE_NDBCLUSTER_DB */

@@ -3255,7 +3255,9 @@ storage_engines:
 	ident_or_text
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
-	  if ($$ == DB_TYPE_UNKNOWN) {
+	  if ($$ == DB_TYPE_UNKNOWN &&
+	      test(YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION))
+	  {
 	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    YYABORT;
 	  }
@@ -7110,6 +7112,9 @@ show_param:
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
+	| ENGINE_SYM ALL 
+	  { Lex->create_info.db_type= DB_TYPE_DEFAULT; }
+	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
  	    LEX *lex= Lex;
@@ -7192,9 +7197,19 @@ show_param:
               YYABORT;
 	  }	
         | INNOBASE_SYM STATUS_SYM
-          { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
+          {
+            LEX *lex= Lex;
+            lex->sql_command = SQLCOM_SHOW_ENGINE_STATUS;
+            lex->create_info.db_type= DB_TYPE_INNODB;
+            WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS");
+	  }
         | MUTEX_SYM STATUS_SYM
-          { Lex->sql_command = SQLCOM_SHOW_MUTEX_STATUS; }
+          {
+	    LEX *lex= Lex;
+            lex->sql_command = SQLCOM_SHOW_ENGINE_MUTEX; 
+            lex->create_info.db_type= DB_TYPE_INNODB;
+            WARN_DEPRECATED("SHOW MUTEX STATUS", "SHOW ENGINE INNODB MUTEX");
+	  }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
         | opt_var_type  VARIABLES wild_and_where
@@ -7223,9 +7238,19 @@ show_param:
               YYABORT;
           }
 	| BERKELEY_DB_SYM LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
+	  {
+	    LEX *lex= Lex;
+	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
+	    lex->create_info.db_type= DB_TYPE_BERKELEY_DB;
+	    WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS");
+	  }
 	| LOGS_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
+	  {
+	    LEX *lex= Lex;
+	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
+	    lex->create_info.db_type= DB_TYPE_BERKELEY_DB;
+	    WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS");
+	  }
 	| GRANTS
 	  {
 	    LEX *lex=Lex;
@@ -7324,30 +7349,11 @@ show_param:
 
 show_engine_param:
 	STATUS_SYM
-	  {
-	    switch (Lex->create_info.db_type) {
-	    case DB_TYPE_NDBCLUSTER:
-	      Lex->sql_command = SQLCOM_SHOW_NDBCLUSTER_STATUS;
-	      break;
-	    case DB_TYPE_INNODB:
-	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
-	      break;
-	    default:
-	      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "STATUS");
-	      YYABORT;
-	    }
-	  }
+	  { Lex->sql_command= SQLCOM_SHOW_ENGINE_STATUS; }
+	| MUTEX_SYM
+	  { Lex->sql_command= SQLCOM_SHOW_ENGINE_MUTEX; }
 	| LOGS_SYM
-	  {
-	    switch (Lex->create_info.db_type) {
-	    case DB_TYPE_BERKELEY_DB:
-	      Lex->sql_command = SQLCOM_SHOW_LOGS;
-	      break;
-	    default:
-	      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "LOGS");
-	      YYABORT;
-	    }
-	  };
+	  { Lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS; };
 
 master_or_binary:
 	MASTER_SYM

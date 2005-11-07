@@ -563,11 +563,8 @@ struct system_variables
   ulong sync_replication_slave_id;
   ulong sync_replication_timeout;
 #endif /* HAVE_REPLICATION */
-#ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
-#endif /* HAVE_INNOBASE_DB */
-#ifdef HAVE_NDBCLUSTER_DB
   ulong ndb_autoincrement_prefetch_sz;
   my_bool ndb_force_send;
   my_bool ndb_use_exact_count;
@@ -575,7 +572,6 @@ struct system_variables
   my_bool ndb_index_stat_enable;
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
-#endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_alter_table;
   my_bool old_passwords;
 

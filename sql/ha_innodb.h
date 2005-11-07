@@ -254,7 +254,7 @@ extern ulong srv_commit_concurrency;
 extern TYPELIB innobase_lock_typelib;
 
 bool innobase_init(void);
-bool innobase_end(void);
+int innobase_end(ha_panic_function type);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
 
@@ -272,12 +272,11 @@ int innobase_commit_complete(void* trx_handle);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 #endif
 
-int innobase_drop_database(char *path);
-bool innodb_show_status(THD* thd);
-bool innodb_mutex_show_status(THD* thd);
-void innodb_export_status(void);
+void innobase_drop_database(char *path);
+bool innobase_show_status(THD* thd, stat_print_fn*, enum ha_stat_type);
+int innodb_export_status(void);
 
-void innobase_release_temporary_latches(THD *thd);
+int innobase_release_temporary_latches(THD *thd);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 

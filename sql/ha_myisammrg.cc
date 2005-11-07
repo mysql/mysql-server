@@ -32,6 +32,8 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
+static handler *myisammrg_create_handler(TABLE *table);
+
 /* MyISAM MERGE handlerton */
 
 handlerton myisammrg_hton= {
@@ -55,8 +57,22 @@ handlerton myisammrg_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  myisammrg_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  myrg_panic,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
+
+static handler *myisammrg_create_handler(TABLE *table)
+{
+  return new ha_myisammrg(table);
+}
 
 
 ha_myisammrg::ha_myisammrg(TABLE *table_arg)

@@ -25,9 +25,6 @@
 #include "sql_trigger.h"
 #include <my_dir.h>
 
-#ifdef HAVE_BERKELEY_DB
-#include "ha_berkeley.h"			// For berkeley_show_logs
-#endif
 
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
@@ -512,29 +509,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   DBUG_RETURN(FALSE);
 }
 
-bool
-mysqld_show_logs(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_logs");
-
-  field_list.push_back(new Item_empty_string("File",FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Type",10));
-  field_list.push_back(new Item_empty_string("Status",10));
-
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-#ifdef HAVE_BERKELEY_DB
-  if ((have_berkeley_db == SHOW_OPTION_YES) && berkeley_show_logs(protocol))
-    DBUG_RETURN(TRUE);
-#endif
-
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
-}
 
 
 /****************************************************************************
@@ -974,7 +948,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(" TYPE=", 6);
     else
       packet->append(" ENGINE=", 8);
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->s->part_info)
       packet->append(ha_get_storage_engine(
                     table->s->part_info->default_engine_type));
@@ -1054,7 +1028,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   {
     /*
       Partition syntax for CREATE TABLE is at the end of the syntax.
