@@ -2103,6 +2103,7 @@ private:
   }
 
   void prepare_initial_insert(KeyReqStruct*, Operationrec*, Tablerec*);
+  void fix_disk_insert_no_mem_insert(KeyReqStruct*, Operationrec*, Tablerec*);
   void setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* const regOperPtr,
 			Tablerec* const regTabPtr);
