@@ -24,7 +24,9 @@
 #include <kernel_types.h>
 #include <ndbd_malloc.hpp>
 #include <NdbThread.h>
+#include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
 
 // use this to test broken pread code
 //#define HAVE_BROKEN_PREAD 
@@ -85,7 +87,7 @@ extern "C" void * runAsyncFile(void* arg)
   return (NULL);
 }
 
-AsyncFile::AsyncFile() :
+AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theFileName(),
 #ifdef NDB_WIN32
   hFile(INVALID_HANDLE_VALUE),
@@ -93,17 +95,16 @@ AsyncFile::AsyncFile() :
   theFd(-1),
 #endif
   theReportTo(0),
-  theMemoryChannelPtr(NULL)
+  theMemoryChannelPtr(NULL),
+  m_fs(fs)
 {
+  m_page_ptr.setNull();
   m_current_request= m_last_request= 0;
 }
 
 void
-AsyncFile::doStart(Uint32 nodeId,
-		   const char * filesystemPath,
-		   const char * backup_path) {
-  theFileName.init(nodeId, filesystemPath, backup_path);
-
+AsyncFile::doStart() 
+{
   // Stacksize for filesystem threads
   // An 8k stack should be enough
   const NDB_THREAD_STACKSIZE stackSize = 8192;
@@ -189,6 +190,7 @@ AsyncFile::run()
       closeReq(request);
       removeReq(request);
       break;
+    case Request:: readPartial:
     case Request:: read:
       readReq(request);
       break;
@@ -236,7 +238,6 @@ AsyncFile::run()
 }//AsyncFile::run()
 
 extern bool Global_useO_SYNC;
-extern bool Global_useO_DIRECT;
 extern bool Global_unlinkO_CREAT;
 extern Uint32 Global_syncFreq;
 
@@ -322,35 +323,29 @@ void AsyncFile::openReq(Request* request)
       new_flags |= O_TRUNC;
   }  
 
+  if (flags & FsOpenReq::OM_AUTOSYNC)
+  {
+    m_syncFrequency = 1024*1024; // Hard coded to 1M
+  }
+
   if(flags & FsOpenReq::OM_APPEND){
     new_flags |= O_APPEND;
   }
 
-  if(flags & FsOpenReq::OM_SYNC){
-#if 0
-    if(Global_useO_SYNC){
-      new_flags |= O_SYNC;
-      m_openedWithSync = true;
-      m_syncFrequency = 0;
-    } else {
+  if((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
+  {
+#ifdef O_SYNC
+    new_flags |= O_SYNC;
 #endif
-      m_openedWithSync = false;
-      m_syncFrequency = Global_syncFreq;
-#if 0
-    }
-#endif
-  } else {
-    m_openedWithSync = false;
-    m_syncFrequency = 0;
   }
-
-#if 0
-  //#if NDB_LINUX
-  if(Global_useO_DIRECT){
+  
+#ifdef O_DIRECT
+  if (flags & FsOpenReq::OM_DIRECT) 
+  {
     new_flags |= O_DIRECT;
   }
 #endif
-
+  
   switch(flags & 0x3){
   case FsOpenReq::OM_READONLY:
     new_flags |= O_RDONLY;
@@ -366,11 +361,20 @@ void AsyncFile::openReq(Request* request)
     break;
     return;
   }
+
   // allow for user to choose any permissionsa with umask
-  const int mode =
-    S_IRUSR | S_IWUSR |
-    S_IRGRP | S_IWGRP |
-    S_IROTH | S_IWOTH;
+  const int mode = S_IRUSR | S_IWUSR |
+	           S_IRGRP | S_IWGRP |
+		   S_IROTH | S_IWOTH;
+retry:
+  if(flags & FsOpenReq::OM_CREATE_IF_NONE){
+    if((theFd = ::open(theFileName.c_str(), new_flags, mode)) != -1) {
+      close(theFd);
+      request->error = FsRef::fsErrFileExists;      
+      return;
+    }
+    new_flags |= O_CREAT;
+  }
   
   if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) {
     PRINT_ERRORANDFLAGS(new_flags);
@@ -379,18 +383,98 @@ void AsyncFile::openReq(Request* request)
       if (-1 == (theFd = ::open(theFileName.c_str(), new_flags, mode))) {
         PRINT_ERRORANDFLAGS(new_flags);
         request->error = errno;
+	return;
       }
     } else {
       request->error = errno;
+      return;
     }
+  }
+  
+  if(flags & FsOpenReq::OM_CHECK_SIZE)
+  {
+    struct stat buf;
+    if((fstat(theFd, &buf) == -1))
+    {
+      request->error = errno;
+    } else if(buf.st_size != request->par.open.file_size){
+      request->error = FsRef::fsErrInvalidFileSize;
+    }
+    if(request->error)
+      return;
+  }
+
+  if(flags & FsOpenReq::OM_INIT){
+    off_t off = 0;
+    const off_t sz = request->par.open.file_size;
+    Uint32 tmp[sizeof(SignalHeader)+25];
+    Signal * signal = (Signal*)(&tmp[0]);
+    FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+
+    Uint32 index = 0;
+    Uint32 block = refToBlock(request->theUserReference);
+
+#ifdef HAVE_POSIX_FALLOCATE
+    posix_fallocate(theFd, 0, sz);
+#endif
+
+    while(off < sz)
+    {
+      req->filePointer = 0;          // DATA 0
+      req->userPointer = request->theUserPointer;          // DATA 2
+      req->numberOfPages = 1;        // DATA 5  
+      req->varIndex = index++;
+      req->data.pageData[0] = m_page_ptr.i;
+
+      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal, 
+			  FsReadWriteReq::FixedLength + 1);
+      Uint32 size = request->par.open.page_size;
+      char* buf = (char*)m_page_ptr.p;
+      while(size > 0){
+	const int n = write(theFd, buf, size);
+	if(n == -1 && errno == EINTR)
+	{
+	  continue;
+	}
+	if(n == -1 || n == 0)
+	{
+	  break;
+	}
+	size -= n;
+	buf += n;
+      }
+      if(size != 0)
+      {
+	close(theFd);
+	unlink(theFileName.c_str());
+	request->error = errno;
+	return;
+      }
+      off += request->par.open.page_size;
+    }
+    if(lseek(theFd, 0, SEEK_SET) != 0)
+      request->error = errno;
+  }
+
+  if ((flags & FsOpenReq::OM_SYNC) && (flags & FsOpenReq::OM_INIT))
+  {
+    /**
+     * reopen file with O_SYNC
+     */
+    close(theFd);
+    new_flags &= ~(O_CREAT | O_TRUNC);
+#ifdef O_SYNC
+    new_flags |= O_SYNC;
+#endif
+    theFd = ::open(theFileName.c_str(), new_flags, mode);
   }
 #endif
 }
 
 int
-AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
+AsyncFile::readBuffer(Request* req, char * buf, size_t size, off_t offset){
   int return_value;
-  
+  req->par.readWrite.pages[0].size = 0;  
 #ifdef NDB_WIN32
   DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
   if(dwSFP != offset) {
@@ -436,17 +520,22 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
     }
 #endif
 
+    req->par.readWrite.pages[0].size += bytes_read;
     if(bytes_read == 0){
+      if(req->action == Request::readPartial)
+      {
+	return 0;
+      }
       DEBUG(ndbout_c("Read underflow %d %d\n %x\n%d %d", 
-            size, offset, buf, bytes_read, return_value));
+		     size, offset, buf, bytes_read, return_value));
       return ERR_ReadUnderflow;
     }
     
     if(bytes_read != size){
       DEBUG(ndbout_c("Warning partial read %d != %d", 
-            bytes_read, size));
+		     bytes_read, size));
     }
-
+    
     buf += bytes_read;
     size -= bytes_read;
     offset += bytes_read;
@@ -462,7 +551,7 @@ AsyncFile::readReq( Request * request)
     size_t size  = request->par.readWrite.pages[i].size;
     char * buf   = request->par.readWrite.pages[i].buf;
     
-    int err = readBuffer(buf, size, offset);
+    int err = readBuffer(request, buf, size, offset);
     if(err != 0){
       request->error = err;
       return;
@@ -891,13 +980,20 @@ void AsyncFile::endReq()
 
 void AsyncFile::createDirectories()
 {
-  for (int i = 0; i < theFileName.levels(); i++) {
+  char* tmp;
+  const char * name = theFileName.c_str();
+  const char * base = theFileName.get_base_name();
+  while((tmp = strstr(base, DIR_SEPARATOR)))
+  {
+    char t = tmp[0];
+    tmp[0] = 0;
 #ifdef NDB_WIN32
-    CreateDirectory(theFileName.directory(i), 0);
+    CreateDirectory(name, 0);
 #else
-    //printf("AsyncFile::createDirectories : \"%s\"\n", theFileName.directory(i)); 
-    mkdir(theFileName.directory(i), S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+    mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
 #endif
+    tmp[0] = t;
+    base = tmp + sizeof(DIR_SEPARATOR);
   }
 }
 
@@ -1035,8 +1131,10 @@ void printErrorAndFlags(Uint32 used_flags) {
     strcat(buf, "O_NDELAY, ");
   if((used_flags & O_RSYNC)==O_RSYNC)
     strcat(buf, "O_RSYNC, ");
+#ifdef O_SYNC
   if((used_flags & O_SYNC)==O_SYNC)
     strcat(buf, "O_SYNC, ");
+#endif
   DEBUG(ndbout_c(buf));
 #endif
 

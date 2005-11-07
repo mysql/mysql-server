@@ -110,7 +110,7 @@ public:
 
 private:
   // sizes are in words (Uint32)
-  STATIC_CONST( MaxIndexFragments = 2 * MAX_FRAG_PER_NODE );
+  STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_NODE );
   STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
   STATIC_CONST( MaxAttrDataSize = 2048 );
 public:
@@ -214,7 +214,6 @@ private:
   struct TreeEnt {
     TupLoc m_tupLoc;            // address of original tuple
     unsigned m_tupVersion : 15; // version
-    unsigned m_fragBit : 1;     // which duplicated table fragment
     TreeEnt();
     // methods
     bool eq(const TreeEnt ent) const;
@@ -489,8 +488,8 @@ private:
     TupLoc m_freeLoc;           // list of free index nodes
     DLList<ScanOp> m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
-    Uint32 m_tupTableFragPtrI[2];
-    Uint32 m_accTableFragPtrI[2];
+    Uint32 m_tupTableFragPtrI;
+    Uint32 m_accTableFragPtrI;
     union {
     Uint32 nextPool;
     };
@@ -907,8 +906,7 @@ Dbtux::TupLoc::operator!=(const TupLoc& loc) const
 inline
 Dbtux::TreeEnt::TreeEnt() :
   m_tupLoc(),
-  m_tupVersion(0),
-  m_fragBit(0)
+  m_tupVersion(0)
 {
 }
 
@@ -917,8 +915,7 @@ Dbtux::TreeEnt::eq(const TreeEnt ent) const
 {
   return
     m_tupLoc == ent.m_tupLoc &&
-    m_tupVersion == ent.m_tupVersion &&
-    m_fragBit == ent.m_fragBit;
+    m_tupVersion == ent.m_tupVersion;
 }
 
 inline int
@@ -935,10 +932,6 @@ Dbtux::TreeEnt::cmp(const TreeEnt ent) const
   if (m_tupVersion < ent.m_tupVersion)
     return -1;
   if (m_tupVersion > ent.m_tupVersion)
-    return +1;
-  if (m_fragBit < ent.m_fragBit)
-    return -1;
-  if (m_fragBit > ent.m_fragBit)
     return +1;
   return 0;
 }
@@ -1099,10 +1092,8 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_scanList(scanOpPool),
   m_tupIndexFragPtrI(RNIL)
 {
-  m_tupTableFragPtrI[0] = RNIL;
-  m_tupTableFragPtrI[1] = RNIL;
-  m_accTableFragPtrI[0] = RNIL;
-  m_accTableFragPtrI[1] = RNIL;
+  m_tupTableFragPtrI = RNIL;
+  m_accTableFragPtrI = RNIL;
 }
 
 // Dbtux::FragOp
@@ -1282,7 +1273,7 @@ Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
 inline Uint32
 Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
 {
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   Uint32 tupAddr = NullTupAddr;
   c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupAddr);

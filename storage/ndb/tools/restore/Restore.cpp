@@ -331,7 +331,9 @@ RestoreDataIterator::getNextTuple(int  & res)
     res = -1;
     return NULL;
   }
-  
+ 
+  //if (m_currentTable->getTableId() >= 2) { for (uint ii=0; ii<dataLenBytes; ii+=4) ndbout << "*" << hex << *(Uint32*)( (char*)_buf_ptr+ii ); ndbout << endl; }
+
   Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
   Uint32 i;
@@ -347,6 +349,7 @@ RestoreDataIterator::getNextTuple(int  & res)
 
     attr_data->null = false;
     attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
 
     if(!Twiddle(attr_desc, attr_data))
       {
@@ -368,7 +371,10 @@ RestoreDataIterator::getNextTuple(int  & res)
 
     attr_data->null = false;
     attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
 
+    //if (m_currentTable->getTableId() >= 2) { ndbout << "fix i=" << i << " off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
+    
     if(!Twiddle(attr_desc, attr_data))
       {
 	res = -1;
@@ -378,13 +384,27 @@ RestoreDataIterator::getNextTuple(int  & res)
     ptr += sz;
   }
 
+  // init to NULL
   for(i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
 
     AttributeData * attr_data = m_tuple.getData(attrId);
+
+    attr_data->null = true;
+    attr_data->void_value = NULL;
+  }
+
+  while (ptr + 2 < buf_ptr + dataLength) {
+    typedef BackupFormat::DataFile::VariableData VarData;
+    VarData * data = (VarData *)ptr;
+    Uint32 sz = ntohl(data->Sz);
+    Uint32 attrId = ntohl(data->Id); // column_no
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
     const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
     
-    if(attr_desc->m_column->getNullable()){
+    // just a reminder - remove when backwards compat implemented
+    if(false && attr_desc->m_column->getNullable()){
       const Uint32 ind = attr_desc->m_nullBitIndex;
       if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
 			  buf_ptr,ind)){
@@ -393,31 +413,28 @@ RestoreDataIterator::getNextTuple(int  & res)
 	continue;
       }
     }
-
-    assert(ptr < buf_ptr + dataLength);
-
-    typedef BackupFormat::DataFile::VariableData VarData;
-    VarData * data = (VarData *)ptr;
-    Uint32 sz = ntohl(data->Sz);
-    Uint32 id = ntohl(data->Id);
-    assert(id == attrId);
     
     attr_data->null = false;
     attr_data->void_value = &data->Data[0];
+    attr_data->size = sz;
+
+    //if (m_currentTable->getTableId() >= 2) { ndbout << "var off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
 
     /**
      * Compute array size
      */
-    const Uint32 arraySize = (4 * sz) / (attr_desc->size / 8);
-    assert(arraySize >= attr_desc->arraySize);
+    const Uint32 arraySize = sz / (attr_desc->size / 8);
+    assert(arraySize <= attr_desc->arraySize);
     if(!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
       {
 	res = -1;
 	return NULL;
       }
-
-    ptr += (sz + 2);
+    
+    ptr += ((sz + 3) >> 2) + 2;
   }
+
+  assert(ptr == buf_ptr + dataLength);
 
   m_count ++;  
   res = 0;
@@ -706,16 +723,20 @@ void TableS::createAttr(NdbDictionary::Column *column)
     return;
   }
   
-  if(!d->m_column->getNullable())
+  if (d->m_column->getArrayType() == NDB_ARRAYTYPE_FIXED &&
+      ! d->m_column->getNullable())
   {
     m_fixedAttribs.push_back(d);
     return;
   }
 
-  /* Nullable attr*/
-  d->m_nullBitIndex = m_noOfNullable; 
-  m_noOfNullable++;
-  m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
+  // just a reminder - does not solve backwards compat
+  if (backupVersion < MAKE_VERSION(5,1,0))
+  {
+    d->m_nullBitIndex = m_noOfNullable; 
+    m_noOfNullable++;
+    m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
+  }
   m_variableAttribs.push_back(d);
 } // TableS::createAttr
 
@@ -872,6 +893,7 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, (char *)data.void_value);
+  tmprec.receive_data((Uint32*)data.void_value, data.size);
   ndbout << tmprec;
 
   return ndbout;

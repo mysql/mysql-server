@@ -53,6 +53,7 @@ extern SectionSegmentPool g_sectionSegmentPool;
 void print(SegmentedSectionPtr ptr, FILE* out);
 void copy(SegmentedSectionPtr dst, Uint32 * src, Uint32 len);
 void copy(Uint32 * dst, SegmentedSectionPtr src);
+bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 void getSection(SegmentedSectionPtr & ptr, Uint32 id);

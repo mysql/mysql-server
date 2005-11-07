@@ -91,7 +91,11 @@ public:
     RecordTooBig = 738,
     InvalidPrimaryKeySize  = 739,
     NullablePrimaryKey = 740,
-    InvalidCharset = 743
+    InvalidCharset = 743,
+    InvalidTablespace = 755,
+    VarsizeBitfieldNotSupported = 757,
+    NotATablespace = 758,
+    InvalidTablespaceVersion = 759
   };
 
 private:

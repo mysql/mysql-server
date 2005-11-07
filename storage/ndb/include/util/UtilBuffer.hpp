@@ -84,9 +84,11 @@ public:
     len = 0;
   }
 
-  int length() const { return len; };
+  int length() const { return len; }
 
-  void *get_data() const { return data; };
+  void *get_data() const { return data; }
+
+  bool empty () const { return len == 0; }
 private:
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */

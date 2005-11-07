@@ -175,7 +175,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
   return NDBT_FAILED;
   
  failed:
-  closeTransaction(pNdb);
+  if(pTrans != 0) closeTransaction(pNdb);
   ERR(err);
   return (err.code != 0 ? err.code : NDBT_FAILED);
 }
@@ -322,7 +322,7 @@ UtilTransactions::addRowToInsert(Ndb* pNdb,
   // Set all attributes
   for (int a = 0; a < tab.getNoOfColumns(); a++){
     NdbRecAttr* r =  row.attributeStore(a);
-    int	 sz = r->attrSize() * r->arraySize();
+    int	 sz = r->get_size_in_bytes();
     if (pInsOp->setValue(tab.getColumn(a)->getName(),
 			 r->aRef(),
 			 sz) != 0) {
@@ -1422,7 +1422,7 @@ loop:
       }
     }
     
-    pTrans->close(); pTrans= 0;
+    closeTransaction(pNdb);
     
     g_info << row_count << " rows compared" << endl;
     {
@@ -1442,11 +1442,7 @@ error:
     {
       g_err << err << endl;
       NdbSleep_MilliSleep(50);
-      if(pTrans != 0)
-      {
-	pTrans->close();
-	pTrans= 0;
-      }
+      closeTransaction(pNdb);
       if(cmp.getTransaction())
 	cmp.closeTransaction(pNdb);
       
@@ -1459,7 +1455,8 @@ error:
   }
 
 close:
-  if(pTrans != 0) pTrans->close();
+  closeTransaction(pNdb);
   
   return return_code;
 }
+

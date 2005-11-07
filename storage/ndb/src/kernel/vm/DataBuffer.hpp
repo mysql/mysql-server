@@ -102,7 +102,8 @@ public:
     inline bool isNull() const { return curr.isNull();}
     inline void setNull() { curr.setNull(); data = 0; ind = pos = RNIL;}
   };
-  
+  typedef DataBufferIterator Iterator;
+
   struct ConstDataBufferIterator {
     ConstPtr<Segment>  curr;
     const Uint32 *     data;

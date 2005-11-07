@@ -181,7 +181,7 @@ fi
 
 # Edit file system path and ports in config file
 if [ $initial_ndb ] ; then
-  rm -f $fs_ndb/ndb_* 2>&1 | cat > /dev/null
+  rm -rf $fs_ndb/ndb_* 2>&1 | cat > /dev/null
   sed \
     -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \

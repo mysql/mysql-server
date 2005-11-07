@@ -29,7 +29,8 @@ class LqhKeyReq {
    * Sender(s)
    */
   friend class Dbtc;      
-
+  friend class Restore;
+  
   /**
    * For printing
    */
@@ -95,6 +96,7 @@ private:
   static UintR getReturnedReadLenAIFlag(const UintR & requestInfo);
   static UintR getApplicationAddressFlag(const UintR & requestInfo);
   static UintR getMarkerFlag(const UintR & requestInfo);
+  static UintR getNoDiskFlag(const UintR & requestInfo);
 
   /**
    * Setters
@@ -124,6 +126,7 @@ private:
   static void setReturnedReadLenAIFlag(UintR & requestInfo, UintR val);
   static void setApplicationAddressFlag(UintR & requestInfo, UintR val);
   static void setMarkerFlag(UintR & requestInfo, UintR val);
+  static void setNoDiskFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -142,11 +145,12 @@ private:
  * c = Same client and tc     - 1  Bit (27)
  * u = Read Len Return Ind    - 1  Bit (28)
  * m = Commit ack marker      - 1  Bit (29)
- * - = Unused                 - 2  Bits (30-31)
+ * x = No disk usage          - 1  Bit (30)
+ * - = Unused                 - 2  Bit (31)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * kkkkkkkkkklltttpdisooorraaacum--
+ * kkkkkkkkkklltttpdisooorraaacumx-
  */
 
 #define RI_KEYLEN_SHIFT      (0)
@@ -168,6 +172,7 @@ private:
 #define RI_SAME_CLIENT_SHIFT (27)
 #define RI_RETURN_AI_SHIFT   (28)
 #define RI_MARKER_SHIFT      (29)
+#define RI_NODISK_SHIFT      (30)
 
 /**
  * Scan Info
@@ -464,11 +469,25 @@ LqhKeyReq::getMarkerFlag(const UintR & requestInfo){
   return (requestInfo >> RI_MARKER_SHIFT) & 1;
 }
 
+inline
+void
+LqhKeyReq::setNoDiskFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNoDiskFlag");
+  requestInfo |= (val << RI_NODISK_SHIFT);
+}
+
+inline
+UintR 
+LqhKeyReq::getNoDiskFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NODISK_SHIFT) & 1;
+}
+
 class LqhKeyConf {
   /**
    * Reciver(s)
    */
   friend class Dbtc;
+  friend class Restore;
 
   /**
    * Sender(s)

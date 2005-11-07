@@ -161,6 +161,12 @@
 #define NO_OF_FRAGS_PER_CHUNK 4
 #define LOG_NO_OF_FRAGS_PER_CHUNK 2
 
+/**
+* Page Header Size for pages
+*/
+#define ZPAGE_HEADER_SIZE 32
+#define ZPAGE_FRAG_PAGE_ID_POS 4 /* POSITION OF FRAG PAGE ID WHEN USED*/
+
 /* ---------------------------------------------------------------- */
 // To avoid synching too big chunks at a time we synch after writing
 // a certain number of data/UNDO pages. (e.g. 2 MBytes).
@@ -199,7 +205,7 @@
  */
 #if defined VM_TRACE
 #define ndbassert(check) \
-  if((check)){ \
+  if(likely(check)){ \
   } else {     \
     progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
   }
@@ -208,7 +214,7 @@
 #endif
 
 #define ndbrequireErr(check, error) \
-  if((check)){ \
+  if(likely(check)){ \
   } else {     \
     progError(__LINE__, error, __FILE__); \
   }

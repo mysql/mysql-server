@@ -208,7 +208,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
     CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
 
   Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
-  Uint32 tIndexId = m_theIndex->m_indexId;
+  Uint32 tIndexId = m_theIndex->m_id;
   Uint32 tSchemaVersion = m_theIndex->m_version;
   
   tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;

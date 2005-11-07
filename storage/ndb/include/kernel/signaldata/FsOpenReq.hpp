@@ -40,6 +40,9 @@ class FsOpenReq {
   friend class Dbdict;
   friend class Ndbcntr;       // For initial start...
   friend class Dbdih;
+  friend class Lgman;
+  friend class Tsman;
+  friend class Restore;
 
   /**
    * For printing
@@ -50,8 +53,9 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 7 );
-
+  STATIC_CONST( SignalLength = 10 );
+  SECTION( FILENAME = 0 );
+  
 private:
 
   /**
@@ -62,7 +66,10 @@ private:
   UintR userPointer;          // DATA 1
   UintR fileNumber[4];        // DATA 2 - 5
   UintR fileFlags;            // DATA 6
-
+  Uint32 page_size;
+  Uint32 file_size_hi;
+  Uint32 file_size_lo;
+  
   STATIC_CONST( OM_READONLY  = 0 );
   STATIC_CONST( OM_WRITEONLY = 1 );
   STATIC_CONST( OM_READWRITE = 2 );
@@ -71,7 +78,13 @@ private:
   STATIC_CONST( OM_SYNC      = 0x10  );
   STATIC_CONST( OM_CREATE    = 0x100 );
   STATIC_CONST( OM_TRUNCATE  = 0x200 );
+  STATIC_CONST( OM_AUTOSYNC  = 0x400 ); 
 
+  STATIC_CONST( OM_CREATE_IF_NONE = 0x0400 );
+  STATIC_CONST( OM_INIT           = 0x0800 ); // 
+  STATIC_CONST( OM_CHECK_SIZE     = 0x1000 );
+  STATIC_CONST( OM_DIRECT         = 0x2000 );
+  
   enum Suffixes {
     S_DATA = 0,
     S_FRAGLOG = 1,
@@ -115,6 +128,15 @@ private:
   static void v2_setSequence(Uint32 fileNumber[], Uint32 no);
   static void v2_setNodeId(Uint32 fileNumber[], Uint32 no);
   static void v2_setCount(Uint32 fileNumber[], Uint32 no);
+
+  /**
+   * V4 - LCP
+   */
+  static Uint32 v5_getLcpNo(const Uint32 fileNumber[]);
+  static Uint32 v5_getTableId(const Uint32 fileNumber[]);
+  
+  static void v5_setLcpNo(Uint32 fileNumber[], Uint32 no);
+  static void v5_setTableId(Uint32 fileNumber[], Uint32 no);
 };
 
 /**
@@ -154,8 +176,19 @@ private:
  * 
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * ppppppppddddddddssssssssvvvvvvvv
+ *                 ssssssssvvvvvvvv
  *
+ * -- v3 --
+ * File number[0] = Table
+ * File number[1] = LcpNo
+ * File number[2] = 
+ * File number[3] =
+ *   v = version   24 - 31
+ *   s = v1_suffix 16 - 23
+ *
+ *           1111111111222222222233
+ * 01234567890123456789012345678901
+ *                 ssssssssvvvvvvvv
  */ 
 inline 
 Uint32 FsOpenReq::getVersion(const Uint32 fileNumber[]){
@@ -262,6 +295,26 @@ void FsOpenReq::v2_setCount(Uint32 fileNumber[], Uint32 val){
   fileNumber[2] = val;
 }
 
+/****************/
+inline 
+Uint32 FsOpenReq::v5_getTableId(const Uint32 fileNumber[]){
+  return fileNumber[0];
+}
+
+inline
+void FsOpenReq::v5_setTableId(Uint32 fileNumber[], Uint32 val){
+  fileNumber[0] = val;
+}
+
+inline 
+Uint32 FsOpenReq::v5_getLcpNo(const Uint32 fileNumber[]){
+  return fileNumber[1];
+}
+
+inline
+void FsOpenReq::v5_setLcpNo(Uint32 fileNumber[], Uint32 val){
+  fileNumber[1] = val;
+}
 
 #endif
 

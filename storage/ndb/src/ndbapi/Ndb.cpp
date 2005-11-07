@@ -758,7 +758,7 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
   if (info == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl *table= info->m_table_impl;
-  Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
+  Uint64 tupleId = getTupleIdFromNdb(table->m_id, cacheSize);
   DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
@@ -770,7 +770,7 @@ Ndb::getAutoIncrementValue(const NdbDictionary::Table * aTable, Uint32 cacheSize
   if (aTable == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
-  Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
+  Uint64 tupleId = getTupleIdFromNdb(table->m_id, cacheSize);
   DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
@@ -781,7 +781,7 @@ Ndb::getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize)
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0)
     return ~(Uint64)0;
-  return getTupleIdFromNdb(table->m_tableId, cacheSize);
+  return getTupleIdFromNdb(table->m_id, cacheSize);
 }
 
 Uint64
@@ -812,7 +812,7 @@ Ndb::readAutoIncrementValue(const char* aTableName)
     theError= theDictionary->getNdbError();
     DBUG_RETURN(~(Uint64)0);
   }
-  Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
+  Uint64 tupleId = readTupleIdFromNdb(table->m_id);
   DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
@@ -824,7 +824,7 @@ Ndb::readAutoIncrementValue(const NdbDictionary::Table * aTable)
   if (aTable == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
-  Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
+  Uint64 tupleId = readTupleIdFromNdb(table->m_id);
   DBUG_PRINT("info", ("value %ul", (ulong) tupleId));
   DBUG_RETURN(tupleId);
 }
@@ -852,7 +852,7 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
     DBUG_RETURN(false);
   }
   const NdbTableImpl* table= info->m_table_impl;
-  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
+  DBUG_RETURN(setTupleIdInNdb(table->m_id, val, increase));
 }
 
 bool
@@ -862,7 +862,7 @@ Ndb::setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, bool
   if (aTable == 0)
     DBUG_RETURN(~(Uint64)0);
   const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
-  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
+  DBUG_RETURN(setTupleIdInNdb(table->m_id, val, increase));
 }
 
 bool
@@ -874,7 +874,7 @@ Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase )
     theError= theDictionary->getNdbError();
     DBUG_RETURN(false);
   }
-  DBUG_RETURN(setTupleIdInNdb(table->m_tableId, val, increase));
+  DBUG_RETURN(setTupleIdInNdb(table->m_id, val, increase));
 }
 
 bool
@@ -1171,7 +1171,7 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
   BaseString ret;
   DBUG_ENTER("internalize_index_name");
   DBUG_PRINT("enter", ("external_name: %s, table_id: %d",
-                       external_name, table ? table->m_tableId : ~0));
+                       external_name, table ? table->m_id : ~0));
   if (!table)
   {
     DBUG_PRINT("error", ("!table"));
@@ -1183,7 +1183,7 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
     /* Internal index name format <db>/<schema>/<tabid>/<table> */
     ret.assfmt("%s%d%c%s",
                theImpl->m_prefix.c_str(),
-               table->m_tableId,
+               table->m_id,
                table_name_separator,
                external_name);
   }

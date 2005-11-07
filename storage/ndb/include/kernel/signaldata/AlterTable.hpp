@@ -62,18 +62,22 @@ private:
 
 /*
   n = Changed name
+  f = Changed frm
 
            1111111111222222222233
  01234567890123456789012345678901
- n-------------------------------
+ nf------------------------------
 */
 #define NAME_SHIFT        (0)
+#define FRM_SHIFT         (1)
 
  /**
    * Getters and setters
    */ 
   static Uint8 getNameFlag(const UintR & changeMask);
   static void setNameFlag(UintR &  changeMask, Uint32 nameFlg);
+  static Uint8 getFrmFlag(const UintR & changeMask);
+  static void setFrmFlag(UintR &  changeMask, Uint32 frmFlg);
 };
 
 inline
@@ -86,6 +90,18 @@ inline
 void
 AlterTableReq::setNameFlag(UintR & changeMask, Uint32 nameFlg){
   changeMask |= (nameFlg << NAME_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getFrmFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> FRM_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setFrmFlag(UintR & changeMask, Uint32 frmFlg){
+  changeMask |= (frmFlg << FRM_SHIFT);
 }
 
 

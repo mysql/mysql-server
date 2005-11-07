@@ -17,7 +17,6 @@
 #ifndef SimBlockList_H
 #define SimBlockList_H
 
-#include <MetaData.hpp>
 #include <SimulatedBlock.hpp>
 
 class Configuration;
@@ -33,14 +32,12 @@ public:
 private:
   int noOfBlocks;
   SimulatedBlock** theList;
-  MetaData::Common* ptrMetaDataCommon;
 };
 
 inline
 SimBlockList::SimBlockList(){
   noOfBlocks = 0;
   theList    = 0;
-  ptrMetaDataCommon = 0;
 }
 
 inline

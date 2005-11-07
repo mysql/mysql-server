@@ -67,8 +67,7 @@ LocalDictCache::get(const char * name){
 
 void 
 LocalDictCache::put(const char * name, Ndb_local_table_info * tab_info){
-  const Uint32 id = tab_info->m_table_impl->m_tableId;
-  
+  const Uint32 id = tab_info->m_table_impl->m_id;
   m_tableHash.insertKey(name, strlen(name), id, tab_info);
 }
 
@@ -292,9 +291,9 @@ GlobalDictCache::drop(NdbTableImpl * tab)
 
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    DBUG_PRINT("info", ("%d: version: %d refCount: %d status: %d impl: %p",
-                        i, ver.m_version, ver.m_refCount,
-                        ver.m_status, ver.m_impl));
+    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
+	     i, ver.m_version, ver.m_refCount,
+	     ver.m_status, ver.m_impl);
   }
   
   abort();
@@ -340,9 +339,9 @@ GlobalDictCache::release(NdbTableImpl * tab)
   
   for(i = 0; i<sz; i++){
     TableVersion & ver = (* vers)[i];
-    DBUG_PRINT("info", ("%d: version: %d refCount: %d status: %d impl: %p",
-                        i, ver.m_version, ver.m_refCount,
-                        ver.m_status, ver.m_impl));
+    ndbout_c("%d: version: %d refCount: %d status: %d impl: %p",
+	     i, ver.m_version, ver.m_refCount,
+	     ver.m_status, ver.m_impl);
   }
   
   abort();
@@ -373,7 +372,7 @@ GlobalDictCache::alter_table_rep(const char * name,
   {
     TableVersion & ver = (* vers)[i];
     if(ver.m_version == tableVersion && ver.m_impl && 
-       ver.m_impl->m_tableId == tableId)
+       ver.m_impl->m_id == tableId)
     {
       ver.m_status = DROPPED;
       ver.m_impl->m_status = altered ? 

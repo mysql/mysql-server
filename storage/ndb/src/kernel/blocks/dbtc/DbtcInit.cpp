@@ -41,18 +41,6 @@ void Dbtc::initData()
   clqhblockref = DBLQH_REF;
   cerrorBlockref = NDBCNTR_REF;
 
-  cacheRecord = 0;
-  apiConnectRecord = 0;
-  tcConnectRecord = 0;
-  hostRecord = 0;
-  tableRecord = 0;
-  scanRecord = 0;
-  databufRecord = 0;
-  attrbufRecord = 0;
-  gcpRecord = 0;
-  tcFailRecord = 0;
-  c_apiConTimer = 0;
-  c_apiConTimer_line = 0;
   // Records with constant sizes
   tcFailRecord = (TcFailRecord*)allocRecord("TcFailRecord",
 					    sizeof(TcFailRecord), 1);
@@ -320,6 +308,18 @@ Dbtc::Dbtc(const class Configuration & conf):
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif
+  cacheRecord = 0;
+  apiConnectRecord = 0;
+  tcConnectRecord = 0;
+  hostRecord = 0;
+  tableRecord = 0;
+  scanRecord = 0;
+  databufRecord = 0;
+  attrbufRecord = 0;
+  gcpRecord = 0;
+  tcFailRecord = 0;
+  c_apiConTimer = 0;
+  c_apiConTimer_line = 0;
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 

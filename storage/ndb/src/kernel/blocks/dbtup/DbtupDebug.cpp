@@ -38,7 +38,7 @@ void Dbtup::execDEBUG_SIG(Signal* signal)
   PagePtr regPagePtr;
   ljamEntry();
   regPagePtr.i = signal->theData[0];
-  ptrCheckGuard(regPagePtr, cnoOfPage, page);
+  ptrCheckGuard(regPagePtr, cnoOfPage, cpage);
 }//Dbtup::execDEBUG_SIG()
 
 #ifdef TEST_MR
@@ -213,8 +213,8 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	for(Uint32 i = 0; i<chunk.pageCount; i++){
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
-	  ptrCheckGuard(pagePtr, cnoOfPage, page);
-	  pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
+	  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
 	if(alloc == 1 && free > 0)
@@ -237,10 +237,16 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 /* ---------------------------------------------------------------- */
 void Dbtup::execMEMCHECKREQ(Signal* signal) 
 {
+  TablerecPtr regTabPtr;
+  regTabPtr.i = 2;
+  ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
+  if(tablerec && regTabPtr.p->tableStatus == DEFINED)
+    validate_page(regTabPtr.p, 0);
+
+#if 0
+  const Dbtup::Tablerec& tab = *tup->tabptr.p;
+
   PagePtr regPagePtr;
-  DiskBufferSegmentInfoPtr dbsiPtr;
-  CheckpointInfoPtr ciPtr;
-  UndoPagePtr regUndoPagePtr;
   Uint32* data = &signal->theData[0];
 
   ljamEntry();
@@ -255,33 +261,13 @@ void Dbtup::execMEMCHECKREQ(Signal* signal)
     ljam();
     while (regPagePtr.i != RNIL) {
       ljam();
-      ptrCheckGuard(regPagePtr, cnoOfPage, page);
-      regPagePtr.i = regPagePtr.p->pageWord[ZPAGE_NEXT_POS];
+      ptrCheckGuard(regPagePtr, cnoOfPage, cpage);
+      regPagePtr.i = regPagePtr.p->next_page;
       data[0]++;
     }//while
   }//for
-  regUndoPagePtr.i = cfirstfreeUndoSeg;
-  while (regUndoPagePtr.i != RNIL) {
-    ljam();
-    ptrCheckGuard(regUndoPagePtr, cnoOfUndoPage, undoPage);
-    regUndoPagePtr.i = regUndoPagePtr.p->undoPageWord[ZPAGE_NEXT_POS];
-    data[1] += ZUB_SEGMENT_SIZE;
-  }//while
-  ciPtr.i = cfirstfreeLcp;
-  while (ciPtr.i != RNIL) {
-    ljam();
-    ptrCheckGuard(ciPtr, cnoOfLcpRec, checkpointInfo);
-    ciPtr.i = ciPtr.p->lcpNextRec;
-    data[2]++;
-  }//while
-  dbsiPtr.i = cfirstfreePdx;
-  while (dbsiPtr.i != ZNIL) {
-    ljam();
-    ptrCheckGuard(dbsiPtr, cnoOfConcurrentWriteOp, diskBufferSegmentInfo);
-    dbsiPtr.i = dbsiPtr.p->pdxNextRec;
-    data[3]++;
-  }//while
   sendSignal(blockref, GSN_MEMCHECKCONF, signal, 25, JBB);
+#endif
 }//Dbtup::memCheck()
 
 // ------------------------------------------------------------------------
@@ -294,10 +280,9 @@ void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit)
   PagePtr tmpPageP;
   FragrecordPtr tmpFragP;
   TablerecPtr tmpTableP;
-  Uint32 tmpTupleSize;
 
   tmpPageP.i = pageid;
-  ptrCheckGuard(tmpPageP, cnoOfPage, page);
+  ptrCheckGuard(tmpPageP, cnoOfPage, cpage);
 
   tmpFragP.i = fragid;
   ptrCheckGuard(tmpFragP, cnoOfFragrec, fragrecord);
@@ -305,36 +290,11 @@ void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit)
   tmpTableP.i = tmpFragP.p->fragTableId;
   ptrCheckGuard(tmpTableP, cnoOfTablerec, tablerec);
 
-  tmpTupleSize = tmpTableP.p->tupheadsize;
-
   ndbout << "Fragid: " << fragid << " Pageid: " << pageid << endl
 	 << "----------------------------------------" << endl;
 
   ndbout << "PageHead : ";
-  for (Uint32 i1 = 0; i1 < ZPAGE_HEADER_SIZE; i1++) {
-    if (i1 == 3)
-      ndbout << (tmpPageP.p->pageWord[i1] >> 16) << "," << (tmpPageP.p->pageWord[i1] & 0xffff) << " ";
-    else if (tmpPageP.p->pageWord[i1] == 4059165169u)
-      ndbout <<  "F1F1F1F1 ";
-    else if (tmpPageP.p->pageWord[i1] == 268435455u)
-      ndbout << "RNIL ";
-    else
-      ndbout << tmpPageP.p->pageWord[i1] << " ";
-  }//for
   ndbout << endl;
-  for (Uint32 i = ZPAGE_HEADER_SIZE; i < printLimit; i += tmpTupleSize) {
-    ndbout << "pagepos " << i << " : ";
-	 
-    for (Uint32 j = i; j < i + tmpTupleSize; j++) {
-      if (tmpPageP.p->pageWord[j] == 4059165169u)
-	ndbout <<  "F1F1F1F1 ";
-      else if (tmpPageP.p->pageWord[j] == 268435455u)
-	ndbout << "RNIL ";
-      else
-	ndbout << tmpPageP.p->pageWord[j] << " ";
-    }//for
-    ndbout << endl;
-  }//for
 }//Dbtup::printoutTuplePage
 
 #ifdef VM_TRACE
@@ -343,37 +303,22 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
 {
   out << "[Operationrec " << hex << &op;
   // table
-  out << " [tableRef " << dec << op.tableRef << "]";
-  out << " [fragId " << dec << op.fragId << "]";
   out << " [fragmentPtr " << hex << op.fragmentPtr << "]";
   // type
-  out << " [optype " << dec << op.optype << "]";
-  out << " [deleteInsertFlag " << dec << op.deleteInsertFlag << "]";
-  out << " [dirtyOp " << dec << op.dirtyOp << "]";
-  out << " [interpretedExec " << dec << op.interpretedExec << "]";
-  out << " [opSimple " << dec << op.opSimple << "]";
+  out << " [op_type " << dec << op.op_struct.op_type << "]";
+  out << " [delete_insert_flag " << dec;
+  out << op.op_struct.delete_insert_flag << "]";
   // state
-  out << " [tupleState " << dec << (Uint32) op.tupleState << "]";
-  out << " [transstate " << dec << (Uint32) op.transstate << "]";
-  out << " [inFragList " << dec << op.inFragList << "]";
-  out << " [inActiveOpList " << dec << op.inActiveOpList << "]";
-  out << " [undoLogged " << dec << (Uint32) op.undoLogged << "]";
+  out << " [tuple_state " << dec << op.op_struct.tuple_state << "]";
+  out << " [trans_state " << dec << op.op_struct.trans_state << "]";
+  out << " [in_active_list " << dec << op.op_struct.in_active_list << "]";
   // links
   out << " [prevActiveOp " << hex << op.prevActiveOp << "]";
   out << " [nextActiveOp " << hex << op.nextActiveOp << "]";
   // tuples
   out << " [tupVersion " << hex << op.tupVersion << "]";
-  out << " [fragPageId " << dec << op.fragPageId << "]";
-  out << " [pageIndex " << dec << op.pageIndex << "]";
-  out << " [realPageId " << hex << op.realPageId << "]";
-  out << " [pageOffset " << dec << op.pageOffset << "]";
-  out << " [fragPageIdC " << dec << op.fragPageIdC << "]";
-  out << " [pageIndexC " << dec << op.pageIndexC << "]";
-  out << " [realPageIdC " << hex << op.realPageIdC << "]";
-  out << " [pageOffsetC " << dec << op.pageOffsetC << "]";
-  // trans
-  out << " [transid1 " << hex << op.transid1 << "]";
-  out << " [transid2 " << hex << op.transid2 << "]";
+  out << " [m_tuple_location " << op.m_tuple_location << "]";
+  out << " [m_copy_tuple_location " << op.m_copy_tuple_location << "]";
   out << "]";
   return out;
 }
@@ -392,13 +337,11 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
   if (tab.checksumIndicator)
     out << " [checksum " << hex << th.data[i++] << "]";
   out << " [nullbits";
-  for (unsigned j = 0; j < tab.tupNullWords; j++)
+  for (unsigned j = 0; j < tab.m_offsets[Dbtup::MM].m_null_words; j++)
     out << " " << hex << th.data[i++];
   out << "]";
-  if (tab.GCPIndicator)
-    out << " [gcp " << dec << th.data[i++] << "]";
   out << " [data";
-  while (i < tab.tupheadsize)
+  while (i < tab.m_offsets[Dbtup::MM].m_fix_header_size)
     out << " " << hex << th.data[i++];
   out << "]";
   out << "]";
@@ -409,3 +352,69 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
 #ifdef VM_TRACE
 template class Vector<Chunk>;
 #endif
+// uses global tabptr
+
+NdbOut&
+operator<<(NdbOut& out, const Local_key & key)
+{
+  out << "[ m_page_no: " << dec << key.m_page_no 
+      << " m_file_no: " << dec << key.m_file_no 
+      << " m_page_idx: " << dec << key.m_page_idx << "]";
+  return out;
+}
+
+static
+NdbOut&
+operator<<(NdbOut& out, const Dbtup::Tablerec::Tuple_offsets& off)
+{
+  out << "[ null_words: " << (Uint32)off.m_null_words
+      << " null off: " << (Uint32)off.m_null_offset
+      << " disk_off: " << off.m_disk_ref_offset
+      << " var_off: " << off.m_varpart_offset
+      << " max_var_off: " << off.m_max_var_offset
+      << " ]";
+
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const Dbtup::Tablerec& tab)
+{
+  out << "[ total_rec_size: " << tab.total_rec_size
+      << " checksum: " << tab.checksumIndicator 
+      << " attr: " << tab.m_no_of_attributes
+      << " disk: " << tab.m_no_of_disk_attributes 
+      << " mm: " << tab.m_offsets[Dbtup::MM]
+      << " [ fix: " << tab.m_attributes[Dbtup::MM].m_no_of_fixsize
+      << " var: " << tab.m_attributes[Dbtup::MM].m_no_of_varsize << "]"
+    
+      << " dd: " << tab.m_offsets[Dbtup::DD]
+      << " [ fix: " << tab.m_attributes[Dbtup::DD].m_no_of_fixsize
+      << " var: " << tab.m_attributes[Dbtup::DD].m_no_of_varsize << "]"
+      << " ]"  << endl;
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const AttributeDescriptor& off)
+{
+  Uint32 word;
+  memcpy(&word, &off, 4);
+  return out;
+}
+
+#include "AttributeOffset.hpp"
+
+NdbOut&
+operator<<(NdbOut& out, const AttributeOffset& off)
+{
+  Uint32 word;
+  memcpy(&word, &off, 4);
+  out << "[ offset: " << AttributeOffset::getOffset(word)
+      << " nullpos: " << AttributeOffset::getNullFlagPos(word);
+  if(AttributeOffset::getCharsetFlag(word))
+    out << " charset: %d" << AttributeOffset::getCharsetPos(word);
+  out << " ]";
+  return out;
+}
+

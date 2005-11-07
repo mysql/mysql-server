@@ -28,6 +28,7 @@
 
 #include <SLList.hpp>
 #include <ArrayList.hpp>
+#include <DLFifoList.hpp>
 #include <SignalCounter.hpp>
 #include <blocks/mutexes.hpp>
 
@@ -147,7 +148,9 @@ protected:
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
   
-  
+  void execLCP_PREPARE_REQ(Signal* signal);
+  void execLCP_FRAGMENT_REQ(Signal*);
+  void execEND_LCPREQ(Signal* signal);
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
@@ -169,24 +172,33 @@ public:
   typedef Ptr<Page32> Page32Ptr;
 
   struct Attribute {
+    enum Flags {
+      COL_NULLABLE = 0x1,
+      COL_FIXED    = 0x2,
+      COL_DISK     = 0x4
+    };
     struct Data {
-      Uint8 nullable;
-      Uint8 fixed;
-      Uint8 unused; 
-      Uint8 unused2;
+      Uint16 m_flags;
+      Uint16 attrId;
       Uint32 sz32;       // No of 32 bit words
       Uint32 offset;     // Relative DataFixedAttributes/DataFixedKeys
       Uint32 offsetNull; // In NullBitmask
     } data;
-    Uint32 nextPool;
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
   };
   typedef Ptr<Attribute> AttributePtr;
   
   struct Fragment {
     Uint32 tableId;
-    Uint32 node;
-    Uint16 scanned;  // 0 = not scanned x = scanned by node x
-    Uint16 scanning; // 0 = not scanning x = scanning on node x
+    Uint16 node;
+    Uint16 fragmentId;
+    Uint8 scanned;  // 0 = not scanned x = scanned by node x
+    Uint8 scanning; // 0 = not scanning x = scanning on node x
+    Uint8 lcp_no;
     Uint32 nextPool;
   };
   typedef Ptr<Fragment> FragmentPtr;
@@ -204,7 +216,7 @@ public:
     Uint32 triggerIds[3];
     bool   triggerAllocated[3];
     
-    Array<Attribute> attributes;
+    DLFifoList<Attribute> attributes;
     Array<Fragment> fragments;
 
     Uint32 nextList;
@@ -243,6 +255,7 @@ public:
     /**
      * Per attribute
      */
+    void     nullVariable();
     void     nullAttribute(Uint32 nullOffset);
     Uint32 * newNullable(Uint32 attrId, Uint32 sz);
     Uint32 * newAttrib(Uint32 offset, Uint32 sz);
@@ -264,7 +277,6 @@ public:
 
   public:
     Uint32* dst;
-    Uint32 attrSzLeft;  // No of words missing for current attribute
     Uint32 attrSzTotal; // No of AI words received
     Uint32 tablePtr;    // Ptr.i to current table
 
@@ -486,6 +498,10 @@ public:
       return errorCode != 0;
     }
 
+    bool is_lcp() const {
+      return backupDataLen == ~(Uint32)0;
+    }
+
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     void progError(int line, int cause, const char * extra) { 
@@ -500,6 +516,7 @@ public:
     Uint32 m_logBufferSize;
     Uint32 m_minWriteSize;
     Uint32 m_maxWriteSize;
+    Uint32 m_lcp_buffer_size;
   };
   
   /**
@@ -604,6 +621,11 @@ public:
   void sendSTTORRY(Signal*);
   void createSequence(Signal* signal);
   void createSequenceReply(Signal*, class UtilSequenceConf *);
+
+  void lcp_open_file(Signal* signal, BackupRecordPtr ptr);
+  void lcp_open_file_done(Signal*, BackupRecordPtr);
+  void lcp_close_file_conf(Signal* signal, BackupRecordPtr);
+  void lcp_send_end_lcp_conf(Signal* signal, BackupRecordPtr);
 };
 
 inline
@@ -616,14 +638,13 @@ Backup::OperationRecord::newRecord(Uint32 * p){
   dst_VariableData = (BackupFormat::DataFile::VariableData*)p;
   BitmaskImpl::clear(sz_Bitmask, dst_Bitmask);
   attrLeft = noOfAttributes;
-  attrSzLeft = attrSzTotal = 0;
+  attrSzTotal = 0;
 }
 
 inline
 Uint32 *
 Backup::OperationRecord::newAttrib(Uint32 offset, Uint32 sz){
   attrLeft--;
-  attrSzLeft = sz;
   dst = dst_FixedAttribs + offset;
   return dst;
 }
@@ -636,16 +657,24 @@ Backup::OperationRecord::nullAttribute(Uint32 offsetNull){
 }
 
 inline
+void
+Backup::OperationRecord::nullVariable()
+{
+  attrLeft --;
+}
+
+inline
 Uint32 *
 Backup::OperationRecord::newNullable(Uint32 id, Uint32 sz){
+  Uint32 sz32 = (sz + 3) >> 2;
+
   attrLeft--;
-  attrSzLeft = sz;
   
   dst = &dst_VariableData->Data[0];
   dst_VariableData->Sz = htonl(sz);
   dst_VariableData->Id = htonl(id);
   
-  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz);
+  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz32);
   
   // Clear all bits on newRecord -> dont need to clear this
   // BitmaskImpl::clear(sz_Bitmask, dst_Bitmask, offsetNull);
@@ -655,21 +684,22 @@ Backup::OperationRecord::newNullable(Uint32 id, Uint32 sz){
 inline
 Uint32 *
 Backup::OperationRecord::newVariable(Uint32 id, Uint32 sz){
+  Uint32 sz32 = (sz + 3) >> 2;
+
   attrLeft--;
-  attrSzLeft = sz;
   
   dst = &dst_VariableData->Data[0];
   dst_VariableData->Sz = htonl(sz);
   dst_VariableData->Id = htonl(id);
   
-  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz);
+  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz32);
   return dst;
 }
 
 inline
 bool
 Backup::OperationRecord::finished(){
-  if(attrLeft != 0 || attrSzLeft != 0){
+  if(attrLeft != 0){
     return false;
   }
   

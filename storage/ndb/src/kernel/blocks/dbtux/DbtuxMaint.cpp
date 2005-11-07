@@ -33,7 +33,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     jam();
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
-      TupLoc tupLoc(sig->pageId, sig->pageOffset);
+      TupLoc tupLoc(sig->pageId, sig->pageIndex);
       debugOut << "opInfo=" << hex << sig->opInfo;
       debugOut << " tableId=" << dec << sig->tableId;
       debugOut << " indexId=" << dec << sig->indexId;
@@ -57,8 +57,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   c_indexPool.getPtr(indexPtr, req->indexId);
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
   // get base fragment id and extra bits
-  const Uint32 fragId = req->fragId & ~1;
-  const Uint32 fragBit = req->fragId & 1;
+  const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
   fragPtr.i = RNIL;
@@ -76,9 +75,8 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   setKeyAttrs(frag);
   // set up search entry
   TreeEnt ent;
-  ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
+  ent.m_tupLoc = TupLoc(req->pageId, req->pageIndex);
   ent.m_tupVersion = req->tupVersion;
-  ent.m_fragBit = fragBit;
   // read search key
   readKeyAttrs(frag, ent, 0, c_searchKey);
   if (! frag.m_storeNullKey) {

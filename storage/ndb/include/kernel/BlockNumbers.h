@@ -45,6 +45,10 @@
 #define DBUTIL     0x100
 #define SUMA       0x101
 #define DBTUX      0x102
+#define TSMAN      0x103
+#define LGMAN      0x104
+#define PGMAN      0x105
+#define RESTORE    0x106
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -61,9 +65,13 @@ const BlockReference TRIX_REF    = numberToRef(TRIX, 0);
 const BlockReference DBUTIL_REF  = numberToRef(DBUTIL, 0);
 const BlockReference SUMA_REF    = numberToRef(SUMA, 0);
 const BlockReference DBTUX_REF   = numberToRef(DBTUX, 0);
+const BlockReference TSMAN_REF   = numberToRef(TSMAN, 0);
+const BlockReference LGMAN_REF   = numberToRef(LGMAN, 0);
+const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
+const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = DBTUX;
+const BlockNumber MAX_BLOCK_NO = RESTORE;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 /**

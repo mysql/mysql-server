@@ -4237,8 +4237,7 @@ readverifyfull(Par par)
     CHK(scanreadtable(par) == 0);
     // once more via tup scan
     par.m_tupscan = true;
-    if (NDB_VERSION < MAKE_VERSION(5, 1, 0)) //TODO
-      CHK(scanreadtable(par) == 0);
+    CHK(scanreadtable(par) == 0);
   }
   // each thread scans different indexes
   for (unsigned i = 0; i < tab.m_itabs; i++) {
@@ -4614,20 +4613,29 @@ tbuild(Par par)
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
   for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
-    if (par.m_slno % 2 == 0) {
+    if (par.m_slno % 3 == 0) {
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
       RUNSTEP(par, pkinsert, MT);
+      RUNSTEP(par, pkupdate, MT);
+    } else if (par.m_slno % 3 == 1) {
+      RUNSTEP(par, pkinsert, MT);
+      RUNSTEP(par, createindex, ST);
+      RUNSTEP(par, invalidateindex, MT);
+      RUNSTEP(par, pkupdate, MT);
     } else {
       RUNSTEP(par, pkinsert, MT);
+      RUNSTEP(par, pkupdate, MT);
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
     }
-    RUNSTEP(par, pkupdate, MT);
     RUNSTEP(par, readverifyfull, MT);
-    RUNSTEP(par, pkdelete, MT);
-    RUNSTEP(par, readverifyfull, MT);
-    RUNSTEP(par, dropindex, ST);
+    // leave last one alone e.g. to continue manually
+    if (par.m_slno + 1 < par.m_subloop) {
+      RUNSTEP(par, pkdelete, MT);
+      RUNSTEP(par, readverifyfull, MT);
+      RUNSTEP(par, dropindex, ST);
+    }
   }
   return 0;
 }

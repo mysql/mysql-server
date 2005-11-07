@@ -77,6 +77,7 @@ static const char* empty_string = "";
  * 1200 - LQH
  * 1300 - BACKUP
  * 1400 - SUMA
+ * 1500 - LGMAN
  * 4000 - API
  * 4100 - ""
  * 4200 - ""
@@ -177,7 +178,9 @@ ErrorBundle ErrorCodes[] = {
   { 4021, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4022, DMEC, TR, "Out of Send Buffer space in NDB API" },
   { 4032, DMEC, TR, "Out of Send Buffer space in NDB API" },
+  { 1501, DMEC, TR, "Out of undo space" },
   {  288, DMEC, TR, "Out of index operations in transaction coordinator (increase MaxNoOfConcurrentIndexOperations)" },
+
   /**
    * InsufficientSpace
    */
@@ -283,7 +286,7 @@ ErrorBundle ErrorCodes[] = {
   { 897,  DMEC, AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 4256, DMEC, AE, "Must call Ndb::init() before this function" },
   { 4257, DMEC, AE, "Tried to read too much - too many getValue calls" },
-  
+
   /** 
    * Scan application errors
    */
@@ -338,8 +341,9 @@ ErrorBundle ErrorCodes[] = {
   { 707,  DMEC, SE, "No more table metadata records (increase MaxNoOfTables)" },  
   { 708,  DMEC, SE, "No more attribute metadata records (increase MaxNoOfAttributes)" },
   { 709,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
+  { 710,  DMEC, SE, "Internal: Get by table name not supported, use table id." },
   { 721,  HA_ERR_TABLE_EXIST,   OE, "Table or index with given name already exists" },
-  { 723,  DMEC, SE, "No such table existed" },
+  { 723,  HA_ERR_NO_SUCH_TABLE, SE, "No such table existed" },
   { 736,  DMEC, SE, "Unsupported array size" },
   { 737,  HA_WRONG_CREATE_OPTION, SE, "Attribute array size too big" },
   { 738,  HA_WRONG_CREATE_OPTION, SE, "Record too big" },
@@ -352,8 +356,27 @@ ErrorBundle ErrorCodes[] = {
   { 771,  HA_WRONG_CREATE_OPTION, AE, "Given NODEGROUP doesn't exist in this cluster" },
   { 772,  HA_WRONG_CREATE_OPTION, IE, "Given fragmentType doesn't exist" },
   { 749,  HA_WRONG_CREATE_OPTION, IE, "Primary Table in wrong state" },
+  { 763,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
+  { 764,  HA_WRONG_CREATE_OPTION, SE, "Invalid extent size" },
+  { 765,  DMEC, SE, "Out of filegroup records" },
+  { 750,  IE, SE, "Invalid file type" },
+  { 751,  DMEC, SE, "Out of file records" },
+  { 752,  DMEC, SE, "Invalid file format" },
+  { 753,  IE, SE, "Invalid filegroup for file" },
+  { 754,  IE, SE, "Invalid filegroup version when creating file" },
+  { 755,  DMEC, SE, "Invalid tablespace" },
+  { 756,  DMEC, SE, "Index on disk column is not supported" },
+  { 757,  DMEC, SE, "Varsize bitfield not supported" },
+  { 758,  DMEC, SE, "Tablespace has changed" },
+  { 759,  DMEC, SE, "Invalid tablespace version " },
+  { 760,  DMEC, SE, "File already exists", },
   { 761,  DMEC, SE, "Unable to drop table as backup is in progress" },
   { 762,  DMEC, SE, "Unable to alter table as backup is in progress" },
+  { 766,  DMEC, SE, "Cant drop file, no such file" },
+  { 767,  DMEC, SE, "Cant drop filegroup, no such filegroup" },
+  { 768,  DMEC, SE, "Cant drop filegroup, filegroup is used" },
+  { 769,  DMEC, SE, "Drop undofile not supported, drop logfile group instead" },
+  { 770,  DMEC, SE, "Cant drop file, file is used" },
   { 241,  HA_ERR_TABLE_DEF_CHANGED, SE, "Invalid schema object version" },
   { 283,  HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 284,  HA_ERR_TABLE_DEF_CHANGED, SE, "Table not defined in transaction coordinator" },

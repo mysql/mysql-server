@@ -40,7 +40,7 @@ public:
     NoMemError = 902
   };
   STATIC_CONST( SignalLength = 8 );
-private:
+
   /*
    * Error code set by TUX.  Zero means no error.
    */
@@ -56,12 +56,15 @@ private:
    * and version number.
    */
   Uint32 pageId;
-  Uint32 pageOffset;
+  Uint32 pageIndex;
   Uint32 tupVersion;
   /*
    * Operation code and flags.
    */
   Uint32 opInfo;
+
+  Uint32 tupFragPtrI;
+  Uint32 fragPageId;
 };
 
 #endif

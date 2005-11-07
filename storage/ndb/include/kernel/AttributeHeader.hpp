@@ -42,6 +42,7 @@ public:
   STATIC_CONST( FRAGMENT_MEMORY= 0xFFF9 );
 
   STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
+  STATIC_CONST( DISK_REF     = 0xFFF7 );
 
   // NOTE: in 5.1 ctors and init take size in bytes
 

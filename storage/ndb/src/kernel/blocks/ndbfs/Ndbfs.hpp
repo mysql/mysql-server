@@ -37,6 +37,7 @@ public:
   Ndbfs(const class Configuration & conf);
   virtual ~Ndbfs();
 
+  virtual const char* get_filename(Uint32 fd) const;
 protected:
   BLOCK_DEFINES(Ndbfs);
 
@@ -80,9 +81,10 @@ private:
   Vector<AsyncFile*> theFiles;     // List all created AsyncFiles
   Vector<AsyncFile*> theIdleFiles; // List of idle AsyncFiles
   OpenFiles theOpenFiles;          // List of open AsyncFiles
-  const char * theFileSystemPath;
-  const char * theBackupFilePath;
 
+  BaseString theFileSystemPath;
+  BaseString theBackupFilePath;
+  
   // Statistics variables
   Uint32 m_maxOpenedFiles;
   
@@ -91,7 +93,7 @@ private:
 
   void readWriteRequest(  int action, Signal * signal );
 
-  static int translateErrno(int aErrno);
+  static Uint32 translateErrno(int aErrno);
 };
 
 class VoidFs : public SimulatedBlock

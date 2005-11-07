@@ -371,7 +371,7 @@ NdbEventOperationImpl::receive_event()
     while(tAttr)
     {
       assert(aAttrPtr < aAttrEndPtr);
-      unsigned tDataSz= AttributeHeader(*aAttrPtr).getDataSize();
+      unsigned tDataSz= AttributeHeader(*aAttrPtr).getByteSize();
       assert(tAttr->attrId() ==
 	     AttributeHeader(*aAttrPtr).getAttributeId());
       receive_data(tAttr, aDataPtr, tDataSz);
@@ -382,7 +382,7 @@ NdbEventOperationImpl::receive_event()
       }
       // next
       aAttrPtr++;
-      aDataPtr+= tDataSz;
+      aDataPtr+= (tDataSz + 3) >> 2;
       tAttr= tAttr->next();
     }
   }
@@ -396,7 +396,7 @@ NdbEventOperationImpl::receive_event()
   while ((aAttrPtr < aAttrEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aAttrPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aAttrPtr).getDataSize();
+    tDataSz = AttributeHeader(*aAttrPtr).getByteSize();
     
     while (tAttrId > tRecAttrId) {
       DBUG_PRINT("info",("undef [%u] %u 0x%x [%u] 0x%x",
@@ -420,7 +420,7 @@ NdbEventOperationImpl::receive_event()
       tWorkingRecAttr = tWorkingRecAttr->next();
     }
     aAttrPtr++;
-    aDataPtr += tDataSz;
+    aDataPtr += (tDataSz + 3) >> 2;
   }
     
   while (tWorkingRecAttr != NULL) {
@@ -437,7 +437,7 @@ NdbEventOperationImpl::receive_event()
   while ((aDataPtr < aDataEndPtr) && (tWorkingRecAttr != NULL)) {
     tRecAttrId = tWorkingRecAttr->attrId();
     tAttrId = AttributeHeader(*aDataPtr).getAttributeId();
-    tDataSz = AttributeHeader(*aDataPtr).getDataSize();
+    tDataSz = AttributeHeader(*aDataPtr).getByteSize();
     aDataPtr++;
     while (tAttrId > tRecAttrId) {
       tWorkingRecAttr->setUNDEFINED();
@@ -455,7 +455,7 @@ NdbEventOperationImpl::receive_event()
       receive_data(tWorkingRecAttr, aDataPtr, tDataSz);
       tWorkingRecAttr = tWorkingRecAttr->next();
     }
-    aDataPtr += tDataSz;
+    aDataPtr += (tDataSz + 3) >> 2;
   }
   while (tWorkingRecAttr != NULL) {
     tWorkingRecAttr->setUNDEFINED();

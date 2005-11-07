@@ -42,7 +42,6 @@
 #include "DLHashTable.hpp"
 #include "Callback.hpp"
 #include "SafeCounter.hpp"
-#include "MetaData.hpp"
 
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
@@ -76,9 +75,15 @@ typedef struct NewVar
 } NewVARIABLE;  /* 128 bits */
 
 class SimulatedBlock {
+  friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
   friend struct UpgradeStartup;
+  friend class AsyncFile;
+  friend class Pgman;
+  friend class Page_cache_client;
+  friend class Lgman;
+  friend class Logfile_client;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -110,6 +115,8 @@ public:
     CallbackFunction m_callbackFunction;
     Uint32 m_callbackData;
   };
+  
+  virtual const char* get_filename(Uint32 fd) const { return "";}
 protected:
   static Callback TheEmptyCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
@@ -409,6 +416,10 @@ private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */
 
+protected:  
+  ArrayPool<GlobalPage>& m_global_page_pool;
+
+private:
   /**
    * Node state
    */
@@ -518,13 +529,6 @@ protected:
 
   // Variable for storing inserted errors, see pc.H
   ERROR_INSERT_VARIABLE;
-
-private:
-  // Metadata common part shared by block instances
-  MetaData::Common* c_ptrMetaDataCommon;
-public:
-  void setMetaDataCommon(MetaData::Common* ptr) { c_ptrMetaDataCommon = ptr; }
-  MetaData::Common* getMetaDataCommon() { return c_ptrMetaDataCommon; }
 
 #ifdef VM_TRACE_TIME
 public:

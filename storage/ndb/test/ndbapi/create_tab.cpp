@@ -22,7 +22,27 @@
 
 #include <getarg.h>
 
+static int g_diskbased = 0;
+static const char* g_tsname = 0;
 
+static int
+g_create_hook(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
+{
+  if (when == 0) {
+    if (g_diskbased) {
+      for (int i = 0; i < tab.getNoOfColumns(); i++) {
+        NdbDictionary::Column* col = tab.getColumn(i);
+        if (! col->getPrimaryKey()) {
+          col->setStorageType(NdbDictionary::Column::StorageTypeDisk);
+        }
+      }
+    }
+    if (g_tsname != NULL) {
+      tab.setTablespace(g_tsname);
+    }
+  }
+  return 0;
+}
 
 int main(int argc, const char** argv){
   ndb_init();
@@ -32,13 +52,16 @@ int main(int argc, const char** argv){
   int _all = 0;
   int _print = 0;
   const char* _connectstr = NULL;
+  int _diskbased = 0;
+  const char* _tsname = NULL;
 
   struct getargs args[] = {
-    { "all", 'a', arg_flag, &_all, "Create/print all tables" },
-    { "print", 'p', arg_flag, &_print, "Print table(s) instead of creating it"},
-    { "temp", 't', arg_flag, &_temp, "Temporary table", "temp" },
-    { "connstr", 'c', arg_string, &_connectstr, "connect string", 
-      "How to connect to NDB"}, 
+    { "all", 'a', arg_flag, &_all, "Create/print all tables", 0 },
+    { "print", 'p', arg_flag, &_print, "Print table(s) instead of creating it", 0},
+    { "temp", 't', arg_flag, &_temp, "Temporary table", 0 },
+    { "connstr", 'c', arg_string, &_connectstr, "Connect string", "cs" }, 
+    { "diskbased", 0, arg_flag, &_diskbased, "Store attrs on disk if possible", 0 },
+    { "tsname", 0, arg_string, &_tsname, "Tablespace name", "ts" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -58,6 +81,9 @@ int main(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
+
+  g_diskbased = _diskbased;
+  g_tsname = _tsname;
 
   int res = 0;
   if(_print){
@@ -98,7 +124,8 @@ int main(int argc, const char** argv){
       int tmp;
       for(int i = optind; i<argc; i++){
 	ndbout << "Trying to create " <<  argv[i] << endl;
-	if((tmp = NDBT_Tables::createTable(&MyNdb, argv[i], _temp)) != 0)
+	if((tmp = NDBT_Tables::createTable(&MyNdb, argv[i], _temp, false,
+                                           g_create_hook)) != 0)
 	  res = tmp;
       }
     } 
@@ -109,5 +136,3 @@ int main(int argc, const char** argv){
   else
     return NDBT_ProgramExit(NDBT_OK);
 }
-
-

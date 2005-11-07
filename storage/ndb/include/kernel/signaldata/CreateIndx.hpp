@@ -193,6 +193,7 @@ public:
     NoError = 0,
     Busy = 701,
     NotMaster = 702,
+    IndexOnDiskAttributeError = 756,
     TriggerNotFound = 4238,
     TriggerExists = 4239,
     IndexNameTooLong = 4241,

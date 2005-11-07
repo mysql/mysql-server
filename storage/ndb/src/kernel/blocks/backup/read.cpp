@@ -22,6 +22,7 @@
 #include "BackupFormat.hpp"
 #include <AttributeHeader.hpp>
 #include <SimpleProperties.hpp>
+#include <ndb_version.h>
 
 bool readHeader(FILE*, BackupFormat::FileHeader *);
 bool readFragHeader(FILE*, BackupFormat::DataFile::FragmentHeader *);
@@ -84,7 +85,7 @@ main(int argc, const char * argv[]){
 	ndbout << endl;
 #endif
       }
-      
+
       BackupFormat::DataFile::FragmentFooter fragFooter;
       if(!readFragFooter(f, &fragFooter))
 	break;
@@ -156,6 +157,49 @@ main(int argc, const char * argv[]){
     }
     break;
   }
+  case BackupFormat::LCP_FILE:
+  {
+    BackupFormat::CtlFile::TableList * tabList;
+    if(!readTableList(f, &tabList)){
+      ndbout << "Invalid file! No table list" << endl;
+      break;
+    }
+    ndbout << (* tabList) << endl;
+    
+    const Uint32 noOfTables = tabList->SectionLength - 2;
+    for(Uint32 i = 0; i<noOfTables; i++){
+      BackupFormat::CtlFile::TableDescription * tabDesc;
+      if(!readTableDesc(f, &tabDesc)){
+	ndbout << "Invalid file missing table description" << endl;
+	break;
+      }
+      ndbout << (* tabDesc) << endl;
+    }
+
+    while(!feof(f)){
+      BackupFormat::DataFile::FragmentHeader fragHeader;
+      if(!readFragHeader(f, &fragHeader))
+	break;
+      ndbout << fragHeader << endl;
+      
+      Uint32 len, * data;
+      while((len = readRecord(f, &data)) > 0){
+#if 0
+	ndbout << "-> " << hex;
+	for(Uint32 i = 0; i<len; i++){
+	  ndbout << data[i] << " ";
+	}
+	ndbout << endl;
+#endif
+      }
+      
+      BackupFormat::DataFile::FragmentFooter fragFooter;
+      if(!readFragFooter(f, &fragFooter))
+	break;
+      ndbout << fragFooter << endl;
+    }
+    break;
+  }
   default:
     ndbout << "Unsupported file type for printer: " 
 	   << fileHeader.FileType << endl;
@@ -178,7 +222,7 @@ readHeader(FILE* f, BackupFormat::FileHeader * dst){
     RETURN_FALSE();
 
   dst->NdbVersion = ntohl(dst->NdbVersion);
-  if(dst->NdbVersion != 210)
+  if(dst->NdbVersion != NDB_VERSION)
     RETURN_FALSE();
 
   if(fread(&dst->SectionType, 4, 2, f) != 2)
@@ -200,10 +244,6 @@ readHeader(FILE* f, BackupFormat::FileHeader * dst){
   dst->BackupId = ntohl(dst->BackupId);
   dst->BackupKey_0 = ntohl(dst->BackupKey_0);
   dst->BackupKey_1 = ntohl(dst->BackupKey_1);
-
-  if(dst->FileType < BackupFormat::CTL_FILE || 
-     dst->FileType > BackupFormat::DATA_FILE)
-    RETURN_FALSE();
   
   if(dst->ByteOrder != 0x12345678)
     endian = true;
@@ -264,12 +304,17 @@ readRecord(FILE* f, Uint32 **dst){
   len = ntohl(len);
   
   if(fread(buf, 4, len, f) != len)
+  {
     return -1;
+  }
 
   if(len > 0)
     recNo++;
-
+  else
+    ndbout_c("Found %d records", recNo);
+  
   * dst = &buf[0];
+
   
   return len;
 }

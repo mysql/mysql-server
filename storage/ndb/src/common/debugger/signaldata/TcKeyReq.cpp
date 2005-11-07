@@ -51,7 +51,11 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if (sig->getExecutingTrigger(requestInfo)) {
       fprintf(output, "Trigger ");
     }
-   
+
+    if (sig->getNoDiskFlag(requestInfo)) {
+      fprintf(output, "NoDisk ");
+    }
+    
     UintR TcommitType = sig->getAbortOption(requestInfo);
     if (TcommitType == TcKeyReq::AbortOnError) {
       fprintf(output, "AbortOnError ");

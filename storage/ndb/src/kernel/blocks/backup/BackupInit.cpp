@@ -44,7 +44,8 @@ Backup::Backup(const Configuration & conf) :
   addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
   addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);
-  
+  addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ, true);  
+
   addRecSignal(GSN_SCAN_HBREP, &Backup::execSCAN_HBREP);
   addRecSignal(GSN_TRANSID_AI, &Backup::execTRANSID_AI);
   addRecSignal(GSN_SCAN_FRAGREF, &Backup::execSCAN_FRAGREF);
@@ -118,6 +119,9 @@ Backup::Backup(const Configuration & conf) :
   addRecSignal(GSN_BACKUP_CONF, &Backup::execBACKUP_CONF);
   addRecSignal(GSN_BACKUP_ABORT_REP, &Backup::execBACKUP_ABORT_REP);
   addRecSignal(GSN_BACKUP_COMPLETE_REP, &Backup::execBACKUP_COMPLETE_REP);
+  
+  addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 }
   
 Backup::~Backup()
@@ -129,3 +133,104 @@ BLOCK_FUNCTIONS(Backup)
 template class ArrayPool<Backup::Page32>;
 template class ArrayPool<Backup::Attribute>;
 template class ArrayPool<Backup::Fragment>;
+
+void
+Backup::execREAD_CONFIG_REQ(Signal* signal)
+{
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &m_diskless));
+  ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
+  //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
+
+  noAttribs++; //RT 527 bug fix
+
+  c_nodePool.setSize(MAX_NDB_NODES);
+  c_backupPool.setSize(noBackups + 1);
+  c_backupFilePool.setSize(3 * noBackups + 1);
+  c_tablePool.setSize(noBackups * noTables + 1);
+  c_attributePool.setSize(noBackups * noAttribs + MAX_ATTRIBUTES_IN_TABLE);
+  c_triggerPool.setSize(noBackups * 3 * noTables);
+
+  // 2 = no of replicas
+  c_fragmentPool.setSize(noBackups * NO_OF_FRAG_PER_NODE * noTables + 1);
+  
+  Uint32 szDataBuf = (2 * 1024 * 1024);
+  Uint32 szLogBuf = (2 * 1024 * 1024);
+  Uint32 szWrite = 32768;
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
+  
+  c_defaults.m_logBufferSize = szLogBuf;
+  c_defaults.m_dataBufferSize = szDataBuf;
+  c_defaults.m_minWriteSize = szWrite;
+  c_defaults.m_maxWriteSize = szWrite;
+  c_defaults.m_lcp_buffer_size = szDataBuf;
+  
+
+  Uint32 szMem = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
+  Uint32 noPages = (szMem + c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) 
+    / sizeof(Page32);
+  // We need to allocate an additional of 2 pages. 1 page because of a bug in
+  // ArrayPool and another one for DICTTAINFO.
+  c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2); 
+  
+  { // Init all tables
+    ArrayList<Table> tables(c_tablePool);
+    TablePtr ptr;
+    while(tables.seize(ptr)){
+      new (ptr.p) Table(c_attributePool, c_fragmentPool);
+    }
+    tables.release();
+  }
+
+  {
+    ArrayList<BackupFile> ops(c_backupFilePool);
+    BackupFilePtr ptr;
+    while(ops.seize(ptr)){
+      new (ptr.p) BackupFile(* this, c_pagePool);
+    }
+    ops.release();
+  }
+  
+  {
+    ArrayList<BackupRecord> recs(c_backupPool);
+    BackupRecordPtr ptr;
+    while(recs.seize(ptr)){
+      new (ptr.p) BackupRecord(* this, c_pagePool, c_tablePool, 
+			       c_backupFilePool, c_triggerPool);
+    }
+    recs.release();
+  }
+
+  // Initialize BAT for interface to file system
+  {
+    Page32Ptr p;
+    ndbrequire(c_pagePool.seizeId(p, 0));
+    c_startOfPages = (Uint32 *)p.p;
+    c_pagePool.release(p);
+    
+    NewVARIABLE* bat = allocateBat(1);
+    bat[0].WA = c_startOfPages;
+    bat[0].nrr = c_pagePool.getSize()*sizeof(Page32)/sizeof(Uint32);
+  }
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
+}
+

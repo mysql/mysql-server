@@ -104,6 +104,8 @@ public:
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,
     CmvmiTestLongSigWithDelay = 2603,
+    
+    LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
     // 7002 DIH
@@ -130,7 +132,11 @@ public:
     // 12000 Tux
     TuxLogToFile = 12001,
     TuxSetLogFlags = 12002,
-    TuxMetaDataJunk = 12009
+    TuxMetaDataJunk = 12009,
+    
+    DumpTsman = 9000, 
+    DumpLgman = 10000,
+    DumpPgman = 11000
   };
 public:
   

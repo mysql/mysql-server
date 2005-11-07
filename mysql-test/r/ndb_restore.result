@@ -126,26 +126,6 @@ create table t7 engine=myisam as select * from t7_c;
 create table t8 engine=myisam as select * from t8_c;
 create table t9 engine=myisam as select * from t9_c;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
-show tables;
-Tables_in_test
-t1
-t2
-t3
-t4
-t5
-t6
-t7
-t8
-t9
-t8_c
-t9_c
-t1_c
-t7_c
-t6_c
-t5_c
-t4_c
-t3_c
-t2_c
 select count(*) from t1;
 count(*)
 5

@@ -366,3 +366,65 @@ NF_COMPLETE_REP
 
   master dies
     slave elects self as master and sets only itself as participant
+
+
+DATA FORMATS
+------------
+
+Note: api-restore must be able to read all old formats.
+
+Todo: header formats
+
+4.1.x
+-----
+
+Todo
+
+5.0.x
+-----
+
+Producers: backup, Consumers: api-restore
+
+In 5.0
+  1) attrs have fixed size
+  2) external attr id (column_no) is same as internal attr id (attr_id).
+  3) no disk attributes
+
+Format:
+  Part 0: null-bit mask for all nullable rounded to word
+  Part 1: fixed + non-nullable in column_no order
+  Part 2: fixed + nullable in column_no order
+
+Part 1:
+  plain value rounded to words [value]
+
+Part 2:
+  not-null => clear null bit, data words [len_in_words attr_id value]
+  null => set only null bit in null-bit mask
+
+Note: redundancy in null-bit mask vs 2 word header
+
+5.1.x
+-----
+
+Producers: backup, Consumers: api-restore lcp-restore
+
+In 5.1
+  1) attrs can have var size, length encoded in value
+  2) column_no need not equal attr_id
+  3) disk attributes
+
+Null-bit mask (5.0) is dropped.
+Length encoded in value is not used.
+In "lcp backup" disk attributes are replaced by 64-bit DISK_REF.
+
+Format:
+  Part 1: fixed + non-nullable in column_no order
+  Part 2: other attributes
+
+Part 1:
+  plain value rounded to words [value]
+
+Part 2:
+  not-null => data words [len_in_bytes attr_id value]
+  null => not present

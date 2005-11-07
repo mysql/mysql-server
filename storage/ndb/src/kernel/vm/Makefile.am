@@ -17,8 +17,10 @@ libkernel_a_SOURCES = \
 	WatchDog.cpp \
         SimplePropertiesSection.cpp \
         SectionReader.cpp \
-	MetaData.cpp \
-        Mutex.cpp SafeCounter.cpp ndbd_malloc.cpp
+        Mutex.cpp SafeCounter.cpp \
+        Rope.cpp \
+	SuperPool.cpp \
+	ndbd_malloc.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

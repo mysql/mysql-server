@@ -43,6 +43,9 @@ static const char* _delimiter = "\t";
 static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
   _order, _descending;
 
+static int _tup = 0;
+static int _dumpDisk = 0;
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -70,6 +73,12 @@ static struct my_option my_long_options[] =
   { "delimiter", 'D', "Column delimiter",
     (gptr*) &_delimiter, (gptr*) &_delimiter, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "disk", 256, "Dump disk ref",
+    (gptr*) &_dumpDisk, (gptr*) &_dumpDisk, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "tupscan", 't', "Scan in tup order",
+    (gptr*) &_tup, (gptr*) &_tup, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()
@@ -232,7 +241,8 @@ int scanReadRecords(Ndb* pNdb,
       break;
     case 0:
     default:
-      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 
+			   _tup ? NdbScanOperation::SF_TupScan : 0, parallel);
       break;
     }
     if( rs != 0 ){
@@ -292,14 +302,24 @@ int scanReadRecords(Ndb* pNdb,
       }
     }
     
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if((row->attributeStore(a) = 
-	  pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
+    bool disk= false;
+    for(int a = 0; a<pTab->getNoOfColumns(); a++)
+    {
+      const NdbDictionary::Column* col = pTab->getColumn(a);
+      if(col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+	disk= true;
+      
+      if((row->attributeStore(a) = pOp->getValue(col)) == 0)
+      {
 	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return -1;
       }
     }
+    
+    NdbRecAttr * disk_ref= 0;
+    if(_dumpDisk && disk)
+      disk_ref = pOp->getValue(NdbDictionary::Column::DISK_REF);
 
     check = pTrans->execute(NdbTransaction::NoCommit);   
     if( check == -1 ) {
@@ -317,7 +337,12 @@ int scanReadRecords(Ndb* pNdb,
     }
 
     if (headers)
-      row->header(ndbout) << endl;
+      row->header(ndbout);
+    
+    if (disk_ref)
+      ndbout << "\tDISK_REF";
+    
+    ndbout << endl;
     
     int eof;
     int rows = 0;
@@ -325,18 +350,27 @@ int scanReadRecords(Ndb* pNdb,
     
     while(eof == 0){
       rows++;
-
+      
       if (useHexFormat) {
-	ndbout.setHexFormat(1) << (*row) << endl;
+	ndbout.setHexFormat(1) << (*row);
       } else {
-	ndbout << (*row) << endl;
+	ndbout << (*row);
       }
-
+      
+      if(disk_ref)
+      {
+	ndbout << "\t";
+	ndbout << "[ m_file_no: " << *(Uint16*)(disk_ref->aRef()+6)
+	       << " m_page: " << disk_ref->u_32_value() 
+	       << " m_page_idx: " << *(Uint16*)(disk_ref->aRef() + 4) << " ]";
+      }
+      
+      ndbout << endl;
       eof = pOp->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
-
+      
       if (err.status == NdbError::TemporaryError){
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
@@ -347,11 +381,11 @@ int scanReadRecords(Ndb* pNdb,
       pNdb->closeTransaction(pTrans);
       return -1;
     }
-
+    
     pNdb->closeTransaction(pTrans);
-
+    
     ndbout << rows << " rows returned" << endl;
-
+    
     return 0;
   }
   return -1;

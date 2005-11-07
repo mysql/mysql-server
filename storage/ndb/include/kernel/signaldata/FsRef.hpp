@@ -33,9 +33,14 @@
  * RECIVER: 
  */
 struct FsRef {
- /**
- * Enum type for errorCode
- */
+
+  friend bool printFSREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
+
+  /**
+   * Enum type for errorCode
+   */
+  STATIC_CONST( FS_ERR_BIT = 0x8000 );
+
   enum NdbfsErrorCodeType {
     fsErrNone=0,
     fsErrEnvironmentError=NDBD_EXIT_AFS_ENVIRONMENT,
@@ -47,6 +52,9 @@ struct FsRef {
     fsErrNoMoreResources=NDBD_EXIT_AFS_NO_MORE_RESOURCES,
     fsErrFileDoesNotExist=NDBD_EXIT_AFS_NO_SUCH_FILE,
     fsErrReadUnderflow = NDBD_EXIT_AFS_READ_UNDERFLOW,
+    fsErrFileExists = FS_ERR_BIT |  12,
+    fsErrInvalidFileSize = FS_ERR_BIT |  13,
+    fsErrOutOfMemory = FS_ERR_BIT |  14,
     fsErrMax
   };
   /**
@@ -88,8 +96,5 @@ FsRef::setErrorCode(UintR & errorcode, UintR errorcodetype){
   ASSERT_MAX(errorcodetype, fsErrMax, "FsRef::setErrorCode");
   errorcode = errorcodetype;
 }
-
-
-
 
 #endif

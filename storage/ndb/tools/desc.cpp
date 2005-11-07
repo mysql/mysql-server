@@ -19,6 +19,13 @@
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
 
+void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags);
+int desc_logfilegroup(Ndb *myndb, char* name);
+int desc_undofile(Ndb *myndb, char* name);
+int desc_datafile(Ndb *myndb, char* name);
+int desc_tablespace(Ndb *myndb,char* name);
+int desc_table(Ndb *myndb,char* name);
+
 NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
@@ -74,46 +81,171 @@ int main(int argc, char** argv){
     ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
-  const NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
-  for (int i = 0; i < argc; i++) {
-    NDBT_Table* pTab = (NDBT_Table*)dict->getTable(argv[i]);
-    if (pTab != 0){
-      ndbout << (* pTab) << endl;
 
-      NdbDictionary::Dictionary::List list;
-      if (dict->listIndexes(list, argv[i]) != 0){
-	ndbout << argv[i] << ": " << dict->getNdbError() << endl;
-	return NDBT_ProgramExit(NDBT_FAILED);
-      }
-        
-      ndbout << "-- Indexes -- " << endl;
-      ndbout << "PRIMARY KEY(";
-      unsigned j;
-      for (j= 0; (int)j < pTab->getNoOfPrimaryKeys(); j++)
-      {
-	const NdbDictionary::Column * col = pTab->getColumn(pTab->getPrimaryKey(j));
-	ndbout << col->getName();
-	if ((int)j < pTab->getNoOfPrimaryKeys()-1)
-	  ndbout << ", ";       
-      }
-      ndbout << ") - UniqueHashIndex" << endl;
-	
-      for (j= 0; j < list.count; j++) {
-	NdbDictionary::Dictionary::List::Element& elt = list.elements[j];
-	const NdbDictionary::Index *pIdx = dict->getIndex(elt.name, argv[i]);
-	if (!pIdx){
-	  ndbout << argv[i] << ": " << dict->getNdbError() << endl;
-	  return NDBT_ProgramExit(NDBT_FAILED);
-	}
-	  
-	ndbout << (*pIdx) << endl;
-      }
-      ndbout << endl;
-    }
+  NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
+  for(int i= 0; i<argc;i++)
+  {
+    if(desc_table(&MyNdb,argv[i]))
+      ;
+    else if(desc_tablespace(&MyNdb,argv[i]))
+      ;
+    else if(desc_logfilegroup(&MyNdb,argv[i]))
+      ;
+    else if(desc_datafile(&MyNdb, argv[i]))
+      ;
+    else if(desc_undofile(&MyNdb, argv[i]))
+      ;
     else
-      ndbout << argv[i] << ": " << dict->getNdbError() << endl;
+      ndbout << "No such object: " << argv[i] << endl << endl;
   }
-  
+
   return NDBT_ProgramExit(NDBT_OK);
+}
+
+void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags)
+{
+  ndbout << "AutoGrow.min_free: " << ags.min_free << endl;
+  ndbout << "AutoGrow.max_size: " << ags.max_size << endl;
+  ndbout << "AutoGrow.file_size: " << ags.file_size << endl;
+  ndbout << "AutoGrow.filename_pattern: " << ags.filename_pattern << endl;
+}
+
+int desc_logfilegroup(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+  NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(name);
+  NdbError err= dict->getNdbError();
+  if(err.classification!=ndberror_cl_none)
+    return 0;
+
+  ndbout << "Type: LogfileGroup" << endl;
+  ndbout << "Name: " << lfg.getName() << endl;
+  ndbout << "UndoBuffer size: " << lfg.getUndoBufferSize() << endl;
+  ndbout << "Version: " << lfg.getObjectVersion() << endl;
+
+  desc_AutoGrowSpecification(lfg.getAutoGrowSpecification());
+
+  ndbout << endl;
+
+  return 1;
+}
+
+int desc_tablespace(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+  NdbDictionary::Tablespace ts= dict->getTablespace(name);
+  NdbError err= dict->getNdbError();
+  if(err.classification!=ndberror_cl_none)
+    return 0;
+
+  ndbout << "Type: Tablespace" << endl;
+  ndbout << "Name: " << ts.getName() << endl;
+  ndbout << "Object Version: " << ts.getObjectVersion() << endl;
+  ndbout << "Extent Size: " << ts.getExtentSize() << endl;
+  ndbout << "Default Logfile Group: " << ts.getDefaultLogfileGroup() << endl;
+  ndbout << endl;
+  return 1;
+}
+
+int desc_undofile(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+  NdbDictionary::Undofile uf= dict->getUndofile(0, name);
+  NdbError err= dict->getNdbError();
+  if(err.classification!=ndberror_cl_none)
+    return 0;
+
+  ndbout << "Type: Undofile" << endl;
+  ndbout << "Name: " << name << endl;
+  ndbout << "Path: " << uf.getPath() << endl;
+  ndbout << "Size: " << uf.getSize() << endl;
+  ndbout << "Free: " << uf.getFree() << endl;
+
+  ndbout << "Logfile Group: " << uf.getLogfileGroup() << endl;
+
+  /** FIXME: are these needed, the functions aren't there
+      but the prototypes are...
+
+      ndbout << "Node: " << uf.getNode() << endl;
+
+      ndbout << "Number: " << uf.getFileNo() << endl;
+  */
+
+  ndbout << endl;
+
+  return 1;
+}
+
+int desc_datafile(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  assert(dict);
+  NdbDictionary::Datafile df= dict->getDatafile(0, name);
+  NdbError err= dict->getNdbError();
+  if(err.classification!=ndberror_cl_none)
+    return 0;
+
+  ndbout << "Type: Datafile" << endl;
+  ndbout << "Name: " << name << endl;
+  ndbout << "Path: " << df.getPath() << endl;
+  ndbout << "Size: " << df.getSize() << endl;
+  ndbout << "Free: " << df.getFree() << endl;
+
+  ndbout << "Tablespace: " << df.getTablespace() << endl;
+
+  /** FIXME: are these needed, the functions aren't there
+      but the prototypes are...
+
+      ndbout << "Node: " << uf.getNode() << endl;
+
+      ndbout << "Number: " << uf.getFileNo() << endl;
+  */
+
+  ndbout << endl;
+
+  return 1;
+}
+
+int desc_table(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary * dict= myndb->getDictionary();
+  NDBT_Table* pTab = (NDBT_Table*)dict->getTable(name);
+  if (!pTab)
+    return 0;
+
+  ndbout << (* pTab) << endl;
+
+  NdbDictionary::Dictionary::List list;
+  if (dict->listIndexes(list, name) != 0){
+    ndbout << name << ": " << dict->getNdbError() << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  ndbout << "-- Indexes -- " << endl;
+  ndbout << "PRIMARY KEY(";
+  unsigned j;
+  for (j= 0; (int)j < pTab->getNoOfPrimaryKeys(); j++)
+  {
+    const NdbDictionary::Column * col= pTab->getColumn(pTab->getPrimaryKey(j));
+    ndbout << col->getName();
+    if ((int)j < pTab->getNoOfPrimaryKeys()-1)
+      ndbout << ", ";
+  }
+  ndbout << ") - UniqueHashIndex" << endl;
+  for (j= 0; j < list.count; j++) {
+    NdbDictionary::Dictionary::List::Element& elt = list.elements[j];
+    const NdbDictionary::Index *pIdx = dict->getIndex(elt.name, name);
+    if (!pIdx){
+      ndbout << name << ": " << dict->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+
+    ndbout << (*pIdx) << endl;
+  }
+  ndbout << endl;
+
+  return 1;
 }

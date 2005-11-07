@@ -1469,6 +1469,99 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runCreateLogfileGroup(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);  
+  NdbDictionary::LogfileGroup lg;
+  lg.setName("DEFAULT-LG");
+  lg.setUndoBufferSize(8*1024*1024);
+  
+  int res;
+  res = pNdb->getDictionary()->createLogfileGroup(lg);
+  if(res != 0){
+    g_err << "Failed to create logfilegroup:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Undofile uf;
+  uf.setPath("undofile01.dat");
+  uf.setSize(5*1024*1024);
+  uf.setLogfileGroup("DEFAULT-LG");
+  
+  res = pNdb->getDictionary()->createUndofile(uf);
+  if(res != 0){
+    g_err << "Failed to create undofile:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  uf.setPath("undofile02.dat");
+  uf.setSize(5*1024*1024);
+  uf.setLogfileGroup("DEFAULT-LG");
+  
+  res = pNdb->getDictionary()->createUndofile(uf);
+  if(res != 0){
+    g_err << "Failed to create undofile:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+int
+runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);  
+  NdbDictionary::Tablespace lg;
+  lg.setName("DEFAULT-TS");
+  lg.setExtentSize(1024*1024);
+  lg.setDefaultLogfileGroup("DEFAULT-LG");
+
+  int res;
+  res = pNdb->getDictionary()->createTablespace(lg);
+  if(res != 0){
+    g_err << "Failed to create tablespace:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Datafile uf;
+  uf.setPath("datafile01.dat");
+  uf.setSize(10*1024*1024);
+  uf.setTablespace("DEFAULT-TS");
+
+  res = pNdb->getDictionary()->createDatafile(uf);
+  if(res != 0){
+    g_err << "Failed to create datafile:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+int
+runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);  
+
+  NdbDictionary::Table tab = *ctx->getTab();
+  tab.setTablespace("DEFAULT-TS");
+  
+  for(Uint32 i = 0; i<tab.getNoOfColumns(); i++)
+    if(!tab.getColumn(i)->getPrimaryKey())
+      tab.getColumn(i)->setStorageType(NdbDictionary::Column::StorageTypeDisk);
+  
+  int res;
+  res = pNdb->getDictionary()->createTable(tab);
+  if(res != 0){
+    g_err << "Failed to create table:"
+	  << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
 int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   static int acclst[] = { 3001 };
   static int tuplst[] = { 4007, 4008, 4009, 4010, 4011, 4012 };
@@ -1646,6 +1739,15 @@ TESTCASE("TableRenameSR",
 TESTCASE("DictionaryPerf",
 	 ""){
   INITIALIZER(runTestDictionaryPerf);
+}
+TESTCASE("CreateLogfileGroup", ""){
+  INITIALIZER(runCreateLogfileGroup);
+}
+TESTCASE("CreateTablespace", ""){
+  INITIALIZER(runCreateTablespace);
+}
+TESTCASE("CreateDiskTable", ""){
+  INITIALIZER(runCreateDiskTable);
 }
 TESTCASE("FailAddFragment",
          "Fail add fragment or attribute in ACC or TUP or TUX\n"){

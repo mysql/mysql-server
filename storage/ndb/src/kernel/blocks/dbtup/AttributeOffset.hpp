@@ -31,7 +31,10 @@ private:
   static Uint32 getNullFlagPos(const Uint32 &);
   static Uint32 getNullFlagOffset(const Uint32 &);
   static Uint32 getNullFlagBitOffset(const Uint32 &);
-  static bool   isNULL(const Uint32 &, const Uint32 &);
+  
+  Uint32 m_data;
+
+  friend class NdbOut& operator<<(class NdbOut&, const AttributeOffset&);
 };
 
 /**
@@ -66,6 +69,7 @@ inline
 void
 AttributeOffset::setOffset(Uint32 & desc, Uint32 offset){
   ASSERT_MAX(offset, AO_ATTRIBUTE_OFFSET_MASK, "AttributeOffset::setOffset");
+  desc &= ~(Uint32)(AO_ATTRIBUTE_OFFSET_MASK << AO_ATTRIBUTE_OFFSET_SHIFT);
   desc |= (offset << AO_ATTRIBUTE_OFFSET_SHIFT);
 }
 
@@ -126,11 +130,7 @@ AttributeOffset::getNullFlagBitOffset(const Uint32 & desc)
   return (getNullFlagPos(desc) & AO_NULL_FLAG_WORD_MASK);
 }
 
-inline
-bool
-AttributeOffset::isNULL(const Uint32 & pageWord, const Uint32 & desc)
-{
-  return (((pageWord >> getNullFlagBitOffset(desc)) & 1) == 1);
-}
+class NdbOut&
+operator<<(class NdbOut&, const AttributeOffset&);
 
 #endif

@@ -1,4 +1,4 @@
-SUBDIRS = error blocks vm
+SUBDIRS = vm error blocks
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
@@ -23,7 +23,8 @@ INCLUDES += \
               -Iblocks/backup \
               -Iblocks/dbutil \
               -Iblocks/suma \
-              -Iblocks/dbtux
+              -Iblocks/dbtux \
+              -Iblocks
 
 LDADD +=  \
               blocks/cmvmi/libcmvmi.a \
@@ -41,6 +42,7 @@ LDADD +=  \
               blocks/dbutil/libdbutil.a \
               blocks/suma/libsuma.a \
               blocks/dbtux/libdbtux.a \
+              blocks/libblocks.a \
               vm/libkernel.a	\
               error/liberror.a \
               $(top_builddir)/storage/ndb/src/common/transporter/libtransporter.la   \

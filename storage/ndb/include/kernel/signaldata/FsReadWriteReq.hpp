@@ -35,12 +35,16 @@ class FsReadWriteReq {
    */
   friend class Ndbfs;
   friend class VoidFs;
+  friend class AsyncFile;
 
   /**
    * Sender(s)
    */
   friend class Dbdict;
-
+  friend class Lgman;
+  friend class Tsman;
+  friend class Pgman;
+  friend class Restore;
 
   /**
    * For printing
@@ -55,12 +59,14 @@ public:
     fsFormatListOfPairs=0,
     fsFormatArrayOfPages=1,
     fsFormatListOfMemPages=2,
+    fsFormatGlobalPage=3,
     fsFormatMax
   };
 
   /**
    * Length of signal
    */
+  STATIC_CONST( FixedLength = 6 );
 
 private:
 
@@ -100,6 +106,8 @@ private:
   static NdbfsFormatType getFormatFlag(const UintR & opFlag);
   static void setFormatFlag(UintR & opFlag, Uint8 flag);
 
+  static Uint32 getPartialReadFlag(UintR opFlag);
+  static void setPartialReadFlag(UintR & opFlag, Uint32 flag);
 };
 
 /**
@@ -118,6 +126,7 @@ private:
 
 #define FORMAT_MASK (0x0F)
 
+#define PARTIAL_READ_SHIFT (5)
 
 inline
 Uint8
@@ -145,8 +154,18 @@ FsReadWriteReq::setFormatFlag(UintR & opFlag, Uint8 flag){
   opFlag |= flag;
 }
 
+inline
+void 
+FsReadWriteReq::setPartialReadFlag(UintR & opFlag, Uint32 flag){
+  ASSERT_BOOL(flag, "FsReadWriteReq::setSyncFlag");
+  opFlag |= (flag << PARTIAL_READ_SHIFT);
+}
 
-
+inline
+Uint32
+FsReadWriteReq::getPartialReadFlag(UintR opFlag){
+  return (opFlag >> PARTIAL_READ_SHIFT) & 1;
+}
 
 
 #endif

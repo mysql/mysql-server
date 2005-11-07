@@ -25,6 +25,7 @@
 #include <BlockNumbers.h>
 #include <NodeState.hpp>
 #include <NodeInfo.hpp>
+#include "ArrayPool.hpp"
 
 class SimulatedBlock;
 
@@ -34,8 +35,9 @@ enum  restartStates {initial_state,
                      perform_stop};
 
 struct GlobalData {
+  Uint32     m_restart_seq;           // 
   NodeInfo   m_nodeInfo[MAX_NODES];
-  Signal     VMSignals[1];             // Owned by FastScheduler::
+  Signal     VMSignals[1];            // Owned by FastScheduler::
   
   Uint64     internalMillisecCounter; // Owned by ThreadConfig::
   Uint32     highestAvailablePrio;    // Owned by FastScheduler::
@@ -77,6 +79,8 @@ struct GlobalData {
 private:
   Uint32     watchDog;
   SimulatedBlock* blockTable[NO_OF_BLOCKS]; // Owned by Dispatcher::
+public:
+  ArrayPool<GlobalPage> m_global_page_pool;
 };
 
 extern GlobalData globalData;

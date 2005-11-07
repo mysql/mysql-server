@@ -38,7 +38,10 @@ class FsConf {
   friend class Dbacc;
   friend class Dbtup;
   friend class Dbdict;
-
+  friend class Lgman;
+  friend class Tsman;
+  friend class Pgman;
+  friend class Restore;
   /**
    * Sender(s)
    */
@@ -66,10 +69,11 @@ private:
    */
   UintR userPointer;          // DATA 0
 
-  /**
-   * Only used if FSOPENCONF
-   */
-  UintR filePointer;          // DATA 1
+  // Data 1
+  union {
+    UintR filePointer;          // FSOPENCONF
+    Uint32 bytes_read;          // FSREADCONF (when allow partial read)      
+  };
 };
 
 

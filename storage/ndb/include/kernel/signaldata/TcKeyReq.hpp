@@ -127,8 +127,6 @@ private:
   static Uint8 getSimpleFlag(const UintR & requestInfo);
   static Uint8 getDirtyFlag(const UintR & requestInfo);
   static Uint8 getInterpretedFlag(const UintR & requestInfo);
-  static Uint8 getDistributionGroupFlag(const UintR & requestInfo);
-  static Uint8 getDistributionGroupTypeFlag(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
   static Uint8 getScanIndFlag(const UintR & requestInfo);
   static Uint8 getOperationType(const UintR & requestInfo);
@@ -137,6 +135,7 @@ private:
   static Uint16 getKeyLength(const UintR & requestInfo);
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
   static Uint8  getExecutingTrigger(const UintR & requestInfo);
+  static UintR  getNoDiskFlag(const UintR & requestInfo);
 
   /**
    * Get:ers for scanInfo
@@ -156,8 +155,6 @@ private:
   static void setSimpleFlag(UintR & requestInfo, Uint32 flag);
   static void setDirtyFlag(UintR & requestInfo, Uint32 flag);
   static void setInterpretedFlag(UintR & requestInfo, Uint32 flag);
-  static void setDistributionGroupFlag(UintR & requestInfo, Uint32 flag);
-  static void setDistributionGroupTypeFlag(UintR & requestInfo, Uint32 flag);
   static void setDistributionKeyFlag(UintR & requestInfo, Uint32 flag);
   static void setScanIndFlag(UintR & requestInfo, Uint32 flag);
   static void setExecuteFlag(UintR & requestInfo, Uint32 flag);  
@@ -166,6 +163,7 @@ private:
   static void setKeyLength(UintR & requestInfo, Uint32 len);
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
   static void setExecutingTrigger(UintR & requestInfo, Uint32 flag);
+  static void setNoDiskFlag(UintR & requestInfo, UintR val);
 
   /**
    * Set:ers for scanInfo
@@ -184,29 +182,27 @@ private:
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
  f = Execute fired trigger - 1  Bit 19 
- g = Distribution Group Ind- 1  Bit 1
  i = Interpreted Indicator - 1  Bit 15
  k = Key length            - 12 Bits -> Max 4095 (Bit 20 - 31)
  o = Operation Type        - 3  Bits -> Max 7 (Bit 5-7)
  l = Execute               - 1  Bit 10
  p = Simple Indicator      - 1  Bit 8
  s = Start Indicator       - 1  Bit 11
- t = Distribution GroupType- 1  Bit 3
  y = Commit Type           - 2  Bit 12-13
+ n = No disk flag          - 1  Bit 1
 
            1111111111222222222233
  01234567890123456789012345678901
- dgbtcooop lsyyeiaaafkkkkkkkkkkkk
+ dnb cooop lsyyeiaaafkkkkkkkkkkkk
 */
 
+#define TCKEY_NODISK_SHIFT (1)
 #define COMMIT_SHIFT       (4)
 #define START_SHIFT        (11)
 #define SIMPLE_SHIFT       (8)
 #define DIRTY_SHIFT        (0)
 #define EXECUTE_SHIFT      (10)
 #define INTERPRETED_SHIFT  (15)
-#define DISTR_GROUP_SHIFT  (1)
-#define DISTR_GROUP_TYPE_SHIFT  (3)
 #define DISTR_KEY_SHIFT    (2)
 #define SCAN_SHIFT         (14)
 
@@ -305,18 +301,6 @@ TcKeyReq::getInterpretedFlag(const UintR & requestInfo){
 
 inline
 Uint8
-TcKeyReq::getDistributionGroupFlag(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> DISTR_GROUP_SHIFT) & 1);
-}
-
-inline
-Uint8
-TcKeyReq::getDistributionGroupTypeFlag(const UintR & requestInfo){
-  return (Uint8)((requestInfo >> DISTR_GROUP_TYPE_SHIFT) & 1);
-}
-
-inline
-Uint8
 TcKeyReq::getDistributionKeyFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> DISTR_KEY_SHIFT) & 1);
 }
@@ -411,22 +395,6 @@ TcKeyReq::setInterpretedFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setInterpretedFlag");
   requestInfo &= ~(1 << INTERPRETED_SHIFT);
   requestInfo |= (flag << INTERPRETED_SHIFT);
-}
-
-inline
-void 
-TcKeyReq::setDistributionGroupTypeFlag(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setDistributionGroupTypeFlag");
-  requestInfo &= ~(1 << DISTR_GROUP_TYPE_SHIFT);
-  requestInfo |= (flag << DISTR_GROUP_TYPE_SHIFT);
-}
-
-inline
-void 
-TcKeyReq::setDistributionGroupFlag(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setDistributionGroupFlag");
-  requestInfo &= ~(1 << DISTR_GROUP_SHIFT);
-  requestInfo |= (flag << DISTR_GROUP_SHIFT);
 }
 
 inline
@@ -544,5 +512,18 @@ TcKeyReq::setAttrinfoLen(UintR & anAttrLen, Uint16 aiLen){
   anAttrLen |= aiLen;
 }
 
+inline
+UintR 
+TcKeyReq::getNoDiskFlag(const UintR & requestInfo){
+  return (requestInfo >> TCKEY_NODISK_SHIFT) & 1;
+}
+
+inline
+void 
+TcKeyReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo &= ~(1 << TCKEY_NODISK_SHIFT);
+  requestInfo |= (flag << TCKEY_NODISK_SHIFT);
+}
 
 #endif
