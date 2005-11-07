@@ -168,11 +168,8 @@ void udf_init()
       This is done to ensure that only approved dll from the system
       directories are used (to make this even remotely secure).
     */
-    if (my_strchr(files_charset_info, dl_name,
-                  dl_name + strlen(dl_name), '/') ||
-        IF_WIN(my_strchr(files_charset_info, dl_name,
-                         dl_name + strlen(dl_name), '\\'),0) ||
-        strlen(name.str) > NAME_LEN)
+    if (my_strchr(files_charset_info, dl_name, dl_name + strlen(dl_name), FN_LIBCHAR) || 
+		strlen(name.str) > NAME_LEN)
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
                       name.str);
@@ -391,9 +388,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     This is done to ensure that only approved dll from the system
     directories are used (to make this even remotely secure).
   */
-  if (my_strchr(files_charset_info, udf->dl, udf->dl + strlen(udf->dl), '/') ||
-      IF_WIN(strchr(files_charset_info, udf->dl,
-                    udf->dl + strlen(udf->dl), '\\'),0))
+  if (my_strchr(files_charset_info, udf->dl, udf->dl + strlen(udf->dl), FN_LIBCHAR))
   {
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);

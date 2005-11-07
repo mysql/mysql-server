@@ -2937,7 +2937,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
           sub_part= get_sub_part_id_from_key(table, buf, key_info, key_spec);
         else if (part_info->all_fields_in_PPF.is_set(index))
         {
-          if (get_part_id_from_key(table,buf,key_info,key_spec,&part_part))
+          if (get_part_id_from_key(table,buf,key_info,key_spec,(uint32*)&part_part))
           {
             /*
               The value of the RANGE or LIST partitioning was outside of
@@ -2976,7 +2976,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
           sub_part= get_sub_part_id_from_key(table, buf, key_info, key_spec);
         else if (check_part_func_bound(part_info->subpart_field_array))
         {
-          if (get_part_id_from_key(table,buf,key_info,key_spec,&part_part))
+          if (get_part_id_from_key(table,buf,key_info,key_spec,(uint32*)&part_part))
           {
             part_spec->start_part= no_parts;
             clear_indicator_in_key_fields(key_info);
