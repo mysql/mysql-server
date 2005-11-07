@@ -179,11 +179,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define FLUSH_TIME		0		/* Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		// errors before disabling host
 
-#ifdef HAVE_INNOBASE_DB
-#define IF_INNOBASE_DB(A, B) (A)
-#else
-#define IF_INNOBASE_DB(A, B) (B)
-#endif
 #ifdef __NETWARE__
 #define IF_NETWARE(A,B) (A)
 #else
@@ -1064,6 +1059,8 @@ extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
 pthread_handler_t handle_manager(void *arg);
+bool mysql_manager_submit(void (*action)());
+
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
@@ -1253,17 +1250,67 @@ extern const LEX_STRING view_type;
 
 /* optional things, have_* variables */
 
-extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
-extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+extern handlerton innobase_hton;
+#define have_innodb innobase_hton.state
+#else
+extern SHOW_COMP_OPTION have_innodb;
+#endif
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
+extern handlerton berkeley_hton;
+#define have_berkeley_db berkeley_hton.state
+#else
+extern SHOW_COMP_OPTION have_berkeley_db;
+#endif
+#ifdef WITH_EXAMPLE_STORAGE_ENGINE
+extern handlerton example_hton;
+#define have_example_db example_hton.state
+#else
+extern SHOW_COMP_OPTION have_example_db;
+#endif
+#ifdef WITH_ARCHIVE_STORAGE_ENGINE
+extern handlerton archive_hton;
+#define have_archive_db archive_hton.state
+#else
+extern SHOW_COMP_OPTION have_archive_db;
+#endif
+#ifdef WITH_CSV_STORAGE_ENGINE
+extern handlerton tina_hton;
+#define have_csv_db tina_hton.state
+#else
+extern SHOW_COMP_OPTION have_csv_db;
+#endif
+#ifdef WITH_FEDERATED_STORAGE_ENGINE
+extern handlerton federated_hton;
+#define have_federated_db federated_hton.state
+#else
 extern SHOW_COMP_OPTION have_federated_db;
+#endif
+#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
+extern handlerton blackhole_hton;
+#define have_blackhole_db blackhole_hton.state
+#else
 extern SHOW_COMP_OPTION have_blackhole_db;
+#endif
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+extern handlerton ndbcluster_hton;
+#define have_ndbcluster ndbcluster_hton.state
+#else
 extern SHOW_COMP_OPTION have_ndbcluster;
+#endif
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+extern handlerton partition_hton;
+#define have_partition_db partition_hton.state
+#else
+extern SHOW_COMP_OPTION have_partition_db;
+#endif
+
+extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
-extern SHOW_COMP_OPTION have_partition_db;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

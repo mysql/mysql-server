@@ -27,7 +27,7 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
 			-DLIBDIR="\"$(MYSQLLIBdir)\""
-INCLUDES=		@bdb_includes@ \
+INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
@@ -39,13 +39,11 @@ SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
                         my_time.c
-sqlexamplessources =	ha_example.cc ha_tina.cc
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
-	ha_innodb.cc ha_berkeley.cc ha_heap.cc ha_federated.cc \
-	ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
+	ha_heap.cc ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
@@ -65,12 +63,16 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
-        rpl_filter.cc \
-	ha_blackhole.cc ha_archive.cc sql_partition.cc ha_partition.cc \
-	sql_plugin.cc
+        rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc
 
-libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources) $(sqlexamplessources)
+libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
+EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
+			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
+			ha_tina.cc ha_example.cc ha_partition.cc
+libmysqld_a_DEPENDENCIES= @mysql_se_objs@
 libmysqld_a_SOURCES=
+
+sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
 
 # automake misses these
 sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
@@ -80,12 +82,26 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/storage/myisam/libmyisam.a \
 		$(top_builddir)/storage/myisammrg/libmyisammrg.a \
 		$(top_builddir)/storage/heap/libheap.a \
-		@innodb_libs@ @bdb_libs_with_path@ \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
 		$(top_builddir)/vio/libvio.a \
+		@mysql_se_libs@ \
                 @yassl_libs_with_path@
+
+
+# Storage engine specific compilation options
+
+ha_berkeley.o:  ha_berkeley.cc
+		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster.o:ha_ndbcluster.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+# Until we can remove dependency on ha_ndbcluster.h
+handler.o:	handler.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
 
 #
 # To make it easy for the end user to use the embedded library we
@@ -97,7 +113,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 # need to add the same file twice to the library, so 'sort -u' save us
 # some time and spares unnecessary work.
 
-libmysqld.a:	libmysqld_int.a $(INC_LIB)
+libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES)
 if DARWIN_MWCC
 	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u`
 else
@@ -106,10 +122,11 @@ else
 		then \
 		  $(libmysqld_a_AR) libmysqld.a libmysqld_int.a $(INC_LIB) ; \
 		else \
-		  for arc in ./libmysqld_int.a $(INC_LIB); do \
+		  (for arc in ./libmysqld_int.a $(INC_LIB); do \
 		    arpath=`echo $$arc|sed 's|[^/]*$$||'`; \
-		    $(AR) t $$arc|sed "s|^|$$arpath|"; \
-		  done | sort -u | xargs $(AR) cq libmysqld.a ; \
+		    $(AR) t $$arc|xargs -n 1 find $$arpath -name; \
+		    $(AR) t $$arc|xargs -n 1 find `dirname $$arpath` -path \*/`basename $$arpath`/\* -name; \
+		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
 		  $(RANLIB) libmysqld.a	; \
 		fi
 endif
@@ -133,16 +150,16 @@ link_sources:
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../libmysql/$$f $(srcdir)/$$f; \
 	  done; \
-	  for f in $(sqlexamplessources); do \
+	  for f in $(sqlstoragesources); do \
 	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../sql/examples/$$f $(srcdir)/$$f; \
+	    @LN_CP_F@ `find $(srcdir)/../sql -name $$f` $(srcdir)/$$f; \
 	  done; \
 	  rm -f $(srcdir)/client_settings.h; \
 	  @LN_CP_F@ $(srcdir)/../libmysql/client_settings.h $(srcdir)/client_settings.h;
 
 
 clean-local:
-	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlexamplessources) | sed "s;\.lo;.c;g"` \
+	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) | sed "s;\.lo;.c;g"` \
 	       $(top_srcdir)/linked_libmysqld_sources; \
 	rm -f client_settings.h
 

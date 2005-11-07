@@ -125,5 +125,5 @@ public:
   int chain_append();
 };
 
-bool tina_end();
+int tina_end(ha_panic_function type);
 

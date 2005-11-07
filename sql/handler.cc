@@ -27,112 +27,19 @@
 #include "ha_myisammrg.h"
 
 
-/*
-  We have dummy hanldertons in case the handler has not been compiled
-  in. This will be removed in 5.1.
-*/
-#ifdef HAVE_BERKELEY_DB
-#include "ha_berkeley.h"
-extern handlerton berkeley_hton;
-#else
-handlerton berkeley_hton = { "BerkeleyDB", SHOW_OPTION_NO, 
-  "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB, NULL, 
-  0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  NULL, NULL, HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_BLACKHOLE_DB
-#include "ha_blackhole.h"
-extern handlerton blackhole_hton;
-#else
-handlerton blackhole_hton = { "BLACKHOLE", SHOW_OPTION_NO,
-  "/dev/null storage engine (anything you write to it disappears)",
-  DB_TYPE_BLACKHOLE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_EXAMPLE_DB
-#include "examples/ha_example.h"
-extern handlerton example_hton;
-#else
-handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
-  "Example storage engine", 
-  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_PARTITION_DB
-#include "ha_partition.h"
-extern handlerton partition_hton;
-#else
-handlerton partition_hton = { "partition", SHOW_OPTION_NO,
-  "Partition engine", 
-  DB_TYPE_EXAMPLE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_ARCHIVE_DB
-#include "ha_archive.h"
-extern handlerton archive_hton;
-#else
-handlerton archive_hton = { "ARCHIVE", SHOW_OPTION_NO,
-  "Archive storage engine", DB_TYPE_ARCHIVE_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_CSV_DB
-#include "examples/ha_tina.h"
-extern handlerton tina_hton;
-#else
-handlerton tina_hton = { "CSV", SHOW_OPTION_NO, "CSV storage engine", 
-  DB_TYPE_CSV_DB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_INNOBASE_DB
-#include "ha_innodb.h"
-extern handlerton innobase_hton;
-#else
-handlerton innobase_hton = { "InnoDB", SHOW_OPTION_NO,
-  "Supports transactions, row-level locking, and foreign keys", 
-  DB_TYPE_INNODB, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-#include "ha_ndbcluster.h"
-extern handlerton ndbcluster_hton;
-#else
-handlerton ndbcluster_hton = { "ndbcluster", SHOW_OPTION_NO,
-  "Clustered, fault-tolerant, memory-based tables", 
-  DB_TYPE_NDBCLUSTER, NULL, 0, 0, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
-#ifdef HAVE_FEDERATED_DB
-#include "ha_federated.h"
-extern handlerton federated_hton;
-#else
-handlerton federated_hton = { "FEDERATED", SHOW_OPTION_NO, 
-  "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB, NULL, 0, 0, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  HTON_NO_FLAGS };
-#endif
 #include <myisampack.h>
 #include <errno.h>
+  
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+#define NDB_MAX_ATTRIBUTES_IN_TABLE 128
+#include "ha_ndbcluster.h"
+#endif
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "ha_partition.h"
+#endif
 
-extern handlerton myisam_hton;
-extern handlerton myisammrg_hton;
-extern handlerton heap_hton;
-extern handlerton binlog_hton;
-
-/*
-  Obsolete
-*/
-handlerton isam_hton = { "ISAM", SHOW_OPTION_NO, "Obsolete storage engine", 
-  DB_TYPE_ISAM, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-  NULL, NULL, NULL, NULL, NULL, NULL, HTON_NO_FLAGS };
-
-
+extern handlerton *sys_table_types[];
+  
 /* static functions defined in this file */
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
@@ -143,28 +50,6 @@ ulong total_ha;
 ulong total_ha_2pc;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size;
-
-/*
-  This array is used for processing compiled in engines.
-*/
-handlerton *sys_table_types[]=
-{
-  &myisam_hton,
-  &heap_hton,
-  &innobase_hton,
-  &berkeley_hton,
-  &blackhole_hton,
-  &example_hton,
-  &archive_hton,
-  &tina_hton,
-  &ndbcluster_hton,
-  &federated_hton,
-  &myisammrg_hton,
-  &binlog_hton,
-  &isam_hton,
-  &partition_hton,
-  NULL
-};
 
 struct show_table_alias_st sys_table_aliases[]=
 {
@@ -203,9 +88,11 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
 retest:
   for (types= sys_table_types; *types; types++)
   {
-    if (!my_strnncoll(&my_charset_latin1,
-                      (const uchar *)name, namelen,
-                      (const uchar *)(*types)->name, strlen((*types)->name)))
+    if ((!my_strnncoll(&my_charset_latin1,
+                       (const uchar *)name, namelen,
+                       (const uchar *)(*types)->name,
+                        strlen((*types)->name))) &&
+        !((*types)->flags & HTON_NOT_USER_SELECTABLE))
       return (enum db_type) (*types)->db_type;
   }
 
@@ -258,9 +145,8 @@ my_bool ha_storage_engine_is_enabled(enum db_type database_type)
   handlerton **types;
   for (types= sys_table_types; *types; types++)
   {
-    if ((database_type == (*types)->db_type) &&
-	((*types)->state == SHOW_OPTION_YES))
-      return TRUE;
+    if (database_type == (*types)->db_type)
+      return ((*types)->state == SHOW_OPTION_YES) ? TRUE : FALSE;
   }
   return FALSE;
 }
@@ -273,13 +159,6 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 {
   if (ha_storage_engine_is_enabled(database_type))
     return database_type;
-#ifdef HAVE_PARTITION_DB
-  /*
-    Partition handler is not in the list of handlers shown since it is an internal handler
-  */
-  if (database_type == DB_TYPE_PARTITION_DB)
-    return database_type;
-#endif
   if (no_substitute)
   {
     if (report_error)
@@ -312,80 +191,32 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 
 handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
 {
-  handler *file;
-  switch (db_type) {
-#ifndef NO_HASH
-  case DB_TYPE_HASH:
-    file= new (alloc) ha_hash(table);
-    break;
-#endif
-  case DB_TYPE_MRG_ISAM:
-    file= new (alloc) ha_myisammrg(table);
-    break;
-#ifdef HAVE_BERKELEY_DB
-  case DB_TYPE_BERKELEY_DB:
-    file= new (alloc) ha_berkeley(table);
-    break;
-#endif
-#ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNODB:
-    file= new (alloc) ha_innobase(table);
-    break;
-#endif
-#ifdef HAVE_EXAMPLE_DB
-  case DB_TYPE_EXAMPLE_DB:
-    file= new ha_example(table);
-    break;
-#endif
-#ifdef HAVE_PARTITION_DB
-  case DB_TYPE_PARTITION_DB:
+  handler *file= NULL;
+  handlerton **types;
+  /*
+    handlers are allocated with new in the handlerton create() function
+    we need to set the thd mem_root for these to be allocated correctly
+  */
+  THD *thd= current_thd;
+  MEM_ROOT *thd_save_mem_root= thd->mem_root;
+  thd->mem_root= alloc;
+  for (types= sys_table_types; *types; types++)
   {
-    file= new (alloc) ha_partition(table);
-    break;
+    if (db_type == (*types)->db_type && (*types)->create)
+    {
+      file= ((*types)->state == SHOW_OPTION_YES) ?
+		(*types)->create(table) : NULL;
+      break;
+    }
   }
-#endif
-#ifdef HAVE_ARCHIVE_DB
-  case DB_TYPE_ARCHIVE_DB:
-    file= new (alloc) ha_archive(table);
-    break;
-#endif
-#ifdef HAVE_BLACKHOLE_DB
-  case DB_TYPE_BLACKHOLE_DB:
-    file= new (alloc) ha_blackhole(table);
-    break;
-#endif
-#ifdef HAVE_FEDERATED_DB
-  case DB_TYPE_FEDERATED_DB:
-    file= new (alloc) ha_federated(table);
-    break;
-#endif
-#ifdef HAVE_CSV_DB
-  case DB_TYPE_CSV_DB:
-    file= new (alloc) ha_tina(table);
-    break;
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-  case DB_TYPE_NDBCLUSTER:
-    file= new (alloc) ha_ndbcluster(table);
-    break;
-#endif
-  case DB_TYPE_HEAP:
-    file= new (alloc) ha_heap(table);
-    break;
-  default:					// should never happen
+  thd->mem_root= thd_save_mem_root;
+
+  if (!file)
   {
     enum db_type def=(enum db_type) current_thd->variables.table_type;
     /* Try first with 'default table type' */
     if (db_type != def)
       return get_new_handler(table, alloc, def);
-  }
-  /* Fall back to MyISAM */
-  case DB_TYPE_MYISAM:
-    file= new (alloc) ha_myisam(table);
-    break;
-  case DB_TYPE_MRG_MYISAM:
-    file= new (alloc) ha_myisammrg(table);
-    break;
   }
   if (file)
   {
@@ -399,7 +230,7 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
 }
 
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 handler *get_ha_partition(partition_info *part_info)
 {
   ha_partition *partition;
@@ -557,40 +388,13 @@ int ha_init()
 int ha_panic(enum ha_panic_function flag)
 {
   int error=0;
-#ifndef NO_HASH
-  error|=h_panic(flag);			/* fix hash */
-#endif
-#ifdef HAVE_ISAM
-  error|=mrg_panic(flag);
-  error|=nisam_panic(flag);
-#endif
-  error|=heap_panic(flag);
-  error|=mi_panic(flag);
-  error|=myrg_panic(flag);
-#ifdef HAVE_BERKELEY_DB
-  if (have_berkeley_db == SHOW_OPTION_YES)
-    error|=berkeley_end();
-#endif
-#ifdef HAVE_INNOBASE_DB
-  if (have_innodb == SHOW_OPTION_YES)
-    error|=innobase_end();
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error|=ndbcluster_end();
-#endif
-#ifdef HAVE_FEDERATED_DB
-  if (have_federated_db == SHOW_OPTION_YES)
-    error|= federated_db_end();
-#endif
-#ifdef HAVE_ARCHIVE_DB
-  if (have_archive_db == SHOW_OPTION_YES)
-    error|= archive_db_end();
-#endif
-#ifdef HAVE_CSV_DB
-  if (have_csv_db == SHOW_OPTION_YES)
-    error|= tina_end();
-#endif
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES && (*types)->panic)
+        error|= (*types)->panic(flag);
+  }
   if (ha_finish_errors())
     error= 1;
   return error;
@@ -598,14 +402,13 @@ int ha_panic(enum ha_panic_function flag)
 
 void ha_drop_database(char* path)
 {
-#ifdef HAVE_INNOBASE_DB
-  if (have_innodb == SHOW_OPTION_YES)
-    innobase_drop_database(path);
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    ndbcluster_drop_database(path);
-#endif
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES && (*types)->drop_database)
+      (*types)->drop_database(path);
+  }
 }
 
 /* don't bother to rollback here, it's done already */
@@ -613,7 +416,8 @@ void ha_close_connection(THD* thd)
 {
   handlerton **types;
   for (types= sys_table_types; *types; types++)
-    if (thd->ha_data[(*types)->slot])
+	/* XXX Maybe do a rollback if close_connection == NULL ? */
+    if (thd->ha_data[(*types)->slot] && (*types)->close_connection)
       (*types)->close_connection(thd);
 }
 
@@ -1190,10 +994,14 @@ bool mysql_xa_recover(THD *thd)
 
 int ha_release_temporary_latches(THD *thd)
 {
-#ifdef HAVE_INNOBASE_DB
-  if (opt_innodb)
-    innobase_release_temporary_latches(thd);
-#endif
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES &&
+        (*types)->release_temporary_latches)
+      (*types)->release_temporary_latches(thd);
+  }
   return 0;
 }
 
@@ -1205,10 +1013,13 @@ int ha_release_temporary_latches(THD *thd)
 
 int ha_update_statistics()
 {
-#ifdef HAVE_INNOBASE_DB
-  if (opt_innodb)
-    innodb_export_status();
-#endif
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES && (*types)->update_statistics)
+      (*types)->update_statistics();
+  }
   return 0;
 }
 
@@ -1317,35 +1128,45 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 
 int ha_start_consistent_snapshot(THD *thd)
 {
-#ifdef HAVE_INNOBASE_DB
-  if ((have_innodb == SHOW_OPTION_YES) &&
-      !innobase_start_trx_and_assign_read_view(thd))
-    return 0;
-#endif
+  bool warn= true;
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES &&
+        (*types)->start_consistent_snapshot)
+    {
+      (*types)->start_consistent_snapshot(thd);
+      warn= false; /* hope user is using engine */
+    }
+  }
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not
     exist:
   */
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-               "This MySQL server does not support any "
-               "consistent-read capable storage engine");
+  if (warn)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 "This MySQL server does not support any "
+                 "consistent-read capable storage engine");
   return 0;
 }
 
 
-bool ha_flush_logs()
+bool ha_flush_logs(enum db_type db_type)
 {
   bool result=0;
-#ifdef HAVE_BERKELEY_DB
-  if ((have_berkeley_db == SHOW_OPTION_YES) &&
-      berkeley_flush_logs())
-    result=1;
-#endif
-#ifdef HAVE_INNOBASE_DB
-  if ((have_innodb == SHOW_OPTION_YES) &&
-      innobase_flush_logs())
-    result=1;
-#endif
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES && 
+        (db_type == DB_TYPE_DEFAULT || db_type == (*types)->db_type) &&
+        (*types)->flush_logs)
+    {
+      if ((*types)->flush_logs())
+        result= 1;
+    }
+  }
   return result;
 }
 
@@ -2326,7 +2147,7 @@ int ha_discover(THD *thd, const char *db, const char *name,
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
   if (is_prefix(name,tmp_file_prefix)) /* skip temporary tables */
     DBUG_RETURN(error);
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (have_ndbcluster == SHOW_OPTION_YES)
     error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
 #endif
@@ -2350,7 +2171,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
 		       db, path, wild, dir));
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (have_ndbcluster == SHOW_OPTION_YES)
     error= ndbcluster_find_files(thd, db, path, wild, dir, files);
 #endif
@@ -2372,7 +2193,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   int error= 0;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (have_ndbcluster == SHOW_OPTION_YES)
     error= ndbcluster_table_exists_in_engine(thd, db, name);
 #endif
@@ -2699,6 +2520,54 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
+static bool stat_print(THD *thd, const char *type, const char *file,
+                       const char *status)
+{
+  Protocol *protocol= thd->protocol;
+  protocol->prepare_for_resend();
+  protocol->store(type, system_charset_info);
+  protocol->store(file, system_charset_info);
+  protocol->store(status, system_charset_info);
+  if (protocol->write())
+    return TRUE;
+  return FALSE;
+}
+
+bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat)
+{
+  handlerton **types;
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+
+  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Status",10));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    return TRUE;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES &&
+        (db_type == DB_TYPE_DEFAULT || db_type == (*types)->db_type) &&
+        (*types)->show_status)
+    {
+      if ((*types)->show_status(thd, stat_print, stat))
+        return TRUE;
+    }
+    else if (db_type == (*types)->db_type &&
+             (*types)->state != SHOW_OPTION_YES)
+    {
+      if (stat_print(thd, (*types)->name, "", "DISABLED"))
+	return TRUE;
+    }
+  }
+
+  send_eof(thd);
+  return FALSE;
+}
+
 
 #ifdef HAVE_REPLICATION
 /*
@@ -2722,11 +2591,19 @@ TYPELIB *ha_known_exts(void)
 int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
                                my_off_t end_offset)
 {
-#ifdef HAVE_INNOBASE_DB
-  return innobase_repl_report_sent_binlog(thd,log_file_name,end_offset);
-#else
-  return 0;
-#endif
+  int result= 0;
+  handlerton **types;
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->state == SHOW_OPTION_YES &&
+        (*types)->repl_report_sent_binlog)
+    {
+      (*types)->repl_report_sent_binlog(thd,log_file_name,end_offset);
+      result= 0;
+    }
+  }
+  return result;
 }
 
 

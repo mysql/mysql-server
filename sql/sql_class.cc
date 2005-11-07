@@ -287,7 +287,7 @@ void THD::init(void)
 					       variables.date_format);
   variables.datetime_format= date_time_format_copy((THD*) 0,
 						   variables.datetime_format);
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   variables.ndb_use_transactions= 1;
 #endif
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -902,7 +902,7 @@ bool select_send::send_data(List<Item> &items)
     return 0;
   }
 
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   /*
     We may be passing the control from mysqld to the client: release the
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
@@ -938,7 +938,7 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
-#ifdef HAVE_INNOBASE_DB
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   /* We may be passing the control from mysqld to the client: release the
      InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
      by thd */

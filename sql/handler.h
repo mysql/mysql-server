@@ -28,10 +28,7 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || \
-    defined(HAVE_NDBCLUSTER_DB)
 #define USING_TRANSACTIONS
-#endif
 
 // the following is for checking tables
 
@@ -191,6 +188,7 @@ enum db_type
   DB_TYPE_FEDERATED_DB,
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
+  DB_TYPE_BINLOG,
   DB_TYPE_DEFAULT // Must be last
 };
 
@@ -308,6 +306,16 @@ typedef struct xid_t XID;
 #define MAX_XID_LIST_SIZE  (1024*128)
 #endif
 
+/* The handler for a table type.  Will be included in the TABLE structure */
+
+struct st_table;
+typedef struct st_table TABLE;
+struct st_foreign_key_info;
+typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
+typedef bool (stat_print_fn)(THD *thd, const char *type, const char *file,
+                             const char *status);
+enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+
 /*
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -402,6 +410,16 @@ typedef struct
    void *(*create_cursor_read_view)();
    void (*set_cursor_read_view)(void *);
    void (*close_cursor_read_view)(void *);
+   handler *(*create)(TABLE *table);
+   void (*drop_database)(char* path);
+   int (*panic)(enum ha_panic_function flag);
+   int (*release_temporary_latches)(THD *thd);
+   int (*update_statistics)();
+   int (*start_consistent_snapshot)(THD *thd);
+   bool (*flush_logs)();
+   bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+   int (*repl_report_sent_binlog)(THD *thd, char *log_file_name,
+                                  my_off_t end_offset);
    uint32 flags;                                /* global handler flags */
 } handlerton;
 
@@ -415,6 +433,8 @@ struct show_table_alias_st {
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1)
 #define HTON_CAN_RECREATE            (1 << 2)
+#define HTON_FLUSH_AFTER_RENAME      (1 << 3)
+#define HTON_NOT_USER_SELECTABLE     (1 << 4)
 
 typedef struct st_thd_trans
 {
@@ -429,6 +449,8 @@ typedef struct st_thd_trans
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
+
+enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
 
 typedef struct {
   uint32 start_part;
@@ -608,7 +630,7 @@ public:
 };
 
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Answers the question if subpartitioning is used for a certain table
   SYNOPSIS
@@ -670,12 +692,6 @@ typedef struct st_ha_create_information
 } HA_CREATE_INFO;
 
 
-/* The handler for a table type.  Will be included in the TABLE structure */
-
-struct st_table;
-typedef struct st_table TABLE;
-struct st_foreign_key_info;
-typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
 typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
@@ -693,7 +709,7 @@ typedef struct st_ha_check_opt
 } HA_CHECK_OPT;
 
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 bool is_partitions_in_table(partition_info *new_part_info,
                             partition_info *old_part_info);
@@ -743,7 +759,7 @@ typedef struct st_handler_buffer
 
 class handler :public Sql_alloc
 {
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
  friend class ha_partition;
 #endif
  protected:
@@ -1246,7 +1262,7 @@ public:
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
   virtual ulong alter_table_flags(void) const { return 0; }
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   virtual ulong partition_flags(void) const { return 0;}
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
 #endif
@@ -1402,12 +1418,15 @@ int ha_panic(enum ha_panic_function flag);
 int ha_update_statistics();
 void ha_close_connection(THD* thd);
 my_bool ha_storage_engine_is_enabled(enum db_type database_type);
-bool ha_flush_logs(void);
+bool ha_flush_logs(enum db_type db_type=DB_TYPE_DEFAULT);
 void ha_drop_database(char* path);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
                     const char *alias, bool generate_warning);
+
+/* statistics and info */
+bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat);
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);

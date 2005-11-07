@@ -69,9 +69,9 @@
 
 #include "../mysql_priv.h"
 
-#ifdef HAVE_EXAMPLE_DB
 #include "ha_example.h"
 
+static handler* example_create_handler(TABLE *table);
 
 handlerton example_hton= {
   "EXAMPLE",
@@ -94,6 +94,15 @@ handlerton example_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  example_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  NULL,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 
@@ -201,6 +210,12 @@ static int free_share(EXAMPLE_SHARE *share)
   pthread_mutex_unlock(&example_mutex);
 
   return 0;
+}
+
+
+static handler* example_create_handler(TABLE *table)
+{
+  return new ha_example(table);
 }
 
 
@@ -696,4 +711,3 @@ int ha_example::create(const char *name, TABLE *table_arg,
   /* This is not implemented but we want someone to be able that it works. */
   DBUG_RETURN(0);
 }
-#endif /* HAVE_EXAMPLE_DB */

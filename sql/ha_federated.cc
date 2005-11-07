@@ -351,7 +351,6 @@
 #pragma implementation                          // gcc: Class implementation
 #endif
 
-#ifdef HAVE_FEDERATED_DB
 #include "ha_federated.h"
 
 #include "m_string.h"
@@ -362,6 +361,11 @@ pthread_mutex_t federated_mutex;                // This is the mutex we use to
                                                 // init the hash
 static int federated_init= FALSE;               // Variable for checking the
                                                 // init state of hash
+
+/* Static declaration for handerton */
+
+static handler *federated_create_handler(TABLE *table);
+
 
 /* Federated storage engine handlerton */
 
@@ -386,8 +390,23 @@ handlerton federated_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  federated_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  federated_db_end,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_ALTER_NOT_SUPPORTED
 };
+
+
+static handler *federated_create_handler(TABLE *table)
+{
+  return new ha_federated(table);
+}
 
 
 /* Function we use in the creation of our hash to get key.  */
@@ -443,7 +462,7 @@ error:
     FALSE       OK
 */
 
-bool federated_db_end()
+int federated_db_end(ha_panic_function type)
 {
   if (federated_init)
   {
@@ -451,7 +470,7 @@ bool federated_db_end()
     VOID(pthread_mutex_destroy(&federated_mutex));
   }
   federated_init= 0;
-  return FALSE;
+  return 0;
 }
 
 /*
@@ -2614,4 +2633,3 @@ bool ha_federated::get_error_message(int error, String* buf)
   DBUG_RETURN(FALSE);
 }
 
-#endif /* HAVE_FEDERATED_DB */

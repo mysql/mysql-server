@@ -21,7 +21,6 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(pkglibdir)
 INCLUDES =		@ZLIB_INCLUDES@ \
-			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex -I$(srcdir) $(yassl_includes) \
                         $(openssl_includes)
@@ -38,12 +37,11 @@ LDADD =			$(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/regex/libregex.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@ @NDB_SCI_LIBS@
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
-			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
-                        @innodb_system_libs@ \
-			@ndbcluster_libs@ @ndbcluster_system_libs@ \
+			@pstack_libs@ \
+			@mysql_se_objs@ @mysql_se_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
                         @yassl_libs@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
@@ -53,9 +51,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			ha_myisammrg.h\
-			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
-			ha_ndbcluster.h opt_range.h protocol.h \
+			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
+			opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h rpl_filter.h \
@@ -65,11 +62,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h \
-			examples/ha_example.h ha_archive.h \
-			examples/ha_tina.h ha_blackhole.h  \
-			ha_federated.h ha_partition.h \
 			sql_plugin.h
-mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
+mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
@@ -88,9 +82,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			unireg.cc des_key_file.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
-		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
-	                ha_berkeley.cc ha_innodb.cc \
-			ha_ndbcluster.cc \
+			ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
@@ -103,11 +95,13 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
                         tztime.cc my_time.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
-			examples/ha_example.cc ha_archive.cc \
-			examples/ha_tina.cc ha_blackhole.cc \
-                        ha_partition.cc sql_partition.cc \
-			ha_federated.cc \
-			sql_plugin.cc
+			sql_plugin.cc\
+			handlerton.cc
+EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
+			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
+			ha_partition.cc \
+			examples/ha_tina.cc examples/ha_example.cc
+mysqld_DEPENDENCIES =	@mysql_se_objs@
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
@@ -155,6 +149,16 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 
 lex_hash.h:	gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
+
+ha_berkeley.o:	ha_berkeley.cc ha_berkeley.h
+		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+#Until we can get rid of dependencies on ha_ndbcluster.h
+handler.o:	handler.cc ha_ndbcluster.h
+		$(CXXCOMPILE) @ndbcluster_includes@ $(CXXFLAGS) -c $<
 
 # For testing of udf_example.so;  Works on platforms with gcc
 # (This is not part of our build process but only provided as an example)

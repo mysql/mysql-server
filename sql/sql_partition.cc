@@ -38,7 +38,7 @@
 #include <m_ctype.h>
 #include "md5.h"
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Partition related functions declarations and some static constants;
 */
@@ -101,8 +101,8 @@ uint32 get_partition_id_linear_key_sub(partition_info *part_info);
     TRUE                   Yes, it is part of a management partition command
     FALSE                  No, not a management partition command
   DESCRIPTION
-    This needs to be outside of HAVE_PARTITION_DB since it is used from the
-    sql parser that doesn't have any #ifdef's
+    This needs to be outside of WITH_PARTITION_STORAGE_ENGINE since it is
+    used from the sql parser that doesn't have any #ifdef's
 */
 
 my_bool is_partition_management(LEX *lex)
@@ -112,7 +112,7 @@ my_bool is_partition_management(LEX *lex)
            lex->alter_info.flags == ALTER_REORGANISE_PARTITION));
 }
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   A support function to check if a partition name is in a list of strings
   SYNOPSIS
