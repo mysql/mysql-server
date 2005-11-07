@@ -356,9 +356,10 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG()
   :bytes_written(0), last_time(0), query_start(0), name(0),
-   file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
-   need_start_event(1), prepared_xids(0), description_event_for_exec(0),
-   description_event_for_queue(0), readers_count(0), reset_pending(FALSE)
+   prepared_xids(0), log_type(LOG_CLOSED), file_id(1), open_count(1),
+   readers_count(0), reset_pending(FALSE), write_error(FALSE), inited(FALSE),
+   need_start_event(TRUE),
+   description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
