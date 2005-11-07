@@ -178,7 +178,7 @@ page_dir_slot_check(
 	if (page_is_comp(page)) {
 		n_owned = rec_get_n_owned_new(page_dir_slot_get_rec(slot));
 	} else {
-		n_owned = rec_get_n_owned_new(page_dir_slot_get_rec(slot));
+		n_owned = rec_get_n_owned_old(page_dir_slot_get_rec(slot));
 	}
 
 	if (slot == page_dir_get_nth_slot(page, 0)) {
@@ -493,16 +493,16 @@ page_create(
 	/* Set the next pointers in infimum and supremum */
 
 	if (UNIV_LIKELY(comp)) {
-		rec_set_next_offs_new(infimum_rec, NULL,
-				(ulint)(supremum_rec - page));
+		rec_set_next_offs_new(infimum_rec, NULL, PAGE_NEW_SUPREMUM);
 		rec_set_next_offs_new(supremum_rec, NULL, 0);
 	} else {
-		rec_set_next_offs_old(infimum_rec,
-				(ulint)(supremum_rec - page));
+		rec_set_next_offs_old(infimum_rec, PAGE_OLD_SUPREMUM);
 		rec_set_next_offs_old(supremum_rec, 0);
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(comp);
+
 		if (!page_zip_compress(page_zip, page)) {
 			/* The compression of a newly created page
 			should always succeed. */
@@ -2087,6 +2087,8 @@ page_validate(
 	page_cur_t 	cur;
 	byte*		buf;
 	ulint		count;
+	ulint		own_count;
+	ulint		rec_own_count;
 	ulint		slot_no;
 	ulint		data_size;
 	rec_t*		rec;
@@ -2143,6 +2145,7 @@ page_validate(
 	it is consistent with the directory. */
 	count = 0;
 	data_size = 0;
+	own_count = 1;
 	slot_no = 0;
 	slot = page_dir_get_nth_slot(page, slot_no);
 
@@ -2191,28 +2194,47 @@ page_validate(
 		
 		offs = rec_get_start(rec, offsets) - page;
 		
-		for (i = 0; i < rec_offs_size(offsets); i++) {
-			if (UNIV_UNLIKELY(buf[offs + i]++)) {
+		for (i = rec_offs_size(offsets); i--; ) {
+			if (UNIV_UNLIKELY(buf[offs + i])) {
 				/* No other record may overlap this */
 
 				fputs("InnoDB: Record overlaps another\n",
 					stderr);
 				goto func_exit;
 			}
+
+			buf[offs + i] = 1;
 		}
 
 		if (page_is_comp(page)) {
-			if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
+			rec_own_count = rec_get_n_owned_new(rec);
+		} else {
+			rec_own_count = rec_get_n_owned_old(rec);
+		}
 
-				goto check_slot;
-			}
-		} else if (UNIV_UNLIKELY(rec_get_n_owned_old(rec))) {
-check_slot:
+		if (UNIV_UNLIKELY(rec_own_count)) {
 			/* This is a record pointed to by a dir slot */
+			if (UNIV_UNLIKELY(rec_own_count != own_count)) {
+				fprintf(stderr,
+			"InnoDB: Wrong owned count %lu, %lu\n",
+				(ulong) rec_own_count,
+				(ulong) own_count);
+				goto func_exit;
+			}
+
+			if (page_dir_slot_get_rec(slot) != rec) {
+				fputs(
+			"InnoDB: Dir slot does not point to right rec\n",
+					stderr);
+				goto func_exit;
+			}
+
 			page_dir_slot_check(slot);
-			
+
+			own_count = 0;
 			if (!page_cur_is_after_last(&cur)) {
-				slot = page_dir_get_nth_slot(page, slot_no++);
+				slot_no++;
+				slot = page_dir_get_nth_slot(page, slot_no);
 			}
 		}
 
@@ -2222,6 +2244,7 @@ check_slot:
 
 		count++;		
 		page_cur_move_to_next(&cur);
+		own_count++;
 		old_rec = rec;
 		/* set old_offsets to offsets; recycle offsets */
 		{
@@ -2277,13 +2300,15 @@ n_owned_zero:
 		count++;	
 		offs = rec_get_start(rec, offsets) - page;
 		
-		for (i = 0; i < rec_offs_size(offsets); i++) {
+		for (i = rec_offs_size(offsets); i--; ) {
 
-			if (UNIV_UNLIKELY(buf[offs + i]++)) {
+			if (UNIV_UNLIKELY(buf[offs + i])) {
 				fputs(
 		"InnoDB: Record overlaps another in free list\n", stderr);
 				goto func_exit;
 			}
+
+			buf[offs + i] = 1;
 		}
 		
 		rec = page_rec_get_next(rec);
