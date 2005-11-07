@@ -112,17 +112,23 @@ public:
    * @param attr        Attribute name, alternatively:
    * @param type        Type of bound
    * @param value       Pointer to bound value, 0 for NULL
-   * @param len         Value length in bytes.
-   *                    Fixed per datatype and can be omitted
    * @return            0 if successful otherwise -1
+   *
+   * @note See comment under equal() about data format and length.
    */
-  int setBound(const char* attr, int type, const void* value, Uint32 len = 0);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int setBound(const char* attr, int type, const void* value, Uint32 len);
+#endif
+  int setBound(const char* attr, int type, const void* value);
 
   /**
    * Define bound on index key in range scan using index column id.
    * See the other setBound() method for details.
    */
-  int setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len = 0);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len);
+#endif
+  int setBound(Uint32 anAttrId, int type, const void* aValue);
 
   /**
    * Reset bounds and put operation in list that will be
@@ -155,11 +161,11 @@ private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
 
-  int setBound(const NdbColumnImpl*, int type, const void* aValue, Uint32 len);
+  int setBound(const NdbColumnImpl*, int type, const void* aValue);
   int insertBOUNDS(Uint32 * data, Uint32 sz);
   Uint32 getKeyFromSCANTABREQ(Uint32* data, Uint32 size);
 
-  virtual int equal_impl(const NdbColumnImpl*, const char*, Uint32);
+  virtual int equal_impl(const NdbColumnImpl*, const char*);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
 
   void fix_get_values();
@@ -173,5 +179,21 @@ private:
 
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };
+
+inline
+int
+NdbIndexScanOperation::setBound(const char* attr, int type, const void* value,
+                                Uint32 len)
+{
+  return setBound(attr, type, value);
+}
+
+inline
+int
+NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* value,
+                                Uint32 len)
+{
+  return setBound(anAttrId, type, value);
+}
 
 #endif

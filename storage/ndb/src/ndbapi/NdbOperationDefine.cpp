@@ -340,6 +340,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   NdbRecAttr* tRecAttr;
   if ((tAttrInfo != NULL) &&
       (theStatus != Init)){
+    m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     if (theStatus != GetValue) {
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
@@ -404,15 +405,12 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 ******************************************************************************/
 int
 NdbOperation::setValue( const NdbColumnImpl* tAttrInfo, 
-			const char* aValuePassed, Uint32 len)
+			const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::setValue");
-  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
-                       tAttrInfo->m_name.c_str(),
-                       theOperationType,
-                       aValuePassed, len));
-  if (aValuePassed != NULL)
-    DBUG_DUMP("value", (char*)aValuePassed, len);
+  DBUG_PRINT("enter", ("col=%s op=%d val=%p",
+                       tAttrInfo->m_name.c_str(), theOperationType,
+                       aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;
@@ -483,18 +481,16 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   if (tAttrInfo->m_pk) {
     if (theOperationType == InsertRequest) {
-      DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed, len));
+      DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed));
     } else {
       setErrorCodeAbort(4202);      
       DBUG_RETURN(-1);
     }//if
   }//if
-  if (len > 8000) {
-    setErrorCodeAbort(4216);
-    DBUG_RETURN(-1);
-  }//if
   
+  // Insert Attribute Id into ATTRINFO part. 
   tAttrId = tAttrInfo->m_attrId;
+  m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
   const char *aValue = aValuePassed; 
   Uint32 ahValue;
   if (aValue == NULL) {
@@ -514,36 +510,15 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     }//if
   }//if
   
-  // Insert Attribute Id into ATTRINFO part. 
-  const Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
-
-#if 0
-  tAttrSize = tAttrInfo->theAttrSize;
-  tArraySize = tAttrInfo->theArraySize;
-  if (tArraySize == 0) {
-    setErrorCodeAbort(4201);      
-    return -1;
-  }//if
-  tAttrSizeInBits = tAttrSize*tArraySize;
-  tAttrSizeInWords = tAttrSizeInBits >> 5;
-#endif
-  const Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
-  if (len != sizeInBytes && (len != 0)) {
+  Uint32 len;
+  if (! tAttrInfo->get_var_length(aValue, len)) {
     setErrorCodeAbort(4209);
     DBUG_RETURN(-1);
-  }//if
-  const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
-  const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
-  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 
-					      totalSizeInWords << 2);
-  insertATTRINFO( ahValue );
+  }
 
-  /***********************************************************************
-   * Check if the pointer of the value passed is aligned on a 4 byte boundary.
-   * If so only assign the pointer to the internal variable aValue. 
-   * If it is not aligned then we start by copying the value to tempData and 
-   * use this as aValue instead.
-   *************************************************************************/
+  const Uint32 sizeInBytes = len;
+  const Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
+  
   const int attributeSize = sizeInBytes;
   const int slack = sizeInBytes & 3;
   
@@ -555,6 +530,20 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
       memset(&tmp[attributeSize], 0, (4 - slack));
     }//if
   }//if
+  
+  // Including bits in last word
+  const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; 
+  // Excluding bits in last word
+  const Uint32 sizeInWords = sizeInBytes / 4;          
+  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, sizeInBytes);
+  insertATTRINFO( ahValue );
+
+  /***********************************************************************
+   * Check if the pointer of the value passed is aligned on a 4 byte boundary.
+   * If so only assign the pointer to the internal variable aValue. 
+   * If it is not aligned then we start by copying the value to tempData and 
+   * use this as aValue instead.
+   *************************************************************************/
   
   tReturnCode = insertATTRINFOloop((Uint32*)aValue, sizeInWords);
   if (tReturnCode == -1) {
@@ -572,6 +561,10 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   theErrorLine++;  
   DBUG_RETURN(0);
+
+error:
+  setErrorCodeAbort(tReturnCode);
+  DBUG_RETURN(-1);  
 }//NdbOperation::setValue()
 
 NdbBlob*

@@ -77,7 +77,8 @@ HugoCalculator::calcValue(int record,
 			  int updates) const {
   
   Int32 i;
-  calcValue(record, attrib, updates, (char*)&i, sizeof(i));
+  Uint32 j;
+  calcValue(record, attrib, updates, (char*)&i, sizeof(i), &j);
 
   return i;
 }
@@ -94,10 +95,12 @@ HugoCalculator::calcValue(int record,
 			  int attrib, 
 			  int updates, 
 			  char* buf,
-			  int len) const {
+			  int len,
+			  Uint32 *outlen) const {
   Uint64 seed;
   const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
   Uint32 val;
+  * outlen = len;
   do
   {
     if (attrib == m_idCol)
@@ -128,9 +131,13 @@ HugoCalculator::calcValue(int record,
   val = myRand(&seed);  
   
   if(attr->getNullable() && (((val >> 16) & 255) > 220))
+  {
+    * outlen = 0;
     return NULL;
+  }
 
   int pos= 0;
+  char* dst= buf;
   switch(attr->getType()){
   case NdbDictionary::Column::Tinyint:
   case NdbDictionary::Column::Tinyunsigned:
@@ -172,34 +179,45 @@ HugoCalculator::calcValue(int record,
     break;
   case NdbDictionary::Column::Varbinary:
   case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Text:
-  case NdbDictionary::Column::Char:
+    len = 1 + (myRand(&seed) % (len - 1));
+    assert(len < 256);
+    * outlen = len + 1;
+    * buf = len;
+    dst++;
+    goto write_char;
   case NdbDictionary::Column::Longvarchar:
   case NdbDictionary::Column::Longvarbinary:
+    len = 1 + (myRand(&seed) % (len - 2));
+    assert(len < 65536);
+    * outlen = len + 2;
+    int2store(buf, len);
+    dst += 2;
+write_char:
+  case NdbDictionary::Column::Char:
   {
     char* ptr= (char*)&val;
     while(len >= 4)
     {
       len -= 4;
-      buf[pos++] = base64_table[ptr[0] & 0x3f];
-      buf[pos++] = base64_table[ptr[1] & 0x3f];
-      buf[pos++] = base64_table[ptr[2] & 0x3f];
-      buf[pos++] = base64_table[ptr[3] & 0x3f];
+      dst[pos++] = base64_table[ptr[0] & 0x3f];
+      dst[pos++] = base64_table[ptr[1] & 0x3f];
+      dst[pos++] = base64_table[ptr[2] & 0x3f];
+      dst[pos++] = base64_table[ptr[3] & 0x3f];
       val= myRand(&seed);
     }
     
     for(; len; len--, pos++)
-      buf[pos] = base64_table[ptr[len] & 0x3f];
+      dst[pos] = base64_table[ptr[len] & 0x3f];
 
     pos--;
     break;
   }
   case NdbDictionary::Column::Blob:
   case NdbDictionary::Column::Undefined:
+  case NdbDictionary::Column::Text:
     abort();
     break;
   }
-
   
   return buf;
 } 
@@ -216,9 +234,9 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
   for (int i = 0; i<m_tab.getNoOfColumns(); i++){
     if (i != m_updatesCol && id != m_idCol) {
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
-      Uint32 len = attr->getSizeInBytes();
+      Uint32 len = attr->getSizeInBytes(), real_len;
       char buf[8000];
-      const char* res = calcValue(id, i, updates, buf, len);
+      const char* res = calcValue(id, i, updates, buf, len, &real_len);
       if (res == NULL){
 	if (!pRow->attributeStore(i)->isNULL()){
 	  g_err << "|- NULL ERROR: expected a NULL but the column was not null" << endl;
@@ -226,7 +244,16 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	  result = -1;
 	}
       } else{
-	if (memcmp(res, pRow->attributeStore(i)->aRef(), len) != 0){
+	if (real_len != pRow->attributeStore(i)->get_size_in_bytes())
+	{
+	  g_err << "|- Invalid data found in attribute " << i << ": \""
+		<< "Length of expected=" << real_len << endl
+		<< "Lenght of read=" 
+		<< pRow->attributeStore(i)->get_size_in_bytes() << endl;
+	  result= -1;
+	}
+	else if (memcmp(res, pRow->attributeStore(i)->aRef(), real_len) != 0)
+	{
 	  g_err << "Column: " << attr->getName() << endl;
 	  const char* buf2 = pRow->attributeStore(i)->aRef();
 	  for (Uint32 j = 0; j < len; j++)
@@ -244,7 +271,7 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 		<< "\" != \"" << res << "\"" << endl
 		<< "Length of expected=" << (unsigned)strlen(res) << endl
 		<< "Lenght of read="
-		<< (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
+		<< pRow->attributeStore(i)->get_size_in_bytes() << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	  result = -1;
 	}

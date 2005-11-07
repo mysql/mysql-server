@@ -23,12 +23,14 @@
 
 struct KeyDescriptor
 {
-  KeyDescriptor () { noOfKeyAttr = hasCharAttr = noOfDistrKeys = 0; }
+  KeyDescriptor () { 
+    noOfKeyAttr = hasCharAttr = noOfDistrKeys = noOfVarKeys = 0; 
+  }
   
   Uint8 noOfKeyAttr;
   Uint8 hasCharAttr;
   Uint8 noOfDistrKeys;
-  Uint8 unused;
+  Uint8 noOfVarKeys;
   struct KeyAttr 
   {
     Uint32 attributeDescriptor;

@@ -35,14 +35,14 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   TablerecPtr regTabPtr;
   ljamEntry();
   regOperPtr.i = signal->theData[0];
-  ptrCheckGuard(regOperPtr, cnoOfOprec, operationrec);
+  c_operation_pool.getPtr(regOperPtr);
   regTabPtr.i = signal->theData[1];
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
   Uint32 requestInfo = signal->theData[3];
-
-  ndbrequire(regOperPtr.p->transstate == IDLE ||
-             ((regOperPtr.p->transstate == ERROR_WAIT_STORED_PROCREQ) &&
+  TransState trans_state= get_trans_state(regOperPtr.p);
+  ndbrequire(trans_state == TRANS_IDLE ||
+             ((trans_state == TRANS_ERROR_WAIT_STORED_PROCREQ) &&
              (requestInfo == ZSTORED_PROCEDURE_DELETE)));
   ndbrequire(regTabPtr.p->tableStatus == DEFINED);
   switch (requestInfo) {
@@ -81,10 +81,10 @@ void Dbtup::deleteScanProcedure(Signal* signal,
   c_storedProcPool.release(storedPtr);
   freeAttrinbufrec(firstAttrinbuf);
   regOperPtr->currentAttrinbufLen = 0;
-  regOperPtr->transstate = IDLE;
+  set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = storedProcId;
-  sendSignal(regOperPtr->userblockref, GSN_STORED_PROCCONF, signal, 2, JBB);
+  sendSignal(DBLQH_REF, GSN_STORED_PROCCONF, signal, 2, JBB);
 }//Dbtup::deleteScanProcedure()
 
 void Dbtup::scanProcedure(Signal* signal,
@@ -105,17 +105,17 @@ void Dbtup::scanProcedure(Signal* signal,
   storedPtr.p->storedProcLength = lenAttrInfo;
   storedPtr.p->storedLinkFirst = RNIL;
   storedPtr.p->storedLinkLast = RNIL;
-  regOperPtr->transstate = WAIT_STORED_PROCEDURE_ATTR_INFO;
+  set_trans_state(regOperPtr, TRANS_WAIT_STORED_PROCEDURE_ATTR_INFO);
   regOperPtr->attrinbufLen = lenAttrInfo;
   regOperPtr->currentAttrinbufLen = 0;
-  regOperPtr->pageOffset = storedPtr.i;
+  regOperPtr->storedProcPtr = storedPtr.i;
 }//Dbtup::scanProcedure()
 
 void Dbtup::copyProcedure(Signal* signal,
                           TablerecPtr regTabPtr,
                           Operationrec* regOperPtr) 
 {
-  Uint32 TnoOfAttributes = regTabPtr.p->noOfAttr;
+  Uint32 TnoOfAttributes = regTabPtr.p->m_no_of_attributes;
   scanProcedure(signal,
                 regOperPtr,
                 TnoOfAttributes);
@@ -126,21 +126,23 @@ void Dbtup::copyProcedure(Signal* signal,
     length++;
     if (length == 24) {
       ljam();
-      ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, length, 1, true));
+      ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, 
+					 signal->theData+1, length, true));
       length = 0;
     }//if
   }//for
   if (length != 0) {
     ljam();
-    ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, length, 1, true));
+    ndbrequire(storedProcedureAttrInfo(signal, regOperPtr, 
+				       signal->theData+1, length, true));
   }//if
   ndbrequire(regOperPtr->currentAttrinbufLen == 0);
 }//Dbtup::copyProcedure()
 
 bool Dbtup::storedProcedureAttrInfo(Signal* signal,
                                     Operationrec* regOperPtr,
+				    const Uint32 *data,
                                     Uint32 length,
-                                    Uint32 firstWord,
                                     bool copyProcedure) 
 {
   AttrbufrecPtr regAttrPtr;
@@ -182,7 +184,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
 
   regAttrPtr.p->attrbuf[ZBUF_DATA_LEN] = length;
   MEMCOPY_NO_WORDS(&regAttrPtr.p->attrbuf[0],
-                   &signal->theData[firstWord],
+                   data,
                    length);
 
   if (regOperPtr->currentAttrinbufLen < regOperPtr->attrinbufLen) {
@@ -196,7 +198,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   }//if
 
   StoredProcPtr storedPtr;
-  c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->pageOffset);
+  c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->storedProcPtr);
   ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
 
   regOperPtr->currentAttrinbufLen = 0;
@@ -204,10 +206,10 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   storedPtr.p->storedLinkLast = regOperPtr->lastAttrinbufrec;
   regOperPtr->firstAttrinbufrec = RNIL;
   regOperPtr->lastAttrinbufrec = RNIL;
-  regOperPtr->transstate = IDLE;
+  set_trans_state(regOperPtr, TRANS_IDLE);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = storedPtr.i;
-  sendSignal(regOperPtr->userblockref, GSN_STORED_PROCCONF, signal, 2, JBB);
+  sendSignal(DBLQH_REF, GSN_STORED_PROCCONF, signal, 2, JBB);
   return true;
 }//Dbtup::storedProcedureAttrInfo()
 
@@ -215,16 +217,16 @@ void Dbtup::storedSeizeAttrinbufrecErrorLab(Signal* signal,
                                             Operationrec* regOperPtr)
 {
   StoredProcPtr storedPtr;
-  c_storedProcPool.getPtr(storedPtr, (Uint32)regOperPtr->pageOffset);
+  c_storedProcPool.getPtr(storedPtr, regOperPtr->storedProcPtr);
   ndbrequire(storedPtr.p->storedCode == ZSCAN_PROCEDURE);
 
   storedPtr.p->storedLinkFirst = regOperPtr->firstAttrinbufrec;
   regOperPtr->firstAttrinbufrec = RNIL;
   regOperPtr->lastAttrinbufrec = RNIL;
-  regOperPtr->transstate = ERROR_WAIT_STORED_PROCREQ;
+  set_trans_state(regOperPtr, TRANS_ERROR_WAIT_STORED_PROCREQ);
   signal->theData[0] = regOperPtr->userpointer;
   signal->theData[1] = ZSTORED_SEIZE_ATTRINBUFREC_ERROR;
-  signal->theData[2] = regOperPtr->pageOffset;
-  sendSignal(regOperPtr->userblockref, GSN_STORED_PROCREF, signal, 3, JBB);
+  signal->theData[2] = regOperPtr->storedProcPtr;
+  sendSignal(DBLQH_REF, GSN_STORED_PROCREF, signal, 3, JBB);
 }//Dbtup::storedSeizeAttrinbufrecErrorLab()
 

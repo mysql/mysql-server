@@ -106,7 +106,11 @@ public:
       HashIndexTrigger = 7,   ///< Index maintenance, internal
       IndexTrigger = 8,       ///< Index maintenance, internal
       SubscriptionTrigger = 9,///< Backup or replication, internal
-      ReadOnlyConstraint = 10 ///< Trigger, internal
+      ReadOnlyConstraint = 10,///< Trigger, internal
+      Tablespace = 20,        ///< Tablespace
+      LogfileGroup = 21,      ///< Logfile group
+      Datafile = 22,          ///< Datafile
+      Undofile = 23           ///< Undofile
     };
 
     /**
@@ -155,7 +159,8 @@ public:
   };
 
   class Table; // forward declaration
-  
+  class Tablespace; // forward declaration
+
   /**
    * @class Column
    * @brief Represents a column in an NDB Cluster table
@@ -212,6 +217,34 @@ public:
       Timestamp = NDB_TYPE_TIMESTAMP  ///< Unix time
     };
 
+    /*
+     * Array type specifies internal attribute format.
+     *
+     * - ArrayTypeFixed is stored as fixed number of bytes.  This type
+     *   is fastest to access but can waste space.
+     *
+     * - ArrayTypeVar is stored as variable number of bytes with a fixed
+     *   overhead of 2 bytes.
+     *
+     * Default is ArrayTypeVar for Var* types and ArrayTypeFixed for
+     * others.  The default is normally ok.
+     */
+    enum ArrayType {
+      ArrayTypeFixed = NDB_ARRAYTYPE_FIXED,          // 0 length bytes
+      ArrayTypeShortVar = NDB_ARRAYTYPE_SHORT_VAR,   // 1 length bytes
+      ArrayTypeMediumVar = NDB_ARRAYTYPE_MEDIUM_VAR // 2 length bytes
+    };
+
+    /*
+     * Storage type specifies whether attribute is stored in memory or
+     * on disk.  Default is memory.  Disk attributes are potentially
+     * much slower to access and cannot be indexed in version 5.1.
+     */
+    enum StorageType {
+      StorageTypeMemory = NDB_STORAGETYPE_MEMORY,
+      StorageTypeDisk = NDB_STORAGETYPE_DISK
+    };
+
     /** 
      * @name General 
      * @{
@@ -237,6 +270,10 @@ public:
      *  Get number of column (horizontal position within table)
      */
     int getColumnNo() const;
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    int getAttrId() const;
+#endif
 
     /**
      * Check if column is equal to some other column
@@ -330,6 +367,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     inline bool getDistributionKey() const { return getPartitionKey(); };
 #endif
+
+    ArrayType getArrayType() const;
+    StorageType getStorageType() const;
 
     /** @} *******************************************************************/
 
@@ -439,6 +479,9 @@ public:
     { setPartitionKey(enable); };
 #endif
 
+    void setArrayType(ArrayType type);
+    void setStorageType(StorageType type);
+
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -456,6 +499,7 @@ public:
     static const Column * COMMIT_COUNT;
     static const Column * ROW_SIZE;
     static const Column * RANGE_NO;
+    static const Column * DISK_REF;
     static const Column * RECORDS_IN_RANGE;
     
     int getSizeInBytes() const;
@@ -703,6 +747,10 @@ public:
      * find the key faster but consume more memory.
      */
     void setMaxLoadFactor(int);
+
+    void setTablespace(const char * name);
+    void setTablespace(const class Tablespace &);
+    const char * getTablespace() const;
 
     /**
      * Get table object type
@@ -1122,6 +1170,158 @@ public:
     Event(NdbEventImpl&);
   };
 
+  struct AutoGrowSpecification {
+    Uint32 min_free;
+    Uint64 max_size;
+    Uint64 file_size;
+    const char * filename_pattern;
+  };
+
+  /**
+   * @class LogfileGroup
+   */
+  class LogfileGroup : public Object {
+  public:
+    LogfileGroup();
+    virtual ~LogfileGroup();
+
+    void setName(const char * name);
+    const char* getName() const;
+
+    void setUndoBufferSize(Uint32 sz);
+    Uint32 getUndoBufferSize() const;
+    
+    void setAutoGrowSpecification(const AutoGrowSpecification&);
+    const AutoGrowSpecification& getAutoGrowSpecification() const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbDictionaryImpl;
+    friend class NdbLogfileGroupImpl;
+    class NdbLogfileGroupImpl & m_impl;
+    LogfileGroup(NdbLogfileGroupImpl&);
+  };
+
+  /**
+   * @class Tablespace
+   */
+  class Tablespace : public Object {
+  public:
+    Tablespace();
+    virtual ~Tablespace();
+
+    void setName(const char * name);
+    const char* getName() const;
+
+    void setExtentSize(Uint32 sz);
+    Uint32 getExtentSize() const;
+
+    void setAutoGrowSpecification(const AutoGrowSpecification&);
+    const AutoGrowSpecification& getAutoGrowSpecification() const;
+
+    void setDefaultLogfileGroup(const char * name);
+    void setDefaultLogfileGroup(const class LogfileGroup&);
+    const char * getDefaultLogfileGroup() const;
+    
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbTablespaceImpl;
+    class NdbTablespaceImpl & m_impl;
+    Tablespace(NdbTablespaceImpl&);
+  };
+
+  class Datafile : public Object {
+  public:
+    Datafile();
+    virtual ~Datafile();
+
+    void setPath(const char * name);
+    const char* getPath() const;
+  
+    void setSize(Uint64);
+    Uint64 getSize() const;
+    Uint64 getFree() const;
+
+    void setTablespace(const char * name);
+    void setTablespace(const class Tablespace &);
+    const char * getTablespace() const;
+
+    void setNode(Uint32 nodeId);
+    Uint32 getNode() const;
+
+    Uint32 getFileNo() const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbDatafileImpl;
+    class NdbDatafileImpl & m_impl;
+    Datafile(NdbDatafileImpl&);
+  };
+
+  class Undofile : public Object {
+  public:
+    Undofile();
+    virtual ~Undofile();
+
+    void setPath(const char * path);
+    const char* getPath() const;
+  
+    void setSize(Uint64);
+    Uint64 getSize() const;
+    Uint64 getFree() const;
+
+    void setLogfileGroup(const char * name);
+    void setLogfileGroup(const class LogfileGroup &);
+    const char * getLogfileGroup() const;
+
+    void setNode(Uint32 nodeId);
+    Uint32 getNode() const;
+
+    Uint32 getFileNo() const;
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbUndofileImpl;
+    class NdbUndofileImpl & m_impl;
+    Undofile(NdbUndofileImpl&);
+  };
+
   /**
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
@@ -1356,6 +1556,30 @@ public:
 
     /** @} *******************************************************************/
 
+    /** @} *******************************************************************/
+    /** 
+     * @name Disk data objects
+     * @{
+     */
+    
+    int createLogfileGroup(const LogfileGroup &);
+    int dropLogfileGroup(const LogfileGroup&);
+    LogfileGroup getLogfileGroup(const char * name);
+
+    int createTablespace(const Tablespace &);
+    int dropTablespace(const Tablespace&);
+    Tablespace getTablespace(const char * name);
+
+    int createDatafile(const Datafile &, bool overwrite_existing = false);
+    int dropDatafile(const Datafile&);
+    Datafile getDatafile(Uint32 node, const char * path);
+    
+    int createUndofile(const Undofile &, bool overwrite_existing = false);
+    int dropUndofile(const Undofile&);
+    Undofile getUndofile(Uint32 node, const char * path);
+    
+    /** @} *******************************************************************/
+    
   protected:
     Dictionary(Ndb & ndb);
     ~Dictionary();

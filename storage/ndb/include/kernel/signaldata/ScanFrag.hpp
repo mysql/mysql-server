@@ -60,6 +60,7 @@ public:
   static Uint32 getTupScanFlag(const Uint32 & requestInfo);
   static Uint32 getAttrLen(const Uint32 & requestInfo);
   static Uint32 getScanPrio(const Uint32 & requestInfo);
+  static Uint32 getNoDiskFlag(const Uint32 & requestInfo);
   
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
@@ -70,6 +71,7 @@ public:
   static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
   static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
+  static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
 };
 
 class KeyInfo20 {
@@ -196,6 +198,7 @@ public:
  * Request Info
  *
  * a = Length of attrinfo    - 16 Bits (16-31)
+ * d = No disk               - 1  Bit 4
  * l = Lock Mode             - 1  Bit 5
  * h = Hold lock             - 1  Bit 7
  * k = Keyinfo               - 1  Bit 8
@@ -207,11 +210,12 @@ public:
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *      lxhkrztppppaaaaaaaaaaaaaaaa 
+ *     dlxhkrztppppaaaaaaaaaaaaaaaa 
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
 
+#define SF_NO_DISK_SHIFT     (4)
 #define SF_HOLD_LOCK_SHIFT   (7)
 #define SF_KEYINFO_SHIFT     (8)
 #define SF_READ_COMMITTED_SHIFT  (9)
@@ -340,6 +344,19 @@ void
 ScanFragReq::setAttrLen(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, SF_ATTR_LEN_MASK, "ScanFragReq::setAttrLen");
   requestInfo |= (val << SF_ATTR_LEN_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getNoDiskFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_NO_DISK_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setNoDiskFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setNoDiskFlag");
+  requestInfo |= (val << SF_NO_DISK_SHIFT);
 }
 
 inline

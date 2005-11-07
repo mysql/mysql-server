@@ -25,7 +25,7 @@ public:
    OpenFiles(){ }
    
   /* Get a pointer to the file with id */
-  AsyncFile* find(Uint16 id);
+  AsyncFile* find(Uint16 id) const;
   /* Insert file with id */
   bool insert(AsyncFile* file, Uint16 id);
   /* Erase file with id */
@@ -52,7 +52,7 @@ private:
 
 
 //*****************************************************************************
-inline AsyncFile* OpenFiles::find(Uint16 id){
+inline AsyncFile* OpenFiles::find(Uint16 id) const {
   for (unsigned i = 0; i < m_files.size(); i++){
     if (m_files[i].m_id == id){
       return m_files[i].m_file;

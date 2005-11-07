@@ -1863,6 +1863,14 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
     return;
   }
 
+  // quick hack for hash index build
+  if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) != ZREAD){
+    prepOpPtr.p->tckey.attrLen =
+      prepOpPtr.p->attrInfo.getSize() + opPtr.p->attrInfo.getSize();
+    TcKeyReq::setKeyLength(prepOpPtr.p->tckey.requestInfo, keyInfo->getSize());
+  }
+
+#if 0
   const Uint32 l1 = prepOpPtr.p->tckey.attrLen;
   const Uint32 l2 = 
     prepOpPtr.p->attrInfo.getSize() + opPtr.p->attrInfo.getSize();
@@ -1870,10 +1878,9 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) != ZREAD){
     ndbrequire(l1 == l2);
   } else {
-#if 0
     ndbout_c("TcKeyReq::Read");
-#endif
   }
+#endif
 
   releaseSections(signal);
   transPtr.p->noOfRetries = 3;

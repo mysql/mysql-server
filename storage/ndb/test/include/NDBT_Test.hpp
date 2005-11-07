@@ -41,6 +41,7 @@ public:
   NDBT_Context(Ndb_cluster_connection&);
   ~NDBT_Context();
   const NdbDictionary::Table* getTab();
+  const NdbDictionary::Table** getTables();
   int getNumTables() const;
   const char * getTableName(int) const;
   NDBT_TestSuite* getSuite();
@@ -82,6 +83,7 @@ public:
   bool setDbProperty(const char*, Uint32);
 
   void setTab(const NdbDictionary::Table*);
+  void addTab(const NdbDictionary::Table*);
   void setRemoteMgm(char * mgm);
 
   /**
@@ -105,7 +107,7 @@ private:
   void setCase(NDBT_TestCase*);
   void setNumRecords(int);
   void setNumLoops(int);
-  const NdbDictionary::Table* tab;
+  Vector<const NdbDictionary::Table*> tables;
   NDBT_TestSuite* suite;
   NDBT_TestCase* testcase;
   Ndb* ndb;
@@ -337,6 +339,7 @@ public:
   // to control the behaviour of the testsuite
   void setCreateTable(bool);     // Create table before test func is called
   void setCreateAllTables(bool); // Create all tables before testsuite is executed 
+  void setRunAllTables(bool); // Run once with all tables
 
   // Prints the testsuite, testcases and teststeps
   void printExecutionTree();
@@ -356,9 +359,10 @@ public:
   // Returns true if timing info should be printed
   bool timerIsOn();
 
-
   int addTest(NDBT_TestCase* pTest);
 
+  // Table create tweaks
+  int createHook(Ndb*, NdbDictionary::Table&, int when);
   Vector<BaseString> m_tables_in_test;
 private:
   int executeOne(Ndb_cluster_connection&,
@@ -382,6 +386,9 @@ private:
   int timer;
   NdbTimer testSuiteTimer;
   bool createTable;
+  bool diskbased;
+  bool runonce;
+  const char* tsname;
   bool createAllTables;
 };
 

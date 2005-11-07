@@ -54,7 +54,8 @@ struct BackupFormat {
   enum FileType {
     CTL_FILE = 1,
     LOG_FILE = 2,
-    DATA_FILE = 3
+    DATA_FILE = 3,
+    LCP_FILE = 4
   };
   
   /**
@@ -143,6 +144,17 @@ struct BackupFormat {
       Uint32 TriggerEvent; 
       Uint32 Data[1]; // Len = Length - 2
     };
+  };
+
+  /**
+   * LCP file format
+   */
+  struct LcpFile {
+    CtlFile::TableList TableList;
+    CtlFile::TableDescription TableDescription;
+    DataFile::FragmentHeader FragmentHeader;
+    DataFile::Record Record;
+    DataFile::FragmentFooter FragmentFooter;
   };
 };
 

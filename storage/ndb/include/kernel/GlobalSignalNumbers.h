@@ -23,7 +23,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 712;
+const GlobalSignalNumber MAX_GSN = 730;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -124,30 +124,34 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
  */
 
 #define GSN_ACC_ABORTCONF               67
-/* 68 unused */
-/* 69 unused */
+/* 68 not unused */
+/* 69 not unused */
 /* 70 unused */
 #define GSN_ACC_ABORTREQ                71
 #define GSN_ACC_CHECK_SCAN              72
 #define GSN_ACC_COMMITCONF              73
 #define GSN_ACC_COMMITREQ               74
-#define GSN_ACC_CONTOPCONF              75
-#define GSN_ACC_CONTOPREQ               76
-#define GSN_ACC_LCPCONF                 77
-#define GSN_ACC_LCPREF                  78
-#define GSN_ACC_LCPREQ                  79
-#define GSN_ACC_LCPSTARTED              80
+/* 75 unused */
+/* 76 unused */
+
+/* 79 unused */
+/* 78 unused */
+/* 77 unused */
+
+/* 80 unused */
 #define GSN_ACC_OVER_REC                81
 
-#define GSN_ACC_SAVE_PAGES              83
+/* 83 unused */
 #define GSN_ACC_SCAN_INFO               84
 #define GSN_ACC_SCAN_INFO24             85
 #define GSN_ACC_SCANCONF                86
 #define GSN_ACC_SCANREF                 87
 #define GSN_ACC_SCANREQ                 88
-#define GSN_ACC_SRCONF                  89
-#define GSN_ACC_SRREF                   90
-#define GSN_ACC_SRREQ                   91
+
+#define GSN_RESTORE_LCP_REQ             91
+#define GSN_RESTORE_LCP_REF             90
+#define GSN_RESTORE_LCP_CONF            89
+
 #define GSN_ACC_TO_CONF                 92
 #define GSN_ACC_TO_REF                  93
 #define GSN_ACC_TO_REQ                  94
@@ -331,7 +335,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIVERIFYREQ                 241
 #define GSN_ENABLE_COMORD               242
 #define GSN_END_LCPCONF                 243
+#define GSN_END_LCP_CONF                243
 #define GSN_END_LCPREQ                  244
+#define GSN_END_LCP_REQ                 244
 #define GSN_END_TOCONF                  245
 #define GSN_END_TOREQ                   246
 #define GSN_EVENT_REP                   247
@@ -372,21 +378,24 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_GCP_SAVEREF                 282
 #define GSN_GCP_SAVEREQ                 283
 #define GSN_GCP_TCFINISHED              284
-#define GSN_SR_FRAGIDCONF               285
-#define GSN_SR_FRAGIDREF                286
-#define GSN_SR_FRAGIDREQ                287
+
+/* 285 unused */
+/* 286 unused */
+/* 287 unused */
 #define GSN_GETGCICONF                  288
 #define GSN_GETGCIREQ                   289
 #define GSN_HOT_SPAREREP                290
 #define GSN_INCL_NODECONF               291
 #define GSN_INCL_NODEREF                292
 #define GSN_INCL_NODEREQ                293
-#define GSN_LCP_FRAGIDCONF              294
-#define GSN_LCP_FRAGIDREF               295
-#define GSN_LCP_FRAGIDREQ               296
-#define GSN_LCP_HOLDOPCONF              297
-#define GSN_LCP_HOLDOPREF               298
-#define GSN_LCP_HOLDOPREQ               299
+
+#define GSN_LCP_PREPARE_REQ             296
+#define GSN_LCP_PREPARE_REF             295
+#define GSN_LCP_PREPARE_CONF            294
+
+/* 297 unused */
+/* 298 unused */
+/* 299 unused */
 #define GSN_SHRINKCHECK2                301
 #define GSN_GET_SCHEMA_INFOREQ          302
 /* 303 not unused */
@@ -518,16 +527,18 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUP_ATTRINFO                418
 #define GSN_TUP_COMMITREQ               419
 /* 420 unused */
-#define GSN_TUP_LCPCONF                 421
-#define GSN_TUP_LCPREF                  422
-#define GSN_TUP_LCPREQ                  423
-#define GSN_TUP_LCPSTARTED              424
-#define GSN_TUP_PREPLCPCONF             425
-#define GSN_TUP_PREPLCPREF              426
-#define GSN_TUP_PREPLCPREQ              427
-#define GSN_TUP_SRCONF                  428
-#define GSN_TUP_SRREF                   429
-#define GSN_TUP_SRREQ                   430
+
+/* 421 unused */
+/* 422 unused */
+/* 423 unused */
+
+/* 424 unused */
+/* 425 unused */
+/* 426 unused */
+/* 427 unused */
+/* 428 unused */
+/* 429 unused */
+/* 430 unused */
 #define GSN_TUPFRAGCONF                 431
 #define GSN_TUPFRAGREF                  432
 #define GSN_TUPFRAGREQ                  433
@@ -850,12 +861,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CREATE_SUBID_REF            662      
 #define GSN_CREATE_SUBID_CONF           663      
 
-#define GSN_664      
-#define GSN_665
-#define GSN_666    
-#define GSN_667      
-#define GSN_668
-#define GSN_669    
+/* used 664 */
+/* used 665 */
+/* used 666 */
+/* used 667 */
+/* used 668 */
+/* used 669 */
 
 /*
  * TUX
@@ -931,5 +942,43 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_ACC_LOCKREQ			711
 #define GSN_READ_PSEUDO_REQ             712
+
+/**
+ * Filegroup 
+ */
+#define GSN_CREATE_FILEGROUP_REQ        713
+#define GSN_CREATE_FILEGROUP_REF        714
+#define GSN_CREATE_FILEGROUP_CONF       715
+
+#define GSN_CREATE_FILE_REQ             716
+#define GSN_CREATE_FILE_REF             717
+#define GSN_CREATE_FILE_CONF            718
+
+#define GSN_DROP_FILEGROUP_REQ          719
+#define GSN_DROP_FILEGROUP_REF          720
+#define GSN_DROP_FILEGROUP_CONF         721
+
+#define GSN_DROP_FILE_REQ               722
+#define GSN_DROP_FILE_REF               723
+#define GSN_DROP_FILE_CONF              724
+
+#define GSN_CREATE_OBJ_REQ              725
+#define GSN_CREATE_OBJ_REF              726
+#define GSN_CREATE_OBJ_CONF             727
+
+#define GSN_DROP_OBJ_REQ                728
+#define GSN_DROP_OBJ_REF                729
+#define GSN_DROP_OBJ_CONF               730
+
+#define GSN_ALLOC_EXTENT_REQ             68
+#define GSN_FREE_EXTENT_REQ              69
+
+#define GSN_DICT_COMMIT_REQ             664
+#define GSN_DICT_COMMIT_REF             665
+#define GSN_DICT_COMMIT_CONF            666
+
+#define GSN_DICT_ABORT_REQ              667
+#define GSN_DICT_ABORT_REF              668
+#define GSN_DICT_ABORT_CONF             669
 
 #endif

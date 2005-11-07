@@ -27,6 +27,7 @@ class KeyInfo {
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
+  friend class Restore;
 
   /**
    * Reciver(s)

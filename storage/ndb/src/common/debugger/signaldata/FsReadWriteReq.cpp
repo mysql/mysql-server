@@ -47,6 +47,9 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
   case FsReadWriteReq::fsFormatListOfMemPages:
     fprintf(output, "List of mem pages)\n");
     break;
+  case FsReadWriteReq::fsFormatGlobalPage:
+    fprintf(output, "List of global pages)\n");
+    break;
   default:
     fprintf(output, "fsFormatMax not handled\n");
     ret = false;
@@ -73,6 +76,11 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
     break;
   case FsReadWriteReq::fsFormatListOfMemPages:
     for (i= 0; i < (sig->numberOfPages + 1); i++){
+      fprintf(output, " H\'%.8x, ", sig->data.pageData[i]);
+    }
+    break;
+  case FsReadWriteReq::fsFormatGlobalPage:
+    for (i= 0; i < sig->numberOfPages; i++){
       fprintf(output, " H\'%.8x, ", sig->data.pageData[i]);
     }
     break;

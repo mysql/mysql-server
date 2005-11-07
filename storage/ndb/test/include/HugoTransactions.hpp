@@ -33,7 +33,8 @@ public:
 		int batch = 512,
 		bool allowConstraintViolation = true,
 		int doSleep = 0,
-                bool oneTrans = false);
+                bool oneTrans = false,
+		int updateValue = 0);
 
   int scanReadRecords(Ndb*, 
 		      int records,

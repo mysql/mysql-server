@@ -238,7 +238,7 @@ void
 Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 {
   ConstData keyAttrs = c_keyAttrs; // global
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   const Uint32 tupVersion = ent.m_tupVersion;
   ndbrequire(start < frag.m_numAttrs);
@@ -274,7 +274,7 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 void
 Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
 {
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData, true);
   jamEntry();

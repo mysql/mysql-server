@@ -518,7 +518,8 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    int batch,
 			    bool allowConstraintViolation,
 			    int doSleep,
-                            bool oneTrans){
+                            bool oneTrans,
+			    int value){
   int             check, a;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -573,7 +574,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
       }
     }
 
-    if(pkInsertRecord(pNdb, c, batch) != NDBT_OK)
+    if(pkInsertRecord(pNdb, c, batch, value) != NDBT_OK)
     { 
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);

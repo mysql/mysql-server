@@ -658,14 +658,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      */
     // Can keep 65536 pages (= 0.5 GByte)
     cfg.put(CFG_ACC_DIR_RANGE, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas); 
+	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas); 
     
     cfg.put(CFG_ACC_DIR_ARRAY,
 	    (noOfIndexPages >> 8) + 
-	    4 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     cfg.put(CFG_ACC_FRAGMENT,
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     /*-----------------------------------------------------------------------*/
     // The extra operation records added are used by the scan and node 
@@ -681,13 +681,10 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     
     cfg.put(CFG_ACC_OVERFLOW_RECS,
 	    noOfIndexPages + 
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     cfg.put(CFG_ACC_PAGE8, 
 	    noOfIndexPages + 32);
-    
-    cfg.put(CFG_ACC_ROOT_FRAG, 
-	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
@@ -771,7 +768,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tup Size Alt values
      */
     cfg.put(CFG_TUP_FRAG, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
 	    noOfLocalOperations + 50);
@@ -780,14 +777,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfDataPages);
     
     cfg.put(CFG_TUP_PAGE_RANGE, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_TABLE, 
 	    noOfMetaTables);
     
     cfg.put(CFG_TUP_TABLE_DESC, 
-	    2 * 6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
-	    2 * 10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
+	    6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
+	    10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);
@@ -801,7 +798,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables /*noOfOrderedIndexes*/);
     
     cfg.put(CFG_TUX_FRAGMENT,
-	    2 * NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
+	    NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
     
     cfg.put(CFG_TUX_ATTRIBUTE, 
 	    noOfOrderedIndexes * 4);

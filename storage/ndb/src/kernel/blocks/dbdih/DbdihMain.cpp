@@ -639,9 +639,11 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     c_copyGCISlave.m_expectedNextWord += CopyGCIReq::DATA_SIZE;
     return;
   }//if
-  
+
+  Uint32 tmp= SYSFILE->m_restart_seq;
   memcpy(sysfileData, cdata, sizeof(sysfileData));
-  
+  SYSFILE->m_restart_seq = tmp;
+
   c_copyGCISlave.m_copyReason = reason;
   c_copyGCISlave.m_senderRef  = signal->senderBlockRef();
   c_copyGCISlave.m_senderData = copyGCI->anyData;
@@ -1613,12 +1615,15 @@ void Dbdih::execSTART_MECONF(Signal* signal)
    *
    * But dont copy lastCompletedGCI:s
    */
+  Uint32 key = SYSFILE->m_restart_seq;
   Uint32 tempGCP[MAX_NDB_NODES];
   for(i = 0; i < MAX_NDB_NODES; i++)
     tempGCP[i] = SYSFILE->lastCompletedGCI[i];
 
   for(i = 0; i < Sysfile::SYSFILE_SIZE32; i++)
     sysfileData[i] = cdata[i];
+
+  SYSFILE->m_restart_seq = key;
   for(i = 0; i < MAX_NDB_NODES; i++)
     SYSFILE->lastCompletedGCI[i] = tempGCP[i];
 
@@ -3473,6 +3478,7 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE ALSO COPY TO OUR OWN NODE. TO ENABLE US TO DO THIS PROPERLY WE   */
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
+  globalData.m_restart_seq = ++SYSFILE->m_restart_seq;
   closeFile(signal, filePtr);
   filePtr.p->reqStatus = FileRecord::CLOSING_GCP;
 }//Dbdih::readingGcpLab()
@@ -7907,6 +7913,10 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     rep->gci = coldgcp;
     sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
 	       SubGcpCompleteRep::SignalLength, JBB);
+
+    EXECUTE_DIRECT(LGMAN, GSN_SUB_GCP_COMPLETE_REP, signal, 
+		   SubGcpCompleteRep::SignalLength);
+    jamEntry();
   }
   
   jam();
@@ -11191,6 +11201,8 @@ void Dbdih::initRestartInfo()
     SYSFILE->takeOver[i] = 0;
   }//for
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+  srand(time(0));
+  globalData.m_restart_seq = SYSFILE->m_restart_seq = 0;
 }//Dbdih::initRestartInfo()
 
 /*--------------------------------------------------------------------*/

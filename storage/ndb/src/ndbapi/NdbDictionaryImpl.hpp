@@ -32,13 +32,17 @@
 
 class NdbDictObjectImpl {
 public:
+  int m_id;
   Uint32 m_version;
+  NdbDictionary::Object::Type m_type;
   NdbDictionary::Object::Status m_status;
   
   bool change();
 protected:
-  NdbDictObjectImpl() :
+  NdbDictObjectImpl(NdbDictionary::Object::Type type) :
+    m_type(type),
     m_status(NdbDictionary::Object::New) {
+    m_id = -1;
   }
 };
 
@@ -59,10 +63,15 @@ public:
   int m_precision;
   int m_scale;
   int m_length;
+  int m_column_no;
   CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
-  bool m_distributionKey;
+  /*
+   * Since "none" is "all" we distinguish between
+   * 1-set by us, 2-set by user
+   */
+  Uint32 m_distributionKey;
   bool m_nullable;
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
@@ -73,7 +82,13 @@ public:
    * Internal types and sizes, and aggregates
    */
   Uint32 m_attrSize;            // element size (size when arraySize==1)
-  Uint32 m_arraySize;           // length or length+2 for Var* types
+  Uint32 m_arraySize;           // length or maxlength+1/2 for Var* types
+  Uint32 m_arrayType;           // NDB_ARRAYTYPE_FIXED or _VAR
+  Uint32 m_storageType;         // NDB_STORAGETYPE_MEMORY or _DISK
+  /*
+   * NdbTableImpl: if m_pk, 0-based index of key in m_attrId order
+   * NdbIndexImpl: m_column_no of primary table column
+   */
   Uint32 m_keyInfoPos;
   // TODO: use bits in attr desc 2
   bool getInterpretableType() const ;
@@ -91,6 +106,9 @@ public:
   NdbDictionary::Column * m_facade;
 
   static NdbDictionary::Column * create_pseudo(const char *);
+
+  // Get total length in bytes, used by NdbOperation
+  bool get_var_length(const void* value, Uint32& len) const;
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {
@@ -102,17 +120,20 @@ public:
   void init();
   void setName(const char * name);
   const char * getName() const;
+  void setFrm(const void* data, Uint32 len);
+  const void * getFrmData() const;
+  Uint32 getFrmLength() const;
   const char * getMysqlName() const;
   void updateMysqlName();
 
   Uint32 m_changeMask;
-  Uint32 m_tableId;
   Uint32 m_primaryTableId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_mysqlName;
   BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
+  UtilBuffer m_newFrm; // Used for alter table
   UtilBuffer m_ng;
   NdbDictionary::Object::FragmentType m_fragmentType;
 
@@ -122,6 +143,7 @@ public:
   Uint32 m_columnHashMask;
   Vector<Uint32> m_columnHash;
   Vector<NdbColumnImpl *> m_columns;
+  void computeAggregates();
   void buildColumnHash(); 
 
   /**
@@ -149,12 +171,13 @@ public:
    * Index only stuff
    */
   BaseString m_primaryTable;
-  NdbDictionary::Index::Type m_indexType;
+  NdbDictionary::Object::Type m_indexType;
 
   /**
    * Aggregates
    */
   Uint8 m_noOfKeys;
+  // if all pk = dk then this is zero!
   Uint8 m_noOfDistributionKeys;
   Uint8 m_noOfBlobs;
   
@@ -174,6 +197,13 @@ public:
    * Return count
    */
   Uint32 get_nodes(Uint32 hashValue, const Uint16** nodes) const ;
+
+  /**
+   * Disk stuff
+   */
+  BaseString m_tablespace_name;
+  Uint32 m_tablespace_id;
+  Uint32 m_tablespace_version;
 };
 
 class NdbIndexImpl : public NdbDictionary::Index, public NdbDictObjectImpl {
@@ -189,13 +219,11 @@ public:
   const char * getTable() const;
   const NdbTableImpl * getIndexTable() const;
 
-  Uint32 m_indexId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
   Vector<int> m_key_ids;
-  NdbDictionary::Index::Type m_type;
 
   bool m_logging;
   
@@ -250,6 +278,79 @@ public:
   NdbDictionary::Event * m_facade;
 };
 
+struct NdbFilegroupImpl : public NdbDictObjectImpl {
+  NdbFilegroupImpl(NdbDictionary::Object::Type t);
+
+  BaseString m_name;
+  NdbDictionary::AutoGrowSpecification m_grow_spec;
+
+  union {
+    Uint32 m_extent_size;
+    Uint32 m_undo_buffer_size;
+  };
+
+  BaseString m_logfile_group_name;
+  Uint32 m_logfile_group_id;
+  Uint32 m_logfile_group_version;
+};
+
+class NdbTablespaceImpl : public NdbDictionary::Tablespace, 
+			  public NdbFilegroupImpl {
+public:
+  NdbTablespaceImpl();
+  NdbTablespaceImpl(NdbDictionary::Tablespace &);
+  ~NdbTablespaceImpl();
+
+  static NdbTablespaceImpl & getImpl(NdbDictionary::Tablespace & t);
+  static const NdbTablespaceImpl & getImpl(const NdbDictionary::Tablespace &);
+  NdbDictionary::Tablespace * m_facade;
+};
+
+class NdbLogfileGroupImpl : public NdbDictionary::LogfileGroup, 
+			    public NdbFilegroupImpl {
+public:
+  NdbLogfileGroupImpl();
+  NdbLogfileGroupImpl(NdbDictionary::LogfileGroup &);
+  ~NdbLogfileGroupImpl();
+
+  static NdbLogfileGroupImpl & getImpl(NdbDictionary::LogfileGroup & t);
+  static const NdbLogfileGroupImpl& getImpl(const 
+					    NdbDictionary::LogfileGroup&);
+  NdbDictionary::LogfileGroup * m_facade;
+};
+
+struct NdbFileImpl : public NdbDictObjectImpl {
+  NdbFileImpl(NdbDictionary::Object::Type t);
+
+  Uint64 m_size;
+  Uint32 m_free;
+  BaseString m_path;
+  BaseString m_filegroup_name;
+  Uint32 m_filegroup_id;
+  Uint32 m_filegroup_version;
+};
+
+class NdbDatafileImpl : public NdbDictionary::Datafile, public NdbFileImpl {
+public:
+  NdbDatafileImpl();
+  NdbDatafileImpl(NdbDictionary::Datafile &);
+  ~NdbDatafileImpl();
+
+  static NdbDatafileImpl & getImpl(NdbDictionary::Datafile & t);
+  static const NdbDatafileImpl & getImpl(const NdbDictionary::Datafile & t);
+  NdbDictionary::Datafile * m_facade;
+};
+
+class NdbUndofileImpl : public NdbDictionary::Undofile, public NdbFileImpl {
+public:
+  NdbUndofileImpl();
+  NdbUndofileImpl(NdbDictionary::Undofile &);
+  ~NdbUndofileImpl();
+
+  static NdbUndofileImpl & getImpl(NdbDictionary::Undofile & t);
+  static const NdbUndofileImpl & getImpl(const NdbDictionary::Undofile & t);
+  NdbDictionary::Undofile * m_facade;
+};
 
 class NdbDictInterface {
 public:
@@ -264,39 +365,22 @@ public:
   bool setTransporter(class TransporterFacade * tf);
   
   // To abstract the stuff thats made in all create/drop/lists below
-  int
-  dictSignal(NdbApiSignal* signal, 
-	     LinearSectionPtr ptr[3], int noLPTR,
-	     const int useMasterNodeId,
-	     const Uint32 RETRIES,
-	     const WaitSignalType wst,
-	     const int theWait,
-	     const int *errcodes,
-	     const int noerrcodes,
-	     const int temporaryMask = 0);
+  int dictSignal(NdbApiSignal* signal, LinearSectionPtr ptr[3], int secs,
+		 int nodeId, // -1 any, 0 = master, >1 = specified
+		 WaitSignalType wst,
+		 int timeout, Uint32 RETRIES,
+		 const int *errcodes = 0, int temporaryMask = 0);
 
   int createOrAlterTable(class Ndb & ndb, NdbTableImpl &, bool alter);
 
   int createTable(class Ndb & ndb, NdbTableImpl &);
-  int createTable(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-
   int alterTable(class Ndb & ndb, NdbTableImpl &);
-  int alterTable(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
+  int dropTable(const NdbTableImpl &);
 
-  int createIndex(class Ndb & ndb,
-		  NdbIndexImpl &, 
-		  const NdbTableImpl &);
-  int createIndex(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
+  int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &);
+  int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
   
   int createEvent(class Ndb & ndb, NdbEventImpl &, int getFlag);
-  int createEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
-  
-  int dropTable(const NdbTableImpl &);
-  int dropTable(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-
-  int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
-  int dropIndex(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
@@ -317,10 +401,27 @@ public:
   static int parseTableInfo(NdbTableImpl ** dst, 
 			    const Uint32 * data, Uint32 len,
 			    bool fullyQualifiedNames);
+
+  static int parseFileInfo(NdbFileImpl &dst, 
+			   const Uint32 * data, Uint32 len);
+  
+  static int parseFilegroupInfo(NdbFilegroupImpl &dst, 
+				const Uint32 * data, Uint32 len);
+  
+  int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, bool overwrite = false);
+  int drop_file(const NdbFileImpl &);
+  int create_filegroup(const NdbFilegroupImpl &);
+  int drop_filegroup(const NdbFilegroupImpl &);
+  
+  int get_filegroup(NdbFilegroupImpl&, NdbDictionary::Object::Type, int);
+  int get_filegroup(NdbFilegroupImpl&,NdbDictionary::Object::Type,const char*);
+  int get_file(NdbFileImpl&, NdbDictionary::Object::Type, int, int);
+  int get_file(NdbFileImpl&, NdbDictionary::Object::Type, int, const char *);
   
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
+  
   const NdbError &getNdbError() const;  
   NdbError & m_error;
 private:
@@ -363,6 +464,18 @@ private:
   void execDROP_TABLE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execLIST_TABLES_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
+  void execCREATE_FILE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execCREATE_FILE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  
+  void execCREATE_FILEGROUP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execCREATE_FILEGROUP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+
+  void execDROP_FILE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execDROP_FILE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  
+  void execDROP_FILEGROUP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  void execDROP_FILEGROUP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
+  
   void execWAIT_GCP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execWAIT_GCP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
@@ -380,7 +493,7 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int createBlobTables(NdbTableImpl &);
+  int createBlobTables(NdbTableImpl& org, NdbTableImpl & created);
   int addBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
@@ -414,7 +527,18 @@ public:
 			  const char * tableName);
   NdbEventImpl * getEvent(const char * eventName);
   NdbEventImpl * getEventImpl(const char * internalName);
-  
+
+  int createDatafile(const NdbDatafileImpl &, bool force = false);
+  int dropDatafile(const NdbDatafileImpl &);
+  int createUndofile(const NdbUndofileImpl &, bool force = false);
+  int dropUndofile(const NdbUndofileImpl &);
+
+  int createTablespace(const NdbTablespaceImpl &);
+  int dropTablespace(const NdbTablespaceImpl &);
+
+  int createLogfileGroup(const NdbLogfileGroupImpl &);
+  int dropLogfileGroup(const NdbLogfileGroupImpl &);
+
   const NdbError & getNdbError() const;
   NdbError m_error;
   Uint32 m_local_table_data_size;
@@ -490,6 +614,25 @@ bool
 NdbColumnImpl::getBlobType() const {
   return (m_type == NdbDictionary::Column::Blob ||
 	  m_type == NdbDictionary::Column::Text);
+}
+
+inline
+bool
+NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
+{
+  Uint32 max_len = m_attrSize * m_arraySize;
+  switch (m_arrayType) {
+  case NDB_ARRAYTYPE_SHORT_VAR:
+    len = 1 + *((Uint8*)value);
+    break;
+  case NDB_ARRAYTYPE_MEDIUM_VAR:
+    len = 2 + uint2korr((char*)value);
+    break;
+  default:
+    len = max_len;
+    return true;
+  }
+  return (len <= max_len);
 }
 
 inline
@@ -710,5 +853,55 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   m_error.code= 4243;
   return 0;
 }
+
+inline
+NdbTablespaceImpl &
+NdbTablespaceImpl::getImpl(NdbDictionary::Tablespace & t){
+  return t.m_impl;
+}
+
+inline
+const NdbTablespaceImpl &
+NdbTablespaceImpl::getImpl(const NdbDictionary::Tablespace & t){
+  return t.m_impl;
+}
+
+inline
+NdbLogfileGroupImpl &
+NdbLogfileGroupImpl::getImpl(NdbDictionary::LogfileGroup & t){
+  return t.m_impl;
+}
+
+inline
+const NdbLogfileGroupImpl &
+NdbLogfileGroupImpl::getImpl(const NdbDictionary::LogfileGroup & t){
+  return t.m_impl;
+}
+
+inline
+NdbDatafileImpl &
+NdbDatafileImpl::getImpl(NdbDictionary::Datafile & t){
+  return t.m_impl;
+}
+
+inline
+const NdbDatafileImpl &
+NdbDatafileImpl::getImpl(const NdbDictionary::Datafile & t){
+  return t.m_impl;
+}
+
+inline
+NdbUndofileImpl &
+NdbUndofileImpl::getImpl(NdbDictionary::Undofile & t){
+  return t.m_impl;
+}
+
+inline
+const NdbUndofileImpl &
+NdbUndofileImpl::getImpl(const NdbDictionary::Undofile & t){
+  return t.m_impl;
+}
+
+
 
 #endif

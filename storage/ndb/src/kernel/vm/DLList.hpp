@@ -24,16 +24,24 @@
  * Template class used for implementing an
  *   list of object retreived from a pool
  */
-template <class T>
+template <class T, class U = T>
 class DLList {
 public:
   /**
    * List head
    */
-  struct Head {
-    Head();
+  struct HeadPOD {
     Uint32 firstItem;
     inline bool isEmpty() const { return firstItem == RNIL; }
+    inline void init () { firstItem = RNIL; }
+  };
+
+  struct Head : public HeadPOD {
+    Head();
+    Head& operator=(const HeadPOD& src) {
+      this->firstItem = src.firstItem;
+      return *this;
+    }
   };
   
   DLList(ArrayPool<T> & thePool);
@@ -58,13 +66,6 @@ public:
   bool findId(Uint32 i) const;
   
   /**
-   * Allocate <b>n</b>objects from pool
-   *
-   * Return i value of first object allocated or RNIL if fails
-   */
-  bool seizeN(Ptr<T> &, Uint32 n);
-
-  /**
    * Return an object to pool
    */
   void release(Uint32 i);
@@ -79,6 +80,11 @@ public:
    */
   void release();
 
+  /**
+   * Remove all objects from list
+   */
+  void remove();
+  
   /**
    * Add object to list 
    * 
@@ -138,7 +144,7 @@ public:
     while(i != RNIL){
       c++;
       const T * t = thePool.getPtr(i);
-      i = t->nextList;
+      i = t->U::nextList;
     }
     return c;
   }
@@ -152,7 +158,7 @@ public:
     while(i != RNIL){
       T * t = thePool.getPtr(i);
       t->print(out); out << " ";
-      i = t->nextList;
+      i = t->U::nextList;
     }
   }
 
@@ -163,11 +169,11 @@ protected:
   ArrayPool<T> & thePool;
 };
 
-template<class T>
-class LocalDLList : public DLList<T> {
+template <class T, class U = T>
+class LocalDLList : public DLList<T,U> {
 public:
-  LocalDLList(ArrayPool<T> & thePool, typename DLList<T>::Head & _src)
-    : DLList<T>(thePool), src(_src)
+  LocalDLList(ArrayPool<T> & thePool, typename DLList<T,U>::HeadPOD & _src)
+    : DLList<T,U>(thePool), src(_src)
   {
     this->head = src;
   }
@@ -176,19 +182,19 @@ public:
     src = this->head;
   }
 private:
-  typename DLList<T>::Head & src;
+  typename DLList<T,U>::HeadPOD & src;
 };
 
-template <class T>
+template <class T, class U>
 inline
-DLList<T>::DLList(ArrayPool<T> & _pool):
+DLList<T,U>::DLList(ArrayPool<T> & _pool):
   thePool(_pool){
 }
 
-template<class T>
+template <class T, class U>
 inline
-DLList<T>::Head::Head(){
-  firstItem = RNIL;
+DLList<T,U>::Head::Head(){
+  this->init();
 }
 
 /**
@@ -196,10 +202,10 @@ DLList<T>::Head::Head(){
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::seize(Ptr<T> & p){
+DLList<T,U>::seize(Ptr<T> & p){
   if(thePool.seize(p)){
     add(p);
     return true;
@@ -212,10 +218,10 @@ DLList<T>::seize(Ptr<T> & p){
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::seizeId(Ptr<T> & p, Uint32 ir){
+DLList<T,U>::seizeId(Ptr<T> & p, Uint32 ir){
   if(thePool.seizeId(p, ir)){
     add(p);
     return true;
@@ -223,46 +229,46 @@ DLList<T>::seizeId(Ptr<T> & p, Uint32 ir){
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::findId(Uint32 i) const {
+DLList<T,U>::findId(Uint32 i) const {
   return thePool.findId(i);
 }
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::add(Ptr<T> & p){
+DLList<T,U>::add(Ptr<T> & p){
   T * t = p.p;
   Uint32 ff = head.firstItem;
   
-  t->nextList = ff;
-  t->prevList = RNIL;
+  t->U::nextList = ff;
+  t->U::prevList = RNIL;
   head.firstItem = p.i;
   
   if(ff != RNIL){
     T * t2 = thePool.getPtr(ff);
-    t2->prevList = p.i;
+    t2->U::prevList = p.i;
   }
 }
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::remove(Ptr<T> & p){
+DLList<T,U>::remove(Ptr<T> & p){
   T * t = p.p;
-  Uint32 ni = t->nextList;
-  Uint32 pi = t->prevList;
+  Uint32 ni = t->U::nextList;
+  Uint32 pi = t->U::prevList;
 
   if(ni != RNIL){
     T * t = thePool.getPtr(ni);
-    t->prevList = pi;
+    t->U::prevList = pi;
   }
   
   if(pi != RNIL){
     T * t = thePool.getPtr(pi);
-    t->nextList = ni;
+    t->U::nextList = ni;
   } else {
     head.firstItem = ni;
   }
@@ -271,10 +277,10 @@ DLList<T>::remove(Ptr<T> & p){
 /**
  * Return an object to pool
  */
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::release(Uint32 i){
+DLList<T,U>::release(Uint32 i){
   Ptr<T> p;
   p.i = i;
   p.p = thePool.getPtr(i);
@@ -284,45 +290,52 @@ DLList<T>::release(Uint32 i){
 /**
  * Return an object to pool
  */
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::release(Ptr<T> & p){
+DLList<T,U>::release(Ptr<T> & p){
   remove(p);
   thePool.release(p.i);
 }  
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::release(){
+DLList<T,U>::release(){
   while(head.firstItem != RNIL){
     const T * t = thePool.getPtr(head.firstItem);
     const Uint32 i = head.firstItem;
-    head.firstItem = t->nextList;
+    head.firstItem = t->U::nextList;
     thePool.release(i);
   }
 }  
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::getPtr(Ptr<T> & p, Uint32 i) const {
+DLList<T,U>::remove(){
+  head.firstItem = RNIL;
+}  
+
+template <class T, class U>
+inline
+void 
+DLList<T,U>::getPtr(Ptr<T> & p, Uint32 i) const {
   p.i = i;
   p.p = thePool.getPtr(i);
 }
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLList<T>::getPtr(Ptr<T> & p) const {
+DLList<T,U>::getPtr(Ptr<T> & p) const {
   thePool.getPtr(p);
 }
   
-template <class T>
+template <class T, class U>
 inline
 T * 
-DLList<T>::getPtr(Uint32 i) const {
+DLList<T,U>::getPtr(Uint32 i) const {
   return thePool.getPtr(i);
 }
 
@@ -331,10 +344,10 @@ DLList<T>::getPtr(Uint32 i) const {
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::first(Ptr<T> & p) const {
+DLList<T,U>::first(Ptr<T> & p) const {
   Uint32 i = head.firstItem;
   p.i = i;
   if(i != RNIL){
@@ -345,11 +358,11 @@ DLList<T>::first(Ptr<T> & p) const {
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::next(Ptr<T> & p) const {
-  Uint32 i = p.p->nextList;
+DLList<T,U>::next(Ptr<T> & p) const {
+  Uint32 i = p.p->U::nextList;
   p.i = i;
   if(i != RNIL){
     p.p = thePool.getPtr(i);
@@ -359,11 +372,11 @@ DLList<T>::next(Ptr<T> & p) const {
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 bool
-DLList<T>::hasNext(const Ptr<T> & p) const {
-  return p.p->nextList != RNIL;
+DLList<T,U>::hasNext(const Ptr<T> & p) const {
+  return p.p->U::nextList != RNIL;
 }
 
 #endif

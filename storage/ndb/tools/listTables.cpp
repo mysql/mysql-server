@@ -113,8 +113,20 @@ list(const char * tabname,
         case NdbDictionary::Object::ReadOnlyConstraint:
             strcpy(type, "ReadOnlyConstraint");
             break;
+	case NdbDictionary::Object::Tablespace:
+	  strcpy(type, "Tablespace");
+	  break;
+	case NdbDictionary::Object::LogfileGroup:
+	  strcpy(type, "LogfileGroup");
+	  break;
+	case NdbDictionary::Object::Datafile:
+	  strcpy(type, "Datafile");
+	  break;
+	case NdbDictionary::Object::Undofile:
+	  strcpy(type, "Undofile");
+	  break;
         default:
-            sprintf(type, "%d", (int)elt.type);
+	  sprintf(type, "%d", (int)elt.type);
             break;
         }
         char state[100];

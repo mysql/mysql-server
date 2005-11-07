@@ -18,6 +18,7 @@
 #define NDB_KERNEL_TYPES_H
 
 #include <ndb_types.h>
+#include "ndb_limits.h"
 
 typedef Uint16 NodeId; 
 typedef Uint16 BlockNumber;
@@ -35,6 +36,37 @@ enum Operation_t {
   ,ZREAD_CONSISTENT = 6
 #endif
 };
+
+/**
+ * 32k page
+ */
+struct GlobalPage {
+  union {
+    Uint32 data[GLOBAL_PAGE_SIZE/sizeof(Uint32)];
+    Uint32 nextPool;
+  };
+};
+
+struct Local_key 
+{
+  Uint32 m_page_no;
+  Uint16 m_page_idx;
+  Uint16 m_file_no;     
+
+  bool isNull() const { return m_page_no == RNIL; }
+  void setNull() { m_page_no= RNIL; m_file_no= m_page_idx= ~0;}
+
+  Uint32 ref() const { return (m_page_no << MAX_TUPLES_BITS) | m_page_idx ;}
+  
+  Local_key& operator= (Uint32 ref) { 
+    m_page_no =ref >> MAX_TUPLES_BITS;
+    m_page_idx = ref & MAX_TUPLES_PER_PAGE;
+    return *this;
+  }
+};
+
+class NdbOut&
+operator<<(class NdbOut&, const struct Local_key&);
 
 inline
 Uint32 

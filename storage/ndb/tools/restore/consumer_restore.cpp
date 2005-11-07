@@ -341,11 +341,11 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	int size = attr_desc->size;
 	int arraySize = attr_desc->arraySize;
 	char * dataPtr = attr_data->string_value;
-	Uint32 length = (size * arraySize) / 8;
-
+	Uint32 length = attr_data->size;
+	
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
 	  tup.getTable()->update_max_auto_val(dataPtr,size);
-
+	
 	if (attr_desc->m_column->getPrimaryKey())
 	{
 	  if (j == 1) continue;

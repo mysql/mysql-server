@@ -340,7 +340,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->noOfKeyAttr = desc->noOfKeyAttr;
   tabptr.p->hasCharAttr = desc->hasCharAttr;
   tabptr.p->noOfDistrKeys = desc->noOfDistrKeys;
-  
+  tabptr.p->hasVarKeys = desc->noOfVarKeys > 0;
   signal->theData[0] = tabptr.i;
   signal->theData[1] = retPtr;
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
@@ -2302,14 +2302,15 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
 {
   Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   const TableRecord* tabPtrP = &tableRecord[tabPtrI];
+  const bool hasVarKeys = tabPtrP->hasVarKeys;
   const bool hasCharAttr = tabPtrP->hasCharAttr;
-  const bool hasDistKeys = tabPtrP->noOfDistrKeys > 0;
+  const bool compute_distkey = distr && (tabPtrP->noOfDistrKeys > 0);
   
   Uint32 *dst = (Uint32*)Tmp;
   Uint32 dstPos = 0;
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
   Uint32 * keyPartLenPtr;
-  if(hasCharAttr)
+  if(hasCharAttr || (compute_distkey && hasVarKeys))
   {
     keyPartLenPtr = keyPartLen;
     dstPos = xfrm_key(tabPtrI, src, dst, sizeof(Tmp) >> 2, keyPartLenPtr);
@@ -2324,7 +2325,7 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
   
   md5_hash(dstHash, (Uint64*)dst, dstPos);
   
-  if(distr && hasDistKeys)
+  if(compute_distkey)
   {
     jam();
     
@@ -2728,12 +2729,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TDirtyFlag          = tcKeyReq->getDirtyFlag(Treqinfo);
   Uint8 TInterpretedFlag    = tcKeyReq->getInterpretedFlag(Treqinfo);
   Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
+  Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
   regCachePtr->opSimple = TSimpleFlag;
   regCachePtr->opExec   = TInterpretedFlag;
   regTcPtr->dirtyOp  = TDirtyFlag;
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
+  regCachePtr->m_no_disk_flag = TNoDiskFlag;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -3198,6 +3201,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setInterpretedFlag(Tdata10, regCachePtr->opExec);
   LqhKeyReq::setSimpleFlag(Tdata10, regCachePtr->opSimple);
   LqhKeyReq::setOperation(Tdata10, regTcPtr->operation);
+  LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
+
   /* ----------------------------------------------------------------------- 
    * Sequential Number of first LQH = 0, bit 22-23                           
    * IF ATTRIBUTE INFORMATION IS SENT IN TCKEYREQ,
@@ -8763,6 +8768,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setAttrLen(tmp, scanTabReq->attrLenKeyLen & 0xFFFF);
+  ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
   
   scanptr.p->scanRequestInfo = tmp;
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
@@ -10120,6 +10126,7 @@ void Dbtc::initTable(Signal* signal)
     tabptr.p->noOfKeyAttr = 0;
     tabptr.p->hasCharAttr = 0;
     tabptr.p->noOfDistrKeys = 0;
+    tabptr.p->hasVarKeys = 0;
   }//for
 }//Dbtc::initTable()
 
@@ -11154,7 +11161,6 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   ApiConnectRecordPtr transPtr;
   TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   TcConnectRecordPtr opPtr;
-
   /**
    * TODO
    * Check transid,

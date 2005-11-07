@@ -148,7 +148,8 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
 
-show tables;
+# random output order??
+#show tables;
 
 select count(*) from t1;
 select count(*) from t1_c;

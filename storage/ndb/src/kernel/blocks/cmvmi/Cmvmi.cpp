@@ -93,7 +93,8 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   
   subscriberPool.setSize(5);
-
+  m_global_page_pool.setSize(1024+256, true);
+  
   const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 logLevel;
@@ -1013,6 +1014,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   sendSignal(SUMA_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
   sendSignal(TRIX_REF, GSN_DUMP_STATE_ORD,    signal, signal->length(), JBB);
   sendSignal(DBTUX_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+  sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+  sendSignal(TSMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
+  sendSignal(PGMAN_REF, GSN_DUMP_STATE_ORD,   signal, signal->length(), JBB);
   
   /**
    *

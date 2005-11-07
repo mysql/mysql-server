@@ -71,11 +71,11 @@
   };
   /**
    * Indicate whether the attribute should be stored on disk or not
+   * Only for legacy createAttribute().
    */
   enum StorageMode { 
-    MMBased = 0,                  ///< Main memory 
-    DiskBased = 1,                ///< Disk (Not yet supported.)
-    NoStorageTypeDef              ///< Used for debugging only
+    MMBased = NDB_STORAGETYPE_MEMORY,
+    DiskBased = NDB_STORAGETYPE_DISK
   };
   
   /**

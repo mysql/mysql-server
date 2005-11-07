@@ -35,6 +35,7 @@ int main(int argc, const char** argv){
   int _ver2 = 0;
   const char* _tabname = NULL, *db = 0;
   int _help = 0;
+  int abort= 0;
   
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
@@ -42,6 +43,7 @@ int main(int argc, const char** argv){
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
     { "ver2", '2', arg_flag, &_ver2, "Use version 2 of scanUpdateRecords", "" },
     { "ver2", '1', arg_negative_flag, &_ver2, "Use version 1 of scanUpdateRecords (default)", "" },
+    { "abort", 'a', arg_integer, &abort, "Abort probability", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
     { "database", 'd', arg_string, &db, "Database", "" }
   };
@@ -88,14 +90,14 @@ int main(int argc, const char** argv){
     ndbout << i << ": ";
     if (_ver2 == 0){
       res = hugoTrans.scanUpdateRecords(&MyNdb, 
-				      _records,
-				      0, 
-				      _parallelism);
+					_records,
+					abort % 101, 
+					_parallelism);
     } else{
       res = hugoTrans.scanUpdateRecords2(&MyNdb, 
-				       _records,
-				       0, 
-				       _parallelism);
+					 _records,
+					 abort % 101, 
+					 _parallelism);
     }
     if (res != NDBT_OK ){
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -103,6 +105,6 @@ int main(int argc, const char** argv){
     i++;
     //NdbSleep_MilliSleep(300);
   }
-
+  
   return NDBT_ProgramExit(NDBT_OK);
 }

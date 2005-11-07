@@ -57,10 +57,10 @@ Number of primary keys: 3
 Length of frm data: #
 TableStatus: Retrieved
 -- Attributes -- 
-a Int PRIMARY KEY
-b Char(10;latin1_bin) PRIMARY KEY DISTRIBUTION KEY
-c Int PRIMARY KEY
-d Int NULL
+a Int PRIMARY KEY AT=FIXED ST=MEMORY
+b Char(10;latin1_bin) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+c Int PRIMARY KEY AT=FIXED ST=MEMORY
+d Int NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
 PRIMARY KEY(a, b, c) - UniqueHashIndex

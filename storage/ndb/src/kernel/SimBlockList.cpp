@@ -31,6 +31,10 @@
 #include <DbUtil.hpp>
 #include <Suma.hpp>
 #include <Dbtux.hpp>
+#include <tsman.hpp>
+#include <lgman.hpp>
+#include <pgman.hpp>
+#include <restore.hpp>
 #include <NdbEnv.h>
 
 #ifndef VM_TRACE
@@ -66,10 +70,13 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 
 void 
 SimBlockList::load(const Configuration & conf){
-  noOfBlocks = 15;
+  noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
   Dbdict* dbdict = 0;
   Dbdih* dbdih = 0;
+  Pgman* pg = 0;
+  Lgman* lg = 0;
+  Tsman* ts = 0;
 
   SimulatedBlock * fs = 0;
   {
@@ -82,27 +89,26 @@ SimBlockList::load(const Configuration & conf){
     }
   }
   
-  theList[0]  = NEW_BLOCK(Dbacc)(conf);
-  theList[1]  = NEW_BLOCK(Cmvmi)(conf);
-  theList[2]  = fs;
-  theList[3]  = dbdict = NEW_BLOCK(Dbdict)(conf);
-  theList[4]  = dbdih = NEW_BLOCK(Dbdih)(conf);
-  theList[5]  = NEW_BLOCK(Dblqh)(conf);
-  theList[6]  = NEW_BLOCK(Dbtc)(conf);
-  theList[7]  = NEW_BLOCK(Dbtup)(conf);
-  theList[8]  = NEW_BLOCK(Ndbcntr)(conf);
-  theList[9]  = NEW_BLOCK(Qmgr)(conf);
-  theList[10] = NEW_BLOCK(Trix)(conf);
-  theList[11] = NEW_BLOCK(Backup)(conf);
-  theList[12] = NEW_BLOCK(DbUtil)(conf);
-  theList[13] = NEW_BLOCK(Suma)(conf);
-  theList[14] = NEW_BLOCK(Dbtux)(conf);
-
-  // Metadata common part shared by block instances
-  ptrMetaDataCommon = new MetaData::Common(*dbdict, *dbdih);
-  for (int i = 0; i < noOfBlocks; i++)
-    if(theList[i])
-      theList[i]->setMetaDataCommon(ptrMetaDataCommon);
+  theList[0]  = pg = NEW_BLOCK(Pgman)(conf);
+  theList[1]  = lg = NEW_BLOCK(Lgman)(conf);
+  theList[2]  = ts = NEW_BLOCK(Tsman)(conf, pg, lg);
+  theList[3]  = NEW_BLOCK(Dbacc)(conf);
+  theList[4]  = NEW_BLOCK(Cmvmi)(conf);
+  theList[5]  = fs;
+  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(conf);
+  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(conf);
+  theList[8]  = NEW_BLOCK(Dblqh)(conf);
+  theList[9]  = NEW_BLOCK(Dbtc)(conf);
+  theList[10] = NEW_BLOCK(Dbtup)(conf, pg);
+  theList[11] = NEW_BLOCK(Ndbcntr)(conf);
+  theList[12] = NEW_BLOCK(Qmgr)(conf);
+  theList[13] = NEW_BLOCK(Trix)(conf);
+  theList[14] = NEW_BLOCK(Backup)(conf);
+  theList[15] = NEW_BLOCK(DbUtil)(conf);
+  theList[16] = NEW_BLOCK(Suma)(conf);
+  theList[17] = NEW_BLOCK(Dbtux)(conf);
+  theList[18] = NEW_BLOCK(Restore)(conf);
+  assert(NO_OF_BLOCKS == 19);
 }
 
 void
@@ -116,9 +122,7 @@ SimBlockList::unload(){
       }
     }
     delete [] theList;
-    delete ptrMetaDataCommon;
     theList    = 0;
     noOfBlocks = 0;
-    ptrMetaDataCommon = 0;
   }
 }

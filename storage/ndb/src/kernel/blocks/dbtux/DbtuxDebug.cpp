@@ -53,37 +53,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
   if (signal->theData[0] == DumpStateOrd::TuxMetaDataJunk) {
-    // read table definition
-    Uint32 tableId = signal->theData[1];
-    Uint32 tableVersion = signal->theData[2];
-    int ret;
-    MetaData md(this);
-    MetaData::Table table;
-    MetaData::Attribute attribute;
-    infoEvent("md: read table %u %u", tableId, tableVersion);
-    if ((ret = md.lock(false)) < 0) {
-      infoEvent("md.lock error %d", ret);
-      return;
-    }
-    if ((ret = md.getTable(table, tableId, tableVersion)) < 0) {
-      infoEvent("md.getTable error %d", ret);
-      // lock is released by destructor
-      return;
-    }
-    infoEvent("md: %s type=%d attrs=%u", table.tableName, table.tableType, table.noOfAttributes);
-    for (Uint32 i = 0; i < table.noOfAttributes; i++) {
-      if ((ret = md.getAttribute(attribute, table, i)) < 0) {
-        infoEvent("mg.getAttribute %u error %d", i, ret);
-        // lock is released by destructor
-        return;
-      }
-      infoEvent("md: %d %s", attribute.attributeId, attribute.attributeName);
-    }
-    if ((ret = md.unlock(false)) < 0) {
-      infoEvent("md.unlock error %d", ret);
-      return;
-    }
-    return;
+    abort();
   }
 #endif
 }
@@ -268,8 +238,7 @@ operator<<(NdbOut& out, const Dbtux::TupLoc& loc)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::TreeEnt& ent)
 {
-  out << dec << ent.m_fragBit;
-  out << "-" << ent.m_tupLoc;
+  out << ent.m_tupLoc;
   out << "-" << dec << ent.m_tupVersion;
   return out;
 }

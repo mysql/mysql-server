@@ -108,7 +108,11 @@ public:
   Uint32 getMinRead() const { return m_minRead;}
   
   Uint32 getFreeSize() const { return m_free; }
-  
+
+  /**
+   * reset
+   */
+  void reset();
 
 private:
   
@@ -198,10 +202,21 @@ FsBuffer::setup(Uint32 * Buffer,
   ndbout_c("Buffer = %d Size = %d MaxWrite = %d -> %d",
 	   Buffer, Size*4, MaxWrite*4, m_size*4);
 #endif
-  
+
   m_readIndex = m_writeIndex = m_eof = 0;
   m_free = m_size;
   return valid();
+}
+
+inline
+void
+FsBuffer::reset() 
+{
+  assert(m_free = m_size);
+  assert(m_readIndex == m_writeIndex);
+  m_readIndex = m_writeIndex = 0;
+  m_free = m_size;
+  m_eof = 0;
 }
 
 inline

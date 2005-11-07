@@ -12,7 +12,8 @@ libdbtux_a_SOURCES = \
 			DbtuxStat.cpp \
 			DbtuxDebug.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dbtup
+INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dbtup \
+               -I$(top_srcdir)/storage/ndb/src/kernel/blocks/dblqh
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am

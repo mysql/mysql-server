@@ -97,25 +97,9 @@ public:
   /**
    * Get attribute (element) size in bytes. 
    * 
-   * @note For arrays, the method only gives the size of an element.
-   *       The total attribute size is calculated by 
-   *       multiplying this value with the value 
-   *       returned by NdbRecAttr::arraySize.
-   *
-   * @return Attribute size in 32 bit unsigned int. 
    */
-  Uint32 attrSize() const ;             
+  Uint32 get_size_in_bytes() const { return m_size_in_bytes; }
 
-  /**
-   * Get array size of attribute. 
-   * For variable-sized arrays this method returns the 
-   * size of the attribute read.
-   *
-   * @return array size in 32 unsigned int.
-   */
-  Uint32 arraySize() const ;            
-  Uint32 getLength() const ;
-  
   /** @} *********************************************************************/
   /** 
    * @name Getting stored value
@@ -252,7 +236,8 @@ private:
 
   Uint32 attrId() const;        /* Get attribute id                     */
   bool setNULL();               /* Set NULL indicator                   */
-  void setUNDEFINED();          /* Set UNDEFINED indicator              */
+  void setUNDEFINED();          //
+
   bool receive_data(const Uint32*, Uint32);
 
   void release();               /* Release memory if allocated          */
@@ -275,11 +260,8 @@ private:
 
   NdbRecAttr*   theNext;        /* Next pointer                         */
   Uint32        theAttrId;      /* The attribute id                     */
-
-  int theNULLind;
-  bool m_nullable;
-  Uint32 theAttrSize;
-  Uint32 theArraySize;
+  
+  Int32 m_size_in_bytes;
   const NdbDictionary::Column* m_column;
 
   friend struct Ndb_free_list_t<NdbRecAttr>;
@@ -297,19 +279,6 @@ inline
 const NdbDictionary::Column *
 NdbRecAttr::getColumn() const {
   return m_column;
-}
-
-inline
-Uint32
-NdbRecAttr::attrSize() const {
-  return theAttrSize;
-}
-
-inline
-Uint32
-NdbRecAttr::arraySize() const 
-{
-  return theArraySize;
 }
 
 inline
@@ -373,7 +342,6 @@ NdbRecAttr::init()
   theRef = 0;
   theNext = 0;
   theAttrId = 0xFFFF;
-  theNULLind = -1;
 }
 
 inline
@@ -422,22 +390,22 @@ inline
 bool
 NdbRecAttr::setNULL()
 {
-  theNULLind = 1;
-  return m_nullable;
-}
-
-inline
-void
-NdbRecAttr::setUNDEFINED()
-{
-  theNULLind = -1;
+  m_size_in_bytes= 0;
+  return true;
 }
 
 inline
 int
 NdbRecAttr::isNULL() const
 {
-  return theNULLind;
+  return m_size_in_bytes == 0 ? 1 : (m_size_in_bytes > 0 ? 0 : -1);
+}
+
+inline
+void
+NdbRecAttr::setUNDEFINED()
+{
+  m_size_in_bytes= -1;
 }
 
 class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);

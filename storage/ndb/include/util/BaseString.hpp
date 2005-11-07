@@ -47,6 +47,9 @@ public:
   /** @brief Checks if the string is empty */
   bool empty() const;
 
+  /** @brief Clear a string */
+  void clear();
+
   /** @brief Convert to uppercase */
   BaseString& ndb_toupper();
 
@@ -204,6 +207,15 @@ inline bool
 BaseString::empty() const
 {
   return m_len == 0;
+}
+
+inline void
+BaseString::clear()
+{
+  delete[] m_chr;
+  m_chr = new char[1];
+  m_chr[0] = 0;
+  m_len = 0;
 }
 
 inline BaseString&

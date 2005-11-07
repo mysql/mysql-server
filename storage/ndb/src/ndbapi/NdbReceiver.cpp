@@ -108,7 +108,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
   NdbRecAttr *rec_attr= theFirstRecAttr;
   while (rec_attr != NULL) {
-    Uint32 attr_size= rec_attr->attrSize() * rec_attr->arraySize();
+    Uint32 attr_size= rec_attr->getColumn()->getSizeInBytes();
     attr_size= ((attr_size + 7) >> 2) << 2; //Even to word + overhead
     tot_size+= attr_size;
     rec_attr= rec_attr->next();
@@ -211,8 +211,8 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
     src = src->next();
   
   while(dst){
-    Uint32 len = ((src->theAttrSize * src->theArraySize)+3)/4;
-    dst->receive_data((Uint32*)src->aRef(),  src->isNULL() ? 0 : len);
+    Uint32 len = src->get_size_in_bytes();
+    dst->receive_data((Uint32*)src->aRef(), len);
     src = src->next();
     dst = dst->next();
   }
@@ -223,29 +223,29 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
 int
 NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 {
-  bool ok = true;
   NdbRecAttr* currRecAttr = theCurrentRecAttr;
   
   for (Uint32 used = 0; used < aLength ; used++){
     AttributeHeader ah(* aDataPtr++);
     const Uint32 tAttrId = ah.getAttributeId();
-    const Uint32 tAttrSize = ah.getDataSize();
+    const Uint32 tAttrSize = ah.getByteSize();
 
     /**
      * Set all results to NULL if  not found...
      */
     while(currRecAttr && currRecAttr->attrId() != tAttrId){
-      ok &= currRecAttr->setNULL();
       currRecAttr = currRecAttr->next();
     }
     
-    if(ok && currRecAttr && currRecAttr->receive_data(aDataPtr, tAttrSize)){
-      used += tAttrSize;
-      aDataPtr += tAttrSize;
+    if(currRecAttr && currRecAttr->receive_data(aDataPtr, tAttrSize)){
+      Uint32 add= (tAttrSize + 3) >> 2;
+      used += add;
+      aDataPtr += add;
       currRecAttr = currRecAttr->next();
     } else {
-      ndbout_c("%p: ok: %d tAttrId: %d currRecAttr: %p", 
-	       this,ok, tAttrId, currRecAttr);
+      ndbout_c("%p: tAttrId: %d currRecAttr: %p tAttrSize: %d %d", this,
+	       tAttrId, currRecAttr, 
+	       tAttrSize, currRecAttr->get_size_in_bytes());
       currRecAttr = theCurrentRecAttr;
       while(currRecAttr != 0){
 	ndbout_c("%d ", currRecAttr->attrId());
@@ -273,7 +273,7 @@ NdbReceiver::execKEYINFO20(Uint32 info, const Uint32* aDataPtr, Uint32 aLength)
 {
   NdbRecAttr* currRecAttr = m_rows[m_current_row++];
   assert(currRecAttr->attrId() == KEY_ATTR_ID);
-  currRecAttr->receive_data(aDataPtr, aLength + 1);
+  currRecAttr->receive_data(aDataPtr, 4*(aLength + 1));
   
   /**
    * Save scanInfo in the end of keyinfo

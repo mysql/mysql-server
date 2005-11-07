@@ -81,23 +81,23 @@ args: -n UpdateAndRead
 
 max-time: 500
 cmd: testBasic
-args: -n PkReadAndLocker T6 
+args: -n PkReadAndLocker T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n PkReadAndLocker2 T6 
+args: -n PkReadAndLocker2 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n PkReadUpdateAndLocker T6 
+args: -n PkReadUpdateAndLocker T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n ReadWithLocksAndInserts T6 
+args: -n ReadWithLocksAndInserts T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n PkInsertTwice T1 T6 T10 
+args: -n PkInsertTwice T1 T6 T10 D1 D2
 
 max-time: 1500
 cmd: testBasic
@@ -109,79 +109,79 @@ args: -n Fill T6
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommitSleep T6 
+args: -n NoCommitSleep T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommit626 T6 
+args: -n NoCommit626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommitAndClose T6 
+args: -n NoCommitAndClose T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n Commit626 T6 
+args: -n Commit626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n CommitTry626 T6 
+args: -n CommitTry626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n CommitAsMuch626 T6 
+args: -n CommitAsMuch626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommit626 T6 
+args: -n NoCommit626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommitRollback626 T1 T6 
+args: -n NoCommitRollback626 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n Commit630 T1 T6 
+args: -n Commit630 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n CommitTry630 T1 T6 
+args: -n CommitTry630 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n CommitAsMuch630 T1 T6 
+args: -n CommitAsMuch630 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommit630 T1 T6 
+args: -n NoCommit630 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommitRollback630 T1 T6 
+args: -n NoCommitRollback630 T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n NoCommitAndClose T1 T6 
+args: -n NoCommitAndClose T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n RollbackUpdate T1 T6 
+args: -n RollbackUpdate T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n RollbackDeleteMultiple T1 T6 
+args: -n RollbackDeleteMultiple T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n ImplicitRollbackDelete T1 T6 
+args: -n ImplicitRollbackDelete T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n CommitDelete T1 T6 
+args: -n CommitDelete T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasic
-args: -n RollbackNothing T1 T6 
+args: -n RollbackNothing T1 T6 D1 D2 
 
 max-time: 500
 cmd: testBasicAsynch
@@ -201,11 +201,11 @@ args: -n PkDeleteAsynch
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback T1 T6 T13 
+args: -n MassiveRollback T1 T6 T13 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback2 T1 T6 T13 
+args: -n MassiveRollback2 T1 T6 T13 D1 D2
 
 max-time: 500
 cmd: testTimeout
@@ -231,7 +231,7 @@ args: -n ScanUpdate
 
 max-time: 500
 cmd: testScan
-args: -n ScanUpdate2 T6 
+args: -n ScanUpdate2 T6 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -239,47 +239,47 @@ args: -n ScanDelete
 
 max-time: 500
 cmd: testScan
-args: -n ScanDelete2 T10 
+args: -n ScanDelete2 T10 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanUpdateAndScanRead T6 
+args: -n ScanUpdateAndScanRead T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadAndLocker T6 
+args: -n ScanReadAndLocker T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadAndPkRead T6 
+args: -n ScanReadAndPkRead T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRead488 -l 10 T6 
+args: -n ScanRead488 -l 10 T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRead488O -l 10 T6 
+args: -n ScanRead488O -l 10 T6 D1 D2 
 
 max-time: 1000
 cmd: testScan
-args: -n ScanRead488_Mixed -l 10 T6 
+args: -n ScanRead488_Mixed -l 10 T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRead488Timeout -l 10 T6 
+args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
 max-time: 600
 cmd: testScan
-args: -n ScanRead40 -l 100 T2 
+args: -n ScanRead40 -l 100 T2 D1 D2 
 
 max-time: 1800
 cmd: testScan
-args: -n ScanRead100 -l 100 T1 
+args: -n ScanRead100 -l 100 T1 D1 D2 
 
 max-time: 600
 cmd: testScan
-args: -n ScanRead40 -l 100 T1 
+args: -n ScanRead40 -l 100 T1 D1 D2 
 
 max-time: 1800
 cmd: testScan
@@ -291,123 +291,123 @@ args: -n ScanRead40RandomTable -l 1000 T2
 
 max-time: 500
 cmd: testScan
-args: -n ScanWithLocksAndInserts T6 
+args: -n ScanWithLocksAndInserts T6 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadAbort T6 
+args: -n ScanReadAbort T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadAbort15 T6 
+args: -n ScanReadAbort15 T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadAbort240 T6 
+args: -n ScanReadAbort240 T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanUpdateAbort16 T6 
+args: -n ScanUpdateAbort16 T6 D1 D2 
 
 max-time: 3600
 cmd: testScan
-args: -n ScanReadRestart T1 T6 T13 
+args: -n ScanReadRestart T1 T6 T13 D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanUpdateRestart T6 
+args: -n ScanUpdateRestart T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CheckGetValue T6 
+args: -n CheckGetValue T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CloseWithoutStop T6 
+args: -n CloseWithoutStop T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n NextScanWhenNoMore T6 
+args: -n NextScanWhenNoMore T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ExecuteScanWithoutOpenScan T6 
+args: -n ExecuteScanWithoutOpenScan T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n OnlyOpenScanOnce T6 
+args: -n OnlyOpenScanOnce T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n OnlyOneOpInScanTrans T6 
+args: -n OnlyOneOpInScanTrans T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n OnlyOneOpBeforeOpenScan T6 
+args: -n OnlyOneOpBeforeOpenScan T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n OnlyOneScanPerTrans T6 
+args: -n OnlyOneScanPerTrans T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n NoCloseTransaction T6 
+args: -n NoCloseTransaction T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CheckInactivityTimeOut T6 
+args: -n CheckInactivityTimeOut T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CheckInactivityBeforeClose T6 
+args: -n CheckInactivityBeforeClose T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CheckAfterTerror T6 
+args: -n CheckAfterTerror T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadError5021 T1 
+args: -n ScanReadError5021 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReaderror5022 T1 
+args: -n ScanReaderror5022 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadError5023 T1 
+args: -n ScanReadError5023 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadError5024 T1 
+args: -n ScanReadError5024 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadError5025 T1 
+args: -n ScanReadError5025 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadError5030 T1 
+args: -n ScanReadError5030 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n InsertDelete T1 T6
+args: -n InsertDelete T1 T6 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n CheckAfterTerror T1
+args: -n CheckAfterTerror T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanReadWhileNodeIsDown T1
+args: -n ScanReadWhileNodeIsDown T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -n ScanRestart T1
+args: -n ScanRestart T1 D1 D2 
 
 max-time: 500
 cmd: testScan
-args: -l 100 -n Scan-bug8262 T7
+args: -l 100 -n Scan-bug8262 T7 D1 D2 
 
 max-time: 500
 cmd: testScan
@@ -425,7 +425,7 @@ args: -n CreateAndDropWithData
 
 max-time: 1500
 cmd: testDict
-args: -n CreateAndDropDuring T6 T10 
+args: -n CreateAndDropDuring T6 T10 D1 D2
 
 max-time: 1500
 cmd: testDict
@@ -510,23 +510,23 @@ args: -n GetValueInUpdate T6
 
 max-time: 500
 cmd: testNdbApi
-args: -n UpdateWithoutKeys T6 
+args: -n UpdateWithoutKeys T6 D1 D2 
 
 max-time: 500
 cmd: testNdbApi
-args: -n UpdateWithoutValues T6 
+args: -n UpdateWithoutValues T6 D1 D2 
 
 max-time: 500
 cmd: testNdbApi
-args: -n ReadWithoutGetValue
+args: -n ReadWithoutGetValue D1 D2 
 
 max-time: 500
 cmd: testNdbApi
-args: -n Bug_11133 T1 
+args: -n Bug_11133 T1 D1 D2 
 
 max-time: 500
 cmd: testNdbApi
-args: -n Scan_4006 T1
+args: -n Scan_4006 T1 D1 D2 
 
 #max-time: 500
 #cmd: testInterpreter
@@ -582,6 +582,14 @@ args: -n SR1 T8
 
 max-time: 1500
 cmd: testSystemRestart
+args: -n SR1 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 D2 
+
+max-time: 1500
+cmd: testSystemRestart
 args: -n SR2 T1 
 
 max-time: 1500
@@ -591,6 +599,14 @@ args: -n SR2 T6
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR2 T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 D2 
 
 max-time: 1500
 cmd: testSystemRestart

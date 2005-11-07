@@ -20,14 +20,16 @@
 /**
  * Dict : Dictionary Block
  */
-
 #include <ndb_limits.h>
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArrayList.hpp>
 #include <DLHashTable.hpp>
+#include <DLFifoList.hpp>
 #include <CArray.hpp>
+#include <KeyTable.hpp>
 #include <KeyTable2.hpp>
+#include <KeyTable2Ref.hpp>
 #include <SimulatedBlock.hpp>
 #include <SimpleProperties.hpp>
 #include <SignalCounter.hpp>
@@ -54,6 +56,10 @@
 #include <blocks/mutexes.hpp>
 #include <SafeCounter.hpp>
 #include <RequestTracker.hpp>
+#include <Rope.hpp>
+#include <signaldata/DictObjOp.hpp>
+#include <signaldata/DropFilegroupImpl.hpp>
+#include <SLList.hpp>
 
 #ifdef DBDICT_C
 // Debug Macros
@@ -105,8 +111,6 @@
 /**
  * Systable NDB$EVENTS_0
  */
-
-#define EVENT_SYSTEM_TABLE_NAME "sys/def/NDB$EVENTS_0"
 #define EVENT_SYSTEM_TABLE_LENGTH 8
 
 struct sysTab_NDBEVENTS_0 {
@@ -128,11 +132,151 @@ public:
   /*
    *   2.3 RECORD AND FILESIZES
    */
+
+  /**
+   * Table attributes.  Permanent data.
+   *
+   * Indexes have an attribute list which duplicates primary table
+   * attributes.  This is wrong but convenient.
+   */
+  struct AttributeRecord {
+    AttributeRecord(){}
+
+    /* attribute id */
+    Uint16 attributeId;
+
+    /* Attribute number within tuple key (counted from 1) */
+    Uint16 tupleKey;
+
+    /* Attribute name (unique within table) */
+    RopeHandle attributeName;
+
+    /* Attribute description (old-style packed descriptor) */
+    Uint32 attributeDescriptor;
+
+    /* Extended attributes */
+    Uint32 extType;
+    Uint32 extPrecision;
+    Uint32 extScale;
+    Uint32 extLength;
+
+    /* Autoincrement flag, only for ODBC/SQL */
+    bool autoIncrement;
+
+    /* Default value as null-terminated string, only for ODBC/SQL */
+    RopeHandle defaultValue;
+
+    struct {
+      Uint32 m_name_len;
+      const char * m_name_ptr;
+      RopePool * m_pool;
+    } m_key;
+
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
+    Uint32 nextHash;
+    Uint32 prevHash;
+ 
+    Uint32 hashValue() const { return attributeName.hashValue();}
+    bool equal(const AttributeRecord& obj) const { 
+      if(obj.hashValue() == hashValue()){
+	ConstRope r(* m_key.m_pool, obj.attributeName);
+	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
+      }
+      return false;
+    }
+
+    /** Singly linked in internal (attributeId) order */
+    // TODO use DL template when possible to have more than 1
+    Uint32 nextAttributeIdPtrI;
+  };
+  typedef Ptr<AttributeRecord> AttributeRecordPtr;
+  ArrayPool<AttributeRecord> c_attributeRecordPool;
+  DLHashTable<AttributeRecord> c_attributeRecordHash;
+
   /**
    * Shared table / index record.  Most of this is permanent data stored
    * on disk.  Index trigger ids are volatile.
    */
-  struct TableRecord : public MetaData::Table {
+  struct TableRecord {
+    TableRecord(){}
+    /* Table id (array index in DICT and other blocks) */
+    Uint32 tableId;
+    Uint32 m_obj_ptr_i;
+
+    /* Table version (incremented when tableId is re-used) */
+    Uint32 tableVersion;
+
+    /* Table name (may not be unique under "alter table") */
+    RopeHandle tableName;
+
+    /* Type of table or index */
+    DictTabInfo::TableType tableType;
+
+    /* Is table or index online (this flag is not used in DICT) */
+    bool online;
+
+    /* Primary table of index otherwise RNIL */
+    Uint32 primaryTableId;
+
+    /* Type of fragmentation (small/medium/large) */
+    DictTabInfo::FragmentType fragmentType;
+
+    /* Global checkpoint identity when table created */
+    Uint32 gciTableCreated;
+
+    /* Number of attibutes in table */
+    Uint16 noOfAttributes;
+
+    /* Number of null attributes in table (should be computed) */
+    Uint16 noOfNullAttr;
+
+    /* Number of primary key attributes (should be computed) */
+    Uint16 noOfPrimkey;
+
+    /* Length of primary key in words (should be computed) */
+    /* For ordered index this is tree node size in words */
+    Uint16 tupKeyLength;
+
+    /** */
+    Uint16 noOfCharsets;
+
+    /* K value for LH**3 algorithm (only 6 allowed currently) */
+    Uint8 kValue;
+
+    /* Local key length in words (currently 1) */
+    Uint8 localKeyLen;
+
+    /*
+     * Parameter for hash algorithm that specifies the load factor in
+     * percentage of fill level in buckets. A high value means we are
+     * splitting early and that buckets are only lightly used. A high
+     * value means that we have fill the buckets more and get more
+     * likelihood of overflow buckets.
+     */
+    Uint8 maxLoadFactor;
+
+    /*
+     * Used when shrinking to decide when to merge buckets.  Hysteresis
+     * is thus possible. Should be smaller but not much smaller than
+     * maxLoadFactor
+     */
+    Uint8 minLoadFactor;
+
+    /* Is the table logged (i.e. data survives system restart) */
+    bool storedTable;
+
+    /* Convenience routines */
+    bool isTable() const;
+    bool isIndex() const;
+    bool isUniqueIndex() const;
+    bool isNonUniqueIndex() const;
+    bool isHashIndex() const;
+    bool isOrderedIndex() const;
+    
     /****************************************************
      *    Support variables for table handling
      ****************************************************/
@@ -144,29 +288,12 @@ public:
     Uint32 filePtr[2];
 
     /**    Pointer to first attribute in table */
-    Uint32 firstAttribute;
+    DLFifoList<AttributeRecord>::Head m_attributes;
 
     /*    Pointer to first page of table description */
     Uint32 firstPage;
 
-    /**    Pointer to last attribute in table */
-    Uint32 lastAttribute;
-
-#ifdef HAVE_TABLE_REORG    
-    /*    Second table used by this table (for table reorg) */
-    Uint32 secondTable;
-#endif
-    /*    Next record in Pool */
     Uint32 nextPool;
-
-    /*    Next record in hash table */
-    Uint32 nextHash;
-
-    /*    Previous record in Pool */
-    Uint32 prevPool;
-
-    /*    Previous record in hash table */
-    Uint32 prevHash;
 
     enum TabState {
       NOT_DEFINED = 0,
@@ -218,75 +345,26 @@ public:
     
     Uint32 noOfNullBits;
     
-    inline bool equal(TableRecord & rec) const {
-      return strcmp(tableName, rec.tableName) == 0;
-    }
-
-    inline Uint32 hashValue() const {
-      Uint32 h = 0;
-      for (const char* p = tableName; *p != 0; p++)
-        h = (h << 5) + h + (*p);
-      return h;
-    }
-
     /**  frm data for this table */
-    /** TODO Could preferrably be made dynamic size */
-    Uint32 frmLen;
-    char frmData[MAX_FRM_DATA_SIZE];
+    RopeHandle frmData;
     /**  Node Group and Tablespace id for this table */
     /** TODO Could preferrably be made dynamic size */
     Uint32 ngLen;
     Uint16 ngData[MAX_NDB_PARTITIONS];
 
     Uint32 fragmentCount;
+    Uint32 m_tablespace_id;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;
   ArrayPool<TableRecord> c_tableRecordPool;
-  DLHashTable<TableRecord> c_tableRecordHash;
-
-  /**
-   * Table attributes.  Permanent data.
-   *
-   * Indexes have an attribute list which duplicates primary table
-   * attributes.  This is wrong but convenient.
-   */
-  struct AttributeRecord : public MetaData::Attribute {
-    union {    
-    /** Pointer to the next attribute used by ArrayPool */
-    Uint32 nextPool;
-
-    /** Pointer to the next attribute used by DLHash */
-    Uint32 nextHash;
-    };
-
-    /** Pointer to the previous attribute used by DLHash */
-    Uint32 prevHash;
-
-    /** Pointer to the next attribute in table */
-    Uint32 nextAttrInTable;
-
-    inline bool equal(AttributeRecord & rec) const {
-      return strcmp(attributeName, rec.attributeName) == 0;
-    }
-
-    inline Uint32 hashValue() const {
-      Uint32 h = 0;
-      for (const char* p = attributeName; *p != 0; p++)
-        h = (h << 5) + h + (*p);
-      return h;
-    }
-  };
-
-  typedef Ptr<AttributeRecord> AttributeRecordPtr;
-  ArrayPool<AttributeRecord> c_attributeRecordPool;
-  DLHashTable<AttributeRecord> c_attributeRecordHash;
 
   /**
    * Triggers.  This is volatile data not saved on disk.  Setting a
    * trigger online creates the trigger in TC (if index) and LQH-TUP.
    */
   struct TriggerRecord {
+    TriggerRecord() {}
 
     /** Trigger state */
     enum TriggerState { 
@@ -307,10 +385,11 @@ public:
     Uint32 triggerLocal;
 
     /** Trigger name, used by DICT to identify the trigger */ 
-    char triggerName[MAX_TAB_NAME_SIZE];
+    RopeHandle triggerName;
 
     /** Trigger id, used by TRIX, TC, LQH, and TUP to identify the trigger */
     Uint32 triggerId;
+    Uint32 m_obj_ptr_i;
 
     /** Table id, the table the trigger is defined on */
     Uint32 tableId;
@@ -339,39 +418,17 @@ public:
     /** Index id, only used by secondary_index triggers */
     Uint32 indexId;
 
-    union {
     /** Pointer to the next attribute used by ArrayPool */
     Uint32 nextPool;
-
-    /** Next record in hash table */
-    Uint32 nextHash;
-    };
-    
-    /** Previous record in hash table */
-    Uint32 prevHash;
-
-    /** Equal function, used by DLHashTable */
-    inline bool equal(TriggerRecord & rec) const {
-       return strcmp(triggerName, rec.triggerName) == 0;
-    }
-    
-    /** Hash value function, used by DLHashTable */
-    inline Uint32 hashValue() const {
-      Uint32 h = 0;
-      for (const char* p = triggerName; *p != 0; p++)
-        h = (h << 5) + h + (*p);
-      return h;
-    }
   };
   
   Uint32 c_maxNoOfTriggers;
   typedef Ptr<TriggerRecord> TriggerRecordPtr;
   ArrayPool<TriggerRecord> c_triggerRecordPool;
-  DLHashTable<TriggerRecord> c_triggerRecordHash;
 
   /**
    * Information for each FS connection.
-   ****************************************************************************/
+   ***************************************************************************/
   struct FsConnectRecord {
     enum FsState {
       IDLE = 0,
@@ -410,7 +467,7 @@ public:
 
   /**
    * This record stores all the information about a node and all its attributes
-   ****************************************************************************/
+   ***************************************************************************/
   struct NodeRecord {
     enum NodeState {
       API_NODE = 0,
@@ -425,9 +482,6 @@ public:
   CArray<NodeRecord> c_nodes;
   NdbNodeBitmask c_aliveNodes;
   
-  /**
-   * This record stores all the information about a table and all its attributes
-   ****************************************************************************/
   struct PageRecord {
     Uint32 word[8192];
   };
@@ -445,6 +499,119 @@ public:
    * A page for create index table signal.
    */
   PageRecord c_indexPage;
+
+  struct File {
+    File() {}
+    
+    Uint32 key;
+    Uint32 m_obj_ptr_i;
+    Uint32 m_filegroup_id;
+    Uint32 m_type;
+    Uint64 m_file_size;
+    RopeHandle m_path;
+    
+    Uint32 nextList;
+    union {
+      Uint32 prevList;
+      Uint32 nextPool;
+    };
+    Uint32 nextHash, prevHash;
+
+    Uint32 hashValue() const { return key;}
+    bool equal(const File& obj) const { return key == obj.key;}
+  };
+  typedef Ptr<File> FilePtr;
+
+  struct Filegroup {
+    Filegroup(){}
+
+    Uint32 key;
+    Uint32 m_obj_ptr_i;
+    
+    Uint32 m_type;
+    Uint32 m_version;
+    RopeHandle m_name;
+
+    union {
+      struct {
+	Uint32 m_extent_size;
+	Uint32 m_default_logfile_group_id;
+      } m_tablespace;
+      
+      struct {
+	Uint32 m_undo_buffer_size;
+	DLList<File>::HeadPOD m_files;
+      } m_logfilegroup;
+    };
+    
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+      Uint32 nextHash;
+    };
+    Uint32 prevHash;
+
+    Uint32 hashValue() const { return key;}
+    bool equal(const Filegroup& obj) const { return key == obj.key;}
+  };
+  typedef Ptr<Filegroup> FilegroupPtr;
+  
+  ArrayPool<File> c_file_pool;
+  KeyTable<File> c_file_hash;
+  ArrayPool<Filegroup> c_filegroup_pool;
+  KeyTable<Filegroup> c_filegroup_hash;
+  
+  RopePool c_rope_pool;
+
+  struct DictObject {
+    DictObject() {}
+    Uint32 m_id;
+    Uint32 m_type;
+    Uint32 m_ref_count;
+    RopeHandle m_name;  
+    union {
+      struct {
+	Uint32 m_name_len;
+	const char * m_name_ptr;
+	RopePool * m_pool;
+      } m_key;
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 nextHash;
+    Uint32 prevHash;
+    
+    Uint32 hashValue() const { return m_name.hashValue();}
+    bool equal(const DictObject& obj) const { 
+      if(obj.hashValue() == hashValue()){
+	ConstRope r(* m_key.m_pool, obj.m_name);
+	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
+      }
+      return false;
+    }
+  };
+  
+  DLHashTable<DictObject> c_obj_hash; // Name
+  ArrayPool<DictObject> c_obj_pool;
+  
+  DictObject * get_object(const char * name){
+    return get_object(name, strlen(name) + 1);
+  }
+  
+  DictObject * get_object(const char * name, Uint32 len){
+    return get_object(name, len, Rope::hash(name, len));
+  }
+  
+  DictObject * get_object(const char * name, Uint32 len, Uint32 hash);
+
+  void release_object(Uint32 obj_ptr_i){
+    release_object(obj_ptr_i, c_obj_pool.getPtr(obj_ptr_i));
+  }
+  
+  void release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p);
+
+  void increase_ref_count(Uint32 obj_ptr_i);
+  void decrease_ref_count(Uint32 obj_ptr_i);
 
 public:
   Dbdict(const class Configuration &);
@@ -590,6 +757,21 @@ private:
   void execALTER_TAB_CONF(Signal* signal);
   bool check_ndb_versions() const;
 
+  void execCREATE_FILE_REQ(Signal* signal);
+  void execCREATE_FILEGROUP_REQ(Signal* signal);
+  void execDROP_FILE_REQ(Signal* signal);
+  void execDROP_FILEGROUP_REQ(Signal* signal);
+
+  // Internal
+  void execCREATE_FILE_REF(Signal* signal);
+  void execCREATE_FILE_CONF(Signal* signal);
+  void execCREATE_FILEGROUP_REF(Signal* signal);
+  void execCREATE_FILEGROUP_CONF(Signal* signal);
+  void execDROP_FILE_REF(Signal* signal);
+  void execDROP_FILE_CONF(Signal* signal);
+  void execDROP_FILEGROUP_REF(Signal* signal);
+  void execDROP_FILEGROUP_CONF(Signal* signal);
+
   /*
    *  2.4 COMMON STORED VARIABLES
    */
@@ -620,7 +802,7 @@ private:
    ****************************************************************************/
   struct ReadTableRecord {
     /** Number of Pages */
-    Uint32 noOfPages;
+    Uint32 no_of_words;
     /** Page Id*/
     Uint32 pageId;
     /** Table Id of read table */
@@ -637,7 +819,7 @@ private:
    ****************************************************************************/
   struct WriteTableRecord {
     /** Number of Pages */
-    Uint32 noOfPages;
+    Uint32 no_of_words;
     /** Page Id*/
     Uint32 pageId;
     /** Table Files Handled, local state variable */
@@ -713,6 +895,8 @@ private:
 
     /**    The active table at restart process */
     BlockReference returnBlockRef;
+    
+    Uint32 m_pass; // 0 tablespaces/logfilegroups, 1 tables, 2 indexes
   };
   RestartRecord c_restartRecord;
 
@@ -739,6 +923,8 @@ private:
 
     /**    Table id of retrieved table       */
     Uint32 tableId;
+
+    Uint32 m_table_type;
 
     /**    Starting page to retrieve data from   */
     Uint32 retrievePage;
@@ -832,10 +1018,7 @@ private:
     
     enum PackTableState {
       PTS_IDLE = 0,
-      PTS_ADD_TABLE_MASTER = 1,
-      PTS_ADD_TABLE_SLAVE = 2,
-      PTS_GET_TAB = 3,
-      PTS_RESTART = 4
+      PTS_GET_TAB = 3
     } m_state;
 
   } c_packTable;
@@ -898,6 +1081,11 @@ private:
 
     /* Previous table name (used for reverting failed table rename) */
     char previousTableName[MAX_TAB_NAME_SIZE];
+
+    /* Previous table definition, frm (used for reverting) */
+    /** TODO Could preferrably be made dynamic size */
+    Uint32 previousFrmLen;
+    char previousFrmData[MAX_FRM_DATA_SIZE];
 
     Uint32 m_tablePtrI;
     Uint32 m_tabInfoPtrI;
@@ -1672,6 +1860,64 @@ private:
   };
   typedef Ptr<OpAlterTrigger> OpAlterTriggerPtr;
 
+public:
+  struct SchemaOp : OpRecordCommon {
+    
+    Uint32 m_clientRef; // API (for take-over)
+    Uint32 m_clientData;// API
+    
+    Uint32 m_senderRef; // 
+    Uint32 m_senderData;// transaction key value
+    
+    Uint32 m_errorCode;
+    
+    Uint32 m_obj_id;
+    Uint32 m_obj_type;
+    Uint32 m_obj_version;
+    Uint32 m_obj_ptr_i;
+    Uint32 m_vt_index;
+    Callback m_callback;
+  };
+  typedef Ptr<SchemaOp> SchemaOpPtr;
+
+  struct SchemaTransaction : OpRecordCommon {
+    Uint32 m_senderRef; // API
+    Uint32 m_senderData;// API
+    
+    Callback m_callback;
+    SafeCounterHandle m_counter;
+    NodeBitmask m_nodes;
+    
+    Uint32 m_errorCode;
+    void setErrorCode(Uint32 c){ if(m_errorCode == 0) m_errorCode = c;}
+
+    /**
+     * This should contain "lists" with operations
+     */
+    struct {
+      Uint32 m_key;      // Operation key
+      Uint32 m_vt_index; // Operation type
+      Uint32 m_obj_id;
+      DictObjOp::State m_state;
+    } m_op;
+  };
+private:
+
+  struct OpCreateObj : public SchemaOp {
+    Uint32 m_gci;
+    Uint32 m_obj_info_ptr_i;
+    Uint32 m_restart;
+  };
+  typedef Ptr<OpCreateObj> CreateObjRecordPtr;
+  
+  struct OpDropObj : public SchemaOp 
+  {
+  };
+  typedef Ptr<OpDropObj> DropObjRecordPtr;
+  
+  /**
+   * Only used at coordinator/master
+   */
   // Common operation record pool
 public:
   STATIC_CONST( opCreateTableSize = sizeof(CreateTableRecord) );
@@ -1687,6 +1933,7 @@ public:
   STATIC_CONST( opCreateTriggerSize = sizeof(OpCreateTrigger) );
   STATIC_CONST( opDropTriggerSize = sizeof(OpDropTrigger) );
   STATIC_CONST( opAlterTriggerSize = sizeof(OpAlterTrigger) );
+  STATIC_CONST( opCreateObjSize = sizeof(OpCreateObj) );
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {
@@ -1703,6 +1950,7 @@ private:
     Uint32 u_opCreateTrigger[PTR_ALIGN(opCreateTriggerSize)];
     Uint32 u_opDropTrigger  [PTR_ALIGN(opDropTriggerSize)];
     Uint32 u_opAlterTrigger [PTR_ALIGN(opAlterTriggerSize)];
+    Uint32 u_opCreateObj    [PTR_ALIGN(opCreateObjSize)];
     Uint32 nextPool;
   };
   ArrayPool<OpRecordUnion> c_opRecordPool;
@@ -1721,6 +1969,10 @@ private:
   KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
   KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
   KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;
+  KeyTable2<SchemaOp, OpRecordUnion> c_schemaOp; 
+  KeyTable2<SchemaTransaction, OpRecordUnion> c_Trans;
+  KeyTable2Ref<OpCreateObj, SchemaOp, OpRecordUnion> c_opCreateObj;
+  KeyTable2Ref<OpDropObj, SchemaOp, OpRecordUnion> c_opDropObj;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
@@ -1742,13 +1994,15 @@ private:
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
+  Uint32 getFreeObjId(Uint32 minId);
   Uint32 getFreeTableRecord(Uint32 primaryTableId);
   Uint32 getFreeTriggerRecord();
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
 			     AttributeRecordPtr & attrPtr);
-  void packTableIntoPages(Signal* signal, Uint32 tableId, Uint32 pageId);
-  void packTableIntoPagesImpl(SimpleProperties::Writer &, TableRecordPtr,
-			      Signal* signal= 0);
+  void packTableIntoPages(Signal* signal);
+  void packTableIntoPages(SimpleProperties::Writer &, TableRecordPtr, Signal* =0);
+  void packFilegroupIntoPages(SimpleProperties::Writer &, FilegroupPtr);
+  void packFileIntoPages(SimpleProperties::Writer &, FilePtr, const Uint32);
   
   void sendGET_TABINFOREQ(Signal* signal,
                           Uint32 tableId);
@@ -1771,7 +2025,8 @@ private:
   void handleTabInfoInit(SimpleProperties::Reader &, 
 			 ParseDictTabInfoRecord *,
 			 bool checkExist = true);
-  void handleTabInfo(SimpleProperties::Reader & it, ParseDictTabInfoRecord *);
+  void handleTabInfo(SimpleProperties::Reader & it, ParseDictTabInfoRecord *,
+		     Uint32 tablespaceVersion);
   
   void handleAddTableFailure(Signal* signal,
                              Uint32 failureLine,
@@ -2134,7 +2389,9 @@ private:
   void createTab_reply(Signal* signal, CreateTableRecordPtr, Uint32 nodeId);
   void alterTab_activate(Signal*, CreateTableRecordPtr, Callback*);
   
-  void restartCreateTab(Signal*, Uint32, const SchemaFile::TableEntry *, bool);
+  void restartCreateTab(Signal*, Uint32, 
+			const SchemaFile::TableEntry *, 
+			const SchemaFile::TableEntry *, bool);
   void restartCreateTab_readTableConf(Signal* signal, Uint32 callback, Uint32);
   void restartCreateTab_writeTableConf(Signal* signal, Uint32 callback, Uint32);
   void restartCreateTab_dihComplete(Signal* signal, Uint32 callback, Uint32);
@@ -2149,13 +2406,128 @@ private:
 
   void sendSchemaComplete(Signal*, Uint32 callbackData, Uint32);
 
-  // global metadata support
-  friend class MetaData;
-  int getMetaTablePtr(TableRecordPtr& tablePtr, Uint32 tableId, Uint32 tableVersion);
-  int getMetaTable(MetaData::Table& table, Uint32 tableId, Uint32 tableVersion);
-  int getMetaTable(MetaData::Table& table, const char* tableName);
-  int getMetaAttribute(MetaData::Attribute& attribute, const MetaData::Table& table, Uint32 attributeId);
-  int getMetaAttribute(MetaData::Attribute& attribute, const MetaData::Table& table, const char* attributeName);
+  void execCREATE_OBJ_REQ(Signal* signal);  
+  void execCREATE_OBJ_REF(Signal* signal);  
+  void execCREATE_OBJ_CONF(Signal* signal);
+
+  void createObj_prepare_start_done(Signal* signal, Uint32 callback, Uint32);
+  void createObj_writeSchemaConf1(Signal* signal, Uint32 callback, Uint32);
+  void createObj_writeObjConf(Signal* signal, Uint32 callbackData, Uint32);
+  void createObj_prepare_complete_done(Signal*, Uint32 callbackData, Uint32);
+  void createObj_commit_start_done(Signal* signal, Uint32 callback, Uint32);
+  void createObj_writeSchemaConf2(Signal* signal, Uint32 callbackData, Uint32);
+  void createObj_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
+  void createObj_abort(Signal*, struct CreateObjReq*);
+  void createObj_abort_start_done(Signal*, Uint32 callbackData, Uint32);
+  void createObj_abort_writeSchemaConf(Signal*, Uint32 callbackData, Uint32);
+  void createObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);  
+
+  void schemaOp_reply(Signal* signal, SchemaTransaction *, Uint32);
+  void trans_commit_start_done(Signal*, Uint32 callbackData, Uint32);
+  void trans_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
+  void trans_abort_start_done(Signal*, Uint32 callbackData, Uint32);
+  void trans_abort_complete_done(Signal*, Uint32 callbackData, Uint32);
+
+  void execDROP_OBJ_REQ(Signal* signal);  
+  void execDROP_OBJ_REF(Signal* signal);  
+  void execDROP_OBJ_CONF(Signal* signal);
+
+  void dropObj_prepare_start_done(Signal* signal, Uint32 callback, Uint32);
+  void dropObj_prepare_writeSchemaConf(Signal*, Uint32 callback, Uint32);
+  void dropObj_prepare_complete_done(Signal*, Uint32 callbackData, Uint32);
+  void dropObj_commit_start_done(Signal*, Uint32 callbackData, Uint32);
+  void dropObj_commit_writeSchemaConf(Signal*, Uint32 callback, Uint32);
+  void dropObj_commit_complete_done(Signal*, Uint32 callbackData, Uint32);
+  void dropObj_abort_start_done(Signal*, Uint32 callbackData, Uint32);
+  void dropObj_abort_writeSchemaConf(Signal*, Uint32 callback, Uint32);
+  void dropObj_abort_complete_done(Signal*, Uint32 callbackData, Uint32);
+  
+  void restartCreateObj(Signal*, Uint32, 
+			const SchemaFile::TableEntry *,
+			const SchemaFile::TableEntry *, bool);
+  void restartCreateObj_readConf(Signal*, Uint32, Uint32);
+  void restartCreateObj_getTabInfoConf(Signal*);
+  void restartCreateObj_prepare_start_done(Signal*, Uint32, Uint32);
+  void restartCreateObj_write_complete(Signal*, Uint32, Uint32);
+  void restartCreateObj_prepare_complete_done(Signal*, Uint32, Uint32);
+  void restartCreateObj_commit_start_done(Signal*, Uint32, Uint32);
+  void restartCreateObj_commit_complete_done(Signal*, Uint32, Uint32);
+
+  void execDICT_COMMIT_REQ(Signal*);
+  void execDICT_COMMIT_REF(Signal*);
+  void execDICT_COMMIT_CONF(Signal*);
+
+  void execDICT_ABORT_REQ(Signal*);
+  void execDICT_ABORT_REF(Signal*);
+  void execDICT_ABORT_CONF(Signal*);
+
+public:
+  void createObj_commit(Signal*, struct SchemaOp*);
+  void createObj_abort(Signal*, struct SchemaOp*);
+
+  void create_fg_prepare_start(Signal* signal, SchemaOp*);
+  void create_fg_prepare_complete(Signal* signal, SchemaOp*);
+  void create_fg_abort_start(Signal* signal, SchemaOp*);
+  void create_fg_abort_complete(Signal* signal, SchemaOp*);
+
+  void create_file_prepare_start(Signal* signal, SchemaOp*);
+  void create_file_prepare_complete(Signal* signal, SchemaOp*);
+  void create_file_commit_start(Signal* signal, SchemaOp*);
+  void create_file_abort_start(Signal* signal, SchemaOp*);
+  void create_file_abort_complete(Signal* signal, SchemaOp*);
+
+  void dropObj_commit(Signal*, struct SchemaOp*);
+  void dropObj_abort(Signal*, struct SchemaOp*);
+  void drop_file_prepare_start(Signal* signal, SchemaOp*);
+  void drop_file_commit_start(Signal* signal, SchemaOp*);
+  void drop_file_commit_complete(Signal* signal, SchemaOp*);
+  void drop_file_abort_start(Signal* signal, SchemaOp*);
+  void send_drop_file(Signal*, SchemaOp*, DropFileImplReq::RequestInfo);
+
+  void drop_fg_prepare_start(Signal* signal, SchemaOp*);
+  void drop_fg_commit_start(Signal* signal, SchemaOp*);
+  void drop_fg_commit_complete(Signal* signal, SchemaOp*);
+  void drop_fg_abort_start(Signal* signal, SchemaOp*);
+  void send_drop_fg(Signal*, SchemaOp*, DropFilegroupImplReq::RequestInfo);
+
+  void drop_undofile_prepare_start(Signal* signal, SchemaOp*);
 };
+
+inline bool
+Dbdict::TableRecord::isTable() const
+{
+  return DictTabInfo::isTable(tableType);
+}
+
+inline bool
+Dbdict::TableRecord::isIndex() const
+{
+  return DictTabInfo::isIndex(tableType);
+}
+
+inline bool
+Dbdict::TableRecord::isUniqueIndex() const
+{
+  return DictTabInfo::isUniqueIndex(tableType);
+}
+
+inline bool
+Dbdict::TableRecord::isNonUniqueIndex() const
+{
+  return DictTabInfo::isNonUniqueIndex(tableType);
+}
+
+inline bool
+Dbdict::TableRecord::isHashIndex() const
+{
+  return DictTabInfo::isHashIndex(tableType);
+}
+
+inline bool
+Dbdict::TableRecord::isOrderedIndex() const
+{
+  return DictTabInfo::isOrderedIndex(tableType);
+}
+
 
 #endif

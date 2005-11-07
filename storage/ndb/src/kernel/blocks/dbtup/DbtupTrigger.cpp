@@ -282,7 +282,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   tptr.p->attributeMask.clear();
   if (tptr.p->monitorAllAttributes) {
     ljam();
-    for(Uint32 i = 0; i < table->noOfAttr; i++) {
+    for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
       if (!primaryKey(table, i)) {
         ljam();
         tptr.p->attributeMask.set(i);
@@ -300,7 +300,8 @@ bool
 Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 {
   Uint32 attrDescriptorStart = regTabPtr->tabDescriptor;
-  Uint32 attrDescriptor = getTabDescrWord(attrDescriptorStart + (attrId * ZAD_SIZE));
+  Uint32 attrDescriptor = getTabDescrWord(attrDescriptorStart +
+                                          (attrId * ZAD_SIZE));
   return (bool)AttributeDescriptor::getPrimaryKey(attrDescriptor);
 }//Dbtup::primaryKey()
 
@@ -353,63 +354,66 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
 /* Executes immediate triggers by sending FIRETRIGORD               */
 /*                                                                  */
 /* ---------------------------------------------------------------- */
-void Dbtup::checkImmediateTriggersAfterInsert(Signal* signal, 
-                                              Operationrec* const regOperPtr, 
-                                              Tablerec* const regTablePtr)
+void
+Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
+                                         Operationrec* const regOperPtr, 
+                                         Tablerec* const regTablePtr)
 {
-  if(refToBlock(regOperPtr->coordinatorTC) == DBLQH) {
+  if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
   }
 
-  if ((regOperPtr->primaryReplica) &&
+  if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterInsertTriggers.isEmpty()))) {
     ljam();
-    fireImmediateTriggers(signal,
+    fireImmediateTriggers(req_struct,
                           regTablePtr->afterInsertTriggers,
                           regOperPtr);
-  }//if
-}//Dbtup::checkImmediateTriggersAfterInsert()
+  }
+}
 
-void Dbtup::checkImmediateTriggersAfterUpdate(Signal* signal, 
-                                              Operationrec* const regOperPtr, 
-                                              Tablerec* const regTablePtr)
+void
+Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
+                                         Operationrec* const regOperPtr, 
+                                         Tablerec* const regTablePtr)
 {
-  if(refToBlock(regOperPtr->coordinatorTC) == DBLQH) {
+  if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
   }
 
-  if ((regOperPtr->primaryReplica) &&
+  if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterUpdateTriggers.isEmpty()))) {
     ljam();
-    fireImmediateTriggers(signal,
+    fireImmediateTriggers(req_struct,
                           regTablePtr->afterUpdateTriggers,
                           regOperPtr);
-  }//if
-  if ((regOperPtr->primaryReplica) &&
+  }
+  if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->constraintUpdateTriggers.isEmpty()))) {
     ljam();
-    fireImmediateTriggers(signal,
+    fireImmediateTriggers(req_struct,
                           regTablePtr->constraintUpdateTriggers,
                           regOperPtr);
-  }//if
-}//Dbtup::checkImmediateTriggersAfterUpdate()
+  }
+}
 
-void Dbtup::checkImmediateTriggersAfterDelete(Signal* signal, 
-                                              Operationrec* const regOperPtr, 
-                                              Tablerec* const regTablePtr)
+void
+Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
+                                         Operationrec* const regOperPtr, 
+                                         Tablerec* const regTablePtr)
 {
-  if(refToBlock(regOperPtr->coordinatorTC) == DBLQH) {
+  if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
   }
 
-  if ((regOperPtr->primaryReplica) &&
+  if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->afterDeleteTriggers.isEmpty()))) {
     ljam();
-    executeTriggers(signal,
+    executeTriggers(req_struct,
                     regTablePtr->afterDeleteTriggers,
                     regOperPtr);
-  }//if
-}//Dbtup::checkImmediateTriggersAfterDelete()
+  }
+}
 
 #if 0
 /* ---------------------------------------------------------------- */
@@ -439,21 +443,22 @@ void Dbtup::checkDeferredTriggers(Signal* signal,
 /* Executes detached triggers by sending FIRETRIGORD                */
 /*                                                                  */
 /* ---------------------------------------------------------------- */
-void Dbtup::checkDetachedTriggers(Signal* signal, 
+void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                                   Operationrec* const regOperPtr,
                                   Tablerec* const regTablePtr)
 {
-  switch(regOperPtr->optype) {
+  
+  switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
     ljam();
     if (regTablePtr->subscriptionInsertTriggers.isEmpty()) {
       // Table has no active triggers monitoring inserts at commit
       ljam();
       return;
-    }//if
+    }
 
     // If any fired immediate insert trigger then fetch after tuple
-    fireDetachedTriggers(signal, 
+    fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionInsertTriggers, 
                          regOperPtr);
     break;
@@ -463,13 +468,13 @@ void Dbtup::checkDetachedTriggers(Signal* signal,
       // Table has no active triggers monitoring deletes at commit
       ljam();
       return;
-    }//if
+    }
 
     // Execute any after delete triggers by sending 
     // FIRETRIGORD with the before tuple
-    executeTriggers(signal, 
-                    regTablePtr->subscriptionDeleteTriggers, 
-                    regOperPtr);
+    fireDetachedTriggers(req_struct,
+			 regTablePtr->subscriptionDeleteTriggers, 
+			 regOperPtr);
     break;
   case(ZUPDATE):
     ljam();
@@ -477,22 +482,22 @@ void Dbtup::checkDetachedTriggers(Signal* signal,
       // Table has no active triggers monitoring updates at commit
       ljam();
       return;
-    }//if
+    }
 
     // If any fired immediate update trigger then fetch after tuple
     // and send two FIRETRIGORD one with before tuple and one with after tuple
-    fireDetachedTriggers(signal, 
+    fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionUpdateTriggers, 
                          regOperPtr);
     break;
   default:
     ndbrequire(false);
     break;
-  }//switch
-}//Dbtup::CheckDetachedTriggers()
+  }
+}
 
 void 
-Dbtup::fireImmediateTriggers(Signal* signal, 
+Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
                              ArrayList<TupTriggerData>& triggerList, 
                              Operationrec* const regOperPtr)
 {
@@ -501,9 +506,9 @@ Dbtup::fireImmediateTriggers(Signal* signal,
   while (trigPtr.i != RNIL) {
     ljam();
     if (trigPtr.p->monitorAllAttributes ||
-        trigPtr.p->attributeMask.overlaps(regOperPtr->changeMask)) {
+        trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
       ljam();
-      executeTrigger(signal,
+      executeTrigger(req_struct,
                      trigPtr.p,
                      regOperPtr);
     }//if
@@ -513,7 +518,8 @@ Dbtup::fireImmediateTriggers(Signal* signal,
 
 #if 0
 void 
-Dbtup::fireDeferredTriggers(Signal* signal, 
+Dbtup::fireDeferredTriggers(Signal* signal,
+                            KeyReqStruct *req_struct,
                             ArrayList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr)
 {
@@ -522,9 +528,9 @@ Dbtup::fireDeferredTriggers(Signal* signal,
   while (trigPtr.i != RNIL) {
     ljam();
     if (trigPtr.p->monitorAllAttributes ||
-        trigPtr.p->attributeMask.overlaps(regOperPtr->changeMask)) {
+        trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
       ljam();
-      executeTrigger(signal,
+      executeTrigger(req_struct,
                      trigPtr,
                      regOperPtr);
     }//if
@@ -534,27 +540,60 @@ Dbtup::fireDeferredTriggers(Signal* signal,
 #endif
 
 void 
-Dbtup::fireDetachedTriggers(Signal* signal, 
+Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
                             ArrayList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr)
 {
+  
   TriggerPtr trigPtr;  
+  Uint32 save= regOperPtr->op_struct.op_type;
+  Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
+
+  switch(save){
+  case ZUPDATE:
+  case ZINSERT:
+    req_struct->m_tuple_ptr = (Tuple_header*)
+      c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
+    break;
+  }
+
+  /**
+   * Set correct operation type and fix change mask
+   */
+  if(req_struct->m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
+  {
+    if(save == ZDELETE)
+    {
+      // insert + delete = nothing
+      ljam();
+      return;
+      goto end;
+    }
+    regOperPtr->op_struct.op_type = ZINSERT;
+  }
+
+  ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
     ljam();
-    if ((trigPtr.p->monitorReplicas || regOperPtr->primaryReplica) &&
+    if ((trigPtr.p->monitorReplicas ||
+         regOperPtr->op_struct.primary_replica) &&
         (trigPtr.p->monitorAllAttributes ||
-         trigPtr.p->attributeMask.overlaps(regOperPtr->changeMask))) {
+         trigPtr.p->attributeMask.overlaps(req_struct->changeMask))) {
       ljam();
-      executeTrigger(signal,
+      executeTrigger(req_struct,
                      trigPtr.p,
                      regOperPtr);
-    }//if
+    }
     triggerList.next(trigPtr);
-  }//while
-}//Dbtup::fireDetachedTriggers()
+  }
 
-void Dbtup::executeTriggers(Signal* signal, 
+end:
+  regOperPtr->op_struct.op_type = save;
+  req_struct->m_tuple_ptr = save_ptr;
+}
+
+void Dbtup::executeTriggers(KeyReqStruct *req_struct,
                             ArrayList<TupTriggerData>& triggerList, 
                             Operationrec* regOperPtr)
 {
@@ -562,15 +601,15 @@ void Dbtup::executeTriggers(Signal* signal,
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
     ljam();
-    executeTrigger(signal,
+    executeTrigger(req_struct,
                    trigPtr.p,
                    regOperPtr);
     triggerList.next(trigPtr);
 
-  }//while
-}//Dbtup::executeTriggers()
+  }
+}
 
-void Dbtup::executeTrigger(Signal* signal,
+void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr)
 {
@@ -595,17 +634,21 @@ void Dbtup::executeTrigger(Signal* signal,
    */
   // XXX quick fix to NR, should fix in LQHKEYREQ instead
   /*  
-      if (refToBlock(regOperPtr->coordinatorTC) == DBLQH) {
+      if (refToBlock(req_struct->TC_ref) == DBLQH) {
       jam();
       return;
       }
   */
+  Signal* signal= req_struct->signal;
   BlockReference ref = trigPtr->m_receiverBlock;
   Uint32* const keyBuffer = &cinBuffer[0];
-  Uint32* const mainBuffer = &coutBuffer[0];
-  Uint32* const copyBuffer = &clogMemBuffer[0];
-
-  Uint32 noPrimKey, noMainWords, noCopyWords;
+  Uint32* const afterBuffer = &coutBuffer[0];
+  Uint32* const beforeBuffer = &clogMemBuffer[0];
+  
+  Uint32 noPrimKey, noAfterWords, noBeforeWords;
+  FragrecordPtr regFragPtr;
+  regFragPtr.i= regOperPtr->fragmentPtr;
+  ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
 
   if (ref == BACKUP) {
     ljam();
@@ -619,25 +662,27 @@ void Dbtup::executeTrigger(Signal* signal,
     for everybody else.
     */
     signal->theData[0] = trigPtr->triggerId;
-    signal->theData[1] = regOperPtr->fragId >> 1; // send "real" frag id
+    signal->theData[1] = regFragPtr.p->fragmentId;
     EXECUTE_DIRECT(BACKUP, GSN_BACKUP_TRIG_REQ, signal, 2);
     ljamEntry();
     if (signal->theData[0] == 0) {
       ljam();
       return;
-    }//if
-  }//if
+    }
+  }
   if (!readTriggerInfo(trigPtr,
                        regOperPtr,
+                       req_struct,
+                       regFragPtr.p,
                        keyBuffer,
                        noPrimKey,
-                       mainBuffer,
-                       noMainWords,
-                       copyBuffer,
-                       noCopyWords)) {
+                       afterBuffer,
+                       noAfterWords,
+                       beforeBuffer,
+                       noBeforeWords)) {
     ljam();
     return;
-  }//if
+  }
 //--------------------------------------------------------------------
 // Now all data for this trigger has been read. It is now time to send
 // the trigger information consisting of two or three sets of TRIG_
@@ -646,13 +691,13 @@ void Dbtup::executeTrigger(Signal* signal,
 //--------------------------------------------------------------------
   bool executeDirect;
   TrigAttrInfo* const trigAttrInfo = (TrigAttrInfo *)signal->getDataPtrSend();
-  trigAttrInfo->setConnectionPtr(regOperPtr->tcOpIndex);
+  trigAttrInfo->setConnectionPtr(req_struct->TC_index);
   trigAttrInfo->setTriggerId(trigPtr->triggerId);
 
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
     ljam();
-    ref = regOperPtr->coordinatorTC;
+    ref = req_struct->TC_ref;
     executeDirect = false;
     break;
   case (TriggerType::SUBSCRIPTION):
@@ -671,110 +716,112 @@ void Dbtup::executeTrigger(Signal* signal,
     executeDirect= false; // remove warning
   }//switch
 
-  regOperPtr->noFiredTriggers++;
+  req_struct->no_fired_triggers++;
 
   trigAttrInfo->setAttrInfoType(TrigAttrInfo::PRIMARY_KEY);
   sendTrigAttrInfo(signal, keyBuffer, noPrimKey, executeDirect, ref);
 
-  Uint32 noAfter = 0;
-  Uint32 noBefore = 0;
-  switch(regOperPtr->optype) {
+  switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
     ljam();
     // Send AttrInfo signals with new attribute values
     trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
-    sendTrigAttrInfo(signal, mainBuffer, noMainWords, executeDirect, ref);
-    noAfter = noMainWords;
+    sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
     break;
   case(ZDELETE):
     if (trigPtr->sendBeforeValues) {
       ljam();
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
-      sendTrigAttrInfo(signal, mainBuffer, noMainWords, executeDirect, ref);
-      noBefore = noMainWords;
-    }//if
+      sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
+    }
     break;
   case(ZUPDATE):
     ljam();
     if (trigPtr->sendBeforeValues) {
       ljam();
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
-      sendTrigAttrInfo(signal, copyBuffer, noCopyWords, executeDirect, ref);
-      noBefore = noCopyWords;
-    }//if
+      sendTrigAttrInfo(signal, beforeBuffer, noBeforeWords, executeDirect,ref);
+    }
     trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
-    sendTrigAttrInfo(signal, mainBuffer, noMainWords, executeDirect, ref);
-    noAfter = noMainWords;
+    sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
     break;
   default:
     ndbrequire(false);
-  }//switch
+  }
   sendFireTrigOrd(signal,
+                  req_struct,
                   regOperPtr,
                   trigPtr,
+		  regFragPtr.p->fragmentId,
                   noPrimKey,
-                  noBefore,
-                  noAfter);
-}//Dbtup::executeTrigger()
+                  noBeforeWords,
+                  noAfterWords);
+}
 
 Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
-                         Uint32 noOfAttributes, 
+                         Uint32 m_no_of_attributesibutes, 
                          Uint32* inBuffer)
 {
   Uint32 bufIndx = 0;
-  for (Uint32 i = 0; i < noOfAttributes; i++) {
+  for (Uint32 i = 0; i < m_no_of_attributesibutes; i++) {
     ljam();
     if (attributeMask.get(i)) {
       ljam();
       AttributeHeader::init(&inBuffer[bufIndx++], i, 0);
-    }//if
-  }//for
+    }
+  }
   return bufIndx;
-}//Dbtup::setAttrIds()
+}
 
 bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
-                            Operationrec* const regOperPtr, 
+                            Operationrec* const regOperPtr,
+                            KeyReqStruct *req_struct,
+                            Fragrecord* const regFragPtr,
                             Uint32* const keyBuffer,
                             Uint32& noPrimKey,
-                            Uint32*  const mainBuffer,
-                            Uint32& noMainWords,
-                            Uint32* const copyBuffer,
-                            Uint32& noCopyWords)
+                            Uint32* const afterBuffer,
+                            Uint32& noAfterWords,
+                            Uint32* const beforeBuffer,
+                            Uint32& noBeforeWords)
 {
-  noCopyWords = 0;
-  noMainWords = 0;
+  //XXX this will not work with varsize attributes...
+  noAfterWords = 0;
+  noBeforeWords = 0;
   Uint32 readBuffer[MAX_ATTRIBUTES_IN_TABLE];
-  PagePtr pagep;
 
 //---------------------------------------------------------------------------
 // Set-up variables needed by readAttributes operPtr.p, tabptr.p
 //---------------------------------------------------------------------------
   operPtr.p = regOperPtr;
-  tabptr.i = regOperPtr->tableRef;
+  tabptr.i = regFragPtr->fragTableId;
   ptrCheckGuard(tabptr, cnoOfTablerec, tablerec);
+
   Tablerec* const regTabPtr = tabptr.p;
-//--------------------------------------------------------------------
-// Initialise pagep and tuple offset for read of main tuple
-//--------------------------------------------------------------------
-  Uint32 tupheadoffset = regOperPtr->pageOffset;
-  pagep.i = regOperPtr->realPageId;
-  ptrCheckGuard(pagep, cnoOfPage, page);
+  Uint32 num_attr= regTabPtr->m_no_of_attributes;
+  Uint32 descr_start= regTabPtr->tabDescriptor;
+  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+
+  req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
+  req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
+  req_struct->attr_descr= &tableDescriptor[descr_start];
 
 //--------------------------------------------------------------------
 // Read Primary Key Values
 //--------------------------------------------------------------------
-  int ret= readAttributes(pagep.p,
-			  tupheadoffset,
-			  &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
-			  regTabPtr->noOfKeyAttr,
-			  keyBuffer,
-			  ZATTR_BUFFER_SIZE,
-			  false);
+  if (regTabPtr->need_expand(false)) // no disk 
+    prepare_read(req_struct, regTabPtr, false); // setup varsize
+  
+  int ret = readAttributes(req_struct,
+			   &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
+			   regTabPtr->noOfKeyAttr,
+			   keyBuffer,
+			   ZATTR_BUFFER_SIZE,
+			   false);
   ndbrequire(ret != -1);
   noPrimKey= ret;
 
   Uint32 numAttrsToRead;
-  if ((regOperPtr->optype == ZUPDATE) &&
+  if ((regOperPtr->op_struct.op_type == ZUPDATE) &&
       (trigPtr->sendOnlyChangedAttributes)) {
     ljam();
 //--------------------------------------------------------------------
@@ -782,10 +829,11 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
     Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
     attributeMask = trigPtr->attributeMask;
-    attributeMask.bitAND(regOperPtr->changeMask);
-    numAttrsToRead = setAttrIds(attributeMask, regTabPtr->noOfAttr, &readBuffer[0]);
-
-  } else if ((regOperPtr->optype == ZDELETE) &&
+    attributeMask.bitAND(req_struct->changeMask);
+    numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes, 
+				&readBuffer[0]);
+    
+  } else if ((regOperPtr->op_struct.op_type == ZDELETE) &&
              (!trigPtr->sendBeforeValues)) {
     ljam();
 //--------------------------------------------------------------------
@@ -797,63 +845,79 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
 // All others send all attributes that are monitored
 //--------------------------------------------------------------------
-    numAttrsToRead = setAttrIds(trigPtr->attributeMask, regTabPtr->noOfAttr, &readBuffer[0]);
-  }//if
+    numAttrsToRead = setAttrIds(trigPtr->attributeMask, 
+				regTabPtr->m_no_of_attributes, &readBuffer[0]);
+  }
   ndbrequire(numAttrsToRead < MAX_ATTRIBUTES_IN_TABLE);
 //--------------------------------------------------------------------
 // Read Main tuple values
 //--------------------------------------------------------------------
-  if ((regOperPtr->optype != ZDELETE) ||
-      (trigPtr->sendBeforeValues)) {
+  if (regOperPtr->op_struct.op_type != ZDELETE)
+  {
     ljam();
-    int ret= readAttributes(pagep.p,
-			    tupheadoffset,
-			    &readBuffer[0],
-			    numAttrsToRead,
-			    mainBuffer,
-			    ZATTR_BUFFER_SIZE,
-			    false);
+    int ret = readAttributes(req_struct,
+			     &readBuffer[0],
+			     numAttrsToRead,
+			     afterBuffer,
+			     ZATTR_BUFFER_SIZE,
+			     false);
     ndbrequire(ret != -1);
-    noMainWords= ret;
+    noAfterWords= ret;
   } else {
     ljam();
-    noMainWords = 0;
-  }//if
+    noAfterWords = 0;
+  }
+
 //--------------------------------------------------------------------
 // Read Copy tuple values for UPDATE's
 //--------------------------------------------------------------------
 // Initialise pagep and tuple offset for read of copy tuple
 //--------------------------------------------------------------------
-  if ((regOperPtr->optype == ZUPDATE) &&
+  if ((regOperPtr->op_struct.op_type == ZUPDATE || 
+       regOperPtr->op_struct.op_type == ZDELETE) &&
       (trigPtr->sendBeforeValues)) {
     ljam();
+    
+    Tuple_header *save= req_struct->m_tuple_ptr;
+    PagePtr tmp;
+    if(regOperPtr->is_first_operation())
+    {
+      Uint32 *ptr= get_ptr(&tmp, &regOperPtr->m_tuple_location, regTabPtr);
+      req_struct->m_tuple_ptr= (Tuple_header*)ptr;
+    }
+    else
+    {
+      Uint32 *ptr= 
+	c_undo_buffer.get_ptr(&req_struct->prevOpPtr.p->m_copy_tuple_location);
 
-    tupheadoffset = regOperPtr->pageOffsetC;
-    pagep.i = regOperPtr->realPageIdC;
-    ptrCheckGuard(pagep, cnoOfPage, page);
+      req_struct->m_tuple_ptr= (Tuple_header*)ptr;
+    }
 
-    int ret= readAttributes(pagep.p,
-			    tupheadoffset,
-			    &readBuffer[0],
-			    numAttrsToRead,
-			    copyBuffer,
-			    ZATTR_BUFFER_SIZE,
-			    false);
-
+    if (regTabPtr->need_expand(false)) // no disk 
+      prepare_read(req_struct, regTabPtr, false); // setup varsize
+    
+    int ret = readAttributes(req_struct,
+			     &readBuffer[0],
+			     numAttrsToRead,
+			     beforeBuffer,
+			     ZATTR_BUFFER_SIZE,
+			     false);
+    req_struct->m_tuple_ptr= save;
     ndbrequire(ret != -1);
-    noCopyWords = ret;
-    if ((noMainWords == noCopyWords) &&
-        (memcmp(mainBuffer, copyBuffer, noMainWords << 2) == 0)) {
+    noBeforeWords = ret;
+    if ((noAfterWords == noBeforeWords) &&
+        (memcmp(afterBuffer, beforeBuffer, noAfterWords << 2) == 0)) {
 //--------------------------------------------------------------------
 // Although a trigger was fired it was not necessary since the old
 // value and the new value was exactly the same
 //--------------------------------------------------------------------
       ljam();
+      //XXX does this work with collations?
       return false;
-    }//if
-  }//if
+    }
+  }
   return true;
-}//Dbtup::readTriggerInfo()
+}
 
 void Dbtup::sendTrigAttrInfo(Signal* signal, 
                              Uint32* data, 
@@ -869,7 +933,7 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
     if (sigLen > TrigAttrInfo::DataLength) {
       ljam();
       sigLen = TrigAttrInfo::DataLength;
-    }//if
+    }
     MEMCOPY_NO_WORDS(trigAttrInfo->getData(), 
                      data + dataIndex,
                      sigLen);
@@ -887,25 +951,27 @@ void Dbtup::sendTrigAttrInfo(Signal* signal,
                  signal, 
                  TrigAttrInfo::StaticLength + sigLen,
                  JBB);
-    }//if
+    }
     dataIndex += sigLen;
   } while (dataLen != dataIndex);
-}//Dbtup::sendTrigAttrInfo()
+}
 
-void Dbtup::sendFireTrigOrd(Signal* signal, 
+void Dbtup::sendFireTrigOrd(Signal* signal,
+                            KeyReqStruct *req_struct,
                             Operationrec * const regOperPtr, 
                             TupTriggerData* const trigPtr, 
+			    Uint32 fragmentId,
                             Uint32 noPrimKeyWords, 
                             Uint32 noBeforeValueWords, 
                             Uint32 noAfterValueWords)
 {
   FireTrigOrd* const fireTrigOrd = (FireTrigOrd *)signal->getDataPtrSend();
   
-  fireTrigOrd->setConnectionPtr(regOperPtr->tcOpIndex);
+  fireTrigOrd->setConnectionPtr(req_struct->TC_index);
   fireTrigOrd->setTriggerId(trigPtr->triggerId);
-  fireTrigOrd->fragId= regOperPtr->fragId >> 1; //Handle two local frags
+  fireTrigOrd->fragId= fragmentId;
 
-  switch(regOperPtr->optype) {
+  switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
     ljam();
     fireTrigOrd->setTriggerEvent(TriggerEvent::TE_INSERT);
@@ -921,7 +987,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   default:
     ndbrequire(false);
     break;
-  }//switch
+  }
 
   fireTrigOrd->setNoOfPrimaryKeyWords(noPrimKeyWords);
   fireTrigOrd->setNoOfBeforeValueWords(noBeforeValueWords);
@@ -930,15 +996,15 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
     ljam();
-    sendSignal(regOperPtr->coordinatorTC, GSN_FIRE_TRIG_ORD, 
+    sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD, 
                signal, FireTrigOrd::SignalLength, JBB);
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
     ljam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(regOperPtr->gci);
-    fireTrigOrd->setHashValue(regOperPtr->hashValue);
+    fireTrigOrd->setGCI(req_struct->gci);
+    fireTrigOrd->setHashValue(req_struct->hash_value);
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
@@ -948,7 +1014,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     ljam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(regOperPtr->gci);
+    fireTrigOrd->setGCI(req_struct->gci);
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
@@ -957,8 +1023,8 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   default:
     ndbrequire(false);
     break;
-  }//switch
-}//Dbtup::sendFireTrigOrd()
+  }
+}
 
 /*
  * Ordered index triggers.
@@ -975,20 +1041,16 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 int
 Dbtup::executeTuxInsertTriggers(Signal* signal,
                                 Operationrec* const regOperPtr,
+                                Fragrecord* const regFragPtr,
                                 Tablerec* const regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  PagePtr pagePtr;
-  pagePtr.i = regOperPtr->realPageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, page);
-  Uint32 tupVersion = pagePtr.p->pageWord[regOperPtr->pageOffset + 1];
-  ndbrequire(tupVersion == regOperPtr->tupVersion);
   // fill in constant part
-  req->tableId = regOperPtr->tableRef;
-  req->fragId = regOperPtr->fragId;
-  req->pageId = regOperPtr->realPageId;
-  req->pageOffset = regOperPtr->pageOffset;
-  req->tupVersion = tupVersion;
+  req->tableId = regFragPtr->fragTableId;
+  req->fragId = regFragPtr->fragmentId;
+  req->pageId = regOperPtr->m_tuple_location.m_page_no;
+  req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
+  req->tupVersion = regOperPtr->tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
   return addTuxEntries(signal, regOperPtr, regTabPtr);
 }
@@ -996,20 +1058,16 @@ Dbtup::executeTuxInsertTriggers(Signal* signal,
 int
 Dbtup::executeTuxUpdateTriggers(Signal* signal,
                                 Operationrec* const regOperPtr,
+                                Fragrecord* const regFragPtr,
                                 Tablerec* const regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  PagePtr pagePtr;
-  pagePtr.i = regOperPtr->realPageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, page);
-  Uint32 tupVersion = pagePtr.p->pageWord[regOperPtr->pageOffset + 1];
-  ndbrequire(tupVersion == regOperPtr->tupVersion);
   // fill in constant part
-  req->tableId = regOperPtr->tableRef;
-  req->fragId = regOperPtr->fragId;
-  req->pageId = regOperPtr->realPageId;
-  req->pageOffset = regOperPtr->pageOffset;
-  req->tupVersion = tupVersion;
+  req->tableId = regFragPtr->fragTableId;
+  req->fragId = regFragPtr->fragmentId;
+  req->pageId = regOperPtr->m_tuple_location.m_page_no;
+  req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
+  req->tupVersion = regOperPtr->tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
   return addTuxEntries(signal, regOperPtr, regTabPtr);
 }
@@ -1062,6 +1120,7 @@ fail:
 int
 Dbtup::executeTuxDeleteTriggers(Signal* signal,
                                 Operationrec* const regOperPtr,
+                                Fragrecord* const regFragPtr,
                                 Tablerec* const regTabPtr)
 {
   // do nothing
@@ -1071,45 +1130,33 @@ Dbtup::executeTuxDeleteTriggers(Signal* signal,
 void
 Dbtup::executeTuxCommitTriggers(Signal* signal,
                                 Operationrec* regOperPtr,
+                                Fragrecord* const regFragPtr,
                                 Tablerec* const regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  // get version
   Uint32 tupVersion;
-  if (regOperPtr->optype == ZINSERT) {
-    if (! regOperPtr->deleteInsertFlag)
+  if (regOperPtr->op_struct.op_type == ZINSERT) {
+    if (! regOperPtr->op_struct.delete_insert_flag)
       return;
     ljam();
-    PagePtr pagePtr;
-    pagePtr.i = regOperPtr->realPageIdC;
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    tupVersion = pagePtr.p->pageWord[regOperPtr->pageOffsetC + 1];
-    ndbrequire(tupVersion != regOperPtr->tupVersion);
-  } else if (regOperPtr->optype == ZUPDATE) {
+    tupVersion= decr_tup_version(regOperPtr->tupVersion);
+  } else if (regOperPtr->op_struct.op_type == ZUPDATE) {
     ljam();
-    PagePtr pagePtr;
-    pagePtr.i = regOperPtr->realPageIdC;
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    tupVersion = pagePtr.p->pageWord[regOperPtr->pageOffsetC + 1];
-    ndbrequire(tupVersion != regOperPtr->tupVersion);
-  } else if (regOperPtr->optype == ZDELETE) {
-    if (regOperPtr->deleteInsertFlag)
+    tupVersion= decr_tup_version(regOperPtr->tupVersion);
+  } else if (regOperPtr->op_struct.op_type == ZDELETE) {
+    if (regOperPtr->op_struct.delete_insert_flag)
       return;
     ljam();
-    PagePtr pagePtr;
-    pagePtr.i = regOperPtr->realPageId;
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    tupVersion = pagePtr.p->pageWord[regOperPtr->pageOffset + 1];
-    ndbrequire(tupVersion == regOperPtr->tupVersion);
+    tupVersion= regOperPtr->tupVersion;
   } else {
     ndbrequire(false);
     tupVersion= 0; // remove warning
   }
   // fill in constant part
-  req->tableId = regOperPtr->tableRef;
-  req->fragId = regOperPtr->fragId;
-  req->pageId = regOperPtr->realPageId;
-  req->pageOffset = regOperPtr->pageOffset;
+  req->tableId = regFragPtr->fragTableId;
+  req->fragId = regFragPtr->fragmentId;
+  req->pageId = regOperPtr->m_tuple_location.m_page_no;
+  req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
   removeTuxEntries(signal, regOperPtr, regTabPtr);
@@ -1118,18 +1165,19 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
 void
 Dbtup::executeTuxAbortTriggers(Signal* signal,
                                Operationrec* regOperPtr,
+                               Fragrecord* const regFragPtr,
                                Tablerec* const regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   // get version
   Uint32 tupVersion;
-  if (regOperPtr->optype == ZINSERT) {
+  if (regOperPtr->op_struct.op_type == ZINSERT) {
     ljam();
     tupVersion = regOperPtr->tupVersion;
-  } else if (regOperPtr->optype == ZUPDATE) {
+  } else if (regOperPtr->op_struct.op_type == ZUPDATE) {
     ljam();
     tupVersion = regOperPtr->tupVersion;
-  } else if (regOperPtr->optype == ZDELETE) {
+  } else if (regOperPtr->op_struct.op_type == ZDELETE) {
     ljam();
     return;
   } else {
@@ -1137,10 +1185,10 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     tupVersion= 0; // remove warning
   }
   // fill in constant part
-  req->tableId = regOperPtr->tableRef;
-  req->fragId = regOperPtr->fragId;
-  req->pageId = regOperPtr->realPageId;
-  req->pageOffset = regOperPtr->pageOffset;
+  req->tableId = regFragPtr->fragTableId;
+  req->fragId = regFragPtr->fragmentId;
+  req->pageId = regOperPtr->m_tuple_location.m_page_no;
+  req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
   removeTuxEntries(signal, regOperPtr, regTabPtr);

@@ -19,6 +19,7 @@
 
 #include <ndb_global.h>
 #include "ndb_limits.h"
+#include <signaldata/DictTabInfo.hpp>
 
 #ifndef MIN
 #define MIN(x,y) (((x)<(y))?(x):(y))
@@ -32,16 +33,17 @@
 
 struct TriggerType {
   enum Value {
-    CONSTRAINT            = 0,
-    SECONDARY_INDEX       = 1,
-    FOREIGN_KEY           = 2,
-    SCHEMA_UPGRADE        = 3,
-    API_TRIGGER           = 4,
-    SQL_TRIGGER           = 5,
-    SUBSCRIPTION          = 6,
-    READ_ONLY_CONSTRAINT  = 7,
-    ORDERED_INDEX         = 8,
-    SUBSCRIPTION_BEFORE   = 9
+    //CONSTRAINT            = 0,
+    SECONDARY_INDEX       = DictTabInfo::HashIndexTrigger,
+    //FOREIGN_KEY           = 2,
+    //SCHEMA_UPGRADE        = 3,
+    //API_TRIGGER           = 4,
+    //SQL_TRIGGER           = 5,
+    SUBSCRIPTION          = DictTabInfo::SubscriptionTrigger,
+    READ_ONLY_CONSTRAINT  = DictTabInfo::ReadOnlyConstraint,
+    ORDERED_INDEX         = DictTabInfo::IndexTrigger,
+    
+    SUBSCRIPTION_BEFORE   = 9 // Only used by TUP/SUMA, should be REMOVED!!
   };
 };
 

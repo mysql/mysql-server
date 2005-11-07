@@ -54,21 +54,14 @@ Remark:         Defines search condition with equality anAttrName.
 ******************************************************************************/
 int
 NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo, 
-                         const char* aValuePassed, 
-                         Uint32 aVariableKeyLen)
+                         const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::equal_impl");
-  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
-                       tAttrInfo->m_name.c_str(),
-                       theOperationType,
-                       aValuePassed, aVariableKeyLen));
-  if (aValuePassed != NULL)
-    DBUG_DUMP("value", (char*)aValuePassed, aVariableKeyLen);
+  DBUG_PRINT("enter", ("col=%s op=%d val=%p",
+                       tAttrInfo->m_name.c_str(), theOperationType,
+                       aValuePassed));
   
-  register Uint32 tAttrId;
-
   Uint32 tData;
-  Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
   Uint64 tempData[512];
 
@@ -83,10 +76,21 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
  *      Finally check if all tuple key attributes have been defined. If
  *	this is true then set Operation state to tuple key defined.
  *****************************************************************************/
-    tAttrId = tAttrInfo->m_attrId;
-    tKeyInfoPosition = tAttrInfo->m_keyInfoPos;
-    bool tDistrKey = tAttrInfo->m_distributionKey;
 
+    /*
+     * For each call theTupleKeyDefined stores 3 items:
+     *
+     * [0] = m_column_no (external column id)
+     * [1] = 1-based index of first word of accumulating keyinfo
+     * [2] = number of words of keyinfo
+     *
+     * This is used to re-order keyinfo if not in m_attrId order.
+     *
+     * Note: No point to "clean up" this code.  The upcoming
+     * record-based ndb api makes it obsolete.
+     */
+
+    Uint32 tAttrId = tAttrInfo->m_column_no; // not m_attrId;
     Uint32 i = 0;
     if (tAttrInfo->m_pk) {
       Uint32 tKeyDefined = theTupleKeyDefined[0][2];
@@ -124,12 +128,17 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
      *      We have to retrieve the size of the attribute in words and bits.
      *************************************************************************/
   keyEntryFound:
+    Uint32 sizeInBytes;
+    if (! tAttrInfo->get_var_length(aValue, sizeInBytes)) {
+      setErrorCodeAbort(4209);
+      DBUG_RETURN(-1);
+    }
+
+    Uint32 tKeyInfoPosition =
+      i == 0 ? 1 : theTupleKeyDefined[i-1][1] + theTupleKeyDefined[i-1][2];
     theTupleKeyDefined[i][0] = tAttrId;
     theTupleKeyDefined[i][1] = tKeyInfoPosition; 
-    theTupleKeyDefined[i][2] = true;
-
-    OperationType tOpType = theOperationType;
-    Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    theTupleKeyDefined[i][2] = (sizeInBytes + 3) / 4;
 
     {
       /************************************************************************
@@ -138,6 +147,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
        * aValue. If it is not aligned then we start by copying the value to 
        * tempData and use this as aValue instead.
        ***********************************************************************/
+      const bool tDistrKey = tAttrInfo->m_distributionKey;
       const int attributeSize = sizeInBytes;
       const int slack = sizeInBytes & 3;
       const int align = UintPtr(aValue) & 7;
@@ -151,18 +161,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     }
 
     Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Inc. bits in last word
-    
-    if (true){ //tArraySize != 0) {
-      Uint32 tTupKeyLen = theTupKeyLen;
-      
-      theTupKeyLen = tTupKeyLen + totalSizeInWords;
-      if ((aVariableKeyLen == sizeInBytes) ||
-	  (aVariableKeyLen == 0)) {
-	;
-      } else {
-	goto equal_error3;
-      }
-    }
+    theTupKeyLen += totalSizeInWords;
 #if 0
     else {
       /************************************************************************
@@ -191,26 +190,25 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
      *      we also set the value in the stored part through putting the 
      *      information in the ATTRINFO signals.
      *************************************************************************/
+    OperationType tOpType = theOperationType;
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
       Uint32 ahValue;
-      const Uint32 sz = totalSizeInWords;
 
-      // XXX
-      if(m_accessTable == m_currentTable)
-      {
-	AttributeHeader::init(&ahValue, tAttrId, sz << 2);
-      }
-      else
-      {
-	assert(m_accessTable->m_index);
-	int attr_id_current_table = 
+      if(m_accessTable == m_currentTable) {
+	AttributeHeader::init(&ahValue, tAttrInfo->m_attrId, sizeInBytes);
+      } else {
+	assert(tOpType == WriteRequest && m_accessTable->m_index);
+        // use attrId of primary table column
+	int column_no_current_table = 
 	  m_accessTable->m_index->m_columns[tAttrId]->m_keyInfoPos;
-	AttributeHeader::init(&ahValue, attr_id_current_table, sz << 2);
+        int attr_id_current_table =
+          m_currentTable->m_columns[column_no_current_table]->m_attrId;
+	AttributeHeader::init(&ahValue, attr_id_current_table, sizeInBytes);
       }
       
       insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValue, sz);
+      insertATTRINFOloop((Uint32*)aValue, totalSizeInWords);
     }//if
     
     /**************************************************************************
@@ -231,6 +229,19 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       theErrorLine = tErrorLine;
       
       if (tNoKeysDef == 0) {	
+
+        // re-order keyinfo if not entered in order
+        if (m_accessTable->m_noOfKeys != 1) {
+          for (Uint32 i = 0; i < m_accessTable->m_noOfKeys; i++) {
+            Uint32 k = theTupleKeyDefined[i][0]; // column_no
+            if (m_accessTable->m_columns[k]->m_keyInfoPos != i) {
+              DBUG_PRINT("info", ("key disorder at %d", i));
+              reorderKEYINFO();
+              break;
+            }
+          }
+        }
+
 	if (tOpType == UpdateRequest) {
 	  if (tInterpretInd == 1) {
 	    theStatus = GetValue;
@@ -457,11 +468,43 @@ LastWordLabel:
   return 0;
 }
 
+void
+NdbOperation::reorderKEYINFO()
+{
+  Uint32 data[4000];
+  getKeyFromTCREQ(data, 4000);
+  Uint32 pos = 1;
+  Uint32 k;
+  for (k = 0; k < m_accessTable->m_noOfKeys; k++) {
+    Uint32 i;
+    for (i = 0; i < m_accessTable->m_columns.size(); i++) {
+      NdbColumnImpl* col = m_accessTable->m_columns[i];
+      if (col->m_pk && col->m_keyInfoPos == k) {
+        Uint32 j;
+        for (j = 0; j < m_accessTable->m_noOfKeys; j++) {
+          if (theTupleKeyDefined[j][0] == i) {
+            Uint32 off = theTupleKeyDefined[j][1] - 1;
+            Uint32 len = theTupleKeyDefined[j][2];
+            assert(off < 4000 && off + len <= 4000);
+            int ret = insertKEYINFO((char*)&data[off], pos, len);
+            assert(ret == 0);
+            pos += len;
+            break;
+          }
+        }
+        assert(j < m_accessTable->m_columns.size());
+        break;
+      }
+    }
+    assert(i < m_accessTable->m_columns.size());
+  }
+}
+
 int
 NdbOperation::getKeyFromTCREQ(Uint32* data, unsigned size)
 {
-  assert(m_accessTable != 0 && m_accessTable->m_keyLenInWords != 0);
-  assert(m_accessTable->m_keyLenInWords == size);
+  assert(size >= theTupKeyLen && theTupKeyLen > 0);
+  size = theTupKeyLen;
   unsigned pos = 0;
   while (pos < 8 && pos < size) {
     data[pos] = theKEYINFOptr[pos];
@@ -520,7 +563,20 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
 	continue;
       
       NdbColumnImpl* tAttrInfo = * cols;
-      Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+      Uint32 sizeInBytes;
+      switch(tAttrInfo->m_arrayType){
+      default:
+      case NDB_ARRAYTYPE_FIXED:
+	sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+	break;
+      case NDB_ARRAYTYPE_SHORT_VAR:
+	sizeInBytes = 1 + *(char*)src;
+	break;
+      case NDB_ARRAYTYPE_MEDIUM_VAR:
+	sizeInBytes = 2 + uint2korr((char*)src);
+	break;
+      }
+      
       Uint32 currLen = (sizeInBytes + 3) >> 2;
       if (tAttrInfo->getDistributionKey())
       {
