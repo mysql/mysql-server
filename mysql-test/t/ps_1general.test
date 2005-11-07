@@ -342,8 +342,11 @@ prepare stmt4 from ' show warnings limit 20 ';
 --error 1295
 prepare stmt4 from ' show errors limit 20 ';
 prepare stmt4 from ' show storage engines ';
---replace_column 2 YES/NO
+# The output depends upon the precise order in which
+# storage engines are registered, so we switch off the output.
+--disable_result_log
 execute stmt4;
+--enable_result_log
 
 ################ MISC STUFF ################
 ## get a warning and an error

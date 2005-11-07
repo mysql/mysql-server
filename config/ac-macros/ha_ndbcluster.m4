@@ -1,8 +1,29 @@
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
-dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
-                                                                                
+
+NDB_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
+NDB_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
+NDB_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
+NDB_VERSION_STATUS=`echo $VERSION | cut -d- -f2`
+# if there was now -suffix, $NDB_VERSION_STATUS will be the same as $VERSION
+if test "$NDB_VERSION_STATUS" = "$VERSION"
+then
+  NDB_VERSION_STATUS=""
+fi
+TEST_NDBCLUSTER=""
+
+dnl for build ndb docs
+
+AC_PATH_PROG(DOXYGEN, doxygen, no)
+AC_PATH_PROG(PDFLATEX, pdflatex, no)
+AC_PATH_PROG(MAKEINDEX, makeindex, no)
+
+AC_SUBST(DOXYGEN)
+AC_SUBST(PDFLATEX)
+AC_SUBST(MAKEINDEX)
+
+
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_ARG_WITH([ndb-sci],
               AC_HELP_STRING([--with-ndb-sci=DIR],
@@ -67,7 +88,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
 
-    case "$ndb_ccflags" in
+  case "$ndb_ccflags" in
     "yes")
         AC_MSG_RESULT([The --ndb-ccflags option requires a parameter (passed to CC for ndb compilation)])
         ;;
@@ -122,43 +143,196 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_MSG_RESULT([done.])
 ])
 
-AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
-  AC_ARG_WITH([ndbcluster],
-              [
-  --with-ndbcluster        Include the NDB Cluster table handler],
-              [ndbcluster="$withval"],
-              [ndbcluster=no])
-                                                                                
-  AC_MSG_CHECKING([for NDB Cluster])
-                                                                                
-  have_ndbcluster=no
-  ndbcluster_includes=
-  ndbcluster_libs=
-  ndb_mgmclient_libs=
-  case "$ndbcluster" in
-    yes )
-      AC_MSG_RESULT([Using NDB Cluster and Partitioning])
-      AC_DEFINE([HAVE_NDBCLUSTER_DB], [1], [Using Ndb Cluster DB])
-      AC_DEFINE([HAVE_PARTITION_DB], [1], [Builds Partition DB])
-      have_ndbcluster="yes"
-      ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_builddir)/storage/ndb/include/ndbapi -I\$(top_builddir)/storage/ndb/include/mgmapi"
-      ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
-      ndbcluster_system_libs=""
-      ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
-      MYSQL_CHECK_NDB_OPTIONS
+AC_DEFUN([NDBCLUSTER_WORKAROUNDS], [
+
+  #workaround for Sun Forte/x86 see BUG#4681
+  case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
+    *solaris*-i?86-no)
+      CFLAGS="$CFLAGS -DBIG_TABLES"
+      CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
       ;;
-    * )
-      AC_MSG_RESULT([Not using NDB Cluster])
+    *)
       ;;
   esac
 
-  AM_CONDITIONAL([HAVE_NDBCLUSTER_DB], [ test "$have_ndbcluster" = "yes" ])
+  # workaround for Sun Forte compile problem for ndb
+  case $SYSTEM_TYPE-$ac_cv_prog_gcc in
+    *solaris*-no)
+      ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
+      ;;
+    *)
+      ;;
+  esac
+
+  # ndb fail for whatever strange reason to link Sun Forte/x86
+  # unless using incremental linker
+  case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
+    *solaris*-i?86-no-yes)
+      CXXFLAGS="$CXXFLAGS -xildon"
+      ;;
+    *)
+      ;;
+  esac
+])
+
+AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
+
+  with_partition="yes"
+  ndb_cxxflags_fix=""
+  TEST_NDBCLUSTER="--ndbcluster"
+
+  ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_builddir)/storage/ndb/include/ndbapi -I\$(top_builddir)/storage/ndb/include/mgmapi"
+  ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
+  ndbcluster_system_libs=""
+  ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
+
+  MYSQL_CHECK_NDB_OPTIONS
+  NDBCLUSTER_WORKAROUNDS
+
+  MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
+
+  # CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
+  if test "$have_ndb_debug" = "default"
+  then
+    have_ndb_debug=$with_debug
+  fi
+
+  if test "$have_ndb_debug" = "yes"
+  then
+    # Medium debug.
+    NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+  elif test "$have_ndb_debug" = "full"
+  then
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+  else
+    # no extra ndb debug but still do asserts if debug version
+    if test "$with_debug" = "yes" -o "$with_debug" = "full"
+    then
+      NDB_DEFS=""
+    else
+      NDB_DEFS="-DNDEBUG"
+    fi
+  fi
+
+  if test X"$ndb_port" = Xdefault
+  then
+    ndb_port="1186"
+  fi
+  
+  ndb_transporter_opt_objs=""
+  if test "$ac_cv_func_shmget" = "yes" &&
+     test "$ac_cv_func_shmat" = "yes" &&
+     test "$ac_cv_func_shmdt" = "yes" &&
+     test "$ac_cv_func_shmctl" = "yes" &&
+     test "$ac_cv_func_sigaction" = "yes" &&
+     test "$ac_cv_func_sigemptyset" = "yes" &&
+     test "$ac_cv_func_sigaddset" = "yes" &&
+     test "$ac_cv_func_pthread_sigmask" = "yes"
+  then
+     AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
+               [Including Ndb Cluster DB shared memory transporter])
+     AC_MSG_RESULT([Including ndb shared memory transporter])
+     ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+  else
+     AC_MSG_RESULT([Not including ndb shared memory transporter])
+  fi
+  
+  if test X"$have_ndb_sci" = Xyes
+  then
+    ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
+  fi
+  
+  ndb_opt_subdirs=
+  ndb_bin_am_ldflags="-static"
+  if test X"$have_ndb_test" = Xyes
+  then
+    ndb_opt_subdirs="test"
+    ndb_bin_am_ldflags=""
+  fi
+
+  if test X"$have_ndb_docs" = Xyes
+  then
+    ndb_opt_subdirs="$ndb_opt_subdirs docs"
+    ndb_bin_am_ldflags=""
+  fi
+
+  mysql_se_libs="$mysql_se_libs $ndbcluster_libs $ndbcluster_system_libs"
+  mysql_se_libs="$mysql_se_libs $NDB_SCI_LIBS"
+
+  AC_SUBST(NDB_VERSION_MAJOR)
+  AC_SUBST(NDB_VERSION_MINOR)
+  AC_SUBST(NDB_VERSION_BUILD)
+  AC_SUBST(NDB_VERSION_STATUS)
+  AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR],
+                     [NDB major version])
+  AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR],
+                     [NDB minor version])
+  AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD],
+                     [NDB build version])
+  AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
+                     [NDB status version])
+
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
   AC_SUBST(ndb_mgmclient_libs)
+
+  AC_SUBST(ndb_transporter_opt_objs)
+  AC_SUBST(ndb_port)
+  AC_SUBST(ndb_bin_am_ldflags)
+  AC_SUBST(ndb_opt_subdirs)
+
+  AC_SUBST(NDB_DEFS)
+  AC_SUBST(ndb_cxxflags_fix)
+
+  AC_CONFIG_FILES(storage/ndb/Makefile storage/ndb/include/Makefile dnl
+   storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
+   storage/ndb/docs/Makefile dnl
+   storage/ndb/tools/Makefile dnl
+   storage/ndb/src/common/debugger/Makefile dnl
+   storage/ndb/src/common/debugger/signaldata/Makefile dnl
+   storage/ndb/src/common/portlib/Makefile dnl
+   storage/ndb/src/common/util/Makefile dnl
+   storage/ndb/src/common/logger/Makefile dnl
+   storage/ndb/src/common/transporter/Makefile dnl
+   storage/ndb/src/common/mgmcommon/Makefile dnl
+   storage/ndb/src/kernel/Makefile dnl
+   storage/ndb/src/kernel/error/Makefile dnl
+   storage/ndb/src/kernel/blocks/Makefile dnl
+   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
+   storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
+   storage/ndb/src/kernel/blocks/trix/Makefile dnl
+   storage/ndb/src/kernel/blocks/backup/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
+   storage/ndb/src/kernel/blocks/suma/Makefile dnl
+   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
+   storage/ndb/src/kernel/vm/Makefile dnl
+   storage/ndb/src/mgmapi/Makefile dnl
+   storage/ndb/src/ndbapi/Makefile dnl
+   storage/ndb/src/mgmsrv/Makefile dnl
+   storage/ndb/src/mgmclient/Makefile dnl
+   storage/ndb/src/cw/Makefile dnl
+   storage/ndb/src/cw/cpcd/Makefile dnl
+   storage/ndb/test/Makefile dnl
+   storage/ndb/test/src/Makefile dnl
+   storage/ndb/test/ndbapi/Makefile dnl
+   storage/ndb/test/ndbapi/bank/Makefile dnl
+   storage/ndb/test/tools/Makefile dnl
+   storage/ndb/test/run-test/Makefile dnl
+   storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
+   storage/ndb/include/ndb_types.h dnl
+  )
 ])
-                                                                                
+
+AC_SUBST(TEST_NDBCLUSTER)                                                                                
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
 dnl ---------------------------------------------------------------------------

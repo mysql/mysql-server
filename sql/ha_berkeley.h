@@ -157,6 +157,9 @@ class ha_berkeley: public handler
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 };
 
+extern const u_int32_t bdb_DB_TXN_NOSYNC;
+extern const u_int32_t bdb_DB_RECOVER;
+extern const u_int32_t bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
@@ -166,6 +169,6 @@ extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
 
 bool berkeley_init(void);
-bool berkeley_end(void);
+int berkeley_end(ha_panic_function type);
 bool berkeley_flush_logs(void);
-int berkeley_show_logs(Protocol *protocol);
+bool berkeley_show_status(THD *thd, stat_print_fn *print, enum ha_stat_type);

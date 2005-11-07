@@ -107,7 +107,7 @@ class Table_triggers_list;
 
 typedef struct st_table_share
 {
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
 #endif
   /* hash of field names (contains pointers to elements of field array) */
