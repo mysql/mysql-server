@@ -1194,6 +1194,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
+  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_thread_cache);
@@ -3033,6 +3034,23 @@ server.");
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
+
+  /*
+    Check that the default storage engine is actually available.
+  */
+  if (!ha_storage_engine_is_enabled((enum db_type)
+                                    global_system_variables.table_type))
+  {
+    if (!opt_bootstrap)
+    {
+      sql_print_error("Default storage engine (%s) is not available",
+                      ha_get_storage_engine((enum db_type)
+                                            global_system_variables.table_type));
+      unireg_abort(1);
+    }
+    global_system_variables.table_type= DB_TYPE_MYISAM;
+  }
+
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
                                (TC_LOG *) &mysql_bin_log :
                                (TC_LOG *) &tc_log_mmap) :
@@ -6998,22 +7016,6 @@ static void get_options(int argc,char **argv)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements and --log-queries-not-using-indexes have no effect if --log-slow-queries is not set");
-
-  /*
-    Check that the default storage engine is actually available.
-  */
-  if (!ha_storage_engine_is_enabled((enum db_type)
-                                    global_system_variables.table_type))
-  {
-    if (!opt_bootstrap)
-    {
-      sql_print_error("Default storage engine (%s) is not available",
-                      ha_get_storage_engine((enum db_type)
-                                            global_system_variables.table_type));
-      exit(1);
-    }
-    global_system_variables.table_type= DB_TYPE_MYISAM;
-  }
 
   if (argc > 0)
   {
