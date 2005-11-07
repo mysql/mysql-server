@@ -2236,6 +2236,7 @@ DROP FUNCTION bug9056_func1;
 DROP FUNCTION bug9056_func2;
 DROP PROCEDURE bug9056_proc1;
 DROP PROCEDURE bug9056_proc2;
+DROP PROCEDURE `a'b`;
 drop table t1;
 drop table if exists t1;
 create table t1 (`d` timestamp, unique (`d`));
