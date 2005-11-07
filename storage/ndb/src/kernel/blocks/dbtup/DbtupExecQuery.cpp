@@ -1352,6 +1352,9 @@ int Dbtup::handleInsertReq(Signal* signal,
   Uint32 *dst, *ptr= 0;
   Tuple_header *base= req_struct->m_tuple_ptr, *org= base;
   Tuple_header *tuple_ptr;
+  bool disk, mem_insert, disk_insert;
+  Uint32 frag_page_id, real_page_id;
+
   if ((dst= 
        c_undo_buffer.alloc_copy_tuple(&regOperPtr.p->m_copy_tuple_location,
 				      regTabPtr->total_rec_size)) == 0)
@@ -1364,9 +1367,9 @@ int Dbtup::handleInsertReq(Signal* signal,
   ndbout << "dst: " << hex << UintPtr(dst) << " - " 
 	 << regOperPtr.p->m_copy_tuple_location << endl;
   
-  bool disk = regTabPtr->m_no_of_disk_attributes > 0;
-  bool mem_insert = get_tuple_state(regOperPtr.p) == TUPLE_INITIAL_INSERT;
-  bool disk_insert = regOperPtr.p->is_first_operation() && disk;
+  disk = regTabPtr->m_no_of_disk_attributes > 0;
+  mem_insert = get_tuple_state(regOperPtr.p) == TUPLE_INITIAL_INSERT;
+  disk_insert = regOperPtr.p->is_first_operation() && disk;
 
   union {
     Uint32 sizes[4];
@@ -1433,8 +1436,8 @@ int Dbtup::handleInsertReq(Signal* signal,
   /**
    * Alloc memory
    */
-  Uint32 frag_page_id = req_struct->frag_page_id;
-  Uint32 real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
+  frag_page_id = req_struct->frag_page_id;
+  real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
   if(mem_insert)
   {
     if (!regTabPtr->m_attributes[MM].m_no_of_varsize)
