@@ -883,7 +883,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   alloc_len+= table->s->max_key_length;
   if (!m_ordered_rec_buffer)
   {
-    if (!(m_ordered_rec_buffer= my_malloc(alloc_len, MYF(MY_WME))))
+    if (!(m_ordered_rec_buffer= (byte*)my_malloc(alloc_len, MYF(MY_WME))))
     {
       DBUG_RETURN(1);
     }
@@ -895,14 +895,14 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
         We also set-up a reference to the first record for temporary use in
         setting up the scan.
       */
-      char *ptr= m_ordered_rec_buffer;
+      char *ptr= (char*)m_ordered_rec_buffer;
       uint i= 0;
       do
       {
         int2store(ptr, i);
         ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
       } while (++i < m_tot_parts);
-      m_start_key.key= ptr;
+      m_start_key.key= (const byte*)ptr;
     }
   }
   file= m_file;

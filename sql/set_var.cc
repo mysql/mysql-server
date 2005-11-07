@@ -84,6 +84,7 @@ extern my_bool innobase_log_archive,
                innobase_file_per_table,
                innobase_locks_unsafe_for_binlog;
 
+extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
 extern ulong srv_auto_extend_increment;
@@ -92,6 +93,7 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
+}
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 extern ulong ndb_cache_check_time;
