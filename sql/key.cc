@@ -461,7 +461,7 @@ int key_rec_cmp(void *key, byte *first_rec, byte *second_rec)
   uint key_parts= key_info->key_parts, i= 0;
   KEY_PART_INFO *key_part= key_info->key_part;
   char *rec0= key_part->field->ptr - key_part->offset;
-  my_ptrdiff_t first_diff= first_rec - rec0, sec_diff= second_rec - rec0;
+  my_ptrdiff_t first_diff= first_rec - (byte*)rec0, sec_diff= second_rec - (byte*)rec0;
   int result= 0;
   DBUG_ENTER("key_rec_cmp");
 
