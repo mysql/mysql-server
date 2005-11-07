@@ -50,6 +50,8 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
+static handler *myisam_create_handler(TABLE *table);
+
 /* MyISAM handlerton */
 
 handlerton myisam_hton= {
@@ -77,8 +79,24 @@ handlerton myisam_hton= {
     MyISAM doesn't support transactions and doesn't have
     transaction-dependent context: cursors can survive a commit.
   */
+  myisam_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  mi_panic,/* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
+
+
+static handler *myisam_create_handler(TABLE *table)
+{
+  return new ha_myisam(table);
+}
+
 
 // collect errors printed by mi_check routines
 

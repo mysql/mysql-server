@@ -85,11 +85,11 @@ bool mysql_create_frm(THD *thd, my_string file_name,
   TYPELIB formnames;
   uchar *screen_buff;
   char buff[5];
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->lex->part_info;
 #endif
   DBUG_ENTER("mysql_create_frm");
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->lex->part_info= NULL;
 #endif
 
@@ -132,7 +132,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
                             2 + create_info->connect_string.length);
   /* Partition */
   create_info->extra_size+= 5;
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
     create_info->extra_size+= part_info->part_info_len;
 #endif
@@ -166,7 +166,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
 	  60);
   forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
     fileinfo[61]= (uchar) part_info->default_engine_type;
 #endif
@@ -194,7 +194,7 @@ bool mysql_create_frm(THD *thd, my_string file_name,
                str_db_type.length, MYF(MY_NABP)))
     goto err;
 
-#ifdef HAVE_PARTITION_DB
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
     int4store(buff, part_info->part_info_len);

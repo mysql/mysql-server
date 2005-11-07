@@ -1,0 +1,14 @@
+
+#include "mysql_priv.h"
+
+extern handlerton heap_hton,myisam_hton,myisammrg_hton,
+  binlog_hton@mysql_se_decls@;
+
+/*
+  This array is used for processing compiled in engines.
+*/
+handlerton *sys_table_types[]=
+{
+  &heap_hton,&myisam_hton@mysql_se_htons@,&myisammrg_hton,&binlog_hton,NULL
+};
+

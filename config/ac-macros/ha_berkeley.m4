@@ -5,13 +5,14 @@ dnl Makes sure db version is correct.
 dnl Looks in $srcdir for Berkeley distribution if not told otherwise
 dnl ---------------------------------------------------------------------------
 
-AC_DEFUN([MYSQL_CHECK_BDB], [
+
+AC_DEFUN([MYSQL_SETUP_BERKELEY_DB], [
   AC_ARG_WITH([berkeley-db],
               [
   --with-berkeley-db[=DIR]
                           Use BerkeleyDB located in DIR],
               [bdb="$withval"],
-              [bdb=no])
+              [bdb=yes])
 
   AC_ARG_WITH([berkeley-db-includes],
               [
@@ -27,45 +28,27 @@ AC_DEFUN([MYSQL_CHECK_BDB], [
               [bdb_libs="$withval"],
               [bdb_libs=default])
 
-  AC_MSG_CHECKING([for BerkeleyDB])
-
-dnl     SORT OUT THE SUPPLIED ARGUMENTS TO DETERMINE WHAT TO DO
-dnl echo "DBG1: bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
-  have_berkeley_db=no
+	#  echo " bdb $bdb  $bdb_includes---$bdb_libs "
   case "$bdb" in
-    no )
-      mode=no
-      AC_MSG_RESULT([no])
-      ;;
-    yes | default )
+    yes )
       case "$bdb_includes---$bdb_libs" in
         default---default )
           mode=search-$bdb
-          AC_MSG_RESULT([searching...])
           ;;
         default---* | *---default | yes---* | *---yes )
           AC_MSG_ERROR([if either 'includes' or 'libs' is specified, both must be specified])
           ;;
         * )
           mode=supplied-two
-          AC_MSG_RESULT([supplied])
           ;;
       esac
       ;;
     * )
       mode=supplied-one
-      AC_MSG_RESULT([supplied])
       ;;
   esac
 
-dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
-
   case $mode in
-    no )
-      bdb_includes=
-      bdb_libs=
-      bdb_libs_with_path=
-      ;;
     supplied-two )
       MYSQL_CHECK_INSTALLED_BDB([$bdb_includes], [$bdb_libs])
       case $bdb_dir_ok in
@@ -86,16 +69,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
       case $bdb_dir_ok in
         source ) mode=compile ;;
         installed ) mode=yes ;;
-        * )
-          # not found
-          case $mode in
-            *-yes ) AC_MSG_ERROR([no suitable BerkeleyDB found]) ;;
-            * ) mode=no ;;
-          esac
-         bdb_includes=
-         bdb_libs=
-	 bdb_libs_with_path=
-          ;;
+        * ) AC_MSG_ERROR([no suitable BerkeleyDB found]) ;;
       esac
       ;;
     *)
@@ -103,11 +77,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
       ;;
   esac
 
-dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
   case $mode in
-    no )
-      AC_MSG_RESULT([Not using Berkeley DB])
-      ;;
     yes )
       have_berkeley_db="yes"
       AC_MSG_RESULT([Using Berkeley DB in '$bdb_includes'])
@@ -121,9 +91,41 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
       ;;
   esac
 
+      bdb_conf_flags="--disable-shared --build=$build_alias"
+      if test $with_debug = "yes"
+      then
+        bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
+      fi
+      # NOTICE: if you're compiling BDB, it needs to be a SUBDIR
+      # of $srcdir (i.e., you can 'cd $srcdir/$bdb').  It won't
+      # work otherwise.
+      if test -d "$bdb"; then :
+      else
+        # This should only happen when doing a VPATH build
+        echo "NOTICE: I have to make the BDB directory: `pwd`:$bdb"
+        mkdir "$bdb" || exit 1
+      fi
+      if test -d "$bdb"/build_unix; then :
+      else
+        # This should only happen when doing a VPATH build
+        echo "NOTICE: I have to make the build_unix directory: `pwd`:$bdb/build_unix"
+        mkdir "$bdb/build_unix" || exit 1
+      fi
+      rel_srcdir=
+      case "$srcdir" in
+        /* ) rel_srcdir="$srcdir" ;;
+        * )  rel_srcdir="../../../$srcdir" ;;
+      esac
+      (cd $bdb/build_unix && \
+       sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
+        AC_MSG_ERROR([could not configure Berkeley DB])
+ 
+  mysql_se_libs="$mysql_se_libs $bdb_libs_with_path" 
+
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
   AC_SUBST(bdb_libs_with_path)
+  AC_CONFIG_FILES(storage/bdb/Makefile)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
@@ -217,29 +219,29 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
   test -z "$db_minor" && db_minor=0
   test -z "$db_patch" && db_patch=0
 
-  # This is ugly, but about as good as it can get
-#  mysql_bdb=
-#  if test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3
-#  then
-#    mysql_bdb=h
-#  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 9
-#  then
-#    want_bdb_version="3.2.9a"	# hopefully this will stay up-to-date
-#    mysql_bdb=a
-#  fi
+dnl   # This is ugly, but about as good as it can get
+dnl #  mysql_bdb=
+dnl #  if test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3
+dnl #  then
+dnl #    mysql_bdb=h
+dnl #  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 9
+dnl #  then
+dnl #    want_bdb_version="3.2.9a"	# hopefully this will stay up-to-date
+dnl #    mysql_bdb=a
+dnl #  fi
 
 dnl RAM:
 want_bdb_version="4.1.24"
 bdb_version_ok=yes
 
-#  if test -n "$mysql_bdb" && \
-#	grep "DB_VERSION_STRING.*:.*$mysql_bdb: " [$1] > /dev/null
-#  then
-#    bdb_version_ok=yes
-#  else
-#    bdb_version_ok="invalid version $db_major.$db_minor.$db_patch"
-#    bdb_version_ok="$bdb_version_ok (must be version 3.2.3h or $want_bdb_version)"
-#  fi
+dnl #  if test -n "$mysql_bdb" && \
+dnl #	grep "DB_VERSION_STRING.*:.*$mysql_bdb: " [$1] > /dev/null
+dnl #  then
+dnl #    bdb_version_ok=yes
+dnl #  else
+dnl #    bdb_version_ok="invalid version $db_major.$db_minor.$db_patch"
+dnl #    bdb_version_ok="$bdb_version_ok (must be version 3.2.3h or $want_bdb_version)"
+dnl #  fi
 ])
 
 AC_DEFUN([MYSQL_TOP_BUILDDIR], [

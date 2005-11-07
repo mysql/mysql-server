@@ -373,9 +373,7 @@ static SYMBOL symbols[] = {
   { "PACK_KEYS",	SYM(PACK_KEYS_SYM)},
   { "PARSER",           SYM(PARSER_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
-#ifdef HAVE_PARTITION_DB
   { "PARTITION",        SYM(PARTITION_SYM)},
-#endif
   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
   { "PASSWORD",		SYM(PASSWORD)},
   { "PHASE",            SYM(PHASE_SYM)},

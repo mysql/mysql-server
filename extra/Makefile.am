@@ -15,7 +15,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
-			@ndbcluster_includes@ -I$(top_srcdir)/sql
+			-I$(top_srcdir)/sql
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
 BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \

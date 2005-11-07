@@ -301,4 +301,4 @@ public:
 };
 
 bool federated_db_init(void);
-bool federated_db_end(void);
+int federated_db_end(ha_panic_function type);

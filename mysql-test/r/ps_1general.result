@@ -320,21 +320,6 @@ prepare stmt4 from ' show errors limit 20 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' show storage engines ';
 execute stmt4;
-Engine	Support	Comment
-MyISAM	YES/NO	Default engine as of MySQL 3.23 with great performance
-MEMORY	YES/NO	Hash based, stored in memory, useful for temporary tables
-InnoDB	YES/NO	Supports transactions, row-level locking, and foreign keys
-BerkeleyDB	YES/NO	Supports transactions and page-level locking
-BLACKHOLE	YES/NO	/dev/null storage engine (anything you write to it disappears)
-EXAMPLE	YES/NO	Example storage engine
-ARCHIVE	YES/NO	Archive storage engine
-CSV	YES/NO	CSV storage engine
-ndbcluster	YES/NO	Clustered, fault-tolerant, memory-based tables
-FEDERATED	YES/NO	Federated MySQL storage engine
-MRG_MYISAM	YES/NO	Collection of identical MyISAM tables
-binlog	YES/NO	This is a meta storage engine to represent the binlog in a transaction
-ISAM	YES/NO	Obsolete storage engine
-partition	YES/NO	Partition engine
 drop table if exists t5;
 prepare stmt1 from ' drop table if exists t5 ' ;
 execute stmt1 ;

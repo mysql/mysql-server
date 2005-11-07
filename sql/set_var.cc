@@ -58,15 +58,46 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
-#ifdef HAVE_BERKELEY_DB
-#include "ha_berkeley.h"
-#endif
-#ifdef HAVE_INNOBASE_DB
-#include "ha_innodb.h"
-#endif
-#ifdef HAVE_NDBCLUSTER_DB
-#include "ha_ndbcluster.h"
-#endif
+
+/* WITH_BERKELEY_STORAGE_ENGINE */
+extern bool berkeley_shared_data;
+extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
+
+/* WITH_INNOBASE_STORAGE_ENGINE */
+extern uint innobase_flush_log_at_trx_commit;
+extern ulong innobase_fast_shutdown;
+extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
+extern long innobase_log_file_size, innobase_log_buffer_size;
+extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern long innobase_buffer_pool_awe_mem_mb;
+extern long innobase_file_io_threads, innobase_lock_wait_timeout;
+extern long innobase_force_recovery;
+extern long innobase_open_files;
+extern char *innobase_data_home_dir, *innobase_data_file_path;
+extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
+extern char *innobase_unix_file_flush_method;
+/* The following variables have to be my_bool for SHOW VARIABLES to work */
+extern my_bool innobase_log_archive,
+               innobase_use_doublewrite,
+               innobase_use_checksums,
+               innobase_file_per_table,
+               innobase_locks_unsafe_for_binlog;
+
+extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_max_purge_lag;
+extern ulong srv_auto_extend_increment;
+extern ulong srv_n_spin_wait_rounds;
+extern ulong srv_n_free_tickets_to_enter;
+extern ulong srv_thread_sleep_delay;
+extern ulong srv_thread_concurrency;
+extern ulong srv_commit_concurrency;
+
+/* WITH_NDBCLUSTER_STORAGE_ENGINE */
+extern ulong ndb_cache_check_time;
+
+
+
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -398,7 +429,6 @@ sys_var_bool_ptr  sys_timed_mutexes("timed_mutexes",
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
 
-#ifdef HAVE_INNOBASE_DB
 sys_var_long_ptr	sys_innodb_fast_shutdown("innodb_fast_shutdown",
 						 &innobase_fast_shutdown);
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
@@ -421,14 +451,12 @@ sys_var_long_ptr  sys_innodb_thread_concurrency("innodb_thread_concurrency",
                                                 &srv_thread_concurrency);
 sys_var_long_ptr  sys_innodb_commit_concurrency("innodb_commit_concurrency",
                                                 &srv_commit_concurrency);
-#endif
 
 /* Condition pushdown to storage engine */
 sys_var_thd_bool
 sys_engine_condition_pushdown("engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
-#ifdef HAVE_NDBCLUSTER_DB
 /* ndb thread specific variable settings */
 sys_var_thd_ulong
 sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
@@ -450,7 +478,6 @@ sys_ndb_index_stat_cache_entries("ndb_index_stat_cache_entries",
 sys_var_thd_ulong
 sys_ndb_index_stat_update_freq("ndb_index_stat_update_freq",
                                &SV::ndb_index_stat_update_freq);
-#endif
 
 /* Time/date/datetime formats */
 
@@ -593,7 +620,6 @@ struct show_var_st init_vars[]= {
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
-#ifdef HAVE_BERKELEY_DB
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
   {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
@@ -601,7 +627,6 @@ struct show_var_st init_vars[]= {
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
-#endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
@@ -658,7 +683,6 @@ struct show_var_st init_vars[]= {
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
-#ifdef HAVE_INNOBASE_DB
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
@@ -692,7 +716,6 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
-#endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
@@ -757,7 +780,6 @@ struct show_var_st init_vars[]= {
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
-#ifdef HAVE_NDBCLUSTER_DB
   {sys_ndb_autoincrement_prefetch_sz.name,
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
   {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
@@ -767,7 +789,6 @@ struct show_var_st init_vars[]= {
   {sys_ndb_index_stat_update_freq.name, (char*) &sys_ndb_index_stat_update_freq, SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
-#endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
@@ -865,9 +886,6 @@ struct show_var_st init_vars[]= {
   {sys_updatable_views_with_limit.name,
                               (char*) &sys_updatable_views_with_limit,SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
-#ifdef HAVE_BERKELEY_DB
-  {"version_bdb",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
-#endif
   {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
   {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
   {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},

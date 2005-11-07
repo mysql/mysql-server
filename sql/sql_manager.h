@@ -14,6 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef HAVE_BERKELEY_DB
+#ifdef WITH_BERKELEY_STORAGE_ENGINE
 void berkeley_cleanup_log_files(void);
-#endif /* HAVE_BERKELEY_DB */
+#endif /* WITH_BERKELEY_STORAGE_ENGINE */

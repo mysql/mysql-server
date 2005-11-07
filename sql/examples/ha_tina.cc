@@ -48,8 +48,6 @@ TODO:
 
 #include "mysql_priv.h"
 
-#ifdef HAVE_CSV_DB
-
 #include "ha_tina.h"
 #include <sys/mman.h>
 
@@ -57,6 +55,7 @@ TODO:
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
+static handler* tina_create_handler(TABLE *table);
 
 handlerton tina_hton= {
   "CSV",
@@ -79,6 +78,15 @@ handlerton tina_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  tina_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  tina_end,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 
@@ -247,7 +255,7 @@ static int free_share(TINA_SHARE *share)
   DBUG_RETURN(result_code);
 }
 
-bool tina_end()
+int tina_end(ha_panic_function type)
 {
   if (tina_init)
   {
@@ -255,7 +263,7 @@ bool tina_end()
     VOID(pthread_mutex_destroy(&tina_mutex));
   }
   tina_init= 0;
-  return FALSE;
+  return 0;
 }
 
 /*
@@ -269,6 +277,12 @@ byte * find_eoln(byte *data, off_t begin, off_t end)
       return data + x;
 
   return 0;
+}
+
+
+static handler* tina_create_handler(TABLE *table)
+{
+  return new ha_tina(table);
 }
 
 
@@ -909,4 +923,3 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 }
 
-#endif /* enable CSV */

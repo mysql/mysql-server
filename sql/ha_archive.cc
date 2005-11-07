@@ -20,7 +20,6 @@
 
 #include "mysql_priv.h"
 
-#ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
 #include <my_dir.h>
 
@@ -135,6 +134,10 @@ static HASH archive_open_tables;
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
+/* Static declarations for handerton */
+static handler *archive_create_handler(TABLE *table);
+
+
 /* dummy handlerton - only to have something to return from archive_db_init */
 handlerton archive_hton = {
   "ARCHIVE",
@@ -157,9 +160,22 @@ handlerton archive_hton = {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  archive_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  archive_db_end,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_NO_FLAGS
 };
 
+static handler *archive_create_handler(TABLE *table)
+{
+  return new ha_archive(table);
+}
 
 /*
   Used for hash table that tracks open tables.
@@ -215,7 +231,7 @@ error:
     FALSE       OK
 */
 
-bool archive_db_end()
+int archive_db_end(ha_panic_function type)
 {
   if (archive_inited)
   {
@@ -223,7 +239,7 @@ bool archive_db_end()
     VOID(pthread_mutex_destroy(&archive_mutex));
   }
   archive_inited= 0;
-  return FALSE;
+  return 0;
 }
 
 ha_archive::ha_archive(TABLE *table_arg)
@@ -1129,4 +1145,3 @@ bool ha_archive::check_and_repair(THD *thd)
     DBUG_RETURN(HA_ADMIN_OK);
   }
 }
-#endif /* HAVE_ARCHIVE_DB */

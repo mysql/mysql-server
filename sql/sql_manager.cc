@@ -32,12 +32,43 @@ pthread_t manager_thread;
 pthread_mutex_t LOCK_manager;
 pthread_cond_t COND_manager;
 
+struct handler_cb {
+   struct handler_cb *next;
+   void (*action)(void);
+};
+
+static struct handler_cb * volatile cb_list;
+
+bool mysql_manager_submit(void (*action)())
+{
+  bool result= FALSE;
+  struct handler_cb * volatile *cb;
+  pthread_mutex_lock(&LOCK_manager);
+  cb= &cb_list;
+  while (*cb && (*cb)->action != action)
+    cb= &(*cb)->next;
+  if (!*cb)
+  {
+    *cb= (struct handler_cb *)my_malloc(sizeof(struct handler_cb), MYF(MY_WME));
+    if (!*cb)
+      result= TRUE;
+    else
+    {
+      (*cb)->next= NULL;
+      (*cb)->action= action;
+    }
+  }
+  pthread_mutex_unlock(&LOCK_manager);
+  return result;
+}
+
 pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 {
   int error = 0;
   ulong status;
   struct timespec abstime;
   bool reset_flush_time = TRUE;
+  struct handler_cb *cb= NULL;
   my_thread_init();
   DBUG_ENTER("handle_manager");
 
@@ -68,6 +99,11 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     }
     status = manager_status;
     manager_status = 0;
+    if (cb == NULL)
+    {
+      cb= cb_list;
+      cb_list= NULL;
+    }
     pthread_mutex_unlock(&LOCK_manager);
 
     if (abort_loop)
@@ -80,13 +116,13 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
       reset_flush_time = TRUE;
     }
 
-#ifdef HAVE_BERKELEY_DB
-    if (status & MANAGER_BERKELEY_LOG_CLEANUP)
+    while (cb)
     {
-      berkeley_cleanup_log_files();
-      status &= ~MANAGER_BERKELEY_LOG_CLEANUP;
+      struct handler_cb *next= cb->next;
+      cb->action();
+      my_free((gptr)cb, MYF(0));
+      cb= next;
     }
-#endif
 
     if (status)
       DBUG_PRINT("error", ("manager did not handle something: %lx", status));
