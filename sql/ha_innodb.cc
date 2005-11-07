@@ -34,7 +34,6 @@ have disables the InnoDB inlining in this file. */
 #include "mysql_priv.h"
 #include "slave.h"
 
-#ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
 #include <hash.h>
 #include <myisampack.h>
@@ -205,6 +204,7 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
+static handler *innobase_create_handler(TABLE *table);
 
 handlerton innobase_hton = {
   "InnoDB",
@@ -227,8 +227,28 @@ handlerton innobase_hton = {
   innobase_create_cursor_view,
   innobase_set_cursor_view,
   innobase_close_cursor_view,
+  innobase_create_handler,	/* Create a new handler */
+  innobase_drop_database,	/* Drop a database */
+  innobase_end,			/* Panic call */
+  innobase_release_temporary_latches,    /* Release temporary latches */
+  innodb_export_status,		/* Update Statistics */
+  innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
+  innobase_flush_logs,		/* Flush logs */
+  innobase_show_status,		/* Show status */
+#ifdef HAVE_REPLICATION
+  innobase_repl_report_sent_binlog,    /* Replication Report Sent Binlog */
+#else
+  NULL,
+#endif
   HTON_NO_FLAGS
 };
+
+
+static handler *innobase_create_handler(TABLE *table)
+{
+  return new ha_innobase(table);
+}
+
 
 /*********************************************************************
 Commits a transaction in an InnoDB database. */
@@ -390,7 +410,7 @@ Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
 documentation, see handler.cc. */
 
-void
+int
 innobase_release_temporary_latches(
 /*===============================*/
         THD *thd)
@@ -399,7 +419,7 @@ innobase_release_temporary_latches(
 
 	if (!innodb_inited) {
 		
-		return;
+		return 0;
 	}
 
 	trx = (trx_t*) thd->ha_data[innobase_hton.slot];
@@ -407,6 +427,7 @@ innobase_release_temporary_latches(
 	if (trx) {
         	innobase_release_stat_resources(trx);
 	}
+	return 0;
 }
 
 /************************************************************************
@@ -1430,8 +1451,8 @@ error:
 /***********************************************************************
 Closes an InnoDB database. */
 
-bool
-innobase_end(void)
+int
+innobase_end(ha_panic_function type)
 /*==============*/
 				/* out: TRUE if error */
 {
@@ -5051,7 +5072,7 @@ ha_innobase::delete_table(
 /*********************************************************************
 Removes all tables in the named database inside InnoDB. */
 
-int
+void
 innobase_drop_database(
 /*===================*/
 			/* out: error number */
@@ -5117,10 +5138,13 @@ innobase_drop_database(
 
   	innobase_commit_low(trx);
   	trx_free_for_mysql(trx);
-
+#ifdef NO_LONGER_INTERESTED_IN_DROP_DB_ERROR 
 	error = convert_error_code_to_mysql(error, NULL);
 
 	return(error);
+#else
+	return;
+#endif
 }
 
 /*************************************************************************
@@ -6425,11 +6449,12 @@ ha_innobase::transactional_table_lock(
 /****************************************************************************
 Here we export InnoDB status variables to MySQL.  */
 
-void
+int
 innodb_export_status(void)
 /*======================*/
 {
   srv_export_innodb_status();
+  return 0;
 }
 
 /****************************************************************************
@@ -6439,9 +6464,9 @@ Monitor to the client. */
 bool
 innodb_show_status(
 /*===============*/
-	THD*	thd)	/* in: the MySQL query thread of the caller */
+	THD*	thd,	/* in: the MySQL query thread of the caller */
+	stat_print_fn *stat_print)
 {
-	Protocol*		protocol = thd->protocol;
 	trx_t*			trx;
 	static const char	truncated_msg[] = "... truncated...\n";
 	const long		MAX_STATUS_SIZE = 64000;
@@ -6451,10 +6476,7 @@ innodb_show_status(
         DBUG_ENTER("innodb_show_status");
 
         if (have_innodb != SHOW_OPTION_YES) {
-                my_message(ER_NOT_SUPPORTED_YET,
-          "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
-                           MYF(0));
-                DBUG_RETURN(TRUE);
+                DBUG_RETURN(FALSE);
         }
 
 	trx = check_trx_exists(thd);
@@ -6516,28 +6538,14 @@ innodb_show_status(
 
 	mutex_exit_noninline(&srv_monitor_file_mutex);
 
-	List<Item> field_list;
+	bool result = FALSE;
 
-	field_list.push_back(new Item_empty_string("Status", flen));
-
-	if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
-                                               Protocol::SEND_EOF)) {
-		my_free(str, MYF(0));
-
-		DBUG_RETURN(TRUE);
+	if (stat_print(thd, innobase_hton.name, "", str)) {
+		result= TRUE;
 	}
+	my_free(str, MYF(0));
 
-        protocol->prepare_for_resend();
-        protocol->store(str, flen, system_charset_info);
-        my_free(str, MYF(0));
-
-        if (protocol->write()) {
-
-        	DBUG_RETURN(TRUE);
-	}
-	send_eof(thd);
-
-  	DBUG_RETURN(FALSE);
+	DBUG_RETURN(FALSE);
 }
 
 /****************************************************************************
@@ -6546,10 +6554,10 @@ Implements the SHOW MUTEX STATUS command. . */
 bool
 innodb_mutex_show_status(
 /*===============*/
-  THD*  thd)  /* in: the MySQL query thread of the caller */
+  THD*  thd,  /* in: the MySQL query thread of the caller */
+  stat_print_fn *stat_print)
 {
-  Protocol        *protocol= thd->protocol;
-  List<Item> field_list;
+  char buf1[IO_SIZE], buf2[IO_SIZE];
   mutex_t*  mutex;
   ulint   rw_lock_count= 0;
   ulint   rw_lock_count_spin_loop= 0;
@@ -6558,19 +6566,6 @@ innodb_mutex_show_status(
   ulint   rw_lock_count_os_yield= 0;
   ulonglong rw_lock_wait_time= 0;
   DBUG_ENTER("innodb_mutex_show_status");
-
-  field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Module", FN_REFLEN));
-  field_list.push_back(new Item_uint("Count", 21));
-  field_list.push_back(new Item_uint("Spin_waits", 21));
-  field_list.push_back(new Item_uint("Spin_rounds", 21));
-  field_list.push_back(new Item_uint("OS_waits", 21));
-  field_list.push_back(new Item_uint("OS_yields", 21));
-  field_list.push_back(new Item_uint("OS_waits_time", 21));
-
-  if (protocol->send_fields(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
 
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
     mutex_enter(&mutex_list_mutex);
@@ -6584,17 +6579,16 @@ innodb_mutex_show_status(
     {
       if (mutex->count_using > 0)
       {
-        protocol->prepare_for_resend();
-        protocol->store(mutex->cmutex_name, system_charset_info);
-        protocol->store(mutex->cfile_name, system_charset_info);
-        protocol->store((ulonglong)mutex->count_using);
-        protocol->store((ulonglong)mutex->count_spin_loop);
-        protocol->store((ulonglong)mutex->count_spin_rounds);
-        protocol->store((ulonglong)mutex->count_os_wait);
-        protocol->store((ulonglong)mutex->count_os_yield);
-        protocol->store((ulonglong)mutex->lspent_time/1000);
-
-        if (protocol->write())
+	my_snprintf(buf1, sizeof(buf1), "%s:%s",
+		    mutex->cmutex_name, mutex->cfile_name);
+	my_snprintf(buf2, sizeof(buf2),
+		    "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+		    "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+		    mutex->count_using, mutex->count_spin_loop,
+		    mutex->count_spin_rounds,
+		    mutex->count_os_wait, mutex->count_os_yield,
+		    mutex->lspent_time/1000);
+	if (stat_print(thd, innobase_hton.name, buf1, buf2))
         {
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
           mutex_exit(&mutex_list_mutex);
@@ -6616,17 +6610,15 @@ innodb_mutex_show_status(
     mutex = UT_LIST_GET_NEXT(list, mutex);
   }
 
-  protocol->prepare_for_resend();
-  protocol->store("rw_lock_mutexes", system_charset_info);
-  protocol->store("", system_charset_info);
-  protocol->store((ulonglong)rw_lock_count);
-  protocol->store((ulonglong)rw_lock_count_spin_loop);
-  protocol->store((ulonglong)rw_lock_count_spin_rounds);
-  protocol->store((ulonglong)rw_lock_count_os_wait);
-  protocol->store((ulonglong)rw_lock_count_os_yield);
-  protocol->store((ulonglong)rw_lock_wait_time/1000);
+  my_snprintf(buf2, sizeof(buf2),
+	      "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+	      "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+	      rw_lock_count, rw_lock_count_spin_loop,
+	      rw_lock_count_spin_rounds,
+	      rw_lock_count_os_wait, rw_lock_count_os_yield,
+	      rw_lock_wait_time/1000);
 
-  if (protocol->write())
+  if (stat_print(thd, innobase_hton.name, "rw_lock_mutexes", buf2))
   {
     DBUG_RETURN(1);
   }
@@ -6634,9 +6626,22 @@ innodb_mutex_show_status(
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
       mutex_exit(&mutex_list_mutex);
 #endif
-  send_eof(thd);
   DBUG_RETURN(FALSE);
 }
+
+bool innobase_show_status(THD* thd, stat_print_fn* stat_print,
+			  enum ha_stat_type stat_type)
+{
+  switch (stat_type) {
+  case HA_ENGINE_STATUS:
+    return innodb_show_status(thd, stat_print);
+  case HA_ENGINE_MUTEX:
+    return innodb_mutex_show_status(thd, stat_print);
+  default:
+    return FALSE;
+  }
+}
+
 
 /****************************************************************************
  Handling the shared INNOBASE_SHARE structure that is needed to provide table
@@ -7470,4 +7475,3 @@ bool ha_innobase::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-#endif /* HAVE_INNOBASE_DB */

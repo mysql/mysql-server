@@ -20,8 +20,11 @@
 #endif
 
 #include "mysql_priv.h"
-#ifdef HAVE_BLACKHOLE_DB
 #include "ha_blackhole.h"
+
+/* Static declarations for handlerton */
+
+static handler *blackhole_create_handler(TABLE *table);
 
 
 /* Blackhole storage engine handlerton */
@@ -47,8 +50,24 @@ handlerton blackhole_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
+  blackhole_create_handler,    /* Create a new handler */
+  NULL,    /* Drop a database */
+  NULL,    /* Panic call */
+  NULL,    /* Release temporary latches */
+  NULL,    /* Update Statistics */
+  NULL,    /* Start Consistent Snapshot */
+  NULL,    /* Flush logs */
+  NULL,    /* Show status */
+  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
+
+
+static handler *blackhole_create_handler(TABLE *table)
+{
+  return new ha_blackhole(table);
+}
+
 
 /*****************************************************************************
 ** BLACKHOLE tables
@@ -227,4 +246,3 @@ int ha_blackhole::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
-#endif /* HAVE_BLACKHOLE_DB */
