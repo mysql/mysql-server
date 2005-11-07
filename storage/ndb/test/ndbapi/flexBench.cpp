@@ -775,12 +775,12 @@ static void* flexBenchThread(void* pArg)
 				     (char *)longKeyAttrValue[count - 1][i], tSizeOfLongPK*4); 
 	}
 	else 
-	  pOps[countTables]->equal((char*)attrName[0], 
+	  pOps[countTables]->equal((Uint32)0, 
 				   (char*)&attrRefValue[nRefLocalOpOffset]);
 	
 	if (tType == stInsert || tType == stUpdate){
 	  for (int ca = 1; ca < loopCountAttributes; ca++){
-	    pOps[countTables]->setValue((char*)attrName[ca],
+	    pOps[countTables]->setValue((Uint32)ca,
 					(char*)&attrRefValue[nRefLocalOpOffset + tAttributeSize*ca]);
 	  }//for
 	} else if (tType == stRead || stVerify == tType) {
@@ -788,7 +788,7 @@ static void* flexBenchThread(void* pArg)
 	    loopCountAttributes *
 	    countTables ;
 	  for (int ca = 1; ca < loopCountAttributes; ca++) {
-	    tTmp = pOps[countTables]->getValue((char*)attrName[ca], 
+	    tTmp = pOps[countTables]->getValue((Uint32)ca, 
 					       (char*)&attrValue[nTableOffset + tAttributeSize*ca]);
 	  }//for
 	} else if (stVerifyDelete == tType) {
@@ -802,7 +802,7 @@ static void* flexBenchThread(void* pArg)
 	    int nTableOffset = tAttributeSize *
 	      loopCountAttributes *
 	      countTables ;
-	    tTmp = pOps[countTables]->getValue((char*)attrName[0], 
+	    tTmp = pOps[countTables]->getValue((Uint32)0, 
 					       (char*)&attrValue[nTableOffset]);
 	  }
 	}//if

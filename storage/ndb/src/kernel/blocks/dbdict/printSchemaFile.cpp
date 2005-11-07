@@ -21,6 +21,7 @@
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <SchemaFile.hpp>
+#include <kernel_types.h>
 
 static const char* progname = 0;
 static bool allflag = false;
@@ -87,6 +88,13 @@ print_head(const char * filename, const SchemaFile * sf)
   return retcode;
 }
 
+inline
+Uint32
+table_version_minor(Uint32 ver)
+{
+  return ver >> 24;
+}
+
 static int
 print_old(const char * filename, const SchemaFile * sf, Uint32 sz)
 {
@@ -103,10 +111,11 @@ print_old(const char * filename, const SchemaFile * sf, Uint32 sz)
       if (! checkonly)
         ndbout << "Table " << i << ":"
                << " State = " << te.m_tableState 
-               << " version = " << te.m_tableVersion
+	       << " version = " << table_version_major(te.m_tableVersion)
+	       << "(" << table_version_minor(te.m_tableVersion) << ")"
                << " type = " << te.m_tableType
-               << " noOfPages = " << te.m_noOfPages
-               << " gcp: " << te.m_gcp << endl;
+	       << " noOfPages = " << te.m_noOfPages
+	       << " gcp: " << te.m_gcp << endl;
     }
   }
   return retcode;
@@ -159,7 +168,8 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
         if (! checkonly)
           ndbout << "Table " << j << ":"
                  << " State = " << te.m_tableState 
-                 << " version = " << te.m_tableVersion
+		 << " version = " << table_version_major(te.m_tableVersion)
+		 << "(" << table_version_minor(te.m_tableVersion) << ")"
                  << " type = " << te.m_tableType
                  << " noOfWords = " << te.m_info_words
                  << " gcp: " << te.m_gcp << endl;

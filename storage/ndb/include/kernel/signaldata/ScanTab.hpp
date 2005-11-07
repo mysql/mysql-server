@@ -85,6 +85,7 @@ private:
   static Uint8 getKeyinfoFlag(const UintR & requestInfo);
   static Uint16 getScanBatch(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
+  static UintR getNoDiskFlag(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -100,6 +101,7 @@ private:
   static void setKeyinfoFlag(UintR & requestInfo, Uint32 flag);
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
   static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
+  static void setNoDiskFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -115,10 +117,11 @@ private:
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
  d = Distribution key flag
+ n = No disk flag
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hcktzxbbbbbbbbbb
+ pppppppplnhcktzxbbbbbbbbbb
 */
 
 #define PARALLELL_SHIFT     (0)
@@ -149,6 +152,8 @@ private:
 #define SCAN_BATCH_MASK  (1023)
 
 #define SCAN_DISTR_KEY_SHIFT (26)
+
+#define SCAN_NODISK_SHIFT (9)
 
 inline
 Uint8
@@ -285,6 +290,19 @@ void
 ScanTabReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "ScanTabReq::setKeyinfoFlag");
   requestInfo |= (flag << SCAN_DISTR_KEY_SHIFT);
+}
+
+inline
+UintR 
+ScanTabReq::getNoDiskFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_NODISK_SHIFT) & 1;
+}
+
+inline
+void 
+ScanTabReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo |= (flag << SCAN_NODISK_SHIFT);
 }
 
 /**

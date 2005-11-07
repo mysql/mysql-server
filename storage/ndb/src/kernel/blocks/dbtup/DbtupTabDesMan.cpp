@@ -43,12 +43,12 @@ Dbtup::getTabDescrOffsets(const Tablerec* regTabPtr, Uint32* offset)
   Uint32 allocSize = 0;
   // magically aligned to 8 bytes
   offset[0] = allocSize += ZTD_SIZE;
-  offset[1] = allocSize += regTabPtr->noOfAttr * sizeOfReadFunction();
-  offset[2] = allocSize += regTabPtr->noOfAttr * sizeOfReadFunction();
+  offset[1] = allocSize += regTabPtr->m_no_of_attributes* sizeOfReadFunction();
+  offset[2] = allocSize += regTabPtr->m_no_of_attributes* sizeOfReadFunction();
   offset[3] = allocSize += regTabPtr->noOfCharsets * sizeOfPointer;
   offset[4] = allocSize += regTabPtr->noOfKeyAttr;
-  offset[5] = allocSize += regTabPtr->noOfAttributeGroups;
-  allocSize += regTabPtr->noOfAttr * ZAD_SIZE;
+  offset[5] = allocSize += regTabPtr->m_no_of_attributes * ZAD_SIZE;
+  offset[6] = allocSize += (regTabPtr->m_no_of_attributes + 1) >> 1; // real order
   allocSize += ZTD_TRAILER_SIZE;
   // return number of words
   return allocSize;

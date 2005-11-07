@@ -27,7 +27,7 @@ printTUX_MAINT_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
   fprintf(output, " table: id=%u", sig->tableId);
   fprintf(output, " index: id=%u", sig->indexId);
   fprintf(output, " fragment: id=%u\n", sig->fragId);
-  fprintf(output, " tuple: loc=%u.%u version=%u\n", sig->pageId, sig->pageOffset, sig->tupVersion);
+  fprintf(output, " tuple: loc=%u.%u version=%u\n", sig->pageId, sig->pageIndex, sig->tupVersion);
   const Uint32 opCode = sig->opInfo & 0xFF;
   const Uint32 opFlag = sig->opInfo >> 8;
   switch (opCode ) {

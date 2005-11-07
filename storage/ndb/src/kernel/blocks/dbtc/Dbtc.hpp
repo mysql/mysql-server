@@ -879,7 +879,7 @@ public:
     
     Uint8  distributionKeyIndicator;
     Uint8  m_special_hash; // collation or distribution key
-    Uint8  unused2;
+    Uint8  m_no_disk_flag;
     Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
 
     Uint8  fragmentDistributionKey;  /* DIH generation no */
@@ -968,7 +968,8 @@ public:
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;
     Uint8 noOfDistrKeys;
-    
+    Uint8 hasVarKeys;
+
     bool checkTable(Uint32 schemaVersion) const {
       return enabled && !dropping && 
 	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));

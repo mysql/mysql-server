@@ -24,7 +24,7 @@
  * Template class used for implementing an
  *   list of object retreived from a pool
  */
-template <class T>
+template <class T, class U = T>
 class DLFifoList {
 public:
   /**
@@ -34,6 +34,12 @@ public:
     Head();
     Uint32 firstItem;
     Uint32 lastItem;
+
+#ifdef VM_TRACE
+    bool in_use;
+#endif
+
+    inline bool isEmpty() const { return firstItem == RNIL;}
   };
   
   DLFifoList(ArrayPool<T> & thePool);
@@ -59,6 +65,11 @@ public:
    */
   void add(Ptr<T> &);
 
+  /**
+   * Insert object <em>ptr</ptr> _before_ <em>loc</em>
+   */
+  void insert(Ptr<T> & ptr, Ptr<T>& loc);
+  
   /**
    * Remove from list 
    */
@@ -101,6 +112,14 @@ public:
    */
   bool first(Ptr<T> &) const ;
 
+
+  /**
+   * Update ptr to first element in list
+   *
+   * Return i
+   */
+  bool last(Ptr<T> &) const ;
+
   /**
    * Get next element
    *
@@ -108,12 +127,27 @@ public:
    */
   bool next(Ptr<T> &) const ;
   
+
   /**
-   * Check if next exists
+   * Get next element
+   *
+   * NOTE ptr must be both p & i
+   */
+  bool prev(Ptr<T> &) const ;
+  
+  /**
+   * Check if next exists i.e. this is not last
    *
    * NOTE ptr must be both p & i
    */
   bool hasNext(const Ptr<T> &) const;
+  
+  /**
+   * Check if prev exists i.e. this is not first
+   *
+   * NOTE ptr must be both p & i
+   */
+  bool hasPrev(const Ptr<T> &) const;
 
   Uint32 noOfElements() const {
     Uint32 c = 0;
@@ -121,7 +155,7 @@ public:
     while(i != RNIL){
       c++;
       const T * t = thePool.getPtr(i);
-      i = t->nextList;
+      i = t->U::nextList;
     }
     return c;
   }
@@ -136,44 +170,64 @@ public:
       T * t = thePool.getPtr(i);
       out << (unsigned int) t << "[" << i << "]:"; 
       t->print(out); out << " ";
-      i = t->nextList;
+      i = t->U::nextList;
     }
   }
 
   inline bool isEmpty() const { return head.firstItem == RNIL;}
+
+  /**
+   * Copy list (head)
+   *   Will construct to identical lists
+   */
+  DLFifoList<T>& operator=(const DLFifoList<T>& src){
+    assert(&thePool == &src.thePool);
+    this->head = src.head;
+    return * this;
+  }
 
 protected:
   Head head;
   ArrayPool<T> & thePool;
 };
 
-template<class T>
-class LocalDLFifoList : public DLFifoList<T> {
+template <class T, class U = T>
+class LocalDLFifoList : public DLFifoList<T,U> {
 public:
-  LocalDLFifoList(ArrayPool<T> & thePool, typename DLFifoList<T>::Head & _src)
-    : DLFifoList<T>(thePool), src(_src)
+  LocalDLFifoList(ArrayPool<T> & thePool, typename DLFifoList<T,U>::Head &_src)
+    : DLFifoList<T,U>(thePool), src(_src)
   {
     this->head = src;
+#ifdef VM_TRACE
+    assert(src.in_use == false);
+    src.in_use = true;
+#endif
   }
   
   ~LocalDLFifoList(){
+#ifdef VM_TRACE
+    assert(src.in_use == true);
+#endif
     src = this->head;
   }
 private:
-  typename DLFifoList<T>::Head & src;
+  typename DLFifoList<T,U>::Head & src;
 };
 
-template <class T>
+template <class T, class U>
 inline
-DLFifoList<T>::DLFifoList(ArrayPool<T> & _pool):
+DLFifoList<T,U>::DLFifoList(ArrayPool<T> & _pool):
   thePool(_pool){
 }
 
-template<class T>
+template <class T, class U>
 inline
-DLFifoList<T>::Head::Head(){
+DLFifoList<T,U>::Head::Head(){
   firstItem = RNIL;
   lastItem = RNIL;
+#ifdef VM_TRACE
+  in_use = false;
+#endif
 }
 
 /**
@@ -181,10 +235,10 @@ DLFifoList<T>::Head::Head(){
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLFifoList<T>::seize(Ptr<T> & p){
+DLFifoList<T,U>::seize(Ptr<T> & p){
   thePool.seize(p);
   if (p.i != RNIL) {
     add(p);
@@ -199,10 +253,10 @@ DLFifoList<T>::seize(Ptr<T> & p){
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLFifoList<T>::seizeId(Ptr<T> & p, Uint32 ir){
+DLFifoList<T,U>::seizeId(Ptr<T> & p, Uint32 ir){
   thePool.seizeId(p, ir);
   if(p.i != RNIL){
     add(p);
@@ -212,52 +266,73 @@ DLFifoList<T>::seizeId(Ptr<T> & p, Uint32 ir){
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 void
-DLFifoList<T>::add(Ptr<T> & p){
+DLFifoList<T,U>::add(Ptr<T> & p){
   T * t = p.p;
   Uint32 last = head.lastItem;
 
   if(p.i == RNIL)
-    ErrorReporter::handleAssert("DLFifoList<T>::add", __FILE__, __LINE__);
+    ErrorReporter::handleAssert("DLFifoList<T,U>::add", __FILE__, __LINE__);
   
-  t->nextList = RNIL;
-  t->prevList = last;
+  t->U::nextList = RNIL;
+  t->U::prevList = last;
   if (head.firstItem == RNIL)
     head.firstItem = p.i;
   head.lastItem = p.i;    
   
   if(last != RNIL){
     T * t2 = thePool.getPtr(last);
-    t2->nextList = p.i;
+    t2->U::nextList = p.i;
   }
+}
+
+template <class T, class U>
+inline
+void
+DLFifoList<T,U>::insert(Ptr<T> & ptr, Ptr<T> & loc){
+  Uint32 prev= loc.p->U::prevList;
+  if(loc.i == head.firstItem)
+  {
+    head.firstItem = ptr.i;
+    assert(prev == RNIL);
+  }
+  else
+  {
+    T* t2 = thePool.getPtr(prev);
+    t2->U::nextList = ptr.i;
+  }
+  
+  loc.p->U::prevList = ptr.i;
+  ptr.p->U::prevList = prev;
+  ptr.p->U::nextList = loc.i;
 }
 
 /**
  * Return an object to pool
  */
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::release(Uint32 i){
+DLFifoList<T,U>::release(Uint32 i){
   Ptr<T> p;
   p.i = i;
   p.p = thePool.getPtr(i);
   release(p);
 }
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::remove(Ptr<T> & p){
+DLFifoList<T,U>::remove(Ptr<T> & p){
   T * t = p.p;
-  Uint32 ni = t->nextList;
-  Uint32 pi = t->prevList;
+  Uint32 ni = t->U::nextList;
+  Uint32 pi = t->U::prevList;
 
   if(ni != RNIL){
     T * t = thePool.getPtr(ni);
-    t->prevList = pi;
+    t->U::prevList = pi;
   } else {
     // We are releasing last
     head.lastItem = pi;
@@ -265,7 +340,7 @@ DLFifoList<T>::remove(Ptr<T> & p){
   
   if(pi != RNIL){
     T * t = thePool.getPtr(pi);
-    t->nextList = ni;
+    t->U::nextList = ni;
   } else {
     // We are releasing first
     head.firstItem = ni;
@@ -275,47 +350,47 @@ DLFifoList<T>::remove(Ptr<T> & p){
 /**
  * Return an object to pool
  */
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::release(Ptr<T> & p){
+DLFifoList<T,U>::release(Ptr<T> & p){
   remove(p);
   thePool.release(p.i);
 }  
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::release(){
+DLFifoList<T,U>::release(){
   Ptr<T> p;
   while(head.firstItem != RNIL){
     p.i = head.firstItem;  
     p.p = thePool.getPtr(head.firstItem);    
     T * t = p.p;
-    head.firstItem = t->nextList;
+    head.firstItem = t->U::nextList;
     release(p);
   }
 }  
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::getPtr(Ptr<T> & p, Uint32 i) const {
+DLFifoList<T,U>::getPtr(Ptr<T> & p, Uint32 i) const {
   p.i = i;
   p.p = thePool.getPtr(i);
 }
 
-template <class T>
+template <class T, class U>
 inline
 void 
-DLFifoList<T>::getPtr(Ptr<T> & p) const {
+DLFifoList<T,U>::getPtr(Ptr<T> & p) const {
   thePool.getPtr(p);
 }
   
-template <class T>
+template <class T, class U>
 inline
 T * 
-DLFifoList<T>::getPtr(Uint32 i) const {
+DLFifoList<T,U>::getPtr(Uint32 i) const {
   return thePool.getPtr(i);
 }
 
@@ -324,10 +399,10 @@ DLFifoList<T>::getPtr(Uint32 i) const {
  *
  * Return i
  */
-template <class T>
+template <class T, class U>
 inline
 bool
-DLFifoList<T>::first(Ptr<T> & p) const {
+DLFifoList<T,U>::first(Ptr<T> & p) const {
   p.i = head.firstItem;
   if(p.i != RNIL){
     p.p = thePool.getPtr(p.i);
@@ -337,11 +412,11 @@ DLFifoList<T>::first(Ptr<T> & p) const {
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 bool
-DLFifoList<T>::next(Ptr<T> & p) const {
-  p.i = p.p->nextList;
+DLFifoList<T,U>::last(Ptr<T> & p) const {
+  p.i = head.lastItem;
   if(p.i != RNIL){
     p.p = thePool.getPtr(p.i);
     return true;
@@ -350,11 +425,44 @@ DLFifoList<T>::next(Ptr<T> & p) const {
   return false;
 }
 
-template <class T>
+template <class T, class U>
 inline
 bool
-DLFifoList<T>::hasNext(const Ptr<T> & p) const {
-  return p.p->nextList != RNIL;
+DLFifoList<T,U>::next(Ptr<T> & p) const {
+  p.i = p.p->U::nextList;
+  if(p.i != RNIL){
+    p.p = thePool.getPtr(p.i);
+    return true;
+  }
+  p.p = NULL;
+  return false;
+}
+
+template <class T, class U>
+inline
+bool
+DLFifoList<T,U>::prev(Ptr<T> & p) const {
+  p.i = p.p->U::prevList;
+  if(p.i != RNIL){
+    p.p = thePool.getPtr(p.i);
+    return true;
+  }
+  p.p = NULL;
+  return false;
+}
+
+template <class T, class U>
+inline
+bool
+DLFifoList<T,U>::hasNext(const Ptr<T> & p) const {
+  return p.p->U::nextList != RNIL;
+}
+
+template <class T, class U>
+inline
+bool
+DLFifoList<T,U>::hasPrev(const Ptr<T> & p) const {
+  return p.p->U::prevList != RNIL;
 }
 
 #endif

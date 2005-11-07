@@ -91,22 +91,21 @@
 
 Uint32 Dbtup::getEmptyPage(Fragrecord* const regFragPtr)
 {
-  Uint32 logicalPageId = regFragPtr->emptyPrimPage;
-  if (logicalPageId == RNIL) {
+  Uint32 pageId = regFragPtr->emptyPrimPage;
+  if (pageId == RNIL) {
     ljam();
     allocMoreFragPages(regFragPtr);
-    logicalPageId = regFragPtr->emptyPrimPage;
-    if (logicalPageId == RNIL) {
+    pageId = regFragPtr->emptyPrimPage;
+    if (pageId == RNIL) {
       ljam();
       return RNIL;
     }//if
   }//if
-  Uint32 physicalPageId = getRealpid(regFragPtr, logicalPageId);
   PagePtr pagePtr;
-  pagePtr.i = physicalPageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, page);
-  regFragPtr->emptyPrimPage = pagePtr.p->pageWord[ZPAGE_NEXT_POS];
-  return physicalPageId;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  regFragPtr->emptyPrimPage = pagePtr.p->next_page;
+  return pageId;
 }//Dbtup::getEmptyPage()
 
 Uint32 Dbtup::getRealpid(Fragrecord*  const regFragPtr, Uint32 logicalPageId) 
@@ -115,10 +114,10 @@ Uint32 Dbtup::getRealpid(Fragrecord*  const regFragPtr, Uint32 logicalPageId)
   Uint32 loopLimit;
   Uint32 loopCount = 0;
   Uint32 pageRangeLimit = cnoOfPageRangeRec;
-
+  ndbassert(logicalPageId < getNoOfPages(regFragPtr));
   grpPageRangePtr.i = regFragPtr->rootPageRange;
   while (true) {
-    ndbrequire(loopCount++ < 100);
+    ndbassert(loopCount++ < 100);
     ndbrequire(grpPageRangePtr.i < pageRangeLimit);
     ptrAss(grpPageRangePtr, pageRange);
     loopLimit = grpPageRangePtr.p->currentIndexPos;
@@ -368,16 +367,17 @@ Uint32 Dbtup::allocFragPages(Fragrecord* const regFragPtr, Uint32 tafpNoAllocReq
 /* ---------------------------------------------------------------- */
     for (loopPagePtr.i = retPageRef; loopPagePtr.i < loopLimit; loopPagePtr.i++) {
       ljam();
-      ptrCheckGuard(loopPagePtr, cnoOfPage, page);
-      loopPagePtr.p->pageWord[ZPAGE_STATE_POS] = ZEMPTY_MM;
-      loopPagePtr.p->pageWord[ZPAGE_FRAG_PAGE_ID_POS] = startRange +
-                                                        (loopPagePtr.i - retPageRef);
-      loopPagePtr.p->pageWord[ZPAGE_NEXT_POS] = loopPagePtr.p->pageWord[ZPAGE_FRAG_PAGE_ID_POS] + 1;
+      ptrCheckGuard(loopPagePtr, cnoOfPage, cpage);
+      loopPagePtr.p->page_state = ZEMPTY_MM;
+      loopPagePtr.p->frag_page_id = startRange +
+	(loopPagePtr.i - retPageRef);
+      loopPagePtr.p->physical_page_id = loopPagePtr.i;
+      loopPagePtr.p->next_page = loopPagePtr.i + 1;
     }//for
     loopPagePtr.i = (retPageRef + noOfPagesAllocated) - 1;
-    ptrCheckGuard(loopPagePtr, cnoOfPage, page);
-    loopPagePtr.p->pageWord[ZPAGE_NEXT_POS] = regFragPtr->emptyPrimPage;
-    regFragPtr->emptyPrimPage = startRange;
+    ptrCheckGuard(loopPagePtr, cnoOfPage, cpage);
+    loopPagePtr.p->next_page = regFragPtr->emptyPrimPage;
+    regFragPtr->emptyPrimPage = retPageRef;
 /* ---------------------------------------------------------------- */
 /*       WAS ENOUGH PAGES ALLOCATED OR ARE MORE NEEDED.             */
 /* ---------------------------------------------------------------- */

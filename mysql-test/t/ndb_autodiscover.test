@@ -177,7 +177,7 @@ show status like 'handler_discover%';
 flush tables;
 system rm var/master-data/test/t7.frm ;
 
---replace_column 7 # 8 # 9 # 12 # 13 # 15 # 18 #
+--replace_column 6 # 7 # 8 # 9 # 12 # 13 # 15 # 18 #
 show table status;
 show status like 'handler_discover%';
 
@@ -543,6 +543,6 @@ create table t10 (
 
 insert into t10 values (1, 'kalle');
 
---exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test `$NDB_TOOLS_DIR/ndb_show_tables --no-defaults | grep BLOB` >> $NDB_TOOLS_OUTPUT 2>&1 || true
+--exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test `$NDB_TOOLS_DIR/ndb_show_tables --no-defaults | grep BLOB | while read a b c d e f g; do echo $g; done` >> $NDB_TOOLS_OUTPUT 2>&1 || true
 
 # End of 4.1 tests

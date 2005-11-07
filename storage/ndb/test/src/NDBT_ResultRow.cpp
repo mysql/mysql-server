@@ -95,10 +95,19 @@ BaseString NDBT_ResultRow::c_str() const {
       str.append(buf);    
     }else{
       Uint32* p = (Uint32*)data[i]->aRef();
-      Uint32 sizeInBytes = data[i]->attrSize() * data[i]->arraySize();
+      Uint32 sizeInBytes = data[i]->get_size_in_bytes();
       for (Uint32 j = 0; j < sizeInBytes; j+=(sizeof(Uint32))){
 	str.append("H'");
-	sprintf(buf, "%.8x", *p);
+	if (j + 4 < sizeInBytes)
+	{
+	  sprintf(buf, "%.8x", *p);
+	}
+	else
+	{
+	  Uint32 tmp = 0;
+	  memcpy(&tmp, p, sizeInBytes - j);
+	  sprintf(buf, "%.8x", tmp);
+	}
 	p++;
 	str.append(buf);
 	if ((j + sizeof(Uint32)) < sizeInBytes)

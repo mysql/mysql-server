@@ -198,7 +198,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ);
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   req->apiConnectPtr = theNdbCon->theTCConPtr;
-  req->tableId = m_accessTable->m_tableId;
+  req->tableId = m_accessTable->m_id;
   req->tableSchemaVersion = m_accessTable->m_version;
   req->storedProcId = 0xFFFF;
   req->buddyConPtr = theNdbCon->theBuddyConPtr;
@@ -767,6 +767,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    */
   Uint32 reqInfo = req->requestInfo;
   ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
+  ScanTabReq::setNoDiskFlag(reqInfo, m_no_disk_flag);
   req->requestInfo = reqInfo;
   
   for(Uint32 i = 0; i<theParallelism; i++){
@@ -926,8 +927,10 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     }
     pTrans->theSimpleState = 0;
     
-    const Uint32 len = (tRecAttr->attrSize() * tRecAttr->arraySize() + 3)/4-1;
-
+    assert(tRecAttr->get_size_in_bytes() > 0);
+    assert(tRecAttr->get_size_in_bytes() < 65536);
+    const Uint32 len = (tRecAttr->get_size_in_bytes() + 3)/4-1;
+    
     newOp->theTupKeyLen = len;
     newOp->theOperationType = opType;
     if (opType == DeleteRequest) {
@@ -1021,23 +1024,23 @@ NdbIndexScanOperation::~NdbIndexScanOperation(){
 
 int
 NdbIndexScanOperation::setBound(const char* anAttrName, int type, 
-				const void* aValue, Uint32 len)
+				const void* aValue)
 {
-  return setBound(m_accessTable->getColumn(anAttrName), type, aValue, len);
+  return setBound(m_accessTable->getColumn(anAttrName), type, aValue);
 }
 
 int
 NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, 
-				const void* aValue, Uint32 len)
+				const void* aValue)
 {
-  return setBound(m_accessTable->getColumn(anAttrId), type, aValue, len);
+  return setBound(m_accessTable->getColumn(anAttrId), type, aValue);
 }
 
 int
 NdbIndexScanOperation::equal_impl(const NdbColumnImpl* anAttrObject, 
-				  const char* aValue, 
-				  Uint32 len){
-  return setBound(anAttrObject, BoundEQ, aValue, len);
+				  const char* aValue)
+{
+  return setBound(anAttrObject, BoundEQ, aValue);
 }
 
 NdbRecAttr*
@@ -1047,7 +1050,7 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
   
-  int id = attrInfo->m_attrId;                // In "real" table
+  int id = attrInfo->getColumnNo();                // In "real" table
   assert(m_accessTable->m_index);
   int sz = (int)m_accessTable->m_index->m_key_ids.size();
   if(id >= sz || (id = m_accessTable->m_index->m_key_ids[id]) == -1){
@@ -1084,22 +1087,21 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
  */
 int
 NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo, 
-				int type, const void* aValue, Uint32 len)
+				int type, const void* aValue)
 {
   if (theOperationType == OpenRangeScanRequest &&
-      (0 <= type && type <= 4) &&
-      len <= 8000) {
+      (0 <= type && type <= 4)) {
     // insert bound type
     Uint32 currLen = theTotalNrOfKeyWordInSignal;
     Uint32 remaining = KeyInfo::DataLength - currLen;
-    Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
     bool tDistrKey = tAttrInfo->m_distributionKey;
 
-    len = aValue != NULL ? sizeInBytes : 0;
-    if (len != sizeInBytes && (len != 0)) {
-      setErrorCodeAbort(4209);
-      return -1;
-    }
+    Uint32 len = 0;
+    if (aValue != NULL)
+      if (! tAttrInfo->get_var_length(aValue, len)) {
+        setErrorCodeAbort(4209);
+        return -1;
+      }
 
     // insert attribute header
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
@@ -1321,10 +1323,11 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
       return (r1_null ? -1 : 1) * jdir;
     }
     const NdbColumnImpl & col = NdbColumnImpl::getImpl(* r1->m_column);
-    Uint32 len = r1->theAttrSize * r1->theArraySize;
+    Uint32 len1 = r1->get_size_in_bytes();
+    Uint32 len2 = r2->get_size_in_bytes();
     if(!r1_null){
       const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(col.m_type);
-      int r = (*sqlType.m_cmp)(col.m_cs, d1, len, d2, len, true);
+      int r = (*sqlType.m_cmp)(col.m_cs, d1, len1, d2, len2, true);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
 	return r * jdir;

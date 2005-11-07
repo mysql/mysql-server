@@ -658,7 +658,6 @@ TransporterFacade::TransporterFacade() :
   init_cond_wait_queue();
   poll_owner = NULL;
   theOwnId = 0;
-
   theMutexPtr = NdbMutex_Create();
   sendPerformedLastInterval = 0;
 
@@ -674,6 +673,9 @@ TransporterFacade::TransporterFacade() :
 
   theClusterMgr = new ClusterMgr(* this);
 
+#ifdef API_TRACE
+  apiSignalLog = 0;
+#endif
   DBUG_VOID_RETURN;
 }
 

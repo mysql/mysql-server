@@ -178,12 +178,12 @@ NdbDictionary::Column::getPrimaryKey() const {
 
 void 
 NdbDictionary::Column::setPartitionKey(bool val){
-  m_impl.m_distributionKey = val;
+  m_impl.m_distributionKey = (val ? 2 : 0);
 }
 
 bool 
 NdbDictionary::Column::getPartitionKey() const{
-  return m_impl.m_distributionKey;
+  return (bool)m_impl.m_distributionKey;
 }
 
 const NdbDictionary::Table * 
@@ -223,7 +223,12 @@ NdbDictionary::Column::getDefaultValue() const
 
 int
 NdbDictionary::Column::getColumnNo() const {
-  return m_impl.m_attrId;
+  return m_impl.m_column_no;
+}
+
+int
+NdbDictionary::Column::getAttrId() const {
+  return m_impl.m_attrId;;
 }
 
 bool
@@ -237,6 +242,30 @@ NdbDictionary::Column::getSizeInBytes() const
   return m_impl.m_attrSize * m_impl.m_arraySize;
 }
 
+void
+NdbDictionary::Column::setArrayType(ArrayType type)
+{
+  m_impl.m_arrayType = type;
+}
+
+NdbDictionary::Column::ArrayType
+NdbDictionary::Column::getArrayType() const
+{
+  return (ArrayType)m_impl.m_arrayType;
+}
+
+void
+NdbDictionary::Column::setStorageType(StorageType type)
+{
+  m_impl.m_storageType = type;
+}
+
+NdbDictionary::Column::StorageType
+NdbDictionary::Column::getStorageType() const
+{
+  return (StorageType)m_impl.m_storageType;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -247,8 +276,7 @@ NdbDictionary::Table::Table(const char * name)
 }
 
 NdbDictionary::Table::Table(const NdbDictionary::Table & org)
-  : NdbDictionary::Object(),
-    m_impl(* new NdbTableImpl(* this))
+  : Object(org), m_impl(* new NdbTableImpl(* this))
 {
   m_impl.assign(org.m_impl);
 }
@@ -291,7 +319,7 @@ NdbDictionary::Table::getMysqlName() const {
 
 int
 NdbDictionary::Table::getTableId() const {
-  return m_impl.m_tableId;
+  return m_impl.m_id;
 }
 
 void 
@@ -299,12 +327,7 @@ NdbDictionary::Table::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
   (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
-  if(c.getPrimaryKey()){
-    m_impl.m_noOfKeys++;
-  }
-  if (col->getBlobType()) {
-    m_impl.m_noOfBlobs++;
-  }
+  m_impl.computeAggregates();
   m_impl.buildColumnHash();
 }
 
@@ -404,17 +427,17 @@ NdbDictionary::Table::getPrimaryKey(int no) const {
 
 const void* 
 NdbDictionary::Table::getFrmData() const {
-  return m_impl.m_frm.get_data();
+  return m_impl.getFrmData();
 }
 
 Uint32
 NdbDictionary::Table::getFrmLength() const {
-  return m_impl.m_frm.length();
+  return m_impl.getFrmLength();
 }
 
 void
 NdbDictionary::Table::setFrm(const void* data, Uint32 len){
-  m_impl.m_frm.assign(data, len);
+  m_impl.setFrm(data, len);
 }
 
 const void* 
@@ -472,6 +495,20 @@ NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {
   if(pTab != 0 && !equal(* pTab))
     return -1;
   return pNdb->getDictionary()->createTable(* this);
+}
+
+void 
+NdbDictionary::Table::setTablespace(const char * name){
+  m_impl.m_tablespace_id = ~0;
+  m_impl.m_tablespace_version = ~0;
+  m_impl.m_tablespace_name.assign(name);
+}
+
+void 
+NdbDictionary::Table::setTablespace(const NdbDictionary::Tablespace & ts){
+  m_impl.m_tablespace_id = NdbTablespaceImpl::getImpl(ts).m_id;
+  m_impl.m_tablespace_version = ts.getObjectVersion();
+  m_impl.m_tablespace_name.assign(ts.getName());
 }
 
 /*****************************************************************
@@ -579,12 +616,12 @@ NdbDictionary::Index::addIndexColumns(int noOfNames, const char ** names){
 
 void
 NdbDictionary::Index::setType(NdbDictionary::Index::Type t){
-  m_impl.m_type = t;
+  m_impl.m_type = (NdbDictionary::Object::Type)t;
 }
 
 NdbDictionary::Index::Type
 NdbDictionary::Index::getType() const {
-  return m_impl.m_type;
+  return (NdbDictionary::Index::Type)m_impl.m_type;
 }
 
 void
@@ -731,6 +768,295 @@ NdbDictionary::Event::getObjectVersion() const
 void NdbDictionary::Event::print()
 {
   m_impl.print();
+}
+
+/*****************************************************************
+ * Tablespace facade
+ */
+NdbDictionary::Tablespace::Tablespace()
+  : m_impl(* new NdbTablespaceImpl(* this))
+{
+}
+
+NdbDictionary::Tablespace::Tablespace(NdbTablespaceImpl & impl)
+  : m_impl(impl) 
+{
+}
+
+NdbDictionary::Tablespace::~Tablespace(){
+  NdbTablespaceImpl * tmp = &m_impl;  
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+void 
+NdbDictionary::Tablespace::setName(const char * name){
+  m_impl.m_name.assign(name);
+}
+
+const char * 
+NdbDictionary::Tablespace::getName() const {
+  return m_impl.m_name.c_str();
+}
+
+void
+NdbDictionary::Tablespace::setAutoGrowSpecification
+(const NdbDictionary::AutoGrowSpecification& spec){
+  m_impl.m_grow_spec = spec;
+}
+const NdbDictionary::AutoGrowSpecification& 
+NdbDictionary::Tablespace::getAutoGrowSpecification() const {
+  return m_impl.m_grow_spec;
+}
+
+void
+NdbDictionary::Tablespace::setExtentSize(Uint32 sz){
+  m_impl.m_extent_size = sz;
+}
+
+Uint32
+NdbDictionary::Tablespace::getExtentSize() const {
+  return m_impl.m_extent_size;
+}
+
+void
+NdbDictionary::Tablespace::setDefaultLogfileGroup(const char * name){
+  m_impl.m_logfile_group_id = ~0;
+  m_impl.m_logfile_group_version = ~0;
+  m_impl.m_logfile_group_name.assign(name);
+}
+
+void
+NdbDictionary::Tablespace::setDefaultLogfileGroup
+(const NdbDictionary::LogfileGroup & lg){
+  m_impl.m_logfile_group_id = NdbLogfileGroupImpl::getImpl(lg).m_id;
+  m_impl.m_logfile_group_version = lg.getObjectVersion();
+  m_impl.m_logfile_group_name.assign(lg.getName());
+}
+
+const char * 
+NdbDictionary::Tablespace::getDefaultLogfileGroup() const {
+  return m_impl.m_logfile_group_name.c_str();
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::Tablespace::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int 
+NdbDictionary::Tablespace::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+/*****************************************************************
+ * LogfileGroup facade
+ */
+NdbDictionary::LogfileGroup::LogfileGroup()
+  : m_impl(* new NdbLogfileGroupImpl(* this))
+{
+}
+
+NdbDictionary::LogfileGroup::LogfileGroup(NdbLogfileGroupImpl & impl)
+  : m_impl(impl) 
+{
+}
+
+NdbDictionary::LogfileGroup::~LogfileGroup(){
+  NdbLogfileGroupImpl * tmp = &m_impl;  
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+void 
+NdbDictionary::LogfileGroup::setName(const char * name){
+  m_impl.m_name.assign(name);
+}
+
+const char * 
+NdbDictionary::LogfileGroup::getName() const {
+  return m_impl.m_name.c_str();
+}
+
+void
+NdbDictionary::LogfileGroup::setUndoBufferSize(Uint32 sz){
+  m_impl.m_undo_buffer_size = sz;
+}
+
+Uint32
+NdbDictionary::LogfileGroup::getUndoBufferSize() const {
+  return m_impl.m_undo_buffer_size;
+}
+
+void
+NdbDictionary::LogfileGroup::setAutoGrowSpecification
+(const NdbDictionary::AutoGrowSpecification& spec){
+  m_impl.m_grow_spec = spec;
+}
+const NdbDictionary::AutoGrowSpecification& 
+NdbDictionary::LogfileGroup::getAutoGrowSpecification() const {
+  return m_impl.m_grow_spec;
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::LogfileGroup::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int 
+NdbDictionary::LogfileGroup::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+/*****************************************************************
+ * Datafile facade
+ */
+NdbDictionary::Datafile::Datafile()
+  : m_impl(* new NdbDatafileImpl(* this))
+{
+}
+
+NdbDictionary::Datafile::Datafile(NdbDatafileImpl & impl)
+  : m_impl(impl) 
+{
+}
+
+NdbDictionary::Datafile::~Datafile(){
+  NdbDatafileImpl * tmp = &m_impl;  
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+void 
+NdbDictionary::Datafile::setPath(const char * path){
+  m_impl.m_path.assign(path);
+}
+
+const char * 
+NdbDictionary::Datafile::getPath() const {
+  return m_impl.m_path.c_str();
+}
+
+void 
+NdbDictionary::Datafile::setSize(Uint64 sz){
+  m_impl.m_size = sz;
+}
+
+Uint64
+NdbDictionary::Datafile::getSize() const {
+  return m_impl.m_size;
+}
+
+Uint64
+NdbDictionary::Datafile::getFree() const {
+  return m_impl.m_free;
+}
+
+void 
+NdbDictionary::Datafile::setTablespace(const char * tablespace){
+  m_impl.m_filegroup_id = ~0;
+  m_impl.m_filegroup_version = ~0;
+  m_impl.m_filegroup_name.assign(tablespace);
+}
+
+void 
+NdbDictionary::Datafile::setTablespace(const NdbDictionary::Tablespace & ts){
+  m_impl.m_filegroup_id = NdbTablespaceImpl::getImpl(ts).m_id;
+  m_impl.m_filegroup_version = ts.getObjectVersion();
+  m_impl.m_filegroup_name.assign(ts.getName());
+}
+
+const char *
+NdbDictionary::Datafile::getTablespace() const {
+  return m_impl.m_filegroup_name.c_str();
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::Datafile::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int 
+NdbDictionary::Datafile::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+/*****************************************************************
+ * Undofile facade
+ */
+NdbDictionary::Undofile::Undofile()
+  : m_impl(* new NdbUndofileImpl(* this))
+{
+}
+
+NdbDictionary::Undofile::Undofile(NdbUndofileImpl & impl)
+  : m_impl(impl) 
+{
+}
+
+NdbDictionary::Undofile::~Undofile(){
+  NdbUndofileImpl * tmp = &m_impl;  
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+void 
+NdbDictionary::Undofile::setPath(const char * path){
+  m_impl.m_path.assign(path);
+}
+
+const char * 
+NdbDictionary::Undofile::getPath() const {
+  return m_impl.m_path.c_str();
+}
+
+void 
+NdbDictionary::Undofile::setSize(Uint64 sz){
+  m_impl.m_size = sz;
+}
+
+Uint64
+NdbDictionary::Undofile::getSize() const {
+  return m_impl.m_size;
+}
+
+Uint64
+NdbDictionary::Undofile::getFree() const {
+  return m_impl.m_free;
+}
+
+void 
+NdbDictionary::Undofile::setLogfileGroup(const char * logfileGroup){
+  m_impl.m_filegroup_id = ~0;
+  m_impl.m_filegroup_version = ~0;
+  m_impl.m_filegroup_name.assign(logfileGroup);
+}
+
+void 
+NdbDictionary::Undofile::setLogfileGroup
+(const NdbDictionary::LogfileGroup & ts){
+  m_impl.m_filegroup_id = NdbLogfileGroupImpl::getImpl(ts).m_id;
+  m_impl.m_filegroup_version = ts.getObjectVersion();
+  m_impl.m_filegroup_name.assign(ts.getName());
+}
+
+const char *
+NdbDictionary::Undofile::getLogfileGroup() const {
+  return m_impl.m_filegroup_name.c_str();
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::Undofile::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int 
+NdbDictionary::Undofile::getObjectVersion() const {
+  return m_impl.m_version;
 }
 
 /*****************************************************************
@@ -1062,6 +1388,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
       break;
     }
   }
+
   if (col.getPrimaryKey())
     out << " PRIMARY KEY";
   else if (! col.getNullable())
@@ -1072,7 +1399,108 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   if(col.getDistributionKey())
     out << " DISTRIBUTION KEY";
 
+  switch (col.getArrayType()) {
+  case NDB_ARRAYTYPE_FIXED:
+    out << " AT=FIXED";
+    break;
+  case NDB_ARRAYTYPE_SHORT_VAR:
+    out << " AT=SHORT_VAR";
+    break;
+  case NDB_ARRAYTYPE_MEDIUM_VAR:
+    out << " AT=MEDIUM_VAR";
+    break;
+  default:
+    out << " AT=" << col.getArrayType() << "?";
+    break;
+  }
+
+  switch (col.getStorageType()) {
+  case NDB_STORAGETYPE_MEMORY:
+    out << " ST=MEMORY";
+    break;
+  case NDB_STORAGETYPE_DISK:
+    out << " ST=DISK";
+    break;
+  default:
+    out << " ST=" << col.getStorageType() << "?";
+    break;
+  }
+
   return out;
+}
+
+int
+NdbDictionary::Dictionary::createLogfileGroup(const LogfileGroup & lg){
+  return m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg));
+}
+
+int
+NdbDictionary::Dictionary::dropLogfileGroup(const LogfileGroup & lg){
+  return m_impl.dropLogfileGroup(NdbLogfileGroupImpl::getImpl(lg));
+}
+
+NdbDictionary::LogfileGroup
+NdbDictionary::Dictionary::getLogfileGroup(const char * name){
+  NdbDictionary::LogfileGroup tmp;
+  m_impl.m_receiver.get_filegroup(NdbLogfileGroupImpl::getImpl(tmp), 
+				  NdbDictionary::Object::LogfileGroup, name);
+  return tmp;
+}
+
+int
+NdbDictionary::Dictionary::createTablespace(const Tablespace & lg){
+  return m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg));
+}
+
+int
+NdbDictionary::Dictionary::dropTablespace(const Tablespace & lg){
+  return m_impl.dropTablespace(NdbTablespaceImpl::getImpl(lg));
+}
+
+NdbDictionary::Tablespace
+NdbDictionary::Dictionary::getTablespace(const char * name){
+  NdbDictionary::Tablespace tmp;
+  m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
+				  NdbDictionary::Object::Tablespace, name);
+  return tmp;
+}
+
+int
+NdbDictionary::Dictionary::createDatafile(const Datafile & df, bool force){
+  return m_impl.createDatafile(NdbDatafileImpl::getImpl(df), force);
+}
+
+int
+NdbDictionary::Dictionary::dropDatafile(const Datafile& df){
+  return m_impl.dropDatafile(NdbDatafileImpl::getImpl(df));
+}
+
+NdbDictionary::Datafile
+NdbDictionary::Dictionary::getDatafile(Uint32 node, const char * path){
+  NdbDictionary::Datafile tmp;
+  m_impl.m_receiver.get_file(NdbDatafileImpl::getImpl(tmp),
+			     NdbDictionary::Object::Datafile,
+			     node ? (int)node : -1, path);
+  return tmp;
+}
+
+int
+NdbDictionary::Dictionary::createUndofile(const Undofile & df, bool force){
+  return m_impl.createUndofile(NdbUndofileImpl::getImpl(df), force);
+}
+
+int
+NdbDictionary::Dictionary::dropUndofile(const Undofile& df){
+  return m_impl.dropUndofile(NdbUndofileImpl::getImpl(df));
+}
+
+NdbDictionary::Undofile
+NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path){
+  NdbDictionary::Undofile tmp;
+  m_impl.m_receiver.get_file(NdbUndofileImpl::getImpl(tmp),
+			     NdbDictionary::Object::Undofile,
+			     node ? (int)node : -1, path);
+  return tmp;
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
@@ -1081,4 +1509,5 @@ const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::RANGE_NO = 0;
+const NdbDictionary::Column * NdbDictionary::Column::DISK_REF = 0;
 const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;

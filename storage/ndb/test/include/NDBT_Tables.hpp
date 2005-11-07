@@ -23,13 +23,15 @@
 #include <NdbDictionary.hpp>
 #include <NDBT_Table.hpp>
 
-typedef int (* NDBT_CreateTableHook)(Ndb*, NdbDictionary::Table&, int when);
+typedef int (* NDBT_CreateTableHook)(Ndb*, NdbDictionary::Table&, int when,
+                                    void* arg);
 
 class NDBT_Tables {
 public:
 
   static int createTable(Ndb* pNdb, const char* _name, bool _temp = false, 
-			 bool existsOK = false, NDBT_CreateTableHook = 0);
+			 bool existsOK = false, NDBT_CreateTableHook = 0,
+                         void* arg = 0);
   static int createAllTables(Ndb* pNdb, bool _temp, bool existsOK = false);
   static int createAllTables(Ndb* pNdb);
 

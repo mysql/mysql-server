@@ -30,12 +30,15 @@ class FsCloseReq {
    */
   friend class Ndbfs;         // Reciver
   friend class VoidFs;
+  friend class Lgman;
+  friend class Tsman;
 
   /**
    * Sender(s)
    */
   friend class Backup;
   friend class Dbdict;
+  friend class Restore;
 
   /**
    * For printing

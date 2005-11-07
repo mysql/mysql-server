@@ -33,11 +33,6 @@
 #define NO_NODE_GROUP_ID ((1 << NODEID_BITS) - 1)
 
 /**
- * Dummy macro to make emacs indent better
- */
-#define _F(x) x
-
-/**
  * No of 32 bits word in sysfile
  * 
  *   5 + 
@@ -47,7 +42,7 @@
  *   NODE_ARRAY_SIZE(MAX_NDB_NODES, NODEID_BITS) + // takeOver
  *   NodeBitmask::NDB_NODE_BITMASK_SIZE            // Lcp Active
  */
-#define _SYSFILE_SIZE32 (5 + \
+#define _SYSFILE_SIZE32 (6 + \
                          MAX_NDB_NODES + \
                          NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) + \
                          NODE_ARRAY_SIZE(MAX_NDB_NODES, NODEID_BITS) + \
@@ -66,6 +61,11 @@ public:
   STATIC_CONST( SYSFILE_SIZE32 = _SYSFILE_SIZE32 );
   
   Uint32 systemRestartBits;
+
+  /**
+   * Restart seq for _this_ node...
+   */
+  Uint32 m_restart_seq;
 
   static bool getInitialStartOngoing(const Uint32 & systemRestartBits);
   static void setInitialStartOngoing(Uint32 & systemRestartBits);

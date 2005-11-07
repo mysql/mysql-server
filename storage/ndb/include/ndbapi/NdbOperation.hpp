@@ -251,28 +251,27 @@ public:
    * @note There are 10 versions of equal() with
    *       slightly different parameters.
    *
-   * @note When using equal() with a string (char *) as
-   *       second argument, the string needs to be padded with 
-   *       zeros in the following sense:
-   *       @code
-   *       // Equal needs strings to be padded with zeros
-   *       strncpy(buf, str, sizeof(buf));
-   *       NdbOperation->equal("Attr1", buf);
-   *       @endcode
-   *
-   * 
+   * @note  If attribute has fixed size, value must include all bytes.
+   *        In particular a Char must be native-blank padded.
+   *        If attribute has variable size, value must start with
+   *        1 or 2 little-endian length bytes (2 if Long*).
    * 
    * @param   anAttrName   Attribute name 
    * @param   aValue       Attribute value.
-   * @param   len          Attribute length expressed in bytes.
    * @return               -1 if unsuccessful. 
    */
-  int  equal(const char* anAttrName, const char* aValue, Uint32 len = 0);
-  int  equal(const char* anAttrName, Uint32 aValue);	
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int  equal(const char* anAttrName, const char* aValue, Uint32 len);
+#endif
+  int  equal(const char* anAttrName, const char* aValue);
   int  equal(const char* anAttrName, Int32 aValue);	
+  int  equal(const char* anAttrName, Uint32 aValue);	
   int  equal(const char* anAttrName, Int64 aValue);	
   int  equal(const char* anAttrName, Uint64 aValue);
-  int  equal(Uint32 anAttrId, const char* aValue, Uint32 len = 0);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int  equal(Uint32 anAttrId, const char* aValue, Uint32 len);
+#endif
+  int  equal(Uint32 anAttrId, const char* aValue);
   int  equal(Uint32 anAttrId, Int32 aValue);	
   int  equal(Uint32 anAttrId, Uint32 aValue);	
   int  equal(Uint32 anAttrId, Int64 aValue);	
@@ -349,28 +348,34 @@ public:
    *
    * @note There are 14 versions of NdbOperation::setValue with
    *       slightly different parameters.
+   *
+   * @note See note under equal() about value format and length.
    * 
    * @param anAttrName     Name (or Id) of attribute.
    * @param aValue         Attribute value to set.
-   * @param len            Attribute length expressed in bytes.
    * @return               -1 if unsuccessful.
    */
-  virtual int  setValue(const char* anAttrName, const char* aValue, 
-			Uint32 len = 0);
-  virtual int  setValue(const char* anAttrName, Int32 aValue);
-  virtual int  setValue(const char* anAttrName, Uint32 aValue);
-  virtual int  setValue(const char* anAttrName, Uint64 aValue);
-  virtual int  setValue(const char* anAttrName, Int64 aValue);
-  virtual int  setValue(const char* anAttrName, float aValue);
-  virtual int  setValue(const char* anAttrName, double aValue);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int  setValue(const char* anAttrName, const char* aValue, Uint32 len);
+#endif
+  int  setValue(const char* anAttrName, const char* aValue);
+  int  setValue(const char* anAttrName, Int32 aValue);
+  int  setValue(const char* anAttrName, Uint32 aValue);
+  int  setValue(const char* anAttrName, Int64 aValue);
+  int  setValue(const char* anAttrName, Uint64 aValue);
+  int  setValue(const char* anAttrName, float aValue);
+  int  setValue(const char* anAttrName, double aValue);
 
-  virtual int  setValue(Uint32 anAttrId, const char* aValue, Uint32 len = 0);
-  virtual int  setValue(Uint32 anAttrId, Int32 aValue);
-  virtual int  setValue(Uint32 anAttrId, Uint32 aValue);
-  virtual int  setValue(Uint32 anAttrId, Uint64 aValue);
-  virtual int  setValue(Uint32 anAttrId, Int64 aValue);
-  virtual int  setValue(Uint32 anAttrId, float aValue);
-  virtual int  setValue(Uint32 anAttrId, double aValue);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int  setValue(Uint32 anAttrId, const char* aValue, Uint32 len);
+#endif
+  int  setValue(Uint32 anAttrId, const char* aValue);
+  int  setValue(Uint32 anAttrId, Int32 aValue);
+  int  setValue(Uint32 anAttrId, Uint32 aValue);
+  int  setValue(Uint32 anAttrId, Int64 aValue);
+  int  setValue(Uint32 anAttrId, Uint64 aValue);
+  int  setValue(Uint32 anAttrId, float aValue);
+  int  setValue(Uint32 anAttrId, double aValue);
 
   /**
    * This method replaces getValue/setValue for blobs.  It creates
@@ -835,9 +840,9 @@ protected:
  *	These are support methods only used locally in this class.
 ******************************************************************************/
 
-  virtual int equal_impl(const NdbColumnImpl*,const char* aValue, Uint32 len);
+  virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
-  int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
+  int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
@@ -856,6 +861,7 @@ protected:
   int insertKEYINFO(const char* aValue,	
 		    Uint32 aStartPosition,	
 		    Uint32 aKeyLenInByte);
+  void reorderKEYINFO();
   
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
@@ -951,6 +957,7 @@ protected:
   Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
   Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
   Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
+  Uint8  m_no_disk_flag;          
 
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;
@@ -1086,6 +1093,13 @@ NdbOperation::NdbCon(NdbTransaction* aNdbCon)
 
 inline
 int
+NdbOperation::equal(const char* anAttrName, const char* aValue, Uint32 len)
+{
+  return equal(anAttrName, aValue);
+}
+
+inline
+int
 NdbOperation::equal(const char* anAttrName, Int32 aPar)
 {
   return equal(anAttrName, (const char*)&aPar, (Uint32)4);
@@ -1114,6 +1128,13 @@ NdbOperation::equal(const char* anAttrName, Uint64 aPar)
 
 inline
 int
+NdbOperation::equal(Uint32 anAttrId, const char* aValue, Uint32 len)
+{
+  return equal(anAttrId, aValue);
+}
+
+inline
+int
 NdbOperation::equal(Uint32 anAttrId, Int32 aPar)
 {
   return equal(anAttrId, (const char*)&aPar, (Uint32)4);
@@ -1138,6 +1159,13 @@ int
 NdbOperation::equal(Uint32 anAttrId, Uint64 aPar)
 {
   return equal(anAttrId, (const char*)&aPar, (Uint32)8);
+}
+
+inline
+int
+NdbOperation::setValue(const char* anAttrName, const char* aValue, Uint32 len)
+{
+  return setValue(anAttrName, aValue);
 }
 
 inline
@@ -1180,6 +1208,13 @@ int
 NdbOperation::setValue(const char* anAttrName, double aPar)
 {
   return setValue(anAttrName, (const char*)&aPar, (Uint32)8);
+}
+
+inline
+int
+NdbOperation::setValue(Uint32 anAttrId, const char* aValue, Uint32 len)
+{
+  return setValue(anAttrId, aValue);
 }
 
 inline

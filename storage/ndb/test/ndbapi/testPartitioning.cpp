@@ -35,7 +35,7 @@ run_drop_table(NDBT_Context* ctx, NDBT_Step* step)
 
 static
 int
-add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
+add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
 {
   switch(when){
   case 0: // Before
@@ -70,8 +70,16 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
       BaseString name;
       name.assfmt("PK_DK_%d", dks);
       col.setName(name.c_str());
-      col.setType(NdbDictionary::Column::Unsigned);
-      col.setLength(1); 
+      if((rand() % 100) > 50)
+      {
+	col.setType(NdbDictionary::Column::Unsigned);
+	col.setLength(1); 
+      }
+      else
+      {
+	col.setType(NdbDictionary::Column::Varbinary);
+	col.setLength(1+(rand() % 25));
+      }
       col.setNullable(false);
       col.setPrimaryKey(true);
       col.setDistributionKey(true);
@@ -348,8 +356,9 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
 	int sz = tab->getColumn(j)->getSizeInBytes();
 	int aligned_size = 4 * ((sz + 3) >> 2);
 	memset(pos, 0, aligned_size);
-	dummy.calcValue(i, j, 0, pos, sz);
-	pos += aligned_size;
+	Uint32 real_size;
+	dummy.calcValue(i, j, 0, pos, sz, &real_size);
+	pos += (real_size + 3) & ~3;
       }
     }
     // Now we have the pk

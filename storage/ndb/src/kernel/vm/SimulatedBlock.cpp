@@ -36,6 +36,8 @@
 
 #include <Properties.hpp>
 #include "Configuration.hpp"
+#include <AttributeDescriptor.hpp>
+#include <NdbSqlUtil.hpp>
 
 #define ljamEntry() jamEntryLine(30000 + __LINE__)
 #define ljam() jamLine(30000 + __LINE__)
@@ -49,12 +51,12 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     theNumber(blockNumber),
     theReference(numberToRef(blockNumber, globalData.ownId)),
     theConfiguration(conf),
+    m_global_page_pool(globalData.m_global_page_pool),
     c_fragmentInfoHash(c_fragmentInfoPool),
     c_linearFragmentSendList(c_fragmentSendPool),
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
-    c_counterMgr(* this),
-    c_ptrMetaDataCommon(0)
+    c_counterMgr(* this)
 {
   NewVarRef = 0;
   
@@ -1881,21 +1883,49 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
   {
     const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
     
+    Uint32 array = 
+      AttributeDescriptor::getArrayType(keyAttr.attributeDescriptor);
     Uint32 srcBytes = 
       AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
-    Uint32 srcWords = (srcBytes + 3) / 4;
+
+    Uint32 srcWords = ~0;
     Uint32 dstWords = ~0;
     uchar* dstPtr = (uchar*)&dst[dstPos];
     const uchar* srcPtr = (const uchar*)&src[srcPos];
     CHARSET_INFO* cs = keyAttr.charsetInfo;
     
-    if (cs == NULL) 
+    if (cs == NULL)
     {
       jam();
-      memcpy(dstPtr, srcPtr, srcWords << 2);
+      Uint32 len;
+      switch(array){
+      case NDB_ARRAYTYPE_SHORT_VAR:
+	len = 1 + srcPtr[0];
+	break;
+      case NDB_ARRAYTYPE_MEDIUM_VAR:
+	len = 2 + srcPtr[0] + (srcPtr[1] << 8);
+	break;
+#ifndef VM_TRACE
+      default:
+#endif
+      case NDB_ARRAYTYPE_FIXED:
+	len = srcBytes;
+      }
+      srcWords = (len + 3) >> 2;
       dstWords = srcWords;
+      memcpy(dstPtr, srcPtr, dstWords << 2);
+      
+      if (0)
+      {
+	ndbout_c("srcPos: %d dstPos: %d len: %d srcWords: %d dstWords: %d",
+		 srcPos, dstPos, len, srcWords, dstWords);
+	
+	for(Uint32 i = 0; i<srcWords; i++)
+	  printf("%.8x ", src[srcPos + i]);
+	printf("\n");
+      }
     } 
-    else 
+    else
     {
       jam();
       Uint32 typeId =
@@ -1920,12 +1950,22 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
 	dstPtr[n++] = 0;
       }
       dstWords = (n >> 2);
+      srcWords = (lb + len + 3) >> 2; 
     }
+
     dstPos += dstWords;
     srcPos += srcWords;
     keyPartLen[i++] = dstWords;
   }
 
+  if (0)
+  {
+    for(Uint32 i = 0; i<dstPos; i++)
+    {
+      printf("%.8x ", dst[i]);
+    }
+    printf("\n");
+  }
   return dstPos;
 }
 
@@ -1966,6 +2006,7 @@ SimulatedBlock::create_distr_key(Uint32 tableId,
     {
       Uint32 attr = desc->keyAttr[i].attributeDescriptor;
       Uint32 len = AttributeDescriptor::getSizeInWords(attr);
+      ndbrequire(AttributeDescriptor::getArrayType(attr) == NDB_ARRAYTYPE_FIXED);
       if(AttributeDescriptor::getDKey(attr))
       {
 	noOfDistrKeys--;

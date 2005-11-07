@@ -30,6 +30,7 @@ class DefineBackupReq {
    * Reciver(s)
    */
   friend class Backup;
+  friend class Dblqh;
 
   friend bool printDEFINE_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -74,7 +75,8 @@ class DefineBackupRef {
    * Sender(s)
    */
   friend class Backup;
-  
+  friend class Dblqh;
+
   /**
    * Reciver(s)
    */
@@ -107,7 +109,8 @@ class DefineBackupConf {
    * Sender(s)
    */
   friend class Backup;
-  
+  friend class Dblqh;
+
   /**
    * Reciver(s)
    */
@@ -210,6 +213,7 @@ class BackupFragmentReq {
    * Reciver(s)
    */
   friend class Backup;
+  friend class Dblqh;
 
   friend bool printBACKUP_FRAGMENT_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -228,6 +232,7 @@ class BackupFragmentRef {
    * Sender(s)
    */
   friend class Backup;
+  friend class Dblqh;
   
   /**
    * Reciver(s)
@@ -250,6 +255,7 @@ class BackupFragmentConf {
    * Sender(s)
    */
   friend class Backup;
+  friend class Dblqh;
   
   /**
    * Reciver(s)

@@ -81,6 +81,10 @@ static BlockInfo ALL_BLOCKS[] = {
   { DBUTIL_REF,  1 , 11000, 11999 },
   { SUMA_REF,    1 , 13000, 13999 },
   { DBTUX_REF,   1 , 12000, 12999 }
+  ,{ TSMAN_REF,  1 ,     0,     0 }
+  ,{ LGMAN_REF,  1 ,     0,     0 }
+  ,{ PGMAN_REF,  1 ,     0,     0 }
+  ,{ RESTORE_REF,1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -100,7 +104,11 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   TRIX_REF,
   BACKUP_REF,
   DBUTIL_REF,
-  SUMA_REF
+  SUMA_REF,
+  TSMAN_REF,
+  LGMAN_REF,
+  PGMAN_REF,
+  RESTORE_REF
 };
 
 /*******************************/
@@ -1594,7 +1602,6 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::MinLoadFactor, 70);
   //w.add(DictTabInfo::MaxLoadFactor, 80);
   w.add(DictTabInfo::FragmentTypeVal, (Uint32)table.fragmentType);
-  //w.add(DictTabInfo::TableStorageVal, (Uint32)DictTabInfo::MainMemory);
   //w.add(DictTabInfo::NoOfKeyAttr, 1);
   w.add(DictTabInfo::NoOfAttributes, (Uint32)table.columnCount);
   //w.add(DictTabInfo::NoOfNullable, (Uint32)0);
@@ -1606,9 +1613,12 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
     const SysColumn& column = table.columnList[i];
     ndbassert(column.pos == i);
     w.add(DictTabInfo::AttributeName, column.name);
-    w.add(DictTabInfo::AttributeId, (Uint32)column.pos);
+    w.add(DictTabInfo::AttributeId, (Uint32)i);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)column.keyFlag);
-    //w.add(DictTabInfo::AttributeStorage, (Uint32)DictTabInfo::MainMemory);
+    w.add(DictTabInfo::AttributeStorageType, 
+	  (Uint32)NDB_STORAGETYPE_MEMORY);
+    w.add(DictTabInfo::AttributeArrayType, 
+	  (Uint32)NDB_ARRAYTYPE_FIXED);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)column.nullable);
     w.add(DictTabInfo::AttributeExtType, (Uint32)column.type);
     w.add(DictTabInfo::AttributeExtLength, (Uint32)column.length);

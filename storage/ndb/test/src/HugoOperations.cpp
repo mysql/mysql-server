@@ -516,8 +516,9 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
   int len = attr->getSizeInBytes();
   char buf[8000];
   memset(buf, 0, sizeof(buf));
-  return pOp->equal( attr->getName(), 
-		     calc.calcValue(rowId, attrId, 0, buf, len));
+  Uint32 real_len;
+  const char * value = calc.calcValue(rowId, attrId, 0, buf, len, &real_len);
+  return pOp->equal( attr->getName(), value, real_len);
 }
 
 int HugoOperations::setValueForAttr(NdbOperation* pOp,
@@ -530,8 +531,10 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   int len = attr->getSizeInBytes();
   char buf[8000];
   memset(buf, 0, sizeof(buf));
-  return pOp->setValue( attr->getName(), 
-			calc.calcValue(rowId, attrId, updateId, buf, len));
+  Uint32 real_len;
+  const char * value = calc.calcValue(rowId, attrId, 
+				      updateId, buf, len, &real_len);
+  return pOp->setValue( attr->getName(), value, real_len);
 }
 
 int

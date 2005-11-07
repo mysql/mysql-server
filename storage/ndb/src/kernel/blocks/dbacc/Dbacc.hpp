@@ -23,7 +23,7 @@
 #include <SimulatedBlock.hpp>
 
 // primary key is stored in TUP
-#include <Dbtup.hpp>
+#include "../dbtup/Dbtup.hpp"
 
 #ifdef DBACC_C
 // Debug Macros
@@ -61,8 +61,6 @@ default: sprintf(tmp_string, "%-20d", ind);\
 ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: " << tmp_val << " \tLINE: " << __LINE__ << endl; \
 }\
 */
-
-#define dbgUndoword(ptr, ind, val)
 
 // Constants
 /** ------------------------------------------------------------------------ 
@@ -103,39 +101,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZOVERFLOW_PAGE_TYPE 1
 #define ZDEFAULT_LIST 3
 #define ZWORDS_IN_PAGE 2048
-/* --------------------------------------------------------------------------------- */
-/*       CONSTANTS FOR THE ZERO PAGES                                                */
-/* --------------------------------------------------------------------------------- */
-#define ZPAGEZERO_PREV_UNDOP 8
-#define ZPAGEZERO_NO_OVER_PAGE 9
-#define ZPAGEZERO_TABID 10
-#define ZPAGEZERO_FRAGID0 11
-#define ZPAGEZERO_FRAGID1 12
-#define ZPAGEZERO_HASH_CHECK 13
-#define ZPAGEZERO_DIRSIZE 14
-#define ZPAGEZERO_EXPCOUNTER 15
-#define ZPAGEZERO_NEXT_UNDO_FILE 16
-#define ZPAGEZERO_SLACK 17
-#define ZPAGEZERO_NO_PAGES 18
-#define ZPAGEZERO_HASHCHECKBIT 19
-#define ZPAGEZERO_K 20
-#define ZPAGEZERO_LHFRAGBITS 21
-#define ZPAGEZERO_LHDIRBITS 22
-#define ZPAGEZERO_LOCALKEYLEN 23
-#define ZPAGEZERO_MAXP 24
-#define ZPAGEZERO_MAXLOADFACTOR 25
-#define ZPAGEZERO_MINLOADFACTOR 26
-#define ZPAGEZERO_MYFID 27
-#define ZPAGEZERO_LAST_OVER_INDEX 28
-#define ZPAGEZERO_P 29
-#define ZPAGEZERO_NO_OF_ELEMENTS 30
-#define ZPAGEZERO_ELEMENT_LENGTH 31
-#define ZPAGEZERO_KEY_LENGTH 32
-#define ZPAGEZERO_NODETYPE 33
-#define ZPAGEZERO_SLACK_CHECK 34
-/* --------------------------------------------------------------------------------- */
-/*       CONSTANTS IN ALPHABETICAL ORDER                                             */
-/* --------------------------------------------------------------------------------- */
 #define ZADDFRAG 0
 #define ZCOPY_NEXT 1
 #define ZCOPY_NEXT_COMMIT 2
@@ -151,17 +116,14 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZFS_CONNECTSIZE 300
 #define ZFS_OPSIZE 100
 #define ZKEYINKEYREQ 4
-#define ZLCP_CONNECTSIZE 30
 #define ZLEFT 1
 #define ZLOCALLOGFILE 2
 #define ZLOCKED 0
 #define ZMAXSCANSIGNALLEN 20
 #define ZMAINKEYLEN 8
-#define ZMAX_UNDO_VERSION 4
 #define ZNO_OF_DISK_VERSION 3
 #define ZNO_OF_OP_PER_SIGNAL 20
 //#define ZNOT_EMPTY_FRAGMENT 1
-#define ZNR_OF_UNDO_PAGE_GROUP 16
 #define ZOP_HEAD_INFO_LN 3
 #define ZOPRECSIZE 740
 #define ZOVERFLOWRECSIZE 5
@@ -181,35 +143,21 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZSCAN_LOCK_ALL 3
 #define ZSCAN_OP 5
 #define ZSCAN_REC_SIZE 256
-#define ZSR_VERSION_REC_SIZE 16
 #define ZSTAND_BY 2
 #define ZTABLESIZE 16
 #define ZTABMAXINDEX 3
 #define ZUNDEFINED_OP 6
-#define ZUNDOHEADSIZE 7
 #define ZUNLOCKED 1
-#define ZUNDOPAGE_BASE_ADD 2
-#define ZUNDOPAGEINDEXBITS 13
-#define ZUNDOPAGEINDEX_MASK 0x1fff
-#define ZWRITEPAGESIZE 8
-#define ZWRITE_UNDOPAGESIZE 2
-#define ZMIN_UNDO_PAGES_AT_COMMIT 4
-#define ZMIN_UNDO_PAGES_AT_OPERATION 10
-#define ZMIN_UNDO_PAGES_AT_EXPAND 16
 
 /* --------------------------------------------------------------------------------- */
 /* CONTINUEB CODES                                                                   */
 /* --------------------------------------------------------------------------------- */
-#define ZLOAD_BAL_LCP_TIMER 0
 #define ZINITIALISE_RECORDS 1
-#define ZSR_READ_PAGES_ALLOC 2
-#define ZSTART_UNDO 3
 #define ZSEND_SCAN_HBREP 4
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
 #define ZREPORT_MEMORY_USAGE 8
-#define ZLCP_OP_WRITE_RT_BREAK 9
 
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
@@ -235,7 +183,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZWRITE_ERROR 630
 #define ZTO_OP_STATE_ERROR 631
 #define ZTOO_EARLY_ACCESS_ERROR 632
-#define ZTEMPORARY_ACC_UNDO_FAILURE 677
 #endif
 
 class ElementHeader {
@@ -331,34 +278,9 @@ public:
 enum State {
   FREEFRAG = 0,
   ACTIVEFRAG = 1,
-  SEND_QUE_OP = 2,
-  WAIT_ACC_LCPREQ = 3,
-  LCP_SEND_PAGES = 4,
-  LCP_SEND_OVER_PAGES = 5,
-  LCP_SEND_ZERO_PAGE = 6,
-  SR_READ_PAGES = 7,
-  SR_READ_OVER_PAGES = 8,
-  WAIT_ZERO_PAGE_STORED = 9,
+  //SEND_QUE_OP = 2,
   WAIT_NOTHING = 10,
-  WAIT_OPEN_UNDO_LCP = 11,
-  WAIT_OPEN_UNDO_LCP_NEXT = 12,
-  WAIT_OPEN_DATA_FILE_FOR_READ = 13,
-  WAIT_OPEN_DATA_FILE_FOR_WRITE = 14,
-  OPEN_UNDO_FILE_SR = 15,
-  READ_UNDO_PAGE = 16,
-  READ_UNDO_PAGE_AND_CLOSE = 17,
-  WAIT_READ_DATA = 18,
-  WAIT_READ_PAGE_ZERO = 19,
-  WAIT_WRITE_DATA = 20,
-  WAIT_WRITE_UNDO = 21,
-  WAIT_WRITE_UNDO_EXIT = 22,
-  WAIT_CLOSE_UNDO = 23,
-  LCP_CLOSE_DATA = 24,
-  SR_CLOSE_DATA = 25,
   WAIT_ONE_CONF = 26,
-  WAIT_TWO_CONF = 27,
-  LCP_FREE = 28,
-  LCP_ACTIVE = 29,
   FREE_OP = 30,
   WAIT_EXE_OP = 32,
   WAIT_IN_QUEUE = 34,
@@ -378,31 +300,10 @@ enum State {
   ADDSECONDFRAG = 49,
   DELETEFIRSTFRAG = 50,
   DELETESECONDFRAG = 51,
-  ACTIVEROOT = 52,
-  LCP_CREATION = 53
+  ACTIVEROOT = 52
 };
 
 // Records
-
-/* --------------------------------------------------------------------------------- */
-/* UNDO HEADER RECORD                                                                */
-/* --------------------------------------------------------------------------------- */
-
-  struct UndoHeader {
-    enum UndoHeaderType{
-      ZPAGE_INFO = 0,
-      ZOVER_PAGE_INFO = 1,
-      ZOP_INFO = 2,
-      ZNO_UNDORECORD_TYPES = 3
-    };
-    UintR tableId;
-    UintR rootFragId;
-    UintR localFragId;
-    UintR variousInfo;
-    UintR logicalPageId;
-    UintR prevUndoAddressForThisFrag;
-    UintR prevUndoAddress;
-  };
 
 /* --------------------------------------------------------------------------------- */
 /* DIRECTORY RANGE                                                                   */
@@ -427,19 +328,26 @@ struct Directoryarray {
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
 /* --------------------------------------------------------------------------------- */
 struct Fragmentrec {
-//-----------------------------------------------------------------------------
-// References to long key pages with free area. Some type of buddy structure
-// where references in higher index have more free space.
-//-----------------------------------------------------------------------------
-  Uint32 longKeyPageArray[4];
-
+  Uint32 scan[MAX_PARALLEL_SCANS_PER_FRAG];
+  union {
+    Uint32 mytabptr;
+    Uint32 myTableId;
+  };
+  union {
+    Uint32 fragmentid;
+    Uint32 myfid;
+  };
+  Uint32 roothashcheck;
+  Uint32 noOfElements;
+  Uint32 m_commit_count;
+  State rootState;
+  
 //-----------------------------------------------------------------------------
 // These variables keep track of allocated pages, the number of them and the
 // start file page of them. Used during local checkpoints.
 //-----------------------------------------------------------------------------
   Uint32 datapages[8];
   Uint32 activeDataPage;
-  Uint32 activeDataFilePage;
 
 //-----------------------------------------------------------------------------
 // Temporary variables used during shrink and expand process.
@@ -456,9 +364,7 @@ struct Fragmentrec {
 // List of lock owners and list of lock waiters to support LCP handling
 //-----------------------------------------------------------------------------
   Uint32 lockOwnersList;
-  Uint32 firstWaitInQueOp;
-  Uint32 lastWaitInQueOp;
-  Uint32 sentWaitInQueOp;
+  Uint32 m_current_sequence_no;
 
 //-----------------------------------------------------------------------------
 // References to Directory Ranges (which in turn references directories, which
@@ -469,23 +375,6 @@ struct Fragmentrec {
   Uint32 dirsize;
   Uint32 overflowdir;
   Uint32 lastOverIndex;
-
-//-----------------------------------------------------------------------------
-// These variables are used to support LCP and Restore from disk.
-// lcpDirIndex: used during LCP as the frag page id currently stored.
-// lcpMaxDirIndex: The dirsize at start of LCP.
-// lcpMaxOverDirIndex: The xx at start of LCP
-// During a LCP one writes the minimum of the number of pages in the directory
-// and the number of pages at the start of the LCP.
-// noStoredPages: Number of bucket pages written in LCP used at restore
-// noOfOverStoredPages: Number of overflow pages written in LCP used at restore
-// This variable is also used during LCP to calculate this number.
-//-----------------------------------------------------------------------------
-  Uint32 lcpDirIndex;
-  Uint32 lcpMaxDirIndex;
-  Uint32 lcpMaxOverDirIndex;
-  Uint32 noStoredPages;
-  Uint32 noOfStoredOverPages;
 
 //-----------------------------------------------------------------------------
 // We have a list of overflow pages with free areas. We have a special record,
@@ -500,22 +389,10 @@ struct Fragmentrec {
   Uint32 firstFreeDirindexRec;
 
 //-----------------------------------------------------------------------------
-// localCheckpId is used during execution of UNDO log to ensure that we only
-// apply UNDO log records from the restored LCP of the fragment.
-// lcpLqhPtr keeps track of LQH record for this fragment to checkpoint
-//-----------------------------------------------------------------------------
-  Uint32 localCheckpId;
-  Uint32 lcpLqhPtr;
-
-//-----------------------------------------------------------------------------
 // Counter keeping track of how many times we have expanded. We need to ensure
 // that we do not shrink so many times that this variable becomes negative.
 //-----------------------------------------------------------------------------
   Uint32 expandCounter;
-//-----------------------------------------------------------------------------
-// Reference to record for open file at LCP and restore
-//-----------------------------------------------------------------------------
-  Uint32 fsConnPtr;
 
 //-----------------------------------------------------------------------------
 // These variables are important for the linear hashing algorithm.
@@ -544,13 +421,8 @@ struct Fragmentrec {
   Uint32 slackCheck;
 
 //-----------------------------------------------------------------------------
-// myfid is the fragment id of the fragment
-// myroot is the reference to the root fragment record
 // nextfreefrag is the next free fragment if linked into a free list
 //-----------------------------------------------------------------------------
-  Uint32 myfid;
-  Uint32 myroot;
-  Uint32 myTableId;
   Uint32 nextfreefrag;
 
 //-----------------------------------------------------------------------------
@@ -562,17 +434,6 @@ struct Fragmentrec {
   Uint32 nextAllocPage;
 
 //-----------------------------------------------------------------------------
-// Keeps track of undo position for fragment during LCP and restore.
-//-----------------------------------------------------------------------------
-  Uint32 prevUndoposition;
-
-//-----------------------------------------------------------------------------
-// Page reference during LCP and restore of page zero where fragment data is
-// saved
-//-----------------------------------------------------------------------------
-  Uint32 zeroPagePtr;
-
-//-----------------------------------------------------------------------------
 // Number of pages read from file during restore
 //-----------------------------------------------------------------------------
   Uint32 noOfExpectedPages;
@@ -581,29 +442,6 @@ struct Fragmentrec {
 // Fragment State, mostly applicable during LCP and restore
 //-----------------------------------------------------------------------------
   State fragState;
-
-//-----------------------------------------------------------------------------
-// Keep track of number of outstanding writes of UNDO log records to ensure that
-// we have saved all UNDO info before concluding local checkpoint.
-//-----------------------------------------------------------------------------
-  Uint32 nrWaitWriteUndoExit;
-
-//-----------------------------------------------------------------------------
-// lastUndoIsStored is used to handle parallel writes of UNDO log and pages to
-// know when LCP is completed
-//-----------------------------------------------------------------------------
-  Uint8 lastUndoIsStored;
-
-//-----------------------------------------------------------------------------
-// Set to ZTRUE when local checkpoint freeze occurs and set to ZFALSE when
-// local checkpoint concludes.
-//-----------------------------------------------------------------------------
-  Uint8 createLcp;
-
-//-----------------------------------------------------------------------------
-// Flag indicating whether we are in the load phase of restore still.
-//-----------------------------------------------------------------------------
-  Uint8 loadingFlag;
 
 //-----------------------------------------------------------------------------
 // elementLength: Length of element in bucket and overflow pages
@@ -631,11 +469,8 @@ struct Fragmentrec {
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
-// stopQueOp is indicator that locked operations will not start until LCP have
-// released the lock on the fragment
 //-----------------------------------------------------------------------------
   Uint8 nodetype;
-  Uint8 stopQueOp;
 
 //-----------------------------------------------------------------------------
 // flag to avoid accessing table record if no char attributes
@@ -644,49 +479,6 @@ struct Fragmentrec {
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
-
-/* --------------------------------------------------------------------------------- */
-/* FS_CONNECTREC                                                                     */
-/* --------------------------------------------------------------------------------- */
-struct FsConnectrec {
-  Uint32 fsNext;
-  Uint32 fsPrev;
-  Uint32 fragrecPtr;
-  Uint32 fsPtr;
-  State fsState;
-  Uint8 activeFragId;
-  Uint8 fsPart;
-}; /* p2c: size = 24 bytes */
-
-  typedef Ptr<FsConnectrec> FsConnectrecPtr;
-
-/* --------------------------------------------------------------------------------- */
-/* FS_OPREC                                                                          */
-/* --------------------------------------------------------------------------------- */
-struct FsOprec {
-  Uint32 fsOpnext;
-  Uint32 fsOpfragrecPtr;
-  Uint32 fsConptr;
-  State fsOpstate;
-  Uint16 fsOpMemPage;
-}; /* p2c: size = 20 bytes */
-
-  typedef Ptr<FsOprec> FsOprecPtr;
-
-/* --------------------------------------------------------------------------------- */
-/* LCP_CONNECTREC                                                                    */
-/* --------------------------------------------------------------------------------- */
-struct LcpConnectrec {
-  Uint32 nextLcpConn;
-  Uint32 lcpUserptr;
-  Uint32 rootrecptr;
-  State syncUndopageState;
-  State lcpstate;
-  Uint32 lcpUserblockref;
-  Uint16 localCheckPid;
-  Uint8 noOfLcpConf;
-};
-  typedef Ptr<LcpConnectrec> LcpConnectrecPtr;
 
 /* --------------------------------------------------------------------------------- */
 /* OPERATIONREC                                                                      */
@@ -718,6 +510,7 @@ struct Operationrec {
   Uint32 transId2;
   Uint32 longPagePtr;
   Uint32 longKeyPageIndex;
+  Uint32 m_sequence_no;
   State opState;
   Uint32 userptr;
   State transactionstate;
@@ -736,7 +529,6 @@ struct Operationrec {
   Uint8 dirtyRead;
   Uint8 commitDeleteCheckFlag;
   Uint8 isAccLockReq;
-  Uint8 isUndoLogReq;
 }; /* p2c: size = 168 bytes */
 
   typedef Ptr<Operationrec> OperationrecPtr;
@@ -766,29 +558,6 @@ struct Page8 {
   typedef Ptr<Page8> Page8Ptr;
 
 /* --------------------------------------------------------------------------------- */
-/* ROOTFRAGMENTREC                                                                   */
-/*          DURING EXPAND FRAGMENT PROCESS, EACH FRAGMEND WILL BE EXPAND INTO TWO    */
-/*          NEW FRAGMENTS.TO MAKE THIS PROCESS EASIER, DURING ADD FRAGMENT PROCESS   */
-/*          NEXT FRAGMENT IDENTIIES WILL BE CALCULATED, AND TWO FRAGMENTS WILL BE    */
-/*          ADDED IN (NDBACC). THEREBY EXPAND OF FRAGMENT CAN BE PERFORMED QUICK AND */
-/*          EASY.THE NEW FRAGMENT ID SENDS TO TUP MANAGER FOR ALL OPERATION PROCESS. */
-/* --------------------------------------------------------------------------------- */
-struct Rootfragmentrec {
-  Uint32 scan[MAX_PARALLEL_SCANS_PER_FRAG];
-  Uint32 fragmentptr[2];
-  Uint32 fragmentid[2];
-  Uint32 lcpPtr;
-  Uint32 mytabptr;
-  Uint32 nextroot;
-  Uint32 roothashcheck;
-  Uint32 noOfElements;
-  Uint32 m_commit_count;
-  State rootState;
-}; /* p2c: size = 72 bytes */
-
-  typedef Ptr<Rootfragmentrec> RootfragmentrecPtr;
-
-/* --------------------------------------------------------------------------------- */
 /* SCAN_REC                                                                          */
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
@@ -802,7 +571,6 @@ struct ScanRec {
     SCAN_COMPLETED
   };
   Uint32 activeLocalFrag;
-  Uint32 rootPtr;
   Uint32 nextBucketIndex;
   Uint32 scanNextfreerec;
   Uint32 scanFirstActiveOp;
@@ -831,17 +599,6 @@ struct ScanRec {
 
   typedef Ptr<ScanRec> ScanRecPtr;
 
-/* --------------------------------------------------------------------------------- */
-/* SR_VERSION_REC                                                                    */
-/* --------------------------------------------------------------------------------- */
-struct SrVersionRec {
-  Uint32 nextFreeSr;
-  Uint32 checkPointId;
-  Uint32 prevAddress;
-  Uint32 srUnused;	/* p2c: Not used */
-}; /* p2c: size = 16 bytes */
-
-  typedef Ptr<SrVersionRec> SrVersionRecPtr;
 
 /* --------------------------------------------------------------------------------- */
 /* TABREC                                                                            */
@@ -854,21 +611,14 @@ struct Tabrec {
 };
   typedef Ptr<Tabrec> TabrecPtr;
 
-/* --------------------------------------------------------------------------------- */
-/* UNDOPAGE                                                                          */
-/* --------------------------------------------------------------------------------- */
-struct Undopage {
-  Uint32 undoword[8192];
-}; /* p2c: size = 32768 bytes */
-
-  typedef Ptr<Undopage> UndopagePtr;
-
 public:
   Dbacc(const class Configuration &);
   virtual ~Dbacc();
 
   // pointer to TUP instance in this thread
   Dbtup* c_tup;
+
+  void execACCMINUPDATE(Signal* signal);
 
 private:
   BLOCK_DEFINES(Dbacc);
@@ -880,37 +630,22 @@ private:
   void execEXPANDCHECK2(Signal* signal);
   void execSHRINKCHECK2(Signal* signal);
   void execACC_OVER_REC(Signal* signal);
-  void execACC_SAVE_PAGES(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);
-  void execSR_FRAGIDREQ(Signal* signal);
-  void execLCP_FRAGIDREQ(Signal* signal);
-  void execLCP_HOLDOPREQ(Signal* signal);
-  void execEND_LCPREQ(Signal* signal);
-  void execACC_LCPREQ(Signal* signal);
-  void execSTART_RECREQ(Signal* signal);
-  void execACC_CONTOPREQ(Signal* signal);
   void execACCKEYREQ(Signal* signal);
   void execACCSEIZEREQ(Signal* signal);
   void execACCFRAGREQ(Signal* signal);
-  void execACC_SRREQ(Signal* signal);
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_ABORTREQ(Signal* signal);
   void execACC_SCANREQ(Signal* signal);
-  void execACCMINUPDATE(Signal* signal);
   void execACC_COMMITREQ(Signal* signal);
   void execACC_TO_REQ(Signal* signal);
   void execACC_LOCKREQ(Signal* signal);
-  void execFSOPENCONF(Signal* signal);
-  void execFSCLOSECONF(Signal* signal);
-  void execFSWRITECONF(Signal* signal);
-  void execFSREADCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
-  void execFSREMOVECONF(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
@@ -920,14 +655,12 @@ private:
 
   void commitDeleteCheck();
 
-  void initRootFragPageZero(RootfragmentrecPtr, Page8Ptr);
-  void initRootFragSr(RootfragmentrecPtr, Page8Ptr);
-  void initFragAdd(Signal*, Uint32 rootFragIndex, Uint32 rootIndex, FragmentrecPtr);
+  typedef void * RootfragmentrecPtr;
+  void initRootFragPageZero(FragmentrecPtr, Page8Ptr);
+  void initFragAdd(Signal*, FragmentrecPtr);
   void initFragPageZero(FragmentrecPtr, Page8Ptr);
-  void initFragSr(FragmentrecPtr, Page8Ptr);
   void initFragGeneral(FragmentrecPtr);
   void verifyFragCorrect(FragmentrecPtr regFragPtr);
-  void sendFSREMOVEREQ(Signal* signal, Uint32 tableId);
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
   void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
@@ -943,11 +676,6 @@ private:
   void releaseOverflowResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
-  Uint32 remainingUndoPages();
-  void updateLastUndoPageIdWritten(Signal* signal, Uint32 aNewValue);
-  void updateUndoPositionPage(Signal* signal, Uint32 aNewValue);
-  void srCheckPage(Signal* signal);
-  void srCheckContainer(Signal* signal);
   void initScanFragmentPart(Signal* signal);
   Uint32 checkScanExpand(Signal* signal);
   Uint32 checkScanShrink(Signal* signal);
@@ -956,14 +684,11 @@ private:
   void initialiseFragRec(Signal* signal);
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
-  void initialiseLcpConnectionRec(Signal* signal);
   void initialiseOperationRec(Signal* signal);
   void initialiseOverflowRec(Signal* signal);
   void initialisePageRec(Signal* signal);
-  void initialiseLcpPages(Signal* signal);
   void initialiseRootfragRec(Signal* signal);
   void initialiseScanRec(Signal* signal);
-  void initialiseSrVerRec(Signal* signal);
   void initialiseTableRec(Signal* signal);
   bool addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fragId);
   void initOpRec(Signal* signal);
@@ -979,17 +704,6 @@ private:
   void expandcontainer(Signal* signal);
   void shrinkcontainer(Signal* signal);
   void nextcontainerinfoExp(Signal* signal);
-  void lcpCopyPage(Signal* signal);
-  void lcpUpdatePage(Signal* signal);
-  void checkUndoPages(Signal* signal);
-  void undoWritingProcess(Signal* signal);
-  void writeUndoDataInfo(Signal* signal);
-  void writeUndoHeader(Signal* signal, 
-                       Uint32 logicalPageId, 
-                       UndoHeader::UndoHeaderType pageType);
-  void writeUndoOpInfo(Signal* signal);
-  void checksumControl(Signal* signal, Uint32 checkPage);
-  void startActiveUndo(Signal* signal);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
@@ -1019,7 +733,7 @@ private:
   Uint32 readTablePk(Uint32 localkey1);
   void getElement(Signal* signal);
   void getdirindex(Signal* signal);
-  void commitdelete(Signal* signal, bool systemRestart);
+  void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
   void getLastAndRemove(Signal* signal);
   void releaseLeftlist(Signal* signal);
@@ -1035,11 +749,11 @@ private:
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
 			  OperationrecPtr release_op);
   void allocOverflowPage(Signal* signal);
-  bool getrootfragmentrec(Signal* signal, RootfragmentrecPtr&, Uint32 fragId);
+  bool getfragmentrec(Signal* signal, FragmentrecPtr&, Uint32 fragId);
   void insertLockOwnersList(Signal* signal, const OperationrecPtr&);
   void takeOutLockOwnersList(Signal* signal, const OperationrecPtr&);
+
   void initFsOpRec(Signal* signal);
-  void initLcpConnRec(Signal* signal);
   void initOverpage(Signal* signal);
   void initPage(Signal* signal);
   void initRootfragrec(Signal* signal);
@@ -1050,27 +764,21 @@ private:
   void releaseDirrange(Signal* signal);
   void releaseFsConnRec(Signal* signal);
   void releaseFsOpRec(Signal* signal);
-  void releaseLcpConnectRec(Signal* signal);
   void releaseOpRec(Signal* signal);
   void releaseOverflowRec(Signal* signal);
   void releaseOverpage(Signal* signal);
   void releasePage(Signal* signal);
-  void releaseLcpPage(Signal* signal);
-  void releaseSrRec(Signal* signal);
   void releaseLogicalPage(Fragmentrec * fragP, Uint32 logicalPageId);
   void seizeDirectory(Signal* signal);
   void seizeDirrange(Signal* signal);
   void seizeFragrec(Signal* signal);
   void seizeFsConnectRec(Signal* signal);
   void seizeFsOpRec(Signal* signal);
-  void seizeLcpConnectRec(Signal* signal);
   void seizeOpRec(Signal* signal);
   void seizeOverRec(Signal* signal);
   void seizePage(Signal* signal);
-  void seizeLcpPage(Page8Ptr&);
   void seizeRootfragrec(Signal* signal);
   void seizeScanRec(Signal* signal);
-  void seizeSrVerRec(Signal* signal);
   void sendSystemerror(Signal* signal, int line);
   void takeRecOutOfFreeOverdir(Signal* signal);
   void takeRecOutOfFreeOverpage(Signal* signal);
@@ -1078,51 +786,26 @@ private:
 
   void addFragRefuse(Signal* signal, Uint32 errorCode);
   void ndbsttorryLab(Signal* signal);
-  void srCloseDataFileLab(Signal* signal);
   void acckeyref1Lab(Signal* signal, Uint32 result_code);
   void insertelementLab(Signal* signal);
-  void startUndoLab(Signal* signal);
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
-  void srStartUndoLab(Signal* signal);
   void senddatapagesLab(Signal* signal);
-  void undoNext2Lab(Signal* signal);
   void sttorrysignalLab(Signal* signal);
   void sendholdconfsignalLab(Signal* signal);
   void accIsLockedLab(Signal* signal);
   void insertExistElemLab(Signal* signal);
   void refaccConnectLab(Signal* signal);
-  void srReadOverPagesLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void lcpOpenUndofileConfLab(Signal* signal);
-  void srFsOpenConfLab(Signal* signal);
-  void checkSyncUndoPagesLab(Signal* signal);
-  void sendaccSrconfLab(Signal* signal);
-  void checkSendLcpConfLab(Signal* signal);
-  void endsaveoverpageLab(Signal* signal);
-  void lcpCloseDataFileLab(Signal* signal);
-  void srOpenDataFileLoopLab(Signal* signal);
-  void srReadPagesLab(Signal* signal);
-  void srDoUndoLab(Signal* signal);
   void ndbrestart1Lab(Signal* signal);
   void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
-  void srReadPagesAllocLab(Signal* signal);
   void checkNextBucketLab(Signal* signal);
-  void endsavepageLab(Signal* signal);
-  void saveZeroPageLab(Signal* signal);
-  void srAllocPage0011Lab(Signal* signal);
-  void sendLcpFragidconfLab(Signal* signal);
-  void savepagesLab(Signal* signal);
-  void saveOverPagesLab(Signal* signal);
-  void srReadPageZeroLab(Signal* signal);
   void storeDataPageInDirectoryLab(Signal* signal);
-  void lcpFsOpenConfLab(Signal* signal);
 
   void zpagesize_error(const char* where);
 
   void reportMemoryUsage(Signal* signal, int gth);
-  void lcp_write_op_to_undolog(Signal* signal);
   void reenable_expand_after_redo_log_exection_complete(Signal*);
 
   // charsets
@@ -1165,25 +848,6 @@ private:
   Uint32 cfragmentsize;
 /* --------------------------------------------------------------------------------- */
 /* FS_CONNECTREC                                                                     */
-/* --------------------------------------------------------------------------------- */
-  FsConnectrec *fsConnectrec;
-  FsConnectrecPtr fsConnectptr;
-  Uint32 cfsConnectsize;
-  Uint32 cfsFirstfreeconnect;
-/* --------------------------------------------------------------------------------- */
-/* FS_OPREC                                                                          */
-/* --------------------------------------------------------------------------------- */
-  FsOprec *fsOprec;
-  FsOprecPtr fsOpptr;
-  Uint32 cfsOpsize;
-  Uint32 cfsFirstfreeop;
-/* --------------------------------------------------------------------------------- */
-/* LCP_CONNECTREC                                                                    */
-/* --------------------------------------------------------------------------------- */
-  LcpConnectrec *lcpConnectrec;
-  LcpConnectrecPtr lcpConnectptr;
-  Uint32 clcpConnectsize;
-  Uint32 cfirstfreelcpConnect;
 /* --------------------------------------------------------------------------------- */
 /* OPERATIONREC                                                                      */
 /* --------------------------------------------------------------------------------- */
@@ -1254,9 +918,7 @@ private:
   Uint32 cfirstfreepage;
   Uint32 cfreepage;
   Uint32 cpagesize;
-  Uint32 cfirstfreeLcpPage;
   Uint32 cnoOfAllocatedPages;
-  Uint32 cnoLcpPages;
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
 /*          DURING EXPAND FRAGMENT PROCESS, EACH FRAGMEND WILL BE EXPAND INTO TWO    */
@@ -1265,10 +927,6 @@ private:
 /*          ADDED IN (NDBACC). THEREBY EXPAND OF FRAGMENT CAN BE PERFORMED QUICK AND */
 /*          EASY.THE NEW FRAGMENT ID SENDS TO TUP MANAGER FOR ALL OPERATION PROCESS. */
 /* --------------------------------------------------------------------------------- */
-  Rootfragmentrec *rootfragmentrec;
-  RootfragmentrecPtr rootfragrecptr;
-  Uint32 crootfragmentsize;
-  Uint32 cfirstfreerootfrag;
 /* --------------------------------------------------------------------------------- */
 /* SCAN_REC                                                                          */
 /* --------------------------------------------------------------------------------- */
@@ -1277,24 +935,11 @@ private:
   Uint32 cscanRecSize;
   Uint32 cfirstFreeScanRec;
 /* --------------------------------------------------------------------------------- */
-/* SR_VERSION_REC                                                                    */
-/* --------------------------------------------------------------------------------- */
-  SrVersionRec *srVersionRec;
-  SrVersionRecPtr srVersionPtr;
-  Uint32 csrVersionRecSize;
-  Uint32 cfirstFreeSrVersionRec;
-/* --------------------------------------------------------------------------------- */
 /* TABREC                                                                            */
 /* --------------------------------------------------------------------------------- */
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-/* --------------------------------------------------------------------------------- */
-/* UNDOPAGE                                                                          */
-/* --------------------------------------------------------------------------------- */
-  Undopage *undopage;
-                                                   /* 32 KB PAGE                      */
-  UndopagePtr undopageptr;
   Uint32 tpwiElementptr;
   Uint32 tpriElementptr;
   Uint32 tgseElementptr;
@@ -1335,7 +980,6 @@ private:
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
   Uint32 tgeForward;
-  Uint32 tundoElemIndex;
   Uint32 texpReceivedBucket;
   Uint32 texpDirInd;
   Uint32 texpDirRangeIndex;
@@ -1357,7 +1001,6 @@ private:
   Uint32 tsscElementptr;
   Uint32 tfid;
   Uint32 tscanFlag;
-  Uint32 theadundoindex;
   Uint32 tgflBufType;
   Uint32 tgseIsforward;
   Uint32 tsscIsforward;
@@ -1388,11 +1031,9 @@ private:
   Uint32 tslUpdateHeader;
   Uint32 tuserptr;
   BlockReference tuserblockref;
-  Uint32 tundoindex;
   Uint32 tlqhPointer;
   Uint32 tholdSentOp;
   Uint32 tholdMore;
-  Uint32 tlcpLqhCheckV;
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
   Uint32 tnciTmp;
@@ -1403,35 +1044,15 @@ private:
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
 
-  Uint16 clastUndoPageIdWritten;
-  Uint32 cactiveCheckpId;
-  Uint32 cactiveRootfrag;
-  Uint32 cactiveSrFsPtr;
-  Uint32 cactiveUndoFilePage;
-  Uint32 cactiveOpenUndoFsPtr;
-  Uint32 cactiveSrUndoPage;
-  Uint32 cprevUndoaddress;
-  Uint32 creadyUndoaddress;
   Uint32 ctest;
-  Uint32 cundoLogActive;
   Uint32 clqhPtr;
   BlockReference clqhBlockRef;
   Uint32 cminusOne;
   NodeId cmynodeid;
-  Uint32 cactiveUndoFileVersion;
   BlockReference cownBlockref;
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
-  Uint32 cundopagesize;
-  Uint32 cundoposition;
-  Uint32 cundoElemIndex;
-  Uint32 cundoinfolength;
   Uint32 czero;
-  Uint32 csrVersList[16];
-  Uint32 clblPageCounter;
-  Uint32 clblPageOver;
-  Uint32 clblPagesPerTick;
-  Uint32 clblPagesPerTickAfterSr;
   Uint32 csystemRestart;
   Uint32 cexcForward;
   Uint32 cexcPageindex;
@@ -1451,7 +1072,6 @@ private:
   };
   
   Uint32 c_errorInsert3000_TableId;
-  Uint32 cSrUndoRecords[UndoHeader::ZNO_UNDORECORD_TYPES];
 };
 
 #endif

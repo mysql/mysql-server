@@ -31,6 +31,7 @@
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
+#include <../util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 
 // options from from mysqld.cc
@@ -566,7 +567,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
       {
         err= dict->getNdbError();
         DBUG_PRINT("info", ("Table not found, error: %d", err.code));
-        if (err.code != 709)
+        if (err.code != 709 && err.code != 723)
           DBUG_RETURN(1);
       }
       DBUG_PRINT("info", ("Table exists but must have changed"));
@@ -666,8 +667,7 @@ bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
                                    uint fieldnr, const byte *field_ptr)
 {
   DBUG_ENTER("set_hidden_key");
-  DBUG_RETURN(ndb_op->equal(fieldnr, (char*)field_ptr,
-                            NDB_HIDDEN_PRIMARY_KEY_LENGTH) != 0);
+  DBUG_RETURN(ndb_op->equal(fieldnr, (char*)field_ptr) != 0);
 }
 
 
@@ -729,12 +729,10 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         {
           DBUG_PRINT("info", ("field is NULL"));
           // Set value to NULL
-          DBUG_RETURN((ndb_op->setValue(fieldnr, 
-                                        (char*)NULL, pack_len) != 0));
+          DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL) != 0));
 	}
         // Common implementation for most field types
-        DBUG_RETURN(ndb_op->setValue(fieldnr,
-                                     (char*)field_ptr, pack_len) != 0);
+        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)field_ptr) != 0);
       }
       else // if (field->type() == MYSQL_TYPE_BIT)
       {
@@ -745,17 +743,16 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_ASSERT(pack_len <= 8);
         if (field->is_null(row_offset))
           // Set value to NULL
-          DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
+          DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL) != 0));
         DBUG_PRINT("info", ("bit field"));
         DBUG_DUMP("value", (char*)&bits, pack_len);
 #ifdef WORDS_BIGENDIAN
         if (pack_len < 5)
         {
-          DBUG_RETURN(ndb_op->setValue(fieldnr, 
-                                       ((char*)&bits)+4, pack_len) != 0);
+          DBUG_RETURN(ndb_op->setValue(fieldnr, ((char*)&bits)+4) != 0);
         }
 #endif
-        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
+        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits) != 0);
       }
     }
     // Blob type
@@ -3941,11 +3938,40 @@ int ha_ndbcluster::create(const char *name,
                         field->pack_length()));
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
+
+    if (
+#ifdef NDB_DISKDATA
+	info->store_on_disk ||
+#else
+	getenv("NDB_DEFAULT_DISK"))
+#endif
+      col.setStorageType(NdbDictionary::Column::StorageTypeDisk);
+    else
+      col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+
     tab.addColumn(col);
     if (col.getPrimaryKey())
       pk_length += (field->pack_length() + 3) / 4;
   }
-  
+
+  KEY* key_info;
+  for (i= 0, key_info= form->key_info; i < form->s->keys; i++, key_info++)
+  {
+    KEY_PART_INFO *key_part= key_info->key_part;
+    KEY_PART_INFO *end= key_part + key_info->key_parts;
+    for (; key_part != end; key_part++)
+      tab.getColumn(key_part->fieldnr-1)->setStorageType(
+                             NdbDictionary::Column::StorageTypeMemory);
+  }
+
+#ifdef NDB_DISKDATA
+  if (info->store_on_disk)
+    if (info->tablespace)
+      tab.setTablespace(info->tablespace);
+    else
+      tab.setTablespace("DEFAULT-TS");
+#endif
+
   // No primary key, create shadow key as 64 bit, auto increment  
   if (form->s->primary_key == MAX_KEY) 
   {
@@ -4126,7 +4152,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!(orig_tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
   }
-
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
@@ -4236,7 +4261,6 @@ int ha_ndbcluster::drop_table()
 
   DBUG_ENTER("drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
-
   release_metadata();
   if (dict->dropTable(m_tabname))
     ERR_RETURN(dict->getNdbError());
@@ -4561,7 +4585,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   if (!(tab= dict->getTable(name)))
   {    
     const NdbError err= dict->getNdbError();
-    if (err.code == 709)
+    if (err.code == 709 || err.code == 723)
       DBUG_RETURN(-1);
     ERR_RETURN(err);
   }
@@ -4608,7 +4632,7 @@ int ndbcluster_table_exists_in_engine(THD* thd, const char *db, const char *name
   if (!(tab= dict->getTable(name)))
   {
     const NdbError err= dict->getNdbError();
-    if (err.code == 709)
+    if (err.code == 709 || err.code == 723)
       DBUG_RETURN(0);
     ERR_RETURN(err);
   }
@@ -4675,7 +4699,7 @@ int ndbcluster_drop_database(const char *path)
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
-      if (err.code != 709)
+      if (err.code != 709 && err.code != 723)
       {
         ERR_PRINT(err);
         ret= ndb_to_mysql_error(&err);
@@ -5019,7 +5043,6 @@ bool ndbcluster_init()
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
 
@@ -8165,7 +8188,6 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   DBUG_VOID_RETURN;
 }
 
-
 bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 					       uint table_changes)
 {
@@ -8191,5 +8213,225 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 
   return COMPATIBLE_DATA_YES;
 }
+
+#ifdef NDB_DISKDATA
+bool set_up_tablespace(st_alter_tablespace *info,
+                       NdbDictionary::Tablespace *ndb_ts)
+{
+  ndb_ts->setName(info->tablespace_name);
+  ndb_ts->setExtentSize(info->extent_size);
+  ndb_ts->setDefaultLogfileGroup(info->logfile_group_name);
+  return false;
+}
+
+bool set_up_datafile(st_alter_tablespace *info,
+                     NdbDictionary::Datafile *ndb_df)
+{
+  if (info->max_size > 0)
+  {
+    my_error(ER_TABLESPACE_AUTO_EXTEND_ERROR, MYF(0));
+    return true;
+  }
+  ndb_df->setPath(info->data_file_name);
+  ndb_df->setSize(info->initial_size);
+  ndb_df->setTablespace(info->tablespace_name);
+  return false;
+}
+
+bool set_up_logfile_group(st_alter_tablespace *info,
+                          NdbDictionary::LogfileGroup *ndb_lg)
+{
+  ndb_lg->setName(info->logfile_group_name);
+  ndb_lg->setUndoBufferSize(info->undo_buffer_size);
+  return false;
+}
+
+bool set_up_undofile(st_alter_tablespace *info,
+                     NdbDictionary::Undofile *ndb_uf)
+{
+  ndb_uf->setPath(info->undo_file_name);
+  ndb_uf->setSize(info->initial_size);
+  ndb_uf->setLogfileGroup(info->logfile_group_name);
+  return false;
+}
+
+int ha_ndbcluster::alter_tablespace(st_alter_tablespace *info)
+{
+  Ndb *ndb;
+  NDBDICT *dict;
+  int error;
+  DBUG_ENTER("ha_ndbcluster::alter_tablespace");
+  if (check_ndb_connection())
+  {
+    DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
+  }
+  ndb= get_ndb();
+  dict= ndb->getDictionary();
+  switch (info->ts_cmd_type){
+  case (CREATE_TABLESPACE):
+  {
+    NdbDictionary::Tablespace ndb_ts;
+    NdbDictionary::Datafile ndb_df;
+    if (set_up_tablespace(info, &ndb_ts))
+    {
+      DBUG_RETURN(1);
+    }
+    if (set_up_datafile(info, &ndb_df))
+    {
+      DBUG_RETURN(1);
+    }
+    if (error= dict->createTablespace(ndb_ts))
+    {
+      DBUG_PRINT("error", ("createTablespace returned %d", error));
+      my_error(ER_CREATE_TABLESPACE_FAILED, MYF(0), "TABLESPACE");
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created Tablespace"));
+    if (error= dict->createDatafile(ndb_df))
+    {
+      DBUG_PRINT("error", ("createDatafile returned %d", error));
+      my_error(ER_CREATE_TABLESPACE_FAILED, MYF(0), "DATAFILE");
+      DBUG_RETURN(1);
+    }
+    break;
+  }
+  case (ALTER_TABLESPACE):
+  {
+    if (info->ts_alter_tablespace_type == ALTER_TABLESPACE_ADD_FILE)
+    {
+      NdbDictionary::Datafile ndb_df;
+      if (set_up_datafile(info, &ndb_df))
+      {
+	DBUG_RETURN(1);
+      }
+      if (error= dict->createDatafile(ndb_df))
+      {
+	DBUG_PRINT("error", ("createDatafile returned %d", error));
+	my_error(ER_ALTER_TABLESPACE_FAILED, MYF(0), "CREATE DATAFILE");
+	DBUG_RETURN(1);
+      }
+    }
+    else if(info->ts_alter_tablespace_type == ALTER_TABLESPACE_DROP_FILE)
+    {
+      NdbDictionary::Datafile df = dict->getDatafile(0, 
+						     info->data_file_name);
+      if (strcmp(df.getPath(), info->data_file_name) == 0)
+      {
+	if (error= dict->dropDatafile(df))
+	{
+	  DBUG_PRINT("error", ("createDatafile returned %d", error));
+	  my_error(ER_ALTER_TABLESPACE_FAILED, MYF(0), " DROP DATAFILE");
+	  DBUG_RETURN(1);
+	}
+      }
+      else
+      {
+	DBUG_PRINT("error", ("No such datafile"));
+	my_error(ER_ALTER_TABLESPACE_FAILED, MYF(0), " NO SUCH FILE");
+	DBUG_RETURN(1);
+      }
+    }
+    else
+    {
+      DBUG_PRINT("error", ("Unsupported alter tablespace: %d", 
+			   info->ts_alter_tablespace_type));
+      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    }
+    break;
+  }
+  case (CREATE_LOGFILE_GROUP):
+  {
+    NdbDictionary::LogfileGroup ndb_lg;
+    NdbDictionary::Undofile ndb_uf;
+    if (info->undo_file_name == NULL)
+    {
+      /*
+	REDO files in LOGFILE GROUP not supported yet
+      */
+      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    }
+    if (set_up_logfile_group(info, &ndb_lg))
+    {
+      DBUG_RETURN(1);
+    }
+    if (error= dict->createLogfileGroup(ndb_lg))
+    {
+      DBUG_PRINT("error", ("createLogfileGroup returned %d", error));
+      my_error(ER_CREATE_TABLESPACE_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created Logfile Group"));
+    if (set_up_undofile(info, &ndb_uf))
+    {
+      DBUG_RETURN(1);
+    }
+    if (error= dict->createUndofile(ndb_uf))
+    {
+      DBUG_PRINT("error", ("createUndofile returned %d", error));
+      my_error(ER_CREATE_TABLESPACE_FAILED, MYF(0), "UNDOFILE");
+      DBUG_RETURN(1);
+    }
+    break;
+  }
+  case (ALTER_LOGFILE_GROUP):
+  {
+    if (info->undo_file_name == NULL)
+    {
+      /*
+	REDO files in LOGFILE GROUP not supported yet
+      */
+      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    }
+    NdbDictionary::Undofile ndb_uf;
+    if (set_up_undofile(info, &ndb_uf))
+    {
+      DBUG_RETURN(1);
+    }
+    if (error= dict->createUndofile(ndb_uf))
+    {
+      DBUG_PRINT("error", ("createUndofile returned %d", error));
+      my_error(ER_ALTER_TABLESPACE_FAILED, MYF(0), "CREATE UNDOFILE");
+      DBUG_RETURN(1);
+    }
+    break;
+  }
+  case (DROP_TABLESPACE):
+  {
+    if (error= dict->dropTablespace(
+				    dict->getTablespace(info->tablespace_name)))
+    {
+      DBUG_PRINT("error", ("dropTablespace returned %d", error));
+      my_error(ER_DROP_TABLESPACE_FAILED, MYF(0), "TABLESPACE");
+      DBUG_RETURN(1);
+    }
+    break;
+  }
+  case (DROP_LOGFILE_GROUP):
+  {
+    if (error= dict->dropLogfileGroup(dict->getLogfileGroup(info->logfile_group_name)))
+    {
+      DBUG_PRINT("error", ("dropLogfileGroup returned %d", error));
+      my_error(ER_DROP_TABLESPACE_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
+    }
+    break;
+  }
+  case (CHANGE_FILE_TABLESPACE):
+  {
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  }
+  case (ALTER_ACCESS_MODE_TABLESPACE):
+  {
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  }
+  default:
+  {
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+#endif /* NDB_DISKDATA */
 
 #endif /* HAVE_NDBCLUSTER_DB */

@@ -3,8 +3,12 @@
 #include <NdbApi.hpp>
 #include <NdbRestarter.hpp>
 #include <HugoOperations.hpp>
+#include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+
+#include <getarg.h>
+#include <InputStream.hpp>
 
 struct CASE 
 {
@@ -13,29 +17,37 @@ struct CASE
   bool curr_row;
   const char * op1;
   const char * op2;
+  const char * op3;
   int val;
 };
 
-static CASE g_ops[] =
+static CASE g_op_types[] =
 {
-  { false, true,  false, "INSERT", 0,        0 },
-  { false, true,  false, "INSERT", "UPDATE", 0 },
-  { false, false, false, "INSERT", "DELETE", 0 },
-  { true,  true,  false, "UPDATE", 0,        0 },
-  { true,  true,  false, "UPDATE", "UPDATE", 0 },
-  { true,  false, false, "UPDATE", "DELETE", 0 },
-  { true,  false, false, "DELETE", 0,        0 },
-  { true,  true,  false, "DELETE", "INSERT", 0 }
+  { false, true,  false, "INS", 0,     0,     0 }, // 0x001 a
+  { true,  true,  false, "UPD", 0,     0,     0 }, // 0x002 d
+  { true,  false, false, "DEL", 0,     0,     0 }, // 0x004 g
+
+  { false, true,  false, "INS", "UPD", 0,     0 }, // 0x008 b
+  { false, false, false, "INS", "DEL", 0,     0 }, // 0x010 c
+  { true,  true,  false, "UPD", "UPD", 0,     0 }, // 0x020 e
+  { true,  false, false, "UPD", "DEL", 0,     0 }, // 0x040 f
+  { true,  true,  false, "DEL", "INS", 0,     0 }, // 0x080 h
+
+  { false, true,  false, "INS", "DEL", "INS", 0 }, // 0x100 i
+  { true,  false, false, "DEL", "INS", "DEL", 0 }  // 0x200 j
 };
-const size_t OP_COUNT = (sizeof(g_ops)/sizeof(g_ops[0]));
+const size_t OP_COUNT = (sizeof(g_op_types)/sizeof(g_op_types[0]));
 
 static Ndb* g_ndb = 0;
+static CASE* g_ops;
 static Ndb_cluster_connection *g_cluster_connection= 0;
-static CASE* g_cases;
 static HugoOperations* g_hugo_ops;
-
-static int g_rows = 1000;
+static int g_use_ops = 1 | 2 | 4;
+static int g_cases = 0x1;
+static int g_case_loop = 2;
+static int g_rows = 10;
 static int g_setup_tables = 1;
+static int g_one_op_at_a_time = 0;
 static const char * g_tablename = "T1";
 static const NdbDictionary::Table* g_table = 0;
 static NdbRestarter g_restarter;
@@ -45,9 +57,9 @@ static int parse_args(int argc, char** argv);
 static int connect_ndb();
 static int drop_all_tables();
 static int load_table();
-static int pause_lcp();
+static int pause_lcp(int error);
 static int do_op(int row);
-static int continue_lcp(int error);
+static int continue_lcp(int error = 0);
 static int commit();
 static int restart();
 static int validate();
@@ -56,9 +68,10 @@ static int validate();
 
 int 
 main(int argc, char ** argv){
-
+  ndb_init();
   require(!init_ndb(argc, argv));
-  require(!parse_args(argc, argv));
+  if(parse_args(argc, argv))
+    return -1;
   require(!connect_ndb());
   
   if(g_setup_tables){
@@ -77,48 +90,97 @@ main(int argc, char ** argv){
   require(g_hugo_ops = new HugoOperations(* g_table));
   require(!g_hugo_ops->startTransaction(g_ndb));
   
-  g_cases= new CASE[g_rows];
-  require(!load_table());
+  g_ops= new CASE[g_rows];
   
-  g_info << "Performing all ops wo/ inteference of LCP" << endl;
-  
-  g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
-  g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished before SAVE_PAGES"
-	 << endl;
-  require(!pause_lcp());
-  size_t j;
-  for(j = 0; j<g_rows; j++){
-    require(!do_op(j));
+  const int use_ops = g_use_ops;
+  for(size_t i = 0; i<OP_COUNT; i++)
+  {
+    if(g_one_op_at_a_time){
+      while(i < OP_COUNT && (use_ops & (1 << i)) == 0) i++;
+      if(i == OP_COUNT)
+	break;
+      ndbout_c("-- loop\noperation: %c use_ops: %x", 'a'+i, use_ops);
+      g_use_ops = (1 << i);
+    } else {
+      i = OP_COUNT - 1;
+    }
+    
+    size_t test_case = 0;
+    if((1 << test_case++) & g_cases)
+    {
+      for(size_t tl = 0; tl<g_case_loop; tl++){
+	g_info << "Performing all ops wo/ inteference of LCP" << endl;
+	
+	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
+	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is "
+	  " finished before SAVE_PAGES" << endl;
+	require(!load_table());
+	require(!pause_lcp(5900));
+	for(size_t j = 0; j<g_rows; j++){
+	  require(!do_op(j));
+	}
+	require(!continue_lcp(5900));
+	require(!commit());
+	require(!pause_lcp(5900));
+	require(!restart());
+	require(!validate());
+      }  
+    }
+    
+    if((1 << test_case++) & g_cases)
+    {
+      for(size_t tl = 0; tl<g_case_loop; tl++){
+	g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
+	g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished after SAVE_PAGES"
+	       << endl;
+	require(!load_table());
+	require(!pause_lcp(5901));
+	for(size_t j = 0; j<g_rows; j++){
+	  require(!do_op(j));
+	}
+	require(!continue_lcp(5901));
+	require(!commit());
+	require(!pause_lcp(5900));
+	require(!restart());
+	require(!validate());
+      }    
+    }
+
+    if((1 << test_case++) & g_cases)
+    {
+      for(size_t tl = 0; tl<g_case_loop; tl++){
+	g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
+	require(!load_table());
+	require(!pause_lcp(5902));
+	for(size_t j = 0; j<g_rows; j++){
+	  require(!do_op(j));
+	}
+	require(!continue_lcp(5902));
+	require(!commit());
+	require(!continue_lcp(5903));
+	require(!pause_lcp(5900));
+	require(!restart());
+	require(!validate());
+      }
+    }
+    
+    if((1 << test_case++) & g_cases)
+    {
+      for(size_t tl = 0; tl<g_case_loop; tl++){
+	g_info << "Testing prepared during LCP and committed after" << endl;
+	require(!load_table());
+	require(!pause_lcp(5904));    // Start LCP, but don't save pages
+	for(size_t j = 0; j<g_rows; j++){
+	  require(!do_op(j));
+	}
+	require(!continue_lcp(5904)); // Start ACC save pages
+	require(!pause_lcp(5900));    // Next LCP
+	require(!commit());
+	require(!restart());
+	require(!validate());
+      }
+    }
   }
-  require(!continue_lcp(5900));
-  require(!commit());
-  require(!restart());
-  require(!validate());
-  
-  g_info << "Testing pre LCP operations, ZLCP_OP_WRITE_RT_BREAK" << endl;
-  g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished after SAVE_PAGES"
-	 << endl;
-  require(!load_table());
-  require(!pause_lcp());
-  for(j = 0; j<g_rows; j++){
-    require(!do_op(j));
-  }
-  require(!continue_lcp(5901));
-  require(!commit());
-  require(!restart());
-  require(!validate());
-  
-  g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
-  require(!load_table());
-  require(!pause_lcp());
-  for(j = 0; j<g_rows; j++){
-    require(!do_op(j));
-  }
-  require(!continue_lcp(5902));
-  require(!commit());
-  require(!continue_lcp(5903));
-  require(!restart());
-  require(!validate());
 }
 
 static int init_ndb(int argc, char** argv)
@@ -129,6 +191,58 @@ static int init_ndb(int argc, char** argv)
 
 static int parse_args(int argc, char** argv)
 {
+  size_t i;
+  char * ops= 0, *cases=0;
+  struct getargs args[] = {
+    { "records", 0, arg_integer, &g_rows, "Number of records", "records" },
+    { "operations", 'o', arg_string, &ops, "Operations [a-h]", 0 },
+    { "1", '1', arg_flag, &g_one_op_at_a_time, "One op at a time", 0 },
+    { "0", '0', arg_negative_flag, &g_one_op_at_a_time, "All ops at once", 0 },
+    { "cases", 'c', arg_string, &cases, "Cases [a-c]", 0 },
+    { 0, 't', arg_flag, &g_setup_tables, "Create table", 0 },
+    { 0, 'u', arg_negative_flag, &g_setup_tables, "Dont create table", 0 }
+  };
+  
+  int optind= 0;
+  const int num_args = sizeof(args)/sizeof(args[0]);
+  if(getarg(args, num_args, argc, (const char**)argv, &optind)) {
+    arg_printusage(args, num_args, argv[0], " tabname1\n");
+    ndbout_c("\n -- Operations [a-%c] = ", 'a'+OP_COUNT-1);
+    for(i = 0; i<OP_COUNT; i++){
+      ndbout_c("\t%c = %s %s", 
+	       'a'+i, g_op_types[i].op1,
+	       g_op_types[i].op2 ? g_op_types[i].op2 : "");
+    }
+    return -1;
+  }
+  
+  if(ops != 0){
+    g_use_ops = 0;
+    char * s = ops;
+    while(* s)
+      g_use_ops |= (1 << ((* s++) - 'a'));
+  }
+
+  if(cases != 0){
+    g_cases = 0;
+    char * s = cases;
+    while(* s)
+      g_cases |= (1 << ((* s++) - 'a'));
+  }
+  
+  ndbout_c("table: %s", g_tablename);
+  printf("operations: ");
+  for(i = 0; i<OP_COUNT; i++)
+    if(g_use_ops & (1 << i))
+      printf("%c", 'a'+i);
+  printf("\n");
+  
+  printf("test cases: ");
+  for(i = 0; i<3; i++)
+    if(g_cases & (1 << i))
+      printf("%c", '1'+i);
+  printf("\n");
+  printf("-------------\n");  
   return 0;
 }
 
@@ -141,10 +255,11 @@ static int connect_ndb()
   }
 
   g_ndb = new Ndb(g_cluster_connection, "TEST_DB");
-  g_ndb->init();
+  g_ndb->init(256);
   if(g_ndb->waitUntilReady(30) == 0){
-    int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
-    return g_restarter.dumpStateAllNodes(args, 1);
+    return 0;
+//    int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+//    return g_restarter.dumpStateAllNodes(args, 1);
   }
   return -1;
 }
@@ -211,77 +326,165 @@ static int load_table()
   
   HugoOperations ops(* g_table);
   require(!ops.startTransaction(g_ndb));
+  size_t op = 0;
+  size_t rows = 0;
+  size_t uncommitted = 0;
+  bool prepared = false;
   for(size_t i = 0; i<g_rows; i++){
-    g_cases[i] = g_ops[ i % OP_COUNT];
-    if(g_cases[i].start_row){
-      g_cases[i].curr_row = true;
-      g_cases[i].val = rand();
-      require(!ops.pkInsertRecord(g_ndb, i, 1, g_cases[i].val));
+    for(op %= OP_COUNT; !((1 << op) & g_use_ops); op = (op + 1) % OP_COUNT);
+    g_ops[i] = g_op_types[op++];
+    if(g_ops[i].start_row){
+      g_ops[i].curr_row = true;
+      g_ops[i].val = rand();
+      require(!ops.pkInsertRecord(g_ndb, i, 1, g_ops[i].val));
+      uncommitted++;
+    } else {
+      g_ops[i].curr_row = false;
     }
-    if((i+1) % 100 == 0){
+    if(uncommitted >= 100){
       require(!ops.execute_Commit(g_ndb));
       require(!ops.getTransaction()->restart());
+      rows += uncommitted;
+      uncommitted = 0;
     }
   }
-  if((g_rows+1) % 100 != 0)
+  if(uncommitted)
     require(!ops.execute_Commit(g_ndb));
+
+  require(!ops.closeTransaction(g_ndb));
+  rows += uncommitted;
+  g_info << "Inserted " << rows << " rows" << endl;
   return 0;
 }
 
-static int pause_lcp()
+static int pause_lcp(int error)
 {
-  return 0;
+  int nodes = g_restarter.getNumDbNodes();
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
+  int fd = ndb_mgm_listen_event(g_restarter.handle, filter);
+  require(fd >= 0);
+  require(!g_restarter.insertErrorInAllNodes(error));
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+  require(!g_restarter.dumpStateAllNodes(dump, 1));
+  
+  char *tmp;
+  char buf[1024];
+  SocketInputStream in(fd, 1000);
+  int count = 0;
+  do {
+    tmp = in.gets(buf, 1024);
+    if(tmp)
+    {
+      int id;
+      if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
+	 --nodes == 0){
+	close(fd);
+	return 0;
+      }
+    }
+  } while(count++ < 30);
+  
+  close(fd);
+  return -1;
 }
 
 static int do_op(int row)
 {
   HugoOperations & ops = * g_hugo_ops;
-  if(strcmp(g_cases[row].op1, "INSERT") == 0){
-    require(!g_cases[row].curr_row);
-    g_cases[row].curr_row = true;
-    g_cases[row].val = rand();
-    require(!ops.pkInsertRecord(g_ndb, row, 1, g_cases[row].val));
-  } else if(strcmp(g_cases[row].op1, "UPDATE") == 0){
-    require(g_cases[row].curr_row);
-    g_cases[row].val = rand();
-    require(!ops.pkUpdateRecord(g_ndb, row, 1, g_cases[row].val));
-  } else if(strcmp(g_cases[row].op1, "DELETE") == 0){
-    require(g_cases[row].curr_row);    
-    g_cases[row].curr_row = false;
+  if(strcmp(g_ops[row].op1, "INS") == 0){
+    require(!g_ops[row].curr_row);
+    g_ops[row].curr_row = true;
+    g_ops[row].val = rand();
+    require(!ops.pkInsertRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op1, "UPD") == 0){
+    require(g_ops[row].curr_row);
+    g_ops[row].val = rand();
+    require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op1, "DEL") == 0){
+    require(g_ops[row].curr_row);    
+    g_ops[row].curr_row = false;
     require(!ops.pkDeleteRecord(g_ndb, row, 1));
   }
 
   require(!ops.execute_NoCommit(g_ndb));
   
-  if(g_cases[row].op2 == 0){
-  } else if(strcmp(g_cases[row].op2, "INSERT") == 0){
-    require(!g_cases[row].curr_row);
-    g_cases[row].curr_row = true;
-    g_cases[row].val = rand();
-    require(!ops.pkInsertRecord(g_ndb, row, 1, g_cases[row].val));
-  } else if(strcmp(g_cases[row].op2, "UPDATE") == 0){
-    require(g_cases[row].curr_row);
-    g_cases[row].val = rand();
-    require(!ops.pkUpdateRecord(g_ndb, row, 1, g_cases[row].val));
-  } else if(strcmp(g_cases[row].op2, "DELETE") == 0){
-    require(g_cases[row].curr_row);    
-    g_cases[row].curr_row = false;    
+  if(g_ops[row].op2 == 0){
+  } else if(strcmp(g_ops[row].op2, "INS") == 0){
+    require(!g_ops[row].curr_row);
+    g_ops[row].curr_row = true;
+    g_ops[row].val = rand();
+    require(!ops.pkInsertRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op2, "UPD") == 0){
+    require(g_ops[row].curr_row);
+    g_ops[row].val = rand();
+    require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op2, "DEL") == 0){
+    require(g_ops[row].curr_row);    
+    g_ops[row].curr_row = false;    
     require(!ops.pkDeleteRecord(g_ndb, row, 1));
   }
   
-  if(g_cases[row].op2 != 0)
+  if(g_ops[row].op2 != 0)
     require(!ops.execute_NoCommit(g_ndb));  
+
+  if(g_ops[row].op3 == 0){
+  } else if(strcmp(g_ops[row].op3, "INS") == 0){
+    require(!g_ops[row].curr_row);
+    g_ops[row].curr_row = true;
+    g_ops[row].val = rand();
+    require(!ops.pkInsertRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op3, "UPD") == 0){
+    require(g_ops[row].curr_row);
+    g_ops[row].val = rand();
+    require(!ops.pkUpdateRecord(g_ndb, row, 1, g_ops[row].val));
+  } else if(strcmp(g_ops[row].op3, "DEL") == 0){
+    require(g_ops[row].curr_row);    
+    g_ops[row].curr_row = false;    
+    require(!ops.pkDeleteRecord(g_ndb, row, 1));
+  }
+  
+  if(g_ops[row].op3 != 0)
+    require(!ops.execute_NoCommit(g_ndb));  
+
   return 0;
 }
 
 static int continue_lcp(int error)
 {
-  error = 0;
-  if(g_restarter.insertErrorInAllNodes(error) == 0){
-    int args[] = { DumpStateOrd::DihStartLcpImmediately };
-    return g_restarter.dumpStateAllNodes(args, 1);
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
+  int fd = -1;
+  if(error){
+    fd = ndb_mgm_listen_event(g_restarter.handle, filter);
+    require(fd >= 0);
   }
-  return -1;
+
+  int args[] = { DumpStateOrd::LCPContinue };
+  if(g_restarter.dumpStateAllNodes(args, 1) != 0)
+    return -1;
+  
+  if(error){
+    char *tmp;
+    char buf[1024];
+    SocketInputStream in(fd, 1000);
+    int count = 0;
+    int nodes = g_restarter.getNumDbNodes();
+    do {
+      tmp = in.gets(buf, 1024);
+      if(tmp)
+      {
+	int id;
+	if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
+	   --nodes == 0){
+	  close(fd);
+	  return 0;
+	}
+      }
+    } while(count++ < 30);
+    
+    close(fd);
+  }
+  return 0;
 }
 
 static int commit()
@@ -297,6 +500,7 @@ static int commit()
 static int restart()
 {
   g_info << "Restarting cluster" << endl;
+  g_hugo_ops->closeTransaction(g_ndb);
   disconnect_ndb();
   delete g_hugo_ops;
   
@@ -315,16 +519,24 @@ static int validate()
 {
   HugoOperations ops(* g_table);
   for(size_t i = 0; i<g_rows; i++){
-    require(g_cases[i].curr_row == g_cases[i].end_row);
+    require(g_ops[i].curr_row == g_ops[i].end_row);
     require(!ops.startTransaction(g_ndb));
     ops.pkReadRecord(g_ndb, i, 1);
     int res = ops.execute_Commit(g_ndb);
-    if(g_cases[i].curr_row){
-      require(res == 0 && ops.verifyUpdatesValue(g_cases[i].val) == 0);
+    if(g_ops[i].curr_row){
+      require(res == 0 && ops.verifyUpdatesValue(g_ops[i].val) == 0);
     } else {
       require(res == 626);
     }
     ops.closeTransaction(g_ndb);
+  }
+
+  for(size_t j = 0; j<10; j++){
+    UtilTransactions clear(* g_table);
+    require(!clear.clearTable(g_ndb));
+    
+    HugoTransactions trans(* g_table);
+    require(trans.loadTable(g_ndb, 1024) == 0);
   }
   return 0;
 }

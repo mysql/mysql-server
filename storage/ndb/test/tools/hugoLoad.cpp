@@ -27,14 +27,15 @@ int main(int argc, const char** argv){
   ndb_init();
 
   int _records = 0;
-  const char* _tabname = NULL;
   int _help = 0;
   int _batch = 512;
+  int _loops = -1;
   const char* db = 0;
 
   struct getargs args[] = {
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
     { "batch", 'b', arg_integer, &_batch, "Number of operations in each transaction", "batch" },
+    { "loops", 'l', arg_integer, &_loops, "Number of loops", "" },
     { "database", 'd', arg_string, &db, "Database", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
@@ -53,7 +54,7 @@ int main(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], desc);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  _tabname = argv[optind];
+  
   
   // Connect to Ndb
   Ndb_cluster_connection con;
@@ -72,18 +73,33 @@ int main(int argc, const char** argv){
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
    
-  // Check if table exists in db
-  const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
-  if(pTab == NULL){
-    ndbout << " Table " << _tabname << " does not exist!" << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-  }
-
-  HugoTransactions hugoTrans(*pTab);
-  if (hugoTrans.loadTable(&MyNdb, 
-			   _records,
-			  _batch) != 0){
-    return NDBT_ProgramExit(NDBT_FAILED);
+  for(Uint32 i = optind; i<argc; i++)
+  {
+    const char* _tabname = argv[i];
+    // Check if table exists in db
+    const NdbDictionary::Table* pTab = 
+      NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
+    if(pTab == NULL){
+      ndbout << " Table " << _tabname << " does not exist!" << endl;
+      return NDBT_ProgramExit(NDBT_WRONGARGS);
+    }
+    
+    HugoTransactions hugoTrans(*pTab);
+loop:    
+    if (hugoTrans.loadTable(&MyNdb, 
+			    _records,
+			    _batch,
+			    true, 0, false, _loops) != 0){
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+    
+    if(_loops > 0)
+    {
+      hugoTrans.clearTable(&MyNdb);
+      //hugoTrans.pkDelRecords(&MyNdb, _records);
+      _loops--;
+      goto loop;
+    }
   }
 
   return NDBT_ProgramExit(NDBT_OK);

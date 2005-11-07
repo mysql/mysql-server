@@ -61,7 +61,7 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
 {
   assert(t != 0 && c != 0 && c->getBlobType());
   memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
-  sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_tableId, (int)c->m_attrId);
+  sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_id, (int)c->m_column_no);
 }
 
 void
@@ -77,7 +77,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     but may change the fragment type if it is UserDefined since it
     must be hash based so that the kernel can handle it on its own.
   */
-  bt.m_primaryTableId = t->m_tableId;
+  bt.m_primaryTableId = t->m_id;
   bt.m_ng.clear();
   switch (t->getFragmentType())
   {
@@ -134,6 +134,7 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
       break;
     }
     bc.setLength(c->getPartSize());
+    bc.setStorageType(c->getStorageType());
     bt.addColumn(bc);
   }
   DBUG_VOID_RETURN;
@@ -360,7 +361,7 @@ NdbBlob::setTableKeyValue(NdbOperation* anOp)
     assert(c != NULL);
     if (c->m_pk) {
       unsigned len = c->m_attrSize * c->m_arraySize;
-      if (anOp->equal_impl(c, (const char*)&data[pos], len) == -1) {
+      if (anOp->equal_impl(c, (const char*)&data[pos]) == -1) {
         setErrorCode(anOp);
         DBUG_RETURN(-1);
       }
@@ -384,7 +385,7 @@ NdbBlob::setAccessKeyValue(NdbOperation* anOp)
     assert(c != NULL);
     if (c->m_pk) {
       unsigned len = c->m_attrSize * c->m_arraySize;
-      if (anOp->equal_impl(c, (const char*)&data[pos], len) == -1) {
+      if (anOp->equal_impl(c, (const char*)&data[pos]) == -1) {
         setErrorCode(anOp);
         DBUG_RETURN(-1);
       }
@@ -445,7 +446,7 @@ NdbBlob::setHeadInlineValue(NdbOperation* anOp)
     memset(theInlineData + theLength, 0, theInlineSize - theLength);
   assert(theNullFlag != -1);
   const char* aValue = theNullFlag ? 0 : theHeadInlineBuf.data;
-  if (anOp->setValue(theColumn, aValue, theHeadInlineBuf.size) == -1) {
+  if (anOp->setValue(theColumn, aValue) == -1) {
     setErrorCode(anOp);
     DBUG_RETURN(-1);
   }

@@ -33,6 +33,10 @@ const BlockName BlockNames[] = {
   { "DBUTIL", DBUTIL },
   { "SUMA", SUMA },
   { "DBTUX", DBTUX }
+  ,{ "TSMAN", TSMAN}
+  ,{ "LGMAN", LGMAN }
+  ,{ "PGMAN", PGMAN }
+  ,{ "RESTORE", RESTORE }
 };
-                                                                       
+
 const BlockNumber NO_OF_BLOCK_NAMES = sizeof(BlockNames) / sizeof(BlockName);

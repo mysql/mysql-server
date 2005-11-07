@@ -145,6 +145,7 @@ SignalDataPrintFunctions[] = {
   { GSN_SYSTEM_ERROR,           printSYSTEM_ERROR },
   { GSN_START_RECREQ,           printSTART_REC_REQ },
   { GSN_START_RECCONF,          printSTART_REC_CONF },
+  { GSN_START_FRAGREQ,          printSTART_FRAG_REQ },
   { GSN_NF_COMPLETEREP,         printNF_COMPLETE_REP },
   { GSN_SIGNAL_DROPPED_REP,     printSIGNAL_DROPPED_REP },
   { GSN_FAIL_REP,               printFAIL_REP },

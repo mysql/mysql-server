@@ -62,6 +62,9 @@ public:
    */
   static void clear(unsigned size, Uint32 data[]);
 
+  static Uint32 getWord(unsigned size, Uint32 data[], unsigned word_pos);
+  static void setWord(unsigned size, Uint32 data[],
+                      unsigned word_pos, Uint32 new_word);
   /**
    * isclear -  Check if all bits are clear.  This is faster
    * than checking count() == 0.
@@ -202,6 +205,21 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
   for (unsigned i = 0; i < size; i++) {
     data[i] = 0;
   }
+}
+
+inline
+Uint32
+BitmaskImpl::getWord(unsigned size, Uint32 data[], unsigned word_pos)
+{
+  return data[word_pos];
+}
+
+inline void
+BitmaskImpl::setWord(unsigned size, Uint32 data[],
+                     unsigned word_pos, Uint32 new_word)
+{
+  data[word_pos] = new_word;
+  return;
 }
 
 inline bool
@@ -431,6 +449,12 @@ public:
   void clear();
 
   /**
+   * Get and set words of bits
+   */
+  Uint32 getWord(unsigned word_pos);
+  void setWord(unsigned word_pos, Uint32 new_word);
+  
+  /**
    * isclear -  Check if all bits are clear.  This is faster
    * than checking count() == 0.
    */
@@ -629,6 +653,20 @@ inline void
 BitmaskPOD<size>::clear()
 {
   BitmaskPOD<size>::clear(rep.data);
+}
+
+template <unsigned size>
+inline Uint32
+BitmaskPOD<size>::getWord(unsigned word_pos)
+{
+  return BitmaskImpl::getWord(size, rep.data, word_pos);
+}
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::setWord(unsigned word_pos, Uint32 new_word)
+{
+  BitmaskImpl::setWord(size, rep.data, word_pos, new_word);
 }
 
 template <unsigned size>

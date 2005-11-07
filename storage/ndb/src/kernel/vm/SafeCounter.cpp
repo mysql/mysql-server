@@ -26,7 +26,7 @@ SafeCounterManager::SafeCounterManager(class SimulatedBlock & block)
   
 bool
 SafeCounterManager::setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error) {
-  return m_counterPool.setSize(maxNoOfActiveMutexes, exit_on_error);
+  return m_counterPool.setSize(maxNoOfActiveMutexes, false, exit_on_error);
 }
 
 Uint32

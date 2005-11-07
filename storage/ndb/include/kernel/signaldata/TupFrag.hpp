@@ -30,7 +30,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 14 );
+  STATIC_CONST( SignalLength = 15 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -39,6 +39,7 @@ private:
   Uint32 noOfAttr;
   Uint32 fragId;
   Uint32 todo[8];
+  Uint32 tablespaceid;
 };
 
 class TupFragConf {

@@ -26,9 +26,6 @@
 #include <Bitmask.hpp>
 
 template <class T> class Array;
-template <class T> class SLList;
-template <class T> class DLList;
-template <class T> class DLHashTable;
 
 /**
  * Template class used for implementing an
@@ -45,7 +42,7 @@ public:
    *
    * Note, can currently only be called once
    */
-  bool setSize(Uint32 noOfElements, bool exit_on_error = true);
+  bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true);
 
   inline Uint32 getNoOfFree() const {
     return noOfFree;
@@ -123,9 +120,6 @@ public:
 
 protected:
   friend class Array<T>;
-  friend class SLList<T>;
-  friend class DLList<T>;
-  friend class DLHashTable<T>;
 
   /**
    * Allocate <b>n</b> consecutive object from pool
@@ -182,6 +176,7 @@ protected:
   Uint32 size;
   Uint32 noOfFree;
   T * theArray;
+  void * alloc_ptr;
   Uint32 bitmaskSz;
   Uint32 *theAllocatedBitmask;
 };
@@ -193,6 +188,7 @@ ArrayPool<T>::ArrayPool(){
   size = 0;
   noOfFree = 0;
   theArray = 0;
+  alloc_ptr = 0;
 #ifdef ARRAY_GUARD
   theAllocatedBitmask = 0;
 #endif
@@ -202,8 +198,9 @@ template <class T>
 inline
 ArrayPool<T>::~ArrayPool(){
   if(theArray != 0){
-    ndbd_free(theArray, size * sizeof(T));
+    ndbd_free(alloc_ptr, size * sizeof(T));
     theArray = 0;
+    alloc_ptr = 0;
 #ifdef ARRAY_GUARD
     delete []theAllocatedBitmask;
     theAllocatedBitmask = 0;
@@ -219,11 +216,24 @@ ArrayPool<T>::~ArrayPool(){
 template <class T>
 inline
 bool
-ArrayPool<T>::setSize(Uint32 noOfElements, bool exit_on_error){
+ArrayPool<T>::setSize(Uint32 noOfElements, bool align, bool exit_on_error){
   if(size == 0){
     if(noOfElements == 0)
       return true;
-    theArray = (T *)ndbd_malloc(noOfElements * sizeof(T));
+    if(align)
+    {
+      alloc_ptr = ndbd_malloc((noOfElements+1) * sizeof(T));
+      UintPtr p = (UintPtr)alloc_ptr;
+      UintPtr mod = p % sizeof(T);
+      if (mod)
+      {
+	p += sizeof(T) - mod;
+      }
+      theArray = (T *)p;
+    }
+    else
+      theArray = (T *)(alloc_ptr = ndbd_malloc(noOfElements * sizeof(T)));
+
     if(theArray == 0)
     {
       if (!exit_on_error)

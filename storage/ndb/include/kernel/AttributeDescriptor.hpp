@@ -23,16 +23,19 @@ class AttributeDescriptor {
   friend class Dbacc;
   friend class Dbtup;
   friend class Dbtux;
+  friend class Dblqh;
   friend class SimulatedBlock;
 
-private:
+public:
   static void setType(Uint32 &, Uint32 type);
   static void setSize(Uint32 &, Uint32 size);
-  static void setArray(Uint32 &, Uint32 arraySize);
+  static void setArrayType(Uint32 &, Uint32 arrayType);
+  static void setArraySize(Uint32 &, Uint32 arraySize);
   static void setNullable(Uint32 &, Uint32 nullable);
   static void setDKey(Uint32 &, Uint32 dkey);
   static void setPrimaryKey(Uint32 &, Uint32 dkey);
   static void setDynamic(Uint32 &, Uint32 dynamicInd);
+  static void setDiskBased(Uint32 &, Uint32 val);
   
   static Uint32 getType(const Uint32 &);
   static Uint32 getSize(const Uint32 &);
@@ -44,6 +47,9 @@ private:
   static Uint32 getDKey(const Uint32 &);
   static Uint32 getPrimaryKey(const Uint32 &);
   static Uint32 getDynamic(const Uint32 &);
+  static Uint32 getDiskBased(const Uint32 &);
+
+  Uint32 m_data;
 };
 
 /**
@@ -78,6 +84,7 @@ private:
 #define AD_SIZE_IN_WORDS_OFFSET (31)
 #define AD_SIZE_IN_WORDS_SHIFT  (5)
 
+#define AD_DISK_SHIFT        (11)
 #define AD_NULLABLE_SHIFT    (12)
 #define AD_DISTR_KEY_SHIFT   (13)
 #define AD_PRIMARY_KEY       (14)
@@ -89,55 +96,65 @@ private:
 inline
 void
 AttributeDescriptor::setType(Uint32 & desc, Uint32 type){
-  ASSERT_MAX(type, AD_TYPE_MASK, "AttributeDescriptor::setType");
+  assert(type <= AD_TYPE_MASK);
   desc |= (type << AD_TYPE_SHIFT);
 }
 
 inline
 void
 AttributeDescriptor::setSize(Uint32 & desc, Uint32 size){
-  ASSERT_MAX(size, AD_SIZE_MASK, "AttributeDescriptor::setSize");
+  assert(size <= AD_SIZE_MASK);
   desc |= (size << AD_SIZE_SHIFT);
 }
 
 inline
 void
-AttributeDescriptor::setArray(Uint32 & desc, Uint32 size){
-  ASSERT_MAX(size, AD_ARRAY_SIZE_MASK, "AttributeDescriptor::setArray");
-  desc |= (size << AD_ARRAY_SIZE_SHIFT);
-  if(size <= 1){
-    desc |= (size << AD_ARRAY_TYPE_SHIFT);
-  } else {
-    desc |= (2 << AD_ARRAY_TYPE_SHIFT);
-  }
+AttributeDescriptor::setArrayType(Uint32 & desc, Uint32 arrayType){
+  assert(arrayType <= AD_ARRAY_TYPE_MASK);
+  desc |= (arrayType << AD_ARRAY_TYPE_SHIFT);
+}
+
+inline
+void
+AttributeDescriptor::setArraySize(Uint32 & desc, Uint32 arraySize){
+  assert(arraySize <= AD_ARRAY_SIZE_MASK);
+  desc |= (arraySize << AD_ARRAY_SIZE_SHIFT);
 }
 
 inline
 void
 AttributeDescriptor::setNullable(Uint32 & desc, Uint32 nullable){
-  ASSERT_BOOL(nullable, "AttributeDescriptor::setNullable");
+  assert(nullable <= 1);
   desc |= (nullable << AD_NULLABLE_SHIFT);
 }
 
 inline
 void
 AttributeDescriptor::setDKey(Uint32 & desc, Uint32 dkey){
-  ASSERT_BOOL(dkey, "AttributeDescriptor::setDKey");
+  assert(dkey <= 1);
   desc |= (dkey << AD_DISTR_KEY_SHIFT);
 }
 
 inline
 void
 AttributeDescriptor::setPrimaryKey(Uint32 & desc, Uint32 dkey){
-  ASSERT_BOOL(dkey, "AttributeDescriptor::setPrimaryKey");
+  assert(dkey <= 1);
   desc |= (dkey << AD_PRIMARY_KEY);
 }
 
 inline
 void
 AttributeDescriptor::setDynamic(Uint32 & desc, Uint32 dynamic){
-  ASSERT_BOOL(dynamic, "AttributeDescriptor::setDynamic");
+  assert(dynamic <= 1);
   desc |= (dynamic << AD_DYNAMIC);
+}
+
+inline
+void
+AttributeDescriptor::setDiskBased(Uint32 & desc, Uint32 val)
+{
+  assert(val <= 1);
+  desc |= (val << AD_DISK_SHIFT);
 }
 
 /**
@@ -205,5 +222,15 @@ Uint32
 AttributeDescriptor::getDynamic(const Uint32 & desc){
   return (desc >> AD_DYNAMIC) & 1;
 }
+
+inline
+Uint32
+AttributeDescriptor::getDiskBased(const Uint32 & desc)
+{
+  return (desc >> AD_DISK_SHIFT) & 1;
+}
+
+class NdbOut&
+operator<<(class NdbOut&, const AttributeDescriptor&);
 
 #endif

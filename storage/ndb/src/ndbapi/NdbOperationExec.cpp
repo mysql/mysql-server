@@ -148,7 +148,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 //-------------------------------------------------------------
   TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
 
-  Uint32 tTableId = m_currentTable->m_tableId;
+  Uint32 tTableId = m_currentTable->m_id;
   Uint32 tSchemaVersion = m_currentTable->m_version;
   
   tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;
@@ -172,6 +172,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   Uint8 tCommitIndicator = theCommitIndicator;
   Uint8 tStartIndicator = theStartIndicator;
   Uint8 tInterpretIndicator = theInterpretIndicator;
+  Uint8 tNoDisk = m_no_disk_flag;
 
 //-------------------------------------------------------------
 // Simple state is set if start and commit is set and it is
@@ -194,6 +195,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setCommitFlag(tReqInfo, tCommitIndicator);
   tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
+  tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
 
   OperationType tOperationType = theOperationType;
   Uint32 tTupKeyLen = theTupKeyLen;

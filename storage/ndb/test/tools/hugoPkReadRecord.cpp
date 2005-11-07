@@ -119,60 +119,7 @@ int main(int argc, const char** argv)
       for (i = 0; i < table->getNoOfColumns(); i++)
       {
 	NdbRecAttr* a = data[i];
-	switch(a->getType())
-	{
-	case NdbDictionary::Column::Char:
-	case NdbDictionary::Column::Varchar:
-	case NdbDictionary::Column::Binary:
-	case NdbDictionary::Column::Varbinary:
-	{
-	  if (_hex)
-	  {
-	    char* b = a->aRef();
-	    for (int j = 0; j < a->arraySize(); j++)
-	    {
-	      //ndbout_c("%x", b[j]);
-	      g_info << hex << b[j] << "[" << dec << j << "]";
-	    }
-	  }
-	  else
-	  {
-	    g_info << "\"" 
-		   << a->aRef() << "\"";
-	  }
-	  g_info << "   ";
-	}
-	break;	
-
-	case NdbDictionary::Column::Int:
-	case NdbDictionary::Column::Unsigned:
-	{
-	  g_info << a->int32_value() << "   ";
-	}
-	break;
-
-	case NdbDictionary::Column::Bigint:
-	case NdbDictionary::Column::Bigunsigned:
-	{
-	  g_info << a->int64_value() << "   ";
-	}
-	break;
-
-	case NdbDictionary::Column::Float:
-	{
-	  g_info << a->float_value() << "   ";
-	}
-	break;
-	  
-	case NdbDictionary::Column::Undefined:
-	default:
-	{
-	  g_info << "Undefined!!!   ";
-	}
-	break;
-
-	} // case
-	g_info << "   ";
+	ndbout << (* a) << " ";
       } // for   
       g_info << endl;   
     } // if (conn

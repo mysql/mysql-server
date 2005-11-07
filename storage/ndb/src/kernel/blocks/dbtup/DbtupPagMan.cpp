@@ -124,26 +124,27 @@ void Dbtup::initializePage()
   for (pagePtr.i = 0; pagePtr.i < cnoOfPage; pagePtr.i++) {
     ljam();
     refresh_watch_dog();
-    ptrAss(pagePtr, page);
-    pagePtr.p->pageWord[ZPAGE_PHYSICAL_INDEX] = pagePtr.i;
-    pagePtr.p->pageWord[ZPAGE_NEXT_POS] = pagePtr.i + 1;
-    pagePtr.p->pageWord[ZPAGE_NEXT_CLUST_POS] = RNIL;
-    pagePtr.p->pageWord[ZPAGE_LAST_CLUST_POS] = RNIL;
-    pagePtr.p->pageWord[ZPAGE_PREV_POS] = RNIL;
-    pagePtr.p->pageWord[ZPAGE_STATE_POS] = ZFREE_COMMON;
+    ptrAss(pagePtr, cpage);
+    pagePtr.p->physical_page_id= RNIL;
+    pagePtr.p->next_page = pagePtr.i + 1;
+    pagePtr.p->first_cluster_page = RNIL;
+    pagePtr.p->next_cluster_page = RNIL;
+    pagePtr.p->last_cluster_page = RNIL;
+    pagePtr.p->prev_page = RNIL;
+    pagePtr.p->page_state = ZFREE_COMMON;
   }//for
   pagePtr.i = cnoOfPage - 1;
-  ptrAss(pagePtr, page);
-  pagePtr.p->pageWord[ZPAGE_NEXT_POS] = RNIL;
+  ptrAss(pagePtr, cpage);
+  pagePtr.p->next_page = RNIL;
   
   pagePtr.i = 0;
-  ptrAss(pagePtr, page);
-  pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
+  ptrAss(pagePtr, cpage);
+  pagePtr.p->page_state = ~ZFREE_COMMON;
 
   for(size_t j = 0; j<MAX_PARALLELL_TUP_SRREQ; j++){
     pagePtr.i = 1+j;
-    ptrAss(pagePtr, page);
-    pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
+    ptrAss(pagePtr, cpage);
+    pagePtr.p->page_state = ~ZFREE_COMMON;
   }
   
   Uint32 tmp = 1 + MAX_PARALLELL_TUP_SRREQ;
@@ -233,13 +234,13 @@ void Dbtup::findFreeLeftNeighbours(Uint32& allocPageRef,
   while (allocPageRef > 0) {
     ljam();
     pageLastPtr.i = allocPageRef - 1;
-    ptrCheckGuard(pageLastPtr, cnoOfPage, page);
-    if (pageLastPtr.p->pageWord[ZPAGE_STATE_POS] != ZFREE_COMMON) {
+    ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+    if (pageLastPtr.p->page_state != ZFREE_COMMON) {
       ljam();
       return;
     } else {
       ljam();
-      pageFirstPtr.i = pageLastPtr.p->pageWord[ZPAGE_FIRST_CLUST_POS];
+      pageFirstPtr.i = pageLastPtr.p->first_cluster_page;
       ndbrequire(pageFirstPtr.i != RNIL);
       Uint32 list = nextHigherTwoLog(pageLastPtr.i - pageFirstPtr.i);
       removeCommonArea(pageFirstPtr.i, list);
@@ -274,13 +275,13 @@ void Dbtup::findFreeRightNeighbours(Uint32& allocPageRef,
   while ((allocPageRef + noPagesAllocated) < cnoOfPage) {
     ljam();
     pageFirstPtr.i = allocPageRef + noPagesAllocated;
-    ptrCheckGuard(pageFirstPtr, cnoOfPage, page);
-    if (pageFirstPtr.p->pageWord[ZPAGE_STATE_POS] != ZFREE_COMMON) {
+    ptrCheckGuard(pageFirstPtr, cnoOfPage, cpage);
+    if (pageFirstPtr.p->page_state != ZFREE_COMMON) {
       ljam();
       return;
     } else {
       ljam();
-      pageLastPtr.i = pageFirstPtr.p->pageWord[ZPAGE_LAST_CLUST_POS];
+      pageLastPtr.i = pageFirstPtr.p->last_cluster_page;
       ndbrequire(pageLastPtr.i != RNIL);
       Uint32 list = nextHigherTwoLog(pageLastPtr.i - pageFirstPtr.i);
       removeCommonArea(pageFirstPtr.i, list);
@@ -307,18 +308,18 @@ void Dbtup::insertCommonArea(Uint32 insPageRef, Uint32 insList)
   PagePtr pageLastPtr, pageInsPtr;
 
   pageInsPtr.i = insPageRef;
-  ptrCheckGuard(pageInsPtr, cnoOfPage, page);
+  ptrCheckGuard(pageInsPtr, cnoOfPage, cpage);
   ndbrequire(insList < 16);
   pageLastPtr.i = (pageInsPtr.i + (1 << insList)) - 1;
 
-  pageInsPtr.p->pageWord[ZPAGE_NEXT_CLUST_POS] = cfreepageList[insList];
-  pageInsPtr.p->pageWord[ZPAGE_PREV_CLUST_POS] = RNIL;
-  pageInsPtr.p->pageWord[ZPAGE_LAST_CLUST_POS] = pageLastPtr.i;
+  pageInsPtr.p->next_cluster_page = cfreepageList[insList];
+  pageInsPtr.p->prev_cluster_page = RNIL;
+  pageInsPtr.p->last_cluster_page = pageLastPtr.i;
   cfreepageList[insList] = pageInsPtr.i;
-
-  ptrCheckGuard(pageLastPtr, cnoOfPage, page);
-  pageLastPtr.p->pageWord[ZPAGE_FIRST_CLUST_POS] = pageInsPtr.i;
-  pageLastPtr.p->pageWord[ZPAGE_NEXT_POS] = RNIL;
+  
+  ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+  pageLastPtr.p->first_cluster_page = pageInsPtr.i;
+  pageLastPtr.p->next_page = RNIL;
 }//Dbtup::insertCommonArea()
 
 void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list) 
@@ -327,44 +328,42 @@ void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list)
   PagePtr pagePrevPtr, pageNextPtr, pageLastPtr, pageSearchPtr, remPagePtr;
 
   remPagePtr.i = remPageRef;
-  ptrCheckGuard(remPagePtr, cnoOfPage, page);
+  ptrCheckGuard(remPagePtr, cnoOfPage, cpage);
   ndbrequire(list < 16);
   if (cfreepageList[list] == remPagePtr.i) {
     ljam();
-    cfreepageList[list] = remPagePtr.p->pageWord[ZPAGE_NEXT_CLUST_POS];
+    cfreepageList[list] = remPagePtr.p->next_cluster_page;
     pageNextPtr.i = cfreepageList[list];
     if (pageNextPtr.i != RNIL) {
       ljam();
-      ptrCheckGuard(pageNextPtr, cnoOfPage, page);
-      pageNextPtr.p->pageWord[ZPAGE_PREV_CLUST_POS] = RNIL;
+      ptrCheckGuard(pageNextPtr, cnoOfPage, cpage);
+      pageNextPtr.p->prev_cluster_page = RNIL;
     }//if
   } else {
     pageSearchPtr.i = cfreepageList[list];
     while (true) {
       ljam();
-      ptrCheckGuard(pageSearchPtr, cnoOfPage, page);
+      ptrCheckGuard(pageSearchPtr, cnoOfPage, cpage);
       pagePrevPtr = pageSearchPtr;
-      pageSearchPtr.i = pageSearchPtr.p->pageWord[ZPAGE_NEXT_CLUST_POS];
+      pageSearchPtr.i = pageSearchPtr.p->next_cluster_page;
       if (pageSearchPtr.i == remPagePtr.i) {
         ljam();
         break;
       }//if
     }//while
-    pageNextPtr.i = remPagePtr.p->pageWord[ZPAGE_NEXT_CLUST_POS];
-    pagePrevPtr.p->pageWord[ZPAGE_NEXT_CLUST_POS] = pageNextPtr.i;
+    pageNextPtr.i = remPagePtr.p->next_cluster_page;
+    pagePrevPtr.p->next_cluster_page = pageNextPtr.i;
     if (pageNextPtr.i != RNIL) {
       ljam();
-      ptrCheckGuard(pageNextPtr, cnoOfPage, page);
-      pageNextPtr.p->pageWord[ZPAGE_PREV_CLUST_POS] = pagePrevPtr.i;
+      ptrCheckGuard(pageNextPtr, cnoOfPage, cpage);
+      pageNextPtr.p->prev_cluster_page = pagePrevPtr.i;
     }//if
   }//if
-  remPagePtr.p->pageWord[ZPAGE_NEXT_CLUST_POS] = RNIL;
-  remPagePtr.p->pageWord[ZPAGE_LAST_CLUST_POS] = RNIL;
-  remPagePtr.p->pageWord[ZPAGE_PREV_CLUST_POS] = RNIL;
+  remPagePtr.p->next_cluster_page= RNIL;
+  remPagePtr.p->last_cluster_page= RNIL;
+  remPagePtr.p->prev_cluster_page= RNIL;
 
   pageLastPtr.i = (remPagePtr.i + (1 << list)) - 1;
-  ptrCheckGuard(pageLastPtr, cnoOfPage, page);
-  pageLastPtr.p->pageWord[ZPAGE_FIRST_CLUST_POS] = RNIL;
+  ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+  pageLastPtr.p->first_cluster_page= RNIL;
 }//Dbtup::removeCommonArea()
-
-

@@ -39,58 +39,37 @@ static const char* fileExtension[] = {
 
 static const Uint32 noOfExtensions = sizeof(fileExtension)/sizeof(char*);
 
-Filename::Filename() :
-  theLevelDepth(0)
+Filename::Filename()
 {
-}
-
-void
-Filename::init(Uint32 nodeid,
-	       const char * pFileSystemPath,
-	       const char * pBackupDirPath){
-  DBUG_ENTER("Filename::init");
-
-  if (pFileSystemPath == NULL) {
-    ERROR_SET(fatal, NDBD_EXIT_AFS_NOPATH, "","Missing FileSystemPath");
-    return;
-  }
-
-  BaseString::snprintf(theFileSystemDirectory, sizeof(theFileSystemDirectory),
-	   "%sndb_%u_fs%s", pFileSystemPath, nodeid, DIR_SEPARATOR);
-  strncpy(theBackupDirectory, pBackupDirPath, sizeof(theBackupDirectory));
-
-  DBUG_PRINT("info", ("theFileSystemDirectory=%s", theFileSystemDirectory));
-  DBUG_PRINT("info", ("theBackupDirectory=%s", theBackupDirectory));
-
-#ifdef NDB_WIN32
-  CreateDirectory(theFileSystemDirectory, 0);
-#else
-  mkdir(theFileSystemDirectory, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
-#endif
-  theBaseDirectory= 0;
-
-  DBUG_VOID_RETURN;
 }
 
 Filename::~Filename(){
 }
 
 void 
-Filename::set(BlockReference blockReference, 
+Filename::set(Filename::NameSpec& spec,
+	      BlockReference blockReference, 
 	      const Uint32 filenumber[4], bool dir) 
 {
   char buf[PATH_MAX];
-  theLevelDepth = 0;
 
   const Uint32 type = FsOpenReq::getSuffix(filenumber);
   const Uint32 version = FsOpenReq::getVersion(filenumber);
 
+  size_t sz;
   if (version == 2)
-    theBaseDirectory= theBackupDirectory;
+  {
+    sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
+         spec.backup_path.c_str());
+    m_base_name = theName + spec.backup_path.length();
+  }
   else
-    theBaseDirectory= theFileSystemDirectory;
-  strncpy(theName, theBaseDirectory, PATH_MAX);
-      
+  {
+    sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
+         spec.fs_path.c_str());
+    m_base_name = theName + spec.fs_path.length();
+  }
+  
   switch(version){
   case 1 :{
     const Uint32 diskNo = FsOpenReq::v1_getDisk(filenumber);
@@ -102,7 +81,6 @@ Filename::set(BlockReference blockReference,
     if (diskNo < 0xff){	  
       BaseString::snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
       strcat(theName, buf);
-      theLevelDepth++;
     }
     
     {
@@ -113,19 +91,16 @@ Filename::set(BlockReference blockReference,
       }
       BaseString::snprintf(buf, sizeof(buf), "%s%s", blockName, DIR_SEPARATOR);
       strcat(theName, buf);
-      theLevelDepth++;
     }
     
     if (table < 0xffffffff){
       BaseString::snprintf(buf, sizeof(buf), "T%d%s", table, DIR_SEPARATOR);
       strcat(theName, buf);
-      theLevelDepth++;
     }
     
     if (frag < 0xffffffff){
       BaseString::snprintf(buf, sizeof(buf), "F%d%s", frag, DIR_SEPARATOR);
       strcat(theName, buf);
-      theLevelDepth++;
     }
     
     
@@ -156,7 +131,6 @@ Filename::set(BlockReference blockReference,
       BaseString::snprintf(buf, sizeof(buf), "BACKUP-%d-%d.%d",
 	       seq, count, nodeId); strcat(theName, buf);
     }
-    theLevelDepth = 2;
     break;
   }
   break;
@@ -169,9 +143,16 @@ Filename::set(BlockReference blockReference,
 
     BaseString::snprintf(buf, sizeof(buf), "D%d%s", diskNo, DIR_SEPARATOR);
     strcat(theName, buf);
-    theLevelDepth++;
   }
-  break;
+    break;
+  case 5:
+  {
+    Uint32 tableId = FsOpenReq::v5_getTableId(filenumber);
+    Uint32 lcpNo = FsOpenReq::v5_getLcpNo(filenumber);
+    BaseString::snprintf(buf, sizeof(buf), "LCP/%d/T%d", lcpNo, tableId);
+    strcat(theName, buf);
+    break;
+  }
   default:
     ERROR_SET(ecError, NDBD_EXIT_AFS_PARAMETER,"","Wrong version");
   }
@@ -191,28 +172,20 @@ Filename::set(BlockReference blockReference,
   }
 }
 
-/**
- * Find out directory name on level
- * Ex: 
- * theName = "/tmp/fs/T0/NDBFS/D0/P0/S27.data"
- * level = 1 
- * would return "/tmp/fs/T0/NDBFS/
- */
-const char* Filename::directory(int level)
+void 
+Filename::set(Filename::NameSpec& spec,
+	      SegmentedSectionPtr ptr, class SectionSegmentPool& pool)
 {
-  const char* p;
-  
-  p = theName;
-  p += strlen(theBaseDirectory);
-  
-  for (int i = 0; i <= level; i++){
-    p = strstr(p, DIR_SEPARATOR);
-    p++;
-  } 
-  
-  strncpy(theDirectory, theName, p - theName - 1);
-  theDirectory[p-theName-1] = 0;
-  return theDirectory;
+  char buf[PATH_MAX];
+  copy((Uint32*)&buf[0], ptr);
+  if(buf[0] == DIR_SEPARATOR[0])
+  {
+    strncpy(theName, buf, PATH_MAX);
+    m_base_name = theName;
+  }
+  else 
+  {
+    snprintf(theName, sizeof(theName), "%s%s", spec.fs_path.c_str(), buf);
+    m_base_name = theName + spec.fs_path.length();
+  }
 }
-
-

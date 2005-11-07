@@ -68,5 +68,21 @@
 #define NDB_TYPE_DECIMALUNSIGNED        30
 
 #define NDB_TYPE_MAX                    31
+
+
+/*
+ * Attribute array type.
+ */
+
+#define NDB_ARRAYTYPE_FIXED             0 /* 0 length bytes */
+#define NDB_ARRAYTYPE_SHORT_VAR         1 /* 1 length bytes */
+#define NDB_ARRAYTYPE_MEDIUM_VAR        2 /* 2 length bytes */
+
+/*
+ * Attribute storage type.
+ */
+
+#define NDB_STORAGETYPE_MEMORY          0
+#define NDB_STORAGETYPE_DISK            1
  
 #endif

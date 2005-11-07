@@ -81,6 +81,8 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
+    m_no_disk_flag &= 
+      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -133,6 +135,8 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
+    m_no_disk_flag &= 
+      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -181,6 +185,8 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
+    m_no_disk_flag &= 
+      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -1047,6 +1053,8 @@ NdbOperation::branch_col(Uint32 type,
     }
   }
 
+  m_no_disk_flag &= (col->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+
   Uint32 tempData[2000];
   if (((UintPtr)val & 3) != 0) {
     memcpy(tempData, val, len);
@@ -1059,7 +1067,7 @@ NdbOperation::branch_col(Uint32 type,
   if (insertBranch(Label) == -1)
     DBUG_RETURN(-1);
   
-  if (insertATTRINFO(Interpreter::BranchCol_2(ColId, len)))
+  if (insertATTRINFO(Interpreter::BranchCol_2(col->m_attrId, len)))
     DBUG_RETURN(-1);
   
   Uint32 len2 = Interpreter::mod4(len);
@@ -1144,8 +1152,11 @@ NdbOperation::branch_col_null(Uint32 type, Uint32 ColId, Uint32 Label){
   
   if (insertBranch(Label) == -1)
     return -1;
+
+  Uint32 attrId= 
+    NdbColumnImpl::getImpl(* m_currentTable->getColumn(ColId)).m_attrId;
   
-  if (insertATTRINFO(Interpreter::BranchCol_2(ColId)))
+  if (insertATTRINFO(Interpreter::BranchCol_2(attrId)))
     return -1;
   
   theErrorLine++;

@@ -28,11 +28,9 @@ void Dblqh::initData()
   cattrinbufFileSize = ZATTRINBUF_FILE_SIZE;
   c_no_attrinbuf_recs= ZATTRINBUF_FILE_SIZE;
   cdatabufFileSize = ZDATABUF_FILE_SIZE;
-  cfragrecFileSize = 0;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
   chostFileSize = MAX_NDB_NODES;
   clcpFileSize = ZNO_CONCURRENT_LCP;
-  clcpLocrecFileSize = ZLCP_LOCREC_FILE_SIZE;
   clfoFileSize = ZLFO_FILE_SIZE;
   clogFileFileSize = 0;
   clogPartFileSize = ZLOG_PART_FILE_SIZE;
@@ -45,11 +43,9 @@ void Dblqh::initData()
   addFragRecord = 0;
   attrbuf = 0;
   databuf = 0;
-  fragrecord = 0;
   gcpRecord = 0;
   hostRecord = 0;
   lcpRecord = 0;
-  lcpLocRecord = 0;
   logPartRecord = 0;
   logFileRecord = 0;
   logFileOperationRecord = 0;
@@ -64,7 +60,7 @@ void Dblqh::initData()
   cLqhTimeOutCount = 0;
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
-  c_redo_log_complete_frags = RNIL;
+  m_backup_ptr = RNIL;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -81,10 +77,6 @@ void Dblqh::initRecords()
 				  sizeof(Databuf), 
 				  cdatabufFileSize);
 
-  fragrecord = (Fragrecord*)allocRecord("Fragrecord",
-					sizeof(Fragrecord), 
-					cfragrecFileSize);
-
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcprecFileSize);
@@ -100,10 +92,6 @@ void Dblqh::initRecords()
   for(Uint32 i = 0; i<clcpFileSize; i++){
     new (&lcpRecord[i])LcpRecord();
   }
-
-  lcpLocRecord = (LcpLocRecord*)allocRecord("LcpLocRecord",
-					    sizeof(LcpLocRecord), 
-					    clcpLocrecFileSize);
 
   logPartRecord = (LogPartRecord*)allocRecord("LogPartRecord",
 					      sizeof(LogPartRecord), 
@@ -172,6 +160,10 @@ void Dblqh::initRecords()
 
 Dblqh::Dblqh(const class Configuration & conf):
   SimulatedBlock(DBLQH, conf),
+  c_lcp_waiting_fragments(c_fragment_pool),
+  c_lcp_restoring_fragments(c_fragment_pool),
+  c_lcp_complete_fragments(c_fragment_pool),
+  c_redo_complete_fragments(c_fragment_pool),
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {
@@ -206,7 +198,6 @@ Dblqh::Dblqh(const class Configuration & conf):
 #ifdef VM_TRACE
   addRecSignal(GSN_TESTSIG, &Dblqh::execTESTSIG);
 #endif
-  addRecSignal(GSN_LQH_RESTART_OP, &Dblqh::execLQH_RESTART_OP);
   addRecSignal(GSN_CONTINUEB, &Dblqh::execCONTINUEB);
   addRecSignal(GSN_START_RECREQ, &Dblqh::execSTART_RECREQ);
   addRecSignal(GSN_START_RECCONF, &Dblqh::execSTART_RECCONF);
@@ -281,19 +272,8 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
   addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
   addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
-  addRecSignal(GSN_ACC_LCPCONF, &Dblqh::execACC_LCPCONF);
-  addRecSignal(GSN_ACC_LCPREF, &Dblqh::execACC_LCPREF);
-  addRecSignal(GSN_ACC_LCPSTARTED, &Dblqh::execACC_LCPSTARTED);
-  addRecSignal(GSN_ACC_CONTOPCONF, &Dblqh::execACC_CONTOPCONF);
-  addRecSignal(GSN_LCP_FRAGIDCONF, &Dblqh::execLCP_FRAGIDCONF);
-  addRecSignal(GSN_LCP_FRAGIDREF, &Dblqh::execLCP_FRAGIDREF);
-  addRecSignal(GSN_LCP_HOLDOPCONF, &Dblqh::execLCP_HOLDOPCONF);
-  addRecSignal(GSN_LCP_HOLDOPREF, &Dblqh::execLCP_HOLDOPREF);
-  addRecSignal(GSN_TUP_PREPLCPCONF, &Dblqh::execTUP_PREPLCPCONF);
-  addRecSignal(GSN_TUP_PREPLCPREF, &Dblqh::execTUP_PREPLCPREF);
-  addRecSignal(GSN_TUP_LCPCONF, &Dblqh::execTUP_LCPCONF);
-  addRecSignal(GSN_TUP_LCPREF, &Dblqh::execTUP_LCPREF);
-  addRecSignal(GSN_TUP_LCPSTARTED, &Dblqh::execTUP_LCPSTARTED);
+  addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
+  addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
   addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
@@ -301,12 +281,6 @@ Dblqh::Dblqh(const class Configuration & conf):
   
   addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
   addRecSignal(GSN_START_RECREF, &Dblqh::execSTART_RECREF);
-  addRecSignal(GSN_SR_FRAGIDCONF, &Dblqh::execSR_FRAGIDCONF);
-  addRecSignal(GSN_SR_FRAGIDREF, &Dblqh::execSR_FRAGIDREF);
-  addRecSignal(GSN_ACC_SRCONF, &Dblqh::execACC_SRCONF);
-  addRecSignal(GSN_ACC_SRREF, &Dblqh::execACC_SRREF);
-  addRecSignal(GSN_TUP_SRCONF, &Dblqh::execTUP_SRCONF);
-  addRecSignal(GSN_TUP_SRREF, &Dblqh::execTUP_SRREF);
   addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
   addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
   addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
@@ -336,6 +310,18 @@ Dblqh::Dblqh(const class Configuration & conf):
 
   addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
 
+  addRecSignal(GSN_BUILDINDXREF, &Dblqh::execBUILDINDXREF);
+  addRecSignal(GSN_BUILDINDXCONF, &Dblqh::execBUILDINDXCONF);
+
+  addRecSignal(GSN_DEFINE_BACKUP_REF, &Dblqh::execDEFINE_BACKUP_REF);
+  addRecSignal(GSN_DEFINE_BACKUP_CONF, &Dblqh::execDEFINE_BACKUP_CONF);
+
+  addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Dblqh::execBACKUP_FRAGMENT_REF);
+  addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Dblqh::execBACKUP_FRAGMENT_CONF);
+
+  addRecSignal(GSN_RESTORE_LCP_REF, &Dblqh::execRESTORE_LCP_REF);
+  addRecSignal(GSN_RESTORE_LCP_CONF, &Dblqh::execRESTORE_LCP_CONF);
+  
   initData();
 
 #ifdef VM_TRACE
@@ -347,7 +333,6 @@ Dblqh::Dblqh(const class Configuration & conf):
       &fragptr,
       &gcpPtr,
       &lcpPtr,
-      &lcpLocptr,
       &logPartPtr,
       &logFilePtr,
       &lfoPtr,
@@ -381,11 +366,6 @@ Dblqh::~Dblqh()
 		sizeof(Databuf), 
 		cdatabufFileSize);
 
-  deallocRecord((void**)&fragrecord,
-		"Fragrecord",
-		sizeof(Fragrecord), 
-		cfragrecFileSize);
-  
   deallocRecord((void**)&gcpRecord,
 		"GcpRecord",
 		sizeof(GcpRecord), 
@@ -401,11 +381,6 @@ Dblqh::~Dblqh()
 		sizeof(LcpRecord), 
 		clcpFileSize);
 
-  deallocRecord((void**)&lcpLocRecord,
-		"LcpLocRecord",
-		sizeof(LcpLocRecord), 
-		clcpLocrecFileSize);
-  
   deallocRecord((void**)&logPartRecord,
 		"LogPartRecord",
 		sizeof(LogPartRecord), 

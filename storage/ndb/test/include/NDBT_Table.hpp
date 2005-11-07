@@ -29,7 +29,8 @@ public:
 		 int _length = 1,
 		 bool _pk = false, 
 		 bool _nullable = false,
-		 CHARSET_INFO *cs= 0):
+		 CHARSET_INFO *cs= 0,
+		 NdbDictionary::Column::StorageType storage = NdbDictionary::Column::StorageTypeMemory):
     NdbDictionary::Column(_name)
   {
     assert(_name != 0);
@@ -42,6 +43,7 @@ public:
     {
       setCharset(cs);
     }
+    setStorageType(storage);
   }
 };
 

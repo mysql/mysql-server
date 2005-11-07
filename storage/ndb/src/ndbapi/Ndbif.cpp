@@ -684,6 +684,14 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_DROP_EVNT_CONF:
   case GSN_DROP_EVNT_REF:
   case GSN_LIST_TABLES_CONF:
+  case GSN_CREATE_FILE_REF:
+  case GSN_CREATE_FILE_CONF:
+  case GSN_CREATE_FILEGROUP_REF:
+  case GSN_CREATE_FILEGROUP_CONF:
+  case GSN_DROP_FILE_REF:
+  case GSN_DROP_FILE_CONF:
+  case GSN_DROP_FILEGROUP_REF:
+  case GSN_DROP_FILEGROUP_CONF:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
@@ -1035,6 +1043,7 @@ void
 Ndb::check_send_timeout()
 {
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
+  assert(current_time >= the_last_check_time);
   if (current_time - the_last_check_time > 1000) {
     the_last_check_time = current_time;
     Uint32 no_of_sent = theNoOfSentTransactions;

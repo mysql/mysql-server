@@ -49,7 +49,9 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "ScanTakeOver ");
   if(LqhKeyReq::getMarkerFlag(reqInfo))
     fprintf(output, "CommitAckMarker ");
-
+  if(LqhKeyReq::getNoDiskFlag(reqInfo))
+    fprintf(output, "NoDisk ");
+  
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   
   fprintf(output,

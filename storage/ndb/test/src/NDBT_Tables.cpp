@@ -142,7 +142,7 @@ NDBT_Attribute T7Attribs[] = {
   NDBT_Attribute("PK1", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("PK2", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("PK3", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PK4", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("PK4", NdbDictionary::Column::Varbinary, 123, true), 
   NDBT_Attribute("ATTR1", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR2", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR3", NdbDictionary::Column::Unsigned),
@@ -173,8 +173,8 @@ static
 const
 NDBT_Attribute T8Attribs[] = {
   NDBT_Attribute("PERSON_ID", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("NAME", NdbDictionary::Column::Char, 257),
-  NDBT_Attribute("ADRESS", NdbDictionary::Column::Char, 513),
+  NDBT_Attribute("NAME", NdbDictionary::Column::Varbinary, 255),
+  NDBT_Attribute("ADRESS", NdbDictionary::Column::Longvarbinary, 513),
   NDBT_Attribute("POSTADRESS", NdbDictionary::Column::Char, 1173),
   NDBT_Attribute("VALUE", NdbDictionary::Column::Unsigned),
   
@@ -383,6 +383,35 @@ static
 NDBT_Table I3("I3", sizeof(I3_Cols)/sizeof(NDBT_Attribute), I3_Cols
 	      ); // ,I3_Indexes);
 
+/* D1 */
+static
+const
+NDBT_Attribute D1Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Char, 233, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned),
+};
+static
+const
+NDBT_Table D1("D1", sizeof(D1Attribs)/sizeof(NDBT_Attribute), D1Attribs);
+
+static
+const
+NDBT_Attribute D2Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 127, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+};
+static
+const
+NDBT_Table D2("D2", sizeof(D2Attribs)/sizeof(NDBT_Attribute), D2Attribs);
+
+
 // Define array with pointer to all tables 
 static
 const
@@ -404,7 +433,8 @@ NDBT_Table *test_tables[]=
   &T14,
   &I1,
   &I2,
-  &I3
+  &I3,
+  &D1, &D2
 };
 
 struct NDBT_IndexList {
@@ -818,10 +848,113 @@ NDBT_Tables::createAllTables(Ndb* pNdb){
   return createAllTables(pNdb, false);
 }
 
+static
+int
+create_default_tablespace(Ndb* pNdb)
+{
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  int res;
+  NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
+  if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
+  {
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(8*1024*1024);
+    res = pDict->createLogfileGroup(lg);
+    if(res != 0){
+      g_err << "Failed to create logfilegroup:"
+	    << endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  {
+    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile01.dat");
+    if (strcmp(uf.getPath(), "undofile01.dat") != 0)
+    {
+      uf.setPath("undofile01.dat");
+      uf.setSize(32*1024*1024);
+      uf.setLogfileGroup("DEFAULT-LG");
+      
+      res = pDict->createUndofile(uf, true);
+      if(res != 0){
+	g_err << "Failed to create undofile:"
+	      << endl << pDict->getNdbError() << endl;
+	return NDBT_FAILED;
+      }
+    }
+  }
+  {
+    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile02.dat");
+    if (strcmp(uf.getPath(), "undofile02.dat") != 0)
+    {
+      uf.setPath("undofile02.dat");
+      uf.setSize(32*1024*1024);
+      uf.setLogfileGroup("DEFAULT-LG");
+      
+      res = pDict->createUndofile(uf, true);
+      if(res != 0){
+	g_err << "Failed to create undofile:"
+	      << endl << pDict->getNdbError() << endl;
+	return NDBT_FAILED;
+      }
+    }
+  }
+  NdbDictionary::Tablespace ts = pDict->getTablespace("DEFAULT-TS");
+  if (strcmp(ts.getName(), "DEFAULT-TS") != 0)
+  {
+    ts.setName("DEFAULT-TS");
+    ts.setExtentSize(1024*1024);
+    ts.setDefaultLogfileGroup("DEFAULT-LG");
+    
+    res = pDict->createTablespace(ts);
+    if(res != 0){
+      g_err << "Failed to create tablespace:"
+	    << endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  {
+    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile01.dat");
+    if (strcmp(df.getPath(), "datafile01.dat") != 0)
+    {
+      df.setPath("datafile01.dat");
+      df.setSize(64*1024*1024);
+      df.setTablespace("DEFAULT-TS");
+      
+      res = pDict->createDatafile(df, true);
+      if(res != 0){
+	g_err << "Failed to create datafile:"
+	      << endl << pDict->getNdbError() << endl;
+	return NDBT_FAILED;
+      }
+    }
+  }
+
+  {
+    NdbDictionary::Datafile df = pDict->getDatafile(0, "datafile02.dat");
+    if (strcmp(df.getPath(), "datafile02.dat") != 0)
+    {
+      df.setPath("datafile02.dat");
+      df.setSize(64*1024*1024);
+      df.setTablespace("DEFAULT-TS");
+      
+      res = pDict->createDatafile(df, true);
+      if(res != 0){
+	g_err << "Failed to create datafile:"
+	      << endl << pDict->getNdbError() << endl;
+	return NDBT_FAILED;
+      }
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 int
 NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp, 
-			 bool existsOk, NDBT_CreateTableHook f){
-  
+			 bool existsOk, NDBT_CreateTableHook f, void* arg)
+{
   const NdbDictionary::Table* tab = NDBT_Tables::getTable(_name);
   if (tab == NULL){
     ndbout << "Could not create table " << _name 
@@ -834,21 +967,31 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
   do {
     NdbDictionary::Table tmpTab(* tab);
     tmpTab.setStoredTable(_temp ? 0 : 1);
-    if(f != 0 && f(pNdb, tmpTab, 0))
+    if(f != 0 && f(pNdb, tmpTab, 0, arg))
     {
       ndbout << "Failed to create table" << endl;
       return NDBT_FAILED;
-    }      
+    }   
+loop:   
     r = pNdb->getDictionary()->createTable(tmpTab);
     if(r == -1){
+      if(pNdb->getDictionary()->getNdbError().code == 723)
+      {
+	if (create_default_tablespace(pNdb) == 0)
+	{
+	  goto loop;
+	}
+      }
       if(!existsOk){
-	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
+	ndbout << "Error0: " << pNdb->getDictionary()->getNdbError() << endl;
+	
 	break;
       }
       if(pNdb->getDictionary()->getNdbError().code != 721){
 	ndbout << "Error: " << pNdb->getDictionary()->getNdbError() << endl;
 	break;
       }
+      
       r = 0;
     }
     
@@ -887,7 +1030,7 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
 	}
       }
     }
-    if(f != 0 && f(pNdb, tmpTab, 1))
+    if(f != 0 && f(pNdb, tmpTab, 1, arg))
     {
       ndbout << "Failed to create table" << endl;
       return NDBT_FAILED;

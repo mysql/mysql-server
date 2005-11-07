@@ -81,7 +81,10 @@ class LcpFragOrd {
    * Sender(s)
    */
   friend class Dbdih;
-  
+  friend class Lgman;
+  friend class Pgman;
+  friend class Dbtup;
+
   /**
    * Sender(s) / Receiver(s)
    */
@@ -149,6 +152,68 @@ private:
   Uint32 nodeId;
   Uint32 blockNo;
   Uint32 lcpId;
+};
+
+struct LcpPrepareReq 
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 lcpNo;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 lcpId;
+  Uint32 backupPtr;
+  Uint32 backupId;
+
+  STATIC_CONST( SignalLength = 8 );
+};
+
+struct LcpPrepareRef
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 errorCode;
+  
+  STATIC_CONST( SignalLength = 5 );
+};
+
+struct LcpPrepareConf 
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  
+  STATIC_CONST( SignalLength = 4 );
+};
+
+struct EndLcpReq 
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 backupPtr;
+  Uint32 backupId;
+
+  STATIC_CONST( SignalLength = 4 );
+};
+
+struct EndLcpRef 
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 errorCode;
+  
+  STATIC_CONST( SignalLength = 3 );
+};
+
+struct EndLcpConf
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  
+  STATIC_CONST( SignalLength = 2 );
 };
 
 #endif

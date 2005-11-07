@@ -21,8 +21,8 @@
 #include <AttributeDescriptor.hpp>
 #include <SimpleProperties.hpp>
 #include <ndb_limits.h>
-#include <trigger_definitions.h>
 #include <NdbSqlUtil.hpp>
+#include <ndb_global.h>
 
 #ifndef my_decimal_h
 
@@ -90,9 +90,9 @@ public:
     CopyTable           = 3, // Between DICT's
     ReadTableFromDiskSR = 4, // Local in DICT
     GetTabInfoConf      = 5,
-    AlterTableFromAPI  = 6
+    AlterTableFromAPI   = 6
   };
-
+  
   enum KeyValues {
     TableName          = 1,  // String, Mandatory
     TableId            = 2,  //Mandatory between DICT's otherwise not allowed
@@ -120,6 +120,8 @@ public:
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
+    TablespaceId       = 131,
+    TablespaceVersion  = 132,
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -128,7 +130,7 @@ public:
     AttributeSize          = 1003, //Default DictTabInfo::a32Bit
     AttributeArraySize     = 1005, //Default 1
     AttributeKeyFlag       = 1006, //Default noKey
-    AttributeStorage       = 1007, //Default MainMemory
+    AttributeStorageType   = 1007, //Default NDB_STORAGETYPE_MEMORY
     AttributeNullableFlag  = 1008, //Default NotNullable
     AttributeDKey          = 1010, //Default NotDKey
     AttributeExtType       = 1013, //Default ExtUnsigned
@@ -136,7 +138,8 @@ public:
     AttributeExtScale      = 1015, //Default 0
     AttributeExtLength     = 1016, //Default 0
     AttributeAutoIncrement = 1017, //Default false
-    AttributeDefaultValue  = 1018, //Default value (printable string)
+    AttributeDefaultValue  = 1018, //Default value (printable string),
+    AttributeArrayType     = 1019, //Default NDB_ARRAYTYPE_FIXED
     AttributeEnd           = 1999  //
   };
   // ----------------------------------------------------------------------
@@ -169,11 +172,17 @@ public:
     UniqueOrderedIndex = 5,
     OrderedIndex = 6,
     // constant 10 hardcoded in Dbdict.cpp
-    HashIndexTrigger = 10 + TriggerType::SECONDARY_INDEX,
-    SubscriptionTrigger = 10 + TriggerType::SUBSCRIPTION,
-    ReadOnlyConstraint = 10 + TriggerType::READ_ONLY_CONSTRAINT,
-    IndexTrigger = 10 + TriggerType::ORDERED_INDEX
+    HashIndexTrigger = 11,
+    SubscriptionTrigger = 16,
+    ReadOnlyConstraint = 17,
+    IndexTrigger = 18,
+    
+    Tablespace = 20,        ///< Tablespace
+    LogfileGroup = 21,      ///< Logfile group
+    Datafile = 22,          ///< Datafile
+    Undofile = 23           ///< Undofile
   };
+  
   static inline bool
   isTable(int tableType) {
     return
@@ -212,7 +221,28 @@ public:
       tableType == UniqueOrderedIndex ||
       tableType == OrderedIndex;
   }
+  static inline bool
+  isTrigger(int tableType) {
+    return
+      tableType == HashIndexTrigger ||
+      tableType == SubscriptionTrigger ||
+      tableType == ReadOnlyConstraint ||
+      tableType == IndexTrigger;
+  }
+  static inline bool
+  isFilegroup(int tableType) {
+    return
+      tableType == Tablespace ||
+      tableType == LogfileGroup;
+  }
 
+  static inline bool
+  isFile(int tableType) {
+    return
+      tableType == Datafile||
+      tableType == Undofile;
+  }
+  
   // Object state for translating from/to API
   enum ObjectState {
     StateUndefined = 0,
@@ -255,7 +285,6 @@ public:
     Uint32 MaxLoadFactor;
     Uint32 KeyLength;
     Uint32 FragmentType;
-    Uint32 TableStorage;
     Uint32 TableType;
     Uint32 TableVersion;
     Uint32 IndexState;
@@ -263,6 +292,8 @@ public:
     Uint32 UpdateTriggerId;
     Uint32 DeleteTriggerId;
     Uint32 CustomTriggerId;
+    Uint32 TablespaceId;
+    Uint32 TablespaceVersion;
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
@@ -319,6 +350,7 @@ public:
     Uint32 AttributeType; // for osu 4.1->5.0.x
     Uint32 AttributeSize;
     Uint32 AttributeArraySize;
+    Uint32 AttributeArrayType;
     Uint32 AttributeKeyFlag;
     Uint32 AttributeNullableFlag;
     Uint32 AttributeDKey;
@@ -327,6 +359,7 @@ public:
     Uint32 AttributeExtScale;
     Uint32 AttributeExtLength;
     Uint32 AttributeAutoIncrement;
+    Uint32 AttributeStorageType;
     char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
     void init();
@@ -463,8 +496,9 @@ public:
       fprintf(out, "AttributeType = %d\n", AttributeType);
       fprintf(out, "AttributeSize = %d\n", AttributeSize);
       fprintf(out, "AttributeArraySize = %d\n", AttributeArraySize);
+      fprintf(out, "AttributeArrayType = %d\n", AttributeArrayType);
       fprintf(out, "AttributeKeyFlag = %d\n", AttributeKeyFlag);
-      fprintf(out, "AttributeStorage = %d\n", AttributeStorage);
+      fprintf(out, "AttributeStorageType = %d\n", AttributeStorageType);
       fprintf(out, "AttributeNullableFlag = %d\n", AttributeNullableFlag);
       fprintf(out, "AttributeDKey = %d\n", AttributeDKey);
       fprintf(out, "AttributeGroup = %d\n", AttributeGroup);
@@ -502,20 +536,134 @@ private:
   Uint32 tabInfoData[DataLength];
 
 public:
-  enum Depricated 
+  enum Depricated
   {
     AttributeDGroup    = 1009, //Default NotDGroup
     AttributeStoredInd = 1011, //Default NotStored
+    TableStorageVal    = 14, //Disk storage specified per attribute
     SecondTableId      = 17, //Mandatory between DICT's otherwise not allowed
     FragmentKeyTypeVal = 16 //Default PrimaryKey
   };
-  
-  enum Unimplemented 
+    
+  enum Unimplemented
   {
-    TableStorageVal    = 14, //Default StorageType::MainMemory
     ScanOptimised      = 15, //Default updateOptimised
     AttributeGroup     = 1012 //Default 0
   };
+};
+
+#define DFGIMAP(x, y, z) \
+  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+
+#define DFGIMAP2(x, y, z, u, v) \
+  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+
+#define DFGIMAPS(x, y, z, u, v) \
+  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+
+#define DFGIMAPB(x, y, z, u, v, l) \
+  { DictFilegroupInfo::y, offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+                     offsetof(x, l) }
+
+#define DFGIBREAK(x) \
+  { DictFilegroupInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
+
+struct DictFilegroupInfo {
+  enum KeyValues {
+    FilegroupName     = 1,
+    FilegroupType     = 2,
+    FilegroupId       = 3,
+    FilegroupVersion  = 4,
+
+    /**
+     * File parameters
+     */
+    FileName          = 100,
+    FileType          = 101,
+    FileId            = 102,
+    FileNo            = 103, // Per Filegroup
+    FileFGroupId      = 104,
+    FileFGroupVersion = 105,
+    FileSizeHi        = 106,
+    FileSizeLo        = 107,
+    FileFreeExtents   = 108,
+    FileEnd           = 199, //    
+
+    /**
+     * Tablespace parameters
+     */
+    TS_ExtentSize          = 1000, // specified in bytes
+    TS_LogfileGroupId      = 1001, 
+    TS_LogfileGroupVersion = 1002, 
+    TS_GrowLimit           = 1003, // In bytes
+    TS_GrowSizeHi          = 1004,
+    TS_GrowSizeLo          = 1005,
+    TS_GrowPattern         = 1006,
+    TS_GrowMaxSize         = 1007,
+
+    /**
+     * Logfile group parameters
+     */
+    LF_UndoBufferSize  = 2005, // In bytes
+    LF_UndoGrowLimit   = 2000, // In bytes
+    LF_UndoGrowSizeHi  = 2001,
+    LF_UndoGrowSizeLo  = 2002,
+    LF_UndoGrowPattern = 2003,
+    LF_UndoGrowMaxSize = 2004
+  };
+
+  // FragmentType constants
+  enum FileTypeValues {
+    Datafile = 0,
+    Undofile = 1
+    //, Redofile
+  };
+ 
+  struct GrowSpec {
+    Uint32 GrowLimit;
+    Uint32 GrowSizeHi;
+    Uint32 GrowSizeLo;
+    char   GrowPattern[PATH_MAX];
+    Uint32 GrowMaxSize;
+  };
+  
+  // Table data interpretation
+  struct Filegroup {
+    char   FilegroupName[MAX_TAB_NAME_SIZE];
+    Uint32 FilegroupType; // ObjType
+    Uint32 FilegroupId;
+    Uint32 FilegroupVersion;
+
+    union {
+      Uint32 TS_ExtentSize;
+      Uint32 LF_UndoBufferSize;
+    };
+    Uint32 TS_LogfileGroupId;
+    Uint32 TS_LogfileGroupVersion;
+    union {
+      GrowSpec TS_DataGrow;
+      GrowSpec LF_UndoGrow;
+    };
+    //GrowSpec LF_RedoGrow;
+    void init();
+  };
+  static const Uint32 MappingSize;
+  static const SimpleProperties::SP2StructMapping Mapping[];
+
+  struct File {
+    char FileName[PATH_MAX];
+    Uint32 FileType;
+    Uint32 FileNo;
+    Uint32 FileId;
+    Uint32 FilegroupId;
+    Uint32 FilegroupVersion;
+    Uint32 FileSizeHi;
+    Uint32 FileSizeLo;
+    Uint32 FileFreeExtents;
+    void init();
+  };
+  static const Uint32 FileMappingSize;
+  static const SimpleProperties::SP2StructMapping FileMapping[];
 };
 
 #endif

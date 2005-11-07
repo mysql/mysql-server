@@ -54,43 +54,41 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
+#include <SimulatedBlock.hpp>
 
 class Filename
 {
 public:
    // filenumber is 64 bits but is split in to 4 32bits words 
-   Filename();
+  Filename();
   ~Filename();
-  void set(BlockReference blockReference, 
-	   const Uint32 filenumber[4], bool dir = false);
-  const char* baseDirectory() const;
-  const char* directory(int level);
-  int levels() const;
-  const char* c_str() const;
 
-  void init(Uint32 nodeid, const char * fileSystemPath,
-	    const char * backupDirPath);
-
+  struct NameSpec {
+    NameSpec(BaseString& f, BaseString&b) :
+      fs_path(f), backup_path(b) {}
+    BaseString& fs_path;
+    BaseString& backup_path;
+  };
+  
+  void set(NameSpec& spec, 
+	   BlockReference, const Uint32 fileno[4], bool = false);
+  void set(NameSpec& spec, 
+	   SegmentedSectionPtr ptr, class SectionSegmentPool&);
+  
+  const char* c_str() const;     // Complete name including dirname
+  const char* get_base_name() const; // Exclude fs (or backup) path
 private:
-  int theLevelDepth;
   char theName[PATH_MAX];
-  char theFileSystemDirectory[PATH_MAX];
-  char theBackupDirectory[PATH_MAX];
-  char *theBaseDirectory;
-  char theDirectory[PATH_MAX];
+  char * m_base_name;
 };
 
 // inline methods
-inline const char* Filename::c_str() const{
+inline const char* Filename::c_str() const {
   return theName;
 }
 
-inline const char* Filename::baseDirectory() const{
-  return theBaseDirectory;
-}
-
-inline int Filename::levels() const{
-  return theLevelDepth;
+inline const char* Filename::get_base_name() const {
+  return m_base_name;
 }
 
 #endif

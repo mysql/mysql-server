@@ -123,12 +123,15 @@ public:
     sync,
     end,
     append,
-    rmrf
+    rmrf,
+    readPartial
   };
   Action action;
   union {
     struct {
       Uint32 flags;
+      Uint32 page_size;
+      Uint64 file_size;
     } open;
     struct {
       int numberOfPages;
@@ -176,14 +179,14 @@ class AsyncFile
 {
   friend class Ndbfs;
 public:
-  AsyncFile();
+  AsyncFile(SimulatedBlock& fs);
   ~AsyncFile();
   
   void reportTo( MemoryChannel<Request> *reportTo );
   
   void execute( Request* request );
   
-  void doStart(Uint32 nodeId, const char * fspath, const char * backup_path);
+  void doStart();
   // its a thread so its always running
   void run();   
 
@@ -206,7 +209,7 @@ private:
   void rmrfReq(Request *request, char * path, bool removePath);
   void endReq();
   
-  int readBuffer(char * buf, size_t size, off_t offset);
+  int readBuffer(Request*, char * buf, size_t size, off_t offset);
   int writeBuffer(const char * buf, size_t size, off_t offset,
 		  size_t chunk_size = WRITECHUNK);
   
@@ -232,6 +235,9 @@ private:
   bool m_openedWithSync;
   Uint32 m_syncCount;
   Uint32 m_syncFrequency;
+public:
+  SimulatedBlock& m_fs;
+  Ptr<GlobalPage> m_page_ptr;
 };
 
 #endif

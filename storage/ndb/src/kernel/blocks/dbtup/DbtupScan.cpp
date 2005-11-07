@@ -37,27 +37,61 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     TablerecPtr tablePtr;
     tablePtr.i = req->tableId;
     ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-    FragrecordPtr fragPtr[2];
-    Uint32 fragId = req->fragmentNo << 1;
-    fragPtr[0].i = fragPtr[1].i = RNIL;
-    getFragmentrec(fragPtr[0], fragId | 0, tablePtr.p);
-    getFragmentrec(fragPtr[1], fragId | 1, tablePtr.p);
-    ndbrequire(fragPtr[0].i != RNIL && fragPtr[1].i != RNIL);
-    Fragrecord& frag = *fragPtr[0].p;
+    FragrecordPtr fragPtr;
+    Uint32 fragId = req->fragmentNo;
+    fragPtr.i = RNIL;
+    getFragmentrec(fragPtr, fragId, tablePtr.p);
+    ndbrequire(fragPtr.i != RNIL);
+    Fragrecord& frag = *fragPtr.p;
     // seize from pool and link to per-fragment list
-    if (! frag.m_scanList.seize(scanPtr)) {
-      jam();
-      break;
+
+    Uint32 bits= 0;
+    if(frag.m_lcp_scan_op != RNIL)
+    {
+      bits |= ScanOp::SCAN_LCP;
+      ndbrequire(frag.m_lcp_scan_op == c_lcp_scan_op);
+      c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+    }
+    else 
+    {
+      LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
+      if (! list.seize(scanPtr)) 
+      {
+	jam();
+	break;
+      }
     }
     new (scanPtr.p) ScanOp();
     ScanOp& scan = *scanPtr.p;
     scan.m_state = ScanOp::First;
+    // TODO scan disk only if any scanned attribute on disk
+
+    if(! (bits & ScanOp::SCAN_LCP))
+    {
+      /**
+       * Remove this until disk scan has been implemented
+       */
+      if(tablePtr.p->m_attributes[DD].m_no_of_fixsize > 0 ||
+	 tablePtr.p->m_attributes[DD].m_no_of_varsize > 0)
+      {
+	bits |= ScanOp::SCAN_DD;
+	
+	if (tablePtr.p->m_attributes[DD].m_no_of_varsize > 0)
+	  bits |= ScanOp::SCAN_DD_VS;
+      }
+    }
+    
+    if(tablePtr.p->m_attributes[MM].m_no_of_varsize)
+    {
+      bits |= ScanOp::SCAN_VS;
+    }
+
+    scan.m_bits = bits;
     scan.m_userPtr = req->senderData;
     scan.m_userRef = req->senderRef;
     scan.m_tableId = tablePtr.i;
     scan.m_fragId = frag.fragmentId;
-    scan.m_fragPtrI[0] = fragPtr[0].i;
-    scan.m_fragPtrI[1] = fragPtr[1].i;
+    scan.m_fragPtrI = fragPtr.i;
     scan.m_transId1 = req->transId1;
     scan.m_transId2 = req->transId2;
     // conf
@@ -67,9 +101,11 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     conf->flag = AccScanConf::ZNOT_EMPTY_FRAGMENT;
     sendSignal(req->senderRef, GSN_ACC_SCANCONF, signal,
         AccScanConf::SignalLength, JBB);
+
     return;
   } while (0);
-  if (scanPtr.i != RNIL) {
+  if (scanPtr.i != RNIL)
+  {
     jam();
     releaseScanOp(scanPtr);
   }
@@ -87,10 +123,6 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   ScanOpPtr scanPtr;
   c_scanOpPool.getPtr(scanPtr, req->accPtr);
   ScanOp& scan = *scanPtr.p;
-  FragrecordPtr fragPtr;
-  fragPtr.i = scan.m_fragPtrI[0];
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  Fragrecord& frag = *fragPtr.p;
   switch (req->scanFlag) {
   case NextScanReq::ZSCAN_NEXT:
     jam();
@@ -138,7 +170,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   c_scanOpPool.getPtr(scanPtr, req->accPtr);
   ScanOp& scan = *scanPtr.p;
   FragrecordPtr fragPtr;
-  fragPtr.i = scan.m_fragPtrI[0];
+  fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
   if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -151,11 +183,11 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   }
   if (scan.m_state == ScanOp::First) {
     jam();
-    scanFirst(signal, scanPtr);
+    scanFirst(signal, fragPtr.p, scanPtr);
   }
   if (scan.m_state == ScanOp::Next) {
     jam();
-    scanNext(signal, scanPtr);
+    scanNext(signal, fragPtr.p, scanPtr);
   }
   if (scan.m_state == ScanOp::Locked) {
     jam();
@@ -163,9 +195,8 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = (Uint32)-1; // no lock returned
-    conf->fragId = frag.fragmentId | pos.m_fragBit;
-    conf->localKey[0] = (pos.m_pageId << MAX_TUPLES_BITS) |
-                        (pos.m_tupleNo << 1);
+    conf->fragId = frag.fragmentId;
+    conf->localKey[0] = pos.m_key.ref();
     conf->localKey[1] = 0;
     conf->localKeyLength = 1;
     unsigned signalLength = 6;
@@ -192,101 +223,118 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
 }
 
 void
-Dbtup::scanFirst(Signal* signal, ScanOpPtr scanPtr)
+Dbtup::scanFirst(Signal*, Fragrecord* fragPtrP, ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   // set to first fragment, first page, first tuple
+  const Uint32 first_page_idx = scan.m_bits & ScanOp::SCAN_VS ? 1 : 0;
   PagePos& pos = scan.m_scanPos;
-  pos.m_fragId = scan.m_fragId;
-  pos.m_fragBit = 0;
-  pos.m_pageId = 0;
-  pos.m_tupleNo = 0;
+  pos.m_key.m_page_no = 0;
+  pos.m_key.m_page_idx = first_page_idx;
   // just before
   pos.m_match = false;
   // let scanNext() do the work
   scan.m_state = ScanOp::Next;
+
+  if (scan.m_bits & ScanOp::SCAN_DD)
+  {
+    pos.m_extent_info_ptr_i = 
+      fragPtrP->m_disk_alloc_info.m_extent_list.firstItem;
+  }
 }
 
-// TODO optimize this + index build
 void
-Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
+Dbtup::scanNext(Signal* signal, Fragrecord* fragPtrP, ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   PagePos& pos = scan.m_scanPos;
+  Uint32 bits = scan.m_bits;
+  Local_key& key = pos.m_key;
   TablerecPtr tablePtr;
   tablePtr.i = scan.m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Fragrecord& frag = *fragPtrP;
+  const Uint32 first_page_idx = bits & ScanOp::SCAN_VS ? 1 : 0;
   while (true) {
     // TODO time-slice here after X loops
     jam();
-    // get fragment
-    if (pos.m_fragBit == 2) {
+    // get page
+    PagePtr pagePtr;
+    if (key.m_page_no >= frag.noOfPages) {
       jam();
       scan.m_state = ScanOp::Last;
       break;
     }
-    ndbrequire(pos.m_fragBit <= 1);
-    FragrecordPtr fragPtr;
-    fragPtr.i = scan.m_fragPtrI[pos.m_fragBit];
-    ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-    Fragrecord& frag = *fragPtr.p;
-    // get page
-    PagePtr pagePtr;
-    if (pos.m_pageId >= frag.noOfPages) {
-      jam();
-      pos.m_fragBit++;
-      pos.m_pageId = 0;
-      pos.m_tupleNo = 0;
-      pos.m_match = false;
-      continue;
-    }
-    Uint32 realPageId = getRealpid(fragPtr.p, pos.m_pageId);
+    Uint32 realPageId = getRealpid(fragPtrP, key.m_page_no);
     pagePtr.i = realPageId;
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    const Uint32 pageState = pagePtr.p->pageWord[ZPAGE_STATE_POS];
-    if (pageState != ZTH_MM_FREE &&
-        pageState != ZTH_MM_FULL) {
+    ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+    Uint32 pageState = pagePtr.p->page_state;
+    // skip empty page
+    if (pageState == ZEMPTY_MM) {
       jam();
-      pos.m_pageId++;
-      pos.m_tupleNo = 0;
+      key.m_page_no++;
+      key.m_page_idx = first_page_idx;
       pos.m_match = false;
       continue;
     }
     // get next tuple
-    if (pos.m_match)
-      pos.m_tupleNo++;
-    pos.m_match = true;
-    const Uint32 tupheadsize = tablePtr.p->tupheadsize;
-    Uint32 pageOffset = ZPAGE_HEADER_SIZE + pos.m_tupleNo * tupheadsize;
-    if (pageOffset + tupheadsize > ZWORDS_ON_PAGE) {
-      jam();
-      pos.m_pageId++;
-      pos.m_tupleNo = 0;
-      pos.m_match = false;
-      continue;
-    }
-    // skip over free tuple
-    bool isFree = false;
-    if (pageState == ZTH_MM_FREE) {
-      jam();
-      if ((pagePtr.p->pageWord[pageOffset] >> 16) == tupheadsize) {
-        Uint32 nextTuple = pagePtr.p->pageWord[ZFREELIST_HEADER_POS] >> 16;
-        while (nextTuple != 0) {
-          jam();
-          if (nextTuple == pageOffset) {
-            jam();
-            isFree = true;
-            break;
-          }
-          nextTuple = pagePtr.p->pageWord[nextTuple] & 0xffff;
-        }
+    const Tuple_header* th = 0;
+    if (! (bits & ScanOp::SCAN_VS)) {
+      Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size;
+      if (pos.m_match)
+        key.m_page_idx += tupheadsize;
+      pos.m_match = true;
+      if (key.m_page_idx + tupheadsize > Fix_page::DATA_WORDS) {
+        jam();
+        key.m_page_no++;
+        key.m_page_idx = first_page_idx;
+        pos.m_match = false;
+        continue;
       }
+      th = (Tuple_header*)&pagePtr.p->m_data[key.m_page_idx];
+      // skip over free tuple
+      if (th->m_header_bits & Tuple_header::FREE) {
+          jam();
+          continue;
+      }
+    } else {
+      Var_page* page_ptr = (Var_page*)pagePtr.p;
+      if (pos.m_match)
+        key.m_page_idx += 1;
+      pos.m_match = true;
+      if (key.m_page_idx >= page_ptr->high_index) {
+        jam();
+        key.m_page_no++;
+        key.m_page_idx = first_page_idx;
+        pos.m_match = false;
+        continue;
+      }
+
+      Uint32 len= page_ptr->get_entry_len(key.m_page_idx);
+      if (len == 0)
+      {
+        // skip empty slot or 
+        jam();
+        continue;
+      }
+      if(len & Var_page::CHAIN)
+      {
+	// skip varpart chain
+	jam();
+	continue;
+      }
+      th = (Tuple_header*)page_ptr->get_ptr(key.m_page_idx);
     }
-    if (isFree) {
-      jam();
+
+    if(bits & ScanOp::SCAN_LCP && 
+       th->m_header_bits & Tuple_header::LCP_SKIP)
+    {
+      /**
+       * Clear it so that it will show up in next LCP
+       */
+      ((Tuple_header*)th)->m_header_bits &= ~(Uint32)Tuple_header::LCP_SKIP;
       continue;
     }
-    // TODO check for operation and return latest in own tx
     scan.m_state = ScanOp::Locked;
     break;
   }
@@ -302,6 +350,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
   unsigned signalLength = 3;
   sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
       signal, signalLength, JBB);
+
   releaseScanOp(scanPtr);
 }
 
@@ -309,7 +358,46 @@ void
 Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
 {
   FragrecordPtr fragPtr;
-  fragPtr.i = scanPtr.p->m_fragPtrI[0];
+  fragPtr.i = scanPtr.p->m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  fragPtr.p->m_scanList.release(scanPtr);
+
+  if(! (scanPtr.p->m_bits & ScanOp::SCAN_LCP))
+  {
+    LocalDLList<ScanOp> list(c_scanOpPool, fragPtr.p->m_scanList);    
+    list.release(scanPtr);
+  }
+  else
+  {
+    ndbrequire(fragPtr.p->m_lcp_scan_op == scanPtr.i);
+    fragPtr.p->m_lcp_scan_op = RNIL;
+  }
+}
+
+void
+Dbtup::execLCP_FRAG_ORD(Signal* signal)
+{
+  LcpFragOrd* req= (LcpFragOrd*)signal->getDataPtr();
+  
+  TablerecPtr tablePtr;
+  tablePtr.i = req->tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  if(tablePtr.p->m_no_of_disk_attributes)
+  {
+    jam();
+    FragrecordPtr fragPtr;
+    Uint32 fragId = req->fragmentId;
+    fragPtr.i = RNIL;
+    getFragmentrec(fragPtr, fragId, tablePtr.p);
+    ndbrequire(fragPtr.i != RNIL);
+    Fragrecord& frag = *fragPtr.p;
+    
+    ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
+    frag.m_lcp_scan_op = c_lcp_scan_op;
+    ScanOpPtr scanPtr;
+    c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+    
+    scanFirst(signal, fragPtr.p, scanPtr);
+    scanPtr.p->m_state = ScanOp::First;
+  }
 }

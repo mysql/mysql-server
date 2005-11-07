@@ -1694,7 +1694,7 @@ Suma::execDI_FCOUNTCONF(Signal* signal)
 
   TablePtr tabPtr;
   tabPtr.i= signal->theData[3];
-  ndbrequire(tabPtr.p= c_tablePool.getPtr(tabPtr.i));
+  ndbrequire((tabPtr.p= c_tablePool.getPtr(tabPtr.i)) != 0);
   ndbrequire(tabPtr.p->m_tableId == tableId);
 
   LocalDataBuffer<15> fragBuf(c_dataBufferPool, tabPtr.p->m_fragments);
@@ -1727,7 +1727,7 @@ Suma::execDIGETPRIMCONF(Signal* signal){
   
   TablePtr tabPtr;
   tabPtr.i= signal->theData[1];
-  ndbrequire(tabPtr.p= c_tablePool.getPtr(tabPtr.i));
+  ndbrequire((tabPtr.p= c_tablePool.getPtr(tabPtr.i)) != 0);
   ndbrequire(tabPtr.p->m_tableId == tableId);
 
   {
@@ -2519,7 +2519,7 @@ Suma::Table::setupTrigger(Signal* signal,
       req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
       req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
       req->setMonitorReplicas(true);
-      req->setMonitorAllAttributes(false);
+      req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
       req->setReceiverRef(SUMA_REF);
       req->setTriggerId(triggerId);
       req->setTriggerEvent((TriggerEvent::Value)j);
@@ -3067,7 +3067,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     /**
      * Signal to subscriber(s)
      */
-    ndbrequire(tabPtr.p = c_tablePool.getPtr(tabPtr.i));
+    ndbrequire((tabPtr.p = c_tablePool.getPtr(tabPtr.i)) != 0);
     
     SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
     data->gci            = gci;
@@ -3149,7 +3149,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  Page_pos pos= bucket->m_buffer_head;
 	  ndbrequire(pos.m_max_gci < gci);
 
-	  Buffer_page* page= (Buffer_page*)(m_tup->page+pos.m_page_id);
+	  Buffer_page* page= (Buffer_page*)(m_tup->cpage+pos.m_page_id);
 	  ndbout_c("takeover %d", pos.m_page_id);
 	  page->m_max_gci = pos.m_max_gci;
 	  page->m_words_used = pos.m_page_pos;
@@ -4091,7 +4091,7 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
   Bucket* bucket= c_buckets+buck;
   Page_pos pos= bucket->m_buffer_head;
 
-  Buffer_page* page= (Buffer_page*)(m_tup->page+pos.m_page_id);
+  Buffer_page* page= (Buffer_page*)(m_tup->cpage+pos.m_page_id);
   Uint32* ptr= page->m_data + pos.m_page_pos;
 
   const bool same_gci = (gci == pos.m_last_gci) && (!ERROR_INSERTED(13022));
@@ -4150,7 +4150,7 @@ loop:
     pos.m_page_pos = sz;
     pos.m_last_gci = gci;
     
-    page= (Buffer_page*)(m_tup->page+pos.m_page_id);
+    page= (Buffer_page*)(m_tup->cpage+pos.m_page_id);
     page->m_next_page= RNIL;
     ptr= page->m_data;
     goto loop; //
@@ -4181,7 +4181,7 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
   
   if(tail != RNIL)
   {
-    Buffer_page* page= (Buffer_page*)(m_tup->page+tail);
+    Buffer_page* page= (Buffer_page*)(m_tup->cpage+tail);
     bucket->m_buffer_tail = page->m_next_page;
     free_page(tail, page);
     signal->theData[0] = SumaContinueB::OUT_OF_BUFFER_RELEASE;
@@ -4225,8 +4225,8 @@ loop:
   Uint32 ref= m_first_free_page;
   if(likely(ref != RNIL))
   {
-    m_first_free_page = ((Buffer_page*)m_tup->page+ref)->m_next_page;
-    Uint32 chunk = ((Buffer_page*)m_tup->page+ref)->m_page_chunk_ptr_i;
+    m_first_free_page = ((Buffer_page*)m_tup->cpage+ref)->m_next_page;
+    Uint32 chunk = ((Buffer_page*)m_tup->cpage+ref)->m_page_chunk_ptr_i;
     c_page_chunk_pool.getPtr(ptr, chunk);
     ndbassert(ptr.p->m_free);
     ptr.p->m_free--;
@@ -4249,7 +4249,7 @@ loop:
   Buffer_page* page;
   for(Uint32 i = 0; i<count; i++)
   {
-    page = (Buffer_page*)(m_tup->page+ref);
+    page = (Buffer_page*)(m_tup->cpage+ref);
     page->m_page_state= SUMA_SEQUENCE;
     page->m_page_chunk_ptr_i = ptr.i;
     page->m_next_page = ++ref;
@@ -4313,7 +4313,7 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint32 gci)
   else
   {
     jam();
-    Buffer_page* page= (Buffer_page*)(m_tup->page+tail);
+    Buffer_page* page= (Buffer_page*)(m_tup->cpage+tail);
     Uint32 max_gci = page->m_max_gci;
     Uint32 next_page = page->m_next_page;
 
@@ -4406,7 +4406,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
   Bucket* bucket= c_buckets+buck;
   Uint32 tail= bucket->m_buffer_tail;
 
-  Buffer_page* page= (Buffer_page*)(m_tup->page+tail);
+  Buffer_page* page= (Buffer_page*)(m_tup->cpage+tail);
   Uint32 max_gci = page->m_max_gci;
   Uint32 next_page = page->m_next_page;
   Uint32 *ptr = page->m_data + pos;
@@ -4502,7 +4502,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
        * Signal to subscriber(s)
        */
       Ptr<Table> tabPtr;
-      ndbrequire(tabPtr.p = c_tablePool.getPtr(table));
+      ndbrequire((tabPtr.p = c_tablePool.getPtr(table)) != 0);
       
       SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
       data->gci            = last_gci;

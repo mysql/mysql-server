@@ -161,6 +161,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   theMagicNumber        = 0xABCDEF01;
   theBlobList = NULL;
   m_abortOption = -1;
+  m_no_disk_flag = 1;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
@@ -283,36 +284,28 @@ NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
 }
 
 int
-NdbOperation::equal(const char* anAttrName, 
-		    const char* aValuePassed, 
-		    Uint32 aVariableKeyLen)
+NdbOperation::equal(const char* anAttrName, const char* aValuePassed)
 {
-  return equal_impl(m_accessTable->getColumn(anAttrName), aValuePassed, aVariableKeyLen);
+  return equal_impl(m_accessTable->getColumn(anAttrName), aValuePassed);
 }
 
 int
-NdbOperation::equal(Uint32 anAttrId, 
-		    const char* aValuePassed, 
-		    Uint32 aVariableKeyLen)
+NdbOperation::equal(Uint32 anAttrId, const char* aValuePassed)
 {
-  return equal_impl(m_accessTable->getColumn(anAttrId), aValuePassed, aVariableKeyLen);
+  return equal_impl(m_accessTable->getColumn(anAttrId), aValuePassed);
 }
 
 int
-NdbOperation::setValue( const char* anAttrName, 
-			const char* aValuePassed, 
-			Uint32 len)
+NdbOperation::setValue(const char* anAttrName, const char* aValuePassed)
 {
-  return setValue(m_currentTable->getColumn(anAttrName), aValuePassed, len);
+  return setValue(m_currentTable->getColumn(anAttrName), aValuePassed);
 }
 
 
 int
-NdbOperation::setValue( Uint32 anAttrId, 
-			const char* aValuePassed, 
-			Uint32 len)
+NdbOperation::setValue(Uint32 anAttrId, const char* aValuePassed)
 {
-  return setValue(m_currentTable->getColumn(anAttrId), aValuePassed, len);
+  return setValue(m_currentTable->getColumn(anAttrId), aValuePassed);
 }
 
 NdbBlob*

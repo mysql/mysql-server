@@ -31,22 +31,19 @@
 // current implementation.
 // 
 // Public methods
-// bool allocTh(Fragrecord* const regFragPtr, # In
-//              Tablerec* const regTabPtr,    # In
-//              Uint32 pageType,              # In
-//              Signal* signal,               # In
-//              Uint32& pageOffset,           # Out
-//              PagePtr& pagePtr)             # In/Out
+// bool
+// alloc_fix_rec(Fragrecord* const regFragPtr, # In
+//               Tablerec* const regTabPtr,    # In
+//               Uint32 pageType,              # In
+//               Signal* signal,               # In
+//               Uint32& pageOffset,           # Out
+//               PagePtr& pagePtr)             # In/Out
 // This method allocates a fixed size and the pagePtr is a reference
 // to the page and pageOffset is the offset in the page of the tuple.
 //
 // freeTh()
 // This method is used to free a tuple header in normal transaction
 // handling.
-//
-// freeThSr()
-// This method is used to free a tuple as part of executing the undo
-// log records.
 //
 // getThAtPageSr()
 // This method is used to allocate a tuple on a set page as part of
@@ -60,81 +57,24 @@
 // convertThPage()
 // Convert an empty page into a page of free tuples in a linked list.
 //
-// getEmptyPageThCopy()
-// A page recently taken from set of empty pages on fragment is made
-// part of the copy pages.
-//
 // getEmptyPageTh()
 // A page recently taken from the set of empty pages on the fragment is
 // is made part of the set of free pages with fixed size tuples in the
 // fragment.
 // 
-bool Dbtup::allocTh(Fragrecord* const regFragPtr,
-                    Tablerec* const regTabPtr,
-                    Uint32 pageType,
-                    Signal* signal,
-                    Uint32& pageOffset,
-                    PagePtr& pagePtr) 
+Uint32*
+Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
+		     Tablerec* const regTabPtr,
+		     Local_key* key,
+		     Uint32 * out_frag_page_id) 
 {
-  if (pageType == SAME_PAGE) {
-    ljam();
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    if (pagePtr.p->pageWord[ZPAGE_STATE_POS] == ZTH_MM_FREE) {
-      ljam();
-      getThAtPage(regFragPtr, pagePtr.p, signal, pageOffset);
-      return true;
-    }//if
-    pageType = NORMAL_PAGE;
-  }//if
-  if (pageType == COPY_PAGE) {
-/* ---------------------------------------------------------------- */
-// Allocate a tuple header for the copy of the tuple header
-/* ---------------------------------------------------------------- */
-    if (regFragPtr->thFreeCopyFirst == RNIL) {
-/* ---------------------------------------------------------------- */
-// No page in list with free tuple header exists
-/* ---------------------------------------------------------------- */
-      if (regFragPtr->noCopyPagesAlloc < ZMAX_NO_COPY_PAGES) {
-        ljam();
-/* ---------------------------------------------------------------- */
-// We have not yet allocated the maximum number of copy pages for
-// this fragment.
-/* ---------------------------------------------------------------- */
-        pagePtr.i = getEmptyPage(regFragPtr);
-        if (pagePtr.i != RNIL) {
-          ljam();
-/* ---------------------------------------------------------------- */
-// We have empty pages already allocated to this fragment. Allocate
-// one of those as copy page.
-/* ---------------------------------------------------------------- */
-          ptrCheckGuard(pagePtr, cnoOfPage, page);
-          getEmptyPageThCopy(regFragPtr, signal, pagePtr.p);
-/* ---------------------------------------------------------------- */
-// Convert page into a tuple header page.
-/* ---------------------------------------------------------------- */
-          convertThPage(regTabPtr->tupheadsize, pagePtr.p);
-          getThAtPage(regFragPtr, pagePtr.p, signal, pageOffset);
-          return true;
-        }//if
-      }//if
-    } else {
-      ljam();
-/* ---------------------------------------------------------------- */
-/*       NORMAL PATH WHEN COPY PAGE REQUESTED, GET PAGE POINTER     */
-/*       AND THEN GOTO COMMON HANDLING OF GET TUPLE HEADER AT PAGE. */
-/* ---------------------------------------------------------------- */
-      pagePtr.i = getRealpid(regFragPtr, regFragPtr->thFreeCopyFirst);
-      ptrCheckGuard(pagePtr, cnoOfPage, page);
-      getThAtPage(regFragPtr, pagePtr.p, signal, pageOffset);
-      return true;
-    }//if
-  }//if
 /* ---------------------------------------------------------------- */
 /*       EITHER NORMAL PAGE REQUESTED OR ALLOCATION FROM COPY PAGE  */
 /*       FAILED. TRY ALLOCATING FROM NORMAL PAGE.                   */
 /* ---------------------------------------------------------------- */
-  Uint32 fragPageId = regFragPtr->thFreeFirst;
-  if (fragPageId == RNIL) {
+  PagePtr pagePtr;
+  pagePtr.i= regFragPtr->thFreeFirst;
+  if (pagePtr.i == RNIL) {
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
@@ -145,106 +85,76 @@ bool Dbtup::allocTh(Fragrecord* const regFragPtr,
 // We found empty pages on the fragment. Allocate an empty page and
 // convert it into a tuple header page and put it in thFreeFirst-list.
 /* ---------------------------------------------------------------- */
-      ptrCheckGuard(pagePtr, cnoOfPage, page);
-      getEmptyPageTh(regFragPtr, signal, pagePtr.p);
-      convertThPage(regTabPtr->tupheadsize, pagePtr.p);
-      getThAtPage(regFragPtr, pagePtr.p, signal, pageOffset);
-      return true;
+      ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+      
+      convertThPage(regTabPtr->m_offsets[MM].m_fix_header_size, 
+		    (Fix_page*)pagePtr.p);
+      
+      pagePtr.p->next_page = regFragPtr->thFreeFirst;
+      pagePtr.p->page_state = ZTH_MM_FREE;
+      regFragPtr->thFreeFirst = pagePtr.i;
     } else {
       ljam();
 /* ---------------------------------------------------------------- */
 /*       THERE ARE NO EMPTY PAGES. MEMORY CAN NOT BE ALLOCATED.     */
 /* ---------------------------------------------------------------- */
-      terrorCode = ZMEM_NOMEM_ERROR;
-      return false;
-    }//if
+      return 0;
+    }
   } else {
     ljam();
 /* ---------------------------------------------------------------- */
 /*       THIS SHOULD BE THE COMMON PATH THROUGH THE CODE, FREE      */
 /*       COPY PAGE EXISTED.                                         */
 /* ---------------------------------------------------------------- */
-    pagePtr.i = getRealpid(regFragPtr, fragPageId);
-    ptrCheckGuard(pagePtr, cnoOfPage, page);
-    getThAtPage(regFragPtr, pagePtr.p, signal, pageOffset);
-    return true;
-  }//if
-  ndbrequire(false); // Dead code
-  return false;
-}//Dbtup::allocTh()
+    ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  }
+
+  Uint32 page_offset= alloc_tuple_from_page(regFragPtr, (Fix_page*)pagePtr.p);
+  
+  *out_frag_page_id= pagePtr.p->frag_page_id;
+  key->m_page_no = pagePtr.i;
+  key->m_page_idx = page_offset;
+  return pagePtr.p->m_data + page_offset;
+}
 
 void Dbtup::convertThPage(Uint32 Tupheadsize,
-                          Page*  const regPagePtr) 
+                          Fix_page*  const regPagePtr) 
 {
-  Uint32 ctpConstant = Tupheadsize << 16;
-  Uint32 nextTuple = ZPAGE_HEADER_SIZE + Tupheadsize;
+  Uint32 nextTuple = Tupheadsize;
   Uint32 endOfList;
   /*
   ASSUMES AT LEAST ONE TUPLE HEADER FITS AND THEREFORE NO HANDLING
   OF ZERO AS EXTREME CASE
   */
-  do {
-    ljam();
-    endOfList = nextTuple - Tupheadsize;
-    regPagePtr->pageWord[endOfList] = ctpConstant + nextTuple;
-    nextTuple += Tupheadsize;
-  } while (nextTuple <= ZWORDS_ON_PAGE);
-  regPagePtr->pageWord[endOfList] = ctpConstant;
-  Uint32 startOfList = ZPAGE_HEADER_SIZE;
-  regPagePtr->pageWord[ZFREELIST_HEADER_POS] = (startOfList << 16) + endOfList;
+  Uint32 cnt= 0;
+  Uint32 pos= 0;
+  Uint32 prev = 0xFFFF;
+#ifdef VM_TRACE
+  memset(regPagePtr->m_data, 0xF1, 4*Fix_page::DATA_WORDS);
+#endif
+  while (pos + nextTuple <= Fix_page::DATA_WORDS)
+  {
+    regPagePtr->m_data[pos] = (prev << 16) | (pos + nextTuple);
+    regPagePtr->m_data[pos + 1] = Tuple_header::FREE;
+    prev = pos;
+    pos += nextTuple;
+    cnt ++;
+  } 
+  
+  regPagePtr->m_data[prev] |= 0xFFFF;
+  regPagePtr->next_free_index= 0;
+  regPagePtr->free_space= cnt;
+  regPagePtr->m_page_header.m_page_type = File_formats::PT_Tup_fixsize_page;
 }//Dbtup::convertThPage()
 
-void Dbtup::getEmptyPageTh(Fragrecord* const regFragPtr,
-                           Signal* signal,
-                           Page* const regPagePtr) 
+Uint32
+Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
+			     Fix_page* const regPagePtr)
 {
-  if (isUndoLoggingNeeded(regFragPtr, regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS])) {
-    cprAddUndoLogPageHeader(signal,
-                            regPagePtr,
-                            regFragPtr);
-  }//if
-  regPagePtr->pageWord[ZPAGE_NEXT_POS] = regFragPtr->thFreeFirst;
-  regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FREE;
-  regFragPtr->thFreeFirst = regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS];
-
-ndbrequire(regFragPtr->thFreeFirst != (RNIL -1));
-}//Dbtup::getEmptyPageTh()
-
-void Dbtup::getEmptyPageThCopy(Fragrecord* const regFragPtr,
-                               Signal* signal,
-                               Page* const regPagePtr) 
-{
-  if (isUndoLoggingNeeded(regFragPtr, regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS])) {
-    cprAddUndoLogPageHeader(signal,
-                            regPagePtr,
-                            regFragPtr);
-  }//if
-  regPagePtr->pageWord[ZPAGE_NEXT_POS] = regFragPtr->thFreeCopyFirst;
-  regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FREE_COPY;
-  regFragPtr->thFreeCopyFirst = regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS];
-  regFragPtr->noCopyPagesAlloc++;
-}//Dbtup::getEmptyPageThCopy()
-
-void Dbtup::getThAtPage(Fragrecord* const regFragPtr,
-                        Page* const regPagePtr,
-                        Signal* signal,
-                        Uint32& pageOffset) 
-{
-  Uint32 freeListHeader = regPagePtr->pageWord[ZFREELIST_HEADER_POS];
-  Uint32 startTuple = freeListHeader >> 16;
-  Uint32 endTuple = freeListHeader & 0xffff;
-  pageOffset = startTuple;	/* START IS THE ONE ALLOCATED */
-  if (startTuple > 0) {
-   if (startTuple != endTuple) {
-/* ---------------------------------------------------------------- */
-/*       NOT THE LAST, SIMPLY RESHUFFLE POINTERS.                   */
-/* ---------------------------------------------------------------- */
-     ndbrequire(startTuple < ZWORDS_ON_PAGE);
-     startTuple = regPagePtr->pageWord[startTuple] & 0xffff;
-     regPagePtr->pageWord[ZFREELIST_HEADER_POS] = endTuple +
-                                                  (startTuple << 16);
-     return;
-   } else {
+  Uint32 idx= regPagePtr->alloc_record();
+  if(regPagePtr->free_space == 0)
+  {
+    jam();
 /* ---------------------------------------------------------------- */
 /*       THIS WAS THE LAST TUPLE HEADER IN THIS PAGE. REMOVE IT FROM*/
 /*       THE TUPLE HEADER FREE LIST OR TH COPY FREE LIST. ALSO SET  */
@@ -253,132 +163,30 @@ void Dbtup::getThAtPage(Fragrecord* const regFragPtr,
 /*       WE ALSO HAVE TO INSERT AN UNDO LOG ENTRY TO ENSURE PAGE    */
 /*       ARE MAINTAINED EVEN AFTER A SYSTEM CRASH.                  */
 /* ---------------------------------------------------------------- */
-     if (isUndoLoggingNeeded(regFragPtr,
-                             regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS])) {
-       cprAddUndoLogPageHeader(signal,
-                               regPagePtr,
-                               regFragPtr);
-     }//if
-     if (regPagePtr->pageWord[ZPAGE_STATE_POS] == ZTH_MM_FREE) {
-       ljam();
-       regFragPtr->thFreeFirst = regPagePtr->pageWord[ZPAGE_NEXT_POS];
-       regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FULL;
-     } else if (regPagePtr->pageWord[ZPAGE_STATE_POS] == ZTH_MM_FREE_COPY) {
-       ljam();
-       regFragPtr->thFreeCopyFirst = regPagePtr->pageWord[ZPAGE_NEXT_POS];
-       regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FULL_COPY;
-     } else {
-       ndbrequire(false);
-     }//if
-     regPagePtr->pageWord[ZFREELIST_HEADER_POS] = 0;
-     regPagePtr->pageWord[ZPAGE_NEXT_POS] = RNIL;
-   }//if
-  } else {
-    ndbrequire(false);
-  }//if
-  return;
+    ndbrequire(regPagePtr->page_state == ZTH_MM_FREE);
+    regFragPtr->thFreeFirst = regPagePtr->next_page;
+    regPagePtr->next_page = RNIL;
+    regPagePtr->page_state = ZTH_MM_FULL;
+  }
+  
+  return idx;
 }//Dbtup::getThAtPage()
 
-void Dbtup::getThAtPageSr(Page* const regPagePtr,
-                          Uint32& pageOffset) 
-{
-  Uint32 freeListHeader = regPagePtr->pageWord[ZFREELIST_HEADER_POS];
-  Uint32 startTuple = freeListHeader >> 16;
-  Uint32 endTuple = freeListHeader & 0xffff;
-  ndbrequire(startTuple > 0);
-  pageOffset = startTuple;	/* START IS THE ONE ALLOCATED */
-  if (startTuple == endTuple) {
-    ljam();
-/* ---------------------------------------------------------------- */
-/*       THIS WAS THE LAST TUPLE HEADER IN THIS PAGE. SINCE WE ARE  */
-/*       UNDOING PAGE UPDATES WE SHALL NOT DO ANYTHING ABOUT THE    */
-/*       PAGE HEADER. THIS IS DONE BY SEPARATE LOG RECORDS.         */
-/* ---------------------------------------------------------------- */
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = 0;
-  } else {
-    ljam();
-/* ---------------------------------------------------------------- */
-/*       NOT THE LAST, SIMPLY RESHUFFLE POINTERS.                   */
-/* ---------------------------------------------------------------- */
-    ndbrequire(startTuple < ZWORDS_ON_PAGE);
-    startTuple = regPagePtr->pageWord[startTuple] & 0xffff;	/* GET NEXT POINTER */
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = endTuple + (startTuple << 16);
-  }//if
-}//Dbtup::getThAtPageSr()
 
-void Dbtup::freeTh(Fragrecord*  const regFragPtr,
-                   Tablerec* const regTabPtr,
-                   Signal* signal,
-                   Page*  const regPagePtr,
-                   Uint32 freePageOffset) 
+void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
+			 Tablerec* regTabPtr,
+			 Local_key* key,
+			 Fix_page* regPagePtr)
 {
-  Uint32 startOfList = regPagePtr->pageWord[ZFREELIST_HEADER_POS] >> 16;
-  Uint32 endOfList = regPagePtr->pageWord[ZFREELIST_HEADER_POS] & 0xffff;
-/* LINK THE NOW FREE TUPLE SPACE INTO BEGINNING OF FREE LIST OF OF THE PAGE */
-/* SET THE SIZE OF THE NEW FREE SPACE AND LINK TO THE OLD START OF FREELIST */
-  ndbrequire(freePageOffset < ZWORDS_ON_PAGE);
-  regPagePtr->pageWord[freePageOffset] = (regTabPtr->tupheadsize << 16) +
-                                          startOfList;
-  if (endOfList == 0) {
+  Uint32 free= regPagePtr->free_record(key->m_page_idx);
+  
+  if(free == 1)
+  {
     ljam();
-    ndbrequire(startOfList == 0);
-/* ---------------------------------------------------------------- */
-/*       THE PAGE WAS PREVIOUSLY FULL, NO EMPTY SPACE AT ALL.       */
-/*       THIS ENTRY WILL THEN BE BOTH THE START AND THE END OF THE  */
-/*       LIST. IT WILL ALSO BE PUT ON THE PROPER FREE LIST.         */
-/*                                                                  */
-/*       UPDATE OF NEXT POINTER AND PAGE STATE MUST BE LOGGED TO    */
-/*       THE UNDO LOG TO ENSURE THAT FREE LISTS ARE OK AFTER A      */
-/*       SYSTEM RESTART.                                            */
-/* ---------------------------------------------------------------- */
-    if (isUndoLoggingNeeded(regFragPtr, regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS])) {
-      cprAddUndoLogPageHeader(signal,
-                              regPagePtr,
-                              regFragPtr);
-    }//if
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = (freePageOffset << 16) + freePageOffset;
-    if (regPagePtr->pageWord[ZPAGE_STATE_POS] == ZTH_MM_FULL) {
-      ljam();
-      regPagePtr->pageWord[ZPAGE_NEXT_POS] = regFragPtr->thFreeFirst;
-      regFragPtr->thFreeFirst = regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS];	
-      regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FREE;
-    } else {
-      ndbrequire(regPagePtr->pageWord[ZPAGE_STATE_POS] == ZTH_MM_FULL_COPY);
-      ljam();
-      regPagePtr->pageWord[ZPAGE_NEXT_POS] = regFragPtr->thFreeCopyFirst;
-      regFragPtr->thFreeCopyFirst = regPagePtr->pageWord[ZPAGE_FRAG_PAGE_ID_POS];
-      regPagePtr->pageWord[ZPAGE_STATE_POS] = ZTH_MM_FREE_COPY;
-    }//if
-  } else {
-    ljam();
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = (freePageOffset << 16) + endOfList;
-  }//if
+    ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
+    regPagePtr->page_state = ZTH_MM_FREE;
+    regPagePtr->next_page= regFragPtr->thFreeFirst;
+    regFragPtr->thFreeFirst = key->m_page_no;
+  } 
 }//Dbtup::freeTh()
-
-void Dbtup::freeThSr(Tablerec* const regTabPtr,
-                     Page*  const regPagePtr,
-                     Uint32 freePageOffset) 
-{
-/* ------------------------------------------------------------------------ */
-/* LINK THE NOW FREE TUPLE SPACE INTO BEGINNING OF FREE LIST OF OF THE PAGE */
-/* SET THE SIZE OF THE NEW FREE SPACE AND LINK TO THE OLD START OF FREELIST */
-/* ------------------------------------------------------------------------ */
-  Uint32 startOfList = regPagePtr->pageWord[ZFREELIST_HEADER_POS] >> 16;
-  Uint32 endOfList = regPagePtr->pageWord[ZFREELIST_HEADER_POS] & 0xffff;
-  ndbrequire(freePageOffset < ZWORDS_ON_PAGE);
-  regPagePtr->pageWord[freePageOffset] = (regTabPtr->tupheadsize << 16) + startOfList;
-  if (endOfList == 0) {
-    ljam();
-    ndbrequire(startOfList == 0);
-/* ---------------------------------------------------------------- */
-/*       THE PAGE WAS PREVIOUSLY FULL, NO EMPTY SPACE AT ALL.       */
-/*       THIS ENTRY WILL THEN BE BOTH THE START AND THE END OF THE  */
-/*       LIST. IT WILL ALSO BE PUT ON THE PROPER FREE LIST.         */
-/* ---------------------------------------------------------------- */
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = (freePageOffset << 16) + freePageOffset;
-  } else {
-    ljam();
-    regPagePtr->pageWord[ZFREELIST_HEADER_POS] = (freePageOffset << 16) + endOfList;
-  }//if
-}//Dbtup::freeThSr()
 

@@ -125,6 +125,17 @@
  */
 #define MAX_XFRM_MULTIPLY 8         /* max expansion when normalizing */
 
+/**
+ * Disk data
+ */
+#define MAX_FILES_PER_FILEGROUP 1024
+
+/**
+ * Page size in global page pool
+ */
+#define GLOBAL_PAGE_SIZE 32768
+#define GLOBAL_PAGE_SIZE_WORDS 8192
+
 /*
  * Long signals
  */

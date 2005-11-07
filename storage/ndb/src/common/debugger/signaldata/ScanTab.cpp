@@ -30,7 +30,7 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   fprintf(output, " apiConnectPtr: H\'%.8x", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u Batch: %u LockMode: %u Keyinfo: %u Holdlock: %u RangeScan: %u Descending: %u TupScan: %u\n ReadCommitted: %u DistributionKeyFlag: %u",
+  fprintf(output, "  Parallellism: %u Batch: %u LockMode: %u Keyinfo: %u Holdlock: %u RangeScan: %u Descending: %u TupScan: %u\n ReadCommitted: %u DistributionKeyFlag: %u NoDisk: %u",
 	  sig->getParallelism(requestInfo), 
 	  sig->getScanBatch(requestInfo), 
 	  sig->getLockMode(requestInfo), 
@@ -40,7 +40,8 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
           sig->getDescendingFlag(requestInfo),
           sig->getTupScanFlag(requestInfo),
 	  sig->getReadCommittedFlag(requestInfo),
-	  sig->getDistributionKeyFlag(requestInfo));
+	  sig->getDistributionKeyFlag(requestInfo),
+	  sig->getNoDiskFlag(requestInfo));
   
   if(sig->getDistributionKeyFlag(requestInfo))
     fprintf(output, " DKey: %x", sig->distributionKey);
