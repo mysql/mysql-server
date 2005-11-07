@@ -14,6 +14,8 @@ create table t3 (a int);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 insert into t1 values(1);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+update t1 set a=1 where 1=0;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 delete t1,t2 from t1,t2 where t1.a=t2.a;
