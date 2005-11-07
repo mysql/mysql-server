@@ -21,9 +21,9 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-connect(localhost,root,z,test2,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,root,z,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
-connect(localhost,root,z,test,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,root,z,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
@@ -49,13 +49,13 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-connect(localhost,test,,test2,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,,"",MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,,"",MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,zorro,test2,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-connect(localhost,test,zorro,test,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
@@ -85,13 +85,13 @@ time_zone_transition_type
 user
 show tables;
 Tables_in_test
-connect(localhost,test,,test2,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,,test,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-connect(localhost,test,zorro,test2,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,zorro,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
-connect(localhost,test,zorro,test,MASTER_PORT,MYSQL_TEST_DIR/var/tmp/master.sock);
+connect(localhost,test,zorro,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 delete from mysql.user where user=_binary"test";
 flush privileges;
