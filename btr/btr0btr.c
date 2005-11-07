@@ -1702,10 +1702,6 @@ func_start:
 	btr_attach_half_pages(tree, left_page, first_rec, right_page,
 					direction, mtr);
 
-	if (split_rec == NULL) {
-		mem_free(buf);
-	}
-
 	/* If the split is made on the leaf level and the insert will fit
 	on the appropriate half-page, we may release the tree x-latch.
 	We can then move the records after releasing the tree latch,
