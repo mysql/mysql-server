@@ -6003,8 +6003,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   key_map usable_keys;
   DBUG_ENTER("test_if_skip_sort_order");
 
-  /* Check which keys can be used to resolve ORDER BY */
-  usable_keys= ~(key_map) 0;
+  /*
+    Check which keys can be used to resolve ORDER BY.
+    We must not try to use disabled keys.
+  */
+  usable_keys= table->keys_in_use;
+
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)

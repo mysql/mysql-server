@@ -446,3 +446,15 @@ explain select count(*) from t1 where a is null;
 select count(*) from t1 where a is null;
 drop table t1;
 
+#
+# Bug#14616 - Freshly imported table returns error 124 when using LIMIT
+#
+create table t1 (
+  c1 varchar(32),
+  key (c1)
+) engine=myisam;
+alter table t1 disable keys;
+insert into t1 values ('a'), ('b');
+select c1 from t1 order by c1 limit 1;
+drop table t1;
+
