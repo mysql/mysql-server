@@ -35,5 +35,5 @@ set autocommit=0;
 insert into t1 values(1);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	Operation need committed state
+test.t1	analyze	status	OK
 drop table t1;
