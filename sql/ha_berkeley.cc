@@ -76,8 +76,9 @@ const u_int32_t bdb_DB_RECOVER= DB_RECOVER;
 const u_int32_t bdb_DB_PRIVATE= DB_PRIVATE;
 const char *ha_berkeley_ext=".db";
 bool berkeley_shared_data=0;
-u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
-          berkeley_lock_type=DB_LOCK_DEFAULT;
+u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER,
+          berkeley_env_flags= DB_LOG_AUTOREMOVE,
+          berkeley_lock_type= DB_LOCK_DEFAULT;
 ulong berkeley_cache_size, berkeley_log_buffer_size, berkeley_log_file_size=0;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
@@ -104,7 +105,6 @@ static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key,
 		      bool mutex_is_locked);
 static int write_status(DB *status_block, char *buff, uint length);
 static void update_status(BDB_SHARE *share, TABLE *table);
-static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
 
 static int berkeley_close_connection(THD *thd);
 static int berkeley_commit(THD *thd, bool all);
@@ -192,7 +192,6 @@ bool berkeley_init(void)
     goto error;
   db_env->set_errcall(db_env,berkeley_print_error);
   db_env->set_errpfx(db_env,"bdb");
-  db_env->set_noticecall(db_env, berkeley_noticecall);
   db_env->set_tmp_dir(db_env, berkeley_tmpdir);
   db_env->set_data_dir(db_env, mysql_data_home);
   db_env->set_flags(db_env, berkeley_env_flags, 1);
@@ -364,17 +363,6 @@ static void berkeley_print_error(const DB_ENV *db_env, const char *db_errpfx,
   sql_print_error("%s:  %s",db_errpfx,buffer); /* purecov: tested */
 }
 
-
-static void berkeley_noticecall(DB_ENV *db_env, db_notices notice)
-{
-  switch (notice)
-  {
-  case DB_NOTICE_LOGFILE_CHANGED: /* purecov: tested */
-    mysql_manager_submit(berkeley_cleanup_log_files);
-    pthread_cond_signal(&COND_manager);
-    break;
-  }
-}
 
 void berkeley_cleanup_log_files(void)
 {
