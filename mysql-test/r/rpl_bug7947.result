@@ -42,7 +42,5 @@ master-bin.000001	583	Query	1	583	use `test`; insert into t0 select GET_LOCK("lo
 master-bin.000001	662	Query	1	662	use `test`; create table t2 (n int) engine=innodb
 master-bin.000001	734	Query	1	734	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
 master-bin.000001	835	Query	1	835	use `test`; DO RELEASE_LOCK("lock1")
-select release_lock("lock1");
-release_lock("lock1")
-1
+do release_lock("lock1");
 drop table t0,t2;

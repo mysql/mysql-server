@@ -18,5 +18,5 @@ disconnect master;
 connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
 select get_lock("lock1",null);
 show binlog events from 79;
-select release_lock("lock1");
+do release_lock("lock1");
 drop table t0,t2;

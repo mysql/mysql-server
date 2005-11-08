@@ -93,6 +93,7 @@ master-bin.000001	79	Query	1	79	use `test`; BEGIN
 master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(8)
 master-bin.000001	178	Query	1	79	use `test`; insert into t2 select * from t1
 master-bin.000001	244	Query	1	244	use `test`; ROLLBACK
+master-bin.000001	287	Query	1	287	use `test`; DO RELEASE_LOCK("a")
 delete from t1;
 delete from t2;
 reset master;
