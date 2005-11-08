@@ -81,19 +81,22 @@ cmpPtrP(const void* a, const void* b)
 
 static Uint32 loopcount = 3;
 
-template <Uint32 sz>
-void
-sp_test(SuperPool& sp)
+template <class T>
+static void
+sp_test(GroupPool& gp)
 {
-  typedef A<sz> T;
-  RecordPool<T> rp(sp);
+  SuperPool& sp = gp.m_superPool;
+  RecordPool<T> rp(gp);
+  assert(gp.m_totPages == gp.m_freeList.m_pageCount);
   SuperPool::RecInfo& ri = rp.m_recInfo;
-  Uint32 pageCount = sp.m_totalSize / sp.m_pageSize;
-  Uint32 perPage = rp.m_recInfo.m_maxUseCount;
+  Uint32 pageCount = sp.m_totPages;
+  Uint32 perPage = rp.m_recInfo.m_maxPerPage;
   Uint32 perPool = perPage * pageCount;
   ndbout << "pages=" << pageCount << " perpage=" << perPage << " perpool=" << perPool << endl;
   Ptr<T>* ptrList = new Ptr<T> [perPool];
   memset(ptrList, 0x1f, perPool * sizeof(Ptr<T>));
+  Uint32 verify = 1000;
+  Uint32 useCount;
   Uint32 loop;
   for (loop = 0; loop < loopcount; loop++) {
     ndbout << "loop " << loop << endl;
@@ -101,25 +104,26 @@ sp_test(SuperPool& sp)
     // seize all
     ndbout << "seize all" << endl;
     for (i = 0; i < perPool + 1; i++) {
+      if (verify == 0 || urandom(perPool) < verify)
+        sp.verify(ri);
       j = i;
-      sp.verify(ri);
       Ptr<T> ptr1 = { 0, RNIL };
       if (! rp.seize(ptr1))
         break;
-      // write value
       ptr1.p->fill();
       ptr1.p->check();
-      // verify getPtr
       Ptr<T> ptr2 = { 0, ptr1.i };
       rp.getPtr(ptr2);
       assert(ptr1.i == ptr2.i && ptr1.p == ptr2.p);
-      // save
       ptrList[j] = ptr1;
     }
-    assert(i == perPool);
-    assert(ri.m_totalUseCount == perPool && ri.m_totalRecCount == perPool);
     sp.verify(ri);
+    ndbout << "seized " << i << endl;
+    assert(i == perPool);
+    useCount = sp.getRecUseCount(ri);
+    assert(useCount == perPool);
     // check duplicates
+    ndbout << "check dups" << endl;
     {
       Ptr<T>* ptrList2 = new Ptr<T> [perPool];
       memcpy(ptrList2, ptrList, perPool * sizeof(Ptr<T>));
@@ -135,7 +139,8 @@ sp_test(SuperPool& sp)
     ndbout << "release all" << endl;
     Uint32 coprime = random_coprime(perPool);
     for (i = 0; i < perPool; i++) {
-      sp.verify(ri);
+      if (verify == 0 || urandom(perPool) < verify)
+        sp.verify(ri);
       switch (loop % 3) {
       case 0:   // ascending
         j = i;
@@ -153,27 +158,31 @@ sp_test(SuperPool& sp)
       rp.release(ptr);
       assert(ptr.i == RNIL && ptr.p == 0);
     }
-    sp.setCurrPage(ri, RNIL);
-    assert(ri.m_totalUseCount == 0 && ri.m_totalRecCount == 0);
     sp.verify(ri);
+    useCount = sp.getRecUseCount(ri);
+    assert(useCount == 0);
     // seize/release at random
     ndbout << "seize/release at random" << endl;
     for (i = 0; i < loopcount * perPool; i++) {
+      if (verify == 0 || urandom(perPool) < verify)
+        sp.verify(ri);
       j = urandom(perPool);
       Ptr<T>& ptr = ptrList[j];
       if (ptr.i == RNIL) {
-        rp.seize(ptr);
-        ptr.p->fill();
+        if (rp.seize(ptr))
+          ptr.p->fill();
       } else {
         ptr.p->check();
         rp.release(ptr);
       }
     }
-    ndbout << "used " << ri.m_totalUseCount << endl;
+    ndbout << "used " << ri.m_useCount << endl;
     sp.verify(ri);
     // release all
     ndbout << "release all" << endl;
     for (i = 0; i < perPool; i++) {
+      if (verify == 0 || urandom(perPool) < verify)
+        sp.verify(ri);
       j = i;
       Ptr<T>& ptr = ptrList[j];
       if (ptr.i != RNIL) {
@@ -181,40 +190,54 @@ sp_test(SuperPool& sp)
         rp.release(ptr);
       }
     }
-    sp.setCurrPage(ri, RNIL);
-    assert(ri.m_totalUseCount == 0 && ri.m_totalRecCount == 0);
     sp.verify(ri);
+    useCount = sp.getRecUseCount(ri);
+    assert(useCount == 0);
   }
   // done
   delete [] ptrList;
 }
 
-static Uint32 pageCount = 99;
 static Uint32 pageSize = 32768;
-static Uint32 pageBits = 15;
+static Uint32 pageBits = 17;
 
-const Uint32 sz1 = 3, sz2 = 4, sz3 = 53, sz4 = 424, sz5 = 5353;
+const Uint32 sz1 = 3;
+const Uint32 sz2 = 4;
+const Uint32 sz3 = 53;
+const Uint32 sz4 = 424;
+const Uint32 sz5 = 5353;
 
-template void sp_test<sz1>(SuperPool& sp);
-template void sp_test<sz2>(SuperPool& sp);
-template void sp_test<sz3>(SuperPool& sp);
-template void sp_test<sz4>(SuperPool& sp);
-template void sp_test<sz5>(SuperPool& sp);
+typedef A<sz1> T1;
+typedef A<sz2> T2;
+typedef A<sz3> T3;
+typedef A<sz4> T4;
+typedef A<sz5> T5;
+
+template static void sp_test<T1>(GroupPool& sp);
+template static void sp_test<T2>(GroupPool& sp);
+template static void sp_test<T3>(GroupPool& sp);
+template static void sp_test<T4>(GroupPool& sp);
+template static void sp_test<T5>(GroupPool& sp);
 
 int
 main()
 {
   HeapPool sp(pageSize, pageBits);
-  sp.setSizes(pageCount * pageSize);
-  if (! sp.init())
+  sp.setInitPages(7);
+  sp.setMaxPages(7);
+  if (! sp.allocMemory())
     assert(false);
+  GroupPool gp(sp);
   Uint16 s = (Uint16)getpid();
   srandom(s);
   ndbout << "rand " << s << endl;
-  sp_test<sz1>(sp);
-  sp_test<sz2>(sp);
-  sp_test<sz3>(sp);
-  sp_test<sz4>(sp);
-  sp_test<sz5>(sp);
+  int count = 0;
+  while (++count <= 1) {
+    sp_test<T1>(gp);
+    sp_test<T2>(gp);
+    sp_test<T3>(gp);
+    sp_test<T4>(gp);
+    sp_test<T5>(gp);
+  }
   return 0;
 }
