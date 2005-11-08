@@ -21,14 +21,6 @@
 #include "ndb_limits.h"
 #include <signaldata/DictTabInfo.hpp>
 
-#ifndef MIN
-#define MIN(x,y) (((x)<(y))?(x):(y))
-#endif
-
-#ifndef MAX
-#define MAX(x,y) (((x)>(y))?(x):(y))
-#endif
-
 #define ILLEGAL_TRIGGER_ID ((Uint32)(~0))
 
 struct TriggerType {

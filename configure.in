@@ -2504,7 +2504,7 @@ case $SYSTEM_TYPE in
 esac
 
 for CONF in $other_configures; do
-  (cd `dirname $CONF`; ./`basename $CONF`)
+  (cd `dirname $CONF`; ./`basename $CONF` --build=$build_alias)
 done
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
