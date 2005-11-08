@@ -320,7 +320,7 @@ public:
   };
 
   Uint64 add_entry(const void*, Uint32 len);
-  template<Uint32 cnt> Uint64 add_entry(const Change*);
+  Uint64 add_entry(const Change*, Uint32 cnt);
 
   Uint64 add_entry(Local_key, void * base, Change*);
   Uint64 add_entry(Local_key, Uint32 off, Uint32 change);

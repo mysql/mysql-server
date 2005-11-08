@@ -1882,9 +1882,8 @@ Lgman::free_log_space(Uint32 ref, Uint32 words)
   return -1;
 }
 
-template<Uint32 cnt>
 Uint64
-Logfile_client::add_entry(const Change* src)
+Logfile_client::add_entry(const Change* src, Uint32 cnt)
 {
   Uint32 i, tot= 0;
   for(i= 0; i<cnt; i++)
@@ -1936,9 +1935,6 @@ Logfile_client::add_entry(const Change* src)
     return last_lsn;
   }
 }
-
-template Uint64 Logfile_client::add_entry<1>(const Change*);
-template Uint64 Logfile_client::add_entry<3>(const Change*);
 
 void
 Lgman::execSTART_RECREQ(Signal* signal)

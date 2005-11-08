@@ -153,7 +153,7 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
 	  Ptr<Var_page> vpage;
 	  Uint32 ref= * tuple_ptr->get_var_part_ptr(regTabPtr.p);
 	  Local_key tmp; 
-	  tmp=ref; 
+	  tmp.assref(ref); 
 	  
 	  sz= 0;
 	idx= tmp.m_page_idx;
