@@ -68,7 +68,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
       ha_heap::info(), which is always called before key statistics are
       used.
     */
-    key_stats_ok= FALSE;
+    key_stat_version= file->s->key_stat_version-1;
   }
   return (file ? 0 : 1);
 }
@@ -114,14 +114,21 @@ void ha_heap::update_key_stats()
       continue;
     if (key->algorithm != HA_KEY_ALG_BTREE)
     {
-      ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
-      key->rec_per_key[key->key_parts-1]= 
-        hash_buckets ? file->s->records/hash_buckets : 0;
+      if (key->flags & HA_NOSAME)
+        key->rec_per_key[key->key_parts-1]= 1;
+      else
+      {
+        ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
+        uint no_records= hash_buckets ? file->s->records/hash_buckets : 2;
+        if (no_records < 2)
+          no_records= 2;
+        key->rec_per_key[key->key_parts-1]= no_records;
+      }
     }
   }
   records_changed= 0;
   /* At the end of update_key_stats() we can proudly claim they are OK. */
-  key_stats_ok= TRUE;
+  key_stat_version= file->s->key_stat_version;
 }
 
 int ha_heap::write_row(byte * buf)
@@ -135,7 +142,7 @@ int ha_heap::write_row(byte * buf)
   res= heap_write(file,buf);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
-    key_stats_ok= FALSE;
+    file->s->key_stat_version++;
   return res;
 }
 
@@ -148,7 +155,7 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
   res= heap_update(file,old_data,new_data);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
-    key_stats_ok= FALSE;
+    file->s->key_stat_version++;
   return res;
 }
 
@@ -159,7 +166,7 @@ int ha_heap::delete_row(const byte * buf)
   res= heap_delete(file,buf);
   if (!res && table->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
-    key_stats_ok= FALSE;
+    file->s->key_stat_version++;
   return res;
 }
 
@@ -277,7 +284,7 @@ void ha_heap::info(uint flag)
     have to update the key statistics. Hoping that a table lock is now
     in place.
   */
-  if (! key_stats_ok)
+  if (key_stat_version != file->s->key_stat_version)
     update_key_stats();
 }
 
@@ -290,7 +297,7 @@ int ha_heap::delete_all_rows()
 {
   heap_clear(file);
   if (table->tmp_table == NO_TMP_TABLE)
-    key_stats_ok= FALSE;
+    file->s->key_stat_version++;
   return 0;
 }
 
@@ -451,9 +458,14 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
     return HA_POS_ERROR;			// Can only use exact keys
   else
   {
-    /* Assert that info() did run. We need current statistics here. */
-    DBUG_ASSERT(key_stats_ok);
-    return key->rec_per_key[key->key_parts-1];
+    if (records <= 1)
+      return records;
+    else
+    {
+      /* Assert that info() did run. We need current statistics here. */
+      DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
+      return key->rec_per_key[key->key_parts-1];
+    }
   }
 }
 
