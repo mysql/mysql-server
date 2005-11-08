@@ -210,7 +210,7 @@ Dbtup::commit_operation(Signal* signal,
     Uint32 *ref= tuple_ptr->get_var_part_ptr(regTabPtr);
     memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fix_size));
 
-    Local_key tmp; tmp= *ref;
+    Local_key tmp; tmp.assref(*ref);
     if(0) printf("%p %d %d (%d bytes) - ref: %x ", tuple_ptr,
 	   regOperPtr->m_tuple_location.m_page_no,
 	   regOperPtr->m_tuple_location.m_page_idx,
