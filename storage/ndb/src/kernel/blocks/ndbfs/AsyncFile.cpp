@@ -983,7 +983,7 @@ void AsyncFile::createDirectories()
   char* tmp;
   const char * name = theFileName.c_str();
   const char * base = theFileName.get_base_name();
-  while((tmp = strstr(base, DIR_SEPARATOR)))
+  while((tmp = (char *)strstr(base, DIR_SEPARATOR)))
   {
     char t = tmp[0];
     tmp[0] = 0;

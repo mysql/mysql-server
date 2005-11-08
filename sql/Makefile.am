@@ -98,9 +98,12 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc\
 			handlerton.cc
 EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
+			ha_innodb.h  ha_berkeley.h  ha_archive.h \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
-			ha_partition.cc \
-			examples/ha_tina.cc examples/ha_example.cc
+			ha_blackhole.h  ha_federated.h  ha_ndbcluster.h \
+			ha_partition.cc ha_partition.h \
+			examples/ha_tina.cc examples/ha_example.cc \
+			examples/ha_tina.h  examples/ha_example.h
 mysqld_DEPENDENCIES =	@mysql_se_objs@
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
