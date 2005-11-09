@@ -22,20 +22,18 @@
 #include <pc.hpp>
 #include <ErrorReporter.hpp>
 
-#define NDB_SP_VERIFY_LEVEL 1
-
 /*
  * SuperPool - super pool for record pools (abstract class)
  *
- * Documents SuperPool and RecordPool<T>.
+ * Documents: SuperPool GroupPool RecordPool<T>
  *
- * GENERAL
+ * SUPER POOL
  *
  * A "super pool" is a shared pool of pages of fixed size.  A "record
  * pool" is a pool of records of fixed size.  One super pool instance is
- * used by any number of record pools to allocate their memory.
- * A special case is a "page pool" where a record is a simple page,
- * possibly smaller than super pool page.
+ * used by a number of record pools to allocate their memory.  A special
+ * case is a "page pool" where a record is a simple page whose size
+ * divides super pool page size.
  *
  * A record pool allocates memory in pages.  Thus each used page is
  * associated with one record pool and one record type.  The records on
@@ -49,26 +47,25 @@
  * record is stored as an "i-value" from which the record pointer "p" is
  * computed.  In super pool the i-value is a Uint32 with two parts:
  *
- * - "ip" index of page within super pool (high pageBits)
- * - "ir" index of record within page (low recBits)
+ * - "ip" index of page within super pool (high "pageBits")
+ * - "ir" index of record within page (low "recBits")
+ *
+ * At most 16 recBits are used, the rest are zero.
  *
  * The translation between "ip" and page address is described in next
  * section.  Once page address is known, the record address is found
  * from "ir" in the obvious way.
  *
- * The main advantage with i-value is that it can be verified.  The
- * level of verification depends on compile type (release, debug).
+ * One advantage of i-value is that it can be verified.  The level of
+ * verification can depend on compile options.
  *
- * - "v0" minimal sanity check
- * - "v1" check record type matches page type, see below
- * - "v2" check record is in use (not yet implemented)
+ * - "v1" check i-value specifies valid page
+ * - "v2" check record type matches page type, see below
+ * - "v3" check record is in use
+ * - "v4" check unused record is unmodified
  *
  * Another advantage of a 32-bit i-value is that it extends the space of
  * 32-bit addressable records on a 64-bit platform.
- *
- * RNIL is 0xffffff00 and indicates NULL i-value.  To avoid hitting RNIL
- * it is required that pageBits <= 30 and that the maximum value of the
- * range (2^pageBits-1) is not used.
  *
  * MEMORY ROOT
  *
@@ -77,13 +74,28 @@
  *
  *   page address = memory root + (signed)ip * page size
  *
- * This is possible on most platforms, provided that the memory root and
+ * This is possible on all platforms, provided that the memory root and
  * all pages are either on the heap or on the stack, in order to keep
  * the size of "ip" reasonably small.
  *
  * The cast (signed)ip is done as integer of pageBits bits.  "ip" has
  * same sign bit as i-value "i" so (signed)ip = (Int32)i >> recBits.
- * The RNIL restriction can be expressed as (signed)ip != -1.
+ *
+ * RESERVED I-VALUES
+ *
+ * RNIL is 0xffffff00 (signed -256).  It is used everywhere in NDB as
+ * "null pointer" i.e. as an i-value which does not point to a record.
+ * In addition the signed values -255 to -1 are reserved for use by the
+ * application.
+ *
+ * An i-value with all "ir" bits set is used as terminator in free
+ * record list.  Unlike RNIL, it still has valid page bits "ip".
+ *
+ * Following restrictions avoid hitting the reserved values:
+ *
+ * - pageBits is <= 30
+ * - the maximum "ip" value 2^pageBits-1 (signed -1) is not used
+ * - the maximum "ir" value 2^recBits-1 is not used
  *
  * PAGE ENTRIES
  *
@@ -95,37 +107,54 @@
  * - pointers (as i-values) to next and previous page in list
  *
  * Page entry cannot be stored on the page itself since this prevents
- * aligning pages to OS block size and the use of BATs (don't ask) for
- * page pools in NDB.  For now the implementation provides an array of
- * page entries with place for all (2^pageBits) entries.
+ * aligning pages to OS block size and the use of BATs for page pools in
+ * NDB.  For now the implementation provides an array of page entries
+ * with place for all potential (2^pageBits) entries.
  *
  * PAGE TYPE
  *
- * Page type is (in principle) unique to the record pool using the super
- * pool.  It is assigned in record pool constructor.  Page type zero
- * means that the page is free i.e. not allocated to a record pool.
+ * Page type is unique to the record pool using the super pool.  It is
+ * assigned in record pool constructor.  Page type zero means that the
+ * page is free i.e. not allocated to a record pool.
  *
- * Each "i-p" conversion checks ("v1") that the record belongs to same
+ * Each "i-p" conversion checks ("v2") that the record belongs to same
  * pool as the page.  This check is much more common than page or record
- * allocation.  To make it cache effective, there is a separate array of
- * reduced "type bits" (computed from real type).
+ * allocation.  To make it cache effective, there is a separate page
+ * type array.  It truncates type to one non-zero byte.
  *
- * FREE LISTS
+ * GROUP POOL
  *
- * A record is either used or on the free list of the record pool.
- * A page has a use count i.e. number of used records.  When use count
- * drops to zero the page can be returned to the super pool.  This is
- * not necessarily done at once, or ever.
+ * Each record pool belongs to a group.  The group specifies minimum
+ * size or memory percentage the group must be able to allocate.  The
+ * sum of the minimum sizes of group pools is normally smaller than
+ * super pool size.  This provides unclaimed memory which a group can
+ * use temporarily to allocate more than its minimum.
  *
- * To make freeing pages feasible, the record pool free list has two
- * levels.  There are available pages (some free) and a singly linked
- * free list within the page.  A page allocated to record pool is on one
- * of 4 lists:
+ * The record pools within a group compete freely for the available
+ * memory within the group.
  *
- * - free page list (all free, available)
- * - active page list (some free, some used, available)
- * - full page list (none free)
- * - current page (list of 1), see below
+ * Typical exmaple is group of all metadata pools.  The group allows
+ * specifying the memory to reserve for metadata, without having to
+ * specify number of tables, attributes, indexes, triggers, etc.
+ *
+ * PAGE LISTS
+ *
+ * Super pool has free page list.  Each group pool uses it to allocate
+ * its own free page list.  And each record pool within the group uses
+ * the group's free list to allocate its pages.
+ *
+ * A page allocated to a record pool has a use count i.e. number of used
+ * records.  When use count drops to zero the page can be returned to
+ * the group.  This is not necessarily done at once.
+ *
+ * The list of free records in a record pool has two levels.  There are
+ * available pages (some free) and a singly linked free list within the
+ * page.  A page allocated to record pool is on one of 4 lists:
+ *
+ * - free page (all free, available, could be returned to group)
+ * - busy page (some free, some used, available)
+ * - full page (none free)
+ * - current page (list of one), see below
  *
  * Some usage types (temporary pools) may never free records.  They pay
  * a small penalty for the extra overhead.
@@ -133,7 +162,7 @@
  * RECORD POOL
  *
  * A pool of records which allocates its memory from a super pool
- * instance specified in the constructor.  There are 3 basic operations:
+ * instance via a group pool.  There are 3 basic operations:
  *
  * - getPtr - translate i-value to pointer-to-record p
  * - seize - allocate record
@@ -141,76 +170,64 @@
  *
  * CURRENT PAGE
  *
- * getPtr is a fast computation which does not touch the page.  For
- * seize and release there is an optimization:
+ * getPtr is a fast computation which does not touch the page entry.
+ * For seize (and release) there is a small optimization.
  *
- * Define "current page" as page of latest seize or release.  Its page
- * entry is cached under record pool instance.  The page is removed from
- * its normal list.  Seize and release on current page are fast and
- * avoid touching the page.  The current page is used until
+ * The "current page" is the page of latest seize.  It is unlinked from
+ * its normal list and the free record pointer is stored under record
+ * pool instance.
  *
- * - seize and current page is full
- * - release and the page is not current page
+ * The page remains current until there is a seize and the page is full.
+ * Then the real page entry and its list membership are updated, and
+ * a new page is made current.
  *
- * Then the real page entry is updated and the page is added to the
- * appropriate list, and a new page is made current.
+ * This implies that each (active) record pool allocates at least one
+ * page which is never returned to the group.
  *
  * PAGE POLICY
  *
- * Allocating new page to record pool is expensive.  Therefore record
- * pool should not always return empty pages to super pool.  There are
- * two trivial policies, each with problems:
+ * A group pool returns its "excess" (above minimum) free pages to the
+ * super pool immediately.
  *
- * - "pp1" never return empty page to super pool
- * - "pp2" always return empty page to super pool
+ * Allocating a new page to a record pool is expensive due to free list
+ * setup.  Therefore a record pool should not always return empty pages
+ * to the group.  Policies:
  *
- * This implementation uses "pp2" for now.  A real policy is implemented
- * in next version.
+ * - "pp1" never return empty page to the group
+ * - "pp2" always return empty (non-current) page to the group
+ * - "pp3" simple hysteresis
  *
- * OPEN ISSUES AND LIMITATIONS
+ * Last one "pp3" is used.  It works as follows:
  *
- * - smarter (virtual) placement of check bits & page entries
- * - should getPtr etc be inlined?  (too much code)
- * - real page policy
- * - other implementations (only HeapPool is done)
- * - super pool list of all record pools, for statistics etc
- * - access by multiple threads is not supported
+ * When a page becomes free, check if number of free records exceeds
+ * some fixed fraction of all records.  If it does, move all free pages
+ * to the group.  Current page is ignored in the check.
+ *
+ * TODO
+ *
+ * Define abstract class SuperAlloc.  Make SuperPool a concrete class
+ * with SuperAlloc instance in ctor.  Replace HeapPool by HeapAlloc.
  */
 
-// align size
-#define SP_ALIGN_SIZE(sz, al) \
-  (((sz) + (al) - 1) & ~((al) - 1))
-
-// align pointer relative to base
-#define SP_ALIGN_PTR(p, base, al) \
-  (void*)((Uint8*)(base) + SP_ALIGN_SIZE((Uint8*)(p) - (Uint8*)(base), (al)))
+// Types forward.
+class GroupPool;
 
 class SuperPool {
 public:
-  // Type of i-value, used to reference both pages and records.  Page
-  // index "ip" occupies the high bits.  The i-value of a page is same
-  // as i-value of record 0 on the page.
+  // Type of i-value, used to reference both pages and records.
   typedef Uint32 PtrI;
 
-  // Size and address alignment given as number of bytes (power of 2).
-  STATIC_CONST( SP_ALIGN = 8 );
-
-  // Page entry.  Current|y allocated as array of (2^pageBits).
+  // Page entry.
   struct PageEnt {
     PageEnt();
-    Uint32 m_pageType;
-    Uint32 m_freeRecI;
-    Uint32 m_useCount;
+    Uint16 m_pageType;          // zero if not in record pool
+    Uint16 m_useCount;          // used records on the page
+    PtrI m_freeRecI;            // first free record on the page
     PtrI m_nextPageI;
     PtrI m_prevPageI;
   };
 
-  // Number of bits for cache effective type check given as log of 2.
-  // Example: 2 means 4 bits and uses 32k for 2g of 32k pages.
-  STATIC_CONST( SP_CHECK_LOG2 = 2 );
-
-  // Doubly-linked list of pages.  There is one free list in super pool
-  // and free, active, full list in each record pool.
+  // Doubly-linked list of page entries.
   struct PageList {
     PageList();
     PageList(PtrI pageI);
@@ -219,53 +236,12 @@ public:
     Uint32 m_pageCount;
   };
 
-  // Record pool information.  Each record pool instance contains one.
-  struct RecInfo {
-    RecInfo(Uint32 recType, Uint32 recSize);
-    const Uint32 m_recType;
-    const Uint32 m_recSize;
-    Uint32 m_maxUseCount;       // could be computed
-    Uint32 m_currPageI;         // current page
-    Uint32 m_currFreeRecI;
-    Uint32 m_currUseCount;
-    Uint32 m_totalUseCount;     // total per pool
-    Uint32 m_totalRecCount;
-    PageList m_freeList;
-    PageList m_activeList;
-    PageList m_fullList;
-  };
-
-  // Constructor.  Gives page size in bytes (excluding page header) and
+  // Constructor.  Gives page size in bytes (must be power of 2) and
   // number of bits to use for page index "ip" in i-value.
   SuperPool(Uint32 pageSize, Uint32 pageBits);
 
-  // Initialize.  Must be called after setting sizes or other parameters
-  // and before the pool is used.
-  virtual bool init();
-
   // Destructor.
   virtual ~SuperPool() = 0;
-
-  // Translate i-value to page entry.
-  PageEnt& getPageEnt(PtrI pageI);
-
-  // Translate i-value to page address.
-  void* getPageP(PtrI pageI);
-
-  // Translate page address to i-value (unused).
-  PtrI getPageI(void* pageP);
-
-  // Given type, return non-zero reduced type check bits.
-  Uint32 makeCheckBits(Uint32 type);
-
-  // Get type check bits from type check array.
-  Uint32 getCheckBits(PtrI pageI);
-
-  // Set type check bits in type check array.
-  void setCheckBits(PtrI pageI, Uint32 type);
-
-  // Translate i-value to record address.
-  void* getRecP(PtrI recI, RecInfo& ri);
 
   // Move all pages from second list to end of first list.
   void movePages(PageList& pl1, PageList& pl2);
@@ -279,174 +255,190 @@ public:
   // Remove any page from page list.
   void removePage(PageList& pl, PtrI pageI);
 
-  // Set current page.  Previous current page is updated and added to
-  // appropriate list.
-  void setCurrPage(RecInfo& ri, PtrI pageI);
+  // Translate i-value ("ri" ignored) to page entry.
+  PageEnt& getPageEnt(PtrI pageI);
+
+  // Translate i-value ("ri" ignored) to page address.
+  void* getPageP(PtrI pageI);
+
+  // Translate page address to i-value.  Address must be page-aligned to
+  // memory root.  Returns RNIL if "ip" range exceeded.
+  PtrI getPageI(void* pageP);
+
+  // Record pool info.
+  struct RecInfo {
+    RecInfo(GroupPool& gp, Uint32 recSize);
+    GroupPool& m_groupPool;
+    Uint32 m_recSize;
+    Uint16 m_recType;
+    Uint16 m_maxPerPage;
+    PtrI m_freeRecI;            // first free record on current page
+    Uint32 m_useCount;          // used records excluding current page
+    PageList m_pageList[3];     // 0-free 1-busy 2-full
+    Uint16 m_hyX;               // hysteresis fraction x/y in "pp3"
+    Uint16 m_hyY;
+  };
+
+  // Translate i-value to record address.
+  void* getRecP(PtrI recI, RecInfo& ri);
+
+  // Count records on page free list.
+  Uint32 getFreeCount(RecInfo& ri, PtrI freeRecPtrI);
+
+  // Compute total number of pages in pool.
+  Uint32 getRecPageCount(RecInfo& ri);
+
+  // Compute total number of records (used or not) in pool.
+  Uint32 getRecTotCount(RecInfo& ri);
+
+  // Compute total number of used records in pool.
+  Uint32 getRecUseCount(RecInfo& ri);
+
+  // Compute record pool page list index (0,1,2).
+  Uint32 getRecPageList(RecInfo& ri, PageEnt& pe);
+
+  // Add current page.
+  void addCurrPage(RecInfo& ri, PtrI pageI);
+
+  // Remove current page.
+  void removeCurrPage(RecInfo& ri);
 
   // Get page with some free records and make it current.  Takes head of
-  // active or free list, or else gets free page from super pool.
+  // used or free list, or else gets free page from group pool.
   bool getAvailPage(RecInfo& ri);
 
-  // Get free page from super pool and add it to record pool free list.
-  // This is an expensive subroutine of getAvailPage().
+  // Get free page from group pool and add it to record pool free list.
+  // This is an expensive subroutine of getAvailPage(RecInfo&):
   PtrI getFreePage(RecInfo& ri);
 
-  // Get new free page from the implementation.
+  // Get free detached (not on list) page from group pool.
+  PtrI getFreePage(GroupPool& gp);
+
+  // Get free detached page from super pool.
+  PtrI getFreePage();
+
+  // Get new free detached page from the implementation.
   virtual PtrI getNewPage() = 0;
 
-  // Set 3 size parameters, rounded to page size.  If called before
-  // init() then init() allocates the initial size.
-  void setSizes(size_t initSize = 0, size_t incrSize = 0, size_t maxSize = 0);
+  // Initialize free list etc.  Subroutine of getFreePage(RecInfo&).
+  void initFreePage(RecInfo& ri, PtrI pageI);
 
-  const Uint32 m_pageSize;
-  const Uint32 m_pageBits;
-  // implementation must set up these pointers
-  void* m_memRoot;
-  PageEnt* m_pageEnt;
-  Uint32* m_typeCheck;
-  Uint32 m_typeSeq;
-  PageList m_pageList;
-  size_t m_totalSize;
-  size_t m_initSize;
-  size_t m_incrSize;
-  size_t m_maxSize;
+  // Release record which is not on current page.
+  void releaseNotCurrent(RecInfo& ri, PtrI recI);
+
+  // Free pages from record pool according to page policy.
+  void freeRecPages(RecInfo& ri);
+
+  // Free all pages in record pool.
+  void freeAllRecPages(RecInfo& ri, bool force);
+
+  // Set pool size parameters in pages.  Call allocMemory() for changes
+  // (such as extra mallocs) to take effect.
+  void setInitPages(Uint32 initPages);
+  void setIncrPages(Uint32 incrPages);
+  void setMaxPages(Uint32 maxPages);
+
+  // Get number of pages reserved by all groups.
+  Uint32 getGpMinPages();
+
+  // Get number of pages reserved to a group.
+  Uint32 getMinPages(GroupPool& gp);
+
+  // Get max number of pages a group can try to allocate.
+  Uint32 getMaxPages(GroupPool& gp);
+
+  // Allocate more memory according to current parameters.  Returns
+  // false if no new memory was allocated.   Otherwise returns true,
+  // even if the amount allocated was less than requested.
+  virtual bool allocMemory() = 0;
 
   // Debugging.
   void verify(RecInfo& ri);
+  void verifyPageList(PageList& pl);
+
+  // Super pool parameters.
+  const Uint32 m_pageSize;
+  const Uint16 m_pageBits;
+  const Uint16 m_recBits;
+  const Uint32 m_recMask;
+  // Implementation must set up these 3 pointers.
+  void* m_memRoot;
+  PageEnt* m_pageEnt;
+  Uint8* m_pageType;
+  // Free page list.
+  PageList m_freeList;
+  // Free pages and sizes.
+  Uint32 m_initPages;
+  Uint32 m_incrPages;
+  Uint32 m_maxPages;
+  Uint32 m_totPages;
+  Uint32 m_typeCount;
+  // Reserved and allocated by group pools.
+  Uint32 m_groupMinPct;
+  Uint32 m_groupMinPages;
+  Uint32 m_groupTotPages;
 };
 
 inline SuperPool::PageEnt&
 SuperPool::getPageEnt(PtrI pageI)
 {
-  Uint32 ip = pageI >> (32 - m_pageBits);
+  Uint32 ip = pageI >> m_recBits;
   return m_pageEnt[ip];
 }
 
 inline void*
 SuperPool::getPageP(PtrI ptrI)
 {
-  Int32 ip = (Int32)ptrI >> (32 - m_pageBits);
-  my_ptrdiff_t sz = m_pageSize;
-  void* pageP = (Uint8*)m_memRoot + ip * sz;
-  return pageP;
-}
-
-inline Uint32
-SuperPool::makeCheckBits(Uint32 type)
-{
-  Uint32 shift = 1 << SP_CHECK_LOG2;
-  Uint32 mask = (1 << shift) - 1;
-  return 1 + type % mask;
-}
-
-inline Uint32
-SuperPool::getCheckBits(PtrI pageI)
-{
-  Uint32 ip = pageI >> (32 - m_pageBits);
-  Uint32 xp = ip >> (5 - SP_CHECK_LOG2);
-  Uint32 yp = ip & (1 << (5 - SP_CHECK_LOG2)) - 1;
-  Uint32& w = m_typeCheck[xp];
-  Uint32 shift = 1 << SP_CHECK_LOG2;
-  Uint32 mask = (1 << shift) - 1;
-  // get
-  Uint32 bits = (w >> yp * shift) & mask;
-  return bits;
-}
-
-inline void
-SuperPool::setCheckBits(PtrI pageI, Uint32 type)
-{
-  Uint32 ip = pageI >> (32 - m_pageBits);
-  Uint32 xp = ip >> (5 - SP_CHECK_LOG2);
-  Uint32 yp = ip & (1 << (5 - SP_CHECK_LOG2)) - 1;
-  Uint32& w = m_typeCheck[xp];
-  Uint32 shift = 1 << SP_CHECK_LOG2;
-  Uint32 mask = (1 << shift) - 1;
-  // set
-  Uint32 bits = makeCheckBits(type);
-  w &= ~(mask << yp * shift);
-  w |= (bits << yp * shift);
+  Int32 ip = (Int32)ptrI >> m_recBits;
+  return (Uint8*)m_memRoot + ip * (my_ptrdiff_t)m_pageSize;
 }
 
 inline void*
 SuperPool::getRecP(PtrI ptrI, RecInfo& ri)
 {
-  const Uint32 recMask = (1 << (32 - m_pageBits)) - 1;
-  PtrI pageI = ptrI & ~recMask;
-#if NDB_SP_VERIFY_LEVEL >= 1
-  Uint32 bits1 = getCheckBits(pageI);
-  Uint32 bits2 = makeCheckBits(ri.m_recType);
-  assert(bits1 == bits2);
-#endif
-  void* pageP = getPageP(pageI);
-  Uint32 ir = ptrI & recMask;
-  void* recP = (Uint8*)pageP + ir * ri.m_recSize;
-  return recP;
+  Uint32 ip = ptrI >> m_recBits;
+  assert(m_pageType[ip] == (ri.m_recType & 0xFF));
+  Uint32 ir = ptrI & m_recMask;
+  return (Uint8*)getPageP(ptrI) + ir * ri.m_recSize;
 }
 
 /*
- * HeapPool - SuperPool on heap (concrete class)
- *
- * A super pool based on malloc with memory root on the heap.  This
- * pool type has 2 realistic uses:
- *
- * - a small pool with only initial malloc and pageBits set to match
- * - the big pool from which all heap allocations are done
- *
- * A "smart" malloc may break "ip" limit by using different VM areas for
- * different sized requests.  For this reason malloc is done in units of
- * increment size if possible.   Memory root is set to start of first
- * malloc.
+ * GroupPool - subset of a super pool pages (concrete class)
  */
 
-class HeapPool : public SuperPool {
+class GroupPool {
 public:
-  // Describes malloc area.  The areas are kept in singly linked list.
-  // There is a list head and pointers to current and last area.
-  struct Area {
-    Area();
-    Area* m_nextArea;
-    PtrI m_firstPageI;
-    Uint32 m_currPage;
-    Uint32 m_numPages;
-    void* m_memory;
-  };
+  // Types.
+  typedef SuperPool::PageList PageList;
 
   // Constructor.
-  HeapPool(Uint32 pageSize, Uint32 pageBits);
-
-  // Initialize.
-  virtual bool init();
+  GroupPool(SuperPool& sp);
 
   // Destructor.
-  virtual ~HeapPool();
+  ~GroupPool();
 
-  // Use malloc to allocate more.
-  bool allocMoreData(size_t size);
+  // Set minimum pct reserved in super pool.
+  void setMinPct(Uint32 resPct);
 
-  // Get new page from current area.
-  virtual PtrI getNewPage();
+  // Set minimum pages reserved in super pool.
+  void setMinPages(Uint32 resPages);
 
-  // List of malloc areas.
-  Area m_areaHead;
-  Area* m_currArea;
-  Area* m_lastArea;
-
-  // Fraction of malloc size to try if cannot get all in one.
-  Uint32 m_mallocPart;
+  SuperPool& m_superPool;
+  Uint32 m_minPct;
+  Uint32 m_minPages;
+  Uint32 m_totPages;
+  PageList m_freeList;
 };
 
 /*
  * RecordPool -  record pool using one super pool instance (template)
- *
- * Documented under SuperPool.  Satisfies ArrayPool interface.
  */
 
 template <class T>
 class RecordPool {
 public:
   // Constructor.
-  RecordPool(SuperPool& superPool);
+  RecordPool(GroupPool& gp);
 
   // Destructor.
   ~RecordPool();
@@ -462,9 +454,9 @@ public:
 
   // todo variants of basic methods
 
-  // Return all pages to super pool.  The force flag is required if
+  // Return all pages to group pool.  The force flag is required if
   // there are any used records.
-  void free(bool force);
+  void freeAllRecPages(bool force);
 
   SuperPool& m_superPool;
   SuperPool::RecInfo m_recInfo;
@@ -472,24 +464,17 @@ public:
 
 template <class T>
 inline
-RecordPool<T>::RecordPool(SuperPool& superPool) :
-  m_superPool(superPool),
-  m_recInfo(1 + superPool.m_typeSeq++, sizeof(T))
+RecordPool<T>::RecordPool(GroupPool& gp) :
+  m_superPool(gp.m_superPool),
+  m_recInfo(gp, sizeof(T))
 {
-  SuperPool::RecInfo& ri = m_recInfo;
-  assert(sizeof(T) == SP_ALIGN_SIZE(sizeof(T), sizeof(Uint32)));
-  Uint32 maxUseCount = superPool.m_pageSize / sizeof(T);
-  Uint32 sizeLimit = 1 << (32 - superPool.m_pageBits);
-  if (maxUseCount >= sizeLimit)
-    maxUseCount = sizeLimit;
-  ri.m_maxUseCount = maxUseCount;
 }
 
 template <class T>
 inline
 RecordPool<T>::~RecordPool()
 {
-  free(true);
+  freeAllRecPages(true);
 }
 
 template <class T>
@@ -506,18 +491,19 @@ RecordPool<T>::seize(Ptr<T>& ptr)
 {
   SuperPool& sp = m_superPool;
   SuperPool::RecInfo& ri = m_recInfo;
-  if (ri.m_currFreeRecI != RNIL || sp.getAvailPage(ri)) {
-    SuperPool::PtrI recI = ri.m_currFreeRecI;
+  Uint32 recMask = sp.m_recMask;
+  // get current page
+  if ((ri.m_freeRecI & recMask) != recMask ||
+      sp.getAvailPage(ri)) {
+    SuperPool::PtrI recI = ri.m_freeRecI;
     void* recP = sp.getRecP(recI, ri);
-    ri.m_currFreeRecI = *(Uint32*)recP;
-    Uint32 useCount = ri.m_currUseCount;
-    assert(useCount < ri.m_maxUseCount);
-    ri.m_currUseCount = useCount + 1;
-    ri.m_totalUseCount++;
+    ri.m_freeRecI = *(Uint32*)recP;
     ptr.i = recI;
     ptr.p = static_cast<T*>(recP);
     return true;
   }
+  ptr.i = RNIL;
+  ptr.p = 0;
   return false;
 }
 
@@ -527,35 +513,79 @@ RecordPool<T>::release(Ptr<T>& ptr)
 {
   SuperPool& sp = m_superPool;
   SuperPool::RecInfo& ri = m_recInfo;
-  const Uint32 recMask = (1 << (32 - sp.m_pageBits)) - 1;
   SuperPool::PtrI recI = ptr.i;
-  SuperPool::PtrI pageI = recI & ~recMask;
-  if (pageI != ri.m_currPageI) {
-    sp.setCurrPage(ri, pageI);
+  Uint32 recMask = sp.m_recMask;
+  // check if current page
+  if ((recI & ~recMask) == (ri.m_freeRecI & ~recMask)) {
+    void* recP = sp.getRecP(recI, ri);
+    *(Uint32*)recP = ri.m_freeRecI;
+    ri.m_freeRecI = recI;
+  } else {
+    sp.releaseNotCurrent(ri, recI);
   }
-  void* recP = sp.getRecP(recI, ri);
-  *(Uint32*)recP = ri.m_currFreeRecI;
-  ri.m_currFreeRecI = recI;
-  Uint32 useCount = ri.m_currUseCount;
-  assert(useCount != 0);
-  ri.m_currUseCount = useCount - 1;
-  ri.m_totalUseCount--;
   ptr.i = RNIL;
   ptr.p = 0;
 }
 
 template <class T>
 inline void
-RecordPool<T>::free(bool force)
+RecordPool<T>::freeAllRecPages(bool force)
 {
   SuperPool& sp = m_superPool;
-  SuperPool::RecInfo& ri = m_recInfo;
-  sp.setCurrPage(ri, RNIL);
-  assert(force || ri.m_totalUseCount == 0);
-  sp.movePages(sp.m_pageList, ri.m_freeList);
-  sp.movePages(sp.m_pageList, ri.m_activeList);
-  sp.movePages(sp.m_pageList, ri.m_fullList);
-  ri.m_totalRecCount = 0;
+  sp.freeAllRecPages(m_recInfo, force);
 }
+
+/*
+ * HeapPool - SuperPool on heap (concrete class)
+ *
+ * A super pool based on malloc with memory root on the heap.  This
+ * pool type has 2 realistic uses:
+ *
+ * - a small pool with only initial malloc and pageBits set to match
+ * - the big pool from which all heap allocations are done
+ *
+ * A smart malloc may break "ip" limit by using different VM areas for
+ * different sized requests.  For this reason malloc is done in units of
+ * increment size if possible.  Memory root is set to the page-aligned
+ * address from first page malloc.
+ */
+
+class HeapPool : public SuperPool {
+public:
+  // Describes malloc area.  The areas are kept in singly linked list.
+  // There is a list head and pointers to current and last area.
+  struct Area {
+    Area();
+    Area* m_nextArea;
+    PtrI m_firstPageI;
+    Uint32 m_currPage;
+    void* m_memory;     // from malloc
+    void* m_pages;      // page-aligned pages
+    Uint32 m_numPages;  // number of pages
+  };
+
+  // Constructor.
+  HeapPool(Uint32 pageSize, Uint32 pageBits);
+
+  // Destructor.
+  virtual ~HeapPool();
+
+  // Get new page from current area.
+  virtual PtrI getNewPage();
+
+  // Allocate fixed arrays.
+  bool allocInit();
+
+  // Allocate array of aligned pages.
+  bool allocArea(Area* ap, Uint32 tryPages);
+
+  // Allocate memory.
+  virtual bool allocMemory();
+
+  // List of malloc areas.
+  Area m_areaHead;
+  Area* m_currArea;
+  Area* m_lastArea;
+};
 
 #endif
