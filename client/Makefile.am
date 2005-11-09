@@ -61,7 +61,7 @@ link_sources:
          done; \
         for f in $(strings_src) ; do \
           rm -f $(srcdir)/$$f; \
-          @LN_CP_F@ $(top_srcdir)/strings/$$f $(srcdir)/$$f; \
+          @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
          done;
 
 # Don't update the files from bitkeeper

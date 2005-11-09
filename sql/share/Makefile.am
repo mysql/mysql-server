@@ -53,6 +53,9 @@ install-data-local:
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(pkgdatadir)
 
+distclean-local:
+	@RM@ -f */errmsg.sys
+
 # Do nothing
 link_sources:
 
