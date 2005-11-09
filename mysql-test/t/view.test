@@ -2240,3 +2240,16 @@ DROP TABLE t1;
 OPTIMIZE TABLE v1;
 
 DROP VIEW v1;
+
+
+#
+# BUG#14719: Views DEFINER grammar is incorrect
+#
+
+create definer = current_user() sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
+
+create definer = current_user sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
