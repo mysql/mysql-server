@@ -134,6 +134,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
   TABLE_LIST *ren_table,*new_table;
   frm_type_enum frm_type;
+  db_type table_type;
+
   DBUG_ENTER("rename_tables");
 
   for (ren_table= table_list; ren_table; ren_table= new_table->next_local)
@@ -166,13 +168,12 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	    reg_ext);
     unpack_filename(name, name);
 
-    frm_type= mysql_frm_type(name);
+    frm_type= mysql_frm_type(thd, name, &table_type);
     switch (frm_type)
     {
       case FRMTYPE_TABLE:
       {
-        db_type table_type;
-        if ((table_type= get_table_type(thd, name)) == DB_TYPE_UNKNOWN) 
+        if (table_type == DB_TYPE_UNKNOWN) 
           my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
         else
           rc= mysql_rename_table(table_type, ren_table->db, old_alias,

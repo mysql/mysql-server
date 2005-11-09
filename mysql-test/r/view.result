@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 use test;
@@ -2323,3 +2323,55 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
+create table t1 (f1 int, f2 int);
+insert into t1 values(1,1),(1,2),(1,3);
+create view v1 as select f1 ,group_concat(f2 order by f2 asc) from t1 group by f1;
+create view v2 as select f1 ,group_concat(f2 order by f2 desc) from t1 group by f1;
+select * from v1;
+f1	group_concat(f2 order by f2 asc)
+1	1,2,3
+select * from v2;
+f1	group_concat(f2 order by f2 desc)
+1	3,2,1
+drop view v1,v2;
+drop table t1;
+create table t1 (x int, y int);
+create table t2 (x int, y int, z int);
+create table t3 (x int, y int, z int);
+create table t4 (x int, y int, z int);
+create view v1 as
+select t1.x
+from (
+(t1 join t2 on ((t1.y = t2.y))) 
+join 
+(t3 left join t4 on (t3.y = t4.y) and (t3.z = t4.z))
+);
+prepare stmt1 from "select count(*) from v1 where x = ?";
+set @parm1=1;
+execute stmt1 using @parm1;
+count(*)
+0
+execute stmt1 using @parm1;
+count(*)
+0
+drop view v1;
+drop table t1,t2,t3,t4;
+CREATE TABLE t1(id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+OPTIMIZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	optimize	note	Unknown table 'test.v1'
+ANALYZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	analyze	note	Unknown table 'test.v1'
+REPAIR TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	note	Unknown table 'test.v1'
+DROP TABLE t1;
+OPTIMIZE TABLE v1;
+Table	Op	Msg_type	Msg_text
+test.v1	optimize	note	Unknown table 'test.v1'
+Warnings:
+Error	1146	Table 'test.t1' doesn't exist
+Error	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+DROP VIEW v1;

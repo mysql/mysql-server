@@ -17,10 +17,10 @@ show tables;
 connect (con2,localhost,root,,test);
 show tables;
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,root,z,test2);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,root,z,);
 
@@ -35,16 +35,16 @@ show tables;
 connect (con4,localhost,test,gambling,test);
 show tables;
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,,test2);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,,"");
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,zorro,test2);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,zorro,);
 
@@ -63,16 +63,16 @@ show tables;
 connect (con6,localhost,test,gambling3,test);
 show tables;
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,,test2);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,,);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,zorro,test2);
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MASTER_MYPORT MASTER_PORT
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 1045
 connect (fail_con,localhost,test,zorro,);
 

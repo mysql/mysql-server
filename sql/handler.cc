@@ -293,61 +293,61 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 } /* ha_checktype */
 
 
-handler *get_new_handler(TABLE *table, enum db_type db_type)
+handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
 {
   switch (db_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-    return new ha_hash(table);
+    return new (alloc) ha_hash(table);
 #endif
   case DB_TYPE_MRG_ISAM:
-    return new ha_myisammrg(table);
+    return new (alloc) ha_myisammrg(table);
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return new ha_berkeley(table);
+    return new (alloc) ha_berkeley(table);
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return new ha_innobase(table);
+    return new (alloc) ha_innobase(table);
 #endif
 #ifdef HAVE_EXAMPLE_DB
   case DB_TYPE_EXAMPLE_DB:
-    return new ha_example(table);
+    return new (alloc) ha_example(table);
 #endif
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
-    return new ha_archive(table);
+    return new (alloc) ha_archive(table);
 #endif
 #ifdef HAVE_BLACKHOLE_DB
   case DB_TYPE_BLACKHOLE_DB:
-    return new ha_blackhole(table);
+    return new (alloc) ha_blackhole(table);
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
-    return new ha_federated(table);
+    return new (alloc) ha_federated(table);
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:
-    return new ha_tina(table);
+    return new (alloc) ha_tina(table);
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
-    return new ha_ndbcluster(table);
+    return new (alloc) ha_ndbcluster(table);
 #endif
   case DB_TYPE_HEAP:
-    return new ha_heap(table);
+    return new (alloc) ha_heap(table);
   default:					// should never happen
   {
     enum db_type def=(enum db_type) current_thd->variables.table_type;
     /* Try first with 'default table type' */
     if (db_type != def)
-      return get_new_handler(table, def);
+      return get_new_handler(table, alloc, def);
   }
   /* Fall back to MyISAM */
   case DB_TYPE_MYISAM:
-    return new ha_myisam(table);
+    return new (alloc) ha_myisam(table);
   case DB_TYPE_MRG_MYISAM:
-    return new ha_myisammrg(table);
+    return new (alloc) ha_myisammrg(table);
   }
 }
 
@@ -1300,7 +1300,7 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == DB_TYPE_UNKNOWN ||
-      ! (file=get_new_handler(&dummy_table, table_type)))
+      ! (file=get_new_handler(&dummy_table, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
@@ -2016,7 +2016,7 @@ int ha_create_table_from_engine(THD* thd,
     DBUG_RETURN(3);
 
   update_create_info_from_table(&create_info, &table);
-  create_info.table_options|= HA_CREATE_FROM_ENGINE;
+  create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -2469,6 +2469,7 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
 
 TYPELIB *ha_known_exts(void)
 {
+  MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     handlerton **types;
@@ -2483,7 +2484,8 @@ TYPELIB *ha_known_exts(void)
     {
       if ((*types)->state == SHOW_OPTION_YES)
       {
-	handler *file= get_new_handler(0,(enum db_type) (*types)->db_type);
+	handler *file= get_new_handler(0, mem_root,
+                                       (enum db_type) (*types)->db_type);
 	for (ext= file->bas_ext(); *ext; ext++)
 	{
 	  while ((old_ext= it++))
