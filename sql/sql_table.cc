@@ -840,6 +840,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	{
 	  /* Field redefined */
+	  sql_field->def=		dup_field->def;
 	  sql_field->sql_type=		dup_field->sql_type;
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
