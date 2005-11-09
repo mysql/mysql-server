@@ -363,9 +363,9 @@ static int federated_init= FALSE;               // Variable for checking the
                                                 // init state of hash
 
 /* Static declaration for handerton */
-
 static handler *federated_create_handler(TABLE *table);
-
+static int federated_commit(THD *thd, bool all);
+static int federated_rollback(THD *thd, bool all);
 
 /* Federated storage engine handlerton */
 
@@ -381,8 +381,8 @@ handlerton federated_hton= {
   NULL,    /* savepoint */
   NULL,    /* rollback to savepoint */
   NULL,    /* release savepoint */
-  NULL,    /* commit */
-  NULL,    /* rollback */
+  federated_commit,    /* commit */
+  federated_rollback,    /* rollback */
   NULL,    /* prepare */
   NULL,    /* recover */
   NULL,    /* commit_by_xid */
@@ -647,8 +647,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   share->port= 0;
   share->socket= 0;
-  DBUG_PRINT("info", ("Length %d \n", table->s->connect_string.length));
-  DBUG_PRINT("info", ("String %.*s \n", table->s->connect_string.length, 
+  DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
+  DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length, 
                       table->s->connect_string.str));
   share->scheme= my_strdup_with_length((const byte*)table->s->
                                        connect_string.str, 
@@ -740,7 +740,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
   DBUG_PRINT("info",
              ("scheme %s username %s password %s \
-              hostname %s port %d database %s tablename %s\n",
+              hostname %s port %d database %s tablename %s",
               share->scheme, share->username, share->password,
               share->hostname, share->port, share->database,
               share->table_name));
@@ -760,7 +760,9 @@ ha_federated::ha_federated(TABLE *table_arg)
   :handler(&federated_hton, table_arg),
   mysql(0), stored_result(0), scan_flag(0),
   ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
-{}
+{
+  trx_next= 0;
+}
 
 
 /*
@@ -1488,6 +1490,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
     with transactions
   */
   mysql->reconnect= 1;
+
   DBUG_RETURN(0);
 }
 
@@ -2631,5 +2634,153 @@ bool ha_federated::get_error_message(int error, String* buf)
   }
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
   DBUG_RETURN(FALSE);
+}
+
+int ha_federated::external_lock(THD *thd, int lock_type)
+{
+  int error= 0;
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  DBUG_ENTER("ha_federated::external_lock");
+
+  if (lock_type != F_UNLCK)
+  {
+    DBUG_PRINT("info",("federated not lock F_UNLCK"));
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
+    {
+      DBUG_PRINT("info",("federated autocommit"));
+      /* 
+        This means we are doing an autocommit
+      */
+      error= connection_autocommit(TRUE);
+      if (error)
+      {
+        DBUG_PRINT("info", ("error setting autocommit TRUE: %d", error));
+        DBUG_RETURN(error);
+      }
+      trans_register_ha(thd, FALSE, &federated_hton);
+    }
+    else 
+    { 
+      DBUG_PRINT("info",("not autocommit"));
+      if (!trx)
+      {
+        /* 
+          This is where a transaction gets its start
+        */
+        error= connection_autocommit(FALSE);
+        if (error)
+        { 
+          DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
+          DBUG_RETURN(error);
+        }
+        thd->ha_data[federated_hton.slot]= this;
+        trans_register_ha(thd, TRUE, &federated_hton);
+        /*
+          Send a lock table to the remote end.
+          We do not support this at the moment
+        */
+        if (thd->options & (OPTION_TABLE_LOCK))
+        {
+          DBUG_PRINT("info", ("We do not support lock table yet"));
+        }
+      }
+      else
+      {
+        ha_federated *ptr;
+        for (ptr= trx; ptr; ptr= ptr->trx_next)
+          if (ptr == this)
+            break;
+          else if (!ptr->trx_next)
+            ptr->trx_next= this;
+      }
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
+static int federated_commit(THD *thd, bool all)
+{
+  int return_val= 0;
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  DBUG_ENTER("federated_commit");
+
+  if (all)
+  {
+    int error= 0;
+    ha_federated *ptr, *old= NULL;
+    for (ptr= trx; ptr; old= ptr, ptr= ptr->trx_next)
+    {
+      if (old)
+        old->trx_next= NULL;
+      error= ptr->connection_commit();
+      if (error && !return_val);
+        return_val= error;
+    }
+    thd->ha_data[federated_hton.slot]= NULL;
+  }
+
+  DBUG_PRINT("info", ("error val: %d", return_val));
+  DBUG_RETURN(return_val);
+}
+
+
+static int federated_rollback(THD *thd, bool all)
+{
+  int return_val= 0;
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  DBUG_ENTER("federated_rollback");
+
+  if (all)
+  {
+    int error= 0;
+    ha_federated *ptr, *old= NULL;
+    for (ptr= trx; ptr; old= ptr, ptr= ptr->trx_next)
+    {
+      if (old)
+        old->trx_next= NULL;
+      error= ptr->connection_rollback();
+      if (error && !return_val)
+        return_val= error;
+    }
+    thd->ha_data[federated_hton.slot]= NULL;
+  }
+
+  DBUG_PRINT("info", ("error val: %d", return_val));
+  DBUG_RETURN(return_val);
+}
+
+int ha_federated::connection_commit()
+{
+  DBUG_ENTER("ha_federated::connection_commit");
+  DBUG_RETURN(execute_simple_query("COMMIT", 6));
+}
+
+
+int ha_federated::connection_rollback()
+{
+  DBUG_ENTER("ha_federated::connection_rollback");
+  DBUG_RETURN(execute_simple_query("ROLLBACK", 8));
+}
+
+
+int ha_federated::connection_autocommit(bool state)
+{
+  const char *text;
+  DBUG_ENTER("ha_federated::connection_autocommit");
+  text= (state == true) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
+  DBUG_RETURN(execute_simple_query(text, 16));
+}     
+
+
+int ha_federated::execute_simple_query(const char *query, int len)
+{
+  DBUG_ENTER("ha_federated::execute_simple_query");
+
+  if (mysql_real_query(mysql, query, len))
+  {
+    DBUG_RETURN(stash_remote_error());
+  }
+  DBUG_RETURN(0);
 }
 
