@@ -719,4 +719,15 @@ a1 varchar(12) charset utf8 collate utf8_bin not null,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+create table t2 ( a int default 3, b int default 3)
+select a1,a2 from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) default '3',
+  `b` int(11) default '3',
+  `a1` int(11) default NULL,
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
