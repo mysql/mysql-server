@@ -250,6 +250,7 @@ class Dbtup: public SimulatedBlock {
 friend class Suma;
 public:
 struct KeyReqStruct;
+friend struct KeyReqStruct; // CC
 typedef bool (Dbtup::* ReadFunction)(Uint32*,
                                      KeyReqStruct*,
                                      AttributeHeader*,
@@ -2345,14 +2346,15 @@ private:
 //---------------------------------------------------------------
 //
 // Public methods
-  Uint32* alloc_var_rec(Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*,
-			Uint32 base);
+  Uint32* alloc_var_rec(Fragrecord*const, Tablerec*const, Uint32, Local_key*,
+                        Uint32*, Uint32 base);
   void free_var_part(Fragrecord*, Tablerec*, Var_part_ref, Uint32 chain);
   void free_var_part(Fragrecord*, Tablerec*, Local_key*, Var_page*, Uint32 chain);
   
   void validate_page(Tablerec*, Var_page* page);
   
-  Uint32* alloc_fix_rec(Fragrecord*, Tablerec*, Local_key*, Uint32 *);
+  Uint32* alloc_fix_rec(Fragrecord*const, Tablerec*const, Local_key*,
+                        Uint32*);
   void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
   
 // Private methods
