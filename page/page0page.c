@@ -1100,7 +1100,7 @@ page_dir_delete_slot(
 	ut_ad(!page_zip || page_zip_available(page_zip, 10));
 	ut_ad(!page_zip || page_is_comp(page));
 	ut_ad(slot_no > 0);
-	ut_ad(slot_no < page_dir_get_n_slots(page));
+	ut_ad(slot_no + 1 < page_dir_get_n_slots(page));
 
 	n_slots = page_dir_get_n_slots(page);
 
@@ -1113,14 +1113,14 @@ page_dir_delete_slot(
 	/* 2. Update the n_owned value of the first non-deleted slot */
 
 	slot = page_dir_get_nth_slot(page, slot_no + 1);
-	page_dir_slot_set_n_owned(slot, page_zip, n_owned
-				+ page_dir_slot_get_n_owned(slot));
+	page_dir_slot_set_n_owned(slot, page_zip,
+				n_owned + page_dir_slot_get_n_owned(slot));
 
 	/* 3. Destroy the slot by copying slots */
 	for (i = slot_no + 1; i < n_slots; i++) {
 		rec_t*	rec;
 		rec = page_dir_slot_get_rec(page_dir_get_nth_slot(page, i));
-		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i),
+		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i - 1),
 				page_zip, rec);
 	}
 
@@ -1288,14 +1288,14 @@ page_dir_balance_slot(
 		
 			rec_set_n_owned_new(old_rec, page_zip, 0);
 			rec_set_n_owned_new(new_rec, page_zip, n_owned + 1);
-			page_dir_slot_set_rec(slot, page_zip, new_rec);
 		} else {
 			new_rec = rec_get_next_ptr(old_rec, FALSE);
 		
 			rec_set_n_owned_old(old_rec, 0);
 			rec_set_n_owned_old(new_rec, n_owned + 1);
-			page_dir_slot_set_rec(slot, page_zip, new_rec);
 		}
+
+		page_dir_slot_set_rec(slot, page_zip, new_rec);
 
 		page_dir_slot_set_n_owned(up_slot, page_zip, up_n_owned -1);
 	} else {

@@ -3192,7 +3192,11 @@ loop:
 		if (ibuf_rec_get_page_no(ibuf_rec) != page_no
 		    || ibuf_rec_get_space(ibuf_rec) != space) {
 			if (page) {
-				page_header_reset_last_insert(page, &mtr);
+				/* TODO: if the insert buffer is adapted for
+				use on compressed pages, pass the compressed
+				page as a parameter */
+				page_header_reset_last_insert(
+						page, NULL, &mtr);
 			}
 			goto reset_bit;
 		}

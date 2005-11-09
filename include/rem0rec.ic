@@ -294,7 +294,8 @@ rec_get_next_ptr(
 		       + ut_align_offset(rec, UNIV_PAGE_SIZE)
 		      < UNIV_PAGE_SIZE);
 #endif
-		return(rec + field_value);
+		return(ut_align_down(rec, UNIV_PAGE_SIZE)
+			+ ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
 	} else {
 		ut_ad(field_value < UNIV_PAGE_SIZE);
 
