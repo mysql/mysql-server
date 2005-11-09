@@ -1193,10 +1193,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
+      db_type not_used;
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
                table_list->table_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
-      if (mysql_frm_type(path) == FRMTYPE_VIEW)
+      if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         TABLE tab;// will not be used (because it's VIEW) but have to be passed
         table= &tab;
@@ -2634,7 +2635,7 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
   *fn_ext(path)='\0';				// remove extension
-  handler *file=get_new_handler((TABLE*) 0, base);
+  handler *file= get_new_handler((TABLE*) 0, current_thd->mem_root, base);
   if (file && file->delete_table(path))
   {
     error=1;

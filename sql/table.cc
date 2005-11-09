@@ -338,7 +338,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     my_free(buff, MYF(0));
   }
   /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, share->db_type)))
+  if (!(outparam->file= get_new_handler(outparam, &outparam->mem_root,
+                                        share->db_type)))
     goto err;
 
   error=4;
@@ -1693,29 +1694,6 @@ bool check_column_name(const char *name)
 }
 
 /*
-** Get type of table from .frm file
-*/
-
-db_type get_table_type(THD *thd, const char *name)
-{
-  File	 file;
-  uchar head[4];
-  int error;
-  DBUG_ENTER("get_table_type");
-  DBUG_PRINT("enter",("name: '%s'",name));
-
-  if ((file=my_open(name,O_RDONLY, MYF(0))) < 0)
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  error=my_read(file,(byte*) head,4,MYF(MY_NABP));
-  my_close(file,MYF(0));
-  if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       (head[2] < FRM_VER+3 || head[2] > FRM_VER+4)))
-    DBUG_RETURN(DB_TYPE_UNKNOWN);
-  DBUG_RETURN(ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0));
-}
-
-/*
   Create Item_field for each column in the table.
 
   SYNPOSIS
@@ -2511,9 +2489,9 @@ bool st_table_list::prepare_security(THD *thd)
 {
   List_iterator_fast<TABLE_LIST> tb(*view_tables);
   TABLE_LIST *tbl;
+  DBUG_ENTER("st_table_list::prepare_security");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= thd->security_ctx;
-  DBUG_ENTER("st_table_list::prepare_security");
 
   DBUG_ASSERT(!prelocking_placeholder);
   if (prepare_view_securety_context(thd))

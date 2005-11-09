@@ -44,6 +44,12 @@
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef Bitmap<64> key_map;           /* Used for finding keys */
 typedef ulong key_part_map;           /* Used for finding key parts */
+/*
+  Used to identify NESTED_JOIN structures within a join (applicable only to
+  structures that have not been simplified away and embed more the one
+  element)
+*/
+typedef ulonglong nested_join_map;
 
 /* query_id */
 typedef ulonglong query_id_t;
@@ -1297,7 +1303,6 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int closefrm(TABLE *table);
-db_type get_table_type(THD *thd, const char *name);
 int read_string(File file, gptr *to, uint length);
 void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
