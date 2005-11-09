@@ -191,7 +191,7 @@ void
 page_header_set_ptr(
 /*================*/
 	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in: compressed page whose
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	ulint		field,	/* in/out: PAGE_FREE, ... */
 	const byte*	ptr);	/* in: pointer or NULL*/
@@ -202,8 +202,10 @@ UNIV_INLINE
 void
 page_header_reset_last_insert(
 /*==========================*/
-	page_t*	page,	/* in: page */
-	mtr_t*	mtr);	/* in: mtr */
+	page_t*		page,	/* in: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************
 Gets the first record on the page. */
 UNIV_INLINE
