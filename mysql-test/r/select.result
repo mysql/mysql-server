@@ -3201,3 +3201,43 @@ a	b	c
 select * from t1 join t2 straight_join t3 on (t1.a=t3.c);
 a	b	c
 drop table t1, t2 ,t3;
+create table t1(f1 int, f2 date);
+insert into t1 values(1,'2005-01-01'),(2,'2005-09-01'),(3,'2005-09-30'),
+(4,'2005-10-01'),(5,'2005-12-30');
+select * from t1 where f2 >= 0;
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '0000-00-00';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-31';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+select * from t1 where f2 >= '2005-09-3a';
+f1	f2
+4	2005-10-01
+5	2005-12-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+select * from t1 where f2 <= '2005-09-31';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+select * from t1 where f2 <= '2005-09-3a';
+f1	f2
+1	2005-01-01
+2	2005-09-01
+3	2005-09-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+drop table t1;
