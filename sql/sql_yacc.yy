@@ -9008,7 +9008,7 @@ view_user:
                                      thd->lex->create_view_definer))
               YYABORT;
           }
-        | CURRENT_USER optional_braces
+        | DEFINER_SYM EQ CURRENT_USER optional_braces
           {
             THD *thd= YYTHD;
             if (!(thd->lex->create_view_definer=
