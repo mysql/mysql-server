@@ -551,12 +551,13 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
 	      system_charset_info);
 
-    if (!trust_routine_creators && mysql_bin_log.is_open())
+    if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
+        !trust_function_creators && mysql_bin_log.is_open())
     {
       if (!sp->m_chistics->detistic)
       {
 	/*
-	  Note that for a _function_ this test is not enough; one could use
+	  Note that this test is not perfect; one could use
 	  a non-deterministic read-only function in an update statement.
 	*/
 	enum enum_sp_data_access access=
