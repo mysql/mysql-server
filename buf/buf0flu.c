@@ -265,21 +265,23 @@ buf_flush_buffered_writes(void)
                 }
 
 		if (!block->check_index_page_at_flush) {
-		} else if (page_is_comp(block->frame)
-				&& UNIV_UNLIKELY(!page_simple_validate_new(
+		} else if (page_is_comp(block->frame)) {
+			if (UNIV_UNLIKELY(!page_simple_validate_new(
 						block->frame))) {
 corrupted_page:
-			buf_page_print(block->frame);
+				buf_page_print(block->frame);
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
 	"  InnoDB: Apparent corruption of an index page n:o %lu in space %lu\n"
 	"InnoDB: to be written to data file. We intentionally crash server\n"
 	"InnoDB: to prevent corrupt data from ending up in data\n"
 	"InnoDB: files.\n",
-			(ulong) block->offset, (ulong) block->space);
+					(ulong) block->offset,
+					(ulong) block->space);
 
-			ut_error;
+				ut_error;
+			}
 		} else if (UNIV_UNLIKELY(!page_simple_validate_old(
 						block->frame))) {
 
