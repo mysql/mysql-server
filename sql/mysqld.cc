@@ -390,6 +390,9 @@ extern ulong srv_commit_concurrency;
 }
 #endif
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
+#ifndef HAVE_U_INT32_T
+typedef unsigned int  u_int32_t;
+#endif
 extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
