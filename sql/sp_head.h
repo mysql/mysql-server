@@ -251,9 +251,10 @@ public:
 
   Field *make_field(uint max_length, const char *name, TABLE *dummy);
 
-  void set_info(char *definer, uint definerlen,
-		longlong created, longlong modified,
+  void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
+
+  void set_definer(char *definer, uint definerlen);
 
   void reset_thd_mem_root(THD *thd);
 
