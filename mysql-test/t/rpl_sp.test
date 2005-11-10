@@ -1,10 +1,18 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
+# Modified by WL#2971.
+
+# Note that in the .opt files we still use the old variable name
+# log-bin-trust-routine-creators so that this test checks that it's
+# still accepted (this test also checks that the new name is
+# accepted). The old name could be removed in 5.1 or 6.0.
 
 source include/master-slave.inc;
 
-# First let's test replication of current_user() (that's a related thing)
 # we need a db != test, where we don't have automatic grants
-create database if not exists mysqltest1;
+--disable_warnings
+drop database if exists mysqltest1;
+--enable_warnings
+create database mysqltest1;
 use mysqltest1;
 create table t1 (a varchar(100));
 sync_slave_with_master;
@@ -16,30 +24,15 @@ use mysqltest1;
 # (same definer, same properties...)
 
 connection master;
-# cleanup
---disable_warnings
-drop procedure if exists foo;
-drop procedure if exists foo2;
-drop procedure if exists foo3;
-drop procedure if exists foo4;
-drop procedure if exists bar;
-drop function if exists fn1;
---enable_warnings
 
 delimiter |;
---error 1418 # not deterministic
+
+# Stored procedures don't have the limitations that functions have
+# regarding binlogging: it's ok to create a procedure as not
+# deterministic and updating data, while it's not ok to create such a
+# function. We test this.
+
 create procedure foo()
-begin
-  declare b int;
-  set b = 8;
-  insert into t1 values (b);
-  insert into t1 values (unix_timestamp());
-end|
-
---replace_column 2 # 5 #
-show binlog events from 98| # check that not there
-
-create procedure foo() deterministic
 begin
   declare b int;
   set b = 8;
@@ -54,38 +47,29 @@ delimiter ;|
 --replace_column 13 # 14 #
 select * from mysql.proc where name='foo' and db='mysqltest1';
 sync_slave_with_master;
+# You will notice in the result that the definer does not match what
+# it is on master, it is a known bug on which Alik is working
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --replace_column 13 # 14 #
 select * from mysql.proc where name='foo' and db='mysqltest1';
 
-# Now when we call it, does the CALL() get into binlog,
-# or the substatements?
 connection master;
 # see if timestamp used in SP on slave is same as on master
 set timestamp=1000000000;
 call foo();
---replace_column 2 # 5 #
-show binlog events from 308;
 select * from t1;
 sync_slave_with_master;
 select * from t1;
 
-# Now a SP which is supposed to not update tables (CALL should not be
-# binlogged) as it's "read sql data", so should not give error even if
-# non-deterministic.
+# Now a SP which is not updating tables
 
 connection master;
 delete from t1;
 create procedure foo2()
-  not deterministic
-  reads sql data
   select * from mysqltest1.t1;
 call foo2();
-# verify CALL is not in binlog
---replace_column 2 # 5 #
-show binlog events from 518;
 
---error 1418
+# check that this is allowed (it's not for functions):
 alter procedure foo2 contains sql;
 
 # SP with definer's right
@@ -106,15 +90,7 @@ grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 connect (con1,127.0.0.1,zedjzlcsjhd,,mysqltest1,$MASTER_MYPORT,);
 connection con1;
 
---error 1419 # only full-global-privs user can create a routine
-create procedure foo4()
-  deterministic
-  insert into t1 values (10);
-
-connection master;
-set global log_bin_trust_routine_creators=1;
-connection con1;
-
+# this routine will fail in the second INSERT because of privileges
 delimiter |;
 create procedure foo4()
   deterministic
@@ -128,34 +104,51 @@ delimiter ;|
 # I add ,0 so that it does not print the error in the test output,
 # because this error is hostname-dependent
 --error 1142,0
-call foo4(); # invoker has no INSERT grant on table => failure
-show warnings;
+call foo4(); # invoker has no INSERT grant on table t1 => failure
 
 connection master;
 call foo3(); # success (definer == root)
 show warnings;
 
---replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --error 1142,0
 call foo4(); # definer's rights => failure
-show warnings;
 
 # we test replication of ALTER PROCEDURE
 alter procedure foo4 sql security invoker;
 call foo4(); # invoker's rights => success
 show warnings;
 
-# Check that only successful CALLs are in binlog
---replace_column 2 # 5 #
-show binlog events from 990;
-
-# Note that half-failed CALLs are not in binlog, which is a known
-# bug. If we compare t2 on master and slave we see they differ:
+# Note that half-failed procedure calls are ok with binlogging;
+# if we compare t2 on master and slave we see they are identical:
 
 select * from t1;
 select * from t2;
 sync_slave_with_master;
 select * from t1;
+select * from t2;
+
+# Let's check another failing-in-the-middle procedure
+connection master;
+delete from t2;
+alter table t2 add unique (a);
+
+drop procedure foo4;
+delimiter |;
+create procedure foo4()
+  deterministic
+  begin
+  insert into t2 values(20),(20);
+  end|
+
+delimiter ;|
+
+--error 1062
+call foo4();
+show warnings;
+
+select * from t2;
+sync_slave_with_master;
+# check that this failed-in-the-middle replicated right:
 select * from t2;
 
 # Test of DROP PROCEDURE
@@ -177,6 +170,14 @@ drop procedure foo2;
 drop procedure foo3;
 
 delimiter |;
+# check that needs "deterministic"
+--error 1418
+create function fn1(x int)
+       returns int
+begin
+       insert into t1 values (x);
+       return x+2;
+end|
 create function fn1(x int)
        returns int
        deterministic
@@ -202,15 +203,69 @@ drop function fn1;
 
 create function fn1()
        returns int
-       deterministic
+       no sql
 begin
        return unix_timestamp();
 end|
+
 delimiter ;|
+# check that needs "deterministic"
+--error 1418
+alter function fn1 contains sql;
+
 delete from t1;
 set timestamp=1000000000;
 insert into t1 values(fn1()); 
 
+connection con1;
+
+delimiter |;
+--error 1419 # only full-global-privs user can create a function
+create function fn2()
+       returns int
+       no sql
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+connection master;
+# test old variable name:
+set global log_bin_trust_routine_creators=1;
+# now use new name:
+set global log_bin_trust_function_creators=0;
+set global log_bin_trust_function_creators=1;
+# slave needs it too otherwise will not execute what master allowed:
+connection slave;
+set global log_bin_trust_function_creators=1;
+
+connection con1;
+
+delimiter |;
+create function fn2()
+       returns int
+       no sql
+begin
+       return unix_timestamp();
+end|
+delimiter ;|
+
+connection master;
+
+# Now a function which is supposed to not update tables
+# as it's "reads sql data", so should not give error even if
+# non-deterministic.
+
+delimiter |;
+create function fn3()
+       returns int
+       not deterministic
+       reads sql data
+begin
+  return 0;
+end|
+delimiter ;|
+
+select fn3();
 --replace_result localhost.localdomain localhost 127.0.0.1 localhost
 --replace_column 13 # 14 #
 select * from mysql.proc where db='mysqltest1';
@@ -223,18 +278,43 @@ select * from t1;
 --replace_column 13 # 14 #
 select * from mysql.proc where db='mysqltest1';
 
-# And now triggers
+# Let's check a failing-in-the-middle function
+connection master;
+delete from t2;
+alter table t2 add unique (a);
+
+drop function fn1;
+
+delimiter |;
+create function fn1()
+       returns int
+begin
+  insert into t2 values(20),(20);
+  return 10;
+end|
+
+delimiter ;|
+
+# Because of BUG#14769 the following statement requires that we start
+# slave with --slave-skip-errors=1062. When that bug is fixed, that
+# option can be removed.
+
+--error 1062
+select fn1();
+
+select * from t2;
+sync_slave_with_master;
+
+# check that this failed-in-the-middle replicated right:
+select * from t2;
+
+# ********************** PART 3 : TRIGGERS ***************
 
 connection con1;
 --error 1227
 create trigger trg before insert on t1 for each row set new.a= 10;
 
 connection master;
-# fn1() above uses timestamps, so in !ps-protocol, the timezone will be
-# binlogged, but in --ps-protocol it will not be (BUG#9359) so
-# the binlog offsets get shifted which spoils SHOW BINLOG EVENTS.
-# To be immune, we take a new binlog.
-flush logs;
 delete from t1;
 # TODO: when triggers can contain an update, test that this update
 # does not go into binlog.
@@ -253,7 +333,7 @@ drop trigger trg;
 insert into t1 values (1);
 select * from t1;
 --replace_column 2 # 5 #
-show binlog events in 'master-bin.000002' from 98;
+show binlog events in 'master-bin.000001' from 98;
 sync_slave_with_master;
 select * from t1;
 

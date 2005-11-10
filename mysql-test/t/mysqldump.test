@@ -658,19 +658,19 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t/1" 2>&1
 
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "T_1" 2>&1
 
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T%1"
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "T%1" 2>&1
 
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T'1"
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "T'1" 2>&1
 
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_1"
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "T_1" 2>&1
 
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments "mysqldump_test_db" "T_"
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db "T_" 2>&1
 
 --disable_query_log
 select '------ Testing with illegal database names ------' as test_sequence ;
