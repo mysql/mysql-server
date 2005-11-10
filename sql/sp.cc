@@ -441,8 +441,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
-      (*sphp)->set_info((char *)definer, (uint)strlen(definer),
-			created, modified, &chistics, sql_mode);
+      (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
+      (*sphp)->set_info(created, modified, &chistics, sql_mode);
       (*sphp)->optimize();
     }
     thd->lex->sql_command= oldcmd;

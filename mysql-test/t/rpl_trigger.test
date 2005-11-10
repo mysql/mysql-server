@@ -87,12 +87,35 @@ insert into t1 set a = now();
 select a=b && a=c from t1;
 let $time=`select a from t1`;
 
+# Check that definer attribute is replicated properly:
+#   - dump definers on the master;
+#   - wait for the slave to synchronize with the master;
+#   - dump definers on the slave;
+
+SELECT routine_name, definer
+FROM information_schema.routines;
+
+SELECT trigger_name, definer
+FROM information_schema.triggers;
+
 save_master_pos;
 connection slave;
 sync_with_master;
 --disable_query_log
 select "--- On slave --" as "";
 --enable_query_log
+
+# XXX: Definers of stored procedures and functions are not replicated. WL#2897
+# (Complete definer support in the stored routines) addresses this issue. So,
+# the result file is expected to be changed after implementation of this WL
+# item.
+
+SELECT routine_name, definer
+FROM information_schema.routines;
+
+SELECT trigger_name, definer
+FROM information_schema.triggers;
+
 select a=b && a=c from t1;
 --disable_query_log
 eval select a='$time' as 'test' from t1;

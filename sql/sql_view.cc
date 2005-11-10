@@ -214,29 +214,28 @@ bool mysql_create_view(THD *thd,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->create_view_definer->user.str,
+  if (strcmp(lex->definer->user.str,
              thd->security_ctx->priv_user) != 0 ||
       my_strcasecmp(system_charset_info,
-                    lex->create_view_definer->host.str,
+                    lex->definer->host.str,
                     thd->security_ctx->priv_host) != 0)
   {
     if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
-      my_error(ER_VIEW_OTHER_USER, MYF(0), lex->create_view_definer->user.str,
-               lex->create_view_definer->host.str);
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       res= TRUE;
       goto err;
     }
     else
     {
-      if (!is_acl_user(lex->create_view_definer->host.str,
-                       lex->create_view_definer->user.str))
+      if (!is_acl_user(lex->definer->host.str,
+                       lex->definer->user.str))
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                             ER_NO_SUCH_USER,
                             ER(ER_NO_SUCH_USER),
-                            lex->create_view_definer->user.str,
-                            lex->create_view_definer->host.str);
+                            lex->definer->user.str,
+                            lex->definer->host.str);
       }
     }
   }
@@ -658,8 +657,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= lex->create_view_algorithm;
-  view->definer.user= lex->create_view_definer->user;
-  view->definer.host= lex->create_view_definer->host;
+  view->definer.user= lex->definer->user;
+  view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
   if ((view->updatable_view= (can_be_merged &&
@@ -807,7 +806,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (default_view_definer(thd->security_ctx, &table->definer))
+    if (get_default_definer(thd, &table->definer))
       goto err;
   }
 

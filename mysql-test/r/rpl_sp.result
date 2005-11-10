@@ -256,7 +256,7 @@ a
 show binlog events in 'master-bin.000002' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
-master-bin.000002	#	Query	1	#	use `mysqltest1`; create trigger trg before insert on t1 for each row set new.a= 10
+master-bin.000002	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
 master-bin.000002	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 master-bin.000002	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000002	#	Query	1	#	use `mysqltest1`; drop trigger trg
