@@ -215,6 +215,8 @@ struct Query_cache_memory_bin
 
 struct Query_cache_memory_bin_step
 {
+public:
+  Query_cache_memory_bin_step() {}
   ulong size;
   ulong increment;
   uint idx;
