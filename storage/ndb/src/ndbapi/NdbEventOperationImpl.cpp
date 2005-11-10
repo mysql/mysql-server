@@ -855,6 +855,11 @@ find_bucket(Vector<Gci_container> * active, Uint64 gci)
 void
 NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 {
+  if (unlikely(m_active_op_count == 0))
+  {
+    return;
+  }
+  
   DBUG_ENTER("NdbEventBuffer::execSUB_GCP_COMPLETE_REP");
 
   const Uint64 gci= rep->gci;
@@ -862,11 +867,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 
   Gci_container *bucket = find_bucket(&m_active_gci, gci);
 
-  if (unlikely(m_active_op_count == 0))
-  {
-    DBUG_VOID_RETURN;
-  }
-  
   if (unlikely(bucket == 0))
   {
     /**
