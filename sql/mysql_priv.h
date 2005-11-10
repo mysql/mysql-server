@@ -857,6 +857,7 @@ int mysqld_show_variables(THD *thd,const char *wild);
 int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
+bool mysqld_show_authors(THD *thd);
 bool mysqld_show_privileges(THD *thd);
 bool mysqld_show_column_types(THD *thd);
 bool mysqld_help (THD *thd, const char *text);
