@@ -4318,18 +4318,6 @@ end_with_restore_list:
           So just execute the statement.
         */
 	res= sp->execute_procedure(thd, &lex->value_list);
-        if (mysql_bin_log.is_open() &&
-            (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
-             sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
-        {
-          if (res)
-            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                         ER_FAILED_ROUTINE_BREAK_BINLOG,
-			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
-          else
-            thd->clear_error();
-        }
-
 	/*
           If warnings have been cleared, we have to clear total_warn_count
           too, otherwise the clients get confused.
@@ -4388,7 +4376,8 @@ end_with_restore_list:
         if (end_active_trans(thd)) 
           goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
-        if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
+        if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
+            !trust_function_creators &&  mysql_bin_log.is_open() &&
             !sp->m_chistics->detistic &&
             (chistics.daccess == SP_CONTAINS_SQL ||
              chistics.daccess == SP_MODIFIES_SQL_DATA))
@@ -4399,6 +4388,12 @@ end_with_restore_list:
         }
         else
         {
+          /*
+            Note that if you implement the capability of ALTER FUNCTION to
+            alter the body of the function, this command should be made to
+            follow the restrictions that log-bin-trust-function-creators=0
+            already puts on CREATE FUNCTION.
+          */
           if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
             result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
           else
