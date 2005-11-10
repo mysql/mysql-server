@@ -23,6 +23,7 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "authors.h"
 #include <my_dir.h>
 
 
@@ -83,6 +84,38 @@ bool mysqld_show_storage_engines(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+/***************************************************************************
+** List all Authors.
+** If you can update it, you get to be in it :)
+***************************************************************************/
+
+bool mysqld_show_authors(THD *thd)
+{
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("mysqld_show_authors");
+
+  field_list.push_back(new Item_empty_string("Name",40));
+  field_list.push_back(new Item_empty_string("Location",40));
+  field_list.push_back(new Item_empty_string("Comment",80));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  show_table_authors_st *authors;
+  for (authors= show_table_authors; authors->name; authors++)
+  {
+    protocol->prepare_for_resend();
+    protocol->store(authors->name, system_charset_info);
+    protocol->store(authors->location, system_charset_info);
+    protocol->store(authors->comment, system_charset_info);
+    if (protocol->write())
+      DBUG_RETURN(TRUE);
+  }
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
+}
 
 /***************************************************************************
  List all privileges supported

@@ -564,3 +564,7 @@ DROP TABLE tyt2;
 DROP TABLE urkunde;
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
+SHOW AUTHORS;
+Name	Location	Comment
+Brian "Krow" Aker	Seattle, WA. USA	Architecture, archive, federated, buncha of little stuff :)
+David Axmark	Uppsala, Sweden	Small stuff long time ago, Monty ripped it out!
