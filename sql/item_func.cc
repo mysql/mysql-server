@@ -4888,7 +4888,7 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
 
 
 /*
-  Find the function and chack access rigths to the function
+  Find the function and check access rights to the function
 
   SYNOPSIS
     find_and_check_access()
