@@ -131,9 +131,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     But a trigger can in theory be used to do nasty things (if it supported
     DROP for example) so we do the check for privileges. For now there is
     already a stronger test right above; but when this stronger test will
-    be removed, the test below will hold.
+    be removed, the test below will hold. Because triggers have the same
+    nature as functions regarding binlogging: their body is implicitely
+    binlogged, so they share the same danger, so trust_function_creators
+    applies to them too.
   */
-  if (!trust_routine_creators && mysql_bin_log.is_open() &&
+  if (!trust_function_creators && mysql_bin_log.is_open() &&
       !(thd->security_ctx->master_access & SUPER_ACL))
   {
     my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
