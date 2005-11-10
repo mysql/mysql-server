@@ -67,7 +67,7 @@ handlerton binlog_hton = {
   NULL,                         /* create_cursor_read_view */
   NULL,                         /* set_cursor_read_view */
   NULL,                         /* close_cursor_read_view */
-  HTON_NO_FLAGS
+  HTON_HIDDEN
 };
 
 /*
