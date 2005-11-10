@@ -561,12 +561,13 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   if (rc == 0)
   {
     /*
-      Now send the result set metadata to the client. We need to do it
-      here, as in Select_materialize::send_fields the exact column types
-      are not yet known. The new types may differ from the original ones
-      sent at prepare if some of them were altered by MySQL HEAP tables
-      mechanism -- used when create_tmp_field_from_item may alter the
-      original column type.
+      Now send the result set metadata to the client. We need to
+      do it here, as in Select_materialize::send_fields the items
+      for column types are not yet created (send_fields requires
+      a list of items). The new types may differ from the original
+      ones sent at prepare if some of them were altered by MySQL
+      HEAP tables mechanism -- used when create_tmp_field_from_item
+      may alter the original column type.
 
       We can't simply supply SEND_EOF flag to send_fields, because
       send_fields doesn't flush the network buffer.
