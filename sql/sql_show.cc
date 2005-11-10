@@ -1060,17 +1060,35 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
   default:
     DBUG_ASSERT(0); // never should happen
   }
-  buff->append("DEFINER=", 8);
-  append_identifier(thd, buff,
-                    table->definer.user.str, table->definer.user.length);
-  buff->append('@');
-  append_identifier(thd, buff,
-                    table->definer.host.str, table->definer.host.length);
+  append_definer(thd, buff, &table->definer.user, &table->definer.host);
   if (table->view_suid)
-    buff->append(" SQL SECURITY DEFINER ", 22);
+    buff->append("SQL SECURITY DEFINER ", 21);
   else
-    buff->append(" SQL SECURITY INVOKER ", 22);
+    buff->append("SQL SECURITY INVOKER ", 21);
 }
+
+
+/*
+  Append DEFINER clause to the given buffer.
+  
+  SYNOPSIS
+    append_definer()
+    thd           [in] thread handle
+    buffer        [inout] buffer to hold DEFINER clause
+    definer_user  [in] user name part of definer
+    definer_host  [in] host name part of definer
+*/
+
+void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
+                    const LEX_STRING *definer_host)
+{
+  buffer->append(STRING_WITH_LEN("DEFINER="));
+  append_identifier(thd, buffer, definer_user->str, definer_user->length);
+  buffer->append('@');
+  append_identifier(thd, buffer, definer_host->str, definer_host->length);
+  buffer->append(' ');
+}
+
 
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
@@ -3094,7 +3112,8 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           enum trg_event_type event,
                           enum trg_action_time_type timing,
                           LEX_STRING *trigger_stmt,
-                          ulong sql_mode)
+                          ulong sql_mode,
+                          LEX_STRING *definer_buffer)
 {
   CHARSET_INFO *cs= system_charset_info;
   byte *sql_mode_str;
@@ -3119,6 +3138,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                                                        sql_mode,
                                                        &sql_mode_len);
   table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
+  table->field[18]->store((const char *)definer_buffer->str, definer_buffer->length, cs);
   return schema_table_store_record(thd, table);
 }
 
@@ -3152,15 +3172,21 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
         ulong sql_mode;
+        char definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+        LEX_STRING definer_buffer;
+        definer_buffer.str= definer_holder;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
                                        (enum trg_action_time_type)timing,
                                        &trigger_name, &trigger_stmt,
-                                       &sql_mode))
+                                       &sql_mode,
+                                       &definer_buffer))
           continue;
+
         if (store_trigger(thd, table, base_name, file_name, &trigger_name,
                          (enum trg_event_type) event,
                          (enum trg_action_time_type) timing, &trigger_stmt,
-                         sql_mode))
+                         sql_mode,
+                         &definer_buffer))
           DBUG_RETURN(1);
       }
     }
@@ -4064,6 +4090,7 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode"},
+  {"DEFINER", 65535, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

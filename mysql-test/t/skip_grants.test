@@ -9,7 +9,7 @@ use test;
 # test that we can create VIEW if privileges check switched off
 #
 create table t1 (field1 INT);
--- error ER_NO_VIEW_USER
+-- error ER_MALFORMED_DEFINER
 CREATE VIEW v1 AS SELECT field1 FROM t1;
 drop table t1;
 
