@@ -70,17 +70,20 @@ bool mysqld_show_storage_engines(THD *thd)
   handlerton **types;
   for (types= sys_table_types; *types; types++)
   {
-    protocol->prepare_for_resend();
-    protocol->store((*types)->name, system_charset_info);
-    const char *option_name= show_comp_option_name[(int) (*types)->state];
+    if (!((*types)->flags & HTON_HIDDEN))
+    {
+      protocol->prepare_for_resend();
+      protocol->store((*types)->name, system_charset_info);
+      const char *option_name= show_comp_option_name[(int) (*types)->state];
 
-    if ((*types)->state == SHOW_OPTION_YES &&
-	!my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
-      option_name= "DEFAULT";
-    protocol->store(option_name, system_charset_info);
-    protocol->store((*types)->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
+      if ((*types)->state == SHOW_OPTION_YES &&
+          !my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
+        option_name= "DEFAULT";
+      protocol->store(option_name, system_charset_info);
+      protocol->store((*types)->comment, system_charset_info);
+      if (protocol->write())
+        DBUG_RETURN(TRUE);
+    }
   }
   send_eof(thd);
   DBUG_RETURN(FALSE);
