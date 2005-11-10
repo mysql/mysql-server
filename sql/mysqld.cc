@@ -564,7 +564,7 @@ bool mysqld_embedded=1;
 static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
-char *libwrapName= NULL;
+const char *libwrapName= NULL;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
