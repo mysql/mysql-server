@@ -200,9 +200,12 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_bool_ptr       
+sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
-                           &trust_routine_creators);
+                           &trust_function_creators);
+sys_var_bool_ptr       
+sys_trust_function_creators("log_bin_trust_function_creators",
+                            &trust_function_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -722,6 +725,7 @@ sys_var *sys_variables[]=
   &sys_innodb_commit_concurrency,
 #endif  
   &sys_trust_routine_creators,
+  &sys_trust_function_creators,
   &sys_engine_condition_pushdown,
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
@@ -865,7 +869,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
-  {sys_trust_routine_creators.name,(char*) &sys_trust_routine_creators, SHOW_SYS},
+  {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
@@ -3462,6 +3466,26 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
   return 0;
 }
 
+
+void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
+{
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_WARN_DEPRECATED_SYNTAX,
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
+                      "log_bin_trust_function_creators"); 
+}
+
+void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
+{
+  warn_deprecated(thd);
+  sys_var_bool_ptr::set_default(thd, type);
+}
+
+bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
+{
+  warn_deprecated(thd);
+  return sys_var_bool_ptr::update(thd, var);
+}
 
 /****************************************************************************
   Used templates

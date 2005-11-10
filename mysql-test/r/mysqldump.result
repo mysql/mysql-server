@@ -1614,6 +1614,16 @@ mysqldump: Couldn't find table: "t\1"
 
 mysqldump: Couldn't find table: "t/1"
 
+mysqldump: Couldn't find table: "T_1"
+
+mysqldump: Couldn't find table: "T%1"
+
+mysqldump: Couldn't find table: "T'1"
+
+mysqldump: Couldn't find table: "T_1"
+
+mysqldump: Couldn't find table: "T_"
+
 test_sequence
 ------ Testing with illegal database names ------
 mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
