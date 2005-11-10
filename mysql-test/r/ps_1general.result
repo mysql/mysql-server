@@ -332,7 +332,6 @@ CSV	YES/NO	CSV storage engine
 ndbcluster	YES/NO	Clustered, fault-tolerant, memory-based tables
 FEDERATED	YES/NO	Federated MySQL storage engine
 MRG_MYISAM	YES/NO	Collection of identical MyISAM tables
-binlog	YES/NO	This is a meta storage engine to represent the binlog in a transaction
 ISAM	YES/NO	Obsolete storage engine
 drop table if exists t5;
 prepare stmt1 from ' drop table if exists t5 ' ;
