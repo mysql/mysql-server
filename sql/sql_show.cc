@@ -57,6 +57,9 @@ bool mysqld_show_storage_engines(THD *thd)
   field_list.push_back(new Item_empty_string("Engine",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
+  field_list.push_back(new Item_empty_string("Transactions",3));
+  field_list.push_back(new Item_empty_string("XA",3));
+  field_list.push_back(new Item_empty_string("Savepoints",3));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -77,6 +80,9 @@ bool mysqld_show_storage_engines(THD *thd)
       option_name= "DEFAULT";
     protocol->store(option_name, system_charset_info);
     protocol->store((*types)->comment, system_charset_info);
+    protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
+    protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
+    protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
