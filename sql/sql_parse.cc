@@ -5062,7 +5062,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables != first_not_own_table; tables= tables->next_global)
+  for (; tables && tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -7466,32 +7466,81 @@ Item *negate_expression(THD *thd, Item *expr)
   return new Item_func_not(expr);
 }
 
-
 /*
-  Assign as view definer current user
-
+  Set the specified definer to the default value, which is the current user in
+  the thread. Also check that the current user satisfies to the definers
+  requirements.
+ 
   SYNOPSIS
-    default_view_definer()
-    sctx		current security context
-    definer             structure where it should be assigned
-
+    get_default_definer()
+    thd       [in] thread handler
+    definer   [out] definer
+ 
   RETURN
-    FALSE   OK
-    TRUE    Error
+    error status, that is:
+      - FALSE -- on success;
+      - TRUE -- on error (current user can not be a definer).
 */
-
-bool default_view_definer(Security_context *sctx, st_lex_user *definer)
+ 
+bool get_default_definer(THD *thd, LEX_USER *definer)
 {
-  definer->user.str= sctx->priv_user;
-  definer->user.length= strlen(sctx->priv_user);
+  /* Check that current user has non-empty host name. */
 
-  if (!*sctx->priv_host)
+  const Security_context *sctx= thd->security_ctx;
+
+  if (sctx->priv_host[0] == 0)
   {
-    my_error(ER_NO_VIEW_USER, MYF(0));
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
     return TRUE;
   }
 
-  definer->host.str= sctx->priv_host;
-  definer->host.length= strlen(sctx->priv_host);
+  /* Fill in. */
+
+  definer->user.str= (char *) sctx->priv_user;
+  definer->user.length= strlen(definer->user.str);
+
+  definer->host.str= (char *) sctx->priv_host;
+  definer->host.length= strlen(definer->host.str);
+
   return FALSE;
+}
+
+
+/*
+  Create definer with the given user and host names. Also check that the user
+  and host names satisfy definers requirements.
+
+  SYNOPSIS
+    create_definer()
+    thd         [in] thread handler
+    user_name   [in] user name
+    host_name   [in] host name
+
+  RETURN
+    On success, return a valid pointer to the created and initialized
+    LEX_STRING, which contains definer information.
+    On error, return 0.
+*/
+
+LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
+{
+  LEX_USER *definer;
+
+  /* Check that specified host name is valid. */
+
+  if (host_name->length == 0)
+  {
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
+    return 0;
+  }
+
+  /* Create and initialize. */
+
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof (LEX_USER))))
+    return 0;
+
+  definer->user= *user_name;
+  definer->host= *host_name;
+
+  return definer;
 }

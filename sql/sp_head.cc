@@ -1569,21 +1569,9 @@ sp_head::check_backpatch(THD *thd)
 }
 
 void
-sp_head::set_info(char *definer, uint definerlen,
-		  longlong created, longlong modified,
+sp_head::set_info(longlong created, longlong modified,
 		  st_sp_chistics *chistics, ulong sql_mode)
 {
-  char *p= strchr(definer, '@');
-  uint len;
-
-  if (! p)
-    p= definer;		// Weird...
-  len= p-definer;
-  m_definer_user.str= strmake_root(mem_root, definer, len);
-  m_definer_user.length= len;
-  len= definerlen-len-1;
-  m_definer_host.str= strmake_root(mem_root, p+1, len);
-  m_definer_host.length= len;
   m_created= created;
   m_modified= modified;
   m_chistics= (st_sp_chistics *) memdup_root(mem_root, (char*) chistics,
@@ -1596,6 +1584,34 @@ sp_head::set_info(char *definer, uint definerlen,
 					  m_chistics->comment.length);
   m_sql_mode= sql_mode;
 }
+
+
+void
+sp_head::set_definer(char *definer, uint definerlen)
+{
+  char *p= strrchr(definer, '@');
+
+  if (!p)
+  {
+    m_definer_user.str= strmake_root(mem_root, "", 0);
+    m_definer_user.length= 0;
+    
+    m_definer_host.str= strmake_root(mem_root, "", 0);
+    m_definer_host.length= 0;
+  }
+  else
+  {
+    const uint user_name_len= p - definer;
+    const uint host_name_len= definerlen - user_name_len - 1;
+
+    m_definer_user.str= strmake_root(mem_root, definer, user_name_len);
+    m_definer_user.length= user_name_len;
+
+    m_definer_host.str= strmake_root(mem_root, p + 1, host_name_len);
+    m_definer_host.length= host_name_len;
+  }
+}
+
 
 void
 sp_head::reset_thd_mem_root(THD *thd)
