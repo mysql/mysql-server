@@ -857,7 +857,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 {
   if (unlikely(m_active_op_count == 0))
   {
-    DBUG_VOID_RETURN;
+    return;
   }
   
   DBUG_ENTER("NdbEventBuffer::execSUB_GCP_COMPLETE_REP");
