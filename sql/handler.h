@@ -401,8 +401,9 @@ struct show_table_alias_st {
 /* Possible flags of a handlerton */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
-#define HTON_ALTER_NOT_SUPPORTED     (1 << 1)
-#define HTON_CAN_RECREATE            (1 << 2)
+#define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
+#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
+#define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
 
 typedef struct st_thd_trans
 {
