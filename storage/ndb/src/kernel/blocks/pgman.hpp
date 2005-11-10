@@ -243,6 +243,9 @@ public:
 private:
   friend class Page_cache_client;
 
+  struct Page_entry; // CC
+  friend struct Page_entry;
+
   struct Page_request {
     enum Flags {
       OP_MASK       = 0x000F // 4 bits for TUP operation
