@@ -1052,6 +1052,41 @@ select cast(@non_existing_user_var/2 as DECIMAL);
 create table t (d decimal(0,10));
 
 #
+# Bug #14268 (bad FLOAT->DECIMAL conversion)
+#
+
+CREATE TABLE t1 (
+   my_float   FLOAT,
+   my_double  DOUBLE,
+   my_varchar VARCHAR(50),
+   my_decimal DECIMAL(65,30)
+);
+SHOW CREATE TABLE t1;
+
+let $max_power= 32;
+while ($max_power)
+{
+   eval INSERT INTO t1 SET my_float = 1.175494345e-$max_power,
+                           my_double = 1.175494345e-$max_power,
+                           my_varchar = '1.175494345e-$max_power';
+   dec $max_power;
+}
+SELECT my_float, my_double, my_varchar FROM t1;
+
+SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
+SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
+SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;
+
+UPDATE t1 SET my_decimal = my_float;
+SELECT my_decimal, my_float   FROM t1;
+UPDATE t1 SET my_decimal = my_double;
+SELECT my_decimal, my_double  FROM t1;
+UPDATE t1 SET my_decimal = my_varchar;
+SELECT my_decimal, my_varchar FROM t1;
+
+DROP TABLE t1;
+
+#
 # Bug #13573 (Wrong data inserted for too big values)
 #
 
