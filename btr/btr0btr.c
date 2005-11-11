@@ -1618,13 +1618,16 @@ btr_page_split_and_insert(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_tree_t*	tree;
+	page_t*		page;
+	ulint		page_no;
 	byte		direction;
+	ulint		hint_page_no;
+	page_t*		new_page;
 	rec_t*		split_rec;
 	page_t*		left_page;
 	page_t*		right_page;
 	page_t*		insert_page;
-	page_zip_des_t*	left_page_zip;
-	page_zip_des_t*	right_page_zip;
+	page_zip_des_t*	insert_page_zip;
 	page_cur_t*	page_cursor;
 	rec_t*		first_rec;
 	byte*		buf = 0; /* remove warning */
@@ -1649,13 +1652,13 @@ func_start:
 	ut_ad(rw_lock_own(dict_tree_get_lock(tree), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	left_page = btr_cur_get_page(cursor);
+	page = btr_cur_get_page(cursor);
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(left_page),
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_get_n_recs(left_page) >= 2);
-
-	left_page_zip = buf_block_get_page_zip(buf_block_align(left_page));
+	ut_ad(page_get_n_recs(page) >= 2);
+	
+	page_no = buf_frame_get_page_no(page);
 
 	/* 1. Decide the split record; split_rec == NULL means that the
 	tuple to be inserted should be the first record on the upper
@@ -1663,24 +1666,26 @@ func_start:
 
 	if (n_iterations > 0) {
 		direction = FSP_UP;
+		hint_page_no = page_no + 1;
 		split_rec = btr_page_get_sure_split_rec(cursor, tuple);
 		
 	} else if (btr_page_get_split_rec_to_right(cursor, &split_rec)) {
 		direction = FSP_UP;
+		hint_page_no = page_no + 1;
 
 	} else if (btr_page_get_split_rec_to_left(cursor, &split_rec)) {
 		direction = FSP_DOWN;
+		hint_page_no = page_no - 1;
 	} else {
 		direction = FSP_UP;
-		split_rec = page_get_middle_rec(left_page);
+		hint_page_no = page_no + 1;
+		split_rec = page_get_middle_rec(page);
 	}
 
 	/* 2. Allocate a new page to the tree */
-	right_page = btr_page_alloc(tree,
-				buf_frame_get_page_no(left_page) + 1,
-				direction,
-				btr_page_get_level(left_page, mtr), mtr);
-	btr_page_create(right_page, tree, mtr);
+	new_page = btr_page_alloc(tree, hint_page_no, direction,
+					btr_page_get_level(page, mtr), mtr);
+	btr_page_create(new_page, tree, mtr);
 	
 	/* 3. Calculate the first record on the upper half-page, and the
 	first record (move_limit) on original page which ends up on the
@@ -1699,8 +1704,7 @@ func_start:
 	
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(tree, left_page, first_rec, right_page,
-					direction, mtr);
+	btr_attach_half_pages(tree, page, first_rec, new_page, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
 	on the appropriate half-page, we may release the tree x-latch.
@@ -1719,25 +1723,36 @@ func_start:
 					NULL, NULL, tuple, heap);
 	}
 	
-	if (insert_will_fit && (btr_page_get_level(left_page, mtr) == 0)) {
+	if (insert_will_fit && (btr_page_get_level(page, mtr) == 0)) {
 
 		mtr_memo_release(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK);
 	}
 
 	/* 5. Move then the records to the new page */
-	right_page_zip = buf_block_get_page_zip(buf_block_align(right_page));
+	if (direction == FSP_DOWN) {
+/*		fputs("Split left\n", stderr); */
 
-	page_move_rec_list_end(right_page, right_page_zip,
-				move_limit, left_page_zip,
-				cursor->index, mtr);
+		page_move_rec_list_start(new_page, buf_block_get_page_zip(
+					buf_block_align(new_page)),
+					move_limit, buf_block_get_page_zip(
+					buf_block_align(page)),
+					cursor->index, mtr);
 
-	if (UNIV_UNLIKELY(direction == FSP_DOWN)) {
-		fputs("Split left\n", stderr); /* TODO: coverage test */
+		left_page = new_page;
+		right_page = page;
 
 		lock_update_split_left(right_page, left_page);
 	} else {
 /*		fputs("Split right\n", stderr); */
+
+		page_move_rec_list_end(new_page, buf_block_get_page_zip(
+					buf_block_align(new_page)),
+					move_limit, buf_block_get_page_zip(
+					buf_block_align(page)),
+					cursor->index, mtr);
+		left_page = page;
+		right_page = new_page;
 
 		lock_update_split_right(right_page, left_page);
 	}
@@ -1760,16 +1775,19 @@ func_start:
 		}
 	}
 
+	insert_page_zip = buf_block_get_page_zip(buf_block_align(insert_page));
+
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	page_cur_search(insert_page, cursor->index, tuple,
 						PAGE_CUR_LE, page_cursor);
 
-	rec = page_cur_tuple_insert(page_cursor, left_page_zip,
+	rec = page_cur_tuple_insert(page_cursor, insert_page_zip,
 					tuple, cursor->index, mtr);
 
-	ut_ad(!left_page_zip || page_zip_validate(left_page_zip, left_page));
+	ut_ad(!insert_page_zip
+		|| page_zip_validate(insert_page_zip, insert_page));
 
 	if (UNIV_LIKELY(rec != NULL)) {
 		/* Insert fit on the page: update the free bits for the
@@ -1791,16 +1809,15 @@ func_start:
 
 	page_cur_search(insert_page, cursor->index, tuple,
 						PAGE_CUR_LE, page_cursor);
-	rec = page_cur_tuple_insert(page_cursor, left_page_zip,
+	rec = page_cur_tuple_insert(page_cursor, insert_page_zip,
 					tuple, cursor->index, mtr);
 
 	if (UNIV_UNLIKELY(rec == NULL)) {
-
 		/* The insert did not fit on the page: loop back to the
 		start of the function for a new split */
 		
-		/* We play safe and reset the free bits for right_page */
-		ibuf_reset_free_bits(cursor->index, right_page);
+		/* We play safe and reset the free bits for new_page */
+		ibuf_reset_free_bits(cursor->index, new_page);
 
 		/* fprintf(stderr, "Split second round %lu\n",
 					buf_frame_get_page_no(page)); */

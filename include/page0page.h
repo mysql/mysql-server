@@ -666,6 +666,22 @@ page_move_rec_list_end(
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 	__attribute__((nonnull(1, 3, 5, 6)));
+/*****************************************************************
+Moves record list start to another page. Moved records do not include
+split_rec. */
+
+void
+page_move_rec_list_start(
+/*=====================*/
+	page_t*		new_page,	/* in: index page where to move */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
+					new_page, or NULL */
+	rec_t*		split_rec,	/* in: first record not to move */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page of
+					split_rec, or NULL */
+	dict_index_t*	index,		/* in: record descriptor */
+	mtr_t*		mtr)		/* in: mtr */
+	__attribute__((nonnull(1, 3, 5, 6)));
 /********************************************************************
 Splits a directory slot which owns too many records. */
 
