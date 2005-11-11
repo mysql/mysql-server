@@ -3241,3 +3241,45 @@ f1	f2
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
 drop table t1;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1, 30), (2, 20), (3, 10);
+create algorithm=merge view v1 as select f1, f2 from t1;
+create algorithm=merge view v2 (f2, f1) as select f1, f2 from t1;
+create algorithm=merge view v3 as select t1.f1 as f2, t1.f2 as f1 from t1;
+select t1.f1 as x1, f1 from t1 order by t1.f1;
+x1	f1
+1	1
+2	2
+3	3
+select v1.f1 as x1, f1 from v1 order by v1.f1;
+x1	f1
+1	1
+2	2
+3	3
+select v2.f1 as x1, f1 from v2 order by v2.f1;
+x1	f1
+10	10
+20	20
+30	30
+select v3.f1 as x1, f1 from v3 order by v3.f1;
+x1	f1
+10	10
+20	20
+30	30
+select f1, f2, v1.f1 as x1 from v1 order by v1.f1;
+f1	f2	x1
+1	30	1
+2	20	2
+3	10	3
+select f1, f2, v2.f1 as x1 from v2 order by v2.f1;
+f1	f2	x1
+10	3	10
+20	2	20
+30	1	30
+select f1, f2, v3.f1 as x1 from v3 order by v3.f1;
+f1	f2	x1
+10	3	10
+20	2	20
+30	1	30
+drop table t1;
+drop view v1, v2, v3;

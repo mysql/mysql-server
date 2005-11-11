@@ -2729,3 +2729,23 @@ select * from t1 where f2 >= '2005-09-3a';
 select * from t1 where f2 <= '2005-09-31';
 select * from t1 where f2 <= '2005-09-3a';
 drop table t1;
+
+#
+# Bug ##14662  	ORDER BY on column of a view, with an alias of the same
+# column causes ambiguous
+#
+
+create table t1 (f1 int, f2 int);
+insert into t1 values (1, 30), (2, 20), (3, 10);
+create algorithm=merge view v1 as select f1, f2 from t1;
+create algorithm=merge view v2 (f2, f1) as select f1, f2 from t1;
+create algorithm=merge view v3 as select t1.f1 as f2, t1.f2 as f1 from t1;
+select t1.f1 as x1, f1 from t1 order by t1.f1;
+select v1.f1 as x1, f1 from v1 order by v1.f1;
+select v2.f1 as x1, f1 from v2 order by v2.f1;
+select v3.f1 as x1, f1 from v3 order by v3.f1;
+select f1, f2, v1.f1 as x1 from v1 order by v1.f1;
+select f1, f2, v2.f1 as x1 from v2 order by v2.f1;
+select f1, f2, v3.f1 as x1 from v3 order by v3.f1;
+drop table t1;
+drop view v1, v2, v3;
