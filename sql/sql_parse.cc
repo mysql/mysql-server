@@ -4099,7 +4099,7 @@ end_with_restore_list:
 
     if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
     {
-      if (! thd->db)
+      if (!thd->db || thd->db[0] == 0)
       {
         my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
         delete lex->sphead;
