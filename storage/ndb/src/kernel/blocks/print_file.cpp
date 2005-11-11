@@ -368,3 +368,6 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 
   return 0;
 }
+
+// hp3750
+Signal::Signal(){}
