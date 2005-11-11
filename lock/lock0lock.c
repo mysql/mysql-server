@@ -4825,6 +4825,7 @@ lock_rec_insert_check_and_lock(
 
 			/* Update the page max trx id field */
 			page_update_max_trx_id(buf_frame_align(rec),
+							NULL/*TODO*/,
 							thr_get_trx(thr)->id);
 		}
 		
@@ -4863,6 +4864,7 @@ lock_rec_insert_check_and_lock(
 
 		/* Update the page max trx id field */
 		page_update_max_trx_id(buf_frame_align(rec),
+							NULL/*TODO*/,
 							thr_get_trx(thr)->id);
 	}
 
@@ -5043,6 +5045,7 @@ lock_sec_rec_modify_check_and_lock(
 		/* Update the page max trx id field */
 
 		page_update_max_trx_id(buf_frame_align(rec),
+							NULL/*TODO*/,
 							thr_get_trx(thr)->id);
 	}
 

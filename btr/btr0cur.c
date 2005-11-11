@@ -1795,8 +1795,6 @@ btr_cur_optimistic_update(
 
 	lock_rec_restore_from_page_infimum(rec, page);
 
-        page_cur_move_to_next(page_cursor);
-
 	mem_heap_free(heap);		
 
 	return(DB_SUCCESS);

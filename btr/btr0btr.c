@@ -891,7 +891,7 @@ btr_page_reorganize_low(
 	page_copy_rec_list_end_no_locks(page,
 				page_get_infimum_rec(new_page), index, mtr);
 	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(page, page_get_max_trx_id(new_page));
+	page_set_max_trx_id(page, NULL, page_get_max_trx_id(new_page));
 	
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page))) {

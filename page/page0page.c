@@ -200,8 +200,10 @@ Sets the max trx id field value. */
 void
 page_set_max_trx_id(
 /*================*/
-	page_t*	page,	/* in/out: page */
-	dulint	trx_id)	/* in: transaction id */
+	page_t*		page,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	dulint		trx_id)	/* in: transaction id */
 {
 	buf_block_t*	block;
 
@@ -218,6 +220,10 @@ page_set_max_trx_id(
 	page is the maximum trx id assigned before the crash. */
 	
 	mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_header(page_zip,
+				page + (PAGE_HEADER + PAGE_MAX_TRX_ID), 8);
+	}
 
 	if (block->is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
@@ -476,7 +482,7 @@ page_create(
 	page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 	page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
 	page_header_set_field(page, NULL, PAGE_N_RECS, 0);
-	page_set_max_trx_id(page, ut_dulint_zero);
+	page_set_max_trx_id(page, NULL, ut_dulint_zero);
 	memset(heap_top, 0, UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START
 						- (heap_top - page));
 
@@ -615,24 +621,24 @@ page_copy_rec_list_end(
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
-	/* Update the lock table, MAX_TRX_ID, and possible hash index */
-
-	lock_move_rec_list_end(new_page, page, rec);
-
-	page_update_max_trx_id(new_page, page_get_max_trx_id(page));
-
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
 					new_page))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page, mtr))) {
-				/* TODO: does not work */
 				ut_error;
 			}
 			return(FALSE);
 		}
 	}
+
+	/* Update the lock table, MAX_TRX_ID, and possible hash index */
+
+	lock_move_rec_list_end(new_page, page, rec);
+
+	page_update_max_trx_id(new_page, new_page_zip,
+					page_get_max_trx_id(page));
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
 
@@ -696,10 +702,6 @@ page_copy_rec_list_start(
 		mem_heap_free(heap);
 	}
 
-	/* Update MAX_TRX_ID, the lock table, and possible hash index */
-	
-	page_update_max_trx_id(new_page, page_get_max_trx_id(page));
-
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
 					new_page))) {
@@ -712,6 +714,11 @@ page_copy_rec_list_start(
 			return(FALSE);
 		}
 	}
+
+	/* Update MAX_TRX_ID, the lock table, and possible hash index */
+
+	page_update_max_trx_id(new_page, new_page_zip,
+					page_get_max_trx_id(page));
 
 	lock_move_rec_list_start(new_page, page, rec, old_end);
 
@@ -1116,7 +1123,8 @@ page_move_rec_list_start(
 				temp_page - page + split_rec, index, mtr);
 
 		/* Copy max trx id to recreated page */
-		page_set_max_trx_id(page, page_get_max_trx_id(temp_page));
+		page_set_max_trx_id(page, NULL,
+					page_get_max_trx_id(temp_page));
 
 		/* Update the record lock bitmaps */
 		lock_move_reorganize_page(page, temp_page);
