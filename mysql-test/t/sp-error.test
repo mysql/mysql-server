@@ -1337,6 +1337,22 @@ DROP PROCEDURE bug13037_p1;
 DROP PROCEDURE bug13037_p2;
 DROP PROCEDURE bug13037_p3;
 
+#
+# Bug#14569 "editing a stored procedure kills mysqld-nt"
+#
+create database mysqltest1;
+create database mysqltest2;
+use mysqltest1;
+drop database mysqltest1;
+create procedure mysqltest2.p1() select version();
+--error ER_NO_DB_ERROR 
+create procedure p2() select version();
+use mysqltest2;
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show procedure status;
+drop database mysqltest2;
+use test;
+
 
 # BUG#NNNN: New bug synopsis
 #
