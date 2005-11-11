@@ -113,22 +113,25 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
       }
       if(AttributeDescriptor::getDiskBased(attrDescr))
       {
-	ReadFunction r[] = {
-	  &Dbtup::readDiskBitsNotNULL,
-	  &Dbtup::readDiskBitsNULLable,
-	  &Dbtup::readDiskFixedSizeNotNULL,
-	  &Dbtup::readDiskFixedSizeNULLable,
-	  &Dbtup::readDiskVarSizeNULLable,
-	  &Dbtup::readDiskVarSizeNotNULL
-	};
-	UpdateFunction u[] = {
-	  &Dbtup::updateDiskBitsNotNULL,
-	  &Dbtup::updateDiskBitsNULLable,
-	  &Dbtup::updateDiskFixedSizeNotNULL,
-	  &Dbtup::updateDiskFixedSizeNULLable,
-	  &Dbtup::updateDiskVarSizeNULLable,
-	  &Dbtup::updateDiskVarSizeNotNULL
-	};
+        // array initializer crashes gcc-2.95.3
+	ReadFunction r[6];
+        {
+	  r[0] = &Dbtup::readDiskBitsNotNULL;
+	  r[1] = &Dbtup::readDiskBitsNULLable;
+	  r[2] = &Dbtup::readDiskFixedSizeNotNULL;
+	  r[3] = &Dbtup::readDiskFixedSizeNULLable;
+	  r[4] = &Dbtup::readDiskVarSizeNULLable;
+	  r[5] = &Dbtup::readDiskVarSizeNotNULL;
+        }
+	UpdateFunction u[6];
+        {
+	  u[0] = &Dbtup::updateDiskBitsNotNULL;
+	  u[1] = &Dbtup::updateDiskBitsNULLable;
+	  u[2] = &Dbtup::updateDiskFixedSizeNotNULL;
+	  u[3] = &Dbtup::updateDiskFixedSizeNULLable;
+	  u[4] = &Dbtup::updateDiskVarSizeNULLable;
+	  u[5] = &Dbtup::updateDiskVarSizeNotNULL;
+        }
 	Uint32 a= 
 	  AttributeDescriptor::getArrayType(attrDescr) == NDB_ARRAYTYPE_FIXED ? 2 : 4;
 	
