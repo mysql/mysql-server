@@ -627,6 +627,7 @@ page_copy_rec_list_end(
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page, mtr))) {
+				/* TODO: does not work */
 				ut_error;
 			}
 			return(FALSE);
@@ -1055,6 +1056,83 @@ page_move_rec_list_end(
 	page_delete_rec_list_end(split_rec, index,
 		new_n_recs - old_n_recs, new_data_size - old_data_size,
 		page_zip, mtr);
+}
+
+/*****************************************************************
+Moves record list start to another page. Moved records do not include
+split_rec. */
+
+void
+page_move_rec_list_start(
+/*=====================*/
+	page_t*		new_page,	/* in: index page where to move */
+	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
+					new_page, or NULL */
+	rec_t*		split_rec,	/* in: first record not to move */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page of
+					split_rec, or NULL */
+	dict_index_t*	index,		/* in: record descriptor */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	if (UNIV_UNLIKELY(!page_copy_rec_list_start(new_page, new_page_zip,
+					split_rec, index, mtr))) {
+		ut_error;
+	}
+
+	ut_ad(!page_zip == !new_page_zip);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		/* On compressed pages, instead of deleting the start
+		of the record list, recreate the page and copy the
+		end of the list. */
+
+		page_t*	page;
+		page_t*	temp_page;
+		ulint	log_mode;
+
+		page = ut_align_down(split_rec, UNIV_PAGE_SIZE);
+		ut_ad(page_is_comp(page));
+		ut_ad(page_is_comp(new_page));
+
+		/* Disable logging */
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
+
+		/* Copy the page to temporary space */
+		temp_page = buf_frame_alloc();
+		buf_frame_copy(page, temp_page);
+
+		/* TODO: will this fail in crash recovery? */
+		btr_search_drop_page_hash_index(page);
+
+		/* Recreate the page: note that global data on page (possible
+		segment headers, next page-field, etc.) is preserved intact */
+		page_create(page, NULL, mtr, TRUE);
+		buf_block_align(page)->check_index_page_at_flush = TRUE;
+
+		/* Copy the records from the temporary space to the
+		recreated page; do not copy the lock bits yet */
+
+		page_copy_rec_list_end_no_locks(page,
+				temp_page - page + split_rec, index, mtr);
+
+		/* Copy max trx id to recreated page */
+		page_set_max_trx_id(page, page_get_max_trx_id(temp_page));
+
+		/* Update the record lock bitmaps */
+		lock_move_reorganize_page(page, temp_page);
+
+		buf_frame_free(temp_page);
+		mtr_set_log_mode(mtr, log_mode);
+
+		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page))) {
+
+			/* Reorganizing a page should reduce entropy,
+			making the compressed page occupy less space. */
+			ut_error;
+		}
+	} else {
+		page_delete_rec_list_start(split_rec, index, mtr);
+	}
 }
 
 /***************************************************************************
