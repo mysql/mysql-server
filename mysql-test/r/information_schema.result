@@ -647,12 +647,16 @@ drop function sub1;
 select table_name from information_schema.views
 where table_schema='test';
 table_name
+v2
+v3
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select table_name from information_schema.views
 where table_schema='test';
 table_name
+v2
+v3
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -669,6 +673,16 @@ f1_key
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
 constraint_name
+show create view v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+show create table v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select sql_no_cache `test`.`sub1`(1) AS `c`
+Warnings:
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
 drop view v3;
 drop table t4;
