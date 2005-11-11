@@ -263,7 +263,104 @@ a
 1
 show binlog events in 'master-bin.000001' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
+master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
+master-bin.000001	#	Query	1	#	create database mysqltest1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a varchar(100))
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo()
+begin
+declare b int;
+set b = 8;
+insert into t1 values (b);
+insert into t1 values (unix_timestamp());
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values ( NAME_CONST('b',8))
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (unix_timestamp())
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo2()
+select * from mysqltest1.t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter procedure foo2 contains sql
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t2 like t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo3()
+deterministic
+insert into t1 values (15)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo4()
+deterministic
+begin
+insert into t2 values(3);
+insert into t1 values (5);
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (15)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter procedure foo4 sql security invoker
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(3)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (5)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo4
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create procedure foo4()
+deterministic
+begin
+insert into t2 values(20),(20);
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(20),(20)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo4
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop procedure foo3
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1(x int)
+returns int
+deterministic
+begin
+insert into t1 values (x);
+return x+2;
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete t1,t2 from t1,t2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; DO `fn1`(20)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(fn1(21))
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1()
+returns int
+no sql
+begin
+return unix_timestamp();
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values(fn1())
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn2()
+returns int
+no sql
+begin
+return unix_timestamp();
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn3()
+returns int
+not deterministic
+reads sql data
+begin
+return 0;
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1()
+returns int
+begin
+insert into t2 values(20),(20);
+return 10;
+end
+master-bin.000001	#	Query	1	#	use `mysqltest1`; DO `fn1`()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop trigger trg
+master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
 select * from t1;
 a
 1
