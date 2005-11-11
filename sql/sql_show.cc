@@ -362,7 +362,21 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list, 0))
-    DBUG_RETURN(TRUE);
+  {
+    if (!table_list->view || thd->net.last_errno != ER_VIEW_INVALID)
+      DBUG_RETURN(TRUE);
+    /*
+      Clear all messages with 'error' level status and
+      issue a warning with 'warning' level status in 
+      case of invalid view and last error is ER_VIEW_INVALID
+    */
+    mysql_reset_errors(thd, true);
+    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_VIEW_INVALID,
+                        ER(ER_VIEW_INVALID),
+                        table_list->view_db.str,
+                        table_list->view_name.str);
+  }
 
   /* TODO: add environment variables show when it become possible */
   if (thd->lex->only_view && !table_list->view)
@@ -2992,47 +3006,44 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   DBUG_ENTER("get_schema_views_record");
   char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
   uint definer_len;
-  if (!res)
+
+  if (tables->view)
   {
-    if (tables->view)
+    restore_record(table, s->default_values);
+    table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
+    table->field[2]->store(tables->view_name.str, tables->view_name.length,
+                           cs);
+    table->field[3]->store(tables->query.str, tables->query.length, cs);
+
+    if (tables->with_check != VIEW_CHECK_NONE)
     {
-      restore_record(table, s->default_values);
-      table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
-      table->field[2]->store(tables->view_name.str, tables->view_name.length,
-                             cs);
-      table->field[3]->store(tables->query.str, tables->query.length, cs);
-
-      if (tables->with_check != VIEW_CHECK_NONE)
-      {
-        if (tables->with_check == VIEW_CHECK_LOCAL)
-          table->field[4]->store(STRING_WITH_LEN("LOCAL"), cs);
-        else
-          table->field[4]->store(STRING_WITH_LEN("CASCADED"), cs);
-      }
+      if (tables->with_check == VIEW_CHECK_LOCAL)
+        table->field[4]->store(STRING_WITH_LEN("LOCAL"), cs);
       else
-        table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
-
-      if (tables->updatable_view)
-        table->field[5]->store(STRING_WITH_LEN("YES"), cs);
-      else
-        table->field[5]->store(STRING_WITH_LEN("NO"), cs);
-      definer_len= (strxmov(definer, tables->definer.user.str, "@",
-                            tables->definer.host.str, NullS) - definer);
-      table->field[6]->store(definer, definer_len, cs);
-      if (tables->view_suid)
-        table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
-      else
-        table->field[7]->store(STRING_WITH_LEN("INVOKER"), cs);
-      DBUG_RETURN(schema_table_store_record(thd, table));
+        table->field[4]->store(STRING_WITH_LEN("CASCADED"), cs);
     }
-  }
-  else
-  {
-    if (tables->view)
+    else
+      table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
+
+    if (tables->updatable_view)
+      table->field[5]->store(STRING_WITH_LEN("YES"), cs);
+    else
+      table->field[5]->store(STRING_WITH_LEN("NO"), cs);
+    definer_len= (strxmov(definer, tables->definer.user.str, "@",
+                          tables->definer.host.str, NullS) - definer);
+    table->field[6]->store(definer, definer_len, cs);
+    if (tables->view_suid)
+      table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
+    else
+      table->field[7]->store(STRING_WITH_LEN("INVOKER"), cs);
+    if (schema_table_store_record(thd, table))
+      DBUG_RETURN(1);
+    if (res)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                    thd->net.last_errno, thd->net.last_error);
-    thd->clear_error();
   }
+  if (res) 
+    thd->clear_error();
   DBUG_RETURN(0);
 }
 
