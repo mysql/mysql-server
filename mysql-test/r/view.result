@@ -2199,10 +2199,10 @@ r_object_id	users_names
 drop view v1, v2;
 drop table t1, t2;
 create definer=some_user@`` sql security invoker view v1 as select 1;
-ERROR HY000: View definer is not fully qualified
+ERROR HY000: Definer is not fully qualified
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 Warnings:
-Note	1449	There is not some_user@localhost registered
+Note	1449	There is no 'some_user'@'localhost' registered
 show create view v1;
 View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
@@ -2375,3 +2375,13 @@ Warnings:
 Error	1146	Table 'test.t1' doesn't exist
 Error	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP VIEW v1;
+create definer = current_user() sql security invoker view v1 as select 1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+drop view v1;
+create definer = current_user sql security invoker view v1 as select 1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+drop view v1;

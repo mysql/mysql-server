@@ -522,8 +522,9 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
-bool default_view_definer(Security_context *sctx, st_lex_user *definer);
 
+bool get_default_definer(THD *thd, LEX_USER *definer);
+LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -846,6 +847,10 @@ bool mysqld_show_privileges(THD *thd);
 bool mysqld_show_column_types(THD *thd);
 bool mysqld_help (THD *thd, const char *text);
 void calc_sum_of_all_status(STATUS_VAR *to);
+
+void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
+                    const LEX_STRING *definer_host);
+
 
 /* information schema */
 extern LEX_STRING information_schema_name;
@@ -1180,7 +1185,7 @@ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern my_bool opt_log_slow_admin_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
-extern my_bool opt_old_style_user_limits, trust_routine_creators;
+extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;

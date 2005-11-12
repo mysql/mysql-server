@@ -4775,12 +4775,6 @@ Item_func_sp::execute(Item **itp)
   res= m_sp->execute_function(thd, args, arg_count, itp);
   thd->restore_sub_statement_state(&statement_state);
 
-  if (res && mysql_bin_log.is_open() &&
-      (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
-       m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_FAILED_ROUTINE_BREAK_BINLOG,
-		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, save_ctx_func);
 error:
@@ -4894,7 +4888,7 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
 
 
 /*
-  Find the function and chack access rigths to the function
+  Find the function and check access rights to the function
 
   SYNOPSIS
     find_and_check_access()

@@ -737,9 +737,14 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
-  st_lex_user *create_view_definer;
   char *create_view_start;
   char *create_view_select_start;
+
+  /*
+    The definer of the object being created (view, trigger, stored routine).
+    I.e. the value of DEFINER clause.
+  */
+  LEX_USER *definer;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -886,6 +891,14 @@ typedef struct st_lex
     being opened is probably enough).
   */
   SQL_LIST trg_table_fields;
+
+  /*
+    trigger_definition_begin points to the beginning of the word "TRIGGER" in
+    CREATE TRIGGER statement. This is used to add possibly omitted DEFINER
+    clause to the trigger definition statement before dumping it to the
+    binlog. 
+  */
+  const char *trigger_definition_begin;
 
   /*
     If non-0 then indicates that query requires prelocking and points to

@@ -4318,18 +4318,6 @@ end_with_restore_list:
           So just execute the statement.
         */
 	res= sp->execute_procedure(thd, &lex->value_list);
-        if (mysql_bin_log.is_open() &&
-            (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
-             sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
-        {
-          if (res)
-            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                         ER_FAILED_ROUTINE_BREAK_BINLOG,
-			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
-          else
-            thd->clear_error();
-        }
-
 	/*
           If warnings have been cleared, we have to clear total_warn_count
           too, otherwise the clients get confused.
@@ -4388,7 +4376,8 @@ end_with_restore_list:
         if (end_active_trans(thd)) 
           goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
-        if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
+        if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
+            !trust_function_creators &&  mysql_bin_log.is_open() &&
             !sp->m_chistics->detistic &&
             (chistics.daccess == SP_CONTAINS_SQL ||
              chistics.daccess == SP_MODIFIES_SQL_DATA))
@@ -4399,6 +4388,12 @@ end_with_restore_list:
         }
         else
         {
+          /*
+            Note that if you implement the capability of ALTER FUNCTION to
+            alter the body of the function, this command should be made to
+            follow the restrictions that log-bin-trust-function-creators=0
+            already puts on CREATE FUNCTION.
+          */
           if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
             result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
           else
@@ -5062,7 +5057,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables != first_not_own_table; tables= tables->next_global)
+  for (; tables && tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -7466,32 +7461,81 @@ Item *negate_expression(THD *thd, Item *expr)
   return new Item_func_not(expr);
 }
 
-
 /*
-  Assign as view definer current user
-
+  Set the specified definer to the default value, which is the current user in
+  the thread. Also check that the current user satisfies to the definers
+  requirements.
+ 
   SYNOPSIS
-    default_view_definer()
-    sctx		current security context
-    definer             structure where it should be assigned
-
+    get_default_definer()
+    thd       [in] thread handler
+    definer   [out] definer
+ 
   RETURN
-    FALSE   OK
-    TRUE    Error
+    error status, that is:
+      - FALSE -- on success;
+      - TRUE -- on error (current user can not be a definer).
 */
-
-bool default_view_definer(Security_context *sctx, st_lex_user *definer)
+ 
+bool get_default_definer(THD *thd, LEX_USER *definer)
 {
-  definer->user.str= sctx->priv_user;
-  definer->user.length= strlen(sctx->priv_user);
+  /* Check that current user has non-empty host name. */
 
-  if (!*sctx->priv_host)
+  const Security_context *sctx= thd->security_ctx;
+
+  if (sctx->priv_host[0] == 0)
   {
-    my_error(ER_NO_VIEW_USER, MYF(0));
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
     return TRUE;
   }
 
-  definer->host.str= sctx->priv_host;
-  definer->host.length= strlen(sctx->priv_host);
+  /* Fill in. */
+
+  definer->user.str= (char *) sctx->priv_user;
+  definer->user.length= strlen(definer->user.str);
+
+  definer->host.str= (char *) sctx->priv_host;
+  definer->host.length= strlen(definer->host.str);
+
   return FALSE;
+}
+
+
+/*
+  Create definer with the given user and host names. Also check that the user
+  and host names satisfy definers requirements.
+
+  SYNOPSIS
+    create_definer()
+    thd         [in] thread handler
+    user_name   [in] user name
+    host_name   [in] host name
+
+  RETURN
+    On success, return a valid pointer to the created and initialized
+    LEX_STRING, which contains definer information.
+    On error, return 0.
+*/
+
+LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
+{
+  LEX_USER *definer;
+
+  /* Check that specified host name is valid. */
+
+  if (host_name->length == 0)
+  {
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
+    return 0;
+  }
+
+  /* Create and initialize. */
+
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof (LEX_USER))))
+    return 0;
+
+  definer->user= *user_name;
+  definer->host= *host_name;
+
+  return definer;
 }
