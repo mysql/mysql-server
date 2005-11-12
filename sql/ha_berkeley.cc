@@ -89,9 +89,12 @@ static DB_ENV *db_env;
 static HASH bdb_open_tables;
 
 const char *berkeley_lock_names[] =
-{ "DEFAULT", "OLDEST","RANDOM","YOUNGEST",0 };
+{ "DEFAULT", "OLDEST", "RANDOM", "YOUNGEST", "EXPIRE", "MAXLOCKS",
+  "MAXWRITE", "MINLOCKS", "MINWRITE", 0 };
 u_int32_t berkeley_lock_types[]=
-{ DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM };
+{ DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM, DB_LOCK_YOUNGEST,
+  DB_LOCK_EXPIRE, DB_LOCK_MAXLOCKS, DB_LOCK_MAXWRITE, DB_LOCK_MINLOCKS,
+  DB_LOCK_MINWRITE };
 TYPELIB berkeley_lock_typelib= {array_elements(berkeley_lock_names)-1,"",
 				berkeley_lock_names, NULL};
 
