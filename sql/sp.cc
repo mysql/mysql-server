@@ -441,8 +441,8 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
 	goto done;
       *sphp= thd->lex->sphead;
-      (*sphp)->set_info((char *)definer, (uint)strlen(definer),
-			created, modified, &chistics, sql_mode);
+      (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
+      (*sphp)->set_info(created, modified, &chistics, sql_mode);
       (*sphp)->optimize();
     }
     thd->lex->sql_command= oldcmd;
@@ -551,12 +551,13 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
 	      system_charset_info);
 
-    if (!trust_routine_creators && mysql_bin_log.is_open())
+    if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
+        !trust_function_creators && mysql_bin_log.is_open())
     {
       if (!sp->m_chistics->detistic)
       {
 	/*
-	  Note that for a _function_ this test is not enough; one could use
+	  Note that this test is not perfect; one could use
 	  a non-deterministic read-only function in an update statement.
 	*/
 	enum enum_sp_data_access access=
