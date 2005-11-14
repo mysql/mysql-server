@@ -23,6 +23,7 @@ exit $?
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "SuperPool.hpp"
+#include "LinearPool.hpp"
 #include <NdbOut.hpp>
 
 template <Uint32 sz>
@@ -198,6 +199,74 @@ sp_test(GroupPool& gp)
   delete [] ptrList;
 }
 
+template <class T>
+static void
+lp_test(GroupPool& gp)
+{
+  SuperPool& sp = gp.m_superPool;
+  LinearPool<T, 5> lp(gp);
+  ndbout << "linear pool test" << endl;
+  Ptr<T> ptr;
+  Uint32 loop;
+  for (loop = 0; loop < 3 * loopcount; loop++) {
+    int count = 0;
+    while (1) {
+      bool ret = lp.seize(ptr);
+      lp.verify();
+      if (! ret)
+        break;
+      assert(ptr.i == count);
+      Ptr<T> ptr2;
+      ptr2.i = ptr.i;
+      ptr2.p = 0;
+      lp.getPtr(ptr2);
+      assert(ptr.p == ptr2.p);
+      count++;
+    }
+    ndbout << "seized " << count << endl;
+    switch (loop % 3) {
+    case 0:
+      {
+        int n = 0;
+        while (n < count) {
+          ptr.i = n;
+          lp.release(ptr);
+          lp.verify();
+          n++;
+        }
+        ndbout << "released in order" << endl;
+      }
+      break;
+    case 1:
+      {
+        int n = count;
+        while (n > 0) {
+          n--;
+          ptr.i = n;
+          lp.release(ptr);
+          lp.verify();
+        }
+        ndbout << "released in reverse" << endl;
+      }
+      break;
+    default:
+      {
+        int coprime = random_coprime(count);
+        int n = 0;
+        while (n < count) {
+          int m = (coprime * n) % count;
+          ptr.i = m;
+          lp.release(ptr);
+          lp.verify();
+          n++;
+        }
+        ndbout << "released at random" << endl;
+      }
+      break;
+    }
+  }
+}
+
 static Uint32 pageSize = 32768;
 static Uint32 pageBits = 17;
 
@@ -218,6 +287,8 @@ template static void sp_test<T2>(GroupPool& sp);
 template static void sp_test<T3>(GroupPool& sp);
 template static void sp_test<T4>(GroupPool& sp);
 template static void sp_test<T5>(GroupPool& sp);
+//
+template static void lp_test<T3>(GroupPool& sp);
 
 int
 main()
@@ -231,13 +302,18 @@ main()
   Uint16 s = (Uint16)getpid();
   srandom(s);
   ndbout << "rand " << s << endl;
-  int count = 0;
-  while (++count <= 1) {
+  int count;
+  count = 0;
+  while (++count <= 0) {
     sp_test<T1>(gp);
     sp_test<T2>(gp);
     sp_test<T3>(gp);
     sp_test<T4>(gp);
     sp_test<T5>(gp);
+  }
+  count = 0;
+  while (++count <= 1) {
+    lp_test<T3>(gp);
   }
   return 0;
 }
