@@ -1223,7 +1223,9 @@ void
 page_dir_add_slots(
 /*===============*/
 	page_t*		page,	/* in/out: the index page */
-	page_zip_des_t*	page_zip,/* in/out: comprssed page, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: comprssed page with at least
+				n * PAGE_DIR_SLOT_SIZE bytes available,
+				or NULL */
 	ulint		start,	/* in: the slot above which the new slots
 				are added */
 	ulint		n)	/* in: number of slots to add
@@ -1239,6 +1241,9 @@ page_dir_add_slots(
 	n_slots = page_dir_get_n_slots(page);
 
 	ut_ad(start < n_slots - 1);
+
+	ut_ad(!page_zip
+		|| page_zip_available(page_zip, n * PAGE_DIR_SLOT_SIZE));
 
 	/* Update the page header */
 	page_dir_set_n_slots(page, page_zip, n_slots + n);
@@ -1263,7 +1268,7 @@ page_dir_split_slot(
 /*================*/
 	page_t*		page,	/* in/out: index page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 10 bytes available, or NULL */
+				at least 12 bytes available, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 {		
 	rec_t*			rec;
@@ -1274,7 +1279,7 @@ page_dir_split_slot(
 	ulint			n_owned;
 
 	ut_ad(page);
-	ut_ad(!page_zip || page_zip_available(page_zip, 10));
+	ut_ad(!page_zip || page_zip_available(page_zip, 12));
 	ut_ad(!page_zip || page_is_comp(page));
 	ut_ad(slot_no > 0);
 
@@ -1298,7 +1303,7 @@ page_dir_split_slot(
 	/* 2. We add one directory slot immediately below the slot to be
 	split. */
 
-	page_dir_add_slots(page, page_zip, slot_no - 1, 1);
+	page_dir_add_slots(page, page_zip/* 2 */, slot_no - 1, 1);
 
 	/* The added slot is now number slot_no, and the old slot is
 	now number slot_no + 1 */
@@ -1309,12 +1314,13 @@ page_dir_split_slot(
 	/* 3. We store the appropriate values to the new slot. */
 	
 	page_dir_slot_set_rec(new_slot, page_zip, rec);
-	page_dir_slot_set_n_owned(new_slot, page_zip, n_owned / 2);
+	page_dir_slot_set_n_owned(new_slot, page_zip/* 5 */, n_owned / 2);
 	
 	/* 4. Finally, we update the number of records field of the 
 	original slot */
 
-	page_dir_slot_set_n_owned(slot, page_zip, n_owned - (n_owned / 2));
+	page_dir_slot_set_n_owned(slot, page_zip/* 5 */,
+				n_owned - (n_owned / 2));
 }
 
 /*****************************************************************
