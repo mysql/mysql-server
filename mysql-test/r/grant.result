@@ -351,10 +351,10 @@ GRANT USAGE ON *.* TO 'grant_user'@'localhost'
 GRANT INSERT (a, d, c, b) ON `test`.`t1` TO 'grant_user'@'localhost'
 select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv;
 Host	Db	User	Table_name	Column_name	Column_priv
-localhost	test	grant_user	t1	c	Insert
 localhost	test	grant_user	t1	b	Insert
-localhost	test	grant_user	t1	a	Insert
 localhost	test	grant_user	t1	d	Insert
+localhost	test	grant_user	t1	a	Insert
+localhost	test	grant_user	t1	c	Insert
 revoke ALL PRIVILEGES on t1 from grant_user@localhost;
 show grants for grant_user@localhost;
 Grants for grant_user@localhost
@@ -377,9 +377,9 @@ show grants for mysqltest_3@localhost;
 Grants for mysqltest_3@localhost
 GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
 GRANT SELECT (b) ON `mysqltest_1`.`t2` TO 'mysqltest_3'@'localhost'
-GRANT SELECT (c) ON `mysqltest_2`.`t1` TO 'mysqltest_3'@'localhost'
 GRANT UPDATE (a) ON `mysqltest_1`.`t1` TO 'mysqltest_3'@'localhost'
 GRANT UPDATE (d) ON `mysqltest_2`.`t2` TO 'mysqltest_3'@'localhost'
+GRANT SELECT (c) ON `mysqltest_2`.`t1` TO 'mysqltest_3'@'localhost'
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for column 'q' in table 't1'
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
@@ -443,3 +443,24 @@ flush privileges;
 set @user123="non-existent";
 select * from mysql.db where user=@user123;
 Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv
+set names koi8r;
+create database ÂÄ;
+grant select on ÂÄ.* to root@localhost;
+select hex(Db) from mysql.db where Db='ÂÄ';
+hex(Db)
+D0B1D0B4
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+flush privileges;
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+drop database ÂÄ;
+revoke all privileges on ÂÄ.* from root@localhost;
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+set names latin1;
