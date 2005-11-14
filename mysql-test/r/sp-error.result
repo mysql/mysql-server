@@ -916,3 +916,16 @@ ERROR 42S22: Unknown column 'bug13037_foo' in 'field list'
 DROP PROCEDURE bug13037_p1;
 DROP PROCEDURE bug13037_p2;
 DROP PROCEDURE bug13037_p3;
+create database mysqltest1;
+create database mysqltest2;
+use mysqltest1;
+drop database mysqltest1;
+create procedure mysqltest2.p1() select version();
+create procedure p2() select version();
+ERROR 3D000: No database selected
+use mysqltest2;
+show procedure status;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+drop database mysqltest2;
+use test;
