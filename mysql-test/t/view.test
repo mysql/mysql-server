@@ -2253,3 +2253,13 @@ drop view v1;
 create definer = current_user sql security invoker view v1 as select 1;
 show create view v1;
 drop view v1;
+
+#
+# Bug #14850 Item_ref's values wasn't updated
+#
+create table t1(f1 int, f2 int);
+insert into t1 values (null, 10), (null,2);
+create view v1 as select * from t1;
+select f1, sum(f2) from v1 group by f1;
+drop view v1;
+drop table t1;
