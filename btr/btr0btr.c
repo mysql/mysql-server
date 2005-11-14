@@ -498,6 +498,8 @@ void
 btr_node_ptr_set_child_page_no(
 /*===========================*/
 	rec_t*		rec,	/* in: node pointer record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				8 bytes available, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		page_no,/* in: child node address */
 	mtr_t*		mtr)	/* in: mtr */
@@ -508,6 +510,7 @@ btr_node_ptr_set_child_page_no(
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(0 < btr_page_get_level(buf_frame_align(rec), mtr));
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
+	ut_ad(!page_zip || page_zip_available(page_zip, 8));
 
 	/* The child address is in the last field */	
 	field = rec_get_nth_field(rec, offsets,
@@ -516,6 +519,9 @@ btr_node_ptr_set_child_page_no(
 	ut_ad(len == 4);
 	
 	mlog_write_ulint(field, page_no, MLOG_4BYTES, mtr);
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, field, 4);
+	}
 }
 
 /****************************************************************
@@ -1480,8 +1486,9 @@ void
 btr_attach_half_pages(
 /*==================*/
 	dict_tree_t*	tree,		/* in: the index tree */
-	page_t*		page,		/* in: page to be split */
-	/* TODO page_zip? */
+	page_t*		page,		/* in/out: page to be split */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page with
+					at least 8 bytes available, or NULL */
 	rec_t*		split_rec,	/* in: first record on upper
 					half page */
 	page_t*		new_page,	/* in: the new half page */
@@ -1508,6 +1515,7 @@ btr_attach_half_pages(
 			      				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(new_page),
 			      				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(!page_zip || page_zip_available(page_zip, 8));
 	ut_a(page_is_comp(page) == page_is_comp(new_page));
 
 	/* Create a memory heap where the data tuple is stored */
@@ -1527,7 +1535,7 @@ btr_attach_half_pages(
 		/* Replace the address of the old child node (= page) with the 
 		address of the new lower half */
 
-		btr_node_ptr_set_child_page_no(node_ptr/* TODO zip */,
+		btr_node_ptr_set_child_page_no(node_ptr, page_zip,
 			rec_get_offsets(node_ptr,
 					UT_LIST_GET_FIRST(tree->tree_indexes),
 					NULL, ULINT_UNDEFINED, &heap),
@@ -1619,6 +1627,7 @@ btr_page_split_and_insert(
 {
 	dict_tree_t*	tree;
 	page_t*		page;
+	page_zip_des_t*	page_zip;
 	ulint		page_no;
 	byte		direction;
 	ulint		hint_page_no;
@@ -1653,6 +1662,12 @@ func_start:
 #endif /* UNIV_SYNC_DEBUG */
 
 	page = btr_cur_get_page(cursor);
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		if (UNIV_UNLIKELY(!page_zip_available(page_zip, 8))) {
+			ut_error; /* TODO: split the page */
+		}
+	}
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -1704,7 +1719,8 @@ func_start:
 	
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(tree, page, first_rec, new_page, direction, mtr);
+	btr_attach_half_pages(tree, page, page_zip/* 8 */, first_rec,
+			new_page, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
 	on the appropriate half-page, we may release the tree x-latch.
@@ -2105,6 +2121,7 @@ btr_compress(
 	page_t*		merge_page;
 	ibool		is_left;
 	page_t*		page;
+	page_zip_des_t*	page_zip;
 	rec_t*		node_ptr;
 	ulint		data_size;
 	ulint		n_recs;
@@ -2113,6 +2130,7 @@ btr_compress(
 	ulint		level;
 
 	page = btr_cur_get_page(cursor);
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
 	tree = btr_cur_get_tree(cursor);
 	ut_a((ibool)!!page_is_comp(page) == cursor->index->table->comp);
 
@@ -2138,6 +2156,11 @@ btr_compress(
 	the locks */
 
 	is_left = left_page_no != FIL_NULL;
+
+	if (!is_left && UNIV_LIKELY_NULL(page_zip)
+			&& !page_zip_available(page_zip, 8)) {
+		return(FALSE);
+	}
 
 	if (is_left) {
 
@@ -2205,7 +2228,7 @@ btr_compress(
 		/* Replace the address of the old child node (= page) with the 
 		address of the merge page to the right */
 
-		btr_node_ptr_set_child_page_no(node_ptr,
+		btr_node_ptr_set_child_page_no(node_ptr, page_zip/* 8 */,
 				rec_get_offsets(node_ptr, cursor->index,
 				offsets_, ULINT_UNDEFINED, &heap),
 				right_page_no, mtr);
@@ -2214,8 +2237,6 @@ btr_compress(
 		}
 		btr_node_ptr_delete(tree, merge_page, mtr);
 	}
-
-	/* TODO: update page_zip of node_ptr */
 
 	/* Move records to the merge page */
 	if (is_left) {

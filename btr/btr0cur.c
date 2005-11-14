@@ -1763,8 +1763,12 @@ btr_cur_optimistic_update(
 
 	rec = btr_cur_insert_if_possible(cursor, page_zip_used,
 					new_entry, &reorganized, mtr);
+	if (UNIV_UNLIKELY(!rec)) {
+		/* The above may only fail if page_zip_used != NULL */
+		ut_a(page_zip_used);
 
-	ut_a(rec); /* <- We calculated above the insert would fit */
+		goto zip_overflow;
+	}
 
 	if (!rec_get_deleted_flag(rec, page_is_comp(page))) {
 		/* The new inserted record owns its possible externally
@@ -1778,6 +1782,7 @@ btr_cur_optimistic_update(
 	if (UNIV_LIKELY_NULL(page_zip) && UNIV_UNLIKELY(!page_zip_used)) {
 		if (!page_zip_compress(page_zip, page)) {
 
+zip_overflow:
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					page_zip, page, mtr))) {
 				ut_error;

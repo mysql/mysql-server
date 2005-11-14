@@ -890,7 +890,7 @@ page_cur_insert_rec_low(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				25 + rec_size bytes available, or NULL */
+				37 + rec_size bytes available, or NULL */
 	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record or NULL */
@@ -931,7 +931,7 @@ page_cur_insert_rec_low(
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_alloc(
-				page_zip, page, 25 + rec_size))) {
+				page_zip, page, 37 + rec_size))) {
 
 			goto err_exit;
 		}
@@ -1047,7 +1047,7 @@ err_exit:
 		we have to split the corresponding directory slot in two. */
 
 		if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
-			page_dir_split_slot(page, page_zip,
+			page_dir_split_slot(page, page_zip/* 12 */,
 					page_dir_find_owner_slot(owner_rec));
 		}
 	}

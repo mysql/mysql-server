@@ -42,7 +42,8 @@ void
 btr_page_set_index_id(
 /*==================*/
 	page_t*		page,	/* in: page to be created */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
+				part will be updated, or NULL */
 	dulint		id,	/* in: index id */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -108,7 +109,8 @@ void
 btr_page_set_level(
 /*===============*/
 	page_t*		page,	/* in: index page */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
+				part will be updated, or NULL */
 	ulint		level,	/* in: level, leaf level == 0 */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
@@ -150,7 +152,8 @@ void
 btr_page_set_next(
 /*==============*/
 	page_t*		page,	/* in: index page */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
+				part will be updated, or NULL */
 	ulint		next,	/* in: next page number */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
@@ -185,7 +188,8 @@ void
 btr_page_set_prev(
 /*==============*/
 	page_t*		page,	/* in: index page */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
+				part will be updated, or NULL */
 	ulint		prev,	/* in: previous page number */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {

@@ -694,7 +694,7 @@ page_dir_split_slot(
 /*================*/
 	page_t*		page,	/* in: index page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 10 bytes available, or NULL */
+				at least 12 bytes available, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 	__attribute__((nonnull(1)));
 /*****************************************************************
