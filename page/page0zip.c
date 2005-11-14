@@ -159,9 +159,7 @@ page_zip_decompress(
 	ulint		trailer_len;
 
 	ut_ad(page_zip_simple_validate(page_zip));
-	trailer_len = PAGE_DIR
-			+ PAGE_DIR_SLOT_SIZE
-			* page_dir_get_n_slots((page_t*) page_zip->data);
+	trailer_len = page_trailer_get_len(page_zip->data);
 	ut_ad(trailer_len < page_zip->size - PAGE_DATA);
 	ut_ad(page_header_get_field((page_t*) page_zip->data, PAGE_HEAP_TOP)
 				<= UNIV_PAGE_SIZE - trailer_len);
@@ -278,9 +276,7 @@ page_zip_write(
 {
 	ulint	pos = ut_align_offset(str, UNIV_PAGE_SIZE);
 #ifdef UNIV_DEBUG
-	ulint	trailer_len = PAGE_DIR
-			+ PAGE_DIR_SLOT_SIZE
-			* page_dir_get_n_slots((page_t*) page_zip->data);
+	ulint	trailer_len = page_trailer_get_len(page_zip->data);
 #endif /* UNIV_DEBUG */
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);

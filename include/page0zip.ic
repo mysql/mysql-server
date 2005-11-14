@@ -122,8 +122,7 @@ page_zip_alloc(
 	const page_t*	page,	/* in: uncompressed page */
 	ulint		size)	/* in: size of modification log entries */
 {
-	ulint	trailer_len = PAGE_DIR + PAGE_DIR_SLOT_SIZE
-			* page_dir_get_n_slots((page_t*) page_zip->data);
+	ulint	trailer_len = page_trailer_get_len(page_zip->data);
 
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
@@ -155,12 +154,10 @@ page_zip_available(
 	ulint			size)	/* in: requested size of
 					modification log entries */
 {
-	ulint	trailer_len = PAGE_DIR + PAGE_DIR_SLOT_SIZE
-			* page_dir_get_n_slots((page_t*) page_zip->data);
+	ulint	trailer_len = page_trailer_get_len(page_zip->data);
 
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
-	ut_ad(size >= 3); /* modification log entries are >= 1+1+1 bytes */
 	ut_ad(size < page_zip->size);
 
 	return(UNIV_LIKELY(
