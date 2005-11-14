@@ -433,6 +433,17 @@ page_dir_set_n_slots(
 				uncompressed part will be updated, or NULL */
 	ulint		n_slots)/* in: number of slots */
 {
+#ifdef UNIV_DEBUG
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		/* Ensure that the modification log will not be overwritten. */
+		ulint	n_slots_old = page_dir_get_n_slots(page);
+		if (n_slots > n_slots_old) {
+			ut_ad(page_zip_available(page_zip,
+					(n_slots - n_slots_old)
+					* PAGE_DIR_SLOT_SIZE));
+		}
+	}
+#endif /* UNIV_DEBUG */
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
 }
 
@@ -445,9 +456,8 @@ page_trailer_get_len(
 				/* out: length of page trailer, in bytes */
 	const page_t*	page)	/* in: index page */
 {
-	return(page + UNIV_PAGE_SIZE
-			- page_dir_get_nth_slot((page_t*) page,
-				page_dir_get_n_slots((page_t*) page) - 1));
+	return(PAGE_DIR + PAGE_DIR_SLOT_SIZE
+		* page_dir_get_n_slots((page_t*) page));
 }
 
 /*****************************************************************
