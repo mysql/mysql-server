@@ -601,6 +601,7 @@ extern char *_my_strdup_with_length(const byte *from, uint length,
 
 #ifdef __WIN__
 extern int my_access(const char *path, int amode);
+extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
 #else
 #define my_access access
 #endif
