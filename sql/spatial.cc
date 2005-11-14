@@ -178,7 +178,9 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
 {
   double res;
   if (bo != Geometry::wkb_xdr)
+  {
     float8get(res, ptr);
+  }
   else
   {
     char inv_array[8];
