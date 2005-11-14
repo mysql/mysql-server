@@ -165,7 +165,7 @@ page_cur_insert_rec_low(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				25 + rec_size bytes available, or NULL */
+				37 + rec_size bytes available, or NULL */
 	dtuple_t*	tuple,	/* in: pointer to a data tuple or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record or NULL */
@@ -254,7 +254,7 @@ page_cur_parse_insert_rec(
 	dict_index_t*	index,	/* in: record descriptor */
 	page_t*		page,	/* in/out: page or NULL */
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				25 + rec_size bytes available, or NULL */
+				37 + rec_size bytes available, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
