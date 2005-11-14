@@ -930,7 +930,7 @@ sub executable_setup () {
     }
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
-    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -947,6 +947,7 @@ sub executable_setup () {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
