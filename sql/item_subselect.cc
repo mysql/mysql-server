@@ -803,6 +803,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	!(select_lex->next_select()))
     {
       Item_sum_hybrid *item;
+      nesting_map save_allow_sum_func;
       if (func->l_op())
       {
 	/*
@@ -828,6 +829,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	it.replace(item);
       }
 
+      save_allow_sum_func= thd->lex->allow_sum_func;
+      thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
       /*
 	Item_sum_(max|min) can't substitute other item => we can use 0 as
         reference, also Item_sum_(max|min) can't be fixed after creation, so
@@ -835,6 +838,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       */
       if (item->fix_fields(thd, 0))
 	DBUG_RETURN(RES_ERROR);
+      thd->lex->allow_sum_func= save_allow_sum_func; 
       /* we added aggregate function => we have to change statistic */
       count_field_types(&join->tmp_table_param, join->all_fields, 0);
 
