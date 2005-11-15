@@ -476,7 +476,7 @@ void
 sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
-  uint n;			/* Counter for nul trimming */ 
+  uchar *endp;                  /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
@@ -509,17 +509,20 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
                                (char *)m_param_begin, m_params.length);
   }
 
-  m_body.length= lex->ptr - m_body_begin;
-  /* Trim nuls at the end */
-  n= 0;
-  while (m_body.length && m_body_begin[m_body.length-1] == '\0')
-  {
-    m_body.length-= 1;
-    n+= 1;
-  }
+  /* If ptr has overrun end_of_query then end_of_query is the end */
+  endp= (lex->ptr > lex->end_of_query ? lex->end_of_query : lex->ptr);
+  /*
+    Trim "garbage" at the end. This is sometimes needed with the
+    "/ * ! VERSION... * /" wrapper in dump files.
+  */
+  while (m_body_begin < endp &&
+         (endp[-1] <= ' ' || endp[-1] == '*' ||
+          endp[-1] == '/' || endp[-1] == ';'))
+    endp-= 1;
+
+  m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
-  m_defstr.length= lex->ptr - lex->buf;
-  m_defstr.length-= n;
+  m_defstr.length= endp - lex->buf;
   m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
