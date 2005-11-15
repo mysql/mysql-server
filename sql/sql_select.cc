@@ -10988,7 +10988,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
-    Field *field=((Item_field*) (*order->item))->field;
+    Field *field=((Item_field*) (*order->item)->real_item())->field;
     int flag;
 
     /*

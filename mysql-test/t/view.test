@@ -2255,6 +2255,16 @@ show create view v1;
 drop view v1;
 
 #
+# Bug #14816 test_if_order_by_key() expected only Item_fields.
+#
+create table t1 (id INT, primary key(id));
+insert into t1 values (1),(2);
+create view v1 as select * from t1;
+explain select id from v1 order by id;
+drop view v1;
+drop table t1;
+
+#
 # Bug #14850 Item_ref's values wasn't updated
 #
 create table t1(f1 int, f2 int);
