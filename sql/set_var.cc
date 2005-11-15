@@ -61,7 +61,9 @@
 
 /* WITH_BERKELEY_STORAGE_ENGINE */
 extern bool berkeley_shared_data;
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 
 /* WITH_INNOBASE_STORAGE_ENGINE */
@@ -622,11 +624,13 @@ struct show_var_st init_vars[]= {
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
-  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
+  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONGLONG},
+  {"bdb_cache_parts",         (char*) &berkeley_cache_parts,        SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
   {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
+  {"bdb_region_size",         (char*) &berkeley_region_size,	    SHOW_LONG},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
