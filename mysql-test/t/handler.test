@@ -347,4 +347,79 @@ drop table t3;
 drop table t4;
 drop table t5;
 
+#
+# Bug#14397 - OPTIMIZE TABLE with an open HANDLER causes a crash
+#
+create table t1 (c1 int);
+insert into t1 values (1);
+# client 1
+handler t1 open;
+handler t1 read first;
+# client 2
+connect (con2,localhost,root,,);
+connection con2;
+--exec echo send the below to another connection, do not wait for the result
+send optimize table t1;
+--sleep 1
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+handler t1 read next;
+handler t1 close;
+# client 2
+--exec echo read the result from the other connection
+connection con2;
+reap;
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+drop table t1;
+
 # End of 4.1 tests
+
+#
+# Addendum to Bug#14397 - OPTIMIZE TABLE with an open HANDLER causes a crash
+# Show that DROP TABLE can no longer deadlock against
+# FLUSH TABLES WITH READ LOCK. This is a 5.0 issue.
+#
+create table t1 (c1 int);
+insert into t1 values (14397);
+flush tables with read lock;
+# The thread with the global read lock cannot drop the table itself:
+--error 1223
+drop table t1;
+#
+# client 2
+# We need a second connection to try the drop.
+# The drop waits for the global read lock to go away.
+# Without the addendum fix it locked LOCK_open before entering the wait loop.
+connection con2;
+--exec echo send the below to another connection, do not wait for the result
+send drop table t1;
+--sleep 1
+#
+# client 1
+# Now we need something that wants LOCK_open. A simple table access which
+# opens the table does the trick.
+--exec echo proceed with the normal connection
+connection default;
+# This would hang on LOCK_open without the 5.0 addendum fix.
+select * from t1;
+# Release the read lock. This should make the DROP go through.
+unlock tables;
+#
+# client 2
+# Read the result of the drop command.
+connection con2;
+--exec echo read the result from the other connection
+reap;
+#
+# client 1
+# Now back to normal operation. The table should not exist any more.
+--exec echo proceed with the normal connection
+connection default;
+--error 1146
+select * from t1;
+# Just to be sure and not confuse the next test case writer.
+drop table if exists t1;
+
