@@ -2463,6 +2463,7 @@ btr_cur_del_mark_set_sec_rec(
 		/* Reorganize to try to get more modification log space. */
 		btr_page_reorganize(buf_block_get_frame(block),
 						cursor->index, mtr);
+		/* TODO: search for rec, invalidate hash index */
 
 		if (!btr_rec_set_deleted_flag(rec, page_zip, val)) {
 			/* TODO: could we do anything else than crash? */
@@ -2610,6 +2611,8 @@ btr_cur_optimistic_delete(
 			/* Reorganize the page to ensure that the
 			compression succeeds after deleting the record. */
 			btr_page_reorganize(page, cursor->index, mtr);
+
+			/* TODO: invalidate hash index, reposition cursor */
 		}
 	}
 
@@ -2776,6 +2779,8 @@ btr_cur_pessimistic_delete(
 		/* Reorganize the page to ensure that the
 		compression succeeds after deleting the record. */
 		btr_page_reorganize(page, cursor->index, mtr);
+
+		/* TODO: invalidate hash index, reposition cursor */
 	}
 
 	*err = DB_SUCCESS;
