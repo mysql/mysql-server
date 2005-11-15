@@ -220,7 +220,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -1928,7 +1928,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -2780,8 +2780,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   used_fields=create_info->used_fields;
+  
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
 
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
