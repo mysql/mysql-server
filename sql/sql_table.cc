@@ -639,6 +639,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	{
 	  /* Field redefined */
+	  sql_field->def=		dup_field->def;
 	  sql_field->sql_type=		dup_field->sql_type;
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
@@ -647,8 +648,15 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           sql_field->pack_length=	dup_field->pack_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
-	  sql_field->flags=		dup_field->flags;
 	  sql_field->unireg_check=	dup_field->unireg_check;
+          /* 
+            We're making one field from two, the result field will have
+            dup_field->flags as flags. If we've incremented null_fields
+            because of sql_field->flags, decrement it back.
+          */
+          if (!(sql_field->flags & NOT_NULL_FLAG))
+            null_fields--;
+	  sql_field->flags=		dup_field->flags;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
