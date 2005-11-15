@@ -607,12 +607,12 @@ enum interval_type
 
 class Item_date_add_interval :public Item_date_func
 {
-  const interval_type int_type;
   String value;
-  const bool date_sub_interval;
   enum_field_types cached_field_type;
 
 public:
+  const interval_type int_type; // keep it public
+  const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
   String *val_str(String *);
@@ -628,10 +628,10 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  const interval_type int_type;
   String value;
   bool date_value;
  public:
+  const interval_type int_type; // keep it public
   Item_extract(interval_type type_arg, Item *a)
     :Item_int_func(a), int_type(type_arg) {}
   longlong val_int();
@@ -856,8 +856,8 @@ enum date_time_format
 
 class Item_func_get_format :public Item_str_func
 {
-  const timestamp_type type;
 public:
+  const timestamp_type type; // keep it public
   Item_func_get_format(timestamp_type type_arg, Item *a)
     :Item_str_func(a), type(type_arg)
   {}
