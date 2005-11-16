@@ -737,8 +737,8 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
                       table->alias, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                        (byte*) table->alias,
-                                        strlen(table->alias) + 1)))
+                                              (byte*) table->alias,
+                                              strlen(table->alias) + 1)))
   {
     if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
     {
@@ -752,6 +752,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
     }
   }    
 
+  safe_mutex_assert_owner(&LOCK_open);
   (*table_ptr)->file->ha_index_or_rnd_end();
   safe_mutex_assert_owner(&LOCK_open);
   if (close_thread_table(thd, table_ptr))
