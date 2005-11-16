@@ -7423,7 +7423,7 @@ SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 #ifndef WITH_BERKELEY_STORAGE_ENGINE
 bool berkeley_shared_data;
 ulong berkeley_max_lock, berkeley_log_buffer_size;
-ulonglong berkeley_cache_size, 
+ulonglong berkeley_cache_size;
 ulong berkeley_region_size, berkeley_cache_parts;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 #endif
