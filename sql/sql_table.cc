@@ -3132,8 +3132,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   used_fields=create_info->used_fields;
-
+  
   mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
+
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
