@@ -2615,8 +2615,11 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  my_snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, 
-              mysql_error(mysql));
+  const char *remote_error= mysql_error(mysql);
+  remote_error_len= strlen(remote_error);
+  if(remote_error_len > (sizeof(remote_error_buf) - 1))
+    remote_error_len= (sizeof(remote_error_buf) - 1);
+  my_snprintf(remote_error_buf, remote_error_len + 1, remote_error);
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 
@@ -2630,10 +2633,11 @@ bool ha_federated::get_error_message(int error, String* buf)
     buf->append("Error on remote system: ");
     buf->qs_append(remote_error_number);
     buf->append(": ");
-    buf->append(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE);
+    buf->append(remote_error_buf, remote_error_len);
 
     remote_error_number= 0;
     remote_error_buf[0]= '\0';
+    remote_error_len= 0;
   }
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
   DBUG_RETURN(FALSE);
