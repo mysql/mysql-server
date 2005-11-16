@@ -13,18 +13,18 @@ td,th { border: 1px solid black }
 <h1>MySQL Cluster analysis for <TMPL_VAR NAME="db" escape="html"></h1>
 <p>This is an automated analysis of the <TMPL_VAR NAME="DSN" escape="html"> database for migration into <a href="http://www.mysql.com/">MySQL</a> Cluster. No warranty is made to the accuracy of the information.</p>
 
-<p>This information should be valid for MySQL 4.1</p>
+<p>This information should be valid for MySQL 4.1 and 5.0. Since 5.1 is not a final release yet, the numbers should be used as a guide only.</p>
 
 <ul>
 <TMPL_LOOP NAME="tables">
-<li><TMPL_VAR NAME="table"></li>
+<li><a href="#<TMPL_VAR NAME="table">"><TMPL_VAR NAME="table"></a></li>
 </TMPL_LOOP>
 </ul>
 
 <hr/>
 
 <TMPL_LOOP NAME="tables">
-<h2><TMPL_VAR NAME="table"></h2>
+<h2><a name="<TMPL_VAR NAME="table">"><TMPL_VAR NAME="table"></a></h2>
 <table>
   <tr>
     <th>Column</th>
