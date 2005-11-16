@@ -78,9 +78,11 @@ const char *ha_berkeley_ext=".db";
 bool berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
           berkeley_lock_type=DB_LOCK_DEFAULT;
-ulong berkeley_cache_size, berkeley_log_buffer_size, berkeley_log_file_size=0;
+ulong berkeley_log_buffer_size=0 , berkeley_log_file_size=0;
+ulonglong berkeley_cache_size= 0;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
+ulong berkeley_region_size=0, berkeley_cache_parts=1;
 ulong berkeley_trans_retry=1;
 ulong berkeley_max_lock;
 pthread_mutex_t bdb_mutex;
@@ -207,10 +209,17 @@ bool berkeley_init(void)
 			DB_VERB_DEADLOCK | DB_VERB_RECOVERY,
 			1);
 
-  db_env->set_cachesize(db_env, 0, berkeley_cache_size, 0);
+  if (berkeley_cache_size > (uint) ~0)
+    db_env->set_cachesize(db_env, berkeley_cache_size / (1024*1024L*1024L),
+                          berkeley_cache_size % (1024L*1024L*1024L),
+                          berkeley_cache_parts);
+  else
+    db_env->set_cachesize(db_env, 0, berkeley_cache_size, berkeley_cache_parts);
+
   db_env->set_lg_max(db_env, berkeley_log_file_size);
   db_env->set_lg_bsize(db_env, berkeley_log_buffer_size);
   db_env->set_lk_detect(db_env, berkeley_lock_type);
+  db_env->set_lg_regionmax(db_env, berkeley_region_size);
   if (berkeley_max_lock)
     db_env->set_lk_max(db_env, berkeley_max_lock);
 
