@@ -394,7 +394,9 @@ extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
@@ -4582,8 +4584,10 @@ enum options_mysqld
   OPT_INNODB_CONCURRENCY_TICKETS,
   OPT_INNODB_THREAD_SLEEP_DELAY,
   OPT_BDB_CACHE_SIZE,
+  OPT_BDB_CACHE_PARTS,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
+  OPT_BDB_REGION_SIZE,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -5398,8 +5402,12 @@ log and this option does nothing anymore.",
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
     "The buffer that is allocated to cache index and rows for BDB tables.",
-    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
-    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
+    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
+    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
+  { "bdb_cache_parts", OPT_BDB_CACHE_PARTS,
+    "Number of parts to use for BDB cache.",
+    (gptr*) &berkeley_cache_parts, (gptr*) &berkeley_cache_parts, 0, GET_ULONG,
+    REQUIRED_ARG, 1, 1, 1024, 0, 1, 0},
   /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
@@ -5412,6 +5420,10 @@ log and this option does nothing anymore.",
    "The maximum number of locks you can have active on a BDB table.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
+  {"bdb_region_size", OPT_BDB_REGION_SIZE,
+    "The size of the underlying logging area of the Berkeley DB environment.",
+    (gptr*) &berkeley_region_size, (gptr*) &berkeley_region_size, 0, GET_ULONG,
+    OPT_ARG, 60*1024L, 60*1024L, (long) ~0, 0, 1, 0},
 #endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
@@ -7410,7 +7422,9 @@ SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 
 #ifndef WITH_BERKELEY_STORAGE_ENGINE
 bool berkeley_shared_data;
-ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+ulong berkeley_max_lock, berkeley_log_buffer_size;
+ulonglong berkeley_cache_size;
+ulong berkeley_region_size, berkeley_cache_parts;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 #endif
 
