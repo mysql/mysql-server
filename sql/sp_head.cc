@@ -120,6 +120,45 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DEALLOCATE_PREPARE:
     flags= sp_head::CONTAINS_DYNAMIC_SQL;
     break;
+  case SQLCOM_CREATE_TABLE:
+    if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_DROP_TABLE:
+    if (lex->drop_temporary)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_CREATE_TRIGGER:
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_BEGIN:
+  case SQLCOM_RENAME_TABLE:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_DROP_DB:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_DROP_VIEW:
+  case SQLCOM_DROP_TRIGGER:
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_COMMIT:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_LOAD_MASTER_DATA:
+  case SQLCOM_LOCK_TABLES:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_DROP_FUNCTION:
+    flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
   default:
     flags= 0;
     break;
