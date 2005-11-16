@@ -64,6 +64,14 @@ my $tables  = $dbh->selectall_arrayref("show tables");
 
 my @table_size;
 
+my @dbDataMemory;
+my @dbIndexMemory;
+my @NoOfAttributes;
+my @NoOfIndexes;
+my @NoOfTables;
+$NoOfTables[$_]{val} = @{$tables} foreach 0..$#releases;
+
+
 sub align {
     my($to,@unaligned) = @_;
     my @aligned;
@@ -147,7 +155,10 @@ foreach(@{$tables})
 	elsif($type =~ /binary/ || $type =~ /char/)
 	{@realsize=($size,$size,$size)}
 	elsif($type =~ /text/ || $type =~ /blob/)
-	{@realsize=(256,256,1)} # FIXME check if 5.1 is correct
+	{
+	    @realsize=(256,256,1);
+	    $NoOfTables[$_]{val} += 1 foreach 0..$#releases; # blob uses table
+	} # FIXME check if 5.1 is correct
 
 	@realsize= align(4,@realsize);
 
@@ -265,7 +276,51 @@ foreach(@{$tables})
 	IndexMemory=>\@IndexMemory,
 	
     };
+
+    $dbDataMemory[$_]{val} += $DataMemory[$_]{val} foreach 0..$#releases;
+    $dbIndexMemory[$_]{val} += $IndexMemory[$_]{val} foreach 0..$#releases;
+    $NoOfAttributes[$_]{val} += @columns foreach 0..$#releases;
+    $NoOfIndexes[$_]{val} += @indexes foreach 0..$#releases;
+}
+
+my @NoOfTriggers;
+# for unique hash indexes
+$NoOfTriggers[$_]{val} += $NoOfIndexes[$_]{val}*3 foreach 0..$#releases;
+# for ordered index
+$NoOfTriggers[$_]{val} += $NoOfIndexes[$_]{val} foreach 0..$#releases;
+
+my @ParamMemory;
+foreach (0..$#releases) {
+    $ParamMemory[0]{releases}[$_]{val}= POSIX::ceil(200*$NoOfAttributes[$_]{val}/1024);
+    $ParamMemory[0]{name}= 'Attributes';
+
+    $ParamMemory[1]{releases}[$_]{val}= 20*$NoOfTables[$_]{val};
+    $ParamMemory[1]{name}= 'Tables';
+
+    $ParamMemory[2]{releases}[$_]{val}= 10*$NoOfIndexes[$_]{val};
+    $ParamMemory[2]{name}= 'OrderedIndexes';
+
+    $ParamMemory[3]{releases}[$_]{val}= 15*$NoOfIndexes[$_]{val};
+    $ParamMemory[3]{name}= 'UniqueHashIndexes';    
 }
 
 $template->param(tables => \@table_size);
+$template->param(Parameters => [{name=>'DataMemory (kb)',
+				 releases=>\@dbDataMemory},
+				{name=>'IndexMemory (kb)',
+				 releases=>\@dbIndexMemory},
+				{name=>'MaxNoOfTables',
+				 releases=>\@NoOfTables},
+				{name=>'MaxNoOfAttributes',
+				 releases=>\@NoOfAttributes},
+				{name=>'MaxNoOfOrderedIndexes',
+				 releases=>\@NoOfIndexes},
+				{name=>'MaxNoOfUniqueHashIndexes',
+				 releases=>\@NoOfIndexes},
+				{name=>'MaxNoOfTriggers',
+				 releases=>\@NoOfTriggers}
+				]
+		 );
+$template->param(ParamMemory => \@ParamMemory);
+
 print $template->output;
