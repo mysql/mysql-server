@@ -26,24 +26,33 @@ use HTML::Template;
 # BUGS
 # ----
 # - enum/set is 0 byte storage! Woah - efficient!
+# - DECIMAL is 0 byte storage. A bit too efficient.
 # - some float stores come out weird (when there's a comma e.g. 'float(4,1)')
 # - no disk data values
 # - computes the storage requirements of views (and probably MERGE)
 # - ignores character sets.
 
 my $template = HTML::Template->new(filename => 'ndb_size.tmpl',
-				   die_on_bad_params => 0);
+				   die_on_bad_params => 0)
+    or die "Could not open ndb_size.tmpl.";
 
 my $dbh;
+
+if(@ARGV < 3 || $ARGV[0] eq '--usage' || $ARGV[0] eq '--help')
+{
+    print STDERR "Usage:\n";
+    print STDERR "\tndb_size.pl database hostname user password\n\n";
+    print STDERR "If you need to specify a port number, use host:port\n\n";
+    exit(1);
+}
 
 {
     my $database= $ARGV[0];
     my $hostname= $ARGV[1];
-    my $port= $ARGV[2];
-    my $user= $ARGV[3];
-    my $password= $ARGV[4];
-    my $dsn = "DBI:mysql:database=$database;host=$hostname;port=$port";
-    $dbh= DBI->connect($dsn, $user, $password);
+    my $user= $ARGV[2];
+    my $password= $ARGV[3];
+    my $dsn = "DBI:mysql:database=$database;host=$hostname";
+    $dbh= DBI->connect($dsn, $user, $password) or exit(1);
     $template->param(db => $database);
     $template->param(dsn => $dsn);
 }
@@ -68,9 +77,8 @@ foreach(@{$tables})
 {
     my $table= @{$_}[0];
     my @columns;
-    my $info= $dbh->selectall_hashref("describe ".$dbh->quote($table),"Field");
-    my @count  = $dbh->selectrow_array("select count(*) from "
-				       .$dbh->quote($table));
+    my $info= $dbh->selectall_hashref('describe `'.$table.'`',"Field");
+    my @count  = $dbh->selectrow_array('select count(*) from `'.$table.'`');
     my %columnsize; # used for index calculations
 
     # We now work out the DataMemory usage
@@ -132,7 +140,7 @@ foreach(@{$tables})
 	    my $fixed= 1+$size;
 	    my @dynamic=$dbh->selectrow_array("select avg(length("
 					      .$dbh->quote($name)
-					      .")) from ".$dbh->quote($table));
+					      .")) from `".$table.'`');
 	    $dynamic[0]=0 if !$dynamic[0];
 	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
 	}
@@ -166,7 +174,7 @@ foreach(@{$tables})
     # we can still connect to pre-5.0 mysqlds.
     my %indexes;
     {
-	my $sth= $dbh->prepare("show index from "$dbh->quote($table));
+	my $sth= $dbh->prepare("show index from `".$table.'`');
 	$sth->execute;
 	while(my $i = $sth->fetchrow_hashref)
 	{    
