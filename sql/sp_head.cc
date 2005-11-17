@@ -2906,33 +2906,34 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 
   /*
-    Use persistent arena for table list allocation to be PS friendly.
+    Use persistent arena for table list allocation to be PS/SP friendly.
+    Note that we also have to copy database/table names and alias to PS/SP
+    memory since current instance of sp_head object can pass away before
+    next execution of PS/SP for which tables are added to prelocking list.
+    This will be fixed by introducing of proper invalidation mechanism
+    once new TDC is ready.
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (i=0 ; i < m_sptabs.records ; i++)
   {
-    char *tab_buff;
+    char *tab_buff, *key_buff;
     TABLE_LIST *table;
     SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
 
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
-                                        stab->lock_count)))
+                                        stab->lock_count)) ||
+        !(key_buff= (char*)thd->memdup(stab->qname.str,
+                                       stab->qname.length + 1)))
       DBUG_RETURN(FALSE);
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
       table= (TABLE_LIST *)tab_buff;
 
-      /*
-        It's enough to just copy the pointers as the data will not change
-        during the lifetime of the SP. If the SP is used by PS, we assume
-        that the PS will be invalidated if the functions is deleted or
-        changed.
-      */
-      table->db= stab->qname.str;
+      table->db= key_buff;
       table->db_length= stab->db_length;
       table->table_name= table->db + table->db_length + 1;
       table->table_name_length= stab->table_name_length;
