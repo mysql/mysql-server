@@ -14419,7 +14419,7 @@ static void test_bug14210()
   myquery(rc);
 }
 
-/* Bug#13488 */
+/* Bug#13488: wrong column metadata when fetching from cursor */
 
 static void test_bug13488()
 {
@@ -14486,6 +14486,66 @@ static void test_bug13488()
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
+
+/*
+  Bug#13524: warnings of a previous command are not reset when fetching
+  from a cursor.
+*/
+
+static void test_bug13524()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  unsigned int warning_count;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select * from t1";
+
+  myheader("test_bug13524");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (a int not null primary key)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1), (2), (3), (4)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Check that DROP TABLE produced a warning (no such table) */
+  rc= mysql_query(mysql, "drop table if exists t2");
+  myquery(rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 1);
+
+  /*
+    Check that fetch from a cursor cleared the warning from the previous
+    command.
+  */
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -14744,6 +14804,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12243", test_bug12243 },
   { "test_bug14210", test_bug14210 },
   { "test_bug13488", test_bug13488 },
+  { "test_bug13524", test_bug13524 },
   { 0, 0 }
 };
 
