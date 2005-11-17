@@ -505,6 +505,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
 1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	2	Using index; Distinct
 drop table t1,t2;
+create table t1 (
+c1 varchar(32),
+key (c1)
+) engine=myisam;
+alter table t1 disable keys;
+insert into t1 values ('a'), ('b');
+select c1 from t1 order by c1 limit 1;
+c1
+a
+drop table t1;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MyISAM;
 Got one of the listed errors
 create table t1 (a int, b varchar(200), c text not null) checksum=1;

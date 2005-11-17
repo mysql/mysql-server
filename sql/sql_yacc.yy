@@ -1159,11 +1159,6 @@ create:
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
-            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-            {
-              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-              YYABORT;
-            }
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
 							TL_OPTION_UPDATING))
@@ -3299,11 +3294,6 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->name= 0;
 	  lex->duplicates= DUP_ERROR; 
@@ -3614,11 +3604,6 @@ start:
 	START_SYM TRANSACTION_SYM start_transaction_opts
         {
           LEX *lex= Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
           lex->sql_command= SQLCOM_BEGIN;
           lex->start_transaction_opt= $3;
         }
@@ -3803,13 +3788,7 @@ opt_no_write_to_binlog:
 rename:
 	RENAME table_or_tables
 	{
-          LEX *lex= Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
-          lex->sql_command=SQLCOM_RENAME_TABLE;
+          Lex->sql_command= SQLCOM_RENAME_TABLE;
 	}
 	table_to_table_list
 	{}
@@ -5946,21 +5925,10 @@ drop:
 	  lex->sql_command = SQLCOM_DROP_TABLE;
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
-          if (!lex->drop_temporary && lex->sphead &&
-              lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	}
 	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
-             if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-             {
-               my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-               YYABORT;
-             }
 	     lex->sql_command= SQLCOM_DROP_INDEX;
 	     lex->alter_info.drop_list.empty();
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
@@ -6006,13 +5974,7 @@ drop:
           }
 	| DROP VIEW_SYM if_exists table_list opt_restrict
 	  {
-	    THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-            {
-              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-              YYABORT;
-            }
+	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
@@ -8652,11 +8614,6 @@ begin:
 	BEGIN_SYM  
         {
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
           lex->sql_command = SQLCOM_BEGIN;
           lex->start_transaction_opt= 0;
         }
@@ -8689,11 +8646,6 @@ commit:
 	COMMIT_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_COMMIT;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;
@@ -8704,11 +8656,6 @@ rollback:
 	ROLLBACK_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_ROLLBACK;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;

@@ -336,6 +336,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
                    ha_rows select_limit_cnt, ha_rows offset_limit_cnt)
 {
   TABLE_LIST    *hash_tables;
+  TABLE         **table_ptr;
   TABLE         *table;
   MYSQL_LOCK    *lock;
   List<Item>	list;
@@ -368,6 +369,28 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
                                hash_tables->db, hash_tables->table_name,
                                hash_tables->alias, table));
+    /* Table might have been flushed. */
+    if (table && (table->s->version != refresh_version))
+    {
+      /*
+        We must follow the thd->handler_tables chain, as we need the
+        address of the 'next' pointer referencing this table
+        for close_thread_table().
+      */
+      for (table_ptr= &(thd->handler_tables);
+           *table_ptr && (*table_ptr != table);
+           table_ptr= &(*table_ptr)->next)
+      {}
+      (*table_ptr)->file->ha_index_or_rnd_end();
+      VOID(pthread_mutex_lock(&LOCK_open));
+      if (close_thread_table(thd, table_ptr))
+      {
+        /* Tell threads waiting for refresh that something has happened */
+        VOID(pthread_cond_broadcast(&COND_refresh));
+      }
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      table= hash_tables->table= NULL;
+    }
     if (!table)
     {
       /*
@@ -594,6 +617,7 @@ err0:
                                 MYSQL_HA_REOPEN_ON_USAGE mark for reopen.
                                 MYSQL_HA_FLUSH_ALL flush all tables, not only
                                 those marked for flush.
+    is_locked                   If LOCK_open is locked.
 
   DESCRIPTION
     The list of HANDLER tables may be NULL, in which case all HANDLER
@@ -601,7 +625,6 @@ err0:
     If 'tables' is NULL and MYSQL_HA_FLUSH_ALL is not set,
     all HANDLER tables marked for flush are closed.
     Broadcasts a COND_refresh condition, for every table closed.
-    The caller must lock LOCK_open.
 
   NOTE
     Since mysql_ha_flush() is called when the base table has to be closed,
@@ -611,10 +634,12 @@ err0:
     0  ok
 */
 
-int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags)
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
+                   bool is_locked)
 {
   TABLE_LIST    *tmp_tables;
   TABLE         **table_ptr;
+  bool          did_lock= FALSE;
   DBUG_ENTER("mysql_ha_flush");
   DBUG_PRINT("enter", ("tables: %p  mode_flags: 0x%02x", tables, mode_flags));
 
@@ -640,6 +665,12 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags)
                              (*table_ptr)->s->db,
                              (*table_ptr)->s->table_name,
                              (*table_ptr)->alias));
+          /* The first time it is required, lock for close_thread_table(). */
+          if (! did_lock && ! is_locked)
+          {
+            VOID(pthread_mutex_lock(&LOCK_open));
+            did_lock= TRUE;
+          }
           mysql_ha_flush_table(thd, table_ptr, mode_flags);
           continue;
         }
@@ -658,12 +689,22 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags)
       if ((mode_flags & MYSQL_HA_FLUSH_ALL) ||
           ((*table_ptr)->s->version != refresh_version))
       {
+        /* The first time it is required, lock for close_thread_table(). */
+        if (! did_lock && ! is_locked)
+        {
+          VOID(pthread_mutex_lock(&LOCK_open));
+          did_lock= TRUE;
+        }
         mysql_ha_flush_table(thd, table_ptr, mode_flags);
         continue;
       }
       table_ptr= &(*table_ptr)->next;
     }
   }
+
+  /* Release the lock if it was taken by this function. */
+  if (did_lock)
+    VOID(pthread_mutex_unlock(&LOCK_open));
 
   DBUG_RETURN(0);
 }
@@ -696,8 +737,8 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
                       table->alias, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                        (byte*) (*table_ptr)->alias,
-                                        strlen((*table_ptr)->alias) + 1)))
+                                              (byte*) table->alias,
+                                              strlen(table->alias) + 1)))
   {
     if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
     {
@@ -711,7 +752,9 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
     }
   }    
 
+  safe_mutex_assert_owner(&LOCK_open);
   (*table_ptr)->file->ha_index_or_rnd_end();
+  safe_mutex_assert_owner(&LOCK_open);
   if (close_thread_table(thd, table_ptr))
   {
     /* Tell threads waiting for refresh that something has happened */
