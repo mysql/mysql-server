@@ -172,16 +172,7 @@ class sp_pcontext : public Sql_alloc
 
   // Find by index
   sp_pvar_t *
-  find_pvar(uint i)
-  {
-    sp_pvar_t *p;
-
-    if (i < m_pvar.elements)
-      get_dynamic(&m_pvar, (gptr)&p, i);
-    else
-      p= NULL;
-    return p;
-  }
+  find_pvar(uint i);
 
   //
   // Labels
@@ -260,6 +251,10 @@ class sp_pcontext : public Sql_alloc
 
   my_bool
   find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
+
+  /* Find by index (for debugging only) */
+  my_bool
+  find_cursor(uint i, LEX_STRING *n);
 
   inline uint
   max_cursors()

@@ -175,6 +175,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CLIENT_SYM
 %token  CLOSE_SYM
 %token  COALESCE
+%token  CODE_SYM
 %token  COLLATE_SYM
 %token  COLLATION_SYM
 %token  COLUMNS
@@ -1698,7 +1699,8 @@ sp_decl:
 	      delete $5;
 	      YYABORT;
 	    }
-            i= new sp_instr_cpush(sp->instructions(), ctx, $5);
+            i= new sp_instr_cpush(sp->instructions(), ctx, $5,
+                                  ctx->current_cursors());
 	    sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -6625,7 +6627,28 @@ show_param:
 	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
-	  };
+	  }
+        | PROCEDURE CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        | FUNCTION_SYM CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        ;
 
 show_engine_param:
 	STATUS_SYM
@@ -7534,6 +7557,7 @@ keyword_sp:
 	| CHANGED		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
+        | CODE_SYM              {}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
 	| COMMITTED_SYM		{}
