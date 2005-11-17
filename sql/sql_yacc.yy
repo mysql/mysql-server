@@ -137,6 +137,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ASCII_SYM
 %token  ASENSITIVE_SYM
 %token  ATAN
+%token  AUTHORS_SYM
 %token  AUTO_INC
 %token  AVG_ROW_LENGTH
 %token  AVG_SYM
@@ -7174,6 +7175,11 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
 	  }
+	| AUTHORS_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_AUTHORS;
+	  }
 	| PRIVILEGES
 	  {
 	    LEX *lex=Lex;
@@ -8171,6 +8177,7 @@ user:
 keyword:
 	keyword_sp		{}
 	| ASCII_SYM		{}
+	| AUTHORS_SYM		{}
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BYTE_SYM		{}
