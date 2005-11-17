@@ -222,9 +222,9 @@ insert into t0 select GET_LOCK("lock1",null);
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);
-select get_lock("lock1",null);
-get_lock("lock1",null)
-0
+select get_lock("lock1",60);
+get_lock("lock1",60)
+1
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	79	Query	1	79	use `test`; BEGIN
@@ -249,5 +249,7 @@ master-bin.000001	1056	Query	1	1056	use `test`; insert t0 select * from t1
 master-bin.000001	1117	Query	1	1117	use `test`; DO RELEASE_LOCK("a")
 master-bin.000001	1172	Query	1	1172	use `test`; insert into t0 select GET_LOCK("lock1",null)
 master-bin.000001	1251	Query	1	1251	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	1323	Query	1	1323	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+master-bin.000001	1424	Query	1	1424	use `test`; DO RELEASE_LOCK("lock1")
 do release_lock("lock1");
 drop table t0,t2;
