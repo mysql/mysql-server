@@ -1672,6 +1672,19 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
   OPTIMIZE_CXXFLAGS="$OPTIMIZE_CXXFLAGS -DNDEBUG"
 fi
 
+# If the user specified CFLAGS, we won't add any optimizations
+if test -n "$SAVE_CFLAGS"
+then
+  OPTIMIZE_CFLAGS=""
+  DEBUG_OPTIMIZE_CC=""
+fi
+# Ditto for CXXFLAGS
+if test -n "$SAVE_CXXFLAGS"
+then
+  OPTIMIZE_CXXFLAGS=""
+  DEBUG_OPTIMIZE_CXX=""
+fi
+
 AC_ARG_WITH(debug,
     [  --without-debug         Build a production version without debugging code],
     [with_debug=$withval],
