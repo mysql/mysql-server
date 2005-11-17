@@ -1081,7 +1081,7 @@ public:
   int cmp_max(const char *, const char *, uint max_length);
   int cmp(const char *a,const char*b)
   {
-    return cmp_max(a, b, ~0);
+    return cmp_max(a, b, ~0L);
   }
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, imagetype type);
@@ -1141,7 +1141,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   int cmp_max(const char *, const char *, uint max_length);
   int cmp(const char *a,const char*b)
-    { return cmp_max(a, b, ~0); }
+    { return cmp_max(a, b, ~0L); }
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
   int key_cmp(const byte *,const byte*);
