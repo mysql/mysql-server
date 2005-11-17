@@ -105,6 +105,8 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
     flags= sp_head::MULTI_RESULTS;
     break;
   /*
@@ -1698,7 +1700,7 @@ sp_head::show_create_procedure(THD *thd)
   LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
-    return 1;
+    DBUG_RETURN(1);
 
   sql_mode_str=
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
@@ -1711,10 +1713,7 @@ sp_head::show_create_procedure(THD *thd)
 					     max(buffer.length(), 1024)));
   if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
-  {
-    res= 1;
-    goto done;
-  }
+    DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
@@ -1723,7 +1722,6 @@ sp_head::show_create_procedure(THD *thd)
   res= protocol->write();
   send_eof(thd);
 
- done:
   DBUG_RETURN(res);
 }
 
@@ -1768,7 +1766,7 @@ sp_head::show_create_function(THD *thd)
   LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
-    return 1;
+    DBUG_RETURN(1);
 
   sql_mode_str=
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
@@ -1780,10 +1778,7 @@ sp_head::show_create_function(THD *thd)
 					     max(buffer.length(),1024)));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-  {
-    res= 1;
-    goto done;
-  }
+    DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
@@ -1792,7 +1787,6 @@ sp_head::show_create_function(THD *thd)
   res= protocol->write();
   send_eof(thd);
 
- done:
   DBUG_RETURN(res);
 }
 
@@ -1850,6 +1844,51 @@ sp_head::opt_mark(uint ip)
   while ((i= get_instr(ip)) && !i->marked)
     ip= i->opt_mark(this);
 }
+
+
+#ifndef DBUG_OFF
+int
+sp_head::show_routine_code(THD *thd)
+{
+  Protocol *protocol= thd->protocol;
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  int res;
+  List<Item> field_list;
+  bool full_access;
+  uint ip;
+  sp_instr *i;
+
+  DBUG_ENTER("sp_head::show_routine_code");
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  if (check_show_routine_access(thd, this, &full_access) || !full_access)
+    DBUG_RETURN(1);
+
+  field_list.push_back(new Item_uint("Pos", 9));
+  // 1024 is for not to confuse old clients
+  field_list.push_back(new Item_empty_string("Instruction",
+					     max(buffer.length(), 1024)));
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
+    DBUG_RETURN(1);
+
+  for (ip= 0; (i = get_instr(ip)) ; ip++)
+  {
+    protocol->prepare_for_resend();
+    protocol->store((longlong)ip);
+
+    buffer.set("", 0, system_charset_info);
+    i->print(&buffer);
+    protocol->store(buffer.c_ptr_quick(), buffer.length(), system_charset_info);
+    if ((res= protocol->write()))
+      break;
+  }
+  send_eof(thd);
+
+  DBUG_RETURN(res);
+}
+#endif // ifndef DBUG_OFF
 
 
 /*
@@ -2010,14 +2049,34 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+#define STMT_PRINT_MAXLEN 40
 void
 sp_instr_stmt::print(String *str)
 {
-  str->reserve(12);
+  uint i, len;
+
+  str->reserve(STMT_PRINT_MAXLEN+20);
   str->append("stmt ");
   str->qs_append((uint)m_lex_keeper.sql_command());
+  str->append(" \"");
+  len= m_query.length;
+  /*
+    Print the query string (but not too much of it), just to indicate which
+    statement it is.
+  */
+  if (len > STMT_PRINT_MAXLEN)
+    len= STMT_PRINT_MAXLEN-3;
+  /* Copy the query string and replace '\n' with ' ' in the process */
+  for (i= 0 ; i < len ; i++)
+    if (m_query.str[i] == '\n')
+      str->append(' ');
+    else
+      str->append(m_query.str[i]);
+  if (m_query.length > STMT_PRINT_MAXLEN)
+    str->append("...");        /* Indicate truncated string */
+  str->append('"');
 }
-
+#undef STMT_PRINT_MAXLEN
 
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
@@ -2054,8 +2113,19 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set::print(String *str)
 {
-  str->reserve(12);
+  int rsrv = 16;
+  sp_pvar_t *var = m_ctx->find_pvar(m_offset);
+
+  /* 'var' should always be non-null, but just in case... */
+  if (var)
+    rsrv+= var->name.length;
+  str->reserve(rsrv);
   str->append("set ");
+  if (var)
+  {
+    str->append(var->name.str, var->name.length);
+    str->append('@');
+  }
   str->qs_append(m_offset);
   str->append(' ');
   m_value->print(str);
@@ -2346,12 +2416,26 @@ sp_instr_hpush_jump::print(String *str)
   str->reserve(32);
   str->append("hpush_jump ");
   str->qs_append(m_dest);
-  str->append(" t=");
-  str->qs_append(m_type);
-  str->append(" f=");
+  str->append(' ');
   str->qs_append(m_frame);
-  str->append(" h=");
-  str->qs_append(m_ip+1);
+  switch (m_type)
+  {
+  case SP_HANDLER_NONE:
+    str->append(" NONE");       // This would be a bug
+    break;
+  case SP_HANDLER_EXIT:
+    str->append(" EXIT");
+    break;
+  case SP_HANDLER_CONTINUE:
+    str->append(" CONTINUE");
+    break;
+  case SP_HANDLER_UNDO:
+    str->append(" UNDO");
+    break;
+  default:
+    str->append(" UNKNOWN:");   // This would be a bug as well
+    str->qs_append(m_type);
+  }
 }
 
 uint
@@ -2474,7 +2558,17 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpush::print(String *str)
 {
-  str->append("cpush");
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+
+  str->reserve(32);
+  str->append("cpush ");
+  if (found)
+  {
+    str->append(n.str, n.length);
+    str->append('@');
+  }
+  str->qs_append(m_cursor);
 }
 
 
@@ -2570,8 +2664,16 @@ sp_instr_copen::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_copen::print(String *str)
 {
-  str->reserve(12);
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+
+  str->reserve(32);
   str->append("copen ");
+  if (found)
+  {
+    str->append(n.str, n.length);
+    str->append('@');
+  }
   str->qs_append(m_cursor);
 }
 
@@ -2599,8 +2701,16 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
 void
 sp_instr_cclose::print(String *str)
 {
-  str->reserve(12);
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+
+  str->reserve(32);
   str->append("cclose ");
+  if (found)
+  {
+    str->append(n.str, n.length);
+    str->append('@');
+  }
   str->qs_append(m_cursor);
 }
 
@@ -2629,14 +2739,23 @@ sp_instr_cfetch::print(String *str)
 {
   List_iterator_fast<struct sp_pvar> li(m_varlist);
   sp_pvar_t *pv;
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
 
-  str->reserve(12);
+  str->reserve(32);
   str->append("cfetch ");
+  if (found)
+  {
+    str->append(n.str, n.length);
+    str->append('@');
+  }
   str->qs_append(m_cursor);
   while ((pv= li++))
   {
-    str->reserve(8);
+    str->reserve(16);
     str->append(' ');
+    str->append(pv->name.str, pv->name.length);
+    str->append('@');
     str->qs_append(pv->offset);
   }
 }
