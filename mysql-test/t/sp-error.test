@@ -1403,6 +1403,28 @@ drop function bug_13627_f|
 
 delimiter ;|
 
+# BUG#12329: "Bogus error msg when executing PS with stored procedure after
+# SP was re-created". See also test for related bug#13399 in trigger.test
+--disable_warnings
+drop function if exists bug12329;
+--enable_warnings
+create table t1 as select 1 a;
+create table t2 as select 1 a;
+create function bug12329() returns int return (select a from t1);
+prepare stmt1 from 'select bug12329()';
+execute stmt1;
+drop function bug12329;
+create function bug12329() returns int return (select a+100 from t2);
+select bug12329();
+# Until we implement proper mechanism for invalidation of PS/SP when table
+# or SP's are changed the following statement will fail with 'Table ... was
+# not locked' error (this mechanism should be based on the new TDC).
+--error 1100 
+execute stmt1;
+deallocate prepare stmt1;
+drop function bug12329; 
+drop table t1, t2;
+
 #
 # Bug#13514 "server crash when create a stored procedure before choose a
 # database" and
