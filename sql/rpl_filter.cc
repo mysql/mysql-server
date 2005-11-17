@@ -449,30 +449,37 @@ Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
 */
 
 void 
-Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h)
+Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
 {
   s->length(0);
-  for (uint i= 0; i < h->records; i++)
+  if (inited)
   {
-    TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) hash_element(h, i);
-    if (s->length())
-      s->append(',');
-    s->append(e->db,e->key_len);
+    for (uint i= 0; i < h->records; i++)
+    {
+      TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) hash_element(h, i);
+      if (s->length())
+        s->append(',');
+      s->append(e->db,e->key_len);
+    }
   }
 }
 
 
 void 
-Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
+Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a,
+                                                bool inited)
 {
   s->length(0);
-  for (uint i= 0; i < a->elements; i++)
+  if (inited)
   {
-    TABLE_RULE_ENT* e;
-    get_dynamic(a, (gptr)&e, i);
-    if (s->length())
-      s->append(',');
-    s->append(e->db,e->key_len);
+    for (uint i= 0; i < a->elements; i++)
+    {
+      TABLE_RULE_ENT* e;
+      get_dynamic(a, (gptr)&e, i);
+      if (s->length())
+        s->append(',');
+      s->append(e->db,e->key_len);
+    }
   }
 }
 
@@ -480,28 +487,28 @@ Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
 void
 Rpl_filter::get_do_table(String* str)
 {
-  table_rule_ent_hash_to_str(str, &do_table);
+  table_rule_ent_hash_to_str(str, &do_table, do_table_inited);
 }
 
 
 void
 Rpl_filter::get_ignore_table(String* str)
 {
-  table_rule_ent_hash_to_str(str, &ignore_table);
+  table_rule_ent_hash_to_str(str, &ignore_table, ignore_table_inited);
 }
 
 
 void
 Rpl_filter::get_wild_do_table(String* str)
 {
-  table_rule_ent_dynamic_array_to_str(str, &wild_do_table);
+  table_rule_ent_dynamic_array_to_str(str, &wild_do_table, wild_do_table_inited);
 }
 
 
 void
 Rpl_filter::get_wild_ignore_table(String* str)
 {
-  table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table);
+  table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table, wild_ignore_table_inited);
 }
 
 
