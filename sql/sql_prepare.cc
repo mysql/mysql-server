@@ -2312,6 +2312,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   Server_side_cursor *cursor;
   DBUG_ENTER("mysql_stmt_fetch");
 
+  mysql_reset_thd_for_next_command(thd);
   statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
     DBUG_VOID_RETURN;
