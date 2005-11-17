@@ -2615,7 +2615,6 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  const char *remote_error= mysql_error(mysql);
   my_snprintf(remote_error_buf, sizeof(remote_error_buf), "%s",
               mysql_error(mysql));
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
