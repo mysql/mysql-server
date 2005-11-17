@@ -115,7 +115,7 @@ server-id	= 1
 #log-update 	= /path-to-dedicated-directory/hostname
 
 # Uncomment the following if you are using BDB tables
-#bdb_cache_size = 64M
+#bdb_cache_size = 256M
 #bdb_max_lock = 100000
 
 # Uncomment the following if you are using InnoDB tables
