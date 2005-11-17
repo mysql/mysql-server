@@ -4976,3 +4976,27 @@ c1
 4
 5
 DROP TABLE bug14672;
+create table t1 (a int) engine=csv;
+insert t1 values (1);
+delete from t1;
+affected rows: 1
+delete from t1;
+affected rows: 0
+insert t1 values (1),(2);
+delete from t1;
+affected rows: 2
+insert t1 values (1),(2),(3);
+flush tables;
+delete from t1;
+affected rows: 3
+insert t1 values (1),(2),(3),(4);
+flush tables;
+select count(*) from t1;
+count(*)
+4
+delete from t1;
+affected rows: 4
+insert t1 values (1),(2),(3),(4),(5);
+truncate table t1;
+affected rows: 0
+drop table t1;
