@@ -375,3 +375,28 @@ drop procedure foo;
 drop function fn1;
 drop database mysqltest1;
 drop user "zedjzlcsjhd"@127.0.0.1;
+use test;
+use test;
+drop function if exists f1;
+create function f1() returns int reads sql data
+begin
+declare var integer;
+declare c cursor for select a from v1;
+open c;
+fetch c into var;
+close c;
+return var;
+end|
+create view v1 as select 1 as a;
+create table t1 (a int);
+insert into t1 (a) values (f1());
+select * from t1;
+a
+1
+drop view v1;
+drop function f1;
+select * from t1;
+a
+1
+drop table t1;
+reset master;
