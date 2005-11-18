@@ -2083,7 +2083,7 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 
-		err = btr_store_big_rec_extern_fields(index, rec,
+		err = btr_store_big_rec_extern_fields(index, rec, 0/*TODO*/,
 						offsets, big_rec, &mtr);
 
 		if (modify) {

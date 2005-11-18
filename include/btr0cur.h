@@ -410,6 +410,8 @@ void
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	rec_t*		rec,	/* in: record in a clustered index */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				n_extern * 5 bytes available, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update,	/* in: update vector */
 	mtr_t*		mtr);	/* in: mtr */
@@ -449,6 +451,9 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page with
+					at least 12*big_rec_vec->n_fields
+					bytes available, or NULL */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
@@ -475,6 +480,8 @@ btr_free_externally_stored_field(
 					+ reference to the externally
 					stored part */
 	ulint		local_len,	/* in: length of data */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page with
+					at least 12 bytes available, or NULL */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
@@ -490,6 +497,9 @@ btr_rec_free_externally_stored_fields(
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
 	rec_t*		rec,	/* in: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least n_extern*12 bytes available,
+				or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 				rollback and we do not want to free

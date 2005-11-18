@@ -456,7 +456,9 @@ skip_secondaries:
 			data_field_len = ufield->new_val.len;
 
 			btr_free_externally_stored_field(index, data_field,
-						data_field_len, FALSE, &mtr);
+							data_field_len,
+							0/*TODO*/,
+							FALSE, &mtr);
 			mtr_commit(&mtr);
 		}
 	}

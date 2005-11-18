@@ -98,6 +98,9 @@ btr_rec_free_updated_extern_fields(
 	dict_index_t*	index,	/* in: index of rec; the index tree MUST be
 				X-latched */
 	rec_t*		rec,	/* in: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least n_extern*12 bytes available,
+				or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,	/* in: update vector */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
@@ -1971,8 +1974,8 @@ btr_cur_pessimistic_update(
 
 		ut_a(big_rec_vec == NULL);
 		
-		btr_rec_free_updated_extern_fields(index, rec, offsets,
-			update, TRUE, mtr);
+		btr_rec_free_updated_extern_fields(index, rec, 0/*TODO*/,
+						offsets, update, TRUE, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -2701,8 +2704,8 @@ btr_cur_pessimistic_delete(
 	if (page_is_comp(page)
 			? !rec_get_node_ptr_flag(rec)
 			: !rec_get_1byte_offs_flag(rec)) {
-		btr_rec_free_externally_stored_fields(cursor->index,
-					rec, offsets, in_rollback, mtr);
+		btr_rec_free_externally_stored_fields(cursor->index, rec,
+					0/*TODO*/, offsets, in_rollback, mtr);
 	}
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) < 2)
@@ -3206,7 +3209,9 @@ static
 void
 btr_cur_set_ownership_of_extern_field(
 /*==================================*/
-	rec_t*		rec,	/* in: clustered index record */
+	rec_t*		rec,	/* in/out: clustered index record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least 5 bytes available, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		i,	/* in: field number */
 	ibool		val,	/* in: value to set */
@@ -3236,6 +3241,10 @@ btr_cur_set_ownership_of_extern_field(
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 	}
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write(page_zip, data + local_len + BTR_EXTERN_LEN, 1);
+	}
 }
 
 /***********************************************************************
@@ -3247,7 +3256,9 @@ to free the field. */
 void
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
-	rec_t*		rec,	/* in: record in a clustered index */
+	rec_t*		rec,	/* in/out: record in a clustered index */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
+				n_extern * 5 bytes available, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update,	/* in: update vector */
 	mtr_t*		mtr)	/* in: mtr, or NULL if not logged */
@@ -3276,7 +3287,7 @@ btr_cur_mark_extern_inherited_fields(
 				}
 			}
 
-			btr_cur_set_ownership_of_extern_field(rec,
+			btr_cur_set_ownership_of_extern_field(rec, page_zip,
 					offsets, i, FALSE, mtr);
 updated:
 			;
@@ -3363,7 +3374,7 @@ btr_cur_unmark_extern_fields(
 	for (i = 0; i < n; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
 
-			btr_cur_set_ownership_of_extern_field(rec,
+			btr_cur_set_ownership_of_extern_field(rec, 0/*TODO*/,
 							offsets, i, TRUE, mtr);
 		}
 	}	
@@ -3503,7 +3514,10 @@ btr_store_big_rec_extern_fields(
 					/* out: DB_SUCCESS or error */
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
-	rec_t*		rec,		/* in: record */
+	rec_t*		rec,		/* in/out: record */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page with
+					at least 12*big_rec_vec->n_fields
+					bytes available, or NULL */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
@@ -3530,6 +3544,8 @@ btr_store_big_rec_extern_fields(
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(rec),
 							MTR_MEMO_PAGE_X_FIX));
+	ut_ad(!page_zip
+		|| page_zip_available(page_zip, 12 * big_rec_vec->n_fields));
 	ut_a(index->type & DICT_CLUSTERED);
 							
 	space_id = buf_frame_get_space_id(rec);
@@ -3557,7 +3573,8 @@ btr_store_big_rec_extern_fields(
 			} else {
 				hint_page_no = prev_page_no + 1;
 			}
-			
+
+			/* TODO: do not compress BLOB pages */
 			page = btr_page_alloc(index->tree, hint_page_no,
 						FSP_NO_DIR, 0, &mtr);
 			if (page == NULL) {
@@ -3621,6 +3638,10 @@ btr_store_big_rec_extern_fields(
 					big_rec_vec->fields[i].len
 								- extern_len,
 					MLOG_4BYTES, &mtr);
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				page_zip_write(page_zip,
+					data + local_len + BTR_EXTERN_LEN, 8);
+			}
 
 			if (prev_page_no == FIL_NULL) {
 				mlog_write_ulint(data + local_len
@@ -3672,10 +3693,12 @@ btr_free_externally_stored_field(
 					from purge where 'data' is located on
 					an undo log page, not an index
 					page) */
-	byte*		data,		/* in: internally stored data
+	byte*		data,		/* in/out: internally stored data
 					+ reference to the externally
 					stored part */
 	ulint		local_len,	/* in: length of data */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page with
+					at least 12 bytes available, or NULL */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
@@ -3698,6 +3721,7 @@ btr_free_externally_stored_field(
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(data),
 							MTR_MEMO_PAGE_X_FIX));
+	ut_ad(!page_zip || page_zip_available(page_zip, 12));
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 	
@@ -3773,6 +3797,10 @@ btr_free_externally_stored_field(
 		mlog_write_ulint(data + local_len + BTR_EXTERN_LEN + 4,
 						extern_len - part_len,
 						MLOG_4BYTES, &mtr);
+		if (page_zip) {
+			page_zip_write(page_zip,
+					data + local_len + BTR_EXTERN_LEN, 8);
+		}
 		if (next_page_no == FIL_NULL) {
 			ut_a(extern_len - part_len == 0);
 		}
@@ -3793,7 +3821,10 @@ btr_rec_free_externally_stored_fields(
 /*==================================*/
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least n_extern*12 bytes available,
+				or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 				rollback and we do not want to free
@@ -3820,6 +3851,7 @@ btr_rec_free_externally_stored_fields(
 
 			data = rec_get_nth_field(rec, offsets, i, &len);
 			btr_free_externally_stored_field(index, data, len,
+						page_zip,
 						do_not_free_inherited, mtr);
 		}
 	}
@@ -3834,7 +3866,10 @@ btr_rec_free_updated_extern_fields(
 /*===============================*/
 	dict_index_t*	index,	/* in: index of rec; the index tree MUST be
 				X-latched */
-	rec_t*		rec,	/* in: record */
+	rec_t*		rec,	/* in/out: record */
+	page_zip_des_t*	page_zip,/* in/out: compressed page with
+				at least n_extern*12 bytes available,
+				or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	upd_t*		update,	/* in: update vector */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
@@ -3865,6 +3900,7 @@ btr_rec_free_updated_extern_fields(
 			data = rec_get_nth_field(rec, offsets,
 						ufield->field_no, &len);
 			btr_free_externally_stored_field(index, data, len,
+						page_zip,
 						do_not_free_inherited, mtr);
 		}
 	}
