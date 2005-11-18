@@ -2188,6 +2188,15 @@ DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 
 #
+# Bug #13622 Wrong view .frm created if some field's alias contain \n
+#
+create table t1 (f1 int);
+create view v1 as select t1.f1 as '123
+456' from t1;
+select * from v1;
+drop view v1;
+drop table t1;
+
 # Bug #14466 lost sort order in GROUP_CONCAT() in a view
 #
 create table t1 (f1 int, f2 int);
