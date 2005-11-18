@@ -975,6 +975,24 @@ return 1;
 END |
 drop table t1|
 drop function bug_13627_f|
+drop function if exists bug12329;
+create table t1 as select 1 a;
+create table t2 as select 1 a;
+create function bug12329() returns int return (select a from t1);
+prepare stmt1 from 'select bug12329()';
+execute stmt1;
+bug12329()
+1
+drop function bug12329;
+create function bug12329() returns int return (select a+100 from t2);
+select bug12329();
+bug12329()
+101
+execute stmt1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+deallocate prepare stmt1;
+drop function bug12329;
+drop table t1, t2;
 create database mysqltest1;
 use mysqltest1;
 drop database mysqltest1;
