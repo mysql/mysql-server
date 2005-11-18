@@ -1853,14 +1853,13 @@ sp_head::show_routine_code(THD *thd)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
-  int res;
   List<Item> field_list;
-  bool full_access;
-  uint ip;
   sp_instr *i;
-
+  bool full_access;
+  int res;
+  uint ip;
   DBUG_ENTER("sp_head::show_routine_code");
-  DBUG_PRINT("info", ("procedure %s", m_name.str));
+  DBUG_PRINT("info", ("procedure: %s", m_name.str));
 
   if (check_show_routine_access(thd, this, &full_access) || !full_access)
     DBUG_RETURN(1);
@@ -1880,7 +1879,7 @@ sp_head::show_routine_code(THD *thd)
 
     buffer.set("", 0, system_charset_info);
     i->print(&buffer);
-    protocol->store(buffer.c_ptr_quick(), buffer.length(), system_charset_info);
+    protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
     if ((res= protocol->write()))
       break;
   }
@@ -2055,10 +2054,12 @@ sp_instr_stmt::print(String *str)
 {
   uint i, len;
 
-  str->reserve(STMT_PRINT_MAXLEN+20);
-  str->append("stmt ");
+  /* Reserve enough space for 'stmt CMD "..."'; max+20 is more than enough. */
+  if (str->reserve(STMT_PRINT_MAXLEN+20))
+    return;
+  str->qs_append("stmt ", 5);
   str->qs_append((uint)m_lex_keeper.sql_command());
-  str->append(" \"");
+  str->qs_append(" \"", 2);
   len= m_query.length;
   /*
     Print the query string (but not too much of it), just to indicate which
@@ -2068,13 +2069,15 @@ sp_instr_stmt::print(String *str)
     len= STMT_PRINT_MAXLEN-3;
   /* Copy the query string and replace '\n' with ' ' in the process */
   for (i= 0 ; i < len ; i++)
+  {
     if (m_query.str[i] == '\n')
-      str->append(' ');
+      str->qs_append(' ');
     else
-      str->append(m_query.str[i]);
+      str->qs_append(m_query.str[i]);
+  }
   if (m_query.length > STMT_PRINT_MAXLEN)
-    str->append("...");        /* Indicate truncated string */
-  str->append('"');
+    str->qs_append("...", 3);      /* Indicate truncated string */
+  str->qs_append('"');
 }
 #undef STMT_PRINT_MAXLEN
 
@@ -2119,15 +2122,16 @@ sp_instr_set::print(String *str)
   /* 'var' should always be non-null, but just in case... */
   if (var)
     rsrv+= var->name.length;
-  str->reserve(rsrv);
-  str->append("set ");
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append("set ", 4);
   if (var)
   {
-    str->append(var->name.str, var->name.length);
-    str->append('@');
+    str->qs_append(var->name.str, var->name.length);
+    str->qs_append('@');
   }
   str->qs_append(m_offset);
-  str->append(' ');
+  str->qs_append(' ');
   m_value->print(str);
 }
 
@@ -2184,8 +2188,9 @@ sp_instr_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_jump::print(String *str)
 {
-  str->reserve(12);
-  str->append("jump ");
+  if (str->reserve(12))
+    return;
+  str->qs_append("jump ", 5);
   str->qs_append(m_dest);
 }
 
@@ -2266,10 +2271,11 @@ sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if::print(String *str)
 {
-  str->reserve(12);
-  str->append("jump_if ");
+  if (str->reserve(32))
+    return;
+  str->qs_append("jump_if ", 8);
   str->qs_append(m_dest);
-  str->append(' ');
+  str->qs_append(' ');
   m_expr->print(str);
 }
 
@@ -2327,10 +2333,11 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if_not::print(String *str)
 {
-  str->reserve(16);
-  str->append("jump_if_not ");
+  if (str->reserve(32))
+    return;
+  str->qs_append("jump_if_not ", 12);
   str->qs_append(m_dest);
-  str->append(' ');
+  str->qs_append(' ');
   m_expr->print(str);
 }
 
@@ -2385,10 +2392,11 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_freturn::print(String *str)
 {
-  str->reserve(12);
-  str->append("freturn ");
+  if (str->reserve(32))
+    return;
+  str->qs_append("freturn ", 8);
   str->qs_append((uint)m_type);
-  str->append(' ');
+  str->qs_append(' ');
   m_value->print(str);
 }
 
@@ -2413,27 +2421,28 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpush_jump::print(String *str)
 {
-  str->reserve(32);
-  str->append("hpush_jump ");
+  if (str->reserve(32))
+    return;
+  str->qs_append("hpush_jump ", 11);
   str->qs_append(m_dest);
-  str->append(' ');
+  str->qs_append(' ');
   str->qs_append(m_frame);
   switch (m_type)
   {
   case SP_HANDLER_NONE:
-    str->append(" NONE");       // This would be a bug
+    str->qs_append(" NONE", 5); // This would be a bug
     break;
   case SP_HANDLER_EXIT:
-    str->append(" EXIT");
+    str->qs_append(" EXIT", 5);
     break;
   case SP_HANDLER_CONTINUE:
-    str->append(" CONTINUE");
+    str->qs_append(" CONTINUE", 9);
     break;
   case SP_HANDLER_UNDO:
-    str->append(" UNDO");
+    str->qs_append(" UNDO", 5);
     break;
   default:
-    str->append(" UNKNOWN:");   // This would be a bug as well
+    str->qs_append(" UNKNOWN:", 9); // This would be a bug as well
     str->qs_append(m_type);
   }
 }
@@ -2470,8 +2479,9 @@ sp_instr_hpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpop::print(String *str)
 {
-  str->reserve(12);
-  str->append("hpop ");
+  if (str->reserve(12))
+    return;
+  str->qs_append("hpop ", 5);
   str->qs_append(m_count);
 }
 
@@ -2505,12 +2515,13 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
 void
 sp_instr_hreturn::print(String *str)
 {
-  str->reserve(16);
-  str->append("hreturn ");
+  if (str->reserve(20))
+    return;
+  str->qs_append("hreturn ", 8);
   str->qs_append(m_frame);
   if (m_dest)
   {
-    str->append(' ');
+    str->qs_append(' ');
     str->qs_append(m_dest);
   }
 }
@@ -2559,14 +2570,18 @@ void
 sp_instr_cpush::print(String *str)
 {
   LEX_STRING n;
+  uint rsrv= 12;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
 
-  str->reserve(32);
-  str->append("cpush ");
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append("cpush ", 6);
   if (found)
   {
-    str->append(n.str, n.length);
-    str->append('@');
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
   }
   str->qs_append(m_cursor);
 }
@@ -2589,8 +2604,9 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpop::print(String *str)
 {
-  str->reserve(12);
-  str->append("cpop ");
+  if (str->reserve(12))
+    return;
+  str->qs_append("cpop ", 5);
   str->qs_append(m_count);
 }
 
@@ -2665,14 +2681,18 @@ void
 sp_instr_copen::print(String *str)
 {
   LEX_STRING n;
+  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
 
-  str->reserve(32);
-  str->append("copen ");
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append("copen ", 6);
   if (found)
   {
-    str->append(n.str, n.length);
-    str->append('@');
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
   }
   str->qs_append(m_cursor);
 }
@@ -2702,14 +2722,18 @@ void
 sp_instr_cclose::print(String *str)
 {
   LEX_STRING n;
+  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
 
-  str->reserve(32);
-  str->append("cclose ");
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append("cclose ", 7);
   if (found)
   {
-    str->append(n.str, n.length);
-    str->append('@');
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
   }
   str->qs_append(m_cursor);
 }
@@ -2740,22 +2764,27 @@ sp_instr_cfetch::print(String *str)
   List_iterator_fast<struct sp_pvar> li(m_varlist);
   sp_pvar_t *pv;
   LEX_STRING n;
+  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
 
-  str->reserve(32);
-  str->append("cfetch ");
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append("cfetch ", 7);
   if (found)
   {
-    str->append(n.str, n.length);
-    str->append('@');
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
   }
   str->qs_append(m_cursor);
   while ((pv= li++))
   {
-    str->reserve(16);
-    str->append(' ');
-    str->append(pv->name.str, pv->name.length);
-    str->append('@');
+    if (str->reserve(pv->name.length+10))
+      return;
+    str->qs_append(' ');
+    str->qs_append(pv->name.str, pv->name.length);
+    str->qs_append('@');
     str->qs_append(pv->offset);
   }
 }
@@ -2779,8 +2808,9 @@ sp_instr_error::execute(THD *thd, uint *nextp)
 void
 sp_instr_error::print(String *str)
 {
-  str->reserve(12);
-  str->append("error ");
+  if (str->reserve(12))
+    return;
+  str->qs_append("error ", 6);
   str->qs_append(m_errcode);
 }
 

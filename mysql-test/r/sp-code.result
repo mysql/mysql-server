@@ -1,0 +1,65 @@
+select version(), substring_index(version(), "-", -1);
+version()	substring_index(version(), "-", -1)
+5.0.17-debug-log	log
+create procedure empty()
+begin
+end;
+show procedure code empty;
+Pos	Instruction
+drop procedure empty;
+create function almost_empty()
+returns int
+return 0;
+show function code almost_empty;
+Pos	Instruction
+0	freturn 3 0
+drop function almost_empty;
+create procedure code_sample(x int, out err int, out nulls int)
+begin
+declare count int default 0;
+set nulls = 0;
+begin
+declare c cursor for select name from t1;
+declare exit handler for not found close c;
+open c;
+loop
+begin
+declare n varchar(20);
+declare continue handler for sqlexception set err=1;
+fetch c into n;
+if isnull(n) then
+set nulls = nulls + 1;
+else
+set count = count + 1;
+update t2 set idx = count where name=n;
+end if;
+end;
+end loop;
+end;
+select t.name, t.idx from t2 t order by idx asc;
+end//
+show procedure code code_sample;
+Pos	Instruction
+0	set count@3 0
+1	set nulls@2 0
+2	cpush c@0
+3	hpush_jump 6 4 EXIT
+4	cclose c@0
+5	hreturn 0 19
+6	copen c@0
+7	set n@4 NULL
+8	hpush_jump 11 5 CONTINUE
+9	set err@1 1
+10	hreturn 5
+11	cfetch c@0 n@4
+12	jump_if_not 15 isnull(n@4)
+13	set nulls@2 (nulls@2 + 1)
+14	jump 17
+15	set count@3 (count@3 + 1)
+16	stmt 4 "update t2 set idx = count where name=n"
+17	hpop 1
+18	jump 7
+19	hpop 1
+20	cpop 1
+21	stmt 0 "select t.name, t.idx from t2 t order ..."
+drop procedure code_sample;

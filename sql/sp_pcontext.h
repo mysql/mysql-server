@@ -170,9 +170,9 @@ class sp_pcontext : public Sql_alloc
   sp_pvar_t *
   find_pvar(LEX_STRING *name, my_bool scoped=0);
 
-  // Find by index
+  // Find by offset
   sp_pvar_t *
-  find_pvar(uint i);
+  find_pvar(uint offset);
 
   //
   // Labels
@@ -252,9 +252,9 @@ class sp_pcontext : public Sql_alloc
   my_bool
   find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
 
-  /* Find by index (for debugging only) */
+  /* Find by offset (for debugging only) */
   my_bool
-  find_cursor(uint i, LEX_STRING *n);
+  find_cursor(uint offset, LEX_STRING *n);
 
   inline uint
   max_cursors()
