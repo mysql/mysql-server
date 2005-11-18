@@ -7925,6 +7925,9 @@ option_value:
 	    names.length= 5;
 	    if (spc && spc->find_pvar(&names))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+            else
+              yyerror(ER(ER_SYNTAX_ERROR));
+
 	    YYABORT;
 	  }
 	| NAMES_SYM charset_name_or_default opt_collate
