@@ -845,6 +845,8 @@ set password = 'foo1';
 select password;
 end|
 ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
+set names='foo2'|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure bug13510_2()
 begin
 declare names varchar(10);
