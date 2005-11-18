@@ -576,3 +576,9 @@ Jonathan (Jeb) Miller	Kyle, TX. USA	Testing - Cluster, Replication
 Carsten Segieth (Pino)	Fredersdorf, Germany	Testing - Server
 Punita Srivastava	Austin, TX. USA	Testing - Merlin
 Alexey Stroganov (Ranger)	Lugansk, Ukraine	Testing - Benchmarks
+Oleksandr Byelkin	Lugansk, Ukraine	Query Cache (4.0), Subqueries (4.1), Views (5.0)
+Dmitri Lenev	Moscow, Russia	Time zones support (4.1), Triggers (5.0)
+Konstantin Osipov	Moscow, Russia	Prepared statements (4.1), Cursors (5.0)
+Petr Chardin	Moscow, Russia	Instance Manager (5.0)
+Sergey Vojtovich	Izhevsk, Russia	Plugins infrastructure (5.1)
+Alexander Nozdrin	Moscow, Russia	Bugfixing (Stored Procedures, 5.0)
