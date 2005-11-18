@@ -3342,8 +3342,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         /*
           The table has been altered, caller has to retry
         */
-        NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
-        DBUG_RETURN(ndb_to_mysql_error(&err));
+        DBUG_RETURN(my_errno= HA_ERR_TABLE_DEF_CHANGED);
       }
       m_table_info= tab_info;
     }
