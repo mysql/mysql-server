@@ -42,6 +42,7 @@
 #define HA_ADMIN_REJECT          -6
 #define HA_ADMIN_TRY_ALTER       -7
 #define HA_ADMIN_WRONG_CHECKSUM  -8
+#define HA_ADMIN_NOT_BASE_TABLE  -9
 
 /* Bits in table_flags() to show what database can do */
 
@@ -431,10 +432,11 @@ struct show_table_alias_st {
 /* Possible flags of a handlerton */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
-#define HTON_ALTER_NOT_SUPPORTED     (1 << 1)
-#define HTON_CAN_RECREATE            (1 << 2)
-#define HTON_FLUSH_AFTER_RENAME      (1 << 3)
-#define HTON_NOT_USER_SELECTABLE     (1 << 4)
+#define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
+#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
+#define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
+#define HTON_FLUSH_AFTER_RENAME      (1 << 4)
+#define HTON_NOT_USER_SELECTABLE     (1 << 5)
 
 typedef struct st_thd_trans
 {

@@ -771,6 +771,17 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+class sys_var_trust_routine_creators :public sys_var_bool_ptr
+{
+  /* We need a derived class only to have a warn_deprecated() */
+public:
+  sys_var_trust_routine_creators(const char *name_arg, my_bool *value_arg) :
+    sys_var_bool_ptr(name_arg, value_arg) {};
+  void warn_deprecated(THD *thd);
+  void set_default(THD *thd, enum_var_type type);
+  bool update(THD *thd, set_var *var);
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/

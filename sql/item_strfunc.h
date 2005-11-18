@@ -651,8 +651,8 @@ public:
 
 class Item_func_conv_charset :public Item_str_func
 {
-  CHARSET_INFO *conv_charset;
 public:
+  CHARSET_INFO *conv_charset; // keep it public
   Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a)
   { conv_charset=cs; }
   String *val_str(String *);
