@@ -3,7 +3,6 @@
 #
 
 -- source include/is_debug_build.inc
-select version(), substring_index(version(), "-", -1);
 
 create procedure empty()
 begin
