@@ -1426,6 +1426,7 @@ row_upd_clust_rec_by_insert(
 		record is removed from the index tree, or updated. */
 
 		btr_cur_mark_extern_inherited_fields(btr_cur_get_rec(btr_cur),
+				0/*TODO*/,
 				rec_get_offsets(btr_cur_get_rec(btr_cur),
 				dict_table_get_first_index(table), offsets_,
 				ULINT_UNDEFINED, &heap), node->update, mtr);
@@ -1559,7 +1560,7 @@ row_upd_clust_rec(
 
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
-		err = btr_store_big_rec_extern_fields(index, rec,
+		err = btr_store_big_rec_extern_fields(index, rec, 0/*TODO*/,
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
