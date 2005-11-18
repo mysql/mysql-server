@@ -973,7 +973,7 @@ int double2decimal(double from, decimal_t *to)
 {
   /* TODO: fix it, when we'll have dtoa */
   char s[400], *end;
-  sprintf(s, "%f", from);
+  sprintf(s, "%.16G", from);
   end= strend(s);
   return string2decimal(s, to, &end);
 }

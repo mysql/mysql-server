@@ -22,7 +22,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../,../sql"
+				AdditionalIncludeDirectories="../include,../,../sql,../strings"
 				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_CONSOLE;_WINDOWS;MYSQL_SERVER"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\Debug/mysqlbinlog.pch"

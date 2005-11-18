@@ -6224,9 +6224,16 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  return new Field_varstring(field_length, maybe_null(),
-                             field_name, new_table,
-                             charset());
+  Field *new_field= new Field_varstring(field_length, maybe_null(),
+                                        field_name, new_table,
+                                        charset());
+  /*
+    delayed_insert::get_local_table() needs a ptr copied from old table.
+    This is what other new_field() methods do too. The above method of
+    Field_varstring sets ptr to NULL.
+  */
+  new_field->ptr= ptr;
+  return new_field;
 }
 
 /****************************************************************************
@@ -7986,7 +7993,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   int delta;
 
-  for (; !*from && length; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--);          // skip left 0's
   delta= field_length - length;
 
   if (delta < -1 ||
@@ -8235,7 +8242,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
   int delta;
   uchar bits= create_length & 7;
 
-  for (; !*from && length; from++, length--);          // skip left 0's
+  for (; length && !*from; from++, length--);          // skip left 0's
   delta= field_length - length;
 
   if (delta < 0 ||

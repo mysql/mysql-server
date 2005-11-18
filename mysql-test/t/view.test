@@ -1,5 +1,5 @@
 --disable_warnings
-drop table if exists t1,t2,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
@@ -2085,7 +2085,7 @@ drop table t1, t2;
 #
 # DEFINER information check
 #
--- error ER_NO_VIEW_USER
+-- error ER_MALFORMED_DEFINER
 create definer=some_user@`` sql security invoker view v1 as select 1;
 create definer=some_user@localhost sql security invoker view v1 as select 1;
 show create view v1;
@@ -2204,3 +2204,56 @@ select * from v1;
 select * from v2;
 drop view v1,v2;
 drop table t1;
+
+#
+# BUG#14026 Crash on second PS execution when using views
+#
+create table t1 (x int, y int);
+create table t2 (x int, y int, z int);
+create table t3 (x int, y int, z int);
+create table t4 (x int, y int, z int);
+
+create view v1 as
+select t1.x
+from (
+  (t1 join t2 on ((t1.y = t2.y))) 
+  join 
+  (t3 left join t4 on (t3.y = t4.y) and (t3.z = t4.z))
+);
+
+prepare stmt1 from "select count(*) from v1 where x = ?";
+set @parm1=1;
+
+execute stmt1 using @parm1;
+execute stmt1 using @parm1;
+drop view v1;
+drop table t1,t2,t3,t4;
+
+#
+# Bug #14540: OPTIMIZE, ANALYZE, REPAIR applied to not a view
+#
+
+CREATE TABLE t1(id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+
+OPTIMIZE TABLE v1;
+ANALYZE TABLE v1;
+REPAIR TABLE v1;
+
+DROP TABLE t1;
+OPTIMIZE TABLE v1;
+
+DROP VIEW v1;
+
+
+#
+# BUG#14719: Views DEFINER grammar is incorrect
+#
+
+create definer = current_user() sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
+
+create definer = current_user sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
