@@ -82,12 +82,12 @@ bool mysqld_show_storage_engines(THD *thd)
         option_name= "DEFAULT";
       protocol->store(option_name, system_charset_info);
       protocol->store((*types)->comment, system_charset_info);
+      protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
+      protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
+      protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
       if (protocol->write())
         DBUG_RETURN(TRUE);
     }
-  move  protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
-  move  protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
-  move  protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
   }
   send_eof(thd);
   DBUG_RETURN(FALSE);
