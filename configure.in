@@ -311,6 +311,10 @@ case "$target_os" in
       # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
       CXXFLAGS="$CFLAGS -Kalloca"
+      # Use no_implicit for templates
+      CXXFLAGS="$CXXFLAGS -Tno_implicit"
+      AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+        [1], [Defined by configure. Use explicit template instantiation.])
     fi
   ;;
 esac

@@ -55,6 +55,12 @@ class Table_triggers_list: public Sql_alloc
   */
   LEX_STRING        sroutines_key;
 
+  /*
+    is_special_var_used specifies whether trigger body contains special
+    variables (NEW/OLD).
+  */
+  bool m_spec_var_used[TRG_EVENT_MAX][TRG_ACTION_MAX];
+
 public:
   /*
     Field responsible for storing triggers definitions in file.
@@ -66,6 +72,8 @@ public:
   */
   List<ulonglong> definition_modes_list;
 
+  List<LEX_STRING>  definers_list;
+
   Table_triggers_list(TABLE *table_arg):
     record1_field(0), table(table_arg)
   {
@@ -73,7 +81,9 @@ public:
   }
   ~Table_triggers_list();
 
-  bool create_trigger(THD *thd, TABLE_LIST *table);
+  bool create_trigger(THD *thd, TABLE_LIST *table,
+                      LEX_STRING *definer_user,
+                      LEX_STRING *definer_host);
   bool drop_trigger(THD *thd, TABLE_LIST *table);
   bool process_triggers(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
@@ -81,7 +91,8 @@ public:
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
-                        ulong *sql_mode);
+                        ulong *sql_mode,
+                        LEX_STRING *definer);
 
   static bool check_n_load(THD *thd, const char *db, const char *table_name,
                            TABLE *table, bool names_only);
@@ -96,6 +107,11 @@ public:
   bool has_before_update_triggers()
   {
     return test(bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE]);
+  }
+
+  inline bool is_special_var_used(int event, int action_time) const
+  {
+    return m_spec_var_used[event][action_time];
   }
 
   void set_table(TABLE *new_table);

@@ -3030,8 +3030,8 @@ ha_innobase::store_key_val_for_row(
 
 			if (key_part->length > 0 && cs->mbmaxlen > 1) {
 				len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char*)src_start,
-					(const char*)(src_start + key_part->length),
+					(const char *) src_start,
+					(const char *) src_start + key_part->length,
 					key_part->length / cs->mbmaxlen, 
 					&error);
 			} else {
