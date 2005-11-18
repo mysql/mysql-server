@@ -1,0 +1,50 @@
+#
+# Test the debugging feature "show procedure/function code <name>" 
+#
+
+-- source include/is_debug_build.inc
+select version(), substring_index(version(), "-", -1);
+
+create procedure empty()
+begin
+end;
+show procedure code empty;
+drop procedure empty;
+
+create function almost_empty()
+    returns int
+  return 0;
+show function code almost_empty;
+drop function almost_empty;
+
+delimiter //;
+create procedure code_sample(x int, out err int, out nulls int)
+begin
+  declare count int default 0;
+
+  set nulls = 0;
+  begin
+    declare c cursor for select name from t1;
+    declare exit handler for not found close c;
+
+    open c;
+    loop
+      begin
+        declare n varchar(20);
+        declare continue handler for sqlexception set err=1;
+
+        fetch c into n;
+        if isnull(n) then
+          set nulls = nulls + 1;
+	else
+          set count = count + 1;
+          update t2 set idx = count where name=n;
+        end if;
+      end;
+    end loop;
+  end;
+  select t.name, t.idx from t2 t order by idx asc;
+end//
+delimiter ;//
+show procedure code code_sample;
+drop procedure code_sample;

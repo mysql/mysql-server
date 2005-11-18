@@ -177,19 +177,18 @@ sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
   - For printing of sp_instr_set. (Debug mode only.)
  */
 sp_pvar_t *
-sp_pcontext::find_pvar(uint i)
+sp_pcontext::find_pvar(uint offset)
 {
-  if (m_poffset <= i && i < m_poffset + m_pvar.elements)
+  if (m_poffset <= offset && offset < m_poffset + m_pvar.elements)
   {                           // This frame
     sp_pvar_t *p;
 
-    get_dynamic(&m_pvar, (gptr)&p, i - m_poffset);
+    get_dynamic(&m_pvar, (gptr)&p, offset - m_poffset);
     return p;
   }
-  else if (m_parent)
-    return m_parent->find_pvar(i); // Some previous frame
-  else
-    return NULL;              // index out of bounds
+  if (m_parent)
+    return m_parent->find_pvar(offset); // Some previous frame
+  return NULL;                  // index out of bounds
 }
 
 void
@@ -360,16 +359,15 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
   This is only used for debugging.
  */
 my_bool
-sp_pcontext::find_cursor(uint i, LEX_STRING *n)
+sp_pcontext::find_cursor(uint offset, LEX_STRING *n)
 {
-  if (m_coffset <= i && i < m_coffset + m_cursor.elements)
+  if (m_coffset <= offset && offset < m_coffset + m_cursor.elements)
   {                           // This frame
-    get_dynamic(&m_cursor, (gptr)n, i - m_poffset);
+    get_dynamic(&m_cursor, (gptr)n, offset - m_coffset);
     return TRUE;
   }
-  else if (m_parent)
-    return m_parent->find_cursor(i, n); // Some previous frame
-  else
-    return FALSE;               // index out of bounds
+  if (m_parent)
+    return m_parent->find_cursor(offset, n); // Some previous frame
+  return FALSE;                 // index out of bounds
 }
 
