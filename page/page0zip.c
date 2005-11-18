@@ -143,6 +143,47 @@ page_zip_ulint_write(
 }
 
 /**************************************************************************
+Apply the modification log to an uncompressed page. */
+static
+const byte*
+page_zip_apply_log(
+/*===============*/
+				/* out: pointer to end of modification log,
+				or NULL on failure */
+	const byte*	data,	/* in: modification log */
+	const byte*	end,	/* in: end of compressed page */
+	page_t*		page)	/* in/out: uncompressed page */
+{
+	/* Apply the modification log. */
+	while (*data) {
+		ulint	ulint_len;
+		ulint	length, offset;
+		ulint_len = page_zip_ulint_read(data, &length);
+		data += ulint_len;
+		if (UNIV_UNLIKELY(!ulint_len)
+				|| UNIV_UNLIKELY(data + length >= end)) {
+			return(NULL);
+		}
+		ut_a(length > 0 && length < UNIV_PAGE_SIZE - PAGE_DATA);
+
+		ulint_len = page_zip_ulint_read(data, &offset);
+		data += ulint_len;
+		if (UNIV_UNLIKELY(!ulint_len)
+				|| UNIV_UNLIKELY(data + length >= end)) {
+			return(NULL);
+		}
+
+		offset += PAGE_DATA;
+		ut_a(offset + length < UNIV_PAGE_SIZE);
+
+		memcpy(page + offset, data, length);
+		data += length;
+	}
+
+	return(data);
+}
+
+/**************************************************************************
 Decompress a page. */
 
 ibool
@@ -199,31 +240,16 @@ page_zip_decompress(
 	memcpy(page_zip->data + page_zip->size - trailer_len,
 			page + UNIV_PAGE_SIZE - trailer_len, trailer_len);
 	/* Apply the modification log. */
-	while (page_zip->data[page_zip->m_end]) {
-		ulint	ulint_len;
-		ulint	length, offset;
-		ulint_len = page_zip_ulint_read(page_zip->data + page_zip->m_end,
-								&length);
-		page_zip->m_end += ulint_len;
-		if (!ulint_len
-		|| page_zip->m_end + length >= page_zip->size - trailer_len) {
+	{
+		const byte*	mod_log_ptr;
+		mod_log_ptr = page_zip_apply_log(
+				page_zip->data + page_zip->m_end,
+				page_zip->data + page_zip->size - trailer_len,
+				page);
+		if (UNIV_UNLIKELY(!mod_log_ptr)) {
 			return(FALSE);
 		}
-		ut_a(length > 0 && length < UNIV_PAGE_SIZE - PAGE_DATA);
-
-		ulint_len = page_zip_ulint_read(page_zip->data + page_zip->m_end,
-								&offset);
-		page_zip->m_end += ulint_len;
-		if (!ulint_len
-		|| page_zip->m_end + length >= page_zip->size - trailer_len) {
-			return(FALSE);
-		}
-
-		offset += PAGE_DATA;
-		ut_a(offset + length < UNIV_PAGE_SIZE - trailer_len);
-
-		memcpy(page + offset, page_zip->data + page_zip->m_end, length);
-		page_zip->m_end += length;
+		page_zip->m_end = mod_log_ptr - page_zip->data;
 	}
 
 	ut_a(page_is_comp(page));
