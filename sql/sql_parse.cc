@@ -4576,7 +4576,8 @@ end_with_restore_list:
       else
         sp= sp_find_function(thd, lex->spname);
       if (!sp || !sp->show_routine_code(thd))
-      {                       /* We don't distinguish between errors for now */
+      {
+        /* We don't distinguish between errors for now */
         my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_name.str);
         goto error;
