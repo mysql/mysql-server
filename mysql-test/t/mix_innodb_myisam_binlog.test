@@ -253,7 +253,9 @@ insert into t2 values (3);
 disconnect con2;
 connection con3;
 select get_lock("lock1",60);
-show binlog events from 79;
+--replace_column 5 #
+--replace_result "xid=208" "xid=105" "xid=227" "xid=114" "xid=230" "xid=115" "xid=234" "xid=117" "xid=261" "xid=132"
+show binlog events from 98;
 do release_lock("lock1");
 drop table t0,t2;
 
