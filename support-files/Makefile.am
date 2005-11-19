@@ -107,7 +107,5 @@ SUFFIXES = .sh
 	$< > $@-t
 	@MV@ $@-t $@
 
-all:	binary-configure
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%
