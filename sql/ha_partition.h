@@ -67,6 +67,7 @@ private:
   u_long m_low_byte_first;
 
   uint m_tot_parts;                      // Total number of partitions;
+  uint m_no_locks;                        // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write
   int m_lock_type;                       // Remembers type of last
                                          // external_lock

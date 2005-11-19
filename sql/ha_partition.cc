@@ -15,7 +15,7 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  This handler was developed by Mikael Ronström for version 5.1 of MySQL.
+  This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
   It is an abstraction layer on top of other handlers such as MyISAM,
   InnoDB, Federated, Berkeley DB and so forth. Partitioned tables can also
   be handled by a storage engine. The current example of this is NDB
@@ -167,6 +167,10 @@ void ha_partition::init_handler_variables()
   m_last_part= 0;
   m_rec0= 0;
   m_curr_key_info= 0;
+  /*
+    this allows blackhole to work properly
+  */
+  m_no_locks= 0;
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -912,6 +916,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if ((error= (*file)->ha_open((const char*) name_buff, mode,
                                  test_if_locked)))
       goto err_handler;
+    m_no_locks+= (*file)->lock_count();
     name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
     set_if_bigger(ref_length, ((*file)->ref_length));
   } while (*(++file));
@@ -1098,6 +1103,9 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 uint ha_partition::lock_count() const
 {
   DBUG_ENTER("ha_partition::lock_count");
+  if (m_no_locks == 0)
+    DBUG_RETURN(0);
+
   DBUG_RETURN(m_tot_parts);
 }
 
@@ -1143,7 +1151,7 @@ void ha_partition::unlock_row()
   ADDITIONAL INFO:
 
   Most handlers set timestamp when calling write row if any such fields
-  exists. Since we are calling an underlying handler we assume the´
+  exists. Since we are calling an underlying handler we assume the
   underlying handler will assume this responsibility.
 
   Underlying handlers will also call update_auto_increment to calculate
