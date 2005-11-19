@@ -182,7 +182,7 @@ static bool begin_trans(THD *thd)
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return rpl_filter->is_on() && tables &&
+  return rpl_filter->is_on() && tables && !thd->spcont &&
          !rpl_filter->tables_ok(thd->db, tables);
 }
 #endif

@@ -237,18 +237,13 @@ drop table t1;
 #select a,b,length(a),length(b) from t1 where a='c' and b='c';
 #drop table t1;
 
-# bug#14007
+# bug 
 create table t1 (
   a char(10) primary key
-) engine=ndbcluster default charset=latin1;
-
-insert into t1 values ('aaabb');
-select * from t1;
-replace into t1 set a = 'AAABB';
-select * from t1;
-replace into t1 set a = 'aAaBb';
-select * from t1;
-replace into t1 set a = 'aaabb';
+) engine=ndb;
+insert into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
 select * from t1;
 drop table t1;
 
