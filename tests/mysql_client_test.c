@@ -14419,7 +14419,7 @@ static void test_bug14210()
   myquery(rc);
 }
 
-/* Bug#13488 */
+/* Bug#13488: wrong column metadata when fetching from cursor */
 
 static void test_bug13488()
 {
@@ -14484,6 +14484,109 @@ static void test_bug13488()
            "wrong");
   DIE_UNLESS(f1 == 1 && f2 == 1 && f3 == 2);
   rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+
+/*
+  Bug#13524: warnings of a previous command are not reset when fetching
+  from a cursor.
+*/
+
+static void test_bug13524()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  unsigned int warning_count;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select * from t1";
+
+  myheader("test_bug13524");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (a int not null primary key)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1), (2), (3), (4)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Check that DROP TABLE produced a warning (no such table) */
+  rc= mysql_query(mysql, "drop table if exists t2");
+  myquery(rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 1);
+
+  /*
+    Check that fetch from a cursor cleared the warning from the previous
+    command.
+  */
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+/*
+  Bug#14845 "mysql_stmt_fetch returns MYSQL_NO_DATA when COUNT(*) is 0"
+*/
+
+static void test_bug14845()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select count(*) from t1 where 1 = 0";
+
+  myheader("test_bug14845");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (id int(11) default null, "
+                         "name varchar(20) default null)"
+                         "engine=MyISAM DEFAULT CHARSET=utf8");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,'abc'),(2,'def')");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
 }
 
@@ -14744,6 +14847,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12243", test_bug12243 },
   { "test_bug14210", test_bug14210 },
   { "test_bug13488", test_bug13488 },
+  { "test_bug13524", test_bug13524 },
+  { "test_bug14845", test_bug14845 },
   { 0, 0 }
 };
 

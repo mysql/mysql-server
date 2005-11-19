@@ -11011,7 +11011,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
-    Field *field=((Item_field*) (*order->item))->field;
+    Field *field=((Item_field*) (*order->item)->real_item())->field;
     int flag;
 
     /*
@@ -11151,8 +11151,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
-  /* Check which keys can be used to resolve ORDER BY */
-  usable_keys.set_all();
+  /*
+    Check which keys can be used to resolve ORDER BY.
+    We must not try to use disabled keys.
+  */
+  usable_keys= table->s->keys_in_use;
+
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
     Item *item= (*tmp_order->item)->real_item();

@@ -536,9 +536,15 @@ void safe_mutex_end(FILE *file);
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
 #define pthread_mutex_trylock(A) pthread_mutex_lock(A)
 #define pthread_mutex_t safe_mutex_t
-#define safe_mutex_assert_owner(mp) DBUG_ASSERT((mp)->count > 0 && pthread_equal(pthread_self(),(mp)->thread))
+#define safe_mutex_assert_owner(mp) \
+          DBUG_ASSERT((mp)->count > 0 && \
+                      pthread_equal(pthread_self(), (mp)->thread))
+#define safe_mutex_assert_not_owner(mp) \
+          DBUG_ASSERT(! (mp)->count || \
+                      ! pthread_equal(pthread_self(), (mp)->thread))
 #else
 #define safe_mutex_assert_owner(mp)
+#define safe_mutex_assert_not_owner(mp)
 #endif /* SAFE_MUTEX */
 
 	/* READ-WRITE thread locking */

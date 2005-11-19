@@ -477,6 +477,18 @@ explain select distinct t1.a from t1,t2 order by t2.a;
 drop table t1,t2;
 
 #
+# Bug#14616 - Freshly imported table returns error 124 when using LIMIT
+#
+create table t1 (
+  c1 varchar(32),
+  key (c1)
+) engine=myisam;
+alter table t1 disable keys;
+insert into t1 values ('a'), ('b');
+select c1 from t1 order by c1 limit 1;
+drop table t1;
+
+#
 # Test RTREE index
 #
 --error 1235, 1289
