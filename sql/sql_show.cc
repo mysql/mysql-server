@@ -71,20 +71,23 @@ bool mysqld_show_storage_engines(THD *thd)
   handlerton **types;
   for (types= sys_table_types; *types; types++)
   {
-    protocol->prepare_for_resend();
-    protocol->store((*types)->name, system_charset_info);
-    const char *option_name= show_comp_option_name[(int) (*types)->state];
+    if (!((*types)->flags & HTON_HIDDEN))
+    {
+      protocol->prepare_for_resend();
+      protocol->store((*types)->name, system_charset_info);
+      const char *option_name= show_comp_option_name[(int) (*types)->state];
 
-    if ((*types)->state == SHOW_OPTION_YES &&
-	!my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
-      option_name= "DEFAULT";
-    protocol->store(option_name, system_charset_info);
-    protocol->store((*types)->comment, system_charset_info);
-    protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
-    protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
-    protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
+      if ((*types)->state == SHOW_OPTION_YES &&
+          !my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
+        option_name= "DEFAULT";
+      protocol->store(option_name, system_charset_info);
+      protocol->store((*types)->comment, system_charset_info);
+      protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
+      protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
+      protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
+      if (protocol->write())
+        DBUG_RETURN(TRUE);
+    }
   }
   send_eof(thd);
   DBUG_RETURN(FALSE);
@@ -395,7 +398,21 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   /* Only one table for now, but VIEW can involve several tables */
   if (open_normal_and_derived_tables(thd, table_list, 0))
-    DBUG_RETURN(TRUE);
+  {
+    if (!table_list->view || thd->net.last_errno != ER_VIEW_INVALID)
+      DBUG_RETURN(TRUE);
+    /*
+      Clear all messages with 'error' level status and
+      issue a warning with 'warning' level status in 
+      case of invalid view and last error is ER_VIEW_INVALID
+    */
+    mysql_reset_errors(thd, true);
+    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_VIEW_INVALID,
+                        ER(ER_VIEW_INVALID),
+                        table_list->view_db.str,
+                        table_list->view_name.str);
+  }
 
   /* TODO: add environment variables show when it become possible */
   if (thd->lex->only_view && !table_list->view)
@@ -1104,17 +1121,35 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
   default:
     DBUG_ASSERT(0); // never should happen
   }
-  buff->append("DEFINER=", 8);
-  append_identifier(thd, buff,
-                    table->definer.user.str, table->definer.user.length);
-  buff->append('@');
-  append_identifier(thd, buff,
-                    table->definer.host.str, table->definer.host.length);
+  append_definer(thd, buff, &table->definer.user, &table->definer.host);
   if (table->view_suid)
-    buff->append(" SQL SECURITY DEFINER ", 22);
+    buff->append("SQL SECURITY DEFINER ", 21);
   else
-    buff->append(" SQL SECURITY INVOKER ", 22);
+    buff->append("SQL SECURITY INVOKER ", 21);
 }
+
+
+/*
+  Append DEFINER clause to the given buffer.
+  
+  SYNOPSIS
+    append_definer()
+    thd           [in] thread handle
+    buffer        [inout] buffer to hold DEFINER clause
+    definer_user  [in] user name part of definer
+    definer_host  [in] host name part of definer
+*/
+
+void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
+                    const LEX_STRING *definer_host)
+{
+  buffer->append(STRING_WITH_LEN("DEFINER="));
+  append_identifier(thd, buffer, definer_user->str, definer_user->length);
+  buffer->append('@');
+  append_identifier(thd, buffer, definer_host->str, definer_host->length);
+  buffer->append(' ');
+}
+
 
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
@@ -1435,7 +1470,7 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_SLAVE_RUNNING:
         {
           pthread_mutex_lock(&LOCK_active_mi);
-          end= strmov(buff, (active_mi->slave_running &&
+          end= strmov(buff, (active_mi && active_mi->slave_running &&
                              active_mi->rli.slave_running) ? "ON" : "OFF");
           pthread_mutex_unlock(&LOCK_active_mi);
           break;
@@ -1446,12 +1481,15 @@ static bool show_status_array(THD *thd, const char *wild,
             TODO: in 5.1 with multimaster, have one such counter per line in
             SHOW SLAVE STATUS, and have the sum over all lines here.
           */
-	  pthread_mutex_lock(&LOCK_active_mi);
-          pthread_mutex_lock(&active_mi->rli.data_lock);
-	  end= int10_to_str(active_mi->rli.retried_trans, buff, 10);
-          pthread_mutex_unlock(&active_mi->rli.data_lock);
-	  pthread_mutex_unlock(&LOCK_active_mi);
-	  break;
+          pthread_mutex_lock(&LOCK_active_mi);
+          if (active_mi)
+          {
+            pthread_mutex_lock(&active_mi->rli.data_lock);
+            end= int10_to_str(active_mi->rli.retried_trans, buff, 10);
+            pthread_mutex_unlock(&active_mi->rli.data_lock);
+          }
+          pthread_mutex_unlock(&LOCK_active_mi);
+          break;
         }
         case SHOW_SLAVE_SKIP_ERRORS:
         {
@@ -3015,47 +3053,44 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   DBUG_ENTER("get_schema_views_record");
   char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
   uint definer_len;
-  if (!res)
+
+  if (tables->view)
   {
-    if (tables->view)
+    restore_record(table, s->default_values);
+    table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
+    table->field[2]->store(tables->view_name.str, tables->view_name.length,
+                           cs);
+    table->field[3]->store(tables->query.str, tables->query.length, cs);
+
+    if (tables->with_check != VIEW_CHECK_NONE)
     {
-      restore_record(table, s->default_values);
-      table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
-      table->field[2]->store(tables->view_name.str, tables->view_name.length,
-                             cs);
-      table->field[3]->store(tables->query.str, tables->query.length, cs);
-
-      if (tables->with_check != VIEW_CHECK_NONE)
-      {
-        if (tables->with_check == VIEW_CHECK_LOCAL)
-          table->field[4]->store(STRING_WITH_LEN("LOCAL"), cs);
-        else
-          table->field[4]->store(STRING_WITH_LEN("CASCADED"), cs);
-      }
+      if (tables->with_check == VIEW_CHECK_LOCAL)
+        table->field[4]->store(STRING_WITH_LEN("LOCAL"), cs);
       else
-        table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
-
-      if (tables->updatable_view)
-        table->field[5]->store(STRING_WITH_LEN("YES"), cs);
-      else
-        table->field[5]->store(STRING_WITH_LEN("NO"), cs);
-      definer_len= (strxmov(definer, tables->definer.user.str, "@",
-                            tables->definer.host.str, NullS) - definer);
-      table->field[6]->store(definer, definer_len, cs);
-      if (tables->view_suid)
-        table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
-      else
-        table->field[7]->store(STRING_WITH_LEN("INVOKER"), cs);
-      DBUG_RETURN(schema_table_store_record(thd, table));
+        table->field[4]->store(STRING_WITH_LEN("CASCADED"), cs);
     }
-  }
-  else
-  {
-    if (tables->view)
+    else
+      table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
+
+    if (tables->updatable_view)
+      table->field[5]->store(STRING_WITH_LEN("YES"), cs);
+    else
+      table->field[5]->store(STRING_WITH_LEN("NO"), cs);
+    definer_len= (strxmov(definer, tables->definer.user.str, "@",
+                          tables->definer.host.str, NullS) - definer);
+    table->field[6]->store(definer, definer_len, cs);
+    if (tables->view_suid)
+      table->field[7]->store(STRING_WITH_LEN("DEFINER"), cs);
+    else
+      table->field[7]->store(STRING_WITH_LEN("INVOKER"), cs);
+    if (schema_table_store_record(thd, table))
+      DBUG_RETURN(1);
+    if (res)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                    thd->net.last_errno, thd->net.last_error);
-    thd->clear_error();
   }
+  if (res) 
+    thd->clear_error();
   DBUG_RETURN(0);
 }
 
@@ -3138,7 +3173,8 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                           enum trg_event_type event,
                           enum trg_action_time_type timing,
                           LEX_STRING *trigger_stmt,
-                          ulong sql_mode)
+                          ulong sql_mode,
+                          LEX_STRING *definer_buffer)
 {
   CHARSET_INFO *cs= system_charset_info;
   byte *sql_mode_str;
@@ -3163,6 +3199,7 @@ static bool store_trigger(THD *thd, TABLE *table, const char *db,
                                                        sql_mode,
                                                        &sql_mode_len);
   table->field[17]->store((const char*)sql_mode_str, sql_mode_len, cs);
+  table->field[18]->store((const char *)definer_buffer->str, definer_buffer->length, cs);
   return schema_table_store_record(thd, table);
 }
 
@@ -3196,15 +3233,21 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
         ulong sql_mode;
+        char definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+        LEX_STRING definer_buffer;
+        definer_buffer.str= definer_holder;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
                                        (enum trg_action_time_type)timing,
                                        &trigger_name, &trigger_stmt,
-                                       &sql_mode))
+                                       &sql_mode,
+                                       &definer_buffer))
           continue;
+
         if (store_trigger(thd, table, base_name, file_name, &trigger_name,
                          (enum trg_event_type) event,
                          (enum trg_action_time_type) timing, &trigger_stmt,
-                         sql_mode))
+                         sql_mode,
+                         &definer_buffer))
           DBUG_RETURN(1);
       }
     }
@@ -4108,6 +4151,7 @@ ST_FIELD_INFO triggers_fields_info[]=
   {"ACTION_REFERENCE_NEW_ROW", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Created"},
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, "sql_mode"},
+  {"DEFINER", 65535, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

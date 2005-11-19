@@ -311,6 +311,10 @@ case "$target_os" in
       # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
       CXXFLAGS="$CFLAGS -Kalloca"
+      # Use no_implicit for templates
+      CXXFLAGS="$CXXFLAGS -Tno_implicit"
+      AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+        [1], [Defined by configure. Use explicit template instantiation.])
     fi
   ;;
 esac
@@ -1531,6 +1535,19 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
   DEBUG_OPTIMIZE_CXX="-DDEBUG"
   OPTIMIZE_CFLAGS="-O3 -DNDEBUG"
   OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
+fi
+
+# If the user specified CFLAGS, we won't add any optimizations
+if test -n "$SAVE_CFLAGS"
+then
+  OPTIMIZE_CFLAGS=""
+  DEBUG_OPTIMIZE_CC=""
+fi
+# Ditto for CXXFLAGS
+if test -n "$SAVE_CXXFLAGS"
+then
+  OPTIMIZE_CXXFLAGS=""
+  DEBUG_OPTIMIZE_CXX=""
 fi
 
 AC_ARG_WITH(debug,

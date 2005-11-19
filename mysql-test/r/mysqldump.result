@@ -1614,6 +1614,16 @@ mysqldump: Couldn't find table: "t\1"
 
 mysqldump: Couldn't find table: "t/1"
 
+mysqldump: Couldn't find table: "T_1"
+
+mysqldump: Couldn't find table: "T%1"
+
+mysqldump: Couldn't find table: "T'1"
+
+mysqldump: Couldn't find table: "T_1"
+
+mysqldump: Couldn't find table: "T_"
+
 test_sequence
 ------ Testing with illegal database names ------
 mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
@@ -1926,23 +1936,23 @@ end if;
 end|
 set sql_mode=default|
 show triggers like "t1";
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 trg1	INSERT	t1	
 begin
 if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end	BEFORE	0000-00-00 00:00:00	
+end	BEFORE	0000-00-00 00:00:00		root@localhost
 trg2	UPDATE	t1	 begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end	BEFORE	0000-00-00 00:00:00	
+end	BEFORE	0000-00-00 00:00:00		root@localhost
 trg3	UPDATE	t1	
 begin
 if new.a = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	0000-00-00 00:00:00	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+end	AFTER	0000-00-00 00:00:00	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	root@localhost
 INSERT INTO t1 (a) VALUES (1),(2),(3),(22);
 update t1 set a = 4 where a=3;
 
@@ -2085,29 +2095,29 @@ Tables_in_test
 t1
 t2
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 trg1	INSERT	t1	
 begin
 if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end	BEFORE	#	
+end	BEFORE	#		root@localhost
 trg2	UPDATE	t1	 begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end	BEFORE	#	
+end	BEFORE	#		root@localhost
 trg3	UPDATE	t1	
 begin
 if new.a = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+end	AFTER	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	root@localhost
 trg4	INSERT	t2	
 begin
 if new.a > 10 then
 set @fired:= "No";
 end if;
-end	BEFORE	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
+end	BEFORE	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	root@localhost
 DROP TABLE t1, t2;
 --port=1234
 --port=1234
@@ -2130,9 +2140,9 @@ SELECT * FROM `test2`;
 a2
 1
 SHOW TRIGGERS;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 testref	INSERT	test1	 BEGIN
-INSERT INTO test2 SET a2 = NEW.a1; END	BEFORE	NULL	
+INSERT INTO test2 SET a2 = NEW.a1; END	BEFORE	NULL		root@localhost
 SELECT * FROM `test1`;
 a1
 1
@@ -2147,6 +2157,7 @@ DROP FUNCTION IF EXISTS bug9056_func1;
 DROP FUNCTION IF EXISTS bug9056_func2;
 DROP PROCEDURE IF EXISTS bug9056_proc1;
 DROP PROCEDURE IF EXISTS bug9056_proc2;
+DROP PROCEDURE IF EXISTS `a'b`;
 CREATE TABLE t1 (id int);
 INSERT INTO t1 VALUES(1), (2), (3), (4), (5);
 CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11) RETURN a+b //

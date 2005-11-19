@@ -2,8 +2,6 @@
 # simple test of all group functions
 #
 
---source include/have_innodb.inc
-
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -545,10 +543,12 @@ DROP TABLE t1;
 # Bug #12882  	min/max inconsistent on empty table
 #
 
+--disable_warnings
 create table t1m (a int) engine=myisam;
 create table t1i (a int) engine=innodb;
 create table t2m (a int) engine=myisam;
 create table t2i (a int) engine=innodb;
+--enable_warnings
 insert into t2m values (5);
 insert into t2i values (5);
 
