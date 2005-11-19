@@ -353,7 +353,7 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   mysql_ha_flush(this, (TABLE_LIST*) 0,
-                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
+                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL, FALSE);
   hash_free(&handler_tables_hash);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
