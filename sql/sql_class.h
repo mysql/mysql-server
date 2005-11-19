@@ -189,11 +189,10 @@ class MYSQL_LOG: public TC_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log, LOCK_index, LOCK_readers;
+  pthread_mutex_t LOCK_log, LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
   pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
-  pthread_cond_t reset_cond;
   ulonglong bytes_written;
   time_t last_time,query_start;
   IO_CACHE log_file;
@@ -335,9 +334,6 @@ public:
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
-  inline bool is_reset_pending() { return reset_pending; }
-  void readers_addref();
-  void readers_release();
   void close(uint exiting);
 
   // iterating through the log index file

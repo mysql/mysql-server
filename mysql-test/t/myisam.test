@@ -477,6 +477,18 @@ explain select distinct t1.a from t1,t2 order by t2.a;
 drop table t1,t2;
 
 #
+# Bug#14616 - Freshly imported table returns error 124 when using LIMIT
+#
+create table t1 (
+  c1 varchar(32),
+  key (c1)
+) engine=myisam;
+alter table t1 disable keys;
+insert into t1 values ('a'), ('b');
+select c1 from t1 order by c1 limit 1;
+drop table t1;
+
+#
 # Test RTREE index
 #
 --error 1235, 1289
@@ -648,6 +660,24 @@ analyze table t1;
 show index from t1;
 
 set myisam_stats_method=DEFAULT;
+drop table t1;
+
+# BUG#13814 - key value packed incorrectly for TINYBLOBs
+
+create table t1(
+  cip INT NOT NULL,
+  time TIME NOT NULL,
+  score INT NOT NULL DEFAULT 0,
+  bob TINYBLOB
+);
+
+insert into t1 (cip, time) VALUES (1, '00:01'), (2, '00:02'), (3,'00:03');
+insert into t1 (cip, bob, time) VALUES (4, 'a', '00:04'), (5, 'b', '00:05'), 
+                                       (6, 'c', '00:06');
+select * from t1 where bob is null and cip=1;
+create index bug on t1 (bob(22), cip, time);
+select * from t1 where bob is null and cip=1;
+drop table t1;
 # End of 4.1 tests
 
 #

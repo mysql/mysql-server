@@ -424,7 +424,7 @@ my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 uint    opt_large_page_size= 0;
-my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
+my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -615,7 +615,7 @@ bool mysqld_embedded=1;
 static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
-char *libwrapName= NULL;
+const char *libwrapName= NULL;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -4501,7 +4501,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-  OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
   OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -4933,16 +4933,27 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef TO_BE_REMOVED_IN_5_1_OR_6_0
+  /*
+    In 5.0.6 we introduced the below option, then in 5.0.16 we renamed it to
+    log-bin-trust-function-creators but kept also the old name for
+    compatibility; the behaviour was also changed to apply only to functions
+    (and triggers). In a future release this old name could be removed.
+  */
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+   "(deprecated) Use log-bin-trust-function-creators.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   /*
     This option starts with "log-bin" to emphasize that it is specific of
-    binary logging. Hopefully in 5.1 nobody will need it anymore, when we have
-    row-level binlog.
+    binary logging.
   */
-  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a routine is allowed only to users having the SUPER privilege and only"
-   "if this routine may not break binary logging",
-   (gptr*) &trust_routine_creators, (gptr*) &trust_routine_creators, 0,
+   "a function is allowed only to users having the SUPER privilege and only "
+   "if this function may not break binary logging.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
@@ -5518,7 +5529,8 @@ log and this option does nothing anymore.",
   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
-   GET_LONG, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
    "Number of times a thread is allowed to enter InnoDB within the same \
     SQL query after it has once got the ticket",
@@ -5542,9 +5554,10 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_log_buffer_size, (gptr*) &innobase_log_buffer_size, 0,
    GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, ~0L, 0, 1024, 0},
   {"innodb_log_file_size", OPT_INNODB_LOG_FILE_SIZE,
-   "Size of each log file in a log group in megabytes.",
+   "Size of each log file in a log group.",
    (gptr*) &innobase_log_file_size, (gptr*) &innobase_log_file_size, 0,
-   GET_LONG, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_log_files_in_group", OPT_INNODB_LOG_FILES_IN_GROUP,
    "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
    (gptr*) &innobase_log_files_in_group, (gptr*) &innobase_log_files_in_group,
@@ -5840,7 +5853,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"read_only", OPT_READONLY,
-   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
+   "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},

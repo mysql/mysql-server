@@ -5764,10 +5764,17 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   MEM_ROOT *old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
   QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
+  /* save mem_root set by QUICK_RANGE_SELECT constructor */
+  MEM_ROOT *alloc= thd->mem_root;
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
   uint part;
+  /*
+    return back default mem_root (thd->mem_root) changed by
+    QUICK_RANGE_SELECT constructor
+  */
+  thd->mem_root= old_root;
 
   if (!quick)
     return 0;			/* no ranges found */
@@ -5779,7 +5786,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   quick->records= records;
 
   if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
-      !(range= new QUICK_RANGE()))
+      !(range= new(alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
@@ -5814,20 +5821,20 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     QUICK_RANGE *null_range;
 
     *ref->null_ref_key= 1;		// Set null byte then create a range
-    if (!(null_range= new QUICK_RANGE((char*)ref->key_buff, ref->key_length,
-				      (char*)ref->key_buff, ref->key_length,
-				      EQ_RANGE)))
+    if (!(null_range= new (alloc) QUICK_RANGE((char*)ref->key_buff,
+                                              ref->key_length,
+                                              (char*)ref->key_buff,
+                                              ref->key_length,
+                                              EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
     if (insert_dynamic(&quick->ranges,(gptr)&null_range))
       goto err;
   }
 
-  thd->mem_root= old_root;
   return quick;
 
 err:
-  thd->mem_root= old_root;
   delete quick;
   return 0;
 }

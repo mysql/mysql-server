@@ -1163,8 +1163,17 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   }
 end:
   x_free(thd->db);
-  thd->db=dbname;				// THD::~THD will free this
-  thd->db_length=db_length;
+  if (dbname && dbname[0] == 0)
+  {
+    x_free(dbname);
+    thd->db= NULL;
+    thd->db_length= 0;
+  }
+  else
+  {
+    thd->db= dbname;				// THD::~THD will free this
+    thd->db_length= db_length;
+  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
     sctx->db_access= db_access;

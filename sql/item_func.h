@@ -1129,7 +1129,6 @@ class user_var_entry;
 class Item_func_set_user_var :public Item_func
 {
   enum Item_result cached_result_type;
-  LEX_STRING name;
   user_var_entry *entry;
   char buffer[MAX_FIELD_WIDTH];
   String value;
@@ -1146,6 +1145,7 @@ class Item_func_set_user_var :public Item_func
   
 
 public:
+  LEX_STRING name; // keep it public
   Item_func_set_user_var(LEX_STRING a,Item *b)
     :Item_func(b), cached_result_type(INT_RESULT), name(a)
   {}
@@ -1168,10 +1168,10 @@ public:
 
 class Item_func_get_user_var :public Item_func
 {
-  LEX_STRING name;
   user_var_entry *var_entry;
 
 public:
+  LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
     Item_func(), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }

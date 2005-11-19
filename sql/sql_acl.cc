@@ -3532,7 +3532,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table != first_not_own_table && i < number;
+       table && table != first_not_own_table && i < number;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
