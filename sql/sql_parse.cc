@@ -2398,18 +2398,6 @@ mysql_execute_command(THD *thd)
       reset_one_shot_variables(thd);
       DBUG_RETURN(0);
     }
-#ifndef TO_BE_DELETED
-    /*
-      This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
-      masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
-      as DO RELEASE_LOCK()
-    */
-    if (lex->sql_command == SQLCOM_SELECT)
-    {
-      lex->sql_command = SQLCOM_DO;
-      lex->insert_list = &select_lex->item_list;
-    }
-#endif
   }
   else
 #endif /* HAVE_REPLICATION */

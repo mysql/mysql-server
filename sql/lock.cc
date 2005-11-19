@@ -814,10 +814,13 @@ static void print_lock_error(int error, const char *table)
 
   access to them is protected with a mutex LOCK_global_read_lock
 
-  (XXX: one should never take LOCK_open if LOCK_global_read_lock is taken,
-  otherwise a deadlock may occur - see mysql_rm_table. Other mutexes could
-  be a problem too - grep the code for global_read_lock if you want to use
-  any other mutex here)
+  (XXX: one should never take LOCK_open if LOCK_global_read_lock is
+  taken, otherwise a deadlock may occur. Other mutexes could be a
+  problem too - grep the code for global_read_lock if you want to use
+  any other mutex here) Also one must not hold LOCK_open when calling
+  wait_if_global_read_lock(). When the thread with the global read lock
+  tries to close its tables, it needs to take LOCK_open in
+  close_thread_table().
 
   How blocking of threads by global read lock is achieved: that's
   advisory. Any piece of code which should be blocked by global read lock must
@@ -936,6 +939,13 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   DBUG_ENTER("wait_if_global_read_lock");
 
   LINT_INIT(old_message);
+  /*
+    Assert that we do not own LOCK_open. If we would own it, other
+    threads could not close their tables. This would make a pretty
+    deadlock.
+  */
+  safe_mutex_assert_not_owner(&LOCK_open);
+
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
   {
