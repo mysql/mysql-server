@@ -2442,7 +2442,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
@@ -2452,7 +2452,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
