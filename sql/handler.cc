@@ -1145,10 +1145,10 @@ int ha_update_statistics()
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans=&thd->transaction.all;
+  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
+                                        &thd->transaction.all);
   handlerton **ht=trans->ht, **end_ht;
   DBUG_ENTER("ha_rollback_to_savepoint");
-  DBUG_ASSERT(thd->transaction.stmt.ht[0] == 0);
 
   trans->nht=sv->nht;
   trans->no_2pc=0;
@@ -1176,7 +1176,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   for (; *ht ; ht++)
   {
     int err;
-    if ((err= (*(*ht)->rollback)(thd, 1)))
+    if ((err= (*(*ht)->rollback)(thd, !thd->in_sub_stmt)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
@@ -1196,10 +1196,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 int ha_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans=&thd->transaction.all;
+  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
+                                        &thd->transaction.all);
   handlerton **ht=trans->ht;
   DBUG_ENTER("ha_savepoint");
-  DBUG_ASSERT(thd->transaction.stmt.ht[0] == 0);
 #ifdef USING_TRANSACTIONS
   for (; *ht; ht++)
   {
@@ -1225,9 +1225,10 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  handlerton **ht=thd->transaction.all.ht, **end_ht;
+  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
+                                        &thd->transaction.all);
+  handlerton **ht=trans->ht, **end_ht;
   DBUG_ENTER("ha_release_savepoint");
-  DBUG_ASSERT(thd->transaction.stmt.ht[0] == 0);
 
   end_ht=ht+sv->nht;
   for (; ht < end_ht; ht++)
