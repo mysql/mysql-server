@@ -1427,7 +1427,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!thd->spcont || rpl_filter->tables_ok(0, &tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
 #endif
