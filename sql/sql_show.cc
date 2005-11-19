@@ -1470,7 +1470,7 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_SLAVE_RUNNING:
         {
           pthread_mutex_lock(&LOCK_active_mi);
-          end= strmov(buff, (active_mi->slave_running &&
+          end= strmov(buff, (active_mi && active_mi->slave_running &&
                              active_mi->rli.slave_running) ? "ON" : "OFF");
           pthread_mutex_unlock(&LOCK_active_mi);
           break;
@@ -1481,12 +1481,15 @@ static bool show_status_array(THD *thd, const char *wild,
             TODO: in 5.1 with multimaster, have one such counter per line in
             SHOW SLAVE STATUS, and have the sum over all lines here.
           */
-	  pthread_mutex_lock(&LOCK_active_mi);
-          pthread_mutex_lock(&active_mi->rli.data_lock);
-	  end= int10_to_str(active_mi->rli.retried_trans, buff, 10);
-          pthread_mutex_unlock(&active_mi->rli.data_lock);
-	  pthread_mutex_unlock(&LOCK_active_mi);
-	  break;
+          pthread_mutex_lock(&LOCK_active_mi);
+          if (active_mi)
+          {
+            pthread_mutex_lock(&active_mi->rli.data_lock);
+            end= int10_to_str(active_mi->rli.retried_trans, buff, 10);
+            pthread_mutex_unlock(&active_mi->rli.data_lock);
+          }
+          pthread_mutex_unlock(&LOCK_active_mi);
+          break;
         }
         case SHOW_SLAVE_SKIP_ERRORS:
         {

@@ -141,15 +141,16 @@ uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 ulong 	innobase_large_page_size = 0;
 
-/* The default values for the following, type long, start-up parameters
-are declared in mysqld.cc: */
+/* The default values for the following, type long or longlong, start-up
+parameters are declared in mysqld.cc: */
 
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
-     innobase_log_file_size, innobase_log_buffer_size,
-     innobase_buffer_pool_awe_mem_mb,
-     innobase_buffer_pool_size, innobase_additional_mem_pool_size,
-     innobase_file_io_threads,  innobase_lock_wait_timeout,
-     innobase_force_recovery, innobase_open_files;
+     innobase_log_buffer_size, innobase_buffer_pool_awe_mem_mb,
+     innobase_additional_mem_pool_size, innobase_file_io_threads,
+     innobase_lock_wait_timeout, innobase_force_recovery,
+     innobase_open_files;
+
+longlong innobase_buffer_pool_size, innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -1230,6 +1231,25 @@ innobase_init(void)
            goto error;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+
+	/* Check that values don't overflow on 32-bit systems. */
+	if (sizeof(ulint) == 4) {
+		if (innobase_buffer_pool_size > UINT_MAX32) {
+			sql_print_error(
+				"innobase_buffer_pool_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(0);
+		}
+
+		if (innobase_log_file_size > UINT_MAX32) {
+			sql_print_error(
+				"innobase_log_file_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(0);
+		}
+	}
 
   	os_innodb_umask = (ulint)my_umask;
 

@@ -3617,4 +3617,54 @@ count(*)
 drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
+drop function if exists bug14723|
+drop procedure if exists bug14723|
+/*!50003 create function bug14723()
+returns bigint(20)
+main_loop: begin
+return 42;
+end */;;
+show create function bug14723;;
+Function	sql_mode	Create Function
+bug14723		CREATE FUNCTION `bug14723`() RETURNS bigint(20)
+main_loop: begin
+return 42;
+end
+select bug14723();;
+bug14723()
+42
+/*!50003 create procedure bug14723()
+main_loop: begin
+select 42;
+end */;;
+show create procedure bug14723;;
+Procedure	sql_mode	Create Procedure
+bug14723		CREATE PROCEDURE `bug14723`()
+main_loop: begin
+select 42;
+end
+call bug14723();;
+42
+42
+drop function bug14723|
+drop procedure bug14723|
+create procedure bug14845()
+begin
+declare a char(255);
+declare done int default 0;
+declare c cursor for select count(*) from t1 where 1 = 0;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a;
+if not done then
+select a;
+end if;
+until done end repeat;
+close c;
+end|
+call bug14845()|
+a
+0
+drop procedure bug14845|
 drop table t1,t2;

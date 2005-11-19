@@ -159,23 +159,28 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   /* mark for close and remove all cached entries */
 
-  thd->mysys_var->current_mutex= &LOCK_open;
-  thd->mysys_var->current_cond= &COND_refresh;
-  VOID(pthread_mutex_lock(&LOCK_open));
-
   if (!drop_temporary)
   {
     if ((error= wait_if_global_read_lock(thd, 0, 1)))
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->table_name);
-      goto err;
+      DBUG_RETURN(TRUE);
     }
     else
       need_start_waiters= TRUE;
   }
+
+  /*
+    Acquire LOCK_open after wait_if_global_read_lock(). If we would hold
+    LOCK_open during wait_if_global_read_lock(), other threads could not
+    close their tables. This would make a pretty deadlock.
+  */
+  thd->mysys_var->current_mutex= &LOCK_open;
+  thd->mysys_var->current_cond= &COND_refresh;
+  VOID(pthread_mutex_lock(&LOCK_open));
+
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
 
-err:
   pthread_mutex_unlock(&LOCK_open);
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
@@ -288,7 +293,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     char *db=table->db;
     db_type table_type= DB_TYPE_UNKNOWN;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
     if (!close_temporary_table(thd, db, table->table_name))
     {
       tmp_table_deleted=1;
@@ -2313,7 +2318,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
@@ -3426,8 +3431,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   used_fields=create_info->used_fields;
+  
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
 
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
