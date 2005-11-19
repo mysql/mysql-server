@@ -4016,8 +4016,8 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_SAVEPOINT:
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-        !opt_using_transactions)
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+          thd->in_sub_stmt) || !opt_using_transactions)
       send_ok(thd);
     else
     {
