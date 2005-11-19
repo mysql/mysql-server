@@ -146,6 +146,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     }
 
     thd->proc_info="System lock";
+    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     if (lock_external(thd, tables, count))
     {
       my_free((gptr) sql_lock,MYF(0));
@@ -153,6 +154,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       break;
     }
     thd->proc_info="Table lock";
+    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     thd->locked=1;
     rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks,
                                                      sql_lock->lock_count,
@@ -218,6 +220,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
   int lock_type,error;
   DBUG_ENTER("lock_external");
 
+  DBUG_PRINT("info", ("count %d", count));
   for (i=1 ; i <= count ; i++, tables++)
   {
     DBUG_ASSERT((*tables)->reginfo.lock_type >= TL_READ);
@@ -460,6 +463,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   THR_LOCK_DATA **locks;
   TABLE **to;
 
+  DBUG_ENTER("get_lock_data");
+  DBUG_PRINT("info", ("count %d", count));
   *write_lock_used=0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
@@ -479,7 +484,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     {
       my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db,
                table_ptr[i]->s->table_name);
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 
@@ -487,11 +492,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	my_malloc(sizeof(*sql_lock)+
 		  sizeof(THR_LOCK_DATA*)*tables+sizeof(table_ptr)*lock_count,
 		  MYF(0))))
-    return 0;
+    DBUG_RETURN(0);
   locks=sql_lock->locks=(THR_LOCK_DATA**) (sql_lock+1);
   to=sql_lock->table=(TABLE**) (locks+tables);
   sql_lock->table_count=lock_count;
   sql_lock->lock_count=tables;
+  DBUG_PRINT("info", ("sql_lock->table_count %d sql_lock->lock_count %d",
+                      sql_lock->table_count, sql_lock->lock_count));
 
   for (i=0 ; i < count ; i++)
   {
@@ -507,7 +514,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       {
 	my_error(ER_OPEN_AS_READONLY, MYF(0), table->alias);
 	my_free((gptr) sql_lock,MYF(0));
-	return 0;
+	DBUG_RETURN(0);
       }
     }
     THR_LOCK_DATA **org_locks = locks;
@@ -517,7 +524,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       for ( ; org_locks != locks ; org_locks++)
 	(*org_locks)->debug_print_param= (void *) table;
   }
-  return sql_lock;
+  DBUG_RETURN(sql_lock);
 }
 
 
