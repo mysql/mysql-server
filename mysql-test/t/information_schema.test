@@ -379,6 +379,8 @@ where table_schema='test';
 select index_name from information_schema.statistics where table_schema='test';
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
+show create view v2;
+show create table v3;
 drop view v2;
 drop view v3;
 drop table t4;
