@@ -206,7 +206,35 @@ select (@after:=unix_timestamp())*0; # always give repeatable output
 # the bug, the reap would return immediately after the insert into t2.
 select (@after-@before) >= 2;
 
-# cleanup
 drop table t1,t2;
+commit;
+
+# test for BUG#7947 - DO RELEASE_LOCK() not written to binlog on rollback in the middle
+# of a transaction
+
+connection con2;
+begin;
+create temporary table ti (a int) engine=innodb;
+rollback;
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam; 
+commit;
+insert t1 values (1); 
+rollback;
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3); 
+disconnect con2;
+connection con3;
+select get_lock("lock1",60);
+show binlog events from 79;
+do release_lock("lock1");
+drop table t0,t2;
+
 
 # End of 4.1 tests

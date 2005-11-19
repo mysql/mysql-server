@@ -1314,4 +1314,41 @@ select period from t1;
 
 drop table if exists t1,t2,t3,t4;
 
+#
+# Bug #13894    Server crashes on update of CSV table
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS bug13894;
+--enable_warnings
+
+CREATE TABLE bug13894 ( val integer ) ENGINE = CSV;
+INSERT INTO bug13894 VALUES (5);
+INSERT INTO bug13894 VALUES (10);
+INSERT INTO bug13894 VALUES (11);
+INSERT INTO bug13894 VALUES (10);
+SELECT * FROM bug13894;
+UPDATE  bug13894 SET val=6 WHERE val=10;
+SELECT * FROM bug13894;
+DROP TABLE bug13894;
+
+#
+# Bug #14672    Bug in deletion
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS bug14672;
+--enable_warnings
+
+CREATE TABLE bug14672 (c1 integer) engine = CSV;   
+INSERT INTO bug14672 VALUES (1), (2), (3);
+SELECT * FROM bug14672;  
+DELETE FROM bug14672 WHERE c1 = 2;   
+SELECT * FROM bug14672;  
+INSERT INTO bug14672 VALUES (4);   
+SELECT * FROM bug14672;  
+INSERT INTO bug14672 VALUES (5);   
+SELECT * FROM bug14672;  
+DROP TABLE bug14672;
+
 # End of 4.1 tests
