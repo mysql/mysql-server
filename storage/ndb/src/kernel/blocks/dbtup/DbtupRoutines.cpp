@@ -800,22 +800,37 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
 {
   Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
   Uint32 attributeHeader;
-  TableDescriptor* attr_descr= req_struct->attr_descr;
-  AttributeHeader* ahOut= (AttributeHeader*)&attributeHeader;
+  TableDescriptor* attr_descr = req_struct->attr_descr;
+  AttributeHeader* ahOut = (AttributeHeader*)&attributeHeader;
   AttributeHeader ahIn(*updateBuffer);
-  Uint32 attributeId= ahIn.getAttributeId();
-  Uint32 attrDescriptorIndex= attributeId << ZAD_LOG_SIZE;
-  Uint32 attrDescriptor= attr_descr[attrDescriptorIndex].tabDescr;
-  Uint32 attributeOffset= attr_descr[attrDescriptorIndex + 1].tabDescr;
-  ReadFunction f= regTabPtr->readFunctionArray[attributeId];
+  Uint32 attributeId = ahIn.getAttributeId();
+  Uint32 attrDescriptorIndex = attributeId << ZAD_LOG_SIZE;
+  Uint32 attrDescriptor = attr_descr[attrDescriptorIndex].tabDescr;
+  Uint32 attributeOffset = attr_descr[attrDescriptorIndex + 1].tabDescr;
+
+  Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attributeOffset);
+  if (charsetFlag) {
+    Uint32 csIndex = AttributeOffset::getCharsetPos(attributeOffset);
+    CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
+    Uint32 srcPos = 0;
+    Uint32 dstPos = 0;
+    xfrm_attr(attrDescriptor, cs, &updateBuffer[1], srcPos,
+              &xfrmBuffer[1], dstPos, MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY);
+    ahIn.setDataSize(dstPos);
+    xfrmBuffer[0] = ahIn.m_value;
+    updateBuffer = xfrmBuffer;
+  }
+
+  ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
   AttributeHeader::init(&attributeHeader, attributeId, 0);
-  req_struct->out_buf_index= 0;
-  req_struct->max_read= MAX_KEY_SIZE_IN_WORDS;
-  req_struct->attr_descriptor= attrDescriptor;
+  req_struct->out_buf_index = 0;
+  req_struct->max_read = MAX_KEY_SIZE_IN_WORDS;
+  req_struct->attr_descriptor = attrDescriptor;
 
   bool tmp = req_struct->xfrm_flag;
-  req_struct->xfrm_flag = false;
+  req_struct->xfrm_flag = true;
   ndbrequire((this->*f)(&keyReadBuffer[0],
                         req_struct,
                         ahOut,
