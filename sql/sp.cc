@@ -1585,30 +1585,30 @@ create_string(THD *thd, String *buf,
 		 chistics->comment.length))
     return FALSE;
 
-  buf->append("CREATE ", 7);
+  buf->append(STRING_WITH_LEN("CREATE "));
   if (type == TYPE_ENUM_FUNCTION)
-    buf->append("FUNCTION ", 9);
+    buf->append(STRING_WITH_LEN("FUNCTION "));
   else
-    buf->append("PROCEDURE ", 10);
+    buf->append(STRING_WITH_LEN("PROCEDURE "));
   append_identifier(thd, buf, name->m_name.str, name->m_name.length);
   buf->append('(');
   buf->append(params, paramslen);
   buf->append(')');
   if (type == TYPE_ENUM_FUNCTION)
   {
-    buf->append(" RETURNS ", 9);
+    buf->append(STRING_WITH_LEN(" RETURNS "));
     buf->append(returns, returnslen);
   }
   buf->append('\n');
   switch (chistics->daccess) {
   case SP_NO_SQL:
-    buf->append("    NO SQL\n");
+    buf->append(STRING_WITH_LEN("    NO SQL\n"));
     break;
   case SP_READS_SQL_DATA:
-    buf->append("    READS SQL DATA\n");
+    buf->append(STRING_WITH_LEN("    READS SQL DATA\n"));
     break;
   case SP_MODIFIES_SQL_DATA:
-    buf->append("    MODIFIES SQL DATA\n");
+    buf->append(STRING_WITH_LEN("    MODIFIES SQL DATA\n"));
     break;
   case SP_DEFAULT_ACCESS:
   case SP_CONTAINS_SQL:
@@ -1616,12 +1616,12 @@ create_string(THD *thd, String *buf,
     break;
   }
   if (chistics->detistic)
-    buf->append("    DETERMINISTIC\n", 18);
+    buf->append(STRING_WITH_LEN("    DETERMINISTIC\n"));
   if (chistics->suid == SP_IS_NOT_SUID)
-    buf->append("    SQL SECURITY INVOKER\n", 25);
+    buf->append(STRING_WITH_LEN("    SQL SECURITY INVOKER\n"));
   if (chistics->comment.length)
   {
-    buf->append("    COMMENT ");
+    buf->append(STRING_WITH_LEN("    COMMENT "));
     append_unescaped(buf, chistics->comment.str, chistics->comment.length);
     buf->append('\n');
   }
