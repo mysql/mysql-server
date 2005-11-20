@@ -29,7 +29,7 @@ public:
     :Item_real_func(list) {}
   double val_real() { DBUG_ASSERT(fixed == 1); return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
-  void print(String *str) { str->append("0.0", 3); }
+  void print(String *str) { str->append(STRING_WITH_LEN("0.0")); }
   const char *func_name() const { return "unique_users"; }
 };
 
@@ -57,7 +57,7 @@ public:
   {
     return new Item_sum_unique_users(thd, this);
   }
-  void print(String *str) { str->append("0.0", 3); }
+  void print(String *str) { str->append(STRING_WITH_LEN("0.0")); }
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   const char *func_name() const { return "sum_unique_users"; }
 };

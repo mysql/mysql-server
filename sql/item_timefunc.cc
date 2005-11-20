@@ -506,7 +506,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
   str->set_charset(&my_charset_bin);
 
   if (l_time->neg)
-    str->append("-", 1);
+    str->append('-');
   
   end= (ptr= format->format.str) + format->format.length;
   for (; ptr != end ; ptr++)
@@ -546,21 +546,21 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
 	if (l_time->day >= 10 &&  l_time->day <= 19)
-	  str->append("th", 2);
+	  str->append(STRING_WITH_LEN("th"));
 	else
 	{
 	  switch (l_time->day %10) {
 	  case 1:
-	    str->append("st",2);
+	    str->append(STRING_WITH_LEN("st"));
 	    break;
 	  case 2:
-	    str->append("nd",2);
+	    str->append(STRING_WITH_LEN("nd"));
 	    break;
 	  case 3:
-	    str->append("rd",2);
+	    str->append(STRING_WITH_LEN("rd"));
 	    break;
 	  default:
-	    str->append("th",2);
+	    str->append(STRING_WITH_LEN("th"));
 	    break;
 	  }
 	}
@@ -2142,9 +2142,9 @@ void Item_date_add_interval::print(String *str)
 
 void Item_extract::print(String *str)
 {
-  str->append("extract(", 8);
+  str->append(STRING_WITH_LEN("extract("));
   str->append(interval_names[int_type]);
-  str->append(" from ", 6);
+  str->append(STRING_WITH_LEN(" from "));
   args[0]->print(str);
   str->append(')');
 }
@@ -2286,9 +2286,9 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
 
 void Item_typecast::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as ", 4);
+  str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   str->append(')');
 }
@@ -2296,9 +2296,9 @@ void Item_typecast::print(String *str)
 
 void Item_char_typecast::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as char", 8);
+  str->append(STRING_WITH_LEN(" as char"));
   if (cast_length >= 0)
   {
     str->append('(');
@@ -2311,7 +2311,7 @@ void Item_char_typecast::print(String *str)
   }
   if (cast_cs)
   {
-    str->append(" charset ", 9);
+    str->append(STRING_WITH_LEN(" charset "));
     str->append(cast_cs->csname);
   }
   str->append(')');
@@ -2609,14 +2609,14 @@ void Item_func_add_time::print(String *str)
   if (is_date)
   {
     DBUG_ASSERT(sign > 0);
-    str->append("timestamp(", 10);
+    str->append(STRING_WITH_LEN("timestamp("));
   }
   else
   {
     if (sign > 0)
-      str->append("addtime(", 8);
+      str->append(STRING_WITH_LEN("addtime("));
     else
-      str->append("subtime(", 8);
+      str->append(STRING_WITH_LEN("subtime("));
   }
   args[0]->print(str);
   str->append(',');
@@ -2825,31 +2825,31 @@ void Item_func_timestamp_diff::print(String *str)
 
   switch (int_type) {
   case INTERVAL_YEAR:
-    str->append("YEAR");
+    str->append(STRING_WITH_LEN("YEAR"));
     break;
   case INTERVAL_QUARTER:
-    str->append("QUARTER");
+    str->append(STRING_WITH_LEN("QUARTER"));
     break;
   case INTERVAL_MONTH:
-    str->append("MONTH");
+    str->append(STRING_WITH_LEN("MONTH"));
     break;
   case INTERVAL_WEEK:          
-    str->append("WEEK");
+    str->append(STRING_WITH_LEN("WEEK"));
     break;
   case INTERVAL_DAY:		
-    str->append("DAY");
+    str->append(STRING_WITH_LEN("DAY"));
     break;
   case INTERVAL_HOUR:
-    str->append("HOUR");
+    str->append(STRING_WITH_LEN("HOUR"));
     break;
   case INTERVAL_MINUTE:		
-    str->append("MINUTE");
+    str->append(STRING_WITH_LEN("MINUTE"));
     break;
   case INTERVAL_SECOND:
-    str->append("SECOND");
+    str->append(STRING_WITH_LEN("SECOND"));
     break;		
   case INTERVAL_MICROSECOND:
-    str->append("SECOND_FRAC");
+    str->append(STRING_WITH_LEN("SECOND_FRAC"));
     break;
   default:
     break;
@@ -2905,13 +2905,13 @@ void Item_func_get_format::print(String *str)
 
   switch (type) {
   case MYSQL_TIMESTAMP_DATE:
-    str->append("DATE, ");
+    str->append(STRING_WITH_LEN("DATE, "));
     break;
   case MYSQL_TIMESTAMP_DATETIME:
-    str->append("DATETIME, ");
+    str->append(STRING_WITH_LEN("DATETIME, "));
     break;
   case MYSQL_TIMESTAMP_TIME:
-    str->append("TIME, ");
+    str->append(STRING_WITH_LEN("TIME, "));
     break;
   default:
     DBUG_ASSERT(0);

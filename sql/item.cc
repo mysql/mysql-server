@@ -383,7 +383,7 @@ void Item::print_item_w_name(String *str)
   if (name)
   {
     THD *thd= current_thd;
-    str->append(" AS ", 4);
+    str->append(STRING_WITH_LEN(" AS "));
     append_identifier(thd, str, name, (uint) strlen(name));
   }
 }
@@ -1031,7 +1031,7 @@ void Item_name_const::cleanup()
 
 void Item_name_const::print(String *str)
 {
-  str->append("NAME_CONST(");
+  str->append(STRING_WITH_LEN("NAME_CONST("));
   name_item->print(str);
   str->append(',');
   value_item->print(str);
@@ -4852,7 +4852,7 @@ void Item_ref::make_field(Send_field *field)
 
 void Item_ref_null_helper::print(String *str)
 {
-  str->append("<ref_null_helper>(", 18);
+  str->append(STRING_WITH_LEN("<ref_null_helper>("));
   if (ref)
     (*ref)->print(str);
   else
@@ -4969,7 +4969,7 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
 
 void Item_null_helper::print(String *str)
 {
-  str->append("<null_helper>(", 14);
+  str->append(STRING_WITH_LEN("<null_helper>("));
   store->print(str);
   str->append(')');
 }
@@ -5029,10 +5029,10 @@ void Item_default_value::print(String *str)
 {
   if (!arg)
   {
-    str->append("default", 7);
+    str->append(STRING_WITH_LEN("default"));
     return;
   }
-  str->append("default(", 8);
+  str->append(STRING_WITH_LEN("default("));
   arg->print(str);
   str->append(')');
 }
@@ -5126,7 +5126,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
 void Item_insert_value::print(String *str)
 {
-  str->append("values(", 7);
+  str->append(STRING_WITH_LEN("values("));
   arg->print(str);
   str->append(')');
 }
@@ -5387,7 +5387,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
 
 void Item_cache::print(String *str)
 {
-  str->append("<cache>(", 8);
+  str->append(STRING_WITH_LEN("<cache>("));
   if (example)
     example->print(str);
   else

@@ -700,7 +700,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 						    MY_CS_BINSORT,MYF(0))))
     {
       char tmp[64];
-      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4), "_bin", 4);
+      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
+              STRING_WITH_LEN("_bin"));
       my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
       DBUG_RETURN(-1);
     }
@@ -1946,7 +1947,7 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
   protocol->prepare_for_resend();
   protocol->store(table->alias, system_charset_info);
   protocol->store((char*) operator_name, system_charset_info);
-  protocol->store("error", 5, system_charset_info);
+  protocol->store(STRING_WITH_LEN("error"), system_charset_info);
   protocol->store(errmsg, system_charset_info);
   thd->clear_error();
   if (protocol->write())
@@ -2237,7 +2238,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store("error",5, system_charset_info);
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
       /* if it was a view will check md5 sum */
@@ -2274,7 +2275,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store("error", 5, system_charset_info);
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
@@ -2309,8 +2310,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store("warning", 7, system_charset_info);
-      protocol->store("Table is marked as crashed", 26, system_charset_info);
+      protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Table is marked as crashed"),
+                      system_charset_info);
       if (protocol->write())
         goto err;
     }
@@ -2334,7 +2336,7 @@ send_result_message:
 	char buf[ERRMSGSIZE+20];
 	uint length=my_snprintf(buf, ERRMSGSIZE,
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
-	protocol->store("note", 4, system_charset_info);
+	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
 	protocol->store(buf, length, system_charset_info);
       }
       break;
@@ -2344,41 +2346,45 @@ send_result_message:
         char buf[ERRMSGSIZE+20];
         uint length= my_snprintf(buf, ERRMSGSIZE,
                                  ER(ER_BAD_TABLE_ERROR), table_name);
-        protocol->store("note", 4, system_charset_info);
+        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
       }
       break;
 
     case HA_ADMIN_OK:
-      protocol->store("status", 6, system_charset_info);
-      protocol->store("OK",2, system_charset_info);
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("OK"), system_charset_info);
       break;
 
     case HA_ADMIN_FAILED:
-      protocol->store("status", 6, system_charset_info);
-      protocol->store("Operation failed",16, system_charset_info);
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Operation failed"),
+                      system_charset_info);
       break;
 
     case HA_ADMIN_REJECT:
-      protocol->store("status", 6, system_charset_info);
-      protocol->store("Operation need committed state",30, system_charset_info);
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Operation need committed state"),
+                      system_charset_info);
       open_for_modify= FALSE;
       break;
 
     case HA_ADMIN_ALREADY_DONE:
-      protocol->store("status", 6, system_charset_info);
-      protocol->store("Table is already up to date", 27, system_charset_info);
+      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Table is already up to date"),
+                      system_charset_info);
       break;
 
     case HA_ADMIN_CORRUPT:
-      protocol->store("error", 5, system_charset_info);
-      protocol->store("Corrupt", 7, system_charset_info);
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Corrupt"), system_charset_info);
       fatal_error=1;
       break;
 
     case HA_ADMIN_INVALID:
-      protocol->store("error", 5, system_charset_info);
-      protocol->store("Invalid argument",16, system_charset_info);
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      protocol->store(STRING_WITH_LEN("Invalid argument"),
+                      system_charset_info);
       break;
 
     case HA_ADMIN_TRY_ALTER:
@@ -2414,7 +2420,7 @@ send_result_message:
           else
           {
             /* Hijack the row already in-progress. */
-            protocol->store("error", 5, system_charset_info);
+            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
             protocol->store(err_msg, system_charset_info);
             (void)protocol->write();
             /* Start off another row for HA_ADMIN_FAILED */
@@ -2431,7 +2437,7 @@ send_result_message:
     }
     case HA_ADMIN_WRONG_CHECKSUM:
     {
-      protocol->store("note", 4, system_charset_info);
+      protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       protocol->store(ER(ER_VIEW_CHECKSUM), strlen(ER(ER_VIEW_CHECKSUM)),
                       system_charset_info);
       break;
@@ -2443,7 +2449,7 @@ send_result_message:
         uint length=my_snprintf(buf, ERRMSGSIZE,
                                 "Unknown - internal error %d during operation",
                                 result_code);
-        protocol->store("error", 5, system_charset_info);
+        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
         fatal_error=1;
         break;

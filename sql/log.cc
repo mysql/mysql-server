@@ -131,7 +131,7 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_LOG::log()
     DBUG_RETURN(0);
   }
-  Query_log_event qev(thd, "COMMIT", 6, TRUE, FALSE);
+  Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
   DBUG_RETURN(binlog_end_trans(thd, trans_log, &qev));
 }
 
@@ -155,7 +155,7 @@ static int binlog_rollback(THD *thd, bool all)
   */
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
-    Query_log_event qev(thd, "ROLLBACK", 8, TRUE, FALSE);
+    Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     error= binlog_end_trans(thd, trans_log, &qev);
   }
   else
@@ -1848,7 +1848,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
     */
     if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
-      Query_log_event qinfo(thd, "BEGIN", 5, TRUE, FALSE);
+      Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE);
       /*
         Imagine this is rollback due to net timeout, after all statements of
         the transaction succeeded. Then we want a zero-error code in BEGIN.
