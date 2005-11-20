@@ -1882,79 +1882,9 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
   while (i < noOfKeyAttr) 
   {
     const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
-    
-    Uint32 array = 
-      AttributeDescriptor::getArrayType(keyAttr.attributeDescriptor);
-    Uint32 srcBytes = 
-      AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
-
-    Uint32 srcWords = ~0;
-    Uint32 dstWords = ~0;
-    uchar* dstPtr = (uchar*)&dst[dstPos];
-    const uchar* srcPtr = (const uchar*)&src[srcPos];
-    CHARSET_INFO* cs = keyAttr.charsetInfo;
-    
-    if (cs == NULL)
-    {
-      jam();
-      Uint32 len;
-      switch(array){
-      case NDB_ARRAYTYPE_SHORT_VAR:
-	len = 1 + srcPtr[0];
-	break;
-      case NDB_ARRAYTYPE_MEDIUM_VAR:
-	len = 2 + srcPtr[0] + (srcPtr[1] << 8);
-	break;
-#ifndef VM_TRACE
-      default:
-#endif
-      case NDB_ARRAYTYPE_FIXED:
-	len = srcBytes;
-      }
-      srcWords = (len + 3) >> 2;
-      dstWords = srcWords;
-      memcpy(dstPtr, srcPtr, dstWords << 2);
-      
-      if (0)
-      {
-	ndbout_c("srcPos: %d dstPos: %d len: %d srcWords: %d dstWords: %d",
-		 srcPos, dstPos, len, srcWords, dstWords);
-	
-	for(Uint32 i = 0; i<srcWords; i++)
-	  printf("%.8x ", src[srcPos + i]);
-	printf("\n");
-      }
-    } 
-    else
-    {
-      jam();
-      Uint32 typeId =
-	AttributeDescriptor::getType(keyAttr.attributeDescriptor);
-      Uint32 lb, len;
-      bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
-      ndbrequire(ok);
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-	xmul = 1;
-      /*
-       * Varchar is really Char.  End spaces do not matter.  To get
-       * same hash we blank-pad to maximum length via strnxfrm.
-       * TODO use MySQL charset-aware hash function instead
-       */
-      Uint32 dstLen = xmul * (srcBytes - lb);
-      ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-      int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
-      ndbrequire(n != -1);
-      while ((n & 3) != 0) 
-      {
-	dstPtr[n++] = 0;
-      }
-      dstWords = (n >> 2);
-      srcWords = (lb + len + 3) >> 2; 
-    }
-
-    dstPos += dstWords;
-    srcPos += srcWords;
+    Uint32 dstWords =
+      xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+                src, srcPos, dst, dstPos, dstSize);
     keyPartLen[i++] = dstWords;
   }
 
@@ -1967,6 +1897,84 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
     printf("\n");
   }
   return dstPos;
+}
+
+Uint32
+SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+                          const Uint32* src, Uint32 & srcPos,
+                          Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const
+{
+  Uint32 array = 
+    AttributeDescriptor::getArrayType(attrDesc);
+  Uint32 srcBytes = 
+    AttributeDescriptor::getSizeInBytes(attrDesc);
+
+  Uint32 srcWords = ~0;
+  Uint32 dstWords = ~0;
+  uchar* dstPtr = (uchar*)&dst[dstPos];
+  const uchar* srcPtr = (const uchar*)&src[srcPos];
+  
+  if (cs == NULL)
+  {
+    jam();
+    Uint32 len;
+    switch(array){
+    case NDB_ARRAYTYPE_SHORT_VAR:
+      len = 1 + srcPtr[0];
+      break;
+    case NDB_ARRAYTYPE_MEDIUM_VAR:
+      len = 2 + srcPtr[0] + (srcPtr[1] << 8);
+      break;
+#ifndef VM_TRACE
+    default:
+#endif
+    case NDB_ARRAYTYPE_FIXED:
+      len = srcBytes;
+    }
+    srcWords = (len + 3) >> 2;
+    dstWords = srcWords;
+    memcpy(dstPtr, srcPtr, dstWords << 2);
+    
+    if (0)
+    {
+      ndbout_c("srcPos: %d dstPos: %d len: %d srcWords: %d dstWords: %d",
+               srcPos, dstPos, len, srcWords, dstWords);
+      
+      for(Uint32 i = 0; i<srcWords; i++)
+        printf("%.8x ", src[srcPos + i]);
+      printf("\n");
+    }
+  } 
+  else
+  {
+    jam();
+    Uint32 typeId =
+      AttributeDescriptor::getType(attrDesc);
+    Uint32 lb, len;
+    bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+    ndbrequire(ok);
+    Uint32 xmul = cs->strxfrm_multiply;
+    if (xmul == 0)
+      xmul = 1;
+    /*
+     * Varchar end-spaces are ignored in comparisons.  To get same hash
+     * we blank-pad to maximum length via strnxfrm.
+     */
+    Uint32 dstLen = xmul * (srcBytes - lb);
+    ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
+    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+    ndbrequire(n != -1);
+    while ((n & 3) != 0) 
+    {
+      dstPtr[n++] = 0;
+    }
+    dstWords = (n >> 2);
+    srcWords = (lb + len + 3) >> 2; 
+  }
+
+  dstPos += dstWords;
+  srcPos += srcWords;
+  return dstWords;
 }
 
 Uint32
