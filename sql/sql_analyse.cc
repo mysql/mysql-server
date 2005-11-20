@@ -733,13 +733,13 @@ bool analyse::end_of_records()
       tree_info.found = 0;
       tree_info.item = (*f)->item;
 
-      tmp_str.set("ENUM(", 5,&my_charset_bin);
+      tmp_str.set(STRING_WITH_LEN("ENUM("),&my_charset_bin);
       tree_walk(&(*f)->tree, (*f)->collect_enum(), (char*) &tree_info,
 		left_root_right);
       tmp_str.append(')');
 
       if (!(*f)->nulls)
-	tmp_str.append(" NOT NULL");
+	tmp_str.append(STRING_WITH_LEN(" NOT NULL"));
       output_str_length = tmp_str.length();
       func_items[9]->set(tmp_str.ptr(), tmp_str.length(), tmp_str.charset());
       if (result->send_data(result_fields))
@@ -749,35 +749,35 @@ bool analyse::end_of_records()
 
     ans.length(0);
     if (!(*f)->treemem && !(*f)->tree_elements)
-      ans.append("CHAR(0)", 7);
+      ans.append(STRING_WITH_LEN("CHAR(0)"));
     else if ((*f)->item->type() == Item::FIELD_ITEM)
     {
       switch (((Item_field*) (*f)->item)->field->real_type())
       {
       case FIELD_TYPE_TIMESTAMP:
-	ans.append("TIMESTAMP", 9);
+	ans.append(STRING_WITH_LEN("TIMESTAMP"));
 	break;
       case FIELD_TYPE_DATETIME:
-	ans.append("DATETIME", 8);
+	ans.append(STRING_WITH_LEN("DATETIME"));
 	break;
       case FIELD_TYPE_DATE:
       case FIELD_TYPE_NEWDATE:
-	ans.append("DATE", 4);
+	ans.append(STRING_WITH_LEN("DATE"));
 	break;
       case FIELD_TYPE_SET:
-	ans.append("SET", 3);
+	ans.append(STRING_WITH_LEN("SET"));
 	break;
       case FIELD_TYPE_YEAR:
-	ans.append("YEAR", 4);
+	ans.append(STRING_WITH_LEN("YEAR"));
 	break;
       case FIELD_TYPE_TIME:
-	ans.append("TIME", 4);
+	ans.append(STRING_WITH_LEN("TIME"));
 	break;
       case FIELD_TYPE_DECIMAL:
-	ans.append("DECIMAL", 7);
+	ans.append(STRING_WITH_LEN("DECIMAL"));
 	// if item is FIELD_ITEM, it _must_be_ Field_num in this case
 	if (((Field_num*) ((Item_field*) (*f)->item)->field)->zerofill)
-	  ans.append(" ZEROFILL");
+	  ans.append(STRING_WITH_LEN(" ZEROFILL"));
 	break;
       default:
 	(*f)->get_opt_type(&ans, rows);
@@ -785,7 +785,7 @@ bool analyse::end_of_records()
       }
     }
     if (!(*f)->nulls)
-      ans.append(" NOT NULL");
+      ans.append(STRING_WITH_LEN(" NOT NULL"));
     func_items[9]->set(ans.ptr(), ans.length(), ans.charset());
     if (result->send_data(result_fields))
       return -1;
@@ -829,18 +829,18 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
       sprintf(buff, "BIGINT(%d)", num_info.integers);
     answer->append(buff, (uint) strlen(buff));
     if (ev_num_info.llval >= 0 && ev_num_info.min_dval >= 0)
-      answer->append(" UNSIGNED");
+      answer->append(STRING_WITH_LEN(" UNSIGNED"));
     if (num_info.zerofill)
-      answer->append(" ZEROFILL");
+      answer->append(STRING_WITH_LEN(" ZEROFILL"));
   }
   else if (max_length < 256)
   {
     if (must_be_blob)
     {
       if (item->collation.collation == &my_charset_bin)
-	answer->append("TINYBLOB", 8);
+	answer->append(STRING_WITH_LEN("TINYBLOB"));
       else
-	answer->append("TINYTEXT", 8);
+	answer->append(STRING_WITH_LEN("TINYTEXT"));
     }
     else if ((max_length * (total_rows - nulls)) < (sum + total_rows))
     {
@@ -856,23 +856,23 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   else if (max_length < (1L << 16))
   {
     if (item->collation.collation == &my_charset_bin)
-      answer->append("BLOB", 4);
+      answer->append(STRING_WITH_LEN("BLOB"));
     else
-      answer->append("TEXT", 4);
+      answer->append(STRING_WITH_LEN("TEXT"));
   }
   else if (max_length < (1L << 24))
   {
     if (item->collation.collation == &my_charset_bin)
-      answer->append("MEDIUMBLOB", 10);
+      answer->append(STRING_WITH_LEN("MEDIUMBLOB"));
     else
-      answer->append("MEDIUMTEXT", 10);
+      answer->append(STRING_WITH_LEN("MEDIUMTEXT"));
   }
   else
   {
     if (item->collation.collation == &my_charset_bin)
-      answer->append("LONGBLOB", 8);
+      answer->append(STRING_WITH_LEN("LONGBLOB"));
     else
-      answer->append("LONGTEXT", 8);
+      answer->append(STRING_WITH_LEN("LONGTEXT"));
   }
 } // field_str::get_opt_type
 
@@ -902,14 +902,14 @@ void field_real::get_opt_type(String *answer,
       sprintf(buff, "BIGINT(%d)", len);
     answer->append(buff, (uint) strlen(buff));
     if (min_arg >= 0)
-      answer->append(" UNSIGNED");
+      answer->append(STRING_WITH_LEN(" UNSIGNED"));
   }
   else if (item->decimals == NOT_FIXED_DEC)
   {
     if (min_arg >= -FLT_MAX && max_arg <= FLT_MAX)
-      answer->append("FLOAT", 5);      
+      answer->append(STRING_WITH_LEN("FLOAT"));
     else
-      answer->append("DOUBLE", 6);
+      answer->append(STRING_WITH_LEN("DOUBLE"));
   }
   else
   {
@@ -926,7 +926,7 @@ void field_real::get_opt_type(String *answer,
       // a single number shouldn't be zerofill
       (max_length - (item->decimals + 1)) != 1 &&
       ((Field_num*) ((Item_field*) item)->field)->zerofill)
-    answer->append(" ZEROFILL");
+    answer->append(STRING_WITH_LEN(" ZEROFILL"));
 } // field_real::get_opt_type
 
 
@@ -950,14 +950,14 @@ void field_longlong::get_opt_type(String *answer,
     sprintf(buff, "BIGINT(%d)", (int) max_length);
   answer->append(buff, (uint) strlen(buff));
   if (min_arg >= 0)
-    answer->append(" UNSIGNED");
+    answer->append(STRING_WITH_LEN(" UNSIGNED"));
 
   // if item is FIELD_ITEM, it _must_be_ Field_num in this class
   if ((item->type() == Item::FIELD_ITEM) &&
       // a single number shouldn't be zerofill
       max_length != 1 &&
       ((Field_num*) ((Item_field*) item)->field)->zerofill)
-    answer->append(" ZEROFILL");
+    answer->append(STRING_WITH_LEN(" ZEROFILL"));
 } // field_longlong::get_opt_type
 
 
@@ -982,7 +982,7 @@ void field_ulonglong::get_opt_type(String *answer,
       // a single number shouldn't be zerofill
       max_length != 1 &&
       ((Field_num*) ((Item_field*) item)->field)->zerofill)
-    answer->append(" ZEROFILL");
+    answer->append(STRING_WITH_LEN(" ZEROFILL"));
 } //field_ulonglong::get_opt_type
 
 

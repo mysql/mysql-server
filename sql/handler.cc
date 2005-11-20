@@ -1684,7 +1684,7 @@ void handler::print_error(int error, myf errflag)
       if (str.length() >= max_length)
       {
 	str.length(max_length-4);
-	str.append("...");
+	str.append(STRING_WITH_LEN("..."));
       }
       my_error(ER_DUP_ENTRY, MYF(0), str.c_ptr(), key_nr+1);
       DBUG_VOID_RETURN;

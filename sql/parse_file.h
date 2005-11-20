@@ -40,6 +40,35 @@ struct File_option
   file_opt_type type;		/* Option type */
 };
 
+
+/*
+  This hook used to catch no longer supported keys and process them for
+  backward compatibility.
+*/
+
+class Unknown_key_hook
+{
+public:
+  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+                                      MEM_ROOT *mem_root, char *end)= 0;
+};
+
+
+/* Dummy hook for parsers which do not need hook for unknown keys */
+
+class File_parser_dummy_hook: public Unknown_key_hook
+{
+public:
+  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+                                      MEM_ROOT *mem_root, char *end);
+};
+
+extern File_parser_dummy_hook file_parser_dummy_hook;
+
+bool get_file_options_ulllist(char *&ptr, char *end, char *line,
+                              gptr base, File_option *parameter,
+                              MEM_ROOT *mem_root);
+
 class File_parser;
 File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 			       MEM_ROOT *mem_root, bool bad_format_errors);
@@ -64,7 +93,8 @@ public:
   my_bool ok() { return content_ok; }
   LEX_STRING *type() { return &file_type; }
   my_bool parse(gptr base, MEM_ROOT *mem_root,
-		struct File_option *parameters, uint required);
+		struct File_option *parameters, uint required,
+                Unknown_key_hook *hook);
 
   friend File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 					MEM_ROOT *mem_root,
