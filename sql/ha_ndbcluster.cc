@@ -3711,7 +3711,7 @@ int ha_ndbcluster::create(const char *name,
   const void *data, *pack_data;
   const char **key_names= form->keynames.type_names;
   char name2[FN_HEADLEN];
-  bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
+  bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
    
   DBUG_ENTER("create");
   DBUG_PRINT("enter", ("name: %s", name));
