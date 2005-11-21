@@ -2198,11 +2198,13 @@ innobase_savepoint(
 
 	DBUG_ENTER("innobase_savepoint");
 
-	if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-		/* In the autocommit state there is no sense to set a
-		savepoint: we return immediate success */
-	        DBUG_RETURN(0);
-	}
+        /*
+          In the autocommit mode there is no sense to set a savepoint
+          (unless we are in sub-statement), so SQL layer ensures that
+          this method is never called in such situation.
+        */
+        DBUG_ASSERT(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+                    thd->in_sub_stmt);
 
 	trx = check_trx_exists(thd);
 

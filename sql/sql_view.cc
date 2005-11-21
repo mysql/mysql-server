@@ -495,7 +495,7 @@ static const int num_view_backups= 3;
 static File_option view_parameters[]=
 {{{(char*) STRING_WITH_LEN("query")},
   offsetof(TABLE_LIST, query),
-  FILE_OPTIONS_STRING},
+  FILE_OPTIONS_ESTRING},
  {{(char*) STRING_WITH_LEN("md5")},
   offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
