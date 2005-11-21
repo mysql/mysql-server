@@ -68,12 +68,12 @@ select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
 CONVERT(DATE "2004-01-22 21:45:33",BINARY(4))
 2004
 Warnings:
-Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
+Warning	1292	Truncated incorrect BINARY(4) value: '2004-01-22 21:45:33'
 select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
 CAST(DATE "2004-01-22 21:45:33" AS BINARY(4))
 2004
 Warnings:
-Warning	1292	Truncated incorrect CHAR(4) value: '2004-01-22 21:45:33'
+Warning	1292	Truncated incorrect BINARY(4) value: '2004-01-22 21:45:33'
 select CAST(0xb3 as signed);
 CAST(0xb3 as signed)
 179
@@ -169,13 +169,13 @@ hex(cast(_latin1'a'   AS char(2))) as c5;
 c1	c2	c3	c4	c5
 ab	a 	ab	a 	6100
 Warnings:
-Warning	1292	Truncated incorrect CHAR(2) value: 'abc'
-Warning	1292	Truncated incorrect CHAR(2) value: 'a  '
+Warning	1292	Truncated incorrect BINARY(2) value: 'abc'
+Warning	1292	Truncated incorrect BINARY(2) value: 'a  '
 select cast(1000 as CHAR(3));
 cast(1000 as CHAR(3))
 100
 Warnings:
-Warning	1292	Truncated incorrect CHAR(3) value: '1000'
+Warning	1292	Truncated incorrect BINARY(3) value: '1000'
 create table t1 select
 cast(_latin1'ab'  AS char)    as c1,
 cast(_latin1'a '  AS char)    as c2,
@@ -183,8 +183,8 @@ cast(_latin1'abc' AS char(2)) as c3,
 cast(_latin1'a  ' AS char(2)) as c4,
 cast(_latin1'a'   AS char(2)) as c5;
 Warnings:
-Warning	1292	Truncated incorrect CHAR(2) value: 'abc'
-Warning	1292	Truncated incorrect CHAR(2) value: 'a  '
+Warning	1292	Truncated incorrect BINARY(2) value: 'abc'
+Warning	1292	Truncated incorrect BINARY(2) value: 'a  '
 select c1,c2,c3,c4,hex(c5) from t1;
 c1	c2	c3	c4	hex(c5)
 ab	a 	ab	a 	6100
@@ -274,9 +274,9 @@ aac	aac
 aab	aab
 aaa	aaa
 Warnings:
-Warning	1292	Truncated incorrect CHAR(2) value: 'aaa'
-Warning	1292	Truncated incorrect CHAR(2) value: 'aab'
-Warning	1292	Truncated incorrect CHAR(2) value: 'aac'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aaa'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aab'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aac'
 SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
 a	CAST(a AS UNSIGNED)
 aaa	3
@@ -288,9 +288,9 @@ aaa	aa
 aab	aa
 aac	aa
 Warnings:
-Warning	1292	Truncated incorrect CHAR(2) value: 'aaa'
-Warning	1292	Truncated incorrect CHAR(2) value: 'aab'
-Warning	1292	Truncated incorrect CHAR(2) value: 'aac'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aaa'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aab'
+Warning	1292	Truncated incorrect BINARY(2) value: 'aac'
 DROP TABLE t1;
 select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
 date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour)
