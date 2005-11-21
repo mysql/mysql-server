@@ -211,16 +211,8 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
-  /*
-    Allow conversion from and to "binary".
-    Don't allow automatic conversion to non-Unicode charsets,
-    as it potentially loses data.
-  */
-  if (collation.collation != &my_charset_bin &&
-      tocs != &my_charset_bin &&
-      !(tocs->state & MY_CS_UNICODE))
-    return NULL; // safe conversion is not possible
-  return new Item_func_conv_charset(this, tocs);
+  Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
+  return conv->safe ? conv : NULL;
 }
 
 
