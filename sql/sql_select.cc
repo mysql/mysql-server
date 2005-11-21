@@ -13676,7 +13676,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       SELECT_LEX *sl= join->unit->first_select();
       uint len= 6, lastop= 0;
-      memcpy(table_name_buffer, "<union", 6);
+      memcpy(table_name_buffer, STRING_WITH_LEN("<union"));
       for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
       {
         len+= lastop;
@@ -13685,7 +13685,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       if (sl || len + lastop >= NAME_LEN)
       {
-        memcpy(table_name_buffer + len, "...>", 5);
+        memcpy(table_name_buffer + len, STRING_WITH_LEN("...>") + 1);
         len+= 4;
       }
       else
@@ -13864,7 +13864,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
         {
-          extra.append("; Using ");
+          extra.append(STRING_WITH_LEN("; Using "));
           tab->select->quick->add_info_string(&extra);
         }
 	if (tab->select)
@@ -13872,7 +13872,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  if (tab->use_quick == 2)
 	  {
             char buf[MAX_KEY/8+1];
-            extra.append("; Range checked for each record (index map: 0x");
+            extra.append(STRING_WITH_LEN("; Range checked for each "
+                                         "record (index map: 0x"));
             extra.append(tab->keys.print(buf));
             extra.append(')');
 	  }
@@ -13882,38 +13883,39 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
             if (thd->variables.engine_condition_pushdown && pushed_cond)
             {
-              extra.append("; Using where with pushed condition");
+              extra.append(STRING_WITH_LEN("; Using where with pushed "
+                                           "condition"));
               if (thd->lex->describe & DESCRIBE_EXTENDED)
               {
-                extra.append(": ");
+                extra.append(STRING_WITH_LEN(": "));
                 ((COND *)pushed_cond)->print(&extra);
               }
             }
             else
-              extra.append("; Using where");
+              extra.append(STRING_WITH_LEN("; Using where"));
           }
 	}
 	if (key_read)
         {
           if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
-            extra.append("; Using index for group-by");
+            extra.append(STRING_WITH_LEN("; Using index for group-by"));
           else
-            extra.append("; Using index");
+            extra.append(STRING_WITH_LEN("; Using index"));
         }
 	if (table->reginfo.not_exists_optimize)
-	  extra.append("; Not exists");
+	  extra.append(STRING_WITH_LEN("; Not exists"));
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;
-	  extra.append("; Using temporary");
+	  extra.append(STRING_WITH_LEN("; Using temporary"));
 	}
 	if (need_order)
 	{
 	  need_order=0;
-	  extra.append("; Using filesort");
+	  extra.append(STRING_WITH_LEN("; Using filesort"));
 	}
 	if (distinct & test_all_bits(used_tables,thd->used_tables))
-	  extra.append("; Distinct");
+	  extra.append(STRING_WITH_LEN("; Distinct"));
         
         /* Skip initial "; "*/
         const char *str= extra.ptr();
@@ -14030,15 +14032,18 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)
-      str->append(" left join ", 11); // MySQL converts right to left joins
+    {
+      /* MySQL converts right to left joins */
+      str->append(STRING_WITH_LEN(" left join "));
+    }
     else if (curr->straight)
-      str->append(" straight_join ", 15);
+      str->append(STRING_WITH_LEN(" straight_join "));
     else
-      str->append(" join ", 6);
+      str->append(STRING_WITH_LEN(" join "));
     curr->print(thd, str);
     if (curr->on_expr)
     {
-      str->append(" on(", 4);
+      str->append(STRING_WITH_LEN(" on("));
       curr->on_expr->print(str);
       str->append(')');
     }
@@ -14123,28 +14128,28 @@ void st_select_lex::print(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  str->append("select ", 7);
+  str->append(STRING_WITH_LEN("select "));
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
-    str->append("straight_join ", 14);
+    str->append(STRING_WITH_LEN("straight_join "));
   if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
       (this == &thd->lex->select_lex))
-    str->append("high_priority ", 14);
+    str->append(STRING_WITH_LEN("high_priority "));
   if (options & SELECT_DISTINCT)
-    str->append("distinct ", 9);
+    str->append(STRING_WITH_LEN("distinct "));
   if (options & SELECT_SMALL_RESULT)
-    str->append("sql_small_result ", 17);
+    str->append(STRING_WITH_LEN("sql_small_result "));
   if (options & SELECT_BIG_RESULT)
-    str->append("sql_big_result ", 15);
+    str->append(STRING_WITH_LEN("sql_big_result "));
   if (options & OPTION_BUFFER_RESULT)
-    str->append("sql_buffer_result ", 18);
+    str->append(STRING_WITH_LEN("sql_buffer_result "));
   if (options & OPTION_FOUND_ROWS)
-    str->append("sql_calc_found_rows ", 20);
+    str->append(STRING_WITH_LEN("sql_calc_found_rows "));
   if (!thd->lex->safe_to_cache_query)
-    str->append("sql_no_cache ", 13);
+    str->append(STRING_WITH_LEN("sql_no_cache "));
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("sql_cache ", 10);
+    str->append(STRING_WITH_LEN("sql_cache "));
 
   //Item List
   bool first= 1;
@@ -14165,7 +14170,7 @@ void st_select_lex::print(THD *thd, String *str)
   */
   if (table_list.elements)
   {
-    str->append(" from ", 6);
+    str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &top_join_list);
   }
@@ -14176,22 +14181,22 @@ void st_select_lex::print(THD *thd, String *str)
     cur_where= join->conds;
   if (cur_where)
   {
-    str->append(" where ", 7);
+    str->append(STRING_WITH_LEN(" where "));
     cur_where->print(str);
   }
 
   // group by & olap
   if (group_list.elements)
   {
-    str->append(" group by ", 10);
+    str->append(STRING_WITH_LEN(" group by "));
     print_order(str, (ORDER *) group_list.first);
     switch (olap)
     {
       case CUBE_TYPE:
-	str->append(" with cube", 10);
+	str->append(STRING_WITH_LEN(" with cube"));
 	break;
       case ROLLUP_TYPE:
-	str->append(" with rollup", 12);
+	str->append(STRING_WITH_LEN(" with rollup"));
 	break;
       default:
 	;  //satisfy compiler
@@ -14205,13 +14210,13 @@ void st_select_lex::print(THD *thd, String *str)
 
   if (cur_having)
   {
-    str->append(" having ", 8);
+    str->append(STRING_WITH_LEN(" having "));
     cur_having->print(str);
   }
 
   if (order_list.elements)
   {
-    str->append(" order by ", 10);
+    str->append(STRING_WITH_LEN(" order by "));
     print_order(str, (ORDER *) order_list.first);
   }
 

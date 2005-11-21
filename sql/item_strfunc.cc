@@ -1790,7 +1790,7 @@ String *Item_func_format::val_str(String *str)
 
 void Item_func_format::print(String *str)
 {
-  str->append("format(", 7);
+  str->append(STRING_WITH_LEN("format("));
   args[0]->print(str);
   str->append(',');  
   // my_charset_bin is good enough for numbers
@@ -1950,7 +1950,7 @@ String *Item_func_make_set::val_str(String *str)
 
 void Item_func_make_set::print(String *str)
 {
-  str->append("make_set(", 9);
+  str->append(STRING_WITH_LEN("make_set("));
   item->print(str);
   if (arg_count)
   {
@@ -2331,9 +2331,9 @@ void Item_func_conv_charset::fix_length_and_dec()
 
 void Item_func_conv_charset::print(String *str)
 {
-  str->append("convert(", 8);
+  str->append(STRING_WITH_LEN("convert("));
   args[0]->print(str);
-  str->append(" using ", 7);
+  str->append(STRING_WITH_LEN(" using "));
   str->append(conv_charset->csname);
   str->append(')');
 }
@@ -2403,7 +2403,7 @@ void Item_func_set_collation::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" collate ", 9);
+  str->append(STRING_WITH_LEN(" collate "));
   DBUG_ASSERT(args[1]->basic_const_item() &&
               args[1]->type() == Item::STRING_ITEM);
   args[1]->str_value.print(str);
@@ -2523,9 +2523,9 @@ String *Item_func_unhex::val_str(String *str)
 
 void Item_func_binary::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as binary)", 11);
+  str->append(STRING_WITH_LEN(" as binary)"));
 }
 
 
@@ -2630,7 +2630,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1, default_charset());
+    sep_buf.set(STRING_WITH_LEN(","), default_charset());
     sep = &sep_buf;
     break;
   default:
@@ -2745,7 +2745,8 @@ String *Item_func_quote::val_str(String *str)
   uint arg_length, new_length;
   if (!arg)					// Null argument
   {
-    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
+    /* Return the string 'NULL' */
+    str->copy(STRING_WITH_LEN("NULL"), collation.collation);
     null_value= 0;
     return str;
   }

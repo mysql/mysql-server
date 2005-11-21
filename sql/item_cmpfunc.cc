@@ -1175,10 +1175,10 @@ void Item_func_between::print(String *str)
   str->append('(');
   args[0]->print(str);
   if (negated)
-    str->append(" not", 4);
-  str->append(" between ", 9);
+    str->append(STRING_WITH_LEN(" not"));
+  str->append(STRING_WITH_LEN(" between "));
   args[1]->print(str);
-  str->append(" and ", 5);
+  str->append(STRING_WITH_LEN(" and "));
   args[2]->print(str);
   str->append(')');
 }
@@ -1793,7 +1793,7 @@ uint Item_func_case::decimal_precision() const
 
 void Item_func_case::print(String *str)
 {
-  str->append("(case ", 6);
+  str->append(STRING_WITH_LEN("(case "));
   if (first_expr_num != -1)
   {
     args[first_expr_num]->print(str);
@@ -1801,19 +1801,19 @@ void Item_func_case::print(String *str)
   }
   for (uint i=0 ; i < ncases ; i+=2)
   {
-    str->append("when ", 5);
+    str->append(STRING_WITH_LEN("when "));
     args[i]->print(str);
-    str->append(" then ", 6);
+    str->append(STRING_WITH_LEN(" then "));
     args[i+1]->print(str);
     str->append(' ');
   }
   if (else_expr_num != -1)
   {
-    str->append("else ", 5);
+    str->append(STRING_WITH_LEN("else "));
     args[else_expr_num]->print(str);
     str->append(' ');
   }
-  str->append("end)", 4);
+  str->append(STRING_WITH_LEN("end)"));
 }
 
 /*
@@ -2419,10 +2419,10 @@ void Item_func_in::print(String *str)
   str->append('(');
   args[0]->print(str);
   if (negated)
-    str->append(" not", 4);
-  str->append(" in (", 5);
+    str->append(STRING_WITH_LEN(" not"));
+  str->append(STRING_WITH_LEN(" in ("));
   print_args(str, 1);
-  str->append("))", 2);
+  str->append(STRING_WITH_LEN("))"));
 }
 
 
@@ -2894,7 +2894,7 @@ void Item_func_isnotnull::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" is not null)", 13);
+  str->append(STRING_WITH_LEN(" is not null)"));
 }
 
 
