@@ -83,7 +83,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
 #ifdef HAVE_OPENSSL 
   if (type == VIO_TYPE_SSL)
   {
-    vio->viodelete	=vio_ssl_delete;
+    vio->viodelete	=vio_delete;
     vio->vioerrno	=vio_ssl_errno;
     vio->read		=vio_ssl_read;
     vio->write		=vio_ssl_write;
