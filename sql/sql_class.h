@@ -1229,14 +1229,16 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
     }
-#ifdef USING_TRANSACTIONS
     st_transactions()
     {
+#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-    }
+#else
+      xid_state.xa_state= XA_NOTR;
 #endif
+    }
   } transaction;
   Field      *dupp_field;
 #ifndef __WIN__
