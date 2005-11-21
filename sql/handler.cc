@@ -1382,7 +1382,7 @@ int ha_create_table_from_engine(THD* thd,
     DBUG_RETURN(3);
 
   update_create_info_from_table(&create_info, &table);
-  create_info.table_options|= HA_CREATE_FROM_ENGINE;
+  create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
