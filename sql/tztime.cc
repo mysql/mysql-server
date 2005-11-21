@@ -1558,7 +1558,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end_with_cleanup;
   }
-  tmp_tzname->name.set("SYSTEM", 6, &my_charset_latin1);
+  tmp_tzname->name.set(STRING_WITH_LEN("SYSTEM"), &my_charset_latin1);
   tmp_tzname->tz= my_tz_SYSTEM;
   if (my_hash_insert(&tz_names, (const byte *)tmp_tzname))
   {

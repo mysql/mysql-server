@@ -1397,7 +1397,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   
-  if (!mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23) &&
+  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -1423,7 +1423,8 @@ do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-  if (!mysql_real_query(mysql, "SHOW VARIABLES LIKE 'SERVER_ID'", 31) &&
+  if (!mysql_real_query(mysql,
+                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1458,7 +1459,8 @@ not always make sense; please check the manual before using it).";
     goto err;
 
   if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
+      !mysql_real_query(mysql,
+                        STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1485,7 +1487,7 @@ be equal for replication to work";
     those were alpha).
   */
   if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
+      !mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
