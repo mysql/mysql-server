@@ -1103,10 +1103,7 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 uint ha_partition::lock_count() const
 {
   DBUG_ENTER("ha_partition::lock_count");
-  if (m_no_locks == 0)
-    DBUG_RETURN(0);
-
-  DBUG_RETURN(m_tot_parts);
+  DBUG_RETURN(m_no_locks);
 }
 
 
