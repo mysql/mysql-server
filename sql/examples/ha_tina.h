@@ -48,6 +48,7 @@ class ha_tina: public handler
   tina_set *chain_ptr;
   byte chain_alloced;
   uint32 chain_size;
+  bool records_is_known;
 
 public:
   ha_tina(TABLE *table_arg);
