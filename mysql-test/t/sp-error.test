@@ -1233,6 +1233,10 @@ begin
   select password;
 end|
 
+# Check that an error message is sent
+--error ER_PARSE_ERROR
+set names='foo2'|
+
 --error ER_SP_BAD_VAR_SHADOW
 create procedure bug13510_2()
 begin
