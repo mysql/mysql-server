@@ -65,3 +65,6 @@ select hex(s1) from t1 where s1=0x0120;
 select hex(s1) from t1 where s1=0x0100;
 select count(distinct s1) from t1;
 drop table t1;
+
+# check that cast appends trailing zeros
+select hex(cast(0x10 as binary(2)));
