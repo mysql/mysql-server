@@ -496,6 +496,8 @@ pthread_cond_t COND_refresh,COND_thread_count;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 
+File_parser_dummy_hook file_parser_dummy_hook;
+
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;

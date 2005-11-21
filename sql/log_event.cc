@@ -160,7 +160,7 @@ static void cleanup_load_tmpdir()
      we cannot meet Start_log event in the middle of events from one 
      LOAD DATA.
   */
-  p= strmake(prefbuf,"SQL_LOAD-",9);
+  p= strmake(prefbuf, STRING_WITH_LEN("SQL_LOAD-"));
   p= int10_to_str(::server_id, p, 10);
   *(p++)= '-';
   *p= 0;
@@ -2991,7 +2991,7 @@ void Rotate_log_event::pack_info(Protocol *protocol)
   String tmp(buf1, sizeof(buf1), log_cs);
   tmp.length(0);
   tmp.append(new_log_ident, ident_len);
-  tmp.append(";pos=");
+  tmp.append(STRING_WITH_LEN(";pos="));
   tmp.append(llstr(pos,buf));
   protocol->store(tmp.ptr(), tmp.length(), &my_charset_bin);
 }
@@ -4163,7 +4163,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   bzero((char*)&file, sizeof(file));
   p = slave_load_file_stem(fname_buf, file_id, server_id);
   strmov(p, ".info");			// strmov takes less code than memcpy
-  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  strnmov(proc_info, STRING_WITH_LEN("Making temp file ")); // no end 0
   thd->proc_info= proc_info;
   my_delete(fname_buf, MYF(0)); // old copy may exist already
   if ((fd= my_create(fname_buf, CREATE_MODE,
@@ -4332,7 +4332,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_ENTER("Append_block_log_event::exec_event");
 
   memcpy(p, ".data", 6);
-  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  strnmov(proc_info, STRING_WITH_LEN("Making temp file ")); // no end 0
   thd->proc_info= proc_info;
   if (get_create_or_append())
   {
@@ -4816,23 +4816,23 @@ Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
   p= buf;
   memcpy(p, query, fn_pos_start);
   p+= fn_pos_start;
-  fname= (p= strmake(p, " INFILE \'", 9));
+  fname= (p= strmake(p, STRING_WITH_LEN(" INFILE \'")));
   p= slave_load_file_stem(p, file_id, server_id);
-  fname_end= (p= strmake(p, ".data", 5));
+  fname_end= (p= strmake(p, STRING_WITH_LEN(".data")));
   *(p++)='\'';
   switch (dup_handling)
   {
   case LOAD_DUP_IGNORE:
-    p= strmake(p, " IGNORE", 7);
+    p= strmake(p, STRING_WITH_LEN(" IGNORE"));
     break;
   case LOAD_DUP_REPLACE:
-    p= strmake(p, " REPLACE", 8);
+    p= strmake(p, STRING_WITH_LEN(" REPLACE"));
     break;
   default:
     /* Ordinary load data */
     break;
   }
-  p= strmake(p, " INTO", 5);
+  p= strmake(p, STRING_WITH_LEN(" INTO"));
   p= strmake(p, query+fn_pos_end, q_len-fn_pos_end);
 
   error= Query_log_event::exec_event(rli, buf, p-buf);
