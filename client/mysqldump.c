@@ -1841,12 +1841,13 @@ DELIMITER ;;\n");
   while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
             row[6], /* sql_mode */
             quote_name(row[0], name_buff, 0), /* Trigger */
             row[4], /* Timing */
             row[1], /* Event */
             result_table,
+	    (strchr(" \t\n\r", *(row[3]))) ? "" : " ",
             row[3] /* Statement */);
   }
   if (mysql_num_rows(result))
