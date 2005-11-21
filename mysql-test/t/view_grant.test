@@ -664,3 +664,39 @@ insert into mysql.user select * from t1;
 flush privileges;
 
 drop table t1;
+
+#
+# BUG#14726: freeing stack variable in case of an error of opening
+# a view when we have locked tables with LOCK TABLES statement.
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+CREATE TABLE t1 (i INT);
+CREATE VIEW  v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+GRANT SELECT, LOCK TABLES ON mysqltest.* TO mysqltest_1@localhost;
+
+connection user1;
+
+use mysqltest;
+LOCK TABLES v1 READ;
+-- error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE TABLE v1;
+UNLOCK TABLES;
+use test;
+
+connection root;
+use test;
+drop user mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# switch to default connaction
+#
+disconnect user1;
+disconnect root;
+connection default;

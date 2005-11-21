@@ -501,3 +501,20 @@ drop user test14256;
 insert into mysql.user select * from t1;
 flush privileges;
 drop table t1;
+create database mysqltest;
+use mysqltest;
+CREATE TABLE t1 (i INT);
+CREATE VIEW  v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`
+GRANT SELECT, LOCK TABLES ON mysqltest.* TO mysqltest_1@localhost;
+use mysqltest;
+LOCK TABLES v1 READ;
+SHOW CREATE TABLE v1;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+UNLOCK TABLES;
+use test;
+use test;
+drop user mysqltest_1@localhost;
+drop database mysqltest;
