@@ -2357,7 +2357,8 @@ String *Item_char_typecast::val_str(String *str)
     if (res->length() > (length= (uint32) res->charpos(cast_length)))
     {                                           // Safe even if const arg
       char char_type[40];
-      my_snprintf(char_type, sizeof(char_type), "CHAR(%lu)", length);
+      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
+                  cast_cs == &my_charset_bin ? "BINARY" : "CHAR", length);
 
       if (!res->alloced_length())
       {                                         // Don't change const str
