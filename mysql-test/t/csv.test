@@ -1352,3 +1352,35 @@ SELECT * FROM bug14672;
 DROP TABLE bug14672;
 
 # End of 4.1 tests
+
+#
+# BUG#13406 - incorrect amount of "records deleted"
+#
+
+create table t1 (a int) engine=csv;
+insert t1 values (1);
+--enable_info
+delete from t1;                 -- delete_row
+delete from t1;                 -- delete_all_rows
+--disable_info
+insert t1 values (1),(2);
+--enable_info
+delete from t1;                 -- delete_all_rows
+--disable_info
+insert t1 values (1),(2),(3);
+flush tables;
+--enable_info
+delete from t1;                 -- delete_row
+--disable_info
+insert t1 values (1),(2),(3),(4);
+flush tables;
+select count(*) from t1;
+--enable_info
+delete from t1;                 -- delete_all_rows
+--disable_info
+insert t1 values (1),(2),(3),(4),(5);
+--enable_info
+truncate table t1;              -- truncate
+--disable_info
+drop table t1;
+
