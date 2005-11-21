@@ -6194,6 +6194,8 @@ uint Field_string::max_packed_col_length(uint max_length)
 
 Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
 {
+  Field *new_field;
+
   if (type() != MYSQL_TYPE_VAR_STRING || table == new_table)
     return Field::new_field(root, new_table);
 
@@ -6202,15 +6204,16 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  Field *new_field= new Field_varstring(field_length, maybe_null(),
-                                        field_name, new_table,
-                                        charset());
-  /*
-    delayed_insert::get_local_table() needs a ptr copied from old table.
-    This is what other new_field() methods do too. The above method of
-    Field_varstring sets ptr to NULL.
-  */
-  new_field->ptr= ptr;
+  if (new_field= new Field_varstring(field_length, maybe_null(),
+                                     field_name, new_table, charset()))
+  {
+    /*
+      delayed_insert::get_local_table() needs a ptr copied from old table.
+      This is what other new_field() methods do too. The above method of
+      Field_varstring sets ptr to NULL.
+    */
+    new_field->ptr= ptr;
+  }
   return new_field;
 }
 
