@@ -1,7 +1,7 @@
 DOXYDIR = doxygen
 noinst_HEADERS = $(DOXYDIR)/predoxy.pl $(DOXYDIR)/postdoxy.pl $(DOXYDIR)/Doxyfile.ndbapi $(DOXYDIR)/Doxyfile.mgmapi $(DOXYDIR)/header.ndbapi.tex $(DOXYDIR)/header.mgmapi.tex
 
-all: 	do-check-html ndbapidoc-html mgmapidoc-html
+all-local: 	do-check-html ndbapidoc-html mgmapidoc-html
 all-pdf: 	do-check-pdf ndbapidoc-pdf mgmapidoc-pdf
 
 DOXYTMP =	.doxytmp

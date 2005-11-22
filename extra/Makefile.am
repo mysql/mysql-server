@@ -23,6 +23,9 @@ BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
                         $(top_builddir)/include/mysqld_ername.h
 pkginclude_HEADERS=	$(BUILT_SOURCES)
 CLEANFILES =		$(BUILT_SOURCES)
+# We never use SUBDIRS here, but needed for automake 1.6.3
+# to generate code to handle DIST_SUBDIRS
+SUBDIRS=
 DIST_SUBDIRS=           yassl
 
 # This will build mysqld_error.h and sql_state.h
