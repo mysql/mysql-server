@@ -21,14 +21,15 @@ tests_sources   = $(mysql_client_test_embedded_SOURCES)
 CLEANFILES      = $(client_sources) $(tests_sources)
 
 link_sources:
+	set -x; \
 	for f in $(client_sources); do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(srcdir)/../../client/$$f $(srcdir)/$$f; \
-	done;
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/client/$$f $$f; \
+	done; \
 	for f in $(tests_sources); do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(srcdir)/../../tests/$$f $(srcdir)/$$f; \
-	done;
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/tests/$$f $$f; \
+	done
 
 DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
