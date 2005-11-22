@@ -424,3 +424,7 @@ DROP TABLE urkunde;
 #
 --error 1049
 SHOW TABLES FROM non_existing_database;
+
+# End of 4.1 tests
+#
+SHOW AUTHORS;

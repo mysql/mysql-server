@@ -74,6 +74,7 @@ static SYMBOL symbols[] = {
   { "ASC",		SYM(ASC)},
   { "ASCII",		SYM(ASCII_SYM)},
   { "ASENSITIVE",       SYM(ASENSITIVE_SYM)},
+  { "AUTHORS",	        SYM(AUTHORS_SYM)},
   { "AUTO_INCREMENT",	SYM(AUTO_INC)},
   { "AVG",		SYM(AVG_SYM)},
   { "AVG_ROW_LENGTH",	SYM(AVG_ROW_LENGTH)},

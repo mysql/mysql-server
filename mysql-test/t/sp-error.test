@@ -1233,6 +1233,10 @@ begin
   select password;
 end|
 
+# Check that an error message is sent
+--error ER_PARSE_ERROR
+set names='foo2'|
+
 --error ER_SP_BAD_VAR_SHADOW
 create procedure bug13510_2()
 begin
@@ -1263,7 +1267,167 @@ call bug13510_4()|
 
 drop procedure bug13510_3|
 drop procedure bug13510_4|
+
+
+#
+# Test that statements which implicitly commit transaction are prohibited
+# in stored function and triggers. Attempt to create function or trigger
+# containing such statement should produce error (includes test for
+# bug #13627).
+#
+--disable_warnings
+drop function if exists bug_13627_f|
+--enable_warnings
+
+CREATE TABLE t1 (a int)|
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN DROP TRIGGER test1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN DROP TRIGGER test1; return 1; END |
+
+-- error ER_SP_BADSTATEMENT
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN load table t1 from master; END |
+-- error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug_13627_f() returns int BEGIN load table t1 from master; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create table t2 (a int); END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN create table t2 (a int); return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create index t1_i on t1 (a); END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN create index t1_i on t1 (a); return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN alter table t1 add column  b int; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN alter table t1 add column  b int; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN rename table t1 to t2; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN rename table t1 to t2; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN truncate table t1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN truncate table t1; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop table t1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop table t1; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop index t1_i on t1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop index t1_i on t1; return 1; END |
+
+-- error ER_SP_BADSTATEMENT
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN unlock tables; END |
+-- error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug_13627_f() returns int BEGIN unlock tables; return 1; END |
+
+-- error ER_SP_BADSTATEMENT
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN LOCK TABLE t1 READ; END |
+-- error ER_SP_BADSTATEMENT
+CREATE FUNCTION bug_13627_f() returns int BEGIN LOCK TABLE t1 READ; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create database mysqltest; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN create database mysqltest; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop database mysqltest; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop database mysqltest; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create user 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN create user 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop user 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop user 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN rename user 'mysqltest_2' to 'mysqltest_1'; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN rename user 'mysqltest_2' to 'mysqltest_1'; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create view v1 as select 1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN create view v1 as select 1; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN alter view v1 as select 1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN alter view v1 as select 1; return 1; END |
+
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop view v1; END |
+-- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop view v1; return 1; END |
+
+-- error ER_SP_NO_RECURSIVE_CREATE
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create trigger tr2 before insert on t1 for each row do select 1; END |
+-- error ER_SP_NO_RECURSIVE_CREATE
+CREATE FUNCTION bug_13627_f() returns int BEGIN create trigger tr2 before insert on t1 for each row do select 1; return 1; END |
+
+-- error ER_SP_NO_DROP_SP
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN drop function bug_13627_f; END |
+-- error ER_SP_NO_DROP_SP
+CREATE FUNCTION bug_13627_f() returns int BEGIN drop function bug_13627_f; return 1; END |
+
+-- error ER_SP_NO_RECURSIVE_CREATE
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN create function f2 () returns int return 1; END |
+-- error ER_SP_NO_RECURSIVE_CREATE
+CREATE FUNCTION bug_13627_f() returns int BEGIN create function f2 () returns int return 1; return 1; END |
+
+CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW
+  BEGIN
+    CREATE TEMPORARY TABLE t2 (a int);
+    DROP TEMPORARY TABLE t2;
+  END |
+CREATE FUNCTION bug_13627_f() returns int
+  BEGIN
+    CREATE TEMPORARY TABLE t2 (a int);
+    DROP TEMPORARY TABLE t2;
+    return 1;
+  END |
+
+drop table t1|
+drop function bug_13627_f|
+
 delimiter ;|
+
+# BUG#12329: "Bogus error msg when executing PS with stored procedure after
+# SP was re-created". See also test for related bug#13399 in trigger.test
+--disable_warnings
+drop function if exists bug12329;
+--enable_warnings
+create table t1 as select 1 a;
+create table t2 as select 1 a;
+create function bug12329() returns int return (select a from t1);
+prepare stmt1 from 'select bug12329()';
+execute stmt1;
+drop function bug12329;
+create function bug12329() returns int return (select a+100 from t2);
+select bug12329();
+# Until we implement proper mechanism for invalidation of PS/SP when table
+# or SP's are changed the following statement will fail with 'Table ... was
+# not locked' error (this mechanism should be based on the new TDC).
+--error 1100 
+execute stmt1;
+deallocate prepare stmt1;
+drop function bug12329; 
+drop table t1, t2;
 
 #
 # Bug#13514 "server crash when create a stored procedure before choose a
@@ -1336,6 +1500,22 @@ CALL bug13037_p3();
 DROP PROCEDURE bug13037_p1;
 DROP PROCEDURE bug13037_p2;
 DROP PROCEDURE bug13037_p3;
+
+#
+# Bug#14569 "editing a stored procedure kills mysqld-nt"
+#
+create database mysqltest1;
+create database mysqltest2;
+use mysqltest1;
+drop database mysqltest1;
+create procedure mysqltest2.p1() select version();
+--error ER_NO_DB_ERROR 
+create procedure p2() select version();
+use mysqltest2;
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show procedure status;
+drop database mysqltest2;
+use test;
 
 
 # BUG#NNNN: New bug synopsis

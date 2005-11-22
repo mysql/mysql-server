@@ -2040,6 +2040,35 @@ void st_lex::cleanup_after_one_table_open()
 
 
 /*
+  Do end-of-prepare fixup for list of tables and their merge-VIEWed tables
+
+  SYNOPSIS
+    fix_prepare_info_in_table_list()
+      thd  Thread handle
+      tbl  List of tables to process
+
+  DESCRIPTION
+    Perform end-end-of prepare fixup for list of tables, if any of the tables
+    is a merge-algorithm VIEW, recursively fix up its underlying tables as
+    well.
+
+*/
+
+static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
+{
+  for (; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->on_expr)
+    {
+      tbl->prep_on_expr= tbl->on_expr;
+      tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+    }
+    fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
+  }
+}
+
+
+/*
   fix some structures at the end of preparation
 
   SYNOPSIS
@@ -2058,16 +2087,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
       prep_where= *conds;
       *conds= where= prep_where->copy_andor_structure(thd);
     }
-    for (TABLE_LIST *tbl= (TABLE_LIST *)table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      if (tbl->on_expr)
-      {
-        tbl->prep_on_expr= tbl->on_expr;
-        tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
-      }
-    }
+    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
   }
 }
 

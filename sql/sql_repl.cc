@@ -373,11 +373,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     goto err;
   }
 
-  /*
-    Call readers_addref before opening log to track count 
-    of binlog readers
-  */
-  mysql_bin_log.readers_addref();
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
   {
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -575,8 +570,7 @@ impossible position";
       goto err;
 
     if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name) &&
-        !mysql_bin_log.is_reset_pending())
+        mysql_bin_log.is_active(log_file_name))
     {
       /*
 	Block until there is more data in the log
@@ -689,13 +683,7 @@ impossible position";
     else
     {
       bool loop_breaker = 0;
-      // need this to break out of the for loop from switch
-
-      // if we are going to switch log file anyway, close current log first
-      end_io_cache(&log);
-      (void) my_close(file, MYF(MY_WME));
-      // decrease reference count of binlog readers
-      mysql_bin_log.readers_release();
+      /* need this to break out of the for loop from switch */
 
       thd->proc_info = "Finished reading one binlog; switching to next binlog";
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
@@ -705,25 +693,16 @@ impossible position";
       case 0:
 	break;
       default:
-	// need following call to do release on err label
-	mysql_bin_log.readers_addref(); 
 	errmsg = "could not find next log";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
       }
 
-	if (loop_breaker)
-	{
-	  // need following call to do release on end label
-	  mysql_bin_log.readers_addref();
-	  break;
-	}
-
-      /*
-        Call readers_addref before opening log to track count 
-        of binlog readers
-      */
-      mysql_bin_log.readers_addref();
+      if (loop_breaker)
+        break;
+      
+      end_io_cache(&log);
+      (void) my_close(file, MYF(MY_WME));
 
       /*
         Call fake_rotate_event() in case the previous log (the one which
@@ -756,8 +735,6 @@ end:
 
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
-  // decrease reference count of binlog readers
-  mysql_bin_log.readers_release();
 
   send_eof(thd);
   thd->proc_info = "Waiting to finalize termination";
@@ -784,8 +761,6 @@ err:
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     (void) my_close(file, MYF(MY_WME));
-  // decrease reference count of binlog readers
-  mysql_bin_log.readers_release();
 
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
