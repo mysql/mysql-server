@@ -703,8 +703,11 @@ create trigger t1_ai after insert on t1
 for each row insert into t2 values (new.f1+1);
 create trigger t2_ai after insert on t2
 for each row insert into t1 values (new.f2+1);
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth;
+set @@max_sp_recursion_depth=100;
 insert into t1 values (1);
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 f1
 1

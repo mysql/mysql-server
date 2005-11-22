@@ -5361,7 +5361,7 @@ ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 ER_NO_DEFAULT_FOR_VIEW_FIELD
         eng "Field of view '%-.64s.%-.64s' underlying table doesn't have a default value"
 ER_SP_NO_RECURSION
-        eng "Recursive stored routines are not allowed."
+        eng "Recursive stored functions and triggers are not allowed."
 ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.64s'. Maximum is %d."
 ER_TOO_BIG_PRECISION 42000 S1009
@@ -5421,3 +5421,5 @@ ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
 ER_SP_BAD_VAR_SHADOW 42000
 	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
+ER_SP_RECURSION_LIMIT
+        eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
