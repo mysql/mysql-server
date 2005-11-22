@@ -626,6 +626,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   {
     order=0;					// The output has only one row
     simple_order=1;
+    select_distinct= 0;                       // No need in distinct for 1 row
   }
 
   calc_group_buffer(&join,group);
@@ -3115,7 +3116,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   tab->cached_eq_ref_table=1;
   if (tab->type == JT_CONST)			// We can skip const tables
     return (tab->eq_ref_table=1);		/* purecov: inspected */
-  if (tab->type != JT_EQ_REF)
+  if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
   Item **ref_item=tab->ref.items;
   Item **end=ref_item+tab->ref.key_parts;
@@ -6002,8 +6003,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   key_map usable_keys;
   DBUG_ENTER("test_if_skip_sort_order");
 
-  /* Check which keys can be used to resolve ORDER BY */
-  usable_keys= ~(key_map) 0;
+  /*
+    Check which keys can be used to resolve ORDER BY.
+    We must not try to use disabled keys.
+  */
+  usable_keys= table->keys_in_use;
+
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
@@ -6845,8 +6850,14 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     return 0;
   }
   order->in_field_list=0;
+  /* Allow lookup in select's item_list to find aliased fields */
+  thd->lex.select_lex.is_item_list_lookup= 1;
   if ((*order->item)->fix_fields(thd,tables) || thd->fatal_error)
+  {
+    thd->lex.select_lex.is_item_list_lookup= 0;
     return 1;					// Wrong field
+  }
+  thd->lex.select_lex.is_item_list_lookup= 0;
   all_fields.push_front(*order->item);		// Add new field to field list
   order->item=(Item**) all_fields.head_ref();
   return 0;
