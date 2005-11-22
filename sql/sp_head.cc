@@ -858,9 +858,9 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
       
       /* append the spvar substitute */
-      res|= qbuf.append(" NAME_CONST('");
+      res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
       res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
-      res|= qbuf.append("',");
+      res|= qbuf.append(STRING_WITH_LEN("',"));
       val= (*splocal)->this_item();
       DBUG_PRINT("info", ("print %p", val));
       val->print(&qbuf);
@@ -1215,7 +1215,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     char buf[256];
     String bufstr(buf, sizeof(buf), &my_charset_bin);
     bufstr.length(0);
-    bufstr.append("DO ", 3);
+    bufstr.append(STRING_WITH_LEN("DO "));
     append_identifier(thd, &bufstr, m_name.str, m_name.length);
     bufstr.append('(');
     for (uint i=0; i < argcount; i++)
@@ -2056,7 +2056,7 @@ void
 sp_instr_stmt::print(String *str)
 {
   str->reserve(12);
-  str->append("stmt ");
+  str->append(STRING_WITH_LEN("stmt "));
   str->qs_append((uint)m_lex_keeper.sql_command());
 }
 
@@ -2097,7 +2097,7 @@ void
 sp_instr_set::print(String *str)
 {
   str->reserve(12);
-  str->append("set ");
+  str->append(STRING_WITH_LEN("set "));
   str->qs_append(m_offset);
   str->append(' ');
   m_value->print(str);
@@ -2132,9 +2132,9 @@ sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set_trigger_field::print(String *str)
 {
-  str->append("set ", 4);
+  str->append(STRING_WITH_LEN("set "));
   trigger_field->print(str);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   value->print(str);
 }
 
@@ -2157,7 +2157,7 @@ void
 sp_instr_jump::print(String *str)
 {
   str->reserve(12);
-  str->append("jump ");
+  str->append(STRING_WITH_LEN("jump "));
   str->qs_append(m_dest);
 }
 
@@ -2239,7 +2239,7 @@ void
 sp_instr_jump_if::print(String *str)
 {
   str->reserve(12);
-  str->append("jump_if ");
+  str->append(STRING_WITH_LEN("jump_if "));
   str->qs_append(m_dest);
   str->append(' ');
   m_expr->print(str);
@@ -2300,7 +2300,7 @@ void
 sp_instr_jump_if_not::print(String *str)
 {
   str->reserve(16);
-  str->append("jump_if_not ");
+  str->append(STRING_WITH_LEN("jump_if_not "));
   str->qs_append(m_dest);
   str->append(' ');
   m_expr->print(str);
@@ -2358,7 +2358,7 @@ void
 sp_instr_freturn::print(String *str)
 {
   str->reserve(12);
-  str->append("freturn ");
+  str->append(STRING_WITH_LEN("freturn "));
   str->qs_append((uint)m_type);
   str->append(' ');
   m_value->print(str);
@@ -2386,13 +2386,13 @@ void
 sp_instr_hpush_jump::print(String *str)
 {
   str->reserve(32);
-  str->append("hpush_jump ");
+  str->append(STRING_WITH_LEN("hpush_jump "));
   str->qs_append(m_dest);
-  str->append(" t=");
+  str->append(STRING_WITH_LEN(" t="));
   str->qs_append(m_type);
-  str->append(" f=");
+  str->append(STRING_WITH_LEN(" f="));
   str->qs_append(m_frame);
-  str->append(" h=");
+  str->append(STRING_WITH_LEN(" h="));
   str->qs_append(m_ip+1);
 }
 
@@ -2429,7 +2429,7 @@ void
 sp_instr_hpop::print(String *str)
 {
   str->reserve(12);
-  str->append("hpop ");
+  str->append(STRING_WITH_LEN("hpop "));
   str->qs_append(m_count);
 }
 
@@ -2464,7 +2464,7 @@ void
 sp_instr_hreturn::print(String *str)
 {
   str->reserve(16);
-  str->append("hreturn ");
+  str->append(STRING_WITH_LEN("hreturn "));
   str->qs_append(m_frame);
   if (m_dest)
   {
@@ -2516,7 +2516,7 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpush::print(String *str)
 {
-  str->append("cpush");
+  str->append(STRING_WITH_LEN("cpush"));
 }
 
 
@@ -2538,7 +2538,7 @@ void
 sp_instr_cpop::print(String *str)
 {
   str->reserve(12);
-  str->append("cpop ");
+  str->append(STRING_WITH_LEN("cpop "));
   str->qs_append(m_count);
 }
 
@@ -2613,7 +2613,7 @@ void
 sp_instr_copen::print(String *str)
 {
   str->reserve(12);
-  str->append("copen ");
+  str->append(STRING_WITH_LEN("copen "));
   str->qs_append(m_cursor);
 }
 
@@ -2642,7 +2642,7 @@ void
 sp_instr_cclose::print(String *str)
 {
   str->reserve(12);
-  str->append("cclose ");
+  str->append(STRING_WITH_LEN("cclose "));
   str->qs_append(m_cursor);
 }
 
@@ -2673,7 +2673,7 @@ sp_instr_cfetch::print(String *str)
   sp_pvar_t *pv;
 
   str->reserve(12);
-  str->append("cfetch ");
+  str->append(STRING_WITH_LEN("cfetch "));
   str->qs_append(m_cursor);
   while ((pv= li++))
   {
@@ -2703,7 +2703,7 @@ void
 sp_instr_error::print(String *str)
 {
   str->reserve(12);
-  str->append("error ");
+  str->append(STRING_WITH_LEN("error "));
   str->qs_append(m_errcode);
 }
 
@@ -2906,33 +2906,34 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 
   /*
-    Use persistent arena for table list allocation to be PS friendly.
+    Use persistent arena for table list allocation to be PS/SP friendly.
+    Note that we also have to copy database/table names and alias to PS/SP
+    memory since current instance of sp_head object can pass away before
+    next execution of PS/SP for which tables are added to prelocking list.
+    This will be fixed by introducing of proper invalidation mechanism
+    once new TDC is ready.
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (i=0 ; i < m_sptabs.records ; i++)
   {
-    char *tab_buff;
+    char *tab_buff, *key_buff;
     TABLE_LIST *table;
     SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
 
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
-                                        stab->lock_count)))
+                                        stab->lock_count)) ||
+        !(key_buff= (char*)thd->memdup(stab->qname.str,
+                                       stab->qname.length + 1)))
       DBUG_RETURN(FALSE);
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
       table= (TABLE_LIST *)tab_buff;
 
-      /*
-        It's enough to just copy the pointers as the data will not change
-        during the lifetime of the SP. If the SP is used by PS, we assume
-        that the PS will be invalidated if the functions is deleted or
-        changed.
-      */
-      table->db= stab->qname.str;
+      table->db= key_buff;
       table->db_length= stab->db_length;
       table->table_name= table->db + table->db_length + 1;
       table->table_name_length= stab->table_name_length;

@@ -205,3 +205,54 @@ select (@after-@before) >= 2;
 (@after-@before) >= 2
 1
 drop table t1,t2;
+commit;
+begin;
+create temporary table ti (a int) engine=innodb;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam;
+commit;
+insert t1 values (1);
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3);
+select get_lock("lock1",60);
+get_lock("lock1",60)
+1
+show binlog events from 98;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	166	Query	1	#	use `test`; insert into t1 values(16)
+master-bin.000001	254	Query	1	#	use `test`; insert into t1 values(18)
+master-bin.000001	342	Xid	1	#	COMMIT /* xid=105 */
+master-bin.000001	369	Query	1	#	use `test`; delete from t1
+master-bin.000001	446	Xid	1	#	COMMIT /* xid=114 */
+master-bin.000001	473	Query	1	#	use `test`; delete from t2
+master-bin.000001	550	Xid	1	#	COMMIT /* xid=115 */
+master-bin.000001	577	Query	1	#	use `test`; alter table t2 type=MyISAM
+master-bin.000001	666	Query	1	#	use `test`; insert into t1 values (1)
+master-bin.000001	754	Xid	1	#	COMMIT /* xid=117 */
+master-bin.000001	781	Query	1	#	use `test`; insert into t2 values (20)
+master-bin.000001	870	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	949	Query	1	#	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	1059	Query	1	#	use `test`; insert into ti values(1)
+master-bin.000001	1146	Xid	1	#	COMMIT /* xid=132 */
+master-bin.000001	1173	Query	1	#	use `test`; create temporary table t1 (a int) engine=myisam
+master-bin.000001	1283	Query	1	#	use `test`; insert t1 values (1)
+master-bin.000001	1366	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	1452	Query	1	#	use `test`; insert t0 select * from t1
+master-bin.000001	1541	Query	1	#	use `test`; insert into t0 select GET_LOCK("lock1",null)
+master-bin.000001	1648	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	1748	Query	1	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+do release_lock("lock1");
+drop table t0,t2;

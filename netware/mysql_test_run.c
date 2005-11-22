@@ -1173,6 +1173,9 @@ void setup(char *file)
   setenv("MYSQL",file_path,1); 
   snprintf(file_path, PATH_MAX*2, "%s/mysqlshow --no-defaults --user=root --port=%u", bin_dir, master_port);
   setenv("MYSQL_SHOW",file_path,1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysqlcheck --no-defaults -uroot --port=%u", bin_dir, master_port);
+  setenv("MYSQL_CHECK",file_path,1);
+
 }
 
 /******************************************************************************

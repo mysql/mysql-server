@@ -20,7 +20,8 @@
 #include "sql_trigger.h"
 #include "parse_file.h"
 
-static const LEX_STRING triggers_file_type= {(char *)"TRIGGERS", 8};
+static const LEX_STRING triggers_file_type=
+  {STRING_WITH_LEN("TRIGGERS")};
 
 const char * const triggers_file_ext= ".TRG";
 
@@ -33,21 +34,17 @@ const char * const triggers_file_ext= ".TRG";
 static File_option triggers_file_parameters[]=
 {
   {
-    { (char *) STRING_WITH_LEN("triggers") },
+    {STRING_WITH_LEN("triggers") },
     offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
-    /*
-      FIXME: Length specified for "sql_modes" key is erroneous, problem caused
-      by this are reported as BUG#14090 and should be fixed ASAP.
-    */
-    { (char *) "sql_modes", 13 },
+    {STRING_WITH_LEN("sql_modes") },
     offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
-    { (char *) STRING_WITH_LEN("definers") },
+    {STRING_WITH_LEN("definers") },
     offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
@@ -73,7 +70,8 @@ struct st_trigname
   LEX_STRING trigger_table;
 };
 
-static const LEX_STRING trigname_file_type= {(char *)"TRIGGERNAME", 11};
+static const LEX_STRING trigname_file_type=
+  {STRING_WITH_LEN("TRIGGERNAME")};
 
 const char * const trigname_file_ext= ".TRN";
 
@@ -84,7 +82,7 @@ static File_option trigname_file_parameters[]=
       FIXME: Length specified for "trigger_table" key is erroneous, problem
       caused by this are reported as BUG#14090 and should be fixed ASAP.
     */
-    { (char *) "trigger_table", 15 },
+    {STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
    FILE_OPTIONS_ESTRING
   },
@@ -108,6 +106,21 @@ const LEX_STRING trg_event_type_names[]=
 
 static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig);
 
+bool handle_old_incorrect_sql_modes(char *&unknown_key, gptr base,
+                                    MEM_ROOT *mem_root,
+                                    char *end, gptr hook_data);
+
+class Handle_old_incorrect_sql_modes_hook: public Unknown_key_hook
+{
+private:
+  char *path;
+public:
+  Handle_old_incorrect_sql_modes_hook(char *file_path)
+    :path(file_path)
+  {};
+  virtual bool process_unknown_string(char *&unknown_key, gptr base,
+                                      MEM_ROOT *mem_root, char *end);
+};
 
 /*
   Create or drop trigger for table.
@@ -237,7 +250,7 @@ end:
       {
         log_query.set((char *) 0, 0, system_charset_info); /* reset log_query */
 
-        log_query.append("CREATE ");
+        log_query.append(STRING_WITH_LEN("CREATE "));
         append_definer(thd, &log_query, &definer_user, &definer_host);
         log_query.append(thd->lex->trigger_definition_begin);
       }
@@ -691,6 +704,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
     {
       Table_triggers_list *triggers=
         new (&table->mem_root) Table_triggers_list(table);
+      Handle_old_incorrect_sql_modes_hook sql_modes_hook(path.str);
 
       if (!triggers)
         DBUG_RETURN(1);
@@ -705,7 +719,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       triggers->definers_list.empty();
 
       if (parser->parse((gptr)triggers, &table->mem_root,
-                        triggers_file_parameters, TRG_NUM_REQUIRED_PARAMETERS))
+                        triggers_file_parameters,
+                        TRG_NUM_REQUIRED_PARAMETERS,
+                        &sql_modes_hook))
         DBUG_RETURN(1);
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
@@ -1020,7 +1036,8 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   }
 
   if (parser->parse((gptr)&trigname, thd->mem_root,
-                    trigname_file_parameters, 1))
+                    trigname_file_parameters, 1,
+                    &file_parser_dummy_hook))
     DBUG_RETURN(0);
 
   /* We need to reset statement table list to be PS/SP friendly. */
@@ -1171,4 +1188,66 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
   }
 
   return res;
+}
+
+
+/*
+  Trigger BUG#14090 compatibility hook
+
+  SYNOPSIS
+    Handle_old_incorrect_sql_modes_hook::process_unknown_string()
+    unknown_key          [in/out] reference on the line with unknown
+                                  parameter and the parsing point
+    base                 [in] base address for parameter writing (structure
+                              like TABLE)
+    mem_root             [in] MEM_ROOT for parameters allocation
+    end                  [in] the end of the configuration
+
+  NOTE: this hook process back compatibility for incorrectly written
+  sql_modes parameter (see BUG#14090).
+
+  RETURN
+    FALSE OK
+    TRUE  Error
+*/
+
+bool
+Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
+                                                            gptr base,
+                                                            MEM_ROOT *mem_root,
+                                                            char *end)
+{
+#define INVALID_SQL_MODES_LENGTH 13
+  DBUG_ENTER("handle_old_incorrect_sql_modes");
+  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+  if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
+      unknown_key[INVALID_SQL_MODES_LENGTH] == '=' &&
+      !memcmp(unknown_key, STRING_WITH_LEN("sql_modes")))
+  {
+    DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
+    push_warning_printf(current_thd,
+                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_OLD_FILE_FORMAT,
+                        ER(ER_OLD_FILE_FORMAT),
+                        (char *)path, "TRIGGER");
+    File_option sql_modes_parameters=
+      {
+        {STRING_WITH_LEN("sql_modes") },
+        offsetof(class Table_triggers_list, definition_modes_list),
+        FILE_OPTIONS_ULLLIST
+      };
+    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
+    if (get_file_options_ulllist(ptr, end, unknown_key, base,
+                                 &sql_modes_parameters, mem_root))
+    {
+      DBUG_RETURN(TRUE);
+    }
+    /*
+      Set parsing pointer to the last symbol of string (\n)
+      1) to avoid problem with \0 in the junk after sql_modes
+      2) to speed up skipping this line by parser.
+    */
+    unknown_key= ptr-1;
+  }
+  DBUG_RETURN(FALSE);
 }
