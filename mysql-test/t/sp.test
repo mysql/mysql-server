@@ -4623,6 +4623,160 @@ drop procedure bug13549_2|
 drop procedure bug13549_1|
 
 #
+# BUG#10100: function (and stored procedure?) recursivity problem
+#
+--disable_warnings
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+--enable_warnings
+# routines with simple recursion
+create function bug10100f(prm int) returns int
+begin
+  if prm > 1 then
+    return prm * bug10100f(prm - 1);
+  end if;
+  return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+  set res = res * prm;
+  if prm > 1 then
+    call bug10100p(prm - 1, res);  
+  end if;
+end|
+create procedure bug10100t(prm int)
+begin
+  declare res int;
+  set res = 1;
+  call bug10100p(prm, res);
+  select res;
+end|
+
+# a procedure which use tables and recursion
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+  if level < lim then
+    update t3 set a=level;
+    FLUSH TABLES;
+    call bug10100pt(level+1, lim);
+  else
+    select * from t3;
+  end if;
+end|
+# view & recursion
+create procedure bug10100pv(level int, lim int)
+begin
+  if level < lim then
+    update v1 set a=level;
+    FLUSH TABLES;
+    call bug10100pv(level+1, lim);
+  else
+    select * from v1;
+  end if;
+end|
+# dynamic sql & recursion
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+  if level < lim then
+    select level;
+    prepare stmt1 from "update t3 set a=a+2";
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    deallocate prepare stmt1;
+    execute stmt2;
+    select * from t3;
+    call bug10100pd(level+1, lim);
+  else
+    execute stmt2;
+  end if;
+end|
+# cursor & recursion
+create procedure bug10100pc(level int, lim int)
+begin
+  declare lv int;
+  declare c cursor for select a from t3;
+  open c;
+  if level < lim then
+    select level;
+    fetch c into lv;
+    select lv;
+    update t3 set a=level+lv;
+    FLUSH TABLES;
+    call bug10100pc(level+1, lim);
+  else
+    select * from t3;
+  end if;
+  close c;
+end|
+
+set @@max_sp_recursion_depth=4|
+select @@max_sp_recursion_depth|
+-- error ER_SP_NO_RECURSION
+select bug10100f(3)|
+-- error ER_SP_NO_RECURSION
+select bug10100f(6)|
+call bug10100t(5)|
+call bug10100pt(1,5)|
+call bug10100pv(1,5)|
+update t3 set a=1|
+call bug10100pd(1,5)|
+select * from t3|
+update t3 set a=1|
+call bug10100pc(1,5)|
+select * from t3|
+set @@max_sp_recursion_depth=0|
+select @@max_sp_recursion_depth|
+-- error ER_SP_NO_RECURSION
+select bug10100f(5)|
+-- error ER_SP_RECURSION_LIMIT
+call bug10100t(5)|
+
+#end of the stack checking
+set @@max_sp_recursion_depth=255|
+set @var=1|
+#disable log because error about stack overrun contains numbers which
+#depend on a system
+-- disable_result_log
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100p(255, @var)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pt(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pv(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pd(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pc(1,255)|
+-- enable_result_log
+set @@max_sp_recursion_depth=0|
+
+deallocate prepare stmt2|
+
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+drop table t3|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

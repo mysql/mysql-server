@@ -4690,10 +4690,16 @@ Item_func_sp::sp_result_field(void) const
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
+  DBUG_PRINT("info", ("sp: %s, flags: %x, level: %lu",
+                      (m_sp ? "YES" : "NO"),
+                      (m_sp ? m_sp->m_flags : (uint)0),
+                      (m_sp ? m_sp->m_recursion_level : (ulong)0)));
 
   if (!m_sp)
   {
-    if (!(m_sp= sp_find_function(current_thd, m_name, TRUE)))
+    THD *thd= current_thd;
+    if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+                                &thd->sp_func_cache, TRUE)))
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
       DBUG_RETURN(0);
@@ -4919,7 +4925,8 @@ Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
   bool res= TRUE;
 
   *save= 0;                                     // Safety if error
-  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
+  if (! m_sp && ! (m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+                                         &thd->sp_func_cache, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
     goto error;
