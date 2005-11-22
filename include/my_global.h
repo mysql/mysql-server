@@ -641,6 +641,15 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define O_NOFOLLOW      0
 #endif
 
+/* additional file share flags for win32 */
+#ifdef __WIN__
+#define _SH_DENYRWD     0x110    /* deny read/write mode & delete */
+#define _SH_DENYWRD     0x120    /* deny write mode & delete      */
+#define _SH_DENYRDD     0x130    /* deny read mode & delete       */
+#define _SH_DENYDEL     0x140    /* deny delete only              */
+#endif /* __WIN__ */
+
+
 /* #define USE_RECORD_LOCK	*/
 
 	/* Unsigned types supported by the compiler */

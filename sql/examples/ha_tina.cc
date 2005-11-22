@@ -95,11 +95,15 @@ handlerton tina_hton= {
  *****************************************************************************/
 
 /*
-  Used for sorting  chains.
+  Used for sorting chains with qsort().
 */
 int sort_set (tina_set *a, tina_set *b)
 {
-  return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
+  /*
+    We assume that intervals do not intersect. So, it is enought to compare
+    any two points. Here we take start of intervals for comparison.
+  */
+  return ( a->begin > b->begin ? -1 : ( a->begin < b->begin ? 1 : 0 ) );
 }
 
 static byte* tina_get_key(TINA_SHARE *share,uint *length,
@@ -200,7 +204,8 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
 
-    if ((share->data_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
+    if ((share->data_file= my_open(data_file_name, O_RDWR|O_APPEND,
+                                   MYF(0))) == -1)
       goto error2;
 
     /*
@@ -836,14 +841,8 @@ int ha_tina::rnd_end()
           (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
     {
-      /* We peek a head to see if this is the last chain */
-      if (ptr+1 == chain_ptr)
-        memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
-                length - (size_t)ptr->end);
-      else
-        memmove((caddr_t)share->mapped_file + ptr->begin,
-                (caddr_t)share->mapped_file + ptr->end,
-                (size_t)((ptr++)->begin - ptr->end));
+      memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
+              length - (size_t)ptr->end);
       length= length - (size_t)(ptr->end - ptr->begin);
     }
 
