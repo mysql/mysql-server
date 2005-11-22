@@ -234,4 +234,15 @@ insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd
 insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
 drop table t1;
 
+#
+# Bug 12796: Record doesn't show when selecting through index
+#
+CREATE TABLE t1 (a int, key(a)) engine=heap;
+insert delayed into t1 values (0);
+delete from t1;
+select * from t1;
+insert delayed into t1 values (0), (1);
+select * from t1 where a = 0;
+drop table t1;
+
 # End of 4.1 tests
