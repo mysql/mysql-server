@@ -1898,7 +1898,7 @@ sp_head::show_routine_code(THD *thd)
   List<Item> field_list;
   sp_instr *i;
   bool full_access;
-  int res;
+  int res= 0;
   uint ip;
   DBUG_ENTER("sp_head::show_routine_code");
   DBUG_PRINT("info", ("procedure: %s", m_name.str));
@@ -2104,9 +2104,9 @@ sp_instr_stmt::print(String *str)
   /* stmt CMD "..." */
   if (str->reserve(SP_STMT_PRINT_MAXLEN+SP_INSTR_UINT_MAXLEN+8))
     return;
-  str->qs_ append(STRING_WITH_LEN("stmt "));
+  str->qs_append(STRING_WITH_LEN("stmt "));
   str->qs_append((uint)m_lex_keeper.sql_command());
-  str->qs_append(" \"", 2);
+  str->qs_append(STRING_WITH_LEN(" \""));
   len= m_query.length;
   /*
     Print the query string (but not too much of it), just to indicate which
@@ -2123,7 +2123,7 @@ sp_instr_stmt::print(String *str)
       str->qs_append(m_query.str[i]);
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
-    str->qs_append("...", 3);      /* Indicate truncated string */
+    str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
   str->qs_append('"');
 }
 #undef SP_STMT_PRINT_MAXLEN
@@ -2483,19 +2483,19 @@ sp_instr_hpush_jump::print(String *str)
   switch (m_type)
   {
   case SP_HANDLER_NONE:
-    str->qs_append(" NONE", 5); // This would be a bug
+    str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
     break;
   case SP_HANDLER_EXIT:
-    str->qs_append(" EXIT", 5);
+    str->qs_append(STRING_WITH_LEN(" EXIT"));
     break;
   case SP_HANDLER_CONTINUE:
-    str->qs_append(" CONTINUE", 9);
+    str->qs_append(STRING_WITH_LEN(" CONTINUE"));
     break;
   case SP_HANDLER_UNDO:
-    str->qs_append(" UNDO", 5);
+    str->qs_append(STRING_WITH_LEN(" UNDO"));
     break;
   default:
-    str->qs_append(" UNKNOWN:", 9); // This would be a bug as well
+    str->qs_append(STRING_WITH_LEN(" UNKNOWN:")); // This would be a bug as well
     str->qs_append(m_type);
   }
 }
@@ -2633,7 +2633,7 @@ sp_instr_cpush::print(String *str)
     rsrv+= n.length;
   if (str->reserve(rsrv))
     return;
-  str->qs_append(STRING_WITH_LENGTH("cpush "));
+  str->qs_append(STRING_WITH_LEN("cpush "));
   if (found)
   {
     str->qs_append(n.str, n.length);
