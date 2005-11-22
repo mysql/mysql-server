@@ -539,6 +539,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latestGCI(0),
   m_total_alloc(0),
   m_free_thresh(10),
+  m_min_free_thresh(10),
+  m_max_free_thresh(100),
   m_gci_slip_thresh(3),
   m_dropped_ev_op(0),
   m_active_op_count(0)
@@ -634,8 +636,6 @@ int NdbEventBuffer::expand(unsigned sz)
     sizeof(EventBufData_chunk) +(sz-1)*sizeof(EventBufData);
   EventBufData_chunk *chunk_data=
     (EventBufData_chunk *)NdbMem_Allocate(alloc_size);
-
-  m_total_alloc+= alloc_size;
 
   chunk_data->sz= sz;
   m_allocated_data.push_back(chunk_data);
@@ -902,8 +902,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 	assert(bucket->m_data.m_count);
 #endif
 	m_complete_data.m_data.append(bucket->m_data);
-	reportStatus();
       }
+      reportStatus();
       bzero(bucket, sizeof(Gci_container));
       bucket->m_gci = gci + ACTIVE_GCI_DIRECTORY_SIZE;
       bucket->m_gcp_complete_rep_count = m_system_nodes;
@@ -1356,23 +1356,47 @@ NdbEventBuffer::reportStatus()
   else
     apply_gci= latest_gci;
 
-  if (100*m_free_data_sz < m_free_thresh*m_total_alloc ||
-      latest_gci-apply_gci >=  m_gci_slip_thresh)
+  if (100*m_free_data_sz < m_min_free_thresh*m_total_alloc &&
+      m_total_alloc > 1024*1024)
   {
-    Uint32 data[8];
-    data[0]= NDB_LE_EventBufferStatus;
-    data[1]= m_total_alloc-m_free_data_sz;
-    data[2]= m_total_alloc;
-    data[3]= 0;
-    data[4]= apply_gci & ~(Uint32)0;
-    data[5]= apply_gci >> 32;
-    data[6]= latest_gci & ~(Uint32)0;
-    data[7]= latest_gci >> 32;
-    m_ndb->theImpl->send_event_report(data,8);
-#ifdef VM_TRACE
-    assert(m_total_alloc >= m_free_data_sz);
-#endif
+    /* report less free buffer than m_free_thresh,
+       next report when more free than 2 * m_free_thresh
+    */
+    m_min_free_thresh= 0;
+    m_max_free_thresh= 2 * m_free_thresh;
+    goto send_report;
   }
+  
+  if (100*m_free_data_sz > m_max_free_thresh*m_total_alloc &&
+      m_total_alloc > 1024*1024)
+  {
+    /* report more free than 2 * m_free_thresh
+       next report when less free than m_free_thresh
+    */
+    m_min_free_thresh= m_free_thresh;
+    m_max_free_thresh= 100;
+    goto send_report;
+ }
+  if (latest_gci-apply_gci >=  m_gci_slip_thresh)
+  {
+    goto send_report;
+  }
+  return;
+
+send_report:
+  Uint32 data[8];
+  data[0]= NDB_LE_EventBufferStatus;
+  data[1]= m_total_alloc-m_free_data_sz;
+  data[2]= m_total_alloc;
+  data[3]= 0;
+  data[4]= apply_gci & ~(Uint32)0;
+  data[5]= apply_gci >> 32;
+  data[6]= latest_gci & ~(Uint32)0;
+  data[7]= latest_gci >> 32;
+  m_ndb->theImpl->send_event_report(data,8);
+#ifdef VM_TRACE
+  assert(m_total_alloc >= m_free_data_sz);
+#endif
 }
 
 template class Vector<Gci_container>;
