@@ -534,6 +534,7 @@ struct system_variables
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
+  ulong max_sp_recursion_depth;
   /* check of key presence in updatable view */
   ulong updatable_views_with_limit;
   ulong default_week_format;
