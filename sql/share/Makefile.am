@@ -49,5 +49,15 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
+# FIXME maybe shouldn't remove, could be needed by other installation?
+uninstall-local:
+	@RM@ -f -r $(DESTDIR)$(pkgdatadir)
+
+distclean-local:
+	@RM@ -f */errmsg.sys
+
+# Do nothing
+link_sources:
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
