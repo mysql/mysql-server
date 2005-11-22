@@ -596,3 +596,18 @@ GROUP_CONCAT(a ORDER BY a)
 ,x
 ,z
 DROP TABLE t1;
+set names latin1;
+create table t1 (a char, b char);
+insert into t1 values ('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b');
+create table t2 select group_concat(b) as a from t1 where a = 'a';
+create table t3 (select group_concat(a) as a from t1 where a = 'a') union
+(select group_concat(b) as a from t1 where a = 'b');
+select charset(a) from t2;
+charset(a)
+latin1
+select charset(a) from t3;
+charset(a)
+latin1
+latin1
+drop table t1, t2, t3;
+set names default;

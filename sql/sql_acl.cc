@@ -1427,7 +1427,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!thd->spcont || rpl_filter->tables_ok(0, &tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
 #endif
@@ -3532,7 +3532,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table != first_not_own_table && i < number;
+       table && table != first_not_own_table && i < number;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */

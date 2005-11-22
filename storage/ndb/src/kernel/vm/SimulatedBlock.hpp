@@ -402,8 +402,12 @@ protected:
    * @return length
    */
   Uint32 xfrm_key(Uint32 tab, const Uint32* src, 
-		  Uint32 *dst, Uint32 dstLen,
+		  Uint32 *dst, Uint32 dstSize,
 		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
+
+  Uint32 xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+                   const Uint32* src, Uint32 & srcPos,
+                   Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
   
   /**
    *
