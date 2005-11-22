@@ -1091,6 +1091,7 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log, insert_id_used;
   my_bool no_send_ok;
+  SAVEPOINT *savepoints;
 };
 
 

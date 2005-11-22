@@ -1916,6 +1916,7 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   - Value for found_rows() is reset and restored
   - examined_row_count is added to the total
   - cuted_fields is added to the total
+  - new savepoint level is created and destroyed
 
   NOTES:
     Seed for random() is saved for the first! usage of RAND()
@@ -1939,6 +1940,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->sent_row_count=   sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
+  backup->savepoints= transaction.savepoints;
 
   if (!lex->requires_prelocking() || is_update_query(lex->sql_command))
     options&= ~OPTION_BIN_LOG;
@@ -1951,6 +1953,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   examined_row_count= 0;
   sent_row_count= 0;
   cuted_fields= 0;
+  transaction.savepoints= 0;
 
 #ifndef EMBEDDED_LIBRARY
   /* Surpress OK packets in case if we will execute statements */
@@ -1961,6 +1964,21 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  /*
+    To save resources we want to release savepoints which were created
+    during execution of function or trigger before leaving their savepoint
+    level. It is enough to release first savepoint set on this level since
+    all later savepoints will be released automatically.
+  */
+  if (transaction.savepoints)
+  {
+    SAVEPOINT *sv;
+    for (sv= transaction.savepoints; sv->prev; sv= sv->prev)
+    {}
+    /* ha_release_savepoint() never returns error. */
+    (void)ha_release_savepoint(this, sv);
+  }
+  transaction.savepoints= backup->savepoints;
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
   net.no_send_ok=   backup->no_send_ok;

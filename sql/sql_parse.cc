@@ -2403,18 +2403,6 @@ mysql_execute_command(THD *thd)
       reset_one_shot_variables(thd);
       DBUG_RETURN(0);
     }
-#ifndef TO_BE_DELETED
-    /*
-      This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
-      masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
-      as DO RELEASE_LOCK()
-    */
-    if (lex->sql_command == SQLCOM_SELECT)
-    {
-      lex->sql_command = SQLCOM_DO;
-      lex->insert_list = &select_lex->item_list;
-    }
-#endif
   }
   else
 #endif /* HAVE_REPLICATION */
@@ -4045,8 +4033,8 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_SAVEPOINT:
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-        !opt_using_transactions)
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+          thd->in_sub_stmt) || !opt_using_transactions)
       send_ok(thd);
     else
     {
@@ -4578,7 +4566,7 @@ end_with_restore_list:
         buff.append(command[thd->lex->create_view_mode].str,
                     command[thd->lex->create_view_mode].length);
         view_store_options(thd, first_table, &buff);
-        buff.append("VIEW ", 5);
+        buff.append(STRING_WITH_LEN("VIEW "));
         /* Test if user supplied a db (ie: we did not use thd->db) */
         if (first_table->db != thd->db && first_table->db[0])
         {
@@ -4588,7 +4576,7 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
-        buff.append(" AS ", 4);
+        buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
         Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);

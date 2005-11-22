@@ -527,7 +527,7 @@ static struct my_option my_long_options[] =
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"auto-rehash", OPT_AUTO_REHASH,
@@ -1872,9 +1872,13 @@ com_help(String *buffer __attribute__((unused)),
   if (help_arg)
     return com_server_help(buffer,line,help_arg+1);
 
-  put_info("\nFor the complete MySQL Manual online, visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
-  put_info("For info on technical support from MySQL developers, visit:\n   http://www.mysql.com/support\n", INFO_INFO);
-  put_info("For info on MySQL books, utilities, consultants, etc., visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+  put_info("\nFor information about MySQL products and services, visit:\n"
+           "   http://www.mysql.com/\n"
+           "For developer information, including the MySQL Reference Manual, "
+           "visit:\n"
+           "   http://dev.mysql.com/\n"
+           "To buy MySQL Network Support, training, or other products, visit:\n"
+           "   https://shop.mysql.com/\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);

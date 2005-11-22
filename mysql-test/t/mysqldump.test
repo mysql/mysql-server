@@ -999,3 +999,27 @@ drop view v2;
 drop view v0;
 drop view v1;
 drop table t1;
+
+#
+# BUG#14554 - mysqldump does not separate words "ROW" and "BEGIN"
+# for tables with trigger created in the IGNORE_SPACE sql mode.
+#
+
+SET @old_sql_mode = @@SQL_MODE;
+SET SQL_MODE = IGNORE_SPACE;
+
+CREATE TABLE t1 (a INT);
+DELIMITER |;
+CREATE TRIGGER tr1 BEFORE INSERT ON t1
+       FOR EACH ROW
+       BEGIN
+         SET new.a = 0;
+       END|
+DELIMITER ;|
+
+SET SQL_MODE = @old_sql_mode;
+
+--exec $MYSQL_DUMP --skip-comments --databases test
+
+DROP TRIGGER tr1;
+DROP TABLE t1;
