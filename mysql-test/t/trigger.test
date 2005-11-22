@@ -875,3 +875,42 @@ drop function f1;
 drop view v1;
 drop table t1, t2, t3;
 --enable_parsing
+
+#
+# Test for bug #13399 "Crash when executing PS/SP which should activate
+# trigger which is now dropped". See also test for similar bug for stored
+# routines in sp-error.test (#12329).
+create table t1 (id int);
+create table t2 (id int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10); 
+call p1();
+# Actually it is enough to do FLUSH TABLES instead of DROP TRIGGER
+drop trigger t1_bi;
+# Server should not crash on these two statements
+execute stmt1;
+call p1();
+deallocate prepare stmt1;
+drop procedure p1;
+
+# Let us test more complex situation when we alter trigger in such way that
+# it uses different set of tables (or simply add new trigger).
+create table t3 (id int);
+create trigger t1_bi after insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10); 
+call p1();
+# Altering trigger forcing it use different set of tables
+drop trigger t1_bi;
+create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
+# Until we implement proper mechanism for invalidation of PS/SP when table
+# or SP's are changed these two statements will fail with 'Table ... was
+# not locked' error (this mechanism should be based on the new TDC).
+--error 1100
+execute stmt1;
+--error 1100
+call p1();
+deallocate prepare stmt1;
+drop procedure p1;
+drop table t1, t2, t3;

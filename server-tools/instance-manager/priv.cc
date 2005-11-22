@@ -76,6 +76,9 @@ int set_stacksize_n_create_thread(pthread_t  *thread, pthread_attr_t *attr,
   int rc= 0;
 
 #ifndef __WIN__
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN      32768
+#endif
   /*
     Set stack size to be safe on the platforms with too small
     default thread stack.
