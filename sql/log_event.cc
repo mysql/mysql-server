@@ -901,14 +901,16 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
     /* Pretty-print event common header if header is exactly 19 bytes */
     if (print_event_info->common_header_len == LOG_EVENT_MINIMAL_HEADER_LEN)
     {
+      DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
       fprintf(file, "# Position  Timestamp   Type   Master ID        "
 	      "Size      Master Pos    Flags \n");
       fprintf(file, "# %8.8lx %02x %02x %02x %02x   %02x   "
 	      "%02x %02x %02x %02x   %02x %02x %02x %02x   "
 	      "%02x %02x %02x %02x   %02x %02x\n",
-	      hexdump_from, ptr[0], ptr[1], ptr[2], ptr[3], ptr[4],
-	      ptr[5], ptr[6], ptr[7], ptr[8], ptr[9], ptr[10], ptr[11],
-	      ptr[12], ptr[13], ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
+	      (unsigned long) hexdump_from,
+              ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6],
+              ptr[7], ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13],
+              ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
       hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
     }
@@ -925,8 +927,10 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
       if (i % 16 == 15)
       {
+        DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
 	fprintf(file, "# %8.8lx %-48.48s |%16s|\n",
-		hexdump_from + (i & 0xfffffff0), hex_string, char_string);
+		(unsigned long) (hexdump_from + (i & 0xfffffff0)),
+                hex_string, char_string);
 	hex_string[0]= 0;
 	char_string[0]= 0;
 	c= char_string;
@@ -938,8 +942,10 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
     /* Non-full last line */
     if (hex_string[0]) {
-      printf("# %8.8lx %-48.48s |%s|\n# ",
-	     hexdump_from + (i & 0xfffffff0), hex_string, char_string);
+      DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
+      fprintf(file, "# %8.8lx %-48.48s |%s|\n# ",
+	     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
+             hex_string, char_string);
     }
   }
 }
