@@ -4548,6 +4548,31 @@ end_with_restore_list:
 					 lex->wild->ptr() : NullS));
       break;
     }
+#ifndef DBUG_OFF
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+    {
+      sp_head *sp;
+
+      if (lex->spname->m_name.length > NAME_LEN)
+      {
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+	goto error;
+      }
+      if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
+        sp= sp_find_procedure(thd, lex->spname);
+      else
+        sp= sp_find_function(thd, lex->spname);
+      if (!sp || !sp->show_routine_code(thd))
+      {
+        /* We don't distinguish between errors for now */
+        my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
+        goto error;
+      }
+      break;
+    }
+#endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
       if (end_active_trans(thd))
