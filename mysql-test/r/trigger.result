@@ -763,3 +763,17 @@ ERROR HY000: Table 't3' was not locked with LOCK TABLES
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
+create table t1 (a int);
+drop procedure if exists p2;
+CREATE PROCEDURE `p2`()
+begin
+insert into t1 values (1);
+end//
+create trigger trg before insert on t1 for each row 
+begin 
+declare done int default 0;
+set done= not done;
+end//
+CALL p2();
+drop procedure p2;
+drop table t1;

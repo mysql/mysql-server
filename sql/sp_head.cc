@@ -1175,6 +1175,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   // QQ Should have some error checking here? (types, etc...)
   if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
     goto end;
+#ifndef DBUG_OFF
+  nctx->owner= this;
+#endif
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -1319,6 +1322,9 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   {				// Create a temporary old context
     if (!(octx= new sp_rcontext(octx, csize, hmax, cmax)))
       DBUG_RETURN(-1);
+#ifndef DBUG_OFF
+    octx->owner= 0;
+#endif
     thd->spcont= octx;
 
     /* set callers_arena to thd, for upper-level function to work */
@@ -1330,6 +1336,9 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
   }
+#ifndef DBUG_OFF
+  nctx->owner= this;
+#endif
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {

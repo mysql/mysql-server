@@ -914,3 +914,31 @@ call p1();
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
+
+#
+# BUG#13549 "Server crash with nested stored procedures".
+# Server should not crash when during execution of stored procedure
+# we have to parse trigger/function definition and this new trigger/
+# function has more local variables declared than invoking stored
+# procedure and last of these variables is used in argument of NOT
+# operator.
+#
+create table t1 (a int);
+--disable_warnings
+drop procedure if exists p2;
+--enable_warnings
+DELIMITER //;
+CREATE PROCEDURE `p2`()
+begin
+  insert into t1 values (1);
+end//
+create trigger trg before insert on t1 for each row 
+begin 
+  declare done int default 0;
+  set done= not done;
+end//
+DELIMITER ;//
+CALL p2();
+drop procedure p2;
+drop table t1;
+

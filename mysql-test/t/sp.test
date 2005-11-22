@@ -4291,6 +4291,9 @@ call bug12589_1()|
 # No warnings here
 call bug12589_2()|
 call bug12589_3()|
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
 
 #
 # BUG#7049: Stored procedure CALL errors are ignored
@@ -4593,6 +4596,31 @@ begin
 end|
 call bug14845()|
 drop procedure bug14845|
+
+#
+# BUG#13549 "Server crash with nested stored procedures".
+# Server should not crash when during execution of stored procedure
+# we have to parse trigger/function definition and this new trigger/
+# function has more local variables declared than invoking stored
+# procedure and last of these variables is used in argument of NOT
+# operator.
+#
+--disable_warnings
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+--enable_warnings
+CREATE PROCEDURE `bug13549_2`()
+begin
+  call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+  declare done int default 0;
+  set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
 
 #
 # BUG#NNNN: New bug synopsis

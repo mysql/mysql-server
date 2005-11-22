@@ -3667,4 +3667,21 @@ call bug14845()|
 a
 0
 drop procedure bug14845|
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+CREATE PROCEDURE `bug13549_2`()
+begin
+call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+declare done int default 0;
+set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
 drop table t1,t2;
