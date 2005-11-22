@@ -708,7 +708,7 @@ return (i in (100, 200, bug11394(i-1), 400));
 end if;
 end|
 select bug11394(2)|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 drop function bug11394|
 create function bug11394_1(i int) returns int
 begin
@@ -719,7 +719,7 @@ return (select bug11394_1(i-1));
 end if;
 end|
 select bug11394_1(2)|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 drop function bug11394_1|
 create function bug11394_2(i int) returns int return i|
 select bug11394_2(bug11394_2(10))|
@@ -733,7 +733,10 @@ call bug11394(i - 1,(select 1));
 end if;
 end|
 call bug11394(2, 1)|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine bug11394
+set @@max_sp_recursion_depth=10|
+call bug11394(2, 1)|
+set @@max_sp_recursion_depth=default|
 drop procedure bug11394|
 CREATE PROCEDURE BUG_12490() HELP CONTENTS;
 ERROR 0A000: HELP is not allowed in stored procedures

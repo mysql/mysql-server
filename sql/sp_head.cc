@@ -437,7 +437,8 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_returns_cs(NULL)
+   m_flags(0), m_returns_cs(NULL), m_recursion_level(0), m_next_cached_sp(0),
+   m_first_instance(this), m_first_free_instance(this), m_last_cached_sp(this)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
@@ -615,6 +616,7 @@ sp_head::create(THD *thd)
 sp_head::~sp_head()
 {
   destroy();
+  delete m_next_cached_sp;
   if (m_thd)
     restore_thd_mem_root(m_thd);
 }
@@ -841,6 +843,31 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
 
 /*
+  Return appropriate error about recursion limit reaching
+
+  SYNOPSIS
+    sp_head::recursion_level_error()
+
+  NOTE
+    For functions and triggers we return error about prohibited recursion.
+    For stored procedures we return about reaching recursion limit.
+*/
+
+void sp_head::recursion_level_error()
+{
+  if (m_type == TYPE_ENUM_PROCEDURE)
+  {
+    THD *thd= current_thd;
+    my_error(ER_SP_RECURSION_LIMIT, MYF(0),
+             thd->variables.max_sp_recursion_depth,
+             m_name);
+  }
+  else
+    my_error(ER_SP_NO_RECURSION, MYF(0));
+}
+
+
+/*
   Execute the routine. The main instruction jump loop is there 
   Assume the parameters already set.
   
@@ -869,37 +896,31 @@ int sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
 
+  /* Use some extra margin for possible SP recursion and functions */
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (char*)&old_packet))
+  {
+    DBUG_RETURN(-1);
+  }
+
   /* init per-instruction memroot */
   init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
-
-  /* Use some extra margin for possible SP recursion and functions */
-  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
-  {
-    DBUG_RETURN(-1);
-  }
-
-  if (m_flags & IS_INVOKED)
-  {
-    /*
-      We have to disable recursion for stored routines since in
-      many cases LEX structure and many Item's can't be used in
-      reentrant way now.
-
-      TODO: We can circumvent this problem by using separate
-      sp_head instances for each recursive invocation.
-
-      NOTE: Theoretically arguments of procedure can be evaluated
-      before its invocation so there should be no problem with
-      recursion. But since we perform cleanup for CALL statement
-      as for any other statement only after its execution, its LEX
-      structure is not reusable for recursive calls. Thus we have
-      to prohibit recursion for stored procedures too.
-    */
-    my_error(ER_SP_NO_RECURSION, MYF(0));
-    DBUG_RETURN(-1);
-  }
+  DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
+  m_first_instance->m_first_free_instance= m_next_cached_sp;
+  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
+                      (ulong)m_first_instance, this, m_next_cached_sp,
+                      m_next_cached_sp->m_recursion_level,
+                      m_next_cached_sp->m_flags));
+  /*
+    Check that if there are not any instances after this one then
+    pointer to the last instance points on this instance or if there are
+    some instances after this one then recursion level of next instance
+    greater then recursion level of current instance on 1
+  */
+  DBUG_ASSERT((m_next_cached_sp == 0 &&
+               m_first_instance->m_last_cached_sp == this) ||
+              (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
   dbchanged= FALSE;
   if (m_db.length &&
@@ -1074,6 +1095,29 @@ int sp_head::execute(THD *thd)
       ret= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
+  DBUG_PRINT("info", ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
+                      (ulong)m_first_instance,
+                      m_first_instance->m_first_free_instance, this,
+                      m_recursion_level, m_flags));
+  /*
+    Check that we have one of following:
+
+    1) there are not free instances which means that this instance is last
+    in the list of instances (pointer to the last instance point on it and
+    ther are not other instances after this one in the list)
+
+    2) There are some free instances which mean that first free instance
+    should go just after this one and recursion level of that free instance
+    should be on 1 more then recursion leven of this instance.
+  */
+  DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
+               this == m_first_instance->m_last_cached_sp &&
+               m_next_cached_sp == 0) ||
+              (m_first_instance->m_first_free_instance != 0 &&
+               m_first_instance->m_first_free_instance == m_next_cached_sp &&
+               m_first_instance->m_first_free_instance->m_recursion_level ==
+               m_recursion_level + 1));
+  m_first_instance->m_first_free_instance= this;
   DBUG_RETURN(ret);
 }
 

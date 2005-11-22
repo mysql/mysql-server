@@ -743,8 +743,12 @@ create trigger t1_ai after insert on t1
   for each row insert into t2 values (new.f1+1);
 create trigger t2_ai after insert on t2
   for each row insert into t1 values (new.f2+1);
+# Allow SP resursion to be show that it has not influence here
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth;
+set @@max_sp_recursion_depth=100;
 --error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 insert into t1 values (1);
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 select * from t2;
 drop trigger t1_ai;
