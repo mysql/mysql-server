@@ -394,7 +394,9 @@ extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
@@ -422,7 +424,7 @@ my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 uint    opt_large_page_size= 0;
-my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
+my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -613,7 +615,7 @@ bool mysqld_embedded=1;
 static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
-char *libwrapName= NULL;
+const char *libwrapName= NULL;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -4499,7 +4501,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-  OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
   OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -4582,8 +4584,10 @@ enum options_mysqld
   OPT_INNODB_CONCURRENCY_TICKETS,
   OPT_INNODB_THREAD_SLEEP_DELAY,
   OPT_BDB_CACHE_SIZE,
+  OPT_BDB_CACHE_PARTS,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
+  OPT_BDB_REGION_SIZE,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -4929,16 +4933,27 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef TO_BE_REMOVED_IN_5_1_OR_6_0
+  /*
+    In 5.0.6 we introduced the below option, then in 5.0.16 we renamed it to
+    log-bin-trust-function-creators but kept also the old name for
+    compatibility; the behaviour was also changed to apply only to functions
+    (and triggers). In a future release this old name could be removed.
+  */
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+   "(deprecated) Use log-bin-trust-function-creators.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   /*
     This option starts with "log-bin" to emphasize that it is specific of
-    binary logging. Hopefully in 5.1 nobody will need it anymore, when we have
-    row-level binlog.
+    binary logging.
   */
-  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a routine is allowed only to users having the SUPER privilege and only"
-   "if this routine may not break binary logging",
-   (gptr*) &trust_routine_creators, (gptr*) &trust_routine_creators, 0,
+   "a function is allowed only to users having the SUPER privilege and only "
+   "if this function may not break binary logging.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
@@ -5396,10 +5411,14 @@ log and this option does nothing anymore.",
     (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
+  { "bdb_cache_parts", OPT_BDB_CACHE_PARTS,
+    "Number of parts to use for BDB cache.",
+    (gptr*) &berkeley_cache_parts, (gptr*) &berkeley_cache_parts, 0, GET_ULONG,
+    REQUIRED_ARG, 1, 1, 1024, 0, 1, 0},
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
     "The buffer that is allocated to cache index and rows for BDB tables.",
-    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
-    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
+    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
+    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
   /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
@@ -5412,6 +5431,10 @@ log and this option does nothing anymore.",
    "The maximum number of locks you can have active on a BDB table.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
+  {"bdb_region_size", OPT_BDB_REGION_SIZE,
+    "The size of the underlying logging area of the Berkeley DB environment.",
+    (gptr*) &berkeley_region_size, (gptr*) &berkeley_region_size, 0, GET_ULONG,
+    OPT_ARG, 60*1024L, 60*1024L, (long) ~0, 0, 1, 0},
 #endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
@@ -5506,7 +5529,8 @@ log and this option does nothing anymore.",
   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
-   GET_LONG, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
    "Number of times a thread is allowed to enter InnoDB within the same \
     SQL query after it has once got the ticket",
@@ -5530,9 +5554,10 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_log_buffer_size, (gptr*) &innobase_log_buffer_size, 0,
    GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, ~0L, 0, 1024, 0},
   {"innodb_log_file_size", OPT_INNODB_LOG_FILE_SIZE,
-   "Size of each log file in a log group in megabytes.",
+   "Size of each log file in a log group.",
    (gptr*) &innobase_log_file_size, (gptr*) &innobase_log_file_size, 0,
-   GET_LONG, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_log_files_in_group", OPT_INNODB_LOG_FILES_IN_GROUP,
    "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
    (gptr*) &innobase_log_files_in_group, (gptr*) &innobase_log_files_in_group,
@@ -5828,7 +5853,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"read_only", OPT_READONLY,
-   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
+   "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -7410,7 +7435,9 @@ SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 
 #ifndef WITH_BERKELEY_STORAGE_ENGINE
 bool berkeley_shared_data;
-ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+ulong berkeley_max_lock, berkeley_log_buffer_size;
+ulonglong berkeley_cache_size;
+ulong berkeley_region_size, berkeley_cache_parts;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 #endif
 

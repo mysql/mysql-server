@@ -115,10 +115,13 @@ public:
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
     IS_INVOKED= 32,             // Is set if this sp_head is being used
-    HAS_SET_AUTOCOMMIT_STMT = 64 // Is set if a procedure with 'set autocommit'
+    HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
+    /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
+    HAS_COMMIT_OR_ROLLBACK= 128
   };
 
-  int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+  /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
+  int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
   enum enum_field_types m_returns; // For FUNCTIONs only
   Field::geometry_type m_geom_returns;
@@ -251,9 +254,10 @@ public:
 
   Field *make_field(uint max_length, const char *name, TABLE *dummy);
 
-  void set_info(char *definer, uint definerlen,
-		longlong created, longlong modified,
+  void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
+
+  void set_definer(char *definer, uint definerlen);
 
   void reset_thd_mem_root(THD *thd);
 
@@ -291,6 +295,12 @@ public:
       my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
+    else if (m_type != TYPE_ENUM_PROCEDURE &&
+             (m_flags & sp_head::HAS_COMMIT_OR_ROLLBACK))
+    {
+      my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+      return TRUE;
+    }
     return test(m_flags &
 		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }

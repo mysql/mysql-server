@@ -24,6 +24,7 @@
 
 NdbRecAttr::NdbRecAttr(Ndb*)
 {
+  theStorageX = 0;
   init();
 }
 
@@ -50,6 +51,9 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   theAttrId = anAttrInfo->m_attrId;
   m_size_in_bytes = tAttrByteSize;
   theValue = aValue;
+
+  if (theStorageX)
+    delete[] theStorageX;
   
   // check alignment to signal data
   // a future version could check alignment per data type as well

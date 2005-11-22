@@ -4943,8 +4943,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 }
 
 /*
-  Compare view field's name with item's name before call to referenced
-  item's eq()
+  Compare two view column references for equality.
 
   SYNOPSIS
     Item_direct_view_ref::eq()
@@ -4952,12 +4951,13 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
     binary_cmp  make binary comparison
 
   DESCRIPTION
-    Consider queries:
-    create view v1 as select t1.f1 as f2, t1.f2 as f1 from t1;
-    select * from v1 order by f1;
-    In order to choose right field for sorting we need to compare
-    given item's name (f1) to view field's name prior to calling
-    referenced item's eq().
+    A view column reference is considered equal to another column
+    reference if the second one is a view column and if both column
+    references point to the same field. For views 'same field' means
+    the same Item_field object in the view translation table, where
+    the view translation table contains all result columns of the
+    view. This definition ensures that view columns are resolved
+    in the same manner as table columns.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -4967,9 +4967,18 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 
 bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
 {
-  Item *it= ((Item *) item)->real_item();
-  return (!it->name || !my_strcasecmp(system_charset_info, it->name,
-          field_name)) && ref && (*ref)->real_item()->eq(it, binary_cmp);
+  if (item->type() == REF_ITEM)
+  {
+    Item_ref *item_ref= (Item_ref*) item;
+    if (item_ref->ref_type() == VIEW_REF)
+    {
+      Item *item_ref_ref= *(item_ref->ref);
+      DBUG_ASSERT((*ref)->type() == FIELD_ITEM &&
+                  (item_ref_ref->type() == FIELD_ITEM));
+      return (*ref == item_ref_ref);
+    }
+  }
+  return FALSE;
 }
 
 void Item_null_helper::print(String *str)
