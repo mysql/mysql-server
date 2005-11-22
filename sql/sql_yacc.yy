@@ -1605,13 +1605,14 @@ sp_decl:
             for (uint i = max-$2 ; i < max ; i++)
             {
               sp_instr_set *in;
+	      uint off= ctx->pvar_context2index(i);
 
-              ctx->set_type(i, type);
+              ctx->set_type(off, type);
               if (! has_default)
                 it= new Item_null();  /* QQ Set to the type with null_value? */
               in = new sp_instr_set(lex->sphead->instructions(),
                                     ctx,
-                                    ctx->pvar_context2index(i),
+                                    off,
                                     it, type, lex,
                                     (i == max - 1));
 
@@ -1620,7 +1621,7 @@ sp_decl:
                 freeing LEX.
               */
               lex->sphead->add_instr(in);
-              ctx->set_default(i, it);
+              ctx->set_default(off, it);
             }
             lex->sphead->restore_lex(YYTHD);
             $$.vars= $2;
