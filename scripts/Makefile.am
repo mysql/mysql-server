@@ -85,9 +85,10 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
+			mysql_explain_log \
+			mysql_tableinfo \
 			mysqld_multi \
 			make_win_src_distribution \
-			make_win_binary_distribution \
 			mysql_create_system_tables
 
 DISTCLEANFILES =        mysqlbug
