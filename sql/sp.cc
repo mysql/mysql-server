@@ -380,6 +380,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   {
     String defstr;
     LEX *oldlex= thd->lex;
+    sp_rcontext *save_spcont= thd->spcont;
     char olddb[128];
     bool dbchanged;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
@@ -422,6 +423,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       thd->lex->found_semicolon= tmpfsc;
     }
 
+    thd->spcont= 0;
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
     {
       LEX *newlex= thd->lex;
@@ -439,12 +441,14 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     else
     {
       if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
-	goto done;
+	goto db_done;
       *sphp= thd->lex->sphead;
       (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
       (*sphp)->set_info(created, modified, &chistics, sql_mode);
       (*sphp)->optimize();
     }
+db_done:
+    thd->spcont= save_spcont;
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
     thd->variables.select_limit= select_limit;
