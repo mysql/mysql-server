@@ -304,6 +304,12 @@ public:
     return test(m_flags &
 		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }
+
+#ifndef DBUG_OFF
+  int show_routine_code(THD *thd);
+#endif
+
+
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -865,8 +871,8 @@ class sp_instr_cpush : public sp_instr
 
 public:
 
-  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex)
-    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
+  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex, uint offset)
+    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE), m_cursor(offset)
   {}
 
   virtual ~sp_instr_cpush()
@@ -885,6 +891,7 @@ public:
 private:
 
   sp_lex_keeper m_lex_keeper;
+  uint m_cursor;                /* Frame offset (for debugging) */
 
 }; // class sp_instr_cpush : public sp_instr
 
