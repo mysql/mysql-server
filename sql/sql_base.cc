@@ -1200,17 +1200,16 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       (void) unpack_filename(path, path);
       if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
-        TABLE tab;// will not be used (because it's VIEW) but have to be passed
+        /*
+          Will not be used (because it's VIEW) but has to be passed.
+          Also we will not free it (because it is a stack variable).
+        */
+        TABLE tab;
         table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
-        if (open_unireg_entry(thd, table, table_list->db,
-                              table_list->table_name,
-                              alias, table_list, mem_root))
-        {
-          table->next=table->prev=table;
-          free_cache_entry(table);
-        }
-        else
+        if (!open_unireg_entry(thd, table, table_list->db,
+                               table_list->table_name,
+                               alias, table_list, mem_root))
         {
           DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));

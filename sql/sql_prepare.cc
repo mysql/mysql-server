@@ -1827,13 +1827,16 @@ static bool init_param_array(Prepared_statement *stmt)
 
 void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 {
-  Prepared_statement *stmt= new Prepared_statement(thd, &thd->protocol_prep);
+  Prepared_statement *stmt;
   bool error;
   DBUG_ENTER("mysql_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
 
-  if (stmt == 0)
+  /* First of all clear possible warnings from the previous command */
+  mysql_reset_thd_for_next_command(thd);
+
+  if (! (stmt= new Prepared_statement(thd, &thd->protocol_prep)))
     DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(stmt))
@@ -1842,7 +1845,6 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     DBUG_VOID_RETURN;                           /* out of memory */
   }
 
-  mysql_reset_thd_for_next_command(thd);
   /* Reset warnings from previous command */
   mysql_reset_errors(thd, 0);
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
@@ -1927,7 +1929,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
         variable absent or equal to NULL, so we need to set variable to
         something reasonable to get a readable error message during parsing
       */
-      str.set("NULL", 4, &my_charset_latin1);
+      str.set(STRING_WITH_LEN("NULL"), &my_charset_latin1);
     }
 
     needs_conversion= String::needs_conversion(var_value->length(),
@@ -2186,13 +2188,15 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
+  /* First of all clear possible warnings from the previous command */
+  mysql_reset_thd_for_next_command(thd);
+
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
   DBUG_PRINT("exec_query", ("%s", stmt->query));
   DBUG_PRINT("info",("stmt: %p", stmt));
 
-  mysql_reset_thd_for_next_command(thd);
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
   sp_cache_flush_obsolete(&thd->sp_func_cache);
 
@@ -2312,6 +2316,8 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   Server_side_cursor *cursor;
   DBUG_ENTER("mysql_stmt_fetch");
 
+  /* First of all clear possible warnings from the previous command */
+  mysql_reset_thd_for_next_command(thd);
   statistic_increment(thd->status_var.com_stmt_fetch, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
     DBUG_VOID_RETURN;
@@ -2373,6 +2379,9 @@ void mysql_stmt_reset(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_reset");
 
+  /* First of all clear possible warnings from the previous command */
+  mysql_reset_thd_for_next_command(thd);
+
   statistic_increment(thd->status_var.com_stmt_reset, &LOCK_status);
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
@@ -2387,7 +2396,6 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  mysql_reset_thd_for_next_command(thd);
   send_ok(thd);
 
   DBUG_VOID_RETURN;

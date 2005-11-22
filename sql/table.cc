@@ -110,7 +110,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (my_read(file,(byte*) head,64,MYF(MY_NABP)))
     goto err;
 
-  if (memcmp(head, "TYPE=", 5) == 0)
+  if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
   {
     // new .frm
     my_close(file,MYF(MY_WME));

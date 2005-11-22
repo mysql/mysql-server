@@ -794,9 +794,9 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 
 void Item_func_signed::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as signed)", 11);
+  str->append(STRING_WITH_LEN(" as signed)"));
 
 }
 
@@ -855,9 +855,9 @@ longlong Item_func_signed::val_int()
 
 void Item_func_unsigned::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as unsigned)", 13);
+  str->append(STRING_WITH_LEN(" as unsigned)"));
 
 }
 
@@ -927,9 +927,9 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 
 void Item_decimal_typecast::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as decimal)", 12);
+  str->append(STRING_WITH_LEN(" as decimal)"));
 }
 
 
@@ -2234,7 +2234,7 @@ longlong Item_func_locate::val_int()
 
 void Item_func_locate::print(String *str)
 {
-  str->append("locate(", 7);
+  str->append(STRING_WITH_LEN("locate("));
   args[1]->print(str);
   str->append(',');
   args[0]->print(str);
@@ -3297,7 +3297,7 @@ longlong Item_func_benchmark::val_int()
 
 void Item_func_benchmark::print(String *str)
 {
-  str->append("benchmark(", 10);
+  str->append(STRING_WITH_LEN("benchmark("));
   char buffer[20];
   // my_charset_bin is good enough for numbers
   String st(buffer, sizeof(buffer), &my_charset_bin);
@@ -3811,9 +3811,9 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 
 void Item_func_set_user_var::print(String *str)
 {
-  str->append("(@", 2);
+  str->append(STRING_WITH_LEN("(@"));
   str->append(name.str, name.length);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   args[0]->print(str);
   str->append(')');
 }
@@ -3821,9 +3821,9 @@ void Item_func_set_user_var::print(String *str)
 
 void Item_func_set_user_var::print_as_stmt(String *str)
 {
-  str->append("set @", 5);
+  str->append(STRING_WITH_LEN("set @"));
   str->append(name.str, name.length);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   args[0]->print(str);
   str->append(')');
 }
@@ -4054,7 +4054,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 
 void Item_func_get_user_var::print(String *str)
 {
-  str->append("(@", 2);
+  str->append(STRING_WITH_LEN("(@"));
   str->append(name.str,name.length);
   str->append(')');
 }
@@ -4479,15 +4479,15 @@ double Item_func_match::val_real()
 
 void Item_func_match::print(String *str)
 {
-  str->append("(match ", 7);
+  str->append(STRING_WITH_LEN("(match "));
   print_args(str, 1);
-  str->append(" against (", 10);
+  str->append(STRING_WITH_LEN(" against ("));
   args[0]->print(str);
   if (flags & FT_BOOL)
-    str->append(" in boolean mode", 16);
+    str->append(STRING_WITH_LEN(" in boolean mode"));
   else if (flags & FT_EXPAND)
-    str->append(" with query expansion", 21);
-  str->append("))", 2);
+    str->append(STRING_WITH_LEN(" with query expansion"));
+  str->append(STRING_WITH_LEN("))"));
 }
 
 longlong Item_func_bit_xor::val_int()
