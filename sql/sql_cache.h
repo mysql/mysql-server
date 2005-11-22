@@ -410,7 +410,7 @@ protected:
 
   /*
     The following functions are only used when debugging
-    We don't protect these with ifndef DEBUG_OFF to not have to recompile
+    We don't protect these with ifndef DBUG_OFF to not have to recompile
     everything if we want to add checks of the cache at some places.
   */
   void wreck(uint line, const char *message);

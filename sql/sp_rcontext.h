@@ -66,6 +66,14 @@ class sp_rcontext : public Sql_alloc
   */
   Query_arena *callers_arena;
 
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
+
   sp_rcontext(uint fsize, uint hmax, uint cmax);
 
   ~sp_rcontext()

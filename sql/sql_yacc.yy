@@ -2351,8 +2351,12 @@ sp_case:
 
 	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
-	      Item *var= (Item*) new Item_splocal(ivar, 
-						  ctx->current_pvars()-1);
+	      Item_splocal *var= new Item_splocal(ivar,
+                                                  ctx->current_pvars()-1);
+#ifndef DEBUG_OFF
+              if (var)
+                var->owner= sp;
+#endif
 	      Item *expr= new Item_func_eq(var, $2);
 
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
@@ -5925,7 +5929,13 @@ select_var_ident:
 	       YYABORT;
 	     else
 	     {
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
+               my_var *var;
+	       ((select_dumpvar *)lex->result)->
+                 var_list.push_back(var= new my_var($1,1,t->offset,t->type));
+#ifndef DEBUG_OFF
+	       if (var)
+		 var->owner= lex->sphead;
+#endif
 	     }
 	   }
            ;
@@ -7224,6 +7234,10 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
+#ifndef DEBUG_OFF
+            if (splocal)
+              splocal->owner= lex->sphead;
+#endif
 	    $$ = (Item*) splocal;
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
