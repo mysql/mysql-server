@@ -868,7 +868,7 @@ Item *
 Item_splocal::this_item()
 {
   THD *thd= current_thd;
-
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -876,6 +876,7 @@ Item_splocal::this_item()
 Item **
 Item_splocal::this_item_addr(THD *thd, Item **addr)
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item_addr(m_offset);
 }
 
@@ -884,6 +885,7 @@ Item_splocal::this_const_item() const
 {
   THD *thd= current_thd;
 
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -893,7 +895,10 @@ Item_splocal::type() const
   THD *thd= current_thd;
 
   if (thd->spcont)
+  {
+    DBUG_ASSERT(owner == thd->spcont->owner);
     return thd->spcont->get_item(m_offset)->type();
+  }
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 
