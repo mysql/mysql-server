@@ -271,7 +271,7 @@ public:
   unsigned m_total_alloc; // total allocated memory
 
   // threshholds to report status
-  unsigned m_free_thresh;
+  unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
 
   NdbError m_error;

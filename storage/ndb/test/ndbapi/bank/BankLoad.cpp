@@ -23,7 +23,7 @@
  */
 struct AccountTypesStruct {
   int id;
-  const char* descr;
+  const char descr[64];
 };
 const AccountTypesStruct accountTypes[] = {
   { 0, "KASSA"},
