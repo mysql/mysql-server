@@ -508,22 +508,22 @@ echo "Restarting mysqld."
 %preun server
 if test $1 = 0
 then
-	# Stop MySQL before uninstalling it
+  # Stop MySQL before uninstalling it
   if test -x %{_sysconfdir}/init.d/mysql
   then
     %{_sysconfdir}/init.d/mysql stop > /dev/null
-  fi
 
-  # Remove autostart of mysql
-	# for older SuSE Linux versions
-	if test -x /sbin/insserv
-	then
-		/sbin/insserv -r %{_sysconfdir}/init.d/mysql
-	# use chkconfig on Red Hat and newer SuSE releases
-	elif test -x /sbin/chkconfig
-	then
-		/sbin/chkconfig --del mysql
-	fi
+    # Remove autostart of mysql
+    # for older SuSE Linux versions
+    if test -x /sbin/insserv
+    then
+      /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+    # use chkconfig on Red Hat and newer SuSE releases
+    elif test -x /sbin/chkconfig
+    then
+      /sbin/chkconfig --del mysql
+    fi
+  fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -706,6 +706,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Nov 22 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Extend the file existence check for "init.d/mysql" on un-install
+  to also guard the call to "insserv"/"chkconfig".
+
 * Thu Oct 27 2005 Lenz Grimmer <lenz@grimmer.com>
 
 - added more man pages
