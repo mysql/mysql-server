@@ -2048,14 +2048,19 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
-#define STMT_PRINT_MAXLEN 40
+/* 
+   Sufficient max length of printed destinations and frame offsets (all uints).
+*/
+#define SP_INSTR_UINT_MAXLEN  8
+
+#define SP_STMT_PRINT_MAXLEN 40
 void
 sp_instr_stmt::print(String *str)
 {
   uint i, len;
 
-  /* Reserve enough space for 'stmt CMD "..."'; max+20 is more than enough. */
-  if (str->reserve(STMT_PRINT_MAXLEN+20))
+  /* stmt CMD "..." */
+  if (str->reserve(SP_STMT_PRINT_MAXLEN+SP_INSTR_UINT_MAXLEN+8))
     return;
   str->qs_append("stmt ", 5);
   str->qs_append((uint)m_lex_keeper.sql_command());
@@ -2065,8 +2070,8 @@ sp_instr_stmt::print(String *str)
     Print the query string (but not too much of it), just to indicate which
     statement it is.
   */
-  if (len > STMT_PRINT_MAXLEN)
-    len= STMT_PRINT_MAXLEN-3;
+  if (len > SP_STMT_PRINT_MAXLEN)
+    len= SP_STMT_PRINT_MAXLEN-3;
   /* Copy the query string and replace '\n' with ' ' in the process */
   for (i= 0 ; i < len ; i++)
   {
@@ -2075,11 +2080,11 @@ sp_instr_stmt::print(String *str)
     else
       str->qs_append(m_query.str[i]);
   }
-  if (m_query.length > STMT_PRINT_MAXLEN)
+  if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append("...", 3);      /* Indicate truncated string */
   str->qs_append('"');
 }
-#undef STMT_PRINT_MAXLEN
+#undef SP_STMT_PRINT_MAXLEN
 
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
@@ -2116,7 +2121,8 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set::print(String *str)
 {
-  int rsrv = 16;
+  /* set name@offset ... */
+  int rsrv = SP_INSTR_UINT_MAXLEN+6;
   sp_pvar_t *var = m_ctx->find_pvar(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
@@ -2164,7 +2170,7 @@ sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set_trigger_field::print(String *str)
 {
-  str->append("set ", 4);
+  str->append("set_trigger_field ", 18);
   trigger_field->print(str);
   str->append(":=", 2);
   value->print(str);
@@ -2188,7 +2194,8 @@ sp_instr_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_jump::print(String *str)
 {
-  if (str->reserve(12))
+  /* jump dest */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
     return;
   str->qs_append("jump ", 5);
   str->qs_append(m_dest);
@@ -2271,7 +2278,8 @@ sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if::print(String *str)
 {
-  if (str->reserve(32))
+  /* jump_if dest ... */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+8+32)) // Add some for the expr. too
     return;
   str->qs_append("jump_if ", 8);
   str->qs_append(m_dest);
@@ -2333,7 +2341,8 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if_not::print(String *str)
 {
-  if (str->reserve(32))
+  /* jump_if_not dest ... */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+12+32)) // Add some for the expr. too
     return;
   str->qs_append("jump_if_not ", 12);
   str->qs_append(m_dest);
@@ -2392,7 +2401,8 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_freturn::print(String *str)
 {
-  if (str->reserve(32))
+  /* freturn type expr... */
+  if (str->reserve(UINT_MAX+8+32)) // Add some for the expr. too
     return;
   str->qs_append("freturn ", 8);
   str->qs_append((uint)m_type);
@@ -2421,7 +2431,8 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpush_jump::print(String *str)
 {
-  if (str->reserve(32))
+  /* hpush_jump dest fsize type */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 21))
     return;
   str->qs_append("hpush_jump ", 11);
   str->qs_append(m_dest);
@@ -2479,7 +2490,8 @@ sp_instr_hpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpop::print(String *str)
 {
-  if (str->reserve(12))
+  /* hpop count */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
     return;
   str->qs_append("hpop ", 5);
   str->qs_append(m_count);
@@ -2515,7 +2527,8 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
 void
 sp_instr_hreturn::print(String *str)
 {
-  if (str->reserve(20))
+  /* hreturn framesize dest */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 9))
     return;
   str->qs_append("hreturn ", 8);
   str->qs_append(m_frame);
@@ -2570,8 +2583,9 @@ void
 sp_instr_cpush::print(String *str)
 {
   LEX_STRING n;
-  uint rsrv= 12;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cpush name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
 
   if (found)
     rsrv+= n.length;
@@ -2604,7 +2618,8 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpop::print(String *str)
 {
-  if (str->reserve(12))
+  /* cpop count */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
     return;
   str->qs_append("cpop ", 5);
   str->qs_append(m_count);
@@ -2681,8 +2696,9 @@ void
 sp_instr_copen::print(String *str)
 {
   LEX_STRING n;
-  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* copen name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
 
   if (found)
     rsrv+= n.length;
@@ -2722,8 +2738,9 @@ void
 sp_instr_cclose::print(String *str)
 {
   LEX_STRING n;
-  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cclose name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (found)
     rsrv+= n.length;
@@ -2764,8 +2781,9 @@ sp_instr_cfetch::print(String *str)
   List_iterator_fast<struct sp_pvar> li(m_varlist);
   sp_pvar_t *pv;
   LEX_STRING n;
-  uint rsrv= 16;
   my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cfetch name@offset vars... */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (found)
     rsrv+= n.length;
@@ -2780,7 +2798,7 @@ sp_instr_cfetch::print(String *str)
   str->qs_append(m_cursor);
   while ((pv= li++))
   {
-    if (str->reserve(pv->name.length+10))
+    if (str->reserve(pv->name.length+SP_INSTR_UINT_MAXLEN+2))
       return;
     str->qs_append(' ');
     str->qs_append(pv->name.str, pv->name.length);
@@ -2808,7 +2826,8 @@ sp_instr_error::execute(THD *thd, uint *nextp)
 void
 sp_instr_error::print(String *str)
 {
-  if (str->reserve(12))
+  /* error code */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+6))
     return;
   str->qs_append("error ", 6);
   str->qs_append(m_errcode);
