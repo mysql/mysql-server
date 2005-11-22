@@ -87,10 +87,15 @@ private:
 
   void free_string_array(DYNAMIC_ARRAY *a);
 
-  void table_rule_ent_hash_to_str(String* s, HASH* h);
-  void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
+  void table_rule_ent_hash_to_str(String* s, HASH* h, bool inited);
+  void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a,
+                                           bool inited);
   TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len);
 
+  /*
+    Those 4 structures below are uninitialized memory unless the
+    corresponding *_inited variables are "true".
+  */
   HASH do_table;
   HASH ignore_table;
   DYNAMIC_ARRAY wild_do_table;

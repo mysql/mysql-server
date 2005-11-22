@@ -1,0 +1,238 @@
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+
+---> connection: default
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1
+TO 'mysqltest_inv'@localhost;
+GRANT SELECT ON mysqltest_db1.t2
+TO 'mysqltest_inv'@localhost;
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1;
+num_value
+1
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+
+---> connection: wl2818_invoker_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+num_value
+1
+2
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+mysqltest_dfn@localhost
+
+---> connection: default
+use mysqltest_db1;
+REVOKE INSERT ON mysqltest_db1.t2 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_invoker_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(3);
+ERROR 42000: INSERT command denied to user 'mysqltest_dfn'@'localhost' for table 't2'
+SELECT * FROM t1;
+num_value
+1
+2
+3
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+mysqltest_dfn@localhost
+
+---> connection: default
+use mysqltest_db1;
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+DROP TRIGGER trg1;
+SET @new_sum = 0;
+SET @old_sum = 0;
+---> INSERT INTO statement; BEFORE timing
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+INSERT INTO t1 VALUES(4);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> INSERT INTO statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+INSERT INTO t1 VALUES(5);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> UPDATE statement; BEFORE timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+UPDATE t1 SET num_value = 10;
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> UPDATE statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER UPDATE ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+UPDATE t1 SET num_value = 20;
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> DELETE statement; BEFORE timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+DELETE FROM t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> DELETE statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+DELETE FROM t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: default
+use mysqltest_db1;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+DROP TRIGGER trg1;
+SET @new_sum = 0;
+SET @old_sum = 0;
+---> INSERT INTO statement; BEFORE timing
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+INSERT INTO t1 VALUES(4);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> INSERT INTO statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+INSERT INTO t1 VALUES(5);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> UPDATE statement; BEFORE timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+UPDATE t1 SET num_value = 10;
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> UPDATE statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER UPDATE ON t1
+FOR EACH ROW
+SET @new_sum = @new_sum + NEW.num_value;
+UPDATE t1 SET num_value = 20;
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> DELETE statement; BEFORE timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+DELETE FROM t1;
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+---> DELETE statement; AFTER timing
+DROP TRIGGER trg1;
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+FOR EACH ROW
+SET @old_sum = @old_sum + OLD.num_value;
+DELETE FROM t1;
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+DROP TRIGGER trg1;
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
+CREATE DEFINER='mysqltest_nonexs'@'localhost'
+  TRIGGER trg2 AFTER INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
+Warnings:
+Note	1449	There is no 'mysqltest_nonexs'@'localhost' registered
+INSERT INTO t1 VALUES(6);
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+trg1	INSERT	t1	
+SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost
+trg2	INSERT	t1	
+SET @new_sum = 0	AFTER	NULL		mysqltest_nonexs@localhost
+DROP TRIGGER trg1;
+DROP TRIGGER trg2;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @a = 1;
+CREATE TRIGGER trg2 AFTER INSERT ON t1
+FOR EACH ROW
+SET @a = 2;
+CREATE TRIGGER trg3 BEFORE UPDATE ON t1
+FOR EACH ROW
+SET @a = 3;
+CREATE TRIGGER trg4 AFTER UPDATE ON t1
+FOR EACH ROW
+SET @a = 4;
+CREATE TRIGGER trg5 BEFORE DELETE ON t1
+FOR EACH ROW
+SET @a = 5;
+
+SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+trigger_name	definer
+trg1	
+trg2	@
+trg3	@abc@def@@
+trg4	@hostname
+trg5	@abcdef@@@hostname
+Warnings:
+Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
+
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
+NULL	mysqltest_db1	trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL	
+SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		
+NULL	mysqltest_db1	trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	
+SET @a = 2	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@
+NULL	mysqltest_db1	trg3	UPDATE	NULL	mysqltest_db1	t1	0	NULL	
+SET @a = 3	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abc@def@@
+NULL	mysqltest_db1	trg4	UPDATE	NULL	mysqltest_db1	t1	0	NULL	
+SET @a = 4	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@hostname
+NULL	mysqltest_db1	trg5	DELETE	NULL	mysqltest_db1	t1	0	NULL	
+SET @a = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abcdef@@@hostname
+
+---> connection: default
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+DROP DATABASE mysqltest_db1;
+Warnings:
+Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
