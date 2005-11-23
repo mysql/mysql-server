@@ -2288,7 +2288,7 @@ sp_case:
 	      ivar.length= 5;
 	      Item_splocal *var= new Item_splocal(ivar,
                                                   ctx->current_pvars()-1);
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
               if (var)
                 var->owner= sp;
 #endif
@@ -5875,7 +5875,7 @@ select_var_ident:
                my_var *var;
 	       ((select_dumpvar *)lex->result)->
                  var_list.push_back(var= new my_var($1,1,t->offset,t->type));
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
 	       if (var)
 		 var->owner= lex->sphead;
 #endif
@@ -7181,7 +7181,7 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
             if (splocal)
               splocal->owner= lex->sphead;
 #endif
