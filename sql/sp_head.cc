@@ -120,6 +120,45 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DEALLOCATE_PREPARE:
     flags= sp_head::CONTAINS_DYNAMIC_SQL;
     break;
+  case SQLCOM_CREATE_TABLE:
+    if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_DROP_TABLE:
+    if (lex->drop_temporary)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_CREATE_TRIGGER:
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_BEGIN:
+  case SQLCOM_RENAME_TABLE:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_DROP_DB:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_DROP_VIEW:
+  case SQLCOM_DROP_TRIGGER:
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_COMMIT:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_LOAD_MASTER_DATA:
+  case SQLCOM_LOCK_TABLES:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_DROP_FUNCTION:
+    flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
   default:
     flags= 0;
     break;
@@ -476,7 +515,7 @@ void
 sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
-  uint n;			/* Counter for nul trimming */ 
+  uchar *endp;                  /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
@@ -509,17 +548,20 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
                                (char *)m_param_begin, m_params.length);
   }
 
-  m_body.length= lex->ptr - m_body_begin;
-  /* Trim nuls at the end */
-  n= 0;
-  while (m_body.length && m_body_begin[m_body.length-1] == '\0')
-  {
-    m_body.length-= 1;
-    n+= 1;
-  }
+  /* If ptr has overrun end_of_query then end_of_query is the end */
+  endp= (lex->ptr > lex->end_of_query ? lex->end_of_query : lex->ptr);
+  /*
+    Trim "garbage" at the end. This is sometimes needed with the
+    "/ * ! VERSION... * /" wrapper in dump files.
+  */
+  while (m_body_begin < endp &&
+         (endp[-1] <= ' ' || endp[-1] == '*' ||
+          endp[-1] == '/' || endp[-1] == ';'))
+    endp-= 1;
+
+  m_body.length= endp - m_body_begin;
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
-  m_defstr.length= lex->ptr - lex->buf;
-  m_defstr.length-= n;
+  m_defstr.length= endp - lex->buf;
   m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
@@ -1569,21 +1611,9 @@ sp_head::check_backpatch(THD *thd)
 }
 
 void
-sp_head::set_info(char *definer, uint definerlen,
-		  longlong created, longlong modified,
+sp_head::set_info(longlong created, longlong modified,
 		  st_sp_chistics *chistics, ulong sql_mode)
 {
-  char *p= strchr(definer, '@');
-  uint len;
-
-  if (! p)
-    p= definer;		// Weird...
-  len= p-definer;
-  m_definer_user.str= strmake_root(mem_root, definer, len);
-  m_definer_user.length= len;
-  len= definerlen-len-1;
-  m_definer_host.str= strmake_root(mem_root, p+1, len);
-  m_definer_host.length= len;
   m_created= created;
   m_modified= modified;
   m_chistics= (st_sp_chistics *) memdup_root(mem_root, (char*) chistics,
@@ -1596,6 +1626,34 @@ sp_head::set_info(char *definer, uint definerlen,
 					  m_chistics->comment.length);
   m_sql_mode= sql_mode;
 }
+
+
+void
+sp_head::set_definer(char *definer, uint definerlen)
+{
+  char *p= strrchr(definer, '@');
+
+  if (!p)
+  {
+    m_definer_user.str= strmake_root(mem_root, "", 0);
+    m_definer_user.length= 0;
+    
+    m_definer_host.str= strmake_root(mem_root, "", 0);
+    m_definer_host.length= 0;
+  }
+  else
+  {
+    const uint user_name_len= p - definer;
+    const uint host_name_len= definerlen - user_name_len - 1;
+
+    m_definer_user.str= strmake_root(mem_root, definer, user_name_len);
+    m_definer_user.length= user_name_len;
+
+    m_definer_host.str= strmake_root(mem_root, p + 1, host_name_len);
+    m_definer_host.length= host_name_len;
+  }
+}
+
 
 void
 sp_head::reset_thd_mem_root(THD *thd)
@@ -2848,33 +2906,34 @@ sp_head::add_used_tables_to_table_list(THD *thd,
   DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 
   /*
-    Use persistent arena for table list allocation to be PS friendly.
+    Use persistent arena for table list allocation to be PS/SP friendly.
+    Note that we also have to copy database/table names and alias to PS/SP
+    memory since current instance of sp_head object can pass away before
+    next execution of PS/SP for which tables are added to prelocking list.
+    This will be fixed by introducing of proper invalidation mechanism
+    once new TDC is ready.
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (i=0 ; i < m_sptabs.records ; i++)
   {
-    char *tab_buff;
+    char *tab_buff, *key_buff;
     TABLE_LIST *table;
     SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
     if (stab->temp)
       continue;
 
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
-                                        stab->lock_count)))
+                                        stab->lock_count)) ||
+        !(key_buff= (char*)thd->memdup(stab->qname.str,
+                                       stab->qname.length + 1)))
       DBUG_RETURN(FALSE);
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
       table= (TABLE_LIST *)tab_buff;
 
-      /*
-        It's enough to just copy the pointers as the data will not change
-        during the lifetime of the SP. If the SP is used by PS, we assume
-        that the PS will be invalidated if the functions is deleted or
-        changed.
-      */
-      table->db= stab->qname.str;
+      table->db= key_buff;
       table->db_length= stab->db_length;
       table->table_name= table->db + table->db_length + 1;
       table->table_name_length= stab->table_name_length;

@@ -4541,6 +4541,59 @@ drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
 
+
+#
+# BUG#1473: Dumping of stored functions seems to cause corruption in
+#           the function body
+#
+--disable_warnings
+drop function if exists bug14723|
+drop procedure if exists bug14723|
+--enable_warnings
+
+delimiter ;;|
+/*!50003 create function bug14723()
+ returns bigint(20)
+main_loop: begin
+  return 42;
+end */;;
+show create function bug14723;;
+select bug14723();;
+
+/*!50003 create procedure bug14723()
+main_loop: begin
+  select 42;
+end */;;
+show create procedure bug14723;;
+call bug14723();;
+
+delimiter |;;
+
+drop function bug14723|
+drop procedure bug14723|
+
+#
+# Bug#14845 "mysql_stmt_fetch returns MYSQL_NO_DATA when COUNT(*) is 0"
+# Check that when fetching from a cursor, COUNT(*) works properly.
+#
+create procedure bug14845()
+begin
+  declare a char(255);
+  declare done int default 0;
+  declare c cursor for select count(*) from t1 where 1 = 0;
+  declare continue handler for sqlstate '02000' set done = 1;
+  open c;
+  repeat
+    fetch c into a;
+    if not done then
+      select a;
+    end if;
+  until done end repeat;
+  close c;
+end|
+call bug14845()|
+drop procedure bug14845|
+
 #
 # BUG#NNNN: New bug synopsis
 #

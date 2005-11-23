@@ -20,7 +20,7 @@
   used by all handlers that support partitioning, which in the first version
   is the partitioning handler itself and the NDB handler.
 
-  The first version was written by Mikael Ronström.
+  The first version was written by Mikael Ronstrom.
 
   This version supports RANGE partitioning, LIST partitioning, HASH
   partitioning and composite partitioning (hereafter called subpartitioning)

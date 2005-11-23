@@ -1403,3 +1403,67 @@ SELECT v2.x FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
 ERROR 42S22: Unknown column 'v2.x' in 'field list'
 DROP VIEW v1, v2;
 DROP TABLE t1, t2, t3, t4, t5, t6;
+create table t1 (id1 int(11) not null);
+insert into t1 values (1),(2);
+create table t2 (id2 int(11) not null);
+insert into t2 values (1),(2),(3),(4);
+create table t3 (id3 char(16) not null);
+insert into t3 values ('100');
+create table t4 (id2 int(11) not null, id3 char(16));
+create table t5 (id1 int(11) not null, key (id1));
+insert into t5 values (1),(2),(1);
+create view v1 as
+select t4.id3 from t4 join t2 on t4.id2 = t2.id2;
+select t1.id1 from t1 inner join (t3 left join v1 on t3.id3 = v1.id3);
+id1
+1
+2
+drop view v1;
+drop table t1, t2, t3, t4, t5;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3);
+create table t1(a int);
+insert into t1 select A.a + 10*(B.a) from t0 A, t0 B;
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2), (3,3);
+create table t3(a int, b int, filler char(200), key(a));
+insert into t3 select a,a,'filler' from t1;
+insert into t3 select a,a,'filler' from t1;
+create table t4 like t3;
+insert into t4 select * from t3;
+insert into t4 select * from t3;
+create table t5 like t4;
+insert into t5 select * from t4;
+insert into t5 select * from t4;
+create table t6 like t5;
+insert into t6 select * from t5;
+insert into t6 select * from t5;
+create table t7 like t6;
+insert into t7 select * from t6;
+insert into t7 select * from t6;
+explain select * from t4 join 
+t2 left join (t3 join t5 on t5.a=t3.b) on t3.a=t2.b where t4.a<=>t3.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
+1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	
+1	SIMPLE	t5	ref	a	a	5	test.t3.b	X	
+1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	Using where
+explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
+join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
+1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	Using where
+1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	
+1	SIMPLE	t6	ref	a	a	5	test.t4.b	X	
+1	SIMPLE	t5	ref	a	a	5	test.t2.b	X	
+1	SIMPLE	t7	ref	a	a	5	test.t5.b	X	
+explain select * from t2 left join
+(t3 left join (t4 join t6 on t6.a=t4.b) on t4.a=t3.b 
+join t5 on t5.a=t3.b) on t3.a=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
+1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	
+1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	
+1	SIMPLE	t6	ref	a	a	5	test.t4.b	X	
+1	SIMPLE	t5	ref	a	a	5	test.t3.b	X	
+drop table t0, t1, t2, t4, t5, t6;

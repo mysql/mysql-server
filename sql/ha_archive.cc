@@ -249,7 +249,8 @@ ha_archive::ha_archive(TABLE *table_arg)
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
   /* The size of the offset value we will use for position() */
-  ref_length = sizeof(z_off_t);
+  ref_length = 2 << ((zlibCompileFlags() >> 6) & 3);
+  DBUG_ASSERT(ref_length <= sizeof(z_off_t));
 }
 
 /*
