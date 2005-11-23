@@ -4566,9 +4566,11 @@ end_with_restore_list:
 	goto error;
       }
       if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
-        sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-        sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       if (!sp || !sp->show_routine_code(thd))
       {
         /* We don't distinguish between errors for now */
