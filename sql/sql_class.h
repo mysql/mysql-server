@@ -530,6 +530,7 @@ struct system_variables
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
+  ulong max_sp_recursion_depth;
   /* check of key presence in updatable view */
   ulong updatable_views_with_limit;
   ulong default_week_format;
@@ -2085,6 +2086,13 @@ public:
 class my_var : public Sql_alloc  {
 public:
   LEX_STRING s;
+#ifndef DEBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   bool local;
   uint offset;
   enum_field_types type;

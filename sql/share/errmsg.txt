@@ -5505,8 +5505,8 @@ ER_NO_DEFAULT_FOR_VIEW_FIELD
         eng "Field of view '%-.64s.%-.64s' underlying table doesn't have a default value"
 	ger "Ein Feld der dem View '%-.64s.%-.64s' zugrundeliegenden Tabelle hat keinen Vorgabewert"
 ER_SP_NO_RECURSION
-        eng "Recursive stored routines are not allowed."
-	ger "Rekursive gespeicherte Routinen sind nicht erlaubt"
+        eng "Recursive stored functions and triggers are not allowed."
+	ger "Rekursive gespeicherte Routinen und Triggers sind nicht erlaubt"
 ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.64s'. Maximum is %d."
 	ger "Zu großer Skalierungsfaktor %d für Feld '%-.64s' angegeben. Maximum ist %d"
@@ -5598,3 +5598,5 @@ ER_TRG_NO_DEFINER
   eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
 ER_OLD_FILE_FORMAT
   eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
+ER_SP_RECURSION_LIMIT
+        eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"

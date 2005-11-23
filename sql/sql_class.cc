@@ -1495,7 +1495,13 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     my_var *mv= gl++;
     if (mv->local)
-      (void)local_vars.push_back(new Item_splocal(mv->s, mv->offset));
+    {
+      Item_splocal *var;
+      (void)local_vars.push_back(var= new Item_splocal(mv->s, mv->offset));
+#ifndef DEBUG_OFF
+      var->owner= mv->owner;
+#endif
+    }
     else
     {
       Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);

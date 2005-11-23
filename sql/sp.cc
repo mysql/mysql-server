@@ -29,6 +29,11 @@ create_string(THD *thd, String *buf,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
 	      st_sp_chistics *chistics);
+static int
+db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+                ulong sql_mode, const char *params, const char *returns,
+                const char *body, st_sp_chistics &chistics,
+                const char *definer, longlong created, longlong modified);
 
 /*
  *
@@ -377,83 +382,80 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   close_proc_table(thd, &open_tables_state_backup);
   table= 0;
 
-  {
-    String defstr;
-    LEX *oldlex= thd->lex;
-    char olddb[128];
-    bool dbchanged;
-    enum enum_sql_command oldcmd= thd->lex->sql_command;
-    ulong old_sql_mode= thd->variables.sql_mode;
-    ha_rows select_limit= thd->variables.select_limit;
-
-    thd->variables.sql_mode= sql_mode;
-    thd->variables.select_limit= HA_POS_ERROR;
-
-    defstr.set_charset(system_charset_info);
-    if (!create_string(thd, &defstr,
-		       type,
-		       name,
-		       params, strlen(params),
-		       returns, strlen(returns),
-		       body, strlen(body),
-		       &chistics))
-    {
-      ret= SP_INTERNAL_ERROR;
-      goto done;
-    }
-
-    dbchanged= FALSE;
-    if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
-			    1, &dbchanged)))
-      goto done;
-
-    {
-      /* This is something of a kludge. We need to initialize some fields
-       * in thd->lex (the unit and master stuff), and the easiest way to
-       * do it is, is to call mysql_init_query(), but this unfortunately
-       * resets teh value_list where we keep the CALL parameters. So we
-       * copy the list and then restore it. (... and found_semicolon too).
-       */
-      List<Item> tmpvals= thd->lex->value_list;
-      char *tmpfsc= thd->lex->found_semicolon;
-
-      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
-      thd->lex->value_list= tmpvals;
-      thd->lex->found_semicolon= tmpfsc;
-    }
-
-    if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
-    {
-      LEX *newlex= thd->lex;
-      sp_head *sp= newlex->sphead;
-
-      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
-	goto done;
-      if (sp)
-      {
-	delete sp;
-	newlex->sphead= NULL;
-      }
-      ret= SP_PARSE_ERROR;
-    }
-    else
-    {
-      if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
-	goto done;
-      *sphp= thd->lex->sphead;
-      (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
-      (*sphp)->set_info(created, modified, &chistics, sql_mode);
-      (*sphp)->optimize();
-    }
-    thd->lex->sql_command= oldcmd;
-    thd->variables.sql_mode= old_sql_mode;
-    thd->variables.select_limit= select_limit;
-  }
-
+  ret= db_load_routine(thd, type, name, sphp,
+                       sql_mode, params, returns, body, chistics,
+                       definer, created, modified);
+                       
  done:
   if (table)
     close_proc_table(thd, &open_tables_state_backup);
   DBUG_RETURN(ret);
+}
+
+
+static int
+db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+                ulong sql_mode, const char *params, const char *returns,
+                const char *body, st_sp_chistics &chistics,
+                const char *definer, longlong created, longlong modified)
+{
+  LEX *oldlex= thd->lex, newlex;
+  sp_rcontext *save_spcont= thd->spcont;
+  String defstr;
+  char olddb[128];
+  bool dbchanged;
+  ulong old_sql_mode= thd->variables.sql_mode;
+  ha_rows select_limit= thd->variables.select_limit;
+  int ret= SP_INTERNAL_ERROR;
+
+  thd->variables.sql_mode= sql_mode;
+  thd->variables.select_limit= HA_POS_ERROR;
+
+  thd->lex= &newlex;
+  newlex.current_select= NULL;
+
+  defstr.set_charset(system_charset_info);
+  if (!create_string(thd, &defstr,
+		     type,
+		     name,
+		     params, strlen(params),
+		     returns, strlen(returns),
+		     body, strlen(body),
+		     &chistics))
+    goto end;
+
+  dbchanged= FALSE;
+  if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
+			  1, &dbchanged)))
+    goto end;
+
+  lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+
+  thd->spcont= 0;
+  if (yyparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
+  {
+    sp_head *sp= newlex.sphead;
+
+    if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
+      goto end;
+    delete sp;
+    ret= SP_PARSE_ERROR;
+  }
+  else
+  {
+    if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
+      goto end;
+    *sphp= newlex.sphead;
+    (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
+    (*sphp)->set_info(created, modified, &chistics, sql_mode);
+    (*sphp)->optimize();
+  }
+end:
+  thd->spcont= save_spcont;
+  thd->variables.sql_mode= old_sql_mode;
+  thd->variables.select_limit= select_limit;
+  thd->lex= oldlex;
+  return ret;
 }
 
 
@@ -899,20 +901,17 @@ err:
 ******************************************************************************/
 
 /*
-  Obtain object representing stored procedure by its name from
+  Obtain object representing stored procedure/function by its name from
   stored procedures cache and looking into mysql.proc if needed.
 
   SYNOPSIS
-    sp_find_procedure()
+    sp_find_routine()
       thd        - thread context
+      type       - type of object (TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE)
       name       - name of procedure
+      cp         - hash to look routine in
       cache_only - if true perform cache-only lookup
                    (Don't look in mysql.proc).
-
-  TODO
-    We should consider merging of sp_find_procedure() and
-    sp_find_function() into one sp_find_routine() function
-    (the same applies to other similarly paired functions).
 
   RETURN VALUE
     Non-0 pointer to sp_head object for the procedure, or
@@ -920,22 +919,86 @@ err:
 */
 
 sp_head *
-sp_find_procedure(THD *thd, sp_name *name, bool cache_only)
+sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
+                bool cache_only)
 {
   sp_head *sp;
-  DBUG_ENTER("sp_find_procedure");
-  DBUG_PRINT("enter", ("name: %.*s.%.*s",
-		       name->m_db.length, name->m_db.str,
-		       name->m_name.length, name->m_name.str));
+  ulong depth= (type == TYPE_ENUM_PROCEDURE ?
+                thd->variables.max_sp_recursion_depth :
+                0);
 
-  if (!(sp= sp_cache_lookup(&thd->sp_proc_cache, name)) && !cache_only)
+  DBUG_ENTER("sp_find_routine");
+  DBUG_PRINT("enter", ("name:  %.*s.%.*s, type: %d, cache only %d",
+                       name->m_db.length, name->m_db.str,
+                       name->m_name.length, name->m_name.str,
+                       type, cache_only));
+
+  if ((sp= sp_cache_lookup(cp, name)))
   {
-    if (db_find_routine(thd, TYPE_ENUM_PROCEDURE, name, &sp) == SP_OK)
-      sp_cache_insert(&thd->sp_proc_cache, sp);
+    ulong level;
+    DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
+    if (sp->m_first_free_instance)
+    {
+      DBUG_PRINT("info", ("first free: 0x%lx, level: %lu, flags %x",
+                          (ulong)sp->m_first_free_instance,
+                          sp->m_first_free_instance->m_recursion_level,
+                          sp->m_first_free_instance->m_flags));
+      DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
+      if (sp->m_first_free_instance->m_recursion_level > depth)
+      {
+        sp->recursion_level_error();
+        DBUG_RETURN(0);
+      }
+      DBUG_RETURN(sp->m_first_free_instance);
+    }
+    level= sp->m_last_cached_sp->m_recursion_level + 1;
+    if (level > depth)
+    {
+      sp->recursion_level_error();
+      DBUG_RETURN(0);
+    }
+    {
+      sp_head *new_sp;
+      const char *returns= "";
+      char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+      String retstr(64);
+      strxmov(definer, sp->m_definer_user.str, "@",
+                       sp->m_definer_host.str, NullS);
+      if (type == TYPE_ENUM_FUNCTION)
+      {
+        sp_returns_type(thd, retstr, sp);
+        returns= retstr.ptr();
+      }
+      if (db_load_routine(thd, type, name, &new_sp,
+                          sp->m_sql_mode, sp->m_params.str, returns,
+                          sp->m_body.str, *sp->m_chistics, definer,
+                          sp->m_created, sp->m_modified) == SP_OK)
+      {
+        sp->m_last_cached_sp->m_next_cached_sp= new_sp;
+        new_sp->m_recursion_level= level;
+        new_sp->m_first_instance= sp;
+        sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
+        DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x",
+                          (ulong)new_sp, new_sp->m_recursion_level,
+                          new_sp->m_flags));
+        DBUG_RETURN(new_sp);
+      }
+      DBUG_RETURN(0);
+    }
   }
-
+  if (!cache_only)
+  {
+    if (db_find_routine(thd, type, name, &sp) == SP_OK)
+    {
+      sp_cache_insert(cp, sp);
+      DBUG_PRINT("info", ("added new: 0x%lx, level: %lu, flags %x",
+                          (ulong)sp, sp->m_recursion_level,
+                          sp->m_flags));
+    }
+  }
   DBUG_RETURN(sp);
 }
+
 
 
 int
@@ -955,8 +1018,10 @@ sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
     lex_name.str= thd->strmake(table->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name);
     name->init_qname(thd);
-    if (sp_find_procedure(thd, name) != NULL ||
-        sp_find_function(thd, name) != NULL)
+    if (sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
+                        &thd->sp_proc_cache, FALSE) != NULL ||
+        sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
+                        &thd->sp_func_cache, FALSE) != NULL)
     {
       if (any)
         DBUG_RETURN(1);
@@ -1024,7 +1089,8 @@ sp_show_create_procedure(THD *thd, sp_name *name)
   DBUG_ENTER("sp_show_create_procedure");
   DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
-  if ((sp= sp_find_procedure(thd, name)))
+  if ((sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
+                           &thd->sp_proc_cache, FALSE)))
   {
     int ret= sp->show_create_procedure(thd);
 
@@ -1049,42 +1115,6 @@ sp_show_status_procedure(THD *thd, const char *wild)
 /*****************************************************************************
   FUNCTION
 ******************************************************************************/
-
-/*
-  Obtain object representing stored function by its name from
-  stored functions cache and looking into mysql.proc if needed.
-
-  SYNOPSIS
-    sp_find_function()
-      thd        - thread context
-      name       - name of function
-      cache_only - if true perform cache-only lookup
-                   (Don't look in mysql.proc).
-
-  NOTE
-    See TODO section for sp_find_procedure().
-
-  RETURN VALUE
-    Non-0 pointer to sp_head object for the function, or
-    0 - in case of error.
-*/
-
-sp_head *
-sp_find_function(THD *thd, sp_name *name, bool cache_only)
-{
-  sp_head *sp;
-  DBUG_ENTER("sp_find_function");
-  DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
-
-  if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)) &&
-      !cache_only)
-  {
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) == SP_OK)
-      sp_cache_insert(&thd->sp_func_cache, sp);
-  }
-  DBUG_RETURN(sp);
-}
-
 
 int
 sp_create_function(THD *thd, sp_head *sp)
@@ -1133,7 +1163,8 @@ sp_show_create_function(THD *thd, sp_name *name)
   DBUG_ENTER("sp_show_create_function");
   DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
-  if ((sp= sp_find_function(thd, name)))
+  if ((sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
+                           &thd->sp_func_cache, FALSE)))
   {
     int ret= sp->show_create_function(thd);
 
@@ -1443,10 +1474,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                               &thd->sp_func_cache : &thd->sp_proc_cache),
                               &name)))
     {
-      LEX *oldlex= thd->lex;
-      LEX *newlex= new st_lex;
-      thd->lex= newlex;
-      newlex->current_select= NULL;
       name.m_name.str= strchr(name.m_qname.str, '.');
       name.m_db.length= name.m_name.str - name.m_qname.str;
       name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
@@ -1461,8 +1488,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
         else
           sp_cache_insert(&thd->sp_proc_cache, sp);
       }
-      delete newlex;
-      thd->lex= oldlex;
     }
     if (sp)
     {
