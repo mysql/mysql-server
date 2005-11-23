@@ -623,7 +623,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         TODO: special cascade/restrict procedure for alter?
       */
       if (parser->parse((gptr)view, thd->mem_root,
-                        view_parameters + revision_number_position, 1))
+                        view_parameters + revision_number_position, 1,
+                        &file_parser_dummy_hook))
       {
         DBUG_RETURN(thd->net.report_error? -1 : 0);
       }
@@ -792,7 +793,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     be used here
   */
   if (parser->parse((gptr)table, thd->mem_root, view_parameters,
-                    required_view_parameters))
+                    required_view_parameters, &file_parser_dummy_hook))
     goto err;
 
   /*
@@ -1502,7 +1503,8 @@ mysql_rename_view(THD *thd,
 
     /* get view definition and source */
     if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
-                      array_elements(view_parameters)-1))
+                      array_elements(view_parameters)-1,
+                      &file_parser_dummy_hook))
       goto err;
 
     /* rename view and it's backups */

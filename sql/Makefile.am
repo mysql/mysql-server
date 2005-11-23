@@ -124,17 +124,17 @@ AM_YFLAGS =		-d
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc
-	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ $(srcdir)/tztime.cc mysql_tzinfo_to_sql.cc
 
 link_sources: mysql_tzinfo_to_sql.cc
 	rm -f mini_client_errors.c
-	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
+	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
-	@LN_CP_F@ ../sql-common/pack.c pack.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
-	@LN_CP_F@ ../sql-common/client.c client.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
 	rm -f my_time.c
-	@LN_CP_F@ ../sql-common/my_time.c my_time.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<

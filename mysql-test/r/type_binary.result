@@ -111,3 +111,6 @@ select count(distinct s1) from t1;
 count(distinct s1)
 3
 drop table t1;
+select hex(cast(0x10 as binary(2)));
+hex(cast(0x10 as binary(2)))
+1000

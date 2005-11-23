@@ -506,10 +506,10 @@ void ha_myisammrg::append_create_info(String *packet)
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
-    packet->append(" INSERT_METHOD=",15);
+    packet->append(STRING_WITH_LEN(" INSERT_METHOD="));
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
-  packet->append(" UNION=(",8);
+  packet->append(STRING_WITH_LEN(" UNION=("));
   MYRG_TABLE *open_table,*first;
 
   current_db= table->s->db;

@@ -33,6 +33,8 @@ begin
 execute stmt;
 end|
 prepare stmt from "call p1()"|
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth|
+set @@max_sp_recursion_depth=100|
 execute stmt|
 ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
 execute stmt|
@@ -40,11 +42,18 @@ ERROR HY000: The prepared statement contains a stored routine call that refers t
 execute stmt|
 ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
 call p1()|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
 call p1()|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
 call p1()|
-ERROR HY000: Recursive stored routines are not allowed.
+ERROR HY000: The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS|
+call p1()|
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine p1
+call p1()|
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine p1
+call p1()|
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine p1
 drop procedure p1|
 create procedure p1()
 begin

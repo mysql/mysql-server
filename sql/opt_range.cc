@@ -6696,7 +6696,7 @@ void QUICK_INDEX_MERGE_SELECT::add_info_string(String *str)
   QUICK_RANGE_SELECT *quick;
   bool first= TRUE;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append("sort_union(");
+  str->append(STRING_WITH_LEN("sort_union("));
   while ((quick= it++))
   {
     if (!first)
@@ -6718,7 +6718,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_info_string(String *str)
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append("intersect(");
+  str->append(STRING_WITH_LEN("intersect("));
   while ((quick= it++))
   {
     KEY *key_info= head->key_info + quick->index;
@@ -6742,7 +6742,7 @@ void QUICK_ROR_UNION_SELECT::add_info_string(String *str)
   bool first= TRUE;
   QUICK_SELECT_I *quick;
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  str->append("union(");
+  str->append(STRING_WITH_LEN("union("));
   while ((quick= it++))
   {
     if (!first)
@@ -8882,7 +8882,7 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
     }
   }
   if (!tmp.length())
-    tmp.append("(empty)");
+    tmp.append(STRING_WITH_LEN("(empty)"));
 
   DBUG_PRINT("info", ("SEL_TREE %p (%s) scans:%s", tree, msg, tmp.ptr()));
 
@@ -8908,7 +8908,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
     tmp.append(table->key_info[(*start)->keynr].name);
   }
   if (!tmp.length())
-    tmp.append("(empty)");
+    tmp.append(STRING_WITH_LEN("(empty)"));
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
 }

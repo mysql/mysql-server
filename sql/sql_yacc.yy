@@ -177,6 +177,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CLIENT_SYM
 %token  CLOSE_SYM
 %token  COALESCE
+%token  CODE_SYM
 %token  COLLATE_SYM
 %token  COLLATION_SYM
 %token  COLUMNS
@@ -1631,13 +1632,14 @@ sp_decl:
             for (uint i = max-$2 ; i < max ; i++)
             {
               sp_instr_set *in;
+	      uint off= ctx->pvar_context2index(i);
 
-              ctx->set_type(i, type);
+              ctx->set_type(off, type);
               if (! has_default)
                 it= new Item_null();  /* QQ Set to the type with null_value? */
               in = new sp_instr_set(lex->sphead->instructions(),
                                     ctx,
-                                    ctx->pvar_context2index(i),
+                                    off,
                                     it, type, lex,
                                     (i == max - 1));
 
@@ -1646,7 +1648,7 @@ sp_decl:
                 freeing LEX.
               */
               lex->sphead->add_instr(in);
-              ctx->set_default(i, it);
+              ctx->set_default(off, it);
             }
             lex->sphead->restore_lex(YYTHD);
             $$.vars= $2;
@@ -1720,7 +1722,8 @@ sp_decl:
 	      delete $5;
 	      YYABORT;
 	    }
-            i= new sp_instr_cpush(sp->instructions(), ctx, $5);
+            i= new sp_instr_cpush(sp->instructions(), ctx, $5,
+                                  ctx->current_cursors());
 	    sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -2310,8 +2313,12 @@ sp_case:
 
 	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
-	      Item *var= (Item*) new Item_splocal(ivar, 
-						  ctx->current_pvars()-1);
+	      Item_splocal *var= new Item_splocal(ivar,
+                                                  ctx->current_pvars()-1);
+#ifndef DBUG_OFF
+              if (var)
+                var->owner= sp;
+#endif
 	      Item *expr= new Item_func_eq(var, $2);
 
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
@@ -6488,7 +6495,13 @@ select_var_ident:
 	       YYABORT;
 	     else
 	     {
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
+               my_var *var;
+	       ((select_dumpvar *)lex->result)->
+                 var_list.push_back(var= new my_var($1,1,t->offset,t->type));
+#ifndef DBUG_OFF
+	       if (var)
+		 var->owner= lex->sphead;
+#endif
 	     }
 	   }
            ;
@@ -7238,7 +7251,28 @@ show_param:
 	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
-	  };
+	  }
+        | PROCEDURE CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        | FUNCTION_SYM CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        ;
 
 show_engine_param:
 	STATUS_SYM
@@ -7779,6 +7813,10 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
+#ifndef DBUG_OFF
+            if (splocal)
+              splocal->owner= lex->sphead;
+#endif
 	    $$ = (Item*) splocal;
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
@@ -8136,6 +8174,7 @@ keyword_sp:
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
 	| COALESCE		{}
+	| CODE_SYM              {}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
 	| COMMITTED_SYM		{}
