@@ -91,13 +91,15 @@ ndb_thread_wrapper(void* _ss){
 
 struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
                       NDB_THREAD_ARG *p_thread_arg,
-  		      const NDB_THREAD_STACKSIZE thread_stack_size,
+  		      const NDB_THREAD_STACKSIZE _thread_stack_size,
 		      const char* p_thread_name,
                       NDB_THREAD_PRIO thread_prio)
 {
   struct NdbThread* tmpThread;
   int result;
   pthread_attr_t thread_attr;
+  NDB_THREAD_STACKSIZE thread_stack_size= _thread_stack_size * SIZEOF_CHARP/4;
+
   DBUG_ENTER("NdbThread_Create");
 
   (void)thread_prio; /* remove warning for unused parameter */
@@ -114,9 +116,6 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
-#if (SIZEOF_CHARP == 8)
-  thread_stack_size *= 2;
-#endif
 #ifdef PTHREAD_STACK_MIN
   if (thread_stack_size < PTHREAD_STACK_MIN)
     thread_stack_size = PTHREAD_STACK_MIN;
