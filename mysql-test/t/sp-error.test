@@ -1044,10 +1044,11 @@ begin
     call bug11394(i - 1,(select 1));
   end if;
 end|
-# Again if we allow recursion for stored procedures (without 
-# additional efforts) the following statement will crash the server.
---error 1424
+--error ER_SP_RECURSION_LIMIT
 call bug11394(2, 1)|
+set @@max_sp_recursion_depth=10|
+call bug11394(2, 1)|
+set @@max_sp_recursion_depth=default|
 drop procedure bug11394|
 delimiter ;|
 
@@ -1232,6 +1233,10 @@ begin
   set password = 'foo1';
   select password;
 end|
+
+# Check that an error message is sent
+--error ER_PARSE_ERROR
+set names='foo2'|
 
 --error ER_SP_BAD_VAR_SHADOW
 create procedure bug13510_2()

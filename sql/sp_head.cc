@@ -105,6 +105,8 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
     flags= sp_head::MULTI_RESULTS;
     break;
   /*
@@ -476,7 +478,8 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), m_returns_cs(NULL)
+   m_flags(0), m_returns_cs(NULL), m_recursion_level(0), m_next_cached_sp(0),
+   m_first_instance(this), m_first_free_instance(this), m_last_cached_sp(this)
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
@@ -657,6 +660,7 @@ sp_head::create(THD *thd)
 sp_head::~sp_head()
 {
   destroy();
+  delete m_next_cached_sp;
   if (m_thd)
     restore_thd_mem_root(m_thd);
 }
@@ -858,9 +862,9 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       prev_pos= (*splocal)->pos_in_query + (*splocal)->m_name.length;
       
       /* append the spvar substitute */
-      res|= qbuf.append(" NAME_CONST('");
+      res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
       res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
-      res|= qbuf.append("',");
+      res|= qbuf.append(STRING_WITH_LEN("',"));
       val= (*splocal)->this_item();
       DBUG_PRINT("info", ("print %p", val));
       val->print(&qbuf);
@@ -879,6 +883,31 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     thd->query_length= qbuf.length();
   }
   DBUG_RETURN(0);
+}
+
+
+/*
+  Return appropriate error about recursion limit reaching
+
+  SYNOPSIS
+    sp_head::recursion_level_error()
+
+  NOTE
+    For functions and triggers we return error about prohibited recursion.
+    For stored procedures we return about reaching recursion limit.
+*/
+
+void sp_head::recursion_level_error()
+{
+  if (m_type == TYPE_ENUM_PROCEDURE)
+  {
+    THD *thd= current_thd;
+    my_error(ER_SP_RECURSION_LIMIT, MYF(0),
+             thd->variables.max_sp_recursion_depth,
+             m_name);
+  }
+  else
+    my_error(ER_SP_NO_RECURSION, MYF(0));
 }
 
 
@@ -911,37 +940,31 @@ int sp_head::execute(THD *thd)
   Item_change_list old_change_list;
   String old_packet;
 
+  /* Use some extra margin for possible SP recursion and functions */
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (char*)&old_packet))
+  {
+    DBUG_RETURN(-1);
+  }
+
   /* init per-instruction memroot */
   init_alloc_root(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
-
-  /* Use some extra margin for possible SP recursion and functions */
-  if (check_stack_overrun(thd, 4*STACK_MIN_SIZE, olddb))
-  {
-    DBUG_RETURN(-1);
-  }
-
-  if (m_flags & IS_INVOKED)
-  {
-    /*
-      We have to disable recursion for stored routines since in
-      many cases LEX structure and many Item's can't be used in
-      reentrant way now.
-
-      TODO: We can circumvent this problem by using separate
-      sp_head instances for each recursive invocation.
-
-      NOTE: Theoretically arguments of procedure can be evaluated
-      before its invocation so there should be no problem with
-      recursion. But since we perform cleanup for CALL statement
-      as for any other statement only after its execution, its LEX
-      structure is not reusable for recursive calls. Thus we have
-      to prohibit recursion for stored procedures too.
-    */
-    my_error(ER_SP_NO_RECURSION, MYF(0));
-    DBUG_RETURN(-1);
-  }
+  DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
+  m_first_instance->m_first_free_instance= m_next_cached_sp;
+  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
+                      (ulong)m_first_instance, this, m_next_cached_sp,
+                      m_next_cached_sp->m_recursion_level,
+                      m_next_cached_sp->m_flags));
+  /*
+    Check that if there are not any instances after this one then
+    pointer to the last instance points on this instance or if there are
+    some instances after this one then recursion level of next instance
+    greater then recursion level of current instance on 1
+  */
+  DBUG_ASSERT((m_next_cached_sp == 0 &&
+               m_first_instance->m_last_cached_sp == this) ||
+              (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
   dbchanged= FALSE;
   if (m_db.length &&
@@ -1116,6 +1139,29 @@ int sp_head::execute(THD *thd)
       ret= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
+  DBUG_PRINT("info", ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
+                      (ulong)m_first_instance,
+                      m_first_instance->m_first_free_instance, this,
+                      m_recursion_level, m_flags));
+  /*
+    Check that we have one of following:
+
+    1) there are not free instances which means that this instance is last
+    in the list of instances (pointer to the last instance point on it and
+    ther are not other instances after this one in the list)
+
+    2) There are some free instances which mean that first free instance
+    should go just after this one and recursion level of that free instance
+    should be on 1 more then recursion leven of this instance.
+  */
+  DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
+               this == m_first_instance->m_last_cached_sp &&
+               m_next_cached_sp == 0) ||
+              (m_first_instance->m_first_free_instance != 0 &&
+               m_first_instance->m_first_free_instance == m_next_cached_sp &&
+               m_first_instance->m_first_free_instance->m_recursion_level ==
+               m_recursion_level + 1));
+  m_first_instance->m_first_free_instance= this;
   DBUG_RETURN(ret);
 }
 
@@ -1173,6 +1219,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   // QQ Should have some error checking here? (types, etc...)
   if (!(nctx= new sp_rcontext(octx, csize, hmax, cmax)))
     goto end;
+#ifndef DBUG_OFF
+  nctx->owner= this;
+#endif
   for (i= 0 ; i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
@@ -1215,7 +1264,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
     char buf[256];
     String bufstr(buf, sizeof(buf), &my_charset_bin);
     bufstr.length(0);
-    bufstr.append("DO ", 3);
+    bufstr.append(STRING_WITH_LEN("DO "));
     append_identifier(thd, &bufstr, m_name.str, m_name.length);
     bufstr.append('(');
     for (uint i=0; i < argcount; i++)
@@ -1317,6 +1366,9 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
   {				// Create a temporary old context
     if (!(octx= new sp_rcontext(octx, csize, hmax, cmax)))
       DBUG_RETURN(-1);
+#ifndef DBUG_OFF
+    octx->owner= 0;
+#endif
     thd->spcont= octx;
 
     /* set callers_arena to thd, for upper-level function to work */
@@ -1328,6 +1380,9 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= save_spcont;
     DBUG_RETURN(-1);
   }
+#ifndef DBUG_OFF
+  nctx->owner= this;
+#endif
 
   if (csize > 0 || hmax > 0 || cmax > 0)
   {
@@ -1740,7 +1795,7 @@ sp_head::show_create_procedure(THD *thd)
   LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
-    return 1;
+    DBUG_RETURN(1);
 
   sql_mode_str=
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
@@ -1753,10 +1808,7 @@ sp_head::show_create_procedure(THD *thd)
 					     max(buffer.length(), 1024)));
   if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
-  {
-    res= 1;
-    goto done;
-  }
+    DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
@@ -1765,7 +1817,6 @@ sp_head::show_create_procedure(THD *thd)
   res= protocol->write();
   send_eof(thd);
 
- done:
   DBUG_RETURN(res);
 }
 
@@ -1810,7 +1861,7 @@ sp_head::show_create_function(THD *thd)
   LINT_INIT(sql_mode_len);
 
   if (check_show_routine_access(thd, this, &full_access))
-    return 1;
+    DBUG_RETURN(1);
 
   sql_mode_str=
     sys_var_thd_sql_mode::symbolic_mode_representation(thd,
@@ -1822,10 +1873,7 @@ sp_head::show_create_function(THD *thd)
 					     max(buffer.length(),1024)));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-  {
-    res= 1;
-    goto done;
-  }
+    DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
@@ -1834,7 +1882,6 @@ sp_head::show_create_function(THD *thd)
   res= protocol->write();
   send_eof(thd);
 
- done:
   DBUG_RETURN(res);
 }
 
@@ -1892,6 +1939,50 @@ sp_head::opt_mark(uint ip)
   while ((i= get_instr(ip)) && !i->marked)
     ip= i->opt_mark(this);
 }
+
+
+#ifndef DBUG_OFF
+int
+sp_head::show_routine_code(THD *thd)
+{
+  Protocol *protocol= thd->protocol;
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  List<Item> field_list;
+  sp_instr *i;
+  bool full_access;
+  int res= 0;
+  uint ip;
+  DBUG_ENTER("sp_head::show_routine_code");
+  DBUG_PRINT("info", ("procedure: %s", m_name.str));
+
+  if (check_show_routine_access(thd, this, &full_access) || !full_access)
+    DBUG_RETURN(1);
+
+  field_list.push_back(new Item_uint("Pos", 9));
+  // 1024 is for not to confuse old clients
+  field_list.push_back(new Item_empty_string("Instruction",
+					     max(buffer.length(), 1024)));
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
+    DBUG_RETURN(1);
+
+  for (ip= 0; (i = get_instr(ip)) ; ip++)
+  {
+    protocol->prepare_for_resend();
+    protocol->store((longlong)ip);
+
+    buffer.set("", 0, system_charset_info);
+    i->print(&buffer);
+    protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
+    if ((res= protocol->write()))
+      break;
+  }
+  send_eof(thd);
+
+  DBUG_RETURN(res);
+}
+#endif // ifndef DBUG_OFF
 
 
 /*
@@ -2052,14 +2143,43 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+/* 
+   Sufficient max length of printed destinations and frame offsets (all uints).
+*/
+#define SP_INSTR_UINT_MAXLEN  8
+
+#define SP_STMT_PRINT_MAXLEN 40
 void
 sp_instr_stmt::print(String *str)
 {
-  str->reserve(12);
-  str->append("stmt ");
-  str->qs_append((uint)m_lex_keeper.sql_command());
-}
+  uint i, len;
 
+  /* stmt CMD "..." */
+  if (str->reserve(SP_STMT_PRINT_MAXLEN+SP_INSTR_UINT_MAXLEN+8))
+    return;
+  str->qs_append(STRING_WITH_LEN("stmt "));
+  str->qs_append((uint)m_lex_keeper.sql_command());
+  str->qs_append(STRING_WITH_LEN(" \""));
+  len= m_query.length;
+  /*
+    Print the query string (but not too much of it), just to indicate which
+    statement it is.
+  */
+  if (len > SP_STMT_PRINT_MAXLEN)
+    len= SP_STMT_PRINT_MAXLEN-3;
+  /* Copy the query string and replace '\n' with ' ' in the process */
+  for (i= 0 ; i < len ; i++)
+  {
+    if (m_query.str[i] == '\n')
+      str->qs_append(' ');
+    else
+      str->qs_append(m_query.str[i]);
+  }
+  if (m_query.length > SP_STMT_PRINT_MAXLEN)
+    str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
+  str->qs_append('"');
+}
+#undef SP_STMT_PRINT_MAXLEN
 
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
@@ -2096,10 +2216,23 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set::print(String *str)
 {
-  str->reserve(12);
-  str->append("set ");
+  /* set name@offset ... */
+  int rsrv = SP_INSTR_UINT_MAXLEN+6;
+  sp_pvar_t *var = m_ctx->find_pvar(m_offset);
+
+  /* 'var' should always be non-null, but just in case... */
+  if (var)
+    rsrv+= var->name.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append(STRING_WITH_LEN("set "));
+  if (var)
+  {
+    str->qs_append(var->name.str, var->name.length);
+    str->qs_append('@');
+  }
   str->qs_append(m_offset);
-  str->append(' ');
+  str->qs_append(' ');
   m_value->print(str);
 }
 
@@ -2132,9 +2265,9 @@ sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set_trigger_field::print(String *str)
 {
-  str->append("set ", 4);
+  str->append(STRING_WITH_LEN("set_trigger_field "));
   trigger_field->print(str);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   value->print(str);
 }
 
@@ -2156,8 +2289,10 @@ sp_instr_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_jump::print(String *str)
 {
-  str->reserve(12);
-  str->append("jump ");
+  /* jump dest */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
+    return;
+  str->qs_append(STRING_WITH_LEN("jump "));
   str->qs_append(m_dest);
 }
 
@@ -2238,10 +2373,12 @@ sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if::print(String *str)
 {
-  str->reserve(12);
-  str->append("jump_if ");
+  /* jump_if dest ... */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+8+32)) // Add some for the expr. too
+    return;
+  str->qs_append(STRING_WITH_LEN("jump_if "));
   str->qs_append(m_dest);
-  str->append(' ');
+  str->qs_append(' ');
   m_expr->print(str);
 }
 
@@ -2299,10 +2436,12 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if_not::print(String *str)
 {
-  str->reserve(16);
-  str->append("jump_if_not ");
+  /* jump_if_not dest ... */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+12+32)) // Add some for the expr. too
+    return;
+  str->qs_append(STRING_WITH_LEN("jump_if_not "));
   str->qs_append(m_dest);
-  str->append(' ');
+  str->qs_append(' ');
   m_expr->print(str);
 }
 
@@ -2357,10 +2496,12 @@ sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_freturn::print(String *str)
 {
-  str->reserve(12);
-  str->append("freturn ");
+  /* freturn type expr... */
+  if (str->reserve(UINT_MAX+8+32)) // Add some for the expr. too
+    return;
+  str->qs_append(STRING_WITH_LEN("freturn "));
   str->qs_append((uint)m_type);
-  str->append(' ');
+  str->qs_append(' ');
   m_value->print(str);
 }
 
@@ -2385,15 +2526,31 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpush_jump::print(String *str)
 {
-  str->reserve(32);
-  str->append("hpush_jump ");
+  /* hpush_jump dest fsize type */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 21))
+    return;
+  str->qs_append(STRING_WITH_LEN("hpush_jump "));
   str->qs_append(m_dest);
-  str->append(" t=");
-  str->qs_append(m_type);
-  str->append(" f=");
+  str->qs_append(' ');
   str->qs_append(m_frame);
-  str->append(" h=");
-  str->qs_append(m_ip+1);
+  switch (m_type)
+  {
+  case SP_HANDLER_NONE:
+    str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
+    break;
+  case SP_HANDLER_EXIT:
+    str->qs_append(STRING_WITH_LEN(" EXIT"));
+    break;
+  case SP_HANDLER_CONTINUE:
+    str->qs_append(STRING_WITH_LEN(" CONTINUE"));
+    break;
+  case SP_HANDLER_UNDO:
+    str->qs_append(STRING_WITH_LEN(" UNDO"));
+    break;
+  default:
+    str->qs_append(STRING_WITH_LEN(" UNKNOWN:")); // This would be a bug as well
+    str->qs_append(m_type);
+  }
 }
 
 uint
@@ -2428,8 +2585,10 @@ sp_instr_hpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_hpop::print(String *str)
 {
-  str->reserve(12);
-  str->append("hpop ");
+  /* hpop count */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
+    return;
+  str->qs_append(STRING_WITH_LEN("hpop "));
   str->qs_append(m_count);
 }
 
@@ -2463,12 +2622,14 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
 void
 sp_instr_hreturn::print(String *str)
 {
-  str->reserve(16);
-  str->append("hreturn ");
+  /* hreturn framesize dest */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN*2 + 9))
+    return;
+  str->qs_append(STRING_WITH_LEN("hreturn "));
   str->qs_append(m_frame);
   if (m_dest)
   {
-    str->append(' ');
+    str->qs_append(' ');
     str->qs_append(m_dest);
   }
 }
@@ -2516,7 +2677,22 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpush::print(String *str)
 {
-  str->append("cpush");
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cpush name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
+
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append(STRING_WITH_LEN("cpush "));
+  if (found)
+  {
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
+  }
+  str->qs_append(m_cursor);
 }
 
 
@@ -2537,8 +2713,10 @@ sp_instr_cpop::execute(THD *thd, uint *nextp)
 void
 sp_instr_cpop::print(String *str)
 {
-  str->reserve(12);
-  str->append("cpop ");
+  /* cpop count */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
+    return;
+  str->qs_append(STRING_WITH_LEN("cpop "));
   str->qs_append(m_count);
 }
 
@@ -2612,8 +2790,21 @@ sp_instr_copen::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_copen::print(String *str)
 {
-  str->reserve(12);
-  str->append("copen ");
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* copen name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
+
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append(STRING_WITH_LEN("copen "));
+  if (found)
+  {
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
+  }
   str->qs_append(m_cursor);
 }
 
@@ -2641,8 +2832,21 @@ sp_instr_cclose::execute(THD *thd, uint *nextp)
 void
 sp_instr_cclose::print(String *str)
 {
-  str->reserve(12);
-  str->append("cclose ");
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cclose name@offset */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append(STRING_WITH_LEN("cclose "));
+  if (found)
+  {
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
+  }
   str->qs_append(m_cursor);
 }
 
@@ -2671,14 +2875,29 @@ sp_instr_cfetch::print(String *str)
 {
   List_iterator_fast<struct sp_pvar> li(m_varlist);
   sp_pvar_t *pv;
+  LEX_STRING n;
+  my_bool found= m_ctx->find_cursor(m_cursor, &n);
+  /* cfetch name@offset vars... */
+  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
 
-  str->reserve(12);
-  str->append("cfetch ");
+  if (found)
+    rsrv+= n.length;
+  if (str->reserve(rsrv))
+    return;
+  str->qs_append(STRING_WITH_LEN("cfetch "));
+  if (found)
+  {
+    str->qs_append(n.str, n.length);
+    str->qs_append('@');
+  }
   str->qs_append(m_cursor);
   while ((pv= li++))
   {
-    str->reserve(8);
-    str->append(' ');
+    if (str->reserve(pv->name.length+SP_INSTR_UINT_MAXLEN+2))
+      return;
+    str->qs_append(' ');
+    str->qs_append(pv->name.str, pv->name.length);
+    str->qs_append('@');
     str->qs_append(pv->offset);
   }
 }
@@ -2702,8 +2921,10 @@ sp_instr_error::execute(THD *thd, uint *nextp)
 void
 sp_instr_error::print(String *str)
 {
-  str->reserve(12);
-  str->append("error ");
+  /* error code */
+  if (str->reserve(SP_INSTR_UINT_MAXLEN+6))
+    return;
+  str->qs_append(STRING_WITH_LEN("error "));
   str->qs_append(m_errcode);
 }
 

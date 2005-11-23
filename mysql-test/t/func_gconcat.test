@@ -390,3 +390,19 @@ SELECT GROUP_CONCAT(a ORDER BY a) FROM t1 GROUP BY id;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+# Bug#8568 "GROUP_CONCAT returns string, unless in a UNION in which case
+# returns BLOB": add a test case, the bug can not be repeated any more.
+#
+
+set names latin1;
+create table t1 (a char, b char);
+insert into t1 values ('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b');
+create table t2 select group_concat(b) as a from t1 where a = 'a';
+create table t3 (select group_concat(a) as a from t1 where a = 'a') union
+                (select group_concat(b) as a from t1 where a = 'b');
+select charset(a) from t2;
+select charset(a) from t3;
+drop table t1, t2, t3;
+set names default;

@@ -704,6 +704,8 @@ public:
 };
 
 
+class sp_head;
+
 /*
   A reference to local SP variable (incl. reference to SP parameter), used in
   runtime.
@@ -721,6 +723,13 @@ class Item_splocal : public Item
   uint m_offset;
 
 public:
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   LEX_STRING m_name;
   THD	     *thd;
 
@@ -1055,7 +1064,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
-  void print(String *str) { str->append("NULL", 4); }
+  void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
