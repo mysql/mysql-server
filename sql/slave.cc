@@ -513,7 +513,7 @@ void st_relay_log_info::close_temporary_tables()
       Don't ask for disk deletion. For now, anyway they will be deleted when
       slave restarts, but it is a better intention to not delete them.
     */
-    close_temporary(table, 0);
+    close_temporary(table, 1, 0);
   }
   save_temporary_tables= 0;
   slave_open_temp_tables= 0;
@@ -1294,7 +1294,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name);
+    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name.str);
 
 err:
   close_thread_tables(thd);

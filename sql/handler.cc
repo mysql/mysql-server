@@ -189,7 +189,8 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
 } /* ha_checktype */
 
 
-handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
+handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
+                         enum db_type db_type)
 {
   handler *file= NULL;
   handlerton **types;
@@ -205,7 +206,7 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
     if (db_type == (*types)->db_type && (*types)->create)
     {
       file= ((*types)->state == SHOW_OPTION_YES) ?
-		(*types)->create(table) : NULL;
+		(*types)->create(share) : NULL;
       break;
     }
   }
@@ -216,7 +217,7 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
     enum db_type def=(enum db_type) current_thd->variables.table_type;
     /* Try first with 'default table type' */
     if (db_type != def)
-      return get_new_handler(table, alloc, def);
+      return get_new_handler(share, alloc, def);
   }
   if (file)
   {
@@ -1047,7 +1048,8 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
-    statistic_increment(thd->status_var.ha_savepoint_rollback_count,&LOCK_status);
+    statistic_increment(thd->status_var.ha_savepoint_rollback_count,
+                        &LOCK_status);
     trans->no_2pc|=(*ht)->prepare == 0;
   }
   /*
@@ -1176,7 +1178,7 @@ bool ha_flush_logs(enum db_type db_type)
 */
 
 int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
-                    const char *alias, bool generate_warning)
+                    const char *db, const char *alias, bool generate_warning)
 {
   handler *file;
   char tmp_path[FN_REFLEN];
@@ -1191,7 +1193,7 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == DB_TYPE_UNKNOWN ||
-      ! (file=get_new_handler(&dummy_table, thd->mem_root, table_type)))
+      ! (file=get_new_handler(&dummy_share, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
@@ -1224,7 +1226,12 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
     thd->net.last_error[0]= 0;
 
     /* Fill up strucutures that print_error may need */
-    dummy_table.s->path= path;
+    dummy_share.path.str= (char*) path;
+    dummy_share.path.length= strlen(path);
+    dummy_share.db.str= (char*) db;
+    dummy_share.db.length= strlen(db);
+    dummy_share.table_name.str= (char*) alias;
+    dummy_share.table_name.length= strlen(alias);
     dummy_table.alias= alias;
 
     file->print_error(error, 0);
@@ -1246,16 +1253,26 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
 ** General handler functions
 ****************************************************************************/
 
-	/* Open database-handler. Try O_RDONLY if can't open as O_RDWR */
-	/* Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set */
+/*
+  Open database-handler.
 
-int handler::ha_open(const char *name, int mode, int test_if_locked)
+  IMPLEMENTATION
+    Try O_RDONLY if cannot open as O_RDWR
+    Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
+*/
+
+int handler::ha_open(TABLE *table_arg, const char *name, int mode,
+                     int test_if_locked)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
-  DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-                      name, table->s->db_type, table->db_stat, mode,
-                      test_if_locked));
+  DBUG_PRINT("enter",
+             ("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
+              name, table_share->db_type, table_arg->db_stat, mode,
+              test_if_locked));
+
+  table= table_arg;
+  DBUG_ASSERT(table->s == table_share);
 
   if ((error=open(name,mode,test_if_locked)))
   {
@@ -1268,7 +1285,7 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   }
   if (error)
   {
-    my_errno=error;			/* Safeguard */
+    my_errno= error;                            /* Safeguard */
     DBUG_PRINT("error",("error: %d  errno: %d",error,errno));
   }
   else
@@ -1286,72 +1303,49 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
     }
     else
       dupp_ref=ref+ALIGN_SIZE(ref_length);
+
+    if (ha_allocate_read_write_set(table->s->fields))
+      error= 1;
   }
   DBUG_RETURN(error);
 }
 
+
 int handler::ha_initialise()
 {
   DBUG_ENTER("ha_initialise");
-  if (table && table->s->fields &&
-      ha_allocate_read_write_set(table->s->fields))
-  {
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 }
+
+
+/*
+  Initalize bit maps for used fields
+
+  Called from open_table_from_share()
+*/
 
 int handler::ha_allocate_read_write_set(ulong no_fields)
 {
   uint bitmap_size= 4*(((no_fields+1)+31)/32);
   uint32 *read_buf, *write_buf;
-#ifndef DEBUG_OFF
-  my_bool r;
-#endif
   DBUG_ENTER("ha_allocate_read_write_set");
   DBUG_PRINT("enter", ("no_fields = %d", no_fields));
 
-  if (table)
+  if (!multi_alloc_root(&table->mem_root,
+                        &read_set, sizeof(MY_BITMAP),
+                        &write_set, sizeof(MY_BITMAP),
+                        &read_buf, bitmap_size,
+                        &write_buf, bitmap_size,
+                        NullS))
   {
-    if (table->read_set == NULL)
-    {
-      read_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
-      write_set= (MY_BITMAP*)sql_alloc(sizeof(MY_BITMAP));
-      read_buf= (uint32*)sql_alloc(bitmap_size);
-      write_buf= (uint32*)sql_alloc(bitmap_size);
-      if (!read_set || !write_set || !read_buf || !write_buf)
-      {
-        ha_deallocate_read_write_set();
-        DBUG_RETURN(TRUE);
-      }
-#ifndef DEBUG_OFF
-      r =
-#endif
-        bitmap_init(read_set, read_buf, no_fields+1, FALSE);
-      DBUG_ASSERT(!r /*bitmap_init(read_set...)*/);
-#ifndef DEBUG_OFF
-      r =
-#endif
-        bitmap_init(write_set, write_buf, no_fields+1, FALSE);
-      DBUG_ASSERT(!r /*bitmap_init(write_set...)*/);
-      table->read_set= read_set;
-      table->write_set= write_set;
-      ha_clear_all_set();
-    }
-    else
-    {
-      read_set= table->read_set;
-      write_set= table->write_set;
-    }
+    DBUG_RETURN(TRUE);
   }
+  bitmap_init(read_set, read_buf, no_fields+1, FALSE);
+  bitmap_init(write_set, write_buf, no_fields+1, FALSE);
+  table->read_set= read_set;
+  table->write_set= write_set;
+  ha_clear_all_set();
   DBUG_RETURN(FALSE);
-}
-
-void handler::ha_deallocate_read_write_set()
-{
-  DBUG_ENTER("ha_deallocate_read_write_set");
-  read_set=write_set=0;
-  DBUG_VOID_RETURN;
 }
 
 void handler::ha_clear_all_set()
@@ -1395,6 +1389,7 @@ void handler::ha_set_primary_key_in_read_set()
 }
 
 
+
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
@@ -1406,7 +1401,8 @@ int handler::read_first_row(byte * buf, uint primary_key)
   register int error;
   DBUG_ENTER("handler::read_first_row");
 
-  statistic_increment(current_thd->status_var.ha_read_first_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_first_count,
+                      &LOCK_status);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -1672,9 +1668,10 @@ void handler::print_error(int error, myf errflag)
     uint key_nr=get_dup_key(error);
     if ((int) key_nr >= 0)
     {
-      /* Write the dupplicated key in the error message */
+      /* Write the duplicated key in the error message */
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
+      /* Table is opened and defined at this point */
       key_unpack(&str,table,(uint) key_nr);
       uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_DUP_ENTRY));
       if (str.length() >= max_length)
@@ -1761,20 +1758,9 @@ void handler::print_error(int error, myf errflag)
     textno=ER_TABLE_DEF_CHANGED;
     break;
   case HA_ERR_NO_SUCH_TABLE:
-  {
-    /*
-      We have to use path to find database name instead of using
-      table->table_cache_key because if the table didn't exist, then
-      table_cache_key was not set up
-    */
-    char *db;
-    char buff[FN_REFLEN];
-    uint length= dirname_part(buff,table->s->path);
-    buff[length-1]=0;
-    db=buff+dirname_length(buff);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table->alias);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
+             table_share->table_name.str);
     break;
-  }
   default:
     {
       /* The error was "unknown" to this function.
@@ -1795,7 +1781,7 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table->alias, error);
+  my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 
@@ -1940,23 +1926,37 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 
 /*
   Initiates table-file and calls apropriate database-creator
-  Returns 1 if something got wrong
+
+  NOTES
+    We must have a write lock on LOCK_open to be sure no other thread
+    interfers with table
+    
+  RETURN
+   0  ok
+   1  error
 */
 
-int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
+int ha_create_table(THD *thd, const char *path,
+                    const char *db, const char *table_name,
+                    HA_CREATE_INFO *create_info,
 		    bool update_create_info)
 {
-  int error;
+  int error= 1;
   TABLE table;
   char name_buff[FN_REFLEN];
+  const char *name;
+  TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
+  
+  init_tmp_table_share(&share, db, 0, table_name, path);
+  if (open_table_def(thd, &share, 0) ||
+      open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table))
+    goto err;
 
-  if (openfrm(current_thd, name,"",0,(uint) READ_ALL, 0, &table))
-    DBUG_RETURN(1);
   if (update_create_info)
-  {
     update_create_info_from_table(create_info, &table);
-  }
+
+  name= share.path.str;
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
   {
@@ -1966,27 +1966,32 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
     name= name_buff;
   }
 
-  error=table.file->create(name,&table,create_info);
-  VOID(closefrm(&table));
+  error= table.file->create(name, &table, create_info);
+  VOID(closefrm(&table, 0));
   if (error)
-    my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name,error);
+  {
+    strxmov(name_buff, db, ".", table_name, NullS);
+    my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
+  }
+err:
+  free_table_share(&share);
   DBUG_RETURN(error != 0);
 }
 
 /*
-  Try to discover table from engine and
-  if found, write the frm file to disk.
+  Try to discover table from engine
+
+  NOTES
+    If found, write the frm file to disk.
 
   RETURN VALUES:
-  -1 : Table did not exists
-   0 : Table created ok
-   > 0 : Error, table existed but could not be created
+  -1    Table did not exists
+   0    Table created ok
+   > 0  Error, table existed but could not be created
 
 */
 
-int ha_create_table_from_engine(THD* thd,
-				const char *db,
-				const char *name)
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 {
   int error;
   const void *frmblob;
@@ -1994,6 +1999,7 @@ int ha_create_table_from_engine(THD* thd,
   char path[FN_REFLEN];
   HA_CREATE_INFO create_info;
   TABLE table;
+  TABLE_SHARE share;
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
@@ -2009,15 +2015,23 @@ int ha_create_table_from_engine(THD* thd,
     frmblob and frmlen are set, write the frm to disk
   */
 
-  (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
+  (void)strxnmov(path,FN_REFLEN-1,mysql_data_home,"/",db,"/",name,NullS);
   // Save the frm file
   error= writefrm(path, frmblob, frmlen);
   my_free((char*) frmblob, MYF(0));
   if (error)
     DBUG_RETURN(2);
 
-  if (openfrm(thd, path,"",0,(uint) READ_ALL, 0, &table))
+  init_tmp_table_share(&share, db, 0, name, path);
+  if (open_table_def(thd, &share, 0))
+  {
     DBUG_RETURN(3);
+  }
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table))
+  {
+    free_table_share(&share);
+    DBUG_RETURN(3);
+  }
 
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
@@ -2029,7 +2043,7 @@ int ha_create_table_from_engine(THD* thd,
     my_casedn_str(files_charset_info, path);
   }
   error=table.file->create(path,&table,&create_info);
-  VOID(closefrm(&table));
+  VOID(closefrm(&table, 1));
 
   DBUG_RETURN(error != 0);
 }
@@ -2488,7 +2502,7 @@ TYPELIB *ha_known_exts(void)
     {
       if ((*types)->state == SHOW_OPTION_YES)
       {
-	handler *file= get_new_handler(0, mem_root,
+	handler *file= get_new_handler((TABLE_SHARE*) 0, mem_root,
                                        (enum db_type) (*types)->db_type);
 	for (ext= file->bas_ext(); *ext; ext++)
 	{

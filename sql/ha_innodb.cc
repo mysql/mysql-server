@@ -205,7 +205,7 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE *table);
+static handler *innobase_create_handler(TABLE_SHARE *table);
 
 handlerton innobase_hton = {
   "InnoDB",
@@ -245,7 +245,7 @@ handlerton innobase_hton = {
 };
 
 
-static handler *innobase_create_handler(TABLE *table)
+static handler *innobase_create_handler(TABLE_SHARE *table)
 {
   return new ha_innobase(table);
 }
@@ -826,7 +826,7 @@ check_trx_exists(
 /*************************************************************************
 Construct ha_innobase handler. */
 
-ha_innobase::ha_innobase(TABLE *table_arg)
+ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
   :handler(&innobase_hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
                   HA_NULL_IN_KEY |
@@ -4818,8 +4818,8 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	primary_key_no= (table->s->primary_key != MAX_KEY ?
-			 (int) table->s->primary_key : 
+	primary_key_no= (form->s->primary_key != MAX_KEY ?
+			 (int) form->s->primary_key : 
 			 -1);
 
 	/* Our function row_get_mysql_key_number_for_index assumes

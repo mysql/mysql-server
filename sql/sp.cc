@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 #include "mysql_priv.h"
 #include "sp.h"
 #include "sp_head.h"
@@ -461,10 +460,12 @@ static void
 sp_returns_type(THD *thd, String &result, sp_head *sp)
 {
   TABLE table;
+  TABLE_SHARE share;
   Field *field;
-  bzero(&table, sizeof(table));
+  bzero((char*) &table, sizeof(table));
+  bzero((char*) &share, sizeof(share));
   table.in_use= thd;
-  table.s = &table.share_not_to_be_used;
+  table.s = &share;
   field= sp->make_field(0, 0, &table);
   field->sql_type(result);
   delete field;

@@ -28,7 +28,7 @@
 	** Used when calculating key for NEXT_NUMBER
 	*/
 
-int find_ref_key(TABLE *table,Field *field, uint *key_length)
+int find_ref_key(KEY *key, uint key_count, Field *field, uint *key_length)
 {
   reg2 int i;
   reg3 KEY *key_info;
@@ -38,8 +38,8 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
 
 	/* Test if some key starts as fieldpos */
 
-  for (i= 0, key_info= table->key_info ;
-       i < (int) table->s->keys ;
+  for (i= 0, key_info= key ;
+       i < (int) key_count ;
        i++, key_info++)
   {
     if (key_info->key_part[0].offset == fieldpos)
@@ -50,8 +50,8 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
   }
 	/* Test if some key contains fieldpos */
 
-  for (i= 0, key_info= table->key_info ;
-       i < (int) table->s->keys ;
+  for (i= 0, key_info= key;
+       i < (int) key_count ;
        i++, key_info++)
   {
     uint j;

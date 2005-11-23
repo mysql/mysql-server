@@ -22,19 +22,17 @@
 
     strxnmov(dst, len, src1, ..., srcn, NullS)
     moves the first len characters of the concatenation of src1,...,srcn
-    to dst.  If there aren't that many characters, a NUL character will
-    be added to the end of dst to terminate it properly.  This gives the
-    same effect as calling strxcpy(buff, src1, ..., srcn, NullS) with a
-    large enough buffer, and then calling strnmov(dst, buff, len).
+    to dst and add a closing NUL character.
     It is just like strnmov except that it concatenates multiple sources.
     Beware: the last argument should be the null character pointer.
     Take VERY great care not to omit it!  Also be careful to use NullS
     and NOT to use 0, as on some machines 0 is not the same size as a
     character pointer, or not the same bit pattern as NullS.
 
-    Note: strxnmov is like strnmov in that it moves up to len
-    characters; dst will be padded on the right with one NUL characters if
-    needed.
+    NOTE
+      strxnmov is like strnmov in that it moves up to len
+      characters; dst will be padded on the right with one '\0' character.
+      if total-string-length >= length then dst[length] will be set to \0
 */
 
 #include <my_global.h>
@@ -58,8 +56,8 @@ char *strxnmov(char *dst,uint len, const char *src, ...)
     dst--;
     src = va_arg(pvar, char *);
   }
-  *dst=0;
 end:
+  *dst=0;
   va_end(pvar);
   return dst;
 }

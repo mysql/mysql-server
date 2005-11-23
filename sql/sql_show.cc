@@ -607,7 +607,7 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
   Protocol *protocol= thd->protocol;
   String *packet= protocol->storage_packet();
   DBUG_ENTER("mysqld_dump_create_info");
-  DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name));
+  DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
 
   protocol->prepare_for_resend();
   if (store_create_info(thd, table_list, packet))
@@ -787,7 +787,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
 			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
 				MODE_MYSQL40)) != 0;
   DBUG_ENTER("store_create_info");
-  DBUG_PRINT("enter",("table: %s", table->s->table_name));
+  DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
   restore_record(table, s->default_values); // Get empty record
 
@@ -799,7 +799,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     alias= table_list->schema_table->table_name;
   else
     alias= (lower_case_table_names == 2 ? table->alias :
-            share->table_name);
+            share->table_name.str);
   append_identifier(thd, packet, alias, strlen(alias));
   packet->append(" (\n", 3);
 
@@ -1005,9 +1005,9 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     else
       packet->append(" ENGINE=", 8);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (table->s->part_info)
-      packet->append(ha_get_storage_engine(
-                    table->s->part_info->default_engine_type));
+    if (table->part_info)
+      packet->append(ha_get_storage_engine(table->part_info->
+                                           default_engine_type));
     else
       packet->append(file->table_type());
 #else
@@ -1091,10 +1091,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     */
     uint part_syntax_len;
     char *part_syntax;
-    if (table->s->part_info &&
-        ((part_syntax= generate_partition_syntax(table->s->part_info,
-                                                  &part_syntax_len,
-                                                  FALSE,FALSE))))
+    if (table->part_info &&
+        ((part_syntax= generate_partition_syntax(table->part_info,
+                                                 &part_syntax_len,
+                                                 FALSE,FALSE))))
     {
        packet->append(part_syntax, part_syntax_len);
        my_free(part_syntax, MYF(0));
@@ -1524,8 +1524,11 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
 #endif /* HAVE_REPLICATION */
-        case SHOW_OPENTABLES:
-          end= int10_to_str((long) cached_tables(), buff, 10);
+        case SHOW_OPEN_TABLES:
+          end= int10_to_str((long) cached_open_tables(), buff, 10);
+          break;
+        case SHOW_TABLE_DEFINITIONS:
+          end= int10_to_str((long) cached_table_definitions(), buff, 10);
           break;
         case SHOW_CHAR_PTR:
         {
@@ -3743,8 +3746,8 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     table->alias_name_used= my_strcasecmp(table_alias_charset,
                                           table_list->schema_table_name,
                                           table_list->alias);
-  table_list->table_name= (char*) table->s->table_name;
-  table_list->table_name_length= strlen(table->s->table_name);
+  table_list->table_name= table->s->table_name.str;
+  table_list->table_name_length= table->s->table_name.length;
   table_list->table= table;
   table->next= thd->derived_tables;
   thd->derived_tables= table;

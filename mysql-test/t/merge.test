@@ -51,6 +51,9 @@ create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t4;
 --error 1168
 alter table t4 add column c int;
+flush tables;
+--error 1168
+select * from t4;
 
 #
 # Test tables in different databases

@@ -181,6 +181,9 @@ select * from t4;
 ERROR HY000: All tables in the MERGE table are not identically defined
 alter table t4 add column c int;
 ERROR HY000: All tables in the MERGE table are not identically defined
+flush tables;
+select * from t4;
+ERROR HY000: All tables in the MERGE table are not identically defined
 create database mysqltest;
 create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
 create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,mysqltest.t6);

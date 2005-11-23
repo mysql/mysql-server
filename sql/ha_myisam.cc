@@ -50,7 +50,7 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
-static handler *myisam_create_handler(TABLE *table);
+static handler *myisam_create_handler(TABLE_SHARE *table);
 
 /* MyISAM handlerton */
 
@@ -92,7 +92,7 @@ handlerton myisam_hton= {
 };
 
 
-static handler *myisam_create_handler(TABLE *table)
+static handler *myisam_create_handler(TABLE_SHARE *table)
 {
   return new ha_myisam(table);
 }
@@ -178,7 +178,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 
-ha_myisam::ha_myisam(TABLE *table_arg)
+ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
   :handler(&myisam_hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
@@ -358,7 +358,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name =   "check";
-  param.db_name=    table->s->db;
+  param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
@@ -446,7 +446,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name=    "analyze";
-  param.db_name=    table->s->db;
+  param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
@@ -474,7 +474,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   HA_CHECK_OPT tmp_check_opt;
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name;
+  const char *table_name= table->s->table_name.str;
   int error;
   const char* errmsg;
   DBUG_ENTER("restore");
@@ -483,8 +483,8 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 				      MI_NAME_DEXT))
     DBUG_RETURN(HA_ADMIN_INVALID);
 
-  if (my_copy(src_path, fn_format(dst_path, table->s->path, "",
-				  MI_NAME_DEXT, 4), MYF(MY_WME)))
+  strxmov(dst_path, table->s->normalized_path.str, MI_NAME_DEXT, NullS);
+  if (my_copy(src_path, dst_path, MYF(MY_WME)))
   {
     error= HA_ADMIN_FAILED;
     errmsg= "Failed in my_copy (Error %d)";
@@ -501,8 +501,8 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "restore";
-    param.db_name=    table->s->db;
-    param.table_name= table->s->table_name;
+    param.db_name=    table->s->db.str;
+    param.table_name= table->s->table_name.str;
     param.testflag= 0;
     mi_check_print_error(&param, errmsg, my_errno);
     DBUG_RETURN(error);
@@ -514,7 +514,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 {
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name;
+  const char *table_name= table->s->table_name.str;
   int error;
   const char *errmsg;
   DBUG_ENTER("ha_myisam::backup");
@@ -527,9 +527,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     goto err;
   }
 
-  if (my_copy(fn_format(src_path, table->s->path, "", reg_ext,
-                        MY_UNPACK_FILENAME),
-	      dst_path,
+  strxmov(src_path, table->s->normalized_path.str, reg_ext, NullS);
+  if (my_copy(src_path, dst_path,
 	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
     error = HA_ADMIN_FAILED;
@@ -546,9 +545,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     goto err;
   }
 
-  if (my_copy(fn_format(src_path, table->s->path, "", MI_NAME_DEXT,
-			MY_UNPACK_FILENAME),
-	      dst_path,
+  strxmov(src_path, table->s->normalized_path.str, MI_NAME_DEXT, NullS);
+  if (my_copy(src_path, dst_path,
 	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
     errmsg = "Failed copying .MYD file (errno: %d)";
@@ -563,8 +561,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd=        thd;
     param.op_name=    "backup";
-    param.db_name=    table->s->db;
-    param.table_name= table->s->table_name;
+    param.db_name=    table->s->db.str;
+    param.table_name= table->s->table_name.str;
     param.testflag =  0;
     mi_check_print_error(&param,errmsg, my_errno);
     DBUG_RETURN(error);
@@ -655,7 +653,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
 
-  param.db_name=    table->s->db;
+  param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
@@ -826,8 +824,8 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "assign_to_keycache";
-    param.db_name=    table->s->db;
-    param.table_name= table->s->table_name;
+    param.db_name=    table->s->db.str;
+    param.table_name= table->s->table_name.str;
     param.testflag= 0;
     mi_check_print_error(&param, errmsg);
   }
@@ -894,8 +892,8 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "preload_keys";
-    param.db_name=    table->s->db;
-    param.table_name= table->s->table_name;
+    param.db_name=    table->s->db.str;
+    param.table_name= table->s->table_name.str;
     param.testflag=   0;
     mi_check_print_error(&param, errmsg);
     DBUG_RETURN(error);
@@ -1149,8 +1147,8 @@ bool ha_myisam::check_and_repair(THD *thd)
   old_query= thd->query;
   old_query_length= thd->query_length;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= (char*) table->s->table_name;
-  thd->query_length= (uint32) strlen(table->s->table_name);
+  thd->query=        table->s->table_name.str;
+  thd->query_length= table->s->table_name.length;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
@@ -1337,6 +1335,10 @@ void ha_myisam::info(uint flag)
     ref_length= info.reflength;
     share->db_options_in_use= info.options;
     block_size= myisam_block_size;
+
+    /* Update share */
+    if (share->tmp_table == NO_TMP_TABLE)
+      pthread_mutex_lock(&share->mutex);
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
@@ -1345,6 +1347,9 @@ void ha_myisam::info(uint flag)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
 	     sizeof(table->key_info[0].rec_per_key)*share->key_parts);
+    if (share->tmp_table == NO_TMP_TABLE)
+      pthread_mutex_unlock(&share->mutex);
+
     raid_type= info.raid_type;
     raid_chunks= info.raid_chunks;
     raid_chunksize= info.raid_chunksize;
@@ -1353,7 +1358,7 @@ void ha_myisam::info(uint flag)
      Set data_file_name and index_file_name to point at the symlink value
      if table is symlinked (Ie;  Real name is not same as generated name)
    */
-    data_file_name=index_file_name=0;
+    data_file_name= index_file_name= 0;
     fn_format(name_buff, file->filename, "", MI_NAME_DEXT, 2);
     if (strcmp(name_buff, info.data_file_name))
       data_file_name=info.data_file_name;
@@ -1448,7 +1453,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo,*recinfo_pos;
   HA_KEYSEG *keyseg;
-  TABLE_SHARE *share= table->s;
+  TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
 

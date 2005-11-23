@@ -1228,7 +1228,7 @@ enum_field_types Item_func_ifnull::field_type() const
 
 Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 {
-  return tmp_table_field_from_field_type(table);
+  return tmp_table_field_from_field_type(table, 0);
 }
 
 double

@@ -24,7 +24,7 @@
 #include "ha_heap.h"
 
 
-static handler *heap_create_handler(TABLE *table);
+static handler *heap_create_handler(TABLE_SHARE *table);
 
 handlerton heap_hton= {
   "MEMORY",
@@ -59,7 +59,7 @@ handlerton heap_hton= {
   HTON_CAN_RECREATE
 };
 
-static handler *heap_create_handler(TABLE *table)
+static handler *heap_create_handler(TABLE_SHARE *table)
 {
   return new ha_heap(table);
 }
@@ -69,7 +69,7 @@ static handler *heap_create_handler(TABLE *table)
 ** HEAP tables
 *****************************************************************************/
 
-ha_heap::ha_heap(TABLE *table_arg)
+ha_heap::ha_heap(TABLE_SHARE *table_arg)
   :handler(&heap_hton, table_arg), file(0), records_changed(0),
   key_stats_ok(0)
 {}
@@ -490,8 +490,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 int ha_heap::delete_table(const char *name)
 {
   char buff[FN_REFLEN];
-  int error= heap_delete_table(fn_format(buff,name,"","",
-                                         MY_REPLACE_EXT|MY_UNPACK_FILENAME));
+  int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
 }
 
@@ -537,7 +536,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   ha_rows max_rows;
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
-  char buff[FN_REFLEN];
   int error;
   TABLE_SHARE *share= table_arg->s;
   bool found_real_auto_increment= 0;
@@ -618,7 +616,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     }
   }
   mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
-  max_rows = (ha_rows) (table->in_use->variables.max_heap_table_size /
+  max_rows = (ha_rows) (table_arg->in_use->variables.max_heap_table_size /
 			mem_per_row);
   if (table_arg->found_next_number_field)
   {
@@ -633,8 +631,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.max_table_size=current_thd->variables.max_heap_table_size;
   hp_create_info.with_auto_increment= found_real_auto_increment;
   max_rows = (ha_rows) (hp_create_info.max_table_size / mem_per_row);
-  error= heap_create(fn_format(buff,name,"","",
-                               MY_REPLACE_EXT|MY_UNPACK_FILENAME),
+  error= heap_create(name,
 		     keys, keydef, share->reclength,
 		     (ulong) ((share->max_rows < max_rows &&
 			       share->max_rows) ? 
