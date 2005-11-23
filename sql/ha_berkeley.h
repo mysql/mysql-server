@@ -84,7 +84,7 @@ class ha_berkeley: public handler
   DBT *get_pos(DBT *to, byte *pos);
 
  public:
-  ha_berkeley(TABLE *table_arg);
+  ha_berkeley(TABLE_SHARE *table_arg);
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
   ulong index_flags(uint idx, uint part, bool all_parts) const;

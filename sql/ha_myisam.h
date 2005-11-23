@@ -43,7 +43,7 @@ class ha_myisam: public handler
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
-  ha_myisam(TABLE *table_arg);
+  ha_myisam(TABLE_SHARE *table_arg);
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
@@ -51,7 +51,7 @@ class ha_myisam: public handler
   ulong table_flags() const { return int_table_flags; }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }

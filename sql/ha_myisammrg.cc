@@ -32,7 +32,7 @@
 ** MyISAM MERGE tables
 *****************************************************************************/
 
-static handler *myisammrg_create_handler(TABLE *table);
+static handler *myisammrg_create_handler(TABLE_SHARE *table);
 
 /* MyISAM MERGE handlerton */
 
@@ -69,13 +69,13 @@ handlerton myisammrg_hton= {
   HTON_CAN_RECREATE
 };
 
-static handler *myisammrg_create_handler(TABLE *table)
+static handler *myisammrg_create_handler(TABLE_SHARE *table)
 {
   return new ha_myisammrg(table);
 }
 
 
-ha_myisammrg::ha_myisammrg(TABLE *table_arg)
+ha_myisammrg::ha_myisammrg(TABLE_SHARE *table_arg)
   :handler(&myisammrg_hton, table_arg), file(0)
 {}
 
@@ -302,7 +302,6 @@ void ha_myisammrg::info(uint flag)
   errkey  = info.errkey;
   table->s->keys_in_use.set_prefix(table->s->keys);
   table->s->db_options_in_use= info.options;
-  table->s->is_view= 1;
   mean_rec_length= info.reclength;
   block_size=0;
   update_time=0;
@@ -456,9 +455,9 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   for (pos= table_names; tables; tables= tables->next_local)
   {
     const char *table_name;
-    TABLE **tbl= 0;
+    TABLE *tbl= 0;
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-      tbl= find_temporary_table(thd, tables->db, tables->table_name);
+      tbl= find_temporary_table(thd, tables);
     if (!tbl)
     {
       /*
@@ -487,7 +486,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
           DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
-      table_name= (*tbl)->s->path;
+      table_name= tbl->s->path.str;
     *pos++= table_name;
   }
   *pos=0;
@@ -503,6 +502,7 @@ void ha_myisammrg::append_create_info(String *packet)
   const char *current_db;
   uint db_length;
   THD *thd= current_thd;
+  MYRG_TABLE *open_table, *first;
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
@@ -510,10 +510,9 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
   packet->append(STRING_WITH_LEN(" UNION=("));
-  MYRG_TABLE *open_table,*first;
 
-  current_db= table->s->db;
-  db_length= (uint) strlen(current_db);
+  current_db= table->s->db.str;
+  db_length=  table->s->db.length;
 
   for (first=open_table=file->open_tables ;
        open_table != file->end_table ;

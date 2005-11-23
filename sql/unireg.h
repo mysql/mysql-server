@@ -154,13 +154,13 @@
 #define DONT_GIVE_ERROR		256	/* Don't do frm_error on openfrm  */
 #define READ_SCREENS		1024	/* Read screens, info and helpfile */
 #define DELAYED_OPEN		4096	/* Open table later */
-#define NO_ERR_ON_NEW_FRM	8192	/* stop error sending on new format */
+#define OPEN_VIEW		8192	/* Allow open on view */
 
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128
 
-#define FRM_VER_TRUE_VARCHAR (FRM_VER+4)
+#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
 /*
   Minimum length pattern before Turbo Boyer-Moore is used
   for SELECT "text" LIKE "%pattern%", excluding the two

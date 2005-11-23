@@ -173,7 +173,7 @@ private:
   int stash_remote_error();
 
 public:
-  ha_federated(TABLE *table_arg);
+  ha_federated(TABLE_SHARE *table_arg);
   ~ha_federated() {}
   /* The name that will be used for display purposes */
   const char *table_type() const { return "FEDERATED"; }
@@ -232,8 +232,7 @@ public:
   */
   double scan_time()
   {
-    DBUG_PRINT("info",
-               ("records %d", records));
+    DBUG_PRINT("info", ("records %lu", (ulong) records));
     return (double)(records*1000); 
   }
   /*

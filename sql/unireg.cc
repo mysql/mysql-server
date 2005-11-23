@@ -55,7 +55,7 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
   SYNOPSIS
     mysql_create_frm()
     thd			Thread handler
-    file_name		Name of file (including database and .frm)
+    file_name		Path for file (including database and .frm)
     db                  Name of database
     table               Name of table
     create_info		create info parameters
@@ -69,7 +69,7 @@ static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
     1  error
 */
 
-bool mysql_create_frm(THD *thd, my_string file_name,
+bool mysql_create_frm(THD *thd, const char *file_name,
                       const char *db, const char *table,
 		      HA_CREATE_INFO *create_info,
 		      List<create_field> &create_fields,
@@ -286,37 +286,45 @@ err3:
   SYNOPSIS
     rea_create_table()
     thd			Thread handler
-    file_name		Name of file (including database and .frm)
-    db                  Name of database
-    table               Name of table
+    path		Name of file (including database and .frm)
+    db			Data base name
+    table_name		Table name
     create_info		create info parameters
     create_fields	Fields to create
     keys		number of keys to create
     key_info		Keys to create
-    file		Handler to use.
+    file		Handler to use
+
   RETURN
     0  ok
     1  error
 */
 
-int rea_create_table(THD *thd, my_string file_name,
-                     const char *db, const char *table,
-		     HA_CREATE_INFO *create_info,
-		     List<create_field> &create_fields,
-		     uint keys, KEY *key_info, handler *file)
+int rea_create_table(THD *thd, const char *path,
+                     const char *db, const char *table_name,
+                     HA_CREATE_INFO *create_info,
+                     List<create_field> &create_fields,
+                     uint keys, KEY *key_info, handler *file)
 {
+  char *ext;
   DBUG_ENTER("rea_create_table");
 
-  if (mysql_create_frm(thd, file_name, db, table, create_info,
+  if (mysql_create_frm(thd, path, db, table_name, create_info,
                        create_fields, keys, key_info, file))
     DBUG_RETURN(1);
-  if (file->create_handler_files(file_name))
+  if (file->create_handler_files(path))
     goto err_handler;
-  if (!create_info->frm_only && ha_create_table(file_name,create_info,0))
+  *(ext= fn_ext(path))= 0;                             // Remove .frm
+  if (!create_info->frm_only && ha_create_table(thd, path, db, table_name,
+                                                create_info,0))
+  {
+    *ext= FN_EXTCHAR;                           // Add extension back
     goto err_handler;
+  }
   DBUG_RETURN(0);
+
 err_handler:
-  my_delete(file_name, MYF(0));
+  my_delete(path, MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */
 
@@ -738,18 +746,20 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
                            ulong data_offset,
                            handler *handler)
 {
-  int error;
+  int error= 0;
   Field::utype type;
   uint null_count;
   uchar *buff,*null_pos;
   TABLE table;
+  TABLE_SHARE share;
   create_field *field;
   enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  bzero((char*) &table,sizeof(table));
-  table.s= &table.share_not_to_be_used;
+  bzero((char*) &table, sizeof(table));
+  bzero((char*) &share, sizeof(share));
+  table.s= &share;
 
   if (!(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
   {
@@ -775,20 +785,23 @@ static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
     /*
       regfield don't have to be deleted as it's allocated with sql_alloc()
     */
-    Field *regfield=make_field((char*) buff+field->offset + data_offset,
-                               field->length,
-                               null_pos + null_count / 8,
-			       null_count & 7,
-			       field->pack_flag,
-			       field->sql_type,
-			       field->charset,
-			       field->geom_type,
-			       field->unireg_check,
-			       field->interval,
-			       field->field_name,
-			       &table);
+    Field *regfield= make_field(&share,
+                                (char*) buff+field->offset + data_offset,
+                                field->length,
+                                null_pos + null_count / 8,
+                                null_count & 7,
+                                field->pack_flag,
+                                field->sql_type,
+                                field->charset,
+                                field->geom_type,
+                                field->unireg_check,
+                                field->interval,
+                                field->field_name);
     if (!regfield)
       goto err;                                 // End of memory
+
+    /* save_in_field() will access regfield->table->in_use */
+    regfield->init(&table);
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
