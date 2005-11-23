@@ -173,7 +173,7 @@ static struct my_option my_long_options[] =
    "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
    (gptr*) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -1841,12 +1841,13 @@ DELIMITER ;;\n");
   while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
             row[6], /* sql_mode */
             quote_name(row[0], name_buff, 0), /* Trigger */
             row[4], /* Timing */
             row[1], /* Event */
             result_table,
+	    (strchr(" \t\n\r", *(row[3]))) ? "" : " ",
             row[3] /* Statement */);
   }
   if (mysql_num_rows(result))

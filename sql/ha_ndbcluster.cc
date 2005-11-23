@@ -101,6 +101,8 @@ static handler *ndbcluster_create_handler(TABLE *table)
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
+#define NDB_INVALID_SCHEMA_OBJECT 241
+
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 
@@ -368,7 +370,21 @@ Thd_ndb::Thd_ndb()
 Thd_ndb::~Thd_ndb()
 {
   if (ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete ndb;
+  }
   ndb= NULL;
   changed_tables.empty();
 }
@@ -3415,14 +3431,17 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
       }
-      if (m_table != (void *)tab || m_table_version < tab->getObjectVersion())
+      if (m_table != (void *)tab)
       {
-        /*
-          The table has been altered, refresh the index list
-        */
-        build_index_list(ndb, table, ILBP_OPEN);  
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
+      }
+      else if (m_table_version < tab->getObjectVersion())
+      {
+        /*
+          The table has been altered, caller has to retry
+        */
+        DBUG_RETURN(my_errno= HA_ERR_TABLE_DEF_CHANGED);
       }
       m_table_info= tab_info;
     }
@@ -5118,7 +5137,21 @@ int ndbcluster_end(ha_panic_function type)
   (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   if (g_ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (g_ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete g_ndb;
+  }
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;

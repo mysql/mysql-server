@@ -11,5 +11,5 @@ libtaocrypt_a_SOURCES  = aes.cpp aestables.cpp algebra.cpp arc4.cpp asn.cpp \
 	template_instnt.cpp
 libtaocrypt_a_LIBADD = libtaoint_a-integer.o
 
-EXTRA_DIST = ../include/*.hpp
+EXTRA_DIST = $(wildcard ../include/*.hpp)
 AM_CXXFLAGS = -DYASSL_PURE_C

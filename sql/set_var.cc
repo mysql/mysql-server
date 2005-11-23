@@ -298,6 +298,8 @@ sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
+sys_var_thd_ulong	sys_max_sp_recursion_depth("max_sp_recursion_depth",
+                                                   &SV::max_sp_recursion_depth);
 sys_var_max_user_conn   sys_max_user_connections("max_user_connections");
 sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
@@ -770,6 +772,8 @@ struct show_var_st init_vars[]= {
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
+  {sys_max_sp_recursion_depth.name,
+    (char*) &sys_max_sp_recursion_depth, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
