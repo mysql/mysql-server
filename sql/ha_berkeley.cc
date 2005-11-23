@@ -74,6 +74,8 @@
 const u_int32_t bdb_DB_TXN_NOSYNC= DB_TXN_NOSYNC;
 const u_int32_t bdb_DB_RECOVER= DB_RECOVER;
 const u_int32_t bdb_DB_PRIVATE= DB_PRIVATE;
+const u_int32_t bdb_DB_DIRECT_DB= DB_DIRECT_DB;
+const u_int32_t bdb_DB_DIRECT_LOG= DB_DIRECT_LOG;
 const char *ha_berkeley_ext=".db";
 bool berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
