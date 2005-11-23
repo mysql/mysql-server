@@ -64,7 +64,6 @@ main(int argc, const char** argv){
     ndbout << "Waiting for ndb to become ready..." << endl;
    
   int result = 0;
-  Uint64 last_gci= 0, cnt= 0;
   
   NdbDictionary::Dictionary *myDict = MyNdb.getDictionary();
   Vector<NdbDictionary::Event*> events;
@@ -91,7 +90,7 @@ main(int argc, const char** argv){
     {
       if(myDict->getNdbError().classification == NdbError::SchemaObjectExists) 
       {
-	g_info << "Event creation failed event exists\n";
+	g_info << "Event creation failed event exists. Removing...\n";
 	if (myDict->dropEvent(name.c_str()))
 	{
 	  g_err << "Failed to drop event: " << myDict->getNdbError() << endl;
@@ -146,19 +145,31 @@ main(int argc, const char** argv){
   {
     while(MyNdb.pollEvents(100) == 0);
     
-    NdbEventOperation* pOp;
-    while((pOp= MyNdb.nextEvent()) != 0)
+    NdbEventOperation* pOp= MyNdb.nextEvent();
+    while(pOp)
     {
-      if(pOp->getGCI() != last_gci)
+      Uint64 gci= pOp->getGCI();
+      Uint64 cnt_i= 0, cnt_u= 0, cnt_d= 0;
+      do
       {
-	if(cnt) ndbout_c("GCI: %lld events: %lld", last_gci, cnt);
-	cnt= 1;
-	last_gci= pOp->getGCI();
-      }
-      else
-      {
-	cnt++;
-      }
+	switch(pOp->getEventType())
+	{
+	case NdbDictionary::Event::TE_INSERT:
+	  cnt_i++;
+	  break;
+	case NdbDictionary::Event::TE_DELETE:
+	  cnt_d++;
+	  break;
+	case NdbDictionary::Event::TE_UPDATE:
+	  cnt_u++;
+	  break;
+	default:
+	  /* We should REALLY never get here. */
+	  ndbout_c("Error: unknown event type");
+	  abort();
+	}
+      } while ((pOp= MyNdb.nextEvent()) && gci == pOp->getGCI());
+      ndbout_c("GCI: %lld events: %lld(I) %lld(U) %lld(D)", gci, cnt_i, cnt_u, cnt_d);
     }
   }
 end:
