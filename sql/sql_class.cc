@@ -517,6 +517,12 @@ void THD::awake(THD::killed_state state_to_set)
 
 bool THD::store_globals()
 {
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(this->thread_stack);
+
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
