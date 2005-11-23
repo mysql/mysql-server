@@ -3446,6 +3446,7 @@ slave_begin:
   THD_CHECK_SENTRY(thd);
 
   pthread_detach_this_thread();
+  thd->thread_stack= (char*) &thd; // remember where our stack is
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -3454,7 +3455,6 @@ slave_begin:
     goto err;
   }
   mi->io_thd = thd;
-  thd->thread_stack = (char*)&thd; // remember where our stack is
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
