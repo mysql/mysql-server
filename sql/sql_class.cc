@@ -1498,7 +1498,7 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     {
       Item_splocal *var;
       (void)local_vars.push_back(var= new Item_splocal(mv->s, mv->offset));
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
       var->owner= mv->owner;
 #endif
     }
