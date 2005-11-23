@@ -921,7 +921,6 @@ Item_splocal::type() const
     DBUG_ASSERT(owner == thd->spcont->owner);
     return thd->spcont->get_item(m_offset)->type();
   }
-  }
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 

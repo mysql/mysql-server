@@ -913,6 +913,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->db= save_db.str;
       thd->db_length= save_db.length;
       thd->lex= old_lex;
+      thd->spcont= save_spcont;
       thd->variables.sql_mode= save_sql_mode;
 
       DBUG_RETURN(0);
