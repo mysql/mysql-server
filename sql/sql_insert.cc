@@ -1723,6 +1723,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 #endif
 
   DBUG_ENTER("handle_delayed_insert");
+  thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
     thd->fatal_error();
