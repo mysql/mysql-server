@@ -163,6 +163,12 @@ main(int argc, const char** argv){
 	case NdbDictionary::Event::TE_UPDATE:
 	  cnt_u++;
 	  break;
+	case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+	  break;
+	case NdbDictionary::Event::TE_ALTER:
+	  break;
+	case NdbDictionary::Event::TE_DROP:
+	  break;
 	default:
 	  /* We should REALLY never get here. */
 	  ndbout_c("Error: unknown event type");
