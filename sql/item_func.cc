@@ -362,40 +362,42 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 }
 
 
-Field *Item_func::tmp_table_field(TABLE *t_arg)
+Field *Item_func::tmp_table_field(TABLE *table)
 {
-  Field *res;
-  LINT_INIT(res);
+  Field *field;
+  LINT_INIT(field);
 
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > 11)
-      res= new Field_longlong(max_length, maybe_null, name, t_arg,
-			      unsigned_flag);
+      field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
     else
-      res= new Field_long(max_length, maybe_null, name, t_arg,
-			  unsigned_flag);
+      field= new Field_long(max_length, maybe_null, name, unsigned_flag);
     break;
   case REAL_RESULT:
-    res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals);
     break;
   case STRING_RESULT:
-    res= make_string_field(t_arg);
+    return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    res= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
-                                                              decimals,
-                                                              unsigned_flag),
-                               maybe_null, name, t_arg, decimals, unsigned_flag);
+    field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
+                                                                decimals,
+                                                                unsigned_flag),
+                                 maybe_null, name, decimals, unsigned_flag);
     break;
   case ROW_RESULT:
   default:
     // This case should never be chosen
     DBUG_ASSERT(0);
+    field= 0;
     break;
   }
-  return res;
+  if (field)
+    field->init(table);
+  return field;
 }
+
 
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
@@ -4637,7 +4639,8 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
+  dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
 }
 
 
@@ -4648,8 +4651,10 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
+  dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
 }
+
 
 void
 Item_func_sp::cleanup()
@@ -4699,16 +4704,15 @@ Item_func_sp::sp_result_field(void) const
       DBUG_RETURN(0);
     }
   }
-  if (!dummy_table->s)
+  if (!dummy_table->alias)
   {
     char *empty_name= (char *) "";
-    TABLE_SHARE *share;
-    dummy_table->s= share= &dummy_table->share_not_to_be_used;      
-    dummy_table->alias = empty_name;
-    dummy_table->maybe_null = maybe_null;
+    dummy_table->alias= empty_name;
+    dummy_table->maybe_null= maybe_null;
     dummy_table->in_use= current_thd;
-    share->table_cache_key = empty_name;
-    share->table_name = empty_name;
+    dummy_table->s->table_cache_key.str = empty_name;
+    dummy_table->s->table_name.str= empty_name;
+    dummy_table->s->db.str= empty_name;
   }
   field= m_sp->make_field(max_length, name, dummy_table);
   DBUG_RETURN(field);

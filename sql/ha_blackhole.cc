@@ -24,7 +24,7 @@
 
 /* Static declarations for handlerton */
 
-static handler *blackhole_create_handler(TABLE *table);
+static handler *blackhole_create_handler(TABLE_SHARE *table);
 
 
 /* Blackhole storage engine handlerton */
@@ -63,7 +63,7 @@ handlerton blackhole_hton= {
 };
 
 
-static handler *blackhole_create_handler(TABLE *table)
+static handler *blackhole_create_handler(TABLE_SHARE *table)
 {
   return new ha_blackhole(table);
 }
@@ -73,7 +73,7 @@ static handler *blackhole_create_handler(TABLE *table)
 ** BLACKHOLE tables
 *****************************************************************************/
 
-ha_blackhole::ha_blackhole(TABLE *table_arg)
+ha_blackhole::ha_blackhole(TABLE_SHARE *table_arg)
   :handler(&blackhole_hton, table_arg)
 {}
 
@@ -112,13 +112,12 @@ int ha_blackhole::create(const char *name, TABLE *table_arg,
 const char *ha_blackhole::index_type(uint key_number)
 {
   DBUG_ENTER("ha_blackhole::index_type");
-  DBUG_RETURN((table->key_info[key_number].flags & HA_FULLTEXT) ? 
+  DBUG_RETURN((table_share->key_info[key_number].flags & HA_FULLTEXT) ? 
               "FULLTEXT" :
-              (table->key_info[key_number].flags & HA_SPATIAL) ?
+              (table_share->key_info[key_number].flags & HA_SPATIAL) ?
               "SPATIAL" :
-              (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
-              "RTREE" :
-              "BTREE");
+              (table_share->key_info[key_number].algorithm ==
+               HA_KEY_ALG_RTREE) ? "RTREE" : "BTREE");
 }
 
 int ha_blackhole::write_row(byte * buf)

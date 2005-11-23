@@ -175,7 +175,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  if (create && find_temporary_table(thd, tables))
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     DBUG_RETURN(TRUE);
@@ -294,7 +294,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
 
   /* Trigger must be in the same schema as target table. */
-  if (my_strcasecmp(table_alias_charset, table->s->db,
+  if (my_strcasecmp(table_alias_charset, table->s->db.str,
                     lex->spname->m_db.str ? lex->spname->m_db.str :
                                             thd->db))
   {
@@ -364,17 +364,17 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     sql_create_definition_file() files handles renaming and backup of older
     versions
   */
-  strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", tables->db, "/", NullS);
+  strxnmov(dir_buff, FN_REFLEN-1, mysql_data_home, "/", tables->db, "/", NullS);
   dir.length= unpack_filename(dir_buff, dir_buff);
   dir.str= dir_buff;
-  file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
+  file.length=  strxnmov(file_buff, FN_REFLEN-1, tables->table_name,
                          triggers_file_ext, NullS) - file_buff;
   file.str= file_buff;
-  trigname_file.length= strxnmov(trigname_buff, FN_REFLEN,
+  trigname_file.length= strxnmov(trigname_buff, FN_REFLEN-1,
                                  lex->spname->m_name.str,
                                  trigname_file_ext, NullS) - trigname_buff;
   trigname_file.str= trigname_buff;
-  strxnmov(trigname_path, FN_REFLEN, dir_buff, trigname_buff, NullS);
+  strxnmov(trigname_path, FN_REFLEN-1, dir_buff, trigname_buff, NullS);
 
   /* Use the filesystem to enforce trigger namespace constraints. */
   if (!access(trigname_path, F_OK))
@@ -461,7 +461,7 @@ err_with_cleanup:
 
 static bool rm_trigger_file(char *path, char *db, char *table_name)
 {
-  strxnmov(path, FN_REFLEN, mysql_data_home, "/", db, "/", table_name,
+  strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", db, "/", table_name,
            triggers_file_ext, NullS);
   unpack_filename(path, path);
   return my_delete(path, MYF(MY_WME));
@@ -485,7 +485,7 @@ static bool rm_trigger_file(char *path, char *db, char *table_name)
 
 static bool rm_trigname_file(char *path, char *db, char *trigger_name)
 {
-  strxnmov(path, FN_REFLEN, mysql_data_home, "/", db, "/", trigger_name,
+  strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", db, "/", trigger_name,
            trigname_file_ext, NullS);
   unpack_filename(path, path);
   return my_delete(path, MYF(MY_WME));
@@ -548,11 +548,11 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
         char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
         LEX_STRING dir, file;
 
-        strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", tables->db,
+        strxnmov(dir_buff, FN_REFLEN-1, mysql_data_home, "/", tables->db,
                  "/", NullS);
         dir.length= unpack_filename(dir_buff, dir_buff);
         dir.str= dir_buff;
-        file.length=  strxnmov(file_buff, FN_REFLEN, tables->table_name,
+        file.length=  strxnmov(file_buff, FN_REFLEN-1, tables->table_name,
                                triggers_file_ext, NullS) - file_buff;
         file.str= file_buff;
 
@@ -615,7 +615,7 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
     */
     if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
       return 1;
-    (*old_fld)->move_field((my_ptrdiff_t)(table->record[1] -
+    (*old_fld)->move_field_offset((my_ptrdiff_t)(table->record[1] -
                                           table->record[0]));
   }
   *old_fld= 0;
@@ -670,7 +670,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
-  strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", db, "/", table_name,
+  strxnmov(path_buff, FN_REFLEN-1, mysql_data_home, "/", db, "/", table_name,
            triggers_file_ext, NullS);
   path.length= unpack_filename(path_buff, path_buff);
   path.str= path_buff;
@@ -755,7 +755,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                                                     sizeof(LEX_STRING))))
           DBUG_RETURN(1); // EOM
 
-        trg_definer->str= "";
+        trg_definer->str= (char*) "";
         trg_definer->length= 0;
 
         while (it++)
@@ -848,7 +848,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             schema.
           */
 
-          lex.sphead->set_definer("", 0);
+          lex.sphead->set_definer((char*) "", 0);
 
           /*
             Triggers without definer information are executed under the
@@ -998,7 +998,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   struct st_trigname trigname;
   DBUG_ENTER("add_table_for_trigger");
 
-  strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", db, "/",
+  strxnmov(path_buff, FN_REFLEN-1, mysql_data_home, "/", db, "/",
            trig->m_name.str, trigname_file_ext, NullS);
   path.length= unpack_filename(path_buff, path_buff);
   path.str= path_buff;
@@ -1145,10 +1145,10 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     {
       TABLE_LIST table_list;
       bzero((char *) &table_list, sizeof (table_list));
-      table_list.db= (char *) table->s->db;
-      table_list.db_length= strlen(table_list.db);
-      table_list.table_name= (char *) table->s->table_name;
-      table_list.table_name_length= strlen(table_list.table_name);
+      table_list.db= (char *) table->s->db.str;
+      table_list.db_length= table->s->db.length;
+      table_list.table_name= table->s->table_name.str;
+      table_list.table_name_length= table->s->table_name.length;
       table_list.alias= (char *) table->alias;
       table_list.table= table;
 

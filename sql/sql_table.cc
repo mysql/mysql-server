@@ -279,8 +279,21 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error;
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
-
   DBUG_ENTER("mysql_rm_table_part2");
+
+  /*
+    If we have the table in the definition cache, we don't have to check the
+    .frm file to find if the table is a normal table (not view) and what
+    engine to use.
+  */
+
+  for (table= tables; table; table= table->next_local)
+  {
+    TABLE_SHARE *share;
+    table->db_type= DB_TYPE_UNKNOWN;
+    if ((share= get_cached_table_share(table->db, table->table_name)))
+      table->db_type= share->db_type;
+  }
 
   if (lock_table_names(thd, tables))
     DBUG_RETURN(1);
@@ -291,16 +304,17 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
-    db_type table_type= DB_TYPE_UNKNOWN;
+    db_type table_type;
 
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
-    if (!close_temporary_table(thd, db, table->table_name))
+    if (!close_temporary_table(thd, table))
     {
       tmp_table_deleted=1;
       continue;					// removed temporary table
     }
 
     error=0;
+    table_type= table->db_type;
     if (!drop_temporary)
     {
       abort_locked_tables(thd, db, table->table_name);
@@ -314,14 +328,15 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	DBUG_RETURN(-1);
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
-      /* remove form file and isam files */
+      /* remove .frm file and engine files */
       build_table_path(path, sizeof(path), db, alias, reg_ext);
     }
-    if (drop_temporary ||
-       (access(path,F_OK) &&
-         ha_create_table_from_engine(thd,db,alias)) ||
-        (!drop_view &&
-	 mysql_frm_type(thd, path, &table_type) != FRMTYPE_TABLE))
+    if (table_type == DB_TYPE_UNKNOWN &&
+        (drop_temporary ||
+         (access(path, F_OK) &&
+          ha_create_table_from_engine(thd, db, alias)) ||
+         (!drop_view &&
+          mysql_frm_type(thd, path, &table_type) != FRMTYPE_TABLE)))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -337,7 +352,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (table_type == DB_TYPE_UNKNOWN)
 	mysql_frm_type(thd, path, &table_type);
       *(end=fn_ext(path))=0;			// Remove extension for delete
-      error= ha_delete_table(thd, table_type, path, table->table_name,
+      error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
 	  (if_exists || table_type == DB_TYPE_UNKNOWN))
@@ -398,16 +413,19 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 }
 
 
-int quick_rm_table(enum db_type base,const char *db,
+bool quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name)
 {
   char path[FN_REFLEN];
-  int error=0;
+  bool error= 0;
+  DBUG_ENTER("quick_rm_table");
+
   build_table_path(path, sizeof(path), db, table_name, reg_ext);
   if (my_delete(path,MYF(0)))
-    error=1; /* purecov: inspected */
+    error= 1; /* purecov: inspected */
   *fn_ext(path)= 0;                             // Remove reg_ext
-  return ha_delete_table(current_thd, base, path, table_name, 0) || error;
+  DBUG_RETURN(ha_delete_table(current_thd, base, path, db, table_name, 0) ||
+              error);
 }
 
 /*
@@ -1612,7 +1630,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
-  if (!(file=get_new_handler((TABLE*) 0, thd->mem_root, create_info->db_type)))
+  if (!(file=get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
+                             create_info->db_type)))
   {
     my_error(ER_OUTOFMEMORY, MYF(0), 128);//128 bytes invented
     DBUG_RETURN(TRUE);
@@ -1717,8 +1736,8 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     build_table_path(path, sizeof(path), db, alias, reg_ext);
 
   /* Check if table already exists */
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
-      && find_temporary_table(thd,db,table_name))
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      find_temporary_table(thd, db, table_name))
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
@@ -1744,6 +1763,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto unlock_and_end;
     }
+    DBUG_ASSERT(get_cached_table_share(db, alias) == 0);
   }
 
   /*
@@ -1777,13 +1797,14 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
 
-  if (rea_create_table(thd, path, db, table_name,
-                       create_info, fields, key_count,
-		       key_info_buffer, file))
+  if (rea_create_table(thd, path, db, table_name, create_info, fields,
+                       key_count, key_info_buffer, file))
     goto unlock_and_end;
+
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
+    *fn_ext(path)= 0;
     if (!(open_temporary_table(thd, path, db, table_name, 1)))
     {
       (void) rm_temporary_table(create_info->db_type, path);
@@ -1868,6 +1889,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       MYSQL_LOCK **lock)
 {
   TABLE tmp_table;		// Used during 'create_field()'
+  TABLE_SHARE share;
   TABLE *table= 0;
   uint select_field_count= items->elements;
   /* Add selected items to field list */
@@ -1879,7 +1901,9 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.alias= 0;
   tmp_table.timestamp_field= 0;
-  tmp_table.s= &tmp_table.share_not_to_be_used;
+  tmp_table.s= &share;
+  init_tmp_table_share(&share, "", 0, "", "");
+
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
   tmp_table.s->db_low_byte_first= test(create_info->db_type == DB_TYPE_MYISAM ||
@@ -1970,10 +1994,12 @@ mysql_rename_table(enum db_type base,
   char from[FN_REFLEN], to[FN_REFLEN], lc_from[FN_REFLEN], lc_to[FN_REFLEN];
   char *from_base= from, *to_base= to;
   char tmp_name[NAME_LEN+1];
-  handler *file= (base == DB_TYPE_UNKNOWN ? 0 :
-                  get_new_handler((TABLE*) 0, thd->mem_root, base));
+  handler *file;
   int error=0;
   DBUG_ENTER("mysql_rename_table");
+
+  file= (base == DB_TYPE_UNKNOWN ? 0 :
+         get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
 
   build_table_path(from, sizeof(from), old_db, old_name, "");
   build_table_path(to, sizeof(to), new_db, new_name, "");
@@ -2035,17 +2061,19 @@ mysql_rename_table(enum db_type base,
 static void wait_while_table_is_used(THD *thd,TABLE *table,
 				     enum ha_extra_function function)
 {
-  DBUG_PRINT("enter",("table: %s", table->s->table_name));
   DBUG_ENTER("wait_while_table_is_used");
-  safe_mutex_assert_owner(&LOCK_open);
+  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %u",
+                       table->s->table_name.str, (ulong) table->s,
+                       table->db_stat, table->s->version));
 
   VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
   mysql_lock_abort(thd, table);			// end threads waiting on lock
 
   /* Wait until all there are no other threads that has this table open */
-  remove_table_from_cache(thd, table->s->db,
-                          table->s->table_name, RTFC_WAIT_OTHER_THREAD_FLAG);
+  remove_table_from_cache(thd, table->s->db.str,
+                          table->s->table_name.str,
+                          RTFC_WAIT_OTHER_THREAD_FLAG);
   DBUG_VOID_RETURN;
 }
 
@@ -2167,11 +2195,15 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 }
 
 
-static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
+static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			      HA_CHECK_OPT *check_opt)
 {
   int error= 0;
   TABLE tmp_table, *table;
+  TABLE_SHARE *share;
+  char from[FN_REFLEN],tmp[FN_REFLEN+32];
+  const char **ext;
+  MY_STAT stat_info;
   DBUG_ENTER("prepare_for_repair");
 
   if (!(check_opt->sql_flags & TT_USEFRM))
@@ -2179,12 +2211,26 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 
   if (!(table= table_list->table))		/* if open_ltable failed */
   {
-    char name[FN_REFLEN];
-    build_table_path(name, sizeof(name), table_list->db,
-                     table_list->table_name, "");
-    if (openfrm(thd, name, "", 0, 0, 0, &tmp_table))
+    char key[MAX_DBKEY_LENGTH];
+    uint key_length;
+
+    key_length= create_table_def_key(thd, key, table_list, 0);
+    pthread_mutex_lock(&LOCK_open);
+    if (!(share= (get_table_share(thd, table_list, key, key_length, 0,
+                                  &error))))
+    {
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(0);				// Can't open frm file
+    }
+
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table))
+    {
+      release_table_share(share, RELEASE_NORMAL);
+      pthread_mutex_unlock(&LOCK_open);
+      DBUG_RETURN(0);                           // Out of memory
+    }
     table= &tmp_table;
+    pthread_mutex_unlock(&LOCK_open);
   }
 
   /*
@@ -2197,18 +2243,16 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
     - Run a normal repair using the new index file and the old data file
   */
 
-  char from[FN_REFLEN],tmp[FN_REFLEN+32];
-  const char **ext= table->file->bas_ext();
-  MY_STAT stat_info;
-
   /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM
   */
+  ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
     goto end;					// No data file
 
-  strxmov(from, table->s->path, ext[1], NullS);	// Name of data file
+  // Name of data file
+  strxmov(from, table->s->normalized_path.str, ext[1], NullS);
   if (!my_stat(from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
@@ -2272,7 +2316,11 @@ static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 
 end:
   if (table == &tmp_table)
-    closefrm(table);				// Free allocated memory
+  {
+    pthread_mutex_lock(&LOCK_open);
+    closefrm(table, 1);				// Free allocated memory
+    pthread_mutex_unlock(&LOCK_open);
+  }
   DBUG_RETURN(error);
 }
 
@@ -2439,8 +2487,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					      "Waiting to get writelock");
       mysql_lock_abort(thd,table->table);
-      remove_table_from_cache(thd, table->table->s->db,
-                              table->table->s->table_name,
+      remove_table_from_cache(thd, table->table->s->db.str,
+                              table->table->s->table_name.str,
                               RTFC_WAIT_OTHER_THREAD_FLAG |
                               RTFC_CHECK_KILLED_FLAG);
       thd->exit_cond(old_message);
@@ -2603,8 +2651,8 @@ send_result_message:
       else if (open_for_modify)
       {
         pthread_mutex_lock(&LOCK_open);
-        remove_table_from_cache(thd, table->table->s->db,
-                                table->table->s->table_name, RTFC_NO_FLAG);
+        remove_table_from_cache(thd, table->table->s->db.str,
+                                table->table->s->table_name.str, RTFC_NO_FLAG);
         pthread_mutex_unlock(&LOCK_open);
         /* Something may be modified, that's why we have to invalidate cache */
         query_cache_invalidate3(thd, table->table, 0);
@@ -2782,7 +2830,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
                              HA_CREATE_INFO *create_info,
                              Table_ident *table_ident)
 {
-  TABLE **tmp_table;
+  TABLE *tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char *db= table->db;
   char *table_name= table->table_name;
@@ -2820,13 +2868,13 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     goto err;
 
   if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
-    strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
+    strxmov(src_path, tmp_table->s->path.str, reg_ext, NullS);
   else
   {
     strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
 	    reg_ext, NullS);
     /* Resolve symlinks (for windows) */
-    fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
+    unpack_filename(src_path, src_path);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, src_path);
     if (access(src_path, F_OK))
@@ -2866,7 +2914,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
-    fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
+    unpack_filename(dst_path, dst_path);
     if (!access(dst_path, F_OK))
       goto table_exists;
   }
@@ -2888,8 +2936,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     creation, instead create the table directly (for both normal
     and temporary tables).
   */
-  *fn_ext(dst_path)= 0;
-  err= ha_create_table(dst_path, create_info, 1);
+  *fn_ext(dst_path)= 0;                         // Remove .frm
+  err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
@@ -3466,7 +3514,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     else
     {
-      if (table->s->tmp_table)
+      if (table->s->tmp_table != NO_TMP_TABLE)
       {
 	if (find_temporary_table(thd,new_db,new_name_buff))
 	{
@@ -3477,7 +3525,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
 	char dir_buff[FN_REFLEN];
-	strxnmov(dir_buff, FN_REFLEN, mysql_real_data_home, new_db, NullS);
+	strxnmov(dir_buff, sizeof(dir_buff)-1,
+                 mysql_real_data_home, new_db, NullS);
 	if (!access(fn_format(new_name_buff,new_name_buff,dir_buff,reg_ext,0),
 		    F_OK))
 	{
@@ -3510,7 +3559,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       ALTER_DROP_PARTITION + ALTER_COALESCE_PARTITION +
       ALTER_REORGANISE_PARTITION))
   {
-    partition_info *tab_part_info= table->s->part_info;
+    partition_info *tab_part_info= table->part_info;
     if (!tab_part_info)
     {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
@@ -3886,11 +3935,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
        There was no partitioning before and no partitioning defined.
        Obviously no work needed.
     */
-    if (table->s->part_info)
+    if (table->part_info)
     {
       if (!thd->lex->part_info &&
           create_info->db_type == old_db_type)
-        thd->lex->part_info= table->s->part_info;
+        thd->lex->part_info= table->part_info;
     }
     if (thd->lex->part_info)
     {
@@ -3898,7 +3947,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->lex->part_info != table->s->part_info)
+      if (thd->lex->part_info != table->part_info)
         partition_changed= TRUE;
       if (create_info->db_type != DB_TYPE_PARTITION_DB)
         thd->lex->part_info->default_engine_type= create_info->db_type;
@@ -3940,6 +3989,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
 	*fn_ext(new_name)=0;
+        table->s->version= 0;                   // Force removal of table def
 	close_cached_table(thd, table);
 	if (mysql_rename_table(old_db_type,db,table_name,new_db,new_alias))
 	  error= -1;
@@ -4314,7 +4364,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
       */
       uint old_lock_type;
-      partition_info *part_info= table->s->part_info;
+      partition_info *part_info= table->part_info;
       char path[FN_REFLEN+1];
       uint db_options= 0, key_count, syntax_len;
       KEY *key_info_buffer;
@@ -4383,9 +4433,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         DBUG_RETURN(TRUE);
       }
       thd->proc_info="end";
-      write_bin_log(thd, FALSE);
-      send_ok(thd);
-      DBUG_RETURN(FALSE);
+      query_cache_invalidate3(thd, table_list, 0);
+      error= ha_commit_stmt(thd);
+      if (ha_commit(thd))
+        error= 1;
+      if (!error)
+      {
+        close_thread_tables(thd);
+        write_bin_log(thd, FALSE);
+        send_ok(thd);
+        DBUG_RETURN(FALSE);
+      }
+      DBUG_RETURN(error);
     }
   }
 #endif
@@ -4454,15 +4513,17 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       bzero((void*) &tbl, sizeof(tbl));
       tbl.db= new_db;
       tbl.table_name= tbl.alias= tmp_name;
+      /* Table is in thd->temporary_tables */
       new_table= open_table(thd, &tbl, thd->mem_root, (bool*) 0,
                             MYSQL_LOCK_IGNORE_FLUSH);
     }
     else
     {
       char path[FN_REFLEN];
-      my_snprintf(path, sizeof(path), "%s/%s/%s", mysql_data_home,
-                  new_db, tmp_name);
-      fn_format(path,path,"","",4);
+      /* table is a normal table: Create temporary table in same directory */
+      strxnmov(path, sizeof(path)-1, mysql_data_home, "/",new_db, "/",
+               tmp_name, NullS);
+      unpack_filename(path, path);
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)
@@ -4478,7 +4539,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for logging
   copied=deleted=0;
-  if (new_table && !new_table->s->is_view)
+  if (new_table && !(new_table->file->table_flags() & HA_NO_COPY_ON_ALTER))
   {
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
@@ -4489,7 +4550,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
-  if (table->s->tmp_table)
+  if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* We changed a temporary table */
     if (error)
@@ -4498,7 +4559,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	The following function call will free the new_table pointer,
 	in close_temporary_table(), so we can safely directly jump to err
       */
-      close_temporary_table(thd,new_db,tmp_name);
+      close_temporary_table(thd, new_table, 1, 1);
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -4508,11 +4569,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       thd->lock=0;
     }
     /* Remove link to old table and rename the new one */
-    close_temporary_table(thd, table->s->db, table_name);
+    close_temporary_table(thd, table, 1, 1);
     /* Should pass the 'new_name' as we store table name in the cache */
     if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
-      close_temporary_table(thd,new_db,tmp_name);
+      close_temporary_table(thd, new_table, 1, 1);
       my_free((gptr) new_table,MYF(0));
       goto err;
     }
@@ -4522,7 +4583,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if (new_table)
   {
-    intern_close_table(new_table);              /* close temporary table */
+    /* close temporary table that will be the new table */
+    intern_close_table(new_table);
     my_free((gptr) new_table,MYF(0));
   }
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -4565,6 +4627,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       close the original table at before doing the rename
     */
     table_name=thd->strdup(table_name);		// must be saved
+    table->s->version= 0;                	// Force removal of table def
     close_cached_table(thd, table);
     table=0;					// Marker that table is closed
   }
@@ -4597,18 +4660,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       closing the locked table.
     */
     if (table)
+    {
+      table->s->version= 0;            	        // Force removal of table def
       close_cached_table(thd,table);
+    }
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
   if (thd->lock || new_name != table_name)	// True if WIN32
   {
     /*
-      Not table locking or alter table with rename
-      free locks and remove old table
+      Not table locking or alter table with rename.
+      Free locks and remove old table
     */
     if (table)
+    {
+      table->s->version= 0;              	// Force removal of table def
       close_cached_table(thd,table);
+    }
     VOID(quick_rm_table(old_db_type,db,old_name));
   }
   else
@@ -4631,7 +4700,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	reopen_tables(thd,1,0))
     {						// This shouldn't happen
       if (table)
+      {
+        table->s->version= 0;                   // Force removal of table def
 	close_cached_table(thd,table);		// Remove lock for table
+      }
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;
     }
@@ -4775,8 +4847,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 					      MYF(MY_FAE | MY_ZEROFILL));
     bzero((char*) &tables,sizeof(tables));
     tables.table= from;
-    tables.alias= tables.table_name= (char*) from->s->table_name;
-    tables.db=    (char*) from->s->db;
+    tables.alias= tables.table_name= from->s->table_name.str;
+    tables.db=    from->s->db.str;
     error=1;
 
     if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||

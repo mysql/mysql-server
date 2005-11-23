@@ -355,15 +355,12 @@
 
 #include "m_string.h"
 /* Variables for federated share methods */
-static HASH federated_open_tables;              // Hash used to track open
-                                                // tables
-pthread_mutex_t federated_mutex;                // This is the mutex we use to
-                                                // init the hash
-static int federated_init= FALSE;               // Variable for checking the
-                                                // init state of hash
+static HASH federated_open_tables;              // To track open tables
+pthread_mutex_t federated_mutex;                // To init the hash
+static int federated_init= FALSE;               // Checking the state of hash
 
 /* Static declaration for handerton */
-static handler *federated_create_handler(TABLE *table);
+static handler *federated_create_handler(TABLE_SHARE *table);
 static int federated_commit(THD *thd, bool all);
 static int federated_rollback(THD *thd, bool all);
 
@@ -403,13 +400,13 @@ handlerton federated_hton= {
 };
 
 
-static handler *federated_create_handler(TABLE *table)
+static handler *federated_create_handler(TABLE_SHARE *table)
 {
   return new ha_federated(table);
 }
 
 
-/* Function we use in the creation of our hash to get key.  */
+/* Function we use in the creation of our hash to get key */
 
 static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
                                my_bool not_used __attribute__ ((unused)))
@@ -438,13 +435,11 @@ bool federated_db_init()
   if (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
                     (hash_get_key) federated_get_key, 0, 0))
   {
-    VOID(pthread_mutex_destroy(&federated_mutex));
-  }
-  else
-  {
     federated_init= TRUE;
     DBUG_RETURN(FALSE);
   }
+
+  VOID(pthread_mutex_destroy(&federated_mutex));
 error:
   have_federated_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
   DBUG_RETURN(TRUE);
@@ -456,7 +451,6 @@ error:
 
   SYNOPSIS
     federated_db_end()
-    void
 
   RETURN
     FALSE       OK
@@ -472,6 +466,7 @@ int federated_db_end(ha_panic_function type)
   federated_init= 0;
   return 0;
 }
+
 
 /*
  Check (in create) whether the tables exists, and that it can be connected to
@@ -605,12 +600,12 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
 
   SYNOPSIS
     parse_url()
-      share               pointer to FEDERATED share
-      table               pointer to current TABLE class
-      table_create_flag   determines what error to throw
+    share               pointer to FEDERATED share
+    table               pointer to current TABLE class
+    table_create_flag   determines what error to throw
 
   DESCRIPTION
-    populates the share with information about the connection
+    Populates the share with information about the connection
     to the foreign database that will serve as the data source.
     This string must be specified (currently) in the "comment" field,
     listed in the CREATE TABLE statement.
@@ -629,7 +624,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   ***IMPORTANT***
   Currently, only "mysql://" is supported.
 
-    'password' and 'port' are both optional.
+  'password' and 'port' are both optional.
 
   RETURN VALUE
     0           success
@@ -739,8 +734,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   }
 
   DBUG_PRINT("info",
-             ("scheme %s username %s password %s \
-              hostname %s port %d database %s tablename %s",
+             ("scheme: %s  username: %s  password: %s \
+               hostname: %s  port: %d  database: %s  tablename: %s",
               share->scheme, share->username, share->password,
               share->hostname, share->port, share->database,
               share->table_name));
@@ -756,7 +751,7 @@ error:
 ** FEDERATED tables
 *****************************************************************************/
 
-ha_federated::ha_federated(TABLE *table_arg)
+ha_federated::ha_federated(TABLE_SHARE *table_arg)
   :handler(&federated_hton, table_arg),
   mysql(0), stored_result(0), scan_flag(0),
   ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)
@@ -770,8 +765,8 @@ ha_federated::ha_federated(TABLE *table_arg)
 
   SYNOPSIS
     convert_row_to_internal_format()
-      record    Byte pointer to record
-      row       MySQL result set row from fetchrow()
+    record    Byte pointer to record
+    row       MySQL result set row from fetchrow()
 
   DESCRIPTION
     This method simply iterates through a row returned via fetchrow with
@@ -782,7 +777,7 @@ ha_federated::ha_federated(TABLE *table_arg)
 
   RETURN VALUE
     0   After fields have had field values stored from record
- */
+*/
 
 uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
 {
@@ -793,24 +788,23 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
   lengths= mysql_fetch_lengths(stored_result);
   memset(record, 0, table->s->null_bytes);
 
-  for (field= table->field; *field; field++)
+  for (field= table->field; *field; field++, row++, lengths++)
   {
     /*
       index variable to move us through the row at the
       same iterative step as the field
     */
-    int x= field - table->field;
     my_ptrdiff_t old_ptr;
     old_ptr= (my_ptrdiff_t) (record - table->record[0]);
-    (*field)->move_field(old_ptr);
-    if (!row[x])
+    (*field)->move_field_offset(old_ptr);
+    if (!*row)
       (*field)->set_null();
     else
     {
       (*field)->set_notnull();
-      (*field)->store(row[x], lengths[x], &my_charset_bin);
+      (*field)->store(*row, *lengths, &my_charset_bin);
     }
-    (*field)->move_field(-old_ptr);
+    (*field)->move_field_offset(-old_ptr);
   }
 
   DBUG_RETURN(0);
@@ -1215,8 +1209,8 @@ bool ha_federated::create_where_from_key(String *to,
             DBUG_RETURN(1);
         }
         else
-          /* LIKE */
         {
+          /* LIKE */
           if (emit_key_part_name(&tmp, key_part) ||
               tmp.append(FEDERATED_LIKE) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, 1, ptr,
@@ -1328,16 +1322,16 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   /*
     In order to use this string, we must first zero it's length,
     or it will contain garbage
-   */
+  */
   query.length(0);
 
   pthread_mutex_lock(&federated_mutex);
-  tmp_table_name= (char *)table->s->table_name;
-  tmp_table_name_length= (uint) strlen(tmp_table_name);
+  tmp_table_name=        table->s->table_name.str;
+  tmp_table_name_length= table->s->table_name.length;
 
   if (!(share= (FEDERATED_SHARE *) hash_search(&federated_open_tables,
                                                (byte*) table_name,
-                                               strlen(table_name))))
+                                               tmp_table_name_length)))
   {
     query.set_charset(system_charset_info);
     query.append(FEDERATED_SELECT);
@@ -1348,7 +1342,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       query.append(FEDERATED_BTICK);
       query.append(FEDERATED_COMMA);
     }
-    query.length(query.length()- strlen(FEDERATED_COMMA));
+    query.length(query.length()- FEDERATED_COMMA_LEN);
     query.append(FEDERATED_FROM);
     query.append(FEDERATED_BTICK);
 
@@ -1372,7 +1366,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     share->select_query= select_query;
     strmov(share->select_query, query.ptr());
     share->use_count= 0;
-    share->table_name_length= strlen(share->table_name);
     DBUG_PRINT("info",
                ("share->select_query %s", share->select_query));
 
@@ -1486,8 +1479,8 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
   }
   /*
     Since we do not support transactions at this version, we can let the client
-    API silently reconnect. For future versions, we will need more logic to deal
-    with transactions
+    API silently reconnect. For future versions, we will need more logic to
+    deal with transactions
   */
   mysql->reconnect= 1;
 
@@ -1562,6 +1555,7 @@ inline uint field_in_record_is_null(TABLE *table,
 
   DBUG_RETURN(0);
 }
+
 
 /*
   write_row() inserts a row. No extra() hint is given currently if a bulk load
@@ -1819,15 +1813,15 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   update_string.append(FEDERATED_BTICK);
   update_string.append(FEDERATED_SET);
 
-/*
-  In this loop, we want to match column names to values being inserted
-  (while building INSERT statement).
+  /*
+    In this loop, we want to match column names to values being inserted
+    (while building INSERT statement).
 
-  Iterate through table->field (new data) and share->old_filed (old_data)
-  using the same index to created an SQL UPDATE statement, new data is
-  used to create SET field=value and old data is used to create WHERE
-  field=oldvalue
- */
+    Iterate through table->field (new data) and share->old_filed (old_data)
+    using the same index to created an SQL UPDATE statement, new data is
+    used to create SET field=value and old data is used to create WHERE
+    field=oldvalue
+  */
 
   for (Field **field= table->field; *field; field++)
   {
@@ -2048,7 +2042,7 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
    This basically says that the record in table->record[0] is legal,
    and that it is ok to use this record, for whatever reason, such
    as with a join (without it, joins will not work)
- */
+  */
   table->status= 0;
 
   retval= rnd_next(buf);
@@ -2070,7 +2064,7 @@ int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info",
-             ("table: '%s'  key: %d", table->s->table_name, keynr));
+             ("table: '%s'  key: %d", table->s->table_name.str, keynr));
   active_index= keynr;
   DBUG_RETURN(0);
 }
@@ -2251,12 +2245,14 @@ int ha_federated::rnd_end()
   DBUG_RETURN(retval);
 }
 
+
 int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
   active_index= MAX_KEY;
   DBUG_RETURN(0);
 }
+
 
 /*
   This is called for each row of the table scan. When you run out of records

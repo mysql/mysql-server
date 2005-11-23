@@ -440,10 +440,11 @@ class store_key :public Sql_alloc
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
     {
-      /* Key segments are always packed with a 2 byte length prefix */
-      to_field=new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
-				   Field::NONE, field_arg->field_name,
-				   field_arg->table, field_arg->charset());
+        /* Key segments are always packed with a 2 byte length prefix */
+      to_field= new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
+                                    Field::NONE, field_arg->field_name,
+                                    field_arg->table->s, field_arg->charset());
+      to_field->init(field_arg->table);
     }
     else
       to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,

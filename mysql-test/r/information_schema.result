@@ -486,7 +486,6 @@ select s1 from t1 where s1 in (select version from
 information_schema.tables) union select version from
 information_schema.tables;
 s1
-0
 10
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;

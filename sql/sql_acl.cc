@@ -2216,10 +2216,10 @@ void free_grant_table(GRANT_TABLE *grant_table)
 /* Search after a matching grant. Prefer exact grants before not exact ones */
 
 static GRANT_NAME *name_hash_search(HASH *name_hash,
-				      const char *host,const char* ip,
-				      const char *db,
-				      const char *user, const char *tname,
-				      bool exact)
+                                    const char *host,const char* ip,
+                                    const char *db,
+                                    const char *user, const char *tname,
+                                    bool exact)
 {
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
@@ -4675,7 +4675,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       by the searched record, if it exists.
     */
     DBUG_PRINT("info",("read table: '%s'  search: '%s'@'%s'",
-                       table->s->table_name, user_str, host_str));
+                       table->s->table_name.str, user_str, host_str));
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
 
@@ -4718,7 +4718,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     {
 #ifdef EXTRA_DEBUG
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
-                         table->s->table_name, user_str, host_str));
+                         table->s->table_name.str, user_str, host_str));
 #endif
       while ((error= table->file->rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)

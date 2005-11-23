@@ -419,7 +419,9 @@ sys_var_thd_ulong	sys_sync_replication_timeout(
                                                &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
-sys_var_long_ptr	sys_table_cache_size("table_cache",
+sys_var_long_ptr	sys_table_def_size("table_definition_cache",
+                                           &table_def_size);
+sys_var_long_ptr	sys_table_cache_size("table_open_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_table_lock_wait_timeout("table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
@@ -873,7 +875,8 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
-  {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
+  {"table_definition_cache",  (char*) &table_def_size,              SHOW_LONG},
+  {"table_open_cache",        (char*) &table_cache_size,            SHOW_LONG},
   {"table_lock_wait_timeout", (char*) &table_lock_wait_timeout,     SHOW_LONG },
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
