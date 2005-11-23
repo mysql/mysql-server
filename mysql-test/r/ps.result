@@ -806,3 +806,10 @@ execute stmt;
 @@tx_isolation
 REPEATABLE-READ
 deallocate prepare stmt;
+create table t1 (id int);
+prepare ins_call from "insert into t1 (id) values (1)";
+execute ins_call;
+select row_count();
+row_count()
+1
+drop table t1;
