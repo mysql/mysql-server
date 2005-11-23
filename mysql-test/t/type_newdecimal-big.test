@@ -1,0 +1,31 @@
+--source include/big_test.inc
+
+--disable_warnings
+drop procedure if exists sp1;
+--enable_warnings
+
+#
+#-- 2. Adding (one millionth) one million times should be the same as
+#-- adding 1. So a stored procedure with many iterations will show if
+#-- small errors accumulate.
+#
+
+delimiter //;
+#
+create procedure sp1 () begin 
+  declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
+  set v1 = 1; set v2 = 2; set v3 = 1000000000000; set v4 = 2000000000000; set v5 = 0; 
+  while v5 < 100000 do
+   set v1 = v1 + 0.000000000001; set v2 = v2 - 0.000000000001; set v3 = v3 + 1; set v4 = v4 - 1; set v5 = v5 + 1; 
+  end while; select v1, v2, v3 * 0.000000000001, v4 * 0.000000000001; end;//
+#
+call sp1()//
+#-- should return 
+#   -- v1=1.0000001
+#   -- v2=1.999999900000
+#   -- v3=1.0000001
+#   -- v4=1.999999900000
+#
+delimiter ;//
+#
+drop procedure sp1;
