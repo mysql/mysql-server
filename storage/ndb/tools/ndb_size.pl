@@ -26,24 +26,33 @@ use HTML::Template;
 # BUGS
 # ----
 # - enum/set is 0 byte storage! Woah - efficient!
+# - DECIMAL is 0 byte storage. A bit too efficient.
 # - some float stores come out weird (when there's a comma e.g. 'float(4,1)')
 # - no disk data values
 # - computes the storage requirements of views (and probably MERGE)
 # - ignores character sets.
 
 my $template = HTML::Template->new(filename => 'ndb_size.tmpl',
-				   die_on_bad_params => 0);
+				   die_on_bad_params => 0)
+    or die "Could not open ndb_size.tmpl.";
 
 my $dbh;
+
+if(@ARGV < 3 || $ARGV[0] eq '--usage' || $ARGV[0] eq '--help')
+{
+    print STDERR "Usage:\n";
+    print STDERR "\tndb_size.pl database hostname user password\n\n";
+    print STDERR "If you need to specify a port number, use host:port\n\n";
+    exit(1);
+}
 
 {
     my $database= $ARGV[0];
     my $hostname= $ARGV[1];
-    my $port= $ARGV[2];
-    my $user= $ARGV[3];
-    my $password= $ARGV[4];
-    my $dsn = "DBI:mysql:database=$database;host=$hostname;port=$port";
-    $dbh= DBI->connect($dsn, $user, $password);
+    my $user= $ARGV[2];
+    my $password= $ARGV[3];
+    my $dsn = "DBI:mysql:database=$database;host=$hostname";
+    $dbh= DBI->connect($dsn, $user, $password) or exit(1);
     $template->param(db => $database);
     $template->param(dsn => $dsn);
 }
@@ -54,6 +63,14 @@ $template->param(releases => \@releases);
 my $tables  = $dbh->selectall_arrayref("show tables");
 
 my @table_size;
+
+my @dbDataMemory;
+my @dbIndexMemory;
+my @NoOfAttributes;
+my @NoOfIndexes;
+my @NoOfTables;
+$NoOfTables[$_]{val} = @{$tables} foreach 0..$#releases;
+
 
 sub align {
     my($to,@unaligned) = @_;
@@ -68,9 +85,8 @@ foreach(@{$tables})
 {
     my $table= @{$_}[0];
     my @columns;
-    my $info= $dbh->selectall_hashref("describe ".$dbh->quote($table),"Field");
-    my @count  = $dbh->selectrow_array("select count(*) from "
-				       .$dbh->quote($table));
+    my $info= $dbh->selectall_hashref('describe `'.$table.'`',"Field");
+    my @count  = $dbh->selectrow_array('select count(*) from `'.$table.'`');
     my %columnsize; # used for index calculations
 
     # We now work out the DataMemory usage
@@ -132,14 +148,17 @@ foreach(@{$tables})
 	    my $fixed= 1+$size;
 	    my @dynamic=$dbh->selectrow_array("select avg(length("
 					      .$dbh->quote($name)
-					      .")) from ".$dbh->quote($table));
+					      .")) from `".$table.'`');
 	    $dynamic[0]=0 if !$dynamic[0];
 	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
 	}
 	elsif($type =~ /binary/ || $type =~ /char/)
 	{@realsize=($size,$size,$size)}
 	elsif($type =~ /text/ || $type =~ /blob/)
-	{@realsize=(256,256,1)} # FIXME check if 5.1 is correct
+	{
+	    @realsize=(256,256,1);
+	    $NoOfTables[$_]{val} += 1 foreach 0..$#releases; # blob uses table
+	} # FIXME check if 5.1 is correct
 
 	@realsize= align(4,@realsize);
 
@@ -166,7 +185,7 @@ foreach(@{$tables})
     # we can still connect to pre-5.0 mysqlds.
     my %indexes;
     {
-	my $sth= $dbh->prepare("show index from "$dbh->quote($table));
+	my $sth= $dbh->prepare("show index from `".$table.'`');
 	$sth->execute;
 	while(my $i = $sth->fetchrow_hashref)
 	{    
@@ -257,7 +276,51 @@ foreach(@{$tables})
 	IndexMemory=>\@IndexMemory,
 	
     };
+
+    $dbDataMemory[$_]{val} += $DataMemory[$_]{val} foreach 0..$#releases;
+    $dbIndexMemory[$_]{val} += $IndexMemory[$_]{val} foreach 0..$#releases;
+    $NoOfAttributes[$_]{val} += @columns foreach 0..$#releases;
+    $NoOfIndexes[$_]{val} += @indexes foreach 0..$#releases;
+}
+
+my @NoOfTriggers;
+# for unique hash indexes
+$NoOfTriggers[$_]{val} += $NoOfIndexes[$_]{val}*3 foreach 0..$#releases;
+# for ordered index
+$NoOfTriggers[$_]{val} += $NoOfIndexes[$_]{val} foreach 0..$#releases;
+
+my @ParamMemory;
+foreach (0..$#releases) {
+    $ParamMemory[0]{releases}[$_]{val}= POSIX::ceil(200*$NoOfAttributes[$_]{val}/1024);
+    $ParamMemory[0]{name}= 'Attributes';
+
+    $ParamMemory[1]{releases}[$_]{val}= 20*$NoOfTables[$_]{val};
+    $ParamMemory[1]{name}= 'Tables';
+
+    $ParamMemory[2]{releases}[$_]{val}= 10*$NoOfIndexes[$_]{val};
+    $ParamMemory[2]{name}= 'OrderedIndexes';
+
+    $ParamMemory[3]{releases}[$_]{val}= 15*$NoOfIndexes[$_]{val};
+    $ParamMemory[3]{name}= 'UniqueHashIndexes';    
 }
 
 $template->param(tables => \@table_size);
+$template->param(Parameters => [{name=>'DataMemory (kb)',
+				 releases=>\@dbDataMemory},
+				{name=>'IndexMemory (kb)',
+				 releases=>\@dbIndexMemory},
+				{name=>'MaxNoOfTables',
+				 releases=>\@NoOfTables},
+				{name=>'MaxNoOfAttributes',
+				 releases=>\@NoOfAttributes},
+				{name=>'MaxNoOfOrderedIndexes',
+				 releases=>\@NoOfIndexes},
+				{name=>'MaxNoOfUniqueHashIndexes',
+				 releases=>\@NoOfIndexes},
+				{name=>'MaxNoOfTriggers',
+				 releases=>\@NoOfTriggers}
+				]
+		 );
+$template->param(ParamMemory => \@ParamMemory);
+
 print $template->output;

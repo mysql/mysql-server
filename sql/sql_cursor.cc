@@ -558,6 +558,25 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
        result->prepare(item_list, &fake_unit) ||
        table->file->ha_rnd_init(TRUE));
   thd->restore_active_arena(this, &backup_arena);
+  if (rc == 0)
+  {
+    /*
+      Now send the result set metadata to the client. We need to
+      do it here, as in Select_materialize::send_fields the items
+      for column types are not yet created (send_fields requires
+      a list of items). The new types may differ from the original
+      ones sent at prepare if some of them were altered by MySQL
+      HEAP tables mechanism -- used when create_tmp_field_from_item
+      may alter the original column type.
+
+      We can't simply supply SEND_EOF flag to send_fields, because
+      send_fields doesn't flush the network buffer.
+    */
+    rc= result->send_fields(item_list, Protocol::SEND_NUM_ROWS);
+    thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
+    result->send_eof();
+    thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+  }
   return rc;
 }
 
@@ -642,19 +661,10 @@ Materialized_cursor::~Materialized_cursor()
 
 bool Select_materialize::send_fields(List<Item> &list, uint flags)
 {
-  bool rc;
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
                           FALSE, thd->options | TMP_TABLE_ALL_COLUMNS, ""))
     return TRUE;
-  /*
-    We can't simply supply SEND_EOF flag to send_fields, because send_fields
-    doesn't flush the network buffer.
-  */
-  rc= result->send_fields(list, Protocol::SEND_NUM_ROWS);
-  thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
-  result->send_eof();
-  thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-  return rc;
+  return FALSE;
 }
 

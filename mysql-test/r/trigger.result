@@ -611,9 +611,9 @@ select @a;
 @a
 10
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
-t1_af	INSERT	t1	 set @a=10	AFTER	#	
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost
+t1_af	INSERT	t1	 set @a=10	AFTER	#		root@localhost
 drop table t1;
 set sql_mode="traditional";
 create table t1 (a date);
@@ -633,8 +633,8 @@ t1	CREATE TABLE `t1` (
   `a` date default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
-t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#		root@localhost
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -738,3 +738,28 @@ f1
 1
 drop trigger t1_bi;
 drop tables t1, t2;
+create table t1 (id int);
+create table t2 (id int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10);
+call p1();
+drop trigger t1_bi;
+execute stmt1;
+call p1();
+deallocate prepare stmt1;
+drop procedure p1;
+create table t3 (id int);
+create trigger t1_bi after insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10);
+call p1();
+drop trigger t1_bi;
+create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
+execute stmt1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+call p1();
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+deallocate prepare stmt1;
+drop procedure p1;
+drop table t1, t2, t3;

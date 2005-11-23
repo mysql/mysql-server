@@ -159,23 +159,28 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   /* mark for close and remove all cached entries */
 
-  thd->mysys_var->current_mutex= &LOCK_open;
-  thd->mysys_var->current_cond= &COND_refresh;
-  VOID(pthread_mutex_lock(&LOCK_open));
-
   if (!drop_temporary)
   {
     if ((error= wait_if_global_read_lock(thd, 0, 1)))
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->table_name);
-      goto err;
+      DBUG_RETURN(TRUE);
     }
     else
       need_start_waiters= TRUE;
   }
+
+  /*
+    Acquire LOCK_open after wait_if_global_read_lock(). If we would hold
+    LOCK_open during wait_if_global_read_lock(), other threads could not
+    close their tables. This would make a pretty deadlock.
+  */
+  thd->mysys_var->current_mutex= &LOCK_open;
+  thd->mysys_var->current_cond= &COND_refresh;
+  VOID(pthread_mutex_lock(&LOCK_open));
+
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
 
-err:
   pthread_mutex_unlock(&LOCK_open);
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
@@ -288,7 +293,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     char *db=table->db;
     db_type table_type= DB_TYPE_UNKNOWN;
 
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
     if (!close_temporary_table(thd, db, table->table_name))
     {
       tmp_table_deleted=1;
@@ -896,6 +901,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	{
 	  /* Field redefined */
+	  sql_field->def=		dup_field->def;
 	  sql_field->sql_type=		dup_field->sql_type;
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
@@ -905,8 +911,15 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           sql_field->key_length=	dup_field->key_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
-	  sql_field->flags=		dup_field->flags;
 	  sql_field->unireg_check=	dup_field->unireg_check;
+          /* 
+            We're making one field from two, the result field will have
+            dup_field->flags as flags. If we've incremented null_fields
+            because of sql_field->flags, decrement it back.
+          */
+          if (!(sql_field->flags & NOT_NULL_FLAG))
+            null_fields--;
+	  sql_field->flags=		dup_field->flags;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -2305,7 +2318,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
@@ -2338,7 +2351,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* if view are unsupported */
     if (table->view && view_operator_func == NULL)
     {
-      result_code= HA_ADMIN_NOT_IMPLEMENTED;
+      result_code= HA_ADMIN_NOT_BASE_TABLE;
       goto send_result;
     }
     thd->open_options&= ~extra_open_options;
@@ -2473,6 +2486,16 @@ send_result_message:
       }
       break;
 
+    case HA_ADMIN_NOT_BASE_TABLE:
+      {
+        char buf[ERRMSGSIZE+20];
+        uint length= my_snprintf(buf, ERRMSGSIZE,
+                                 ER(ER_BAD_TABLE_ERROR), table_name);
+        protocol->store("note", 4, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
+      }
+      break;
+
     case HA_ADMIN_OK:
       protocol->store("status", 6, system_charset_info);
       protocol->store("OK",2, system_charset_info);
@@ -2573,16 +2596,19 @@ send_result_message:
         break;
       }
     }
-    if (fatal_error)
-      table->table->s->version=0;               // Force close of table
-    else if (open_for_modify)
+    if (table->table)
     {
-      pthread_mutex_lock(&LOCK_open);
-      remove_table_from_cache(thd, table->table->s->db,
-			      table->table->s->table_name, RTFC_NO_FLAG);
-      pthread_mutex_unlock(&LOCK_open);
-      /* May be something modified consequently we have to invalidate cache */
-      query_cache_invalidate3(thd, table->table, 0);
+      if (fatal_error)
+        table->table->s->version=0;               // Force close of table
+      else if (open_for_modify)
+      {
+        pthread_mutex_lock(&LOCK_open);
+        remove_table_from_cache(thd, table->table->s->db,
+                                table->table->s->table_name, RTFC_NO_FLAG);
+        pthread_mutex_unlock(&LOCK_open);
+        /* Something may be modified, that's why we have to invalidate cache */
+        query_cache_invalidate3(thd, table->table, 0);
+      }
     }
     close_thread_tables(thd);
     table->table=0;				// For query cache
@@ -3405,8 +3431,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   used_fields=create_info->used_fields;
+  
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
 
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
