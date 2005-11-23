@@ -2384,7 +2384,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
 #ifndef DBUG_OFF
   {
     char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
-    DBUG_PRINT("info", ("saving with precision %d, scale: %d, value %s",
+    DBUG_PRINT("info", ("saving with precision %d  scale: %d  value %s",
                         (int)precision, (int)dec,
                         dbug_decimal_as_string(dbug_buff, decimal_value)));
   }
@@ -2399,7 +2399,8 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
     my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, precision, dec);
     error= 1;
   }
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (byte *) ptr, bin_size););
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (byte *) ptr,
+                                          bin_size););
   DBUG_RETURN(error);
 }
 

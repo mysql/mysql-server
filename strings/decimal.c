@@ -972,11 +972,17 @@ int decimal2double(decimal_t *from, double *to)
 int double2decimal(double from, decimal_t *to)
 {
   /* TODO: fix it, when we'll have dtoa */
-  char s[400], *end;
-  sprintf(s, "%.16G", from);
-  end= strend(s);
-  return string2decimal(s, to, &end);
+  char buff[400], *end;
+  int length, res;
+  DBUG_ENTER("double2decimal");
+  length= my_sprintf(buff, (buff, "%.16G", from));
+  DBUG_PRINT("info",("from: %g  from_as_str: %s", from, buff));
+  end= buff+length;
+  res= string2decimal(buff, to, &end);
+  DBUG_PRINT("exit", ("res: %d", res));
+  DBUG_RETURN(res);
 }
+
 
 static int ull2dec(ulonglong from, decimal_t *to)
 {
