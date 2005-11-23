@@ -129,7 +129,7 @@ public:
   TYPELIB *m_returns_typelib;	// For FUNCTIONs only
   uint m_returns_len;		// For FUNCTIONs only
   uint m_returns_pack;		// For FUNCTIONs only
-  uchar *m_tmp_query;		// Temporary pointer to sub query string
+  const uchar *m_tmp_query;	// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
@@ -178,7 +178,7 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  uchar *m_param_begin, *m_param_end, *m_body_begin;
+  const uchar *m_param_begin, *m_param_end, *m_body_begin;
 
   /*
     Security context for stored routine which should be run under

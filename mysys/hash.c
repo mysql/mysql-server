@@ -109,7 +109,7 @@ static inline void hash_free_elements(HASH *hash)
 void hash_free(HASH *hash)
 {
   DBUG_ENTER("hash_free");
-  DBUG_PRINT("enter",("hash: 0x%lxd",hash));
+  DBUG_PRINT("enter",("hash: 0x%lx", hash));
 
   hash_free_elements(hash);
   hash->free= 0;
