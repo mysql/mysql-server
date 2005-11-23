@@ -43,6 +43,13 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
+# FIXME maybe shouldn't remove, could be needed by other installation?
+uninstall-local:
+	@RM@ -f -r $(DESTDIR)$(pkgdatadir)
+
+# Do nothing
+link_sources:
+
 fix_errors:
 	for lang in @AVAILABLE_LANGUAGES@; \
 	do \
