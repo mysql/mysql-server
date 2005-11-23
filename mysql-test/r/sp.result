@@ -3417,6 +3417,9 @@ Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
 drop table if exists t3|
 drop procedure if exists bug7049_1|
 drop procedure if exists bug7049_2|
@@ -3617,6 +3620,70 @@ count(*)
 drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
+drop function if exists bug14723|
+drop procedure if exists bug14723|
+/*!50003 create function bug14723()
+returns bigint(20)
+main_loop: begin
+return 42;
+end */;;
+show create function bug14723;;
+Function	sql_mode	Create Function
+bug14723		CREATE FUNCTION `bug14723`() RETURNS bigint(20)
+main_loop: begin
+return 42;
+end
+select bug14723();;
+bug14723()
+42
+/*!50003 create procedure bug14723()
+main_loop: begin
+select 42;
+end */;;
+show create procedure bug14723;;
+Procedure	sql_mode	Create Procedure
+bug14723		CREATE PROCEDURE `bug14723`()
+main_loop: begin
+select 42;
+end
+call bug14723();;
+42
+42
+drop function bug14723|
+drop procedure bug14723|
+create procedure bug14845()
+begin
+declare a char(255);
+declare done int default 0;
+declare c cursor for select count(*) from t1 where 1 = 0;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a;
+if not done then
+select a;
+end if;
+until done end repeat;
+close c;
+end|
+call bug14845()|
+a
+0
+drop procedure bug14845|
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+CREATE PROCEDURE `bug13549_2`()
+begin
+call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+declare done int default 0;
+set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
 drop function if exists bug10100f|
 drop procedure if exists bug10100p|
 drop procedure if exists bug10100t|
@@ -3802,71 +3869,4 @@ drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
 drop table t3|
-drop function if exists bug14723|
-drop procedure if exists bug14723|
-/*!50003 create function bug14723()
-returns bigint(20)
-main_loop: begin
-return 42;
-end */;;
-show create function bug14723;;
-Function	sql_mode	Create Function
-bug14723		CREATE FUNCTION `bug14723`() RETURNS bigint(20)
-main_loop: begin
-return 42;
-end
-select bug14723();;
-bug14723()
-42
-/*!50003 create procedure bug14723()
-main_loop: begin
-select 42;
-end */;;
-show create procedure bug14723;;
-Procedure	sql_mode	Create Procedure
-bug14723		CREATE PROCEDURE `bug14723`()
-main_loop: begin
-select 42;
-end
-call bug14723();;
-42
-42
-drop function bug14723|
-drop procedure bug14723|
-create procedure bug14845()
-begin
-declare a char(255);
-declare done int default 0;
-declare c cursor for select count(*) from t1 where 1 = 0;
-declare continue handler for sqlstate '02000' set done = 1;
-open c;
-repeat
-fetch c into a;
-if not done then
-select a;
-end if;
-until done end repeat;
-close c;
-end|
-call bug14845()|
-a
-0
-drop procedure bug14845|
-drop procedure bug12589_1|
-drop procedure bug12589_2|
-drop procedure bug12589_3|
-drop procedure if exists bug13549_1|
-drop procedure if exists bug13549_2|
-CREATE PROCEDURE `bug13549_2`()
-begin
-call bug13549_1();
-end|
-CREATE PROCEDURE `bug13549_1`()
-begin
-declare done int default 0;
-set done= not done;
-end|
-CALL bug13549_2()|
-drop procedure bug13549_2|
-drop procedure bug13549_1|
 drop table t1,t2;

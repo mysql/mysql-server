@@ -400,7 +400,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 const char *definer, longlong created, longlong modified)
 {
   LEX *oldlex= thd->lex, newlex;
-  sp_rcontext *save_spcont= ;thd->spcont;
+  sp_rcontext *save_spcont= thd->spcont;
   String defstr;
   char olddb[128];
   bool dbchanged;
@@ -431,8 +431,6 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
 
-      (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
-      (*sphp)->set_info(created, modified, &chistics, sql_mode);
   thd->spcont= 0;
   if (yyparse(thd) || thd->is_fatal_error || newlex.sphead == NULL)
   {
@@ -446,18 +444,16 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   else
   {
     if (dbchanged && (ret= mysql_change_db(thd, olddb, 1)))
-      goto db_end;
+      goto end;
     *sphp= newlex.sphead;
     (*sphp)->set_definer((char*) definer, (uint) strlen(definer));
-    (*sphp)->set_info((char *)definer, (uint)strlen(definer),
-		      created, modified, &chistics, sql_mode);
+    (*sphp)->set_info(created, modified, &chistics, sql_mode);
     (*sphp)->optimize();
   }
-db_end:
+end:
   thd->spcont= save_spcont;
   thd->variables.sql_mode= old_sql_mode;
   thd->variables.select_limit= select_limit;
-end:  
   thd->lex= oldlex;
   return ret;
 }
