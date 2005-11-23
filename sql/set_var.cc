@@ -61,7 +61,9 @@
 
 /* WITH_BERKELEY_STORAGE_ENGINE */
 extern bool berkeley_shared_data;
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 
 /* WITH_INNOBASE_STORAGE_ENGINE */
@@ -235,9 +237,12 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_bool_ptr       
+sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
-                           &trust_routine_creators);
+                           &trust_function_creators);
+sys_var_bool_ptr       
+sys_trust_function_creators("log_bin_trust_function_creators",
+                            &trust_function_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -583,7 +588,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 /* Read only variables */
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
-
 sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
 sys_var_have_variable sys_have_berkeley_db("have_bdb", &have_berkeley_db);
 sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
@@ -607,7 +611,6 @@ sys_var_have_variable sys_have_query_cache("have_query_cache",
 sys_var_have_variable sys_have_raid("have_raid", &have_raid);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
-
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -622,11 +625,13 @@ struct show_var_st init_vars[]= {
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
-  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
+  {"bdb_cache_parts",         (char*) &berkeley_cache_parts,        SHOW_LONG},
+  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONGLONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
   {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
+  {"bdb_region_size",         (char*) &berkeley_region_size,	    SHOW_LONG},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
@@ -688,7 +693,7 @@ struct show_var_st init_vars[]= {
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
-  {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
+  {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONGLONG },
   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
   {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
@@ -706,7 +711,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_buffer_size", (char*) &innobase_log_buffer_size, SHOW_LONG },
-  {"innodb_log_file_size", (char*) &innobase_log_file_size, SHOW_LONG},
+  {"innodb_log_file_size", (char*) &innobase_log_file_size, SHOW_LONGLONG},
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
@@ -738,7 +743,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
-  {sys_trust_routine_creators.name,(char*) &sys_trust_routine_creators, SHOW_SYS},
+  {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
@@ -3327,6 +3332,26 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
   return 0;
 }
 
+
+void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
+{
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_WARN_DEPRECATED_SYNTAX,
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
+                      "log_bin_trust_function_creators"); 
+}
+
+void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
+{
+  warn_deprecated(thd);
+  sys_var_bool_ptr::set_default(thd, type);
+}
+
+bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
+{
+  warn_deprecated(thd);
+  return sys_var_bool_ptr::update(thd, var);
+}
 
 /****************************************************************************
   Used templates

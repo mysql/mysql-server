@@ -14419,6 +14419,177 @@ static void test_bug14210()
   myquery(rc);
 }
 
+/* Bug#13488: wrong column metadata when fetching from cursor */
+
+static void test_bug13488()
+{
+  MYSQL_BIND bind[3];
+  MYSQL_STMT *stmt1;
+  int rc, f1, f2, f3, i;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select * from t1 left join t2 on f1=f2 where f1=1";
+
+  myheader("test_bug13488");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (f1 int not null primary key)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (f2 int not null primary key, "
+                  "f3 int not null)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1), (2)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,2), (2,4)");
+  myquery(rc);
+
+  memset(bind, 0, sizeof(bind));
+  for (i= 0; i < 3; i++)
+  {
+    bind[i].buffer_type= MYSQL_TYPE_LONG;
+    bind[i].buffer_length= 4;
+    bind[i].length= 0;
+  }
+  bind[0].buffer=&f1;
+  bind[1].buffer=&f2;
+  bind[2].buffer=&f3;
+
+  stmt1= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt1,STMT_ATTR_CURSOR_TYPE, (const void *)&type);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_prepare(stmt1, query, strlen(query));
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_execute(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_bind_result(stmt1, bind);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_fetch(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_free_result(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_reset(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_stmt_close(stmt1);
+  check_execute(stmt1, rc);
+
+  if (!opt_silent)
+    printf("data is: %s", (f1 == 1 && f2 == 1 && f3 == 2)?"OK":
+           "wrong");
+  DIE_UNLESS(f1 == 1 && f2 == 1 && f3 == 2);
+  rc= mysql_query(mysql, "drop table t1, t2");
+  myquery(rc);
+}
+
+/*
+  Bug#13524: warnings of a previous command are not reset when fetching
+  from a cursor.
+*/
+
+static void test_bug13524()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  unsigned int warning_count;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select * from t1";
+
+  myheader("test_bug13524");
+
+  rc= mysql_query(mysql, "drop table if exists t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (a int not null primary key)");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1), (2), (3), (4)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Check that DROP TABLE produced a warning (no such table) */
+  rc= mysql_query(mysql, "drop table if exists t2");
+  myquery(rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 1);
+
+  /*
+    Check that fetch from a cursor cleared the warning from the previous
+    command.
+  */
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  warning_count= mysql_warning_count(mysql);
+  DIE_UNLESS(warning_count == 0);
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
+/*
+  Bug#14845 "mysql_stmt_fetch returns MYSQL_NO_DATA when COUNT(*) is 0"
+*/
+
+static void test_bug14845()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const ulong type= CURSOR_TYPE_READ_ONLY;
+  const char *query= "select count(*) from t1 where 1 = 0";
+
+  myheader("test_bug14845");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (id int(11) default null, "
+                         "name varchar(20) default null)"
+                         "engine=MyISAM DEFAULT CHARSET=utf8");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,'abc'),(2,'def')");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "drop table t1");
+  myquery(rc);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -14675,6 +14846,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11904", test_bug11904 },
   { "test_bug12243", test_bug12243 },
   { "test_bug14210", test_bug14210 },
+  { "test_bug13488", test_bug13488 },
+  { "test_bug13524", test_bug13524 },
+  { "test_bug14845", test_bug14845 },
   { 0, 0 }
 };
 

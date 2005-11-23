@@ -183,3 +183,57 @@ group by country;
 
 drop table t1;
 
+#
+# BUG#14342: wrong placement of subquery internals in complex queries
+#
+CREATE TABLE `t1` (
+  `t3_id` int NOT NULL,
+  `t1_id` int NOT NULL,
+  PRIMARY KEY  (`t1_id`)
+);
+CREATE TABLE `t2` (
+  `t2_id` int NOT NULL,
+  `t1_id` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY  (`t2_id`),
+  UNIQUE KEY `idx_t2_t1_b` (`t1_id`,`b`)
+) ENGINE=InnoDB;
+CREATE TABLE `t3` (
+  `t3_id` int NOT NULL
+);
+INSERT INTO `t3` VALUES (3);
+select
+  (SELECT rs.t2_id
+   FROM t2 rs
+   WHERE rs.t1_id=
+     (SELECT lt.t1_id
+      FROM t1 lt
+      WHERE lt.t3_id=a.t3_id)
+   ORDER BY b DESC LIMIT 1)
+from t3 AS a;
+# repeat above query in SP
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+delimiter //;
+create procedure p1()
+begin
+  declare done int default 3;
+  repeat
+    select
+      (SELECT rs.t2_id
+       FROM t2 rs
+       WHERE rs.t1_id=
+         (SELECT lt.t1_id
+          FROM t1 lt
+          WHERE lt.t3_id=a.t3_id)
+       ORDER BY b DESC LIMIT 1) as x
+    from t3 AS a;
+    set done= done-1;
+  until done <= 0 end repeat;
+end//
+delimiter ;//
+call p1();
+call p1();
+call p1();
+drop tables t1,t2,t3;

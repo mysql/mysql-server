@@ -5349,9 +5349,9 @@ ER_CANT_CREATE_GEOMETRY_OBJECT 22003
 ER_FAILED_ROUTINE_BREAK_BINLOG
 	eng "A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes"
 ER_BINLOG_UNSAFE_ROUTINE
-	eng "This routine has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)"
+	eng "This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
 ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
-	eng "You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_routine_creators variable)"
+	eng "You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
 ER_EXEC_STMT_WITH_OPEN_CURSOR
 	eng "You can't execute a prepared statement which has an open cursor associated with it. Reset the statement to re-execute it."
 ER_STMT_HAS_NO_OPEN_CURSOR
@@ -5405,14 +5405,14 @@ ER_PS_NO_RECURSION
         eng "The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner"
 ER_SP_CANT_SET_AUTOCOMMIT
 	eng "Not allowed to set autocommit from a stored function or trigger"
-ER_NO_VIEW_USER
-        eng "View definer is not fully qualified"
+ER_MALFORMED_DEFINER
+        eng "Definer is not fully qualified"
 ER_VIEW_FRM_NO_USER
         eng "View %-.64s.%-.64s has not definer information (old table format). Current user is used as definer. Please recreate view!"
 ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with %-.64s@%-.64s definer"
 ER_NO_SUCH_USER
-        eng "There is not %-.64s@%-.64s registered"
+        eng "There is no '%-.64s'@'%-.64s' registered"
 ER_FORBID_SCHEMA_CHANGE
 	eng "Changing schema from '%-.64s' to '%-.64s' is not allowed."
 ER_ROW_IS_REFERENCED_2 23000
@@ -5421,6 +5421,8 @@ ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
 ER_SP_BAD_VAR_SHADOW 42000
 	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
+ER_TRG_NO_DEFINER
+	eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"

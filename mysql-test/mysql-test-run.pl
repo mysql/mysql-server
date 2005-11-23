@@ -930,7 +930,7 @@ sub executable_setup () {
     }
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
-    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -947,6 +947,7 @@ sub executable_setup () {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -2008,7 +2009,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
-  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
@@ -2131,7 +2132,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
-  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
 
   if ( $opt_ssl_supported )
   {
