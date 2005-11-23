@@ -115,10 +115,13 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   pthread_attr_init(&thread_attr);
 #if (SIZEOF_CHARP == 8)
-  pthread_attr_setstacksize(&thread_attr, 2*thread_stack_size);
-#else
-  pthread_attr_setstacksize(&thread_attr, thread_stack_size);
+  thread_stack_size *= 2;
 #endif
+#ifdef PTHREAD_STACK_MIN
+  if (thread_stack_size < PTHREAD_STACK_MIN)
+    thread_stack_size = PTHREAD_STACK_MIN;
+#endif
+  pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #ifdef USE_PTHREAD_EXTRAS
   /* Guard stack overflow with a 2k databuffer */
   pthread_attr_setguardsize(&thread_attr, 2048);
@@ -133,7 +136,11 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 			  &thread_attr,
   		          ndb_thread_wrapper,
   		          tmpThread);
-  assert(result==0);
+  if (result != 0)
+  {
+    NdbMem_Free((char *)tmpThread);
+    tmpThread = 0;
+  }
 
   pthread_attr_destroy(&thread_attr);
   DBUG_PRINT("exit",("ret: %lx", tmpThread));
