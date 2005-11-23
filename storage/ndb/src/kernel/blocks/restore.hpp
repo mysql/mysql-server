@@ -72,6 +72,9 @@ public:
   };
 private:
 
+  struct File; // CC
+  friend struct File;
+
   struct File 
   {
     File() {}
