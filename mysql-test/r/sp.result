@@ -3417,6 +3417,9 @@ Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
 drop table if exists t3|
 drop procedure if exists bug7049_1|
 drop procedure if exists bug7049_2|
@@ -3667,4 +3670,203 @@ call bug14845()|
 a
 0
 drop procedure bug14845|
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+CREATE PROCEDURE `bug13549_2`()
+begin
+call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+declare done int default 0;
+set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+create function bug10100f(prm int) returns int
+begin
+if prm > 1 then
+return prm * bug10100f(prm - 1);
+end if;
+return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+set res = res * prm;
+if prm > 1 then
+call bug10100p(prm - 1, res);  
+end if;
+end|
+create procedure bug10100t(prm int)
+begin
+declare res int;
+set res = 1;
+call bug10100p(prm, res);
+select res;
+end|
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+if level < lim then
+update t3 set a=level;
+FLUSH TABLES;
+call bug10100pt(level+1, lim);
+else
+select * from t3;
+end if;
+end|
+create procedure bug10100pv(level int, lim int)
+begin
+if level < lim then
+update v1 set a=level;
+FLUSH TABLES;
+call bug10100pv(level+1, lim);
+else
+select * from v1;
+end if;
+end|
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+if level < lim then
+select level;
+prepare stmt1 from "update t3 set a=a+2";
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+deallocate prepare stmt1;
+execute stmt2;
+select * from t3;
+call bug10100pd(level+1, lim);
+else
+execute stmt2;
+end if;
+end|
+create procedure bug10100pc(level int, lim int)
+begin
+declare lv int;
+declare c cursor for select a from t3;
+open c;
+if level < lim then
+select level;
+fetch c into lv;
+select lv;
+update t3 set a=level+lv;
+FLUSH TABLES;
+call bug10100pc(level+1, lim);
+else
+select * from t3;
+end if;
+close c;
+end|
+set @@max_sp_recursion_depth=4|
+select @@max_sp_recursion_depth|
+@@max_sp_recursion_depth
+4
+select bug10100f(3)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select bug10100f(6)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+call bug10100t(5)|
+res
+120
+call bug10100pt(1,5)|
+a
+4
+call bug10100pv(1,5)|
+a
+4
+update t3 set a=1|
+call bug10100pd(1,5)|
+level
+1
+a
+7
+a
+7
+level
+2
+a
+13
+a
+13
+level
+3
+a
+19
+a
+19
+level
+4
+a
+25
+a
+25
+a
+25
+select * from t3|
+a
+25
+update t3 set a=1|
+call bug10100pc(1,5)|
+level
+1
+lv
+1
+level
+2
+lv
+2
+level
+3
+lv
+4
+level
+4
+lv
+7
+a
+11
+select * from t3|
+a
+11
+set @@max_sp_recursion_depth=0|
+select @@max_sp_recursion_depth|
+@@max_sp_recursion_depth
+0
+select bug10100f(5)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+call bug10100t(5)|
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine bug10100p
+set @@max_sp_recursion_depth=255|
+set @var=1|
+call bug10100p(255, @var)|
+call bug10100pt(1,255)|
+call bug10100pv(1,255)|
+call bug10100pd(1,255)|
+call bug10100pc(1,255)|
+set @@max_sp_recursion_depth=0|
+deallocate prepare stmt2|
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+drop table t3|
 drop table t1,t2;

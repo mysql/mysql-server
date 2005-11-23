@@ -143,6 +143,32 @@ public:
   LEX_STRING m_definer_host;
   longlong m_created;
   longlong m_modified;
+  /* Recursion level of the current SP instance. The levels are numbered from 0 */
+  ulong m_recursion_level;
+  /*
+    A list of diferent recursion level instances for the same procedure.
+    For every recursion level we have a sp_head instance. This instances
+    connected in the list. The list ordered by increasing recursion level
+    (m_recursion_level).
+  */
+  sp_head *m_next_cached_sp;
+  /*
+    Pointer to the first element of the above list
+  */
+  sp_head *m_first_instance;
+  /*
+    Pointer to the first free (non-INVOKED) routine in the list of
+    cached instances for this SP. This pointer is set only for the first
+    SP in the list of instences (see above m_first_cached_sp pointer).
+    The pointer equal to 0 if we have no free instances.
+    For non-first instance value of this pointer meanless (point to itself);
+  */
+  sp_head *m_first_free_instance;
+  /*
+    Pointer to the last element in the list of instances of the SP.
+    For non-first instance value of this pointer meanless (point to itself);
+  */
+  sp_head *m_last_cached_sp;
   /*
     Set containing names of stored routines used by this routine.
     Note that unlike elements of similar set for statement elements of this
@@ -266,6 +292,8 @@ public:
   void optimize();
   void opt_mark(uint ip);
 
+  void recursion_level_error();
+
   inline sp_instr *
   get_instr(uint i)
   {
@@ -304,6 +332,12 @@ public:
     return test(m_flags &
 		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }
+
+#ifndef DBUG_OFF
+  int show_routine_code(THD *thd);
+#endif
+
+
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -865,8 +899,8 @@ class sp_instr_cpush : public sp_instr
 
 public:
 
-  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex)
-    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
+  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex, uint offset)
+    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE), m_cursor(offset)
   {}
 
   virtual ~sp_instr_cpush()
@@ -885,6 +919,7 @@ public:
 private:
 
   sp_lex_keeper m_lex_keeper;
+  uint m_cursor;                /* Frame offset (for debugging) */
 
 }; // class sp_instr_cpush : public sp_instr
 

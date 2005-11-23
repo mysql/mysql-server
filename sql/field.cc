@@ -1274,9 +1274,9 @@ my_decimal *Field::val_decimal(my_decimal *decimal)
 void Field_num::add_zerofill_and_unsigned(String &res) const
 {
   if (unsigned_flag)
-    res.append(" unsigned");
+    res.append(STRING_WITH_LEN(" unsigned"));
   if (zerofill)
-    res.append(" zerofill");
+    res.append(STRING_WITH_LEN(" zerofill"));
 }
 
 
@@ -1657,7 +1657,7 @@ bool Field::needs_quotes(void)
 
 void Field_null::sql_type(String &res) const
 {
-  res.set_ascii("null", 4);
+  res.set_ascii(STRING_WITH_LEN("null"));
 }
 
 
@@ -1669,7 +1669,7 @@ void Field_null::sql_type(String &res) const
 void
 Field_decimal::reset(void)
 {
-  Field_decimal::store("0",1,&my_charset_bin);
+  Field_decimal::store(STRING_WITH_LEN("0"),&my_charset_bin);
 }
 
 void Field_decimal::overflow(bool negative)
@@ -4115,7 +4115,7 @@ void Field_float::sql_type(String &res) const
 {
   if (dec == NOT_FIXED_DEC)
   {
-    res.set_ascii("float", 5);
+    res.set_ascii(STRING_WITH_LEN("float"));
   }
   else
   {
@@ -4386,7 +4386,7 @@ void Field_double::sql_type(String &res) const
   CHARSET_INFO *cs=res.charset();
   if (dec == NOT_FIXED_DEC)
   {
-    res.set_ascii("double",6);
+    res.set_ascii(STRING_WITH_LEN("double"));
   }
   else
   {
@@ -4675,7 +4675,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    val_ptr->set("0000-00-00 00:00:00", 19, &my_charset_bin);
+    val_ptr->set(STRING_WITH_LEN("0000-00-00 00:00:00"), &my_charset_bin);
     return val_ptr;
   }
   val_buffer->set_charset(&my_charset_bin);	// Safety
@@ -4807,7 +4807,7 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_timestamp::sql_type(String &res) const
 {
-  res.set_ascii("timestamp", 9);
+  res.set_ascii(STRING_WITH_LEN("timestamp"));
 }
 
 
@@ -5076,7 +5076,7 @@ void Field_time::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_time::sql_type(String &res) const
 {
-  res.set_ascii("time", 4);
+  res.set_ascii(STRING_WITH_LEN("time"));
 }
 
 /****************************************************************************
@@ -5383,7 +5383,7 @@ void Field_date::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_date::sql_type(String &res) const
 {
-  res.set_ascii("date", 4);
+  res.set_ascii(STRING_WITH_LEN("date"));
 }
 
 
@@ -5566,7 +5566,7 @@ void Field_newdate::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_newdate::sql_type(String &res) const
 {
-  res.set_ascii("date", 4);
+  res.set_ascii(STRING_WITH_LEN("date"));
 }
 
 
@@ -5840,7 +5840,7 @@ void Field_datetime::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_datetime::sql_type(String &res) const
 {
-  res.set_ascii("datetime", 8);
+  res.set_ascii(STRING_WITH_LEN("datetime"));
 }
 
 /****************************************************************************
@@ -6083,7 +6083,7 @@ void Field_string::sql_type(String &res) const
   res.length(length);
   if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
       has_charset() && (charset()->state & MY_CS_BINSORT))
-    res.append(" binary");
+    res.append(STRING_WITH_LEN(" binary"));
 }
 
 
@@ -6216,6 +6216,8 @@ uint Field_string::max_packed_col_length(uint max_length)
 
 Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
 {
+  Field *new_field;
+
   if (type() != MYSQL_TYPE_VAR_STRING || table == new_table)
     return Field::new_field(root, new_table);
 
@@ -6224,15 +6226,16 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  Field *new_field= new Field_varstring(field_length, maybe_null(),
-                                        field_name, new_table,
-                                        charset());
-  /*
-    delayed_insert::get_local_table() needs a ptr copied from old table.
-    This is what other new_field() methods do too. The above method of
-    Field_varstring sets ptr to NULL.
-  */
-  new_field->ptr= ptr;
+  if (new_field= new Field_varstring(field_length, maybe_null(),
+                                     field_name, new_table, charset()))
+  {
+    /*
+      delayed_insert::get_local_table() needs a ptr copied from old table.
+      This is what other new_field() methods do too. The above method of
+      Field_varstring sets ptr to NULL.
+    */
+    new_field->ptr= ptr;
+  }
   return new_field;
 }
 
@@ -6479,7 +6482,7 @@ void Field_varstring::sql_type(String &res) const
   res.length(length);
   if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
       has_charset() && (charset()->state & MY_CS_BINSORT))
-    res.append(" binary");
+    res.append(STRING_WITH_LEN(" binary"));
 }
 
 
@@ -7218,10 +7221,10 @@ void Field_blob::sql_type(String &res) const
   }
   res.set_ascii(str,length);
   if (charset() == &my_charset_bin)
-    res.append("blob");
+    res.append(STRING_WITH_LEN("blob"));
   else
   {
-    res.append("text");
+    res.append(STRING_WITH_LEN("text"));
   }
 }
 
@@ -7441,28 +7444,28 @@ void Field_geom::sql_type(String &res) const
   switch (geom_type)
   {
     case GEOM_POINT:
-     res.set("point", 5, cs);
+     res.set(STRING_WITH_LEN("point"), cs);
      break;
     case GEOM_LINESTRING:
-     res.set("linestring", 10, cs);
+     res.set(STRING_WITH_LEN("linestring"), cs);
      break;
     case GEOM_POLYGON:
-     res.set("polygon", 7, cs);
+     res.set(STRING_WITH_LEN("polygon"), cs);
      break;
     case GEOM_MULTIPOINT:
-     res.set("multipoint", 10, cs);
+     res.set(STRING_WITH_LEN("multipoint"), cs);
      break;
     case GEOM_MULTILINESTRING:
-     res.set("multilinestring", 15, cs);
+     res.set(STRING_WITH_LEN("multilinestring"), cs);
      break;
     case GEOM_MULTIPOLYGON:
-     res.set("multipolygon", 12, cs);
+     res.set(STRING_WITH_LEN("multipolygon"), cs);
      break;
     case GEOM_GEOMETRYCOLLECTION:
-     res.set("geometrycollection", 18, cs);
+     res.set(STRING_WITH_LEN("geometrycollection"), cs);
      break;
     default:
-     res.set("geometry", 8, cs);
+     res.set(STRING_WITH_LEN("geometry"), cs);
   }
 }
 
@@ -7739,7 +7742,7 @@ void Field_enum::sql_type(String &res) const
   String enum_item(buffer, sizeof(buffer), res.charset());
 
   res.length(0);
-  res.append("enum(");
+  res.append(STRING_WITH_LEN("enum("));
 
   bool flag=0;
   uint *len= typelib->type_lengths;
@@ -7853,7 +7856,7 @@ void Field_set::sql_type(String &res) const
   String set_item(buffer, sizeof(buffer), res.charset());
 
   res.length(0);
-  res.append("set(");
+  res.append(STRING_WITH_LEN("set("));
 
   bool flag=0;
   uint *len= typelib->type_lengths;

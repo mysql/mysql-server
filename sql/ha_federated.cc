@@ -2612,7 +2612,7 @@ int ha_federated::stash_remote_error()
 {
   DBUG_ENTER("ha_federated::stash_remote_error()");
   remote_error_number= mysql_errno(mysql);
-  my_snprintf(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE, 
+  my_snprintf(remote_error_buf, sizeof(remote_error_buf), "%s",
               mysql_error(mysql));
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
@@ -2624,10 +2624,10 @@ bool ha_federated::get_error_message(int error, String* buf)
   DBUG_PRINT("enter", ("error: %d", error));
   if (error == HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM)
   {
-    buf->append("Error on remote system: ");
+    buf->append(STRING_WITH_LEN("Error on remote system: "));
     buf->qs_append(remote_error_number);
-    buf->append(": ");
-    buf->append(remote_error_buf, FEDERATED_QUERY_BUFFER_SIZE);
+    buf->append(STRING_WITH_LEN(": "));
+    buf->append(remote_error_buf);
 
     remote_error_number= 0;
     remote_error_buf[0]= '\0';
