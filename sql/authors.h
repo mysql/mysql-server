@@ -29,5 +29,6 @@ struct show_table_authors_st show_table_authors[]= {
   { "Petr Chardin", "Moscow, Russia", "Instance Manager (5.0)" },
   { "Sergey Vojtovich", "Izhevsk, Russia", "Plugins infrastructure (5.1)" },
   { "Alexander Nozdrin", "Moscow, Russia", "Bugfixing (Stored Procedures, 5.0)" },
+  { "Per-Erik Martin", "Uppsala, Sweden", "Stored Procedures (5.0)" },
   {NULL, NULL, NULL}
 };
