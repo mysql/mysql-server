@@ -160,6 +160,8 @@ class ha_berkeley: public handler
 extern const u_int32_t bdb_DB_TXN_NOSYNC;
 extern const u_int32_t bdb_DB_RECOVER;
 extern const u_int32_t bdb_DB_PRIVATE;
+extern const u_int32_t bdb_DB_DIRECT_DB;
+extern const u_int32_t bdb_DB_DIRECT_LOG;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
