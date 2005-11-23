@@ -159,14 +159,17 @@ select * from t1 where a = 'AaA' order by p;
 select * from t1 where a = 'AAA' order by p;
 drop table t1;
 
-# bug 
+# bug#14007
 create table t1 (
-  a varchar(10) primary key
-) engine=ndb;
-insert into t1 values ('jonas % ');
-replace into t1 values ('jonas % ');
-replace into t1 values ('jonas % ');
+  a char(10) primary key
+) engine=ndbcluster default charset=latin1;
+
+insert into t1 values ('aaabb');
+select * from t1;
+replace into t1 set a = 'AAABB';
+select * from t1;
+replace into t1 set a = 'aAaBb';
+select * from t1;
+replace into t1 set a = 'aaabb';
 select * from t1;
 drop table t1;
-
-# End of 4.1 tests
