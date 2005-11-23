@@ -658,7 +658,8 @@ void THD::add_changed_table(TABLE *table)
 
   DBUG_ASSERT((options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	      table->file->has_transactions());
-  add_changed_table(table->s->table_cache_key, table->s->key_length);
+  add_changed_table(table->s->table_cache_key.str,
+                    table->s->table_cache_key.length);
   DBUG_VOID_RETURN;
 }
 
@@ -1053,7 +1054,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 
   if (!dirname_length(exchange->file_name))
   {
-    strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "", NullS);
+    strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
+             NullS);
     (void) fn_format(path, exchange->file_name, path, "", option);
   }
   else

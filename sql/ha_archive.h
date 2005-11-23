@@ -58,7 +58,7 @@ class ha_archive: public handler
   bool bulk_insert;          /* If we are performing a bulk insert */
 
 public:
-  ha_archive(TABLE *table_arg);
+  ha_archive(TABLE_SHARE *table_arg);
   ~ha_archive()
   {
   }

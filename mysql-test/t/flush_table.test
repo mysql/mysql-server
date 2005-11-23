@@ -9,10 +9,63 @@ drop table if exists t1,t2;
 --enable_warnings
 create table t1 (a int not null auto_increment primary key);
 insert into t1 values(0);
+
+# Test for with read lock + flush
+
 lock table t1 read;
 flush table t1;
 check table t1;
+unlock tables;
+
+# Test for with 2 read lock in different thread + flush
+
+lock table t1 read;
+connect (locker,localhost,root,,test);
+connection locker;
+lock table t1 read;
+connection default;
+send flush table t1;
+connection locker;
+--sleep 2
+select * from t1;
+unlock tables;
+connection default;
+reap;
+select * from t1;
+unlock tables;
+
+# Test for with a write lock and a waiting read lock + flush
+
+lock table t1 write;
+connection locker;
+send lock table t1 read;
+connection default;
+sleep 2;
+flush table t1;
+select * from t1;
+unlock tables;
+connection locker;
+reap;
+unlock tables;
+connection default;
+
+# Test for with a read lock and a waiting write lock + flush
+
+lock table t1 read;
+connection locker;
+send lock table t1 write;
+connection default;
+sleep 2;
+flush table t1;
+select * from t1;
+unlock tables;
+connection locker;
+reap;
+unlock tables;
+select * from t1;
+connection default;
 drop table t1;
+disconnect locker;
 
 #
 # In the following test FLUSH TABLES produces a deadlock

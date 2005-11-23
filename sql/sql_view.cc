@@ -582,7 +582,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   dir.length= strlen(dir_buff);
 
   file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
+  file.length= (strxnmov(file_buff, FN_REFLEN-1, view->table_name, reg_ext,
                          NullS) - file_buff);
   /* init timestamp */
   if (!view->timestamp.str)
@@ -1166,15 +1166,16 @@ err:
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
-  DBUG_ENTER("mysql_drop_view");
   char path[FN_REFLEN];
   TABLE_LIST *view;
-  bool type= 0;
   db_type not_used;
+  DBUG_ENTER("mysql_drop_view");
 
   for (view= views; view; view= view->next_local)
   {
-    strxnmov(path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+    TABLE_SHARE *share;
+    bool type;
+    strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -1199,6 +1200,20 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     }
     if (my_delete(path, MYF(MY_WME)))
       goto err;
+
+    /*
+      For a view, there is only one table_share object which should never
+      be used outside of LOCK_open
+    */
+    if ((share= get_cached_table_share(view->db, view->table_name)))
+    {
+      DBUG_ASSERT(share->ref_count == 0);
+      pthread_mutex_lock(&share->mutex);
+      share->ref_count++;
+      share->version= 0;
+      pthread_mutex_unlock(&share->mutex);
+      release_table_share(share, RELEASE_WAIT_FOR_DROP);
+    }
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1477,7 +1492,7 @@ mysql_rename_view(THD *thd,
 
   DBUG_ENTER("mysql_rename_view");
 
-  strxnmov(view_path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+  strxnmov(view_path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
            view->table_name, reg_ext, NullS);
   (void) unpack_filename(view_path, view_path);
 
@@ -1510,7 +1525,8 @@ mysql_rename_view(THD *thd,
                               view_def.revision - 1, num_view_backups))
       goto err;
 
-    strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
+    strxnmov(dir_buff, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
+             NullS);
     (void) unpack_filename(dir_buff, dir_buff);
 
     pathstr.str=    (char*)dir_buff;

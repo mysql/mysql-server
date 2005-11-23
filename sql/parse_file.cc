@@ -355,11 +355,11 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
 {
   char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
 
-  strxnmov(old_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+  strxnmov(old_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
            old_name, reg_ext, NullS);
   (void) unpack_filename(old_path, old_path);
 
-  strxnmov(new_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+  strxnmov(new_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
            new_name, reg_ext, NullS);
   (void) unpack_filename(new_path, new_path);
 
@@ -367,7 +367,7 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
     return 1;
 
   /* check if arc_dir exists */
-  strxnmov(arc_path, FN_REFLEN, mysql_data_home, "/", schema, "/arc", NullS);
+  strxnmov(arc_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/arc", NullS);
   (void) unpack_filename(arc_path, arc_path);
   
   if (revision > 0 && !access(arc_path, F_OK))
@@ -414,7 +414,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   char *end, *sign;
   File_parser *parser;
   File file;
-  DBUG_ENTER("sql__parse_prepare");
+  DBUG_ENTER("sql_parse_prepare");
 
   if (!my_stat(file_name->str, &stat_info, MYF(MY_WME)))
   {

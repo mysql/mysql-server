@@ -272,7 +272,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
-    length= (ulong) (strxnmov(buf, sizeof(buf), "default-character-set=",
+    length= (ulong) (strxnmov(buf, sizeof(buf)-1, "default-character-set=",
                               create->default_table_charset->csname,
                               "\ndefault-collation=",
                               create->default_table_charset->name,

@@ -814,29 +814,31 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN];
-  TABLE **table_ptr;
+  TABLE *table;
   bool error;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
   /* If it is a temporary table, close and regenerate it */
-  if (!dont_send_ok && (table_ptr=find_temporary_table(thd,table_list->db,
-						       table_list->table_name)))
+  if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
-    TABLE *table= *table_ptr;
-    table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     db_type table_type= table->s->db_type;
+    TABLE_SHARE *share= table->s;
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
-    strmov(path, table->s->path);
-    *table_ptr= table->next;			// Unlink table from list
-    close_temporary(table,0);
-    *fn_ext(path)=0;				// Remove the .frm extension
-    ha_create_table(path, &create_info,1);
+
+    table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
+    
+    close_temporary_table(thd, table, 0, 0);    // Don't free share
+    ha_create_table(thd, share->normalized_path.str,
+                    share->db.str, share->table_name.str, &create_info, 1);
     // We don't need to call invalidate() because this table is not in cache
-    if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
-					     table_list->table_name, 1))))
+    if ((error= (int) !(open_temporary_table(thd, share->path.str,
+                                             share->db.str,
+					     share->table_name.str, 1))))
       (void) rm_temporary_table(table_type, path);
+    free_table_share(share);
+    my_free((char*) table,MYF(0));
     /*
       If we return here we will not have logged the truncation to the bin log
       and we will not send_ok() to the client.
@@ -866,7 +868,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   *fn_ext(path)=0;				// Remove the .frm extension
-  error= ha_create_table(path,&create_info,1);
+  error= ha_create_table(thd, path, table_list->db, table_list->table_name,
+                         &create_info, 1);
   query_cache_invalidate3(thd, table_list, 0);
 
 end:
@@ -895,7 +898,7 @@ end:
   }
   DBUG_RETURN(error);
 
- trunc_by_del:
+trunc_by_del:
   /* Probably InnoDB table */
   ulong save_options= thd->options;
   table_list->lock_type= TL_WRITE;
