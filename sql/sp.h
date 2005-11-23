@@ -36,7 +36,8 @@ int
 sp_drop_db_routines(THD *thd, char *db);
 
 sp_head *
-sp_find_procedure(THD *thd, sp_name *name, bool cache_only = 0);
+sp_find_routine(THD *thd, int type, sp_name *name,
+                sp_cache **cp, bool cache_only);
 
 int
 sp_exists_routine(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
@@ -56,9 +57,6 @@ sp_show_create_procedure(THD *thd, sp_name *name);
 
 int
 sp_show_status_procedure(THD *thd, const char *wild);
-
-sp_head *
-sp_find_function(THD *thd, sp_name *name, bool cache_only = 0);
 
 int
 sp_create_function(THD *thd, sp_head *sp);

@@ -308,7 +308,7 @@ int berkeley_show_logs(Protocol *protocol)
     {
       protocol->prepare_for_resend();
       protocol->store(*a, system_charset_info);
-      protocol->store("BDB", 3, system_charset_info);
+      protocol->store(STRING_WITH_LEN("BDB"), system_charset_info);
       if (f && *f && strcmp(*a, *f) == 0)
       {
 	f++;

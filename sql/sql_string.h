@@ -24,6 +24,8 @@
 #define NOT_FIXED_DEC			31
 #endif
 
+#define STRING_WITH_LEN(X)  ((char*) X), (sizeof(X)-1)
+
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
