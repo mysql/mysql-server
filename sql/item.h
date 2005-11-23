@@ -704,6 +704,8 @@ public:
 };
 
 
+class sp_head;
+
 /*
   A reference to local SP variable (incl. reference to SP parameter), used in
   runtime.
@@ -721,6 +723,13 @@ class Item_splocal : public Item
   uint m_offset;
 
 public:
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   LEX_STRING m_name;
   THD	     *thd;
 
