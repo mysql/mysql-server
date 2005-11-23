@@ -31,7 +31,7 @@ protected:
   String *packet;
   String *convert;
   uint field_pos;
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   enum enum_field_types *field_types;
 #endif
   uint field_count;

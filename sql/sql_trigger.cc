@@ -816,6 +816,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       List_iterator_fast<LEX_STRING> it_definer(triggers->
                                                 definers_list);
       LEX *old_lex= thd->lex, lex;
+      sp_rcontext *save_spcont= thd->spcont;
       ulong save_sql_mode= thd->variables.sql_mode;
 
       thd->lex= &lex;
@@ -831,6 +832,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
 
+	thd->spcont= 0;
         if (yyparse((void *)thd) || thd->is_fatal_error)
         {
           /*
@@ -911,6 +913,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->db= save_db.str;
       thd->db_length= save_db.length;
       thd->lex= old_lex;
+      thd->spcont= save_spcont;
       thd->variables.sql_mode= save_sql_mode;
 
       DBUG_RETURN(0);
@@ -919,6 +922,7 @@ err_with_lex_cleanup:
       // QQ: anything else ?
       lex_end(&lex);
       thd->lex= old_lex;
+      thd->spcont= save_spcont;
       thd->variables.sql_mode= save_sql_mode;
       thd->db= save_db.str;
       thd->db_length= save_db.length;
