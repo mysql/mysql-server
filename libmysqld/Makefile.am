@@ -122,19 +122,19 @@ endif
 link_sources:
 	  set -x; \
 	  for f in $(sqlsources); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../sql/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
 	  done; \
 	  for f in $(libmysqlsources); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../libmysql/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	  done; \
 	  for f in $(sqlexamplessources); do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../sql/examples/$$f $(srcdir)/$$f; \
+	    rm -f $$f; \
+	    @LN_CP_F@ $(top_srcdir)/sql/examples/$$f $$f; \
 	  done; \
-	  rm -f $(srcdir)/client_settings.h; \
-	  @LN_CP_F@ $(srcdir)/../libmysql/client_settings.h $(srcdir)/client_settings.h;
+	  rm -f client_settings.h; \
+	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h client_settings.h
 
 
 clean-local:

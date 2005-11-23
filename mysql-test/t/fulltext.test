@@ -348,6 +348,12 @@ INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 SET myisam_repair_threads=2;
 REPAIR TABLE t1;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
+
+#
+# BUG#5686 - #1034 - Incorrect key file for table - only utf8
+#
+INSERT INTO t1 VALUES('testword\'\'');
+SELECT a FROM t1 WHERE MATCH a AGAINST('testword' IN BOOLEAN MODE);
 DROP TABLE t1;
 
 # End of 4.1 tests

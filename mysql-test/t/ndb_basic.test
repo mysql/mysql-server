@@ -606,4 +606,12 @@ select * from t1 order by counter;
 
 drop table t1;
 
+#
+# BUG#14514 Creating table with packed key fails silently
+#
+
+CREATE TABLE t1 ( b INT ) PACK_KEYS = 0 ENGINE = ndb;
+select * from t1;
+drop table t1;
+
 # End of 4.1 tests
