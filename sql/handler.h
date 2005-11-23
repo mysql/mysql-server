@@ -86,6 +86,7 @@
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 #define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
+#define HA_NO_COPY_ON_ALTER    (1 << 31)
 
 /* Flags for partition handlers */
 #define HA_CAN_PARTITION       (1 << 0) /* Partition support */
@@ -311,6 +312,7 @@ typedef struct xid_t XID;
 
 struct st_table;
 typedef struct st_table TABLE;
+typedef struct st_table_share TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef bool (stat_print_fn)(THD *thd, const char *type, const char *file,
@@ -411,7 +413,7 @@ typedef struct
    void *(*create_cursor_read_view)();
    void (*set_cursor_read_view)(void *);
    void (*close_cursor_read_view)(void *);
-   handler *(*create)(TABLE *table);
+   handler *(*create)(TABLE_SHARE *table);
    void (*drop_database)(char* path);
    int (*panic)(enum ha_panic_function flag);
    int (*release_temporary_latches)(THD *thd);
@@ -739,8 +741,9 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
-bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
-                            TABLE* table, enum db_type default_db_type);
+bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
+                            uint part_info_len, TABLE *table,
+                            enum db_type default_db_type);
 #endif
 
 
@@ -765,7 +768,8 @@ class handler :public Sql_alloc
  friend class ha_partition;
 #endif
  protected:
-  struct st_table *table;		/* The table definition */
+  struct st_table_share *table_share;   /* The table definition */
+  struct st_table *table;               /* The current open table */
 
   virtual int index_init(uint idx, bool sorted) { active_index=idx; return 0; }
   virtual int index_end() { active_index=MAX_KEY; return 0; }
@@ -826,8 +830,8 @@ public:
   MY_BITMAP *read_set;
   MY_BITMAP *write_set;
 
-  handler(const handlerton *ht_arg, TABLE *table_arg) :table(table_arg),
-    ht(ht_arg),
+  handler(const handlerton *ht_arg, TABLE_SHARE *share_arg)
+    :table_share(share_arg), ht(ht_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
     delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0),
@@ -839,16 +843,19 @@ public:
     {}
   virtual ~handler(void)
   {
-    ha_deallocate_read_write_set();
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
   virtual int ha_initialise();
-  int ha_open(const char *name, int mode, int test_if_locked);
+  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   bool update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
-  void change_table_ptr(TABLE *table_arg) { table=table_arg; }
+  void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+  {
+    table= table_arg;
+    table_share= share;
+  }
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
@@ -1034,7 +1041,6 @@ public:
   }
   void ha_set_primary_key_in_read_set();
   int ha_allocate_read_write_set(ulong no_fields);
-  void ha_deallocate_read_write_set();
   void ha_clear_all_set();
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
@@ -1408,7 +1414,8 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
-handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type);
+handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
+                         enum db_type db_type);
 enum db_type ha_checktype(THD *thd, enum db_type database_type,
                           bool no_substitute, bool report_error);
 bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);
@@ -1422,10 +1429,12 @@ void ha_close_connection(THD* thd);
 my_bool ha_storage_engine_is_enabled(enum db_type database_type);
 bool ha_flush_logs(enum db_type db_type=DB_TYPE_DEFAULT);
 void ha_drop_database(char* path);
-int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
+int ha_create_table(THD *thd, const char *path,
+                    const char *db, const char *table_name,
+                    HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
-                    const char *alias, bool generate_warning);
+                    const char *db, const char *alias, bool generate_warning);
 
 /* statistics and info */
 bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat);

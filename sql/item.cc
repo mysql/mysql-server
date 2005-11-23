@@ -1406,20 +1406,21 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
 
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
-  item_equal(0), no_const_subst(0),
+   item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
   /*
-    field_name and talbe_name should not point to garbage
+    field_name and table_name should not point to garbage
     if this item is to be reused
   */
   orig_table_name= orig_field_name= "";
 }
 
+
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
-  :Item_ident(context_arg, f->table->s->db, *f->table_name, f->field_name),
+  :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
@@ -1486,7 +1487,7 @@ void Item_field::set_field(Field *field_par)
   max_length= field_par->max_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
-  db_name= field_par->table->s->db;
+  db_name= field_par->table->s->db.str;
   alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
@@ -3729,15 +3730,20 @@ enum_field_types Item::field_type() const
 
 Field *Item::make_string_field(TABLE *table)
 {
+  Field *field;
   DBUG_ASSERT(collation.collation);
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
-    return new Field_blob(max_length, maybe_null, name, table,
+    field= new Field_blob(max_length, maybe_null, name,
                           collation.collation);
-  if (max_length > 0)
-    return new Field_varstring(max_length, maybe_null, name, table,
+  else if (max_length > 0)
+    field= new Field_varstring(max_length, maybe_null, name, table->s,
                                collation.collation);
-  return new Field_string(max_length, maybe_null, name, table,
-                          collation.collation);
+  else
+    field= new Field_string(max_length, maybe_null, name,
+                            collation.collation);
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -3745,73 +3751,95 @@ Field *Item::make_string_field(TABLE *table)
   Create a field based on field_type of argument
 
   For now, this is only used to create a field for
-  IFNULL(x,something)
+  IFNULL(x,something) and time functions
 
   RETURN
     0  error
     #  Created field
 */
 
-Field *Item::tmp_table_field_from_field_type(TABLE *table)
+Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
   uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
+  Field *field;
 
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
-                                 Field::NONE, name, table, decimals, 0,
+    field= new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
+                                 Field::NONE, name, decimals, 0,
                                  unsigned_flag);
+    break;
   case MYSQL_TYPE_TINY:
-    return new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table, 0, unsigned_flag);
+    field= new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_SHORT:
-    return new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			   name, table, 0, unsigned_flag);
+    field= new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_LONG:
-    return new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table, 0, unsigned_flag);
+    field= new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, 0, unsigned_flag);
+    break;
 #ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
-    return new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			      name, table, 0, unsigned_flag);
+    field= new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			      name, 0, unsigned_flag);
+    break;
 #endif
   case MYSQL_TYPE_FLOAT:
-    return new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			   name, table, decimals, 0, unsigned_flag);
+    field= new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, decimals, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_DOUBLE:
-    return new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			    name, table, decimals, 0, unsigned_flag);
+    field= new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, decimals, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_NULL:
-    return new Field_null((char*) 0, max_length, Field::NONE,
-			  name, table, &my_charset_bin);
+    field= new Field_null((char*) 0, max_length, Field::NONE,
+			  name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_INT24:
-    return new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			    name, table, 0, unsigned_flag);
+    field= new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, &my_charset_bin);
+    field= new Field_date(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_TIME:
-    return new Field_time(maybe_null, name, table, &my_charset_bin);
+    field= new Field_time(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    return new Field_datetime(maybe_null, name, table, &my_charset_bin);
+    field= new Field_datetime(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_YEAR:
-    return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table);
+    field= new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name);
+    break;
   case MYSQL_TYPE_BIT:
-    return new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
-                                 Field::NONE, name, table);
+    field= new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+                                 Field::NONE, name);
+    break;
   default:
     /* This case should never be chosen */
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
+  case MYSQL_TYPE_STRING:
+    if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
+    {
+      field= new Field_string(max_length, maybe_null, name,
+                              collation.collation);
+      break;
+    }
+    /* Fall through to make_string_field() */
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
     return make_string_field(table);
@@ -3820,10 +3848,12 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    return new Field_blob(max_length, maybe_null, name, table,
-                          collation.collation);
+    field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
   }
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -5034,8 +5064,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     goto error;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
-  def_field->move_field(def_field->table->s->default_values -
-                        def_field->table->record[0]);
+  def_field->move_field_offset((my_ptrdiff_t)
+                               (def_field->table->s->default_values -
+                                def_field->table->record[0]));
   set_field(def_field);
   return FALSE;
 
@@ -5130,16 +5161,22 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     if (!def_field)
       return TRUE;
     memcpy(def_field, field_arg->field, field_arg->field->size_of());
-    def_field->move_field(def_field->table->insert_values -
-                          def_field->table->record[0]);
+    def_field->move_field_offset((my_ptrdiff_t)
+                                 (def_field->table->insert_values -
+                                  def_field->table->record[0]));
     set_field(def_field);
   }
   else
   {
     Field *tmp_field= field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
-    set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
-			     tmp_field->table, &my_charset_bin));
+    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
+                          &my_charset_bin);
+    if (tmp_field)
+    {
+      tmp_field->init(field_arg->field->table);
+      set_field(tmp_field);
+    }
   }
   return FALSE;
 }
@@ -5919,24 +5956,31 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
     The field functions defines a field to be not null if null_ptr is not 0
   */
   uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
-  switch (fld_type)
-  {
+  Field *field;
+
+  switch (fld_type) {
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(enum_set_typelib);
-    return new Field_enum((char *) 0, max_length, null_ptr, 0,
+    field= new Field_enum((char *) 0, max_length, null_ptr, 0,
                           Field::NONE, name,
-                          table, get_enum_pack_length(enum_set_typelib->count),
+                          get_enum_pack_length(enum_set_typelib->count),
                           enum_set_typelib, collation.collation);
+    if (field)
+      field->init(table);
+    return field;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
-    return new Field_set((char *) 0, max_length, null_ptr, 0,
+    field= new Field_set((char *) 0, max_length, null_ptr, 0,
                          Field::NONE, name,
-                         table, get_set_pack_length(enum_set_typelib->count),
+                         get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);
+    if (field)
+      field->init(table);
+    return field;
   default:
     break;
   }
-  return tmp_table_field_from_field_type(table);
+  return tmp_table_field_from_field_type(table, 0);
 }
 
 

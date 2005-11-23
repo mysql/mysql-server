@@ -459,7 +459,7 @@ public:
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
-  friend void lex_start(THD *thd, uchar *buf, uint length);
+  friend void lex_start(THD *thd, const uchar *buf, uint length);
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
@@ -626,7 +626,7 @@ public:
   void cut_subtree() { slave= 0; }
   bool test_limit();
 
-  friend void lex_start(THD *thd, uchar *buf, uint length);
+  friend void lex_start(THD *thd, const uchar *buf, uint length);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -722,11 +722,11 @@ typedef struct st_lex
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
-  uchar *buf;			/* The beginning of string, used by SPs */
-  uchar *ptr,*tok_start,*tok_end,*end_of_query;
+  const uchar *buf;		/* The beginning of string, used by SPs */
+  const uchar *ptr,*tok_start,*tok_end,*end_of_query;
   
   /* The values of tok_start/tok_end as they were one call of yylex before */
-  uchar *tok_start_prev, *tok_end_prev;
+  const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
   char *help_arg;
@@ -931,7 +931,7 @@ typedef struct st_lex
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
-  uchar *fname_start, *fname_end;
+  const uchar *fname_start, *fname_end;
   
   bool escape_used;
 
@@ -1058,7 +1058,7 @@ struct st_lex_local: public st_lex
 
 extern void lex_init(void);
 extern void lex_free(void);
-extern void lex_start(THD *thd, uchar *buf,uint length);
+extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int yylex(void *arg, void *yythd);
 

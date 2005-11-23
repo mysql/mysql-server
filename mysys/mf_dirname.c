@@ -73,7 +73,7 @@ uint dirname_part(my_string to, const char *name)
   SYNPOSIS
     convert_dirname()
     to				Store result here
-    from			Original filename
+    from			Original filename. May be == to
     from_end			Pointer at end of filename (normally end \0)
 
   IMPLEMENTATION
@@ -101,6 +101,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
 #ifdef BACKSLASH_MBTAIL
   CHARSET_INFO *fs= fs_character_set();
 #endif
+  DBUG_ENTER("convert_dirname");
 
   /* We use -2 here, becasue we need place for the last FN_LIBCHAR */
   if (!from_end || (from_end - from) > FN_REFLEN-2)
@@ -149,5 +150,5 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
     *to++=FN_LIBCHAR;
     *to=0;
   }
-  return to;					/* Pointer to end of dir */
+  DBUG_RETURN(to);                              /* Pointer to end of dir */
 } /* convert_dirname */
