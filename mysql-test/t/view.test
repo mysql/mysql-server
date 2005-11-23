@@ -147,11 +147,9 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
---disable_parsing # WL #2486 should enable these tests
 select * from t1 natural left join v1;
 select * from v2 natural left join t1;
 select * from v2 natural left join v1;
---enable_parsing
 
 drop view v1, v2;
 drop table t1;
@@ -2190,6 +2188,15 @@ DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 
 #
+# Bug #13622 Wrong view .frm created if some field's alias contain \n
+#
+create table t1 (f1 int);
+create view v1 as select t1.f1 as '123
+456' from t1;
+select * from v1;
+drop view v1;
+drop table t1;
+
 # Bug #14466 lost sort order in GROUP_CONCAT() in a view
 #
 create table t1 (f1 int, f2 int);

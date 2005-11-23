@@ -1929,7 +1929,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
         variable absent or equal to NULL, so we need to set variable to
         something reasonable to get a readable error message during parsing
       */
-      str.set("NULL", 4, &my_charset_latin1);
+      str.set(STRING_WITH_LEN("NULL"), &my_charset_latin1);
     }
 
     needs_conversion= String::needs_conversion(var_value->length(),

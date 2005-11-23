@@ -1531,9 +1531,9 @@ void st_select_lex_unit::print(String *str)
   {
     if (sl != first_select())
     {
-      str->append(" union ", 7);
+      str->append(STRING_WITH_LEN(" union "));
       if (union_all)
-	str->append("all ", 4);
+	str->append(STRING_WITH_LEN("all "));
       else if (union_distinct == sl)
         union_all= TRUE;
     }
@@ -1547,7 +1547,7 @@ void st_select_lex_unit::print(String *str)
   {
     if (fake_select_lex->order_list.elements)
     {
-      str->append(" order by ", 10);
+      str->append(STRING_WITH_LEN(" order by "));
       fake_select_lex->print_order(str,
 				   (ORDER *) fake_select_lex->
 				   order_list.first);
@@ -1570,7 +1570,7 @@ void st_select_lex::print_order(String *str, ORDER *order)
     else
       (*order->item)->print(str);
     if (!order->asc)
-      str->append(" desc", 5);
+      str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
       str->append(',');
   }
@@ -1593,7 +1593,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
   if (explicit_limit)
   {
-    str->append(" limit ", 7);
+    str->append(STRING_WITH_LEN(" limit "));
     if (offset_limit)
     {
       offset_limit->print(str);

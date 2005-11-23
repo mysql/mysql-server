@@ -351,6 +351,14 @@ set global rpl_recovery_rank=100;
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
+set @@max_sp_recursion_depth=10;
+select @@max_sp_recursion_depth;
+@@max_sp_recursion_depth
+10
+set @@max_sp_recursion_depth=0;
+select @@max_sp_recursion_depth;
+@@max_sp_recursion_depth
+0
 set sql_auto_is_null=1;
 select @@sql_auto_is_null;
 @@sql_auto_is_null

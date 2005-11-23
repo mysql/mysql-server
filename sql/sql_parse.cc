@@ -3682,7 +3682,8 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_function(thd, lex->spname))
+    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                        &thd->sp_func_cache, FALSE))
     {
       my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
       goto error;
@@ -4033,8 +4034,8 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_SAVEPOINT:
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-        !opt_using_transactions)
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+          thd->in_sub_stmt) || !opt_using_transactions)
       send_ok(thd);
     else
     {
@@ -4216,7 +4217,8 @@ end_with_restore_list:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
+      if (!(sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                                &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
                  lex->spname->m_qname.str);
@@ -4340,9 +4342,11 @@ end_with_restore_list:
 
       memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (! sp)
       {
@@ -4418,9 +4422,11 @@ end_with_restore_list:
       char *db, *name;
 
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (sp)
       {
@@ -4548,6 +4554,33 @@ end_with_restore_list:
 					 lex->wild->ptr() : NullS));
       break;
     }
+#ifndef DBUG_OFF
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+    {
+      sp_head *sp;
+
+      if (lex->spname->m_name.length > NAME_LEN)
+      {
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+	goto error;
+      }
+      if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
+      else
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
+      if (!sp || !sp->show_routine_code(thd))
+      {
+        /* We don't distinguish between errors for now */
+        my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
+        goto error;
+      }
+      break;
+    }
+#endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
       if (end_active_trans(thd))
@@ -4566,7 +4599,7 @@ end_with_restore_list:
         buff.append(command[thd->lex->create_view_mode].str,
                     command[thd->lex->create_view_mode].length);
         view_store_options(thd, first_table, &buff);
-        buff.append("VIEW ", 5);
+        buff.append(STRING_WITH_LEN("VIEW "));
         /* Test if user supplied a db (ie: we did not use thd->db) */
         if (first_table->db != thd->db && first_table->db[0])
         {
@@ -4576,7 +4609,7 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
-        buff.append(" AS ", 4);
+        buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
         Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
