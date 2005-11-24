@@ -9,7 +9,7 @@ use strict;
 sub mtr_full_hostname ();
 sub mtr_short_hostname ();
 sub mtr_init_args ($);
-sub mtr_add_arg ($$);
+sub mtr_add_arg ($$@);
 sub mtr_path_exists(@);
 sub mtr_script_exists(@);
 sub mtr_exe_exists(@);
@@ -51,7 +51,7 @@ sub mtr_init_args ($) {
   $$args = [];                            # Empty list
 }
 
-sub mtr_add_arg ($$) {
+sub mtr_add_arg ($$@) {
   my $args=   shift;
   my $format= shift;
   my @fargs = @_;
