@@ -157,6 +157,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   */
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
@@ -3263,6 +3264,7 @@ my_bool grant_init()
 
   if (!(thd= new THD))
     DBUG_RETURN(1);				/* purecov: deadcode */
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
   return_val=  grant_reload(thd);
   delete thd;

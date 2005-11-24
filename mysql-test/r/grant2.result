@@ -191,7 +191,7 @@ flush privileges;
 show grants for 'mysqltest_1';
 ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
 revoke all privileges, grant option from 'mysqltest_1';
-ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
 drop user 'mysqltest_1';
 select host,db,user from mysql.db where user = 'mysqltest_1' order by host,db,user;
 host	db	user
