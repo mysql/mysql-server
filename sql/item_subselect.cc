@@ -133,6 +133,7 @@ Item_subselect::select_transformer(JOIN *join)
 bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 {
   char const *save_where= thd_param->where;
+  uint8 uncacheable;
   bool res;
 
   DBUG_ASSERT(fixed == 0);
@@ -178,15 +179,17 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
     fix_length_and_dec();
   }
   else
-    return 1;
-  uint8 uncacheable= engine->uncacheable();
-  if (uncacheable)
+    goto err;
+  
+  if ((uncacheable= engine->uncacheable()))
   {
     const_item_cache= 0;
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
   fixed= 1;
+
+err:
   thd->where= save_where;
   return res;
 }
@@ -1797,7 +1800,7 @@ void subselect_uniquesubquery_engine::print(String *str)
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   tab->ref.items[0]->print(str);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name);
+  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
@@ -1815,7 +1818,7 @@ void subselect_indexsubquery_engine::print(String *str)
   str->append(STRING_WITH_LEN("<index_lookup>("));
   tab->ref.items[0]->print(str);
   str->append(STRING_WITH_LEN(" in "));
-  str->append(tab->table->s->table_name);
+  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);

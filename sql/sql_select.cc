@@ -5063,7 +5063,7 @@ static void add_not_null_conds(JOIN *join)
   SYNOPSIS
     add_found_match_trig_cond()
     tab       the first inner table for most nested outer join
-    cond      the predicate to be guarded
+    cond      the predicate to be guarded (must be set)
     root_tab  the first inner table to stop
 
   DESCRIPTION
@@ -5081,12 +5081,11 @@ static COND*
 add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 {
   COND *tmp;
-  if (tab == root_tab || !cond)
+  DBUG_ASSERT(cond != 0);
+  if (tab == root_tab)
     return cond;
   if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
-  {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
-  }
   if (tmp)
   {
     tmp->quick_fix_field();
@@ -5245,6 +5244,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
       JOIN_TAB *tab=join->join_tab+i;
+      /*
+        first_inner is the X in queries like:
+        SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
+      */
       JOIN_TAB *first_inner_tab= tab->first_inner; 
       table_map current_map= tab->table->map;
       bool use_quick_range=0;
@@ -5295,15 +5298,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           */
           DBUG_PRINT("info", ("Item_int"));
           tmp= new Item_int((longlong) 1,1);	// Always true
-          DBUG_PRINT("info", ("Item_int 0x%lx", (ulong)tmp));
         }
 
       }
       if (tmp || !cond)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
-	SQL_SELECT *sel=tab->select=(SQL_SELECT*)
-	  thd->memdup((gptr) select, sizeof(SQL_SELECT));
+	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
+                                       thd->memdup((gptr) select,
+                                                   sizeof(*select)));
 	if (!sel)
 	  DBUG_RETURN(1);			// End of memory
         /*
@@ -7994,7 +7997,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     new_created field
 */
 
-Field* create_tmp_field_from_field(THD *thd, Field* org_field,
+Field *create_tmp_field_from_field(THD *thd, Field *org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item, uint convert_blob_length)
 {
@@ -8003,12 +8006,14 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
   if (convert_blob_length && (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
-                                   org_field->field_name, table,
+                                   org_field->field_name, table->s,
                                    org_field->charset());
   else
     new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
+    new_field->init(table);
+    new_field->orig_table= org_field->orig_table;
     if (item)
       item->result_field= new_field;
     else
@@ -8051,18 +8056,18 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                          Item ***copy_func, bool modify_item,
                                          uint convert_blob_length)
 {
-  bool maybe_null=item->maybe_null;
+  bool maybe_null= item->maybe_null;
   Field *new_field;
   LINT_INIT(new_field);
 
   switch (item->result_type()) {
   case REAL_RESULT:
-    new_field=new Field_double(item->max_length, maybe_null,
-			       item->name, table, item->decimals);
+    new_field= new Field_double(item->max_length, maybe_null,
+                                item->name, item->decimals);
     break;
   case INT_RESULT:
-    new_field=new Field_longlong(item->max_length, maybe_null,
-				   item->name, table, item->unsigned_flag);
+    new_field= new Field_longlong(item->max_length, maybe_null,
+                                  item->name, item->unsigned_flag);
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
@@ -8074,26 +8079,29 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     */
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
-      new_field= item->tmp_table_field_from_field_type(table);
+      new_field= item->tmp_table_field_from_field_type(table, 1);
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
              convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
-                                     item->name, table,
+                                     item->name, table->s,
                                      item->collation.collation);
     else
       new_field= item->make_string_field(table);
     break;
   case DECIMAL_RESULT:
     new_field= new Field_new_decimal(item->max_length, maybe_null, item->name,
-                                     table, item->decimals, item->unsigned_flag);
+                                     item->decimals, item->unsigned_flag);
     break;
   case ROW_RESULT:
   default:
     // This case should never be choosen
     DBUG_ASSERT(0);
-    new_field= 0; // to satisfy compiler (uninitialized variable)
+    new_field= 0;
     break;
   }
+  if (new_field)
+    new_field->init(table);
+    
   if (copy_func && item->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
@@ -8120,14 +8128,20 @@ Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
 {
   if (item->field_type() == MYSQL_TYPE_VARCHAR)
   {
+    Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH /
         item->collation.collation->mbmaxlen)
-      return new Field_blob(item->max_length, item->maybe_null,
-                            item->name, table, item->collation.collation);
-    return new Field_varstring(item->max_length, item->maybe_null, item->name,
-                               table, item->collation.collation);
+      field= new Field_blob(item->max_length, item->maybe_null,
+                            item->name, item->collation.collation);
+    else
+      field= new Field_varstring(item->max_length, item->maybe_null,
+                                 item->name,
+                                 table->s, item->collation.collation);
+    if (field)
+      field->init(table);
+    return field;
   }
-  return item->tmp_table_field_from_field_type(table);
+  return item->tmp_table_field_from_field_type(table, 0);
 }
 
 
@@ -8178,11 +8192,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     item= item->real_item();
     type= Item::FIELD_ITEM;
   }
+
   switch (type) {
   case Item::SUM_FUNC_ITEM:
   {
     Item_sum *item_sum=(Item_sum*) item;
-    Field *result= item_sum->create_tmp_field(group, table, convert_blob_length);
+    Field *result= item_sum->create_tmp_field(group, table,
+                                              convert_blob_length);
     if (!result)
       thd->fatal_error();
     return result;
@@ -8293,6 +8309,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
+  TABLE_SHARE *share;
   uint	i,field_count,null_count,null_pack_length;
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
   uint  blob_count,group_null_items, string_count;
@@ -8361,6 +8378,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
+                        &share, sizeof(*share),
                         &reg_field, sizeof(Field*) * (field_count+1),
                         &blob_field, sizeof(uint)*(field_count+1),
                         &from_field, sizeof(Field*)*field_count,
@@ -8409,20 +8427,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->used_keys.init();
   table->keys_in_use_for_query.init();
 
-  table->s= &table->share_not_to_be_used;
-  table->s->blob_field= blob_field;
-  table->s->table_name= table->s->path= tmpname;
-  table->s->db= "";
-  table->s->blob_ptr_size= mi_portable_sizeof_char_ptr;
-  table->s->tmp_table= TMP_TABLE;
-  table->s->db_low_byte_first=1;                // True for HEAP and MyISAM
-  table->s->table_charset= param->table_charset;
-  table->s->primary_key= MAX_KEY; //Indicate no primary key
-  table->s->keys_for_keyread.init();
-  table->s->keys_in_use.init();
+  table->s= share;
+  init_tmp_table_share(share, "", 0, tmpname, tmpname);
+  share->blob_field= blob_field;
+  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
+  share->table_charset= param->table_charset;
+  share->primary_key= MAX_KEY;               // Indicate no primary key
+  share->keys_for_keyread.init();
+  share->keys_in_use.init();
   /* For easier error reporting */
-  table->s->table_cache_key= (char*) (table->s->db= "");
-
+  share->table_cache_key= share->db;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -8566,15 +8581,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
   *blob_field= 0;				// End marker
-  table->s->fields= field_count;
+  share->fields= field_count;
 
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
-    table->file= get_new_handler(table, &table->mem_root,
-                                 table->s->db_type= DB_TYPE_MYISAM);
+    table->file= get_new_handler(share, &table->mem_root,
+                                 share->db_type= DB_TYPE_MYISAM);
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -8582,18 +8597,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   else
   {
-    table->file= get_new_handler(table, &table->mem_root,
-                                 table->s->db_type= DB_TYPE_HEAP);
+    table->file= get_new_handler(share, &table->mem_root,
+                                 share->db_type= DB_TYPE_HEAP);
   }
-  if (table->s->fields)
-  {
-    table->file->ha_set_all_bits_in_read_set();
-    table->file->ha_set_all_bits_in_write_set();
-  }
+  if (!table->file)
+    goto err;
+
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
 
-  table->s->blob_fields= blob_count;
+  share->blob_fields= blob_count;
   if (blob_count == 0)
   {
     /* We need to ensure that first byte is not 0 for the delete link */
@@ -8615,15 +8628,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
        string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS))
     use_packed_rows= 1;
 
-  table->s->reclength= reclength;
+  share->reclength= reclength;
   {
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
-    table->s->rec_buff_length= alloc_length;
+    share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (byte*)
                             alloc_root(&table->mem_root, alloc_length*3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
-    table->s->default_values= table->record[1]+alloc_length;
+    share->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
 
@@ -8639,8 +8652,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     bfill(null_flags,null_pack_length,255);	// Set null fields
 
     table->null_flags= (uchar*) table->record[0];
-    table->s->null_fields= null_count+ hidden_null_count;
-    table->s->null_bytes= null_pack_length;
+    share->null_fields= null_count+ hidden_null_count;
+    share->null_bytes= null_pack_length;
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
@@ -8713,13 +8726,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   store_record(table,s->default_values);        // Make empty default record
 
   if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
-    table->s->max_rows= ~(ha_rows) 0;
+    share->max_rows= ~(ha_rows) 0;
   else
-    table->s->max_rows= (((table->s->db_type == DB_TYPE_HEAP) ?
+    share->max_rows= (((share->db_type == DB_TYPE_HEAP) ?
                           min(thd->variables.tmp_table_size,
                               thd->variables.max_heap_table_size) :
-                          thd->variables.tmp_table_size)/ table->s->reclength);
-  set_if_bigger(table->s->max_rows,1);		// For dummy start options
+                          thd->variables.tmp_table_size)/ share->reclength);
+  set_if_bigger(share->max_rows,1);		// For dummy start options
   keyinfo= param->keyinfo;
 
   if (group)
@@ -8727,8 +8740,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     DBUG_PRINT("info",("Creating group key in temporary table"));
     table->group=group;				/* Table is grouped by key */
     param->group_buff=group_buff;
-    table->s->keys=1;
-    table->s->uniques= test(using_unique_constraint);
+    share->keys=1;
+    share->uniques= test(using_unique_constraint);
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME;
@@ -8796,14 +8809,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
-    set_if_smaller(table->s->max_rows, rows_limit);
+    set_if_smaller(share->max_rows, rows_limit);
     param->end_write_records= rows_limit;
     table->distinct= 1;
-    table->s->keys= 1;
+    share->keys= 1;
     if (blob_count)
     {
       using_unique_constraint=1;
-      table->s->uniques= 1;
+      share->uniques= 1;
     }
     if (!(key_part_info= (KEY_PART_INFO*)
           alloc_root(&table->mem_root,
@@ -8822,12 +8835,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->null_bit=0;
       key_part_info->offset=hidden_null_pack_length;
       key_part_info->length=null_pack_length;
-      key_part_info->field=new Field_string((char*) table->record[0],
-					    (uint32) key_part_info->length,
-					    (uchar*) 0,
-					    (uint) 0,
-					    Field::NONE,
-					    NullS, table, &my_charset_bin);
+      key_part_info->field= new Field_string((char*) table->record[0],
+                                             (uint32) key_part_info->length,
+                                             (uchar*) 0,
+                                             (uint) 0,
+                                             Field::NONE,
+                                             NullS, &my_charset_bin);
+      if (!key_part_info->field)
+        goto err;
+      key_part_info->field->init(table);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
@@ -8851,8 +8867,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
-  table->s->db_record_offset= 1;
-  if (table->s->db_type == DB_TYPE_MYISAM)
+  share->db_record_offset= 1;
+  if (share->db_type == DB_TYPE_MYISAM)
   {
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
@@ -8860,6 +8876,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (open_tmp_table(table))
     goto err;
 
+  table->file->ha_set_all_bits_in_read_set();
+  table->file->ha_set_all_bits_in_write_set();
   thd->mem_root= mem_root_save;
 
   DBUG_RETURN(table);
@@ -8884,7 +8902,7 @@ err:
       field_list  list of column definitions
 
   DESCRIPTION
-    The created table doesn't have a table handler assotiated with
+    The created table doesn't have a table handler associated with
     it, has no keys, no group/distinct, no copy_funcs array.
     The sole purpose of this TABLE object is to use the power of Field
     class to read/write data to/from table->record[0]. Then one can store
@@ -8904,55 +8922,56 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   uint record_length= 0;
   uint null_count= 0;                 /* number of columns which may be null */
   uint null_pack_length;              /* NULL representation array length */
-  TABLE_SHARE *s;
+  TABLE_SHARE *share;
   /* Create the table and list of all fields */
-  TABLE *table= (TABLE*) thd->calloc(sizeof(*table));
+  TABLE *table= (TABLE*) thd->calloc(sizeof(*table)+sizeof(*share));
   field= (Field**) thd->alloc((field_count + 1) * sizeof(Field*));
   if (!table || !field)
     return 0;
 
   table->field= field;
-  table->s= s= &table->share_not_to_be_used;
-  s->fields= field_count;
+  table->s= share= (TABLE_SHARE*) (table+1);
+  share->fields= field_count;
 
   /* Create all fields and calculate the total length of record */
   List_iterator_fast<create_field> it(field_list);
   while ((cdef= it++))
   {
-    *field= make_field(0, cdef->length,
+    *field= make_field(share, 0, cdef->length,
                        (uchar*) (f_maybe_null(cdef->pack_flag) ? "" : 0),
                        f_maybe_null(cdef->pack_flag) ? 1 : 0,
                        cdef->pack_flag, cdef->sql_type, cdef->charset,
                        cdef->geom_type, cdef->unireg_check,
-                       cdef->interval, cdef->field_name, table);
+                       cdef->interval, cdef->field_name);
     if (!*field)
       goto error;
-    record_length+= (**field).pack_length();
-    if (! ((**field).flags & NOT_NULL_FLAG))
-      ++null_count;
-    ++field;
+    (*field)->init(table);
+    record_length+= (*field)->pack_length();
+    if (! ((*field)->flags & NOT_NULL_FLAG))
+      null_count++;
+    field++;
   }
   *field= NULL;                                 /* mark the end of the list */
 
   null_pack_length= (null_count + 7)/8;
-  s->reclength= record_length + null_pack_length;
-  s->rec_buff_length= ALIGN_SIZE(s->reclength + 1);
-  table->record[0]= (byte*) thd->alloc(s->rec_buff_length);
+  share->reclength= record_length + null_pack_length;
+  share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
+  table->record[0]= (byte*) thd->alloc(share->rec_buff_length);
   if (!table->record[0])
     goto error;
 
   if (null_pack_length)
   {
     table->null_flags= (uchar*) table->record[0];
-    s->null_fields= null_count;
-    s->null_bytes= null_pack_length;
+    share->null_fields= null_count;
+    share->null_bytes= null_pack_length;
   }
 
   table->in_use= thd;           /* field->reset() may access table->in_use */
   {
     /* Set up field pointers */
     byte *null_pos= table->record[0];
-    byte *field_pos= null_pos + s->null_bytes;
+    byte *field_pos= null_pos + share->null_bytes;
     uint null_bit= 1;
 
     for (field= table->field; *field; ++field)
@@ -8986,7 +9005,7 @@ error:
 static bool open_tmp_table(TABLE *table)
 {
   int error;
-  if ((error=table->file->ha_open(table->s->table_name,O_RDWR,
+  if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
                                   HA_OPEN_TMP_TABLE)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
@@ -9005,9 +9024,10 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   MI_KEYDEF keydef;
   MI_UNIQUEDEF uniquedef;
   KEY *keyinfo=param->keyinfo;
+  TABLE_SHARE *share= table->s;
   DBUG_ENTER("create_myisam_tmp_table");
 
-  if (table->s->keys)
+  if (share->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
     HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
@@ -9018,11 +9038,11 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     bzero(seg, sizeof(*seg) * keyinfo->key_parts);
     if (keyinfo->key_length >= table->file->max_key_length() ||
 	keyinfo->key_parts > table->file->max_key_parts() ||
-	table->s->uniques)
+	share->uniques)
     {
       /* Can't create a key; Make a unique constraint instead of a key */
-      table->s->keys=    0;
-      table->s->uniques= 1;
+      share->keys=    0;
+      share->uniques= 1;
       using_unique_constraint=1;
       bzero((char*) &uniquedef,sizeof(uniquedef));
       uniquedef.keysegs=keyinfo->key_parts;
@@ -9034,7 +9054,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       param->recinfo->type= FIELD_CHECK;
       param->recinfo->length=MI_UNIQUE_HASH_LENGTH;
       param->recinfo++;
-      table->s->reclength+=MI_UNIQUE_HASH_LENGTH;
+      share->reclength+=MI_UNIQUE_HASH_LENGTH;
     }
     else
     {
@@ -9056,7 +9076,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= (uint8)(field->pack_length() - table->s->blob_ptr_size);
+	seg->bit_start= (uint8)(field->pack_length() - share->blob_ptr_size);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
@@ -9089,10 +9109,10 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       OPTION_BIG_TABLES)
     create_info.data_file_length= ~(ulonglong) 0;
 
-  if ((error=mi_create(table->s->table_name,table->s->keys,&keydef,
+  if ((error=mi_create(share->table_name.str, share->keys, &keydef,
 		       (uint) (param->recinfo-param->start_recinfo),
 		       param->start_recinfo,
-		       table->s->uniques, &uniquedef,
+		       share->uniques, &uniquedef,
 		       &create_info,
 		       HA_CREATE_TMP_TABLE)))
   {
@@ -9102,7 +9122,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   }
   statistic_increment(table->in_use->status_var.created_tmp_disk_tables,
 		      &LOCK_status);
-  table->s->db_record_offset= 1;
+  share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
   DBUG_RETURN(1);
@@ -9123,9 +9143,9 @@ free_tmp_table(THD *thd, TABLE *entry)
   if (entry->file)
   {
     if (entry->db_stat)
-      entry->file->drop_table(entry->s->table_name);
+      entry->file->drop_table(entry->s->table_name.str);
     else
-      entry->file->delete_table(entry->s->table_name);
+      entry->file->delete_table(entry->s->table_name.str);
     delete entry->file;
   }
 
@@ -9150,6 +9170,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_key_error)
 {
   TABLE new_table;
+  TABLE_SHARE share;
   const char *save_proc_info;
   int write_err;
   DBUG_ENTER("create_myisam_from_heap");
@@ -9160,16 +9181,17 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     DBUG_RETURN(1);
   }
   new_table= *table;
-  new_table.s= &new_table.share_not_to_be_used;
+  share= *table->s;
+  new_table.s= &share;
   new_table.s->db_type= DB_TYPE_MYISAM;
-  if (!(new_table.file= get_new_handler(&new_table, &new_table.mem_root,
+  if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
                                         DB_TYPE_MYISAM)))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
   thd->proc_info="converting HEAP to MyISAM";
 
-  if (create_myisam_tmp_table(&new_table,param,
+  if (create_myisam_tmp_table(&new_table, param,
 			      thd->lex->select_lex.options | thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
@@ -9218,12 +9240,13 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   /* remove heap table and change to use myisam table */
   (void) table->file->ha_rnd_end();
   (void) table->file->close();
-  (void) table->file->delete_table(table->s->table_name);
+  (void) table->file->delete_table(table->s->table_name.str);
   delete table->file;
   table->file=0;
+  new_table.s= table->s;                       // Keep old share
   *table= new_table;
-  table->s= &table->share_not_to_be_used;
-  table->file->change_table_ptr(table);
+  *table->s= share;
+  table->file->change_table_ptr(table, table->s);
   if (save_proc_info)
     thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
                      "Copying to tmp table on disk" : save_proc_info);
@@ -9235,7 +9258,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
-  new_table.file->delete_table(new_table.s->table_name);
+  new_table.file->delete_table(new_table.s->table_name.str);
  err2:
   delete new_table.file;
   thd->proc_info=save_proc_info;
@@ -9473,7 +9496,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     given the selected plan prescribes to nest retrievals of the
     joined tables in the following order: t1,t2,t3.
     A pushed down predicate are attached to the table which it pushed to,
-    at the field select_cond.
+    at the field join_tab->select_cond.
     When executing a nested loop of level k the function runs through
     the rows of 'join_tab' and for each row checks the pushed condition
     attached to the table.
@@ -9512,7 +9535,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     is complemented by nulls  for t2 and t3. Then the pushed down predicates
     are checked for the composed row almost in the same way as it had
     been done for the first row with a match. The only difference is
-    the predicates  from on expressions are not checked. 
+    the predicates from on expressions are not checked. 
 
   IMPLEMENTATION
     The function forms output rows for a current partial join of k
@@ -9521,7 +9544,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     join_tab it calls sub_select that builds all possible matching
     tails from the result set.
     To be able  check predicates conditionally items of the class
-    Item_func_trig_cond  are employed.
+    Item_func_trig_cond are employed.
     An object of  this class is constructed from an item of class COND
     and a pointer to a guarding boolean variable.
     When the value of the guard variable is true the value of the object

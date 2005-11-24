@@ -447,7 +447,8 @@ uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
-ulong table_cache_size, thread_stack, what_to_log;
+ulong table_cache_size, table_def_size;
+ulong thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -1113,6 +1114,7 @@ void clean_up(bool print_message)
 #endif
   query_cache_destroy();
   table_cache_free();
+  table_def_free();
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
@@ -1411,7 +1413,7 @@ static void network_init(void)
   struct sockaddr_un	UNIXaddr;
 #endif
   int	arg=1;
-  DBUG_ENTER("server_init");
+  DBUG_ENTER("network_init");
 
   set_ports();
 
@@ -2775,7 +2777,7 @@ static int init_thread_environment()
 {
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_open, NULL);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -2937,7 +2939,11 @@ static void init_ssl()
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
-  if (table_cache_init() || hostname_cache_init())
+  /*
+    We need to call each of these following functions to ensure that
+    all things are initialized so that unireg_abort() doesn't fail
+  */
+  if (table_cache_init() | table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
   query_cache_result_size_limit(query_cache_limit);
@@ -3379,9 +3385,7 @@ int main(int argc, char **argv)
   */
   check_data_home(mysql_real_data_home);
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)))
-  {
     unireg_abort(1);				/* purecov: inspected */
-  }
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
@@ -3395,7 +3399,6 @@ int main(int argc, char **argv)
 #endif
       set_user(mysqld_user, user_info);
   }
-
 
   if (opt_bin_log && !server_id)
   {
@@ -3418,7 +3421,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   }
 
   if (init_server_components())
-    exit(1);
+    unireg_abort(1);
 
   network_init();
 
@@ -3594,8 +3597,8 @@ static char *add_quoted_string(char *to, const char *from, char *to_end)
   uint length= (uint) (to_end-to);
 
   if (!strchr(from, ' '))
-    return strnmov(to, from, length);
-  return strxnmov(to, length, "\"", from, "\"", NullS);
+    return strmake(to, from, length-1);
+  return strxnmov(to, length-1, "\"", from, "\"", NullS);
 }
 
 
@@ -4563,7 +4566,7 @@ enum options_mysqld
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
-  OPT_SORT_BUFFER, OPT_TABLE_CACHE,
+  OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
   OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
@@ -5952,13 +5955,21 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.sync_replication_timeout,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
-  {"table_cache", OPT_TABLE_CACHE,
-   "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
-   0, 1, 0},
-  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT, "Timeout in "
-    "seconds to wait for a table level lock before returning an error. Used"
-     " only if the connection has active cursors.",
+  {"table_cache", OPT_TABLE_OPEN_CACHE,
+   "Deprecated; use --table_open_cache instead.",
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
+   REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+  {"table_definition_cache", OPT_TABLE_DEF_CACHE,
+   "The number of cached table definitions.",
+   (gptr*) &table_def_size, (gptr*) &table_def_size,
+   0, GET_ULONG, REQUIRED_ARG, 128, 1, 512*1024L, 0, 1, 0},
+  {"table_open_cache", OPT_TABLE_OPEN_CACHE,
+   "The number of cached open tables.",
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size,
+   0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT,
+   "Timeout in seconds to wait for a table level lock before returning an "
+   "error. Used only if the connection has active cursors.",
    (gptr*) &table_lock_wait_timeout, (gptr*) &table_lock_wait_timeout,
    0, GET_ULONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
   {"thread_cache_size", OPT_THREAD_CACHE_SIZE,
@@ -6158,7 +6169,8 @@ struct show_var_st status_vars[]= {
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
-  {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
+  {"Open_table_definitions",   (char*) 0,			SHOW_TABLE_DEFINITIONS},
+  {"Open_tables",              (char*) 0,                       SHOW_OPEN_TABLES},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_CONST},
@@ -6989,6 +7001,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
+    LINT_INIT(method_conv);
+
     myisam_stats_method_str= argument;
     int method;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)

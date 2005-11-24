@@ -424,7 +424,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 #if MYSQL_VERSION_ID < 40100
     char buff[MAX_DBKEY_LENGTH];
     if (*tables->db)
-      strxnmov(buff, sizeof(buff), tables->db, ".", tables->table_name, NullS);
+      strxnmov(buff, sizeof(buff)-1, tables->db, ".", tables->table_name,
+               NullS);
     else
       strncpy(buff, tables->alias, sizeof(buff));
     my_error(ER_UNKNOWN_TABLE, MYF(0), buff, "HANDLER");
@@ -656,14 +657,15 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
       while (*table_ptr)
       {
         if ((!*tmp_tables->db ||
-             !my_strcasecmp(&my_charset_latin1, (*table_ptr)->s->db,
+             !my_strcasecmp(&my_charset_latin1, (*table_ptr)->s->db.str,
                              tmp_tables->db)) &&
-            ! my_strcasecmp(&my_charset_latin1, (*table_ptr)->s->table_name,
+            ! my_strcasecmp(&my_charset_latin1,
+                            (*table_ptr)->s->table_name.str,
                             tmp_tables->table_name))
         {
           DBUG_PRINT("info",("*table_ptr '%s'.'%s' as '%s'",
-                             (*table_ptr)->s->db,
-                             (*table_ptr)->s->table_name,
+                             (*table_ptr)->s->db.str,
+                             (*table_ptr)->s->table_name.str,
                              (*table_ptr)->alias));
           /* The first time it is required, lock for close_thread_table(). */
           if (! did_lock && ! is_locked)
@@ -733,7 +735,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
   TABLE         *table= *table_ptr;
   DBUG_ENTER("mysql_ha_flush_table");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  flags: 0x%02x",
-                      table->s->db, table->s->table_name,
+                      table->s->db.str, table->s->table_name.str,
                       table->alias, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,

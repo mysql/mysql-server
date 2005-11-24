@@ -55,7 +55,7 @@ TODO:
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler* tina_create_handler(TABLE *table);
+static handler *tina_create_handler(TABLE_SHARE *table);
 
 handlerton tina_hton= {
   "CSV",
@@ -285,17 +285,17 @@ byte * find_eoln(byte *data, off_t begin, off_t end)
 }
 
 
-static handler* tina_create_handler(TABLE *table)
+static handler *tina_create_handler(TABLE_SHARE *table)
 {
   return new ha_tina(table);
 }
 
 
-ha_tina::ha_tina(TABLE *table_arg)
+ha_tina::ha_tina(TABLE_SHARE *table_arg)
   :handler(&tina_hton, table_arg),
   /*
-    These definitions are found in hanler.h
-    These are not probably completely right.
+    These definitions are found in handler.h
+    They are not probably completely right.
   */
   current_position(0), next_position(0), chain_alloced(0),
   chain_size(DEFAULT_CHAIN_LENGTH), records_is_known(0)
@@ -308,6 +308,7 @@ ha_tina::ha_tina(TABLE *table_arg)
 /*
   Encode a buffer into the quoted format.
 */
+
 int ha_tina::encode_quote(byte *buf)
 {
   char attribute_buffer[1024];

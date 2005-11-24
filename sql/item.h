@@ -689,7 +689,7 @@ public:
   // used in row subselects to get value of elements
   virtual void bring_value() {}
 
-  Field *tmp_table_field_from_field_type(TABLE *table);
+  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }

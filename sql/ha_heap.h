@@ -31,7 +31,7 @@ class ha_heap: public handler
   uint    records_changed;
   bool    key_stats_ok;
 public:
-  ha_heap(TABLE *table);
+  ha_heap(TABLE_SHARE *table);
   ~ha_heap() {}
   const char *table_type() const
   {
@@ -40,7 +40,7 @@ public:
   }
   const char *index_type(uint inx)
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
+    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
             "BTREE" : "HASH");
   }
   /* Rows also use a fixed-size format */
@@ -54,7 +54,7 @@ public:
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
+    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
 	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
 	    HA_ONLY_WHOLE_INDEX);
   }
