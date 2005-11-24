@@ -4773,6 +4773,29 @@ drop procedure bug10100pv|
 drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
+# BUG#13729: Stored procedures: packet error after exception handled
+#
+--disable_warnings
+drop procedure if exists bug13729|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (s1 int, primary key (s1))|
+
+insert into t3 values (1),(2)|
+
+create procedure bug13729()
+begin
+  declare continue handler for sqlexception select 55;
+
+  update t3 set s1 = 1;
+end|
+
+call bug13729()|
+# Used to cause Packets out of order
+select * from t3|
+
+drop procedure bug13729|
 drop table t3|
 
 
