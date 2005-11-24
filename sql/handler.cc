@@ -1327,7 +1327,7 @@ int handler::ha_initialise()
 
 int handler::ha_allocate_read_write_set(ulong no_fields)
 {
-  uint bitmap_size= 4*(((no_fields+1)+31)/32);
+  uint bitmap_size= bitmap_buffer_size(no_fields+1);
   uint32 *read_buf, *write_buf;
   DBUG_ENTER("ha_allocate_read_write_set");
   DBUG_PRINT("enter", ("no_fields = %d", no_fields));
