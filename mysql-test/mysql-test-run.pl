@@ -96,6 +96,7 @@ require "lib/mtr_report.pl";
 require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
+require "lib/mtr_stress.pl";
 
 $Devel::Trace::TRACE= 1;
 
@@ -271,6 +272,16 @@ our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
 
+our $opt_stress=               "";
+our $opt_stress_suite=     "main";
+our $opt_stress_mode=    "random";
+our $opt_stress_threads=        5;
+our $opt_stress_test_count=    20;
+our $opt_stress_loop_count=    "";
+our $opt_stress_test_duration= "";
+our $opt_stress_init_file=     "";
+our $opt_stress_test_file=     "";
+
 our $opt_verbose;
 
 our $opt_wait_for_master;
@@ -390,6 +401,10 @@ sub main () {
   elsif ( $opt_bench )
   {
     run_benchmarks(shift);      # Shift what? Extra arguments?!
+  }
+  elsif ( $opt_stress )
+  {
+    run_stress_test()
   }
   else
   {
@@ -546,6 +561,17 @@ sub command_line_setup () {
              'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
              'valgrind-all:s'           => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
+
+             # Stress testing 
+             'stress'                   => \$opt_stress,
+             'stress-suite=s'           => \$opt_stress_suite,
+             'stress-threads=i'         => \$opt_stress_threads,
+             'stress-test-file=s'       => \$opt_stress_test_file,
+             'stress-init-file=s'       => \$opt_stress_init_file,
+             'stress-mode=s'            => \$opt_stress_mode,
+             'stress-loop-count=i'      => \$opt_stress_loop_count,
+             'stress-test-count=i'      => \$opt_stress_test_count,
+             'stress-test-duration=i'   => \$opt_stress_test_duration,
 
              # Misc
              'big-test'                 => \$opt_big_test,
