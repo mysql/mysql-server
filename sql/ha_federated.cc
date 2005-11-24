@@ -469,8 +469,7 @@ bool federated_db_end()
     table, and if so, does the foreign table exist.
 */
 
-static int check_foreign_data_source(
-                                     FEDERATED_SHARE *share,
+static int check_foreign_data_source(FEDERATED_SHARE *share,
                                      bool table_create_flag)
 {
   char escaped_table_name[NAME_LEN*2];
@@ -496,15 +495,17 @@ static int check_foreign_data_source(
                           share->port,
                           share->socket, 0))
   {
-      /*
-        we want the correct error message, but it to return
-        ER_CANT_CREATE_FEDERATED_TABLE if called by ::create
-      */
-    error_code= table_create_flag?
-      ER_CANT_CREATE_FEDERATED_TABLE : ER_CONNECT_TO_FOREIGN_DATA_SOURCE;
+    /*
+      we want the correct error message, but it to return
+      ER_CANT_CREATE_FEDERATED_TABLE if called by ::create
+    */
+    error_code= (table_create_flag ?
+                 ER_CANT_CREATE_FEDERATED_TABLE :
+                 ER_CONNECT_TO_FOREIGN_DATA_SOURCE);
 
     my_sprintf(error_buffer,
-               (error_buffer, " database %s username %s hostname %s",
+               (error_buffer,
+                "database: '%s'  username: '%s'  hostname: '%s'",
                 share->database, share->username, share->hostname));
 
     my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), error_buffer);
@@ -545,8 +546,8 @@ static int check_foreign_data_source(
     {
       error_code= table_create_flag ?
         ER_CANT_CREATE_FEDERATED_TABLE : ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST;
-      my_sprintf(error_buffer, (error_buffer, ": %d : %s",
-                mysql_errno(mysql), mysql_error(mysql)));
+      my_sprintf(error_buffer, (error_buffer, "error: %d  '%s'",
+                                mysql_errno(mysql), mysql_error(mysql)));
 
       my_error(error_code, MYF(0), error_buffer);
       goto error;
@@ -2035,7 +2036,7 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
   }
   if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
   {
-    my_sprintf(error_buffer, (error_buffer, ": %d : %s",
+    my_sprintf(error_buffer, (error_buffer, "error: %d '%s'",
                               mysql_errno(mysql), mysql_error(mysql)));
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
