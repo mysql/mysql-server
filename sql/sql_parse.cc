@@ -1201,6 +1201,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   char *buff;
 
   /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
   {
 #ifndef EMBEDDED_LIBRARY
