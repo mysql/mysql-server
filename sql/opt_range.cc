@@ -910,6 +910,7 @@ int QUICK_ROR_INTERSECT_SELECT::init()
 int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file;
+  THD *thd;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   if (reuse_handler)
@@ -931,11 +932,12 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     DBUG_RETURN(0);
   }
 
-  THD *thd= current_thd;
-  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
+  thd= head->in_use;
+  if (!(file= get_new_handler(head->s, thd->mem_root, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
-  if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+  if (file->ha_open(head, head->s->normalized_path.str, head->db_stat,
+                    HA_OPEN_IGNORE_IF_LOCKED))
   {
     /* Caller will free the memory */
     goto failure;
@@ -6201,6 +6203,14 @@ int QUICK_RANGE_SELECT::reset()
     multi_range_buff->buffer= mrange_buff;
     multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
     multi_range_buff->end_of_used_area= mrange_buff;
+#ifdef HAVE_purify
+    /*
+      We need this until ndb will use the buffer efficiently
+      (Now ndb stores  complete row in here, instead of only the used fields
+      which gives us valgrind warnings in compare_record[])
+    */
+    bzero((char*) mrange_buff, mrange_bufsiz);
+#endif
   }
   DBUG_RETURN(0);
 }

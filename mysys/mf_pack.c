@@ -107,16 +107,27 @@ void pack_dirname(my_string to, const char *from)
 } /* pack_dirname */
 
 
-	/* remove unwanted chars from dirname */
-	/* if "/../" removes prev dir; "/~/" removes all before ~ */
-	/* "//" is same as "/", except on Win32 at start of a file  */
-	/* "/./" is removed */
-	/* Unpacks home_dir if "~/.." used */
-	/* Unpacks current dir if if "./.." used */
+/*
+  remove unwanted chars from dirname
+
+  SYNOPSIS
+     cleanup_dirname()
+     to		Store result here
+     from	Dirname to fix.  May be same as to
+
+  IMPLEMENTATION
+  "/../" removes prev dir
+  "/~/" removes all before ~
+  //" is same as "/", except on Win32 at start of a file
+  "/./" is removed
+  Unpacks home_dir if "~/.." used
+  Unpacks current dir if if "./.." used
+
+  RETURN
+    #  length of new name   
+*/
 
 uint cleanup_dirname(register my_string to, const char *from)
-						/* to may be == from */
-
 {
   reg5 uint length;
   reg2 my_string pos;

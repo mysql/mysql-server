@@ -219,7 +219,7 @@ static handler* example_create_handler(TABLE *table)
 }
 
 
-ha_example::ha_example(TABLE *table_arg)
+ha_example::ha_example(TABLE_SHARE *table_arg)
   :handler(&example_hton, table_arg)
 {}
 

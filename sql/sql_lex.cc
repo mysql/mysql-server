@@ -110,7 +110,7 @@ void lex_free(void)
   (We already do too much here)
 */
 
-void lex_start(THD *thd, uchar *buf,uint length)
+void lex_start(THD *thd, const uchar *buf, uint length)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("lex_start");
@@ -196,9 +196,9 @@ void lex_end(LEX *lex)
 
 static int find_keyword(LEX *lex, uint len, bool function)
 {
-  uchar *tok=lex->tok_start;
+  const uchar *tok=lex->tok_start;
 
-  SYMBOL *symbol = get_hash_symbol((const char *)tok,len,function);
+  SYMBOL *symbol= get_hash_symbol((const char *)tok,len,function);
   if (symbol)
   {
     lex->yylval->symbol.symbol=symbol;
@@ -256,15 +256,16 @@ static LEX_STRING get_token(LEX *lex,uint length)
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
-  byte *from, *to, *end;
+  const uchar *from, *end;
+  uchar *to;
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
   tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= (byte*) lex->tok_start, to= (byte*) tmp.str, end= to+length ;
+  for (from= lex->tok_start, to= (uchar*) tmp.str, end= to+length ;
        to != end ;
        )
   {
-    if ((*to++= *from++) == quote)
+    if ((*to++= *from++) == (uchar) quote)
       from++;					// Skip double quotes
   }
   *to= 0;					// End null for safety
@@ -284,7 +285,6 @@ static char *get_text(LEX *lex)
   CHARSET_INFO *cs= lex->thd->charset();
 
   sep= yyGetLast();			// String should end with this
-  //lex->tok_start=lex->ptr-1;		// Remember '
   while (lex->ptr != lex->end_of_query)
   {
     c = yyGet();
@@ -328,7 +328,8 @@ static char *get_text(LEX *lex)
 	yyUnget();
 
       /* Found end. Unescape and return string */
-      uchar *str,*end,*start;
+      const uchar *str, *end;
+      uchar *start;
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
@@ -612,7 +613,7 @@ int yylex(void *arg, void *yythd)
         break;
       }
     case MY_LEX_IDENT:
-      uchar *start;
+      const uchar *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
