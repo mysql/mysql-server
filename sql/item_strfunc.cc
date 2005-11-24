@@ -1094,9 +1094,9 @@ void Item_func_substr_index::fix_length_and_dec()
 String *Item_func_substr_index::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res =args[0]->val_str(str);
-  String *delimeter =args[1]->val_str(&tmp_value);
-  int32 count = (int32) args[2]->val_int();
+  String *res= args[0]->val_str(str);
+  String *delimiter= args[1]->val_str(&tmp_value);
+  int32 count= (int32) args[2]->val_int();
   uint offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
@@ -1105,8 +1105,8 @@ String *Item_func_substr_index::val_str(String *str)
     return 0;
   }
   null_value=0;
-  uint delimeter_length=delimeter->length();
-  if (!res->length() || !delimeter_length || !count)
+  uint delimiter_length= delimiter->length();
+  if (!res->length() || !delimiter_length || !count)
     return &my_empty_string;		// Wrong parameters
 
   res->set_charset(collation.collation);
@@ -1114,11 +1114,11 @@ String *Item_func_substr_index::val_str(String *str)
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    const char *ptr=res->ptr();
-    const char *strend = ptr+res->length();
-    const char *end=strend-delimeter_length+1;
-    const char *search=delimeter->ptr();
-    const char *search_end=search+delimeter_length;
+    const char *ptr= res->ptr();
+    const char *strend= ptr+res->length();
+    const char *end= strend-delimiter_length+1;
+    const char *search= delimiter->ptr();
+    const char *search_end= search+delimiter_length;
     int32 n=0,c=count,pass;
     register uint32 l;
     for (pass=(count>0);pass<2;++pass)
@@ -1133,7 +1133,7 @@ String *Item_func_substr_index::val_str(String *str)
 	    if (*i++ != *j++) goto skip;
 	  if (pass==0) ++n;
 	  else if (!--c) break;
-	  ptr+=delimeter_length;
+	  ptr+= delimiter_length;
 	  continue;
 	}
     skip:
@@ -1155,7 +1155,7 @@ String *Item_func_substr_index::val_str(String *str)
         }
         else /* return right part */
         {
-	  ptr+=delimeter_length;
+	  ptr+= delimiter_length;
 	  tmp_value.set(*res,(ulong) (ptr-res->ptr()), (ulong) (strend-ptr));
         }
       }
@@ -1166,9 +1166,9 @@ String *Item_func_substr_index::val_str(String *str)
   {
     if (count > 0)
     {					// start counting from the beginning
-      for (offset=0 ;; offset+=delimeter_length)
+      for (offset=0; ; offset+= delimiter_length)
       {
-	if ((int) (offset=res->strstr(*delimeter,offset)) < 0)
+	if ((int) (offset= res->strstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
 	if (!--count)
 	{
@@ -1189,7 +1189,7 @@ String *Item_func_substr_index::val_str(String *str)
           address space less than where the found substring is located
           in res
         */
-	if ((int) (offset=res->strrstr(*delimeter,offset)) < 0)
+	if ((int) (offset= res->strrstr(*delimiter, offset)) < 0)
 	  return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
@@ -1197,13 +1197,19 @@ String *Item_func_substr_index::val_str(String *str)
         */
 	if (!++count)
 	{
-	  offset+=delimeter_length;
+	  offset+= delimiter_length;
 	  tmp_value.set(*res,offset,res->length()- offset);
 	  break;
 	}
       }
     }
   }
+  /*
+    We always mark tmp_value as const so that if val_str() is called again
+    on this object, we don't disrupt the contents of tmp_value when it was
+    derived from another String.
+  */
+  tmp_value.mark_as_const();
   return (&tmp_value);
 }
 
