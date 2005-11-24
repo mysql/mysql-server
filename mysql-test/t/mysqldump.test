@@ -635,4 +635,13 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 --exec $MYSQL_DUMP  --skip-comments --xml --no-create-info test
 drop table t1, t2;
 
+#
+# Bug #13318: Bad result with empty field and --hex-blob
+# 
+create table t1 (a binary(1), b blob);
+insert into t1 values ('','');
+--exec $MYSQL_DUMP --skip-comments --skip-extended-insert --hex-blob test t1
+--exec $MYSQL_DUMP --skip-comments --hex-blob test t1
+drop table t1;
+
 # End of 4.1 tests
