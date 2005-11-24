@@ -1097,6 +1097,7 @@ pthread_handler_t handle_one_connection(void *arg)
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+  thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -1110,7 +1111,6 @@ pthread_handler_t handle_one_connection(void *arg)
     int error;
     NET *net= &thd->net;
     Security_context *sctx= thd->security_ctx;
-    thd->thread_stack= (char*) &thd;
     net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
@@ -1201,6 +1201,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   char *buff;
 
   /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
   {
 #ifndef EMBEDDED_LIBRARY
@@ -5288,6 +5289,7 @@ bool check_stack_overrun(THD *thd, long margin,
 			 char *buf __attribute__((unused)))
 {
   long stack_used;
+  DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (thread_stack - margin))
   {
@@ -6739,7 +6741,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       allocate temporary THD for execution of acl_reload()/grant_reload().
     */
     if (!thd && (thd= (tmp_thd= new THD)))
+    {
+      thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
+    }
     if (thd)
     {
       (void)acl_reload(thd);
