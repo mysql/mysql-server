@@ -16,6 +16,9 @@ Created 11/11/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "page0page.h"
+#if 1 /* testing */
+# include "page0zip.h"
+#endif
 #include "fil0fil.h"
 #include "buf0buf.h"
 #include "buf0lru.h"
@@ -451,6 +454,10 @@ buf_flush_init_for_writing(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {	
+#if 1 /* testing */
+	byte		zip[16384];
+	page_zip_des_t	page_zip = { zip, sizeof zip, 0, 0 };
+#endif /* testing */
 	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
@@ -475,6 +482,11 @@ buf_flush_init_for_writing(
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 					srv_use_checksums ?
                   buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
+#if 1 /* testing */
+	if (page_is_comp(page)) {
+		ut_a(page_zip_compress(&page_zip, page));
+	}
+#endif /* testing */
 }
 
 /************************************************************************
