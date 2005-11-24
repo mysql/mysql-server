@@ -34,7 +34,7 @@ page_zip_compress(
 /*==============*/
 				/* out: TRUE on success, FALSE on failure;
 				page_zip will be left intact on failure. */
-	page_zip_des_t*	page_zip,/* out: compressed page */
+	page_zip_des_t*	page_zip,/* in: size; out: compressed page */
 	const page_t*	page);	/* in: uncompressed page */
 
 /**************************************************************************
@@ -71,6 +71,45 @@ page_zip_validate(
 	const page_t*		page);	/* in: uncompressed page */
 #endif /* UNIV_DEBUG */
 
+/*****************************************************************
+Gets the size of the compressed page trailer (the dense page directory). */
+UNIV_INLINE
+ulint
+page_zip_dir_size(
+/*==============*/
+						/* out: length of dense page
+						directory, in bytes */
+	const page_zip_des_t*	page_zip)	/* in: compressed page */
+	__attribute__((pure));
+/*****************************************************************
+Read a given slot in the dense page directory. */
+UNIV_INLINE
+ulint
+page_zip_dir_get(
+/*==============*/
+						/* out: record offset
+						on the uncompressed page,
+						possibly ORed with
+						PAGE_ZIP_DIR_SLOT_DEL or
+						PAGE_ZIP_DIR_SLOT_OWNED */
+	const page_zip_des_t*	page_zip,	/* in: compressed page */
+	ulint			slot)		/* in: slot
+						(0=first user record) */
+	__attribute__((pure));
+/*****************************************************************
+Write a given slot in the dense page directory. */
+UNIV_INLINE
+void
+page_zip_dir_set(
+/*==============*/
+	const page_zip_des_t*	page_zip,	/* in: compressed page */
+	ulint			slot,		/* in: slot
+						(0=first user record) */
+	ulint			offs)		/* in: offset, possibly
+						ORed with
+						PAGE_ZIP_DIR_SLOT_DEL or
+						PAGE_ZIP_DIR_SLOT_OWNED */
+	__attribute__((pure));
 /**************************************************************************
 Determine the encoded length of an integer in the modification log. */
 UNIV_INLINE
@@ -144,7 +183,7 @@ page_zip_write(
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	str,	/* in: address on the uncompressed page */
 	ulint		length)	/* in: length of the data */
-	__attribute__((nonnull));
+	__attribute__((nonnull, deprecated));
 
 /**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
@@ -153,19 +192,6 @@ UNIV_INLINE
 void
 page_zip_write_header(
 /*==================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length)	/* in: length of the data */
-	__attribute__((nonnull));
-
-
-/**************************************************************************
-Write data to the uncompressed trailer portion of a page.  The data must
-already have been written to the uncompressed page. */
-UNIV_INLINE
-void
-page_zip_write_trailer(
-/*===================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	str,	/* in: address on the uncompressed page */
 	ulint		length)	/* in: length of the data */

@@ -21,6 +21,9 @@ Created 5/30/1994 Heikki Tuuri
 /* Flag denoting the predefined minimum record: this bit is ORed in the 4
 info bits of a record */
 #define REC_INFO_MIN_REC_FLAG	0x10UL
+/* The deleted flag in info bits */
+#define REC_INFO_DELETED_FLAG 	0x20UL	/* when bit is set to 1, it means the
+					record has been delete marked */
 
 /* Number of extra bytes in an old-style record,
 in addition to the data and the offsets */
@@ -34,6 +37,16 @@ in addition to the data and the offsets */
 #define REC_STATUS_NODE_PTR	1
 #define REC_STATUS_INFIMUM	2
 #define REC_STATUS_SUPREMUM	3
+
+/* The following two constants are needed in page0zip.c in order to
+efficiently access heap_no and status when compressing and
+decompressing pages. */
+
+/* The offset of heap_no in a compact record */
+#define REC_NEW_HEAP_NO		4
+/* The shift of heap_no in a compact record.
+The status is stored in the low-order bits. */
+#define	REC_HEAP_NO_SHIFT	3
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
