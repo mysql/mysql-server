@@ -7197,6 +7197,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     {
       select_items_it.rewind();
       cur_used_key_parts.clear_all();
+      uint max_key_part= 0;
       while ((item= select_items_it++))
       {
         item_field= (Item_field*) item; /* (SA5) already checked above. */
@@ -7214,7 +7215,19 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         cur_group_prefix_len+= cur_part->store_length;
         cur_used_key_parts.set_bit(key_part_nr);
         ++cur_group_key_parts;
+        max_key_part= max(max_key_part,key_part_nr);
       }
+      /*
+        Check that used key parts forms a prefix of the index.
+        To check this we compare bits in all_parts and cur_parts.
+        all_parts have all bits set from 0 to (max_key_part-1).
+        cur_parts have bits set for only used keyparts.
+      */
+      ulonglong all_parts, cur_parts;
+      all_parts= (1<<max_key_part) - 1;
+      cur_parts= cur_used_key_parts.to_ulonglong() >> 1;
+      if (all_parts != cur_parts)
+        goto next_index;
     }
     else
       DBUG_ASSERT(FALSE);
