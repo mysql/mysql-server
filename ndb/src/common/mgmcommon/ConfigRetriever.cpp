@@ -341,9 +341,15 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
   {
     while (1)
     {
+      if(!ndb_mgm_is_connected(m_handle))
+	if(!ndb_mgm_connect(m_handle, 0, 0, 0))
+	  goto next;
+
       int res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type);
       if(res >= 0)
 	return _ownNodeId= (Uint32)res;
+
+  next:
       if (no_retries == 0)
 	break;
       no_retries--;
