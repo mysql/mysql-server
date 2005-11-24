@@ -994,11 +994,24 @@ create view v2 as select * from v0;
 
 select * from v2;
 --exec $MYSQL_DUMP -x --skip-comments --databases test
-
 drop view v2;
 drop view v0;
 drop view v1;
 drop table t1;
+
+# Check new --replace option
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(a int, b int);
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,3);
+INSERT INTO t1 VALUES (3,4), (4,5);
+--exec $MYSQL_DUMP --replace --skip-comments test t1
+DROP TABLE t1;
+
 
 #
 # BUG#14554 - mysqldump does not separate words "ROW" and "BEGIN"
@@ -1022,4 +1035,3 @@ SET SQL_MODE = @old_sql_mode;
 --exec $MYSQL_DUMP --skip-comments --databases test
 
 DROP TRIGGER tr1;
-DROP TABLE t1;
