@@ -133,6 +133,7 @@ void udf_init()
     DBUG_VOID_RETURN;
   }
   initialized = 1;
+  new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length=5;

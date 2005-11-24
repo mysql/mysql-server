@@ -298,7 +298,7 @@ ha_tina::ha_tina(TABLE_SHARE *table_arg)
     They are not probably completely right.
   */
   current_position(0), next_position(0), chain_alloced(0),
-  chain_size(DEFAULT_CHAIN_LENGTH)
+  chain_size(DEFAULT_CHAIN_LENGTH), records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set(byte_buffer, IO_SIZE, system_charset_info);
@@ -535,6 +535,7 @@ int ha_tina::write_row(byte * buf)
   */
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
+  records++;
   DBUG_RETURN(0);
 }
 
@@ -701,6 +702,7 @@ int ha_tina::rnd_init(bool scan)
 
   current_position= next_position= 0;
   records= 0;
+  records_is_known= 0;
   chain_ptr= chain;
 #ifdef HAVE_MADVISE
   if (scan)
@@ -782,7 +784,7 @@ void ha_tina::info(uint flag)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
-  if (records < 2)
+  if (!records_is_known && records < 2) 
     records= 2;
   DBUG_VOID_RETURN;
 }
@@ -818,6 +820,8 @@ int ha_tina::reset(void)
 int ha_tina::rnd_end()
 {
   DBUG_ENTER("ha_tina::rnd_end");
+
+  records_is_known= 1;
 
   /* First position will be truncate position, second will be increment */
   if ((chain_ptr - chain)  > 0)
@@ -863,18 +867,24 @@ int ha_tina::rnd_end()
   DBUG_RETURN(0);
 }
 
-/*
-  Truncate table and others of its ilk call this.
+
+/* 
+  DELETE without WHERE calls this
 */
+
 int ha_tina::delete_all_rows()
 {
   DBUG_ENTER("ha_tina::delete_all_rows");
+
+  if (!records_is_known)
+    return (my_errno=HA_ERR_WRONG_COMMAND);
 
   int rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
 
+  records=0;
   DBUG_RETURN(rc);
 }
 
