@@ -280,14 +280,6 @@ page_rec_get_n_recs_before(
 			/* out: number of records */
 	rec_t*	rec);	/* in: the physical record */
 /*****************************************************************
-Gets the size of the page trailer. */
-UNIV_INLINE
-ulint
-page_trailer_get_len(
-/*=================*/
-				/* out: length of page trailer, in bytes */
-	const page_t*	page);	/* in: index page */
-/*****************************************************************
 Gets the number of records in the heap. */
 UNIV_INLINE
 ulint

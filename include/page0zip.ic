@@ -16,20 +16,32 @@ Created June 2005 by Marko Makela
 
 /* The format of compressed pages is as follows.
 
-The header and trailer of the uncompressed pages, including the page
+The header and trailer of the uncompressed pages, excluding the page
 directory in the trailer, are copied as is to the header and trailer
-of the compressed page.  Immediately preceding the page trailer,
-we store a 32-bit checksum of the compressed data.
+of the compressed page.
 
-The data between PAGE_DATA and the last page directory entry
-will be written in compressed format, starting at offset PAGE_DATA.
+At the end of the compressed page, there is a dense page directory
+pointing to every user record contained on the page, including deleted
+records on the free list.  The dense directory is indexed by the
+record heap number.  The infimum and supremum records are excluded.
+The two most significant bits of the entries are allocated for the
+delete-mark and an n_owned flag indicating the last record in a chain
+of records pointed to from the sparse page directory on the
+uncompressed page.
+
+The data between PAGE_ZIP_START and the last page directory entry will
+be written in compressed format, starting at offset PAGE_DATA.
+Infimum and supremum records are not stored.  We exclude the
+REC_N_NEW_EXTRA_BYTES in every record header.  These can be recovered
+from the dense page directory stored at the end of the compressed
+page.
 
 The compressed data stream may be followed by a modification log
 covering the compressed portion of the page, as follows.
 
 MODIFICATION LOG ENTRY FORMAT
 - length (1..2 bytes), not zero
-- offset - PAGE_DATA (1..2 bytes)
+- offset - PAGE_ZIP_START (1..2 bytes)
 - data bytes
 
 The length and the offset are stored in a variable-length format:
@@ -38,6 +50,17 @@ The length and the offset are stored in a variable-length format:
 - 11xxxxxxx xxxxxxxx: reserved
 
 The end of the modification log is marked by length=0. */
+
+/* Start offset of the area that will be compressed */
+#define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
+/* Size of an compressed page directory entry */
+#define PAGE_ZIP_DIR_SLOT_SIZE	2
+/* Mask of record offsets */
+#define PAGE_ZIP_DIR_SLOT_MASK	0x3fff
+/* 'owned' flag */
+#define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
+/* 'deleted' flag */
+#define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
 /**************************************************************************
 Initialize a compressed page descriptor. */
@@ -66,7 +89,7 @@ page_zip_ulint_size(
 	if (num < 16384) {	/* 10xxxxxx xxxxxxxx: 0..16383 */
 		return(2);
 	}
-	ut_error;
+	ut_ad(0);
 	return(0);
 }
 
@@ -80,9 +103,10 @@ page_zip_entry_size(
 	ulint	pos,	/* in: offset of the uncompressed page */
 	ulint	length)	/* in: length of the data */
 {
-	ut_ad(pos >= PAGE_DATA);
-	ut_ad(pos + length <= UNIV_PAGE_SIZE - PAGE_DATA /* - trailer_len */);
-	return(page_zip_ulint_size(pos - PAGE_DATA)
+	ut_ad(pos >= PAGE_ZIP_START);
+	ut_ad(pos + length <= UNIV_PAGE_SIZE - PAGE_ZIP_START
+		/* - trailer_len */);
+	return(page_zip_ulint_size(pos - PAGE_ZIP_START)
 		+ page_zip_ulint_size(length)
 		+ length);
 }
@@ -99,14 +123,72 @@ page_zip_simple_validate(
 {
 	ut_ad(page_zip);
 	ut_ad(page_zip->data);
-	ut_ad(!(page_zip->size & (page_zip->size - 1)));
-	ut_ad(page_zip->size < UNIV_PAGE_SIZE);
-	ut_ad(page_zip->size > PAGE_DATA + PAGE_EMPTY_DIR_START);
+	ut_ad(!(page_zip->size & (page_zip->size - 1))); /* power of 2 */
+	ut_ad(page_zip->size <= UNIV_PAGE_SIZE);
+	ut_ad(page_zip->size > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
+	ut_ad(page_zip->m_start >= PAGE_DATA);
 	ut_ad(page_zip->m_start <= page_zip->m_end);
 	ut_ad(page_zip->m_end < page_zip->size);
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
+
+/*****************************************************************
+Gets the size of the compressed page trailer (the dense page directory). */
+UNIV_INLINE
+ulint
+page_zip_dir_size(
+/*==============*/
+						/* out: length of dense page
+						directory, in bytes */
+	const page_zip_des_t*	page_zip)	/* in: compressed page */
+{
+	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
+			* (page_dir_get_n_heap((page_t*) page_zip->data) - 2);
+	ut_ad(page_zip->m_end + size < page_zip->size);
+	return(size);
+}
+
+/*****************************************************************
+Read a given slot in the dense page directory. */
+UNIV_INLINE
+ulint
+page_zip_dir_get(
+/*==============*/
+						/* out: record offset
+						on the uncompressed page,
+						possibly ORed with
+						PAGE_ZIP_DIR_SLOT_DEL or
+						PAGE_ZIP_DIR_SLOT_OWNED */
+	const page_zip_des_t*	page_zip,	/* in: compressed page */
+	ulint			slot)		/* in: slot
+						(0=first user record) */
+{
+	ut_ad(page_zip_simple_validate(page_zip));
+	ut_ad(slot + 2 < page_dir_get_n_heap((page_t*) page_zip->data));
+	return(mach_read_from_2(page_zip->data + page_zip->size
+			- PAGE_ZIP_DIR_SLOT_SIZE * slot));
+}
+/*****************************************************************
+Write a given slot in the dense page directory. */
+UNIV_INLINE
+void
+page_zip_dir_set(
+/*==============*/
+	const page_zip_des_t*	page_zip,	/* in: compressed page */
+	ulint			slot,		/* in: slot
+						(0=first user record) */
+	ulint			offs)		/* in: offset, possibly
+						ORed with
+						PAGE_ZIP_DIR_SLOT_DEL or
+						PAGE_ZIP_DIR_SLOT_OWNED */
+{
+	ut_ad(page_zip_simple_validate(page_zip));
+	ut_ad(slot + 2 < page_dir_get_n_heap((page_t*) page_zip->data));
+	mach_write_to_2(page_zip->data + page_zip->size
+			- PAGE_ZIP_DIR_SLOT_SIZE * slot,
+			offs);
+}
 
 /**************************************************************************
 Ensure that enough space is available in the modification log.
@@ -122,14 +204,13 @@ page_zip_alloc(
 	const page_t*	page,	/* in: uncompressed page */
 	ulint		size)	/* in: size of modification log entries */
 {
-	ulint	trailer_len = page_trailer_get_len(page_zip->data);
+	ulint	trailer_len = page_zip_dir_size(page_zip);
 
 	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
 	ut_ad(size >= 3); /* modification log entries are >= 1+1+1 bytes */
 	ut_ad(size < page_zip->size);
 
-	if (size < page_zip->size - page_zip->m_end - trailer_len) {
+	if (size + page_zip->m_end + trailer_len < page_zip->size) {
 		return(TRUE);
 	}
 
@@ -154,14 +235,13 @@ page_zip_available(
 	ulint			size)	/* in: requested size of
 					modification log entries */
 {
-	ulint	trailer_len = page_trailer_get_len(page_zip->data);
+	ulint	trailer_len = page_zip_dir_size(page_zip);
 
 	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
 	ut_ad(size < page_zip->size);
 
 	return(UNIV_LIKELY(
-		size < page_zip->size - page_zip->m_end - trailer_len));
+		size + page_zip->m_end + trailer_len < page_zip->size));
 }
 
 /**************************************************************************
@@ -185,35 +265,6 @@ page_zip_write_header(
 	ut_ad(pos < PAGE_DATA);
 
 	memcpy(page_zip + pos, str, length);
-
-	ut_ad(page_zip_validate(page_zip, str - pos));
-}
-
-
-/**************************************************************************
-Write data to the uncompressed trailer portion of a page.  The data must
-already have been written to the uncompressed page. */
-UNIV_INLINE
-void
-page_zip_write_trailer(
-/*===================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length)	/* in: length of the data */
-{
-	ulint	pos;
-
-	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);
-	ut_ad(page_zip_simple_validate(page_zip));
-
-	pos = ut_align_offset(str, UNIV_PAGE_SIZE);
-
-	ut_ad(pos > PAGE_DATA);
-	ut_ad(pos < UNIV_PAGE_SIZE
-			- page_trailer_get_len(buf_frame_align((byte*) str)));
-
-	memcpy(page_zip->data + page_zip->size - (UNIV_PAGE_SIZE - pos),
-			str, length);
 
 	ut_ad(page_zip_validate(page_zip, str - pos));
 }

@@ -59,18 +59,6 @@ page_zip_write_header(
 	__attribute__((nonnull));
 
 
-/**************************************************************************
-Write data to the uncompressed trailer portion of a page.  The data must
-already have been written to the uncompressed page. */
-UNIV_INLINE
-void
-page_zip_write_trailer(
-/*===================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length)	/* in: length of the data */
-	__attribute__((nonnull));
-
 #ifdef UNIV_DEBUG
 /**************************************************************************
 Determine if enough space is available in the modification log. */
