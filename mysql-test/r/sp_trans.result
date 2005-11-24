@@ -369,3 +369,59 @@ drop procedure bug13825_0|
 drop procedure bug13825_1|
 drop procedure bug13825_2|
 drop table t1, t2|
+drop table if exists t3|
+drop procedure if exists bug14840_1|
+drop procedure if exists bug14840_2|
+create table t3
+(
+x int,
+y int,
+primary key (x)
+) engine=InnoDB|
+create procedure bug14840_1()
+begin
+declare err int default 0;
+declare continue handler for sqlexception
+set err = err + 1;
+start transaction;
+update t3 set x = 1, y = 42 where x = 2;
+insert into t3 values (3, 4711);
+if err > 0 then
+rollback;
+else
+commit;
+end if;
+select * from t3;
+end|
+create procedure bug14840_2()
+begin
+declare err int default 0;
+declare continue handler for sqlexception
+begin
+set err = err + 1;
+select err as 'Ping';
+end;
+update t3 set x = 1, y = 42 where x = 2;
+update t3 set x = 1, y = 42 where x = 2;
+insert into t3 values (3, 4711);
+select * from t3;
+end|
+insert into t3 values (1, 3), (2, 5)|
+call bug14840_1()|
+x	y
+1	3
+2	5
+delete from t3|
+insert into t3 values (1, 3), (2, 5)|
+call bug14840_2()|
+Ping
+1
+Ping
+2
+x	y
+1	3
+2	5
+3	4711
+drop procedure bug14840_1|
+drop procedure bug14840_2|
+drop table t3|

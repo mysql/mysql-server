@@ -3868,5 +3868,22 @@ drop procedure bug10100pv|
 drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
+drop procedure if exists bug13729|
+drop table if exists t3|
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (1),(2)|
+create procedure bug13729()
+begin
+declare continue handler for sqlexception select 55;
+update t3 set s1 = 1;
+end|
+call bug13729()|
+55
+55
+select * from t3|
+s1
+1
+2
+drop procedure bug13729|
 drop table t3|
 drop table t1,t2;
