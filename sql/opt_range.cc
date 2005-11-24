@@ -1654,11 +1654,10 @@ public:
 static int fill_used_fields_bitmap(PARAM *param)
 {
   TABLE *table= param->table;
-  param->fields_bitmap_size= (table->s->fields/8 + 1);
+  param->fields_bitmap_size= bitmap_buffer_size(table->s->fields+1);
   uint32 *tmp;
   uint pk;
-  if (!(tmp= (uint32*)alloc_root(param->mem_root,
-    bytes_word_aligned(param->fields_bitmap_size))) ||
+  if (!(tmp= (uint32*) alloc_root(param->mem_root,param->fields_bitmap_size)) ||
       bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
                   FALSE))
     return 1;
@@ -2417,7 +2416,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->records= param->table->quick_rows[keynr];
 
   if (!(bitmap_buf= (uint32*)alloc_root(param->mem_root,
-                                        bytes_word_aligned(param->fields_bitmap_size))))
+                                        param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
@@ -2537,7 +2536,7 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
     return NULL;
   info->param= param;
   if (!(buf= (uint32*)alloc_root(param->mem_root,
-                             bytes_word_aligned(param->fields_bitmap_size))))
+                                 param->fields_bitmap_size)))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
                   FALSE))

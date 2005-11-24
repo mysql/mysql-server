@@ -84,6 +84,7 @@ extern void bitmap_lock_xor(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_lock_invert(MY_BITMAP *map);
 #endif
 /* Fast, not thread safe, bitmap functions */
+#define bitmap_buffer_size(bits) 4*(((bits)+31)/32);
 #define no_bytes_in_map(map) (((map)->n_bits + 7)/8)
 #define no_words_in_map(map) (((map)->n_bits + 31)/32)
 #define bytes_word_aligned(bytes) (4*((bytes + 3)/4))
