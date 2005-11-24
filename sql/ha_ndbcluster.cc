@@ -3285,18 +3285,20 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
       }
-      if (m_table != (void *)tab)
-      {
-        m_table= (void *)tab;
-        m_table_version = tab->getObjectVersion();
-      }
-      else if (m_table_version < tab->getObjectVersion())
+      if (m_table_version < tab->getObjectVersion())
       {
         /*
           The table has been altered, caller has to retry
         */
         NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
         DBUG_RETURN(ndb_to_mysql_error(&err));
+      }
+      if (m_table != (void *)tab)
+      {
+        m_table= (void *)tab;
+        m_table_version = tab->getObjectVersion();
+        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+          DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
     }
