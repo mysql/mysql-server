@@ -4773,6 +4773,8 @@ drop procedure bug10100pv|
 drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
+
+#
 # BUG#13729: Stored procedures: packet error after exception handled
 #
 --disable_warnings
