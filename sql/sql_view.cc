@@ -1175,7 +1175,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   for (view= views; view; view= view->next_local)
   {
     TABLE_SHARE *share;
-    bool type;
+    bool type= 0;
     strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
