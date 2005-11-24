@@ -469,6 +469,7 @@ libmysqld/get_password.c
 libmysqld/gstream.cc
 libmysqld/ha_archive.cc
 libmysqld/ha_berkeley.cc
+libmysqld/ha_blackhole.cc
 libmysqld/ha_example.cc
 libmysqld/ha_federated.cc
 libmysqld/ha_heap.cc
