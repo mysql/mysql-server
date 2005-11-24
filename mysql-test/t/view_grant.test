@@ -1,6 +1,12 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop database if exists mysqltest;
+drop view if exists v1;
+--enable_warnings
+
+
 # simple test of grants
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
