@@ -201,18 +201,18 @@ create table t1 (
 pk1 bit(9) not null primary key,
 b int
 ) engine=ndbcluster;
-ERROR HY000: Can't create table './test/t1.frm' (errno: 140)
+ERROR HY000: Can't create table 'test.t1' (errno: 140)
 show warnings;
 Level	Code	Message
 Error	1296	Got error 739 'Unsupported primary key length' from NDB
-Error	1005	Can't create table './test/t1.frm' (errno: 140)
+Error	1005	Can't create table 'test.t1' (errno: 140)
 create table t1 (
 pk1 int not null primary key,
 b bit(9),
 key(b)
 ) engine=ndbcluster;
-ERROR HY000: Can't create table './test/t1.frm' (errno: 140)
+ERROR HY000: Can't create table 'test.t1' (errno: 140)
 show warnings;
 Level	Code	Message
 Error	1296	Got error 743 'Unsupported character set in table or index' from NDB
-Error	1005	Can't create table './test/t1.frm' (errno: 140)
+Error	1005	Can't create table 'test.t1' (errno: 140)

@@ -56,8 +56,11 @@ typedef struct st_grant_info
   ulong orig_want_privilege;
 } GRANT_INFO;
 
-enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2,
-                     SYSTEM_TMP_TABLE=3};
+enum tmp_table_type
+{
+  NO_TMP_TABLE, TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
+  INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
+};
 
 enum frm_type_enum
 {
@@ -65,6 +68,8 @@ enum frm_type_enum
   FRMTYPE_TABLE,
   FRMTYPE_VIEW
 };
+
+enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
 typedef struct st_filesort_info
 {
@@ -107,52 +112,55 @@ class Table_triggers_list;
 
 typedef struct st_table_share
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  partition_info *part_info;            /* Partition related information */
-#endif
   /* hash of field names (contains pointers to elements of field array) */
   HASH	name_hash;			/* hash of field names */
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
   TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
-#ifdef NOT_YET
   pthread_mutex_t mutex;                /* For locking the share  */
   pthread_cond_t cond;			/* To signal that share is ready */
+  struct st_table_share *next,		/* Link to unused shares */
+    **prev;
+#ifdef NOT_YET
   struct st_table *open_tables;		/* link to open tables */
-  struct st_table *used_next,		/* Link to used tables */
-		 **used_prev;
+#endif
+
   /* The following is copied to each TABLE on OPEN */
   Field **field;
+  Field **found_next_number_field;
+  Field *timestamp_field;               /* Used only during open */
   KEY  *key_info;			/* data of keys in database */
-#endif
   uint	*blob_field;			/* Index to blobs in Field arrray*/
+
   byte	*default_values;		/* row with default values */
   char	*comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
   /* A pair "database_name\0table_name\0", widely used as simply a db name */
-  char	*table_cache_key;
-  const char *db;                       /* Pointer to db */
-  const char *table_name;               /* Table name (for open) */
-  const char *path;                     /* Path to .frm file (from datadir) */
+  LEX_STRING table_cache_key;
+  LEX_STRING db;                        /* Pointer to db */
+  LEX_STRING table_name;                /* Table name (for open) */
+  LEX_STRING path;                	/* Path to .frm file (from datadir) */
+  LEX_STRING normalized_path;		/* unpack_filename(path) */
   LEX_STRING connect_string;
   key_map keys_in_use;                  /* Keys in use for table */
   key_map keys_for_keyread;
+  ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
   ulong   raid_chunksize;
   ulong   version, flush_version, mysql_version;
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
-  ha_rows min_rows, max_rows;		/* create information */
   enum db_type db_type;			/* table_type for handler */
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
 
+  uint ref_count;                       /* How many TABLE objects uses this */
+  uint open_count;			/* Number of tables in open list */
   uint blob_ptr_size;			/* 4 or 8 */
   uint null_bytes, last_null_bit_pos;
-  uint key_length;			/* Length of table_cache_key */
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
@@ -160,31 +168,40 @@ typedef struct st_table_share
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
+  uint timestamp_field_offset;		/* Field number for timestamp field */
   uint varchar_fields;                  /* number of varchar fields */
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
   uint raid_type, raid_chunks;
-  uint open_count;			/* Number of tables in open list */
+  uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Index of auto-updated TIMESTAMP field in field array */
   uint primary_key;
-  uint timestamp_field_offset;
   uint next_number_index;
   uint next_number_key_offset;
-  uchar	  frm_version;
-  my_bool system;			/* Set if system record */
-  my_bool crypted;                      /* If .frm file is crypted */
-  my_bool db_low_byte_first;		/* Portable row format */
-  my_bool crashed;
-  my_bool is_view;
-  my_bool name_lock, replace_with_name_lock;
+  uint error, open_errno, errarg;       /* error from open_table_def() */
+  uchar frm_version;
+  bool null_field_first;
+  bool system;                          /* Set if system table (one record) */
+  bool crypted;                         /* If .frm file is crypted */
+  bool db_low_byte_first;		/* Portable row format */
+  bool crashed;
+  bool is_view;
+  bool name_lock, replace_with_name_lock;
+  bool waiting_on_cond;                 /* Protection against free */
+
   /*
     TRUE if this is a system table like 'mysql.proc', which we want to be
     able to open and lock even when we already have some tables open and
     locked. To avoid deadlocks we have to put certain restrictions on
     locking of this table for writing. FALSE - otherwise.
   */
-  my_bool system_table;
+  bool system_table;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  const uchar *partition_info;
+  uint  partition_info_len;
+  enum db_type default_part_db_type;
+#endif
 } TABLE_SHARE;
 
 
@@ -195,8 +212,8 @@ struct st_table {
   handler	*file;
 #ifdef NOT_YET
   struct st_table *used_next, **used_prev;	/* Link to used tables */
-  struct st_table *open_next, **open_prev;	/* Link to open tables */
 #endif
+  struct st_table *open_next, **open_prev;	/* Link to open tables */
   struct st_table *next, *prev;
 
   THD	*in_use;                        /* Which thread uses this */
@@ -207,9 +224,8 @@ struct st_table {
   key_map quick_keys, used_keys, keys_in_use_for_query;
   KEY  *key_info;			/* data of keys in database */
 
-  Field *next_number_field,		/* Set if next_number is activated */
-	*found_next_number_field,	/* Set on open */
-        *rowid_field;
+  Field *next_number_field;		/* Set if next_number is activated */
+  Field *found_next_number_field;	/* Set on open */
   Field_timestamp *timestamp_field;
 
   /* Table's triggers, 0 if there are no of them */
@@ -279,7 +295,9 @@ struct st_table {
   MEM_ROOT mem_root;
   GRANT_INFO grant;
   FILESORT_INFO sort;
-  TABLE_SHARE share_not_to_be_used;     /* To be deleted when true shares */
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  partition_info *part_info;            /* Partition related information */
+#endif
 
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
@@ -624,6 +642,7 @@ typedef struct st_table_list
   bool          where_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
+  enum db_type  db_type;		/* table_type for handler */
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be

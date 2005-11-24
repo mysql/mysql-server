@@ -243,6 +243,10 @@ sp_eval_func_item(THD *thd, Item **it_addr, enum enum_field_types type,
   Item *old_item_next, *old_free_list, **p_free_list;
   DBUG_PRINT("info", ("type: %d", type));
 
+  LINT_INIT(old_item_next);
+  LINT_INIT(old_free_list);
+  LINT_INIT(p_free_list);
+
   if (!it)
     DBUG_RETURN(NULL);
 
@@ -518,7 +522,7 @@ void
 sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
-  uchar *endp;                  /* Used to trim the end */
+  const uchar *endp;                            /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
@@ -711,12 +715,14 @@ sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
   Field *field;
   DBUG_ENTER("sp_head::make_field");
 
-  field= ::make_field((char *)0,
-		!m_returns_len ? max_length : m_returns_len, 
-		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
-		m_geom_returns, Field::NONE, 
-		m_returns_typelib,
-		name ? name : (const char *)m_name.str, dummy);
+  field= ::make_field(dummy->s, (char *)0,
+                      !m_returns_len ? max_length : m_returns_len, 
+                      (uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
+                      m_geom_returns, Field::NONE, 
+                      m_returns_typelib,
+                      name ? name : (const char *)m_name.str);
+  if (field)
+    field->init(dummy);
   DBUG_RETURN(field);
 }
 

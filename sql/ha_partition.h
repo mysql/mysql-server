@@ -122,6 +122,11 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 
 public:
+  void set_part_info(partition_info *part_info)
+  {
+     m_part_info= part_info;
+     m_is_sub_partitioned= is_sub_partitioned(part_info);
+  }
   /*
     -------------------------------------------------------------------------
     MODULE create/delete handler object
@@ -133,7 +138,7 @@ public:
     partition handler.
     -------------------------------------------------------------------------
   */
-    ha_partition(TABLE * table);
+    ha_partition(TABLE_SHARE * table);
     ha_partition(partition_info * part_info);
    ~ha_partition();
   /*

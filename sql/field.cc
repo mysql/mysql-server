@@ -1024,10 +1024,9 @@ bool Field::type_can_have_key_part(enum enum_field_types type)
 Field_num::Field_num(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, utype unireg_check_arg,
                      const char *field_name_arg,
-                     struct st_table *table_arg,
                      uint8 dec_arg, bool zero_arg, bool unsigned_arg)
   :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-         unireg_check_arg, field_name_arg, table_arg),
+         unireg_check_arg, field_name_arg),
   dec(dec_arg),zerofill(zero_arg),unsigned_flag(unsigned_arg)
 {
   if (zerofill)
@@ -1216,16 +1215,11 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 }
 
 
-/* This is used as a table name when the table structure is not set up */
-const char *unknown_table_name= 0;
-
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
-	     utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     utype unireg_check_arg, const char *field_name_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
-   table(table_arg),orig_table(table_arg),
-   table_name(table_arg ? &table_arg->alias : &unknown_table_name),
+   table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
@@ -1282,10 +1276,10 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 
 void Field::make_field(Send_field *field)
 {
-  if (orig_table->s->table_cache_key && *(orig_table->s->table_cache_key))
+  if (orig_table->s->db.str && *orig_table->s->db.str)
   {
-    field->org_table_name= orig_table->s->table_name;
-    field->db_name= orig_table->s->table_cache_key;
+    field->db_name= orig_table->s->db.str;
+    field->org_table_name= orig_table->s->table_name.str;
   }
   else
     field->org_table_name= field->db_name= "";
@@ -1393,10 +1387,9 @@ my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
 
 Field_str::Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, utype unireg_check_arg,
-                     const char *field_name_arg,
-                     struct st_table *table_arg,CHARSET_INFO *charset)
+                     const char *field_name_arg, CHARSET_INFO *charset)
   :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-         unireg_check_arg, field_name_arg, table_arg)
+         unireg_check_arg, field_name_arg)
 {
   field_charset=charset;
   if (charset->state & MY_CS_BINSORT)
@@ -1529,7 +1522,7 @@ Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table)
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
   tmp->part_of_sortkey.init(0);
-  tmp->unireg_check=Field::NONE;
+  tmp->unireg_check= Field::NONE;
   tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
                 ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
   tmp->reset_fields();
@@ -1648,6 +1641,21 @@ bool Field::needs_quotes(void)
   default:
     DBUG_RETURN(0);
   }
+}
+
+
+/* This is used to generate a field in TABLE from TABLE_SHARE */
+
+Field *Field::clone(MEM_ROOT *root, struct st_table *new_table)
+{
+  Field *tmp;
+  if ((tmp= (Field*) memdup_root(root,(char*) this,size_of())))
+  {
+    tmp->init(new_table);
+    tmp->move_field_offset((my_ptrdiff_t) (new_table->record[0] -
+                                           new_table->s->default_values));
+  }
+  return tmp;
 }
 
 
@@ -2280,13 +2288,10 @@ Field_new_decimal::Field_new_decimal(char *ptr_arg,
                                      uchar null_bit_arg,
                                      enum utype unireg_check_arg,
                                      const char *field_name_arg,
-                                     struct st_table *table_arg,
                                      uint8 dec_arg,bool zero_arg,
                                      bool unsigned_arg)
-  :Field_num(ptr_arg, len_arg,
-             null_ptr_arg, null_bit_arg,
-             unireg_check_arg, field_name_arg, table_arg,
-             dec_arg, zero_arg, unsigned_arg)
+  :Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
+             unireg_check_arg, field_name_arg, dec_arg, zero_arg, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
@@ -2298,14 +2303,11 @@ Field_new_decimal::Field_new_decimal(char *ptr_arg,
 Field_new_decimal::Field_new_decimal(uint32 len_arg,
                                      bool maybe_null,
                                      const char *name,
-                                     struct st_table *t_arg,
                                      uint8 dec_arg,
                                      bool unsigned_arg)
   :Field_num((char*) 0, len_arg,
              maybe_null ? (uchar*) "": 0, 0,
-             NONE, name, t_arg,
-             dec_arg,
-             0, unsigned_arg)
+             NONE, name, dec_arg, 0, unsigned_arg)
 {
   precision= my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
@@ -4447,19 +4449,18 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
                                  uchar *null_ptr_arg, uchar null_bit_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
-				 struct st_table *table_arg,
+				 TABLE_SHARE *share,
 				 CHARSET_INFO *cs)
   :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
-	     unireg_check_arg, field_name_arg, table_arg, cs)
+	     unireg_check_arg, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
   flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
-  if (table && !table->timestamp_field && 
-      unireg_check != NONE)
+  if (!share->timestamp_field && unireg_check != NONE)
   {
     /* This timestamp has auto-update */
-    table->timestamp_field= this;
-    flags|=TIMESTAMP_FLAG;
+    share->timestamp_field= this;
+    flags|= TIMESTAMP_FLAG;
   }
 }
 
@@ -6217,8 +6218,7 @@ uint Field_string::max_packed_col_length(uint max_length)
 
 Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
 {
-  Field *new_field;
-
+  Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || table == new_table)
     return Field::new_field(root, new_table);
 
@@ -6227,18 +6227,22 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  if (new_field= new Field_varstring(field_length, maybe_null(),
-                                     field_name, new_table, charset()))
+  if ((field= new Field_varstring(field_length, maybe_null(), field_name,
+                                  new_table->s, charset())))
   {
+    field->init(new_table);
     /*
       delayed_insert::get_local_table() needs a ptr copied from old table.
       This is what other new_field() methods do too. The above method of
       Field_varstring sets ptr to NULL.
     */
-    new_field->ptr= ptr;
+    field->ptr= ptr;
+    field->null_ptr= null_ptr;
+    field->null_bit= null_bit;
   }
-  return new_field;
+  return field;
 }
+
 
 /****************************************************************************
   VARCHAR type
@@ -6781,16 +6785,15 @@ uint Field_varstring::is_equal(create_field *new_field)
 
 Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
-		       struct st_table *table_arg,uint blob_pack_length,
+                       TABLE_SHARE *share, uint blob_pack_length,
 		       CHARSET_INFO *cs)
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
-	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
-	     table_arg, cs),
+                 null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
+                 cs),
    packlength(blob_pack_length)
 {
   flags|= BLOB_FLAG;
-  if (table)
-    table->s->blob_fields++;
+  share->blob_fields++;
 }
 
 
@@ -7958,10 +7961,9 @@ uint Field_num::is_equal(create_field *new_field)
 
 Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
-                     enum utype unireg_check_arg, const char *field_name_arg,
-                     struct st_table *table_arg)
+                     enum utype unireg_check_arg, const char *field_name_arg)
   : Field(ptr_arg, len_arg >> 3, null_ptr_arg, null_bit_arg,
-          unireg_check_arg, field_name_arg, table_arg),
+          unireg_check_arg, field_name_arg),
     bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7)
 {
   /*
@@ -8228,11 +8230,10 @@ Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
                                      uchar *null_ptr_arg, uchar null_bit_arg, 
                                      uchar *bit_ptr_arg, uchar bit_ofs_arg, 
                                      enum utype unireg_check_arg, 
-                                     const char *field_name_arg,
-                                     struct st_table *table_arg)
-  : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, bit_ptr_arg,
-              bit_ofs_arg, unireg_check_arg, field_name_arg, table_arg),
-    create_length(len_arg)
+                                     const char *field_name_arg)
+  :Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, bit_ptr_arg,
+             bit_ofs_arg, unireg_check_arg, field_name_arg),
+   create_length(len_arg)
 {
   bit_ptr= 0;
   bit_ofs= 0;
@@ -8426,7 +8427,7 @@ uint pack_length_to_packflag(uint type)
 }
 
 
-Field *make_field(char *ptr, uint32 field_length,
+Field *make_field(TABLE_SHARE *share, char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  enum_field_types field_type,
@@ -8434,8 +8435,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
-		  const char *field_name,
-		  struct st_table *table)
+		  const char *field_name)
 {
   uchar *bit_ptr;
   uchar bit_offset;
@@ -8481,13 +8481,14 @@ Field *make_field(char *ptr, uint32 field_length,
           field_type == FIELD_TYPE_DECIMAL ||   // 3.23 or 4.0 string
           field_type == MYSQL_TYPE_VAR_STRING)
         return new Field_string(ptr,field_length,null_pos,null_bit,
-                                unireg_check, field_name, table,
+                                unireg_check, field_name,
                                 field_charset);
       if (field_type == MYSQL_TYPE_VARCHAR)
         return new Field_varstring(ptr,field_length,
                                    HA_VARCHAR_PACKLENGTH(field_length),
                                    null_pos,null_bit,
-                                   unireg_check, field_name, table,
+                                   unireg_check, field_name,
+                                   share,
                                    field_charset);
       return 0;                                 // Error
     }
@@ -8499,22 +8500,22 @@ Field *make_field(char *ptr, uint32 field_length,
 #ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
-			    unireg_check, field_name, table,
+			    unireg_check, field_name, share,
 			    pack_length, geom_type);
 #endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
-			    unireg_check, field_name, table,
+			    unireg_check, field_name, share,
 			    pack_length, field_charset);
     if (interval)
     {
       if (f_is_enum(pack_flag))
 	return new Field_enum(ptr,field_length,null_pos,null_bit,
-				  unireg_check, field_name, table,
+				  unireg_check, field_name,
 				  pack_length, interval, field_charset);
       else
 	return new Field_set(ptr,field_length,null_pos,null_bit,
-			     unireg_check, field_name, table,
+			     unireg_check, field_name,
 			     pack_length, interval, field_charset);
     }
   }
@@ -8522,80 +8523,82 @@ Field *make_field(char *ptr, uint32 field_length,
   switch (field_type) {
   case FIELD_TYPE_DECIMAL:
     return new Field_decimal(ptr,field_length,null_pos,null_bit,
-			     unireg_check, field_name, table,
+			     unireg_check, field_name,
 			     f_decimals(pack_flag),
 			     f_is_zerofill(pack_flag) != 0,
 			     f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_NEWDECIMAL:
     return new Field_new_decimal(ptr,field_length,null_pos,null_bit,
-                                 unireg_check, field_name, table,
+                                 unireg_check, field_name,
                                  f_decimals(pack_flag),
                                  f_is_zerofill(pack_flag) != 0,
                                  f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_FLOAT:
     return new Field_float(ptr,field_length,null_pos,null_bit,
-			   unireg_check, field_name, table,
+			   unireg_check, field_name,
 			   f_decimals(pack_flag),
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag)== 0);
   case FIELD_TYPE_DOUBLE:
     return new Field_double(ptr,field_length,null_pos,null_bit,
-			    unireg_check, field_name, table,
+			    unireg_check, field_name,
 			    f_decimals(pack_flag),
 			    f_is_zerofill(pack_flag) != 0,
 			    f_is_dec(pack_flag)== 0);
   case FIELD_TYPE_TINY:
     return new Field_tiny(ptr,field_length,null_pos,null_bit,
-			  unireg_check, field_name, table,
+			  unireg_check, field_name,
 			  f_is_zerofill(pack_flag) != 0,
 			  f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_SHORT:
     return new Field_short(ptr,field_length,null_pos,null_bit,
-			   unireg_check, field_name, table,
+			   unireg_check, field_name,
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_INT24:
     return new Field_medium(ptr,field_length,null_pos,null_bit,
-			    unireg_check, field_name, table,
+			    unireg_check, field_name,
 			    f_is_zerofill(pack_flag) != 0,
 			    f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_LONG:
     return new Field_long(ptr,field_length,null_pos,null_bit,
-			   unireg_check, field_name, table,
+			   unireg_check, field_name,
 			   f_is_zerofill(pack_flag) != 0,
 			   f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_LONGLONG:
     return new Field_longlong(ptr,field_length,null_pos,null_bit,
-			      unireg_check, field_name, table,
+			      unireg_check, field_name,
 			      f_is_zerofill(pack_flag) != 0,
 			      f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_TIMESTAMP:
     return new Field_timestamp(ptr,field_length, null_pos, null_bit,
-                               unireg_check, field_name, table,
+                               unireg_check, field_name, share,
                                field_charset);
   case FIELD_TYPE_YEAR:
     return new Field_year(ptr,field_length,null_pos,null_bit,
-			  unireg_check, field_name, table);
+			  unireg_check, field_name);
   case FIELD_TYPE_DATE:
     return new Field_date(ptr,null_pos,null_bit,
-			  unireg_check, field_name, table, field_charset);
+			  unireg_check, field_name, field_charset);
   case FIELD_TYPE_NEWDATE:
     return new Field_newdate(ptr,null_pos,null_bit,
-			     unireg_check, field_name, table, field_charset);
+			     unireg_check, field_name, field_charset);
   case FIELD_TYPE_TIME:
     return new Field_time(ptr,null_pos,null_bit,
-			  unireg_check, field_name, table, field_charset);
+			  unireg_check, field_name, field_charset);
   case FIELD_TYPE_DATETIME:
     return new Field_datetime(ptr,null_pos,null_bit,
-			      unireg_check, field_name, table, field_charset);
+			      unireg_check, field_name, field_charset);
   case FIELD_TYPE_NULL:
-    return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
+    return new Field_null(ptr, field_length, unireg_check, field_name,
+                          field_charset);
   case FIELD_TYPE_BIT:
     return f_bit_as_char(pack_flag) ?
-           new Field_bit_as_char(ptr, field_length, null_pos, null_bit, bit_ptr,
-                                 bit_offset, unireg_check, field_name, table) :
-           new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
-                         bit_offset, unireg_check, field_name, table);
+      new Field_bit_as_char(ptr, field_length, null_pos, null_bit,
+                            bit_ptr, bit_offset, unireg_check, field_name) :
+      new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
+                    bit_offset, unireg_check, field_name);
+
   default:					// Impossible (Wrong version)
     break;
   }
@@ -8677,14 +8680,15 @@ create_field::create_field(Field *old_field,Field *orig_field)
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset), *res;
     my_ptrdiff_t diff;
+    bool is_null;
 
     /* Get the value from default_values */
     diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
                           orig_field->table->record[0]);
-    orig_field->move_field(diff);		// Points now at default_values
-    bool is_null=orig_field->is_real_null();
+    orig_field->move_field_offset(diff);	// Points now at default_values
+    is_null= orig_field->is_real_null();
     res= orig_field->val_str(&tmp);
-    orig_field->move_field(-diff);		// Back to record[0]
+    orig_field->move_field_offset(-diff);	// Back to record[0]
     if (!is_null)
     {
       pos= (char*) sql_strmake(res->ptr(), res->length());

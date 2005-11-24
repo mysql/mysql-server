@@ -850,7 +850,7 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
     if (thd->db_length)
     {
       memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
-      DBUG_PRINT("qcache", ("database : %s length %u",
+      DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, thd->db_length)); 
     }
     else
@@ -1006,7 +1006,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   if (thd->db_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
-    DBUG_PRINT("qcache", ("database: '%s' length %u",
+    DBUG_PRINT("qcache", ("database: '%s'  length: %u",
 			  thd->db, thd->db_length));
   }
   else
@@ -1103,9 +1103,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
     */
     for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
     {
-      if (tmptable->s->key_length - TMP_TABLE_KEY_EXTRA == 
+      if (tmptable->s->table_cache_key.length - TMP_TABLE_KEY_EXTRA == 
           table->key_length() &&
-          !memcmp(tmptable->s->table_cache_key, table->data(),
+          !memcmp(tmptable->s->table_cache_key.str, table->data(),
                   table->key_length()))
       {
         DBUG_PRINT("qcache",
@@ -1268,7 +1268,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
       for (; tables_used; tables_used= tables_used->next)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
-	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
+	DBUG_PRINT("qcache", ("db: %s  table: %s", tables_used->key,
 			      tables_used->key+
 			      strlen(tables_used->key)+1));
       }
@@ -2135,7 +2135,8 @@ void Query_cache::invalidate_table(TABLE_LIST *table_list)
 
 void Query_cache::invalidate_table(TABLE *table)
 {
-  invalidate_table((byte*) table->s->table_cache_key, table->s->key_length);
+  invalidate_table((byte*) table->s->table_cache_key.str,
+                   table->s->table_cache_key.length);
 }
 
 void Query_cache::invalidate_table(byte * key, uint32  key_length)
@@ -2196,7 +2197,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     {
       char key[MAX_DBKEY_LENGTH];
       uint key_length;
-      DBUG_PRINT("qcache", ("view %s, db %s",
+      DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
       key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
@@ -2216,14 +2217,15 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     else
     {
       DBUG_PRINT("qcache",
-                 ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
-                  tables_used->table->s->table_name,
-                  tables_used->table->s->table_cache_key,
+                 ("table: %s  db: %s  openinfo:  0x%lx  keylen: %u  key: 0x%lx",
+                  tables_used->table->s->table_name.str,
+                  tables_used->table->s->table_cache_key.str,
                   (ulong) tables_used->table,
-                  tables_used->table->s->key_length,
-                  (ulong) tables_used->table->s->table_cache_key));
-      if (!insert_table(tables_used->table->s->key_length,
-                        tables_used->table->s->table_cache_key, block_table,
+                  tables_used->table->s->table_cache_key.length,
+                  (ulong) tables_used->table->s->table_cache_key.str));
+      if (!insert_table(tables_used->table->s->table_cache_key.length,
+                        tables_used->table->s->table_cache_key.str,
+                        block_table,
                         tables_used->db_length,
                         tables_used->table->file->table_cache_type(),
                         tables_used->callback_func,
@@ -2823,16 +2825,16 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
     table_count++;
     if (tables_used->view)
     {
-      DBUG_PRINT("qcache", ("view %s, db %s",
+      DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
       *tables_type|= HA_CACHE_TBL_NONTRANSACT;
     }
     else
     {
-      DBUG_PRINT("qcache", ("table %s, db %s, type %u",
-                            tables_used->table->s->table_name,
-                            tables_used->table->s->table_cache_key,
+      DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
+                            tables_used->table->s->table_name.str,
+                            tables_used->table->s->db.str,
                             tables_used->table->s->db_type));
       if (tables_used->derived)
       {
@@ -2850,12 +2852,12 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
           (*tables_type & HA_CACHE_TBL_NOCACHE) ||
           (tables_used->db_length == 5 &&
            my_strnncoll(table_alias_charset,
-                        (uchar*)tables_used->table->s->table_cache_key, 6,
+                        (uchar*)tables_used->table->s->table_cache_key.str, 6,
                         (uchar*)"mysql",6) == 0))
       {
         DBUG_PRINT("qcache",
-                   ("select not cacheable: temporary, system or \
-                    other non-cacheable table(s)"));
+                   ("select not cacheable: temporary, system or "
+                    "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
       if (tables_used->table->s->db_type == DB_TYPE_MRG_MYISAM)
@@ -2937,11 +2939,13 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
   for (; tables_used; tables_used= tables_used->next_global)
   {
     TABLE *table;
+    handler *handler;
     if (!(table= tables_used->table))
       continue;
-    handler *handler= table->file;
-    if (!handler->register_query_cache_table(thd, table->s->table_cache_key,
-					     table->s->key_length,
+    handler= table->file;
+    if (!handler->register_query_cache_table(thd,
+                                             table->s->table_cache_key.str,
+					     table->s->table_cache_key.length,
 					     &tables_used->callback_func,
 					     &tables_used->engine_data))
     {

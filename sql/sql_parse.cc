@@ -1980,7 +1980,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	    uptime,
 	    (int) thread_count, (ulong) thd->query_id,
             (ulong) thd->status_var.long_query_count,
-	    thd->status_var.opened_tables, refresh_version, cached_tables(),
+	    thd->status_var.opened_tables, refresh_version,
+            cached_open_tables(),
 	    (uptime ? (ulonglong2double(thd->query_id) / (double) uptime) :
 	     (double) 0));
 #ifdef SAFEMALLOC
@@ -6205,10 +6206,14 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (check_table_name(table->table.str,table->table.length) ||
-      table->db.str && check_db_name(table->db.str))
+  if (check_table_name(table->table.str,table->table.length))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+    DBUG_RETURN(0);
+  }
+  if (table->db.str && check_db_name(table->db.str))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
     DBUG_RETURN(0);
   }
 

@@ -28,7 +28,7 @@ class ha_myisammrg: public handler
   MYRG_INFO *file;
 
  public:
-  ha_myisammrg(TABLE *table_arg);
+  ha_myisammrg(TABLE_SHARE *table_arg);
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
@@ -37,11 +37,12 @@ class ha_myisammrg: public handler
   {
     return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_READ_RND_SAME |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
-            HA_CAN_INSERT_DELAYED | HA_ANY_INDEX_MAY_BE_UNIQUE);
+            HA_CAN_INSERT_DELAYED | HA_ANY_INDEX_MAY_BE_UNIQUE |
+            HA_NO_COPY_ON_ALTER);
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }

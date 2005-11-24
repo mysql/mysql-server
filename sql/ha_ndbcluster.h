@@ -478,7 +478,7 @@ class Thd_ndb
 class ha_ndbcluster: public handler
 {
  public:
-  ha_ndbcluster(TABLE *table);
+  ha_ndbcluster(TABLE_SHARE *table);
   ~ha_ndbcluster();
 
   int open(const char *name, int mode, uint test_if_locked);
@@ -620,7 +620,7 @@ private:
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
-  int drop_table();
+  int intern_drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);

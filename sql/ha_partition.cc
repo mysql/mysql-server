@@ -66,7 +66,7 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
-static handler* partition_create_handler(TABLE *table);
+static handler *partition_create_handler(TABLE_SHARE *share);
 
 handlerton partition_hton = {
   "partition",
@@ -101,31 +101,25 @@ handlerton partition_hton = {
   HTON_NOT_USER_SELECTABLE
 };
 
-static handler* partition_create_handler(TABLE *table)
+static handler *partition_create_handler(TABLE_SHARE *share)
 {
-  return new ha_partition(table);
+  return new ha_partition(share);
 }
 
-ha_partition::ha_partition(TABLE *table)
-  :handler(&partition_hton, table), m_part_info(NULL), m_create_handler(FALSE),
+
+ha_partition::ha_partition(TABLE_SHARE *share)
+  :handler(&partition_hton, share), m_part_info(NULL), m_create_handler(FALSE),
    m_is_sub_partitioned(0)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
   init_handler_variables();
-  if (table)
-  {
-    if (table->s->part_info)
-    {
-      m_part_info= table->s->part_info;
-      m_is_sub_partitioned= is_sub_partitioned(m_part_info);
-    }
-  }
   DBUG_VOID_RETURN;
 }
 
 
 ha_partition::ha_partition(partition_info *part_info)
-  :handler(&partition_hton, NULL), m_part_info(part_info), m_create_handler(TRUE),
+  :handler(&partition_hton, NULL), m_part_info(part_info),
+   m_create_handler(TRUE),
    m_is_sub_partitioned(is_sub_partitioned(m_part_info))
 
 {
@@ -230,64 +224,64 @@ ha_partition::~ha_partition()
 int ha_partition::ha_initialise()
 {
   handler **file_array, *file;
-  DBUG_ENTER("ha_partition::set_up_constants");
+  DBUG_ENTER("ha_partition::ha_initialise");
 
-  if (m_part_info)
+  if (m_create_handler)
   {
     m_tot_parts= get_tot_partitions(m_part_info);
     DBUG_ASSERT(m_tot_parts > 0);
-    if (m_create_handler)
+    if (new_handlers_from_part_info())
+      DBUG_RETURN(1);
+  }
+  else if (!table_share || !table_share->normalized_path.str)
+  {
+    /*
+      Called with dummy table share (delete, rename and alter table)
+      Don't need to set-up table flags other than
+      HA_FILE_BASED here
+    */
+    m_table_flags|= HA_FILE_BASED | HA_REC_NOT_IN_SEQ;
+    DBUG_RETURN(0);
+  }
+  else if (get_from_handler_file(table_share->normalized_path.str))
+  {
+    my_error(ER_OUTOFMEMORY, MYF(0), 129); //Temporary fix TODO print_error
+    DBUG_RETURN(1);
+  }
+  /*
+    We create all underlying table handlers here. We do it in this special
+    method to be able to report allocation errors.
+
+    Set up table_flags, low_byte_first, primary_key_is_clustered and
+    has_transactions since they are called often in all kinds of places,
+    other parameters are calculated on demand.
+    HA_FILE_BASED is always set for partition handler since we use a
+    special file for handling names of partitions, engine types.
+    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER,
+    HA_CAN_INSERT_DELAYED is disabled until further investigated.
+  */
+  m_table_flags= m_file[0]->table_flags();
+  m_low_byte_first= m_file[0]->low_byte_first();
+  m_has_transactions= TRUE;
+  m_pkey_is_clustered= TRUE;
+  file_array= m_file;
+  do
+  {
+    file= *file_array;
+    if (m_low_byte_first != file->low_byte_first())
     {
-      if (new_handlers_from_part_info())
-	DBUG_RETURN(1);
-    }
-    else if (get_from_handler_file(table->s->path))
-    {
-      my_error(ER_OUTOFMEMORY, MYF(0), 129); //Temporary fix TODO print_error
+      // Cannot have handlers with different endian
+      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
-    /*
-      We create all underlying table handlers here. We only do it if we have
-      access to the partition info. We do it in this special method to be
-      able to report allocation errors.
-    */
-    /*
-      Set up table_flags, low_byte_first, primary_key_is_clustered and
-      has_transactions since they are called often in all kinds of places,
-      other parameters are calculated on demand.
-      HA_FILE_BASED is always set for partition handler since we use a
-      special file for handling names of partitions, engine types.
-      HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER,
-      HA_CAN_INSERT_DELAYED is disabled until further investigated.
-    */
-    m_table_flags= m_file[0]->table_flags();
-    m_low_byte_first= m_file[0]->low_byte_first();
-    m_has_transactions= TRUE;
-    m_pkey_is_clustered= TRUE;
-    file_array= m_file;
-    do
-    {
-      file= *file_array;
-      if (m_low_byte_first != file->low_byte_first())
-      {
-        // Cannot have handlers with different endian
-        my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-	DBUG_RETURN(1);
-      }
-      if (!file->has_transactions())
-	m_has_transactions= FALSE;
-      if (!file->primary_key_is_clustered())
-	m_pkey_is_clustered= FALSE;
-      m_table_flags&= file->table_flags();
-    } while (*(++file_array));
-    m_table_flags&= ~(HA_CAN_GEOMETRY & HA_CAN_FULLTEXT &
-                      HA_CAN_SQL_HANDLER & HA_CAN_INSERT_DELAYED);
-    /*
-      TODO RONM:
-      Make sure that the tree works without partition defined, compiles
-      and goes through mysql-test-run.
-    */
-  }
+    if (!file->has_transactions())
+      m_has_transactions= FALSE;
+    if (!file->primary_key_is_clustered())
+      m_pkey_is_clustered= FALSE;
+    m_table_flags&= file->table_flags();
+  } while (*(++file_array));
+  m_table_flags&= ~(HA_CAN_GEOMETRY & HA_CAN_FULLTEXT &
+                    HA_CAN_SQL_HANDLER & HA_CAN_INSERT_DELAYED);
   m_table_flags|= HA_FILE_BASED | HA_REC_NOT_IN_SEQ;
   DBUG_RETURN(0);
 }
@@ -720,7 +714,7 @@ bool ha_partition::create_handlers()
   bzero(m_file, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
-    if (!(m_file[i]= get_new_handler(table, current_thd->mem_root,
+    if (!(m_file[i]= get_new_handler(table_share, current_thd->mem_root,
                                      (enum db_type) m_engine_array[i])))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
@@ -764,7 +758,7 @@ bool ha_partition::new_handlers_from_part_info()
   do
   {
     part_elem= part_it++;
-    if (!(m_file[i]= get_new_handler(table, thd->mem_root,
+    if (!(m_file[i]= get_new_handler(table_share, thd->mem_root,
                                      part_elem->engine_type)))
       goto error;
     DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
@@ -772,7 +766,7 @@ bool ha_partition::new_handlers_from_part_info()
     {
       for (j= 0; j < m_part_info->no_subparts; j++)
       {
-	if (!(m_file[i]= get_new_handler(table, thd->mem_root,
+	if (!(m_file[i]= get_new_handler(table_share, thd->mem_root,
                                          part_elem->engine_type)))
           goto error;
 	DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
@@ -913,7 +907,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   do
   {
     create_partition_name(name_buff, name, name_buffer_ptr);
-    if ((error= (*file)->ha_open((const char*) name_buff, mode,
+    if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
                                  test_if_locked)))
       goto err_handler;
     m_no_locks+= (*file)->lock_count();
