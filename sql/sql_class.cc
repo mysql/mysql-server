@@ -183,6 +183,7 @@ THD::THD()
    spcont(NULL)
 {
   stmt_arena= this;
+  thread_stack= 0;
   db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
