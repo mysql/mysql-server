@@ -132,7 +132,7 @@ ER_DB_CREATE_EXISTS
 	jps "'%-.64s' ƒf[ƒ^ƒx[ƒX‚ªì‚ê‚Ü‚¹‚ñ.Šù‚É‚»‚Ìƒf[ƒ^ƒx[ƒX‚ª‘¶Ý‚µ‚Ü‚·",
 	est "Ei suuda luua andmebaasi '%-.64s': andmebaas juba eksisteerib"
 	fre "Ne peut créer la base '%-.64s'; elle existe déjà"
-	ger "Kann Datenbank '%-.64s' nicht erzeugen. Datenbank '%-.64s' existiert bereits"
+	ger "Kann Datenbank '%-.64s' nicht erzeugen. Datenbank existiert bereits"
 	greek "Áäýíáôç ç äçìéïõñãßá ôçò âÜóçò äåäïìÝíùí '%-.64s'; Ç âÜóç äåäïìÝíùí õðÜñ÷åé Þäç"
 	hun "Az '%-.64s' adatbazis nem hozhato letre Az adatbazis mar letezik"
 	ita "Impossibile creare il database '%-.64s'; il database esiste"
@@ -157,7 +157,7 @@ ER_DB_DROP_EXISTS
 	jps "'%-.64s' ƒf[ƒ^ƒx[ƒX‚ð”jŠü‚Å‚«‚Ü‚¹‚ñ. ‚»‚Ìƒf[ƒ^ƒx[ƒX‚ª‚È‚¢‚Ì‚Å‚·.",
 	est "Ei suuda kustutada andmebaasi '%-.64s': andmebaasi ei eksisteeri"
 	fre "Ne peut effacer la base '%-.64s'; elle n'existe pas"
-	ger "Kann Datenbank '%-.64s' nicht löschen. Keine Datenbank '%-.64s' vorhanden"
+	ger "Kann Datenbank '%-.64s' nicht löschen; Datenbank nicht vorhanden"
 	greek "Áäýíáôç ç äéáãñáöÞ ôçò âÜóçò äåäïìÝíùí '%-.64s'. Ç âÜóç äåäïìÝíùí äåí õðÜñ÷åé"
 	hun "A(z) '%-.64s' adatbazis nem szuntetheto meg. Az adatbazis nem letezik"
 	ita "Impossibile cancellare '%-.64s'; il database non esiste"
@@ -182,7 +182,7 @@ ER_DB_DROP_DELETE
 	jps "ƒf[ƒ^ƒx[ƒX”jŠüƒGƒ‰[ ('%-.64s' ‚ðíœ‚Å‚«‚Ü‚¹‚ñ, errno: %d)",
 	est "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.64s', veakood: %d)"
 	fre "Ne peut effacer la base '%-.64s' (erreur %d)"
-	ger "Fehler beim Löschen der Datenbank ('%-.64s' kann nicht gelöscht werden, Fehlernuumer: %d)"
+	ger "Fehler beim Löschen der Datenbank ('%-.64s' kann nicht gelöscht werden, Fehler: %d)"
 	greek "ÐáñïõóéÜóôçêå ðñüâëçìá êáôÜ ôç äéáãñáöÞ ôçò âÜóçò äåäïìÝíùí (áäýíáôç ç äéáãñáöÞ '%-.64s', êùäéêüò ëÜèïõò: %d)"
 	hun "Adatbazis megszuntetesi hiba ('%-.64s' nem torolheto, hibakod: %d)"
 	ita "Errore durante la cancellazione del database (impossibile cancellare '%-.64s', errno: %d)"
@@ -207,7 +207,7 @@ ER_DB_DROP_RMDIR
 	jps "ƒf[ƒ^ƒx[ƒX”jŠüƒGƒ‰[ ('%-.64s' ‚ð rmdir ‚Å‚«‚Ü‚¹‚ñ, errno: %d)",
 	est "Viga andmebaasi kustutamisel (ei suuda kustutada kataloogi '%-.64s', veakood: %d)"
 	fre "Erreur en effaçant la base (rmdir '%-.64s', erreur %d)"
-	ger "Fehler beim Löschen der Datenbank (Verzeichnis '%-.64s' kann nicht gelöscht werden, Fehlernummer: %d)"
+	ger "Fehler beim Löschen der Datenbank (Verzeichnis '%-.64s' kann nicht gelöscht werden, Fehler: %d)"
 	greek "ÐáñïõóéÜóôçêå ðñüâëçìá êáôÜ ôç äéáãñáöÞ ôçò âÜóçò äåäïìÝíùí (áäýíáôç ç äéáãñáöÞ ôïõ öáêÝëëïõ '%-.64s', êùäéêüò ëÜèïõò: %d)"
 	hun "Adatbazis megszuntetesi hiba ('%-.64s' nem szuntetheto meg, hibakod: %d)"
 	ita "Errore durante la cancellazione del database (impossibile rmdir '%-.64s', errno: %d)"
@@ -357,7 +357,7 @@ ER_CANT_OPEN_FILE
 	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ðŠJ‚­Ž–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Ei suuda avada faili '%-.64s' (veakood: %d)"
 	fre "Ne peut ouvrir le fichier: '%-.64s' (Errcode: %d)"
-	ger "Datei '%-.64s' nicht öffnen (Fehler: %d)"
+	ger "Kann Datei '%-.64s' nicht öffnen (Fehler: %d)"
 	greek "Äåí åßíáé äõíáôü íá áíïé÷ôåß ôï áñ÷åßï: '%-.64s' (êùäéêüò ëÜèïõò: %d)"
 	hun "A '%-.64s' file nem nyithato meg (hibakod: %d)"
 	ita "Impossibile aprire il file: '%-.64s' (errno: %d)"
@@ -702,7 +702,7 @@ ER_GET_ERRNO
 	eng "Got error %d from storage engine"
 	est "Tabeli handler tagastas vea %d"
 	fre "Reçu l'erreur %d du handler de la table"
-	ger "Fehler %d (Tabellenhandler)"
+	ger "Fehler %d (Speicher-Engine)"
 	greek "ÅëÞöèç ìÞíõìá ëÜèïõò %d áðü ôïí ÷åéñéóôÞ ðßíáêá (table handler)"
 	hun "%d hibajelzes a tablakezelotol"
 	ita "Rilevato l'errore %d dal gestore delle tabelle"
@@ -726,7 +726,7 @@ ER_ILLEGAL_HA
 	eng "Table storage engine for '%-.64s' doesn't have this option"
 	est "Tabeli '%-.64s' handler ei toeta antud operatsiooni"
 	fre "Le handler de la table '%-.64s' n'a pas cette option"
-	ger "Diese Option gibt es nicht (Tabellenhandler)"
+	ger "Diese Option gibt es nicht (Speicher-Engine für '%-.64s')"
 	greek "Ï ÷åéñéóôÞò ðßíáêá (table handler) ãéá '%-.64s' äåí äéáèÝôåé áõôÞ ôçí åðéëïãÞ"
 	hun "A(z) '%-.64s' tablakezelonek nincs ilyen opcioja"
 	ita "Il gestore delle tabelle per '%-.64s' non ha questa opzione"
@@ -751,7 +751,7 @@ ER_KEY_NOT_FOUND
 	jps "'%-.64s'‚Ì‚È‚©‚ÉƒŒƒR[ƒh‚ªŒ©•t‚©‚è‚Ü‚¹‚ñ",
 	est "Ei suuda leida kirjet '%-.64s'-s"
 	fre "Ne peut trouver l'enregistrement dans '%-.64s'"
-	ger "Kann Datensatz nicht finden"
+	ger "Kann Datensatz in '%-.64s' nicht finden"
 	greek "Áäýíáôç ç áíåýñåóç åããñáöÞò óôï '%-.64s'"
 	hun "Nem talalhato a rekord '%-.64s'-ben"
 	ita "Impossibile trovare il record in '%-.64s'"
@@ -801,7 +801,7 @@ ER_NOT_KEYFILE
 	jps "'%-.64s' ƒe[ƒuƒ‹‚Ì key file ‚ªŠÔˆá‚Á‚Ä‚¢‚é‚æ‚¤‚Å‚·. C•œ‚ð‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabeli '%-.64s' võtmefail on vigane; proovi seda parandada"
 	fre "Index corrompu dans la table: '%-.64s'; essayez de le réparer"
-	ger "Falsche Schlüssel-Datei für Tabelle '%-.64s'. versuche zu reparieren"
+	ger "Fehlerhafte Index-Datei für Tabelle '%-.64s'; versuche zu reparieren"
 	greek "ËÜèïò áñ÷åßï ôáîéíüìéóçò (key file) ãéá ôïí ðßíáêá: '%-.64s'; Ðáñáêáëþ, äéïñèþóôå ôï!"
 	hun "Ervenytelen kulcsfile a tablahoz: '%-.64s'; probalja kijavitani!"
 	ita "File chiave errato per la tabella : '%-.64s'; prova a riparalo"
@@ -826,7 +826,7 @@ ER_OLD_KEYFILE
 	jps "'%-.64s' ƒe[ƒuƒ‹‚ÍŒÃ‚¢Œ`Ž®‚Ì key file ‚Ì‚æ‚¤‚Å‚·; C•œ‚ð‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabeli '%-.64s' võtmefail on aegunud; paranda see!"
 	fre "Vieux fichier d'index pour la table '%-.64s'; réparez le!"
-	ger "Alte Schlüssel-Datei für Tabelle '%-.64s'. Bitte reparieren"
+	ger "Alte Index-Datei für Tabelle '%-.64s'. Bitte reparieren"
 	greek "Ðáëáéü áñ÷åßï ôáîéíüìéóçò (key file) ãéá ôïí ðßíáêá '%-.64s'; Ðáñáêáëþ, äéïñèþóôå ôï!"
 	hun "Regi kulcsfile a '%-.64s'tablahoz; probalja kijavitani!"
 	ita "File chiave vecchio per la tabella '%-.64s'; riparalo!"
@@ -851,7 +851,7 @@ ER_OPEN_AS_READONLY
 	jps "'%-.64s' ‚Í“Ç‚Ýž‚Ýê—p‚Å‚·",
 	est "Tabel '%-.64s' on ainult lugemiseks"
 	fre "'%-.64s' est en lecture seulement"
-	ger "'%-.64s' ist nur lesbar"
+	ger "Tabelle '%-.64s' ist nur lesbar"
 	greek "'%-.64s' åðéôñÝðåôáé ìüíï ç áíÜãíùóç"
 	hun "'%-.64s' irasvedett"
 	ita "'%-.64s' e` di sola lettura"
@@ -901,7 +901,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
 	jps "Out of sort memory. sort buffer size ‚ª‘«‚è‚È‚¢‚æ‚¤‚Å‚·.",
 	est "Mälu sai sorteerimisel otsa. Suurenda MySQL-i sorteerimispuhvrit"
 	fre "Manque de mémoire pour le tri. Augmentez-la."
-	ger "Kein Speicher zum Sortieren vorhanden. sort_buffer_size sollte erhöht werden"
+	ger "Kein Speicher zum Sortieren vorhanden. sort_buffer_size sollte im Server erhöht werden"
 	greek "Äåí õðÜñ÷åé äéáèÝóéìç ìíÞìç ãéá ôáîéíüìéóç. ÁõîÞóôå ôï sort buffer size ãéá ôç äéáäéêáóßá (demon)"
 	hun "Nincs eleg memoria a rendezeshez. Novelje a rendezo demon puffermeretet"
 	ita "Memoria per gli ordinamenti esaurita. Incrementare il 'sort_buffer' al demone"
@@ -976,7 +976,7 @@ ER_OUT_OF_RESOURCES
 	jps "Out of memory;  mysqld ‚©‚»‚Ì‘¼‚ÌƒvƒƒZƒX‚ªƒƒ‚ƒŠ[‚ð‘S‚ÄŽg‚Á‚Ä‚¢‚é‚©Šm”F‚µ‚Ä‚­‚¾‚³‚¢. ƒƒ‚ƒŠ[‚ðŽg‚¢Ø‚Á‚Ä‚¢‚È‚¢ê‡A'ulimit' ‚ðÝ’è‚µ‚Ä mysqld ‚Ìƒƒ‚ƒŠ[Žg—pŒÀŠE—Ê‚ð‘½‚­‚·‚é‚©Aswap space ‚ð‘‚â‚µ‚Ä‚Ý‚Ä‚­‚¾‚³‚¢",
 	est "Mälu sai otsa. Võimalik, et aitab swap-i lisamine või käsu 'ulimit' abil MySQL-le rohkema mälu kasutamise lubamine"
 	fre "Manque de 'threads'/mémoire"
-	ger "Kein Speicher mehr vorhanden. Prüfen Sie, ob mysqld oder ein anderer Prozess allen Speicher verbraucht. Wenn nicht, sollten Sie mit 'ulimit' dafür sorgen, dass mysqld mehr Speicher benutzen darf, oder mehr Swap-Speicher einrichten"
+	ger "Kein Speicher mehr vorhanden. Prüfen Sie, ob mysqld oder ein anderer Prozess den gesamten Speicher verbraucht. Wenn nicht, sollten Sie mit 'ulimit' dafür sorgen, dass mysqld mehr Speicher benutzen darf, oder mehr Swap-Speicher einrichten"
 	greek "Ðñüâëçìá ìå ôç äéáèÝóéìç ìíÞìç (Out of thread space/memory)"
 	hun "Elfogyott a thread-memoria"
 	ita "Fine dello spazio/memoria per i thread"
@@ -1025,7 +1025,7 @@ ER_HANDSHAKE_ERROR 08S01
 	eng "Bad handshake"
 	est "Väär handshake"
 	fre "Mauvais 'handshake'"
-	ger "Schlechter Handshake"
+	ger "Ungültiger Handshake"
 	greek "Ç áíáãíþñéóç (handshake) äåí Ýãéíå óùóôÜ"
 	hun "A kapcsolatfelvetel nem sikerult (Bad handshake)"
 	ita "Negoziazione impossibile"
@@ -1245,7 +1245,7 @@ ER_NON_UNIQ_ERROR 23000
 	eng "Column '%-.64s' in %-.64s is ambiguous"
 	est "Väli '%-.64s' %-.64s-s ei ole ühene"
 	fre "Champ: '%-.64s' dans %s est ambigu"
-	ger "Spalte '%-.64s' in %-.64s ist nicht eindeutig"
+	ger "Feld '%-.64s' in %-.64s ist nicht eindeutig"
 	greek "Ôï ðåäßï: '%-.64s' óå %-.64s äåí Ý÷åé êáèïñéóôåß"
 	hun "A(z) '%-.64s' oszlop %-.64s-ben ketertelmu"
 	ita "Colonna: '%-.64s' di %-.64s e` ambigua"
@@ -1411,7 +1411,7 @@ ER_TOO_LONG_IDENT 42000 S1009
 	jps "Identifier name '%-.100s' ‚Í’·‚·‚¬‚Ü‚·",
 	est "Identifikaatori '%-.100s' nimi on liiga pikk"
 	fre "Le nom de l'identificateur '%-.64s' est trop long"
-	ger "Name des Bezeichners '%-.64s' ist zu lang"
+	ger "Name des Bezeichners '%-.100s' ist zu lang"
 	greek "Ôï identifier name '%-.100s' åßíáé ðïëý ìåãÜëï"
 	hun "A(z) '%-.100s' azonositonev tul hosszu."
 	ita "Il nome dell'identificatore '%-.100s' e` troppo lungo"
@@ -1436,7 +1436,7 @@ ER_DUP_FIELDNAME 42S21 S1009
 	jps "'%-.64s' ‚Æ‚¢‚¤ column –¼‚Íd•¡‚µ‚Ä‚Ü‚·",
 	est "Kattuv tulba nimi '%-.64s'"
 	fre "Nom du champ '%-.64s' déjà utilisé"
-	ger "Doppelter Spaltenname vorhanden: '%-.64s'"
+	ger "Doppelter Spaltenname: '%-.64s'"
 	greek "ÅðáíÜëçøç column name '%-.64s'"
 	hun "Duplikalt oszlopazonosito: '%-.64s'"
 	ita "Nome colonna duplicato '%-.64s'"
@@ -1461,7 +1461,7 @@ ER_DUP_KEYNAME 42000 S1009
 	jps "'%-.64s' ‚Æ‚¢‚¤ key ‚Ì–¼‘O‚Íd•¡‚µ‚Ä‚¢‚Ü‚·",
 	est "Kattuv võtme nimi '%-.64s'"
 	fre "Nom de clef '%-.64s' déjà utilisé"
-	ger "Doppelter Name für Schlüssel (Key) vorhanden: '%-.64s'"
+	ger "Doppelter Name für Schlüssel vorhanden: '%-.64s'"
 	greek "ÅðáíÜëçøç key name '%-.64s'"
 	hun "Duplikalt kulcsazonosito: '%-.64s'"
 	ita "Nome chiave duplicato '%-.64s'"
@@ -1510,7 +1510,7 @@ ER_WRONG_FIELD_SPEC 42000 S1009
 	eng "Incorrect column specifier for column '%-.64s'"
 	est "Vigane tulba kirjeldus tulbale '%-.64s'"
 	fre "Mauvais paramètre de champ pour le champ '%-.64s'"
-	ger "Falsche Spaltenangaben für Spalte '%-.64s'"
+	ger "Falsche Spezifikation für Feld '%-.64s'"
 	greek "ÅóöáëìÝíï column specifier ãéá ôï ðåäßï '%-.64s'"
 	hun "Rossz oszlopazonosito: '%-.64s'"
 	ita "Specifica errata per la colonna '%-.64s'"
@@ -1608,7 +1608,7 @@ ER_INVALID_DEFAULT 42000 S1009
 	eng "Invalid default value for '%-.64s'"
 	est "Vigane vaikeväärtus '%-.64s' jaoks"
 	fre "Valeur par défaut invalide pour '%-.64s'"
-	ger "Fehlerhafter Vorgabewert (DEFAULT): '%-.64s'"
+	ger "Fehlerhafter Vorgabewert (DEFAULT) für '%-.64s'"
 	greek "ÅóöáëìÝíç ðñïêáèïñéóìÝíç ôéìÞ (default value) ãéá '%-.64s'"
 	hun "Ervenytelen ertek: '%-.64s'"
 	ita "Valore di default non valido per '%-.64s'"
@@ -1632,7 +1632,7 @@ ER_MULTIPLE_PRI_KEY 42000 S1009
 	jps "•¡”‚Ì primary key ‚ª’è‹`‚³‚ê‚Ü‚µ‚½",
 	est "Mitut primaarset võtit ei saa olla"
 	fre "Plusieurs clefs primaires définies"
-	ger "Mehrfacher Primärschlüssel (PRIMARY KEY) definiert"
+	ger "Mehrere Primärschlüssel (PRIMARY KEY) definiert"
 	greek "Ðåñéóóüôåñá áðü Ýíá primary key ïñßóôçêáí"
 	hun "Tobbszoros elsodleges kulcs definialas."
 	ita "Definite piu` chiave primarie"
@@ -1681,7 +1681,7 @@ ER_TOO_MANY_KEY_PARTS 42000 S1009
 	eng "Too many key parts specified; max %d parts allowed"
 	est "Võti koosneb liiga paljudest osadest. Maksimaalselt võib olla %d osa"
 	fre "Trop de parties specifiées dans la clef. Maximum de %d parties"
-	ger "Zu viele Teilschlüssel definiert. Maximal sind %d Teilschlüssel erlaubt"
+	ger "Zu viele Teilschlüssel definiert. Maximal %d Teilschlüssel erlaubt"
 	greek "ÐÜñá ðïëëÜ key parts ïñßóèçêáí. Ôï ðïëý %d åðéôñÝðïíôáé"
 	hun "Tul sok kulcsdarabot definialt. Maximum %d resz engedelyezett"
 	ita "Troppe parti di chiave specificate. Sono ammesse max %d parti"
@@ -1730,7 +1730,7 @@ ER_KEY_COLUMN_DOES_NOT_EXITS 42000 S1009
 	jps "Key column '%-.64s' ‚ªƒe[ƒuƒ‹‚É‚ ‚è‚Ü‚¹‚ñ.",
 	est "Võtme tulp '%-.64s' puudub tabelis"
 	fre "La clé '%-.64s' n'existe pas dans la table"
-	ger "In der Tabelle gibt es keine Schlüsselspalte '%-.64s'"
+	ger "In der Tabelle gibt es kein Schlüsselfeld '%-.64s'"
 	greek "Ôï ðåäßï êëåéäß '%-.64s' äåí õðÜñ÷åé óôïí ðßíáêá"
 	hun "A(z) '%-.64s'kulcsoszlop nem letezik a tablaban"
 	ita "La colonna chiave '%-.64s' non esiste nella tabella"
@@ -1778,7 +1778,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	jps "column '%-.64s' ‚Í,Šm•Û‚·‚é column ‚Ì‘å‚«‚³‚ª‘½‚·‚¬‚Ü‚·. (Å‘å %d ‚Ü‚Å). BLOB ‚ð‚©‚í‚è‚ÉŽg—p‚µ‚Ä‚­‚¾‚³‚¢.",
 	est "Tulba '%-.64s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB väljatüüpi"
 	fre "Champ '%-.64s' trop long (max = %d). Utilisez un BLOB"
-	ger "Feldlänge für Feld '%-.64s' zu groß (maximal %d). BLOB-Feld verwenden!"
+	ger "Feldlänge für Feld '%-.64s' zu groß (maximal %d). BLOB- oder TEXT-Spaltentyp verwenden!"
 	greek "Ðïëý ìåãÜëï ìÞêïò ãéá ôï ðåäßï '%-.64s' (max = %d). Ðáñáêáëþ ÷ñçóéìïðïéåßóôå ôïí ôýðï BLOB"
 	hun "A(z) '%-.64s' oszlop tul hosszu. (maximum = %d). Hasznaljon BLOB tipust inkabb."
 	ita "La colonna '%-.64s' e` troppo grande (max=%d). Utilizza un BLOB."
@@ -1803,7 +1803,7 @@ ER_WRONG_AUTO_KEY 42000 S1009
 	jps "ƒe[ƒuƒ‹‚Ì’è‹`‚ªˆá‚¢‚Ü‚·; there can be only one auto column and it must be defined as a key",
 	est "Vigane tabelikirjeldus; Tabelis tohib olla üks auto_increment tüüpi tulp ning see peab olema defineeritud võtmena"
 	fre "Un seul champ automatique est permis et il doit être indexé"
-	ger "Falsche Tabellendefinition. Es darf nur ein Auto-Feld geben und dieses muss als Schlüssel definiert werden"
+	ger "Falsche Tabellendefinition. Es darf nur eine AUTO_INCREMENT-Spalte geben, und diese muss als Schlüssel definiert werden"
 	greek "Ìðïñåß íá õðÜñ÷åé ìüíï Ýíá auto field êáé ðñÝðåé íá Ý÷åé ïñéóèåß óáí key"
 	hun "Csak egy auto mezo lehetseges, es azt kulcskent kell definialni."
 	ita "Puo` esserci solo un campo AUTO e deve essere definito come chiave"
@@ -1828,7 +1828,7 @@ ER_READY
 	jps "%s: €”õŠ®—¹",
 	est "%s: ootab ühendusi"
 	fre "%s: Prêt pour des connections"
-	ger "%-.64s: Bereit für Verbindungen"
+	ger "%-.64s: Bereit für Verbindungen.\nVersion: '%2'  Socket: '%s'  Port: %d"
 	greek "%s: óå áíáìïíÞ óõíäÝóåùí"
 	hun "%s: kapcsolatra kesz"
 	ita "%s: Pronto per le connessioni\n"
@@ -1901,7 +1901,7 @@ ER_SHUTDOWN_COMPLETE
 	jps "%s: Shutdown Š®—¹\n",
 	est "%s: Lõpp\n"
 	fre "%s: Arrêt du serveur terminé\n"
-	ger "%-.64s: Heruntergefahren (shutdown)\n"
+	ger "%-.64s: Herunterfahren beendet\n"
 	greek "%s: Ç äéáäéêáóßá Shutdown ïëïêëçñþèçêå\n"
 	hun "%s: A leallitas kesz\n"
 	ita "%s: Shutdown completato\n"
@@ -1976,7 +1976,7 @@ ER_NO_SUCH_INDEX 42S12 S1009
 	jps "Table '%-.64s' ‚Í‚»‚Ì‚æ‚¤‚È index ‚ðŽ‚Á‚Ä‚¢‚Ü‚¹‚ñ(CREATE INDEX ŽÀsŽž‚ÉŽw’è‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ). ƒe[ƒuƒ‹‚ðì‚è’¼‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabelil '%-.64s' puuduvad võtmed. Loo tabel uuesti"
 	fre "La table '%-.64s' n'a pas d'index comme celle utilisée dans CREATE INDEX. Recréez la table"
-	ger "Tabelle '%-.64s' besitzt keinen wie den in CREATE INDEX verwendeten Index. Index neu anlegen"
+	ger "Tabelle '%-.64s' besitzt keinen wie den in CREATE INDEX verwendeten Index. Tabelle neu anlegen"
 	greek "Ï ðßíáêáò '%-.64s' äåí Ý÷åé åõñåôÞñéï (index) óáí áõôü ðïõ ÷ñçóéìïðïéåßôå óôçí CREATE INDEX. Ðáñáêáëþ, îáíáäçìéïõñãÞóôå ôïí ðßíáêá"
 	hun "A(z) '%-.64s' tablahoz nincs meg a CREATE INDEX altal hasznalt index. Alakitsa at a tablat"
 	ita "La tabella '%-.64s' non ha nessun indice come quello specificatato dalla CREATE INDEX. Ricrea la tabella"
@@ -2048,7 +2048,7 @@ ER_TEXTFILE_NOT_READABLE
 	jps "ƒtƒ@ƒCƒ‹ '%-.64s' ‚Í databse ‚Ì directory ‚É‚ ‚é‚©‘S‚Ä‚Ìƒ†[ƒU[‚ª“Ç‚ß‚é‚æ‚¤‚É‹–‰Â‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ.",
 	est "Fail '%-.64s' peab asuma andmebaasi kataloogis või olema kõigile loetav"
 	fre "Le fichier '%-.64s' doit être dans le répertoire de la base et lisible par tous"
-	ger "Datei '%-.64s' muss im Datenbank-Verzeichnis vorhanden und lesbar für alle sein"
+	ger "Datei '%-.64s' muss im Datenbank-Verzeichnis vorhanden oder lesbar für alle sein"
 	greek "Ôï áñ÷åßï '%-.64s' ðñÝðåé íá õðÜñ÷åé óôï database directory Þ íá ìðïñåß íá äéáâáóôåß áðü üëïõò"
 	hun "A(z) '%-.64s'-nak az adatbazis konyvtarban kell lennie, vagy mindenki szamara olvashatonak"
 	ita "Il file '%-.64s' deve essere nella directory del database e deve essere leggibile da tutti"
@@ -2073,7 +2073,7 @@ ER_FILE_EXISTS_ERROR
 	jps "File '%-.64s' ‚ÍŠù‚É‘¶Ý‚µ‚Ü‚·",
 	est "Fail '%-.80s' juba eksisteerib"
 	fre "Le fichier '%-.64s' existe déjà"
-	ger "Datei '%-.64s' bereits vorhanden"
+	ger "Datei '%-.80s' bereits vorhanden"
 	greek "Ôï áñ÷åßï '%-.64s' õðÜñ÷åé Þäç"
 	hun "A '%-.64s' file mar letezik."
 	ita "Il file '%-.64s' esiste gia`"
@@ -2147,7 +2147,7 @@ ER_WRONG_SUB_KEY
 	eng "Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys"
 	est "Vigane võtme osa. Kasutatud võtmeosa ei ole string tüüpi, määratud pikkus on pikem kui võtmeosa või tabelihandler ei toeta seda tüüpi võtmeid"
 	fre "Mauvaise sous-clef. Ce n'est pas un 'string' ou la longueur dépasse celle définie dans la clef"
-	ger "Falscher Unterteilschlüssel. Der verwendete Schlüsselteil ist entweder kein String, die verwendete Länge ist länger als der Teilschlüssel oder der Tabellenhandler unterstützt keine Unterteilschlüssel"
+	ger "Falscher Unterteilschlüssel. Der verwendete Schlüsselteil ist entweder kein String, die verwendete Länge ist länger als der Teilschlüssel oder die Speicher-Engine unterstützt keine Unterteilschlüssel"
 	greek "ÅóöáëìÝíï sub part key. Ôï ÷ñçóéìïðïéïýìåíï key part äåí åßíáé string Þ ôï ìÞêïò ôïõ åßíáé ìåãáëýôåñï"
 	hun "Rossz alkulcs. A hasznalt kulcsresz nem karaktersorozat vagy hosszabb, mint a kulcsresz"
 	ita "Sotto-parte della chiave errata. La parte di chiave utilizzata non e` una stringa o la lunghezza e` maggiore della parte di chiave."
@@ -2197,7 +2197,7 @@ ER_CANT_DROP_FIELD_OR_KEY 42000
 	jps "'%-.64s' ‚ð”jŠü‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½; check that column/key exists",
 	est "Ei suuda kustutada '%-.64s'. Kontrolli kas tulp/võti eksisteerib"
 	fre "Ne peut effacer (DROP) '%-.64s'. Vérifiez s'il existe"
-	ger "Kann '%-.64s' nicht löschen. Existiert das Feld / der Schlüssel?"
+	ger "Kann '%-.64s' nicht löschen. Existiert die Spalte oder der Schlüssel?"
 	greek "Áäýíáôç ç äéáãñáöÞ (DROP) '%-.64s'. Ðáñáêáëþ åëÝãîôå áí ôï ðåäßï/êëåéäß õðÜñ÷åé"
 	hun "A DROP '%-.64s' nem lehetseges. Ellenorizze, hogy a mezo/kulcs letezik-e"
 	ita "Impossibile cancellare '%-.64s'. Controllare che il campo chiave esista"
@@ -2325,7 +2325,7 @@ ER_TOO_BIG_SET
 	eng "Too many strings for column %-.64s and SET"
 	est "Liiga palju string tulbale %-.64s tüübile SET"
 	fre "Trop de chaînes dans la colonne %s avec SET"
-	ger "Zu viele Strings für SET-Spalte %-.64s angegeben"
+	ger "Zu viele Strings für Feld %-.64s und SET angegeben"
 	greek "ÐÜñá ðïëëÜ strings ãéá ôï ðåäßï %-.64s êáé SET"
 	hun "Tul sok karakter: %-.64s es SET"
 	ita "Troppe stringhe per la colonna %-.64s e la SET"
@@ -2348,7 +2348,7 @@ ER_NO_UNIQUE_LOGFILE
 	eng "Can't generate a unique log-filename %-.64s.(1-999)\n"
 	est "Ei suuda luua unikaalset logifaili nime %-.64s.(1-999)\n"
 	fre "Ne peut générer un unique nom de journal %s.(1-999)\n"
-	ger "Kann keinen eindeutigen Dateinamen für die Logdatei %-.64s erzeugen (1-999)\n"
+	ger "Kann keinen eindeutigen Dateinamen für die Logdatei %-.64s(1-999) erzeugen\n"
 	greek "Áäýíáôç ç äçìéïõñãßá unique log-filename %-.64s.(1-999)\n"
 	hun "Egyedi log-filenev nem generalhato: %-.64s.(1-999)\n"
 	ita "Impossibile generare un nome del file log unico %-.64s.(1-999)\n"
@@ -2421,7 +2421,7 @@ ER_BLOB_CANT_HAVE_DEFAULT 42000
 	eng "BLOB/TEXT column '%-.64s' can't have a default value"
 	est "BLOB-tüüpi tulp '%-.64s' ei saa omada vaikeväärtust"
 	fre "BLOB '%-.64s' ne peut avoir de valeur par défaut"
-	ger "BLOB-Feld '%-.64s' darf keinen Vorgabewert (DEFAULT) haben"
+	ger "BLOB/TEXT-Feld '%-.64s' darf keinen Vorgabewert (DEFAULT) haben"
 	greek "Ôá Blob ðåäßá '%-.64s' äåí ìðïñïýí íá Ý÷ïõí ðñïêáèïñéóìÝíåò ôéìÝò (default value)"
 	hun "A(z) '%-.64s' blob objektumnak nem lehet alapertelmezett erteke"
 	ita "Il campo BLOB '%-.64s' non puo` avere un valore di default"
@@ -2446,7 +2446,7 @@ ER_WRONG_DB_NAME 42000
 	jps "Žw’è‚µ‚½ database –¼ '%-.100s' ‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·",
 	est "Vigane andmebaasi nimi '%-.100s'"
 	fre "Nom de base de donnée illégal: '%-.64s'"
-	ger "Unerlaubter Datenbankname '%-.64s'"
+	ger "Unerlaubter Datenbankname '%-.100s'"
 	greek "ËÜèïò üíïìá âÜóçò äåäïìÝíùí '%-.100s'"
 	hun "Hibas adatbazisnev: '%-.100s'"
 	ita "Nome database errato '%-.100s'"
@@ -2471,7 +2471,7 @@ ER_WRONG_TABLE_NAME 42000
 	jps "Žw’è‚µ‚½ table –¼ '%-.100s' ‚Í‚Ü‚¿‚ª‚Á‚Ä‚¢‚Ü‚·",
 	est "Vigane tabeli nimi '%-.100s'"
 	fre "Nom de table illégal: '%-.64s'"
-	ger "Unerlaubter Tabellenname '%-.64s'"
+	ger "Unerlaubter Tabellenname '%-.100s'"
 	greek "ËÜèïò üíïìá ðßíáêá '%-.100s'"
 	hun "Hibas tablanev: '%-.100s'"
 	ita "Nome tabella errato '%-.100s'"
@@ -2495,7 +2495,7 @@ ER_TOO_BIG_SELECT 42000
 	eng "The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay"
 	est "SELECT lause peab läbi vaatama suure hulga kirjeid ja võtaks tõenäoliselt liiga kaua aega. Tasub kontrollida WHERE klauslit ja vajadusel kasutada käsku SET SQL_BIG_SELECTS=1"
 	fre "SELECT va devoir examiner beaucoup d'enregistrements ce qui va prendre du temps. Vérifiez la clause WHERE et utilisez SET SQL_BIG_SELECTS=1 si SELECT se passe bien"
-	ger "Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange dauern. Bitte WHERE-Klausel überprüfen oder gegebenenfalls SET SQL_BIG_SELECTS=1 oder SET SQL_MAX_JOIN_SIZE=# verwenden"
+	ger "Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange dauern. Bitte WHERE-Klausel überprüfen und gegebenenfalls SET SQL_BIG_SELECTS=1 oder SET SQL_MAX_JOIN_SIZE=# verwenden"
 	greek "Ôï SELECT èá åîåôÜóåé ìåãÜëï áñéèìü åããñáöþí êáé ðéèáíþò èá êáèõóôåñÞóåé. Ðáñáêáëþ åîåôÜóôå ôéò ðáñáìÝôñïõò ôïõ WHERE êáé ÷ñçóéìïðïéåßóôå SET SQL_BIG_SELECTS=1 áí ôï SELECT åßíáé óùóôü"
 	hun "A SELECT tul sok rekordot fog megvizsgalni es nagyon sokaig fog tartani. Ellenorizze a WHERE-t es hasznalja a SET SQL_BIG_SELECTS=1 beallitast, ha a SELECT okay"
 	ita "La SELECT dovrebbe esaminare troppi record e usare troppo tempo. Controllare la WHERE e usa SET SQL_BIG_SELECTS=1 se e` tutto a posto."
@@ -2676,7 +2676,7 @@ ER_UNSUPPORTED_EXTENSION 42000
 	eng "Table '%-.64s' uses an extension that doesn't exist in this MySQL version"
 	est "Tabel '%-.64s' kasutab laiendust, mis ei eksisteeri antud MySQL versioonis"
 	fre "Table '%-.64s' : utilise une extension invalide pour cette version de MySQL"
-	ger "Tabelle '%-.64s' verwendet eine Extension, die in dieser MySQL-Version nicht verfügbar ist"
+	ger "Tabelle '%-.64s' verwendet eine Erweiterung, die in dieser MySQL-Version nicht verfügbar ist"
 	greek "Ï ðßíáêò '%-.64s' ÷ñçóéìïðïéåß êÜðïéï extension ðïõ äåí õðÜñ÷åé óôçí Ýêäïóç áõôÞ ôçò MySQL"
 	hun "A(z) '%-.64s' tabla olyan bovitest hasznal, amely nem letezik ebben a MySQL versioban."
 	ita "La tabella '%-.64s' usa un'estensione che non esiste in questa versione di MySQL"
@@ -2700,7 +2700,7 @@ ER_TABLE_MUST_HAVE_COLUMNS 42000
 	jps "ƒe[ƒuƒ‹‚ÍÅ’á 1 ŒÂ‚Ì column ‚ª•K—v‚Å‚·",
 	est "Tabelis peab olema vähemalt üks tulp"
 	fre "Une table doit comporter au moins une colonne"
-	ger "Eine Tabelle muß mindestens 1 Spalte besitzen"
+	ger "Eine Tabelle muss mindestens eine Spalte besitzen"
 	greek "Åíáò ðßíáêáò ðñÝðåé íá Ý÷åé ôïõëÜ÷éóôïí Ýíá ðåäßï"
 	hun "A tablanak legalabb egy oszlopot tartalmazni kell"
 	ita "Una tabella deve avere almeno 1 colonna"
@@ -2788,7 +2788,7 @@ ER_TOO_MANY_FIELDS
 	jps "column ‚ª‘½‚·‚¬‚Ü‚·",
 	est "Liiga palju tulpasid"
 	fre "Trop de champs"
-	ger "Zu viele Spalten"
+	ger "Zu viele Felder"
 	greek "Ðïëý ìåãÜëïò áñéèìüò ðåäßùí"
 	hun "Tul sok mezo"
 	ita "Troppi campi"
@@ -2810,7 +2810,7 @@ ER_TOO_BIG_ROWSIZE 42000
 	jps "row size ‚ª‘å‚«‚·‚¬‚Ü‚·. BLOB ‚ðŠÜ‚Ü‚È‚¢ê‡‚Ì row size ‚ÌÅ‘å‚Í %d ‚Å‚·. ‚¢‚­‚Â‚©‚Ì field ‚ð BLOB ‚É•Ï‚¦‚Ä‚­‚¾‚³‚¢.",
 	est "Liiga pikk kirje. Kirje maksimumpikkus arvestamata BLOB-tüüpi välju on %d. Muuda mõned väljad BLOB-tüüpi väljadeks"
 	fre "Ligne trop grande. Le taille maximale d'une ligne, sauf les BLOBs, est %d. Changez le type de quelques colonnes en BLOB"
-	ger "Zeilenlänge zu groß. Die maximale Spaltenlänge für den verwendeten Tabellentyp (ohne BLOB-Felder) beträgt %d. Einige Felder müssen in BLOB oder TEXT umgewandelt werden"
+	ger "Zeilenlänge zu groß. Die maximale Zeilenlänge für den verwendeten Tabellentyp (ohne BLOB-Felder) beträgt %ld. Einige Felder müssen in BLOB oder TEXT umgewandelt werden"
 	greek "Ðïëý ìåãÜëï ìÝãåèïò åããñáöÞò. Ôï ìÝãéóôï ìÝãåèïò åããñáöÞò, ÷ùñßò íá õðïëïãßæïíôáé ôá blobs, åßíáé %d. ÐñÝðåé íá ïñßóåôå êÜðïéá ðåäßá óáí blobs"
 	hun "Tul nagy sormeret. A maximalis sormeret (nem szamolva a blob objektumokat) %d. Nehany mezot meg kell valtoztatnia"
 	ita "Riga troppo grande. La massima grandezza di una riga, non contando i BLOB, e` %d. Devi cambiare alcuni campi in BLOB"
@@ -2831,7 +2831,7 @@ ER_STACK_OVERRUN
 	eng "Thread stack overrun:  Used: %ld of a %ld stack.  Use 'mysqld -O thread_stack=#' to specify a bigger stack if needed"
 	jps "Thread stack overrun:  Used: %ld of a %ld stack.  ƒXƒ^ƒbƒN—Ìˆæ‚ð‘½‚­‚Æ‚è‚½‚¢ê‡A'mysqld -O thread_stack=#' ‚ÆŽw’è‚µ‚Ä‚­‚¾‚³‚¢",
 	fre "Débordement de la pile des tâches (Thread stack). Utilisées: %ld pour une pile de %ld.  Essayez 'mysqld -O thread_stack=#' pour indiquer une plus grande valeur"
-	ger "Thread-Stack-Überlauf. Benutzt: %ld von %ld Stack. 'mysqld -O thread_stack=#' verwenen, um notfalls einen größeren Stack anzulegen"
+	ger "Thread-Stack-Überlauf. Benutzt: %ld von %ld Stack. 'mysqld -O thread_stack=#' verwenden, um bei Bedarf einen größeren Stack anzulegen"
 	greek "Stack overrun óôï thread:  Used: %ld of a %ld stack.  Ðáñáêáëþ ÷ñçóéìïðïéåßóôå 'mysqld -O thread_stack=#' ãéá íá ïñßóåôå Ýíá ìåãáëýôåñï stack áí ÷ñåéÜæåôáé"
 	hun "Thread verem tullepes:  Used: %ld of a %ld stack. Hasznalja a 'mysqld -O thread_stack=#' nagyobb verem definialasahoz"
 	ita "Thread stack overrun:  Usati: %ld di uno stack di %ld.  Usa 'mysqld -O thread_stack=#' per specificare uno stack piu` grande."
@@ -3003,15 +3003,15 @@ ER_CANT_OPEN_LIBRARY
 	swe "Kan inte öppna det dynamiska biblioteket '%-.64s' (Felkod: %d %s)"
 	ukr "îÅ ÍÏÖÕ ×¦ÄËÒÉÔÉ ÒÏÚÄ¦ÌÀ×ÁÎÕ Â¦ÂÌ¦ÏÔÅËÕ '%-.64s' (ÐÏÍÉÌËÁ: %d %-.64s)"
 ER_CANT_FIND_DL_ENTRY  
-	cze "Nemohu naj-Bít funkci '%-.64s' v knihovnì'"
-	dan "Kan ikke finde funktionen '%-.64s' i bibliotek'"
+	cze "Nemohu naj-Bít funkci '%-.64s' v knihovnì"
+	dan "Kan ikke finde funktionen '%-.64s' i bibliotek"
 	nla "Kan functie '%-.64s' niet in library vinden"
-	eng "Can't find symbol '%-.64s' in library'"
+	eng "Can't find symbol '%-.64s' in library"
 	jps "function '%-.64s' ‚ðƒ‰ƒCƒuƒ‰ƒŠ[’†‚ÉŒ©•t‚¯‚éŽ–‚ª‚Å‚«‚Ü‚¹‚ñ",
 	est "Ei leia funktsiooni '%-.64s' antud teegis"
-	fre "Impossible de trouver la fonction '%-.64s' dans la bibliothèque'"
+	fre "Impossible de trouver la fonction '%-.64s' dans la bibliothèque"
 	ger "Kann Funktion '%-.64s' in der Library nicht finden"
-	greek "Äåí åßíáé äõíáôÞ ç áíåýñåóç ôçò óõíÜñôçóçò '%-.64s' óôçí âéâëéïèÞêç'"
+	greek "Äåí åßíáé äõíáôÞ ç áíåýñåóç ôçò óõíÜñôçóçò '%-.64s' óôçí âéâëéïèÞêç"
 	hun "A(z) '%-.64s' fuggveny nem talalhato a konyvtarban"
 	ita "Impossibile trovare la funzione '%-.64s' nella libreria"
 	jpn "function '%-.64s' ¤ò¥é¥¤¥Ö¥é¥ê¡¼Ãæ¤Ë¸«ÉÕ¤±¤ë»ö¤¬¤Ç¤­¤Þ¤»¤ó"
@@ -3020,10 +3020,10 @@ ER_CANT_FIND_DL_ENTRY
 	rum "Nu pot gasi functia '%-.64s' in libraria"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÏÔÙÓËÁÔØ ÓÉÍ×ÏÌ '%-.64s' × ÂÉÂÌÉÏÔÅËÅ"
 	serbian "Ne mogu da pronadjem funkciju '%-.64s' u biblioteci"
-	slo "Nemô¾em nájs» funkciu '%-.64s' v kni¾nici'"
-	spa "No puedo encontrar función '%-.64s' en libraria'"
+	slo "Nemô¾em nájs» funkciu '%-.64s' v kni¾nici"
+	spa "No puedo encontrar función '%-.64s' en libraria"
 	swe "Hittar inte funktionen '%-.64s' in det dynamiska biblioteket"
-	ukr "îÅ ÍÏÖÕ ÚÎÁÊÔÉ ÆÕÎËÃ¦À '%-.64s' Õ Â¦ÂÌ¦ÏÔÅÃ¦'"
+	ukr "îÅ ÍÏÖÕ ÚÎÁÊÔÉ ÆÕÎËÃ¦À '%-.64s' Õ Â¦ÂÌ¦ÏÔÅÃ¦"
 ER_FUNCTION_NOT_DEFINED  
 	cze "Funkce '%-.64s' nen-Bí definována"
 	dan "Funktionen '%-.64s' er ikke defineret"
@@ -3198,7 +3198,7 @@ ER_WRONG_VALUE_COUNT_ON_ROW 21S01
 	nla "Kolom aantal komt niet overeen met waarde aantal in rij %ld"
 	eng "Column count doesn't match value count at row %ld"
 	est "Tulpade hulk erineb väärtuste hulgast real %ld"
-	ger "Anzahl der Spalten stimmt nicht mit der Anzahl der Werte in Zeile %ld überein"
+	ger "Anzahl der Felder stimmt nicht mit der Anzahl der Werte in Zeile %ld überein"
 	hun "Az oszlopban talalhato ertek nem egyezik meg a %ld sorban szamitott ertekkel"
 	ita "Il numero delle colonne non corrisponde al conteggio alla riga %ld"
 	kor "Row %ld¿¡¼­ Ä®·³ Ä«¿îÆ®¿Í value Ä«¿îÅÍ¿Í ÀÏÄ¡ÇÏÁö ¾Ê½À´Ï´Ù."
@@ -3276,7 +3276,7 @@ ER_MIX_OF_GROUP_FUNC_AND_FIELDS 42000
 	eng "Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause"
 	est "GROUP tulpade (MIN(),MAX(),COUNT()...) kooskasutamine tavaliste tulpadega ilma GROUP BY klauslita ei ole lubatud"
 	fre "Mélanger les colonnes GROUP (MIN(),MAX(),COUNT()...) avec des colonnes normales est interdit s'il n'y a pas de clause GROUP BY"
-	ger "Das Vermischen von GROUP-Spalten (MIN(),MAX(),COUNT()...) mit Nicht-GROUP-Spalten ist nicht zulässig, wenn keine GROUP BY-Klausel vorhanden ist"
+	ger "Das Vermischen von GROUP-Feldern (MIN(),MAX(),COUNT()...) mit Nicht-GROUP-Feldern ist nicht zulässig, wenn keine GROUP-BY-Klausel vorhanden ist"
 	hun "A GROUP mezok (MIN(),MAX(),COUNT()...) kevert hasznalata nem lehetseges GROUP BY hivatkozas nelkul"
 	ita "Il mescolare funzioni di aggregazione (MIN(),MAX(),COUNT()...) e non e` illegale se non c'e` una clausula GROUP BY"
 	kor "Mixing of GROUP Ä®·³s (MIN(),MAX(),COUNT(),...) with no GROUP Ä®·³s is illegal if there is no GROUP BY clause"
@@ -3315,7 +3315,7 @@ ER_TABLEACCESS_DENIED_ERROR 42000
 	jps "ƒRƒ}ƒ“ƒh %-.16s ‚Í ƒ†[ƒU[ '%-.32s'@'%-.64s' ,ƒe[ƒuƒ‹ '%-.64s' ‚É‘Î‚µ‚Ä‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "%-.16s käsk ei ole lubatud kasutajale '%-.32s'@'%-.64s' tabelis '%-.64s'"
 	fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.32s'@'@%-.64s' sur la table '%-.64s'"
-	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' und für Tabelle '%-.64s'"
+	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' auf Tabelle '%-.64s'"
 	hun "%-.16s parancs a '%-.32s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.64s' tablaban"
 	ita "Comando %-.16s negato per l'utente: '%-.32s'@'%-.64s' sulla tabella '%-.64s'"
 	jpn "¥³¥Þ¥ó¥É %-.16s ¤Ï ¥æ¡¼¥¶¡¼ '%-.32s'@'%-.64s' ,¥Æ¡¼¥Ö¥ë '%-.64s' ¤ËÂÐ¤·¤Æµö²Ä¤µ¤ì¤Æ¤¤¤Þ¤»¤ó"
@@ -3335,7 +3335,7 @@ ER_COLUMNACCESS_DENIED_ERROR 42000
 	jps "ƒRƒ}ƒ“ƒh %-.16s ‚Í ƒ†[ƒU[ '%-.32s'@'%-.64s'\n ƒJƒ‰ƒ€ '%-.64s' ƒe[ƒuƒ‹ '%-.64s' ‚É‘Î‚µ‚Ä‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "%-.16s käsk ei ole lubatud kasutajale '%-.32s'@'%-.64s' tulbale '%-.64s' tabelis '%-.64s'"
 	fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.32s'@'@%-.64s' sur la colonne '%-.64s' de la table '%-.64s'"
-	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' und Spalte '%-.64s' in Tabelle '%-.64s'"
+	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' und Feld '%-.64s' in Tabelle '%-.64s'"
 	hun "%-.16s parancs a '%-.32s'@'%-.64s' felhasznalo szamara nem engedelyezett a '%-.64s' mezo eseten a '%-.64s' tablaban"
 	ita "Comando %-.16s negato per l'utente: '%-.32s'@'%-.64s' sulla colonna '%-.64s' della tabella '%-.64s'"
 	jpn "¥³¥Þ¥ó¥É %-.16s ¤Ï ¥æ¡¼¥¶¡¼ '%-.32s'@'%-.64s'\n ¥«¥é¥à '%-.64s' ¥Æ¡¼¥Ö¥ë '%-.64s' ¤ËÂÐ¤·¤Æµö²Ä¤µ¤ì¤Æ¤¤¤Þ¤»¤ó"
@@ -3419,7 +3419,7 @@ ER_NONEXISTING_TABLE_GRANT 42000
 	eng "There is no such grant defined for user '%-.32s' on host '%-.64s' on table '%-.64s'"
 	est "Sellist õigust ei ole defineeritud kasutajale '%-.32s' masinast '%-.64s' tabelile '%-.64s'"
 	fre "Un tel droit n'est pas défini pour l'utilisateur '%-.32s' sur l'hôte '%-.64s' sur la table '%-.64s'"
-	ger "Keine solche Berechtigung für User '%-.32s' auf Host '%-.64s' an Tabelle '%-.64s'"
+	ger "Eine solche Berechtigung ist für User '%-.32s' auf Host '%-.64s' an Tabelle '%-.64s' nicht definiert"
 	hun "A '%-.32s' felhasznalo szamara a '%-.64s' host '%-.64s' tablajaban ez a parancs nem engedelyezett"
 	ita "GRANT non definita per l'utente '%-.32s' dalla macchina '%-.64s' sulla tabella '%-.64s'"
 	kor "»ç¿ëÀÚ '%-.32s'(È£½ºÆ® '%-.64s')´Â Å×ÀÌºí '%-.64s'¸¦ »ç¿ëÇÏ±â À§ÇÏ¿© Á¤ÀÇµÈ ½ÂÀÎÀº ¾ø½À´Ï´Ù. "
@@ -3455,7 +3455,7 @@ ER_SYNTAX_ERROR 42000
 	eng "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use"
 	est "Viga SQL süntaksis"
 	fre "Erreur de syntaxe"
-	ger "Fehler in der SQL-Syntax. Bitte die korrekte Syntax im Handbuch nachschlagen (diese kann für verschiedene Server-Versionen unterschiedlich sein)"
+	ger "Fehler in der SQL-Syntax. Bitte die korrekte Syntax im Handbuch nachschlagen"
 	greek "You have an error in your SQL syntax"
 	hun "Szintaktikai hiba"
 	ita "Errore di sintassi nella query SQL"
@@ -3538,7 +3538,7 @@ ER_NET_PACKET_TOO_LARGE 08S01
 	eng "Got a packet bigger than 'max_allowed_packet' bytes"
 	est "Saabus suurem pakett kui lubatud 'max_allowed_packet' muutujaga"
 	fre "Paquet plus grand que 'max_allowed_packet' reçu"
-	ger "Empfangenes Paket ist größer als 'max_allowed_packet'"
+	ger "Empfangenes Paket ist größer als 'max_allowed_packet' Bytes"
 	hun "A kapott csomag nagyobb, mint a maximalisan engedelyezett: 'max_allowed_packet'"
 	ita "Ricevuto un pacchetto piu` grande di 'max_allowed_packet'"
 	kor "'max_allowed_packet'º¸´Ù ´õÅ« ÆÐÅ¶À» ¹Þ¾Ò½À´Ï´Ù."
@@ -3556,7 +3556,7 @@ ER_NET_READ_ERROR_FROM_PIPE 08S01
 	eng "Got a read error from the connection pipe"
 	est "Viga ühendustoru lugemisel"
 	fre "Erreur de lecture reçue du pipe de connection"
-	ger "Lese-Fehler bei einer Kommunikations-Pipe"
+	ger "Lese-Fehler bei einer Verbindungs-Pipe"
 	hun "Olvasasi hiba a kapcsolat soran"
 	ita "Rilevato un errore di lettura dalla pipe di connessione"
 	kor "¿¬°á ÆÄÀÌÇÁ·ÎºÎÅÍ ¿¡·¯°¡ ¹ß»ýÇÏ¿´½À´Ï´Ù."
@@ -3700,7 +3700,7 @@ ER_TOO_LONG_STRING 42000
 	eng "Result string is longer than 'max_allowed_packet' bytes"
 	est "Tulemus on pikem kui lubatud 'max_allowed_packet' muutujaga"
 	fre "La chaîne résultat est plus grande que 'max_allowed_packet'"
-	ger "Ergebnis ist länger als 'max_allowed_packet'"
+	ger "Ergebnis-String ist länger als 'max_allowed_packet' Bytes"
 	hun "Ez eredmeny sztring nagyobb, mint a lehetseges maximum: 'max_allowed_packet'"
 	ita "La stringa di risposta e` piu` lunga di 'max_allowed_packet'"
 	por "'String' resultante é mais longa do que 'max_allowed_packet'"
@@ -3717,7 +3717,7 @@ ER_TABLE_CANT_HANDLE_BLOB 42000
 	eng "The used table type doesn't support BLOB/TEXT columns"
 	est "Valitud tabelitüüp ei toeta BLOB/TEXT tüüpi välju"
 	fre "Ce type de table ne supporte pas les colonnes BLOB/TEXT"
-	ger "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Spalten"
+	ger "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Felder"
 	hun "A hasznalt tabla tipus nem tamogatja a BLOB/TEXT mezoket"
 	ita "Il tipo di tabella usata non supporta colonne di tipo BLOB/TEXT"
 	por "Tipo de tabela usado não permite colunas BLOB/TEXT"
@@ -3734,7 +3734,7 @@ ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 42000
 	eng "The used table type doesn't support AUTO_INCREMENT columns"
 	est "Valitud tabelitüüp ei toeta AUTO_INCREMENT tüüpi välju"
 	fre "Ce type de table ne supporte pas les colonnes AUTO_INCREMENT"
-	ger "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Spalten"
+	ger "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Felder"
 	hun "A hasznalt tabla tipus nem tamogatja az AUTO_INCREMENT tipusu mezoket"
 	ita "Il tipo di tabella usata non supporta colonne di tipo AUTO_INCREMENT"
 	por "Tipo de tabela usado não permite colunas AUTO_INCREMENT"
@@ -3751,7 +3751,7 @@ ER_DELAYED_INSERT_TABLE_LOCKED
 	eng "INSERT DELAYED can't be used with table '%-.64s' because it is locked with LOCK TABLES"
 	est "INSERT DELAYED ei saa kasutada tabeli '%-.64s' peal, kuna see on lukustatud LOCK TABLES käsuga"
 	fre "INSERT DELAYED ne peut être utilisé avec la table '%-.64s', car elle est verrouée avec LOCK TABLES"
-	ger "INSERT DELAYED kann nicht auf Tabelle '%-.64s' angewendet werden, da diese mit LOCK TABLES gesperrt ist"
+	ger "INSERT DELAYED kann für Tabelle '%-.64s' nicht verwendet werden, da sie mit LOCK TABLES gesperrt ist"
 	greek "INSERT DELAYED can't be used with table '%-.64s', because it is locked with LOCK TABLES"
 	hun "Az INSERT DELAYED nem hasznalhato a '%-.64s' tablahoz, mert a tabla zarolt (LOCK TABLES)"
 	ita "L'inserimento ritardato (INSERT DELAYED) non puo` essere usato con la tabella '%-.64s', perche` soggetta a lock da 'LOCK TABLES'"
@@ -3792,7 +3792,7 @@ ER_WRONG_KEY_COLUMN 42000
 	eng "The used storage engine can't index column '%-.64s'"
 	est "Tabelihandler ei oska indekseerida tulpa '%-.64s'"
 	fre "Le handler de la table ne peut indexé la colonne '%-.64s'"
-	ger "Der verwendete Tabellen-Handler kann die Spalte '%-.64s' nicht indizieren"
+	ger "Die verwendete Speicher-Engine kann die Spalte '%-.64s' nicht indizieren"
 	greek "The used table handler can't index column '%-.64s'"
 	hun "A hasznalt tablakezelo nem tudja a '%-.64s' mezot indexelni"
 	ita "Il gestore delle tabelle non puo` indicizzare la colonna '%-.64s'"
@@ -3839,7 +3839,7 @@ ER_DUP_UNIQUE 23000
 	eng "Can't write, because of unique constraint, to table '%-.64s'"
 	est "Ei suuda kirjutada tabelisse '%-.64s', kuna see rikub ühesuse kitsendust"
 	fre "Écriture impossible à cause d'un index UNIQUE sur la table '%-.64s'"
-	ger "Schreiben in Tabelle '%-.64s' nicht möglich wegen einer eindeutigen Beschränkung (unique constraint)"
+	ger "Schreiben in Tabelle '%-.64s' nicht möglich wegen einer Eindeutigkeitsbeschränkung (unique constraint)"
 	hun "A '%-.64s' nem irhato, az egyedi mezok miatt"
 	ita "Impossibile scrivere nella tabella '%-.64s' per limitazione di unicita`"
 	por "Não pode gravar, devido à restrição UNIQUE, na tabela '%-.64s'"
@@ -3880,7 +3880,7 @@ ER_PRIMARY_CANT_HAVE_NULL 42000
 	eng "All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead"
 	est "Kõik PRIMARY KEY peavad olema määratletud NOT NULL piiranguga; vajadusel kasuta UNIQUE tüüpi võtit"
 	fre "Toutes les parties d'un index PRIMARY KEY doivent être NOT NULL; Si vous avez besoin d'un NULL dans l'index, utilisez un index UNIQUE"
-	ger "Alle Teile eines PRIMARY KEY müssen als NOT NULL definiert sein. Wenn NULL in einem Schlüssel verwendet wird, muss ein UNIQUE-Schlüssel verwendet werden"
+	ger "Alle Teile eines PRIMARY KEY müssen als NOT NULL definiert sein. Wenn NULL in einem Schlüssel benötigt wird, muss ein UNIQUE-Schlüssel verwendet werden"
 	hun "Az elsodleges kulcs teljes egeszeben csak NOT NULL tipusu lehet; Ha NULL mezot szeretne a kulcskent, hasznalja inkabb a UNIQUE-ot"
 	ita "Tutte le parti di una chiave primaria devono essere dichiarate NOT NULL; se necessitano valori NULL nelle chiavi utilizzare UNIQUE"
 	por "Todas as partes de uma chave primária devem ser não-nulas. Se você precisou usar um valor nulo (NULL) em uma chave, use a cláusula UNIQUE em seu lugar"
@@ -3914,7 +3914,7 @@ ER_REQUIRES_PRIMARY_KEY 42000
 	eng "This table type requires a primary key"
 	est "Antud tabelitüüp nõuab primaarset võtit"
 	fre "Ce type de table nécessite une clé primaire (PRIMARY KEY)"
-	ger "Dieser Tabellentyp benötigt einen PRIMARY KEY"
+	ger "Dieser Tabellentyp benötigt einen Primärschlüssel (PRIMARY KEY)"
 	hun "Az adott tablatipushoz elsodleges kulcs hasznalata kotelezo"
 	ita "Questo tipo di tabella richiede una chiave primaria"
 	por "Este tipo de tabela requer uma chave primária"
@@ -3948,7 +3948,7 @@ ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 	eng "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
 	est "Katse muuta tabelit turvalises rezhiimis ilma WHERE klauslita"
 	fre "Vous êtes en mode 'safe update' et vous essayez de faire un UPDATE sans clause WHERE utilisant un index"
-	ger "MySQL läuft im sicheren Aktualisierungsmodus (safe update mode). Sie haben versucht, eine Tabelle zu aktualisieren, ohne in der WHERE-Klausel eine KEY-Spalte anzugeben"
+	ger "MySQL läuft im sicheren Aktualisierungsmodus (safe update mode). Sie haben versucht, eine Tabelle zu aktualisieren, ohne in der WHERE-Klausel ein KEY-Feld anzugeben"
 	hun "On a biztonsagos update modot hasznalja, es        WHERE that uses a KEY column"
 	ita "In modalita` 'safe update' si e` cercato di aggiornare una tabella senza clausola WHERE su una chiave"
 	por "Você está usando modo de atualização seguro e tentou atualizar uma tabela sem uma cláusula WHERE que use uma coluna chave"
@@ -4100,7 +4100,7 @@ ER_NEW_ABORTING_CONNECTION 08S01
 	eng "Aborted connection %ld to db: '%-.64s' user: '%-.32s' host: '%-.64s' (%-.64s)"
 	est "Ühendus katkestatud %ld andmebaas: '%-.64s' kasutaja: '%-.32s' masin: '%-.64s' (%-.64s)"
 	fre "Connection %ld avortée vers la bd: '%-.64s' utilisateur: '%-.32s' hôte: '%-.64s' (%-.64s)"
-	ger "Verbindungsabbruch  %ld zur Datenbank '%-.64s'. Benutzer: '%-.32s', Host: '%-.64s' (%-.64s)"
+	ger "Abbruch der Verbindung %ld zur Datenbank '%-.64s'. Benutzer: '%-.32s', Host: '%-.64s' (%-.64s)"
 	ita "Interrotta la connessione %ld al db: ''%-.64s' utente: '%-.32s' host: '%-.64s' (%-.64s)"
 	por "Conexão %ld abortada para banco de dados '%-.64s' - usuário '%-.32s' - 'host' '%-.64s' ('%-.64s')"
 	rus "ðÒÅÒ×ÁÎÏ ÓÏÅÄÉÎÅÎÉÅ %ld Ë ÂÁÚÅ ÄÁÎÎÙÈ '%-.64s' ÐÏÌØÚÏ×ÁÔÅÌÑ '%-.32s' Ó ÈÏÓÔÁ '%-.64s' (%-.64s)"
@@ -4137,7 +4137,7 @@ ER_INDEX_REBUILD
 	nla "Gefaald tijdens heropbouw index van gedumpte tabel '%-.64s'"
 	eng "Failed rebuilding the index of  dumped table '%-.64s'"
 	fre "La reconstruction de l'index de la table copiée '%-.64s' a échoué"
-	ger "Neuerstellung des Indizes der Dump-Tabelle '%-.64s' fehlgeschlagen"
+	ger "Neuerstellung des Index der Dump-Tabelle '%-.64s' fehlgeschlagen"
 	greek "Failed rebuilding the index of dumped table '%-.64s'"
 	hun "Failed rebuilding the index of dumped table '%-.64s'"
 	ita "Fallita la ricostruzione dell'indice della tabella copiata '%-.64s'"
@@ -4195,7 +4195,7 @@ ER_FT_MATCHING_KEY_NOT_FOUND
 	eng "Can't find FULLTEXT index matching the column list"
 	est "Ei suutnud leida FULLTEXT indeksit, mis kattuks kasutatud tulpadega"
 	fre "Impossible de trouver un index FULLTEXT correspondant à cette liste de colonnes"
-	ger "Kann keinen FULLTEXT-Index finden, der der Spaltenliste entspricht"
+	ger "Kann keinen FULLTEXT-Index finden, der der Feldliste entspricht"
 	ita "Impossibile trovare un indice FULLTEXT che corrisponda all'elenco delle colonne"
 	por "Não pode encontrar um índice para o texto todo que combine com a lista de colunas"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÏÔÙÓËÁÔØ ÐÏÌÎÏÔÅËÓÔÏ×ÙÊ (FULLTEXT) ÉÎÄÅËÓ, ÓÏÏÔ×ÅÔÓÔ×ÕÀÝÉÊ ÓÐÉÓËÕ ÓÔÏÌÂÃÏ×"
@@ -4283,7 +4283,7 @@ ER_TRANS_CACHE_FULL
 	eng "Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage; increase this mysqld variable and try again"
 	est "Mitme lausendiga transaktsioon nõudis rohkem ruumi kui lubatud 'max_binlog_cache_size' muutujaga. Suurenda muutuja väärtust ja proovi uuesti"
 	fre "Cette transaction à commandes multiples nécessite plus de 'max_binlog_cache_size' octets de stockage, augmentez cette variable de mysqld et réessayez"
-	ger "Transaktionen, die aus mehreren Befehlen bestehen,  benötigen mehr als 'max_binlog_cache_size' Bytes an Speicher. Diese mysqld-Variable bitte vergrössern und erneut versuchen"
+	ger "Transaktionen, die aus mehreren Befehlen bestehen, benötigten mehr als 'max_binlog_cache_size' Bytes an Speicher. Btte vergrössern Sie diese Server-Variable versuchen Sie es noch einmal"
 	ita "La transazione a comandi multipli (multi-statement) ha richiesto piu` di 'max_binlog_cache_size' bytes di disco: aumentare questa variabile di mysqld e riprovare"
 	por "Transações multi-declaradas (multi-statement transactions) requeriram mais do que o valor limite (max_binlog_cache_size) de bytes para armazenagem. Aumente o valor desta variável do mysqld e tente novamente"
 	rus "ôÒÁÎÚÁËÃÉÉ, ×ËÌÀÞÁÀÝÅÊ ÂÏÌØÛÏÅ ËÏÌÉÞÅÓÔ×Ï ËÏÍÁÎÄ, ÐÏÔÒÅÂÏ×ÁÌÏÓØ ÂÏÌÅÅ ÞÅÍ 'max_binlog_cache_size' ÂÁÊÔ. õ×ÅÌÉÞØÔÅ ÜÔÕ ÐÅÒÅÍÅÎÎÕÀ ÓÅÒ×ÅÒÁ mysqld É ÐÏÐÒÏÂÕÊÔÅ ÅÝÅ ÒÁÚ"
@@ -4295,7 +4295,7 @@ ER_SLAVE_MUST_STOP
 	nla "Deze operatie kan niet worden uitgevoerd met een actieve slave, doe eerst STOP SLAVE"
 	eng "This operation cannot be performed with a running slave; run STOP SLAVE first"
 	fre "Cette opération ne peut être réalisée avec un esclave actif, faites STOP SLAVE d'abord"
-	ger "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Bitte zuerst STOP SLAVE ausführen"
+	ger "Diese Operation kann bei einem aktiven Slave nicht durchgeführt werden. Bitte zuerst STOP SLAVE ausführen"
 	ita "Questa operazione non puo' essere eseguita con un database 'slave' che gira, lanciare prima STOP SLAVE"
 	por "Esta operação não pode ser realizada com um 'slave' em execução. Execute STOP SLAVE primeiro"
 	rus "üÔÕ ÏÐÅÒÁÃÉÀ ÎÅ×ÏÚÍÏÖÎÏ ×ÙÐÏÌÎÉÔØ ÐÒÉ ÒÁÂÏÔÁÀÝÅÍ ÐÏÔÏËÅ ÐÏÄÞÉÎÅÎÎÏÇÏ ÓÅÒ×ÅÒÁ. óÎÁÞÁÌÁ ×ÙÐÏÌÎÉÔÅ STOP SLAVE"
@@ -4332,6 +4332,7 @@ ER_BAD_SLAVE
 ER_MASTER_INFO  
 	eng "Could not initialize master info structure; more error messages can be found in the MySQL error log"
 	fre "Impossible d'initialiser les structures d'information de maître, vous trouverez des messages d'erreur supplémentaires dans le journal des erreurs de MySQL"
+	ger "Konnte Master-Info-Struktur nicht initialisieren. Weitere Fehlermeldungen können im MySQL-Error-Log eingesehen werden"
 	serbian "Nisam mogao da inicijalizujem informacionu strukturu glavnog servera, proverite da li imam privilegije potrebne za pristup file-u 'master.info'"
 	swe "Kunde inte initialisera replikationsstrukturerna. See MySQL fel fil för mera information"
 ER_SLAVE_THREAD  
@@ -4339,7 +4340,7 @@ ER_SLAVE_THREAD
 	nla "Kon slave thread niet aanmaken, controleer systeem resources"
 	eng "Could not create slave thread; check system resources"
 	fre "Impossible de créer une tâche esclave, vérifiez les ressources système"
-	ger "Konnte keinen Slave-Thread starten. Bitte System-Ressourcen überprüfen"
+	ger "Konnte Slave-Thread nicht starten. Bitte System-Ressourcen überprüfen"
 	ita "Impossibile creare il thread 'slave', controllare le risorse di sistema"
 	por "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÓÏÚÄÁÔØ ÐÏÔÏË ÐÏÄÞÉÎÅÎÎÏÇÏ ÓÅÒ×ÅÒÁ. ðÒÏ×ÅÒØÔÅ ÓÉÓÔÅÍÎÙÅ ÒÅÓÕÒÓÙ"
@@ -4353,7 +4354,7 @@ ER_TOO_MANY_USER_CONNECTIONS 42000
 	eng "User %-.64s already has more than 'max_user_connections' active connections"
 	est "Kasutajal %-.64s on juba rohkem ühendusi kui lubatud 'max_user_connections' muutujaga"
 	fre "L'utilisateur %-.64s possède déjà plus de 'max_user_connections' connections actives"
-	ger "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen"
+	ger "Benutzer '%-.64s' hat mehr als 'max_user_connections' aktive Verbindungen"
 	ita "L'utente %-.64s ha gia' piu' di 'max_user_connections' connessioni attive"
 	por "Usuário '%-.64s' já possui mais que o valor máximo de conexões (max_user_connections) ativas"
 	rus "õ ÐÏÌØÚÏ×ÁÔÅÌÑ %-.64s ÕÖÅ ÂÏÌØÛÅ ÞÅÍ 'max_user_connections' ÁËÔÉ×ÎÙÈ ÓÏÅÄÉÎÅÎÉÊ"
@@ -4409,7 +4410,7 @@ ER_READ_ONLY_TRANSACTION 25000
 	eng "Update locks cannot be acquired during a READ UNCOMMITTED transaction"
 	est "Uuenduslukke ei saa kasutada READ UNCOMMITTED transaktsiooni käigus"
 	fre "Un verrou en update ne peut être acquit pendant une transaction READ UNCOMMITTED"
-	ger "Während einer READ UNCOMMITED-Transaktion können keine UPDATE-Sperren angefordert werden"
+	ger "Während einer READ-UNCOMMITTED-Transaktion können keine UPDATE-Sperren angefordert werden"
 	ita "I lock di aggiornamento non possono essere acquisiti durante una transazione 'READ UNCOMMITTED'"
 	por "Travamentos de atualização não podem ser obtidos durante uma transação de tipo READ UNCOMMITTED"
 	rus "âÌÏËÉÒÏ×ËÉ ÏÂÎÏ×ÌÅÎÉÊ ÎÅÌØÚÑ ÐÏÌÕÞÉÔØ × ÐÒÏÃÅÓÓÅ ÞÔÅÎÉÑ ÎÅ ÐÒÉÎÑÔÏÊ (× ÒÅÖÉÍÅ READ UNCOMMITTED) ÔÒÁÎÚÁËÃÉÉ"
@@ -4463,7 +4464,7 @@ ER_NO_PERMISSION_TO_CREATE_USER 42000
 	eng "'%-.32s'@'%-.64s' is not allowed to create new users"
 	est "Kasutajal '%-.32s'@'%-.64s' ei ole lubatud luua uusi kasutajaid"
 	fre "'%-.32s'@'%-.64s' n'est pas autorisé à créer de nouveaux utilisateurs"
-	ger "'%-.32s'@'%-.64s' is nicht berechtigt, neue Benutzer hinzuzufügen"
+	ger "'%-.32s'@'%-.64s' ist nicht berechtigt, neue Benutzer hinzuzufügen"
 	ita "A '%-.32s'@'%-.64s' non e' permesso creare nuovi utenti"
 	por "Não é permitido a '%-.32s'@'%-.64s' criar novos usuários"
 	rus "'%-.32s'@'%-.64s' ÎÅ ÒÁÚÒÅÛÁÅÔÓÑ ÓÏÚÄÁ×ÁÔØ ÎÏ×ÙÈ ÐÏÌØÚÏ×ÁÔÅÌÅÊ"
@@ -4488,7 +4489,7 @@ ER_LOCK_DEADLOCK 40001
 	eng "Deadlock found when trying to get lock; try restarting transaction"
 	est "Lukustamisel tekkis tupik (deadlock); alusta transaktsiooni otsast"
 	fre "Deadlock découvert en essayant d'obtenir les verrous : essayez de redémarrer la transaction"
-	ger "Beim Versuch, eine Sperre anzufordern, ist ein Deadlock aufgetreten. Versuchen Sie, die Transaktion erneut zu starten"
+	ger "Beim Versuch, eine Sperre anzufordern, ist ein Deadlock aufgetreten. Versuchen Sie, die Transaktion neu zu starten"
 	ita "Trovato deadlock durante il lock; Provare a far ripartire la transazione"
 	por "Encontrado um travamento fatal (deadlock) quando tentava obter uma trava. Tente reiniciar a transação."
 	rus "÷ÏÚÎÉËÌÁ ÔÕÐÉËÏ×ÁÑ ÓÉÔÕÁÃÉÑ × ÐÒÏÃÅÓÓÅ ÐÏÌÕÞÅÎÉÑ ÂÌÏËÉÒÏ×ËÉ; ðÏÐÒÏÂÕÊÔÅ ÐÅÒÅÚÁÐÕÓÔÉÔØ ÔÒÁÎÚÁËÃÉÀ"
@@ -4512,7 +4513,7 @@ ER_CANNOT_ADD_FOREIGN
 	nla "Kan foreign key beperking niet toevoegen"
 	eng "Cannot add foreign key constraint"
 	fre "Impossible d'ajouter des contraintes d'index externe"
-	ger "Fremdschlüssel-Beschränkung konnte nicht hinzugefügt werden"
+	ger "Fremdschlüssel-Beschränkung kann nicht hinzugefügt werden"
 	ita "Impossibile aggiungere il vincolo di integrita' referenziale (foreign key constraint)"
 	por "Não pode acrescentar uma restrição de chave estrangeira"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÄÏÂÁ×ÉÔØ ÏÇÒÁÎÉÞÅÎÉÑ ×ÎÅÛÎÅÇÏ ËÌÀÞÁ"
@@ -4523,7 +4524,7 @@ ER_NO_REFERENCED_ROW 23000
 	nla "Kan onderliggende rij niet toevoegen: foreign key beperking gefaald"
 	eng "Cannot add or update a child row: a foreign key constraint fails"
 	fre "Impossible d'ajouter un enregistrement fils : une constrainte externe l'empèche"
-	ger "Hinzufügen eines Kind-Datensatzes schlug aufgrund einer Fremdschlüssel-Beschränkung fehl"
+	ger "Hinzufügen oder Aktualisieren eines Kind-Datensatzes schlug aufgrund einer Fremdschlüssel-Beschränkung fehl"
 	greek "Cannot add a child row: a foreign key constraint fails"
 	hun "Cannot add a child row: a foreign key constraint fails"
 	ita "Impossibile aggiungere la riga: un vincolo d'integrita' referenziale non e' soddisfatto"
@@ -4535,7 +4536,7 @@ ER_NO_REFERENCED_ROW 23000
 ER_ROW_IS_REFERENCED 23000 
 	eng "Cannot delete or update a parent row: a foreign key constraint fails"
 	fre "Impossible de supprimer un enregistrement père : une constrainte externe l'empèche"
-	ger "Löschen eines Eltern-Datensatzes schlug aufgrund einer Fremdschlüssel-Beschränkung fehl"
+	ger "Löschen oder Aktualisieren eines Eltern-Datensatzes schlug aufgrund einer Fremdschlüssel-Beschränkung fehl"
 	greek "Cannot delete a parent row: a foreign key constraint fails"
 	hun "Cannot delete a parent row: a foreign key constraint fails"
 	ita "Impossibile cancellare la riga: un vincolo d'integrita' referenziale non e' soddisfatto"
@@ -4589,7 +4590,7 @@ ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT 21000
 	nla "De gebruikte SELECT commando's hebben een verschillend aantal kolommen"
 	eng "The used SELECT statements have a different number of columns"
 	est "Tulpade arv kasutatud SELECT lausetes ei kattu"
-	ger "Die verwendeten SELECT-Befehle liefern eine unterschiedliche Anzahl von Spalten zurück"
+	ger "Die verwendeten SELECT-Befehle liefern eine unterschiedliche Anzahl von Feldern zurück"
 	ita "La SELECT utilizzata ha un numero di colonne differente"
 	por "Os comandos SELECT usados têm diferente número de colunas"
 	rus "éÓÐÏÌØÚÏ×ÁÎÎÙÅ ÏÐÅÒÁÔÏÒÙ ×ÙÂÏÒËÉ (SELECT) ÄÁÀÔ ÒÁÚÎÏÅ ËÏÌÉÞÅÓÔ×Ï ÓÔÏÌÂÃÏ×"
@@ -4600,7 +4601,7 @@ ER_CANT_UPDATE_WITH_READLOCK
 	nla "Kan de query niet uitvoeren vanwege een conflicterende read lock"
 	eng "Can't execute the query because you have a conflicting read lock"
 	est "Ei suuda täita päringut konfliktse luku tõttu"
-	ger "Augrund eines READ LOCK-Konflikts kann die Abfrage nicht ausgeführt werden"
+	ger "Augrund eines READ-LOCK-Konflikts kann die Abfrage nicht ausgeführt werden"
 	ita "Impossibile eseguire la query perche' c'e' un conflitto con in lock di lettura"
 	por "Não posso executar a consulta porque você tem um conflito de travamento de leitura"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÉÓÐÏÌÎÉÔØ ÚÁÐÒÏÓ, ÐÏÓËÏÌØËÕ Õ ×ÁÓ ÕÓÔÁÎÏ×ÌÅÎÙ ËÏÎÆÌÉËÔÕÀÝÉÅ ÂÌÏËÉÒÏ×ËÉ ÞÔÅÎÉÑ"
@@ -4640,7 +4641,7 @@ ER_USER_LIMIT_REACHED 42000
 ER_SPECIFIC_ACCESS_DENIED_ERROR 42000 
 	nla "Toegang geweigerd. U moet het %-.128s privilege hebben voor deze operatie"
 	eng "Access denied; you need the %-.128s privilege for this operation"
-	ger "Befehl nicht zulässig. Hierfür wird die Berechtigung %-.128s benötigt"
+	ger "Kein Zugriff. Hierfür wird die Berechtigung %-.128s benötigt"
 	ita "Accesso non consentito. Serve il privilegio %-.128s per questa operazione"
 	por "Acesso negado. Você precisa o privilégio %-.128s para essa operação"
 	rus "÷ ÄÏÓÔÕÐÅ ÏÔËÁÚÁÎÏ. ÷ÁÍ ÎÕÖÎÙ ÐÒÉ×ÉÌÅÇÉÉ %-.128s ÄÌÑ ÜÔÏÊ ÏÐÅÒÁÃÉÉ"
@@ -4722,7 +4723,7 @@ ER_NOT_SUPPORTED_YET 42000
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
 	nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
 	eng "Got fatal error %d: '%-.128s' from master when reading data from binary log"
-	ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs aufgetreten"
+	ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
 	ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
 	por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
 	rus "ðÏÌÕÞÅÎÁ ÎÅÉÓÐÒÁ×ÉÍÁÑ ÏÛÉÂËÁ %d: '%-.128s' ÏÔ ÇÏÌÏ×ÎÏÇÏ ÓÅÒ×ÅÒÁ × ÐÒÏÃÅÓÓÅ ×ÙÂÏÒËÉ ÄÁÎÎÙÈ ÉÚ Ä×ÏÉÞÎÏÇÏ ÖÕÒÎÁÌÁ"
@@ -4737,11 +4738,12 @@ ER_SLAVE_IGNORED_TABLE
 ER_INCORRECT_GLOBAL_LOCAL_VAR  
 	eng "Variable '%-.64s' is a %s variable"
 	serbian "Incorrect foreign key definition for '%-.64s': %s"
+	ger "Variable '%-.64s' ist eine %s-Variable"
 	spa "Variable '%-.64s' es una %s variable"
 	swe "Variabel '%-.64s' är av typ %s"
 ER_WRONG_FK_DEF 42000 
 	eng "Incorrect foreign key definition for '%-.64s': %s"
-	ger "Falsche Fremdschlüssel-Definition für '%-64s': %s"
+	ger "Falsche Fremdschlüssel-Definition für '%-.64s': %s"
 	por "Definição errada da chave estrangeira para '%-.64s': %s"
 	spa "Equivocada definición de llave extranjera para '%-.64s': %s"
 	swe "Felaktig FOREIGN KEY-definition för '%-.64s': %s"
@@ -4753,7 +4755,7 @@ ER_KEY_REF_DO_NOT_MATCH_TABLE_REF
 	swe "Nyckelreferensen och tabellreferensen stämmer inte överens"
 ER_OPERAND_COLUMNS 21000 
 	eng "Operand should contain %d column(s)"
-	ger "Operand solle %d Spalte(n) enthalten"
+	ger "Operand sollte %d Spalte(n) enthalten"
 	rus "ïÐÅÒÁÎÄ ÄÏÌÖÅÎ ÓÏÄÅÒÖÁÔØ %d ËÏÌÏÎÏË"
 	spa "Operando debe tener %d columna(s)"
 	ukr "ïÐÅÒÁÎÄ ÍÁ¤ ÓËÌÁÄÁÔÉÓÑ Ú %d ÓÔÏ×ÂÃ¦×"
@@ -4789,7 +4791,7 @@ ER_CYCLIC_REFERENCE
 	ukr "ãÉËÌ¦ÞÎÅ ÐÏÓÉÌÁÎÎÑ ÎÁ Ð¦ÄÚÁÐÉÔ"
 ER_AUTO_CONVERT  
 	eng "Converting column '%s' from %s to %s"
-	ger "Spalte '%s' wird von %s nach %s umgewandelt"
+	ger "Feld '%s' wird von %s nach %s umgewandelt"
 	por "Convertendo coluna '%s' de %s para %s"
 	rus "ðÒÅÏÂÒÁÚÏ×ÁÎÉÅ ÐÏÌÑ '%s' ÉÚ %s × %s"
 	spa "Convirtiendo columna '%s' de %s para %s"
@@ -4831,7 +4833,7 @@ ER_NOT_SUPPORTED_AUTH_MODE 08004
 	swe "Klienten stöder inte autentiseringsprotokollet som begärts av servern; överväg uppgradering av klientprogrammet."
 ER_SPATIAL_CANT_HAVE_NULL 42000 
 	eng "All parts of a SPATIAL index must be NOT NULL"
-	ger "Alle Teile eines SPATIAL index müssen als NOT NULL deklariert sein"
+	ger "Alle Teile eines SPATIAL-Index müssen als NOT NULL deklariert sein"
 	por "Todas as partes de uma SPATIAL index devem ser NOT NULL"
 	spa "Todas las partes de una SPATIAL index deben ser NOT NULL"
 	swe "Alla delar av en SPATIAL index måste vara NOT NULL"
@@ -4855,12 +4857,12 @@ ER_SLAVE_WAS_NOT_RUNNING
 	swe "Slaven har redan stoppat"
 ER_TOO_BIG_FOR_UNCOMPRESS  
 	eng "Uncompressed data size too large; the maximum size is %d (probably, length of uncompressed data was corrupted)"
-	ger "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d"
+	ger "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)"
 	por "Tamanho muito grande dos dados des comprimidos. O máximo tamanho é %d. (provavelmente, o comprimento dos dados descomprimidos está corrupto)"
 	spa "Tamaño demasiado grande para datos descomprimidos. El máximo tamaño es %d. (probablemente, extensión de datos descomprimidos fué corrompida)"
 ER_ZLIB_Z_MEM_ERROR  
 	eng "ZLIB: Not enough memory"
-	ger "ZLIB: Steht nicht genug Speicher zur Verfügung"
+	ger "ZLIB: Nicht genug Speicher"
 	por "ZLIB: Não suficiente memória disponível"
 	spa "Z_MEM_ERROR: No suficiente memoria para zlib"
 ER_ZLIB_Z_BUF_ERROR  
@@ -4882,27 +4884,27 @@ ER_CUT_VALUE_GROUP_CONCAT
 	ukr "%d line(s) was(were) cut by group_concat()"
 ER_WARN_TOO_FEW_RECORDS 01000 
 	eng "Row %ld doesn't contain data for all columns"
-	ger "Anzahl der Datensätze in Zeile %ld geringer als Anzahl der Spalten"
+	ger "Zeile %ld enthält nicht für alle Felder Daten"
 	por "Conta de registro é menor que a conta de coluna na linha %ld"
 	spa "Línea %ld no contiene datos para todas las columnas"
 ER_WARN_TOO_MANY_RECORDS 01000 
 	eng "Row %ld was truncated; it contained more data than there were input columns"
-	ger "Anzahl der Datensätze in Zeile %ld größer als Anzahl der Spalten"
+	ger "Zeile %ld gekürzt, die Zeile enthielt mehr Daten, als es Eingabefelder gibt"
 	por "Conta de registro é maior que a conta de coluna na linha %ld"
 	spa "Línea %ld fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
 ER_WARN_NULL_TO_NOTNULL 22004 
 	eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %ld"
-	ger "Daten abgeschnitten, NULL für NOT NULL-Spalte '%s' in Zeile %ld angegeben"
+	ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %ld angegeben"
 	por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
 	spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
 	eng "Out of range value adjusted for column '%s' at row %ld"
-	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Spalte '%s' in Zeile %ld"
+	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Feld '%s' in Zeile %ld"
 	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
 	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
 WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
-	ger "Daten abgeschnitten für Spalte '%s' in Zeile %ld"
+	ger "Daten abgeschnitten für Feld '%s' in Zeile %ld"
 	por "Dado truncado para coluna '%s' na linha %ld"
 	spa "Datos truncados para columna '%s' en la línea %ld"
 ER_WARN_USING_OTHER_HANDLER  
@@ -4913,40 +4915,40 @@ ER_WARN_USING_OTHER_HANDLER
 	swe "Använder handler %s för tabell '%s'"
 ER_CANT_AGGREGATE_2COLLATIONS  
 	eng "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'"
-	ger "Unerlaubte Vermischung der Kollationen (%s,%s) und (%s,%s) für die Operation '%s'"
+	ger "Unerlaubte Mischung von Sortierreihenfolgen (%s, %s) und (%s, %s) für Operation '%s'"
 	por "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'"
 	spa "Ilegal mezcla de collations (%s,%s) y (%s,%s) para operación '%s'"
 ER_DROP_USER  
 	eng "Cannot drop one or more of the requested users"
 	ger "Kann einen oder mehrere der angegebenen Benutzer nicht löschen"
 ER_REVOKE_GRANTS  
-	eng "Can't revoke all privileges, grant for one or more of the requested users"
-	ger "Kann nicht alle Berechtigungen widerrufen, grant for one or more of the requested users"
+	eng "Can't revoke all privileges for one or more of the requested users"
+	ger "Kann nicht alle Berechtigungen widerrufen, die für einen oder mehrere Benutzer gewährt wurden"
 	por "Não pode revocar todos os privilégios, grant para um ou mais dos usuários pedidos"
 	spa "No puede revocar todos los privilegios, derecho para uno o mas de los usuarios solicitados"
 ER_CANT_AGGREGATE_3COLLATIONS  
 	eng "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'"
-	ger "Unerlaubte Vermischung der Kollationen (%s,%s), (%s,%s), (%s,%s) für die Operation '%s'"
+	ger "Unerlaubte Mischung von Sortierreihenfolgen (%s, %s), (%s, %s), (%s, %s) für Operation '%s'"
 	por "Ilegal combinação de collations (%s,%s), (%s,%s), (%s,%s) para operação '%s'"
 	spa "Ilegal mezcla de collations (%s,%s), (%s,%s), (%s,%s) para operación '%s'"
 ER_CANT_AGGREGATE_NCOLLATIONS  
 	eng "Illegal mix of collations for operation '%s'"
-	ger "Unerlaubte Vermischung der Kollationen für die Operation '%s'"
+	ger "Unerlaubte Mischung von Sortierreihenfolgen für Operation '%s'"
 	por "Ilegal combinação de collations para operação '%s'"
 	spa "Ilegal mezcla de collations para operación '%s'"
 ER_VARIABLE_IS_NOT_STRUCT  
 	eng "Variable '%-.64s' is not a variable component (can't be used as XXXX.variable_name)"
-	ger "Variable '%-.64s' ist keine Variablen-Komponenten (kann nicht als XXXX.variablen_name verwendet werden)"
+	ger "Variable '%-.64s' ist keine Variablen-Komponente (kann nicht als XXXX.variablen_name verwendet werden)"
 	por "Variável '%-.64s' não é uma variável componente (Não pode ser usada como XXXX.variável_nome)"
 	spa "Variable '%-.64s' no es una variable componente (No puede ser usada como XXXX.variable_name)"
 ER_UNKNOWN_COLLATION  
 	eng "Unknown collation: '%-.64s'"
-	ger "Unbekannte Kollation: '%-.64s'"
+	ger "Unbekannte Sortierreihenfolge: '%-.64s'"
 	por "Collation desconhecida: '%-.64s'"
 	spa "Collation desconocida: '%-.64s'"
 ER_SLAVE_IGNORED_SSL_PARAMS  
 	eng "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later if MySQL slave with SSL is started"
-	ger "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn der MySQL-Slave mit SSL gestartet wird"
+	ger "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn ein MySQL-Slave mit SSL gestartet wird"
 	por "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado."
 	spa "Parametros SSL en CHANGE MASTER son ignorados porque este slave MySQL fue compilado sin soporte SSL; pueden ser usados despues cuando el slave MySQL con SSL sea inicializado"
 ER_SERVER_IS_IN_SECURE_AUTH_MODE  
@@ -4969,7 +4971,7 @@ ER_BAD_SLAVE_UNTIL_COND
 	spa "Parametro equivocado o combinación de parametros para START SLAVE UNTIL"
 ER_MISSING_SKIP_SLAVE  
 	eng "It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart"
-	ger "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet"
+	ger "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn ein Slave-Server unerwartet neu startet"
 	por "É recomendado para rodar com --skip-slave-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo"
 	spa "Es recomendado rodar con --skip-slave-start cuando haciendo replicación step-by-step con START SLAVE UNTIL, a menos que usted no esté seguro en caso de inesperada reinicialización del mysqld slave"
 ER_UNTIL_COND_IGNORED  
@@ -4979,16 +4981,19 @@ ER_UNTIL_COND_IGNORED
 	spa "SQL thread no es inicializado tal que opciones UNTIL son ignoradas"
 ER_WRONG_NAME_FOR_INDEX 42000 
 	eng "Incorrect index name '%-.100s'"
+	ger "Falscher Indexname '%-.100s'"
 	por "Incorreto nome de índice '%-.100s'"
 	spa "Nombre de índice incorrecto '%-.100s'"
 	swe "Felaktigt index namn '%-.100s'"
 ER_WRONG_NAME_FOR_CATALOG 42000 
 	eng "Incorrect catalog name '%-.100s'"
+	ger "Falscher Katalogname '%-.100s'"
 	por "Incorreto nome de catálogo '%-.100s'"
 	spa "Nombre de catalog incorrecto '%-.100s'"
 	swe "Felaktigt katalog namn '%-.100s'"
 ER_WARN_QC_RESIZE  
 	eng "Query cache failed to set size %lu; new query cache size is %lu"
+	ger "Änderung der Query-Cache-Größe auf %lu fehlgeschlagen; neue Query-Cache-Größe ist %lu"
 	por "Falha em Query cache para configurar tamanho %lu, novo tamanho de query cache é %lu"
 	rus "ëÅÛ ÚÁÐÒÏÓÏ× ÎÅ ÍÏÖÅÔ ÕÓÔÁÎÏ×ÉÔØ ÒÁÚÍÅÒ %lu, ÎÏ×ÙÊ ÒÁÚÍÅÒ ËÅÛÁ ÚÐÒÏÓÏ× - %lu"
 	spa "Query cache fallada para configurar tamaño %lu, nuevo tamaño de query cache es %lu"
@@ -4996,28 +5001,34 @@ ER_WARN_QC_RESIZE
 	ukr "ëÅÛ ÚÁÐÉÔ¦× ÎÅÓÐÒÏÍÏÖÅÎ ×ÓÔÁÎÏ×ÉÔÉ ÒÏÚÍ¦Ò %lu, ÎÏ×ÉÊ ÒÏÚÍ¦Ò ËÅÛÁ ÚÁÐÉÔ¦× - %lu"
 ER_BAD_FT_COLUMN  
 	eng "Column '%-.64s' cannot be part of FULLTEXT index"
+	ger "Feld '%-.64s' kann nicht Teil eines FULLTEXT-Index sein"
 	por "Coluna '%-.64s' não pode ser parte de índice FULLTEXT"
 	spa "Columna '%-.64s' no puede ser parte de FULLTEXT index"
 	swe "Kolumn '%-.64s' kan inte vara del av ett FULLTEXT index"
 ER_UNKNOWN_KEY_CACHE  
 	eng "Unknown key cache '%-.100s'"
+	ger "Unbekannter Schlüssel-Cache '%-.100s'"
 	por "Key cache desconhecida '%-.100s'"
 	spa "Desconocida key cache '%-.100s'"
 	swe "Okänd nyckel cache '%-.100s'"
 ER_WARN_HOSTNAME_WONT_WORK  
 	eng "MySQL is started in --skip-name-resolve mode; you must restart it without this switch for this grant to work"
+	ger "MySQL wurde mit --skip-name-resolve gestartet. Diese Option darf nicht verwendet werden, damit diese Rechtevergabe möglich ist"
 	por "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar"
 	spa "MySQL esta inicializado en modo --skip-name-resolve. Usted necesita reinicializarlo sin esta opción para este derecho funcionar"
 ER_UNKNOWN_STORAGE_ENGINE 42000 
 	eng "Unknown table engine '%s'"
+	ger "Unbekannte Speicher-Engine '%s'"
 	por "Motor de tabela desconhecido '%s'"
 	spa "Desconocido motor de tabla '%s'"
 ER_WARN_DEPRECATED_SYNTAX  
 	eng "'%s' is deprecated; use '%s' instead"
+	ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
 	por "'%s' é desatualizado. Use '%s' em seu lugar"
 	spa "'%s' está desaprobado, use '%s' en su lugar"
 ER_NON_UPDATABLE_TABLE  
 	eng "The target table %-.100s of the %s is not updatable"
+	ger "Die Zieltabelle %-.100s von %s ist nicht aktualisierbar"
 	por "A tabela destino %-.100s do %s não é atualizável"
 	rus "ôÁÂÌÉÃÁ %-.100s × %s ÎÅ ÍÏÖÅÔ ÉÚÍÅÎÑÔÓÑ"
 	spa "La tabla destino %-.100s del %s no es actualizable"
@@ -5025,406 +5036,568 @@ ER_NON_UPDATABLE_TABLE
 	ukr "ôÁÂÌÉÃÑ %-.100s Õ %s ÎÅ ÍÏÖÅ ÏÎÏ×ÌÀ×ÁÔÉÓØ"
 ER_FEATURE_DISABLED  
 	eng "The '%s' feature is disabled; you need MySQL built with '%s' to have it working"
+	ger "Das Feature '%s' ist ausgeschaltet, Sie müssen MySQL mit '%s' übersetzen, damit es verfügbar ist"
 	por "O recurso '%s' foi desativado; você necessita MySQL construído com '%s' para ter isto funcionando"
 	spa "El recurso '%s' fue deshabilitado; usted necesita construir MySQL con '%s' para tener eso funcionando"
 	swe "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definerad"
 ER_OPTION_PREVENTS_STATEMENT  
 	eng "The MySQL server is running with the %s option so it cannot execute this statement"
+	ger "Der MySQL-Server läuft mit der Option %s und kann diese Anweisung deswegen nicht ausführen"
 	por "O servidor MySQL está rodando com a opção %s razão pela qual não pode executar esse commando"
 	spa "El servidor MySQL está rodando con la opción %s tal que no puede ejecutar este comando"
 	swe "MySQL är startad med --skip-grant-tables. Pga av detta kan du inte använda detta kommando"
 ER_DUPLICATED_VALUE_IN_TYPE  
 	eng "Column '%-.100s' has duplicated value '%-.64s' in %s"
+	ger "Feld '%-.100s' hat doppelten Wert '%-.64s' in %s"
 	por "Coluna '%-.100s' tem valor duplicado '%-.64s' em %s"
 	spa "Columna '%-.100s' tiene valor doblado '%-.64s' en %s"
 ER_TRUNCATED_WRONG_VALUE 22007 
 	eng "Truncated incorrect %-.32s value: '%-.128s'"
+	ger "Falscher %-.32s-Wert gekürzt: '%-.128s'"
 	por "Truncado errado %-.32s valor: '%-.128s'"
 	spa "Equivocado truncado %-.32s valor: '%-.128s'"
 ER_TOO_MUCH_AUTO_TIMESTAMP_COLS  
 	eng "Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+	ger "Fehlerhafte Tabellendefinition. Es kann nur eine einzige TIMESTAMP-Spalte mit CURRENT_TIMESTAMP als DEFAULT oder in einer ON-UPDATE-Klausel geben"
 	por "Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
 	spa "Incorrecta definición de tabla; Solamente debe haber una columna TIMESTAMP con CURRENT_TIMESTAMP en DEFAULT o ON UPDATE cláusula"
 ER_INVALID_ON_UPDATE  
 	eng "Invalid ON UPDATE clause for '%-.64s' column"
+	ger "Ungültige ON-UPDATE-Klausel für Spalte '%-.64s'"
 	por "Inválida cláusula ON UPDATE para campo '%-.64s'"
 	spa "Inválido ON UPDATE cláusula para campo '%-.64s'"
 ER_UNSUPPORTED_PS  
 	eng "This command is not supported in the prepared statement protocol yet"
+	ger "Dieser Befehl wird im Protokoll für vorbereitete Anweisungen noch nicht unterstützt"
 ER_GET_ERRMSG  
 	dan "Modtog fejl %d '%-.100s' fra %s"
 	eng "Got error %d '%-.100s' from %s"
+	ger "Fehler %d '%-.100s' von %s"
 	nor "Mottok feil %d '%-.100s' fa %s"
 	norwegian-ny "Mottok feil %d '%-.100s' fra %s"
 ER_GET_TEMPORARY_ERRMSG  
 	dan "Modtog temporary fejl %d '%-.100s' fra %s"
 	eng "Got temporary error %d '%-.100s' from %s"
+	ger "Temporärer Fehler %d '%-.100s' von %s"
 	nor "Mottok temporary feil %d '%-.100s' fra %s"
 	norwegian-ny "Mottok temporary feil %d '%-.100s' fra %s"
 ER_UNKNOWN_TIME_ZONE  
 	eng "Unknown or incorrect time zone: '%-.64s'"
+	ger "Unbekannte oder falsche Zeitzone: '%-.64s'"
 ER_WARN_INVALID_TIMESTAMP  
 	eng "Invalid TIMESTAMP value in column '%s' at row %ld"
+	ger "Ungültiger TIMESTAMP-Wert in Feld '%s', Zeile %ld"
 ER_INVALID_CHARACTER_STRING  
 	eng "Invalid %s character string: '%.64s'"
+	ger "Ungültiger %s-Zeichen-String: '%.64s'"
 ER_WARN_ALLOWED_PACKET_OVERFLOWED  
 	eng "Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+	ger "Ergebnis von %s() war größer als max_allowed_packet (%ld) Bytes und wurde deshalb gekürzt"
 ER_CONFLICTING_DECLARATIONS  
 	eng "Conflicting declarations: '%s%s' and '%s%s'"
+	ger "Widersprüchliche Deklarationen: '%s%s' und '%s%s'"
 ER_SP_NO_RECURSIVE_CREATE 2F003 
 	eng "Can't create a %s from within another stored routine"
+	ger "Kann kein %s innerhalb einer anderen gespeicherten Routine erzeugen"
 ER_SP_ALREADY_EXISTS 42000 
 	eng "%s %s already exists"
+	ger "%s %s existiert bereits"
 ER_SP_DOES_NOT_EXIST 42000 
 	eng "%s %s does not exist"
+	ger "%s %s existiert nicht"
 ER_SP_DROP_FAILED  
 	eng "Failed to DROP %s %s"
+	ger "DROP %s %s ist fehlgeschlagen"
 ER_SP_STORE_FAILED  
 	eng "Failed to CREATE %s %s"
+	ger "CREATE %s %s ist fehlgeschlagen"
 ER_SP_LILABEL_MISMATCH 42000 
 	eng "%s with no matching label: %s"
+	ger "%s ohne passende Marke: %s"
 ER_SP_LABEL_REDEFINE 42000 
 	eng "Redefining label %s"
+	ger "Neudefinition der Marke %s"
 ER_SP_LABEL_MISMATCH 42000 
 	eng "End-label %s without match"
+	ger "Ende-Marke %s ohne zugehörigen Anfang"
 ER_SP_UNINIT_VAR 01000 
 	eng "Referring to uninitialized variable %s"
+	ger "Zugriff auf nichtinitialisierte Variable %s"
 ER_SP_BADSELECT 0A000 
 	eng "PROCEDURE %s can't return a result set in the given context"
+	ger "PROCEDURE %s kann im gegebenen Kontext keine Ergebnismenge zurückgeben"
 ER_SP_BADRETURN 42000 
 	eng "RETURN is only allowed in a FUNCTION"
+	ger "RETURN ist nur innerhalb einer FUNCTION erlaubt"
 ER_SP_BADSTATEMENT 0A000 
 	eng "%s is not allowed in stored procedures"
+	ger "%s ist in gespeicherten Prozeduren nicht erlaubt"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
 	eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
+	ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert"
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
 	eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
+	ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt"
 ER_QUERY_INTERRUPTED 70100 
 	eng "Query execution was interrupted"
+	ger "Ausführung der Abfrage wurde unterbrochen"
 ER_SP_WRONG_NO_OF_ARGS 42000 
 	eng "Incorrect number of arguments for %s %s; expected %u, got %u"
+	ger "Falsche Anzahl von Argumenten für %s %s; erwarte %u, erhalte %u"
 ER_SP_COND_MISMATCH 42000 
 	eng "Undefined CONDITION: %s"
+	ger "Undefinierte CONDITION: %s"
 ER_SP_NORETURN 42000 
 	eng "No RETURN found in FUNCTION %s"
+	ger "Kein RETURN in FUNCTION %s gefunden"
 ER_SP_NORETURNEND 2F005 
 	eng "FUNCTION %s ended without RETURN"
+	ger "FUNCTION %s endete ohne RETURN"
 ER_SP_BAD_CURSOR_QUERY 42000 
 	eng "Cursor statement must be a SELECT"
+	ger "Cursor-Anweisung muss ein SELECT sein"
 ER_SP_BAD_CURSOR_SELECT 42000 
 	eng "Cursor SELECT must not have INTO"
+	ger "Cursor-SELECT darf kein INTO haben"
 ER_SP_CURSOR_MISMATCH 42000 
 	eng "Undefined CURSOR: %s"
+	ger "Undefinierter CURSOR: %s"
 ER_SP_CURSOR_ALREADY_OPEN 24000 
 	eng "Cursor is already open"
+	ger "Cursor ist schon geöffnet"
 ER_SP_CURSOR_NOT_OPEN 24000 
 	eng "Cursor is not open"
+	ger "Cursor ist nicht geöffnet"
 ER_SP_UNDECLARED_VAR 42000 
 	eng "Undeclared variable: %s"
+	ger "Nicht deklarierte Variable: %s"
 ER_SP_WRONG_NO_OF_FETCH_ARGS  
 	eng "Incorrect number of FETCH variables"
+	ger "Falsche Anzahl von FETCH-Variablen"
 ER_SP_FETCH_NO_DATA 02000 
 	eng "No data to FETCH"
+	ger "Keine Daten mit FETCH abzuholen"
 ER_SP_DUP_PARAM 42000 
 	eng "Duplicate parameter: %s"
+	ger "Doppelter Parameter: %s"
 ER_SP_DUP_VAR 42000 
 	eng "Duplicate variable: %s"
+	ger "Doppelte Variable: %s"
 ER_SP_DUP_COND 42000 
 	eng "Duplicate condition: %s"
+	ger "Doppelte Bedingung: %s"
 ER_SP_DUP_CURS 42000 
 	eng "Duplicate cursor: %s"
+	ger "Doppelter Cursor: %s"
 ER_SP_CANT_ALTER  
 	eng "Failed to ALTER %s %s"
+	ger "ALTER %s %s fehlgeschlagen"
 ER_SP_SUBSELECT_NYI 0A000 
 	eng "Subselect value not supported"
+	ger "Subselect-Wert wird nicht unterstützt"
 ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 0A000
         eng "%s is not allowed in stored function or trigger"
+	ger "%s ist in gespeicherten Funktionen und in Triggern nicht erlaubt"
 ER_SP_VARCOND_AFTER_CURSHNDLR 42000 
 	eng "Variable or condition declaration after cursor or handler declaration"
+	ger "Deklaration einer Variablen oder einer Bedingung nach der Deklaration eines Cursors oder eines Handlers"
 ER_SP_CURSOR_AFTER_HANDLER 42000 
 	eng "Cursor declaration after handler declaration"
+	ger "Deklaration eines Cursors nach der Deklaration eines Handlers"
 ER_SP_CASE_NOT_FOUND 20000 
 	eng "Case not found for CASE statement"
+	ger "Fall für CASE-Anweisung nicht gefunden"
 ER_FPARSER_TOO_BIG_FILE  
 	eng "Configuration file '%-.64s' is too big"
+	ger "Konfigurationsdatei '%-.64s' ist zu groß"
 	rus "óÌÉÛËÏÍ ÂÏÌØÛÏÊ ËÏÎÆÉÇÕÒÁÃÉÏÎÎÙÊ ÆÁÊÌ '%-.64s'"
 	ukr "úÁÎÁÄÔÏ ×ÅÌÉËÉÊ ËÏÎÆ¦ÇÕÒÁÃ¦ÊÎÉÊ ÆÁÊÌ '%-.64s'"
 ER_FPARSER_BAD_HEADER  
 	eng "Malformed file type header in file '%-.64s'"
+	ger "Nicht wohlgeformter Dateityp-Header in Datei '%-.64s'"
 	rus "îÅ×ÅÒÎÙÊ ÚÁÇÏÌÏ×ÏË ÔÉÐÁ ÆÁÊÌÁ '%-.64s'"
 	ukr "îÅ×¦ÒÎÉÊ ÚÁÇÏÌÏ×ÏË ÔÉÐÕ Õ ÆÁÊÌ¦ '%-.64s'"
 ER_FPARSER_EOF_IN_COMMENT  
 	eng "Unexpected end of file while parsing comment '%-.64s'"
+	ger "Unerwartetes Dateiende beim Parsen des Kommentars '%-.64s'"
 	rus "îÅÏÖÉÄÁÎÎÙÊ ËÏÎÅÃ ÆÁÊÌÁ × ËÏÍÅÎÔÁÒÉÉ '%-.64s'"
 	ukr "îÅÓÐÏÄ¦×ÁÎÎÉÊ Ë¦ÎÅÃØ ÆÁÊÌÕ Õ ËÏÍÅÎÔÁÒ¦ '%-.64s'"
 ER_FPARSER_ERROR_IN_PARAMETER  
 	eng "Error while parsing parameter '%-.64s' (line: '%-.64s')"
+	ger "Fehler beim Parsen des Parameters '%-.64s' (Zeile: '%-.64s')"
 	rus "ïÛÉÂËÁ ÐÒÉ ÒÁÓÐÏÚÎÁ×ÁÎÉÉ ÐÁÒÁÍÅÔÒÁ '%-.64s' (ÓÔÒÏËÁ: '%-.64s')"
 	ukr "ðÏÍÉÌËÁ × ÒÏÓÐ¦ÚÎÁ×ÁÎÎ¦ ÐÁÒÁÍÅÔÒÕ '%-.64s' (ÒÑÄÏË: '%-.64s')"
 ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER  
 	eng "Unexpected end of file while skipping unknown parameter '%-.64s'"
+	ger "Unerwartetes Dateiende beim Überspringen des unbekannten Parameters '%-.64s'"
 	rus "îÅÏÖÉÄÁÎÎÙÊ ËÏÎÅÃ ÆÁÊÌÁ ÐÒÉ ÐÒÏÐÕÓËÅ ÎÅÉÚ×ÅÓÔÎÏÇÏ ÐÁÒÁÍÅÔÒÁ '%-.64s'"
 	ukr "îÅÓÐÏÄ¦×ÁÎÎÉÊ Ë¦ÎÅÃØ ÆÁÊÌÕ Õ ÓÐÒÏÂ¦ ÐÒÏÍÉÎÕÔÉ ÎÅ×¦ÄÏÍÉÊ ÐÁÒÁÍÅÔÒ '%-.64s'"
 ER_VIEW_NO_EXPLAIN  
 	eng "EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+	ger "EXPLAIN/SHOW kann nicht verlangt werden. Rechte für zugrunde liegende Tabelle fehlen"
 	rus "EXPLAIN/SHOW ÎÅ ÍÏÖÅÔ ÂÙÔØ ×ÙÐÏÌÎÅÎÎÏ; ÎÅÄÏÓÔÁÔÏÞÎÏ ÐÒÁ× ÎÁ ÔÁËÂÌÉÃÙ ÚÁÐÒÏÓÁ"
 	ukr "EXPLAIN/SHOW ÎÅ ÍÏÖÅ ÂÕÔÉ ×¦ËÏÎÁÎÏ; ÎÅÍÁ¤ ÐÒÁ× ÎÁ ÔÉÂÌÉÃ¦ ÚÁÐÉÔÕ"
 ER_FRM_UNKNOWN_TYPE  
 	eng "File '%-.64s' has unknown type '%-.64s' in its header"
+	ger "Datei '%-.64s' hat unbekannten Typ '%-.64s' im Header"
 	rus "æÁÊÌ '%-.64s' ÓÏÄÅÒÖÉÔ ÎÅÉÚ×ÅÓÔÎÙÊ ÔÉÐ '%-.64s' × ÚÁÇÏÌÏ×ËÅ"
 	ukr "æÁÊÌ '%-.64s' ÍÁ¤ ÎÅ×¦ÄÏÍÉÊ ÔÉÐ '%-.64s' Õ ÚÁÇÏÌÏ×ËÕ"
 ER_WRONG_OBJECT  
 	eng "'%-.64s.%-.64s' is not %s"
+	ger "'%-.64s.%-.64s' ist nicht %s"
 	rus "'%-.64s.%-.64s' - ÎÅ %s"
 	ukr "'%-.64s.%-.64s' ÎÅ ¤ %s"
 ER_NONUPDATEABLE_COLUMN  
 	eng "Column '%-.64s' is not updatable"
+	ger "Feld '%-.64s' ist nicht aktualisierbar"
 	rus "óÔÏÌÂÅÃ '%-.64s' ÎÅ ÏÂÎÏ×ÌÑÅÍÙÊ"
 	ukr "óÔÏ×ÂÅÃØ '%-.64s' ÎÅ ÍÏÖÅ ÂÕÔÉ ÚÍÉÎÅÎÉÊ"
 ER_VIEW_SELECT_DERIVED  
 	eng "View's SELECT contains a subquery in the FROM clause"
+	ger "SELECT der View enthält eine Subquery in der FROM-Klausel"
 	rus "View SELECT ÓÏÄÅÒÖÉÔ ÐÏÄÚÁÐÒÏÓ × ËÏÎÓÔÒÕËÃÉÉ FROM"
 	ukr "View SELECT ÍÁ¤ Ð¦ÄÚÁÐÉÔ Õ ËÏÎÓÔÒÕËÃ¦§ FROM"
 ER_VIEW_SELECT_CLAUSE  
 	eng "View's SELECT contains a '%s' clause"
+	ger "SELECT der View enthält eine '%s'-Klausel"
 	rus "View SELECT ÓÏÄÅÒÖÉÔ ËÏÎÓÔÒÕËÃÉÀ '%s'"
 	ukr "View SELECT ÍÁ¤ ËÏÎÓÔÒÕËÃ¦À '%s'"
 ER_VIEW_SELECT_VARIABLE  
 	eng "View's SELECT contains a variable or parameter"
+	ger "SELECT der View enthält eine Variable oder einen Parameter"
 	rus "View SELECT ÓÏÄÅÒÖÉÔ ÐÅÒÅÍÅÎÎÕÀ ÉÌÉ ÐÁÒÁÍÅÔÒ"
 	ukr "View SELECT ÍÁ¤ ÚÍÉÎÎÕ ÁÂÏ ÐÁÒÁÍÅÔÅÒ"
 ER_VIEW_SELECT_TMPTABLE  
 	eng "View's SELECT refers to a temporary table '%-.64s'"
+	ger "SELECT der View verweist auf eine temporäre Tabelle '%-.64s'"
 	rus "View SELECT ÓÏÄÅÒÖÉÔ ÓÓÙÌËÕ ÎÁ ×ÒÅÍÅÎÎÕÀ ÔÁÂÌÉÃÕ '%-.64s'"
 	ukr "View SELECT ×ÉËÏÒÉÓÔÏ×Õ¤ ÔÉÍÞÁÓÏ×Õ ÔÁÂÌÉÃÀ '%-.64s'"
 ER_VIEW_WRONG_LIST  
 	eng "View's SELECT and view's field list have different column counts"
+	ger "SELECT- und Feldliste der Views haben eine unterschiedliche Anzahl von Spalten"
 	rus "View SELECT É ÓÐÉÓÏË ÐÏÌÅÊ view ÉÍÅÀÔ ÒÁÚÎÏÅ ËÏÌÉÞÅÓÔ×Ï ÓÔÏÌÂÃÏ×"
 	ukr "View SELECT ¦ ÐÅÒÅÌ¦Ë ÓÔÏ×ÂÃ¦× view ÍÁÀÔØ Ò¦ÚÎÕ Ë¦ÌØË¦ÓÔØ ÓËÏ×ÂÃ¦×"
 ER_WARN_VIEW_MERGE  
 	eng "View merge algorithm can't be used here for now (assumed undefined algorithm)"
+	ger "View-Merge-Algorithmus kann hier momentan nicht verwendet werden (undefinierter Algorithmus wird angenommen)"
 	rus "áÌÇÏÒÉÔÍ ÓÌÉÑÎÉÑ view ÎÅ ÍÏÖÅÔ ÂÙÔØ ÉÓÐÏÌØÚÏ×ÁÎ ÓÅÊÞÁÓ (ÁÌÇÏÒÉÔÍ ÂÕÄÅÔ ÎÅÏÐÅÒÅÄÅÌÅÎÎÙÍ)"
 	ukr "áÌÇÏÒÉÔÍ ÚÌÉ×ÁÎÎÑ view ÎÅ ÍÏÖÅ ÂÕÔÉ ×ÉËÏÒÉÓÔÁÎÉÊ ÚÁÒÁÚ (ÁÌÇÏÒÉÔÍ ÂÕÄÅ ÎÅ×ÉÚÎÁÞÅÎÉÊ)"
 ER_WARN_VIEW_WITHOUT_KEY  
 	eng "View being updated does not have complete key of underlying table in it"
+	ger "Die aktualisierte View enthält nicht den vollständigen Schlüssel der zugrunde liegenden Tabelle"
 	rus "ïÂÎÏ×ÌÑÅÍÙÊ view ÎÅ ÓÏÄÅÒÖÉÔ ËÌÀÞÁ ÉÓÐÏÌØÚÏ×ÁÎÎÙÈ(ÏÊ) × ÎÅÍ ÔÁÂÌÉÃ(Ù)"
 	ukr "View, ÝÏ ÏÎÏ×ÌÀÅÔØÓÑ, ÎÅ Í¦ÓÔÉÔØ ÐÏ×ÎÏÇÏ ËÌÀÞÁ ÔÁÂÌÉÃ¦(Ø), ÝÏ ×ÉËÏÒ¦ÓÔÁÎÁ × ÎØÀÏÍÕ"
 ER_VIEW_INVALID  
 	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them"
 ER_SP_NO_DROP_SP  
 	eng "Can't drop or alter a %s from within another stored routine"
+	ger "Kann eine %s nicht von innerhalb einer anderen gespeicherten Routine löschen oder ändern"
 ER_SP_GOTO_IN_HNDLR  
 	eng "GOTO is not allowed in a stored procedure handler"
+	ger "GOTO ist im Handler einer gespeicherten Prozedur nicht erlaubt"
 ER_TRG_ALREADY_EXISTS  
 	eng "Trigger already exists"
+	ger "Trigger existiert bereits"
 ER_TRG_DOES_NOT_EXIST  
 	eng "Trigger does not exist"
+	ger "Trigger existiert nicht"
 ER_TRG_ON_VIEW_OR_TEMP_TABLE  
 	eng "Trigger's '%-.64s' is view or temporary table"
+	ger "'%-.64s' des Triggers ist View oder temporäre Tabelle"
 ER_TRG_CANT_CHANGE_ROW  
 	eng "Updating of %s row is not allowed in %strigger"
+	ger "Aktualisieren einer %s-Zeile ist in einem %-Trigger nicht erlaubt"
 ER_TRG_NO_SUCH_ROW_IN_TRG  
 	eng "There is no %s row in %s trigger"
+	ger "Es gibt keine %s-Zeile im %s-Trigger"
 ER_NO_DEFAULT_FOR_FIELD  
 	eng "Field '%-.64s' doesn't have a default value"
+	ger "Feld '%-.64s' hat keinen Vorgabewert"
 ER_DIVISION_BY_ZERO 22012 
 	eng "Division by 0"
+	ger "Division durch 0"
 ER_TRUNCATED_WRONG_VALUE_FOR_FIELD  
 	eng "Incorrect %-.32s value: '%-.128s' for column '%.64s' at row %ld"
+	ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.64s' in Zeile %ld"
 ER_ILLEGAL_VALUE_FOR_TYPE 22007 
 	eng "Illegal %s '%-.64s' value found during parsing"
+	ger "Nicht zulässiger %s-Wert '%-.64s' beim Parsen gefunden"
 ER_VIEW_NONUPD_CHECK  
 	eng "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
+	ger "CHECK OPTION auf nicht-aktualisierbarem View '%-.64s.%-.64s'"
 	rus "CHECK OPTION ÄÌÑ ÎÅÏÂÎÏ×ÌÑÅÍÏÇÏ VIEW '%-.64s.%-.64s'"
 	ukr "CHECK OPTION ÄÌÑ VIEW '%-.64s.%-.64s' ÝÏ ÎÅ ÍÏÖÅ ÂÕÔÉ ÏÎÏ×ÌÅÎÎÉÍ"
 ER_VIEW_CHECK_FAILED  
 	eng "CHECK OPTION failed '%-.64s.%-.64s'"
+	ger "CHECK OPTION fehlgeschlagen: '%-.64s.%-.64s'"
 	rus "ÐÒÏ×ÅÒËÁ CHECK OPTION ÄÌÑ VIEW '%-.64s.%-.64s' ÐÒÏ×ÁÌÉÌÁÓØ"
 	ukr "ðÅÒÅ×¦ÒËÁ CHECK OPTION ÄÌÑ VIEW '%-.64s.%-.64s' ÎÅ ÐÒÏÊÛÌÁ"
 ER_PROCACCESS_DENIED_ERROR 42000 
 	eng "%-.16s command denied to user '%-.32s'@'%-.64s' for routine '%-.64s'"
+	ger "Befehl %-.16s nicht zulässig für Benutzer '%-.32s'@'%-.64s' in Routine '%-.64s'"
 ER_RELAY_LOG_FAIL  
 	eng "Failed purging old relay logs: %s"
+	ger "Bereinigen alter Relais-Logs fehlgeschlagen: %s"
 ER_PASSWD_LENGTH  
 	eng "Password hash should be a %d-digit hexadecimal number"
+	ger "Passwort-Hash sollte eine Hexdaezimalzahl mit %d Stellen sein"
 ER_UNKNOWN_TARGET_BINLOG  
 	eng "Target log not found in binlog index"
+	ger "Ziel-Log im Binlog-Index nicht gefunden"
 ER_IO_ERR_LOG_INDEX_READ  
 	eng "I/O error reading log index file"
+	ger "Fehler beim Lesen der Log-Index-Datei"
 ER_BINLOG_PURGE_PROHIBITED  
 	eng "Server configuration does not permit binlog purge"
+	ger "Server-Konfiguration erlaubt keine Binlog-Bereinigung"
 ER_FSEEK_FAIL  
 	eng "Failed on fseek()"
+	ger "fseek() fehlgeschlagen"
 ER_BINLOG_PURGE_FATAL_ERR  
 	eng "Fatal error during log purge"
+	ger "Schwerwiegender Fehler bei der Log-Bereinigung"
 ER_LOG_IN_USE  
 	eng "A purgeable log is in use, will not purge"
+	ger "Ein zu bereinigendes Log wird gerade benutzt, daher keine Bereinigung"
 ER_LOG_PURGE_UNKNOWN_ERR  
 	eng "Unknown error during log purge"
+	ger "Unbekannter Fehler bei Log-Bereinigung"
 ER_RELAY_LOG_INIT  
 	eng "Failed initializing relay log position: %s"
+	ger "Initialisierung der Relais-Log-Position fehlgeschlagen: %s"
 ER_NO_BINARY_LOGGING  
 	eng "You are not using binary logging"
+	ger "Sie verwenden keine Binärlogs"
 ER_RESERVED_SYNTAX  
 	eng "The '%-.64s' syntax is reserved for purposes internal to the MySQL server"
+	ger "Die Schreibweise '%-.64s' ist für interne Zwecke des MySQL-Servers reserviert"
 ER_WSAS_FAILED  
 	eng "WSAStartup Failed"
+	ger "WSAStartup fehlgeschlagen"
 ER_DIFF_GROUPS_PROC  
 	eng "Can't handle procedures with differents groups yet"
+	ger "Kann Prozeduren mit unterschiedlichen Gruppen noch nicht verarbeiten"
 ER_NO_GROUP_FOR_PROC  
 	eng "Select must have a group with this procedure"
+	ger "SELECT muss bei dieser Prozedur ein GROUP BY haben"
 ER_ORDER_WITH_PROC  
 	eng "Can't use ORDER clause with this procedure"
+	ger "Kann bei dieser Prozedur keine ORDER-BY-Klausel verwenden"
 ER_LOGGING_PROHIBIT_CHANGING_OF  
 	eng "Binary logging and replication forbid changing the global server %s"
+	ger "Binärlogs und Replikation verhindern Wechsel des globalen Servers %s"
 ER_NO_FILE_MAPPING  
 	eng "Can't map file: %-.64s, errno: %d"
+	ger "Kann Datei nicht abbilden: %-.64s, Fehler: %d"
 ER_WRONG_MAGIC  
 	eng "Wrong magic in %-.64s"
+	ger "Falsche magische Zahlen in %-.64s"
 ER_PS_MANY_PARAM  
 	eng "Prepared statement contains too many placeholders"
+	ger "Vorbereitete Anweisung enthält zu viele Platzhalter"
 ER_KEY_PART_0  
 	eng "Key part '%-.64s' length cannot be 0"
+	ger "Länge des Schlüsselteils '%-.64s' kann nicht 0 sein"
 ER_VIEW_CHECKSUM  
 	eng "View text checksum failed"
+	ger "View-Text-Prüfsumme fehlgeschlagen"
 	rus "ðÒÏ×ÅÒËÁ ËÏÎÔÒÏÌØÎÏÊ ÓÕÍÍÙ ÔÅËÓÔÁ VIEW ÐÒÏ×ÁÌÉÌÁÓØ"
 	ukr "ðÅÒÅ×¦ÒËÁ ËÏÎÔÒÏÌØÎÏ§ ÓÕÍÉ ÔÅËÓÔÕ VIEW ÎÅ ÐÒÏÊÛÌÁ"
 ER_VIEW_MULTIUPDATE  
 	eng "Can not modify more than one base table through a join view '%-.64s.%-.64s'"
+	ger "Kann nicht mehr als eine Basistabelle über Join-View '%-.64s.%-.64s' ändern"
 	rus "îÅÌØÚÑ ÉÚÍÅÎÉÔØ ÂÏÌØÛÅ ÞÅÍ ÏÄÎÕ ÂÁÚÏ×ÕÀ ÔÁÂÌÉÃÕ ÉÓÐÏÌØÚÕÑ ÍÎÏÇÏÔÁÂÌÉÞÎÙÊ VIEW '%-.64s.%-.64s'"
 	ukr "îÅÍÏÖÌÉ×Ï ÏÎÏ×ÉÔÉ Â¦ÌØÛ ÎÉÖ ÏÄÎÕ ÂÁÚÏ×Õ ÔÁÂÌÉÃÀ ×ÙËÏÒÉÓÔÏ×ÕÀÞÉ VIEW '%-.64s.%-.64s', ÝÏ Í¦ÓÔ¦ÔØ ÄÅË¦ÌØËÁ ÔÁÂÌÉÃØ"
 ER_VIEW_NO_INSERT_FIELD_LIST  
 	eng "Can not insert into join view '%-.64s.%-.64s' without fields list"
+	ger "Kann nicht ohne Feldliste in Join-View '%-.64s.%-.64s' einfügen"
 	rus "îÅÌØÚÑ ×ÓÔÁ×ÌÑÔØ ÚÁÐÉÓÉ × ÍÎÏÇÏÔÁÂÌÉÞÎÙÊ VIEW '%-.64s.%-.64s' ÂÅÚ ÓÐÉÓËÁ ÐÏÌÅÊ"
 	ukr "îÅÍÏÖÌÉ×Ï ÕÓÔÁ×ÉÔÉ ÒÑÄËÉ Õ VIEW '%-.64s.%-.64s', ÝÏ Í¦ÓÔÉÔØ ÄÅË¦ÌØËÁ ÔÁÂÌÉÃØ, ÂÅÚ ÓÐÉÓËÕ ÓÔÏ×ÂÃ¦×"
 ER_VIEW_DELETE_MERGE_VIEW  
 	eng "Can not delete from join view '%-.64s.%-.64s'"
+	ger "Kann nicht aus Join-View '%-.64s.%-.64s' löschen"
 	rus "îÅÌØÚÑ ÕÄÁÌÑÔØ ÉÚ ÍÎÏÇÏÔÁÂÌÉÞÎÏÇÏ VIEW '%-.64s.%-.64s'"
 	ukr "îÅÍÏÖÌÉ×Ï ×ÉÄÁÌÉÔÉ ÒÑÄËÉ Õ VIEW '%-.64s.%-.64s', ÝÏ Í¦ÓÔÉÔØ ÄÅË¦ÌØËÁ ÔÁÂÌÉÃØ"
 ER_CANNOT_USER  
 	eng "Operation %s failed for %.256s"
-	ger "Das Kommando %s scheiterte für %.256s"
+	ger "Operation %s schlug fehl für %.256s"
 	norwegian-ny "Operation %s failed for '%.256s'"
 ER_XAER_NOTA XAE04
         eng "XAER_NOTA: Unknown XID"
+	ger "XAER_NOTA: Unbekannte XID"
 ER_XAER_INVAL XAE05
         eng "XAER_INVAL: Invalid arguments (or unsupported command)"
+	ger "XAER_INVAL: Ungültige Argumente (oder nicht unterstützter Befehl)"
 ER_XAER_RMFAIL XAE07
         eng "XAER_RMFAIL: The command cannot be executed when global transaction is in the  %.64s state"
+        ger "XAER_RMFAIL: DEr Befehl kann nicht ausgeführt werden, wenn die globale Transaktion im Zustand %.64s ist"
         rus "XAER_RMFAIL: ÜÔÕ ËÏÍÁÎÄÕ ÎÅÌØÚÑ ×ÙÐÏÌÎÑÔØ ËÏÇÄÁ ÇÌÏÂÁÌØÎÁÑ ÔÒÁÎÚÁËÃÉÑ ÎÁÈÏÄÉÔÓÑ × ÓÏÓÔÏÑÎÉÉ '%.64s'"
 ER_XAER_OUTSIDE XAE09
         eng "XAER_OUTSIDE: Some work is done outside global transaction"
+	ger "XAER_OUTSIDE: Einige Arbeiten werden außerhalb der globalen Transaktion verrichtet"
 ER_XAER_RMERR XAE03
         eng "XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency"
+	ger "XAER_RMERR: Schwerwiegender Fehler im Transaktionszweig - prüfen Sie Ihre Daten auf Konsistenz"
 ER_XA_RBROLLBACK XA100
         eng "XA_RBROLLBACK: Transaction branch was rolled back"
+	ger "XA_RBROLLBACK: Transaktionszweig wurde zurückgerollt"
 ER_NONEXISTING_PROC_GRANT 42000 
 	eng "There is no such grant defined for user '%-.32s' on host '%-.64s' on routine '%-.64s'"
+	ger "Es gibt diese Berechtigung für Benutzer '%-.32s' auf Host '%-.64s' für Routine '%-.64s' nicht"
 ER_PROC_AUTO_GRANT_FAIL
 	eng "Failed to grant EXECUTE and ALTER ROUTINE privileges"
+	ger "Gewährung von EXECUTE- und ALTER-ROUTINE-Rechten fehlgeschlagen"
 ER_PROC_AUTO_REVOKE_FAIL
 	eng "Failed to revoke all privileges to dropped routine"
+	ger "Rücknahme aller Rechte für die gelöschte Routine fehlgeschlagen"
 ER_DATA_TOO_LONG 22001
 	eng "Data too long for column '%s' at row %ld"
+	ger "Daten zu lang für Feld '%s' in Zeile %ld"
 ER_SP_BAD_SQLSTATE 42000
 	eng "Bad SQLSTATE: '%s'"
+	ger "Ungültiger SQLSTATE: '%s'"
 ER_STARTUP
 	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d  %s"
+	ger "%s: bereit für Verbindungen.\nVersion: '%s'  Socket: '%s'  Port: %d  %s"
 ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR
         eng "Can't load value from file with fixed size rows to variable"
+	ger "Kann Wert aus Datei mit Zeilen fester Größe nicht in Variable laden"
 ER_CANT_CREATE_USER_WITH_GRANT 42000
 	eng "You are not allowed to create a user with GRANT"
+	ger "Sie dürfen keinen Benutzer mit GRANT anlegen"
 ER_WRONG_VALUE_FOR_TYPE  
 	eng "Incorrect %-.32s value: '%-.128s' for function %-.32s"
+	ger "Falscher %-.32s-Wert: '%-.128s' für Funktion %-.32s"
 ER_TABLE_DEF_CHANGED
 	eng "Table definition has changed, please retry transaction"
+	ger "Tabellendefinition wurde geändert, bitte starten Sie die Transaktion neu"
 ER_SP_DUP_HANDLER 42000
 	eng "Duplicate handler declared in the same block"
+	ger "Doppelter Handler im selben Block deklariert"
 ER_SP_NOT_VAR_ARG 42000
 	eng "OUT or INOUT argument %d for routine %s is not a variable"
+	ger "OUT- oder INOUT-Argument %d für Routine %s ist keine Variable"
 ER_SP_NO_RETSET 0A000
 	eng "Not allowed to return a result set from a %s"
+	ger "Rückgabe einer Ergebnismenge aus einer %s ist nicht erlaubt"
 ER_CANT_CREATE_GEOMETRY_OBJECT 22003 
 	eng "Cannot get geometry object from data you send to the GEOMETRY field"
+	ger "Kann kein Geometrieobjekt aus den Daten machen, die Sie dem GEOMETRY-Feld übergeben haben"
 ER_FAILED_ROUTINE_BREAK_BINLOG
 	eng "A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes"
+	ger "Eine Routine, die weder NO SQL noch READS SQL DATA in der Deklaration hat, schlug fehl und Binärlogging ist aktiv. Wenn Nicht-Transaktions-Tabellen atualisiert wurden, enthält das Binärlog ihre Änderungen nicht"
 ER_BINLOG_UNSAFE_ROUTINE
 	eng "This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
+	ger "Diese Routine hat weder DETERMINISTIC, NO SQL noch READS SQL DATA in der Deklaration und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_routine_creators verwenden)"
 ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
 	eng "You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
+	ger "Sie haben keine SUPER-Berechtigung und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_routine_creators verwenden)"
 ER_EXEC_STMT_WITH_OPEN_CURSOR
 	eng "You can't execute a prepared statement which has an open cursor associated with it. Reset the statement to re-execute it."
+	ger "Sie können keine vorbereitete Anweisung ausführen, die mit einem geöffneten Cursor verknüpft ist. Setzen Sie die Anweisung zurück, um sie neu auszuführen"
 ER_STMT_HAS_NO_OPEN_CURSOR
 	eng "The statement (%lu) has no open cursor."
+	ger "Die Anweisung (%lu) hat keinen geöffneten Cursor"
 ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
         eng "Explicit or implicit commit is not allowed in stored function or trigger."
+	ger "Explizites oder implizites Commit ist in gespeicherten Funktionen und in Triggern nicht erlaubt"
 ER_NO_DEFAULT_FOR_VIEW_FIELD
         eng "Field of view '%-.64s.%-.64s' underlying table doesn't have a default value"
+	ger "Ein Feld der dem View '%-.64s.%-.64s' zugrundeliegenden Tabelle hat keinen Vorgabewert"
 ER_SP_NO_RECURSION
         eng "Recursive stored functions and triggers are not allowed."
+	ger "Rekursive gespeicherte Routinen und Triggers sind nicht erlaubt"
 ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.64s'. Maximum is %d."
+	ger "Zu großer Skalierungsfaktor %d für Feld '%-.64s' angegeben. Maximum ist %d"
 ER_TOO_BIG_PRECISION 42000 S1009
         eng "Too big precision %d specified for column '%-.64s'. Maximum is %d."
+	ger "Zu große Genauigkeit %d für Feld '%-.64s' angegeben. Maximum ist %d"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.64s')."
+	ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.64s')"
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system '%-.64s.%-.64s' table with other tables"
+	ger "Sie können Schreibsperren auf der Systemtabelle '%-.64s.%-.64s' nicht mit anderen Tabellen kombinieren"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
-        eng "Unable to connect to foreign data source - database '%.64s'!"
+        eng "Unable to connect to foreign data source: %.64s"
+	ger "Kann nicht mit Fremddatenquelle verbinden: %.64s"
 ER_QUERY_ON_FOREIGN_DATA_SOURCE
-        eng "There was a problem processing the query on the foreign data source. Data source error: '%-.64s'"
+        eng "There was a problem processing the query on the foreign data source. Data source error: %-.64"
+	ger "Bei der Verarbeitung der Abfrage ist in der Fremddatenquelle ein Problem aufgetreten. Datenquellenfehlermeldung: %-.64s"
 ER_FOREIGN_DATA_SOURCE_DOESNT_EXIST
-        eng "The foreign data source you are trying to reference does not exist. Data source error : '%-.64s'"
+        eng "The foreign data source you are trying to reference does not exist. Data source error:  %-.64s"
+	ger "Die Fremddatenquelle, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
 ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
         eng "Can't create federated table. The data source connection string '%-.64s' is not in the correct format"
+        ger "Kann föderierte Tabelle nicht erzeugen. Der Datenquellen-Verbindungsstring '%-.64s' hat kein korrektes Format"
 ER_FOREIGN_DATA_STRING_INVALID
         eng "The data source connection string '%-.64s' is not in the correct format"
+	ger "Der Datenquellen-Verbindungsstring '%-.64s' hat kein korrektes Format"
 ER_CANT_CREATE_FEDERATED_TABLE  
-	eng "Can't create federated table. Foreign data src error : '%-.64s'"
+	eng "Can't create federated table. Foreign data src error:  %-.64s"
+	ger "Kann föderierte Tabelle nicht erzeugen. Fremddatenquellenfehlermeldung:  %-.64s"
 ER_TRG_IN_WRONG_SCHEMA  
 	eng "Trigger in wrong schema"
+	ger "Trigger im falschen Schema"
 ER_STACK_OVERRUN_NEED_MORE
 	eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
+	ger "Thread-Stack-Überlauf: %ld Bytes eines %ld-Byte-Stacks in Verwendung, und %ld Bytes benötigt. Verwenden Sie 'mysqld -O thread_stack=#', um einen größeren Stack anzugeben"
 ER_TOO_LONG_BODY 42000 S1009
 	eng "Routine body for '%-.100s' is too long"
+	ger "Routinen-Body für '%-.100s' ist zu lang"
 ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 	eng "Cannot drop default keycache"
-        ger "Der Default-Keycache kann nicht gelöscht werden"
+        ger "Der vorgabemäßige Schlüssel-Cache kann nicht gelöscht werden"
 ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
 	eng "Display width out of range for column '%-.64s' (max = %d)"
+	ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.64s' (Maximum: %d)"
 ER_XAER_DUPID XAE08
         eng "XAER_DUPID: The XID already exists"
+	ger "XAER_DUPID: Die XID existiert bereits"
 ER_DATETIME_FUNCTION_OVERFLOW 22008
         eng "Datetime function: %-.32s field overflow"
+	ger "Datetime-Funktion: %-.32s Feldüberlauf"
 ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
         eng "Can't update table '%-.64s' in stored function/trigger because it is already used by statement which invoked this stored function/trigger."
+	ger "Kann Tabelle '%-.64s' in gespeicherter Funktion oder Trigger nicht aktualisieren, weil sie bereits von der Anweisung verwendet wird, die diese gespeicherte Funktion oder den Trigger aufrief"
 ER_VIEW_PREVENT_UPDATE
         eng "The definition of table '%-.64s' prevents operation %.64s on table '%-.64s'."
+	ger "Die Definition der Tabelle '%-.64s' verhindert die Operation %.64s auf Tabelle '%-.64s'"
 ER_PS_NO_RECURSION
         eng "The prepared statement contains a stored routine call that refers to that same statement. It's not allowed to execute a prepared statement in such a recursive manner"
+	ger "Die vorbereitete Anweisung enthält einen Aufruf einer gespeicherten Routine, die auf eben dieselbe Anweisung verweist. Es ist nicht erlaubt, eine vorbereitete Anweisung in solch rekursiver Weise auszuführen"
 ER_SP_CANT_SET_AUTOCOMMIT
 	eng "Not allowed to set autocommit from a stored function or trigger"
+        ger "Es ist nicht erlaubt, innerhalb einer gespeicherten Funktion oder eines Triggers AUTOCOMMIT zu setzen"
 ER_MALFORMED_DEFINER
-        eng "Definer is not fully qualified"
+	eng "Definer is not fully qualified"
+	ger "Definierer des View ist nicht vollständig spezifiziert"
 ER_VIEW_FRM_NO_USER
-        eng "View %-.64s.%-.64s has not definer information (old table format). Current user is used as definer. Please recreate view!"
+        eng "View '%-.64s'.'%-.64s' has no definer information (old table format). Current user is used as definer. Please recreate the view!"
+	ger "View '%-.64s'.'%-.64s' hat keine Definierer-Information (altes Tabellenformat). Der aktuelle Benutzer wird als Definierer verwendet. Bitte erstellen Sie den View neu"
 ER_VIEW_OTHER_USER
-        eng "You need the SUPER privilege for creation view with %-.64s@%-.64s definer"
+	eng "You need the SUPER privilege for creation view with '%-.64s'@'%-.64s' definer"
+	ger "Sie brauchen die SUPER-Berechtigung, um einen View mit dem Definierer '%-.64s'@'%-.64s' zu erzeugen"
 ER_NO_SUCH_USER
         eng "There is no '%-.64s'@'%-.64s' registered"
+	ger "'%-.64s'@'%-.64s' ist nicht registriert"
 ER_FORBID_SCHEMA_CHANGE
 	eng "Changing schema from '%-.64s' to '%-.64s' is not allowed."
+	ger "Wechsel des Schemas von '%-.64s' auf '%-.64s' ist nicht erlaubt"
 ER_ROW_IS_REFERENCED_2 23000
 	eng "Cannot delete or update a parent row: a foreign key constraint fails (%.192s)"
+	ger "Kann Eltern-Zeile nicht löschen oder aktualisieren: eine Fremdschlüsselbedingung schlägt fehl (%.192s)"
 ER_NO_REFERENCED_ROW_2 23000
 	eng "Cannot add or update a child row: a foreign key constraint fails (%.192s)"
+	ger "Kann Kind-Zeile nicht hinzufügen oder aktualisieren: eine Fremdschlüsselbedingung schlägt fehl (%.192s)"
 ER_SP_BAD_VAR_SHADOW 42000
-	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
+        eng "Variable '%-.64s' must be quoted with `...`, or renamed"
+        ger "Variable '%-.64s' muss mit `...` geschützt oder aber umbenannt werden"
 ER_TRG_NO_DEFINER
-	eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
+        eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
 ER_OLD_FILE_FORMAT
-  eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
+        eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
 ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
 ER_PARTITION_REQUIRES_VALUES_ERROR
