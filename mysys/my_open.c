@@ -267,7 +267,7 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
    */
   switch (oflag & (_O_CREAT | _O_EXCL | _O_TRUNC)) {
     case 0:
-    case _O_EXCL:                   // ignore EXCL w/o CREAT
+    case _O_EXCL:                   /* ignore EXCL w/o CREAT */
       filecreate= OPEN_EXISTING;
       break;
 
@@ -281,7 +281,7 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
       break;
 
     case _O_TRUNC:
-    case _O_TRUNC | _O_EXCL:        // ignore EXCL w/o CREAT
+    case _O_TRUNC | _O_EXCL:        /* ignore EXCL w/o CREAT */
       filecreate= TRUNCATE_EXISTING;
       break;
 
@@ -290,7 +290,7 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
       break;
 
     default:
-      // this can't happen ... all cases are covered
+      /* this can't happen ... all cases are covered */
       errno= EINVAL;
       _doserrno= 0L;
       return -1;
