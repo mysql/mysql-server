@@ -336,6 +336,7 @@ ConfigRetriever::setNodeId(Uint32 nodeid)
 Uint32
 ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 {
+  int res;
   _ownNodeId= 0;
   if(m_handle != 0)
   {
@@ -345,7 +346,7 @@ ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 	if(!ndb_mgm_connect(m_handle, 0, 0, 0))
 	  goto next;
 
-      int res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type);
+      res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type);
       if(res >= 0)
 	return _ownNodeId= (Uint32)res;
 
