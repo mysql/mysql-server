@@ -446,6 +446,7 @@ void plugin_init(void)
   }
   init_sql_alloc(&mem, 1024, 0);
   initialized= 1;
+  new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
