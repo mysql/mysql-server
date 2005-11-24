@@ -92,6 +92,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
+                opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
@@ -338,6 +339,9 @@ static struct my_option my_long_options[] =
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with backticks (`).",
    (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   0, 0},
+  {"replace-names", OPT_MYSQL_REPLACE_INTO, "Use REPLACE INTO instead of INSERT INTO.",
+   (gptr*) &opt_replace_into, (gptr*) &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
@@ -1515,7 +1519,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     */
     if (write_data)
     {
-      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      if (opt_replace_into)
+        dynstr_append_mem(&insert_pat, "REPLACE ", 8);
+      else
+        dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
       dynstr_append_mem(&insert_pat, "INTO ", 5);
       dynstr_append(&insert_pat, opt_quoted_table);
@@ -1592,7 +1599,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
     if (write_data)
     {
-      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      if (opt_replace_into)
+        dynstr_append_mem(&insert_pat, "REPLACE ", 8);
+      else
+        dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
       dynstr_append_mem(&insert_pat, "INTO ", 5);
       dynstr_append(&insert_pat, result_table);
