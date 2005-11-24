@@ -239,4 +239,4 @@ drop function f1;
 drop function f2;
 drop function f3;
 drop procedure sp1;
-
+drop view v1;
