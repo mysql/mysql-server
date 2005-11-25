@@ -22,7 +22,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../myisam"
+				AdditionalIncludeDirectories="../include,../storage/myisam"
 				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_CONSOLE;_WINDOWS"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\Debug/myisamlog.pch"
@@ -83,7 +83,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../myisam"
+				AdditionalIncludeDirectories="../include,../storage/myisam"
 				PreprocessorDefinitions="_CONSOLE;_WINDOWS;LICENSE=Commercial;DBUG_OFF;NDEBUG"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
@@ -146,7 +146,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../myisam"
+				AdditionalIncludeDirectories="../include,../storage/myisam"
 				PreprocessorDefinitions="NDEBUG;DBUG_OFF;_CONSOLE;_WINDOWS"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
@@ -202,7 +202,7 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
-				RelativePath="..\myisam\myisamlog.c">
+				RelativePath="..\storage\myisam\myisamlog.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool

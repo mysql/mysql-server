@@ -22,7 +22,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../myisam"
+				AdditionalIncludeDirectories="../include,../storage/myisam"
 				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_CONSOLE;_WINDOWS"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/myisam_ftdump.pch"
@@ -83,7 +83,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
-				AdditionalIncludeDirectories="../include,../myisam"
+				AdditionalIncludeDirectories="../include,../storage/myisam"
 				PreprocessorDefinitions="DBUG_OFF;_CONSOLE;_WINDOWS;NDEBUG"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
@@ -140,7 +140,7 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
-				RelativePath="..\myisam\myisam_ftdump.c">
+				RelativePath="..\storage\myisam\myisam_ftdump.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool
