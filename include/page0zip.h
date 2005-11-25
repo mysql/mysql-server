@@ -38,7 +38,9 @@ page_zip_compress(
 	const page_t*	page);	/* in: uncompressed page */
 
 /**************************************************************************
-Decompress a page. */
+Decompress a page.  This function should tolerate errors on the compressed
+page.  Instead of letting assertions fail, it will return FALSE if an
+inconsistency is detected. */
 
 ibool
 page_zip_decompress(
@@ -102,14 +104,11 @@ UNIV_INLINE
 void
 page_zip_dir_set(
 /*==============*/
-	const page_zip_des_t*	page_zip,	/* in: compressed page */
-	ulint			slot,		/* in: slot
-						(0=first user record) */
-	ulint			offs)		/* in: offset, possibly
-						ORed with
-						PAGE_ZIP_DIR_SLOT_DEL or
-						PAGE_ZIP_DIR_SLOT_OWNED */
-	__attribute__((pure));
+	page_zip_des_t*	page_zip,	/* in: compressed page */
+	ulint		slot,		/* in: slot (0=first user record) */
+	ulint		offs);		/* in: offset, possibly ORed with
+					PAGE_ZIP_DIR_SLOT_DEL or
+					PAGE_ZIP_DIR_SLOT_OWNED */
 /**************************************************************************
 Determine the encoded length of an integer in the modification log. */
 UNIV_INLINE

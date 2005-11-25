@@ -17,6 +17,9 @@ Created June 2005 by Marko Makela
 #include "ut0sort.h"
 #include "zlib.h"
 
+/* Please refer to ../include/page0zip.ic for a description of the
+compressed page format. */
+
 /* The infimum and supremum records are omitted from the compressed page.
 On compress, we compare that the records are there, and on uncompress we
 restore the records. */
@@ -107,7 +110,7 @@ page_zip_dir_encode(
 		page_zip_dir_set(page_zip, i++, offs);
 
 		/* Ensure that each heap_no occurs at most once. */
-		ut_a(!recs[heap_no - 2]);
+		ut_a(!recs[heap_no - 2]); /* exclude infimum and supremum */
 		recs[heap_no - 2] = rec;
 
 		ut_a(rec_get_status(rec) == status);
@@ -121,7 +124,7 @@ page_zip_dir_encode(
 		rec = (page_t*) page + offs;
 
 		heap_no = rec_get_heap_no_new(rec);
-		ut_a(heap_no >= 2);
+		ut_a(heap_no >= 2); /* only user records can be deleted */
 		ut_a(heap_no < n_heap);
 
 		ut_a(!rec[-REC_N_NEW_EXTRA_BYTES]); /* info_bits and n_owned */
@@ -130,14 +133,14 @@ page_zip_dir_encode(
 		page_zip_dir_set(page_zip, i++, offs);
 
 		/* Ensure that each heap_no occurs at most once. */
-		ut_a(!recs[heap_no - 2]);
+		ut_a(!recs[heap_no - 2]); /* exclude infimum and supremum */
 		recs[heap_no - 2] = rec;
 
 		offs = rec_get_next_offs(rec, TRUE);
 	}
 
 	/* Ensure that each heap no occurs at least once. */
-	ut_a(i + 2 == n_heap);
+	ut_a(i + 2/* infimum and supremum */ == n_heap);
 }
 
 /**************************************************************************
@@ -154,7 +157,7 @@ page_zip_compress(
 	z_stream	c_stream;
 	int		err;
 	byte*		buf;
-	ulint		n_heap;
+	ulint		n_dense;
 	const byte*	src;
 	const byte**	recs;	/* dense page directory, sorted by address */
 	mem_heap_t*	heap;
@@ -179,17 +182,18 @@ page_zip_compress(
 			== PAGE_NEW_SUPREMUM);
 	}
 
-	n_heap = page_dir_get_n_heap((page_t*) page) - 2;
-	ut_a(n_heap * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
+	/* The dense directory excludes the infimum and supremum records. */
+	n_dense = page_dir_get_n_heap((page_t*) page) - 2;
+	ut_a(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
 
 	heap = mem_heap_create(page_zip->size
-		+ n_heap * ((sizeof *recs) - PAGE_ZIP_DIR_SLOT_SIZE));
+		+ n_dense * ((sizeof *recs) - PAGE_ZIP_DIR_SLOT_SIZE));
 
-	recs = mem_heap_alloc(heap, n_heap * sizeof *recs);
-	memset(recs, 0, n_heap * sizeof *recs);
+	recs = mem_heap_alloc(heap, n_dense * sizeof *recs);
+	memset(recs, 0, n_dense * sizeof *recs);
 
 	buf = mem_heap_alloc(heap, page_zip->size
-			- PAGE_DATA - PAGE_ZIP_DIR_SLOT_SIZE * n_heap);
+			- PAGE_DATA - PAGE_ZIP_DIR_SLOT_SIZE * n_dense);
 
 	page_zip_dir_encode(page, page_zip, recs);
 
@@ -202,19 +206,19 @@ page_zip_compress(
 	ut_a(err == Z_OK);
 
 	c_stream.next_out = buf;
-	c_stream.avail_out = page_zip->size - (PAGE_DATA - 1)
-				- n_heap * PAGE_ZIP_DIR_SLOT_SIZE;
+	c_stream.avail_out = page_zip->size - (PAGE_DATA + 1)
+				- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
-	if (UNIV_LIKELY(n_heap > 0)
+	if (UNIV_LIKELY(n_dense > 0)
 	    && *recs == page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
 		src = page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES);
 		recs++;
-		n_heap--;
+		n_dense--;
 	} else {
 		src = page + PAGE_ZIP_START;
 	}
 
-	while (n_heap--) {
+	while (n_dense--) {
 		c_stream.next_in = (void*) src;
 		c_stream.avail_in = *recs - src - REC_N_NEW_EXTRA_BYTES;
 
@@ -354,7 +358,7 @@ page_zip_dir_decode(
 	rec_t**			recs,	/* out: dense page directory sorted by
 					ascending address (and heap_no) */
 	rec_t**			recs_aux,/* in/out: scratch area */
-	ulint			n_heap)	/* in: number of user records, and
+	ulint			n_dense)/* in: number of user records, and
 					size of recs[] and recs_aux[] */
 {
 	ulint	i;
@@ -396,7 +400,7 @@ page_zip_dir_decode(
 	}
 
 	/* Copy the rest of the dense directory. */
-	for (i = 0; i < n_heap; i++) {
+	for (i = 0; i < n_dense; i++) {
 		ulint	offs = page_zip_dir_get(page_zip, i);
 
 		if (UNIV_UNLIKELY(offs & ~PAGE_ZIP_DIR_SLOT_MASK)) {
@@ -406,8 +410,8 @@ page_zip_dir_decode(
 		recs[i] = page + offs;
 	}
 
-	if (UNIV_LIKELY(n_heap > 1)) {
-		page_zip_dir_sort(recs, recs_aux, 0, n_heap - 1);
+	if (UNIV_LIKELY(n_dense > 1)) {
+		page_zip_dir_sort(recs, recs_aux, 0, n_dense - 1);
 	}
 	return(TRUE);
 }
@@ -433,6 +437,8 @@ page_zip_set_extra_bytes(
 
 	for (i = 0; i < n; i++) {
 		offs = page_zip_dir_get(page_zip, i);
+		rec_set_next_offs_new(rec, NULL, offs);
+		rec = page + offs;
 
 		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_DEL)) {
 			info_bits |= REC_INFO_DELETED_FLAG;
@@ -443,15 +449,14 @@ page_zip_set_extra_bytes(
 		} else {
 			n_owned++;
 		}
-		rec[-REC_N_NEW_EXTRA_BYTES] = info_bits;
-		info_bits = 0;
-
 		offs &= PAGE_ZIP_DIR_SLOT_MASK;
-		if (UNIV_UNLIKELY(!offs)) {
+		if (UNIV_UNLIKELY(offs < PAGE_ZIP_START
+					+ REC_N_NEW_EXTRA_BYTES)) {
 			return(FALSE);
 		}
-		rec_set_next_offs_new(rec, NULL, offs);
-		rec = page + offs;
+
+		rec[-REC_N_NEW_EXTRA_BYTES] = info_bits;
+		info_bits = 0;
 	}
 
 	/* Set the next pointer of the last user record. */
@@ -462,7 +467,7 @@ page_zip_set_extra_bytes(
 
 	n = page_dir_get_n_heap(page);
 
-	if (i + 2 >= n) {
+	if (i + 2/* infimum and supremum */ >= n) {
 		return(UNIV_LIKELY(i + 2 == n));
 	}
 
@@ -486,7 +491,7 @@ page_zip_set_extra_bytes(
 	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
 	rec_set_next_offs_new(rec, NULL, 0);
 
-	return(UNIV_LIKELY(i + 2 == n));
+	return(UNIV_LIKELY(i + 2/* infimum and supremum */ == n));
 }
 
 /**************************************************************************
@@ -531,7 +536,9 @@ page_zip_apply_log(
 }
 
 /**************************************************************************
-Decompress a page. */
+Decompress a page.  This function should tolerate errors on the compressed
+page.  Instead of letting assertions fail, it will return FALSE if an
+inconsistency is detected. */
 
 ibool
 page_zip_decompress(
@@ -547,24 +554,25 @@ page_zip_decompress(
 	byte**		recs;	/* dense page directory, sorted by address */
 	byte*		dst;
 	ulint		heap_status;/* heap_no and status bits */
-	ulint		n_heap;
+	ulint		n_dense;
 	mem_heap_t*	heap;
 	ulint		info_bits;
 
 	ut_ad(page_zip_simple_validate(page_zip));
 
-	n_heap = page_dir_get_n_heap(page_zip->data) - 2;
-	ut_a(n_heap * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
+	/* The dense directory excludes the infimum and supremum records. */
+	n_dense = page_dir_get_n_heap(page_zip->data) - 2;
+	ut_a(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
 
-	heap = mem_heap_create(n_heap * (2 * sizeof *recs));
-	recs = mem_heap_alloc(heap, n_heap * (2 * sizeof *recs));
+	heap = mem_heap_create(n_dense * (2 * sizeof *recs));
+	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
 	/* Copy the page header. */
 	memcpy(page, page_zip->data, PAGE_DATA);
 
 	/* Copy the page directory. */
 	if (UNIV_UNLIKELY(!page_zip_dir_decode(page_zip, page,
-				recs, recs + n_heap, n_heap))) {
+				recs, recs + n_dense, n_dense))) {
 		mem_heap_free(heap);
 		return(FALSE);
 	}
@@ -594,12 +602,14 @@ page_zip_decompress(
 	ut_a(err == Z_OK);
 
 	d_stream.next_in = page_zip->data + PAGE_DATA;
-	d_stream.avail_in = page_zip->size - n_heap - (PAGE_DATA + 1);
+	d_stream.avail_in = page_zip->size - (PAGE_DATA + 1)
+				- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
-	if (UNIV_LIKELY(n_heap > 0)
+	if (UNIV_LIKELY(n_dense > 0)
 	    && *recs == page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
 		dst = page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES);
 		recs++;
+		n_dense--;
 	} else {
 		dst = page + PAGE_ZIP_START;
 	}
@@ -616,10 +626,11 @@ page_zip_decompress(
 		heap_status = REC_STATUS_ORDINARY | 2 << REC_HEAP_NO_SHIFT;
 	}
 
-	while (n_heap--) {
+	while (n_dense--) {
 		d_stream.next_out = dst;
 		d_stream.avail_out = *recs - dst - REC_N_NEW_EXTRA_BYTES;
 
+		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE);
 		/* set heap_no and the status bits */
 		mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
 		heap_status += REC_HEAP_NO_SHIFT;
@@ -648,6 +659,9 @@ page_zip_decompress(
 			- ut_align_offset(dst, UNIV_PAGE_SIZE);
 	ut_a(d_stream.avail_out < UNIV_PAGE_SIZE);
 
+	/* set heap_no and the status bits */
+	mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
+
 	err = inflate(&d_stream, Z_FINISH);
 
 	if (err != Z_STREAM_END) {
@@ -667,7 +681,8 @@ zlib_error:
 		return(FALSE);
 	}
 
-	n_heap = page_dir_get_n_heap(page) - 2;
+	/* The dense directory excludes the infimum and supremum records. */
+	n_dense = page_dir_get_n_heap(page) - 2;
 
 	page_zip->m_start = PAGE_DATA + d_stream.total_in;
 
@@ -677,7 +692,7 @@ zlib_error:
 		mod_log_ptr = page_zip_apply_log(
 				page_zip->data + page_zip->m_start,
 				page_zip->data + page_zip->size
-				- n_heap * PAGE_ZIP_DIR_SLOT_SIZE,
+				- n_dense * PAGE_ZIP_DIR_SLOT_SIZE,
 				page);
 		if (UNIV_UNLIKELY(!mod_log_ptr)) {
 			return(FALSE);
