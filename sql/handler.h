@@ -1273,6 +1273,7 @@ public:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   virtual ulong partition_flags(void) const { return 0;}
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
+  virtual void set_part_info(partition_info *part_info) { return; }
 #endif
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
   virtual ulong index_ddl_flags(KEY *wanted_index) const

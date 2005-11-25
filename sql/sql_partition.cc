@@ -3128,7 +3128,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   }
   part_info= lex.part_info;
   table->part_info= part_info;
-  ((ha_partition*)table->file)->set_part_info(part_info);
+  table->file->set_part_info(part_info);
   if (part_info->default_engine_type == DB_TYPE_UNKNOWN)
     part_info->default_engine_type= default_db_type;
   else
