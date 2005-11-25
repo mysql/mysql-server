@@ -4503,18 +4503,18 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   if (!res)
     info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-  if (table->part_info)
-  {
-    m_part_info= table->part_info;
-    if (!(m_part_info->part_type == HASH_PARTITION &&
-          m_part_info->list_of_part_fields &&
-          !is_sub_partitioned(m_part_info)))
-      m_use_partition_function= TRUE;
-  }
 
   DBUG_RETURN(res);
 }
 
+void ha_ndbcluster::set_part_info(partition_info *part_info)
+{
+  m_part_info= part_info;
+  if (!(m_part_info->part_type == HASH_PARTITION &&
+        m_part_info->list_of_part_fields &&
+        !is_sub_partitioned(m_part_info)))
+    m_use_partition_function= TRUE;
+}
 
 /*
   Close the table
