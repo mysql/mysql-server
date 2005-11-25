@@ -1986,9 +1986,14 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
 
     if (sp_cache_routines_and_add_tables(thd, thd->lex,
                                          first_no_prelocking,
-                                         &tabs_changed) < 0)
+                                         &tabs_changed))
     {
-      result= -1;               // Fatal error
+      /*
+        Serious error during reading stored routines from mysql.proc table.
+        Something's wrong with the table or its contents, and an error has
+        been emitted; we must abort.
+      */
+      result= -1;
       goto err;
     }
     else if ((tabs_changed || *start) && need_prelocking)
@@ -2117,9 +2122,14 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
         if (!query_tables_last_own)
           query_tables_last_own= thd->lex->query_tables_last;
         if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                   tables->table->triggers) < 0)
+                                                   tables->table->triggers))
         {
-          result= -1;               // Fatal error
+          /*
+            Serious error during reading stored routines from mysql.proc table.
+            Something's wrong with the table or its contents, and an error has
+            been emitted; we must abort.
+          */
+          result= -1;
           goto err;
         }
       }
@@ -2143,9 +2153,14 @@ process_view_routines:
       if (!query_tables_last_own)
         query_tables_last_own= thd->lex->query_tables_last;
       if (sp_cache_routines_and_add_tables_for_view(thd, thd->lex,
-                                                    tables->view) < 0)
+                                                    tables->view))
       {
-        result= -1;               // Fatal error
+        /*
+          Serious error during reading stored routines from mysql.proc table.
+          Something's wrong with the table or its contents, and an error has
+          been emitted; we must abort.
+        */
+        result= -1;
         goto err;
       }
     }
