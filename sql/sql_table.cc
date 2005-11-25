@@ -729,7 +729,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           Create the typelib in prepared statement memory if we're
           executing one.
         */
-        MEM_ROOT *stmt_root= thd->current_arena->mem_root;
+        MEM_ROOT *stmt_root= thd->stmt_arena->mem_root;
 
         interval= sql_field->interval= typelib(stmt_root,
                                                sql_field->interval_list);
@@ -763,21 +763,20 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        Item_arena backup_arena;
-        bool need_to_change_arena=
-          !thd->current_arena->is_conventional_execution();
+        Query_arena backup_arena;
+        bool need_to_change_arena= !thd->stmt_arena->is_conventional();
         if (need_to_change_arena)
         {
           /* Asser that we don't do that at every PS execute */
-          DBUG_ASSERT(thd->current_arena->is_first_stmt_execute() ||
-                      thd->current_arena->is_first_sp_execute());
-          thd->set_n_backup_item_arena(thd->current_arena, &backup_arena);
+          DBUG_ASSERT(thd->stmt_arena->is_first_stmt_execute() ||
+                      thd->stmt_arena->is_first_sp_execute());
+          thd->set_n_backup_active_arena(thd->stmt_arena, &backup_arena);
         }
 
         sql_field->def= sql_field->def->safe_charset_converter(cs);
 
         if (need_to_change_arena)
-          thd->restore_backup_item_arena(thd->current_arena, &backup_arena);
+          thd->restore_active_arena(thd->stmt_arena, &backup_arena);
 
         if (! sql_field->def)
         {
