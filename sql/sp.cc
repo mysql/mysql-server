@@ -1420,8 +1420,8 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src)
     Instead this fact will be discovered during query execution.
 
   RETURN VALUE
-     0 - success
-    -x - failure (error code, like SP_PARSE_ERROR et al)
+     0     - success
+     non-0 - failure
 */
 
 static int
@@ -1430,7 +1430,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                                      bool first_no_prelock, bool *tabs_changed)
 {
   int ret= 0;
-  bool result= FALSE;
+  int tabschnd= 0;              /* Set if tables changed */
   bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
@@ -1478,11 +1478,21 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
         /* Fall through */
       default:
         /*
-          In some cases no error has been set (e.g. get field failed,
-          when the proc table has been tampered with).
-         */
-        if (! thd->net.report_error)
-          my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), ret);
+          Any error when loading an existing routine is either some problem
+          with the mysql.proc table, or a parse error because the contents
+          has been tampered with (in which case we clear that error).
+        */
+        if (ret == SP_PARSE_ERROR)
+          thd->clear_error();
+        if (!thd->net.report_error)
+        {
+          char n[NAME_LEN*2+2];
+
+          /* m_qname.str is not always \0 terminated */
+          memcpy(n, name.m_qname.str, name.m_qname.length);
+          n[name.m_qname.length]= '\0';
+          my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), n, ret);
+        }
         break;
       }
       delete newlex;
@@ -1493,13 +1503,14 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       if (!(first && first_no_prelock))
       {
         sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
-        result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+        tabschnd|=
+          sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
       }
     }
     first= FALSE;
   }
-  if (tabs_changed)
-    *tabs_changed= result;
+  if (tabs_changed)             /* it can be NULL  */
+    *tabs_changed= tabschnd;
   DBUG_RETURN(ret);
 }
 
@@ -1518,8 +1529,8 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       tabs_changed     - Set to TRUE some tables were added, FALSE otherwise
                          
   RETURN VALUE
-     0 - success
-    -x - failure (error code, like SP_PARSE_ERROR et al)
+     0     - success
+     non-0 - failure
 */
 
 int
@@ -1544,8 +1555,8 @@ sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock,
       aux_lex - LEX representing view
                          
   RETURN VALUE
-     0 - success
-    -x - failure (error code, like SP_PARSE_ERROR et al)
+     0     - success
+     non-0 - failure
 */
 
 int
@@ -1572,8 +1583,8 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
       triggers - triggers of the table
 
   RETURN VALUE
-     0 - success
-    -x - failure (error code, like SP_PARSE_ERROR et al)
+     0     - success
+     non-0 - failure
 */
 
 int

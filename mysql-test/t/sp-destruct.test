@@ -101,26 +101,24 @@ values
   'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
 );
 
---error ER_SP_NO_RETSET
+--error ER_SP_PROC_TABLE_CORRUPT
 select bug14233_1();
---error ER_SP_NO_RETSET
+--error ER_SP_PROC_TABLE_CORRUPT
 create view v1 as select bug14233_1();
 
---error ER_SP_NORETURNEND
+--error ER_SP_PROC_TABLE_CORRUPT
 select bug14233_2();
+--error ER_SP_PROC_TABLE_CORRUPT
 create view v1 as select bug14233_2();
---error ER_SP_NORETURNEND
-select * from v1;
 
---error ER_PARSE_ERROR
+--error ER_SP_PROC_TABLE_CORRUPT
 call bug14233_3();
 drop trigger t1_ai;
 create trigger t1_ai after insert on t1 for each row call bug14233_3();
---error ER_PARSE_ERROR
+--error ER_SP_PROC_TABLE_CORRUPT
 insert into t1 values (0);
 
 # Clean-up
 delete from mysql.proc where name like 'bug14233%';
 drop trigger t1_ai;
 drop table t1;
-drop view v1;
