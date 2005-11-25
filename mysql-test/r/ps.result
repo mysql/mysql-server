@@ -806,3 +806,22 @@ execute stmt;
 @@tx_isolation
 REPEATABLE-READ
 deallocate prepare stmt;
+prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
+not null)";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+set names latin1;
+prepare stmt from "create table t1 (a enum('test') default 'test')
+ character set utf8";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+set names default;
+deallocate prepare stmt;
