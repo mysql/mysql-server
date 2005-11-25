@@ -2863,7 +2863,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
-  Item *new_item;
+  Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
@@ -2892,8 +2892,17 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     new_item= (null_value ? (Item*) new Item_null(name) :
                (Item*) new Item_int(name, result, length));
   }
-  else if (res_type == ROW_RESULT)
+  else if (res_type == ROW_RESULT && item->type() == Item::ROW_ITEM &&
+           comp_item->type() == Item::ROW_ITEM)
   {
+    /*
+      Substitute constants only in Item_rows. Don't affect other Items
+      with ROW_RESULT (eg Item_singlerow_subselect).
+
+      For such Items more optimal is to detect if it is constant and replace
+      it with Item_row. This would optimize queries like this:
+      SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
+    */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     uint col;
@@ -2910,7 +2919,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     while (col-- > 0)
       resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
   }
-  else
+  else if (res_type == REAL_RESULT)
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
