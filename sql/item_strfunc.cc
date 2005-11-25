@@ -48,6 +48,38 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 }
 
 
+String *Item_str_func::check_well_formed_result(String *str)
+{
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= str->charset();
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
+    if (thd->variables.sql_mode &
+        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
+  return str;
+}
+
+
 double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1984,34 +2016,7 @@ String *Item_func_char::val_str(String *str)
   }
   str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
-
-  /* Check whether we got a well-formed string */
-  CHARSET_INFO *cs= collation.collation;
-  int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
-  if (wlen < str->length())
-  {
-    THD *thd= current_thd;
-    char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
-    uint diff= str->length() - wlen;
-    set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (thd->variables.sql_mode &
-        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
-    {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-      null_value= 1;
-      str= 0;
-    }
-    else
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
-    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
-  }
-  return str;
+  return check_well_formed_result(str);
 }
 
 
@@ -2320,7 +2325,7 @@ String *Item_func_conv_charset::val_str(String *str)
   }
   null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : &str_value;
+  return null_value ? 0 : check_well_formed_result(&str_value);
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
