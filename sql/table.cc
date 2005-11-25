@@ -539,17 +539,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     if (next_chunk + 4 < buff_end)
     {
-      if ((share->partition_info_len= uint4korr(next_chunk)))
+      uint32 partition_info_len = uint4korr(next_chunk);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if ((share->partition_info_len= partition_info_len))
       {
         if (!(share->partition_info=
               (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
-                                   share->partition_info_len + 1)))
+                                   partition_info_len + 1)))
         {
           my_free(buff, MYF(0));
           goto err;
         }
-        next_chunk+= share->partition_info_len + 5;
+	next_chunk++;
       }
+#else
+      if (partition_info_len)
+      {
+        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
+        my_free(buff, MYF(0));
+        goto err;
+      }
+#endif
+      next_chunk+= 4 + partition_info_len;
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)

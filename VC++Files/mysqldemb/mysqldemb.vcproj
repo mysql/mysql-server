@@ -124,7 +124,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../zlib,../include,../regex,../libmysqld,../sql,../bdb/build_win32"
+				AdditionalIncludeDirectories="../zlib,../include,../regex,../libmysqld,../sql,../storage/bdb/build_win32"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;USE_TLS;__WIN__"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -175,7 +175,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="../include,../regex,../libmysqld,../sql,../bdb/build_win32,../zlib"
+				AdditionalIncludeDirectories="../include,../regex,../libmysqld,../sql,../storage/bdb/build_win32,../zlib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;DBUG_OFF;USE_TLS;__WIN__"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"

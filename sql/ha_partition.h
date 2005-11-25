@@ -122,7 +122,7 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 
 public:
-  void set_part_info(partition_info *part_info)
+  virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;
      m_is_sub_partitioned= is_sub_partitioned(part_info);
