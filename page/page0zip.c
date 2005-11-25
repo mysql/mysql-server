@@ -161,11 +161,7 @@ page_zip_compress(
 
 	ut_a(page_is_comp((page_t*) page));
 	ut_ad(page_simple_validate_new((page_t*) page));
-	ut_ad(page_zip);
-	ut_ad(page_zip->data);
-	ut_ad(!(page_zip->size & (page_zip->size - 1))); /* power of 2 */
-	ut_ad(page_zip->size <= UNIV_PAGE_SIZE);
-	ut_ad(page_zip->size > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
+	ut_ad(page_zip_simple_validate(page_zip));
 
 	/* Check the data that will be omitted. */
 	ut_a(!memcmp(page + (PAGE_NEW_INFIMUM - REC_N_NEW_EXTRA_BYTES),
@@ -181,11 +177,7 @@ page_zip_compress(
 	if (UNIV_UNLIKELY(!page_get_n_recs((page_t*) page))) {
 		ut_a(rec_get_next_offs((page_t*) page + PAGE_NEW_INFIMUM, TRUE)
 			== PAGE_NEW_SUPREMUM);
-	}/* else {
-		ut_a(rec_get_next_offs((page_t*) page + PAGE_NEW_INFIMUM, TRUE)
-			== (page_zip_dir_get(page_zip, 0)
-				& PAGE_ZIP_DIR_SLOT_MASK));
-	}*/
+	}
 
 	n_heap = page_dir_get_n_heap((page_t*) page) - 2;
 	ut_a(n_heap * PAGE_ZIP_DIR_SLOT_SIZE < page_zip->size);
@@ -217,6 +209,7 @@ page_zip_compress(
 	    && *recs == page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
 		src = page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES);
 		recs++;
+		n_heap--;
 	} else {
 		src = page + PAGE_ZIP_START;
 	}
@@ -728,7 +721,8 @@ page_zip_validate(
 #endif
 
 	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL)
-				&& !memcmp(page, temp_page, UNIV_PAGE_SIZE);
+				&& !memcmp(page, temp_page,
+				UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 	buf_frame_free(temp_page);
 	return(valid);
 }
@@ -752,8 +746,9 @@ page_zip_write(
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(page_dir_get_n_slots(ut_align_down((byte*) str, UNIV_PAGE_SIZE))
-		== page_dir_get_n_slots(page_zip->data));
+	ut_ad(page_zip->m_start >= PAGE_DATA);
+	ut_ad(!memcmp(ut_align_down((byte*) str, UNIV_PAGE_SIZE),
+		page_zip->data, PAGE_ZIP_START));
 	ut_ad(!page_zip->data[page_zip->m_end]);
 
 	ut_ad(pos >= PAGE_DATA);
