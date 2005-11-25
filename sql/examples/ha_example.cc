@@ -71,7 +71,7 @@
 
 #include "ha_example.h"
 
-static handler* example_create_handler(TABLE *table);
+static handler* example_create_handler(TABLE_SHARE *table);
 
 handlerton example_hton= {
   "EXAMPLE",
@@ -213,7 +213,7 @@ static int free_share(EXAMPLE_SHARE *share)
 }
 
 
-static handler* example_create_handler(TABLE *table)
+static handler* example_create_handler(TABLE_SHARE *table)
 {
   return new ha_example(table);
 }
