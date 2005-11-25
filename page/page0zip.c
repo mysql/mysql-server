@@ -223,11 +223,7 @@ page_zip_compress(
 		c_stream.avail_in = *recs - src - REC_N_NEW_EXTRA_BYTES;
 
 		err = deflate(&c_stream, Z_NO_FLUSH);
-		switch (err) {
-		case Z_OK:
-		case Z_STREAM_END:
-			break;
-		default:
+		if (err != Z_OK) {
 			goto zlib_error;
 		}
 
@@ -239,7 +235,8 @@ page_zip_compress(
 	c_stream.avail_in =
 			page_header_get_field((page_t*) page, PAGE_HEAP_TOP)
 			- ut_align_offset(src, UNIV_PAGE_SIZE);
-	ut_a(c_stream.avail_in < UNIV_PAGE_SIZE);
+	ut_a(c_stream.avail_in < UNIV_PAGE_SIZE
+				- PAGE_ZIP_START - PAGE_DIR);
 
 	err = deflate(&c_stream, Z_FINISH);
 
@@ -335,8 +332,8 @@ page_zip_dir_sort(
 /*==============*/
 	rec_t**	arr,	/* in/out: dense page directory */
 	rec_t**	aux_arr,/* in/out: work area */
-	ulint	low,	/* in: lower bound of the sorting area */
-	ulint	high)	/* in: upper bound of the sorting area */
+	ulint	low,	/* in: lower bound of the sorting area, inclusive */
+	ulint	high)	/* in: upper bound of the sorting area, exclusive */
 {
 	UT_SORT_FUNCTION_BODY(page_zip_dir_sort, arr, aux_arr, low, high,
 			      page_zip_dir_cmp);
@@ -411,7 +408,7 @@ page_zip_dir_decode(
 	}
 
 	if (UNIV_LIKELY(n_dense > 1)) {
-		page_zip_dir_sort(recs, recs_aux, 0, n_dense - 1);
+		page_zip_dir_sort(recs, recs_aux, 0, n_dense);
 	}
 	return(TRUE);
 }
@@ -465,10 +462,12 @@ page_zip_set_extra_bytes(
 	/* Set n_owned of the supremum record. */
 	page[PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES] = n_owned;
 
-	n = page_dir_get_n_heap(page);
+	/* The dense directory excludes the infimum and supremum records. */
+	n = page_dir_get_n_heap(page) - 2;
 
-	if (i + 2/* infimum and supremum */ >= n) {
-		return(UNIV_LIKELY(i + 2 == n));
+	if (i >= n) {
+
+		return(UNIV_LIKELY(i == n));
 	}
 
 	offs = page_zip_dir_get(page_zip, i);
@@ -483,7 +482,11 @@ page_zip_set_extra_bytes(
 		rec = page + offs;
 		rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
 
-		offs = page_zip_dir_get(page_zip, ++i);
+		if (++i == n) {
+			break;
+		}
+
+		offs = page_zip_dir_get(page_zip, i);
 		rec_set_next_offs_new(rec, NULL, offs);
 	}
 
@@ -491,7 +494,7 @@ page_zip_set_extra_bytes(
 	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
 	rec_set_next_offs_new(rec, NULL, 0);
 
-	return(UNIV_LIKELY(i + 2/* infimum and supremum */ == n));
+	return(TRUE);
 }
 
 /**************************************************************************
@@ -630,15 +633,15 @@ page_zip_decompress(
 		d_stream.next_out = dst;
 		d_stream.avail_out = *recs - dst - REC_N_NEW_EXTRA_BYTES;
 
-		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE);
+		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
+					- PAGE_ZIP_START - PAGE_DIR);
 		/* set heap_no and the status bits */
 		mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
-		heap_status += REC_HEAP_NO_SHIFT;
+		heap_status += 1 << REC_HEAP_NO_SHIFT;
 
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
-		case Z_STREAM_END:
 			break;
 		case Z_BUF_ERROR:
 			if (!d_stream.avail_out) {
@@ -657,7 +660,8 @@ page_zip_decompress(
 	d_stream.avail_out =
 			page_header_get_field(page, PAGE_HEAP_TOP)
 			- ut_align_offset(dst, UNIV_PAGE_SIZE);
-	ut_a(d_stream.avail_out < UNIV_PAGE_SIZE);
+	ut_a(d_stream.avail_out < UNIV_PAGE_SIZE
+				- PAGE_ZIP_START - PAGE_DIR);
 
 	/* set heap_no and the status bits */
 	mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
