@@ -45,6 +45,11 @@ fi
 # Make sure to enable all features that affect "make dist"
 ./configure \
   --with-embedded-server \
+  --with-archive-storage-engine \
+  --with-blackhole-storage-engine \
+  --with-csv-storage-engine \
+  --with-example-storage-engine \
+  --with-federated-storage-engine \
   --with-berkeley-db \
   --with-innodb \
   --enable-thread-safe-client \
