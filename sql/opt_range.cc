@@ -3136,10 +3136,10 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
     /* F=F-covered by first(I) */
     bitmap_union(&covered_fields, &(*ror_scan_mark)->covered_fields);
     all_covered= bitmap_is_subset(&param->needed_fields, &covered_fields);
-  } while (!all_covered && (++ror_scan_mark < ror_scans_end));
-
-  if (!all_covered)
-    DBUG_RETURN(NULL); /* should not happen actually */
+  } while ((++ror_scan_mark < ror_scans_end) && !all_covered);
+  
+  if (!all_covered || (ror_scan_mark - tree->ror_scans) == 1)
+    DBUG_RETURN(NULL);
 
   /*
     Ok, [tree->ror_scans .. ror_scan) holds covering index_intersection with
