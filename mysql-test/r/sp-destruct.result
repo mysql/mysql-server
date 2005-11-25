@@ -11,11 +11,11 @@ create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row call bug14233();
 alter table mysql.proc drop type;
 call bug14233();
-ERROR HY000: The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
 create view v1 as select bug14233_f();
-ERROR HY000: The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Failed to load routine test.bug14233_f. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
 insert into t1 values (0);
-ERROR HY000: The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
 flush table mysql.proc;
 call bug14233();
 ERROR HY000: Incorrect information in file: './mysql/proc.frm'
@@ -59,21 +59,19 @@ values
 'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
 );
 select bug14233_1();
-ERROR 0A000: Not allowed to return a result set from a function
+ERROR HY000: Failed to load routine test.bug14233_1. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 create view v1 as select bug14233_1();
-ERROR 0A000: Not allowed to return a result set from a function
+ERROR HY000: Failed to load routine test.bug14233_1. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 select bug14233_2();
-ERROR 2F005: FUNCTION bug14233_2 ended without RETURN
+ERROR HY000: Failed to load routine test.bug14233_2. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 create view v1 as select bug14233_2();
-select * from v1;
-ERROR 2F005: FUNCTION bug14233_2 ended without RETURN
+ERROR HY000: Failed to load routine test.bug14233_2. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 call bug14233_3();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'wpsj sa ^#!@ ' at line 3
+ERROR HY000: Failed to load routine test.bug14233_3. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 drop trigger t1_ai;
 create trigger t1_ai after insert on t1 for each row call bug14233_3();
 insert into t1 values (0);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'wpsj sa ^#!@ ' at line 3
+ERROR HY000: Failed to load routine test.bug14233_3. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
 delete from mysql.proc where name like 'bug14233%';
 drop trigger t1_ai;
 drop table t1;
-drop view v1;
