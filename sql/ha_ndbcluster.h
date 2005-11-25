@@ -534,6 +534,7 @@ class ha_ndbcluster: public handler
     return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
             HA_CAN_PARTITION_UNIQUE);
   }
+  void set_part_info(partition_info *part_info);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
