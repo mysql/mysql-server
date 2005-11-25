@@ -454,9 +454,6 @@ buf_flush_init_for_writing(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {	
-#if 1 /* testing */
-	page_zip_des_t	page_zip = { buf_frame_alloc(), UNIV_PAGE_SIZE, 0, 0 };
-#endif /* testing */
 	/* Write the newest modification lsn to the page header and trailer */
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
@@ -483,10 +480,17 @@ buf_flush_init_for_writing(
                   buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
 #if 1 /* testing */
 	if (page_is_comp(page)) {
-		ut_a(page_zip_compress(&page_zip, page));
-		fprintf(stderr, "page_zip.size==%lu\n", (ulong) page_zip.size);
+		byte zip_data[16384];
+		page_zip_des_t*	page_zip = &buf_block_align(page)->page_zip;
+		page_zip->data = zip_data;
+		page_zip->size = sizeof zip_data;
+		page_zip->m_start = page_zip->m_end = 0;
+		ut_a(page_zip_compress(page_zip, page));
+		fprintf(stderr, "zip size==%lu+%lu\n",
+			(ulong) page_zip->m_start,
+			(ulong) 2 * page_dir_get_n_heap(page_zip->data));
+		page_zip->data = NULL;
 	}
-	buf_frame_free(page_zip.data);
 #endif /* testing */
 }
 
