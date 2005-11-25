@@ -248,7 +248,7 @@ enum ha_base_keytype {
 #define HA_OPTION_CHECKSUM		32
 #define HA_OPTION_DELAY_KEY_WRITE	64
 #define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
-#define HA_OPTION_CREATE_FROM_ENGINE    256 
+#define HA_OPTION_CREATE_FROM_ENGINE    256
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 
