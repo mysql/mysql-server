@@ -480,6 +480,8 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
 
 /*
   ::info() is used to return information to the optimizer.
+  see my_base.h for the complete description
+
   Currently this table handler doesn't implement most of the fields
   really needed. SHOW also makes use of this data
   Another note, you will probably want to have the following in your
