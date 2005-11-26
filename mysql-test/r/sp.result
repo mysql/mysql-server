@@ -988,6 +988,10 @@ end|
 select f5(1)|
 f5(1)
 1
+select f5(2)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select f5(3)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 create function f6() returns int
 begin
 declare n int;
@@ -1035,6 +1039,12 @@ select * from v1|
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 create function f1() returns int
 return (select sum(data) from t1) + (select sum(data) from v1)|
+select f1()|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select * from v1|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select * from v2|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 drop function f1|
 create function f1() returns int
 return (select sum(data) from t1)|
@@ -1053,7 +1063,7 @@ f0()
 select *, f0() from v0|
 f0()	f0()
 100	100
-lock tables t1 read, t1 as t11 read, mysql.proc read|
+lock tables t1 read, t1 as t11 read|
 select f3()|
 f3()
 1
@@ -1251,6 +1261,62 @@ drop procedure opp|
 drop procedure ip|
 show procedure status like '%p%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+drop table if exists fib|
+create table fib ( f bigint unsigned not null )|
+drop procedure if exists fib|
+create procedure fib(n int unsigned)
+begin
+if n > 1 then
+begin
+declare x, y bigint unsigned;
+declare c cursor for select f from fib order by f desc limit 2;
+open c;
+fetch c into y;
+fetch c into x;
+close c;
+insert into fib values (x+y);
+call fib(n-1);
+end;
+end if;
+end|
+set @@max_sp_recursion_depth= 20|
+insert into fib values (0), (1)|
+call fib(3)|
+select * from fib order by f asc|
+f
+0
+1
+1
+2
+delete from fib|
+insert into fib values (0), (1)|
+call fib(20)|
+select * from fib order by f asc|
+f
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+drop table fib|
+drop procedure fib|
+set @@max_sp_recursion_depth= 0|
 drop procedure if exists bar|
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
@@ -1479,6 +1545,52 @@ select @x2|
 @x2
 2
 drop procedure bug2260|
+drop procedure if exists bug2267_1|
+create procedure bug2267_1()
+begin
+show procedure status;
+end|
+drop procedure if exists bug2267_2|
+create procedure bug2267_2()
+begin
+show function status;
+end|
+drop procedure if exists bug2267_3|
+create procedure bug2267_3()
+begin
+show create procedure bug2267_1;
+end|
+drop procedure if exists bug2267_4|
+drop function if exists bug2267_4|
+create procedure bug2267_4()
+begin
+show create function bug2267_4;
+end|
+create function bug2267_4() returns int return 100|
+call bug2267_1()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_2()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_3()|
+Procedure	sql_mode	Create Procedure
+bug2267_1		CREATE PROCEDURE `bug2267_1`()
+begin
+show procedure status;
+end
+call bug2267_4()|
+Function	sql_mode	Create Function
+bug2267_4		CREATE FUNCTION `bug2267_4`() RETURNS int(11)
+return 100
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+drop function bug2267_4|
 drop procedure if exists bug2227|
 create procedure bug2227(x int)
 begin
@@ -1490,6 +1602,18 @@ call bug2227(9)|
 1.3	x	y	42	z
 1.3	9	2.6	42	zzz
 drop procedure bug2227|
+drop procedure if exists bug2614|
+create procedure bug2614()
+begin
+drop table if exists t3;
+create table t3 (id int default '0' not null);
+insert into t3 select 12;
+insert into t3 select * from t3;
+end|
+call bug2614()|
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
 drop function if exists bug2674|
 create function bug2674() returns int
 return @@sort_buffer_size|
