@@ -31,5 +31,6 @@ struct show_table_authors_st show_table_authors[]= {
   { "Alexander Nozdrin", "Moscow, Russia", "Bugfixing (Stored Procedures, 5.0)" },
   { "Per-Erik Martin", "Uppsala, Sweden", "Stored Procedures (5.0)" },
   { "Alexey Botchkov (Holyfoot)", "Izhevsk Russia", "GIS extentions (4.1), Embedded Server (4.1), precision math (5.0)"},
+  { "Eric Herman", "Amsterdam, Netherlands", "Bugfixing - federated" },
   {NULL, NULL, NULL}
 };
