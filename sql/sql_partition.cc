@@ -39,7 +39,7 @@
 #include "md5.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-#include <ha_partition.h>
+#include "ha_partition.h"
 /*
   Partition related functions declarations and some static constants;
 */
