@@ -89,7 +89,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_Debug\myisammrg_tls.lib"
+				OutputFile="..\lib_debug\myisammrg_tls.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -190,7 +190,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="..\lib_Debug\myisammrg.lib"
+				OutputFile="..\lib_debug\myisammrg.lib"
 				SuppressStartupBanner="TRUE"/>
 			<Tool
 				Name="VCMIDLTool"/>
