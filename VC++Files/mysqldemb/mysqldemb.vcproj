@@ -75,7 +75,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="../include,../regex,../libmysqld,../sql,../zlib"
-				PreprocessorDefinitions="WIN32;_LIB;SIGNAL_WITH_VIO_CLOSE;EMBEDDED_LIBRARY;USE_TLS;__WIN__;USE_SYMDIR;MYSQL_SERVER;LICENSE=Commercial;HAVE_DLOPEN;HAVE_INNOBASE_DB;DBUG_OFF;NDEBUG;_WINDOWS;_CONSOLE"
+				PreprocessorDefinitions="WIN32;_LIB;SIGNAL_WITH_VIO_CLOSE;EMBEDDED_LIBRARY;USE_TLS;__WIN__;USE_SYMDIR;MYSQL_SERVER;LICENSE=Commercial;HAVE_DLOPEN;HAVE_INNOBASE_DB;DBUG_OFF;NDEBUG;_WINDOWS;_CONSOLE;WITH_INNOBASE_STORAGE_ENGINE"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -125,7 +125,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="../zlib,../include,../regex,../libmysqld,../sql,../storage/bdb/build_win32"
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;USE_TLS;__WIN__"
+				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;USE_TLS;__WIN__;WITH_INNOBASE_STORAGE_ENGINE"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\Debug/mysqldemb.pch"
@@ -176,7 +176,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="../include,../regex,../libmysqld,../sql,../storage/bdb/build_win32,../zlib"
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;DBUG_OFF;USE_TLS;__WIN__"
+				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;MYSQL_SERVER;HAVE_INNOBASE_DB;DBUG_OFF;USE_TLS;__WIN__;WITH_INNOBASE_STORAGE_ENGINE"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -473,7 +473,8 @@
 		<File
 			RelativePath="..\sql\ha_innodb.cpp">
 			<FileConfiguration
-				Name="classic|Win32">
+				Name="classic|Win32"
+				ExcludedFromBuild="TRUE">
 				<Tool
 					Name="VCCLCompilerTool"
 					Optimization="2"
