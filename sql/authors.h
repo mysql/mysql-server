@@ -16,6 +16,7 @@ struct show_table_authors_st show_table_authors[]= {
     "Architecture, archive, federated, buncha of little stuff :)" },
   { "David Axmark", "Uppsala, Sweden", "Small stuff long time ago, Monty ripped it out!"},
   { "Omer BarNir", "Sunnyvale, CA. USA", "Testing (sometimes) and general QA stuff"},
+  { "Reggie Burnett", "Nashville, TN. USA", "Windows Server, Connectors" },
   { "Nikolay Grishakin", "Austin, TX. USA", "Testing - Server"},
   { "Serge Kozlov", "Velikie Luki, Russia", "Testing - Cluster"},
   { "Matthias Leich", "Berlin, Germany", "Testing - Server"},
