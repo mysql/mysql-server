@@ -2702,8 +2702,9 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   if (view->schema_table_reformed)
   {
     /*
-      In case of SHOW command (schema_table_reformed set) all items are
-      fixed
+      Translation table items are always Item_fields and already fixed
+      ('mysql_schema_table' function). So we can return directly the
+      field. This case happens only for 'show & where' commands.
     */
     DBUG_ASSERT(field && field->fixed);
     DBUG_RETURN(field);
@@ -2735,21 +2736,14 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
 void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
 {
   DBUG_ASSERT(table_ref->join_columns);
-  delete column_ref_it;
-
-  /*
-    TODO: try not to allocate new iterator every time. If we have to,
-    then check for out of memory condition.
-  */
-  column_ref_it= new List_iterator_fast<Natural_join_column>
-                     (*(table_ref->join_columns));
-  cur_column_ref= (*column_ref_it)++;
+  column_ref_it.init(*(table_ref->join_columns));
+  cur_column_ref= column_ref_it++;
 }
 
 
 void Field_iterator_natural_join::next()
 {
-  cur_column_ref= (*column_ref_it)++;
+  cur_column_ref= column_ref_it++;
   DBUG_ASSERT(!cur_column_ref || ! cur_column_ref->table_field ||
               cur_column_ref->table_ref->table ==
               cur_column_ref->table_field->table);
@@ -2876,7 +2870,6 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 
   SYNOPSIS
     Field_iterator_table_ref::get_or_create_column_ref()
-    thd         [in]  pointer to current thread
     is_created  [out] set to TRUE if the column was created,
                       FALSE if we return an already created colum
 
@@ -2889,7 +2882,7 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 */
 
 Natural_join_column *
-Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
+Field_iterator_table_ref::get_or_create_column_ref(bool *is_created)
 {
   Natural_join_column *nj_col;
 
@@ -2919,6 +2912,41 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, bool *is_created)
   }
   DBUG_ASSERT(!nj_col->table_field ||
               nj_col->table_ref->table == nj_col->table_field->table);
+  return nj_col;
+}
+
+
+/*
+  Return an existing reference to a column of a natural/using join.
+
+  SYNOPSIS
+    Field_iterator_table_ref::get_natural_column_ref()
+
+  DESCRIPTION
+    The method should be called in contexts where it is expected that
+    all natural join columns are already created, and that the column
+    being retrieved is a Natural_join_column.
+
+  RETURN
+    #     Pointer to a column of a natural join (or its operand)
+    NULL  No memory to allocate the column
+*/
+
+Natural_join_column *
+Field_iterator_table_ref::get_natural_column_ref()
+{
+  Natural_join_column *nj_col;
+
+  DBUG_ASSERT(field_it == &natural_join_it);
+  /*
+    The field belongs to a NATURAL join, therefore the column reference was
+    already created via one of the two constructor calls above. In this case
+    we just return the already created column reference.
+  */
+  nj_col= natural_join_it.column_ref();
+  DBUG_ASSERT(nj_col &&
+              (!nj_col->table_field ||
+               nj_col->table_ref->table == nj_col->table_field->table));
   return nj_col;
 }
 

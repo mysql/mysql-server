@@ -2761,8 +2761,9 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         uint unused_field_idx= NO_CACHED_FIELD_INDEX;
         TABLE_LIST *dummy;
         Field *f=find_field_in_table_ref(thd, table_list, column->column.ptr(),
+                                         column->column.length(),
                                          column->column.ptr(), NULL, NULL,
-                                         column->column.length(), 0, 1, 1, 0,
+                                         0, 1, 1, 0,
                                          &unused_field_idx, FALSE, &dummy);
         if (f == (Field*)0)
         {
