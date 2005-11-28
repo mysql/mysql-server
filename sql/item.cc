@@ -700,23 +700,15 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    Item_string *conv;
     uint cnv_errors;
-    char buf[MAX_FIELD_WIDTH];
-    String tmp(buf, sizeof(buf), &my_charset_bin);
-    String cstr, *ostr= val_str(&tmp);
-    /*
-      As safe_charset_converter is not executed for
-      a parameter bound to NULL, ostr should never be 0.
-    */
-    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                              cstr.charset(),
-                                              collation.derivation)))
-      return NULL;
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-    return conv;
+    String *ostr= val_str(&cnvstr);
+    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
+                            ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors)
+       return NULL;
+    cnvitem->str_value.mark_as_const();
+    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    return cnvitem;
   }
   return NULL;
 }
@@ -2104,6 +2096,8 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
+  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
+  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
