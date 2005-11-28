@@ -1075,7 +1075,11 @@ public:
 
 class Item_param :public Item
 {
+  char cnvbuf[MAX_FIELD_WIDTH];
+  String cnvstr;
+  Item *cnvitem;
 public:
+
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
