@@ -524,7 +524,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (!interval)
       {
-        interval= sql_field->interval= typelib(sql_field->interval_list);
+        /*
+          Create the typelib in prepared statement memory if we're
+          executing one.
+        */
+        MEM_ROOT *stmt_root= thd->current_arena->mem_root;
+
+        interval= sql_field->interval= typelib(stmt_root,
+                                               sql_field->interval_list);
         List_iterator<String> it(sql_field->interval_list);
         String conv, *tmp;
         for (uint i= 0; (tmp= it++); i++)
@@ -534,7 +541,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           {
             uint cnv_errs;
             conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-            char *buf= (char*) sql_alloc(conv.length()+1);
+            char *buf= (char*) alloc_root(stmt_root, conv.length()+1);
             memcpy(buf, conv.ptr(), conv.length());
             buf[conv.length()]= '\0';
             interval->type_names[i]= buf;
@@ -556,8 +563,22 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        if (!(sql_field->def= 
-              sql_field->def->safe_charset_converter(cs)))
+        Item_arena backup_arena;
+        bool need_to_change_arena=
+          !thd->current_arena->is_conventional_execution();
+        if (need_to_change_arena)
+        {
+          /* Asser that we don't do that at every PS execute */
+          DBUG_ASSERT(thd->current_arena->is_first_stmt_execute());
+          thd->set_n_backup_item_arena(thd->current_arena, &backup_arena);
+        }
+
+        sql_field->def= sql_field->def->safe_charset_converter(cs);
+
+        if (need_to_change_arena)
+          thd->restore_backup_item_arena(thd->current_arena, &backup_arena);
+
+        if (! sql_field->def)
         {
           /* Could not convert */
           my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
