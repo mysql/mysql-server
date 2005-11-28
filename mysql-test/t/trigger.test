@@ -743,8 +743,12 @@ create trigger t1_ai after insert on t1
   for each row insert into t2 values (new.f1+1);
 create trigger t2_ai after insert on t2
   for each row insert into t1 values (new.f2+1);
+# Allow SP resursion to be show that it has not influence here
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth;
+set @@max_sp_recursion_depth=100;
 --error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 insert into t1 values (1);
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 select * from t2;
 drop trigger t1_ai;
@@ -914,3 +918,31 @@ call p1();
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
+
+#
+# BUG#13549 "Server crash with nested stored procedures".
+# Server should not crash when during execution of stored procedure
+# we have to parse trigger/function definition and this new trigger/
+# function has more local variables declared than invoking stored
+# procedure and last of these variables is used in argument of NOT
+# operator.
+#
+create table t1 (a int);
+--disable_warnings
+drop procedure if exists p2;
+--enable_warnings
+DELIMITER //;
+CREATE PROCEDURE `p2`()
+begin
+  insert into t1 values (1);
+end//
+create trigger trg before insert on t1 for each row 
+begin 
+  declare done int default 0;
+  set done= not done;
+end//
+DELIMITER ;//
+CALL p2();
+drop procedure p2;
+drop table t1;
+

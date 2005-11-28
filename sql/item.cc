@@ -894,6 +894,7 @@ bool Item_splocal::is_null()
 Item *
 Item_splocal::this_item()
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -901,12 +902,14 @@ Item_splocal::this_item()
 Item **
 Item_splocal::this_item_addr(THD *thd, Item **addr)
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item_addr(m_offset);
 }
 
 Item *
 Item_splocal::this_const_item() const
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -914,7 +917,10 @@ Item::Type
 Item_splocal::type() const
 {
   if (thd && thd->spcont)
+  {
+    DBUG_ASSERT(owner == thd->spcont->owner);
     return thd->spcont->get_item(m_offset)->type();
+  }
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 
@@ -5254,7 +5260,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
-  Item *new_item;
+  Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
@@ -5287,7 +5293,16 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     break;
   }
   case ROW_RESULT:
+  if (item->type() == Item::ROW_ITEM && comp_item->type() == Item::ROW_ITEM)
   {
+    /*
+      Substitute constants only in Item_rows. Don't affect other Items
+      with ROW_RESULT (eg Item_singlerow_subselect).
+
+      For such Items more optimal is to detect if it is constant and replace
+      it with Item_row. This would optimize queries like this:
+      SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
+    */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     uint col;
@@ -5305,6 +5320,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
     break;
   }
+  /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();

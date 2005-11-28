@@ -1,0 +1,2 @@
+instr(version(), "debug") > 0
+1

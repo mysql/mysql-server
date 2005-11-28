@@ -183,6 +183,7 @@ THD::THD()
    spcont(NULL)
 {
   stmt_arena= this;
+  thread_stack= 0;
   db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
@@ -517,6 +518,12 @@ void THD::awake(THD::killed_state state_to_set)
 
 bool THD::store_globals()
 {
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(this->thread_stack);
+
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
@@ -1495,7 +1502,13 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     my_var *mv= gl++;
     if (mv->local)
-      (void)local_vars.push_back(new Item_splocal(mv->s, mv->offset));
+    {
+      Item_splocal *var;
+      (void)local_vars.push_back(var= new Item_splocal(mv->s, mv->offset));
+#ifndef DBUG_OFF
+      var->owner= mv->owner;
+#endif
+    }
     else
     {
       Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);

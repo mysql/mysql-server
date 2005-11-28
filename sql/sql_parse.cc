@@ -1097,6 +1097,7 @@ pthread_handler_t handle_one_connection(void *arg)
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+  thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -1110,7 +1111,6 @@ pthread_handler_t handle_one_connection(void *arg)
     int error;
     NET *net= &thd->net;
     Security_context *sctx= thd->security_ctx;
-    thd->thread_stack= (char*) &thd;
     net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
@@ -1201,6 +1201,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   char *buff;
 
   /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
   {
 #ifndef EMBEDDED_LIBRARY
@@ -3682,7 +3683,8 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_function(thd, lex->spname))
+    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                        &thd->sp_func_cache, FALSE))
     {
       my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
       goto error;
@@ -4216,7 +4218,8 @@ end_with_restore_list:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
+      if (!(sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                                &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
                  lex->spname->m_qname.str);
@@ -4340,9 +4343,11 @@ end_with_restore_list:
 
       memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (! sp)
       {
@@ -4418,9 +4423,11 @@ end_with_restore_list:
       char *db, *name;
 
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (sp)
       {
@@ -4548,6 +4555,33 @@ end_with_restore_list:
 					 lex->wild->ptr() : NullS));
       break;
     }
+#ifndef DBUG_OFF
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+    {
+      sp_head *sp;
+
+      if (lex->spname->m_name.length > NAME_LEN)
+      {
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+	goto error;
+      }
+      if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
+      else
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
+      if (!sp || !sp->show_routine_code(thd))
+      {
+        /* We don't distinguish between errors for now */
+        my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
+        goto error;
+      }
+      break;
+    }
+#endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
       if (end_active_trans(thd))
@@ -5255,6 +5289,7 @@ bool check_stack_overrun(THD *thd, long margin,
 			 char *buf __attribute__((unused)))
 {
   long stack_used;
+  DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (thread_stack - margin))
   {
@@ -6704,7 +6739,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       allocate temporary THD for execution of acl_reload()/grant_reload().
     */
     if (!thd && (thd= (tmp_thd= new THD)))
+    {
+      thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
+    }
     if (thd)
     {
       (void)acl_reload(thd);
