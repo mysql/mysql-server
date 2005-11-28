@@ -530,6 +530,7 @@ struct system_variables
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
+  ulong max_sp_recursion_depth;
   /* check of key presence in updatable view */
   ulong updatable_views_with_limit;
   ulong default_week_format;
@@ -1229,14 +1230,16 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
     }
-#ifdef USING_TRANSACTIONS
     st_transactions()
     {
+#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-    }
+#else
+      xid_state.xa_state= XA_NOTR;
 #endif
+    }
   } transaction;
   Field      *dupp_field;
 #ifndef __WIN__
@@ -2085,6 +2088,13 @@ public:
 class my_var : public Sql_alloc  {
 public:
   LEX_STRING s;
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   bool local;
   uint offset;
   enum_field_types type;

@@ -1088,6 +1088,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   /* find a unused table in the open table cache */
   if (refresh)
     *refresh=0;
+
+  /* an open table operation needs a lot of the stack space */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (char *)&alias))
+    return 0;
+
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key, table_list->db)+1,

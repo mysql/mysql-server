@@ -26,18 +26,29 @@ begin
   execute stmt;
 end|
 prepare stmt from "call p1()"|
+# Allow SP resursion to be show that it has not influence here
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth|
+set @@max_sp_recursion_depth=100|
 --error ER_PS_NO_RECURSION
 execute stmt|
 --error ER_PS_NO_RECURSION
 execute stmt|
 --error ER_PS_NO_RECURSION
 execute stmt|
---error ER_SP_NO_RECURSION 
+--error ER_PS_NO_RECURSION 
 call p1()|
---error ER_SP_NO_RECURSION 
+--error ER_PS_NO_RECURSION 
 call p1()|
---error ER_SP_NO_RECURSION 
+--error ER_PS_NO_RECURSION
 call p1()|
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS|
+--error ER_SP_RECURSION_LIMIT 
+call p1()|
+--error ER_SP_RECURSION_LIMIT
+call p1()|
+--error ER_SP_RECURSION_LIMIT
+call p1()|
+
 drop procedure p1|
 #
 # C. Create/drop a stored procedure in Dynamic SQL.
