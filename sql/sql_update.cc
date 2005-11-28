@@ -516,7 +516,12 @@ int mysql_update(THD *thd,
 	}
  	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
-          thd->fatal_error();                   // Force error message
+          /*
+            If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+            do anything; otherwise...
+          */
+          if (error != HA_ERR_FOUND_DUPP_KEY)
+            thd->fatal_error(); /* Other handler errors are fatal */
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -1365,7 +1370,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  updated--;
           if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	  {
-            thd->fatal_error();                 // Force error message
+            /*
+              If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+              do anything; otherwise...
+            */
+            if (error != HA_ERR_FOUND_DUPP_KEY)
+              thd->fatal_error(); /* Other handler errors are fatal */
 	    table->file->print_error(error,MYF(0));
 	    DBUG_RETURN(1);
 	  }

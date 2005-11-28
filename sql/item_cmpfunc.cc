@@ -3662,7 +3662,7 @@ void Item_equal::merge(Item_equal *item)
       the multiple equality already contains a constant and its 
       value is  not equal to the value of c.
     */
-    add(const_item);
+    add(c);
   }
   cond_false|= item->cond_false;
 } 

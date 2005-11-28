@@ -1645,6 +1645,7 @@ void end_thread(THD *thd, bool put_in_cache)
       wake_thread--;
       thd=thread_cache.get();
       thd->real_id=pthread_self();
+      thd->thread_stack= (char *) &thd;
       (void) thd->store_globals();
       thd->thr_create_time= time(NULL);
       threads.append(thd);
@@ -7001,10 +7002,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
+    int method;
     LINT_INIT(method_conv);
 
     myisam_stats_method_str= argument;
-    int method;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
