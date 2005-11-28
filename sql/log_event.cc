@@ -2035,7 +2035,7 @@ Rotate_log_event::Rotate_log_event(THD* thd_arg,
                       llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strdup_with_length(new_log_ident_arg,
+    new_log_ident= my_strdup_with_length((byte*) new_log_ident_arg,
                                          ident_len,
                                          MYF(MY_WME));
   DBUG_VOID_RETURN;
