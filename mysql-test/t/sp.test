@@ -4781,6 +4781,48 @@ select * from t3|
 drop procedure bug13729|
 drop table t3|
 
+#
+# BUG#14643: Stored Procedure: Continuing after failed var. initialization
+#            crashes server.
+#
+--disable_warnings
+drop procedure if exists bug14643_1|
+drop procedure if exists bug14643_2|
+--enable_warnings
+
+create procedure bug14643_1()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  begin
+    declare v int default x;
+
+    if v = 1 then
+      select 1;
+    else
+      select 2;
+    end if;
+  end;
+end|
+
+create procedure bug14643_2()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  case x
+  when 1 then
+    select 1;
+  else
+    select 2;
+  end case;
+end|
+
+call bug14643_1()|
+call bug14643_2()|
+
+drop procedure bug14643_1|
+drop procedure bug14643_2|
+
 
 #
 # BUG#NNNN: New bug synopsis

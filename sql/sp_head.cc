@@ -2209,6 +2209,26 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
   int res= thd->spcont->set_item_eval(thd, m_offset, &m_value, m_type);
 
+  if (res < 0 &&
+      thd->spcont->get_item(m_offset) == NULL &&
+      thd->spcont->found_handler_here())
+  {
+    /*
+      Failed to evaluate the value, the variable is still not initialized,
+      and a handler has been found. Set to null so we can continue.
+    */
+    Item *it= new Item_null();
+
+    if (!it || thd->spcont->set_item_eval(thd, m_offset, &it, m_type) < 0)
+    {                           /* If this also failed, we have to abort */
+      sp_rcontext *spcont= thd->spcont;
+
+      thd->spcont= 0;           /* Avoid handlers */
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      spcont->clear_handler();
+      thd->spcont= spcont;
+    }
+  }
   *nextp = m_ip+1;
   return res;
 }
