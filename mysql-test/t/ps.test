@@ -871,3 +871,15 @@ set names default;
 deallocate prepare stmt;
 
 # End of 4.1 tests
+
+#
+# Bug #14956: ROW_COUNT() returns incorrect result after EXECUTE of prepared
+# statement
+#
+create table t1 (id int);
+prepare ins_call from "insert into t1 (id) values (1)";
+execute ins_call;
+select row_count();
+drop table t1;
+
+# End of 5.0 tests
