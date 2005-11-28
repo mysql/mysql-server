@@ -6584,36 +6584,39 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 
 
 /*
-  Create a new name resolution context for a JOIN ... ON clause.
+  Push a new name resolution context for a JOIN ... ON clause to the
+  context stack of a query block.
 
   SYNOPSIS
-    make_join_on_context()
+    push_new_name_resolution_context()
     thd       pointer to current thread
     left_op   left  operand of the JOIN
     right_op  rigth operand of the JOIN
 
   DESCRIPTION
     Create a new name resolution context for a JOIN ... ON clause,
-    and set the first and last leaves of the list of table references
-    to be used for name resolution.
+    set the first and last leaves of the list of table references
+    to be used for name resolution, and push the newly created
+    context to the stack of contexts of the query.
 
   RETURN
-    A new context if all is OK
-    NULL - if a memory allocation error occured
+    FALSE  if all is OK
+    TRUE   if a memory allocation error occured
 */
 
-Name_resolution_context *
-make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
+bool
+push_new_name_resolution_context(THD *thd,
+                                 TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
   Name_resolution_context *on_context;
   if (!(on_context= new (thd->mem_root) Name_resolution_context))
-    return NULL;
+    return TRUE;
   on_context->init();
   on_context->first_name_resolution_table=
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
-  return on_context;
+  return thd->lex->push_context(on_context);
 }
 
 

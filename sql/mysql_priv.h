@@ -791,12 +791,11 @@ find_field_in_tables(THD *thd, Item_ident *item,
                      bool check_privileges, bool register_tree_change);
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, const char *item_name,
-                        const char *table_name, const char *db_name,
-                        uint length, Item **ref,
+                        const char *name, uint length,
+                        const char *item_name, const char *db_name,
+                        const char *table_name, Item **ref,
                         bool check_grants_table, bool check_grants_view,
-                        bool allow_rowid,
-                        uint *cached_field_index_ptr,
+                        bool allow_rowid, uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name,
@@ -918,8 +917,9 @@ create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
-Name_resolution_context *make_join_on_context(THD *thd, TABLE_LIST *left_op,
-                                              TABLE_LIST *right_op);
+bool push_new_name_resolution_context(THD *thd,
+                                      TABLE_LIST *left_op,
+                                      TABLE_LIST *right_op);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields);
 bool add_proc_to_list(THD *thd, Item *item);
