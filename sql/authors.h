@@ -20,6 +20,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Serge Kozlov", "Velikie Luki, Russia", "Testing - Cluster"},
   { "Matthias Leich", "Berlin, Germany", "Testing - Server"},
   { "Jonathan (Jeb) Miller", "Kyle, TX. USA", "Testing - Cluster, Replication"},
+  { "Kristian Nielsen", "Copenhagen, Denmark", "General build stuff"},
   { "Carsten Segieth (Pino)", "Fredersdorf, Germany", "Testing - Server"},
   { "Punita Srivastava", "Austin, TX. USA", "Testing - Merlin"},
   { "Alexey Stroganov (Ranger)", "Lugansk, Ukraine", "Testing - Benchmarks"},
