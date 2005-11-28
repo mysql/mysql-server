@@ -433,4 +433,7 @@ INSERT INTO t1 VALUES('testword\'\'');
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword' IN BOOLEAN MODE);
 a
 testword''
+SELECT a FROM t1 WHERE MATCH a AGAINST('testword\'\'' IN BOOLEAN MODE);
+a
+testword''
 DROP TABLE t1;

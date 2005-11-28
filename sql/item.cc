@@ -700,23 +700,15 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    Item_string *conv;
     uint cnv_errors;
-    char buf[MAX_FIELD_WIDTH];
-    String tmp(buf, sizeof(buf), &my_charset_bin);
-    String cstr, *ostr= val_str(&tmp);
-    /*
-      As safe_charset_converter is not executed for
-      a parameter bound to NULL, ostr should never be 0.
-    */
-    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                              cstr.charset(),
-                                              collation.derivation)))
-      return NULL;
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-    return conv;
+    String *ostr= val_str(&cnvstr);
+    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
+                            ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors)
+       return NULL;
+    cnvitem->str_value.mark_as_const();
+    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    return cnvitem;
   }
   return NULL;
 }
@@ -2105,6 +2097,8 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
+  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
+  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
@@ -5302,7 +5296,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
-  Item *new_item;
+  Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
@@ -5335,7 +5329,16 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     break;
   }
   case ROW_RESULT:
+  if (item->type() == Item::ROW_ITEM && comp_item->type() == Item::ROW_ITEM)
   {
+    /*
+      Substitute constants only in Item_rows. Don't affect other Items
+      with ROW_RESULT (eg Item_singlerow_subselect).
+
+      For such Items more optimal is to detect if it is constant and replace
+      it with Item_row. This would optimize queries like this:
+      SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
+    */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     uint col;
@@ -5353,6 +5356,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
     break;
   }
+  /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
