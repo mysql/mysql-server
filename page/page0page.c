@@ -829,11 +829,8 @@ page_delete_rec_list_end(
 	ulint	slot_index;
 	rec_t*	last_rec;
 	rec_t*	prev_rec;
-	rec_t*	rec2;
-	ulint	count;
 	ulint	n_owned;
 	page_t*	page;
-	page_zip_des_t* page_zip_temp;
 
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
@@ -847,18 +844,11 @@ page_delete_rec_list_end(
 		return;
 	}
 
-	if (page_zip && !page_zip_available(page_zip, 17)) {
-		/* Try compressing the page afterwards. */
-		page_zip_temp = NULL;
-	} else {
-		page_zip_temp = page_zip;
-	}
-	
 	/* Reset the last insert info in the page header and increment
 	the modify clock for the frame */
 
 	page = ut_align_down(rec, UNIV_PAGE_SIZE);
-	page_header_set_ptr(page, page_zip_temp, PAGE_LAST_INSERT, NULL);
+	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
 
 	/* The page gets invalid for optimistic searches: increment the
 	frame modify clock */
@@ -874,6 +864,7 @@ page_delete_rec_list_end(
 	last_rec = page_rec_get_prev(page_get_supremum_rec(page));
 
 	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
+		rec_t*		rec2		= rec;
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets		= offsets_;
@@ -881,12 +872,24 @@ page_delete_rec_list_end(
 		/* Calculate the sum of sizes and the number of records */
 		size = 0;
 		n_recs = 0;
-		rec2 = rec;
 
 		do {
 			ulint	s;
 			offsets = rec_get_offsets(rec2, index, offsets,
 						ULINT_UNDEFINED, &heap);
+
+			if (1 /* TODO: UNIV_LIKELY_NULL(page_zip) */) {
+				/* Clear the data bytes of the deleted
+				record in order to improve the
+				compression ratio of the page.  The
+				extra bytes of the record cannot be
+				cleared, because page_mem_alloc()
+				needs them in order to determine the
+				size of the deleted record. */
+
+				memset(rec2, 0, rec_offs_data_size(offsets));
+			}
+
 			s = rec_offs_size(offsets);
 			ut_ad(rec2 - page + s - rec_offs_extra_size(offsets)
 				< UNIV_PAGE_SIZE);
@@ -908,10 +911,10 @@ page_delete_rec_list_end(
 	of the records owned by the supremum record, as it is allowed to be
 	less than PAGE_DIR_SLOT_MIN_N_OWNED */
 	
-	rec2 = rec;
-	count = 0;
-
 	if (page_is_comp(page)) {
+		rec_t*	rec2	= rec;
+		ulint	count	= 0;
+
 		while (rec_get_n_owned_new(rec2) == 0) {
 			count++;
 
@@ -921,7 +924,35 @@ page_delete_rec_list_end(
 		ut_ad(rec_get_n_owned_new(rec2) > count);
 
 		n_owned = rec_get_n_owned_new(rec2) - count;
+		slot_index = page_dir_find_owner_slot(rec2);
+		slot = page_dir_get_nth_slot(page, slot_index);
+
+		if (1 /* TODO: UNIV_UNLIKELY(page_zip != NULL) */) {
+			ulint	n_slots;
+			rec2 = rec;
+			do {
+				/* The compression algorithm expects
+				info_bits and n_owned to be 0
+				for deleted records. */
+				rec2[-REC_N_NEW_EXTRA_BYTES] = 0;
+				rec2 = rec_get_next_ptr(rec2, TRUE);
+			}
+			while (rec2);
+
+			/* The compression algorithm expects the removed
+			slots in the page directory to be cleared. */
+
+			n_slots = page_dir_get_n_slots(page) - slot_index - 1;
+			ut_ad(n_slots > 0);
+			ut_ad(n_slots < UNIV_PAGE_SIZE / PAGE_DIR_SLOT_SIZE);
+
+			memset(slot - (n_slots * PAGE_DIR_SLOT_SIZE), 0,
+				n_slots * PAGE_DIR_SLOT_SIZE);
+		}
 	} else {
+		rec_t*	rec2	= rec;
+		ulint	count	= 0;
+
 		while (rec_get_n_owned_old(rec2) == 0) {
 			count++;
 
@@ -931,38 +962,30 @@ page_delete_rec_list_end(
 		ut_ad(rec_get_n_owned_old(rec2) > count);
 
 		n_owned = rec_get_n_owned_old(rec2) - count;
+		slot_index = page_dir_find_owner_slot(rec2);
+		slot = page_dir_get_nth_slot(page, slot_index);
 	}
 
-	slot_index = page_dir_find_owner_slot(rec2);
-	slot = page_dir_get_nth_slot(page, slot_index);
-	
-	page_dir_slot_set_rec(slot, page_zip_temp,
+	page_dir_slot_set_rec(slot, page_zip,
 			page_get_supremum_rec(page));
-	page_dir_slot_set_n_owned(slot, page_zip_temp, n_owned);
+	page_dir_slot_set_n_owned(slot, page_zip, n_owned);
 
-	page_dir_set_n_slots(page, page_zip_temp, slot_index + 1);
+	page_dir_set_n_slots(page, page_zip, slot_index + 1);
 	
 	/* Remove the record chain segment from the record chain */
-	page_rec_set_next(prev_rec, page_get_supremum_rec(page),
-			page_zip_temp);
+	page_rec_set_next(prev_rec, page_get_supremum_rec(page), page_zip);
 
 	/* Catenate the deleted chain segment to the page free list */
 
 	page_rec_set_next(last_rec, page_header_get_ptr(page, PAGE_FREE),
-			page_zip_temp);
-	page_header_set_ptr(page, page_zip_temp, PAGE_FREE, rec);
+			page_zip);
+	page_header_set_ptr(page, page_zip, PAGE_FREE, rec);
 
-	page_header_set_field(page, page_zip_temp, PAGE_GARBAGE,
+	page_header_set_field(page, page_zip, PAGE_GARBAGE,
 			size + page_header_get_field(page, PAGE_GARBAGE));
 
-	page_header_set_field(page, page_zip_temp, PAGE_N_RECS,
+	page_header_set_field(page, page_zip, PAGE_N_RECS,
 				(ulint)(page_get_n_recs(page) - n_recs));
-
-	if (UNIV_LIKELY_NULL(page_zip) && UNIV_UNLIKELY(!page_zip_temp)) {
-		/* Reorganize and compress the page. */
-		/* TODO: coverage test.  Is this allowed? */
-		btr_page_reorganize(page, index, mtr);
-	}
 }	
 
 /*****************************************************************
@@ -1210,7 +1233,10 @@ page_dir_delete_slot(
 				page_zip, rec);
 	}
 
-	/* 4. Update the page header */
+	/* 4. Zero out the last slot, which will be removed */
+	mach_write_to_2(page_dir_get_nth_slot(page, n_slots - 1), 0);
+
+	/* 5. Update the page header */
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots - 1);
 }
 
