@@ -1095,6 +1095,11 @@ char(0xff,0x8f using utf8)
 ˇè
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
+select convert(char(0xff,0x8f) using utf8);
+convert(char(0xff,0x8f) using utf8)
+ˇè
+Warnings:
+Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
@@ -1116,6 +1121,11 @@ char(2557 using utf8)
 NULL
 Warnings:
 Error	1300	Invalid utf8 character string: 'FD'
+select convert(char(0xff,0x8f) using utf8);
+convert(char(0xff,0x8f) using utf8)
+NULL
+Warnings:
+Error	1300	Invalid utf8 character string: 'FF8F'
 select hex(convert(char(2557 using latin1) using utf8));
 hex(convert(char(2557 using latin1) using utf8))
 09C3BD

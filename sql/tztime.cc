@@ -1532,6 +1532,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   */
   if (!(thd= new THD))
     DBUG_RETURN(1);
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
 
   /* Init all memory structures that require explicit destruction */
