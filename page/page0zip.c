@@ -364,6 +364,10 @@ page_zip_dir_decode(
 
 	n_recs = page_get_n_recs(page);
 
+	if (UNIV_UNLIKELY(n_recs > n_dense)) {
+		return(FALSE);
+	}
+
 	/* Traverse the list of stored records in the sorting order,
 	starting from the first user record. */
 
@@ -397,7 +401,7 @@ page_zip_dir_decode(
 	}
 
 	/* Copy the rest of the dense directory. */
-	for (i = 0; i < n_dense; i++) {
+	for (; i < n_dense; i++) {
 		ulint	offs = page_zip_dir_get(page_zip, i);
 
 		if (UNIV_UNLIKELY(offs & ~PAGE_ZIP_DIR_SLOT_MASK)) {
@@ -434,8 +438,6 @@ page_zip_set_extra_bytes(
 
 	for (i = 0; i < n; i++) {
 		offs = page_zip_dir_get(page_zip, i);
-		rec_set_next_offs_new(rec, NULL, offs);
-		rec = page + offs;
 
 		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_DEL)) {
 			info_bits |= REC_INFO_DELETED_FLAG;
@@ -452,6 +454,8 @@ page_zip_set_extra_bytes(
 			return(FALSE);
 		}
 
+		rec_set_next_offs_new(rec, NULL, offs);
+		rec = page + offs;
 		rec[-REC_N_NEW_EXTRA_BYTES] = info_bits;
 		info_bits = 0;
 	}
@@ -506,9 +510,11 @@ page_zip_apply_log(
 				/* out: pointer to end of modification log,
 				or NULL on failure */
 	const byte*	data,	/* in: modification log */
-	const byte*	end,	/* in: end of compressed page */
+	ulint		size,	/* in: maximum length of the log, in bytes */
 	page_t*		page)	/* in/out: uncompressed page */
 {
+	const byte* const end = data + size;
+
 	/* Apply the modification log. */
 	while (*data) {
 		ulint	ulint_len;
@@ -608,15 +614,6 @@ page_zip_decompress(
 	d_stream.avail_in = page_zip->size - (PAGE_DATA + 1)
 				- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
-	if (UNIV_LIKELY(n_dense > 0)
-	    && *recs == page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
-		dst = page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES);
-		recs++;
-		n_dense--;
-	} else {
-		dst = page + PAGE_ZIP_START;
-	}
-
 	info_bits = 0;
 
 	if (mach_read_from_2((page_t*) page + (PAGE_HEADER + PAGE_LEVEL))) {
@@ -629,16 +626,36 @@ page_zip_decompress(
 		heap_status = REC_STATUS_ORDINARY | 2 << REC_HEAP_NO_SHIFT;
 	}
 
+	dst = page + PAGE_ZIP_START;
+
+	if (UNIV_LIKELY(n_dense > 0)) {
+		n_dense--;
+
+		if (*recs == page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES)) {
+			dst = page + (PAGE_ZIP_START + REC_N_NEW_EXTRA_BYTES);
+			recs++;
+		} else {
+			/* This is a special case: we are
+			decompressing the extra bytes of the first
+			user record.  As dst will not be pointing to a
+			record, we do not set the heap_no and status
+			bits.  On the next round of the loop, dst will
+			point to the first user record. */
+
+			goto first_inflate;
+		}
+	}
+
 	while (n_dense--) {
+		/* set heap_no and the status bits */
+		mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
+		heap_status += 1 << REC_HEAP_NO_SHIFT;
+first_inflate:
 		d_stream.next_out = dst;
 		d_stream.avail_out = *recs - dst - REC_N_NEW_EXTRA_BYTES;
 
 		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
 					- PAGE_ZIP_START - PAGE_DIR);
-		/* set heap_no and the status bits */
-		mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
-		heap_status += 1 << REC_HEAP_NO_SHIFT;
-
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
@@ -695,9 +712,7 @@ zlib_error:
 		const byte*	mod_log_ptr;
 		mod_log_ptr = page_zip_apply_log(
 				page_zip->data + page_zip->m_start,
-				page_zip->data + page_zip->size
-				- n_dense * PAGE_ZIP_DIR_SLOT_SIZE,
-				page);
+				d_stream.avail_in, page);
 		if (UNIV_UNLIKELY(!mod_log_ptr)) {
 			return(FALSE);
 		}
