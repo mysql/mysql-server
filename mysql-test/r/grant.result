@@ -594,3 +594,24 @@ flush privileges;
 set @user123="non-existent";
 select * from mysql.db where user=@user123;
 Host	Db	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Create_tmp_table_priv	Lock_tables_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Execute_priv
+set names koi8r;
+create database ÂÄ;
+grant select on ÂÄ.* to root@localhost;
+select hex(Db) from mysql.db where Db='ÂÄ';
+hex(Db)
+D0B1D0B4
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+flush privileges;
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+drop database ÂÄ;
+revoke all privileges on ÂÄ.* from root@localhost;
+show grants for root@localhost;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+set names latin1;

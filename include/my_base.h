@@ -244,7 +244,7 @@ enum ha_base_keytype {
 #define HA_OPTION_CHECKSUM		32
 #define HA_OPTION_DELAY_KEY_WRITE	64
 #define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
-#define HA_OPTION_CREATE_FROM_ENGINE    256 
+#define HA_OPTION_CREATE_FROM_ENGINE    256
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 
@@ -256,15 +256,48 @@ enum ha_base_keytype {
 #define HA_CREATE_CHECKSUM	8
 #define HA_CREATE_DELAY_KEY_WRITE 64
 
-	/* Bits in flag to _status */
+/*
+  The following flags (OR-ed) are passed to handler::info() method.
+  The method copies misc handler information out of the storage engine
+  to data structures accessible from MySQL
 
-#define HA_STATUS_POS		1		/* Return position */
-#define HA_STATUS_NO_LOCK	2		/* Don't use external lock */
-#define HA_STATUS_TIME		4		/* Return update time */
-#define HA_STATUS_CONST		8		/* Return constants values */
-#define HA_STATUS_VARIABLE	16
-#define HA_STATUS_ERRKEY	32
-#define HA_STATUS_AUTO		64
+  Same flags are also passed down to mi_status, myrg_status, etc.
+*/
+
+/* this one is not used */
+#define HA_STATUS_POS            1
+/*
+  assuming the table keeps shared actual copy of the 'info' and
+  local, possibly outdated copy, the following flag means that
+  it should not try to get the actual data (locking the shared structure)
+  slightly outdated version will suffice
+*/
+#define HA_STATUS_NO_LOCK        2
+/* update the time of the last modification (in handler::update_time) */
+#define HA_STATUS_TIME           4
+/*
+  update the 'constant' part of the info:
+  handler::max_data_file_length, max_index_file_length, create_time
+  sortkey, ref_length, block_size, data_file_name, index_file_name.
+  handler::table->s->keys_in_use, keys_for_keyread, rec_per_key
+*/
+#define HA_STATUS_CONST          8
+/*
+  update the 'variable' part of the info:
+  handler::records, deleted, data_file_length, index_file_length,
+  delete_length, check_time, mean_rec_length
+*/
+#define HA_STATUS_VARIABLE      16
+/*
+  get the information about the key that caused last duplicate value error
+  update handler::errkey and handler::dupp_ref
+  see handler::get_dup_key()
+*/
+#define HA_STATUS_ERRKEY        32
+/*
+  update handler::auto_increment_value
+*/
+#define HA_STATUS_AUTO          64
 
 	/* Errorcodes given by functions */
 
