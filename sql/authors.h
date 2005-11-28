@@ -16,6 +16,7 @@ struct show_table_authors_st show_table_authors[]= {
     "Architecture, archive, federated, buncha of little stuff :)" },
   { "David Axmark", "Uppsala, Sweden", "Small stuff long time ago, Monty ripped it out!"},
   { "Omer BarNir", "Sunnyvale, CA. USA", "Testing (sometimes) and general QA stuff"},
+  { "Reggie Burnett", "Nashville, TN. USA", "Windows Server, Connectors" },
   { "Alexey Botchkov (Holyfoot)", "Izhevsk Russia", "GIS extentions (4.1), Embedded Server (4.1), precision math (5.0)"},
   { "Oleksandr Byelkin", "Lugansk, Ukraine", "Query Cache (4.0), Subqueries (4.1), Views (5.0)"},
   { "Petr Chardin", "Moscow, Russia", "Instance Manager (5.0)" },
