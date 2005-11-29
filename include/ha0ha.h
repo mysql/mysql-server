@@ -68,21 +68,6 @@ ha_insert_for_fold(
 				node is created! */
 	void*		data);	/* in: data, must not be NULL */
 /*****************************************************************
-Reserves the necessary hash table mutex and inserts an entry into the hash
-table. */
-UNIV_INLINE
-ibool
-ha_insert_for_fold_mutex(
-/*=====================*/
-				/* out: TRUE if succeed, FALSE if no more
-				memory could be allocated */
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of data; if a node with
-				the same fold value already exists, it is
-				updated to point to the same data, and no new
-				node is created! */
-	void*		data);	/* in: data, must not be NULL */
-/*****************************************************************
 Deletes an entry from a hash table. */
 
 void

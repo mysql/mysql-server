@@ -92,12 +92,10 @@ with mem_free. */
 void*
 mem_alloc_func_noninline(
 /*=====================*/
-					/* out, own: free storage,
-					NULL if did not succeed */
+					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
 	const char*	file_name,	/* in: file name where created */
-	ulint		line		/* in: line where created */
-	)
+	ulint		line)		/* in: line where created */
 {
 	return(mem_alloc_func(n, file_name, line));	
 }
@@ -122,8 +120,9 @@ Creates a memory heap block where data can be allocated. */
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
-				/* out, own: memory heap block,
-				NULL if did not succeed */
+				/* out, own: memory heap block, NULL if
+				did not succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps) */
 	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
 				should be created */
 	ulint		n,	/* in: number of bytes needed for user data, or
@@ -182,6 +181,8 @@ mem_heap_create_block(
 	}
 
 	if (block == NULL) {
+		/* Only MEM_HEAP_BTR_SEARCH allocation should ever fail. */
+		ut_a(type & MEM_HEAP_BTR_SEARCH);
 
 		return(NULL);
 	}
@@ -222,7 +223,8 @@ mem_block_t*
 mem_heap_add_block(
 /*===============*/
 				/* out: created block, NULL if did not
-				succeed */
+				succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps)*/
 	mem_heap_t* 	heap,	/* in: memory heap */
 	ulint		n)	/* in: number of bytes user needs */
 {
