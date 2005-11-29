@@ -35,7 +35,7 @@ struct show_table_authors_st {
 */
 
 struct show_table_authors_st show_table_authors[]= {
-  { "Brian \"Krow\" Aker", "Seattle, WA, USA",
+  { "Brian (Krow) Aker", "Seattle, WA, USA",
     "Architecture, archive, federated, bunch of little stuff :)" },
   { "Venu Anuganti", "", "Client/server protocol (4.1)" },
   { "David Axmark", "Uppsala, Sweden",
@@ -50,6 +50,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Andreas F. Bobak", "", "AGGREGATE extension to user-defined functions" },
   { "Alexey Botchkov (Holyfoot)", "Izhevsk, Russia",
     "GIS extensions (4.1), embedded server (4.1), precision math (5.0)"},
+  { "Reggie Burnett", "Nashville, TN, USA", "Windows development, Connectors" },
   { "Oleksandr Byelkin", "Lugansk, Ukraine",
     "Query Cache (4.0), Subqueries (4.1), Views (5.0)" },
   { "Kent Boortz", "Orebro, Sweden", "Test platform, and general build stuff" },
@@ -61,7 +62,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Wei-Jou Chen", "", "Chinese (Big5) character set" },
   { "Albert Chin-A-Young", "",
     "Tru64 port, large file support, better TCP wrappers support" },
-  { "Jorge del Conde", "Mexico City, Mexico", "Win32 development" },
+  { "Jorge del Conde", "Mexico City, Mexico", "Windows development" },
   { "Antony T. Curtis", "Norwalk, CA, USA", "Parser, port to OS/2" },
   { "Yuri Dario", "", "OS/2 port" },
   { "Sergei Golubchik", "Kerpen, Germany",
@@ -114,7 +115,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Timothy Smith", "Auckland, New Zealand",
     "Dynamic character sets, parts of the build system, libmysqld"},
   { "Miguel Solorzano", "Florianopolis, Santa Catarina, Brazil",
-    "Win32 development, Windows NT service"},
+    "Windows development, Windows NT service"},
   { "Punita Srivastava", "Austin, TX, USA", "Testing - Merlin"},
   { "Alexey Stroganov (Ranger)", "Lugansk, Ukraine", "Testing - Benchmarks"},
   { "Magnus Svensson", "Öregrund, Sweden",
