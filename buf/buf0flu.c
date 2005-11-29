@@ -479,17 +479,30 @@ buf_flush_init_for_writing(
 					srv_use_checksums ?
                   buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
 #if 1 /* testing */
-	if (page_is_comp(page)) {
-		byte zip_data[16384];
-		page_zip_des_t*	page_zip = &buf_block_align(page)->page_zip;
-		page_zip->data = zip_data;
-		page_zip->size = sizeof zip_data;
-		page_zip->m_start = page_zip->m_end = 0;
-		ut_a(page_zip_compress(page_zip, page));
-		fprintf(stderr, "zip size==%lu+%lu\n",
-			(ulong) page_zip->m_start,
-			(ulong) 2 * page_dir_get_n_heap(page_zip->data));
-		page_zip->data = NULL;
+	if (space /* skip the system tablespace */
+	    && (page_no & (UNIV_PAGE_SIZE - 1)) /* skip extent descriptors */
+	    && page_is_comp(page) /* skip row_format=redundant pages */) {
+		if (memcmp(page + PAGE_NEW_INFIMUM, "infimum", 8)) {
+			fprintf(stderr, "page %lu:%lu: cannot compress\n",
+				(ulong) space, (ulong) page_no);
+		} else {
+			byte zip_data[16384];
+			page_zip_des_t*	page_zip =
+					&buf_block_align(page)->page_zip;
+			page_zip->data = zip_data;
+			page_zip->size = sizeof zip_data;
+			page_zip->m_start = page_zip->m_end = 0;
+
+			ut_a(page_zip_compress(page_zip, page));
+
+			fprintf(stderr, "page %lu:%lu: zip size==%lu+%lu\n",
+				(ulong) space, (ulong) page_no,
+				(ulong) page_zip->m_start,
+				(ulong) 2
+				* page_dir_get_n_heap(page_zip->data));
+
+			page_zip->data = NULL;
+		}
 	}
 #endif /* testing */
 }
