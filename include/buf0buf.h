@@ -754,8 +754,6 @@ struct buf_block_struct{
 					buffer pool which are index pages,
 					but this flag is not set because
 					we do not keep track of all pages */
-	dict_index_t*	index;		/* index for which the adaptive
-					hash index has been created */
 	/* 2. Page flushing fields */
 
 	UT_LIST_NODE_T(buf_block_t) flush_list;
@@ -842,7 +840,13 @@ struct buf_block_struct{
 					records with the same prefix should be
 					indexed in the hash index */
 					
-	/* The following 4 fields are protected by btr_search_latch: */
+	/* These 6 fields may only be modified when we have
+	an x-latch on btr_search_latch AND
+	a) we are holding an s-latch or x-latch on block->lock or
+	b) we know that block->buf_fix_count == 0.
+
+	An exception to this is when we init or create a page
+	in the buffer pool in buf0buf.c. */
 
 	ibool		is_hashed;	/* TRUE if hash index has already been
 					built on this page; note that it does
@@ -860,6 +864,8 @@ struct buf_block_struct{
 					BTR_SEARCH_RIGHT_SIDE in hash
 					indexing */
 	page_zip_des_t	page_zip;	/* compressed page info */
+	dict_index_t*	index;		/* Index for which the adaptive
+					hash index has been created. */
 	/* 6. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
