@@ -10976,7 +10976,8 @@ void Dbdih::initCommonData()
 
   cnoReplicas = 1;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
-  cnoReplicas = cnoReplicas > 4 ? 4 : cnoReplicas;
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+	    "Only up to four replicas are supported. Check NoOfReplicas.");
 
   cgcpDelay = 2000;
   ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &cgcpDelay);
