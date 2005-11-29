@@ -118,6 +118,7 @@ struct show_table_authors_st show_table_authors[]= {
     "Windows development, Windows NT service"},
   { "Punita Srivastava", "Austin, TX, USA", "Testing - Merlin"},
   { "Alexey Stroganov (Ranger)", "Lugansk, Ukraine", "Testing - Benchmarks"},
+  { "Ingo Strüwing", "Berlin, Germany", "Bug fixing" },
   { "Magnus Svensson", "Öregrund, Sweden",
     "NDB Cluster: Integration into MySQL, test framework" },
   { "Zeev Suraski", "", "FROM_UNIXTIME(), ENCRYPT()" },
