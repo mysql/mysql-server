@@ -181,11 +181,18 @@ select * from t1 where a=_koi8r'вася';
 a
 вася
 select * from t1 where a=concat(_koi8r'вася');
-ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation '='
+a
+вася
 select * from t1 where a=_latin1'вася';
 ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
 drop table t1;
 set names latin1;
+create table t1 (a char(10) character set utf8 collate utf8_bin);
+insert into t1 values ('       xxx');
+select * from t1 where a=lpad('xxx',10,' ');
+a
+       xxx
+drop table t1;
 set names koi8r;
 create table t1 (c1 char(10) character set cp1251);
 insert into t1 values ('ъ');
