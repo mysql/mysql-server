@@ -279,10 +279,10 @@ inline double ulonglong2double(ulonglong value)
 			  *((T)+4)=(uchar) (((A) >> 32)); }
 #define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
 
-#define doubleget(V,M)	{ *((long *) &V) = *((long*) M); \
-			  *(((long *) &V)+1) = *(((long*) M)+1); }
-#define doublestore(T,V) { *((long *) T) = *((long*) &V); \
-			   *(((long *) T)+1) = *(((long*) &V)+1); }
+#define doubleget(V,M)	do { *((long *) &V) = *((long*) M); \
+			    *(((long *) &V)+1) = *(((long*) M)+1); } while(0)
+#define doublestore(T,V) do { *((long *) T) = *((long*) &V); \
+			      *(((long *) T)+1) = *(((long*) &V)+1); } while(0)
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
 #define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
 #define floatget(V,M)   memcpy((byte*)(&V), (byte*)(M), sizeof(float))
