@@ -2078,11 +2078,6 @@ mysql_execute_command(void)
     if (thd->select_limit < select_lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
-    if (check_dup(tables->db, tables->real_name, tables->next))
-    {
-      /* Using same table for INSERT and SELECT */
-      select_lex->options |= OPTION_BUFFER_RESULT;
-    }
     {
       /* TODO: Delete the following loop when locks is set by sql_yacc */
       TABLE_LIST *table;
@@ -2095,6 +2090,12 @@ mysql_execute_command(void)
       (byte*) (((TABLE_LIST *) lex->select_lex.table_list.first)->next);
     if (!(res=open_and_lock_tables(thd, tables)))
     {
+      /* MERGE sub-tables can only be detected after open. */
+      if (mysql_lock_have_duplicate(thd, tables->table, tables->next))
+      {
+        /* Using same table for INSERT and SELECT */
+        select_lex->options |= OPTION_BUFFER_RESULT;
+      }
       if ((result=new select_insert(tables->table,&lex->field_list,
 				    lex->duplicates)))
 	res=handle_select(thd,lex,result);
