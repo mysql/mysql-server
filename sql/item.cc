@@ -3275,8 +3275,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      max_length= min(max(delta1, delta2) + decimals,
-                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+      if (fld_type == MYSQL_TYPE_DECIMAL)
+        max_length= max(delta1, delta2) + decimals;
+      else
+        max_length= min(max(delta1, delta2) + decimals,
+                        (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
