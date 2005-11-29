@@ -678,16 +678,6 @@ select -18.3=18.3;
 select 0.8 = 0.7 + 0.1;
 0.8 = 0.7 + 0.1
 1
-create procedure p1 () begin 
-declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
-set v1 = 1; set v2 = 2; set v3 = 1000000000000; set v4 = 2000000000000; set v5 = 0; 
-while v5 < 100000 do
-set v1 = v1 + 0.000000000001; set v2 = v2 - 0.000000000001; set v3 = v3 + 1; set v4 = v4 - 1; set v5 = v5 + 1; 
-end while; select v1, v2, v3 * 0.000000000001, v4 * 0.000000000001; end;//
-call p1()//
-v1	v2	v3 * 0.000000000001	v4 * 0.000000000001
-1.000000100000	1.999999900000	1.000000100000	1.999999900000
-drop procedure p1;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -1267,34 +1257,6 @@ CAST(my_varchar AS DECIMAL(65,30))	my_varchar
 0.011754943450000000000000000000	1.175494345e-2
 0.117549434500000000000000000000	1.175494345e-1
 UPDATE t1 SET my_decimal = my_float;
-Warnings:
-Note	1265	Data truncated for column 'my_decimal' at row 1
-Note	1265	Data truncated for column 'my_decimal' at row 2
-Note	1265	Data truncated for column 'my_decimal' at row 3
-Note	1265	Data truncated for column 'my_decimal' at row 4
-Note	1265	Data truncated for column 'my_decimal' at row 5
-Note	1265	Data truncated for column 'my_decimal' at row 6
-Note	1265	Data truncated for column 'my_decimal' at row 7
-Note	1265	Data truncated for column 'my_decimal' at row 8
-Note	1265	Data truncated for column 'my_decimal' at row 9
-Note	1265	Data truncated for column 'my_decimal' at row 10
-Note	1265	Data truncated for column 'my_decimal' at row 11
-Note	1265	Data truncated for column 'my_decimal' at row 12
-Note	1265	Data truncated for column 'my_decimal' at row 13
-Note	1265	Data truncated for column 'my_decimal' at row 14
-Note	1265	Data truncated for column 'my_decimal' at row 15
-Note	1265	Data truncated for column 'my_decimal' at row 16
-Note	1265	Data truncated for column 'my_decimal' at row 17
-Note	1265	Data truncated for column 'my_decimal' at row 19
-Note	1265	Data truncated for column 'my_decimal' at row 20
-Note	1265	Data truncated for column 'my_decimal' at row 21
-Note	1265	Data truncated for column 'my_decimal' at row 22
-Note	1265	Data truncated for column 'my_decimal' at row 23
-Note	1265	Data truncated for column 'my_decimal' at row 26
-Note	1265	Data truncated for column 'my_decimal' at row 27
-Note	1265	Data truncated for column 'my_decimal' at row 30
-Note	1265	Data truncated for column 'my_decimal' at row 31
-Note	1265	Data truncated for column 'my_decimal' at row 32
 SELECT my_decimal, my_float   FROM t1;
 my_decimal	my_float
 0.000000000000000000000000000000	1.17549e-32
@@ -1330,24 +1292,6 @@ my_decimal	my_float
 0.011754943057894710000000000000	0.0117549
 0.117549434304237400000000000000	0.117549
 UPDATE t1 SET my_decimal = my_double;
-Warnings:
-Note	1265	Data truncated for column 'my_decimal' at row 1
-Note	1265	Data truncated for column 'my_decimal' at row 2
-Note	1265	Data truncated for column 'my_decimal' at row 3
-Note	1265	Data truncated for column 'my_decimal' at row 4
-Note	1265	Data truncated for column 'my_decimal' at row 5
-Note	1265	Data truncated for column 'my_decimal' at row 6
-Note	1265	Data truncated for column 'my_decimal' at row 7
-Note	1265	Data truncated for column 'my_decimal' at row 8
-Note	1265	Data truncated for column 'my_decimal' at row 9
-Note	1265	Data truncated for column 'my_decimal' at row 10
-Note	1265	Data truncated for column 'my_decimal' at row 11
-Note	1265	Data truncated for column 'my_decimal' at row 13
-Note	1265	Data truncated for column 'my_decimal' at row 14
-Note	1265	Data truncated for column 'my_decimal' at row 16
-Note	1265	Data truncated for column 'my_decimal' at row 18
-Note	1265	Data truncated for column 'my_decimal' at row 20
-Note	1265	Data truncated for column 'my_decimal' at row 31
 SELECT my_decimal, my_double  FROM t1;
 my_decimal	my_double
 0.000000000000000000000000000000	1.175494345e-32
