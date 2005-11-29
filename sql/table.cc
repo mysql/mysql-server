@@ -57,7 +57,7 @@ static byte *get_field_name(Field **buff, uint *length,
     #  Share
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, byte *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
@@ -1268,7 +1268,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   outparam->field= field_ptr;
 
-  record= (char*) outparam->record[0]-1;	/* Fieldstart = 1 */
+  record= (byte*) outparam->record[0]-1;	/* Fieldstart = 1 */
   if (share->null_field_first)
     outparam->null_flags= (uchar*) record+1;
   else
