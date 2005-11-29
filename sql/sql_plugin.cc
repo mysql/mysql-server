@@ -208,14 +208,14 @@ static struct st_plugin_int *plugin_find_internal(LEX_STRING *name, int type)
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
-        hash_search(&plugin_hash[i], name->str, name->length);
+        hash_search(&plugin_hash[i], (const byte *)name->str, name->length);
       if (plugin) 
         DBUG_RETURN(plugin);
     }
   }
   else
     DBUG_RETURN((st_plugin_int *)
-        hash_search(&plugin_hash[type], name->str, name->length));
+        hash_search(&plugin_hash[type], (const byte *)name->str, name->length));
   DBUG_RETURN(0);
 }
 
