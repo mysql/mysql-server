@@ -702,6 +702,11 @@ zlib_error:
 		return(FALSE);
 	}
 
+	/* Clear the unused heap space on the uncompressed page. */
+	dst = page_header_get_ptr(page, PAGE_HEAP_TOP);
+	memset(dst, 0, page_dir_get_nth_slot(page,
+				page_dir_get_n_slots(page) - 1) - dst);
+
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page) - 2;
 
@@ -749,10 +754,8 @@ page_zip_validate(
 	page_t*		temp_page = buf_frame_alloc();
 	ibool		valid;
 
-#if 0 /* disabled during testing hack in buf0flu.c */
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)page))
 		== page_zip);
-#endif
 
 	valid = page_zip_decompress(&temp_page_zip, temp_page, NULL)
 				&& !memcmp(page, temp_page,
