@@ -334,3 +334,210 @@ select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i
 drop table t1,t2,t3;
 
 # End of 4.1 tests
+
+#
+#  Tests for WL#2486 Natural/using join according to SQL:2003.
+#
+#  NOTICE:
+#  - The tests are designed so that all statements, except MySQL
+#    extensions run on any SQL server. Please do no change.
+#  - Tests marked with TODO will be submitted as bugs.
+#
+
+create table t1 (c int, b int);
+create table t2 (a int, b int);
+create table t3 (b int, c int);
+create table t4 (y int, c int);
+create table t5 (y int, z int);
+create table t6 (a int, c int);
+
+insert into t1 values (10,1);
+insert into t1 values (3 ,1);
+insert into t1 values (3 ,2);
+insert into t2 values (2, 1);
+insert into t3 values (1, 3);
+insert into t3 values (1,10);
+insert into t4 values (11,3);
+insert into t4 values (2, 3);
+insert into t5 values (11,4);
+insert into t6 values (2, 3);
+
+-- Views with simple natural join.
+create algorithm=merge view v1a as
+select * from t1 natural join t2;
+-- as above, but column names are cross-renamed: a->c, c->b, b->a
+create algorithm=merge view v1b(a,b,c) as
+select * from t1 natural join t2;
+-- as above, but column names are aliased: a->c, c->b, b->a
+create algorithm=merge view v1c as
+select b as a, c as b, a as c from t1 natural join t2;
+--  as above, but column names are cross-renamed, and aliased
+--  a->c->b, c->b->a, b->a->c
+create algorithm=merge view v1d(b, a, c) as
+select a as c, c as b, b as a from t1 natural join t2;
+
+-- Views with JOIN ... ON
+create algorithm=merge view v2a as
+select t1.c, t1.b, t2.a from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+create algorithm=merge view v2b as
+select t1.c as b, t1.b as a, t2.a as c
+from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+
+-- Views with bigger natural join
+create algorithm=merge view v3a as
+select * from t1 natural join t2 natural join t3;
+create algorithm=merge view v3b as
+select * from t1 natural join (t2 natural join t3);
+
+-- View over views with mixed natural join and join ... on
+create algorithm=merge view v4 as
+select * from v2a natural join v3a;
+
+-- Nested natural/using joins.
+select * from (t1 natural join t2) natural join (t3 natural join t4);
+select * from (t1 natural join t2) natural left join (t3 natural join t4);
+select * from (t3 natural join t4) natural right join (t1 natural join t2);
+select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
+select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+select * from t1 natural join t2 natural join t3 natural join t4;
+select * from ((t1 natural join t2) natural join t3) natural join t4;
+select * from t1 natural join (t2 natural join (t3 natural join t4));
+-- BUG#15355: this query fails in 'prepared statements' mode
+-- select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
+select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
+select * from (t1 natural join t2), (t3 natural join t4);
+-- MySQL extension - nested comma ',' operator instead of cross join.
+-- BUG#15357 - natural join with nested cross-join results in incorrect columns
+-- select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+-- select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+-- select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+-- select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
+
+select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
+
+
+-- Other clauses refer to NJ columns.
+select a,b,c from (t1 natural join t2) natural join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a having min(b) < max(y) order by a;
+select * from (t1 natural join t2) natural left join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+select * from (t3 natural join t4) natural right join (t1 natural join t2)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+
+-- Qualified column references to NJ columns.
+select * from t1 natural join t2 where t1.c > t2.a;
+select * from t1 natural join t2 where t1.b > t2.b;
+select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
+
+-- Nested 'join ... on' - name resolution of ON conditions
+select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+select * from t1 natural join (t2 join t4 on b + 1 = y);
+select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
+
+-- MySQL extension - 'join ... on' over nested comma operator
+select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
+
+-- MySQL extension - refererence qualified coalesced columns
+select * from t1 natural join t2 where t1.b > 0;
+select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
+
+-- MySQL extension - select qualified columns of NJ columns
+select t1.*, t2.* from t1 natural join t2;
+select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
+
+-- Queries over subselects in the FROM clause
+select * from (select * from t1 natural join t2) as t12
+              natural join
+              (select * from t3 natural join t4) as t34;
+select * from (select * from t1 natural join t2) as t12
+              natural left join
+              (select * from t3 natural join t4) as t34;
+select * from (select * from t3 natural join t4) as t34
+              natural right join
+              (select * from t1 natural join t2) as t12;
+
+-- Queries over views
+select * from v1a;
+select * from v1b;
+select * from v1c;
+select * from v1d;
+select * from v2a;
+select * from v2b;
+select * from v3a;
+select * from v3b;
+select * from v4;
+select * from v1a natural join v2a;
+select v2a.* from v1a natural join v2a;
+select * from v1b join v2a on v1b.b = v2a.c;
+select * from v1c join v2a on v1c.b = v2a.c;
+select * from v1d join v2a on v1d.a = v2a.c;
+select * from v1a join (t3 natural join t4) on a = y;
+
+-- TODO: add tests with correlated subqueries for natural join/join on.
+-- related to BUG#15269
+
+
+----------------------------------------------------------------------
+-- Negative tests (tests for errors)
+----------------------------------------------------------------------
+-- error 1052
+select * from t1 natural join (t3 cross join t4); -- works in Oracle - bug
+-- error 1052
+select * from (t3 cross join t4) natural join t1; -- works in Oracle - bug
+-- error 1052
+select * from t1 join (t2, t3) using (b);
+-- error 1052
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+-- error 1052
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+-- error 1052
+-- BUG#15357: doesn't detect non-unique column 'c', as in the above query.
+-- select * from t6 natural join ((t1 natural join t2),  (t3 natural join t4));
+-- error 1052
+select * from (t1 join t2 on t1.b=t2.b) natural join (t3 natural join t4);
+-- error 1052
+select * from  (t3 natural join t4) natural join (t1 join t2 on t1.b=t2.b);
+-- this one is OK, the next equivalent one is incorrect (bug in Oracle)
+-- error 1052
+select * from (t3 join (t4 natural join t5) on (b < z))
+              natural join
+              (t1 natural join t2);
+-- error 1052
+-- BUG#15357: this query should return an ambiguous column error
+-- Expected result: the query must return error with duplicate column 'c'
+--select * from (t1 natural join t2)
+--              natural join
+--              (t3 join (t4 natural join t5) on (b < z));
+
+-- error 1054
+select t1.b from v1a;
+-- error 1054
+select * from v1a join v1b on t1.b = t2.b;
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+
+drop view v1a;
+drop view v1b;
+drop view v1c;
+drop view v1d;
+drop view v2a;
+drop view v2b;
+drop view v3a;
+drop view v3b;
+drop view v4;
+
+# End of tests for WL#2486 - natural/using join
