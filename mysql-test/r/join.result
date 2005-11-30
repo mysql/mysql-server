@@ -391,3 +391,304 @@ i	i	i
 2	NULL	4
 2	2	2
 drop table t1,t2,t3;
+create table t1 (c int, b int);
+create table t2 (a int, b int);
+create table t3 (b int, c int);
+create table t4 (y int, c int);
+create table t5 (y int, z int);
+create table t6 (a int, c int);
+insert into t1 values (10,1);
+insert into t1 values (3 ,1);
+insert into t1 values (3 ,2);
+insert into t2 values (2, 1);
+insert into t3 values (1, 3);
+insert into t3 values (1,10);
+insert into t4 values (11,3);
+insert into t4 values (2, 3);
+insert into t5 values (11,4);
+insert into t6 values (2, 3);
+create algorithm=merge view v1a as
+select * from t1 natural join t2;
+create algorithm=merge view v1b(a,b,c) as
+select * from t1 natural join t2;
+create algorithm=merge view v1c as
+select b as a, c as b, a as c from t1 natural join t2;
+create algorithm=merge view v1d(b, a, c) as
+select a as c, c as b, b as a from t1 natural join t2;
+create algorithm=merge view v2a as
+select t1.c, t1.b, t2.a from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+create algorithm=merge view v2b as
+select t1.c as b, t1.b as a, t2.a as c
+from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+create algorithm=merge view v3a as
+select * from t1 natural join t2 natural join t3;
+create algorithm=merge view v3b as
+select * from t1 natural join (t2 natural join t3);
+create algorithm=merge view v4 as
+select * from v2a natural join v3a;
+select * from (t1 natural join t2) natural join (t3 natural join t4);
+b	c	a	y
+1	3	2	11
+1	3	2	2
+select * from (t1 natural join t2) natural left join (t3 natural join t4);
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+select * from (t3 natural join t4) natural right join (t1 natural join t2);
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+2	3	NULL	NULL
+select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+2	3	NULL	NULL
+select * from t1 natural join t2 natural join t3 natural join t4;
+c	b	a	y
+3	1	2	11
+3	1	2	2
+select * from ((t1 natural join t2) natural join t3) natural join t4;
+c	b	a	y
+3	1	2	11
+3	1	2	2
+select * from t1 natural join (t2 natural join (t3 natural join t4));
+c	b	a	y
+3	1	2	11
+3	1	2	2
+select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
+y	c	b	a	z
+11	3	1	2	4
+2	3	1	2	NULL
+NULL	10	1	2	NULL
+select * from (t1 natural join t2), (t3 natural join t4);
+b	c	a	c	b	y
+1	10	2	3	1	11
+1	10	2	3	1	2
+1	3	2	3	1	11
+1	3	2	3	1	2
+select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+c	b	a	b	y
+3	1	2	1	11
+3	1	2	1	2
+select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
+b	c	a	y
+1	3	2	11
+1	3	2	2
+select a,b,c from (t1 natural join t2) natural join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a having min(b) < max(y) order by a;
+a	b	c
+2	1	3
+select * from (t1 natural join t2) natural left join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+b	c	a	y
+1	3	2	2
+1	3	2	11
+select * from (t3 natural join t4) natural right join (t1 natural join t2)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+b	c	a	y
+1	3	2	2
+1	3	2	11
+select * from t1 natural join t2 where t1.c > t2.a;
+b	c	a
+1	10	2
+1	3	2
+select * from t1 natural join t2 where t1.b > t2.b;
+b	c	a
+select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
+c	b	y	z
+3	1	11	4
+3	2	11	4
+select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+c	b	a	b	y	c
+3	1	2	1	2	3
+3	2	2	1	2	3
+select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+a	b	y	c	c	b
+2	1	2	3	3	1
+2	1	2	3	3	2
+select * from t1 natural join (t2 join t4 on b + 1 = y);
+c	b	a	y
+3	1	2	2
+select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
+c	b	a	b	b	c	y	c
+10	1	2	1	1	3	11	3
+10	1	2	1	1	10	11	3
+3	1	2	1	1	3	11	3
+3	1	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
+3	2	2	1	1	10	11	3
+select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+c	b	a	b	b	c	y	c
+10	1	2	1	1	3	11	3
+10	1	2	1	1	10	11	3
+3	1	2	1	1	3	11	3
+3	1	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
+3	2	2	1	1	10	11	3
+select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+b	c	a	c	b	y
+1	10	2	3	1	2
+1	3	2	3	1	2
+select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
+b	c	c	b	a	b	y	c	y	z
+1	3	10	1	2	1	11	3	11	4
+1	10	10	1	2	1	11	3	11	4
+1	3	3	1	2	1	11	3	11	4
+1	10	3	1	2	1	11	3	11	4
+select * from t1 natural join t2 where t1.b > 0;
+b	c	a
+1	10	2
+1	3	2
+select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+c	b	y	z
+3	1	11	4
+3	2	11	4
+select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+c	y	z	b
+3	11	4	1
+3	11	4	2
+select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+c	b	y	z
+3	1	11	4
+3	2	11	4
+select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+c	b	y	z
+3	1	11	4
+3	2	11	4
+select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
+b	c	a	c	b	y
+1	10	2	3	1	11
+1	10	2	3	1	2
+1	3	2	3	1	11
+1	3	2	3	1	2
+select t1.*, t2.* from t1 natural join t2;
+c	b	a	b
+10	1	2	1
+3	1	2	1
+select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
+c	b	a	b	b	c	y	c
+3	1	2	1	1	3	11	3
+3	1	2	1	1	3	2	3
+select * from (select * from t1 natural join t2) as t12
+natural join
+(select * from t3 natural join t4) as t34;
+b	c	a	y
+1	3	2	11
+1	3	2	2
+select * from (select * from t1 natural join t2) as t12
+natural left join
+(select * from t3 natural join t4) as t34;
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+select * from (select * from t3 natural join t4) as t34
+natural right join
+(select * from t1 natural join t2) as t12;
+b	c	a	y
+1	10	2	NULL
+1	3	2	11
+1	3	2	2
+select * from v1a;
+b	c	a
+1	10	2
+1	3	2
+select * from v1b;
+a	b	c
+1	10	2
+1	3	2
+select * from v1c;
+a	b	c
+1	10	2
+1	3	2
+select * from v1d;
+b	a	c
+2	10	1
+2	3	1
+select * from v2a;
+c	b	a
+3	1	2
+3	2	2
+select * from v2b;
+b	a	c
+3	1	2
+3	2	2
+select * from v3a;
+b	c	a
+1	10	2
+1	3	2
+select * from v3b;
+c	b	a
+10	1	2
+3	1	2
+select * from v4;
+c	b	a
+3	1	2
+select * from v1a natural join v2a;
+b	c	a
+1	3	2
+select v2a.* from v1a natural join v2a;
+c	b	a
+3	1	2
+select * from v1b join v2a on v1b.b = v2a.c;
+a	b	c	c	b	a
+1	3	2	3	1	2
+1	3	2	3	2	2
+select * from v1c join v2a on v1c.b = v2a.c;
+a	b	c	c	b	a
+1	3	2	3	1	2
+1	3	2	3	2	2
+select * from v1d join v2a on v1d.a = v2a.c;
+b	a	c	c	b	a
+2	3	1	3	1	2
+2	3	1	3	2	2
+select * from v1a join (t3 natural join t4) on a = y;
+b	c	a	c	b	y
+1	10	2	3	1	2
+1	3	2	3	1	2
+select * from t1 natural join (t3 cross join t4);
+ERROR 23000: Column 'c' in from clause is ambiguous
+select * from (t3 cross join t4) natural join t1;
+ERROR 23000: Column 'c' in from clause is ambiguous
+select * from t1 join (t2, t3) using (b);
+ERROR 23000: Column 'b' in from clause is ambiguous
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+ERROR 23000: Column 'c' in from clause is ambiguous
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+ERROR 23000: Column 'c' in from clause is ambiguous
+select * from (t1 join t2 on t1.b=t2.b) natural join (t3 natural join t4);
+ERROR 23000: Column 'b' in from clause is ambiguous
+select * from  (t3 natural join t4) natural join (t1 join t2 on t1.b=t2.b);
+ERROR 23000: Column 'b' in from clause is ambiguous
+select * from (t3 join (t4 natural join t5) on (b < z))
+natural join
+(t1 natural join t2);
+ERROR 23000: Column 'c' in from clause is ambiguous
+select t1.b from v1a;
+ERROR 42S22: Unknown column 't1.b' in 'field list'
+select * from v1a join v1b on t1.b = t2.b;
+ERROR 42S22: Unknown column 't1.b' in 'on clause'
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+drop view v1a;
+drop view v1b;
+drop view v1c;
+drop view v1d;
+drop view v2a;
+drop view v2b;
+drop view v3a;
+drop view v3b;
+drop view v4;
