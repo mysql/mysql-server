@@ -2606,60 +2606,6 @@ GRANT_INFO *Natural_join_column::grant()
 }
 
 
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-/*
-  Check the access rights for the current join column.
-  columns.
-
-  SYNOPSIS
-    Natural_join_column::check_grants()
-
-  DESCRIPTION
-    Check the access rights to a column from a natural join in a generic
-    way that hides the heterogeneity of the column representation - whether
-    it is a view or a stored table colum.
-
-  RETURN
-    FALSE  The column can be accessed
-    TRUE   There are no access rights to all equivalent columns
-*/
-
-bool
-Natural_join_column::check_grants(THD *thd, const char *name, uint length)
-{
-  GRANT_INFO *grant;
-  const char *db_name;
-  const char *table_name;
-  Security_context *save_security_ctx= thd->security_ctx;
-  Security_context *new_sctx= table_ref->security_ctx;
-  bool res;
-
-  if (view_field)
-  {
-    DBUG_ASSERT(table_field == NULL);
-    grant= &(table_ref->grant);
-    db_name= table_ref->view_db.str;
-    table_name= table_ref->view_name.str;
-  }
-  else
-  {
-    DBUG_ASSERT(table_field && view_field == NULL);
-    grant= &(table_ref->table->grant);
-    db_name= table_ref->table->s->db;
-    table_name= table_ref->table->s->table_name;
-  }
-
-  if (new_sctx)
-    thd->security_ctx= new_sctx;
-  res= check_grant_column(thd, grant, db_name, table_name, name, length);
-  thd->security_ctx= save_security_ctx;
-  return res;
-}
-#endif
-
-
 void Field_iterator_view::set(TABLE_LIST *table)
 {
   DBUG_ASSERT(table->field_translation);
