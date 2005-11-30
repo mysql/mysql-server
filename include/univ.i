@@ -93,6 +93,7 @@ some consistency checks to code. They use a little CPU time. */
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
 #define UNIV_SRV_PRINT_LATCH_WAITS;
+#define UNIV_ZIP_DEBUG
 */
 #define UNIV_LIGHT_MEM_DEBUG
 
