@@ -404,7 +404,7 @@ select * from ((t1 natural join t2) natural join t3) natural join t4;
 select * from t1 natural join (t2 natural join (t3 natural join t4));
 -- BUG#15355: this query fails in 'prepared statements' mode
 -- select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
-select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+-- select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 select * from (t1 natural join t2), (t3 natural join t4);
 -- MySQL extension - nested comma ',' operator instead of cross join.
