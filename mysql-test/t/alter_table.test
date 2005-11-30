@@ -411,7 +411,7 @@ drop table t1;
 create table t1 (mycol int(10) not null);
 alter table t1 alter column mycol set default 0;
 desc t1;
-drop table;
+drop table t1;
 
 #
 # Some additional tests for new, faster alter table.  Note that most of the
