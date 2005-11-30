@@ -205,7 +205,7 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE *table);
+static handler *innobase_create_handler(TABLE_SHARE *table);
 
 handlerton innobase_hton = {
   "InnoDB",
@@ -245,7 +245,7 @@ handlerton innobase_hton = {
 };
 
 
-static handler *innobase_create_handler(TABLE *table)
+static handler *innobase_create_handler(TABLE_SHARE *table)
 {
   return new ha_innobase(table);
 }
@@ -826,7 +826,7 @@ check_trx_exists(
 /*************************************************************************
 Construct ha_innobase handler. */
 
-ha_innobase::ha_innobase(TABLE *table_arg)
+ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
   :handler(&innobase_hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
                   HA_NULL_IN_KEY |
@@ -2218,11 +2218,13 @@ innobase_savepoint(
 
 	DBUG_ENTER("innobase_savepoint");
 
-	if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-		/* In the autocommit state there is no sense to set a
-		savepoint: we return immediate success */
-	        DBUG_RETURN(0);
-	}
+        /*
+          In the autocommit mode there is no sense to set a savepoint
+          (unless we are in sub-statement), so SQL layer ensures that
+          this method is never called in such situation.
+        */
+        DBUG_ASSERT(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+                    thd->in_sub_stmt);
 
 	trx = check_trx_exists(thd);
 
@@ -3054,8 +3056,8 @@ ha_innobase::store_key_val_for_row(
 
 			if (key_part->length > 0 && cs->mbmaxlen > 1) {
 				len = (ulint) cs->cset->well_formed_len(cs, 
-					src_start,
-					src_start + key_part->length,
+					(const char *) src_start,
+					(const char *) src_start + key_part->length,
 					key_part->length / cs->mbmaxlen, 
 					&error);
 			} else {
@@ -4825,8 +4827,8 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	primary_key_no= (table->s->primary_key != MAX_KEY ?
-			 (int) table->s->primary_key : 
+	primary_key_no= (form->s->primary_key != MAX_KEY ?
+			 (int) form->s->primary_key : 
 			 -1);
 
 	/* Our function row_get_mysql_key_number_for_index assumes
