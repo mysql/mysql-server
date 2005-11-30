@@ -407,9 +407,6 @@ public:
   const char *table_name();
   const char *db_name();
   GRANT_INFO *grant();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool check_grants(THD *thd, const char *name, uint length);
-#endif
 };
 
 

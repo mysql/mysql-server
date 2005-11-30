@@ -794,14 +794,12 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                         const char *name, uint length,
                         const char *item_name, const char *db_name,
                         const char *table_name, Item **ref,
-                        bool check_grants_table, bool check_grants_view,
-                        bool allow_rowid, uint *cached_field_index_ptr,
+                        bool check_privileges, bool allow_rowid,
+                        uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name,
-                    uint length, bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr,
-                    Security_context *sctx);
+find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
+                    bool allow_rowid, uint *cached_field_index_ptr);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
