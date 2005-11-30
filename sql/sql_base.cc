@@ -38,7 +38,7 @@ static bool table_def_inited= 0;
 
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
 			     const char *alias,
-                             byte *cache_key, uint cache_key_length,
+                             char *cache_key, uint cache_key_length,
 			     MEM_ROOT *mem_root);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
@@ -171,7 +171,7 @@ static void check_unused(void)
     Length of key
 */
 
-uint create_table_def_key(THD *thd, byte *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
   uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
@@ -273,7 +273,7 @@ uint cached_table_definitions(void)
    #  Share for table
 */
 
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, byte *key,
+TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error)
 {
   TABLE_SHARE *share;
@@ -339,7 +339,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, byte *key,
     (void) pthread_mutex_lock(&share->mutex);
 #endif
     *error= share->error;
-    (void) hash_delete(&table_def_cache, (char*) share);
+    (void) hash_delete(&table_def_cache, (byte*) share);
     DBUG_RETURN(0);
   }
   share->ref_count++;				// Mark in use
@@ -411,7 +411,7 @@ found:
 
 static TABLE_SHARE
 *get_table_share_with_create(THD *thd, TABLE_LIST *table_list,
-                             byte *key, uint key_length,
+                             char *key, uint key_length,
                              uint db_flags, int *error)
 {
   TABLE_SHARE *share;
@@ -586,7 +586,7 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
-  byte key[NAME_LEN*2+2];
+  char key[NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
   safe_mutex_assert_owner(&LOCK_open);
@@ -2366,7 +2366,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              const char *alias,
-                             byte *cache_key, uint cache_key_length,
+                             char *cache_key, uint cache_key_length,
                              MEM_ROOT *mem_root)
 {
   int error;

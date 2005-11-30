@@ -426,5 +426,9 @@ DROP TABLE urkunde;
 SHOW TABLES FROM non_existing_database;
 
 # End of 4.1 tests
-#
+
+--disable_result_log
 SHOW AUTHORS;
+--enable_result_log
+
+--echo End of 5.1 tests
