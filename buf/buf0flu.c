@@ -502,7 +502,7 @@ buf_flush_init_for_writing(
 						+ (PAGE_HEADER + PAGE_LEVEL)),
 				(ulong) page_zip->m_start,
 				(ulong) 2
-				* page_dir_get_n_heap(page_zip->data));
+				* (page_dir_get_n_heap(page_zip->data) - 2));
 
 			page_zip->data = NULL;
 		}
