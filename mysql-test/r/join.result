@@ -464,11 +464,6 @@ select * from t1 natural join (t2 natural join (t3 natural join t4));
 c	b	a	y
 3	1	2	11
 3	1	2	2
-select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
-y	c	b	a	z
-11	3	1	2	4
-2	3	1	2	NULL
-NULL	10	1	2	NULL
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 y	c	b	a	z
 11	3	1	2	4
