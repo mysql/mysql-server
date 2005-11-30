@@ -682,8 +682,10 @@ first_inflate:
 	ut_a(d_stream.avail_out < UNIV_PAGE_SIZE
 				- PAGE_ZIP_START - PAGE_DIR);
 
-	/* set heap_no and the status bits */
-	mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
+	if (UNIV_LIKELY(d_stream.avail_out != 0)) {
+		/* set heap_no and the status bits */
+		mach_write_to_2(dst - REC_NEW_HEAP_NO, heap_status);
+	}
 
 	err = inflate(&d_stream, Z_FINISH);
 
