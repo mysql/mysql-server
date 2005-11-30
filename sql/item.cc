@@ -5179,7 +5179,7 @@ void Item_trigger_field::setup_field(THD *thd, TABLE *table)
     set field_idx properly.
   */
   (void)find_field_in_table(thd, table, field_name, (uint) strlen(field_name),
-                            0, 0, &field_idx, 0);
+                            0, &field_idx);
   thd->set_query_id= save_set_query_id;
   triggers= table->triggers;
 }
