@@ -191,9 +191,6 @@ void netware_ssl_cleanup()
 /* NetWare SSL initialization */
 static void netware_ssl_init()
 {
-  /* initialize OpenSSL library */
-  SSL_library_init();
-
   /* cleanup OpenSSL library */
   NXVmRegisterExitHandler(netware_ssl_cleanup, NULL);
 }
@@ -228,16 +225,17 @@ new_VioSSLConnectorFd(const char* key_file,
   ptr->ssl_method=  0;
   /* FIXME: constants! */
 
-#ifdef __NETWARE__
-  netware_ssl_init();
-#endif
-
   if (!ssl_algorithms_added)
   {
     DBUG_PRINT("info", ("todo: OpenSSL_add_all_algorithms()"));
     ssl_algorithms_added = TRUE;
+    SSL_library_init();
     OpenSSL_add_all_algorithms();
   }
+#ifdef __NETWARE__
+  netware_ssl_init();
+#endif
+
   if (!ssl_error_strings_loaded)
   {
     DBUG_PRINT("info", ("todo:SSL_load_error_strings()"));
@@ -319,17 +317,18 @@ new_VioSSLAcceptorFd(const char *key_file,
   /* FIXME: constants! */
   ptr->session_id_context= ptr;
 
-#ifdef __NETWARE__
-  netware_ssl_init();
-#endif
-
   if (!ssl_algorithms_added)
   {
     DBUG_PRINT("info", ("todo: OpenSSL_add_all_algorithms()"));
     ssl_algorithms_added = TRUE;
+    SSL_library_init();
     OpenSSL_add_all_algorithms();
 
   }
+#ifdef __NETWARE__
+  netware_ssl_init();
+#endif
+
   if (!ssl_error_strings_loaded)
   {
     DBUG_PRINT("info", ("todo: SSL_load_error_strings()"));
