@@ -480,8 +480,8 @@ buf_flush_init_for_writing(
                   buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
 #if 1 /* testing */
 	if (space /* skip the system tablespace */
-	    && (page_no & (UNIV_PAGE_SIZE - 1)) /* skip extent descriptors */
-	    && page_is_comp(page) /* skip row_format=redundant pages */) {
+	    && page_no != FSP_FIRST_INODE_PAGE_NO
+	    && page_no % XDES_DESCRIBED_PER_PAGE > FSP_IBUF_BITMAP_OFFSET) {
 		if (memcmp(page + PAGE_NEW_INFIMUM, "infimum", 8)) {
 			fprintf(stderr, "page %lu:%lu: cannot compress\n",
 				(ulong) space, (ulong) page_no);
@@ -495,8 +495,11 @@ buf_flush_init_for_writing(
 
 			ut_a(page_zip_compress(page_zip, page));
 
-			fprintf(stderr, "page %lu:%lu: zip size==%lu+%lu\n",
+			fprintf(stderr,
+				"page %lu:%lu (%lu): zip size==%lu+%lu\n",
 				(ulong) space, (ulong) page_no,
+				(ulong) mach_read_from_2(page
+						+ (PAGE_HEADER + PAGE_LEVEL)),
 				(ulong) page_zip->m_start,
 				(ulong) 2
 				* page_dir_get_n_heap(page_zip->data));

@@ -259,7 +259,9 @@ zlib_error:
 	memset(page_zip->data + PAGE_DATA + c_stream.total_out, 0,
 		c_stream.avail_out + 1);
 	mem_heap_free(heap);
-	ut_ad(page_zip_validate(page_zip, page));
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 	return(TRUE);
 }
 
@@ -740,7 +742,7 @@ zlib_error:
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
 
@@ -763,7 +765,7 @@ page_zip_validate(
 	buf_frame_free(temp_page);
 	return(valid);
 }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 /**************************************************************************
 Write data to the compressed portion of a page.  The data must already
@@ -806,8 +808,10 @@ page_zip_write(
 	page_zip->m_end += length;
 	ut_ad(!page_zip->data[page_zip->m_end]);
 	ut_ad(page_zip->m_end + trailer_len < page_zip->size);
-	ut_ad(page_zip_validate(page_zip,
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip,
 				ut_align_down((byte*) str, UNIV_PAGE_SIZE)));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 }
 
 #ifdef UNIV_DEBUG
