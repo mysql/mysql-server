@@ -1802,6 +1802,7 @@ void TMP_TABLE_PARAM::init()
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
   table_charset= 0;
+  precomputed_group_by= 0;
 }
 
 
