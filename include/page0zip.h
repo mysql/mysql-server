@@ -62,7 +62,9 @@ page_zip_simple_validate(
 						/* out: TRUE if ok */
 	const page_zip_des_t*	page_zip);	/* in: compressed page
 						descriptor */
+#endif /* UNIV_DEBUG */
 
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
 
@@ -71,7 +73,7 @@ page_zip_validate(
 /*==============*/
 	const page_zip_des_t*	page_zip,/* in: compressed page */
 	const page_t*		page);	/* in: uncompressed page */
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory). */
