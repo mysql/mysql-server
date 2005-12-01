@@ -482,12 +482,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   Protocol *protocol=thd->protocol;
   DBUG_ENTER("mysql_show_create_db");
 
-  if (check_db_name(dbname))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-    DBUG_RETURN(TRUE);
-  }
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(sctx->master_access, DB_ACLS))
     db_access=DB_ACLS;
