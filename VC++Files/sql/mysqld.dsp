@@ -456,7 +456,7 @@ SOURCE=.\gstream.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\examples\ha_archive.cpp
+SOURCE=.\ha_archive.cpp
 # End Source File
 # Begin Source File
 
