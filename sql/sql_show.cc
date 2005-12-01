@@ -911,7 +911,6 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   }
 
   key_info= table->key_info;
-  file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   bzero((char*) &create_info, sizeof(create_info));
   file->update_create_info(&create_info);
   primary_key= share->primary_key;

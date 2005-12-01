@@ -799,7 +799,14 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (!interval)
       {
-        interval= sql_field->interval= typelib(sql_field->interval_list);
+        /*
+          Create the typelib in prepared statement memory if we're
+          executing one.
+        */
+        MEM_ROOT *stmt_root= thd->stmt_arena->mem_root;
+
+        interval= sql_field->interval= typelib(stmt_root,
+                                               sql_field->interval_list);
         List_iterator<String> it(sql_field->interval_list);
         String conv, *tmp;
         for (uint i= 0; (tmp= it++); i++)
@@ -810,7 +817,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           {
             uint cnv_errs;
             conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-            interval->type_names[i]= strmake_root(thd->mem_root, conv.ptr(),
+            interval->type_names[i]= strmake_root(stmt_root, conv.ptr(),
                                                   conv.length());
             interval->type_lengths[i]= conv.length();
           }
@@ -830,8 +837,22 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        if (!(sql_field->def= 
-              sql_field->def->safe_charset_converter(cs)))
+        Query_arena backup_arena;
+        bool need_to_change_arena= !thd->stmt_arena->is_conventional();
+        if (need_to_change_arena)
+        {
+          /* Asser that we don't do that at every PS execute */
+          DBUG_ASSERT(thd->stmt_arena->is_first_stmt_execute() ||
+                      thd->stmt_arena->is_first_sp_execute());
+          thd->set_n_backup_active_arena(thd->stmt_arena, &backup_arena);
+        }
+
+        sql_field->def= sql_field->def->safe_charset_converter(cs);
+
+        if (need_to_change_arena)
+          thd->restore_active_arena(thd->stmt_arena, &backup_arena);
+
+        if (! sql_field->def)
         {
           /* Could not convert */
           my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
@@ -4132,7 +4153,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
 	  DBUG_RETURN(TRUE);
 	}
-	def->def=alter->def;			// Use new default
+	if ((def->def=alter->def))              // Use new default
+          def->flags&= ~NO_DEFAULT_VALUE_FLAG;
+        else
+          def->flags|= NO_DEFAULT_VALUE_FLAG;
 	alter_it.remove();
       }
     }
