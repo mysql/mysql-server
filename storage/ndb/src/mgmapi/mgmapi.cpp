@@ -336,10 +336,16 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     if(!ndb_mgm_is_connected(handle)) {
-      return NULL;
+      DBUG_RETURN(NULL);
     }
     else
     {
+      if(ctx.m_status==Parser_t::Eof
+	 || ctx.m_status==Parser_t::NoLine)
+      {
+	ndb_mgm_disconnect(handle);
+	DBUG_RETURN(NULL);
+      }
       /**
        * Print some info about why the parser returns NULL
        */

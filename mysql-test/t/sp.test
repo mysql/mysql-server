@@ -1211,15 +1211,13 @@ begin
   end if;
 end|
 select f5(1)|
-# This should generate an error about insuficient number of tables locked
-# Now this crash server
---disable_parsing # until bug#11394 fix
---error 1100
+# Since currently recursive functions are disallowed ER_SP_NO_RECURSION
+# error will be returned, once we will allow them error about
+# insufficient number of locked tables will be returned instead.
+--error ER_SP_NO_RECURSION
 select f5(2)|
-# But now it simply miserably fails because we are trying to use the same
-# lex on the next iteration :/ It should generate some error too...
+--error ER_SP_NO_RECURSION
 select f5(3)|
---enable_parsing
 
 # OTOH this should work 
 create function f6() returns int
@@ -1265,13 +1263,12 @@ select * from v1|
 # views and functions ?
 create function f1() returns int
   return (select sum(data) from t1) + (select sum(data) from v1)|
-# This queries will crash server because we can't use LEX in
-# reenterable fashion yet. Patch disabling recursion will heal this.
---disable_parsing
+--error ER_SP_NO_RECURSION
 select f1()|
+--error ER_SP_NO_RECURSION
 select * from v1|
+--error ER_SP_NO_RECURSION
 select * from v2|
---enable_parsing
 # Back to the normal cases
 drop function f1|
 create function f1() returns int
@@ -1289,9 +1286,7 @@ select *, f0() from v0|
 #
 # Let us test how well prelocking works with explicit LOCK TABLES.
 #
-# Nowdays we have to lock mysql.proc to be able to read SP definitions.
-# But Monty was going to fix this.
-lock tables t1 read, t1 as t11 read, mysql.proc read|
+lock tables t1 read, t1 as t11 read|
 # These should work well
 select f3()|
 select id, f3() from t1 as t11|
@@ -1481,9 +1476,6 @@ show procedure status like '%p%'|
 
 # Fibonacci, for recursion test. (Yet Another Numerical series :)
 #
-# This part of test is disabled until we implement support for
-# recursive stored procedures.
---disable_parsing
 --disable_warnings
 drop table if exists fib|
 --enable_warnings
@@ -1512,6 +1504,9 @@ begin
   end if;
 end|
 
+# Enable recursion
+set @@max_sp_recursion_depth= 20|
+
 # Minimum test: recursion of 3 levels
 
 insert into fib values (0), (1)|
@@ -1531,7 +1526,7 @@ call fib(20)|
 select * from fib order by f asc|
 drop table fib|
 drop procedure fib|
---enable_parsing
+set @@max_sp_recursion_depth= 0|
 
 #
 # Comment & suid
@@ -1800,16 +1795,8 @@ select @x2|
 drop procedure bug2260|
 
 #
-# BUG#2267
+# BUG#2267 "Lost connect if stored procedure has SHOW FUNCTION STATUS"
 #
-# NOTE: This test case will be fixed as soon as Monty
-#       will allow to open mysql.proc table under LOCK TABLES
-#       without mentioning in lock list.
-#       
-# FIXME: Other solution would be to use preopened proc table
-#        instead of opening it anew.
-# 
---disable_parsing
 --disable_warnings
 drop procedure if exists bug2267_1|
 --enable_warnings
@@ -1836,11 +1823,13 @@ end|
 
 --disable_warnings
 drop procedure if exists bug2267_4|
+drop function if exists bug2267_4|
 --enable_warnings
 create procedure bug2267_4()
 begin
-  show create function fac;
+  show create function bug2267_4;
 end|
+create function bug2267_4() returns int return 100|
 
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_1()|
@@ -1853,7 +1842,7 @@ drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
---enable_parsing
+drop function bug2267_4|
 
 #
 # BUG#2227
@@ -1873,23 +1862,16 @@ call bug2227(9)|
 drop procedure bug2227|
 
 #
-# BUG#2614
+# BUG#2614 "Stored procedure with INSERT ... SELECT that does not
+#           contain any tables crashes server"
 #
-# QQ The second insert doesn't work with temporary tables (it was an
-# QQ ordinary table before we changed the locking scheme). It results
-# QQ in an error: 1137: Can't reopen table: 't3'
-# QQ which is a known limit with temporary tables.
-# QQ For this reason we can't run this test any more (i.e., if we modify
-# QQ it, it's no longer a test case for the bug), but we keep it here
-# QQ anyway, for tracability.
---disable_parsing
 --disable_warnings
 drop procedure if exists bug2614|
 --enable_warnings
 create procedure bug2614()
 begin
-  drop temporary table if exists t3;
-  create temporary table t3 (id int default '0' not null);
+  drop table if exists t3;
+  create table t3 (id int default '0' not null);
   insert into t3 select 12;
   insert into t3 select * from t3;
 end|
@@ -1898,9 +1880,8 @@ end|
 call bug2614()|
 --enable_warnings
 call bug2614()|
-drop temporary table t3|
+drop table t3|
 drop procedure bug2614|
---enable_parsing
 
 #
 # BUG#2674
@@ -4773,7 +4754,74 @@ drop procedure bug10100pv|
 drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
+
+#
+# BUG#13729: Stored procedures: packet error after exception handled
+#
+--disable_warnings
+drop procedure if exists bug13729|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (s1 int, primary key (s1))|
+
+insert into t3 values (1),(2)|
+
+create procedure bug13729()
+begin
+  declare continue handler for sqlexception select 55;
+
+  update t3 set s1 = 1;
+end|
+
+call bug13729()|
+# Used to cause Packets out of order
+select * from t3|
+
+drop procedure bug13729|
 drop table t3|
+
+#
+# BUG#14643: Stored Procedure: Continuing after failed var. initialization
+#            crashes server.
+#
+--disable_warnings
+drop procedure if exists bug14643_1|
+drop procedure if exists bug14643_2|
+--enable_warnings
+
+create procedure bug14643_1()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  begin
+    declare v int default x;
+
+    if v = 1 then
+      select 1;
+    else
+      select 2;
+    end if;
+  end;
+end|
+
+create procedure bug14643_2()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  case x
+  when 1 then
+    select 1;
+  else
+    select 2;
+  end case;
+end|
+
+call bug14643_1()|
+call bug14643_2()|
+
+drop procedure bug14643_1|
+drop procedure bug14643_2|
 
 
 #
