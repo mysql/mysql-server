@@ -314,6 +314,8 @@ sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
+sys_var_bool_ptr	sys_myisam_use_mmap("myisam_use_mmap", 
+                                            &opt_myisam_use_mmap);
 
 sys_var_thd_enum        sys_myisam_stats_method("myisam_stats_method",
                                                 &SV::myisam_stats_method,
@@ -789,6 +791,7 @@ struct show_var_st init_vars[]= {
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
+  {sys_myisam_use_mmap.name, (char*) &sys_myisam_use_mmap, SHOW_SYS},
   
   {sys_myisam_stats_method.name, (char*) &sys_myisam_stats_method, SHOW_SYS},
   

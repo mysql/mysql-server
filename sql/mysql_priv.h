@@ -1215,7 +1215,7 @@ extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern bool mysql_proc_table_exists;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
-extern my_bool opt_safe_show_db, opt_local_infile;
+extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;

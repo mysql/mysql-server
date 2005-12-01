@@ -1192,34 +1192,25 @@ my_bool _mi_memmap_file(MI_INFO *info)
   if (!info->s->file_map)
   {
     if (my_seek(info->dfile,0L,MY_SEEK_END,MYF(0)) <
-	share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
+        share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN)
     {
       DBUG_PRINT("warning",("File isn't extended for memmap"));
       DBUG_RETURN(0);
     }
-    file_map=(byte*)
-      my_mmap(0,(size_t)(share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN),PROT_READ,
-	   MAP_SHARED | MAP_NORESERVE,info->dfile,0L);
-    if (file_map == (byte*) MAP_FAILED)
-    {
-      DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
-      my_errno=errno;
+    if (mi_dynmap_file(info, share->state.state.data_file_length))
       DBUG_RETURN(0);
-    }
-    info->s->file_map=file_map;
   }
   info->opt_flag|= MEMMAP_USED;
-  info->read_record=share->read_record=_mi_read_mempack_record;
-  share->read_rnd=_mi_read_rnd_mempack_record;
+  info->read_record= share->read_record= _mi_read_mempack_record;
+  share->read_rnd= _mi_read_rnd_mempack_record;
   DBUG_RETURN(1);
 }
 
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(my_munmap(info->s->file_map,
-	      (size_t) info->s->state.state.data_file_length+
-	      MEMMAP_EXTRA_MARGIN));
+  VOID(my_munmap(info->s->file_map, 
+                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
 }
 
 
