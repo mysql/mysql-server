@@ -1891,3 +1891,17 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
 drop table t1;
 set storage_engine=MyISAM;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+key (a,b,c,d)) engine=bdb;
+drop table t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+e varchar(255) character set utf8,
+key (a,b,c,d,e)) engine=bdb;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+End of 5.0 tests

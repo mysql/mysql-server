@@ -25,6 +25,8 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
+static bool convert_constant_item(THD *thd, Field *field, Item **item);
+
 static Item_result item_store_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT || b == STRING_RESULT)
@@ -45,13 +47,36 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     type[0]= item_store_type(type[0], items[i]->result_type());
 }
 
-static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
+
+static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
+  Field *field= NULL;
+  bool all_constant= TRUE;
+
+  /* If the first argument is a FIELD_ITEM, pull out the field. */
+  if (items[0]->type() == Item::FIELD_ITEM)
+    field=((Item_field *)items[0])->field;
+  /* But if it can't be compared as a longlong, we don't really care. */
+  if (field && !field->can_be_compared_as_longlong())
+    field= NULL;
+
   type[0]= items[0]->result_type();
-  for (i=1 ; i < nitems ; i++)
+  for (i= 1; i < nitems; i++)
+  {
     type[0]= item_cmp_type(type[0], items[i]->result_type());
+    if (field && !convert_constant_item(thd, field, &items[i]))
+      all_constant= FALSE;
+  }
+
+  /*
+    If we had a field that can be compared as a longlong, and all constant
+    items, then the aggregate result will be an INT_RESULT.
+  */
+  if (field && all_constant)
+    type[0]= INT_RESULT;
 }
+
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
@@ -1051,32 +1076,11 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  agg_cmp_type(&cmp_type, args, 3);
+  agg_cmp_type(thd, &cmp_type, args, 3);
+
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
     return;
-
-  /*
-    Make a special ease of compare with date/time and longlong fields.
-    They are compared as integers, so for const item this time-consuming
-    conversion can be done only once, not for every single comparison
-  */
-  if (args[0]->type() == FIELD_ITEM)
-  {
-    Field *field=((Item_field*) args[0])->field;
-    if (!thd->is_context_analysis_only() &&
-        field->can_be_compared_as_longlong())
-    {
-      /*
-        The following can't be recoded with || as convert_constant_item
-        changes the argument
-      */
-      if (convert_constant_item(thd, field,&args[1]))
-	cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field,&args[2]))
-	cmp_type=INT_RESULT;			// Works for all types.
-    }
-  }
 }
 
 
@@ -1722,6 +1726,7 @@ void Item_func_case::fix_length_and_dec()
 {
   Item **agg;
   uint nagg;
+  THD *thd= current_thd;
   
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
@@ -1753,7 +1758,7 @@ void Item_func_case::fix_length_and_dec()
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    agg_cmp_type(&cmp_type, agg, nagg);
+    agg_cmp_type(thd, &cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
         agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
       return;
@@ -2346,7 +2351,7 @@ void Item_func_in::fix_length_and_dec()
   uint const_itm= 1;
   THD *thd= current_thd;
   
-  agg_cmp_type(&cmp_type, args, arg_count);
+  agg_cmp_type(thd, &cmp_type, args, arg_count);
 
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV))
