@@ -4010,4 +4010,40 @@ s1
 2
 drop procedure bug13729|
 drop table t3|
+drop procedure if exists bug14643_1|
+drop procedure if exists bug14643_2|
+create procedure bug14643_1()
+begin
+declare continue handler for sqlexception select 'boo' as 'Handler';
+begin
+declare v int default x;
+if v = 1 then
+select 1;
+else
+select 2;
+end if;
+end;
+end|
+create procedure bug14643_2()
+begin
+declare continue handler for sqlexception select 'boo' as 'Handler';
+case x
+when 1 then
+select 1;
+else
+select 2;
+end case;
+end|
+call bug14643_1()|
+Handler
+boo
+2
+2
+call bug14643_2()|
+Handler
+boo
+2
+2
+drop procedure bug14643_1|
+drop procedure bug14643_2|
 drop table t1,t2;

@@ -601,16 +601,8 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
-  /*
-    Allow conversion from and to "binary".
-    Don't allow automatic conversion to non-Unicode charsets,
-    as it potentially loses data.
-  */
-  if (collation.collation != &my_charset_bin &&
-      tocs != &my_charset_bin &&
-      !(tocs->state & MY_CS_UNICODE))
-    return NULL; // safe conversion is not possible
-  return new Item_func_conv_charset(this, tocs);
+  Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
+  return conv->safe ? conv : NULL;
 }
 
 
@@ -700,23 +692,15 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    Item_string *conv;
     uint cnv_errors;
-    char buf[MAX_FIELD_WIDTH];
-    String tmp(buf, sizeof(buf), &my_charset_bin);
-    String cstr, *ostr= val_str(&tmp);
-    /*
-      As safe_charset_converter is not executed for
-      a parameter bound to NULL, ostr should never be 0.
-    */
-    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                              cstr.charset(),
-                                              collation.derivation)))
-      return NULL;
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-    return conv;
+    String *ostr= val_str(&cnvstr);
+    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
+                            ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors)
+       return NULL;
+    cnvitem->str_value.mark_as_const();
+    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    return cnvitem;
   }
   return NULL;
 }
@@ -2104,6 +2088,8 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
+  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
+  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
@@ -5826,8 +5812,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      max_length= min(max(delta1, delta2) + decimals,
-                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+      if (fld_type == MYSQL_TYPE_DECIMAL)
+        max_length= max(delta1, delta2) + decimals;
+      else
+        max_length= min(max(delta1, delta2) + decimals,
+                        (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
