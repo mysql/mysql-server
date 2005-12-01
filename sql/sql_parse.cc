@@ -3664,8 +3664,6 @@ end_with_restore_list:
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
-    if (check_access(thd,SELECT_ACL,lex->name,0,1,0,is_schema_db(lex->name)))
-      break;
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
