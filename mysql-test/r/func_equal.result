@@ -33,3 +33,12 @@ id	value
 select * from t1 where id <=> value or value<=>id;
 id	value
 drop table t1,t2;
+create table t1 (a bigint unsigned);
+insert into t1 values (4828532208463511553);
+select * from t1 where a = '4828532208463511553';
+a
+4828532208463511553
+select * from t1 where a in ('4828532208463511553');
+a
+4828532208463511553
+drop table t1;
