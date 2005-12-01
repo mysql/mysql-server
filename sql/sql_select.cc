@@ -1003,6 +1003,20 @@ JOIN::optimize()
   }
   having= 0;
 
+  /*
+    The loose index scan access method guarantees that all grouping or
+    duplicate row elimination (for distinct) is already performed
+    during data retrieval, and that all MIN/MAX functions are already
+    computed for each group. Thus all MIN/MAX functions should be
+    treated as regular functions, and there is no need to perform
+    grouping in the main execution loop.
+    Notice that currently loose index scan is applicable only for
+    single table queries, thus it is sufficient to test only the first
+    join_tab element of the plan for its access method.
+  */
+  if (join_tab->is_using_loose_index_scan())
+    tmp_table_param.precomputed_group_by= TRUE;
+
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -1409,6 +1423,15 @@ JOIN::exec()
       else
       {
 	/* group data to new table */
+
+        /*
+          If the access method is loose index scan then all MIN/MAX
+          functions are precomputed, and should be treated as regular
+          functions. See extended comment in JOIN::exec.
+        */
+        if (curr_join->join_tab->is_using_loose_index_scan())
+          curr_join->tmp_table_param.precomputed_group_by= TRUE;
+
 	if (!(curr_tmp_table=
 	      exec_tmp_table2= create_tmp_table(thd,
 						&curr_join->tmp_table_param,
@@ -8311,6 +8334,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   TABLE *table;
   TABLE_SHARE *share;
   uint	i,field_count,null_count,null_pack_length;
+  uint  copy_func_count= param->func_count;
   uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
   uint  blob_count,group_null_items, string_count;
   uint  temp_pool_slot=MY_BIT_NONE;
@@ -8374,6 +8398,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   field_count=param->field_count+param->func_count+param->sum_func_count;
   hidden_field_count=param->hidden_field_count;
 
+  /*
+    When loose index scan is employed as access method, it already
+    computes all groups and the result of all aggregate functions. We
+    make space for the items of the aggregate function in the list of
+    functions TMP_TABLE_PARAM::items_to_copy, so that the values of
+    these items are stored in the temporary table.
+  */
+  if (param->precomputed_group_by)
+    copy_func_count+= param->sum_func_count;
+  
   init_sql_alloc(&own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
   if (!multi_alloc_root(&own_root,
@@ -8382,7 +8416,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &reg_field, sizeof(Field*) * (field_count+1),
                         &blob_field, sizeof(uint)*(field_count+1),
                         &from_field, sizeof(Field*)*field_count,
-                        &copy_func, sizeof(*copy_func)*(param->func_count+1),
+                        &copy_func, sizeof(*copy_func)*(copy_func_count+1),
                         &param->keyinfo, sizeof(*param->keyinfo),
                         &key_part_info,
                         sizeof(*key_part_info)*(param->group_parts+1),
@@ -9283,11 +9317,13 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 Next_select_func setup_end_select_func(JOIN *join)
 {
   TABLE *table= join->tmp_table;
+  TMP_TABLE_PARAM *tmp_tbl= &join->tmp_table_param;
   Next_select_func end_select;
+
   /* Set up select_end */
   if (table)
   {
-    if (table->group && join->tmp_table_param.sum_func_count)
+    if (table->group && tmp_tbl->sum_func_count)
     {
       if (table->s->keys)
       {
@@ -9300,7 +9336,7 @@ Next_select_func setup_end_select_func(JOIN *join)
 	end_select=end_unique_update;
       }
     }
-    else if (join->sort_and_group)
+    else if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
     {
       DBUG_PRINT("info",("Using end_write_group"));
       end_select=end_write_group;
@@ -9309,19 +9345,27 @@ Next_select_func setup_end_select_func(JOIN *join)
     {
       DBUG_PRINT("info",("Using end_write"));
       end_select=end_write;
+      if (tmp_tbl->precomputed_group_by)
+      {
+        /*
+          A preceding call to create_tmp_table in the case when loose
+          index scan is used guarantees that
+          TMP_TABLE_PARAM::items_to_copy has enough space for the group
+          by functions. It is OK here to use memcpy since we copy
+          Item_sum pointers into an array of Item pointers.
+        */
+        memcpy(tmp_tbl->items_to_copy + tmp_tbl->func_count,
+               join->sum_funcs,
+               sizeof(Item*)*tmp_tbl->sum_func_count);
+        tmp_tbl->items_to_copy[tmp_tbl->func_count+tmp_tbl->sum_func_count]= 0;
+      }
     }
   }
   else
   {
-    /* Test if data is accessed via QUICK_GROUP_MIN_MAX_SELECT. */
-    bool is_using_quick_group_min_max_select=
-      (join->join_tab->select && join->join_tab->select->quick &&
-       (join->join_tab->select->quick->get_type() ==
-        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
-
     if ((join->sort_and_group ||
          (join->procedure && join->procedure->flags & PROC_GROUP)) &&
-        !is_using_quick_group_min_max_select)
+        !tmp_tbl->precomputed_group_by)
       end_select= end_send_group;
     else
       end_select= end_send;
@@ -10599,7 +10643,6 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     copy_fields(&join->tmp_table_param);
     copy_funcs(join->tmp_table_param.items_to_copy);
-
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
     {
