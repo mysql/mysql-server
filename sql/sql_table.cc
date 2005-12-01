@@ -3400,7 +3400,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
 	  DBUG_RETURN(TRUE);
 	}
-	def->def=alter->def;			// Use new default
+	if ((def->def=alter->def))              // Use new default
+          def->flags&= ~NO_DEFAULT_VALUE_FLAG;
+        else
+          def->flags|= NO_DEFAULT_VALUE_FLAG;
 	alter_it.remove();
       }
     }

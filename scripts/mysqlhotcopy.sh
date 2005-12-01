@@ -252,6 +252,7 @@ if ( defined $opt{regexp} ) {
     my $sth_dbs = $dbh->prepare("show databases");
     $sth_dbs->execute;
     while ( my ($db_name) = $sth_dbs->fetchrow_array ) {
+	next if $db_name =~ m/^information_schema$/i;
 	push @db_desc, { 'src' => $db_name, 't_regex' => $t_regex } if ( $db_name =~ m/$opt{regexp}/o );
     }
 }
