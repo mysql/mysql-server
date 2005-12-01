@@ -821,7 +821,11 @@ my_bool my_gethwaddr(uchar *to);
 #define MAP_NOSYNC      0
 #endif
 
+#ifdef HAVE_MMAP64
+#define my_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
+#else
 #define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
+#endif
 #ifdef HAVE_GETPAGESIZE
 #define my_getpagesize()        getpagesize()
 #else
