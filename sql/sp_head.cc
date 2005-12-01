@@ -1075,7 +1075,7 @@ int sp_head::execute(THD *thd)
     }
 
     /* we should cleanup free_list and memroot, used by instruction */
-    thd->free_items();
+    thd->cleanup_after_query();
     free_root(&execute_mem_root, MYF(0));    
 
     /*
