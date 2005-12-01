@@ -4046,4 +4046,28 @@ boo
 2
 drop procedure bug14643_1|
 drop procedure bug14643_2|
+drop procedure if exists bug14304|
+drop table if exists t3, t4|
+create table t3(a int primary key auto_increment)|
+create table t4(a int primary key auto_increment)|
+create procedure bug14304()
+begin
+insert into t3 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 select null as a;
+insert into t3 set a=null;
+insert into t3 set a=null;
+select * from t3;
+end|
+call bug14304()|
+a
+1
+2
+3
+drop procedure bug14304|
+drop table t3, t4|
 drop table t1,t2;
