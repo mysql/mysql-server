@@ -2424,3 +2424,18 @@ f1	sum(f2)
 NULL	12
 drop view v1;
 drop table t1;
+CREATE VIEW v1 AS SELECT 42 AS Meaning;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+DECLARE retn INTEGER;
+SELECT Meaning FROM v1 INTO retn;
+RETURN retn;
+END
+//
+CREATE VIEW v2 AS SELECT f1();
+select * from v2;
+f1()
+42
+drop view v2,v1;
+drop function f1;
