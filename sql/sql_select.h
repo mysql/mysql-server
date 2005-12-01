@@ -140,6 +140,12 @@ typedef struct st_join_table {
   nested_join_map embedding_map;
   
   void cleanup();
+  inline bool is_using_loose_index_scan()
+  {
+    return (select && select->quick &&
+            (select->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+  }
 } JOIN_TAB;
 
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
