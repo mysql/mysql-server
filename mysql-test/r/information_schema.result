@@ -1048,3 +1048,11 @@ blob	65535	65535
 text	65535	65535
 text	65535	32767
 drop table t1;
+create table t1 (f1 int(11));
+create view v1 as select * from t1;
+drop table t1;
+select table_type from information_schema.tables
+where table_name="v1";
+table_type
+VIEW
+drop view v1;
