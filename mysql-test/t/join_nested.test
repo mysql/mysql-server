@@ -899,4 +899,4 @@ explain select * from t2 left join
   (t3 left join (t4 join t6 on t6.a=t4.b) on t4.a=t3.b 
    join t5 on t5.a=t3.b) on t3.a=t2.b;
 
-drop table t0, t1, t2, t4, t5, t6;
+drop table t0, t1, t2, t3, t4, t5, t6, t7;

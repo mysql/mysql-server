@@ -28,6 +28,8 @@
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE
 
+#define _XOPEN_SOURCE /* needed to include getopt.h on some platforms. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
