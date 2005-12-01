@@ -743,6 +743,21 @@ show status like "Qcache_hits";
 drop table t1;
 
 #
+# BUG#14652: Queries with leading '(' characters.
+#
+create table t1 (a int);
+flush status;
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
+#
 # SP cursors and selects with query cache (BUG#9715)
 #
 create table t1 (a int);

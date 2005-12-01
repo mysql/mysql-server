@@ -2280,3 +2280,24 @@ create view v1 as select * from t1;
 select f1, sum(f2) from v1 group by f1;
 drop view v1;
 drop table t1;
+
+#
+# BUG#15096: using function with view for view creation
+#
+CREATE VIEW v1 AS SELECT 42 AS Meaning;
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+DELIMITER //;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE retn INTEGER;
+  SELECT Meaning FROM v1 INTO retn;
+  RETURN retn;
+END
+//
+DELIMITER ;//
+CREATE VIEW v2 AS SELECT f1();
+select * from v2;
+drop view v2,v1;
+drop function f1;

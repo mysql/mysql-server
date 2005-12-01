@@ -96,4 +96,35 @@ unlock tables;
 set query_cache_wlock_invalidate=default;
 drop view v1;
 drop table t1;
+
+#
+# BUG#15119: returning temptable view from the query cache.
+#
+flush status;
+create table t1 (a int, b int);
+create algorithm=temptable view v1 as select * from t1;
+select * from v1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from v1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+insert into t1 values (1,1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+select * from v1;
+select * from v1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop view v1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
+# Reset default environment.
 set GLOBAL query_cache_size=default;

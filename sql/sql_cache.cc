@@ -977,21 +977,31 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err;
   }
 
-  /*
-    Test if the query is a SELECT
-    (pre-space is removed in dispatch_command).
-
-    First '/' looks like comment before command it is not
-    frequently appeared in real lihe, consequently we can
-    check all such queries, too.
-  */
-  if ((my_toupper(system_charset_info, sql[0]) != 'S' || 
-       my_toupper(system_charset_info, sql[1]) != 'E' ||
-       my_toupper(system_charset_info,sql[2]) !='L') &&
-      sql[0] != '/')
   {
-    DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
-    goto err;
+    uint i= 0;
+    /*
+      Skip '(' characters in queries like following:
+      (select a from t1) union (select a from t1);
+    */
+    while (sql[i]=='(')
+      i++;
+
+    /*
+      Test if the query is a SELECT
+      (pre-space is removed in dispatch_command)
+
+      First '/' looks like comment before command it is not
+      frequently appeared in real lihe, consequently we can
+      check all such queries, too.
+    */
+    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
+         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+        sql[i] != '/')
+    {
+      DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+      goto err;
+    }
   }
 
   STRUCT_LOCK(&structure_guard_mutex);
@@ -2184,7 +2194,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->derived)
+    if (tables_used->derived && !tables_used->view)
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
