@@ -2162,6 +2162,8 @@ static void dump_table(char *table, char *db)
       for (i = 0; i < mysql_num_fields(res); i++)
       {
         int is_blob;
+        ulong length= lengths[i];
+
 	if (!(field = mysql_fetch_field(res)))
 	{
 	  my_snprintf(query, QUERY_LENGTH,
@@ -2188,7 +2190,6 @@ static void dump_table(char *table, char *db)
                    field->type == MYSQL_TYPE_TINY_BLOB)) ? 1 : 0;
 	if (extended_insert)
 	{
-	  ulong length = lengths[i];
 	  if (i == 0)
 	    dynstr_set(&extended_row,"(");
 	  else
@@ -2278,19 +2279,19 @@ static void dump_table(char *table, char *db)
 	      {
 	        print_xml_tag1(md_result_file, "\t\t", "field name=",
 			      field->name, "");
-		print_quoted_xml(md_result_file, row[i], lengths[i]);
+		print_quoted_xml(md_result_file, row[i], length);
 		fputs("</field>\n", md_result_file);
 	      }
-	      else if (opt_hex_blob && is_blob)
+	      else if (opt_hex_blob && is_blob && length)
               {
                 /* sakaik got the idea to to provide blob's in hex notation. */
-                char *ptr= row[i], *end= ptr+ lengths[i];
+                char *ptr= row[i], *end= ptr + length;
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
 		  fprintf(md_result_file, "%02X", *((uchar *)ptr));
               }
               else
-                unescape(md_result_file, row[i], lengths[i]);
+                unescape(md_result_file, row[i], length);
 	    }
 	    else
 	    {
