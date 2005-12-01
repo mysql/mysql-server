@@ -2362,6 +2362,12 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       there was errors during opening tables
     */
     const char *error= thd->net.last_error;
+    if (tables->view)
+      table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
+    else if (tables->schema_table)
+      table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
+    else
+      table->field[3]->store(STRING_WITH_LEN("BASE TABLE"), cs);
     table->field[20]->store(error, strlen(error), cs);
     thd->clear_error();
   }
