@@ -3769,7 +3769,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     req->userReference = reference();
     req->varIndex      = 0;
     req->offset        = tmp - c_startOfPages;
-    req->size          = sz; // Avrunda uppot
+    req->size          = sz; // Round up
     
     sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
 	       FsAppendReq::SignalLength, JBA);
