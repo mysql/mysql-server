@@ -1090,7 +1090,7 @@ public:
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
-  bool enable_slow_log, insert_id_used;
+  bool enable_slow_log, insert_id_used, clear_next_insert_id;
   my_bool no_send_ok;
   SAVEPOINT *savepoints;
 };
