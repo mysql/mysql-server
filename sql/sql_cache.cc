@@ -2184,7 +2184,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->derived)
+    if (tables_used->derived && !tables_used->view)
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
