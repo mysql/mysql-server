@@ -152,7 +152,8 @@ enum ha_extra_function {
     other fields intact. When this is off (by default) InnoDB will use memcpy
     to overwrite entire row.
   */
-  HA_EXTRA_KEYREAD_PRESERVE_FIELDS
+  HA_EXTRA_KEYREAD_PRESERVE_FIELDS,
+  HA_EXTRA_MMAP
 };
 
 	/* The following is parameter to ha_panic() */
