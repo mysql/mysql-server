@@ -5721,3 +5721,19 @@ ER_DROP_PARTITION_WHEN_FK_DEFINED
         swe "Kan inte ta bort en partition när en främmande nyckel är definierad på tabellen"
 ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
+ER_EVENT_ALREADY_EXISTS
+        eng "Event %s already exists"
+ER_EVENT_STORE_FAILED
+        eng "Failed to create event %s"
+ER_EVENT_DOES_NOT_EXIST
+        eng "Event %s does not exist"
+ER_EVENT_CANT_ALTER
+        eng "Failed to alter event %s"
+ER_EVENT_DROP_FAILED
+        eng "Failed to DROP %s %s"
+ER_EVENT_INTERVAL_NOT_POSITIVE
+        eng "INTERVAL must be positive"
+ER_EVENT_ENDS_BEFORE_STARTS
+        eng "ENDS must be after STARTS"
+ER_EVENT_EXEC_TIME_IN_THE_PAST
+        eng "Activation (AT) time is in the past"

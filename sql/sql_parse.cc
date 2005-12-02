@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "event.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -642,6 +643,9 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_DROP_INDEX]=1;
   uc_update_queries[SQLCOM_CREATE_VIEW]=1;
   uc_update_queries[SQLCOM_DROP_VIEW]=1;
+  uc_update_queries[SQLCOM_CREATE_EVENT]=1;
+  uc_update_queries[SQLCOM_ALTER_EVENT]=1;
+  uc_update_queries[SQLCOM_DROP_EVENT]=1;  
 }
 
 bool is_update_query(enum enum_sql_command command)
@@ -3667,6 +3671,130 @@ end_with_restore_list:
     if (check_access(thd,SELECT_ACL,lex->name,0,1,0,is_schema_db(lex->name)))
       break;
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
+    break;
+  }
+  case SQLCOM_CREATE_EVENT:
+  {
+    if (check_global_access(thd, EVENT_ACL))
+      break;
+
+    DBUG_ASSERT(lex->et);
+    if (! lex->et->m_db.str)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      delete lex->et;
+      lex->et= 0;
+      goto error;
+    }
+    
+    int result;
+    uint create_options= lex->create_info.options;
+    res= (result= evex_create_event(thd, lex->et, create_options));
+    switch (result) {
+    case EVEX_OK:
+      send_ok(thd, 1);
+      break;
+    case EVEX_WRITE_ROW_FAILED:
+      my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), lex->et->m_name.str);
+      break;
+    case EVEX_NO_DB_ERROR:
+      my_error(ER_BAD_DB_ERROR, MYF(0), lex->et->m_db.str);
+      break;
+    default:
+      //includes EVEX_PARSE_ERROR
+      my_error(ER_EVENT_STORE_FAILED, MYF(0), lex->et->m_name.str);
+      break;
+    }
+    /* lex->unit.cleanup() is called outside, no need to call it here */
+    delete lex->et;
+    lex->et= 0;
+    
+    delete lex->sphead;
+    lex->sphead= 0;
+
+    break;
+  }
+  case SQLCOM_ALTER_EVENT:
+  {
+    if (check_global_access(thd, EVENT_ACL))
+      break;
+
+    DBUG_ASSERT(lex->et);
+    if (! lex->et->m_db.str)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      delete lex->et;
+      lex->et= 0;
+      goto error;
+    }
+
+    int result;
+    res= (result= evex_update_event(thd, lex->spname, lex->et));
+    switch (result) {
+    case EVEX_OK:
+      send_ok(thd, 1);
+      break;
+    case EVEX_KEY_NOT_FOUND:
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_qname.str);
+      break;
+    default:
+      my_error(ER_EVENT_CANT_ALTER, MYF(0), lex->et->m_qname.str);
+      break;
+    }
+    delete lex->et;
+    lex->et= 0;
+
+    if (lex->sphead)
+    {
+      delete lex->sphead;
+      lex->sphead= 0;
+    }
+    
+    break;
+  }
+  case SQLCOM_DROP_EVENT:
+  {
+    if (check_global_access(thd, EVENT_ACL))
+      break;
+
+    DBUG_ASSERT(lex->et);
+    if (! lex->et->m_db.str)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      delete lex->et;
+      lex->et= 0;
+      goto error;
+    }
+
+    int result;
+    res= (result= evex_drop_event(thd, lex->et, lex->drop_if_exists));
+    switch (result) {
+    case EVEX_OK:
+      send_ok(thd, 1);
+      break;
+    case EVEX_KEY_NOT_FOUND:
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_qname.str);
+      break;
+    default:
+      my_error(ER_EVENT_DROP_FAILED, MYF(0), lex->et->m_qname.str);
+      break;
+    }
+    delete lex->et;
+    lex->et= 0;
+
+    break;
+  }
+  case SQLCOM_SHOW_CREATE_EVENT:
+  {
+    if (check_global_access(thd, EVENT_ACL))
+      break;
+
+    if (lex->spname->m_name.length > NAME_LEN)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      goto error;
+    }
+    send_ok(thd, 1);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:                  // UDF function

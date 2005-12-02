@@ -79,7 +79,7 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 reckless_cflags="-O3 -fomit-frame-pointer "
 
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
-debug_extra_cflags="-O1 -Wuninitialized"
+debug_extra_cflags="-O0"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 amd64_cxxflags=""				# If dropping '--with-big-tables', add here  "-DBIG_TABLES"
