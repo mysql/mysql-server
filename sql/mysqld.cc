@@ -24,6 +24,7 @@
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
+#include "event.h"
 
 #include "ha_myisam.h"
 
@@ -3502,6 +3503,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     }
   }
 
+  init_events();
+
   create_shutdown_thread();
   create_maintenance_thread();
 
@@ -4526,7 +4529,7 @@ enum options_mysqld
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
   OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
   OPT_HAVE_NAMED_PIPE,
-  OPT_DO_PSTACK, OPT_REPORT_HOST,
+  OPT_DO_PSTACK, OPT_EVENT_EXECUTOR, OPT_REPORT_HOST,
   OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
   OPT_SHOW_SLAVE_AUTH_INFO,
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
@@ -4804,6 +4807,9 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"event-executor", OPT_EVENT_EXECUTOR, "Print a symbolic stack trace on failure.",
+   (gptr*) &opt_event_executor, (gptr*) &opt_event_executor, 0, GET_BOOL, NO_ARG,
+   1/*default*/, 0/*min-value*/, 1/*max-value*/, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running.",
@@ -6028,6 +6034,7 @@ struct show_var_st status_vars[]= {
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONG_STATUS},
   {"Com_admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
   {"Com_alter_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]), SHOW_LONG_STATUS},
+  {"Com_alter_event",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]), SHOW_LONG_STATUS},
   {"Com_alter_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
   {"Com_analyze",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]), SHOW_LONG_STATUS},
   {"Com_backup_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BACKUP_TABLE]), SHOW_LONG_STATUS},
@@ -6038,6 +6045,7 @@ struct show_var_st status_vars[]= {
   {"Com_checksum",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CHECKSUM]), SHOW_LONG_STATUS},
   {"Com_commit",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_COMMIT]), SHOW_LONG_STATUS},
   {"Com_create_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_DB]), SHOW_LONG_STATUS},
+  {"Com_create_event",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_EVENT]), SHOW_LONG_STATUS},
   {"Com_create_function",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_FUNCTION]), SHOW_LONG_STATUS},
   {"Com_create_index",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_INDEX]), SHOW_LONG_STATUS},
   {"Com_create_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_CREATE_TABLE]), SHOW_LONG_STATUS},
@@ -6046,6 +6054,7 @@ struct show_var_st status_vars[]= {
   {"Com_delete_multi",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DELETE_MULTI]), SHOW_LONG_STATUS},
   {"Com_do",                   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DO]), SHOW_LONG_STATUS},
   {"Com_drop_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_DB]), SHOW_LONG_STATUS},
+  {"Com_drop_event",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_EVENT]), SHOW_LONG_STATUS},
   {"Com_drop_function",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_FUNCTION]), SHOW_LONG_STATUS},
   {"Com_drop_index",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_INDEX]), SHOW_LONG_STATUS},
   {"Com_drop_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_TABLE]), SHOW_LONG_STATUS},
@@ -6087,6 +6096,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
   {"Com_show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
   {"Com_show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
+  {"Com_show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]), SHOW_LONG_STATUS},
   {"Com_show_create_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE]), SHOW_LONG_STATUS},
   {"Com_show_databases",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_DATABASES]), SHOW_LONG_STATUS},
   {"Com_show_engine_logs",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_LOGS]), SHOW_LONG_STATUS},
