@@ -4590,7 +4590,7 @@ ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT 21000
 	nla "De gebruikte SELECT commando's hebben een verschillend aantal kolommen"
 	eng "The used SELECT statements have a different number of columns"
 	est "Tulpade arv kasutatud SELECT lausetes ei kattu"
-	ger "Die verwendeten SELECT-Befehle liefern eine unterschiedliche Anzahl von Feldern zurück"
+	ger "Die verwendeten SELECT-Befehle liefern unterschiedliche Anzahlen von Feldern zurück"
 	ita "La SELECT utilizzata ha un numero di colonne differente"
 	por "Os comandos SELECT usados têm diferente número de colunas"
 	rus "éÓĞÏÌØÚÏ×ÁÎÎÙÅ ÏĞÅÒÁÔÏÒÙ ×ÙÂÏÒËÉ (SELECT) ÄÁÀÔ ÒÁÚÎÏÅ ËÏÌÉŞÅÓÔ×Ï ÓÔÏÌÂÃÏ×"
@@ -5274,7 +5274,7 @@ ER_VIEW_SELECT_TMPTABLE
 	ukr "View SELECT ×ÉËÏÒÉÓÔÏ×Õ¤ ÔÉÍŞÁÓÏ×Õ ÔÁÂÌÉÃÀ '%-.64s'"
 ER_VIEW_WRONG_LIST  
 	eng "View's SELECT and view's field list have different column counts"
-	ger "SELECT- und Feldliste der Views haben eine unterschiedliche Anzahl von Spalten"
+	ger "SELECT- und Feldliste der Views haben unterschiedliche Anzahlen von Spalten"
 	rus "View SELECT É ÓĞÉÓÏË ĞÏÌÅÊ view ÉÍÅÀÔ ÒÁÚÎÏÅ ËÏÌÉŞÅÓÔ×Ï ÓÔÏÌÂÃÏ×"
 	ukr "View SELECT ¦ ĞÅÒÅÌ¦Ë ÓÔÏ×ÂÃ¦× view ÍÁÀÔØ Ò¦ÚÎÕ Ë¦ÌØË¦ÓÔØ ÓËÏ×ÂÃ¦×"
 ER_WARN_VIEW_MERGE  
@@ -5485,7 +5485,7 @@ ER_CANT_CREATE_GEOMETRY_OBJECT 22003
 	ger "Kann kein Geometrieobjekt aus den Daten machen, die Sie dem GEOMETRY-Feld übergeben haben"
 ER_FAILED_ROUTINE_BREAK_BINLOG
 	eng "A routine failed and has neither NO SQL nor READS SQL DATA in its declaration and binary logging is enabled; if non-transactional tables were updated, the binary log will miss their changes"
-	ger "Eine Routine, die weder NO SQL noch READS SQL DATA in der Deklaration hat, schlug fehl und Binärlogging ist aktiv. Wenn Nicht-Transaktions-Tabellen atualisiert wurden, enthält das Binärlog ihre Änderungen nicht"
+	ger "Eine Routine, die weder NO SQL noch READS SQL DATA in der Deklaration hat, schlug fehl und Binärlogging ist aktiv. Wenn Nicht-Transaktions-Tabellen aktualisiert wurden, enthält das Binärlog ihre Änderungen nicht"
 ER_BINLOG_UNSAFE_ROUTINE
 	eng "This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
 	ger "Diese Routine hat weder DETERMINISTIC, NO SQL noch READS SQL DATA in der Deklaration und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_routine_creators verwenden)"
@@ -5595,8 +5595,11 @@ ER_SP_BAD_VAR_SHADOW 42000
 	eng "Variable '%-.64s' must be quoted with `...`, or renamed"
         ger "Variable '%-.64s' muss mit `...` geschützt oder aber umbenannt werden"
 ER_TRG_NO_DEFINER
-  eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
+        eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
+        ger "Kein Definierer-Attribut für Trigger '%-.64s'.'%-.64s'. Der Trigger wird mit der Autorisierung des Aufrufers aktiviert, der möglicherweise keine zureichenden Berechtigungen hat. Bitte legen Sie den Trigger neu an."
 ER_OLD_FILE_FORMAT
-  eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
+        eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
+        ger "'%-.64s' hat altes Format, Sie sollten die '%s'-Objekt(e) neu erzeugen"
 ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
+        ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.64s überschritten"
