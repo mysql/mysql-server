@@ -605,6 +605,7 @@ select * from t2 order by a;
 
 drop table t1, t2;
 drop database db1;
+
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
@@ -644,7 +645,7 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
-
+ 
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
 
@@ -684,6 +685,7 @@ select '------ Testing with illegal database names ------' as test_sequence ;
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
 use test;
+
 
 #
 # Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
@@ -1023,3 +1025,14 @@ SET SQL_MODE = @old_sql_mode;
 
 DROP TRIGGER tr1;
 DROP TABLE t1;
+
+#
+# Bug #13318: Bad result with empty field and --hex-blob
+# 
+create table t1 (a binary(1), b blob);
+insert into t1 values ('','');
+--exec $MYSQL_DUMP --skip-comments --skip-extended-insert --hex-blob test t1
+--exec $MYSQL_DUMP --skip-comments --hex-blob test t1
+drop table t1;
+
+# End of 4.1 tests
