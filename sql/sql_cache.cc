@@ -977,18 +977,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err;
   }
 
-  /*
-    Test if the query is a SELECT
-    (pre-space is removed in dispatch_command).
-
-    First '/' looks like comment before command it is not
-    frequently appeared in real lihe, consequently we can
-    check all such queries, too.
-  */
-  if ((my_toupper(system_charset_info, sql[0]) != 'S' || 
-       my_toupper(system_charset_info, sql[1]) != 'E' ||
-       my_toupper(system_charset_info,sql[2]) !='L') &&
-      sql[0] != '/')
   {
     uint i= 0;
     /*
@@ -998,13 +986,19 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     while (sql[i]=='(')
       i++;
 
+
     /*
       Test if the query is a SELECT
-      (pre-space is removed in dispatch_command)
+      (pre-space is removed in dispatch_command).
+
+      First '/' looks like comment before command it is not
+      frequently appeared in real lihe, consequently we can
+      check all such queries, too.
     */
-    if (my_toupper(system_charset_info, sql[i])     != 'S' ||
+    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-        my_toupper(system_charset_info, sql[i + 2]) != 'L')
+        my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+      sql[0] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;
