@@ -179,6 +179,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   ha_checksum (*calc_checksum)(struct st_myisam_info*, const byte *);
   int (*compare_unique)(struct st_myisam_info*, MI_UNIQUEDEF *,
 			const byte *record, my_off_t pos);
+  uint (*file_read)(MI_INFO *, byte *, uint, my_off_t, myf);
+  uint (*file_write)(MI_INFO *, byte *, uint, my_off_t, myf);
   invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
@@ -207,6 +209,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
   rw_lock_t *key_root_lock;
 #endif
+  my_off_t mmaped_length;
+  rw_lock_t mmap_lock;
 } MYISAM_SHARE;
 
 
@@ -685,6 +689,14 @@ extern void _mi_unmap_file(MI_INFO *info);
 extern uint save_pack_length(uint version, byte *block_buff, ulong length);
 extern uint read_pack_length(uint version, const uchar *buf, ulong *length);
 extern uint calc_pack_length(uint version, ulong length);
+extern uint mi_mmap_pread(MI_INFO *info, byte *Buffer,
+                           uint Count, my_off_t offset, myf MyFlags);
+extern uint mi_mmap_pwrite(MI_INFO *info, byte *Buffer,
+                            uint Count, my_off_t offset, myf MyFlags);
+extern uint mi_nommap_pread(MI_INFO *info, byte *Buffer,
+                             uint Count, my_off_t offset, myf MyFlags);
+extern uint mi_nommap_pwrite(MI_INFO *info, byte *Buffer,
+                             uint Count, my_off_t offset, myf MyFlags);
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite);
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state);
