@@ -452,7 +452,7 @@ longlong Item_sum_sum::val_int()
                    &result);
     return result;
   }
-  return (longlong) val_real();
+  return (longlong) rint(val_real());
 }
 
 
@@ -1285,7 +1285,7 @@ longlong Item_sum_hybrid::val_int()
     return sum_int;
   }
   default:
-    return (longlong) Item_sum_hybrid::val_real();
+    return (longlong) rint(Item_sum_hybrid::val_real());
   }
 }
 
@@ -2001,7 +2001,7 @@ double Item_avg_field::val_real()
 
 longlong Item_avg_field::val_int()
 {
-  return (longlong) val_real();
+  return (longlong) rint(val_real());
 }
 
 
