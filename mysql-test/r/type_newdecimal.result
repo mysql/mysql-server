@@ -79,16 +79,16 @@ drop table t1;
 create table t1 (a decimal(4,2));
 insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
 insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
 select a from t1;
 a
 99.99
@@ -103,16 +103,16 @@ drop table t1;
 create table t1 (a decimal(4,2) unsigned);
 insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
 insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
 select a from t1;
 a
 99.99
@@ -127,13 +127,13 @@ drop table t1;
 create table t1 (a bigint);
 insert into t1 values (18446744073709551615.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (9223372036854775808.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (-18446744073709551615.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;
 a
 9223372036854775807
@@ -145,10 +145,10 @@ insert into t1 values (18446744073709551615.0);
 insert into t1 values (9223372036854775808.0);
 insert into t1 values (9999999999999999999999999.000);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (-1.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;
 a
 18446744073709551615
@@ -159,12 +159,12 @@ drop table t1;
 create table t1 (a tinyint);
 insert into t1 values (18446744073709551615.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 insert into t1 values (9223372036854775808.0);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;
 a
 127
@@ -806,9 +806,9 @@ Warnings:
 Note	1265	Data truncated for column 'col1' at row 1
 INSERT INTO Sow6_2f VALUES (11);
 INSERT INTO Sow6_2f VALUES (101.55);
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR 22003: Out of range value for column 'col1' at row 1
 UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
-ERROR 22003: Out of range value adjusted for column 'col1' at row 5
+ERROR 22003: Out of range value for column 'col1' at row 5
 UPDATE Sow6_2f SET col1 = col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
 SELECT MOD(col1,0) FROM Sow6_2f;
@@ -872,13 +872,13 @@ NULL
 set @@sql_mode='traditional';
 create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
 insert into t1 values(1,-1,-1);
-ERROR 22003: Out of range value adjusted for column 'd2' at row 1
+ERROR 22003: Out of range value for column 'd2' at row 1
 drop table t1;
 create table t1 (col1 decimal(5,2), col2 numeric(5,2));
 insert into t1 values (999.999,999.999);
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR 22003: Out of range value for column 'col1' at row 1
 insert into t1 values (-999.999,-999.999);
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR 22003: Out of range value for column 'col1' at row 1
 select * from t1;
 col1	col2
 drop table t1;
@@ -1379,7 +1379,7 @@ insert into t1 values(
 89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
 Warnings:
 Error	1292	Truncated incorrect DECIMAL value: ''
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
 insert into t1 values(
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
@@ -1387,10 +1387,10 @@ Warnings:
 Error	1292	Truncated incorrect DECIMAL value: ''
 Error	1292	Truncated incorrect DECIMAL value: ''
 Error	1292	Truncated incorrect DECIMAL value: ''
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
 insert into t1 values(1e100);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
 select * from t1;
 c1
 9999999999999999999999999999999999999999999999999999999999999999

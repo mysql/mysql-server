@@ -4898,10 +4898,7 @@ ER_WARN_NULL_TO_NOTNULL 22004
 	por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
 	spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
-	eng "Out of range value adjusted for column '%s' at row %ld"
-	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Feld '%s' in Zeile %ld"
-	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
-	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
+	eng "Out of range value for column '%s' at row %ld"
 WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
 	ger "Daten abgeschnitten für Feld '%s' in Zeile %ld"
@@ -5721,3 +5718,5 @@ ER_DROP_PARTITION_WHEN_FK_DEFINED
         swe "Kan inte ta bort en partition när en främmande nyckel är definierad på tabellen"
 ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
+ER_WRONG_VALUE
+	eng "Incorrect %-.32s value: '%-.128s'"

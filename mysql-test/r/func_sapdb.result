@@ -68,7 +68,7 @@ select datediff("1997-11-31 23:59:59.000001","1997-12-31");
 datediff("1997-11-31 23:59:59.000001","1997-12-31")
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '1997-11-31 23:59:59.000001'
+Warning	1292	Incorrect datetime value: '1997-11-31 23:59:59.000001'
 select datediff("1997-11-30 23:59:59.000001",null);
 datediff("1997-11-30 23:59:59.000001",null)
 NULL
@@ -133,7 +133,7 @@ select timestamp("2001-13-01", "01:01:01.000001");
 timestamp("2001-13-01", "01:01:01.000001")
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2001-13-01'
+Warning	1292	Incorrect datetime value: '2001-13-01'
 select timestamp("2001-12-01", "25:01:01");
 timestamp("2001-12-01", "25:01:01")
 2001-12-02 01:01:01
@@ -153,7 +153,7 @@ select date("1997-13-31 23:59:59.000001");
 date("1997-13-31 23:59:59.000001")
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '1997-13-31 23:59:59.000001'
+Warning	1292	Incorrect datetime value: '1997-13-31 23:59:59.000001'
 select time("1997-12-31 23:59:59.000001");
 time("1997-12-31 23:59:59.000001")
 23:59:59.000001
