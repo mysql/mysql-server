@@ -3958,7 +3958,7 @@ longlong Field_float::val_int(void)
   else
 #endif
     memcpy_fixed((byte*) &j,ptr,sizeof(j));
-  return ((longlong) j);
+  return (longlong) rint(j);
 }
 
 
@@ -4246,7 +4246,7 @@ longlong Field_double::val_int(void)
   else
 #endif
     doubleget(j,ptr);
-  return ((longlong) j);
+  return (longlong) rint(j);
 }
 
 

@@ -2460,7 +2460,7 @@ longlong Item_param::val_int()
 { 
   switch (state) {
   case REAL_VALUE:
-    return (longlong) (value.real + (value.real > 0 ? 0.5 : -0.5));
+    return (longlong) rint(value.real);
   case INT_VALUE:
     return value.integer;
   case DECIMAL_VALUE:
@@ -5483,7 +5483,7 @@ void Item_cache_real::store(Item *item)
 longlong Item_cache_real::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+  return (longlong) rint(value);
 }
 
 

@@ -737,7 +737,7 @@ longlong Item_func_numhybrid::val_int()
   case INT_RESULT:
     return int_op();
   case REAL_RESULT:
-    return (longlong)real_op();
+    return (longlong) rint(real_op());
   case STRING_RESULT:
   {
     int err_not_used;
