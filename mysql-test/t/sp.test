@@ -4856,6 +4856,51 @@ drop procedure bug14304|
 drop table t3, t4|
 
 #
+# BUG#14376: MySQL crash on scoped variable (re)initialization
+#
+--disable_warnings
+drop procedure if exists bug14376|
+--enable_warnings
+
+create procedure bug14376()
+begin
+  declare x int default x;
+end|
+
+# Not the error we want, but that's what we got for now...
+--error ER_BAD_FIELD_ERROR
+call bug14376()|
+drop procedure bug14376|
+
+create procedure bug14376()
+begin
+  declare x int default 42;
+
+  begin
+    declare x int default x;
+
+    select x;
+  end;
+end|
+
+call bug14376()|
+
+drop procedure bug14376|
+
+create procedure bug14376(x int)
+begin
+  declare x int default x;
+
+  select x;
+end|
+
+call bug14376(4711)|
+
+drop procedure bug14376|
+
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
