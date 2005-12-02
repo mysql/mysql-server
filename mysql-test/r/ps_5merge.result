@@ -2490,12 +2490,12 @@ set @arg00= 9223372036854775807 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -2513,12 +2513,12 @@ set @arg00= '9223372036854775807' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -2536,12 +2536,12 @@ set @arg00= -9223372036854775808 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -2559,12 +2559,12 @@ set @arg00= '-9223372036854775808' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -2582,14 +2582,14 @@ set @arg00= 1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -2613,8 +2613,8 @@ Warning	1265	Data truncated for column 'c3' at row 1
 Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	1
 c2	1
@@ -2632,14 +2632,14 @@ set @arg00= -1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -2663,8 +2663,8 @@ Warning	1265	Data truncated for column 'c3' at row 1
 Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-1
 c2	-1
@@ -2895,45 +2895,45 @@ Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 select c1, c13, c14, c15, c16, c17 from t9 order by c1 ;
 c1	c13	c14	c15	c16	c17
 20	1991-01-01	1991-01-01 01:01:01	1991-01-01 01:01:01	01:01:01	1991
@@ -5502,12 +5502,12 @@ set @arg00= 9223372036854775807 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -5525,12 +5525,12 @@ set @arg00= '9223372036854775807' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -5548,12 +5548,12 @@ set @arg00= -9223372036854775808 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -5571,12 +5571,12 @@ set @arg00= '-9223372036854775808' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -5594,14 +5594,14 @@ set @arg00= 1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	127
 c2	32767
@@ -5625,8 +5625,8 @@ Warning	1265	Data truncated for column 'c3' at row 1
 Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	1
 c2	1
@@ -5644,14 +5644,14 @@ set @arg00= -1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-128
 c2	-32768
@@ -5675,8 +5675,8 @@ Warning	1265	Data truncated for column 'c3' at row 1
 Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
-Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Warning	1264	Out of range value adjusted for column 'c12' at row 1
+Warning	1264	Out of range value for column 'c7' at row 1
+Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
 c1	-1
 c2	-1
@@ -5907,45 +5907,45 @@ Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c13' at row 1
-Warning	1264	Out of range value adjusted for column 'c14' at row 1
+Warning	1264	Out of range value for column 'c13' at row 1
+Warning	1264	Out of range value for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value adjusted for column 'c16' at row 1
-Warning	1264	Out of range value adjusted for column 'c17' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
 select c1, c13, c14, c15, c16, c17 from t9 order by c1 ;
 c1	c13	c14	c15	c16	c17
 20	1991-01-01	1991-01-01 01:01:01	1991-01-01 01:01:01	01:01:01	1991
