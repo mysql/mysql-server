@@ -150,7 +150,7 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx)
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
 {
-  uint i= m_pboundary;
+  uint i= m_pvar.elements - m_pboundary;
 
   while (i--)
   {
@@ -186,7 +186,6 @@ sp_pcontext::push_pvar(LEX_STRING *name, enum enum_field_types type,
     p->offset= current_pvars();
     p->dflt= NULL;
     insert_dynamic(&m_pvar, (gptr)&p);
-    m_pboundary= m_pvar.elements;
   }
 }
 
