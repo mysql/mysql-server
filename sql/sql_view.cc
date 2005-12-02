@@ -650,10 +650,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
-  view->source.str= thd->lex->create_view_select_start;
+  view->source.str= thd->query + thd->lex->create_view_select_start;
   view->source.length= (thd->query_length -
-                        (thd->lex->create_view_select_start -
-                         thd->lex->create_view_start));
+                        thd->lex->create_view_select_start);
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
