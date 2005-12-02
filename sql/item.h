@@ -159,7 +159,7 @@ struct Hybrid_type_traits
   { val->real/= ulonglong2double(u); }
 
   virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
-  { return (longlong) val->real; }
+  { return (longlong) rint(val->real); }
   virtual double val_real(Hybrid_type *val) const { return val->real; }
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
@@ -1354,7 +1354,7 @@ public:
     {
       return LONGLONG_MAX;
     }
-    return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+    return (longlong) rint(value);
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
