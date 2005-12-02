@@ -270,4 +270,21 @@ insert into t1 values('2000-01-01'),('0000-00-00');
 update t1 set f1='2002-02-02' where f1 is null;
 select * from t1;
 drop table t1;
+
+#
+# Bug#15028 Multitable update returns different numbers of matched rows
+#           depending on table order
+create table t1 (f1 int);
+create table t2 (f2 int);
+insert into t1 values(1),(2);
+insert into t2 values(1),(1);
+--enable_info
+update t1,t2 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+update t2 set f2=1;
+update t1 set f1=1 where f1=3;
+--enable_info
+update t2,t1 set f1=3,f2=3 where f1=f2 and f1=1;
+--disable_info
+drop table t1,t2;
 # End of 4.1 tests
