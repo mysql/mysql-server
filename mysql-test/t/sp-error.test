@@ -1410,7 +1410,6 @@ delimiter ;|
 
 # BUG#12329: "Bogus error msg when executing PS with stored procedure after
 # SP was re-created". See also test for related bug#13399 in trigger.test
---disable_warnings
 drop function if exists bug12329;
 --enable_warnings
 create table t1 as select 1 a;
@@ -1518,6 +1517,44 @@ show procedure status;
 drop database mysqltest2;
 use test;
 
+#
+# Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
+#
+delimiter |;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug13012|
+--enable_warnings
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  REPAIR TABLE t1;
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  BACKUP TABLE t1 TO '/tmp';
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  RESTORE TABLE t1 FROM '/tmp';
+  RETURN 1;
+END|
+create table t1 (a int)|
+CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
+CREATE FUNCTION bug13012_2() RETURNS INT
+BEGIN
+  CALL bug13012_1();
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+SELECT bug13012_2()|
+drop table t1|
+drop procedure bug13012_1|
+drop function bug13012_2|
+delimiter ;|
 
 # BUG#NNNN: New bug synopsis
 #
