@@ -50,6 +50,174 @@ static int _mi_cmp_buffer(File file, const byte *buff, my_off_t filepos,
 
 	/* Interface function from MI_INFO */
 
+#ifdef HAVE_MMAP
+
+/*
+  Create mmaped area for MyISAM handler
+
+  SYNOPSIS
+    mi_dynmap_file()
+    info		MyISAM handler
+
+  RETURN
+    0  ok
+    1  error.
+*/
+
+my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
+{
+  DBUG_ENTER("mi_dynmap_file");
+  info->s->file_map= (byte*)
+                  my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
+                          info->s->mode==O_RDONLY ? PROT_READ :
+                          PROT_READ | PROT_WRITE,
+                          MAP_SHARED | MAP_NORESERVE,
+                          info->dfile, 0L);
+  if (info->s->file_map == (byte*) MAP_FAILED)
+  {
+    info->s->file_map= NULL;
+    DBUG_RETURN(1);
+  }
+#if defined(HAVE_MADVISE)
+  madvise(info->s->file_map, size, MADV_RANDOM);
+#endif
+  info->s->mmaped_length= size;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Resize mmaped area for MyISAM handler
+
+  SYNOPSIS
+    mi_remap_file()
+    info		MyISAM handler
+
+  RETURN
+*/
+
+void mi_remap_file(MI_INFO *info, my_off_t size)
+{
+  if (info->s->file_map)
+  {
+    VOID(my_munmap(info->s->file_map,
+                   (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+    mi_dynmap_file(info, size);
+  }
+}
+#endif
+
+
+/*
+  Read bytes from MySAM handler, using mmap or pread
+
+  SYNOPSIS
+    mi_mmap_pread()
+    info		MyISAM handler
+    Buffer              Input buffer
+    Count               Count of bytes for read
+    offset              Start position
+    MyFlags             
+
+  RETURN
+    0  ok
+*/
+
+uint mi_mmap_pread(MI_INFO *info, byte *Buffer,
+                    uint Count, my_off_t offset, myf MyFlags)
+{
+  DBUG_PRINT("info", ("mi_read with mmap %d\n", info->dfile));
+  if (info->s->concurrent_insert)
+    rw_rdlock(&info->s->mmap_lock);
+
+  /*
+    The following test may fail in the following cases:
+    - We failed to remap a memory area (fragmented memory?)
+    - This thread has done some writes, but not yet extended the
+    memory mapped area.
+  */
+
+  if (info->s->mmaped_length >= offset + Count)
+  {
+    memcpy(Buffer, info->s->file_map + offset, Count);
+    if (info->s->concurrent_insert)
+      rw_unlock(&info->s->mmap_lock);
+    return 0;
+  }
+  else
+  {
+    if (info->s->concurrent_insert)
+      rw_unlock(&info->s->mmap_lock);
+    return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+  }
+}
+
+
+        /* wrapper for my_pread in case if mmap isn't used */
+
+uint mi_nommap_pread(MI_INFO *info, byte *Buffer,
+                      uint Count, my_off_t offset, myf MyFlags)
+{
+  return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+}
+
+
+/*
+  Write bytes to MySAM handler, using mmap or pwrite
+
+  SYNOPSIS
+    mi_mmap_pwrite()
+    info		MyISAM handler
+    Buffer              Output buffer
+    Count               Count of bytes for write
+    offset              Start position
+    MyFlags             
+
+  RETURN
+    0  ok
+    !=0  error.  In this case return error from pwrite
+*/
+
+uint mi_mmap_pwrite(MI_INFO *info, byte *Buffer,
+                     uint Count, my_off_t offset, myf MyFlags)
+{
+  DBUG_PRINT("info", ("mi_write with mmap %d\n", info->dfile));
+  if (info->s->concurrent_insert)
+    rw_rdlock(&info->s->mmap_lock);
+
+  /*
+    The following test may fail in the following cases:
+    - We failed to remap a memory area (fragmented memory?)
+    - This thread has done some writes, but not yet extended the
+    memory mapped area.
+  */
+
+  if (info->s->mmaped_length >= offset + Count)
+  {
+    memcpy(info->s->file_map + offset, Buffer, Count); 
+    if (info->s->concurrent_insert)
+      rw_unlock(&info->s->mmap_lock);
+    return 0;
+  }
+  else
+  {
+    if (info->s->concurrent_insert)
+      rw_unlock(&info->s->mmap_lock);
+    return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+  }
+
+}
+
+
+        /* wrapper for my_pwrite in case if mmap isn't used */
+
+uint mi_nommap_pwrite(MI_INFO *info, byte *Buffer,
+                      uint Count, my_off_t offset, myf MyFlags)
+{
+  return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+}
+
+
 int _mi_write_dynamic_record(MI_INFO *info, const byte *record)
 {
   ulong reclength=_mi_rec_pack(info,info->rec_buff,record);
@@ -243,7 +411,7 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 	  & BLOCK_DELETED))
       DBUG_RETURN(1);				/* Something is wrong */
     mi_sizestore(tmp.header+4,block_info->next_filepos);
-    if (my_pwrite(info->dfile,(char*) tmp.header+4,8,
+    if (info->s->file_write(info,(char*) tmp.header+4,8,
 		  block_info->prev_filepos+4, MYF(MY_NABP)))
       DBUG_RETURN(1);
     /* Unlink block from next block */
@@ -253,7 +421,7 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 	    & BLOCK_DELETED))
 	DBUG_RETURN(1);				/* Something is wrong */
       mi_sizestore(tmp.header+12,block_info->prev_filepos);
-      if (my_pwrite(info->dfile,(char*) tmp.header+12,8,
+      if (info->s->file_write(info,(char*) tmp.header+12,8,
 		    block_info->next_filepos+12,
 		    MYF(MY_NABP)))
 	DBUG_RETURN(1);
@@ -304,7 +472,7 @@ static int update_backward_delete_link(MI_INFO *info, my_off_t delete_block,
     {
       char buff[8];
       mi_sizestore(buff,filepos);
-      if (my_pwrite(info->dfile,buff, 8, delete_block+12, MYF(MY_NABP)))
+      if (info->s->file_write(info,buff, 8, delete_block+12, MYF(MY_NABP)))
 	DBUG_RETURN(1);				/* Error on write */
     }
     else
@@ -362,7 +530,7 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
       bfill(block_info.header+12,8,255);
     else
       mi_sizestore(block_info.header+12,block_info.next_filepos);
-    if (my_pwrite(info->dfile,(byte*) block_info.header,20,filepos,
+    if (info->s->file_write(info,(byte*) block_info.header,20,filepos,
 		  MYF(MY_NABP)))
       DBUG_RETURN(1);
     info->s->state.dellink = filepos;
@@ -545,7 +713,7 @@ int _mi_write_part_record(MI_INFO *info,
   else
   {
     info->rec_cache.seek_not_done=1;
-    if (my_pwrite(info->dfile,(byte*) *record-head_length,length+extra_length+
+    if (info->s->file_write(info,(byte*) *record-head_length,length+extra_length+
 		  del_length,filepos,info->s->write_flag))
       goto err;
   }
@@ -655,7 +823,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
 	      mi_int3store(del_block.header+1, rest_length);
 	      mi_sizestore(del_block.header+4,info->s->state.dellink);
 	      bfill(del_block.header+12,8,255);
-	      if (my_pwrite(info->dfile,(byte*) del_block.header,20, next_pos,
+	      if (info->s->file_write(info,(byte*) del_block.header,20, next_pos,
 			    MYF(MY_NABP)))
 		DBUG_RETURN(1);
 	      info->s->state.dellink= next_pos;
@@ -1182,7 +1350,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
       }
       if (left_length < block_info.data_len || ! block_info.data_len)
 	goto panic;			/* Wrong linked record */
-      if (my_pread(file,(byte*) to,block_info.data_len,block_info.filepos,
+      if (info->s->file_read(info,(byte*) to,block_info.data_len,block_info.filepos,
 		   MYF(MY_NABP)))
 	goto panic;
       left_length-=block_info.data_len;
