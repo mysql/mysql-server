@@ -1082,22 +1082,23 @@ bool multi_update::send_data(List<Item> &not_used_values)
       int error;
       TABLE *tmp_table= tmp_tables[offset];
       fill_record(tmp_table->field+1, *values_for_table[offset], 1);
-      found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if ((error= tmp_table->file->write_row(tmp_table->record[0])) &&
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (error= tmp_table->file->write_row(tmp_table->record[0]))
       {
-	if (create_myisam_from_heap(thd, tmp_table, tmp_table_param + offset,
-				    error, 1))
+        if (error != HA_ERR_FOUND_DUPP_KEY &&
+            error != HA_ERR_FOUND_DUPP_UNIQUE &&
+            create_myisam_from_heap(thd, tmp_table,
+                                         tmp_table_param + offset, error, 1))
 	{
 	  do_update=0;
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	}
       }
+      else
+        found++;
     }
   }
   DBUG_RETURN(0);
