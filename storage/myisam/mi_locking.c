@@ -38,7 +38,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
                       share->w_locks,
                       share->global_changed, share->state.open_count,
                       share->index_file_name));
-
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
     DBUG_RETURN(0);
@@ -84,6 +83,14 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 			   (uint) share->changed, share->w_locks));
 	if (share->changed && !share->w_locks)
 	{
+          if (info->s->mmaped_length != info->s->state.state.data_file_length)
+          {
+            if (info->s->concurrent_insert)
+              rw_wrlock(&info->s->mmap_lock);
+            mi_remap_file(info, info->s->state.state.data_file_length);
+            if (info->s->concurrent_insert)
+              rw_unlock(&info->s->mmap_lock);
+          }
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
@@ -215,6 +222,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	}
       }
       VOID(_mi_test_if_changed(info));
+        
       info->lock_type=lock_type;
       info->invalidator=info->s->invalidator;
       share->w_locks++;

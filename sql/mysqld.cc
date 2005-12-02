@@ -428,6 +428,7 @@ my_bool opt_secure_auth= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
+my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
@@ -4558,6 +4559,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_MYISAM_USE_MMAP,
   OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -5767,6 +5769,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
+   "Use memory mapping for read/write MyISAM tables",
+   (gptr*) &opt_myisam_use_mmap,
+   (gptr*) &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG, 0, 
+    0, 0, 0, 0, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
