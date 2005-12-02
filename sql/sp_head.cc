@@ -107,6 +107,9 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_WARNS:
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
+  case SQLCOM_REPAIR:
+  case SQLCOM_BACKUP_TABLE:
+  case SQLCOM_RESTORE_TABLE:
     flags= sp_head::MULTI_RESULTS;
     break;
   /*
