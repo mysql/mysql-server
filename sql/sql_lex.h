@@ -754,8 +754,8 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
-  char *create_view_start;
-  char *create_view_select_start;
+  /* Position (first character index) of SELECT of CREATE VIEW statement */
+  uint create_view_select_start;
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
 
