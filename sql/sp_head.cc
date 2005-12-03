@@ -954,8 +954,12 @@ int sp_head::execute(THD *thd)
   m_first_instance->m_first_free_instance= m_next_cached_sp;
   DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
                       (ulong)m_first_instance, this, m_next_cached_sp,
-                      m_next_cached_sp->m_recursion_level,
-                      m_next_cached_sp->m_flags));
+                      (m_next_cached_sp ?
+                       m_next_cached_sp->m_recursion_level :
+                       0),
+                      (m_next_cached_sp ?
+                       m_next_cached_sp->m_flags :
+                       0)));
   /*
     Check that if there are not any instances after this one then
     pointer to the last instance points on this instance or if there are
@@ -1069,7 +1073,7 @@ int sp_head::execute(THD *thd)
     }
 
     /* we should cleanup free_list and memroot, used by instruction */
-    thd->free_items();
+    thd->cleanup_after_query();
     free_root(&execute_mem_root, MYF(0));    
 
     /*
@@ -2209,6 +2213,26 @@ sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
   int res= thd->spcont->set_item_eval(thd, m_offset, &m_value, m_type);
 
+  if (res < 0 &&
+      thd->spcont->get_item(m_offset) == NULL &&
+      thd->spcont->found_handler_here())
+  {
+    /*
+      Failed to evaluate the value, the variable is still not initialized,
+      and a handler has been found. Set to null so we can continue.
+    */
+    Item *it= new Item_null();
+
+    if (!it || thd->spcont->set_item_eval(thd, m_offset, &it, m_type) < 0)
+    {                           /* If this also failed, we have to abort */
+      sp_rcontext *spcont= thd->spcont;
+
+      thd->spcont= 0;           /* Avoid handlers */
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      spcont->clear_handler();
+      thd->spcont= spcont;
+    }
+  }
   *nextp = m_ip+1;
   return res;
 }

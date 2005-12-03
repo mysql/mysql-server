@@ -22,14 +22,14 @@
 
 target =	libmysqlclient.la
 target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
-LIBS =		@CLIENT_LIBS@ @yassl_libs@
+LIBS =		@CLIENT_LIBS@ 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 		$(openssl_includes) $(yassl_includes) @ZLIB_INCLUDES@
 
 include $(srcdir)/Makefile.shared
 
 libmysqlclient_la_SOURCES = $(target_sources)
-libmysqlclient_la_LIBADD = $(target_libadd)
+libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_libs_with_path)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
 EXTRA_DIST = Makefile.shared libmysql.def
 noinst_HEADERS = client_settings.h

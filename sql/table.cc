@@ -1247,15 +1247,15 @@ fix_type_pointers(const char ***array, TYPELIB *point_to_type, uint types,
 } /* fix_type_pointers */
 
 
-TYPELIB *typelib(List<String> &strings)
+TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
 {
-  TYPELIB *result=(TYPELIB*) sql_alloc(sizeof(TYPELIB));
+  TYPELIB *result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
   if (!result)
     return 0;
   result->count=strings.elements;
   result->name="";
   uint nbytes= (sizeof(char*) + sizeof(uint)) * (result->count + 1);
-  if (!(result->type_names= (const char**) sql_alloc(nbytes)))
+  if (!(result->type_names= (const char**) alloc_root(mem_root, nbytes)))
     return 0;
   result->type_lengths= (uint*) (result->type_names + result->count + 1);
   List_iterator<String> it(strings);
@@ -1405,10 +1405,10 @@ File create_frm(THD *thd, my_string name, const char *db,
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
-  if (create_info->max_rows > ~(ulong) 0)
-    create_info->max_rows= ~(ulong) 0;
-  if (create_info->min_rows > ~(ulong) 0)
-    create_info->min_rows= ~(ulong) 0;
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
 #endif
   /*
     Ensure that raid_chunks can't be larger than 255, as this would cause

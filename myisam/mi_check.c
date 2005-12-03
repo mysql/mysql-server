@@ -402,7 +402,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
-      continue;
+      goto do_stat;
     if (!_mi_fetch_keypage(info,keyinfo,share->state.key_root[key],
                            DFLT_INIT_HITS,info->buff,0))
     {
@@ -498,6 +498,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 	     param->max_level);
     all_keydata+=param->keydata; all_totaldata+=param->totaldata; key_totlength+=length;
 
+do_stat:
     if (param->testflag & T_STATISTICS)
       update_key_parts(keyinfo, rec_per_key_part, param->unique_count,
                        param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
