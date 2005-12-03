@@ -113,22 +113,25 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
       }
       if(AttributeDescriptor::getDiskBased(attrDescr))
       {
-	ReadFunction r[] = {
-	  &Dbtup::readDiskBitsNotNULL,
-	  &Dbtup::readDiskBitsNULLable,
-	  &Dbtup::readDiskFixedSizeNotNULL,
-	  &Dbtup::readDiskFixedSizeNULLable,
-	  &Dbtup::readDiskVarSizeNULLable,
-	  &Dbtup::readDiskVarSizeNotNULL
-	};
-	UpdateFunction u[] = {
-	  &Dbtup::updateDiskBitsNotNULL,
-	  &Dbtup::updateDiskBitsNULLable,
-	  &Dbtup::updateDiskFixedSizeNotNULL,
-	  &Dbtup::updateDiskFixedSizeNULLable,
-	  &Dbtup::updateDiskVarSizeNULLable,
-	  &Dbtup::updateDiskVarSizeNotNULL
-	};
+        // array initializer crashes gcc-2.95.3
+	ReadFunction r[6];
+        {
+	  r[0] = &Dbtup::readDiskBitsNotNULL;
+	  r[1] = &Dbtup::readDiskBitsNULLable;
+	  r[2] = &Dbtup::readDiskFixedSizeNotNULL;
+	  r[3] = &Dbtup::readDiskFixedSizeNULLable;
+	  r[4] = &Dbtup::readDiskVarSizeNULLable;
+	  r[5] = &Dbtup::readDiskVarSizeNotNULL;
+        }
+	UpdateFunction u[6];
+        {
+	  u[0] = &Dbtup::updateDiskBitsNotNULL;
+	  u[1] = &Dbtup::updateDiskBitsNULLable;
+	  u[2] = &Dbtup::updateDiskFixedSizeNotNULL;
+	  u[3] = &Dbtup::updateDiskFixedSizeNULLable;
+	  u[4] = &Dbtup::updateDiskVarSizeNULLable;
+	  u[5] = &Dbtup::updateDiskVarSizeNotNULL;
+        }
 	Uint32 a= 
 	  AttributeDescriptor::getArrayType(attrDescr) == NDB_ARRAYTYPE_FIXED ? 2 : 4;
 	
@@ -800,22 +803,37 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
 {
   Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
   Uint32 attributeHeader;
-  TableDescriptor* attr_descr= req_struct->attr_descr;
-  AttributeHeader* ahOut= (AttributeHeader*)&attributeHeader;
+  TableDescriptor* attr_descr = req_struct->attr_descr;
+  AttributeHeader* ahOut = (AttributeHeader*)&attributeHeader;
   AttributeHeader ahIn(*updateBuffer);
-  Uint32 attributeId= ahIn.getAttributeId();
-  Uint32 attrDescriptorIndex= attributeId << ZAD_LOG_SIZE;
-  Uint32 attrDescriptor= attr_descr[attrDescriptorIndex].tabDescr;
-  Uint32 attributeOffset= attr_descr[attrDescriptorIndex + 1].tabDescr;
-  ReadFunction f= regTabPtr->readFunctionArray[attributeId];
+  Uint32 attributeId = ahIn.getAttributeId();
+  Uint32 attrDescriptorIndex = attributeId << ZAD_LOG_SIZE;
+  Uint32 attrDescriptor = attr_descr[attrDescriptorIndex].tabDescr;
+  Uint32 attributeOffset = attr_descr[attrDescriptorIndex + 1].tabDescr;
+
+  Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attributeOffset);
+  if (charsetFlag) {
+    Uint32 csIndex = AttributeOffset::getCharsetPos(attributeOffset);
+    CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
+    Uint32 srcPos = 0;
+    Uint32 dstPos = 0;
+    xfrm_attr(attrDescriptor, cs, &updateBuffer[1], srcPos,
+              &xfrmBuffer[1], dstPos, MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY);
+    ahIn.setDataSize(dstPos);
+    xfrmBuffer[0] = ahIn.m_value;
+    updateBuffer = xfrmBuffer;
+  }
+
+  ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
   AttributeHeader::init(&attributeHeader, attributeId, 0);
-  req_struct->out_buf_index= 0;
-  req_struct->max_read= MAX_KEY_SIZE_IN_WORDS;
-  req_struct->attr_descriptor= attrDescriptor;
+  req_struct->out_buf_index = 0;
+  req_struct->max_read = MAX_KEY_SIZE_IN_WORDS;
+  req_struct->attr_descriptor = attrDescriptor;
 
   bool tmp = req_struct->xfrm_flag;
-  req_struct->xfrm_flag = false;
+  req_struct->xfrm_flag = true;
   ndbrequire((this->*f)(&keyReadBuffer[0],
                         req_struct,
                         ahOut,

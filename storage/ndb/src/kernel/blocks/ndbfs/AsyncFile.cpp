@@ -122,6 +122,8 @@ AsyncFile::doStart()
                                   stackSize,
                                   (char*)&buf,
                                   NDB_THREAD_PRIO_MEAN);
+  if (theThreadPtr == 0)
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "","Could not allocate file system thread");
 
   NdbCondition_Wait(theStartConditionPtr,
                     theStartMutexPtr);    
@@ -983,7 +985,7 @@ void AsyncFile::createDirectories()
   char* tmp;
   const char * name = theFileName.c_str();
   const char * base = theFileName.get_base_name();
-  while((tmp = strstr(base, DIR_SEPARATOR)))
+  while((tmp = (char *)strstr(base, DIR_SEPARATOR)))
   {
     char t = tmp[0];
     tmp[0] = 0;

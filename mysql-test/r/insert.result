@@ -63,7 +63,7 @@ insert into t1 values(NULL);
 ERROR 23000: Column 'id' cannot be null
 insert into t1 values (1), (NULL), (2);
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'id' at row 2
+Warning	1048	Column 'id' cannot be null
 select * from t1;
 id
 1
@@ -157,20 +157,20 @@ f_float_3_1_u	0.0
 set @value= "1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f_double' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	4
 original_value	1e+1111111111a
@@ -185,21 +185,21 @@ f_float_3_1_u	99.9
 set @value= "-1e+1111111111a";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f_double' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	5
 original_value	-1e+1111111111a
@@ -218,12 +218,12 @@ ERROR 22007: Illegal double '1e+1111111111' value found during parsing
 set @value= 1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	6
 original_value	1e+111
@@ -238,13 +238,13 @@ f_float_3_1_u	99.9
 set @value= -1e+111;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f_float' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_7_2' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_4_3' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float' at row 1
+Warning	1264	Out of range value for column 'f_double_7_2' at row 1
+Warning	1264	Out of range value for column 'f_float_4_3' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	7
 original_value	-1e+111
@@ -272,10 +272,10 @@ f_float_3_1_u	1.0
 set @value= -1;
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
-Warning	1264	Out of range value adjusted for column 'f_double_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_double_15_1_u' at row 1
-Warning	1264	Out of range value adjusted for column 'f_float_3_1_u' at row 1
+Warning	1264	Out of range value for column 'f_double_u' at row 1
+Warning	1264	Out of range value for column 'f_float_u' at row 1
+Warning	1264	Out of range value for column 'f_double_15_1_u' at row 1
+Warning	1264	Out of range value for column 'f_float_3_1_u' at row 1
 select * from t1 where number =last_insert_id();
 number	9
 original_value	-1

@@ -93,6 +93,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       my_errno=EACCES;
       break;
     }
+    if (info->s->file_map) /* Don't use cache if mmap */
+      break;
 #if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
     if ((share->options & HA_OPTION_COMPRESS_RECORD))
     {
@@ -150,6 +152,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       error=1;			/* Not possibly if not locked */
       break;
     }
+
     cache_size= (extra_arg ? *(ulong*) extra_arg :
 		 my_default_record_cache_size);
     if (!(info->opt_flag &
@@ -366,6 +369,25 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
   case HA_EXTRA_CHANGE_KEY_TO_DUP:
     mi_extra_keyflag(info, function);
+    break;
+  case HA_EXTRA_MMAP:
+#ifdef HAVE_MMAP
+    pthread_mutex_lock(&share->intern_lock);
+    if (!share->file_map)
+    {
+      if (mi_dynmap_file(info, share->state.state.data_file_length))
+      {
+        DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
+        error= my_errno= errno;
+      }
+      else
+      {
+        share->file_read= mi_mmap_pread;
+        share->file_write= mi_mmap_pwrite;
+      }
+    }
+    pthread_mutex_unlock(&share->intern_lock);
+#endif
     break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:

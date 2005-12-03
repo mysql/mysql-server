@@ -383,7 +383,7 @@ void Item::print_item_w_name(String *str)
   if (name)
   {
     THD *thd= current_thd;
-    str->append(" AS ", 4);
+    str->append(STRING_WITH_LEN(" AS "));
     append_identifier(thd, str, name, (uint) strlen(name));
   }
 }
@@ -601,16 +601,8 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
-  /*
-    Allow conversion from and to "binary".
-    Don't allow automatic conversion to non-Unicode charsets,
-    as it potentially loses data.
-  */
-  if (collation.collation != &my_charset_bin &&
-      tocs != &my_charset_bin &&
-      !(tocs->state & MY_CS_UNICODE))
-    return NULL; // safe conversion is not possible
-  return new Item_func_conv_charset(this, tocs);
+  Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
+  return conv->safe ? conv : NULL;
 }
 
 
@@ -700,23 +692,15 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    Item_string *conv;
     uint cnv_errors;
-    char buf[MAX_FIELD_WIDTH];
-    String tmp(buf, sizeof(buf), &my_charset_bin);
-    String cstr, *ostr= val_str(&tmp);
-    /*
-      As safe_charset_converter is not executed for
-      a parameter bound to NULL, ostr should never be 0.
-    */
-    cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
-                                              cstr.charset(),
-                                              collation.derivation)))
-      return NULL;
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-    return conv;
+    String *ostr= val_str(&cnvstr);
+    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
+                            ostr->charset(), tocs, &cnv_errors);
+    if (cnv_errors)
+       return NULL;
+    cnvitem->str_value.mark_as_const();
+    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    return cnvitem;
   }
   return NULL;
 }
@@ -894,6 +878,7 @@ bool Item_splocal::is_null()
 Item *
 Item_splocal::this_item()
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -901,12 +886,14 @@ Item_splocal::this_item()
 Item **
 Item_splocal::this_item_addr(THD *thd, Item **addr)
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item_addr(m_offset);
 }
 
 Item *
 Item_splocal::this_const_item() const
 {
+  DBUG_ASSERT(owner == thd->spcont->owner);
   return thd->spcont->get_item(m_offset);
 }
 
@@ -914,7 +901,10 @@ Item::Type
 Item_splocal::type() const
 {
   if (thd && thd->spcont)
+  {
+    DBUG_ASSERT(owner == thd->spcont->owner);
     return thd->spcont->get_item(m_offset)->type();
+  }
   return NULL_ITEM;		// Anything but SUBSELECT_ITEM
 }
 
@@ -1031,7 +1021,7 @@ void Item_name_const::cleanup()
 
 void Item_name_const::print(String *str)
 {
-  str->append("NAME_CONST(");
+  str->append(STRING_WITH_LEN("NAME_CONST("));
   name_item->print(str);
   str->append(',');
   value_item->print(str);
@@ -1400,20 +1390,21 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
 
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
-  item_equal(0), no_const_subst(0),
+   item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
   /*
-    field_name and talbe_name should not point to garbage
+    field_name and table_name should not point to garbage
     if this item is to be reused
   */
   orig_table_name= orig_field_name= "";
 }
 
+
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
-  :Item_ident(context_arg, f->table->s->db, *f->table_name, f->field_name),
+  :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
@@ -1480,7 +1471,7 @@ void Item_field::set_field(Field *field_par)
   max_length= field_par->max_length();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
-  db_name= field_par->table->s->db;
+  db_name= field_par->table->s->db.str;
   alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
@@ -2098,6 +2089,8 @@ Item_param::Item_param(unsigned pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
+  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
+  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
@@ -2467,7 +2460,7 @@ longlong Item_param::val_int()
 { 
   switch (state) {
   case REAL_VALUE:
-    return (longlong) (value.real + (value.real > 0 ? 0.5 : -0.5));
+    return (longlong) rint(value.real);
   case INT_VALUE:
     return value.integer;
   case DECIMAL_VALUE:
@@ -3723,15 +3716,20 @@ enum_field_types Item::field_type() const
 
 Field *Item::make_string_field(TABLE *table)
 {
+  Field *field;
   DBUG_ASSERT(collation.collation);
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
-    return new Field_blob(max_length, maybe_null, name, table,
+    field= new Field_blob(max_length, maybe_null, name,
                           collation.collation);
-  if (max_length > 0)
-    return new Field_varstring(max_length, maybe_null, name, table,
+  else if (max_length > 0)
+    field= new Field_varstring(max_length, maybe_null, name, table->s,
                                collation.collation);
-  return new Field_string(max_length, maybe_null, name, table,
-                          collation.collation);
+  else
+    field= new Field_string(max_length, maybe_null, name,
+                            collation.collation);
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -3739,73 +3737,95 @@ Field *Item::make_string_field(TABLE *table)
   Create a field based on field_type of argument
 
   For now, this is only used to create a field for
-  IFNULL(x,something)
+  IFNULL(x,something) and time functions
 
   RETURN
     0  error
     #  Created field
 */
 
-Field *Item::tmp_table_field_from_field_type(TABLE *table)
+Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
   uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
+  Field *field;
 
   switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
-                                 Field::NONE, name, table, decimals, 0,
+    field= new Field_new_decimal((char*) 0, max_length, null_ptr, 0,
+                                 Field::NONE, name, decimals, 0,
                                  unsigned_flag);
+    break;
   case MYSQL_TYPE_TINY:
-    return new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table, 0, unsigned_flag);
+    field= new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_SHORT:
-    return new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			   name, table, 0, unsigned_flag);
+    field= new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_LONG:
-    return new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table, 0, unsigned_flag);
+    field= new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, 0, unsigned_flag);
+    break;
 #ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
-    return new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			      name, table, 0, unsigned_flag);
+    field= new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			      name, 0, unsigned_flag);
+    break;
 #endif
   case MYSQL_TYPE_FLOAT:
-    return new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			   name, table, decimals, 0, unsigned_flag);
+    field= new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, decimals, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_DOUBLE:
-    return new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			    name, table, decimals, 0, unsigned_flag);
+    field= new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, decimals, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_NULL:
-    return new Field_null((char*) 0, max_length, Field::NONE,
-			  name, table, &my_charset_bin);
+    field= new Field_null((char*) 0, max_length, Field::NONE,
+			  name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_INT24:
-    return new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			    name, table, 0, unsigned_flag);
+    field= new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, 0, unsigned_flag);
+    break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, &my_charset_bin);
+    field= new Field_date(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_TIME:
-    return new Field_time(maybe_null, name, table, &my_charset_bin);
+    field= new Field_time(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    return new Field_datetime(maybe_null, name, table, &my_charset_bin);
+    field= new Field_datetime(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_YEAR:
-    return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
-			  name, table);
+    field= new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name);
+    break;
   case MYSQL_TYPE_BIT:
-    return new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
-                                 Field::NONE, name, table);
+    field= new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+                                 Field::NONE, name);
+    break;
   default:
     /* This case should never be chosen */
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
+  case MYSQL_TYPE_STRING:
+    if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
+    {
+      field= new Field_string(max_length, maybe_null, name,
+                              collation.collation);
+      break;
+    }
+    /* Fall through to make_string_field() */
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
     return make_string_field(table);
@@ -3814,10 +3834,12 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    return new Field_blob(max_length, maybe_null, name, table,
-                          collation.collation);
+    field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
   }
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -4857,7 +4879,7 @@ void Item_ref::make_field(Send_field *field)
 
 void Item_ref_null_helper::print(String *str)
 {
-  str->append("<ref_null_helper>(", 18);
+  str->append(STRING_WITH_LEN("<ref_null_helper>("));
   if (ref)
     (*ref)->print(str);
   else
@@ -4943,8 +4965,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 }
 
 /*
-  Compare view field's name with item's name before call to referenced
-  item's eq()
+  Compare two view column references for equality.
 
   SYNOPSIS
     Item_direct_view_ref::eq()
@@ -4952,12 +4973,13 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
     binary_cmp  make binary comparison
 
   DESCRIPTION
-    Consider queries:
-    create view v1 as select t1.f1 as f2, t1.f2 as f1 from t1;
-    select * from v1 order by f1;
-    In order to choose right field for sorting we need to compare
-    given item's name (f1) to view field's name prior to calling
-    referenced item's eq().
+    A view column reference is considered equal to another column
+    reference if the second one is a view column and if both column
+    references point to the same field. For views 'same field' means
+    the same Item_field object in the view translation table, where
+    the view translation table contains all result columns of the
+    view. This definition ensures that view columns are resolved
+    in the same manner as table columns.
 
   RETURN
     TRUE    Referenced item is equal to given item
@@ -4967,14 +4989,23 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 
 bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
 {
-  Item *it= ((Item *) item)->real_item();
-  return (!it->name || !my_strcasecmp(system_charset_info, it->name,
-          field_name)) && ref && (*ref)->real_item()->eq(it, binary_cmp);
+  if (item->type() == REF_ITEM)
+  {
+    Item_ref *item_ref= (Item_ref*) item;
+    if (item_ref->ref_type() == VIEW_REF)
+    {
+      Item *item_ref_ref= *(item_ref->ref);
+      DBUG_ASSERT((*ref)->type() == FIELD_ITEM &&
+                  (item_ref_ref->type() == FIELD_ITEM));
+      return (*ref == item_ref_ref);
+    }
+  }
+  return FALSE;
 }
 
 void Item_null_helper::print(String *str)
 {
-  str->append("<null_helper>(", 14);
+  str->append(STRING_WITH_LEN("<null_helper>("));
   store->print(str);
   str->append(')');
 }
@@ -5019,8 +5050,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     goto error;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
-  def_field->move_field(def_field->table->s->default_values -
-                        def_field->table->record[0]);
+  def_field->move_field_offset((my_ptrdiff_t)
+                               (def_field->table->s->default_values -
+                                def_field->table->record[0]));
   set_field(def_field);
   return FALSE;
 
@@ -5034,10 +5066,10 @@ void Item_default_value::print(String *str)
 {
   if (!arg)
   {
-    str->append("default", 7);
+    str->append(STRING_WITH_LEN("default"));
     return;
   }
-  str->append("default(", 8);
+  str->append(STRING_WITH_LEN("default("));
   arg->print(str);
   str->append(')');
 }
@@ -5115,23 +5147,29 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     if (!def_field)
       return TRUE;
     memcpy(def_field, field_arg->field, field_arg->field->size_of());
-    def_field->move_field(def_field->table->insert_values -
-                          def_field->table->record[0]);
+    def_field->move_field_offset((my_ptrdiff_t)
+                                 (def_field->table->insert_values -
+                                  def_field->table->record[0]));
     set_field(def_field);
   }
   else
   {
     Field *tmp_field= field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
-    set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
-			     tmp_field->table, &my_charset_bin));
+    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
+                          &my_charset_bin);
+    if (tmp_field)
+    {
+      tmp_field->init(field_arg->field->table);
+      set_field(tmp_field);
+    }
   }
   return FALSE;
 }
 
 void Item_insert_value::print(String *str)
 {
-  str->append("values(", 7);
+  str->append(STRING_WITH_LEN("values("));
   arg->print(str);
   str->append(')');
 }
@@ -5250,7 +5288,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
-  Item *new_item;
+  Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
@@ -5283,7 +5321,16 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     break;
   }
   case ROW_RESULT:
+  if (item->type() == Item::ROW_ITEM && comp_item->type() == Item::ROW_ITEM)
   {
+    /*
+      Substitute constants only in Item_rows. Don't affect other Items
+      with ROW_RESULT (eg Item_singlerow_subselect).
+
+      For such Items more optimal is to detect if it is constant and replace
+      it with Item_row. This would optimize queries like this:
+      SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
+    */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     uint col;
@@ -5301,6 +5348,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
     break;
   }
+  /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
@@ -5392,7 +5440,7 @@ Item_cache* Item_cache::get_cache(Item_result type)
 
 void Item_cache::print(String *str)
 {
-  str->append("<cache>(", 8);
+  str->append(STRING_WITH_LEN("<cache>("));
   if (example)
     example->print(str);
   else
@@ -5435,7 +5483,7 @@ void Item_cache_real::store(Item *item)
 longlong Item_cache_real::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+  return (longlong) rint(value);
 }
 
 
@@ -5806,8 +5854,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      max_length= min(max(delta1, delta2) + decimals,
-                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+      if (fld_type == MYSQL_TYPE_DECIMAL)
+        max_length= max(delta1, delta2) + decimals;
+      else
+        max_length= min(max(delta1, delta2) + decimals,
+                        (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
@@ -5904,24 +5955,31 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
     The field functions defines a field to be not null if null_ptr is not 0
   */
   uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
-  switch (fld_type)
-  {
+  Field *field;
+
+  switch (fld_type) {
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(enum_set_typelib);
-    return new Field_enum((char *) 0, max_length, null_ptr, 0,
+    field= new Field_enum((char *) 0, max_length, null_ptr, 0,
                           Field::NONE, name,
-                          table, get_enum_pack_length(enum_set_typelib->count),
+                          get_enum_pack_length(enum_set_typelib->count),
                           enum_set_typelib, collation.collation);
+    if (field)
+      field->init(table);
+    return field;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
-    return new Field_set((char *) 0, max_length, null_ptr, 0,
+    field= new Field_set((char *) 0, max_length, null_ptr, 0,
                          Field::NONE, name,
-                         table, get_set_pack_length(enum_set_typelib->count),
+                         get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);
+    if (field)
+      field->init(table);
+    return field;
   default:
     break;
   }
-  return tmp_table_field_from_field_type(table);
+  return tmp_table_field_from_field_type(table, 0);
 }
 
 

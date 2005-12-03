@@ -55,7 +55,7 @@ TODO:
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler* tina_create_handler(TABLE *table);
+static handler *tina_create_handler(TABLE_SHARE *table);
 
 handlerton tina_hton= {
   "CSV",
@@ -95,11 +95,15 @@ handlerton tina_hton= {
  *****************************************************************************/
 
 /*
-  Used for sorting  chains.
+  Used for sorting chains with qsort().
 */
 int sort_set (tina_set *a, tina_set *b)
 {
-  return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
+  /*
+    We assume that intervals do not intersect. So, it is enought to compare
+    any two points. Here we take start of intervals for comparison.
+  */
+  return ( a->begin > b->begin ? -1 : ( a->begin < b->begin ? 1 : 0 ) );
 }
 
 static byte* tina_get_key(TINA_SHARE *share,uint *length,
@@ -200,7 +204,8 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
 
-    if ((share->data_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
+    if ((share->data_file= my_open(data_file_name, O_RDWR|O_APPEND,
+                                   MYF(0))) == -1)
       goto error2;
 
     /*
@@ -280,20 +285,20 @@ byte * find_eoln(byte *data, off_t begin, off_t end)
 }
 
 
-static handler* tina_create_handler(TABLE *table)
+static handler *tina_create_handler(TABLE_SHARE *table)
 {
   return new ha_tina(table);
 }
 
 
-ha_tina::ha_tina(TABLE *table_arg)
+ha_tina::ha_tina(TABLE_SHARE *table_arg)
   :handler(&tina_hton, table_arg),
   /*
-    These definitions are found in hanler.h
-    These are not probably completely right.
+    These definitions are found in handler.h
+    They are not probably completely right.
   */
   current_position(0), next_position(0), chain_alloced(0),
-  chain_size(DEFAULT_CHAIN_LENGTH)
+  chain_size(DEFAULT_CHAIN_LENGTH), records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set(byte_buffer, IO_SIZE, system_charset_info);
@@ -303,6 +308,7 @@ ha_tina::ha_tina(TABLE *table_arg)
 /*
   Encode a buffer into the quoted format.
 */
+
 int ha_tina::encode_quote(byte *buf)
 {
   char attribute_buffer[1024];
@@ -529,6 +535,7 @@ int ha_tina::write_row(byte * buf)
   */
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
+  records++;
   DBUG_RETURN(0);
 }
 
@@ -695,6 +702,7 @@ int ha_tina::rnd_init(bool scan)
 
   current_position= next_position= 0;
   records= 0;
+  records_is_known= 0;
   chain_ptr= chain;
 #ifdef HAVE_MADVISE
   if (scan)
@@ -776,7 +784,7 @@ void ha_tina::info(uint flag)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
-  if (records < 2)
+  if (!records_is_known && records < 2) 
     records= 2;
   DBUG_VOID_RETURN;
 }
@@ -813,6 +821,8 @@ int ha_tina::rnd_end()
 {
   DBUG_ENTER("ha_tina::rnd_end");
 
+  records_is_known= 1;
+
   /* First position will be truncate position, second will be increment */
   if ((chain_ptr - chain)  > 0)
   {
@@ -836,14 +846,8 @@ int ha_tina::rnd_end()
           (qsort_cmp)sort_set);
     for (ptr= chain; ptr < chain_ptr; ptr++)
     {
-      /* We peek a head to see if this is the last chain */
-      if (ptr+1 == chain_ptr)
-        memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
-                length - (size_t)ptr->end);
-      else
-        memmove((caddr_t)share->mapped_file + ptr->begin,
-                (caddr_t)share->mapped_file + ptr->end,
-                (size_t)((ptr++)->begin - ptr->end));
+      memmove(share->mapped_file + ptr->begin, share->mapped_file + ptr->end,
+              length - (size_t)ptr->end);
       length= length - (size_t)(ptr->end - ptr->begin);
     }
 
@@ -863,18 +867,24 @@ int ha_tina::rnd_end()
   DBUG_RETURN(0);
 }
 
-/*
-  Truncate table and others of its ilk call this.
+
+/* 
+  DELETE without WHERE calls this
 */
+
 int ha_tina::delete_all_rows()
 {
   DBUG_ENTER("ha_tina::delete_all_rows");
+
+  if (!records_is_known)
+    return (my_errno=HA_ERR_WRONG_COMMAND);
 
   int rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
 
+  records=0;
   DBUG_RETURN(rc);
 }
 

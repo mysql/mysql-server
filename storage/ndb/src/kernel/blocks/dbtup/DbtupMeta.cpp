@@ -604,7 +604,7 @@ Dbtup::undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused)
   
   Logfile_client::Change c[1] = {{ &create, sizeof(create) >> 2 } };
   
-  Uint64 lsn= lsman.add_entry<1>(c);
+  Uint64 lsn= lsman.add_entry(c, 1);
   
   signal->theData[0] = fragOperPtr.p->lqhPtrFrag;
   signal->theData[1] = 1;

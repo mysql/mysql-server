@@ -140,7 +140,7 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
-				RelativePath="..\myisam\myisam_ftdump.c">
+				RelativePath="..\storage\myisam\myisam_ftdump.c">
 				<FileConfiguration
 					Name="Debug|Win32">
 					<Tool

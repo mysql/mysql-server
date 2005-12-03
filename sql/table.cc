@@ -24,135 +24,319 @@
 
 	/* Functions defined in this file */
 
-static void frm_error(int error,TABLE *form,const char *name,
-                      int errortype, int errarg);
+void open_table_error(TABLE_SHARE *share, int error, int db_errno,
+                      myf errortype, int errarg);
+static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
+                           File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
-static uint find_field(TABLE *form,uint start,uint length);
+static uint find_field(Field **fields, uint start, uint length);
 
 
-static byte* get_field_name(Field **buff,uint *length,
+/* Get column name from column hash */
+
+static byte *get_field_name(Field **buff, uint *length,
 			    my_bool not_used __attribute__((unused)))
 {
   *length= (uint) strlen((*buff)->field_name);
   return (byte*) (*buff)->field_name;
 }
 
+
 /*
-  Open a .frm file 
+  Allocate a setup TABLE_SHARE structure
 
   SYNOPSIS
-    openfrm()
+    alloc_table_share()
+    TABLE_LIST		Take database and table name from there
+    key			Table cache key (db \0 table_name \0...)
+    key_length		Length of key
 
-    name           path to table-file "db/name"
-    alias          alias for table
-    db_stat        open flags (for example HA_OPEN_KEYFILE|HA_OPEN_RNDFILE..)
-                   can be 0 (example in ha_example_table)
-    prgflag        READ_ALL etc..
-    ha_open_flags  HA_OPEN_ABORT_IF_LOCKED etc..
-    outparam       result table
+  RETURN
+    0  Error (out of memory)
+    #  Share
+*/
+
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+                               uint key_length)
+{
+  MEM_ROOT mem_root;
+  TABLE_SHARE *share;
+  char path[FN_REFLEN], normalized_path[FN_REFLEN];
+  uint path_length, normalized_length;
+
+  path_length= (uint) (strxmov(path, mysql_data_home, "/", table_list->db,
+                               "/", table_list->table_name, NullS) - path);
+  normalized_length= unpack_filename(normalized_path, path);
+
+  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
+					sizeof(*share) + key_length +
+                                        path_length + normalized_length +2)))
+  {
+    bzero((char*) share, sizeof(*share));
+    share->table_cache_key.str=    (char*) (share+1);
+    share->table_cache_key.length= key_length;
+    memcpy(share->table_cache_key.str, key, key_length);
+
+    /* Use the fact the key is db/0/table_name/0 */
+    share->db.str=            share->table_cache_key.str;
+    share->db.length=         strlen(share->db.str);
+    share->table_name.str=    share->db.str + share->db.length + 1;
+    share->table_name.length= strlen(share->table_name.str);
+
+    share->path.str= share->table_cache_key.str+ key_length;
+    share->path.length= path_length;
+    strmov(share->path.str, path);
+    share->normalized_path.str=    share->path.str+ path_length+1;
+    share->normalized_path.length= normalized_length;
+    strmov(share->normalized_path.str, normalized_path);
+
+    share->version=       refresh_version;
+    share->flush_version= flush_version;
+
+    memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
+    pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&share->cond, NULL);
+  }
+  return share;
+}
+
+
+/*
+  Initialize share for temporary tables
+
+  SYNOPSIS
+    init_tmp_table_share()
+    share	Share to fill
+    key		Table_cache_key, as generated from create_table_def_key.
+		must start with db name.    
+    key_length	Length of key
+    table_name	Table name
+    path	Path to file (possible in lower case) without .frm
+
+  NOTES
+    This is different from alloc_table_share() because temporary tables
+    don't have to be shared between threads or put into the table def
+    cache, so we can do some things notable simpler and faster
+
+    If table is not put in thd->temporary_tables (happens only when
+    one uses OPEN TEMPORARY) then one can specify 'db' as key and
+    use key_length= 0 as neither table_cache_key or key_length will be used).
+*/
+
+void init_tmp_table_share(TABLE_SHARE *share, const char *key,
+                          uint key_length, const char *table_name,
+                          const char *path)
+{
+  DBUG_ENTER("init_tmp_table_share");
+
+  bzero((char*) share, sizeof(*share));
+  init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  share->tmp_table=  	         INTERNAL_TMP_TABLE;
+  share->db.str=                 (char*) key;
+  share->db.length=		 strlen(key);
+  share->table_cache_key.str=    (char*) key;
+  share->table_cache_key.length= key_length;
+  share->table_name.str=         (char*) table_name;
+  share->table_name.length=      strlen(table_name);
+  share->path.str=               (char*) path;
+  share->normalized_path.str=    (char*) path;
+  share->path.length= share->normalized_path.length= strlen(path);
+  share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Free table share and memory used by it
+
+  SYNOPSIS
+    free_table_share()
+    share		Table share
+
+  NOTES
+    share->mutex must be locked when we come here if it's not a temp table
+*/
+
+void free_table_share(TABLE_SHARE *share)
+{
+  MEM_ROOT mem_root;
+  DBUG_ENTER("free_table_share");
+  DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
+  DBUG_ASSERT(share->ref_count == 0);
+
+  /*
+    If someone is waiting for this to be deleted, inform it about this.
+    Don't do a delete until we know that no one is refering to this anymore.
+  */
+  if (share->tmp_table == NO_TMP_TABLE)
+  {
+    /* share->mutex is locked in release_table_share() */
+    while (share->waiting_on_cond)
+    {
+      pthread_cond_broadcast(&share->cond);
+      pthread_cond_wait(&share->cond, &share->mutex);
+    }
+    /* No thread refers to this anymore */
+    pthread_mutex_unlock(&share->mutex);
+    pthread_mutex_destroy(&share->mutex);
+    pthread_cond_destroy(&share->cond);
+  }
+  hash_free(&share->name_hash);
+
+  /* We must copy mem_root from share because share is allocated through it */
+  memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
+  free_root(&mem_root, MYF(0));                 // Free's share
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Read table definition from a binary / text based .frm file
+  
+  SYNOPSIS
+  open_table_def()
+  thd		Thread handler
+  share		Fill this with table definition
+  db_flags	Bit mask of the following flags: OPEN_VIEW
+
+  NOTES
+    This function is called when the table definition is not cached in
+    table_def_cache
+    The data is returned in 'share', which is alloced by
+    alloc_table_share().. The code assumes that share is initialized.
 
   RETURN VALUES
    0	ok
-   1	Error (see frm_error)
-   2    Error (see frm_error)
+   1	Error (see open_table_error)
+   2    Error (see open_table_error)
    3    Wrong data in .frm file
-   4    Error (see frm_error)
-   5    Error (see frm_error: charset unavailable)
+   4    Error (see open_table_error)
+   5    Error (see open_table_error: charset unavailable)
    6    Unknown .frm version
 */
 
-int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
-            uint prgflag, uint ha_open_flags, TABLE *outparam)
+int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 {
-  reg1 uint i;
-  reg2 uchar *strpos;
-  int	 j,error, errarg= 0;
-  uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
-         interval_count,interval_parts,read_length,db_create_options;
-  uint	 key_info_length, com_length, part_info_len=0, extra_rec_buf_length;
-  ulong  pos, record_offset;
-  char	 index_file[FN_REFLEN], *names, *keynames, *comment_pos;
-  uchar  head[288],*disk_buff,new_field_pack_flag;
-  my_string record;
-  const char **int_array;
-  bool	 use_hash, null_field_first;
-  bool   error_reported= FALSE;
-  File	 file;
-  Field  **field_ptr,*reg_field;
-  KEY	 *keyinfo;
-  KEY_PART_INFO *key_part;
-  uchar *null_pos;
-  uint null_bit_pos, new_frm_ver, field_pack_length;
-  SQL_CRYPT *crypted=0;
+  int error, table_type;
+  bool error_given;
+  File file;
+  uchar head[288], *disk_buff;
+  char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
-  TABLE_SHARE *share;
-  enum db_type default_part_db_type;
-  DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
+  DBUG_ENTER("open_table_def");
+  DBUG_PRINT("enter", ("name: '%s.%s'",share->db.str, share->table_name.str));
 
   error= 1;
+  error_given= 0;
   disk_buff= NULL;
-  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-  old_root= *root_ptr;
 
-  bzero((char*) outparam,sizeof(*outparam));
-  outparam->in_use= thd;
-  outparam->s= share= &outparam->share_not_to_be_used;
-
-  if ((file=my_open(fn_format(index_file, name, "", reg_ext,
-			      MY_UNPACK_FILENAME),
-		    O_RDONLY | O_SHARE,
-		    MYF(0)))
-      < 0)
-    goto err;
+  strxmov(path, share->normalized_path.str, reg_ext, NullS);
+  if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+    goto err_not_open;
 
   error= 4;
-  if (my_read(file,(byte*) head,64,MYF(MY_NABP)))
+  if (my_read(file,(byte*) head, 64, MYF(MY_NABP)))
     goto err;
 
-  if (memcmp(head, "TYPE=", 5) == 0)
+  if (head[0] == (uchar) 254 && head[1] == 1)
   {
-    // new .frm
-    my_close(file,MYF(MY_WME));
-
-    if (db_stat & NO_ERR_ON_NEW_FRM)
-      DBUG_RETURN(5);
-    file= -1;
-    // caller can't process new .frm
+    if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
+        (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+      table_type= 1;
+    else
+    {
+      error= 6;                                 // Unkown .frm version
+      goto err;
+    }
+  }
+  else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
+  {
+    error= 5;
+    if (memcmp(head+5,"VIEW",4) == 0)
+    {
+      share->is_view= 1;
+      if (db_flags & OPEN_VIEW)
+        error= 0;
+    }
     goto err;
   }
-
-  share->blob_ptr_size= sizeof(char*);
-  outparam->db_stat= db_stat;
-  init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  *root_ptr= &outparam->mem_root;
-
-  share->table_name= strdup_root(&outparam->mem_root,
-                                 name+dirname_length(name));
-  share->path= strdup_root(&outparam->mem_root, name);
-  outparam->alias= my_strdup(alias, MYF(MY_WME));
-  if (!share->table_name || !share->path || !outparam->alias)
+  else
     goto err;
-  *fn_ext(share->table_name)='\0';		// Remove extension
-  *fn_ext(share->path)='\0';                    // Remove extension
-
-  if (head[0] != (uchar) 254 || head[1] != 1)
-    goto err;                                   /* purecov: inspected */
-  if (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
-       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+  
+  /* No handling of text based files yet */
+  if (table_type == 1)
   {
-    error= 6;
-    goto err;                                   /* purecov: inspected */
+    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    old_root= *root_ptr;
+    *root_ptr= &share->mem_root;
+    error= open_binary_frm(thd, share, head, file);
+    *root_ptr= old_root;
+
+    /*
+      We can't mark all tables in 'mysql' database as system since we don't
+      allow to lock such tables for writing with any other tables (even with
+      other system tables) and some privilege tables need this.
+    */
+    if (share->db.length == 5 &&
+        !my_strcasecmp(system_charset_info, share->db.str, "mysql") &&
+        !my_strcasecmp(system_charset_info, share->table_name.str, "proc"))
+      share->system_table= 1;
+    error_given= 1;
   }
-  new_field_pack_flag=head[27];
+
+  if (!error)
+    thd->status_var.opened_shares++;
+
+err:
+  my_close(file, MYF(MY_WME));
+
+err_not_open:
+  if (error && !error_given)
+  {
+    share->error= error;
+    open_table_error(share, error, (share->open_errno= my_errno), 0);
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
+*/
+
+static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
+                           File file)
+{
+  int error, errarg= 0;
+  uint new_frm_ver, field_pack_length, new_field_pack_flag;
+  uint interval_count, interval_parts, read_length, int_length;
+  uint db_create_options, keys, key_parts, n_length;
+  uint key_info_length, com_length, null_bit_pos;
+  uint extra_rec_buf_length;
+  uint i,j;
+  bool use_hash;
+  char *keynames, *record, *names, *comment_pos;
+  uchar *disk_buff, *strpos, *null_flags, *null_pos;
+  ulong pos, record_offset, *rec_per_key, rec_buff_length;
+  handler *handler_file= 0;
+  KEY	*keyinfo;
+  KEY_PART_INFO *key_part;
+  SQL_CRYPT *crypted=0;
+  Field  **field_ptr, *reg_field;
+  const char **interval_array;
+  DBUG_ENTER("open_binary_frm");
+
+  new_field_pack_flag= head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 17;
+  disk_buff= 0;
 
-  error=3;
+  error= 3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
     goto err;                                   /* purecov: inspected */
-  *fn_ext(index_file)='\0';			// Remove .frm extension
 
   share->frm_version= head[2];
   /*
@@ -164,12 +348,16 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
-  default_part_db_type= ha_checktype(thd,(enum db_type) (uint) *(head+61),0,0);
-  share->db_type= ha_checktype(thd,(enum db_type) (uint) *(head+3),0,0);
-  share->db_create_options= db_create_options=uint2korr(head+30);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  share->default_part_db_type= ha_checktype(thd,
+                                            (enum db_type) (uint) *(head+61),0,
+                                            0);
+#endif
+  share->db_type= ha_checktype(thd, (enum db_type) (uint) *(head+3),0,0);
+  share->db_create_options= db_create_options= uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
-  null_field_first= 0;
+  share->null_field_first= 0;
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
@@ -178,7 +366,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     share->raid_chunks= head[42];
     share->raid_chunksize= uint4korr(head+43);
     share->table_charset= get_charset((uint) head[38],MYF(0));
-    null_field_first= 1;
+    share->null_field_first= 1;
   }
   if (!share->table_charset)
   {
@@ -189,7 +377,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       sql_print_warning("'%s' had no or invalid character set, "
                         "and default character set is multi-byte, "
                         "so character column sizes may have changed",
-                        name);
+                        share->path);
     }
     share->table_charset= default_charset_info;
   }
@@ -219,27 +407,23 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
-  outparam->quick_keys.init();
-  outparam->used_keys.init();
-  outparam->keys_in_use_for_query.init();
 
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
-  if (!(keyinfo = (KEY*) alloc_root(&outparam->mem_root,
-				    n_length+uint2korr(disk_buff+4))))
+  if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
+				    n_length + uint2korr(disk_buff+4))))
     goto err;                                   /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
-  outparam->key_info=keyinfo;
+  share->key_info= keyinfo;
   key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
-  ulong *rec_per_key;
-  if (!(rec_per_key= (ulong*) alloc_root(&outparam->mem_root,
+  if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
 					 sizeof(ulong*)*key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    keyinfo->table= outparam;
+    keyinfo->table= 0;                           // Updated in open_frm
     if (new_frm_ver >= 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
@@ -295,10 +479,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 #ifdef HAVE_CRYPTED_FRM
   else if (*(head+26) == 2)
   {
-    *root_ptr= old_root
-    crypted=get_crypt_for_frm();
-    *root_ptr= &outparam->mem_root;
-    outparam->crypted=1;
+    crypted= get_crypt_for_frm();
+    share->crypted= 1;
   }
 #endif
 
@@ -320,10 +502,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err;
     }
     share->connect_string.length= uint2korr(buff);
-    if (! (share->connect_string.str= strmake_root(&outparam->mem_root,
+    if (! (share->connect_string.str= strmake_root(&share->mem_root,
             next_chunk + 2, share->connect_string.length)))
     {
-      DBUG_PRINT("EDS", ("strmake_root failed for connect_string"));
       my_free(buff, MYF(0));
       goto err;
     }
@@ -358,27 +539,30 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     }
     if (next_chunk + 4 < buff_end)
     {
-      part_info_len= uint4korr(next_chunk);
-      if (part_info_len > 0)
-      {
+      uint32 partition_info_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-        if (mysql_unpack_partition(thd, (uchar *)(next_chunk + 4),
-                                   part_info_len, outparam,
-                                   default_part_db_type))
+      if ((share->partition_info_len= partition_info_len))
+      {
+        if (!(share->partition_info=
+              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
+                                   partition_info_len + 1)))
         {
-          DBUG_PRINT("info", ("mysql_unpack_partition failed"));
           my_free(buff, MYF(0));
           goto err;
         }
+	next_chunk++;
+      }
 #else
+      if (partition_info_len)
+      {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
         my_free(buff, MYF(0));
         goto err;
-#endif
       }
-      next_chunk+= part_info_len + 5;
+#endif
+      next_chunk+= 4 + partition_info_len;
     }
-    keyinfo= outparam->key_info;
+    keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
     {
       if (keyinfo->flags & HA_USES_PARSER)
@@ -386,8 +570,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
         LEX_STRING parser_name;
         if (next_chunk >= buff_end)
         {
-          DBUG_PRINT("EDS",
-              ("fulltext key uses parser that is not defined in .frm"));
+          DBUG_PRINT("error",
+                     ("fulltext key uses parser that is not defined in .frm"));
           my_free(buff, MYF(0));
           goto err;
         }
@@ -396,10 +580,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
         keyinfo->parser= plugin_lock(&parser_name, MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
-          DBUG_PRINT("EDS", ("parser plugin is not loaded"));
           my_free(buff, MYF(0));
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          error_reported= 1;
           goto err;
         }
       }
@@ -408,54 +590,17 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 
   error=4;
-  outparam->reginfo.lock_type= TL_UNLOCK;
-  outparam->current_lock=F_UNLCK;
-  if ((db_stat & HA_OPEN_KEYFILE) || (prgflag & DELAYED_OPEN))
-    records=2;
-  else
-    records=1;
-  if (prgflag & (READ_ALL+EXTRA_RECORD))
-    records++;
-  /* QQ: TODO, remove the +1 from below */
   extra_rec_buf_length= uint2korr(head+59);
-  rec_buff_length= ALIGN_SIZE(share->reclength + 1 +
-                              extra_rec_buf_length);
+  rec_buff_length= ALIGN_SIZE(share->reclength + 1 + extra_rec_buf_length);
   share->rec_buff_length= rec_buff_length;
-  if (!(record= (char *) alloc_root(&outparam->mem_root,
-                                    rec_buff_length * records)))
+  if (!(record= (char *) alloc_root(&share->mem_root,
+                                    rec_buff_length)))
     goto err;                                   /* purecov: inspected */
   share->default_values= (byte *) record;
-
   if (my_pread(file,(byte*) record, (uint) share->reclength,
                record_offset, MYF(MY_NABP)))
-    goto err; /* purecov: inspected */
+    goto err;                                   /* purecov: inspected */
 
-  if (records == 1)
-  {
-    /* We are probably in hard repair, and the buffers should not be used */
-    outparam->record[0]= outparam->record[1]= share->default_values;
-  }
-  else
-  {
-    outparam->record[0]= (byte *) record+ rec_buff_length;
-    if (records > 2)
-      outparam->record[1]= (byte *) record+ rec_buff_length*2;
-    else
-      outparam->record[1]= outparam->record[0];   // Safety
-  }
- 
-#ifdef HAVE_purify
-  /*
-    We need this because when we read var-length rows, we are not updating
-    bytes after end of varchar
-  */
-  if (records > 1)
-  {
-    memcpy(outparam->record[0], share->default_values, rec_buff_length);
-    if (records > 2)
-      memcpy(outparam->record[1], share->default_values, rec_buff_length);
-  }
-#endif
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP)))
     goto err;
@@ -476,12 +621,12 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   int_length= uint2korr(head+274);
   share->null_fields= uint2korr(head+282);
   com_length= uint2korr(head+284);
-  share->comment= strdup_root(&outparam->mem_root, (char*) head+47);
+  share->comment= strdup_root(&share->mem_root, (char*) head+47);
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
 
   if (!(field_ptr = (Field **)
-	alloc_root(&outparam->mem_root,
+	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
 			   interval_count*sizeof(TYPELIB)+
 			   (share->fields+interval_parts+
@@ -489,7 +634,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 			   (n_length+int_length+com_length)))))
     goto err;                                   /* purecov: inspected */
 
-  outparam->field=field_ptr;
+  share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length));
   if (read_string(file,(gptr*) &disk_buff,read_length))
@@ -505,8 +650,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   strpos= disk_buff+pos;
 
   share->intervals= (TYPELIB*) (field_ptr+share->fields+1);
-  int_array= (const char **) (share->intervals+interval_count);
-  names= (char*) (int_array+share->fields+interval_parts+keys+3);
+  interval_array= (const char **) (share->intervals+interval_count);
+  names= (char*) (interval_array+share->fields+interval_parts+keys+3);
   if (!interval_count)
     share->intervals= 0;			// For better debugging
   memcpy((char*) names, strpos+(share->fields*field_pack_length),
@@ -514,8 +659,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   comment_pos= names+(n_length+int_length);
   memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
 
-  fix_type_pointers(&int_array, &share->fieldnames, 1, &names);
-  fix_type_pointers(&int_array, share->intervals, interval_count,
+  fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
+  fix_type_pointers(&interval_array, share->intervals, interval_count,
 		    &names);
 
   {
@@ -526,7 +671,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
          interval++)
     {
       uint count= (uint) (interval->count + 1) * sizeof(uint);
-      if (!(interval->type_lengths= (uint *) alloc_root(&outparam->mem_root,
+      if (!(interval->type_lengths= (uint *) alloc_root(&share->mem_root,
                                                         count)))
         goto err;
       for (count= 0; count < interval->count; count++)
@@ -536,20 +681,17 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
 
   if (keynames)
-    fix_type_pointers(&int_array, &share->keynames, 1, &keynames);
+    fix_type_pointers(&interval_array, &share->keynames, 1, &keynames);
 
-  VOID(my_close(file,MYF(MY_WME)));
-  file= -1;
-
-  /* Allocate handler */
-  if (!(outparam->file= get_new_handler(outparam, &outparam->mem_root,
-                                        share->db_type)))
+ /* Allocate handler */
+  if (!(handler_file= get_new_handler(share, thd->mem_root,
+                                      share->db_type)))
     goto err;
 
-  record= (char*) outparam->record[0]-1;	/* Fieldstart = 1 */
-  if (null_field_first)
+  record= (char*) share->default_values-1;	/* Fieldstart = 1 */
+  if (share->null_field_first)
   {
-    outparam->null_flags=null_pos=(uchar*) record+1;
+    null_flags= null_pos= (uchar*) record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
     /*
       null_bytes below is only correct under the condition that
@@ -558,13 +700,15 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     */
     share->null_bytes= (share->null_fields + null_bit_pos + 7) / 8;
   }
+#ifndef WE_WANT_TO_SUPPORT_VERY_OLD_FRM_FILES
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
-    outparam->null_flags= null_pos=
-      (uchar*) (record+1+share->reclength-share->null_bytes);
+    null_flags= null_pos= (uchar*) (record + 1 +share->reclength -
+                                    share->null_bytes);
     null_bit_pos= 0;
   }
+#endif
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
@@ -679,16 +823,23 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       field_length= my_decimal_precision_to_length(field_length,
                                                    decimals,
                                                    f_is_dec(pack_flag) == 0);
-      sql_print_error("Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", share->fieldnames.type_names[i], name, share->table_name);
+      sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
+                      "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                      share->fieldnames.type_names[i], share->table_name.str,
+                      share->table_name.str);
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_CRASHED_ON_USAGE,
-                          "Found incompatible DECIMAL field '%s' in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", share->fieldnames.type_names[i], name, share->table_name);
+                          "Found incompatible DECIMAL field '%s' in %s; "
+                          "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                          share->fieldnames.type_names[i],
+                          share->table_name.str,
+                          share->table_name.str);
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
 #endif
 
-    *field_ptr=reg_field=
-      make_field(record+recpos,
+    *field_ptr= reg_field=
+      make_field(share, record+recpos,
 		 (uint32) field_length,
 		 null_pos, null_bit_pos,
 		 pack_flag,
@@ -699,15 +850,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 		 (interval_nr ?
 		  share->intervals+interval_nr-1 :
 		  (TYPELIB*) 0),
-		 share->fieldnames.type_names[i],
-		 outparam);
+		 share->fieldnames.type_names[i]);
     if (!reg_field)				// Not supported field type
     {
       error= 4;
       goto err;			/* purecov: inspected */
     }
 
-    reg_field->fieldnr= i+1; //Set field number
+    reg_field->fieldnr= i+1;                    //Set field number
     reg_field->field_index= i;
     reg_field->comment=comment;
     if (field_type == FIELD_TYPE_BIT && !f_bit_as_char(pack_flag))
@@ -725,12 +875,15 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     }
     if (f_no_default(pack_flag))
       reg_field->flags|= NO_DEFAULT_VALUE_FLAG;
+
     if (reg_field->unireg_check == Field::NEXT_NUMBER)
-      outparam->found_next_number_field= reg_field;
-    if (outparam->timestamp_field == reg_field)
+      share->found_next_number_field= field_ptr;
+    if (share->timestamp_field == reg_field)
       share->timestamp_field_offset= i;
+
     if (use_hash)
-      (void) my_hash_insert(&share->name_hash,(byte*) field_ptr); // never fail
+      (void) my_hash_insert(&share->name_hash,
+                            (byte*) field_ptr); // never fail
   }
   *field_ptr=0;					// End marker
 
@@ -739,17 +892,17 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     uint primary_key=(uint) (find_type((char*) primary_key_name,
 				       &share->keynames, 3) - 1);
-    uint ha_option=outparam->file->table_flags();
-    keyinfo=outparam->key_info;
-    key_part=keyinfo->key_part;
+    uint ha_option= handler_file->table_flags();
+    keyinfo= share->key_info;
+    key_part= keyinfo->key_part;
 
     for (uint key=0 ; key < share->keys ; key++,keyinfo++)
     {
-      uint usable_parts=0;
+      uint usable_parts= 0;
       keyinfo->name=(char*) share->keynames.type_names[key];
       /* Fix fulltext keys for old .frm files */
-      if (outparam->key_info[key].flags & HA_FULLTEXT)
-	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
+      if (share->key_info[key].flags & HA_FULLTEXT)
+	share->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
@@ -762,8 +915,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	{
 	  uint fieldnr= key_part[i].fieldnr;
 	  if (!fieldnr ||
-	      outparam->field[fieldnr-1]->null_ptr ||
-	      outparam->field[fieldnr-1]->key_length() !=
+	      share->field[fieldnr-1]->null_ptr ||
+	      share->field[fieldnr-1]->key_length() !=
 	      key_part[i].length)
 	  {
 	    primary_key=MAX_KEY;		// Can't be used
@@ -774,129 +927,123 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
+        Field *field;
 	if (new_field_pack_flag <= 1)
-	  key_part->fieldnr=(uint16) find_field(outparam,
-						(uint) key_part->offset,
-						(uint) key_part->length);
-#ifdef EXTRA_DEBUG
-	if (key_part->fieldnr > share->fields)
-	  goto err;                             // sanity check
-#endif
-	if (key_part->fieldnr)
-	{					// Should always be true !
-	  Field *field=key_part->field=outparam->field[key_part->fieldnr-1];
-	  if (field->null_ptr)
-	  {
-	    key_part->null_offset=(uint) ((byte*) field->null_ptr -
-					  outparam->record[0]);
-	    key_part->null_bit= field->null_bit;
-	    key_part->store_length+=HA_KEY_NULL_LENGTH;
-	    keyinfo->flags|=HA_NULL_PART_KEY;
-	    keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
-	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
-	  }
-	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->real_type() == MYSQL_TYPE_VARCHAR)
-	  {
-	    if (field->type() == FIELD_TYPE_BLOB)
-	      key_part->key_part_flag|= HA_BLOB_PART;
-            else
-              key_part->key_part_flag|= HA_VAR_LENGTH_PART;
-	    keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
-	    key_part->store_length+=HA_KEY_BLOB_LENGTH;
-	    keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
-	    /*
-	      Mark that there may be many matching values for one key
-	      combination ('a', 'a ', 'a  '...)
-	    */
-	    if (!(field->flags & BINARY_FLAG))
-	      keyinfo->flags|= HA_END_SPACE_KEY;
-	  }
-	  if (field->type() == MYSQL_TYPE_BIT)
-            key_part->key_part_flag|= HA_BIT_PART;
+	  key_part->fieldnr= (uint16) find_field(share->field,
+                                                 (uint) key_part->offset,
+                                                 (uint) key_part->length);
+	if (!key_part->fieldnr)
+        {
+          error= 4;                             // Wrong file
+          goto err;
+        }
+        field= key_part->field= share->field[key_part->fieldnr-1];
+        if (field->null_ptr)
+        {
+          key_part->null_offset=(uint) ((byte*) field->null_ptr -
+                                        share->default_values);
+          key_part->null_bit= field->null_bit;
+          key_part->store_length+=HA_KEY_NULL_LENGTH;
+          keyinfo->flags|=HA_NULL_PART_KEY;
+          keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
+          keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+        }
+        if (field->type() == FIELD_TYPE_BLOB ||
+            field->real_type() == MYSQL_TYPE_VARCHAR)
+        {
+          if (field->type() == FIELD_TYPE_BLOB)
+            key_part->key_part_flag|= HA_BLOB_PART;
+          else
+            key_part->key_part_flag|= HA_VAR_LENGTH_PART;
+          keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
+          key_part->store_length+=HA_KEY_BLOB_LENGTH;
+          keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
+          /*
+            Mark that there may be many matching values for one key
+            combination ('a', 'a ', 'a  '...)
+          */
+          if (!(field->flags & BINARY_FLAG))
+            keyinfo->flags|= HA_END_SPACE_KEY;
+        }
+        if (field->type() == MYSQL_TYPE_BIT)
+          key_part->key_part_flag|= HA_BIT_PART;
 
-	  if (i == 0 && key != primary_key)
-	    field->flags |= ((keyinfo->flags & HA_NOSAME) &&
-                             (keyinfo->key_parts == 1)) ?
-                            UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG;
-	  if (i == 0)
-	    field->key_start.set_bit(key);
-	  if (field->key_length() == key_part->length &&
-	      !(field->flags & BLOB_FLAG))
-	  {
-            if (outparam->file->index_flags(key, i, 0) & HA_KEYREAD_ONLY)
-            {
-              share->keys_for_keyread.set_bit(key);
-	      field->part_of_key.set_bit(key);
-            }
-	    if (outparam->file->index_flags(key, i, 1) & HA_READ_ORDER)
-	      field->part_of_sortkey.set_bit(key);
-	  }
-	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
-	      usable_parts == i)
-	    usable_parts++;			// For FILESORT
-	  field->flags|= PART_KEY_FLAG;
-	  if (key == primary_key)
-	  {
-	    field->flags|= PRI_KEY_FLAG;
-	    /*
-	      If this field is part of the primary key and all keys contains
-	      the primary key, then we can use any key to find this column
-	    */
-	    if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
-	      field->part_of_key= share->keys_in_use;
-	  }
-	  if (field->key_length() != key_part->length)
-	  {
+        if (i == 0 && key != primary_key)
+          field->flags |= (((keyinfo->flags & HA_NOSAME) &&
+                           (keyinfo->key_parts == 1)) ?
+                           UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+        if (i == 0)
+          field->key_start.set_bit(key);
+        if (field->key_length() == key_part->length &&
+            !(field->flags & BLOB_FLAG))
+        {
+          if (handler_file->index_flags(key, i, 0) & HA_KEYREAD_ONLY)
+          {
+            share->keys_for_keyread.set_bit(key);
+            field->part_of_key.set_bit(key);
+          }
+          if (handler_file->index_flags(key, i, 1) & HA_READ_ORDER)
+            field->part_of_sortkey.set_bit(key);
+        }
+        if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
+            usable_parts == i)
+          usable_parts++;			// For FILESORT
+        field->flags|= PART_KEY_FLAG;
+        if (key == primary_key)
+        {
+          field->flags|= PRI_KEY_FLAG;
+          /*
+            If this field is part of the primary key and all keys contains
+            the primary key, then we can use any key to find this column
+          */
+          if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX)
+            field->part_of_key= share->keys_in_use;
+        }
+        if (field->key_length() != key_part->length)
+        {
 #ifndef TO_BE_DELETED_ON_PRODUCTION
-            if (field->type() == FIELD_TYPE_NEWDECIMAL)
-            {
-              /*
-                Fix a fatal error in decimal key handling that causes crashes
-                on Innodb. We fix it by reducing the key length so that
-                InnoDB never gets a too big key when searching.
-                This allows the end user to do an ALTER TABLE to fix the
-                error.
-              */
-	      keyinfo->key_length-= (key_part->length - field->key_length());
-	      key_part->store_length-= (uint16)(key_part->length -
-                                                field->key_length());
-              key_part->length= (uint16)field->key_length();
-              sql_print_error("Found wrong key definition in %s; Please do \"ALTER TABLE '%s' FORCE \" to fix it!", name, share->table_name);
-              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                  ER_CRASHED_ON_USAGE,
-                                  "Found wrong key definition in %s; Please do \"ALTER TABLE '%s' FORCE\" to fix it!", name, share->table_name);
-
-              share->crashed= 1;                // Marker for CHECK TABLE
-	      goto to_be_deleted;
-            }
+          if (field->type() == FIELD_TYPE_NEWDECIMAL)
+          {
+            /*
+              Fix a fatal error in decimal key handling that causes crashes
+              on Innodb. We fix it by reducing the key length so that
+              InnoDB never gets a too big key when searching.
+              This allows the end user to do an ALTER TABLE to fix the
+              error.
+            */
+            keyinfo->key_length-= (key_part->length - field->key_length());
+            key_part->store_length-= (uint16)(key_part->length -
+                                              field->key_length());
+            key_part->length= (uint16)field->key_length();
+            sql_print_error("Found wrong key definition in %s; "
+                            "Please do \"ALTER TABLE '%s' FORCE \" to fix it!",
+                            share->table_name.str,
+                            share->table_name.str);
+            push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_CRASHED_ON_USAGE,
+                                "Found wrong key definition in %s; "
+                                "Please do \"ALTER TABLE '%s' FORCE\" to fix "
+                                "it!",
+                                share->table_name.str,
+                                share->table_name.str);
+            share->crashed= 1;                // Marker for CHECK TABLE
+            goto to_be_deleted;
+          }
 #endif
-	    key_part->key_part_flag|= HA_PART_KEY_SEG;
-	    if (!(field->flags & BLOB_FLAG))
-	    {					// Create a new field
-	      field=key_part->field=field->new_field(&outparam->mem_root,
-						     outparam);
-	      field->field_length=key_part->length;
-	    }
-	  }
+          key_part->key_part_flag|= HA_PART_KEY_SEG;
+        }
 
 	to_be_deleted:
 
-	  /*
-	    If the field can be NULL, don't optimize away the test
-	    key_part_column = expression from the WHERE clause
-	    as we need to test for NULL = NULL.
-	  */
-	  if (field->real_maybe_null())
-	    key_part->key_part_flag|= HA_PART_KEY_SEG;
-	}
-	else
-	{					// Error: shorten key
-	  keyinfo->key_parts=usable_parts;
-	  keyinfo->flags=0;
-	}
+        /*
+          If the field can be NULL, don't optimize away the test
+          key_part_column = expression from the WHERE clause
+          as we need to test for NULL = NULL.
+        */
+        if (field->real_maybe_null())
+          key_part->key_part_flag|= HA_PART_KEY_SEG;
       }
-      keyinfo->usable_key_parts=usable_parts; // Filesort
+      keyinfo->usable_key_parts= usable_parts; // Filesort
 
       set_if_bigger(share->max_key_length,keyinfo->key_length+
                     keyinfo->key_parts);
@@ -917,11 +1064,15 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	If we are using an integer as the primary key then allow the user to
 	refer to it as '_rowid'
       */
-      if (outparam->key_info[primary_key].key_parts == 1)
+      if (share->key_info[primary_key].key_parts == 1)
       {
-	Field *field= outparam->key_info[primary_key].key_part[0].field;
+	Field *field= share->key_info[primary_key].key_part[0].field;
 	if (field && field->result_type() == INT_RESULT)
-	  outparam->rowid_field=field;
+        {
+          /* note that fieldnr here (and rowid_field_offset) starts from 1 */
+	  share->rowid_field_offset= (share->key_info[primary_key].key_part[0].
+                                      fieldnr);
+        }
       }
     }
     else
@@ -935,21 +1086,30 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   {
     /* Old file format with default as not null */
     uint null_length= (share->null_fields+7)/8;
-    bfill(share->default_values + (outparam->null_flags - (uchar*) record),
+    bfill(share->default_values + (null_flags - (uchar*) record),
           null_length, 255);
   }
 
-  if ((reg_field=outparam->found_next_number_field))
+  if (share->found_next_number_field)
   {
+    /*
+      We must have a table object for find_ref_key to calculate field offset
+    */
+    TABLE tmp_table;
+    tmp_table.record[0]= share->default_values;
+
+    reg_field= *share->found_next_number_field;
+    reg_field->table= &tmp_table;
     if ((int) (share->next_number_index= (uint)
-	       find_ref_key(outparam,reg_field,
+	       find_ref_key(share->key_info, share->keys, reg_field,
 			    &share->next_number_key_offset)) < 0)
     {
-      reg_field->unireg_check=Field::NONE;	/* purecov: inspected */
-      outparam->found_next_number_field=0;
+      reg_field->unireg_check= Field::NONE;	/* purecov: inspected */
+      share->found_next_number_field= 0;
     }
     else
-      reg_field->flags|=AUTO_INCREMENT_FLAG;
+      reg_field->flags |= AUTO_INCREMENT_FLAG;
+    reg_field->table= 0;
   }
 
   if (share->blob_fields)
@@ -959,42 +1119,246 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
     /* Store offsets to blob fields to find them fast */
     if (!(share->blob_field= save=
-	  (uint*) alloc_root(&outparam->mem_root,
+	  (uint*) alloc_root(&share->mem_root,
                              (uint) (share->blob_fields* sizeof(uint)))))
       goto err;
-    for (i=0, ptr= outparam->field ; *ptr ; ptr++, i++)
+    for (i=0, ptr= share->field ; *ptr ; ptr++, i++)
     {
       if ((*ptr)->flags & BLOB_FLAG)
 	(*save++)= i;
     }
   }
 
-  if (outparam->file->ha_allocate_read_write_set(share->fields))
-    goto err;
-
-  /* Fix the partition functions and ensure they are not constant functions*/
-  if (part_info_len > 0)
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (fix_partition_func(thd,name,outparam))
-#endif
-      goto err;
-  
   /*
     the correct null_bytes can now be set, since bitfields have been taken
     into account
   */
-  share->null_bytes= (null_pos - (uchar*) outparam->null_flags +
+  share->null_bytes= (null_pos - (uchar*) null_flags +
                       (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
 
+  share->db_low_byte_first= handler_file->low_byte_first();
+  delete handler_file;
+#ifndef DBUG_OFF
+  if (use_hash)
+    (void) hash_check(&share->name_hash);
+#endif
+  DBUG_RETURN (0);
+
+ err:
+  share->error= error;
+  share->open_errno= my_errno;
+  share->errarg= errarg;
+  x_free((gptr) disk_buff);
+  delete crypted;
+  delete handler_file;
+  hash_free(&share->name_hash);
+
+  open_table_error(share, error, share->open_errno, errarg);
+  DBUG_RETURN(error);
+} /* open_binary_frm */
+
+
+/*
+  Open a table based on a TABLE_SHARE
+
+  SYNOPSIS
+    open_table_from_share()
+    thd			Thread handler
+    share		Table definition
+    alias       	Alias for table
+    db_stat		open flags (for example HA_OPEN_KEYFILE|
+    			HA_OPEN_RNDFILE..) can be 0 (example in
+                        ha_example_table)
+    prgflag   		READ_ALL etc..
+    ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
+    outparam       	result table
+
+  RETURN VALUES
+   0	ok
+   1	Error (see open_table_error)
+   2    Error (see open_table_error)
+   3    Wrong data in .frm file
+   4    Error (see open_table_error)
+   5    Error (see open_table_error: charset unavailable)
+   7    Table definition has changed in engine
+*/
+
+int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
+                          uint db_stat, uint prgflag, uint ha_open_flags,
+                          TABLE *outparam)
+{
+  int error;
+  uint records, i;
+  bool error_reported= FALSE;
+  byte *record;
+  Field **field_ptr;
+  MEM_ROOT **root_ptr, *old_root;
+  DBUG_ENTER("open_table_from_share");
+  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
+                      share->table_name.str, outparam));
+
+  error= 1;
+  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  old_root= *root_ptr;
+  bzero((char*) outparam, sizeof(*outparam));
+  outparam->in_use= thd;
+  outparam->s= share;
+  outparam->db_stat= db_stat;
+
+  init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  *root_ptr= &outparam->mem_root;
+
+  if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
+    goto err;
+  outparam->quick_keys.init();
+  outparam->used_keys.init();
+  outparam->keys_in_use_for_query.init();
+
+  /* Allocate handler */
+  if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+                                        share->db_type)))
+    goto err;
+
+  error= 4;
+  outparam->reginfo.lock_type= TL_UNLOCK;
+  outparam->current_lock= F_UNLCK;
+  records=0;
+  if ((db_stat & HA_OPEN_KEYFILE) || (prgflag & DELAYED_OPEN))
+    records=1;
+  if (prgflag & (READ_ALL+EXTRA_RECORD))
+    records++;
+
+  if (!(record= (byte*) alloc_root(&outparam->mem_root,
+                                   share->rec_buff_length * records)))
+    goto err;                                   /* purecov: inspected */
+
+  if (records == 0)
+  {
+    /* We are probably in hard repair, and the buffers should not be used */
+    outparam->record[0]= outparam->record[1]= share->default_values;
+  }
+  else
+  {
+    outparam->record[0]= record;
+    if (records > 1)
+      outparam->record[1]= record+ share->rec_buff_length;
+    else
+      outparam->record[1]= outparam->record[0];   // Safety
+  }
+
+#ifdef HAVE_purify
+  /*
+    We need this because when we read var-length rows, we are not updating
+    bytes after end of varchar
+  */
+  if (records > 1)
+  {
+    memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
+    if (records > 2)
+      memcpy(outparam->record[1], share->default_values,
+             share->rec_buff_length);
+  }
+#endif
+
+  if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                          (uint) ((share->fields+1)*
+                                                  sizeof(Field*)))))
+    goto err;                                   /* purecov: inspected */
+
+  outparam->field= field_ptr;
+
+  record= (byte*) outparam->record[0]-1;	/* Fieldstart = 1 */
+  if (share->null_field_first)
+    outparam->null_flags= (uchar*) record+1;
+  else
+    outparam->null_flags= (uchar*) (record+ 1+ share->reclength -
+                                    share->null_bytes);
+
+  /* Setup copy of fields from share, but use the right alias and record */
+  for (i=0 ; i < share->fields; i++, field_ptr++)
+  {
+    if (!((*field_ptr)= share->field[i]->clone(&outparam->mem_root, outparam)))
+      goto err;
+  }
+  (*field_ptr)= 0;                              // End marker
+
+  if (share->found_next_number_field)
+    outparam->found_next_number_field=
+      outparam->field[(uint) (share->found_next_number_field - share->field)];
+  if (share->timestamp_field)
+    outparam->timestamp_field= (Field_timestamp*) outparam->field[share->timestamp_field_offset];
+
+
+  /* Fix key->name and key_part->field */
+  if (share->key_parts)
+  {
+    KEY	*key_info, *key_info_end;
+    KEY_PART_INFO *key_part;
+    uint n_length;
+    n_length= share->keys*sizeof(KEY) + share->key_parts*sizeof(KEY_PART_INFO);
+    if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
+      goto err;
+    outparam->key_info= key_info;
+    key_part= (my_reinterpret_cast(KEY_PART_INFO*) (key_info+share->keys));
+    
+    memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
+    memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
+                                                   share->key_parts));
+
+    for (key_info_end= key_info + share->keys ;
+         key_info < key_info_end ;
+         key_info++)
+    {
+      KEY_PART_INFO *key_part_end;
+
+      key_info->table= outparam;
+      key_info->key_part= key_part;
+
+      for (key_part_end= key_part+ key_info->key_parts ;
+           key_part < key_part_end ;
+           key_part++)
+      {
+        Field *field= key_part->field= outparam->field[key_part->fieldnr-1];
+
+        if (field->key_length() != key_part->length &&
+            !(field->flags & BLOB_FLAG))
+        {
+          /*
+            We are using only a prefix of the column as a key:
+            Create a new field for the key part that matches the index
+          */
+          field= key_part->field=field->new_field(&outparam->mem_root,
+                                                  outparam);
+          field->field_length= key_part->length;
+        }
+      }
+    }
+  }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (share->partition_info_len)
+  {
+    if (mysql_unpack_partition(thd, share->partition_info,
+                               share->partition_info_len,
+                               outparam, share->default_part_db_type))
+      goto err;
+    /*
+      Fix the partition functions and ensure they are not constant
+      functions
+    */
+    if (fix_partition_func(thd, share->normalized_path.str, outparam))
+      goto err;
+  }
+#endif
+
   /* The table struct is now initialized;  Open the table */
-  error=2;
+  error= 2;
   if (db_stat)
   {
     int ha_err;
-    unpack_filename(index_file,index_file);
     if ((ha_err= (outparam->file->
-                  ha_open(index_file,
+                  ha_open(outparam, share->normalized_path.str,
                           (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
                           (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
                            ((db_stat & HA_WAIT_IF_LOCKED) ||
@@ -1011,8 +1375,10 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
       if (ha_err == HA_ERR_NO_SUCH_TABLE)
       {
-	/* The table did not exists in storage engine, use same error message
-	   as if the .frm file didn't exist */
+	/*
+          The table did not exists in storage engine, use same error message
+          as if the .frm file didn't exist
+        */
 	error= 1;
 	my_errno= ENOENT;
       }
@@ -1020,49 +1386,36 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       {
         outparam->file->print_error(ha_err, MYF(0));
         error_reported= TRUE;
+        if (ha_err == HA_ERR_TABLE_DEF_CHANGED)
+          error= 7;
       }
       goto err;                                 /* purecov: inspected */
     }
   }
-  share->db_low_byte_first= outparam->file->low_byte_first();
 
   *root_ptr= old_root;
   thd->status_var.opened_tables++;
-#ifndef DBUG_OFF
-  if (use_hash)
-    (void) hash_check(&share->name_hash);
-#endif
   DBUG_RETURN (0);
 
  err:
-  x_free((gptr) disk_buff);
-  if (file > 0)
-    VOID(my_close(file,MYF(MY_WME)));
-
-  delete crypted;
   *root_ptr= old_root;
   if (! error_reported)
-    frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG, errarg);
+    open_table_error(share, error, my_errno, 0);
   delete outparam->file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (outparam->s->part_info)
-  {
-    free_items(outparam->s->part_info->item_free_list);
-    outparam->s->part_info->item_free_list= 0;
-  }
+  if (outparam->part_info)
+    free_items(outparam->part_info->item_free_list);
 #endif
-  outparam->file=0;				// For easier errorchecking
+  outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  hash_free(&share->name_hash);
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
   my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
-} /* openfrm */
-
+}
 
 	/* close a .frm file and it's tables */
 
-int closefrm(register TABLE *table)
+int closefrm(register TABLE *table, bool free_share)
 {
   int error=0;
   uint idx;
@@ -1088,15 +1441,21 @@ int closefrm(register TABLE *table)
     table->field= 0;
   }
   delete table->file;
+  table->file= 0;				/* For easier errorchecking */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table->s->part_info)
+  if (table->part_info)
   {
-    free_items(table->s->part_info->item_free_list);
-    table->s->part_info->item_free_list= 0;
+    free_items(table->part_info->item_free_list);
+    table->part_info= 0;
   }
 #endif
-  table->file= 0;				/* For easier errorchecking */
-  hash_free(&table->s->name_hash);
+  if (free_share)
+  {
+    if (table->s->tmp_table == NO_TMP_TABLE)
+      release_table_share(table->s, RELEASE_NORMAL);
+    else
+      free_table_share(table->s);
+  }
   free_root(&table->mem_root, MYF(0));
   DBUG_RETURN(error);
 }
@@ -1252,37 +1611,43 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
 	/* error message when opening a form file */
 
-static void frm_error(int error, TABLE *form, const char *name,
-                      myf errortype, int errarg)
+void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
-  const char *form_dev="",*datext;
-  const char *real_name= (char*) name+dirname_length(name);
-  DBUG_ENTER("frm_error");
+  myf errortype= ME_ERROR+ME_WAITTANG;
+  DBUG_ENTER("open_table_error");
 
   switch (error) {
+  case 7:
   case 1:
-    if (my_errno == ENOENT)
-    {
-      char *db;
-      uint length=dirname_part(buff,name);
-      buff[length-1]=0;
-      db=buff+dirname_length(buff);
-      my_error(ER_NO_SUCH_TABLE, MYF(0), db, real_name);
-    }
+    if (db_errno == ENOENT)
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
     else
-      my_error(ER_FILE_NOT_FOUND, errortype,
-               fn_format(buff, name, form_dev, reg_ext, 0), my_errno);
+    {
+      strxmov(buff, share->normalized_path.str, reg_ext, NullS);
+      my_error(ER_FILE_NOT_FOUND, errortype, buff, db_errno);
+    }
     break;
   case 2:
   {
-    datext= form->file ? *form->file->bas_ext() : "";
-    datext= datext==NullS ? "" : datext;
-    err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
+    handler *file= 0;
+    const char *datext= "";
+    
+    if (share->db_type != DB_TYPE_UNKNOWN)
+    {
+      if ((file= get_new_handler(share, current_thd->mem_root,
+                                 share->db_type)))
+      {
+        if (!(datext= *file->bas_ext()))
+          datext= "";
+      }
+    }
+    err_no= (db_errno == ENOENT) ? ER_FILE_NOT_FOUND : (db_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
-    my_error(err_no,errortype,
-	     fn_format(buff,real_name,form_dev,datext,2),my_errno);
+    strxmov(buff, share->normalized_path.str, datext, NullS);
+    my_error(err_no,errortype, buff, db_errno);
+    delete file;
     break;
   }
   case 5:
@@ -1296,23 +1661,24 @@ static void frm_error(int error, TABLE *form, const char *name,
     }
     my_printf_error(ER_UNKNOWN_COLLATION,
                     "Unknown collation '%s' in table '%-.64s' definition", 
-                    MYF(0), csname, real_name);
+                    MYF(0), csname, share->table_name.str);
     break;
   }
   case 6:
+    strxmov(buff, share->normalized_path.str, reg_ext, NullS);
     my_printf_error(ER_NOT_FORM_FILE,
                     "Table '%-.64s' was created with a different version "
-                    "of MySQL and cannot be read",
-                    MYF(0), name);
+                    "of MySQL and cannot be read", 
+                    MYF(0), buff);
     break;
   default:				/* Better wrong error than none */
   case 4:
-    my_error(ER_NOT_FORM_FILE, errortype,
-             fn_format(buff, name, form_dev, reg_ext, 0));
+    strxmov(buff, share->normalized_path.str, reg_ext, NullS);
+    my_error(ER_NOT_FORM_FILE, errortype, buff, 0);
     break;
   }
   DBUG_VOID_RETURN;
-} /* frm_error */
+} /* open_table_error */
 
 
 	/*
@@ -1355,15 +1721,15 @@ fix_type_pointers(const char ***array, TYPELIB *point_to_type, uint types,
 } /* fix_type_pointers */
 
 
-TYPELIB *typelib(List<String> &strings)
+TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
 {
-  TYPELIB *result=(TYPELIB*) sql_alloc(sizeof(TYPELIB));
+  TYPELIB *result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
   if (!result)
     return 0;
   result->count=strings.elements;
   result->name="";
   uint nbytes= (sizeof(char*) + sizeof(uint)) * (result->count + 1);
-  if (!(result->type_names= (const char**) sql_alloc(nbytes)))
+  if (!(result->type_names= (const char**) alloc_root(mem_root, nbytes)))
     return 0;
   result->type_lengths= (uint*) (result->type_names + result->count + 1);
   List_iterator<String> it(strings);
@@ -1392,22 +1758,21 @@ TYPELIB *typelib(List<String> &strings)
    #  field number +1
 */
 
-static uint find_field(TABLE *form,uint start,uint length)
+static uint find_field(Field **fields, uint start, uint length)
 {
   Field **field;
-  uint i, pos, fields;
+  uint i, pos;
 
-  pos=0;
-  fields= form->s->fields;
-  for (field=form->field, i=1 ; i<= fields ; i++,field++)
+  pos= 0;
+  for (field= fields, i=1 ; *field ; i++,field++)
   {
     if ((*field)->offset() == start)
     {
       if ((*field)->key_length() == length)
 	return (i);
-      if (!pos || form->field[pos-1]->pack_length() <
+      if (!pos || fields[pos-1]->pack_length() <
 	  (*field)->pack_length())
-	pos=i;
+	pos= i;
     }
   }
   return (pos);
@@ -1499,11 +1864,12 @@ void append_unescaped(String *res, const char *pos, uint length)
 
 	/* Create a .frm file */
 
-File create_frm(THD *thd, my_string name, const char *db,
+File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
-		HA_CREATE_INFO *create_info, uint keys)
+  		HA_CREATE_INFO *create_info, uint keys)
 {
   register File file;
+  uint key_length;
   ulong length;
   char fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
@@ -1513,10 +1879,10 @@ File create_frm(THD *thd, my_string name, const char *db,
 
 #if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
-  if (create_info->max_rows > ~(ulong) 0)
-    create_info->max_rows= ~(ulong) 0;
-  if (create_info->min_rows > ~(ulong) 0)
-    create_info->min_rows= ~(ulong) 0;
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
 #endif
   /*
     Ensure that raid_chunks can't be larger than 255, as this would cause
@@ -2701,7 +3067,7 @@ const char *Natural_join_column::db_name()
     return table_ref->view_db.str;
 
   DBUG_ASSERT(!strcmp(table_ref->db,
-                      table_ref->table->s->db));
+                      table_ref->table->s->db.str));
   return table_ref->db;
 }
 
@@ -2755,8 +3121,8 @@ Natural_join_column::check_grants(THD *thd, const char *name, uint length)
   {
     DBUG_ASSERT(table_field && view_field == NULL);
     grant= &(table_ref->table->grant);
-    db_name= table_ref->table->s->db;
-    table_name= table_ref->table->s->table_name;
+    db_name= table_ref->table->s->db.str;
+    table_name= table_ref->table->s->table_name.str;
   }
 
   if (new_sctx)
@@ -2951,7 +3317,7 @@ const char *Field_iterator_table_ref::table_name()
     return natural_join_it.column_ref()->table_name();
 
   DBUG_ASSERT(!strcmp(table_ref->table_name,
-                      table_ref->table->s->table_name));
+                      table_ref->table->s->table_name.str));
   return table_ref->table_name;
 }
 
@@ -2963,7 +3329,7 @@ const char *Field_iterator_table_ref::db_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->db_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db));
+  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str));
   return table_ref->db;
 }
 

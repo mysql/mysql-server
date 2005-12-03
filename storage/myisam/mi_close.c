@@ -96,6 +96,7 @@ int mi_close(register MI_INFO *info)
     {
       int i,keys;
       keys = share->state.header.keys;
+      VOID(rwlock_destroy(&share->mmap_lock));
       for(i=0; i<keys; i++) {
 	VOID(rwlock_destroy(&share->key_root_lock[i]));
       }

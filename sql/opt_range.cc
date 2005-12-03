@@ -910,6 +910,7 @@ int QUICK_ROR_INTERSECT_SELECT::init()
 int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file;
+  THD *thd;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   if (reuse_handler)
@@ -931,11 +932,12 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     DBUG_RETURN(0);
   }
 
-  THD *thd= current_thd;
-  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
+  thd= head->in_use;
+  if (!(file= get_new_handler(head->s, thd->mem_root, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
-  if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+  if (file->ha_open(head, head->s->normalized_path.str, head->db_stat,
+                    HA_OPEN_IGNORE_IF_LOCKED))
   {
     /* Caller will free the memory */
     goto failure;
@@ -1652,11 +1654,10 @@ public:
 static int fill_used_fields_bitmap(PARAM *param)
 {
   TABLE *table= param->table;
-  param->fields_bitmap_size= (table->s->fields/8 + 1);
+  param->fields_bitmap_size= bitmap_buffer_size(table->s->fields+1);
   uint32 *tmp;
   uint pk;
-  if (!(tmp= (uint32*)alloc_root(param->mem_root,
-    bytes_word_aligned(param->fields_bitmap_size))) ||
+  if (!(tmp= (uint32*) alloc_root(param->mem_root,param->fields_bitmap_size)) ||
       bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
                   FALSE))
     return 1;
@@ -2415,7 +2416,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->records= param->table->quick_rows[keynr];
 
   if (!(bitmap_buf= (uint32*)alloc_root(param->mem_root,
-                                        bytes_word_aligned(param->fields_bitmap_size))))
+                                        param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
@@ -2535,7 +2536,7 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
     return NULL;
   info->param= param;
   if (!(buf= (uint32*)alloc_root(param->mem_root,
-                             bytes_word_aligned(param->fields_bitmap_size))))
+                                 param->fields_bitmap_size)))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
                   FALSE))
@@ -3141,10 +3142,10 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
     /* F=F-covered by first(I) */
     bitmap_union(&covered_fields, &(*ror_scan_mark)->covered_fields);
     all_covered= bitmap_is_subset(&param->needed_fields, &covered_fields);
-  } while (!all_covered && (++ror_scan_mark < ror_scans_end));
-
-  if (!all_covered)
-    DBUG_RETURN(NULL); /* should not happen actually */
+  } while ((++ror_scan_mark < ror_scans_end) && !all_covered);
+  
+  if (!all_covered || (ror_scan_mark - tree->ror_scans) == 1)
+    DBUG_RETURN(NULL);
 
   /*
     Ok, [tree->ror_scans .. ror_scan) holds covering index_intersection with
@@ -5764,10 +5765,17 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   MEM_ROOT *old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
   QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
+  /* save mem_root set by QUICK_RANGE_SELECT constructor */
+  MEM_ROOT *alloc= thd->mem_root;
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
   uint part;
+  /*
+    return back default mem_root (thd->mem_root) changed by
+    QUICK_RANGE_SELECT constructor
+  */
+  thd->mem_root= old_root;
 
   if (!quick)
     return 0;			/* no ranges found */
@@ -5779,7 +5787,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   quick->records= records;
 
   if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
-      !(range= new QUICK_RANGE()))
+      !(range= new(alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
@@ -5814,20 +5822,20 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     QUICK_RANGE *null_range;
 
     *ref->null_ref_key= 1;		// Set null byte then create a range
-    if (!(null_range= new QUICK_RANGE((char*)ref->key_buff, ref->key_length,
-				      (char*)ref->key_buff, ref->key_length,
-				      EQ_RANGE)))
+    if (!(null_range= new (alloc) QUICK_RANGE((char*)ref->key_buff,
+                                              ref->key_length,
+                                              (char*)ref->key_buff,
+                                              ref->key_length,
+                                              EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
     if (insert_dynamic(&quick->ranges,(gptr)&null_range))
       goto err;
   }
 
-  thd->mem_root= old_root;
   return quick;
 
 err:
-  thd->mem_root= old_root;
   delete quick;
   return 0;
 }
@@ -6195,6 +6203,14 @@ int QUICK_RANGE_SELECT::reset()
     multi_range_buff->buffer= mrange_buff;
     multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
     multi_range_buff->end_of_used_area= mrange_buff;
+#ifdef HAVE_purify
+    /*
+      We need this until ndb will use the buffer efficiently
+      (Now ndb stores  complete row in here, instead of only the used fields
+      which gives us valgrind warnings in compare_record[])
+    */
+    bzero((char*) mrange_buff, mrange_bufsiz);
+#endif
   }
   DBUG_RETURN(0);
 }
@@ -6689,7 +6705,7 @@ void QUICK_INDEX_MERGE_SELECT::add_info_string(String *str)
   QUICK_RANGE_SELECT *quick;
   bool first= TRUE;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append("sort_union(");
+  str->append(STRING_WITH_LEN("sort_union("));
   while ((quick= it++))
   {
     if (!first)
@@ -6711,7 +6727,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_info_string(String *str)
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append("intersect(");
+  str->append(STRING_WITH_LEN("intersect("));
   while ((quick= it++))
   {
     KEY *key_info= head->key_info + quick->index;
@@ -6735,7 +6751,7 @@ void QUICK_ROR_UNION_SELECT::add_info_string(String *str)
   bool first= TRUE;
   QUICK_SELECT_I *quick;
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  str->append("union(");
+  str->append(STRING_WITH_LEN("union("));
   while ((quick= it++))
   {
     if (!first)
@@ -7195,6 +7211,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     {
       select_items_it.rewind();
       cur_used_key_parts.clear_all();
+      uint max_key_part= 0;
       while ((item= select_items_it++))
       {
         item_field= (Item_field*) item; /* (SA5) already checked above. */
@@ -7212,7 +7229,19 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         cur_group_prefix_len+= cur_part->store_length;
         cur_used_key_parts.set_bit(key_part_nr);
         ++cur_group_key_parts;
+        max_key_part= max(max_key_part,key_part_nr);
       }
+      /*
+        Check that used key parts forms a prefix of the index.
+        To check this we compare bits in all_parts and cur_parts.
+        all_parts have all bits set from 0 to (max_key_part-1).
+        cur_parts have bits set for only used keyparts.
+      */
+      ulonglong all_parts, cur_parts;
+      all_parts= (1<<max_key_part) - 1;
+      cur_parts= cur_used_key_parts.to_ulonglong() >> 1;
+      if (all_parts != cur_parts)
+        goto next_index;
     }
     else
       DBUG_ASSERT(FALSE);
@@ -8875,7 +8904,7 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
     }
   }
   if (!tmp.length())
-    tmp.append("(empty)");
+    tmp.append(STRING_WITH_LEN("(empty)"));
 
   DBUG_PRINT("info", ("SEL_TREE %p (%s) scans:%s", tree, msg, tmp.ptr()));
 
@@ -8901,7 +8930,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
     tmp.append(table->key_info[(*start)->keynr].name);
   }
   if (!tmp.length())
-    tmp.append("(empty)");
+    tmp.append(STRING_WITH_LEN("(empty)"));
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
 }

@@ -96,7 +96,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       Field_iterator_table fields;
       fields.set_table(table);
       if (check_grant_all_columns(thd, INSERT_ACL, &table->grant,
-                                  table->s->db, table->s->table_name,
+                                  table->s->db.str, table->s->table_name.str,
                                   &fields))
         return -1;
     }
@@ -700,7 +700,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
 		   *trans_end= trans_start + num;
   Field_translator *trans;
   Field **field_ptr= table->field;
-  uint used_fields_buff_size= (table->s->fields + 7) / 8;
+  uint used_fields_buff_size= bitmap_buffer_size(table->s->fields);
   uint32 *used_fields_buff= (uint32*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
   DBUG_ENTER("check_key_in_view");
@@ -710,7 +710,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
 
   DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
 
-  bitmap_init(&used_fields, used_fields_buff, used_fields_buff_size * 8, 0);
+  bitmap_init(&used_fields, used_fields_buff, table->s->fields, 0);
   bitmap_clear_all(&used_fields);
 
   view->contain_auto_increment= 0;
@@ -1357,8 +1357,8 @@ delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
   delayed_insert *tmp;
   while ((tmp=it++))
   {
-    if (!strcmp(tmp->thd.db,table_list->db) &&
-	!strcmp(table_list->table_name,tmp->table->s->table_name))
+    if (!strcmp(tmp->thd.db, table_list->db) &&
+	!strcmp(table_list->table_name, tmp->table->s->table_name.str))
     {
       tmp->lock();
       break;
@@ -1511,6 +1511,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   my_ptrdiff_t adjust_ptrs;
   Field **field,**org_field, *found_next_number_field;
   TABLE *copy;
+  TABLE_SHARE *share= table->s;
 
   /* First request insert thread to get a lock */
   status=1;
@@ -1536,19 +1537,16 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   client_thd->proc_info="allocating local table";
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
-				   (table->s->fields+1)*sizeof(Field**)+
-				   table->s->reclength);
+				   (share->fields+1)*sizeof(Field**)+
+				   share->reclength);
   if (!copy)
     goto error;
   *copy= *table;
-  copy->s= &copy->share_not_to_be_used;
-  // No name hashing
-  bzero((char*) &copy->s->name_hash,sizeof(copy->s->name_hash));
-  /* We don't need to change the file handler here */
 
+  /* We don't need to change the file handler here */
   field=copy->field=(Field**) (copy+1);
-  copy->record[0]=(byte*) (field+table->s->fields+1);
-  memcpy((char*) copy->record[0],(char*) table->record[0],table->s->reclength);
+  copy->record[0]=(byte*) (field+share->fields+1);
+  memcpy((char*) copy->record[0],(char*) table->record[0],share->reclength);
 
   /* Make a copy of all fields */
 
@@ -1560,7 +1558,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
     if (!(*field= (*org_field)->new_field(client_thd->mem_root,copy)))
       return 0;
     (*field)->orig_table= copy;			// Remove connection
-    (*field)->move_field(adjust_ptrs);		// Point at copy->record[0]
+    (*field)->move_field_offset(adjust_ptrs);	// Point at copy->record[0]
     if (*org_field == found_next_number_field)
       (*field)->table->found_next_number_field= *field;
   }
@@ -1571,13 +1569,11 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   {
     /* Restore offset as this may have been reset in handle_inserts */
     copy->timestamp_field=
-      (Field_timestamp*) copy->field[table->s->timestamp_field_offset];
+      (Field_timestamp*) copy->field[share->timestamp_field_offset];
     copy->timestamp_field->unireg_check= table->timestamp_field->unireg_check;
     copy->timestamp_field_type= copy->timestamp_field->get_auto_set_type();
   }
 
-  /* _rowid is not used with delayed insert */
-  copy->rowid_field=0;
 
   /* Adjust in_use for pointing to client thread */
   copy->in_use= client_thd;
@@ -1595,8 +1591,9 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
 /* Put a question in queue */
 
-static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic, bool ignore,
-			 char *query, uint query_length, bool log_on)
+static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
+                         bool ignore, char *query, uint query_length,
+                         bool log_on)
 {
   delayed_row *row=0;
   delayed_insert *di=thd->di;
@@ -1736,6 +1733,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 #endif
 
   DBUG_ENTER("handle_delayed_insert");
+  thd->thread_stack= (char*) &thd;
   if (init_thr_lock() || thd->store_globals())
   {
     thd->fatal_error();
@@ -1958,7 +1956,7 @@ bool delayed_insert::handle_inserts(void)
   if (thr_upgrade_write_delay_lock(*thd.lock->locks))
   {
     /* This can only happen if thread is killed by shutdown */
-    sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->s->table_name);
+    sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->s->table_name.str);
     goto err;
   }
 
@@ -2051,7 +2049,8 @@ bool delayed_insert::handle_inserts(void)
 	if (thr_reschedule_write_lock(*thd.lock->locks))
 	{
 	  /* This should never happen */
-	  sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->s->table_name);
+	  sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),
+                          table->s->table_name.str);
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -2590,6 +2589,7 @@ void select_create::abort()
     if (!table->s->tmp_table)
     {
       ulong version= table->s->version;
+      table->s->version= 0;
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, create_table->db, create_table->table_name);
@@ -2598,8 +2598,8 @@ void select_create::abort()
         VOID(pthread_cond_broadcast(&COND_refresh));
     }
     else if (!create_info->table_existed)
-      close_temporary_table(thd, create_table->db, create_table->table_name);
-    table=0;
+      close_temporary_table(thd, table, 1, 1);
+    table=0;                                    // Safety
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
 }

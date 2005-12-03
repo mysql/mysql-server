@@ -157,6 +157,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   */
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
@@ -1427,7 +1428,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
-    if (!thd->spcont || rpl_filter->tables_ok(0, &tables))
+    if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
 #endif
@@ -1810,19 +1811,22 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     /* We write down SSL related ACL stuff */
     switch (lex->ssl_type) {
     case SSL_TYPE_ANY:
-      table->field[next_field]->store("ANY", 3, &my_charset_latin1);
+      table->field[next_field]->store(STRING_WITH_LEN("ANY"),
+                                      &my_charset_latin1);
       table->field[next_field+1]->store("", 0, &my_charset_latin1);
       table->field[next_field+2]->store("", 0, &my_charset_latin1);
       table->field[next_field+3]->store("", 0, &my_charset_latin1);
       break;
     case SSL_TYPE_X509:
-      table->field[next_field]->store("X509", 4, &my_charset_latin1);
+      table->field[next_field]->store(STRING_WITH_LEN("X509"),
+                                      &my_charset_latin1);
       table->field[next_field+1]->store("", 0, &my_charset_latin1);
       table->field[next_field+2]->store("", 0, &my_charset_latin1);
       table->field[next_field+3]->store("", 0, &my_charset_latin1);
       break;
     case SSL_TYPE_SPECIFIED:
-      table->field[next_field]->store("SPECIFIED", 9, &my_charset_latin1);
+      table->field[next_field]->store(STRING_WITH_LEN("SPECIFIED"),
+                                      &my_charset_latin1);
       table->field[next_field+1]->store("", 0, &my_charset_latin1);
       table->field[next_field+2]->store("", 0, &my_charset_latin1);
       table->field[next_field+3]->store("", 0, &my_charset_latin1);
@@ -2216,10 +2220,10 @@ void free_grant_table(GRANT_TABLE *grant_table)
 /* Search after a matching grant. Prefer exact grants before not exact ones */
 
 static GRANT_NAME *name_hash_search(HASH *name_hash,
-				      const char *host,const char* ip,
-				      const char *db,
-				      const char *user, const char *tname,
-				      bool exact)
+                                    const char *host,const char* ip,
+                                    const char *db,
+                                    const char *user, const char *tname,
+                                    bool exact)
 {
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
@@ -3260,6 +3264,7 @@ my_bool grant_init()
 
   if (!(thd= new THD))
     DBUG_RETURN(1);				/* purecov: deadcode */
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();
   return_val=  grant_reload(thd);
   delete thd;
@@ -3532,7 +3537,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table != first_not_own_table && i < number;
+       table && table != first_not_own_table && i < number;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
@@ -4056,13 +4061,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   {
     String global(buff,sizeof(buff),system_charset_info);
     global.length(0);
-    global.append("GRANT ",6);
+    global.append(STRING_WITH_LEN("GRANT "));
 
     want_access= acl_user->access;
     if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
-      global.append("ALL PRIVILEGES",14);
+      global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
     else if (!(want_access & ~GRANT_ACL))
-      global.append("USAGE",5);
+      global.append(STRING_WITH_LEN("USAGE"));
     else
     {
       bool found=0;
@@ -4072,16 +4077,16 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (test_access & j)
 	{
 	  if (found)
-	    global.append(", ",2);
+	    global.append(STRING_WITH_LEN(", "));
 	  found=1;
 	  global.append(command_array[counter],command_lengths[counter]);
 	}
       }
     }
-    global.append (" ON *.* TO '",12);
+    global.append (STRING_WITH_LEN(" ON *.* TO '"));
     global.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
-    global.append ("'@'",3);
+    global.append (STRING_WITH_LEN("'@'"));
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
@@ -4092,23 +4097,23 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         make_password_from_salt(passwd_buff, acl_user->salt);
       else
         make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(" IDENTIFIED BY PASSWORD '",25);
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
       global.append(passwd_buff);
       global.append('\'');
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
-      global.append(" REQUIRE SSL",12);
+      global.append(STRING_WITH_LEN(" REQUIRE SSL"));
     else if (acl_user->ssl_type == SSL_TYPE_X509)
-      global.append(" REQUIRE X509",13);
+      global.append(STRING_WITH_LEN(" REQUIRE X509"));
     else if (acl_user->ssl_type == SSL_TYPE_SPECIFIED)
     {
       int ssl_options = 0;
-      global.append(" REQUIRE ",9);
+      global.append(STRING_WITH_LEN(" REQUIRE "));
       if (acl_user->x509_issuer)
       {
 	ssl_options++;
-	global.append("ISSUER \'",8);
+	global.append(STRING_WITH_LEN("ISSUER \'"));
 	global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
 	global.append('\'');
       }
@@ -4116,7 +4121,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       {
 	if (ssl_options++)
 	  global.append(' ');
-	global.append("SUBJECT \'",9);
+	global.append(STRING_WITH_LEN("SUBJECT \'"));
 	global.append(acl_user->x509_subject,strlen(acl_user->x509_subject),
                       system_charset_info);
 	global.append('\'');
@@ -4125,7 +4130,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       {
 	if (ssl_options++)
 	  global.append(' ');
-	global.append("CIPHER '",8);
+	global.append(STRING_WITH_LEN("CIPHER '"));
 	global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher),
                       system_charset_info);
 	global.append('\'');
@@ -4137,9 +4142,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
          acl_user->user_resource.conn_per_hour ||
          acl_user->user_resource.user_conn))
     {
-      global.append(" WITH",5);
+      global.append(STRING_WITH_LEN(" WITH"));
       if (want_access & GRANT_ACL)
-	global.append(" GRANT OPTION",13);
+	global.append(STRING_WITH_LEN(" GRANT OPTION"));
       add_user_option(&global, acl_user->user_resource.questions,
 		      "MAX_QUERIES_PER_HOUR");
       add_user_option(&global, acl_user->user_resource.updates,
@@ -4177,12 +4182,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       {
 	String db(buff,sizeof(buff),system_charset_info);
 	db.length(0);
-	db.append("GRANT ",6);
+	db.append(STRING_WITH_LEN("GRANT "));
 
 	if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
-	  db.append("ALL PRIVILEGES",14);
+	  db.append(STRING_WITH_LEN("ALL PRIVILEGES"));
 	else if (!(want_access & ~GRANT_ACL))
-	  db.append("USAGE",5);
+	  db.append(STRING_WITH_LEN("USAGE"));
 	else
 	{
 	  int found=0, cnt;
@@ -4192,23 +4197,23 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    if (test_access & j)
 	    {
 	      if (found)
-		db.append(", ",2);
+		db.append(STRING_WITH_LEN(", "));
 	      found = 1;
 	      db.append(command_array[cnt],command_lengths[cnt]);
 	    }
 	  }
 	}
-	db.append (" ON ",4);
+	db.append (STRING_WITH_LEN(" ON "));
 	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
-	db.append (".* TO '",7);
+	db.append (STRING_WITH_LEN(".* TO '"));
 	db.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
-	db.append ("'@'",3);
+	db.append (STRING_WITH_LEN("'@'"));
 	db.append(lex_user->host.str, lex_user->host.length,
                   system_charset_info);
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
-	  db.append(" WITH GRANT OPTION",18);
+	  db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
 	protocol->store(db.ptr(),db.length(),db.charset());
 	if (protocol->write())
@@ -4241,12 +4246,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
 
 	global.length(0);
-	global.append("GRANT ",6);
+	global.append(STRING_WITH_LEN("GRANT "));
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
-	  global.append("ALL PRIVILEGES",14);
+	  global.append(STRING_WITH_LEN("ALL PRIVILEGES"));
 	else if (!test_access)
- 	  global.append("USAGE",5);
+	  global.append(STRING_WITH_LEN("USAGE"));
 	else
 	{
           /* Add specific column access */
@@ -4258,7 +4263,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    if (test_access & j)
 	    {
 	      if (found)
-		global.append(", ",2);
+		global.append(STRING_WITH_LEN(", "));
 	      found= 1;
 	      global.append(command_array[counter],command_lengths[counter]);
 
@@ -4282,14 +4287,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		      */
 		      if (table_access & j)
 		      {
-			global.append(", ", 2);
+			global.append(STRING_WITH_LEN(", "));
 			global.append(command_array[counter],
 				      command_lengths[counter]);
 		      }
-		      global.append(" (",2);
+		      global.append(STRING_WITH_LEN(" ("));
 		    }
 		    else
-		      global.append(", ",2);
+		      global.append(STRING_WITH_LEN(", "));
 		    global.append(grant_column->column,
 				  grant_column->key_length,
 				  system_charset_info);
@@ -4301,21 +4306,21 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	global.append(" ON ",4);
+	global.append(STRING_WITH_LEN(" ON "));
 	append_identifier(thd, &global, grant_table->db,
 			  strlen(grant_table->db));
 	global.append('.');
 	append_identifier(thd, &global, grant_table->tname,
 			  strlen(grant_table->tname));
-	global.append(" TO '",5);
+	global.append(STRING_WITH_LEN(" TO '"));
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
-	global.append("'@'",3);
+	global.append(STRING_WITH_LEN("'@'"));
 	global.append(lex_user->host.str,lex_user->host.length,
 		      system_charset_info);
 	global.append('\'');
 	if (table_access & GRANT_ACL)
-	  global.append(" WITH GRANT OPTION",18);
+	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
 	protocol->store(global.ptr(),global.length(),global.charset());
 	if (protocol->write())
@@ -4328,14 +4333,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
 
   if (show_routine_grants(thd, lex_user, &proc_priv_hash, 
-                          "PROCEDURE", 9, buff, sizeof(buff)))
+                          STRING_WITH_LEN("PROCEDURE"), buff, sizeof(buff)))
   {
     error= -1;
     goto end;
   }
 
   if (show_routine_grants(thd, lex_user, &func_priv_hash,
-                          "FUNCTION", 8, buff, sizeof(buff)))
+                          STRING_WITH_LEN("FUNCTION"), buff, sizeof(buff)))
   {
     error= -1;
     goto end;
@@ -4376,10 +4381,10 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	ulong test_access= proc_access & ~GRANT_ACL;
 
 	global.length(0);
-	global.append("GRANT ",6);
+	global.append(STRING_WITH_LEN("GRANT "));
 
 	if (!test_access)
- 	  global.append("USAGE",5);
+ 	  global.append(STRING_WITH_LEN("USAGE"));
 	else
 	{
           /* Add specific procedure access */
@@ -4391,13 +4396,13 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	    if (test_access & j)
 	    {
 	      if (found)
-		global.append(", ",2);
+		global.append(STRING_WITH_LEN(", "));
 	      found= 1;
 	      global.append(command_array[counter],command_lengths[counter]);
 	    }
 	  }
 	}
-	global.append(" ON ",4);
+	global.append(STRING_WITH_LEN(" ON "));
         global.append(type,typelen);
         global.append(' ');
 	append_identifier(thd, &global, grant_proc->db,
@@ -4405,15 +4410,15 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 	global.append('.');
 	append_identifier(thd, &global, grant_proc->tname,
 			  strlen(grant_proc->tname));
-	global.append(" TO '",5);
+	global.append(STRING_WITH_LEN(" TO '"));
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
-	global.append("'@'",3);
+	global.append(STRING_WITH_LEN("'@'"));
 	global.append(lex_user->host.str,lex_user->host.length,
 		      system_charset_info);
 	global.append('\'');
 	if (proc_access & GRANT_ACL)
-	  global.append(" WITH GRANT OPTION",18);
+	  global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 	protocol->prepare_for_resend();
 	protocol->store(global.ptr(),global.length(),global.charset());
 	if (protocol->write())
@@ -4675,7 +4680,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       by the searched record, if it exists.
     */
     DBUG_PRINT("info",("read table: '%s'  search: '%s'@'%s'",
-                       table->s->table_name, user_str, host_str));
+                       table->s->table_name.str, user_str, host_str));
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
 
@@ -4718,7 +4723,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     {
 #ifdef EXTRA_DEBUG
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
-                         table->s->table_name, user_str, host_str));
+                         table->s->table_name.str, user_str, host_str));
 #endif
       while ((error= table->file->rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
@@ -5068,7 +5073,7 @@ static void append_user(String *str, LEX_USER *user)
     str->append(',');
   str->append('\'');
   str->append(user->user.str);
-  str->append("'@'");
+  str->append(STRING_WITH_LEN("'@'"));
   str->append(user->host.str);
   str->append('\'');
 }
@@ -5650,7 +5655,8 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
 
     strxmov(buff,"'",user,"'@'",host,"'",NullS);
     if (!(want_access & ~GRANT_ACL))
-      update_schema_privilege(table, buff, 0, 0, 0, 0, "USAGE", 5, is_grantable);
+      update_schema_privilege(table, buff, 0, 0, 0, 0,
+                              STRING_WITH_LEN("USAGE"), is_grantable);
     else
     {
       uint priv_id;
@@ -5708,7 +5714,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       strxmov(buff,"'",user,"'@'",host,"'",NullS);
       if (!(want_access & ~GRANT_ACL))
         update_schema_privilege(table, buff, acl_db->db, 0, 0,
-                                0, "USAGE", 5, is_grantable);
+                                0, STRING_WITH_LEN("USAGE"), is_grantable);
       else
       {
         int cnt;
@@ -5768,7 +5774,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
       strxmov(buff,"'",user,"'@'",grant_table->host.hostname,"'",NullS);
       if (!test_access)
         update_schema_privilege(table, buff, grant_table->db, grant_table->tname,
-                                0, 0, "USAGE", 5, is_grantable);
+                                0, 0, STRING_WITH_LEN("USAGE"), is_grantable);
       else
       {
         ulong j;

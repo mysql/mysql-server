@@ -711,9 +711,15 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
                        type_str, str.c_ptr(), field_name,
                        (ulong) thd->row_count);
   else
-    cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                       ER(ER_TRUNCATED_WRONG_VALUE),
-                       type_str, str.c_ptr());
+  {
+    if (time_type > MYSQL_TIMESTAMP_ERROR)
+      cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                         ER(ER_TRUNCATED_WRONG_VALUE),
+                         type_str, str.c_ptr());
+    else
+      cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
+                         ER(ER_WRONG_VALUE), type_str, str.c_ptr());
+  }
   push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }

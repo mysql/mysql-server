@@ -110,7 +110,7 @@ void lex_free(void)
   (We already do too much here)
 */
 
-void lex_start(THD *thd, uchar *buf,uint length)
+void lex_start(THD *thd, const uchar *buf, uint length)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("lex_start");
@@ -196,9 +196,9 @@ void lex_end(LEX *lex)
 
 static int find_keyword(LEX *lex, uint len, bool function)
 {
-  uchar *tok=lex->tok_start;
+  const uchar *tok=lex->tok_start;
 
-  SYMBOL *symbol = get_hash_symbol((const char *)tok,len,function);
+  SYMBOL *symbol= get_hash_symbol((const char *)tok,len,function);
   if (symbol)
   {
     lex->yylval->symbol.symbol=symbol;
@@ -256,15 +256,16 @@ static LEX_STRING get_token(LEX *lex,uint length)
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
   LEX_STRING tmp;
-  byte *from, *to, *end;
+  const uchar *from, *end;
+  uchar *to;
   yyUnget();			// ptr points now after last token char
   tmp.length=lex->yytoklen=length;
   tmp.str=(char*) lex->thd->alloc(tmp.length+1);
-  for (from= (byte*) lex->tok_start, to= (byte*) tmp.str, end= to+length ;
+  for (from= lex->tok_start, to= (uchar*) tmp.str, end= to+length ;
        to != end ;
        )
   {
-    if ((*to++= *from++) == quote)
+    if ((*to++= *from++) == (uchar) quote)
       from++;					// Skip double quotes
   }
   *to= 0;					// End null for safety
@@ -284,7 +285,6 @@ static char *get_text(LEX *lex)
   CHARSET_INFO *cs= lex->thd->charset();
 
   sep= yyGetLast();			// String should end with this
-  //lex->tok_start=lex->ptr-1;		// Remember '
   while (lex->ptr != lex->end_of_query)
   {
     c = yyGet();
@@ -328,7 +328,8 @@ static char *get_text(LEX *lex)
 	yyUnget();
 
       /* Found end. Unescape and return string */
-      uchar *str,*end,*start;
+      const uchar *str, *end;
+      uchar *start;
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
@@ -612,7 +613,7 @@ int yylex(void *arg, void *yythd)
         break;
       }
     case MY_LEX_IDENT:
-      uchar *start;
+      const uchar *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
@@ -1528,9 +1529,9 @@ void st_select_lex_unit::print(String *str)
   {
     if (sl != first_select())
     {
-      str->append(" union ", 7);
+      str->append(STRING_WITH_LEN(" union "));
       if (union_all)
-	str->append("all ", 4);
+	str->append(STRING_WITH_LEN("all "));
       else if (union_distinct == sl)
         union_all= TRUE;
     }
@@ -1544,7 +1545,7 @@ void st_select_lex_unit::print(String *str)
   {
     if (fake_select_lex->order_list.elements)
     {
-      str->append(" order by ", 10);
+      str->append(STRING_WITH_LEN(" order by "));
       fake_select_lex->print_order(str,
 				   (ORDER *) fake_select_lex->
 				   order_list.first);
@@ -1567,7 +1568,7 @@ void st_select_lex::print_order(String *str, ORDER *order)
     else
       (*order->item)->print(str);
     if (!order->asc)
-      str->append(" desc", 5);
+      str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
       str->append(',');
   }
@@ -1590,7 +1591,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
   if (explicit_limit)
   {
-    str->append(" limit ", 7);
+    str->append(STRING_WITH_LEN(" limit "));
     if (offset_limit)
     {
       offset_limit->print(str);
@@ -2040,6 +2041,35 @@ void st_lex::cleanup_after_one_table_open()
 
 
 /*
+  Do end-of-prepare fixup for list of tables and their merge-VIEWed tables
+
+  SYNOPSIS
+    fix_prepare_info_in_table_list()
+      thd  Thread handle
+      tbl  List of tables to process
+
+  DESCRIPTION
+    Perform end-end-of prepare fixup for list of tables, if any of the tables
+    is a merge-algorithm VIEW, recursively fix up its underlying tables as
+    well.
+
+*/
+
+static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
+{
+  for (; tbl; tbl= tbl->next_local)
+  {
+    if (tbl->on_expr)
+    {
+      tbl->prep_on_expr= tbl->on_expr;
+      tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
+    }
+    fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
+  }
+}
+
+
+/*
   fix some structures at the end of preparation
 
   SYNOPSIS
@@ -2058,16 +2088,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
       prep_where= *conds;
       *conds= where= prep_where->copy_andor_structure(thd);
     }
-    for (TABLE_LIST *tbl= (TABLE_LIST *)table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      if (tbl->on_expr)
-      {
-        tbl->prep_on_expr= tbl->on_expr;
-        tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
-      }
-    }
+    fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
   }
 }
 

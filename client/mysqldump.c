@@ -92,6 +92,7 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
+                opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
@@ -173,7 +174,7 @@ static struct my_option my_long_options[] =
    "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
    (gptr*) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -330,7 +331,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -338,6 +339,9 @@ static struct my_option my_long_options[] =
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with backticks (`).",
    (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
+   0, 0},
+  {"replace", OPT_MYSQL_REPLACE_INTO, "Use REPLACE INTO instead of INSERT INTO.",
+   (gptr*) &opt_replace_into, (gptr*) &opt_replace_into, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
@@ -1515,7 +1519,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     */
     if (write_data)
     {
-      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      if (opt_replace_into)
+        dynstr_append_mem(&insert_pat, "REPLACE ", 8);
+      else
+        dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
       dynstr_append_mem(&insert_pat, "INTO ", 5);
       dynstr_append(&insert_pat, opt_quoted_table);
@@ -1592,7 +1599,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
     if (write_data)
     {
-      dynstr_append_mem(&insert_pat, "INSERT ", 7);
+      if (opt_replace_into)
+        dynstr_append_mem(&insert_pat, "REPLACE ", 8);
+      else
+        dynstr_append_mem(&insert_pat, "INSERT ", 7);
       dynstr_append(&insert_pat, insert_option);
       dynstr_append_mem(&insert_pat, "INTO ", 5);
       dynstr_append(&insert_pat, result_table);
@@ -1841,12 +1851,13 @@ DELIMITER ;;\n");
   while ((row= mysql_fetch_row(result)))
   {
     fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s */;;\n\n",
+/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
             row[6], /* sql_mode */
             quote_name(row[0], name_buff, 0), /* Trigger */
             row[4], /* Timing */
             row[1], /* Event */
             result_table,
+	    (strchr(" \t\n\r", *(row[3]))) ? "" : " ",
             row[3] /* Statement */);
   }
   if (mysql_num_rows(result))
@@ -2151,6 +2162,8 @@ static void dump_table(char *table, char *db)
       for (i = 0; i < mysql_num_fields(res); i++)
       {
         int is_blob;
+        ulong length= lengths[i];
+
 	if (!(field = mysql_fetch_field(res)))
 	{
 	  my_snprintf(query, QUERY_LENGTH,
@@ -2177,7 +2190,6 @@ static void dump_table(char *table, char *db)
                    field->type == MYSQL_TYPE_TINY_BLOB)) ? 1 : 0;
 	if (extended_insert)
 	{
-	  ulong length = lengths[i];
 	  if (i == 0)
 	    dynstr_set(&extended_row,"(");
 	  else
@@ -2267,19 +2279,19 @@ static void dump_table(char *table, char *db)
 	      {
 	        print_xml_tag1(md_result_file, "\t\t", "field name=",
 			      field->name, "");
-		print_quoted_xml(md_result_file, row[i], lengths[i]);
+		print_quoted_xml(md_result_file, row[i], length);
 		fputs("</field>\n", md_result_file);
 	      }
-	      else if (opt_hex_blob && is_blob)
+	      else if (opt_hex_blob && is_blob && length)
               {
                 /* sakaik got the idea to to provide blob's in hex notation. */
-                char *ptr= row[i], *end= ptr+ lengths[i];
+                char *ptr= row[i], *end= ptr + length;
                 fputs("0x", md_result_file);
                 for (; ptr < end ; ptr++)
 		  fprintf(md_result_file, "%02X", *((uchar *)ptr));
               }
               else
-                unescape(md_result_file, row[i], lengths[i]);
+                unescape(md_result_file, row[i], length);
 	    }
 	    else
 	    {

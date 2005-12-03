@@ -693,3 +693,25 @@ create table t1(a int, key(a)) engine=innodb;
 insert into t1 values(1);
 select a, count(a) from t1 group by a with rollup;
 drop table t1;
+
+#
+# Bug #13293 Wrongly used index results in endless loop.
+#
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb;
+insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
+alter table t1 drop primary key, add primary key (f2, f1);
+explain select distinct f1 a, f1 b from t1;
+explain select distinct f1, f2 from t1;
+drop table t1;
+
+#
+# Bug #14920 Ordering aggregated result sets with composite primary keys
+# corrupts resultset
+#
+create table t1 (c1 int not null,c2 int not null, primary key(c1,c2));
+insert into t1 (c1,c2) values
+(10,1),(10,2),(10,3),(20,4),(20,5),(20,6),(30,7),(30,8),(30,9);
+select distinct c1, c2 from t1 order by c2;
+select c1,min(c2) as c2 from t1 group by c1 order by c2;
+select c1,c2 from t1 group by c1,c2 order by c2;
+drop table t1;

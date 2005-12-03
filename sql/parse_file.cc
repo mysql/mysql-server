@@ -50,23 +50,23 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
     */
     switch(*ptr) {
     case '\\': // escape character
-      if (my_b_append(file, (const byte *)"\\\\", 2))
+      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\\\")))
 	return TRUE;
       break;
     case '\n': // parameter value delimiter
-      if (my_b_append(file, (const byte *)"\\n", 2))
+      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\n")))
 	return TRUE;
       break;
     case '\0': // problem for some string processing utilities
-      if (my_b_append(file, (const byte *)"\\0", 2))
+      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\0")))
 	return TRUE;
       break;
     case 26: // problem for windows utilities (Ctrl-Z)
-      if (my_b_append(file, (const byte *)"\\z", 2))
+      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\z")))
 	return TRUE;
       break;
     case '\'': // list of string delimiter
-      if (my_b_append(file, (const byte *)"\\\'", 2))
+      if (my_b_append(file, (const byte *)STRING_WITH_LEN("\\\'")))
 	return TRUE;
       break;
     default:
@@ -155,10 +155,10 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     while ((str= it++))
     {
       // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const byte *)" ", 1)) ||
-	  my_b_append(file, (const byte *)"\'", 1) ||
+      if ((!first && my_b_append(file, (const byte *)STRING_WITH_LEN(" "))) ||
+	  my_b_append(file, (const byte *)STRING_WITH_LEN("\'")) ||
           write_escaped_string(file, str) ||
-	  my_b_append(file, (const byte *)"\'", 1))
+	  my_b_append(file, (const byte *)STRING_WITH_LEN("\'")))
       {
 	DBUG_RETURN(TRUE);
       }
@@ -176,7 +176,7 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     {
       num.set(*val, &my_charset_bin);
       // We need ' ' after string to detect list continuation
-      if ((!first && my_b_append(file, (const byte *)" ", 1)) ||
+      if ((!first && my_b_append(file, (const byte *)STRING_WITH_LEN(" "))) ||
           my_b_append(file, (const byte *)num.ptr(), num.length()))
       {
         DBUG_RETURN(TRUE);
@@ -242,9 +242,9 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
     goto err_w_file;
 
   // write header (file signature)
-  if (my_b_append(&file, (const byte *)"TYPE=", 5) ||
+  if (my_b_append(&file, (const byte *)STRING_WITH_LEN("TYPE=")) ||
       my_b_append(&file, (const byte *)type->str, type->length) ||
-      my_b_append(&file, (const byte *)"\n", 1))
+      my_b_append(&file, (const byte *)STRING_WITH_LEN("\n")))
     goto err_w_file;
 
   // write parameters to temporary file
@@ -252,9 +252,9 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   {
     if (my_b_append(&file, (const byte *)param->name.str,
                     param->name.length) ||
-	my_b_append(&file, (const byte *)"=", 1) ||
+	my_b_append(&file, (const byte *)STRING_WITH_LEN("=")) ||
 	write_parameter(&file, base, param, &old_version) ||
-	my_b_append(&file, (const byte *)"\n", 1))
+	my_b_append(&file, (const byte *)STRING_WITH_LEN("\n")))
       goto err_w_cache;
   }
 
@@ -355,11 +355,11 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
 {
   char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
 
-  strxnmov(old_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+  strxnmov(old_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
            old_name, reg_ext, NullS);
   (void) unpack_filename(old_path, old_path);
 
-  strxnmov(new_path, FN_REFLEN, mysql_data_home, "/", schema, "/",
+  strxnmov(new_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
            new_name, reg_ext, NullS);
   (void) unpack_filename(new_path, new_path);
 
@@ -367,7 +367,7 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
     return 1;
 
   /* check if arc_dir exists */
-  strxnmov(arc_path, FN_REFLEN, mysql_data_home, "/", schema, "/arc", NullS);
+  strxnmov(arc_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/arc", NullS);
   (void) unpack_filename(arc_path, arc_path);
   
   if (revision > 0 && !access(arc_path, F_OK))
@@ -414,7 +414,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   char *end, *sign;
   File_parser *parser;
   File file;
-  DBUG_ENTER("sql__parse_prepare");
+  DBUG_ENTER("sql_parse_prepare");
 
   if (!my_stat(file_name->str, &stat_info, MYF(MY_WME)))
   {
@@ -664,6 +664,61 @@ parse_quoted_escaped_string(char *ptr, char *end,
 
 
 /*
+  Parser for FILE_OPTIONS_ULLLIST type value.
+
+  SYNOPSIS
+    get_file_options_ulllist()
+    ptr                  [in/out] pointer to parameter
+    end                  [in] end of the configuration
+    line                 [in] pointer to the line begining
+    base                 [in] base address for parameter writing (structure
+                              like TABLE)
+    parameter            [in] description
+    mem_root             [in] MEM_ROOT for parameters allocation
+*/
+
+bool get_file_options_ulllist(char *&ptr, char *end, char *line,
+                              gptr base, File_option *parameter,
+                              MEM_ROOT *mem_root)
+{
+  List<ulonglong> *nlist= (List<ulonglong>*)(base + parameter->offset);
+  ulonglong *num;
+  nlist->empty();
+  // list parsing
+  while (ptr < end)
+  {
+    int not_used;
+    char *num_end= end;
+    if (!(num= (ulonglong*)alloc_root(mem_root, sizeof(ulonglong))) ||
+        nlist->push_back(num, mem_root))
+      goto nlist_err;
+    *num= my_strtoll10(ptr, &num_end, &not_used);
+    ptr= num_end;
+    switch (*ptr) {
+    case '\n':
+      goto end_of_nlist;
+    case ' ':
+      // we cant go over buffer bounds, because we have \0 at the end
+      ptr++;
+      break;
+    default:
+      goto nlist_err_w_message;
+    }
+  }
+
+end_of_nlist:
+  if (*(ptr++) != '\n')
+    goto nlist_err;
+  return FALSE;
+
+nlist_err_w_message:
+  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0), parameter->name.str, line);
+nlist_err:
+  return TRUE;
+}
+
+
+/*
   parse parameters
  
   SYNOPSIS
@@ -673,6 +728,8 @@ parse_quoted_escaped_string(char *ptr, char *end,
     mem_root            MEM_ROOT for parameters allocation
     parameters          parameters description
     required            number of required parameters in above list
+    hook                hook called for unknown keys
+    hook_data           some data specific for the hook
 
   RETURN
     FALSE - OK
@@ -681,15 +738,15 @@ parse_quoted_escaped_string(char *ptr, char *end,
 
 my_bool
 File_parser::parse(gptr base, MEM_ROOT *mem_root,
-                   struct File_option *parameters, uint required)
+                   struct File_option *parameters, uint required,
+                   Unknown_key_hook *hook)
 {
   uint first_param= 0, found= 0;
-  register char *ptr= start;
+  char *ptr= start;
   char *eol;
   LEX_STRING *str;
   List<LEX_STRING> *list;
   ulonglong *num;
-  List<ulonglong> *nlist;
   DBUG_ENTER("File_parser::parse");
 
   while (ptr < end && found < required)
@@ -829,58 +886,64 @@ list_err:
 	  DBUG_RETURN(TRUE);
 	}
         case FILE_OPTIONS_ULLLIST:
-        {
-          nlist= (List<ulonglong>*)(base + parameter->offset);
-          nlist->empty();
-          // list parsing
-          while (ptr < end)
-          {
-            int not_used;
-            char *num_end= end;
-            if (!(num= (ulonglong*)alloc_root(mem_root, sizeof(ulonglong))) ||
-                nlist->push_back(num, mem_root))
-              goto nlist_err;
-            *num= my_strtoll10(ptr, &num_end, &not_used);
-            ptr= num_end;
-            switch (*ptr) {
-            case '\n':
-              goto end_of_nlist;
-            case ' ':
-              // we cant go over buffer bounds, because we have \0 at the end
-              ptr++;
-              break;
-            default:
-              goto nlist_err_w_message;
-            }
-          }
-
-end_of_nlist:
-          if (*(ptr++) != '\n')
-            goto nlist_err;
+          if (get_file_options_ulllist(ptr, end, line, base,
+                                       parameter, mem_root))
+            DBUG_RETURN(TRUE);
           break;
-
-nlist_err_w_message:
-          my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
-                   parameter->name.str, line);
-nlist_err:
-          DBUG_RETURN(TRUE);
-
-        }
 	default:
 	  DBUG_ASSERT(0); // never should happened
 	}
       }
       else
       {
-	// skip unknown parameter
-	if (!(ptr= strchr(ptr, '\n')))
-	{
-	  my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
-	  DBUG_RETURN(TRUE);
-	}
-	ptr++;
+        ptr= line;
+        if (hook->process_unknown_string(ptr, base, mem_root, end))
+        {
+          DBUG_RETURN(TRUE);
+        }
+        // skip unknown parameter
+        if (!(ptr= strchr(ptr, '\n')))
+        {
+          my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
+          DBUG_RETURN(TRUE);
+        }
+        ptr++;
       }
     }
   }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Dummy unknown key hook
+
+  SYNOPSIS
+    File_parser_dummy_hook::process_unknown_string()
+    unknown_key          [in/out] reference on the line with unknown
+                                  parameter and the parsing point
+    base                 [in] base address for parameter writing (structure like
+                              TABLE)
+    mem_root             [in] MEM_ROOT for parameters allocation
+    end                  [in] the end of the configuration
+
+  NOTE
+    This hook used to catch no longer supported keys and process them for
+    backward compatibility, but it will not slow down processing of modern
+    format files.
+    This hook does nothing except debug output.
+
+  RETURN
+    FALSE OK
+    TRUE  Error
+*/
+
+bool
+File_parser_dummy_hook::process_unknown_string(char *&unknown_key,
+                                               gptr base, MEM_ROOT *mem_root,
+                                               char *end)
+{
+  DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
+  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
   DBUG_RETURN(FALSE);
 }

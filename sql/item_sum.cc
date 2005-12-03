@@ -143,26 +143,33 @@ bool Item_sum::walk (Item_processor processor, byte *argument)
 Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length)
 {
+  Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    return new Field_double(max_length,maybe_null,name,table,decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals);
+    break;
   case INT_RESULT:
-    return new Field_longlong(max_length,maybe_null,name,table,unsigned_flag);
+    field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
+    break;
   case STRING_RESULT:
-    if (max_length > 255 && convert_blob_length)
-      return new Field_varstring(convert_blob_length, maybe_null,
-                                 name, table,
-                                 collation.collation);
-    return make_string_field(table);
+    if (max_length <= 255 || !convert_blob_length)
+      return make_string_field(table);
+    field= new Field_varstring(convert_blob_length, maybe_null,
+                               name, table->s, collation.collation);
+    break;
   case DECIMAL_RESULT:
-    return new Field_new_decimal(max_length, maybe_null, name, table,
+    field= new Field_new_decimal(max_length, maybe_null, name,
                                  decimals, unsigned_flag);
+    break;
   case ROW_RESULT:
   default:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
   }
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -312,9 +319,10 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
 					 uint convert_blob_length)
 {
+  Field *field;
   if (args[0]->type() == Item::FIELD_ITEM)
   {
-    Field *field= ((Item_field*) args[0])->field;
+    field= ((Item_field*) args[0])->field;
     
     if ((field= create_tmp_field_from_field(current_thd, field, name, table,
 					    NULL, convert_blob_length)))
@@ -328,16 +336,21 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, collation.collation);
+    field= new Field_date(maybe_null, name, collation.collation);
+    break;
   case MYSQL_TYPE_TIME:
-    return new Field_time(maybe_null, name, table, collation.collation);
+    field= new Field_time(maybe_null, name, collation.collation);
+    break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    return new Field_datetime(maybe_null, name, table, collation.collation);
-  default:
+    field= new Field_datetime(maybe_null, name, collation.collation);
     break;
+  default:
+    return Item_sum::create_tmp_field(group, table, convert_blob_length);
   }
-  return Item_sum::create_tmp_field(group, table, convert_blob_length);
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -452,7 +465,7 @@ longlong Item_sum_sum::val_int()
                    &result);
     return result;
   }
-  return (longlong) val_real();
+  return (longlong) rint(val_real());
 }
 
 
@@ -839,6 +852,7 @@ Item *Item_sum_avg::copy_or_same(THD* thd)
 Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
                                       uint convert_blob_len)
 {
+  Field *field;
   if (group)
   {
     /*
@@ -846,14 +860,18 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
       The easyest way is to do this is to store both value in a string
       and unpack on access.
     */
-    return new Field_string(((hybrid_type == DECIMAL_RESULT) ?
+    field= new Field_string(((hybrid_type == DECIMAL_RESULT) ?
                              dec_bin_size : sizeof(double)) + sizeof(longlong),
-                            0, name, table, &my_charset_bin);
+                            0, name, &my_charset_bin);
   }
-  if (hybrid_type == DECIMAL_RESULT)
-    return new Field_new_decimal(max_length, maybe_null, name, table,
+  else if (hybrid_type == DECIMAL_RESULT)
+    field= new Field_new_decimal(max_length, maybe_null, name,
                                  decimals, unsigned_flag);
-  return new Field_double(max_length, maybe_null, name, table, decimals);
+  else
+    field= new Field_double(max_length, maybe_null, name, decimals);
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -1018,6 +1036,7 @@ Item *Item_sum_variance::copy_or_same(THD* thd)
 Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
                                            uint convert_blob_len)
 {
+  Field *field;
   if (group)
   {
     /*
@@ -1025,15 +1044,19 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
       The easyest way is to do this is to store both value in a string
       and unpack on access.
     */
-    return new Field_string(((hybrid_type == DECIMAL_RESULT) ?
+    field= new Field_string(((hybrid_type == DECIMAL_RESULT) ?
                              dec_bin_size0 + dec_bin_size1 :
                              sizeof(double)*2) + sizeof(longlong),
-                            0, name, table, &my_charset_bin);
+                            0, name, &my_charset_bin);
   }
-  if (hybrid_type == DECIMAL_RESULT)
-    return new Field_new_decimal(max_length, maybe_null, name, table,
+  else if (hybrid_type == DECIMAL_RESULT)
+    field= new Field_new_decimal(max_length, maybe_null, name,
                                  decimals, unsigned_flag);
-  return new Field_double(max_length, maybe_null,name,table,decimals);
+  else
+    field= new Field_double(max_length, maybe_null, name, decimals);
+  if (field)
+    field->init(table);
+  return field;
 }
 
 
@@ -1285,7 +1308,7 @@ longlong Item_sum_hybrid::val_int()
     return sum_int;
   }
   default:
-    return (longlong) Item_sum_hybrid::val_real();
+    return (longlong) rint(Item_sum_hybrid::val_real());
   }
 }
 
@@ -2001,7 +2024,7 @@ double Item_avg_field::val_real()
 
 longlong Item_avg_field::val_int()
 {
-  return (longlong) val_real();
+  return (longlong) rint(val_real());
 }
 
 
@@ -3156,9 +3179,9 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str)
 {
-  str->append("group_concat(", 13);
+  str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
-    str->append("distinct ", 9);
+    str->append(STRING_WITH_LEN("distinct "));
   for (uint i= 0; i < arg_count_field; i++)
   {
     if (i)
@@ -3167,19 +3190,19 @@ void Item_func_group_concat::print(String *str)
   }
   if (arg_count_order)
   {
-    str->append(" order by ", 10);
+    str->append(STRING_WITH_LEN(" order by "));
     for (uint i= 0 ; i < arg_count_order ; i++)
     {
       if (i)
         str->append(',');
       (*order[i]->item)->print(str);
       if (order[i]->asc)
-        str->append(" ASC");
+        str->append(STRING_WITH_LEN(" ASC"));
       else
-        str->append(" DESC");
+        str->append(STRING_WITH_LEN(" DESC"));
     }
   }
-  str->append(" separator \'", 12);
+  str->append(STRING_WITH_LEN(" separator \'"));
   str->append(*separator);
-  str->append("\')", 2);
+  str->append(STRING_WITH_LEN("\')"));
 }

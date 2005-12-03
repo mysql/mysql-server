@@ -62,7 +62,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h \
-			sql_plugin.h
+			sql_plugin.h authors.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -98,9 +98,12 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_plugin.cc\
 			handlerton.cc
 EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
+			ha_innodb.h  ha_berkeley.h  ha_archive.h \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
-			ha_partition.cc \
-			examples/ha_tina.cc examples/ha_example.cc
+			ha_blackhole.h  ha_federated.h  ha_ndbcluster.h \
+			ha_partition.cc ha_partition.h \
+			examples/ha_tina.cc examples/ha_example.cc \
+			examples/ha_tina.h  examples/ha_example.h
 mysqld_DEPENDENCIES =	@mysql_se_objs@
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
@@ -115,23 +118,23 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
+EXTRA_DIST =		udf_example.cc handlerton-win.cc $(BUILT_SOURCES)
 DISTCLEANFILES =        lex_hash.h
 AM_YFLAGS =		-d
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc
-	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ $(srcdir)/tztime.cc mysql_tzinfo_to_sql.cc
 
 link_sources: mysql_tzinfo_to_sql.cc
 	rm -f mini_client_errors.c
-	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
+	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
-	@LN_CP_F@ ../sql-common/pack.c pack.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
-	@LN_CP_F@ ../sql-common/client.c client.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
 	rm -f my_time.c
-	@LN_CP_F@ ../sql-common/my_time.c my_time.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<

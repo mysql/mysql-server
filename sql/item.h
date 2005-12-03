@@ -159,7 +159,7 @@ struct Hybrid_type_traits
   { val->real/= ulonglong2double(u); }
 
   virtual longlong val_int(Hybrid_type *val, bool unsigned_flag) const
-  { return (longlong) val->real; }
+  { return (longlong) rint(val->real); }
   virtual double val_real(Hybrid_type *val) const { return val->real; }
   virtual my_decimal *val_decimal(Hybrid_type *val, my_decimal *buf) const;
   virtual String *val_str(Hybrid_type *val, String *buf, uint8 decimals) const;
@@ -689,7 +689,7 @@ public:
   // used in row subselects to get value of elements
   virtual void bring_value() {}
 
-  Field *tmp_table_field_from_field_type(TABLE *table);
+  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
@@ -703,6 +703,8 @@ public:
   virtual bool is_splocal() { return 0; } /* Needed for error checking */
 };
 
+
+class sp_head;
 
 /*
   A reference to local SP variable (incl. reference to SP parameter), used in
@@ -721,6 +723,13 @@ class Item_splocal : public Item
   uint m_offset;
 
 public:
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   LEX_STRING m_name;
   THD	     *thd;
 
@@ -1055,7 +1064,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
-  void print(String *str) { str->append("NULL", 4); }
+  void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
@@ -1075,7 +1084,11 @@ public:
 
 class Item_param :public Item
 {
+  char cnvbuf[MAX_FIELD_WIDTH];
+  String cnvstr;
+  Item *cnvitem;
 public:
+
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
@@ -1341,7 +1354,7 @@ public:
     {
       return LONGLONG_MAX;
     }
-    return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+    return (longlong) rint(value);
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
@@ -1603,7 +1616,11 @@ public:
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
   int save_in_field(Field *field, bool no_conversions);
-  void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
+  void save_org_in_field(Field *field)
+  {
+    (*ref)->save_org_in_field(field);
+    null_value= (*ref)->null_value;
+  }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   Field *get_tmp_table_field()

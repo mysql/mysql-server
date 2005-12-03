@@ -2763,7 +2763,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
-   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
+   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
    (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3314,20 +3314,23 @@ static int handle_error(const char *query, struct st_query *q,
         ((q->expected_errno[i].type == ERR_SQLSTATE) &&
          (strcmp(q->expected_errno[i].code.sqlstate, err_sqlstate) == 0)))
     {
-      if (q->expected_errors == 1)
+      if (!disable_result_log)
       {
-        /* Only log error if there is one possible error */
-        dynstr_append_mem(ds, "ERROR ", 6);
-        replace_dynstr_append(ds, err_sqlstate);
-        dynstr_append_mem(ds, ": ", 2);
-        replace_dynstr_append(ds, err_error);
-        dynstr_append_mem(ds,"\n",1);
+        if (q->expected_errors == 1)
+        {
+          /* Only log error if there is one possible error */
+          dynstr_append_mem(ds, "ERROR ", 6);
+          replace_dynstr_append(ds, err_sqlstate);
+          dynstr_append_mem(ds, ": ", 2);
+          replace_dynstr_append(ds, err_error);
+          dynstr_append_mem(ds,"\n",1);
+        }
+        /* Don't log error if we may not get an error */
+        else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+                 (q->expected_errno[0].type == ERR_ERRNO &&
+                  q->expected_errno[0].code.errnum != 0))
+          dynstr_append(ds,"Got one of the listed errors\n");
       }
-      /* Don't log error if we may not get an error */
-      else if (q->expected_errno[0].type == ERR_SQLSTATE ||
-               (q->expected_errno[0].type == ERR_ERRNO &&
-                q->expected_errno[0].code.errnum != 0))
-        dynstr_append(ds,"Got one of the listed errors\n");
       /* OK */
       DBUG_RETURN(0);
     }
@@ -3335,11 +3338,14 @@ static int handle_error(const char *query, struct st_query *q,
 
   DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
 
-  dynstr_append_mem(ds, "ERROR ",6);
-  replace_dynstr_append(ds, err_sqlstate);
-  dynstr_append_mem(ds, ": ", 2);
-  replace_dynstr_append(ds, err_error);
-  dynstr_append_mem(ds, "\n", 1);
+  if (!disable_result_log)
+  {
+    dynstr_append_mem(ds, "ERROR ",6);
+    replace_dynstr_append(ds, err_sqlstate);
+    dynstr_append_mem(ds, ": ", 2);
+    replace_dynstr_append(ds, err_error);
+    dynstr_append_mem(ds, "\n", 1);
+  }
 
   if (i)
   {

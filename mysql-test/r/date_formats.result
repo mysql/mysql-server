@@ -401,14 +401,14 @@ date	format	str_to_date
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	0003-01-02 22:11:12
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '10:20:10AM'
+Warning	1292	Incorrect datetime value: '10:20:10AM'
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 date	format	con
 10:20:10AM	%h:%i:%s	0000-00-00 10:20:10
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	0003-01-02 22:11:12
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '10:20:10AM'
+Warning	1292	Incorrect datetime value: '10:20:10AM'
 drop table t1;
 select get_format(DATE, 'USA') as a;
 a

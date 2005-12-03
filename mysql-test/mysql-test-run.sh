@@ -1275,7 +1275,7 @@ start_master()
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
-          --log-bin-trust-routine-creators \
+          --log-bin-trust-function-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1296,7 +1296,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
-          --log-bin-trust-routine-creators \
+          --log-bin-trust-function-creators \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
@@ -1320,16 +1320,16 @@ start_master()
 
   if [ x$DO_DDD = x1 ]
   then
-    $ECHO "set args $master_args" > $GDB_MASTER_INIT
+    $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
     manager_launch master ddd -display $DISPLAY --debugger \
-    "gdb -x $GDB_MASTER_INIT" $MASTER_MYSQLD
+    "gdb -x $GDB_MASTER_INIT$1" $MASTER_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
     if [ x$MANUAL_GDB = x1 ]
     then
-      $ECHO "set args $master_args" > $GDB_MASTER_INIT
+      $ECHO "set args $master_args" > $GDB_MASTER_INIT$1
       $ECHO "To start gdb for the master , type in another window:"
-      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD"
+      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD"
       wait_for_master=1500
     else
       ( $ECHO set args $master_args;
@@ -1341,9 +1341,9 @@ disa 1
 end
 r
 EOF
-      fi )  > $GDB_MASTER_INIT
+      fi )  > $GDB_MASTER_INIT$1
       manager_launch master $XTERM -display $DISPLAY \
-      -title "Master" -e gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD
+      -title "Master" -e gdb -x $GDB_MASTER_INIT$1 $MASTER_MYSQLD
     fi
   else
     manager_launch master $MASTER_MYSQLD $master_args
@@ -1429,7 +1429,7 @@ start_slave()
           --report-port=$slave_port \
           --master-retry-count=10 \
           -O slave_net_timeout=10 \
-          --log-bin-trust-routine-creators \
+          --log-bin-trust-function-creators \
            $SMALL_SERVER \
            $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
   CUR_MYERR=$slave_err
@@ -1965,10 +1965,10 @@ then
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $MASTER_MYPORT+1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT --protocol=tcp -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --protocol=tcp --port=`expr $MASTER_MYPORT+1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --protocol=tcp --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --protocol=tcp --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     sleep_until_file_deleted 0 $MASTER_MYPID
     sleep_until_file_deleted 0 $MASTER_MYPID"1"
     sleep_until_file_deleted 0 $SLAVE_MYPID

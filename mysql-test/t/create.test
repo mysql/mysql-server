@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 --enable_warnings
 
@@ -554,4 +554,94 @@ create table t1 (
 show create table t1;
 drop table t1;
 
+#
+# BUG#14480: assert failure in CREATE ... SELECT because of wrong
+#            calculation of number of NULLs.
+#
+CREATE TABLE t2 (
+  a int(11) default NULL
+);
+insert into t2 values(111);
+
+--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null, 
+  b int not null, primary key (a)
+) select a, 1 as b from t2 ;
+show create table t1;
+drop table t1;
+
+--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin not null,
+  b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+drop table t1;
+
+--warning 1364
+create table t1 ( 
+  a varchar(12) charset utf8 collate utf8_bin,
+  b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+drop table t1, t2;
+
+create table t1 ( 
+  a1 int not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+
+--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+  primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+
+--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+
+drop table t1, t2;
+--warning 1364
+create table t1 ( 
+  a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+
+--warning 1364
+create table t2 ( 
+  a1 varchar(12) charset utf8 collate utf8_bin not null,
+  a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+  primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+
+# Test the default value
+drop table t2;
+
+create table t2 ( a int default 3, b int default 3)
+  select a1,a2 from t1;
+show create table t2;
+
+drop table t1, t2;
+
 # End of 4.1 tests
+
+#
+# Bug #14155: Maximum value of MAX_ROWS handled incorrectly on 64-bit
+# platforms
+#
+create table t1 (i int) engine=myisam max_rows=100000000000;
+show create table t1;
+alter table t1 max_rows=100;
+show create table t1;
+alter table t1 max_rows=100000000000;
+show create table t1;
+drop table t1;
+
+# End of 5.0 tests

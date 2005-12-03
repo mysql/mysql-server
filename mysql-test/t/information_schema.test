@@ -379,6 +379,8 @@ where table_schema='test';
 select index_name from information_schema.statistics where table_schema='test';
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
+show create view v2;
+show create table v3;
 drop view v2;
 drop view v3;
 drop table t4;
@@ -736,3 +738,13 @@ create table t1(a blob, b text charset utf8, c text charset ucs2);
 select data_type, character_octet_length, character_maximum_length 
   from information_schema.columns where table_name='t1';
 drop table t1;
+
+#
+# Bug#14476 `information_schema`.`TABLES`.`TABLE_TYPE` with empty value
+#
+create table t1 (f1 int(11));
+create view v1 as select * from t1;
+drop table t1;
+select table_type from information_schema.tables
+where table_name="v1";
+drop view v1;

@@ -498,7 +498,7 @@ void Protocol::init(THD *thd_arg)
   thd=thd_arg;
   packet= &thd->packet;
   convert= &thd->convert_buffer;
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   field_types= 0;
 #endif
 }
@@ -551,7 +551,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
   }
 
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   field_types= (enum_field_types*) thd->alloc(sizeof(field_types) *
 					      list->elements);
   uint count= 0;
@@ -572,7 +572,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store("def", 3, cs, thd_charset) ||
+      if (prot.store(STRING_WITH_LEN("def"), cs, thd_charset) ||
 	  prot.store(field.db_name, (uint) strlen(field.db_name),
 		     cs, thd_charset) ||
 	  prot.store(field.table_name, (uint) strlen(field.table_name),
@@ -648,7 +648,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
       break;					/* purecov: inspected */
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
     field_types[count++]= field.type;
 #endif
   }
@@ -732,14 +732,14 @@ bool Protocol::store(I_List<i_string>* str_list)
 void Protocol_simple::prepare_for_resend()
 {
   packet->length(0);
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   field_pos= 0;
 #endif
 }
 
 bool Protocol_simple::store_null()
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   field_pos++;
 #endif
   char buff[1];
@@ -773,7 +773,7 @@ bool Protocol::store_string_aux(const char *from, uint length,
 bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
@@ -790,7 +790,7 @@ bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs)
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
               field_types[field_pos] == MYSQL_TYPE_BIT ||
@@ -805,7 +805,7 @@ bool Protocol_simple::store(const char *from, uint length,
 
 bool Protocol_simple::store_tiny(longlong from)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
 #endif
@@ -817,7 +817,7 @@ bool Protocol_simple::store_tiny(longlong from)
 
 bool Protocol_simple::store_short(longlong from)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_YEAR ||
 	      field_types[field_pos] == MYSQL_TYPE_SHORT);
@@ -831,7 +831,7 @@ bool Protocol_simple::store_short(longlong from)
 
 bool Protocol_simple::store_long(longlong from)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_INT24 ||
               field_types[field_pos] == MYSQL_TYPE_LONG);
@@ -845,7 +845,7 @@ bool Protocol_simple::store_long(longlong from)
 
 bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
@@ -860,7 +860,7 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 
 bool Protocol_simple::store_decimal(const my_decimal *d)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
@@ -874,7 +874,7 @@ bool Protocol_simple::store_decimal(const my_decimal *d)
 
 bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
@@ -886,7 +886,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 
 bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
@@ -900,7 +900,7 @@ bool Protocol_simple::store(Field *field)
 {
   if (field->is_null())
     return store_null();
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   field_pos++;
 #endif
   char buff[MAX_FIELD_WIDTH];
@@ -921,7 +921,7 @@ bool Protocol_simple::store(Field *field)
 
 bool Protocol_simple::store(TIME *tm)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
 	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
@@ -944,7 +944,7 @@ bool Protocol_simple::store(TIME *tm)
 
 bool Protocol_simple::store_date(TIME *tm)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
@@ -963,7 +963,7 @@ bool Protocol_simple::store_date(TIME *tm)
 
 bool Protocol_simple::store_time(TIME *tm)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
@@ -1088,7 +1088,7 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 
 bool Protocol_prep::store_decimal(const my_decimal *d)
 {
-#ifndef DEBUG_OFF
+#ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;

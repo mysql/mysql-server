@@ -135,7 +135,7 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(TABLE *table);
+static handler *archive_create_handler(TABLE_SHARE *table);
 
 
 /* dummy handlerton - only to have something to return from archive_db_init */
@@ -172,7 +172,7 @@ handlerton archive_hton = {
   HTON_NO_FLAGS
 };
 
-static handler *archive_create_handler(TABLE *table)
+static handler *archive_create_handler(TABLE_SHARE *table)
 {
   return new ha_archive(table);
 }
@@ -242,14 +242,15 @@ int archive_db_end(ha_panic_function type)
   return 0;
 }
 
-ha_archive::ha_archive(TABLE *table_arg)
+ha_archive::ha_archive(TABLE_SHARE *table_arg)
   :handler(&archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
   /* The size of the offset value we will use for position() */
-  ref_length = sizeof(z_off_t);
+  ref_length = 2 << ((zlibCompileFlags() >> 6) & 3);
+  DBUG_ASSERT(ref_length <= sizeof(z_off_t));
 }
 
 /*

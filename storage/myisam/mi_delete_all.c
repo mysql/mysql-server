@@ -22,6 +22,7 @@
 int mi_delete_all_rows(MI_INFO *info)
 {
   uint i;
+  char buf[22];
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO *state=&share->state;
   DBUG_ENTER("mi_delete_all_rows");
@@ -58,6 +59,12 @@ int mi_delete_all_rows(MI_INFO *info)
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+#ifdef HAVE_MMAP
+  /* Resize mmaped area */
+  rw_wrlock(&info->s->mmap_lock);
+  mi_remap_file(info, (my_off_t)0);
+  rw_unlock(&info->s->mmap_lock);
+#endif
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

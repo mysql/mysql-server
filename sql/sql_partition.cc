@@ -20,7 +20,7 @@
   used by all handlers that support partitioning, which in the first version
   is the partitioning handler itself and the NDB handler.
 
-  The first version was written by Mikael Ronström.
+  The first version was written by Mikael Ronstrom.
 
   This version supports RANGE partitioning, LIST partitioning, HASH
   partitioning and composite partitioning (hereafter called subpartitioning)
@@ -39,6 +39,7 @@
 #include "md5.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "ha_partition.h"
 /*
   Partition related functions declarations and some static constants;
 */
@@ -901,7 +902,7 @@ static bool set_up_field_array(TABLE *table,
 {
   Field **ptr, *field, **field_array;
   uint no_fields= 0, size_field_array, i= 0;
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   int result= FALSE;
   DBUG_ENTER("set_up_field_array");
 
@@ -1276,7 +1277,7 @@ static bool check_primary_key(TABLE *table)
   if (primary_key < MAX_KEY)
   {
     set_indicator_in_key_fields(table->key_info+primary_key);
-    check_fields_in_PF(table->s->part_info->full_part_field_array,
+    check_fields_in_PF(table->part_info->full_part_field_array,
                         &all_fields, &some_fields);
     clear_indicator_in_key_fields(table->key_info+primary_key);
     if (unlikely(!all_fields))
@@ -1314,7 +1315,7 @@ static bool check_unique_keys(TABLE *table)
     if (table->key_info[i].flags & HA_NOSAME) //Unique index
     {
       set_indicator_in_key_fields(table->key_info+i);
-      check_fields_in_PF(table->s->part_info->full_part_field_array,
+      check_fields_in_PF(table->part_info->full_part_field_array,
                          &all_fields, &some_fields);
       clear_indicator_in_key_fields(table->key_info+i);
       if (unlikely(!all_fields))
@@ -1596,26 +1597,32 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
 }
 
 /*
-  This function is called as part of opening the table by opening the .frm
-  file. It is a part of CREATE TABLE to do this so it is quite permissible
-  that errors due to erroneus syntax isn't found until we come here.
-  If the user has used a non-existing field in the table is one such example
-  of an error that is not discovered until here.
+  fix partition functions
+
   SYNOPSIS
     fix_partition_func()
     thd                  The thread object
     name                 The name of the partitioned table
     table                TABLE object for which partition fields are set-up
+
   RETURN VALUE
     TRUE
     FALSE
+
   DESCRIPTION
     The name parameter contains the full table name and is used to get the
     database name of the table which is used to set-up a correct
     TABLE_LIST object for use in fix_fields.
+
+NOTES
+    This function is called as part of opening the table by opening the .frm
+    file. It is a part of CREATE TABLE to do this so it is quite permissible
+    that errors due to erroneus syntax isn't found until we come here.
+    If the user has used a non-existing field in the table is one such example
+    of an error that is not discovered until here.
 */
 
-bool fix_partition_func(THD *thd, const char* name, TABLE *table)
+bool fix_partition_func(THD *thd, const char *name, TABLE *table)
 {
   bool result= TRUE;
   uint dir_length, home_dir_length;
@@ -1623,19 +1630,19 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   TABLE_SHARE *share= table->s;
   char db_name_string[FN_REFLEN];
   char* db_name;
-  partition_info *part_info= share->part_info;
+  partition_info *part_info= table->part_info;
   ulong save_set_query_id= thd->set_query_id;
   DBUG_ENTER("fix_partition_func");
 
   thd->set_query_id= 0;
   /*
-  Set-up the TABLE_LIST object to be a list with a single table
-  Set the object to zero to create NULL pointers and set alias
-  and real name to table name and get database name from file name.
+    Set-up the TABLE_LIST object to be a list with a single table
+    Set the object to zero to create NULL pointers and set alias
+    and real name to table name and get database name from file name.
   */
 
   bzero((void*)&tables, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*)share->table_name;
+  tables.alias= tables.table_name= (char*) share->table_name.str;
   tables.table= table;
   tables.next_local= 0;
   tables.next_name_resolution_table= 0;
@@ -1650,8 +1657,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
     /*
-     Subpartition is defined. We need to verify that subpartitioning
-     function is correct.
+      Subpartition is defined. We need to verify that subpartitioning
+      function is correct.
     */
     if (part_info->linear_hash_ind)
       set_linear_hash_mask(part_info, part_info->no_subparts);
@@ -1664,7 +1671,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
     else
     {
       if (unlikely(fix_fields_part_func(thd, &tables,
-                   part_info->subpart_expr, part_info, TRUE)))
+                                        part_info->subpart_expr, part_info,
+                                        TRUE)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1676,8 +1684,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table)
   }
   DBUG_ASSERT(part_info->part_type != NOT_A_PARTITION);
   /*
-   Partition is defined. We need to verify that partitioning
-   function is correct.
+    Partition is defined. We need to verify that partitioning
+    function is correct.
   */
   if (part_info->part_type == HASH_PARTITION)
   {
@@ -1999,6 +2007,7 @@ char *generate_partition_syntax(partition_info *part_info,
   File fptr;
   char *buf= NULL; //Return buffer
   const char *file_name;
+
   sprintf(path, "%s_%lx_%lx", "part_syntax", current_pid,
           current_thd->thread_id);
   fn_format(path,path,mysql_tmpdir,".psy", MY_REPLACE_EXT);
@@ -2160,7 +2169,7 @@ close_file:
 bool partition_key_modified(TABLE *table, List<Item> &fields)
 {
   List_iterator_fast<Item> f(fields);
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   Item_field *item_field;
   DBUG_ENTER("partition_key_modified");
   if (!part_info)
@@ -2770,7 +2779,7 @@ static uint32 get_sub_part_id_from_key(const TABLE *table,byte *buf,
                                        const key_range *key_spec)
 {
   byte *rec0= table->record[0];
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   uint32 part_id;
   DBUG_ENTER("get_sub_part_id_from_key");
 
@@ -2809,7 +2818,7 @@ bool get_part_id_from_key(const TABLE *table, byte *buf, KEY *key_info,
 {
   bool result;
   byte *rec0= table->record[0];
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   DBUG_ENTER("get_part_id_from_key");
 
   key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
@@ -2849,7 +2858,7 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                part_id_range *part_spec)
 {
   bool result;
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   byte *rec0= table->record[0];
   DBUG_ENTER("get_full_part_id_from_key");
 
@@ -2894,7 +2903,7 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec, part_id_range *part_spec)
 {
-  partition_info *part_info= table->s->part_info;
+  partition_info *part_info= table->part_info;
   uint no_parts= get_tot_partitions(part_info), i, part_id;
   uint sub_part= no_parts;
   uint32 part_part= no_parts;
@@ -3081,14 +3090,16 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
      possible to retrace this given an item tree.
 */
 
-bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
-                            TABLE* table, enum db_type default_db_type)
+bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
+                            uint part_info_len, TABLE* table,
+                            enum db_type default_db_type)
 {
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
   partition_info *part_info;
   LEX *old_lex= thd->lex, lex;
   DBUG_ENTER("mysql_unpack_partition");
+
   thd->lex= &lex;
   lex_start(thd, part_buf, part_info_len);
   /*
@@ -3116,7 +3127,8 @@ bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
     goto end;
   }
   part_info= lex.part_info;
-  table->s->part_info= part_info;
+  table->part_info= part_info;
+  table->file->set_part_info(part_info);
   if (part_info->default_engine_type == DB_TYPE_UNKNOWN)
     part_info->default_engine_type= default_db_type;
   else
@@ -3138,9 +3150,9 @@ bool mysql_unpack_partition(THD *thd, uchar *part_buf, uint part_info_len,
     uint part_func_len= part_info->part_func_len;
     uint subpart_func_len= part_info->subpart_func_len; 
     char *part_func_string, *subpart_func_string= NULL;
-    if (!((part_func_string= sql_alloc(part_func_len))) ||
+    if (!((part_func_string= thd->alloc(part_func_len))) ||
         (subpart_func_len &&
-        !((subpart_func_string= sql_alloc(subpart_func_len)))))
+        !((subpart_func_string= thd->alloc(subpart_func_len)))))
     {
       my_error(ER_OUTOFMEMORY, MYF(0), part_func_len);
       free_items(thd->free_list);
@@ -3187,7 +3199,7 @@ void set_field_ptr(Field **ptr, const byte *new_buf,
 
   do
   {
-    (*ptr)->move_field(diff);
+    (*ptr)->move_field_offset(diff);
   } while (*(++ptr));
   DBUG_VOID_RETURN;
 }
@@ -3221,7 +3233,7 @@ void set_key_field_ptr(KEY *key_info, const byte *new_buf,
 
   do
   {
-    key_part->field->move_field(diff);
+    key_part->field->move_field_offset(diff);
     key_part++;
   } while (++i < key_parts);
   DBUG_VOID_RETURN;

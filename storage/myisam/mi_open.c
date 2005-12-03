@@ -288,6 +288,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 #ifdef THREAD
 			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
 #endif
+			 &share->mmap_lock,sizeof(rw_lock_t),
 			 NullS))
       goto err;
     errpos=4;
@@ -459,7 +460,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 					(keys ? MI_INDEX_BLOCK_MARGIN *
 					 share->blocksize * keys : 0));
     share->blocksize=min(IO_SIZE,myisam_block_size);
-
     share->data_file_type=STATIC_RECORD;
     if (share->options & HA_OPTION_COMPRESS_RECORD)
     {
@@ -482,6 +482,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
+    VOID(my_rwlock_init(&share->mmap_lock, NULL));
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
@@ -736,6 +737,8 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_unique=_mi_cmp_static_unique;
     share->calc_checksum= mi_static_checksum;
   }
+  share->file_read= mi_nommap_pread;
+  share->file_write= mi_nommap_pwrite;
   if (!(share->options & HA_OPTION_CHECKSUM))
     share->calc_checksum=0;
   return;

@@ -182,11 +182,23 @@ static bool begin_trans(THD *thd)
 */
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return rpl_filter->is_on() && tables &&
+  return rpl_filter->is_on() && tables && !thd->spcont &&
          !rpl_filter->tables_ok(thd->db, tables);
 }
 #endif
 
+
+static bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    DBUG_ASSERT(table->db && table->table_name);
+    if (table->updating &&
+        !find_temporary_table(thd, table->db, table->table_name))
+      return 1;
+  }
+  return 0;
+}
 
 static HASH hash_user_connections;
 
@@ -1079,6 +1091,7 @@ pthread_handler_t handle_one_connection(void *arg)
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+  thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
@@ -1092,7 +1105,6 @@ pthread_handler_t handle_one_connection(void *arg)
     int error;
     NET *net= &thd->net;
     Security_context *sctx= thd->security_ctx;
-    thd->thread_stack= (char*) &thd;
     net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
@@ -1164,6 +1176,7 @@ end_thread:
       or this thread has been schedule to handle the next query
     */
     thd= current_thd;
+    thd->thread_stack= (char*) &thd;
   } while (!(test_flags & TEST_NO_THREADS));
   /* The following is only executed if we are not using --one-thread */
   return(0);					/* purecov: deadcode */
@@ -1183,6 +1196,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   char *buff;
 
   /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
   {
 #ifndef EMBEDDED_LIBRARY
@@ -1966,7 +1980,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	    uptime,
 	    (int) thread_count, (ulong) thd->query_id,
             (ulong) thd->status_var.long_query_count,
-	    thd->status_var.opened_tables, refresh_version, cached_tables(),
+	    thd->status_var.opened_tables, refresh_version,
+            cached_open_tables(),
 	    (uptime ? (ulonglong2double(thd->query_id) / (double) uptime) :
 	     (double) 0));
 #ifdef SAFEMALLOC
@@ -2360,7 +2375,7 @@ mysql_execute_command(THD *thd)
     mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
-  if (thd->slave_thread)
+  if (unlikely(thd->slave_thread))
   {
     /*
       Check if statment should be skipped because of slave filtering
@@ -2386,29 +2401,21 @@ mysql_execute_command(THD *thd)
       reset_one_shot_variables(thd);
       DBUG_RETURN(0);
     }
-#ifndef TO_BE_DELETED
-    /*
-      This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
-      masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
-      as DO RELEASE_LOCK()
-    */
-    if (lex->sql_command == SQLCOM_SELECT)
-    {
-      lex->sql_command = SQLCOM_DO;
-      lex->insert_list = &select_lex->item_list;
-    }
-#endif
   }
+  else
 #endif /* HAVE_REPLICATION */
 
   /*
-    When option readonly is set deny operations which change tables.
-    Except for the replication thread and the 'super' users.
+    When option readonly is set deny operations which change non-temporary
+    tables. Except for the replication thread and the 'super' users.
   */
   if (opt_readonly &&
-      !(thd->slave_thread ||
-        (thd->security_ctx->master_access & SUPER_ACL)) &&
-      uc_update_queries[lex->sql_command])
+      !(thd->security_ctx->master_access & SUPER_ACL) &&
+      uc_update_queries[lex->sql_command] &&
+      !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+        (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+      ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+       some_non_temp_table_to_be_updated(thd, all_tables)))
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
     DBUG_RETURN(-1);
@@ -3198,13 +3205,24 @@ end_with_restore_list:
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
-    if (thd->slave_thread && all_tables_not_ok(thd, all_tables))
+    if (unlikely(thd->slave_thread))
     {
-      /* we warn the slave SQL thread */
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      if (all_tables_not_ok(thd, all_tables))
+      {
+        /* we warn the slave SQL thread */
+        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+        break;
+      }
+    }
+    else
+#endif /* HAVE_REPLICATION */
+    if (opt_readonly &&
+        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        some_non_temp_table_to_be_updated(thd, all_tables))
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       break;
     }
-#endif /* HAVE_REPLICATION */
 
     res= mysql_multi_update(thd, all_tables,
                             &select_lex->item_list,
@@ -3408,6 +3426,9 @@ end_with_restore_list:
     break;
   case SQLCOM_SHOW_STORAGE_ENGINES:
     res= mysqld_show_storage_engines(thd);
+    break;
+  case SQLCOM_SHOW_AUTHORS:
+    res= mysqld_show_authors(thd);
     break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);
@@ -3643,8 +3664,6 @@ end_with_restore_list:
       my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
-    if (check_access(thd,SELECT_ACL,lex->name,0,1,0,is_schema_db(lex->name)))
-      break;
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
@@ -3653,7 +3672,8 @@ end_with_restore_list:
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
       break;
 #ifdef HAVE_DLOPEN
-    if (sp_find_function(thd, lex->spname))
+    if (sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                        &thd->sp_func_cache, FALSE))
     {
       my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
       goto error;
@@ -4004,8 +4024,8 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_SAVEPOINT:
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-        !opt_using_transactions)
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+          thd->in_sub_stmt) || !opt_using_transactions)
       send_ok(thd);
     else
     {
@@ -4058,7 +4078,7 @@ end_with_restore_list:
 
     if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
     {
-      if (! thd->db)
+      if (!thd->db)
       {
         my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
         delete lex->sphead;
@@ -4187,7 +4207,8 @@ end_with_restore_list:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_procedure(thd, lex->spname, TRUE)))
+      if (!(sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                                &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
                  lex->spname->m_qname.str);
@@ -4277,18 +4298,6 @@ end_with_restore_list:
           So just execute the statement.
         */
 	res= sp->execute_procedure(thd, &lex->value_list);
-        if (mysql_bin_log.is_open() &&
-            (sp->m_chistics->daccess == SP_CONTAINS_SQL ||
-             sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
-        {
-          if (res)
-            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                         ER_FAILED_ROUTINE_BREAK_BINLOG,
-			 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
-          else
-            thd->clear_error();
-        }
-
 	/*
           If warnings have been cleared, we have to clear total_warn_count
           too, otherwise the clients get confused.
@@ -4323,9 +4332,11 @@ end_with_restore_list:
 
       memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (! sp)
       {
@@ -4347,7 +4358,8 @@ end_with_restore_list:
         if (end_active_trans(thd)) 
           goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
-        if (!trust_routine_creators &&  mysql_bin_log.is_open() &&
+        if ((sp->m_type == TYPE_ENUM_FUNCTION) &&
+            !trust_function_creators &&  mysql_bin_log.is_open() &&
             !sp->m_chistics->detistic &&
             (chistics.daccess == SP_CONTAINS_SQL ||
              chistics.daccess == SP_MODIFIES_SQL_DATA))
@@ -4358,6 +4370,12 @@ end_with_restore_list:
         }
         else
         {
+          /*
+            Note that if you implement the capability of ALTER FUNCTION to
+            alter the body of the function, this command should be made to
+            follow the restrictions that log-bin-trust-function-creators=0
+            already puts on CREATE FUNCTION.
+          */
           if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
             result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
           else
@@ -4394,9 +4412,11 @@ end_with_restore_list:
       char *db, *name;
 
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	sp= sp_find_procedure(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
       else
-	sp= sp_find_function(thd, lex->spname);
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
       mysql_reset_errors(thd, 0);
       if (sp)
       {
@@ -4524,6 +4544,33 @@ end_with_restore_list:
 					 lex->wild->ptr() : NullS));
       break;
     }
+#ifndef DBUG_OFF
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+    {
+      sp_head *sp;
+
+      if (lex->spname->m_name.length > NAME_LEN)
+      {
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+	goto error;
+      }
+      if (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
+        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+                            &thd->sp_proc_cache, FALSE);
+      else
+        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
+                            &thd->sp_func_cache, FALSE);
+      if (!sp || !sp->show_routine_code(thd))
+      {
+        /* We don't distinguish between errors for now */
+        my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
+        goto error;
+      }
+      break;
+    }
+#endif // ifndef DBUG_OFF
   case SQLCOM_CREATE_VIEW:
     {
       if (end_active_trans(thd))
@@ -4542,7 +4589,7 @@ end_with_restore_list:
         buff.append(command[thd->lex->create_view_mode].str,
                     command[thd->lex->create_view_mode].length);
         view_store_options(thd, first_table, &buff);
-        buff.append("VIEW ", 5);
+        buff.append(STRING_WITH_LEN("VIEW "));
         /* Test if user supplied a db (ie: we did not use thd->db) */
         if (first_table->db != thd->db && first_table->db[0])
         {
@@ -4552,7 +4599,7 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
-        buff.append(" AS ", 4);
+        buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
         Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
@@ -4795,11 +4842,15 @@ end_with_restore_list:
 
 
   /*
-    The return value for ROW_COUNT() is "implementation dependent" if
-    the statement is not DELETE, INSERT or UPDATE (or a CALL executing
-    such a statement), but -1 is what JDBC and ODBC wants.
+    The return value for ROW_COUNT() is "implementation dependent" if the
+    statement is not DELETE, INSERT or UPDATE, but -1 is what JDBC and ODBC
+    wants.
+
+    We do not change the value for a CALL or EXECUTE statement, so the value
+    generated by the last called (or executed) statement is preserved.
    */
-  if (lex->sql_command != SQLCOM_CALL && uc_update_queries[lex->sql_command]<2)
+  if (lex->sql_command != SQLCOM_CALL && lex->sql_command != SQLCOM_EXECUTE &&
+      uc_update_queries[lex->sql_command]<2)
     thd->row_count_func= -1;
   goto cleanup;
 
@@ -5030,7 +5081,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables != first_not_own_table; tables= tables->next_global)
+  for (; tables && tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -5240,6 +5291,7 @@ bool check_stack_overrun(THD *thd, long margin,
 			 char *buf __attribute__((unused)))
 {
   long stack_used;
+  DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
       (long) (thread_stack - margin))
   {
@@ -6156,10 +6208,14 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (check_table_name(table->table.str,table->table.length) ||
-      table->db.str && check_db_name(table->db.str))
+  if (check_table_name(table->table.str,table->table.length))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+    DBUG_RETURN(0);
+  }
+  if (table->db.str && check_db_name(table->db.str))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
     DBUG_RETURN(0);
   }
 
@@ -6689,7 +6745,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       allocate temporary THD for execution of acl_reload()/grant_reload().
     */
     if (!thd && (thd= (tmp_thd= new THD)))
+    {
+      thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
+    }
     if (thd)
     {
       (void)acl_reload(thd);
@@ -7434,32 +7493,81 @@ Item *negate_expression(THD *thd, Item *expr)
   return new Item_func_not(expr);
 }
 
-
 /*
-  Assign as view definer current user
-
+  Set the specified definer to the default value, which is the current user in
+  the thread. Also check that the current user satisfies to the definers
+  requirements.
+ 
   SYNOPSIS
-    default_view_definer()
-    sctx		current security context
-    definer             structure where it should be assigned
-
+    get_default_definer()
+    thd       [in] thread handler
+    definer   [out] definer
+ 
   RETURN
-    FALSE   OK
-    TRUE    Error
+    error status, that is:
+      - FALSE -- on success;
+      - TRUE -- on error (current user can not be a definer).
 */
-
-bool default_view_definer(Security_context *sctx, st_lex_user *definer)
+ 
+bool get_default_definer(THD *thd, LEX_USER *definer)
 {
-  definer->user.str= sctx->priv_user;
-  definer->user.length= strlen(sctx->priv_user);
+  /* Check that current user has non-empty host name. */
 
-  if (!*sctx->priv_host)
+  const Security_context *sctx= thd->security_ctx;
+
+  if (sctx->priv_host[0] == 0)
   {
-    my_error(ER_NO_VIEW_USER, MYF(0));
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
     return TRUE;
   }
 
-  definer->host.str= sctx->priv_host;
-  definer->host.length= strlen(sctx->priv_host);
+  /* Fill in. */
+
+  definer->user.str= (char *) sctx->priv_user;
+  definer->user.length= strlen(definer->user.str);
+
+  definer->host.str= (char *) sctx->priv_host;
+  definer->host.length= strlen(definer->host.str);
+
   return FALSE;
+}
+
+
+/*
+  Create definer with the given user and host names. Also check that the user
+  and host names satisfy definers requirements.
+
+  SYNOPSIS
+    create_definer()
+    thd         [in] thread handler
+    user_name   [in] user name
+    host_name   [in] host name
+
+  RETURN
+    On success, return a valid pointer to the created and initialized
+    LEX_STRING, which contains definer information.
+    On error, return 0.
+*/
+
+LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
+{
+  LEX_USER *definer;
+
+  /* Check that specified host name is valid. */
+
+  if (host_name->length == 0)
+  {
+    my_error(ER_MALFORMED_DEFINER, MYF(0));
+    return 0;
+  }
+
+  /* Create and initialize. */
+
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof (LEX_USER))))
+    return 0;
+
+  definer->user= *user_name;
+  definer->host= *host_name;
+
+  return definer;
 }

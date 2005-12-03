@@ -199,7 +199,7 @@ public:
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
-    { DBUG_ASSERT(fixed == 1); return (longlong) val_real(); }
+    { DBUG_ASSERT(fixed == 1); return (longlong) rint(val_real()); }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec()
   { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
@@ -943,7 +943,7 @@ class Item_func_udf_float :public Item_udf_func
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
-    return (longlong) Item_func_udf_float::val_real();
+    return (longlong) rint(Item_func_udf_float::val_real());
   }
   my_decimal *val_decimal(my_decimal *dec_buf)
   {
@@ -1129,7 +1129,6 @@ class user_var_entry;
 class Item_func_set_user_var :public Item_func
 {
   enum Item_result cached_result_type;
-  LEX_STRING name;
   user_var_entry *entry;
   char buffer[MAX_FIELD_WIDTH];
   String value;
@@ -1146,6 +1145,7 @@ class Item_func_set_user_var :public Item_func
   
 
 public:
+  LEX_STRING name; // keep it public
   Item_func_set_user_var(LEX_STRING a,Item *b)
     :Item_func(b), cached_result_type(INT_RESULT), name(a)
   {}
@@ -1168,10 +1168,10 @@ public:
 
 class Item_func_get_user_var :public Item_func
 {
-  LEX_STRING name;
   user_var_entry *var_entry;
 
 public:
+  LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
     Item_func(), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }

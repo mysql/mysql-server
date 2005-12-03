@@ -976,7 +976,7 @@ Dbtup::disk_page_undo_alloc(Page* page, const Local_key* key,
   
   Logfile_client::Change c[1] = {{ &alloc, sizeof(alloc) >> 2 } };
   
-  Uint64 lsn= lsman.add_entry<1>(c);
+  Uint64 lsn= lsman.add_entry(c, 1);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;
@@ -1005,7 +1005,7 @@ Dbtup::disk_page_undo_update(Page* page, const Local_key* key,
 
   ndbassert(4*(3 + sz + 1) == (sizeof(update) + 4*sz - 4));
     
-  Uint64 lsn= lsman.add_entry<3>(c);
+  Uint64 lsn= lsman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;
@@ -1034,7 +1034,7 @@ Dbtup::disk_page_undo_free(Page* page, const Local_key* key,
   
   ndbassert(4*(3 + sz + 1) == (sizeof(free) + 4*sz - 4));
   
-  Uint64 lsn= lsman.add_entry<3>(c);
+  Uint64 lsn= lsman.add_entry(c, 3);
   m_pgman.update_lsn(* key, lsn);
 
   return lsn;

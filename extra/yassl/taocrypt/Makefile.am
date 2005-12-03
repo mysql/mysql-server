@@ -1,2 +1,2 @@
 SUBDIRS = src
-EXTRA_DIST = taocrypt.dsw taocrypt.dsp
+EXTRA_DIST = taocrypt.dsw taocrypt.dsp taocrypt.vcproj

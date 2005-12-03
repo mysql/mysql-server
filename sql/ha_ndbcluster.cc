@@ -56,7 +56,7 @@ static const char share_prefix[]= "./";
 static int ndbcluster_close_connection(THD *thd);
 static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
-static handler* ndbcluster_create_handler(TABLE *table);
+static handler* ndbcluster_create_handler(TABLE_SHARE *table);
 
 handlerton ndbcluster_hton = {
   "ndbcluster",
@@ -91,7 +91,7 @@ handlerton ndbcluster_hton = {
   HTON_NO_FLAGS
 };
 
-static handler *ndbcluster_create_handler(TABLE *table)
+static handler *ndbcluster_create_handler(TABLE_SHARE *table)
 {
   return new ha_ndbcluster(table);
 }
@@ -100,6 +100,8 @@ static handler *ndbcluster_create_handler(TABLE *table)
 
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
+
+#define NDB_INVALID_SCHEMA_OBJECT 241
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
@@ -368,7 +370,21 @@ Thd_ndb::Thd_ndb()
 Thd_ndb::~Thd_ndb()
 {
   if (ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete ndb;
+  }
   ndb= NULL;
   changed_tables.empty();
 }
@@ -969,6 +985,10 @@ bool ha_ndbcluster::uses_blob_value()
   IMPLEMENTATION
     - check that frm-file on disk is equal to frm-file
       of table accessed in NDB
+
+  RETURN
+    0    ok
+    -2   Meta data has changed; Re-read data and try again
 */
 
 static int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
@@ -991,7 +1011,6 @@ int ha_ndbcluster::get_metadata(const char *path)
   const NDBTAB *tab;
   int error;
   bool invalidating_ndb_table= FALSE;
-
   DBUG_ENTER("get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
 
@@ -1037,7 +1056,7 @@ int ha_ndbcluster::get_metadata(const char *path)
                     memcmp(pack_data, tab->getFrmData(), pack_length)));
         DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
         DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
-        error= 3;
+        error= HA_ERR_TABLE_DEF_CHANGED;
         invalidating_ndb_table= FALSE;
       }
     }
@@ -1113,7 +1132,7 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
     m_index[i].type= idx_type;
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
+      strxnmov(unique_index_name, FN_LEN-1, index_name, unique_suffix, NullS);
       DBUG_PRINT("info", ("Created unique index name \'%s\' for index %d",
                           unique_index_name, i));
     }
@@ -1147,7 +1166,7 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
       if (error)
       {
         DBUG_PRINT("error", ("Failed to create index %u", i));
-        drop_table();
+        intern_drop_table();
         break;
       }
     }
@@ -1199,11 +1218,12 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 */
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
-  bool is_hash_index=  (table->key_info[inx].algorithm == HA_KEY_ALG_HASH);
-  if (inx == table->s->primary_key)
+  bool is_hash_index=  (table_share->key_info[inx].algorithm ==
+                        HA_KEY_ALG_HASH);
+  if (inx == table_share->primary_key)
     return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
 
-  return ((table->key_info[inx].flags & HA_NOSAME) ? 
+  return ((table_share->key_info[inx].flags & HA_NOSAME) ? 
           (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX) :
           ORDERED_INDEX);
 } 
@@ -1322,7 +1342,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
                                         bool all_parts) const 
 { 
   DBUG_ENTER("ha_ndbcluster::index_flags");
-  DBUG_PRINT("info", ("idx_no: %d", idx_no));
+  DBUG_PRINT("enter", ("idx_no: %u", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
   DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)] | 
               HA_KEY_SCAN_NOT_ROR);
@@ -3415,14 +3435,20 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
       }
-      if (m_table != (void *)tab || m_table_version < tab->getObjectVersion())
+      if (m_table_version < tab->getObjectVersion())
       {
         /*
-          The table has been altered, refresh the index list
+          The table has been altered, caller has to retry
         */
-        build_index_list(ndb, table, ILBP_OPEN);  
+        NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
+        DBUG_RETURN(ndb_to_mysql_error(&err));
+      }
+      if (m_table != (void *)tab)
+      {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
+        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+          DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
     }
@@ -3913,15 +3939,16 @@ int ha_ndbcluster::create(const char *name,
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
   char name2[FN_HEADLEN];
-  bool create_from_engine= test(info->table_options &
-                                HA_OPTION_CREATE_FROM_ENGINE);
-   
+  bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
+
   fn_format(name2, name, "", "",2);       // Remove the .frm extension
   set_dbname(name2);
   set_tabname(name2);    
 
+  table= form;
   if (create_from_engine)
   {
     /*
@@ -4039,7 +4066,7 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  partition_info *part_info= form->s->part_info;
+  partition_info *part_info= form->part_info;
   if (part_info)
   {
     int error;
@@ -4236,7 +4263,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   int res;
   if (h)
   {
-    res= h->drop_table();
+    res= h->intern_drop_table();
   }
   else
   {
@@ -4273,12 +4300,12 @@ int ha_ndbcluster::delete_table(const char *name)
   Drop table in NDB Cluster
  */
 
-int ha_ndbcluster::drop_table()
+int ha_ndbcluster::intern_drop_table()
 {
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
 
-  DBUG_ENTER("drop_table");
+  DBUG_ENTER("intern_drop_table");
   DBUG_PRINT("enter", ("Deleting %s", m_tabname));
   release_metadata();
   if (dict->dropTable(m_tabname))
@@ -4339,7 +4366,7 @@ ulonglong ha_ndbcluster::get_auto_increment()
                 HA_CAN_GEOMETRY | \
                 HA_CAN_BIT_FIELD
 
-ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
+ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   handler(&ndbcluster_hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
@@ -4436,18 +4463,24 @@ ha_ndbcluster::~ha_ndbcluster()
   Open a table for further use
   - fetch metadata for this table from NDB
   - check that table exists
+
+  RETURN
+    0    ok
+    < 0  Table has changed
 */
 
 int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
 {
   int res;
   KEY *key;
-  DBUG_ENTER("open");
-  DBUG_PRINT("enter", ("this: %d name: %s  mode: %d test_if_locked: %d",
-                       this, name, mode, test_if_locked));
+  DBUG_ENTER("ha_ndbcluster::open");
+  DBUG_PRINT("enter", ("name: %s  mode: %d  test_if_locked: %d",
+                       name, mode, test_if_locked));
   
-  // Setup ref_length to make room for the whole 
-  // primary key to be written in the ref variable
+  /*
+    Setup ref_length to make room for the whole 
+    primary key to be written in the ref variable
+  */
   
   if (table->s->primary_key != MAX_KEY) 
   {
@@ -4473,18 +4506,18 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   if (!res)
     info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-  if (table->s->part_info)
-  {
-    m_part_info= table->s->part_info;
-    if (!(m_part_info->part_type == HASH_PARTITION &&
-          m_part_info->list_of_part_fields &&
-          !is_sub_partitioned(m_part_info)))
-      m_use_partition_function= TRUE;
-  }
 
   DBUG_RETURN(res);
 }
 
+void ha_ndbcluster::set_part_info(partition_info *part_info)
+{
+  m_part_info= part_info;
+  if (!(m_part_info->part_type == HASH_PARTITION &&
+        m_part_info->list_of_part_fields &&
+        !is_sub_partitioned(m_part_info)))
+    m_use_partition_function= TRUE;
+}
 
 /*
   Close the table
@@ -4710,12 +4743,13 @@ int ndbcluster_drop_database_impl(const char *path)
   }
   // Drop any tables belonging to database
   char full_path[FN_REFLEN];
-  char *tmp= strxnmov(full_path, FN_REFLEN, share_prefix, dbname, "/", NullS);
+  char *tmp= strxnmov(full_path, FN_REFLEN-1, share_prefix, dbname, "/",
+                      NullS);
   ndb->setDatabaseName(dbname);
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    strxnmov(tmp, FN_REFLEN - (tmp - full_path), tabname, NullS);
+    strxnmov(tmp, FN_REFLEN - (tmp - full_path)-1, tabname, NullS);
     if (ha_ndbcluster::delete_table(0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -4782,7 +4816,7 @@ static int ndbcluster_find_all_files(THD *thd)
       if (ndbtab->getFrmLength() == 0)
         continue;
     
-      strxnmov(key, FN_LEN, mysql_data_home, "/",
+      strxnmov(key, FN_LEN-1, mysql_data_home, "/",
                elmt.database, "/", elmt.name, NullS);
       const void *data= 0, *pack_data= 0;
       uint length, pack_length;
@@ -4898,7 +4932,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     }
     
     // File is not in NDB, check for .ndb file with this name
-    (void)strxnmov(name, FN_REFLEN, 
+    (void)strxnmov(name, FN_REFLEN-1,
                    mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
     DBUG_PRINT("info", ("Check access for %s", name));
     if (access(name, F_OK))
@@ -4928,7 +4962,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     file_name= hash_element(&ndb_tables, i);
     if (!hash_search(&ok_tables, file_name, strlen(file_name)))
     {
-      strxnmov(name, sizeof(name),
+      strxnmov(name, sizeof(name)-1,
                mysql_data_home, "/", db, "/", file_name, reg_ext, NullS);
       if (access(name, F_OK))
       {
@@ -4974,7 +5008,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       files->push_back(thd->strdup(file_name)); 
   }
 
-  pthread_mutex_unlock(&LOCK_open);      
+  pthread_mutex_unlock(&LOCK_open);
   
   hash_free(&ok_tables);
   hash_free(&ndb_tables);
@@ -5118,7 +5152,21 @@ int ndbcluster_end(ha_panic_function type)
   (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   if (g_ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (g_ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete g_ndb;
+  }
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;
@@ -5142,11 +5190,13 @@ int ndbcluster_end(ha_panic_function type)
 void ndbcluster_print_error(int error, const NdbOperation *error_op)
 {
   DBUG_ENTER("ndbcluster_print_error");
-  TABLE tab;
+  TABLE_SHARE share;
   const char *tab_name= (error_op) ? error_op->getTableName() : "";
-  tab.alias= (char *) tab_name;
-  ha_ndbcluster error_handler(&tab);
-  tab.file= &error_handler;
+  share.db.str= (char*) "";
+  share.db.length= 0;
+  share.table_name.str= (char *) tab_name;
+  share.table_name.length= strlen(tab_name);
+  ha_ndbcluster error_handler(&share);
   error_handler.print_error(error, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -5398,11 +5448,11 @@ uint8 ha_ndbcluster::table_cache_type()
 uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
                          Uint64 *commit_count)
 {
-  DBUG_ENTER("ndb_get_commitcount");
-
   char name[FN_REFLEN];
   NDB_SHARE *share;
-  (void)strxnmov(name, FN_REFLEN, share_prefix, dbname, "/", tabname, NullS);
+  DBUG_ENTER("ndb_get_commitcount");
+
+  (void)strxnmov(name, FN_REFLEN-1, share_prefix, dbname, "/", tabname, NullS);
   DBUG_PRINT("enter", ("name: %s", name));
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
@@ -6038,7 +6088,7 @@ int ha_ndbcluster::write_ndb_file()
   DBUG_ENTER("write_ndb_file");
   DBUG_PRINT("enter", ("db: %s, name: %s", m_dbname, m_tabname));
 
-  (void)strxnmov(path, FN_REFLEN, 
+  (void)strxnmov(path, FN_REFLEN-1, 
                  mysql_data_home,"/",m_dbname,"/",m_tabname,ha_ndb_ext,NullS);
 
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
@@ -7040,9 +7090,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
           }
           else
           {
-            DBUG_PRINT("info", ("Was not expecting field from table %s(%s)",
-                                context->table->s->table_name, 
-                                field->table->s->table_name));
+            DBUG_PRINT("info", ("Was not expecting field from table %s (%s)",
+                                context->table->s->table_name.str, 
+                                field->table->s->table_name.str));
             context->supported= FALSE;
           }
           break;

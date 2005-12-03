@@ -59,7 +59,7 @@ struct Local_key
 
   Uint32 ref() const { return (m_page_no << MAX_TUPLES_BITS) | m_page_idx ;}
   
-  Local_key& operator= (Uint32 ref) { 
+  Local_key& assref (Uint32 ref) { 
     m_page_no =ref >> MAX_TUPLES_BITS;
     m_page_idx = ref & MAX_TUPLES_PER_PAGE;
     return *this;
