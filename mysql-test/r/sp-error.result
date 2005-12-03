@@ -768,7 +768,7 @@ BEGIN
 OPTIMIZE TABLE t1;
 RETURN 1;
 END|
-ERROR 0A000: OPTIMIZE TABLE is not allowed in stored procedures
+ERROR 0A000: Not allowed to return a result set from a function
 DROP FUNCTION IF EXISTS bug12995|
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN

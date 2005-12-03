@@ -72,7 +72,11 @@ sp_get_flags_for_command(LEX *lex)
     }
     /* fallthrough */
   case SQLCOM_ANALYZE:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_CHECKSUM:
+  case SQLCOM_CHECK:
   case SQLCOM_HA_READ:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
