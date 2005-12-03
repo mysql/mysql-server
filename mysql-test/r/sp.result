@@ -988,6 +988,10 @@ end|
 select f5(1)|
 f5(1)
 1
+select f5(2)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select f5(3)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 create function f6() returns int
 begin
 declare n int;
@@ -1035,6 +1039,12 @@ select * from v1|
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 create function f1() returns int
 return (select sum(data) from t1) + (select sum(data) from v1)|
+select f1()|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select * from v1|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select * from v2|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
 drop function f1|
 create function f1() returns int
 return (select sum(data) from t1)|
@@ -1053,7 +1063,7 @@ f0()
 select *, f0() from v0|
 f0()	f0()
 100	100
-lock tables t1 read, t1 as t11 read, mysql.proc read|
+lock tables t1 read, t1 as t11 read|
 select f3()|
 f3()
 1
@@ -1251,6 +1261,62 @@ drop procedure opp|
 drop procedure ip|
 show procedure status like '%p%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+drop table if exists fib|
+create table fib ( f bigint unsigned not null )|
+drop procedure if exists fib|
+create procedure fib(n int unsigned)
+begin
+if n > 1 then
+begin
+declare x, y bigint unsigned;
+declare c cursor for select f from fib order by f desc limit 2;
+open c;
+fetch c into y;
+fetch c into x;
+close c;
+insert into fib values (x+y);
+call fib(n-1);
+end;
+end if;
+end|
+set @@max_sp_recursion_depth= 20|
+insert into fib values (0), (1)|
+call fib(3)|
+select * from fib order by f asc|
+f
+0
+1
+1
+2
+delete from fib|
+insert into fib values (0), (1)|
+call fib(20)|
+select * from fib order by f asc|
+f
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+drop table fib|
+drop procedure fib|
+set @@max_sp_recursion_depth= 0|
 drop procedure if exists bar|
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
@@ -1479,6 +1545,52 @@ select @x2|
 @x2
 2
 drop procedure bug2260|
+drop procedure if exists bug2267_1|
+create procedure bug2267_1()
+begin
+show procedure status;
+end|
+drop procedure if exists bug2267_2|
+create procedure bug2267_2()
+begin
+show function status;
+end|
+drop procedure if exists bug2267_3|
+create procedure bug2267_3()
+begin
+show create procedure bug2267_1;
+end|
+drop procedure if exists bug2267_4|
+drop function if exists bug2267_4|
+create procedure bug2267_4()
+begin
+show create function bug2267_4;
+end|
+create function bug2267_4() returns int return 100|
+call bug2267_1()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_2()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_3()|
+Procedure	sql_mode	Create Procedure
+bug2267_1		CREATE PROCEDURE `bug2267_1`()
+begin
+show procedure status;
+end
+call bug2267_4()|
+Function	sql_mode	Create Function
+bug2267_4		CREATE FUNCTION `bug2267_4`() RETURNS int(11)
+return 100
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+drop function bug2267_4|
 drop procedure if exists bug2227|
 create procedure bug2227(x int)
 begin
@@ -1490,6 +1602,18 @@ call bug2227(9)|
 1.3	x	y	42	z
 1.3	9	2.6	42	zzz
 drop procedure bug2227|
+drop procedure if exists bug2614|
+create procedure bug2614()
+begin
+drop table if exists t3;
+create table t3 (id int default '0' not null);
+insert into t3 select 12;
+insert into t3 select * from t3;
+end|
+call bug2614()|
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
 drop function if exists bug2674|
 create function bug2674() returns int
 return @@sort_buffer_size|
@@ -1550,7 +1674,7 @@ drop procedure bug2776_2|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
-Warning	1264	Out of range value adjusted for column 's1' at row 1
+Warning	1264	Out of range value for column 's1' at row 1
 drop procedure if exists bug2780|
 create procedure bug2780()
 begin
@@ -3417,6 +3541,9 @@ Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
 drop table if exists t3|
 drop procedure if exists bug7049_1|
 drop procedure if exists bug7049_2|
@@ -3617,4 +3744,359 @@ count(*)
 drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
+drop function if exists bug14723|
+drop procedure if exists bug14723|
+/*!50003 create function bug14723()
+returns bigint(20)
+main_loop: begin
+return 42;
+end */;;
+show create function bug14723;;
+Function	sql_mode	Create Function
+bug14723		CREATE FUNCTION `bug14723`() RETURNS bigint(20)
+main_loop: begin
+return 42;
+end
+select bug14723();;
+bug14723()
+42
+/*!50003 create procedure bug14723()
+main_loop: begin
+select 42;
+end */;;
+show create procedure bug14723;;
+Procedure	sql_mode	Create Procedure
+bug14723		CREATE PROCEDURE `bug14723`()
+main_loop: begin
+select 42;
+end
+call bug14723();;
+42
+42
+drop function bug14723|
+drop procedure bug14723|
+create procedure bug14845()
+begin
+declare a char(255);
+declare done int default 0;
+declare c cursor for select count(*) from t1 where 1 = 0;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a;
+if not done then
+select a;
+end if;
+until done end repeat;
+close c;
+end|
+call bug14845()|
+a
+0
+drop procedure bug14845|
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+CREATE PROCEDURE `bug13549_2`()
+begin
+call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+declare done int default 0;
+set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+create function bug10100f(prm int) returns int
+begin
+if prm > 1 then
+return prm * bug10100f(prm - 1);
+end if;
+return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+set res = res * prm;
+if prm > 1 then
+call bug10100p(prm - 1, res);  
+end if;
+end|
+create procedure bug10100t(prm int)
+begin
+declare res int;
+set res = 1;
+call bug10100p(prm, res);
+select res;
+end|
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+if level < lim then
+update t3 set a=level;
+FLUSH TABLES;
+call bug10100pt(level+1, lim);
+else
+select * from t3;
+end if;
+end|
+create procedure bug10100pv(level int, lim int)
+begin
+if level < lim then
+update v1 set a=level;
+FLUSH TABLES;
+call bug10100pv(level+1, lim);
+else
+select * from v1;
+end if;
+end|
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+if level < lim then
+select level;
+prepare stmt1 from "update t3 set a=a+2";
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+deallocate prepare stmt1;
+execute stmt2;
+select * from t3;
+call bug10100pd(level+1, lim);
+else
+execute stmt2;
+end if;
+end|
+create procedure bug10100pc(level int, lim int)
+begin
+declare lv int;
+declare c cursor for select a from t3;
+open c;
+if level < lim then
+select level;
+fetch c into lv;
+select lv;
+update t3 set a=level+lv;
+FLUSH TABLES;
+call bug10100pc(level+1, lim);
+else
+select * from t3;
+end if;
+close c;
+end|
+set @@max_sp_recursion_depth=4|
+select @@max_sp_recursion_depth|
+@@max_sp_recursion_depth
+4
+select bug10100f(3)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+select bug10100f(6)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+call bug10100t(5)|
+res
+120
+call bug10100pt(1,5)|
+a
+4
+call bug10100pv(1,5)|
+a
+4
+update t3 set a=1|
+call bug10100pd(1,5)|
+level
+1
+a
+7
+a
+7
+level
+2
+a
+13
+a
+13
+level
+3
+a
+19
+a
+19
+level
+4
+a
+25
+a
+25
+a
+25
+select * from t3|
+a
+25
+update t3 set a=1|
+call bug10100pc(1,5)|
+level
+1
+lv
+1
+level
+2
+lv
+2
+level
+3
+lv
+4
+level
+4
+lv
+7
+a
+11
+select * from t3|
+a
+11
+set @@max_sp_recursion_depth=0|
+select @@max_sp_recursion_depth|
+@@max_sp_recursion_depth
+0
+select bug10100f(5)|
+ERROR HY000: Recursive stored functions and triggers are not allowed.
+call bug10100t(5)|
+ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine bug10100p
+set @@max_sp_recursion_depth=255|
+set @var=1|
+call bug10100p(255, @var)|
+call bug10100pt(1,255)|
+call bug10100pv(1,255)|
+call bug10100pd(1,255)|
+call bug10100pc(1,255)|
+set @@max_sp_recursion_depth=0|
+deallocate prepare stmt2|
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+drop procedure if exists bug13729|
+drop table if exists t3|
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (1),(2)|
+create procedure bug13729()
+begin
+declare continue handler for sqlexception select 55;
+update t3 set s1 = 1;
+end|
+call bug13729()|
+55
+55
+select * from t3|
+s1
+1
+2
+drop procedure bug13729|
+drop table t3|
+drop procedure if exists bug14643_1|
+drop procedure if exists bug14643_2|
+create procedure bug14643_1()
+begin
+declare continue handler for sqlexception select 'boo' as 'Handler';
+begin
+declare v int default x;
+if v = 1 then
+select 1;
+else
+select 2;
+end if;
+end;
+end|
+create procedure bug14643_2()
+begin
+declare continue handler for sqlexception select 'boo' as 'Handler';
+case x
+when 1 then
+select 1;
+else
+select 2;
+end case;
+end|
+call bug14643_1()|
+Handler
+boo
+2
+2
+call bug14643_2()|
+Handler
+boo
+2
+2
+drop procedure bug14643_1|
+drop procedure bug14643_2|
+drop procedure if exists bug14304|
+drop table if exists t3, t4|
+create table t3(a int primary key auto_increment)|
+create table t4(a int primary key auto_increment)|
+create procedure bug14304()
+begin
+insert into t3 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 set a=null;
+insert into t4 select null as a;
+insert into t3 set a=null;
+insert into t3 set a=null;
+select * from t3;
+end|
+call bug14304()|
+a
+1
+2
+3
+drop procedure bug14304|
+drop table t3, t4|
+drop procedure if exists bug14376|
+create procedure bug14376()
+begin
+declare x int default x;
+end|
+call bug14376()|
+ERROR 42S22: Unknown column 'x' in 'field list'
+drop procedure bug14376|
+create procedure bug14376()
+begin
+declare x int default 42;
+begin
+declare x int default x;
+select x;
+end;
+end|
+call bug14376()|
+x
+42
+drop procedure bug14376|
+create procedure bug14376(x int)
+begin
+declare x int default x;
+select x;
+end|
+call bug14376(4711)|
+x
+4711
+drop procedure bug14376|
 drop table t1,t2;

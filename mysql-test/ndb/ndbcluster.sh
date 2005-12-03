@@ -51,12 +51,15 @@ stop_ndb=
 initial_ndb=
 status_ndb=
 ndb_diskless=0
+ndbd_nodes=2
 
 ndb_no_ord=512
+ndb_no_attr=2048
 ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 
+VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
@@ -76,14 +79,17 @@ while test $# -gt 0; do
     --debug*)
      flags_ndb="$flags_ndb $1"
      ;;
+    --ndbd-nodes=*)
+     ndbd_nodes=`echo "$1" | sed -e "s;--ndbd-nodes=;;"`
+     ;;
     --status)
      status_ndb=1
      ;;
     --small)
-     ndb_no_ord=128
-     ndb_con_op=10000
-     ndb_dmem=40M
-     ndb_imem=12M
+     ndb_no_ord=32
+     ndb_con_op=5000
+     ndb_dmem=10M
+     ndb_imem=1M
      ;;
     --diskless)
      ndb_diskless=1
@@ -106,6 +112,9 @@ while test $# -gt 0; do
     --ndbd-extra-opts=*)
      NDBD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndbd-extra-opts=;;"`
      ;;
+    --verbose=*)
+     VERBOSE=`echo "$1" | sed -e "s;--verbose=;;"`
+     ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -114,9 +123,10 @@ while test $# -gt 0; do
 done
 
 fs_ndb="$fsdir/ndbcluster-$port"
+config_ini=ndb/ndb_config_${ndbd_nodes}_node.ini
 
 NDB_HOME=
-if [ ! -x "$fsdir" ]; then
+if [ ! -d "$fsdir" ]; then
   echo "$fsdir missing"
   exit 1
 fi
@@ -130,6 +140,10 @@ if [ ! -x "$exec_mgmtsrvr" ]; then
 fi
 if [ ! -x "$exec_waiter" ]; then
   echo "$exec_waiter missing"
+  exit 1
+fi
+if [ ! -f "$config_ini" ]; then
+  echo "$config_ini missing, unsupported number of nodes"
   exit 1
 fi
 
@@ -183,6 +197,7 @@ fi
 if [ $initial_ndb ] ; then
   rm -rf $fs_ndb/ndb_* 2>&1 | cat > /dev/null
   sed \
+    -e s,"CHOOSE_MaxNoOfAttributes","$ndb_no_attr",g \
     -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
     -e s,"CHOOSE_DataMemory","$ndb_dmem",g \
@@ -191,7 +206,7 @@ if [ $initial_ndb ] ; then
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
-    < ndb/ndb_config_2_node.ini \
+    < "$config_ini" \
     > "$fs_ndb/config.ini"
 fi
 
@@ -202,7 +217,7 @@ if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
-if sleep_until_file_created $fs_ndb/ndb_3.pid 120
+if sleep_until_file_created $fs_ndb/ndb_`expr $ndbd_nodes + 1`.pid 120
 then :; else
   exit 1
 fi
@@ -210,38 +225,43 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
-echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_1.pid 120
-then :; else
-  stop_default_ndbcluster
-  exit 1
-fi
-cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
-
-# Start database node 
-
-echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-if sleep_until_file_created $fs_ndb/ndb_2.pid 120
-then :; else
-  stop_default_ndbcluster
-  exit 1
-fi
-cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
+id=1
+while [ $id -le $ndbd_nodes ]
+do
+  if [ `expr $VERBOSE \> 1` = 1 ] ; then
+    echo "Starting ndbd $id($ndbd_nodes)"
+  fi
+  ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
+  if sleep_until_file_created $fs_ndb/ndb_${id}.pid 120
+  then :; else
+    stop_default_ndbcluster
+    exit 1
+  fi
+  cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
+  id=`expr $id + 1`
+done
 
 # test if Ndb Cluster starts properly
 
-echo "Waiting for started..."
-if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
-  echo "Ndbcluster startup failed"
+if [ `expr $VERBOSE \> 1` = 1 ] ; then
+  echo "Waiting for started..."
+fi
+if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK" > /dev/null 2>&1 ; then :; else
+  if [ `expr $VERBOSE \> 0` = 1 ] ; then
+    echo "Ndbcluster startup failed"
+  fi
   stop_default_ndbcluster
   exit 1
+fi
+if [ `expr $VERBOSE \> 1` = 1 ] ; then
+  echo "Ok"
 fi
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
-status_ndbcluster
+if [ `expr $VERBOSE \> 2` = 1 ] ; then
+  status_ndbcluster
+fi
 }
 
 status_ndbcluster() {

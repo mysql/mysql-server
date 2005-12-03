@@ -6,6 +6,37 @@ flush table t1;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+unlock tables;
+lock table t1 read;
+lock table t1 read;
+ flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+select * from t1;
+a
+1
+unlock tables;
+lock table t1 write;
+ lock table t1 read;
+flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+unlock tables;
+lock table t1 read;
+ lock table t1 write;
+flush table t1;
+select * from t1;
+a
+1
+unlock tables;
+unlock tables;
+select * from t1;
+a
+1
 drop table t1;
 create table t1(table_id char(20) primary key);
 create table t2(table_id char(20) primary key);

@@ -1211,15 +1211,13 @@ begin
   end if;
 end|
 select f5(1)|
-# This should generate an error about insuficient number of tables locked
-# Now this crash server
---disable_parsing # until bug#11394 fix
---error 1100
+# Since currently recursive functions are disallowed ER_SP_NO_RECURSION
+# error will be returned, once we will allow them error about
+# insufficient number of locked tables will be returned instead.
+--error ER_SP_NO_RECURSION
 select f5(2)|
-# But now it simply miserably fails because we are trying to use the same
-# lex on the next iteration :/ It should generate some error too...
+--error ER_SP_NO_RECURSION
 select f5(3)|
---enable_parsing
 
 # OTOH this should work 
 create function f6() returns int
@@ -1265,13 +1263,12 @@ select * from v1|
 # views and functions ?
 create function f1() returns int
   return (select sum(data) from t1) + (select sum(data) from v1)|
-# This queries will crash server because we can't use LEX in
-# reenterable fashion yet. Patch disabling recursion will heal this.
---disable_parsing
+--error ER_SP_NO_RECURSION
 select f1()|
+--error ER_SP_NO_RECURSION
 select * from v1|
+--error ER_SP_NO_RECURSION
 select * from v2|
---enable_parsing
 # Back to the normal cases
 drop function f1|
 create function f1() returns int
@@ -1289,9 +1286,7 @@ select *, f0() from v0|
 #
 # Let us test how well prelocking works with explicit LOCK TABLES.
 #
-# Nowdays we have to lock mysql.proc to be able to read SP definitions.
-# But Monty was going to fix this.
-lock tables t1 read, t1 as t11 read, mysql.proc read|
+lock tables t1 read, t1 as t11 read|
 # These should work well
 select f3()|
 select id, f3() from t1 as t11|
@@ -1481,9 +1476,6 @@ show procedure status like '%p%'|
 
 # Fibonacci, for recursion test. (Yet Another Numerical series :)
 #
-# This part of test is disabled until we implement support for
-# recursive stored procedures.
---disable_parsing
 --disable_warnings
 drop table if exists fib|
 --enable_warnings
@@ -1512,6 +1504,9 @@ begin
   end if;
 end|
 
+# Enable recursion
+set @@max_sp_recursion_depth= 20|
+
 # Minimum test: recursion of 3 levels
 
 insert into fib values (0), (1)|
@@ -1531,7 +1526,7 @@ call fib(20)|
 select * from fib order by f asc|
 drop table fib|
 drop procedure fib|
---enable_parsing
+set @@max_sp_recursion_depth= 0|
 
 #
 # Comment & suid
@@ -1800,16 +1795,8 @@ select @x2|
 drop procedure bug2260|
 
 #
-# BUG#2267
+# BUG#2267 "Lost connect if stored procedure has SHOW FUNCTION STATUS"
 #
-# NOTE: This test case will be fixed as soon as Monty
-#       will allow to open mysql.proc table under LOCK TABLES
-#       without mentioning in lock list.
-#       
-# FIXME: Other solution would be to use preopened proc table
-#        instead of opening it anew.
-# 
---disable_parsing
 --disable_warnings
 drop procedure if exists bug2267_1|
 --enable_warnings
@@ -1836,11 +1823,13 @@ end|
 
 --disable_warnings
 drop procedure if exists bug2267_4|
+drop function if exists bug2267_4|
 --enable_warnings
 create procedure bug2267_4()
 begin
-  show create function fac;
+  show create function bug2267_4;
 end|
+create function bug2267_4() returns int return 100|
 
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 call bug2267_1()|
@@ -1853,7 +1842,7 @@ drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
---enable_parsing
+drop function bug2267_4|
 
 #
 # BUG#2227
@@ -1873,23 +1862,16 @@ call bug2227(9)|
 drop procedure bug2227|
 
 #
-# BUG#2614
+# BUG#2614 "Stored procedure with INSERT ... SELECT that does not
+#           contain any tables crashes server"
 #
-# QQ The second insert doesn't work with temporary tables (it was an
-# QQ ordinary table before we changed the locking scheme). It results
-# QQ in an error: 1137: Can't reopen table: 't3'
-# QQ which is a known limit with temporary tables.
-# QQ For this reason we can't run this test any more (i.e., if we modify
-# QQ it, it's no longer a test case for the bug), but we keep it here
-# QQ anyway, for tracability.
---disable_parsing
 --disable_warnings
 drop procedure if exists bug2614|
 --enable_warnings
 create procedure bug2614()
 begin
-  drop temporary table if exists t3;
-  create temporary table t3 (id int default '0' not null);
+  drop table if exists t3;
+  create table t3 (id int default '0' not null);
   insert into t3 select 12;
   insert into t3 select * from t3;
 end|
@@ -1898,9 +1880,8 @@ end|
 call bug2614()|
 --enable_warnings
 call bug2614()|
-drop temporary table t3|
+drop table t3|
 drop procedure bug2614|
---enable_parsing
 
 #
 # BUG#2674
@@ -4291,6 +4272,9 @@ call bug12589_1()|
 # No warnings here
 call bug12589_2()|
 call bug12589_3()|
+drop procedure bug12589_1|
+drop procedure bug12589_2|
+drop procedure bug12589_3|
 
 #
 # BUG#7049: Stored procedure CALL errors are ignored
@@ -4540,6 +4524,381 @@ select count(*) from t4|
 drop table t3, t4|
 drop procedure bug14210|
 set @@session.max_heap_table_size=default|
+
+
+#
+# BUG#1473: Dumping of stored functions seems to cause corruption in
+#           the function body
+#
+--disable_warnings
+drop function if exists bug14723|
+drop procedure if exists bug14723|
+--enable_warnings
+
+delimiter ;;|
+/*!50003 create function bug14723()
+ returns bigint(20)
+main_loop: begin
+  return 42;
+end */;;
+show create function bug14723;;
+select bug14723();;
+
+/*!50003 create procedure bug14723()
+main_loop: begin
+  select 42;
+end */;;
+show create procedure bug14723;;
+call bug14723();;
+
+delimiter |;;
+
+drop function bug14723|
+drop procedure bug14723|
+
+#
+# Bug#14845 "mysql_stmt_fetch returns MYSQL_NO_DATA when COUNT(*) is 0"
+# Check that when fetching from a cursor, COUNT(*) works properly.
+#
+create procedure bug14845()
+begin
+  declare a char(255);
+  declare done int default 0;
+  declare c cursor for select count(*) from t1 where 1 = 0;
+  declare continue handler for sqlstate '02000' set done = 1;
+  open c;
+  repeat
+    fetch c into a;
+    if not done then
+      select a;
+    end if;
+  until done end repeat;
+  close c;
+end|
+call bug14845()|
+drop procedure bug14845|
+
+#
+# BUG#13549 "Server crash with nested stored procedures".
+# Server should not crash when during execution of stored procedure
+# we have to parse trigger/function definition and this new trigger/
+# function has more local variables declared than invoking stored
+# procedure and last of these variables is used in argument of NOT
+# operator.
+#
+--disable_warnings
+drop procedure if exists bug13549_1|
+drop procedure if exists bug13549_2|
+--enable_warnings
+CREATE PROCEDURE `bug13549_2`()
+begin
+  call bug13549_1();
+end|
+CREATE PROCEDURE `bug13549_1`()
+begin
+  declare done int default 0;
+  set done= not done;
+end|
+CALL bug13549_2()|
+drop procedure bug13549_2|
+drop procedure bug13549_1|
+
+#
+# BUG#10100: function (and stored procedure?) recursivity problem
+#
+--disable_warnings
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+--enable_warnings
+# routines with simple recursion
+create function bug10100f(prm int) returns int
+begin
+  if prm > 1 then
+    return prm * bug10100f(prm - 1);
+  end if;
+  return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+  set res = res * prm;
+  if prm > 1 then
+    call bug10100p(prm - 1, res);  
+  end if;
+end|
+create procedure bug10100t(prm int)
+begin
+  declare res int;
+  set res = 1;
+  call bug10100p(prm, res);
+  select res;
+end|
+
+# a procedure which use tables and recursion
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+  if level < lim then
+    update t3 set a=level;
+    FLUSH TABLES;
+    call bug10100pt(level+1, lim);
+  else
+    select * from t3;
+  end if;
+end|
+# view & recursion
+create procedure bug10100pv(level int, lim int)
+begin
+  if level < lim then
+    update v1 set a=level;
+    FLUSH TABLES;
+    call bug10100pv(level+1, lim);
+  else
+    select * from v1;
+  end if;
+end|
+# dynamic sql & recursion
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+  if level < lim then
+    select level;
+    prepare stmt1 from "update t3 set a=a+2";
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    deallocate prepare stmt1;
+    execute stmt2;
+    select * from t3;
+    call bug10100pd(level+1, lim);
+  else
+    execute stmt2;
+  end if;
+end|
+# cursor & recursion
+create procedure bug10100pc(level int, lim int)
+begin
+  declare lv int;
+  declare c cursor for select a from t3;
+  open c;
+  if level < lim then
+    select level;
+    fetch c into lv;
+    select lv;
+    update t3 set a=level+lv;
+    FLUSH TABLES;
+    call bug10100pc(level+1, lim);
+  else
+    select * from t3;
+  end if;
+  close c;
+end|
+
+set @@max_sp_recursion_depth=4|
+select @@max_sp_recursion_depth|
+-- error ER_SP_NO_RECURSION
+select bug10100f(3)|
+-- error ER_SP_NO_RECURSION
+select bug10100f(6)|
+call bug10100t(5)|
+call bug10100pt(1,5)|
+call bug10100pv(1,5)|
+update t3 set a=1|
+call bug10100pd(1,5)|
+select * from t3|
+update t3 set a=1|
+call bug10100pc(1,5)|
+select * from t3|
+set @@max_sp_recursion_depth=0|
+select @@max_sp_recursion_depth|
+-- error ER_SP_NO_RECURSION
+select bug10100f(5)|
+-- error ER_SP_RECURSION_LIMIT
+call bug10100t(5)|
+
+#end of the stack checking
+set @@max_sp_recursion_depth=255|
+set @var=1|
+#disable log because error about stack overrun contains numbers which
+#depend on a system
+-- disable_result_log
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100p(255, @var)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pt(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pv(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pd(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pc(1,255)|
+-- enable_result_log
+set @@max_sp_recursion_depth=0|
+
+deallocate prepare stmt2|
+
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+
+#
+# BUG#13729: Stored procedures: packet error after exception handled
+#
+--disable_warnings
+drop procedure if exists bug13729|
+drop table if exists t3|
+--enable_warnings
+
+create table t3 (s1 int, primary key (s1))|
+
+insert into t3 values (1),(2)|
+
+create procedure bug13729()
+begin
+  declare continue handler for sqlexception select 55;
+
+  update t3 set s1 = 1;
+end|
+
+call bug13729()|
+# Used to cause Packets out of order
+select * from t3|
+
+drop procedure bug13729|
+drop table t3|
+
+#
+# BUG#14643: Stored Procedure: Continuing after failed var. initialization
+#            crashes server.
+#
+--disable_warnings
+drop procedure if exists bug14643_1|
+drop procedure if exists bug14643_2|
+--enable_warnings
+
+create procedure bug14643_1()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  begin
+    declare v int default x;
+
+    if v = 1 then
+      select 1;
+    else
+      select 2;
+    end if;
+  end;
+end|
+
+create procedure bug14643_2()
+begin
+  declare continue handler for sqlexception select 'boo' as 'Handler';
+
+  case x
+  when 1 then
+    select 1;
+  else
+    select 2;
+  end case;
+end|
+
+call bug14643_1()|
+call bug14643_2()|
+
+drop procedure bug14643_1|
+drop procedure bug14643_2|
+
+#
+# BUG#14304: auto_increment field incorrect set in SP
+#
+--disable_warnings
+drop procedure if exists bug14304|
+drop table if exists t3, t4|
+--enable_warnings
+
+create table t3(a int primary key auto_increment)|
+create table t4(a int primary key auto_increment)|
+
+create procedure bug14304()
+begin
+  insert into t3 set a=null;
+  insert into t4 set a=null;
+  insert into t4 set a=null;
+  insert into t4 set a=null;
+  insert into t4 set a=null;
+  insert into t4 set a=null;
+  insert into t4 select null as a;
+  
+  insert into t3 set a=null;
+  insert into t3 set a=null;
+  
+  select * from t3;
+end|
+
+call bug14304()|
+
+drop procedure bug14304|
+drop table t3, t4|
+
+#
+# BUG#14376: MySQL crash on scoped variable (re)initialization
+#
+--disable_warnings
+drop procedure if exists bug14376|
+--enable_warnings
+
+create procedure bug14376()
+begin
+  declare x int default x;
+end|
+
+# Not the error we want, but that's what we got for now...
+--error ER_BAD_FIELD_ERROR
+call bug14376()|
+drop procedure bug14376|
+
+create procedure bug14376()
+begin
+  declare x int default 42;
+
+  begin
+    declare x int default x;
+
+    select x;
+  end;
+end|
+
+call bug14376()|
+
+drop procedure bug14376|
+
+create procedure bug14376(x int)
+begin
+  declare x int default x;
+
+  select x;
+end|
+
+call bug14376(4711)|
+
+drop procedure bug14376|
+
+
 
 #
 # BUG#NNNN: New bug synopsis

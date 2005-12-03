@@ -478,7 +478,7 @@ class Thd_ndb
 class ha_ndbcluster: public handler
 {
  public:
-  ha_ndbcluster(TABLE *table);
+  ha_ndbcluster(TABLE_SHARE *table);
   ~ha_ndbcluster();
 
   int open(const char *name, int mode, uint test_if_locked);
@@ -534,6 +534,7 @@ class ha_ndbcluster: public handler
     return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
             HA_CAN_PARTITION_UNIQUE);
   }
+  void set_part_info(partition_info *part_info);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
@@ -620,7 +621,7 @@ private:
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
-  int drop_table();
+  int intern_drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);

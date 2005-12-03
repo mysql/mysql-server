@@ -146,6 +146,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     }
 
     thd->proc_info="System lock";
+    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     if (lock_external(thd, tables, count))
     {
       my_free((gptr) sql_lock,MYF(0));
@@ -153,6 +154,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       break;
     }
     thd->proc_info="Table lock";
+    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     thd->locked=1;
     rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks,
                                                      sql_lock->lock_count,
@@ -218,6 +220,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
   int lock_type,error;
   DBUG_ENTER("lock_external");
 
+  DBUG_PRINT("info", ("count %d", count));
   for (i=1 ; i <= count ; i++, tables++)
   {
     DBUG_ASSERT((*tables)->reginfo.lock_type >= TL_READ);
@@ -354,12 +357,15 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 {
   MYSQL_LOCK *locked;
   TABLE *write_lock_used;
+  DBUG_ENTER("mysql_lock_abort");
+
   if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
   {
     for (uint i=0; i < locked->lock_count; i++)
       thr_abort_locks(locked->locks[i]->lock);
     my_free((gptr) locked,MYF(0));
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -460,6 +466,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   THR_LOCK_DATA **locks;
   TABLE **to;
 
+  DBUG_ENTER("get_lock_data");
+  DBUG_PRINT("info", ("count %d", count));
   *write_lock_used=0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
@@ -477,9 +485,9 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
         table_ptr[i]->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
         count != 1)
     {
-      my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db,
-               table_ptr[i]->s->table_name);
-      return 0;
+      my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db.str,
+               table_ptr[i]->s->table_name.str);
+      DBUG_RETURN(0);
     }
   }
 
@@ -487,11 +495,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	my_malloc(sizeof(*sql_lock)+
 		  sizeof(THR_LOCK_DATA*)*tables+sizeof(table_ptr)*lock_count,
 		  MYF(0))))
-    return 0;
+    DBUG_RETURN(0);
   locks=sql_lock->locks=(THR_LOCK_DATA**) (sql_lock+1);
   to=sql_lock->table=(TABLE**) (locks+tables);
   sql_lock->table_count=lock_count;
   sql_lock->lock_count=tables;
+  DBUG_PRINT("info", ("sql_lock->table_count %d sql_lock->lock_count %d",
+                      sql_lock->table_count, sql_lock->lock_count));
 
   for (i=0 ; i < count ; i++)
   {
@@ -507,7 +517,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       {
 	my_error(ER_OPEN_AS_READONLY, MYF(0), table->alias);
 	my_free((gptr) sql_lock,MYF(0));
-	return 0;
+	DBUG_RETURN(0);
       }
     }
     THR_LOCK_DATA **org_locks = locks;
@@ -517,7 +527,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       for ( ; org_locks != locks ; org_locks++)
 	(*org_locks)->debug_print_param= (void *) table;
   }
-  return sql_lock;
+  DBUG_RETURN(sql_lock);
 }
 
 
@@ -603,32 +613,35 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   DBUG_ENTER("lock_table_name");
   DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->table_name));
 
-  safe_mutex_assert_owner(&LOCK_open);
-
-  key_length=(uint) (strmov(strmov(key,db)+1,table_list->table_name)
-		     -key)+ 1;
-
+  key_length= create_table_def_key(thd, key, table_list, 0);
 
   /* Only insert the table if we haven't insert it already */
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table ;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+  {
     if (table->in_use == thd)
+    {
+      DBUG_PRINT("info", ("Table is in use"));
+      table->s->version= 0;                  // Ensure no one can use this
+      table->locked_by_name= 1;
       DBUG_RETURN(0);
-
+    }
+  }
   /*
     Create a table entry with the right key and with an old refresh version
     Note that we must use my_malloc() here as this is freed by the table
     cache
   */
-  if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
-				  MYF(MY_WME | MY_ZEROFILL))))
+  if (!(table= (TABLE*) my_malloc(sizeof(*table)+ sizeof(TABLE_SHARE)+
+                                  key_length, MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(-1);
-  table->s= &table->share_not_to_be_used;
-  memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
-  table->s->db= table->s->table_cache_key;
-  table->s->key_length=key_length;
-  table->in_use=thd;
+  table->s= (TABLE_SHARE*) (table+1);
+  memcpy((table->s->table_cache_key.str= (char*) (table->s+1)), key,
+         key_length);
+  table->s->table_cache_key.length= key_length;
+  table->s->tmp_table= INTERNAL_TMP_TABLE;  // for intern_close_table
+  table->in_use= thd;
   table->locked_by_name=1;
   table_list->table=table;
 
@@ -658,8 +671,17 @@ static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {
   for (; table_list ; table_list=table_list->next_local)
   {
-    if (table_list->table && table_is_used(table_list->table,0))
-      return 1;
+    TABLE *table= table_list->table;
+    if (table)
+    {
+      TABLE *save_next= table->next;
+      bool result;
+      table->next= 0;
+      result= table_is_used(table_list->table, 0);
+      table->next= save_next;
+      if (result)
+        return 1;
+    }
   }
   return 0;					// All tables are locked
 }
@@ -669,6 +691,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
 {
   bool result=0;
   DBUG_ENTER("wait_for_locked_table_names");
+
   safe_mutex_assert_owner(&LOCK_open);
 
   while (locked_named_table(thd,table_list))
@@ -678,7 +701,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
       result=1;
       break;
     }
-    wait_for_refresh(thd);
+    wait_for_condition(thd, &LOCK_open, &COND_refresh);
     pthread_mutex_lock(&LOCK_open);
   }
   DBUG_RETURN(result);
@@ -814,10 +837,13 @@ static void print_lock_error(int error, const char *table)
 
   access to them is protected with a mutex LOCK_global_read_lock
 
-  (XXX: one should never take LOCK_open if LOCK_global_read_lock is taken,
-  otherwise a deadlock may occur - see mysql_rm_table. Other mutexes could
-  be a problem too - grep the code for global_read_lock if you want to use
-  any other mutex here)
+  (XXX: one should never take LOCK_open if LOCK_global_read_lock is
+  taken, otherwise a deadlock may occur. Other mutexes could be a
+  problem too - grep the code for global_read_lock if you want to use
+  any other mutex here) Also one must not hold LOCK_open when calling
+  wait_if_global_read_lock(). When the thread with the global read lock
+  tries to close its tables, it needs to take LOCK_open in
+  close_thread_table().
 
   How blocking of threads by global read lock is achieved: that's
   advisory. Any piece of code which should be blocked by global read lock must
@@ -936,6 +962,13 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
   DBUG_ENTER("wait_if_global_read_lock");
 
   LINT_INIT(old_message);
+  /*
+    Assert that we do not own LOCK_open. If we would own it, other
+    threads could not close their tables. This would make a pretty
+    deadlock.
+  */
+  safe_mutex_assert_not_owner(&LOCK_open);
+
   (void) pthread_mutex_lock(&LOCK_global_read_lock);
   if ((need_exit_cond= must_wait))
   {
@@ -1020,5 +1053,3 @@ bool make_global_read_lock_block_commit(THD *thd)
   thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
 }
-
-

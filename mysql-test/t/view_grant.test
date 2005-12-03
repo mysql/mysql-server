@@ -1,6 +1,12 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
+--disable_warnings
+drop database if exists mysqltest;
+drop view if exists v1;
+--enable_warnings
+
+
 # simple test of grants
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
@@ -24,7 +30,7 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
--- error ER_VIEW_OTHER_USER
+-- error ER_SPECIFIC_ACCESS_DENIED
 create definer=root@localhost view v1 as select * from mysqltest.t1;
 create view v1 as select * from mysqltest.t1;
 # try to modify view without DROP privilege on it
@@ -664,3 +670,39 @@ insert into mysql.user select * from t1;
 flush privileges;
 
 drop table t1;
+
+#
+# BUG#14726: freeing stack variable in case of an error of opening
+# a view when we have locked tables with LOCK TABLES statement.
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+
+use mysqltest;
+CREATE TABLE t1 (i INT);
+CREATE VIEW  v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+GRANT SELECT, LOCK TABLES ON mysqltest.* TO mysqltest_1@localhost;
+
+connection user1;
+
+use mysqltest;
+LOCK TABLES v1 READ;
+-- error ER_TABLEACCESS_DENIED_ERROR
+SHOW CREATE TABLE v1;
+UNLOCK TABLES;
+use test;
+
+connection root;
+use test;
+drop user mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# switch to default connaction
+#
+disconnect user1;
+disconnect root;
+connection default;

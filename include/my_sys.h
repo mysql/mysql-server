@@ -601,6 +601,7 @@ extern char *_my_strdup_with_length(const byte *from, uint length,
 
 #ifdef __WIN__
 extern int my_access(const char *path, int amode);
+extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
 #else
 #define my_access access
 #endif
@@ -820,7 +821,11 @@ my_bool my_gethwaddr(uchar *to);
 #define MAP_NOSYNC      0
 #endif
 
+#ifdef HAVE_MMAP64
+#define my_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
+#else
 #define my_mmap(a,b,c,d,e,f)    mmap(a,b,c,d,e,f)
+#endif
 #ifdef HAVE_GETPAGESIZE
 #define my_getpagesize()        getpagesize()
 #else

@@ -513,7 +513,7 @@ void st_relay_log_info::close_temporary_tables()
       Don't ask for disk deletion. For now, anyway they will be deleted when
       slave restarts, but it is a better intention to not delete them.
     */
-    close_temporary(table, 0);
+    close_temporary(table, 1, 0);
   }
   save_temporary_tables= 0;
   slave_open_temp_tables= 0;
@@ -1068,7 +1068,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   
-  if (!mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23) &&
+  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -1094,7 +1094,8 @@ do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-  if (!mysql_real_query(mysql, "SHOW VARIABLES LIKE 'SERVER_ID'", 31) &&
+  if (!mysql_real_query(mysql,
+                        STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1129,7 +1130,8 @@ not always make sense; please check the manual before using it).";
     goto err;
 
   if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
+      !mysql_real_query(mysql,
+                        STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1156,7 +1158,7 @@ be equal for replication to work";
     those were alpha).
   */
   if ((*mysql->server_version == '4') &&
-      !mysql_real_query(mysql, "SELECT @@GLOBAL.TIME_ZONE", 25) &&
+      !mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
       (master_res= mysql_store_result(mysql)))
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
@@ -1294,7 +1296,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name);
+    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name.str);
 
 err:
   close_thread_tables(thd);
@@ -3068,6 +3070,7 @@ slave_begin:
   THD_CHECK_SENTRY(thd);
 
   pthread_detach_this_thread();
+  thd->thread_stack= (char*) &thd; // remember where our stack is
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     pthread_cond_broadcast(&mi->start_cond);
@@ -3076,7 +3079,6 @@ slave_begin:
     goto err;
   }
   mi->io_thd = thd;
-  thd->thread_stack = (char*)&thd; // remember where our stack is
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);

@@ -123,3 +123,7 @@ main(void)
 }
 
 template class Vector<Record>;
+
+// hp3750
+struct Signal { Signal(); int foo; };
+Signal::Signal(){}

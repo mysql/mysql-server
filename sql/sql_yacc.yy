@@ -137,6 +137,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ASCII_SYM
 %token  ASENSITIVE_SYM
 %token  ATAN
+%token  AUTHORS_SYM
 %token  AUTO_INC
 %token  AVG_ROW_LENGTH
 %token  AVG_SYM
@@ -176,6 +177,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CLIENT_SYM
 %token  CLOSE_SYM
 %token  COALESCE
+%token  CODE_SYM
 %token  COLLATE_SYM
 %token  COLLATION_SYM
 %token  COLUMNS
@@ -794,7 +796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword keyword_sp
 
-%type <lex_user> user grant_user
+%type <lex_user> user grant_user get_definer
 
 %type <charset>
 	opt_collate
@@ -845,11 +847,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
         prepare prepare_src execute deallocate
-	statement sp_suid opt_view_list view_list or_replace algorithm
+	statement sp_suid
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        install uninstall view_user view_suid
-        partition_entry
+        definer view_replace_or_algorithm view_replace view_algorithm_opt
+        view_algorithm view_or_trigger_tail view_suid view_tail view_list_opt
+        view_list view_select view_check_option trigger_tail
+        install uninstall partition_entry
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1179,11 +1183,6 @@ create:
 	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
-            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-            {
-              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-              YYABORT;
-            }
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
 							TL_OPTION_UPDATING))
@@ -1284,80 +1283,14 @@ create:
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
-	| CREATE or_replace algorithm view_user view_suid VIEW_SYM table_ident
+	| CREATE
 	  {
-	    THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-	    lex->sql_command= SQLCOM_CREATE_VIEW;
-            lex->create_view_start= thd->query;
-	    /* first table in list is target VIEW name */
-	    if (!lex->select_lex.add_table_to_list(thd, $7, NULL, 0))
-              YYABORT;
+            Lex->create_view_mode= VIEW_CREATE_NEW;
+            Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            Lex->create_view_suid= TRUE;
 	  }
-	  opt_view_list AS select_view_init check_option
+	  view_or_trigger
 	  {}
-        | CREATE TRIGGER_SYM sp_name trg_action_time trg_event 
-          ON table_ident FOR_SYM EACH_SYM ROW_SYM
-          {
-            LEX *lex= Lex;
-            sp_head *sp;
-           
-            if (lex->sphead)
-            {
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
-              YYABORT;
-            }
-
-            if (!(sp= new sp_head()))
-              YYABORT;
-            sp->reset_thd_mem_root(YYTHD);
-            sp->init(lex);
-            
-            sp->m_type= TYPE_ENUM_TRIGGER;
-            lex->sphead= sp;
-            lex->spname= $3;
-            /*
-              We have to turn of CLIENT_MULTI_QUERIES while parsing a
-              stored procedure, otherwise yylex will chop it into pieces
-              at each ';'.
-            */
-            sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-            
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-            lex->sphead->m_chistics= &lex->sp_chistics;
-            lex->sphead->m_body_begin= lex->ptr;
-          }
-          sp_proc_stmt
-          {
-            LEX *lex= Lex;
-            sp_head *sp= lex->sphead;
-            
-            lex->sql_command= SQLCOM_CREATE_TRIGGER;
-            sp->init_strings(YYTHD, lex, $3);
-            /* Restore flag if it was cleared above */
-            if (sp->m_old_cmq)
-              YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
-            sp->restore_thd_mem_root(YYTHD);
-
-            if (sp->is_not_allowed_in_function("trigger"))
-                YYABORT;
-
-            /*
-              We have to do it after parsing trigger body, because some of
-              sp_proc_stmt alternatives are not saving/restoring LEX, so
-              lex->query_tables can be wiped out.
-              
-              QQ: What are other consequences of this?
-              
-              QQ: Could we loosen lock type in certain cases ?
-            */
-            if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
-                                                   (LEX_STRING*) 0,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE))
-              YYABORT;
-          }
 	| CREATE USER clear_privileges grant_list
 	  {
 	    Lex->sql_command = SQLCOM_CREATE_USER;
@@ -1686,7 +1619,12 @@ sp_decls:
 
 sp_decl:
           DECLARE_SYM sp_decl_idents type 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            LEX *lex= Lex;
+
+            lex->sphead->reset_lex(YYTHD);
+            lex->spcont->declare_var_boundary($2);
+          }
           sp_opt_default
           {
             LEX *lex= Lex;
@@ -1699,13 +1637,14 @@ sp_decl:
             for (uint i = max-$2 ; i < max ; i++)
             {
               sp_instr_set *in;
+	      uint off= ctx->pvar_context2index(i);
 
-              ctx->set_type(i, type);
+              ctx->set_type(off, type);
               if (! has_default)
                 it= new Item_null();  /* QQ Set to the type with null_value? */
               in = new sp_instr_set(lex->sphead->instructions(),
                                     ctx,
-                                    ctx->pvar_context2index(i),
+                                    off,
                                     it, type, lex,
                                     (i == max - 1));
 
@@ -1714,8 +1653,9 @@ sp_decl:
                 freeing LEX.
               */
               lex->sphead->add_instr(in);
-              ctx->set_default(i, it);
+              ctx->set_default(off, it);
             }
+            ctx->declare_var_boundary(0);
             lex->sphead->restore_lex(YYTHD);
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
@@ -1788,7 +1728,8 @@ sp_decl:
 	      delete $5;
 	      YYABORT;
 	    }
-            i= new sp_instr_cpush(sp->instructions(), ctx, $5);
+            i= new sp_instr_cpush(sp->instructions(), ctx, $5,
+                                  ctx->current_cursors());
 	    sp->add_instr(i);
 	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -2378,8 +2319,12 @@ sp_case:
 
 	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
-	      Item *var= (Item*) new Item_splocal(ivar, 
-						  ctx->current_pvars()-1);
+	      Item_splocal *var= new Item_splocal(ivar,
+                                                  ctx->current_pvars()-1);
+#ifndef DBUG_OFF
+              if (var)
+                var->owner= sp;
+#endif
 	      Item *expr= new Item_func_eq(var, $2);
 
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
@@ -2597,7 +2542,7 @@ create3:
 /*
  This part of the parser is about handling of the partition information.
 
- It's first version was written by Mikael Ronström with lots of answers to
+ It's first version was written by Mikael RonstrÃ¶m with lots of answers to
  questions provided by Antony Curtis.
 
  The partition grammar can be called from three places.
@@ -3894,11 +3839,6 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->name= 0;
 	  lex->duplicates= DUP_ERROR; 
@@ -3966,7 +3906,8 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-	| ALTER algorithm view_user view_suid VIEW_SYM table_ident
+        | ALTER view_algorithm_opt definer view_suid
+          VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
@@ -3976,7 +3917,7 @@ alter:
 	    /* first table in list is target VIEW name */
 	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
 	  }
-	  opt_view_list AS select_view_init check_option
+	  view_list_opt AS view_select view_check_option
 	  {}
 	;
 
@@ -3991,7 +3932,7 @@ alter_commands:
         opt_partitioning
         | partitioning
 /*
-  This part was added for release 5.1 by Mikael Ronström.
+  This part was added for release 5.1 by Mikael RonstrÃ¶m.
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
@@ -4299,11 +4240,6 @@ start:
 	START_SYM TRANSACTION_SYM start_transaction_opts
         {
           LEX *lex= Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
           lex->sql_command= SQLCOM_BEGIN;
           lex->start_transaction_opt= $3;
         }
@@ -4488,13 +4424,7 @@ opt_no_write_to_binlog:
 rename:
 	RENAME table_or_tables
 	{
-          LEX *lex= Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
-          lex->sql_command=SQLCOM_RENAME_TABLE;
+          Lex->sql_command= SQLCOM_RENAME_TABLE;
 	}
 	table_to_table_list
 	{}
@@ -4634,18 +4564,6 @@ select_init:
 	SELECT_SYM select_init2
 	|
 	'(' select_paren ')' union_opt;
-
-select_view_init:
-        SELECT_SYM remember_name select_init2
-          {
-            Lex->create_view_select_start= $2;
-          }
-        |
-        '(' remember_name select_paren ')' union_opt
-          {
-            Lex->create_view_select_start= $2;
-          }
-        ;
 
 select_paren:
 	SELECT_SYM select_part2
@@ -6583,7 +6501,13 @@ select_var_ident:
 	       YYABORT;
 	     else
 	     {
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset,t->type));
+               my_var *var;
+	       ((select_dumpvar *)lex->result)->
+                 var_list.push_back(var= new my_var($1,1,t->offset,t->type));
+#ifndef DBUG_OFF
+	       if (var)
+		 var->owner= lex->sphead;
+#endif
 	     }
 	   }
            ;
@@ -6643,21 +6567,10 @@ drop:
 	  lex->sql_command = SQLCOM_DROP_TABLE;
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
-          if (!lex->drop_temporary && lex->sphead &&
-              lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	}
 	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
-             if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-             {
-               my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-               YYABORT;
-             }
 	     lex->sql_command= SQLCOM_DROP_INDEX;
 	     lex->alter_info.drop_list.empty();
 	     lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
@@ -6703,13 +6616,7 @@ drop:
           }
 	| DROP VIEW_SYM if_exists table_list opt_restrict
 	  {
-	    THD *thd= YYTHD;
-	    LEX *lex= thd->lex;
-            if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-            {
-              my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-              YYABORT;
-            }
+	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_DROP_VIEW;
 	    lex->drop_if_exists= $3;
 	  }
@@ -7174,6 +7081,11 @@ show_param:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
 	  }
+	| AUTHORS_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_AUTHORS;
+	  }
 	| PRIVILEGES
 	  {
 	    LEX *lex=Lex;
@@ -7345,7 +7257,28 @@ show_param:
 	      YYABORT;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               YYABORT;
-	  };
+	  }
+        | PROCEDURE CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        | FUNCTION_SYM CODE_SYM sp_name
+          {
+#ifdef DBUG_OFF
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+#else
+            Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
+	    Lex->spname= $3;
+#endif
+          }
+        ;
 
 show_engine_param:
 	STATUS_SYM
@@ -7886,6 +7819,10 @@ simple_ident:
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
+#ifndef DBUG_OFF
+            if (splocal)
+              splocal->owner= lex->sphead;
+#endif
 	    $$ = (Item*) splocal;
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
@@ -8171,6 +8108,7 @@ user:
 keyword:
 	keyword_sp		{}
 	| ASCII_SYM		{}
+	| AUTHORS_SYM		{}
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BYTE_SYM		{}
@@ -8242,6 +8180,7 @@ keyword_sp:
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
 	| COALESCE		{}
+	| CODE_SYM              {}
 	| COLLATION_SYM		{}
         | COLUMNS               {}
 	| COMMITTED_SYM		{}
@@ -8680,6 +8619,9 @@ option_value:
 	    names.length= 5;
 	    if (spc && spc->find_pvar(&names))
               my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+            else
+              yyerror(ER(ER_SYNTAX_ERROR));
+
 	    YYABORT;
 	  }
 	| NAMES_SYM charset_name_or_default opt_collate
@@ -9369,11 +9311,6 @@ begin:
 	BEGIN_SYM  
         {
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
           lex->sql_command = SQLCOM_BEGIN;
           lex->start_transaction_opt= 0;
         }
@@ -9406,11 +9343,6 @@ commit:
 	COMMIT_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_COMMIT;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;
@@ -9421,11 +9353,6 @@ rollback:
 	ROLLBACK_SYM opt_work opt_chain opt_release
 	{
 	  LEX *lex=Lex;
-          if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-          {
-            my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-            YYABORT;
-          }
 	  lex->sql_command= SQLCOM_ROLLBACK;
 	  lex->tx_chain= $3; 
 	  lex->tx_release= $4;
@@ -9605,8 +9532,119 @@ subselect_end:
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
 
-opt_view_list:
-	/* empty */ {}
+definer:
+	get_definer
+	{
+	  THD *thd= YYTHD;
+	  
+	  if (! (thd->lex->definer= create_definer(thd, &$1->user, &$1->host)))
+	    YYABORT;
+	}
+	;
+
+get_definer:
+	opt_current_definer
+	{
+	  THD *thd= YYTHD;
+          
+	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+	    YYABORT;
+
+	  if (get_default_definer(thd, $$))
+	    YYABORT;
+	}
+	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
+	{
+	  if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
+	    YYABORT;
+
+	  $$->user= $3;
+	  $$->host= $5;
+	}
+	;
+
+opt_current_definer:
+	/* empty */
+	| DEFINER_SYM EQ CURRENT_USER optional_braces
+	;
+
+/**************************************************************************
+
+ CREATE VIEW statement options.
+
+**************************************************************************/
+
+view_replace_or_algorithm:
+	view_replace
+	{}
+	| view_replace view_algorithm
+	{}
+	| view_algorithm
+	{}
+	;
+
+view_replace:
+	OR_SYM REPLACE
+	{ Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+	;
+
+view_algorithm:
+	ALGORITHM_SYM EQ UNDEFINED_SYM
+	{ Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| ALGORITHM_SYM EQ MERGE_SYM
+	{ Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
+	| ALGORITHM_SYM EQ TEMPTABLE_SYM
+	{ Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
+	;
+
+view_algorithm_opt:
+	/* empty */
+	{ Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| view_algorithm
+	{}
+	;
+
+view_or_trigger:
+	definer view_or_trigger_tail
+	{}
+	| view_replace_or_algorithm definer view_tail
+	{}
+	;
+
+view_or_trigger_tail:
+	view_tail
+	{}
+	| trigger_tail
+	{}
+	;
+
+view_suid:
+	/* empty */
+	{ Lex->create_view_suid= TRUE; }
+	| SQL_SYM SECURITY_SYM DEFINER_SYM
+	{ Lex->create_view_suid= TRUE; }
+	| SQL_SYM SECURITY_SYM INVOKER_SYM
+	{ Lex->create_view_suid= FALSE; }
+	;
+
+view_tail:
+	view_suid VIEW_SYM table_ident
+	{
+	  THD *thd= YYTHD;
+	  LEX *lex= thd->lex;
+	  lex->sql_command= SQLCOM_CREATE_VIEW;
+	  lex->create_view_start= thd->query;
+	  /* first table in list is target VIEW name */
+	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0))
+	    YYABORT;
+	}
+	view_list_opt AS view_select view_check_option
+	{}
+	;
+
+view_list_opt:
+	/* empty */
+	{}
 	| '(' view_list ')'
 	;
 
@@ -9623,79 +9661,102 @@ view_list:
 	  }
 	;
 
-or_replace:
-	/* empty */	 { Lex->create_view_mode= VIEW_CREATE_NEW; }
-	| OR_SYM REPLACE { Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+view_select:
+	SELECT_SYM remember_name select_init2
+	{
+	  Lex->create_view_select_start= $2;
+	}
+	| '(' remember_name select_paren ')' union_opt
+	{
+	  Lex->create_view_select_start= $2;
+	}
 	;
 
-algorithm:
+view_check_option:
 	/* empty */
-	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
-	| ALGORITHM_SYM EQ UNDEFINED_SYM
-	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
-	| ALGORITHM_SYM EQ MERGE_SYM
-	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
-	| ALGORITHM_SYM EQ TEMPTABLE_SYM
-	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
+	{ Lex->create_view_check= VIEW_CHECK_NONE; }
+	| WITH CHECK_SYM OPTION
+	{ Lex->create_view_check= VIEW_CHECK_CASCADED; }
+	| WITH CASCADED CHECK_SYM OPTION
+	{ Lex->create_view_check= VIEW_CHECK_CASCADED; }
+	| WITH LOCAL_SYM CHECK_SYM OPTION
+	{ Lex->create_view_check= VIEW_CHECK_LOCAL; }
 	;
 
-view_user:
-        /* empty */
-          {
-            THD *thd= YYTHD;
-            if (!(thd->lex->create_view_definer=
-                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
-              YYABORT;
-            if (default_view_definer(thd->security_ctx,
-                                     thd->lex->create_view_definer))
-              YYABORT;
-          }
-        | CURRENT_USER optional_braces
-          {
-            THD *thd= YYTHD;
-            if (!(thd->lex->create_view_definer=
-                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
-              YYABORT;
-            if (default_view_definer(thd->security_ctx,
-                                     thd->lex->create_view_definer))
-              YYABORT;
-          }
-	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
+/**************************************************************************
+
+ CREATE TRIGGER statement parts.
+
+**************************************************************************/
+
+trigger_tail:
+	TRIGGER_SYM remember_name sp_name trg_action_time trg_event 
+	ON table_ident FOR_SYM EACH_SYM ROW_SYM
+	{
+	  LEX *lex= Lex;
+	  sp_head *sp;
+	 
+	  if (lex->sphead)
 	  {
-	    THD *thd= YYTHD;
-            st_lex_user *view_user;
-	    if (!(thd->lex->create_view_definer= view_user=
-                  (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
-	      YYABORT;
-	    view_user->user = $3; view_user->host=$5;
-            if (view_user->host.length == 0)
-            {
-              my_error(ER_NO_VIEW_USER, MYF(0));
-              YYABORT;
-            }
+	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
+	    YYABORT;
 	  }
-        ;
-
-view_suid:
-        /* empty */
-	  { Lex->create_view_suid= TRUE; }
-        |
-	  SQL_SYM SECURITY_SYM DEFINER_SYM
-	  { Lex->create_view_suid= TRUE; }
-	| SQL_SYM SECURITY_SYM INVOKER_SYM
-	  { Lex->create_view_suid= FALSE; }
+	
+	  if (!(sp= new sp_head()))
+	    YYABORT;
+	  sp->reset_thd_mem_root(YYTHD);
+	  sp->init(lex);
+	
+	  lex->trigger_definition_begin= $2;
+	  
+	  sp->m_type= TYPE_ENUM_TRIGGER;
+	  lex->sphead= sp;
+	  lex->spname= $3;
+	  /*
+	    We have to turn of CLIENT_MULTI_QUERIES while parsing a
+	    stored procedure, otherwise yylex will chop it into pieces
+	    at each ';'.
+	  */
+	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	  
+	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+	  lex->sphead->m_chistics= &lex->sp_chistics;
+	  lex->sphead->m_body_begin= lex->ptr;
+	}
+	sp_proc_stmt
+	{
+	  LEX *lex= Lex;
+	  sp_head *sp= lex->sphead;
+	  
+	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
+	  sp->init_strings(YYTHD, lex, $3);
+	  /* Restore flag if it was cleared above */
+	  if (sp->m_old_cmq)
+	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	  sp->restore_thd_mem_root(YYTHD);
+	
+	  if (sp->is_not_allowed_in_function("trigger"))
+	      YYABORT;
+	
+	  /*
+	    We have to do it after parsing trigger body, because some of
+	    sp_proc_stmt alternatives are not saving/restoring LEX, so
+	    lex->query_tables can be wiped out.
+	    
+	    QQ: What are other consequences of this?
+	    
+	    QQ: Could we loosen lock type in certain cases ?
+	  */
+	  if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
+	                                         (LEX_STRING*) 0,
+	                                         TL_OPTION_UPDATING,
+	                                         TL_WRITE))
+	    YYABORT;
+	}
 	;
 
-check_option:
-        /* empty */
-          { Lex->create_view_check= VIEW_CHECK_NONE; }
-        | WITH CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
-        | WITH CASCADED CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
-        | WITH LOCAL_SYM CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
-        ;
+/*************************************************************************/
 
 xa: XA_SYM begin_or_start xid opt_join_or_resume
       {

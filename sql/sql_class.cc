@@ -183,6 +183,7 @@ THD::THD()
    spcont(NULL)
 {
   stmt_arena= this;
+  thread_stack= 0;
   db= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
@@ -376,7 +377,7 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   mysql_ha_flush(this, (TABLE_LIST*) 0,
-                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
+                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL, FALSE);
   hash_free(&handler_tables_hash);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
@@ -517,6 +518,12 @@ void THD::awake(THD::killed_state state_to_set)
 
 bool THD::store_globals()
 {
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(this->thread_stack);
+
   if (my_pthread_setspecific_ptr(THR_THD,  this) ||
       my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
     return 1;
@@ -658,7 +665,8 @@ void THD::add_changed_table(TABLE *table)
 
   DBUG_ASSERT((options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	      table->file->has_transactions());
-  add_changed_table(table->s->table_cache_key, table->s->key_length);
+  add_changed_table(table->s->table_cache_key.str,
+                    table->s->table_cache_key.length);
   DBUG_VOID_RETURN;
 }
 
@@ -1053,7 +1061,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 
   if (!dirname_length(exchange->file_name))
   {
-    strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "", NullS);
+    strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
+             NullS);
     (void) fn_format(path, exchange->file_name, path, "", option);
   }
   else
@@ -1495,7 +1504,13 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     my_var *mv= gl++;
     if (mv->local)
-      (void)local_vars.push_back(new Item_splocal(mv->s, mv->offset));
+    {
+      Item_splocal *var;
+      (void)local_vars.push_back(var= new Item_splocal(mv->s, mv->offset));
+#ifndef DBUG_OFF
+      var->owner= mv->owner;
+#endif
+    }
     else
     {
       Item_func_set_user_var *var= new Item_func_set_user_var(mv->s, item);
@@ -1802,6 +1817,7 @@ void TMP_TABLE_PARAM::init()
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
   table_charset= 0;
+  precomputed_group_by= 0;
 }
 
 
@@ -1916,6 +1932,7 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   - Value for found_rows() is reset and restored
   - examined_row_count is added to the total
   - cuted_fields is added to the total
+  - new savepoint level is created and destroyed
 
   NOTES:
     Seed for random() is saved for the first! usage of RAND()
@@ -1934,11 +1951,13 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->last_insert_id=  last_insert_id;
   backup->next_insert_id=  next_insert_id;
   backup->insert_id_used=  insert_id_used;
+  backup->clear_next_insert_id= clear_next_insert_id;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
   backup->sent_row_count=   sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
+  backup->savepoints= transaction.savepoints;
 
   if (!lex->requires_prelocking() || is_update_query(lex->sql_command))
     options&= ~OPTION_BIN_LOG;
@@ -1951,6 +1970,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   examined_row_count= 0;
   sent_row_count= 0;
   cuted_fields= 0;
+  transaction.savepoints= 0;
 
 #ifndef EMBEDDED_LIBRARY
   /* Surpress OK packets in case if we will execute statements */
@@ -1961,6 +1981,21 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+  /*
+    To save resources we want to release savepoints which were created
+    during execution of function or trigger before leaving their savepoint
+    level. It is enough to release first savepoint set on this level since
+    all later savepoints will be released automatically.
+  */
+  if (transaction.savepoints)
+  {
+    SAVEPOINT *sv;
+    for (sv= transaction.savepoints; sv->prev; sv= sv->prev)
+    {}
+    /* ha_release_savepoint() never returns error. */
+    (void)ha_release_savepoint(this, sv);
+  }
+  transaction.savepoints= backup->savepoints;
   options=          backup->options;
   in_sub_stmt=      backup->in_sub_stmt;
   net.no_send_ok=   backup->no_send_ok;
@@ -1968,6 +2003,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   last_insert_id=   backup->last_insert_id;
   next_insert_id=   backup->next_insert_id;
   insert_id_used=   backup->insert_id_used;
+  clear_next_insert_id= backup->clear_next_insert_id;
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;

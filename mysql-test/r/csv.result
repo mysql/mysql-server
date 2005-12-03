@@ -4929,3 +4929,74 @@ Warnings:
 Note	1051	Unknown table 't2'
 Note	1051	Unknown table 't3'
 Note	1051	Unknown table 't4'
+DROP TABLE IF EXISTS bug13894;
+CREATE TABLE bug13894 ( val integer ) ENGINE = CSV;
+INSERT INTO bug13894 VALUES (5);
+INSERT INTO bug13894 VALUES (10);
+INSERT INTO bug13894 VALUES (11);
+INSERT INTO bug13894 VALUES (10);
+SELECT * FROM bug13894;
+val
+5
+10
+11
+10
+UPDATE  bug13894 SET val=6 WHERE val=10;
+SELECT * FROM bug13894;
+val
+5
+11
+6
+6
+DROP TABLE bug13894;
+DROP TABLE IF EXISTS bug14672;
+CREATE TABLE bug14672 (c1 integer) engine = CSV;
+INSERT INTO bug14672 VALUES (1), (2), (3);
+SELECT * FROM bug14672;
+c1
+1
+2
+3
+DELETE FROM bug14672 WHERE c1 = 2;
+SELECT * FROM bug14672;
+c1
+1
+3
+INSERT INTO bug14672 VALUES (4);
+SELECT * FROM bug14672;
+c1
+1
+3
+4
+INSERT INTO bug14672 VALUES (5);
+SELECT * FROM bug14672;
+c1
+1
+3
+4
+5
+DROP TABLE bug14672;
+create table t1 (a int) engine=csv;
+insert t1 values (1);
+delete from t1;
+affected rows: 1
+delete from t1;
+affected rows: 0
+insert t1 values (1),(2);
+delete from t1;
+affected rows: 2
+insert t1 values (1),(2),(3);
+flush tables;
+delete from t1;
+affected rows: 3
+insert t1 values (1),(2),(3),(4);
+flush tables;
+select count(*) from t1;
+count(*)
+4
+delete from t1;
+affected rows: 4
+insert t1 values (1),(2),(3),(4),(5);
+truncate table t1;
+affected rows: 0
+drop table t1;

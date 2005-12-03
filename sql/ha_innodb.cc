@@ -141,15 +141,16 @@ uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 ulong 	innobase_large_page_size = 0;
 
-/* The default values for the following, type long, start-up parameters
-are declared in mysqld.cc: */
+/* The default values for the following, type long or longlong, start-up
+parameters are declared in mysqld.cc: */
 
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
-     innobase_log_file_size, innobase_log_buffer_size,
-     innobase_buffer_pool_awe_mem_mb,
-     innobase_buffer_pool_size, innobase_additional_mem_pool_size,
-     innobase_file_io_threads,  innobase_lock_wait_timeout,
-     innobase_force_recovery, innobase_open_files;
+     innobase_log_buffer_size, innobase_buffer_pool_awe_mem_mb,
+     innobase_additional_mem_pool_size, innobase_file_io_threads,
+     innobase_lock_wait_timeout, innobase_force_recovery,
+     innobase_open_files;
+
+longlong innobase_buffer_pool_size, innobase_log_file_size;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -204,7 +205,7 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE *table);
+static handler *innobase_create_handler(TABLE_SHARE *table);
 
 handlerton innobase_hton = {
   "InnoDB",
@@ -244,7 +245,7 @@ handlerton innobase_hton = {
 };
 
 
-static handler *innobase_create_handler(TABLE *table)
+static handler *innobase_create_handler(TABLE_SHARE *table)
 {
   return new ha_innobase(table);
 }
@@ -825,7 +826,7 @@ check_trx_exists(
 /*************************************************************************
 Construct ha_innobase handler. */
 
-ha_innobase::ha_innobase(TABLE *table_arg)
+ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
   :handler(&innobase_hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
                   HA_NULL_IN_KEY |
@@ -1230,6 +1231,25 @@ innobase_init(void)
            goto error;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+
+	/* Check that values don't overflow on 32-bit systems. */
+	if (sizeof(ulint) == 4) {
+		if (innobase_buffer_pool_size > UINT_MAX32) {
+			sql_print_error(
+				"innobase_buffer_pool_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(0);
+		}
+
+		if (innobase_log_file_size > UINT_MAX32) {
+			sql_print_error(
+				"innobase_log_file_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(0);
+		}
+	}
 
   	os_innodb_umask = (ulint)my_umask;
 
@@ -2199,11 +2219,13 @@ innobase_savepoint(
 
 	DBUG_ENTER("innobase_savepoint");
 
-	if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-		/* In the autocommit state there is no sense to set a
-		savepoint: we return immediate success */
-	        DBUG_RETURN(0);
-	}
+        /*
+          In the autocommit mode there is no sense to set a savepoint
+          (unless we are in sub-statement), so SQL layer ensures that
+          this method is never called in such situation.
+        */
+        DBUG_ASSERT(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
+                    thd->in_sub_stmt);
 
 	trx = check_trx_exists(thd);
 
@@ -3030,8 +3052,8 @@ ha_innobase::store_key_val_for_row(
 
 			if (key_part->length > 0 && cs->mbmaxlen > 1) {
 				len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char*)src_start,
-					(const char*)(src_start + key_part->length),
+					(const char *) src_start,
+					(const char *) src_start + key_part->length,
 					key_part->length / cs->mbmaxlen, 
 					&error);
 			} else {
@@ -4798,8 +4820,8 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	primary_key_no= (table->s->primary_key != MAX_KEY ?
-			 (int) table->s->primary_key : 
+	primary_key_no= (form->s->primary_key != MAX_KEY ?
+			 (int) form->s->primary_key : 
 			 -1);
 
 	/* Our function row_get_mysql_key_number_for_index assumes

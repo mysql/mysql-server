@@ -503,7 +503,7 @@ int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
   int port_ind;
   DBUG_ENTER("update_slave_list");
 
-  if (mysql_real_query(mysql,"SHOW SLAVE HOSTS",16) ||
+  if (mysql_real_query(mysql, STRING_WITH_LEN("SHOW SLAVE HOSTS")) ||
       !(res = mysql_store_result(mysql)))
   {
     error= mysql_error(mysql);
@@ -796,7 +796,7 @@ bool load_master_data(THD* thd)
     MYSQL_RES *db_res, **table_res, **table_res_end, **cur_table_res;
     uint num_dbs;
 
-    if (mysql_real_query(&mysql, "SHOW DATABASES", 14) ||
+    if (mysql_real_query(&mysql, STRING_WITH_LEN("SHOW DATABASES")) ||
 	!(db_res = mysql_store_result(&mysql)))
     {
       my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
@@ -822,8 +822,9 @@ bool load_master_data(THD* thd)
       we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
       can to minimize the lock time.
     */
-    if (mysql_real_query(&mysql, "FLUSH TABLES WITH READ LOCK", 27) ||
-	mysql_real_query(&mysql, "SHOW MASTER STATUS",18) ||
+    if (mysql_real_query(&mysql,
+                         STRING_WITH_LEN("FLUSH TABLES WITH READ LOCK")) ||
+	mysql_real_query(&mysql, STRING_WITH_LEN("SHOW MASTER STATUS")) ||
 	!(master_status_res = mysql_store_result(&mysql)))
     {
       my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
@@ -876,7 +877,7 @@ bool load_master_data(THD* thd)
       }
 
       if (mysql_select_db(&mysql, db) ||
-	  mysql_real_query(&mysql, "SHOW TABLES", 11) ||
+	  mysql_real_query(&mysql, STRING_WITH_LEN("SHOW TABLES")) ||
 	  !(*cur_table_res = mysql_store_result(&mysql)))
       {
 	my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
@@ -934,7 +935,7 @@ bool load_master_data(THD* thd)
       mysql_free_result(master_status_res);
     }
 
-    if (mysql_real_query(&mysql, "UNLOCK TABLES", 13))
+    if (mysql_real_query(&mysql, STRING_WITH_LEN("UNLOCK TABLES")))
     {
       my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
       goto err;

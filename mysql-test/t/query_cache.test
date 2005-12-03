@@ -14,6 +14,10 @@ flush status;
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t11,t21;
 drop database if exists mysqltest;
+
+# Fix possible left overs from other tests
+drop table if exists ```a`;
+drop view if exists v1;
 --enable_warnings
 
 #
@@ -743,6 +747,20 @@ show status like "Qcache_hits";
 drop table t1;
 
 #
+# BUG#14652: Queries with leading '(' characters.
+#
+create table t1 (a int);
+flush status;
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
 # SP cursors and selects with query cache (BUG#9715)
 #
 create table t1 (a int);

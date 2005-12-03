@@ -1,0 +1,475 @@
+# Test case(s) in this file contain(s) GRANT/REVOKE statements, which are not
+# supported in embedded server. So, this test should not be run on embedded
+# server.
+
+-- source include/not_embedded.inc
+
+###########################################################################
+#
+# Tests for WL#2818:
+#   - Check that triggers are executed under the authorization of the definer.
+#   - Check that if trigger contains NEW/OLD variables, the definer must have
+#     SELECT privilege on the subject table.
+#   - Check DEFINER clause of CREATE TRIGGER statement;
+#     - Check that SUPER privilege required to create a trigger with different
+#       definer.
+#     - Check that if the user specified as DEFINER does not exist, a warning
+#       is emitted.
+#     - Check that the definer of a trigger does not exist, the trigger will
+#       not be activated.
+#   - Check that SHOW TRIGGERS statement provides "Definer" column.
+#
+#  Let's also check that user name part of definer can contain '@' symbol (to
+#  check that triggers are not affected by BUG#13310 "incorrect user parsing
+#  by SP").
+#
+###########################################################################
+
+#
+# Prepare environment.
+#
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+#
+# Check that triggers are executed under the authorization of the definer:
+#   - create two tables under "definer";
+#   - grant all privileges on the test db to "definer";
+#   - grant all privileges on the first table to "invoker";
+#   - grant only select privilege on the second table to "invoker";
+#   - create a trigger, which inserts a row into the second table after
+#     inserting into the first table.
+#   - insert a row into the first table under "invoker". A row also should be
+#     inserted into the second table.
+#
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--connection default
+--echo
+--echo ---> connection: default
+
+# Setup definer's privileges.
+
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+# Setup invoker's privileges.
+
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1
+  TO 'mysqltest_inv'@localhost;
+  
+GRANT SELECT ON mysqltest_db1.t2
+  TO 'mysqltest_inv'@localhost;
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+INSERT INTO t1 VALUES(1);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--connect (wl2818_invoker_con,localhost,mysqltest_inv,,mysqltest_db1)
+--connection wl2818_invoker_con
+--echo
+--echo ---> connection: wl2818_invoker_con
+
+use mysqltest_db1;
+
+INSERT INTO t1 VALUES(2);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#
+# Check that if definer lost some privilege required to execute (activate) a
+# trigger, the trigger will not be activated:
+#  - create a trigger on insert into the first table, which will insert a row
+#    into the second table;
+#  - revoke INSERT privilege on the second table from the definer;
+#  - insert a row into the first table;
+#  - check that an error has been risen;
+#  - check that no row has been inserted into the second table;
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE INSERT ON mysqltest_db1.t2 FROM mysqltest_dfn@localhost;
+
+--connection wl2818_invoker_con
+--echo
+--echo ---> connection: wl2818_invoker_con
+
+use mysqltest_db1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(3);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#
+# Check that if trigger contains NEW/OLD variables, the definer must have
+# SELECT/UPDATE privilege on the subject table:
+#   - drop the trigger;
+#   - create a new trigger, which will use NEW variable;
+#   - create another new trigger, which will use OLD variable;
+#   - revoke SELECT/UPDATE privilege on the first table from "definer";
+#   - insert a row into the first table;
+#   - analyze error code;
+#
+
+#
+# SELECT privilege.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+DROP TRIGGER trg1;
+
+SET @new_sum = 0;
+SET @old_sum = 0;
+
+# INSERT INTO statement; BEFORE timing
+
+--echo ---> INSERT INTO statement; BEFORE timing
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(4);
+
+# INSERT INTO statement; AFTER timing
+
+--echo ---> INSERT INTO statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(5);
+
+# UPDATE statement; BEFORE timing
+
+--echo ---> UPDATE statement; BEFORE timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE t1 SET num_value = 10;
+
+# UPDATE statement; AFTER timing
+
+--echo ---> UPDATE statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER UPDATE ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE t1 SET num_value = 20;
+
+# DELETE statement; BEFORE timing
+
+--echo ---> DELETE statement; BEFORE timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM t1;
+
+# DELETE statement; AFTER timing
+
+--echo ---> DELETE statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM t1;
+
+#
+# UPDATE privilege
+#
+# NOTE: At the moment, UPDATE privilege is required if the trigger contains
+# NEW/OLD variables, whenever the trigger modifies them or not. Moreover,
+# UPDATE privilege is checked for whole table, not for individual columns.
+#
+# The following test cases should be changed when full support of UPDATE
+# privilege will be done.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+DROP TRIGGER trg1;
+
+SET @new_sum = 0;
+SET @old_sum = 0;
+
+# INSERT INTO statement; BEFORE timing
+
+--echo ---> INSERT INTO statement; BEFORE timing
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(4);
+
+# INSERT INTO statement; AFTER timing
+
+--echo ---> INSERT INTO statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(5);
+
+# UPDATE statement; BEFORE timing
+
+--echo ---> UPDATE statement; BEFORE timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE t1 SET num_value = 10;
+
+# UPDATE statement; AFTER timing
+
+--echo ---> UPDATE statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER UPDATE ON t1
+  FOR EACH ROW
+    SET @new_sum = @new_sum + NEW.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE t1 SET num_value = 20;
+
+# DELETE statement; BEFORE timing
+
+--echo ---> DELETE statement; BEFORE timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM t1;
+
+# DELETE statement; AFTER timing
+
+--echo ---> DELETE statement; AFTER timing
+
+DROP TRIGGER trg1;
+
+CREATE TRIGGER trg1 AFTER DELETE ON t1
+  FOR EACH ROW
+    SET @old_sum = @old_sum + OLD.num_value;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM t1;
+
+#
+# Check DEFINER clause of CREATE TRIGGER statement.
+#
+# NOTE: there is no dedicated TRIGGER privilege for CREATE TRIGGER statement.
+# SUPER privilege is used instead. I.e., if one invokes CREATE TRIGGER, it should
+# have SUPER privilege, so this test is meaningless right now.
+#
+#   - Check that SUPER privilege required to create a trigger with different
+#     definer:
+#     - try to create a trigger with DEFINER="definer@localhost" under
+#       "invoker";
+#     - analyze error code;
+#   - Check that if the user specified as DEFINER does not exist, a warning is
+#     emitted:
+#     - create a trigger with DEFINER="non_existent_user@localhost" from
+#       "definer";
+#     - check that a warning emitted;
+#   - Check that the definer of a trigger does not exist, the trigger will not
+#     be activated:
+#     - activate just created trigger;
+#     - check error code;
+#
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+DROP TRIGGER trg1;
+
+# Check that SUPER is required to specify different DEFINER.
+# NOTE: meaningless at the moment
+
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+# Create with non-existent user.
+
+CREATE DEFINER='mysqltest_nonexs'@'localhost'
+  TRIGGER trg2 AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+# Check that trg2 will not be activated.
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(6);
+
+#
+# Check that SHOW TRIGGERS statement provides "Definer" column.
+#
+
+SHOW TRIGGERS;
+
+#
+# Check that weird definer values do not break functionality. I.e. check the
+# following definer values:
+#   - '';
+#   - '@';
+#   - '@abc@def@@';
+#   - '@hostname';
+#   - '@abc@def@@@hostname';
+#
+
+DROP TRIGGER trg1;
+DROP TRIGGER trg2;
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @a = 1;
+
+CREATE TRIGGER trg2 AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @a = 2;
+
+CREATE TRIGGER trg3 BEFORE UPDATE ON t1
+  FOR EACH ROW
+    SET @a = 3;
+
+CREATE TRIGGER trg4 AFTER UPDATE ON t1
+  FOR EACH ROW
+    SET @a = 4;
+
+CREATE TRIGGER trg5 BEFORE DELETE ON t1
+  FOR EACH ROW
+    SET @a = 5;
+
+--exec egrep -v '^definers=' $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG > $MYSQL_TEST_DIR/var/tmp/t1.TRG
+--exec echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQL_TEST_DIR/var/tmp/t1.TRG
+--exec mv $MYSQL_TEST_DIR/var/tmp/t1.TRG $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG
+
+--echo
+
+SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+
+--echo
+
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+
+#
+# Cleanup
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+
+DROP DATABASE mysqltest_db1;

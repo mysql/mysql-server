@@ -25,5 +25,8 @@
 Field *Item_sum_unique_users::create_tmp_field(bool group, TABLE *table,
                                                uint convert_blob_length)
 {
-  return new Field_long(9,maybe_null,name,table,1);
+  Field *field= new Field_long(9, maybe_null, name, 1);
+  if (field)
+    field->init(table);
+  return field;
 }

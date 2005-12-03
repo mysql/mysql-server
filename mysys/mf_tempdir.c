@@ -28,9 +28,12 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   char *end, *copy;
   char buff[FN_REFLEN];
   DYNAMIC_ARRAY t_arr;
+  DBUG_ENTER("init_tmpdir");
+  DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
+
   pthread_mutex_init(&tmpdir->mutex, MY_MUTEX_INIT_FAST);
   if (my_init_dynamic_array(&t_arr, sizeof(char*), 1, 5))
-    return TRUE;
+    goto err;
   if (!pathlist || !pathlist[0])
   {
     /* Get default temporary directory */
@@ -46,12 +49,13 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   }
   do
   {
+    uint length;
     end=strcend(pathlist, DELIM);
-    convert_dirname(buff, pathlist, end);
-    if (!(copy=my_strdup(buff, MYF(MY_WME))))
-      return TRUE;
-    if (insert_dynamic(&t_arr, (gptr)&copy))
-      return TRUE;
+    strmake(buff, pathlist, (uint) (end-pathlist));
+    length= cleanup_dirname(buff, buff);
+    if (!(copy= my_strdup_with_length(buff, length, MYF(MY_WME))) ||
+        insert_dynamic(&t_arr, (gptr) &copy))
+      DBUG_RETURN(TRUE);
     pathlist=end+1;
   }
   while (*end);
@@ -59,12 +63,20 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   tmpdir->list=(char **)t_arr.buffer;
   tmpdir->max=t_arr.elements-1;
   tmpdir->cur=0;
-  return FALSE;
+  DBUG_RETURN(FALSE);
+
+err:
+  delete_dynamic(&t_arr);                       /* Safe to free */
+  pthread_mutex_destroy(&tmpdir->mutex);
+  DBUG_RETURN(TRUE);
 }
+
 
 char *my_tmpdir(MY_TMPDIR *tmpdir)
 {
   char *dir;
+  if (!tmpdir->max)
+    return tmpdir->list[0];
   pthread_mutex_lock(&tmpdir->mutex);
   dir=tmpdir->list[tmpdir->cur];
   tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur+1;

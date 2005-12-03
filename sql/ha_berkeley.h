@@ -84,7 +84,7 @@ class ha_berkeley: public handler
   DBT *get_pos(DBT *to, byte *pos);
 
  public:
-  ha_berkeley(TABLE *table_arg);
+  ha_berkeley(TABLE_SHARE *table_arg);
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
   ulong index_flags(uint idx, uint part, bool all_parts) const;
@@ -163,7 +163,9 @@ extern const u_int32_t bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;

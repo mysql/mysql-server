@@ -160,8 +160,10 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
       if (true_word_char(cs,*doc))
         mwc=0;
-      else if (!misc_word_char(*doc) || mwc++)
+      else if (!misc_word_char(*doc) || mwc)
         break;
+      else
+        mwc++;
 
     param->prev='A'; /* be sure *prev is true_word_char */
     word->len= (uint)(doc-word->pos) - mwc;
@@ -211,8 +213,10 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
     for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
       if (true_word_char(cs,*doc))
         mwc= 0;
-      else if (!misc_word_char(*doc) || mwc++)
+      else if (!misc_word_char(*doc) || mwc)
         break;
+      else
+        mwc++;
 
     word->len= (uint)(doc-word->pos) - mwc;
 

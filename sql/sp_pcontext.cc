@@ -52,7 +52,7 @@ sp_cond_check(LEX_STRING *sqlstate)
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev)
   : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
-    m_handlers(0), m_parent(prev)
+    m_handlers(0), m_parent(prev), m_pboundary(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
@@ -150,7 +150,7 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx)
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
 {
-  uint i= m_pvar.elements;
+  uint i= m_pvar.elements - m_pboundary;
 
   while (i--)
   {
@@ -167,6 +167,28 @@ sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
   if (!scoped && m_parent)
     return m_parent->find_pvar(name, scoped);
   return NULL;
+}
+
+/*
+  Find a variable by offset from the top.
+  This used for two things:
+  - When evaluating parameters at the beginning, and setting out parameters
+    at the end, of invokation. (Top frame only, so no recursion then.)
+  - For printing of sp_instr_set. (Debug mode only.)
+ */
+sp_pvar_t *
+sp_pcontext::find_pvar(uint offset)
+{
+  if (m_poffset <= offset && offset < m_poffset + m_pvar.elements)
+  {                           // This frame
+    sp_pvar_t *p;
+
+    get_dynamic(&m_pvar, (gptr)&p, offset - m_poffset);
+    return p;
+  }
+  if (m_parent)
+    return m_parent->find_pvar(offset); // Some previous frame
+  return NULL;                  // index out of bounds
 }
 
 void
@@ -331,3 +353,21 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
     return m_parent->find_cursor(name, poff, scoped);
   return FALSE;
 }
+
+/*
+  Find a cursor by offset from the top.
+  This is only used for debugging.
+ */
+my_bool
+sp_pcontext::find_cursor(uint offset, LEX_STRING *n)
+{
+  if (m_coffset <= offset && offset < m_coffset + m_cursor.elements)
+  {                           // This frame
+    get_dynamic(&m_cursor, (gptr)n, offset - m_coffset);
+    return TRUE;
+  }
+  if (m_parent)
+    return m_parent->find_cursor(offset, n); // Some previous frame
+  return FALSE;                 // index out of bounds
+}
+

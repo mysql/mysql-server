@@ -189,11 +189,10 @@ class MYSQL_LOG: public TC_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log, LOCK_index, LOCK_readers;
+  pthread_mutex_t LOCK_log, LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
   pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
-  pthread_cond_t reset_cond;
   ulonglong bytes_written;
   time_t last_time,query_start;
   IO_CACHE log_file;
@@ -335,9 +334,6 @@ public:
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli, bool included);
   bool reset_logs(THD* thd);
-  inline bool is_reset_pending() { return reset_pending; }
-  void readers_addref();
-  void readers_release();
   void close(uint exiting);
 
   // iterating through the log index file
@@ -537,6 +533,7 @@ struct system_variables
   ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
+  ulong max_sp_recursion_depth;
   /* check of key presence in updatable view */
   ulong updatable_views_with_limit;
   ulong default_week_format;
@@ -631,6 +628,7 @@ typedef struct system_status_var
 
   ulong net_big_packet_count;
   ulong opened_tables;
+  ulong opened_shares;
   ulong select_full_join_count;
   ulong select_full_range_join_count;
   ulong select_range_count;
@@ -1103,8 +1101,9 @@ public:
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
-  bool enable_slow_log, insert_id_used;
+  bool enable_slow_log, insert_id_used, clear_next_insert_id;
   my_bool no_send_ok;
+  SAVEPOINT *savepoints;
 };
 
 
@@ -1242,14 +1241,16 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
     }
-#ifdef USING_TRANSACTIONS
     st_transactions()
     {
+#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-    }
+#else
+      xid_state.xa_state= XA_NOTR;
 #endif
+    }
   } transaction;
   Field      *dupp_field;
 #ifndef __WIN__
@@ -1832,11 +1833,18 @@ public:
   uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
   bool schema_table;
+  /*
+    True if GROUP BY and its aggregate functions are already computed
+    by a table access method (e.g. by loose index scan). In this case
+    query execution should not perform aggregation and should treat
+    aggregate functions as normal functions.
+  */
+  bool precomputed_group_by;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0)
+     schema_table(0), precomputed_group_by(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -2098,6 +2106,13 @@ public:
 class my_var : public Sql_alloc  {
 public:
   LEX_STRING s;
+#ifndef DBUG_OFF
+  /*
+    Routine to which this Item_splocal belongs. Used for checking if correct
+    runtime context is used for variable handling.
+  */
+  sp_head *owner;
+#endif
   bool local;
   uint offset;
   enum_field_types type;

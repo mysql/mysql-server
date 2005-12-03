@@ -170,17 +170,18 @@ class sp_pcontext : public Sql_alloc
   sp_pvar_t *
   find_pvar(LEX_STRING *name, my_bool scoped=0);
 
-  // Find by index
+  // Find by offset
   sp_pvar_t *
-  find_pvar(uint i)
-  {
-    sp_pvar_t *p;
+  find_pvar(uint offset);
 
-    if (i < m_pvar.elements)
-      get_dynamic(&m_pvar, (gptr)&p, i);
-    else
-      p= NULL;
-    return p;
+  /*
+    Set the current scope boundary (for default values)
+    The argument is the number of variables to skip.   
+  */
+  inline void
+  declare_var_boundary(uint n)
+  {
+    m_pboundary= n;
   }
 
   //
@@ -261,6 +262,10 @@ class sp_pcontext : public Sql_alloc
   my_bool
   find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
 
+  /* Find by offset (for debugging only) */
+  my_bool
+  find_cursor(uint offset, LEX_STRING *n);
+
   inline uint
   max_cursors()
   {
@@ -287,6 +292,13 @@ private:
 
   uint m_poffset;		// Variable offset for this context
   uint m_coffset;		// Cursor offset for this context
+  /*
+    Boundary for finding variables in this context. This is the number
+    of variables currently "invisible" to default clauses.
+    This is normally 0, but will be larger during parsing of
+    DECLARE ... DEFAULT, to get the scope right for DEFAULT values.
+  */
+  uint m_pboundary;
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions

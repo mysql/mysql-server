@@ -152,3 +152,15 @@
    obj:*/libz.so.*
    fun:gzflush
 }
+
+#
+# Warning from my_thread_init becasue mysqld dies before kill thread exists
+#
+
+{
+   my_thread_init kill thread memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:kill_server_thread
+}

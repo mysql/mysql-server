@@ -173,12 +173,14 @@ private:
   int stash_remote_error();
 
 public:
-  ha_federated(TABLE *table_arg);
-  ~ha_federated()
-  {
-  }
+  ha_federated(TABLE_SHARE *table_arg);
+  ~ha_federated() {}
   /* The name that will be used for display purposes */
   const char *table_type() const { return "FEDERATED"; }
+  /*
+    Next pointer used in transaction
+  */
+  ha_federated *trx_next;
   /*
     The name of the index type that will be used for display
     don't implement this method unless you really have indexes
@@ -230,8 +232,7 @@ public:
   */
   double scan_time()
   {
-    DBUG_PRINT("info",
-               ("records %d", records));
+    DBUG_PRINT("info", ("records %lu", (ulong) records));
     return (double)(records*1000); 
   }
   /*
@@ -298,7 +299,14 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     //required
   virtual bool get_error_message(int error, String *buf);
+  int external_lock(THD *thd, int lock_type);
+  int connection_commit();
+  int connection_rollback();
+  bool has_transactions()  { return 1; }
+  int connection_autocommit(bool state);
+  int execute_simple_query(const char *query, int len);
 };
 
 bool federated_db_init(void);
 int federated_db_end(ha_panic_function type);
+

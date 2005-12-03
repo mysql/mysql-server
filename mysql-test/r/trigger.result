@@ -611,9 +611,9 @@ select @a;
 @a
 10
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
-t1_af	INSERT	t1	 set @a=10	AFTER	#	
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost
+t1_af	INSERT	t1	 set @a=10	AFTER	#		root@localhost
 drop table t1;
 set sql_mode="traditional";
 create table t1 (a date);
@@ -633,8 +633,8 @@ t1	CREATE TABLE `t1` (
   `a` date default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
-t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#	
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#		root@localhost
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -703,8 +703,11 @@ create trigger t1_ai after insert on t1
 for each row insert into t2 values (new.f1+1);
 create trigger t2_ai after insert on t2
 for each row insert into t1 values (new.f2+1);
+set @SAVE_SP_RECURSION_LEVELS=@@max_sp_recursion_depth;
+set @@max_sp_recursion_depth=100;
 insert into t1 values (1);
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 f1
 1
@@ -738,3 +741,42 @@ f1
 1
 drop trigger t1_bi;
 drop tables t1, t2;
+create table t1 (id int);
+create table t2 (id int);
+create trigger t1_bi before insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10);
+call p1();
+drop trigger t1_bi;
+execute stmt1;
+call p1();
+deallocate prepare stmt1;
+drop procedure p1;
+create table t3 (id int);
+create trigger t1_bi after insert on t1 for each row insert into t2 values (new.id);
+prepare stmt1 from "insert into t1 values (10)";
+create procedure p1() insert into t1 values (10);
+call p1();
+drop trigger t1_bi;
+create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
+execute stmt1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+call p1();
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+deallocate prepare stmt1;
+drop procedure p1;
+drop table t1, t2, t3;
+create table t1 (a int);
+drop procedure if exists p2;
+CREATE PROCEDURE `p2`()
+begin
+insert into t1 values (1);
+end//
+create trigger trg before insert on t1 for each row 
+begin 
+declare done int default 0;
+set done= not done;
+end//
+CALL p2();
+drop procedure p2;
+drop table t1;

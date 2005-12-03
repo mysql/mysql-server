@@ -462,7 +462,6 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
 		       CHARSET_INFO *cs)
 {
   Item *res;
-  LINT_INIT(res);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
@@ -477,6 +476,10 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
   case ITEM_CAST_CHAR:
     res= new Item_char_typecast(a, len, cs ? cs : 
 				current_thd->variables.collation_connection);
+    break;
+  default:
+    DBUG_ASSERT(0);
+    res= 0;
     break;
   }
   return res;

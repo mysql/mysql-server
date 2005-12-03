@@ -473,7 +473,7 @@ drop table wl1612_4;
 #
 #-- Additional tests for WL#1612 Precision math
 #
-#-- 1. Comparisons should show that a number is
+#-- Comparisons should show that a number is
 #-- exactly equal to its value as displayed.
 #
 set sql_mode='';
@@ -487,34 +487,9 @@ select 18.3=18.3;
 select -18.3=18.3;
 #
 select 0.8 = 0.7 + 0.1;
+
 #
-#-- 2. Adding (one millionth) one million times should be the same as
-#-- adding 1. So a stored procedure with many iterations will show if
-#-- small errors accumulate.
-#
-#drop procedure p1;
-#
-delimiter //;
-#
-create procedure p1 () begin 
-  declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
-  set v1 = 1; set v2 = 2; set v3 = 1000000000000; set v4 = 2000000000000; set v5 = 0; 
-  while v5 < 100000 do
-   set v1 = v1 + 0.000000000001; set v2 = v2 - 0.000000000001; set v3 = v3 + 1; set v4 = v4 - 1; set v5 = v5 + 1; 
-  end while; select v1, v2, v3 * 0.000000000001, v4 * 0.000000000001; end;//
-#
-call p1()//
-#-- should return 
-#   -- v1=1.0000001
-#   -- v2=1.999999900000
-#   -- v3=1.0000001
-#   -- v4=1.999999900000
-#
-delimiter ;//
-#
-drop procedure p1;
-#
-#-- 3. It should be possible to define a column
+#-- It should be possible to define a column
 #-- with up to 38 digits precision either before
 #-- or after the decimal point. Any number which
 #-- is inserted, if it's within the range, should
@@ -565,7 +540,7 @@ select * from t1;
 #
 drop table t1;
 #
-#-- 4. The usual arithmetic operators / * + - should work.
+#-- The usual arithmetic operators / * + - should work.
 #
 #select 77777777777777777777777777777777777777 / 7777777777777777777777777777777777777 = 10;
 #-- should return 0 (false).
@@ -668,7 +643,7 @@ select truncate(99999999999999999999999999999999999999,-31);
 #drop procedure p1;
 #drop table t1;
 #
-#-- 7. When I say DECIMAL(x) I should be able to store x digits.
+#-- When I say DECIMAL(x) I should be able to store x digits.
 #-- If I can't, there should be an error at CREATE time.
 #
 #drop table if exists t1;
@@ -676,7 +651,8 @@ select truncate(99999999999999999999999999999999999999,-31);
 #create table t1 (col1 decimal(254));
 #-- should return SQLSTATE 22003 numeric value out of range 
 #
-#-- 8. When I say DECIMAL(x,y) there should be no silent change of precision or scale.
+#-- When I say DECIMAL(x,y) there should be no silent change of precision or
+#-- scale.
 #
 #drop table if exists t1;
 #
@@ -694,7 +670,7 @@ select truncate(99999999999999999999999999999999999999,-31);
 #
 #drop table t1;
 #
-#-- 9. From WL#1612 "The future" point 2.:
+#-- From WL#1612 "The future" point 2.:
 #-- The standard requires that we treat numbers like "0.5" as
 #-- DECIMAL or NUMERIC, not as floating-point.
 #
@@ -715,7 +691,7 @@ show create table t1;
 #
 drop table t1;
 #
-#-- 10. From WL#1612, "The future", point 3.: We have to start rounding correctly.
+#-- From WL#1612, "The future", point 3.: We have to start rounding correctly.
 #
 select round(1.5),round(2.5);
 #-- should return:
@@ -725,13 +701,13 @@ select round(1.5),round(2.5);
 #| 2          | 3          |
 #+------------+------------+
 #
-#-- 11. From WL#1612, "The future", point 4.: "select 0.07 * 0.07;" should return 0.0049, not 0.00.
+#-- From WL#1612, "The future", point 4.: "select 0.07 * 0.07;" should return 0.0049, not 0.00.
 #-- If operand#1 has scale X and operand#2 has scale Y, then result should have scale (X+Y).
 #
 select 0.07 * 0.07;
 #-- should return 0.0049
 #
-#-- 12. From WL#1612, "The future", point 5.: Division by zero is an error.
+#-- From WL#1612, "The future", point 5.: Division by zero is an error.
 #
 set sql_mode='traditional';
 #
@@ -752,7 +728,7 @@ select 1 / 0;
 #+-------+
 #1 row in set, 1 warning (0.00 sec)
 #
-#-- 13. From WL#1612 "The future" point 6.: Overflow is an error.
+#-- From WL#1612 "The future" point 6.: Overflow is an error.
 #
 #set sql_mode='';
 #
@@ -793,7 +769,8 @@ select 1 / 0;
 #drop table t2;
 #drop table t1;
 #
-#-- 15. From WL#1612 "The future" point 8.: Stop storing leading "+" signs and leading "0"s.
+#-- From WL#1612 "The future" point 8.: Stop storing leading "+" signs and
+#   leading "0"s.
 #
 #drop table if exists t1;
 #
@@ -805,7 +782,7 @@ select 1 / 0;
 #
 #drop table t1;
 #
-#-- 16. From WL#1612, The future" point 9.:
+#-- From WL#1612, The future" point 9.:
 #-- Accept the data type and precision and scale as the user
 #-- asks, or return an error, but don't change to something else.
 #
@@ -817,7 +794,7 @@ select 1 / 0;
 #
 #drop table t1;
 #
-#-- 17. The scripts in the following bugs should work:
+#-- The scripts in the following bugs should work:
 #
 
 #BUG#559  Maximum precision for DECIMAL column ...
@@ -833,7 +810,7 @@ select 1 / 0;
 #BUG#6048 Stored procedure causes operating system reboot
 #BUG#6053 DOUBLE PRECISION literal
 
--- 18. Tests from 'traditional' mode tests
+-- Tests from 'traditional' mode tests
 #
 set sql_mode='ansi,traditional';
 #
@@ -1050,6 +1027,48 @@ select cast(@non_existing_user_var/2 as DECIMAL);
 #
 --error 1427
 create table t (d decimal(0,10));
+
+#
+# Bug #14268 (bad FLOAT->DECIMAL conversion)
+#
+
+CREATE TABLE t1 (
+   my_float   FLOAT,
+   my_double  DOUBLE,
+   my_varchar VARCHAR(50),
+   my_decimal DECIMAL(65,30)
+);
+SHOW CREATE TABLE t1;
+
+let $max_power= 32;
+while ($max_power)
+{
+   eval INSERT INTO t1 SET my_float = 1.175494345e-$max_power,
+                           my_double = 1.175494345e-$max_power,
+                           my_varchar = '1.175494345e-$max_power';
+   dec $max_power;
+}
+SELECT my_float, my_double, my_varchar FROM t1;
+
+SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
+SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
+SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;
+
+# We have to disable warnings here as the test in
+# Field_new_decimal::store(double):
+# if (nr2 != nr)
+# fails randomly depending on compiler options
+
+--disable_warnings
+UPDATE t1 SET my_decimal = my_float;
+SELECT my_decimal, my_float   FROM t1;
+UPDATE t1 SET my_decimal = my_double;
+SELECT my_decimal, my_double  FROM t1;
+--enable_warnings
+UPDATE t1 SET my_decimal = my_varchar;
+SELECT my_decimal, my_varchar FROM t1;
+
+DROP TABLE t1;
 
 #
 # Bug #13573 (Wrong data inserted for too big values)

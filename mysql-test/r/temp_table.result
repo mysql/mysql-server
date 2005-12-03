@@ -135,3 +135,14 @@ d	c
 bar	2
 foo	1
 drop table t1, t2;
+create temporary table t1 (a int);
+insert into t1 values (4711);
+select * from t1;
+a
+4711
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;

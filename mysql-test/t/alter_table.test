@@ -340,7 +340,9 @@ drop table t1;
 #
 # BUG 12207 alter table ... discard table space on MyISAM table causes ERROR 2013 (HY000)
 #
+# Some platforms (Mac OS X, Windows) will send the error message using small letters.
 CREATE TABLE T12207(a int) ENGINE=MYISAM;
+--replace_result t12207 T12207
 --error 1031
 ALTER TABLE T12207 DISCARD TABLESPACE;
 DROP TABLE T12207;
@@ -403,9 +405,17 @@ drop table t1;
 # End of 4.1 tests
 
 #
-# Some additional tests for new, faster alter table.
-# Note that most of the whole alter table code is being
-# tested all around the test suite already.
+# Bug #14693 (ALTER SET DEFAULT doesn't work)
+#
+
+create table t1 (mycol int(10) not null);
+alter table t1 alter column mycol set default 0;
+desc t1;
+drop table t1;
+
+#
+# Some additional tests for new, faster alter table.  Note that most of the
+# whole alter table code is being tested all around the test suite already.
 #
 
 create table t1 (v varchar(32));

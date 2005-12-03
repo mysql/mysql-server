@@ -83,11 +83,11 @@ int main(int argc, char ** argv)
     }
     
     Uint32 sz;
-    Uint32 i = 0;
+    Uint32 j = 0;
     do {
       buffer.grow(g_page_size);
       sz = fread(buffer.get_data(), 1, g_page_size, f);
-      if((* g_print_page)(i++, buffer.get_data(), sz))
+      if((* g_print_page)(j++, buffer.get_data(), sz))
 	break;
     } while(sz == g_page_size);
     
@@ -368,3 +368,6 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 
   return 0;
 }
+
+// hp3750
+Signal::Signal(){}

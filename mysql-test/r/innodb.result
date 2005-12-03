@@ -1615,7 +1615,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
-ERROR HY000: Can't create table './test/t2' (errno: 150)
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
 create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
 show create table t2;
 Table	Create Table
@@ -2437,7 +2437,7 @@ a	b
 20	NULL
 drop table t1;
 create table t1 (v varchar(65530), key(v));
-ERROR HY000: Can't create table './test/t1' (errno: 139)
+ERROR HY000: Can't create table 'test.t1' (errno: 139)
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
@@ -2580,19 +2580,19 @@ character set = latin1 engine = innodb;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
 create table t1 (col1 varchar(768), index (col1))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table './test/t1.frm' (errno: 139)
+ERROR HY000: Can't create table 'test.t1' (errno: 139)
 create table t2 (col1 varchar(768) primary key)
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table './test/t2.frm' (errno: 139)
+ERROR HY000: Can't create table 'test.t2' (errno: 139)
 create table t3 (col1 varbinary(768) primary key)
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table './test/t3.frm' (errno: 139)
+ERROR HY000: Can't create table 'test.t3' (errno: 139)
 create table t4 (col1 text, index(col1(768)))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table './test/t4.frm' (errno: 139)
+ERROR HY000: Can't create table 'test.t4' (errno: 139)
 create table t5 (col1 blob, index(col1(768)))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table './test/t5.frm' (errno: 139)
+ERROR HY000: Can't create table 'test.t5' (errno: 139)
 CREATE TABLE t1
 (
 id INT PRIMARY KEY
@@ -2772,3 +2772,17 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 drop table t1;
 drop table t2;
 commit;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+key (a,b,c,d)) engine=innodb;
+drop table t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+e varchar(255) character set utf8,
+key (a,b,c,d,e)) engine=innodb;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+End of 5.0 tests

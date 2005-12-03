@@ -137,8 +137,16 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
-
+  /* Bitmap of nested joins this table is part of */
+  nested_join_map embedding_map;
+  
   void cleanup();
+  inline bool is_using_loose_index_scan()
+  {
+    return (select && select->quick &&
+            (select->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+  }
 } JOIN_TAB;
 
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
@@ -194,6 +202,13 @@ class JOIN :public Sql_alloc
   */
   ha_rows  fetch_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
+  
+  /* 
+    Bitmap of nested joins embedding the position at the end of the current 
+    partial join (valid only during join optimizer run).
+  */
+  nested_join_map cur_embedding_map;
+
   double   best_read;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
@@ -431,10 +446,11 @@ class store_key :public Sql_alloc
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
     {
-      /* Key segments are always packed with a 2 byte length prefix */
-      to_field=new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
-				   Field::NONE, field_arg->field_name,
-				   field_arg->table, field_arg->charset());
+        /* Key segments are always packed with a 2 byte length prefix */
+      to_field= new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
+                                    Field::NONE, field_arg->field_name,
+                                    field_arg->table->s, field_arg->charset());
+      to_field->init(field_arg->table);
     }
     else
       to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,

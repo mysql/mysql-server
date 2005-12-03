@@ -516,7 +516,12 @@ int mysql_update(THD *thd,
 	}
  	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
-          thd->fatal_error();                   // Force error message
+          /*
+            If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+            do anything; otherwise...
+          */
+          if (error != HA_ERR_FOUND_DUPP_KEY)
+            thd->fatal_error(); /* Other handler errors are fatal */
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -1183,7 +1188,8 @@ multi_update::initialize_tables(JOIN *join)
 
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
-			table, &my_charset_bin);
+			&my_charset_bin);
+    offset.init(table);
     if (!(ifield= new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
     ifield->maybe_null= 0;
@@ -1364,7 +1370,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  updated--;
           if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	  {
-            thd->fatal_error();                 // Force error message
+            /*
+              If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+              do anything; otherwise...
+            */
+            if (error != HA_ERR_FOUND_DUPP_KEY)
+              thd->fatal_error(); /* Other handler errors are fatal */
 	    table->file->print_error(error,MYF(0));
 	    DBUG_RETURN(1);
 	  }
@@ -1385,22 +1396,23 @@ bool multi_update::send_data(List<Item> &not_used_values)
       int error;
       TABLE *tmp_table= tmp_tables[offset];
       fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
-      found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if ((error= tmp_table->file->write_row(tmp_table->record[0])) &&
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (error= tmp_table->file->write_row(tmp_table->record[0]))
       {
-	if (create_myisam_from_heap(thd, tmp_table, tmp_table_param + offset,
-				    error, 1))
+        if (error != HA_ERR_FOUND_DUPP_KEY &&
+            error != HA_ERR_FOUND_DUPP_UNIQUE &&
+            create_myisam_from_heap(thd, tmp_table,
+                                         tmp_table_param + offset, error, 1))
 	{
 	  do_update=0;
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	}
       }
+      else
+        found++;
     }
   }
   DBUG_RETURN(0);
