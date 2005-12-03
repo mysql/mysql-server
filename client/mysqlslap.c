@@ -19,51 +19,62 @@
 
 
 /*
-
   MySQL Slap
 
   A simple program designed to work as if multiple clients querying the database,
   then reporting the timing of each stage.
 
   MySQL slap runs three stages:
-  1) Create Schema (single client)
+  1) Create table (single client)
   2) Insert data (many clients)
   3) Load test (many clients)
   4) Cleanup (disconnection, drop table if specified, single client)
 
-Examples:
+  Examples:
 
-Supply your own create, insert and query SQL statements, with 5 clients
-loading (10 inserts for each), 50 clients querying:
+  Supply your own create, insert and query SQL statements, with eight
+  clients loading data (eight inserts for each) and 50 clients querying (200
+  selects for each):
 
-./mysqlslap --create="CREATE TABLE A (a int)" --data="INSERT INTO A (23)" --iterations=200
-            --query="SELECT * FROM A" --number-rows=10 --concurrency=50 --load-concurrency=5
+    mysqlslap --create="CREATE TABLE A (a int)" \
+              --data="INSERT INTO A (23)" --load-concurrency=8 --number-rows=8 \
+              --query="SELECT * FROM A" --concurrency=50 --iterations=200 \
+              --load-concurrency=5
 
-Let the program build create, insert and query SQL statements with a table of
-two int columns, 3 varchar columns, with 5 clients loading data
-(12 inserts each), 5 clients querying, drop schema before creating:
+  Let the program build create, insert and query SQL statements with a table
+  of two int columns, three varchar columns, with five clients loading data
+  (12 inserts each), five clients querying (20 times each), and drop schema
+  before creating:
 
-./mysqlslap --concurrency=5 --concurrency-load=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --number-rows=12 --auto-generate-sql
+    mysqlslap --concurrency=5 --concurrency-load=5 --iterations=20 \
+              --number-int-cols=2 --number-char-cols=3 --number-rows=12 \
+              --auto-generate-sql
 
-Let the program build the query SQL statement with a table of
-two int columns, 3 varchar columns, 5 clients querying, don't
-create the table or insert the data (using the previous test's schema
-and data)
+  Let the program build the query SQL statement with a table of two int
+  columns, three varchar columns, five clients querying (20 times each),
+  don't create the table or insert the data (using the previous test's
+  schema and data):
 
-./mysqlslap --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --number-rows=12 --auto-generate-sql --skip-data-load --skip-create-schema
+    mysqlslap --concurrency=5 --iterations=20 \
+              --number-int-cols=2 --number-char-cols=3 \
+              --number-rows=12 --auto-generate-sql \
+              --skip-data-load --skip-create-schema
 
-Tell the program to load the create, insert and query SQL statements
-from the specified files which the create.sql file has multiple table creation
-statements delimited by ';', multiple insert statements delimited by ';',
-and multiple queries delimited by ';', run all the load statements with 5
-clients, 5 times per client, and run all the queries in the query file with
-5 clients:
+  Tell the program to load the create, insert and query SQL statements from
+  the specified files, where the create.sql file has multiple table creation
+  statements delimited by ';', multiple insert statements delimited by ';',
+  and multiple queries delimited by ';', run all the load statements with
+  five clients (five times each), and run all the queries in the query file
+  with five clients (five times each):
 
-/mysqlslap --drop-schema --concurrency=5 --concurrency-load=5 --iterations=5 --query=query.sql --create=create.sql --data=insert.sql --delimiter=";" --number-rows=5
+    mysqlslap --drop-schema --concurrency=5 --concurrency-load=5 \
+              --iterations=5 --query=query.sql --create=create.sql \
+              --data=insert.sql --delimiter=";" --number-rows=5
 
-Same as the last test run, with short options
-./mysqlslap -D -c 5 -l 5 -i 5 -q query.sql --create create.sql -d insert.sql -F ";" -n 5
+  Same as the last test run, with short options
 
+    mysqlslap -D -c 5 -l 5 -i 5 -q query.sql \
+              --create create.sql -d insert.sql -F ";" -n 5
 */
 
 #define SHOW_VERSION "0.1"
@@ -88,7 +99,6 @@ Same as the last test run, with short options
 
 
 static int drop_schema(MYSQL *mysql, const char *db);
-unsigned int get_random_number(void);
 unsigned int get_random_string(char *buf);
 static int build_table_string(void);
 static int build_insert_string(void);
@@ -98,20 +108,21 @@ static int run_scheduler(const char *script, int(*task)(const char *),
                          unsigned int concur);
 int run_task(const char *script);
 int load_data(const char *script);
+static char **defaults_argv;
 
 static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_query= NULL, *user_supplied_data= NULL,
             *create_string= NULL, *default_engine= NULL, *delimiter= NULL,
             *opt_mysql_unix_port= NULL;
 
-static my_bool opt_compress= FALSE, opt_count= FALSE, tty_password= FALSE,
+static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_drop= FALSE, create_string_alloced= FALSE,
                insert_string_alloced= FALSE, query_string_alloced= FALSE,
                generated_insert_flag= FALSE, opt_silent= FALSE,
                auto_generate_sql= FALSE, opt_skip_create= FALSE,
                opt_skip_data_load= FALSE, opt_skip_query= FALSE;
 
-static int verbose= 0, num_int_cols=-1, num_char_cols=-1, delimiter_length= 0;
+static int verbose= 0, num_int_cols=0, num_char_cols=0, delimiter_length= 0;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static unsigned int number_of_rows= 1000, number_of_iterations= 1000,
   concurrency= 1, concurrency_load= 1, children_spawned= 1;
@@ -120,30 +131,31 @@ const char *default_dbug_option="d:t:o,/tmp/mysqlslap.trace";
 
 static uint opt_protocol= 0;
 
-static void get_options(int *argc,char ***argv);
+static int get_options(int *argc,char ***argv);
 static uint opt_mysql_port= 0;
 
 static const char *load_default_groups[]= { "mysqlslap","client",0 };
-#if ELEGANT_SOLUTION
+
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
-static const ALPHANUMERICS_SIZE= (sizeof(ALPHANUMERICS)-1);
-#endif
+#define ALPHANUMERICS_SIZE (sizeof(ALPHANUMERICS)-1)
 
-/* returns the time in ms between two timevals */
 
+/* Return the time in ms between two timevals */
 static double timedif(struct timeval end, struct timeval begin)
 {
   double seconds;
   DBUG_ENTER("timedif");
 
   seconds= (double)(end.tv_usec - begin.tv_usec)/1000000;
-  DBUG_PRINT("info", ("end.tv_usec %d - begin.tv_usec %d = %d microseconds ( fseconds %f)",
+  DBUG_PRINT("info", ("end.tv_usec %d - begin.tv_usec %d = "
+                      "%d microseconds ( fseconds %f)",
                       end.tv_usec, begin.tv_usec,
                       (end.tv_usec - begin.tv_usec),
                       seconds));
   seconds += (double)(end.tv_sec - begin.tv_sec);
-  DBUG_PRINT("info", ("end.tv_sec %d - begin.tv_sec %d = %d seconds (fseconds %f)",
+  DBUG_PRINT("info", ("end.tv_sec %d - begin.tv_sec %d = "
+                      "%d seconds (fseconds %f)",
                       end.tv_sec, begin.tv_sec,
                       (end.tv_sec - begin.tv_sec), seconds));
 
@@ -154,64 +166,36 @@ static double timedif(struct timeval end, struct timeval begin)
 
 int main(int argc, char **argv)
 {
-  my_bool first_argument_uses_wildcards= 0;
-  char *wild;
   MYSQL mysql;
   int client_flag= 0;
   double time_difference;
-  struct timeval tmp_time, start_time, load_time, run_time;
-  /* for the string generation later */
+  struct timeval start_time, load_time, run_time;
 
   DBUG_ENTER("main");
   MY_INIT(argv[0]);
 
-  /* for any string generation later on */
+  /* Seed the random number generator if we will be using it. */
   if (auto_generate_sql)
-    srandom((unsigned int) tmp_time.tv_usec);
+    srandom((unsigned int)time(NULL));
 
-  bzero(&load_time, sizeof(struct timeval));
-  bzero(&run_time, sizeof(struct timeval));
   load_defaults("my",load_default_groups,&argc,&argv);
-  get_options(&argc,&argv);
+  defaults_argv=argv;
+  if (get_options(&argc,&argv))
+  {
+    free_defaults(defaults_argv);
+    my_end(0);
+    exit(1);
+  }
+    ;
   /* globals? Yes, so we only have to run strlen once */
   if (delimiter)
     delimiter_length= strlen(delimiter);
 
-  wild= 0;
-  if (argc)
-  {
-    char *pos= argv[argc-1], *to;
-    for (to= pos ; *pos ; pos++, to++)
-    {
-      switch (*pos) {
-      case '*':
-        *pos= '%';
-        first_argument_uses_wildcards= 1;
-        break;
-      case '?':
-        *pos= '_';
-        first_argument_uses_wildcards= 1;
-        break;
-      case '%':
-      case '_':
-        first_argument_uses_wildcards= 1;
-        break;
-      case '\\':
-        pos++;
-      default: break;
-      }
-      *to= *pos;
-    }
-    *to= *pos; /* just to copy a '\0'  if '\\' was used */
-  }
-  if (first_argument_uses_wildcards)
-    wild= argv[--argc];
-  else if (argc == 3)			/* We only want one field */
-    wild= argv[--argc];
-
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
+    free_defaults(defaults_argv);
+    my_end(0);
     exit(1);
   }
   mysql_init(&mysql);
@@ -232,18 +216,19 @@ int main(int argc, char **argv)
 
   client_flag|= CLIENT_MULTI_RESULTS;
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
-                           (first_argument_uses_wildcards) ? "" :
                            argv[0],opt_mysql_port,opt_mysql_unix_port,
                            client_flag)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
+    free_defaults(defaults_argv);
+    my_end(0);
     exit(1);
   }
 
   /*
-    we might not want to load any data, if for instance we are calling
-    a stored_procedure that doesn't use data, or we know we already have 
-    data in the table
+    We might not want to load any data, such as when we are calling
+    a stored_procedure that doesn't use data, or we know we already have
+    data in the table.
   */
   if (opt_drop)
     drop_schema(&mysql, "mysqlslap");
@@ -297,6 +282,7 @@ int main(int argc, char **argv)
   if (shared_memory_base_name)
     my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
 #endif
+  free_defaults(defaults_argv);
   my_end(0);
 
   DBUG_RETURN(0); /* No compiler warnings */
@@ -304,34 +290,37 @@ int main(int argc, char **argv)
 
 static struct my_option my_long_options[] =
 {
-  {"auto-generate-sql", 'a', "Generate SQL where not supplied by file or command line.",
+  {"auto-generate-sql", 'a',
+    "Generate SQL where not supplied by file or command line.",
     (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
     (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
-  {"concurrency-load", 'l', "Number of clients to simulate for data load.",
+  {"concurrency-load", 'l', "Number of clients to use when loading data.",
     (gptr*) &concurrency_load, (gptr*) &concurrency_load, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
     (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_UINT,
-    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"create", OPT_CREATE_SLAP_SCHEMA, "File or string to use for create.",
     (gptr*) &create_string, (gptr*) &create_string, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"data", 'd',
-    "File or string with INSERT to use for populating table(s).",
+    "File or string with INSERT to use for populating data.",
     (gptr*) &user_supplied_data, (gptr*) &user_supplied_data, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     (gptr*) &default_dbug_option, (gptr*) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"delimiter", 'F', "Delimiter to use in SQL statements supplied in file or command line.",
+  {"delimiter", 'F',
+    "Delimiter to use in SQL statements supplied in file or command line.",
     (gptr*) &delimiter, (gptr*) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"drop-schema", 'D',
-    "Drop schema if it exists prior to running, and after running",
-    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    "Drop schema if it exists prior to running and after running.",
+    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
     (gptr*) &default_engine, (gptr*) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -340,7 +329,8 @@ static struct my_option my_long_options[] =
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of iterations.", (gptr*) &number_of_iterations,
-    (gptr*) &number_of_iterations, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    (gptr*) &number_of_iterations, 0, GET_UINT, REQUIRED_ARG,
+    1000, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', "Number of INT columns to create table with if specifying --sql-generate-sql.",
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
@@ -417,7 +407,7 @@ static void usage(void)
        \nand you are welcome to modify and redistribute it under the GPL \
        license\n");
   puts("Run a query multiple times against the server\n");
-  printf("Usage: %s [OPTIONS] [database [table [column]]]\n",my_progname);
+  printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
   my_print_help(my_long_options);
 }
@@ -482,81 +472,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   DBUG_RETURN(0);
 }
 
-/*
-  get_random_number()
-
-  returns a random number to be used in building an sql statement
-*/
-unsigned int
-get_random_number(void)
-{
-  int num;
-  char rstate[8];
-  struct timeval timestruct;
-
-  DBUG_ENTER("get_random_number");
-  gettimeofday(&timestruct, NULL);
-  initstate(timestruct.tv_usec, rstate, sizeof(rstate));
-  setstate(rstate);
-  num= random();
-  DBUG_RETURN(num);
-}
 
 unsigned int
 get_random_string(char *buf)
 {
   char *buf_ptr= buf;
-  int x, chr= 0;
-
+  int x;
   DBUG_ENTER("get_random_string");
   for (x= RAND_STRING_SIZE; x > 0; x--)
-  {
-    /*
-      why this tmp_num? Because for some reason, x's value gets
-      munged during call of random()
-    */
-    int tmp_num= x;
-    chr= random()% tmp_num;
-    /*
-      avoiding problematic chars for insert
-    */
-    if (chr >= 48 && chr <= 122 && chr != 96 && chr != 92)
-      *buf_ptr++= chr;
-  }
-
-  /*
-    strlen
-  */
-  DBUG_RETURN(buf_ptr- buf);
-}
-#if ELEGANT_SOLUTION
-/*
-  I would like to use this, but for some reason, subsequent calls to
-  this function result in buf having non-alpha characters added beyond it's
-  size, which in turn corrupt the insert string.
-*/
-unsigned int
-get_random_string(char *buf)
-{
-  char *buf_ptr=buf;
-  int x= RAND_STRING_SIZE;
-
-  DBUG_ENTER("get_random_string");
-  DBUG_PRINT("info", ("RANDOM STRING buf %s length %d", buf, buf_ptr - buf));
-  while(x--)
-  {
-    int tmp_x=x;
     *buf_ptr++= ALPHANUMERICS[random() % ALPHANUMERICS_SIZE];
-    x= tmp_x;
-    //fprintf(stderr, "get_random_string %s %lx x %d\n", buf_ptr, buf_ptr,
-    //tmp_x);
-  }
-  DBUG_PRINT("info", ("RANDOM STRING buf %s length %d", buf, buf_ptr - buf));
-
-  /* strlen */
-  DBUG_RETURN(buf_ptr- buf);
+  DBUG_PRINT("info", ("random string: '%*s'", buf_ptr - buf, buf));
+  DBUG_RETURN(buf_ptr - buf);
 }
-#endif
+
+
 /*
   build_table_string
 
@@ -618,16 +547,14 @@ build_insert_string(void)
   char       buf[RAND_STRING_SIZE];
   int        col_count;
   DYNAMIC_STRING insert_string;
-  MYSQL      mysql;
   DBUG_ENTER("build_insert_string");
-  mysql_init(&mysql);
 
   init_dynamic_string(&insert_string, "", 1024, 1024);
 
   dynstr_append_mem(&insert_string, "INSERT INTO t1 VALUES (", 23);
   for (col_count= 1; col_count <= num_int_cols; col_count++)
   {
-    sprintf(buf, "%d", get_random_number()); 
+    sprintf(buf, "%ld", random());
     dynstr_append(&insert_string, buf);
 
     if (col_count < num_int_cols || num_char_cols > 0)
@@ -635,18 +562,13 @@ build_insert_string(void)
   }
   for (col_count= 1; col_count <= num_char_cols; col_count++)
   {
-    char *buf_tmp= (char *) my_malloc(RAND_STRING_SIZE, MYF(MY_WME));
-    int buf_len;
-    buf_len= get_random_string((char *) &buf);
-    mysql_real_escape_string(&mysql, buf_tmp, (char *) &buf, buf_len);
+    int buf_len= get_random_string(buf);
     dynstr_append_mem(&insert_string, "'", 1);
-    dynstr_append_mem(&insert_string, buf_tmp, buf_len);
+    dynstr_append_mem(&insert_string, buf, buf_len);
     dynstr_append_mem(&insert_string, "'", 1);
-    my_free(buf_tmp, MYF(0));
 
     if (col_count < num_char_cols)
       dynstr_append_mem(&insert_string, ",", 1);
-
   }
   dynstr_append_mem(&insert_string, ")", 1);
 
@@ -661,7 +583,6 @@ build_insert_string(void)
   strmov(user_supplied_data, insert_string.str);
   DBUG_PRINT("info", ("generated_insert_data %s", user_supplied_data));
   dynstr_free(&insert_string);
-  mysql_close(&mysql);
   DBUG_RETURN(insert_string.length+1);
 }
 
@@ -709,7 +630,7 @@ build_query_string(void)
   DBUG_RETURN(0);
 }
 
-static void
+static int 
 get_options(int *argc,char ***argv)
 {
   int ho_error;
@@ -862,15 +783,7 @@ get_options(int *argc,char ***argv)
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
-  if (opt_count)
-  {
-    /*
-      We need to set verbose to 2 as we need to change the output to include
-      the number-of-rows column
-    */
-    verbose= 2;
-  }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -914,9 +827,9 @@ create_schema(MYSQL *mysql,const char *db,const char *script)
     char *retstr;
     char buf[HUGE_STRING_LENGTH];
 
-    while((retstr= strstr(script, delimiter)))
+    while ((retstr= strstr(script, delimiter)))
     {
-      strncpy((char*)&buf, script, retstr - script);
+      strncpy(buf, script, retstr - script);
       buf[retstr - script]= '\0';
       script+= retstr - script + delimiter_length;
       DBUG_PRINT("info", ("running create QUERY %s", (char *)buf));
@@ -969,9 +882,7 @@ run_scheduler(const char *script,
   uint x;
 
   DBUG_ENTER("run_scheduler");
-  /* 
-    reset to 0
-  */
+  /* reset to 0 */
   children_spawned= 0;
 
   for (x= 0; x < concur; x++)
@@ -1055,11 +966,11 @@ run_task(const char *script)
 
       while((retstr= strstr(script, delimiter)))
       {
-        strncpy((char*)&buf, script, retstr - script);
+        strncpy(buf, script, retstr - script);
         buf[retstr - script]= '\0';
         script+= retstr - script + delimiter_length;
-        DBUG_PRINT("info", ("running QUERY %s", (char *)buf));
-        if (mysql_query(&mysql, (char *)buf))
+        DBUG_PRINT("info", ("running QUERY %s", buf));
+        if (mysql_query(&mysql, buf))
         {
           fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
                   my_progname, buf, mysql_error(&mysql));
@@ -1076,7 +987,7 @@ run_task(const char *script)
       }
     }
     if ((strlen(script)) < 3)
-      DBUG_RETURN(0);
+      goto end;
     if (mysql_query(&mysql, script))
     {
       fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
@@ -1092,8 +1003,8 @@ run_task(const char *script)
 
   }
 
+end:
   mysql_close(&mysql);
-
   DBUG_RETURN(0);
 }
 
@@ -1126,11 +1037,11 @@ load_data(const char *script)
 
       while((retstr= strstr(script, delimiter)))
       {
-        strncpy((char*)&buf, script, retstr - script);
+        strncpy(buf, script, retstr - script);
         buf[retstr - script]= '\0';
         script+= retstr - script + delimiter_length;
-        DBUG_PRINT("info", ("running INSERT %s", (char *)buf));
-        if (mysql_query(&mysql, (char *)buf))
+        DBUG_PRINT("info", ("running INSERT %s", buf));
+        if (mysql_query(&mysql, buf))
         {
           fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
                   my_progname, buf, mysql_error(&mysql));
@@ -1139,7 +1050,7 @@ load_data(const char *script)
       }
     }
     if ((strlen(script)) < 3)
-      DBUG_RETURN(0);
+      goto end;
     if (mysql_query(&mysql, script))
     {
       DBUG_PRINT("info", ("iteration %d with INSERT statement %s", script));
@@ -1155,8 +1066,7 @@ load_data(const char *script)
     }
   }
 
+end:
   mysql_close(&mysql);
-
   DBUG_RETURN(0);
 }
-
