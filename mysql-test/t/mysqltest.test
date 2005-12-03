@@ -945,3 +945,49 @@ select "this will not be executed";
 --enable_parsing
 select "this will be executed";
 --enable_query_log
+
+
+#
+# Bug #11731 mysqltest in multi-statement queries ignores errors in
+#            non-1st queries
+#
+
+# Failing multi statement query
+--exec echo "delimiter ||||;"                          > var/tmp/bug11731.sql
+--exec echo "create table t1 (a int primary key);"    >> var/tmp/bug11731.sql
+--exec echo "insert into t1 values (1);"              >> var/tmp/bug11731.sql
+--exec echo "select 'select-me';"                     >> var/tmp/bug11731.sql
+--exec echo "insertz 'error query'||||"               >> var/tmp/bug11731.sql
+--exec echo "delimiter ;||||"                         >> var/tmp/bug11731.sql
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql 2>&1
+drop table t1;
+
+--error 1
+--exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out
+# The .out file should be empty, cat will fail!
+--error 1
+--exec cat $MYSQL_TEST_DIR/var/tmp/bug11731.out
+drop table t1;
+
+
+# Using expected error
+--exec echo "delimiter ||||;"                          > var/tmp/bug11731.sql
+--exec echo "--error 1064"                            >> var/tmp/bug11731.sql
+--exec echo "create table t1 (a int primary key);"    >> var/tmp/bug11731.sql
+--exec echo "insert into t1 values (1);"              >> var/tmp/bug11731.sql
+--exec echo "select 'select-me';"                     >> var/tmp/bug11731.sql
+--exec echo "insertz "error query"||||"               >> var/tmp/bug11731.sql
+--exec echo "delimiter ;||||"                         >> var/tmp/bug11731.sql
+
+# These two should work since the error is expected
+--exec $MYSQL_TEST -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql  2>&1
+drop table t1;
+
+--exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out
+--exec cat $MYSQL_TEST_DIR/var/tmp/bug11731.out
+drop table t1;
+
+
+
