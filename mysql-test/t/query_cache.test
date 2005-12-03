@@ -760,7 +760,6 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
 drop table t1;
-
 # SP cursors and selects with query cache (BUG#9715)
 #
 create table t1 (a int);

@@ -2424,3 +2424,30 @@ f1	sum(f2)
 NULL	12
 drop view v1;
 drop table t1;
+drop procedure if exists p1;
+create procedure p1 () deterministic
+begin
+create view v1 as select 1;
+end;
+//
+call p1();
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`
+drop view v1;
+drop procedure p1;
+CREATE VIEW v1 AS SELECT 42 AS Meaning;
+DROP FUNCTION IF EXISTS f1;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+DECLARE retn INTEGER;
+SELECT Meaning FROM v1 INTO retn;
+RETURN retn;
+END
+//
+CREATE VIEW v2 AS SELECT f1();
+select * from v2;
+f1()
+42
+drop view v2,v1;
+drop function f1;
