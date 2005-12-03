@@ -1182,6 +1182,7 @@ end_thread:
       or this thread has been schedule to handle the next query
     */
     thd= current_thd;
+    thd->thread_stack= (char*) &thd;
   } while (!(test_flags & TEST_NO_THREADS));
   /* The following is only executed if we are not using --one-thread */
   return(0);					/* purecov: deadcode */
