@@ -215,7 +215,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL	NO	MUL	NULL	auto_increment	#	
 string	char(10)	latin1_swedish_ci	YES		newdefault		#	
 tiny	tinyint(4)	NULL	NO	MUL	0		#	
-short	smallint(6)	NULL	NO	MUL	0		#	
+short	smallint(6)	NULL	NO	MUL			#	
 medium	mediumint(8)	NULL	NO	MUL	0		#	
 long_int	int(11)	NULL	NO		0		#	
 longlong	bigint(13)	NULL	NO	MUL	0		#	

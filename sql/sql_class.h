@@ -1077,7 +1077,7 @@ public:
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
-  bool enable_slow_log, insert_id_used;
+  bool enable_slow_log, insert_id_used, clear_next_insert_id;
   my_bool no_send_ok;
   SAVEPOINT *savepoints;
 };
@@ -1217,14 +1217,16 @@ public:
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
 #endif
     }
-#ifdef USING_TRANSACTIONS
     st_transactions()
     {
+#ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-    }
+#else
+      xid_state.xa_state= XA_NOTR;
 #endif
+    }
   } transaction;
   Field      *dupp_field;
 #ifndef __WIN__
@@ -1807,11 +1809,18 @@ public:
   uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
   bool schema_table;
+  /*
+    True if GROUP BY and its aggregate functions are already computed
+    by a table access method (e.g. by loose index scan). In this case
+    query execution should not perform aggregation and should treat
+    aggregate functions as normal functions.
+  */
+  bool precomputed_group_by;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0)
+     schema_table(0), precomputed_group_by(0)
   {}
   ~TMP_TABLE_PARAM()
   {

@@ -330,7 +330,7 @@ public:
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
-    return (longlong) val_real();             /* Real as default */
+    return (longlong) rint(val_real());             /* Real as default */
   }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
@@ -596,7 +596,7 @@ public:
   bool add();
   double val_real();
   // In SPs we might force the "wrong" type with select into a declare variable
-  longlong val_int() { return (longlong)val_real(); }
+  longlong val_int() { return (longlong) rint(val_real()); }
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
   void reset_field();
@@ -625,7 +625,7 @@ public:
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val_real();
   longlong val_int()
-  { /* can't be fix_fields()ed */ return (longlong) val_real(); }
+  { /* can't be fix_fields()ed */ return (longlong) rint(val_real()); }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool is_null() { (void) val_int(); return null_value; }
@@ -903,7 +903,7 @@ class Item_sum_udf_float :public Item_udf_sum
   longlong val_int()
   {
     DBUG_ASSERT(fixed == 1);
-    return (longlong) Item_sum_udf_float::val_real();
+    return (longlong) rint(Item_sum_udf_float::val_real());
   }
   double val_real();
   String *val_str(String*str);

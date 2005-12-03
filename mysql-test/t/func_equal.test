@@ -34,4 +34,13 @@ select * from t1 where value <=> value;
 select * from t1 where id <=> value or value<=>id;
 drop table t1,t2;
 
+#
+# Bug #12612: quoted bigint unsigned value and the use of "in" in where clause
+#
+create table t1 (a bigint unsigned);
+insert into t1 values (4828532208463511553);
+select * from t1 where a = '4828532208463511553';
+select * from t1 where a in ('4828532208463511553');
+drop table t1;
+
 # End of 4.1 tests
