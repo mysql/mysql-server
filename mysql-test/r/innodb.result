@@ -2772,3 +2772,17 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 drop table t1;
 drop table t2;
 commit;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+key (a,b,c,d)) engine=innodb;
+drop table t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+e varchar(255) character set utf8,
+key (a,b,c,d,e)) engine=innodb;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+End of 5.0 tests

@@ -886,13 +886,17 @@ Backup::checkNodeFail(Signal* signal,
       pos= &ref->nodeId - signal->getDataPtr();
       break;
     }
+    case GSN_WAIT_GCP_REQ:
+    case GSN_DROP_TRIG_REQ:
     case GSN_CREATE_TRIG_REQ:
     case GSN_ALTER_TRIG_REQ:
-    case GSN_WAIT_GCP_REQ:
+      ptr.p->setErrorCode(AbortBackupOrd::BackupFailureDueToNodeFail);
+      return;
     case GSN_UTIL_SEQUENCE_REQ:
     case GSN_UTIL_LOCK_REQ:
-    case GSN_DROP_TRIG_REQ:
       return;
+    default:
+      ndbrequire(false);
     }
     
     for(Uint32 i = 0; (i = mask.find(i+1)) != NdbNodeBitmask::NotFound; )
@@ -1903,7 +1907,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   const Uint32 nodeId = refToNode(signal->senderBlockRef());
   const Uint32 noOfBytes = conf->noOfBytes;
   const Uint32 noOfRecords = conf->noOfRecords;
-  
+
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
@@ -1980,7 +1984,7 @@ Backup::execBACKUP_FRAGMENT_REF(Signal* signal)
       }
     }
   }
-  ndbrequire(false);
+  goto err;
 
 done:
   ptr.p->masterData.sendCounter--;
@@ -1992,7 +1996,8 @@ done:
     masterAbort(signal, ptr);
     return;
   }//if
-  
+
+err:
   AbortBackupOrd *ord = (AbortBackupOrd*)signal->getDataPtrSend();
   ord->backupId = ptr.p->backupId;
   ord->backupPtr = ptr.i;
