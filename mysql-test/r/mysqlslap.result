@@ -5,7 +5,7 @@ and you are welcome to modify and redistribute it under the GPL        license
 
 Run a query multiple times against the server
 
-Usage: /home/patg/mysql-build/mysql-5.1-slap/client/.libs/lt-mysqlslap [OPTIONS] [database [table [column]]]
+Usage: /home/patg/mysql-build/mysql-5.1-slap/client/.libs/lt-mysqlslap [OPTIONS]
 
 Default options are read from the following files in the given order:
 /etc/my.cnf ~/.my.cnf 
@@ -19,17 +19,16 @@ The following options may be given as the first argument:
                       Generate SQL where not supplied by file or command line.
   -C, --compress      Use compression in server/client protocol.
   -l, --concurrency-load=# 
-                      Number of clients to simulate for data load.
+                      Number of clients to use when loading data.
   -c, --concurrency=# Number of clients to simulate for query to run.
   --create=name       File or string to use for create.
-  -d, --data=name     File or string with INSERT to use for populating
-                      table(s).
+  -d, --data=name     File or string with INSERT to use for populating data.
   -#, --debug[=name]  Output debug log. Often this is 'd:t:o,filename'.
   -F, --delimiter=name 
                       Delimiter to use in SQL statements supplied in file or
                       command line.
-  -D, --drop-schema   Drop schema if it exists prior to running, and after
-                      running
+  -D, --drop-schema   Drop schema if it exists prior to running and after
+                      running.
   -e, --engine=name   Storage engine to use for creating the table.
   -?, --help          Display this help and exit.
   -h, --host=name     Connect to host.
