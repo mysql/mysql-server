@@ -350,15 +350,6 @@ bool mysql_create_view(THD *thd,
   */ 
   for (tbl= lex->query_tables; tbl; tbl= tbl->next_global)
   {
-    /* is this table temporary and is not view? */
-    if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->view &&
-        !tbl->schema_table)
-    {
-      my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
-      res= TRUE;
-      goto err;
-    }
-
     /* is this table view and the same view which we creates now? */
     if (tbl->view &&
         strcmp(tbl->view_db.str, view->db) == 0 &&
@@ -370,11 +361,29 @@ bool mysql_create_view(THD *thd,
     }
 
     /*
-      Copy the privileges of the underlying VIEWs which were filled by
-      fill_effective_table_privileges
-      (they were not copied at derived tables processing)
+      tbl->table can be NULL when tbl is a placeholder for a view
+      that is indirectly referenced via a stored function from the
+      view being created. We don't check these indirectly
+      referenced views in CREATE VIEW so they don't have table
+      object.
     */
-    tbl->table->grant.privilege= tbl->grant.privilege;
+    if (tbl->table)
+    {
+      /* is this table temporary and is not view? */
+      if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->view &&
+          !tbl->schema_table)
+      {
+        my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
+        res= TRUE;
+        goto err;
+      }
+      /*
+        Copy the privileges of the underlying VIEWs which were filled by
+        fill_effective_table_privileges
+        (they were not copied at derived tables processing)
+      */
+      tbl->table->grant.privilege= tbl->grant.privilege;
+    }
   }
 
   /* prepare select to resolve all fields */
@@ -641,10 +650,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
-  view->source.str= thd->lex->create_view_select_start;
+  view->source.str= thd->query + thd->lex->create_view_select_start;
   view->source.length= (thd->query_length -
-                        (thd->lex->create_view_select_start -
-                         thd->lex->create_view_start));
+                        thd->lex->create_view_select_start);
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;

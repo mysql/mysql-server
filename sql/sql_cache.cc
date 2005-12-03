@@ -996,9 +996,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       check all such queries, too.
     */
     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-        my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-        my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-      sql[0] != '/')
+         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+        sql[0] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;
@@ -2196,7 +2196,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->derived)
+    if (tables_used->derived && !tables_used->view)
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
