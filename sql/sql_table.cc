@@ -2222,9 +2222,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     lex->query_tables= table;
     lex->query_tables_last= &table->next_global;
-    lex->query_tables_own_last= 0;;
+    lex->query_tables_own_last= 0;
     thd->no_warnings_for_error= no_warnings_for_error;
-    open_and_lock_tables(thd, table);
+    if (view_operator_func == NULL)
+      simple_open_n_lock_tables(thd, table);
+    else
+      open_and_lock_tables(thd, table);
     thd->no_warnings_for_error= 0;
     table->next_global= save_next_global;
     table->next_local= save_next_local;
