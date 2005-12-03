@@ -1022,6 +1022,31 @@ Variable_name	Value
 Qcache_hits	1
 drop table t1;
 create table t1 (a int);
+flush status;
+(select a from t1) union (select a from t1);
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+(select a from t1) union (select a from t1);
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+drop table t1;
+create table t1 (a int);
 insert into t1 values (1),(2);
 CREATE PROCEDURE `p1`()
 begin

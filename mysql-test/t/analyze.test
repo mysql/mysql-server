@@ -39,6 +39,20 @@ check table t1;
 
 drop table t1;
 
+# Bug #14902 ANALYZE TABLE fails to recognize up-to-date tables
+# minimal test case to get an error.
+# The problem is happening when analysing table with FT index that
+# contains stopwords only. The first execution of analyze table should
+# mark index statistics as up to date so that next execution of this
+# statement will end up with Table is up to date status.
+create table t1 (a mediumtext, fulltext key key1(a)) charset utf8 collate utf8_general_ci engine myisam;
+insert into t1 values ('hello');
+
+analyze table t1;
+analyze table t1;
+
+drop table t1;
+
 #
 # procedure in PS BUG#13673
 #

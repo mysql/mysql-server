@@ -52,7 +52,7 @@ sp_cond_check(LEX_STRING *sqlstate)
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev)
   : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
-    m_handlers(0), m_parent(prev)
+    m_handlers(0), m_parent(prev), m_pboundary(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
@@ -150,7 +150,7 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx)
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
 {
-  uint i= m_pvar.elements;
+  uint i= m_pvar.elements - m_pboundary;
 
   while (i--)
   {

@@ -703,3 +703,15 @@ alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
 explain select distinct f1, f2 from t1;
 drop table t1;
+
+#
+# Bug #14920 Ordering aggregated result sets with composite primary keys
+# corrupts resultset
+#
+create table t1 (c1 int not null,c2 int not null, primary key(c1,c2));
+insert into t1 (c1,c2) values
+(10,1),(10,2),(10,3),(20,4),(20,5),(20,6),(30,7),(30,8),(30,9);
+select distinct c1, c2 from t1 order by c2;
+select c1,min(c2) as c2 from t1 group by c1 order by c2;
+select c1,c2 from t1 group by c1,c2 order by c2;
+drop table t1;
