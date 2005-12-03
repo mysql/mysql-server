@@ -453,6 +453,17 @@ typedef unsigned short ushort;
 #define __attribute__(A)
 #endif
 
+/*
+  Wen using the embedded library, users might run into link problems,
+  dupicate declaration of __cxa_pure_virtual, solved by declaring it a
+  weak symbol.
+*/
+#ifdef USE_MYSYS_NEW
+C_MODE_START
+int __cxa_pure_virtual () __attribute__ ((weak));
+C_MODE_END
+#endif
+
 /* From old s-system.h */
 
 /*
