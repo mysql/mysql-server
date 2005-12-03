@@ -1141,6 +1141,21 @@ int runBug_11133(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runBug_WritePartialIgnoreError(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  HugoOperations hugoOps(*pTab);
+
+  Ndb* pNdb = GETNDB(step);
+  C2(hugoOps.startTransaction(pNdb) == 0);
+  C2(hugoOps.pkWritePartialRecord(pNdb, 0, 1) == 0);
+  C2(hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 0);
+  C2(hugoOps.closeTransaction(pNdb) == 0);
+
+  return result;
+}
+
 int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const Uint32 max= 5;
@@ -1315,6 +1330,11 @@ TESTCASE("ReadWithoutGetValue",
 TESTCASE("Bug_11133", 
 	 "Test ReadEx-Delete-Write\n"){ 
   INITIALIZER(runBug_11133);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug_WritePartialIgnoreError", 
+	 "Test WritePartialIgnoreError\n"){ 
+  INITIALIZER(runBug_WritePartialIgnoreError);
   FINALIZER(runClearTable);
 }
 TESTCASE("Scan_4006", 

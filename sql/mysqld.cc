@@ -356,8 +356,10 @@ extern ulong innobase_large_page_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern long innobase_log_file_size, innobase_log_buffer_size;
-extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern longlong innobase_log_file_size;
+extern long innobase_log_buffer_size;
+extern longlong innobase_buffer_pool_size;
+extern long innobase_additional_mem_pool_size;
 extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery;
@@ -390,11 +392,16 @@ extern ulong srv_commit_concurrency;
 }
 #endif
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
+#ifndef HAVE_U_INT32_T
+typedef unsigned int  u_int32_t;
+#endif
 extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
@@ -421,8 +428,9 @@ my_bool opt_secure_auth= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
+my_bool opt_myisam_use_mmap= 0;
 uint    opt_large_page_size= 0;
-my_bool opt_old_style_user_limits= 0, trust_routine_creators= 0;
+my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -442,7 +450,8 @@ uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
-ulong table_cache_size, thread_stack, what_to_log;
+ulong table_cache_size, table_def_size;
+ulong thread_stack, what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -545,6 +554,8 @@ pthread_cond_t  COND_server_started;
 
 int mysqld_server_started= 0;
 
+File_parser_dummy_hook file_parser_dummy_hook;
+
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
@@ -613,7 +624,7 @@ bool mysqld_embedded=1;
 static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
-char *libwrapName= NULL;
+const char *libwrapName= NULL;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -1106,6 +1117,7 @@ void clean_up(bool print_message)
 #endif
   query_cache_destroy();
   table_cache_free();
+  table_def_free();
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
@@ -1404,7 +1416,7 @@ static void network_init(void)
   struct sockaddr_un	UNIXaddr;
 #endif
   int	arg=1;
-  DBUG_ENTER("server_init");
+  DBUG_ENTER("network_init");
 
   set_ports();
 
@@ -1636,6 +1648,7 @@ void end_thread(THD *thd, bool put_in_cache)
       wake_thread--;
       thd=thread_cache.get();
       thd->real_id=pthread_self();
+      thd->thread_stack= (char *) &thd;
       (void) thd->store_globals();
       thd->thr_create_time= time(NULL);
       threads.append(thd);
@@ -2768,7 +2781,7 @@ static int init_thread_environment()
 {
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_open,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_open, NULL);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
@@ -2930,7 +2943,11 @@ static void init_ssl()
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
-  if (table_cache_init() || hostname_cache_init())
+  /*
+    We need to call each of these following functions to ensure that
+    all things are initialized so that unireg_abort() doesn't fail
+  */
+  if (table_cache_init() | table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
   query_cache_result_size_limit(query_cache_limit);
@@ -3372,9 +3389,7 @@ int main(int argc, char **argv)
   */
   check_data_home(mysql_real_data_home);
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)))
-  {
     unireg_abort(1);				/* purecov: inspected */
-  }
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
@@ -3388,7 +3403,6 @@ int main(int argc, char **argv)
 #endif
       set_user(mysqld_user, user_info);
   }
-
 
   if (opt_bin_log && !server_id)
   {
@@ -3411,7 +3425,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   }
 
   if (init_server_components())
-    exit(1);
+    unireg_abort(1);
 
   network_init();
 
@@ -3587,8 +3601,8 @@ static char *add_quoted_string(char *to, const char *from, char *to_end)
   uint length= (uint) (to_end-to);
 
   if (!strchr(from, ' '))
-    return strnmov(to, from, length);
-  return strxnmov(to, length, "\"", from, "\"", NullS);
+    return strmake(to, from, length-1);
+  return strxnmov(to, length-1, "\"", from, "\"", NullS);
 }
 
 
@@ -4499,7 +4513,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-  OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM,
   OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -4545,6 +4559,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_MYISAM_USE_MMAP,
   OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -4556,7 +4571,7 @@ enum options_mysqld
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
-  OPT_SORT_BUFFER, OPT_TABLE_CACHE,
+  OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
   OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
@@ -4582,8 +4597,10 @@ enum options_mysqld
   OPT_INNODB_CONCURRENCY_TICKETS,
   OPT_INNODB_THREAD_SLEEP_DELAY,
   OPT_BDB_CACHE_SIZE,
+  OPT_BDB_CACHE_PARTS,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
+  OPT_BDB_REGION_SIZE,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -4614,6 +4631,7 @@ enum options_mysqld
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_SP_AUTOMATIC_PRIVILEGES,
+  OPT_MAX_SP_RECURSION_DEPTH,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
   OPT_ENABLE_LARGE_PAGES,
   OPT_TIMED_MUTEXES,
@@ -4929,16 +4947,27 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef TO_BE_REMOVED_IN_5_1_OR_6_0
+  /*
+    In 5.0.6 we introduced the below option, then in 5.0.16 we renamed it to
+    log-bin-trust-function-creators but kept also the old name for
+    compatibility; the behaviour was also changed to apply only to functions
+    (and triggers). In a future release this old name could be removed.
+  */
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+   "(deprecated) Use log-bin-trust-function-creators.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   /*
     This option starts with "log-bin" to emphasize that it is specific of
-    binary logging. Hopefully in 5.1 nobody will need it anymore, when we have
-    row-level binlog.
+    binary logging.
   */
-  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_ROUTINE_CREATORS,
+  {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a routine is allowed only to users having the SUPER privilege and only"
-   "if this routine may not break binary logging",
-   (gptr*) &trust_routine_creators, (gptr*) &trust_routine_creators, 0,
+   "a function is allowed only to users having the SUPER privilege and only "
+   "if this function may not break binary logging.",
+   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
@@ -5085,7 +5114,7 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    (gptr*) &global_system_variables.ndb_autoincrement_prefetch_sz,
    0, GET_ULONG, REQUIRED_ARG, 32, 1, 256, 0, 0, 0},
-  {"ndb-distibution", OPT_NDB_DISTRIBUTION,
+  {"ndb-distribution", OPT_NDB_DISTRIBUTION,
    "Default distribution for new tables in ndb",
    (gptr*) &opt_ndb_distribution,
    (gptr*) &opt_ndb_distribution,
@@ -5396,10 +5425,14 @@ log and this option does nothing anymore.",
     (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
+  { "bdb_cache_parts", OPT_BDB_CACHE_PARTS,
+    "Number of parts to use for BDB cache.",
+    (gptr*) &berkeley_cache_parts, (gptr*) &berkeley_cache_parts, 0, GET_ULONG,
+    REQUIRED_ARG, 1, 1, 1024, 0, 1, 0},
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
     "The buffer that is allocated to cache index and rows for BDB tables.",
-    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
-    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
+    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
+    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
   /* QQ: The following should be removed soon! (bdb_max_lock preferred) */
   {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
@@ -5412,6 +5445,10 @@ log and this option does nothing anymore.",
    "The maximum number of locks you can have active on a BDB table.",
    (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
    REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
+  {"bdb_region_size", OPT_BDB_REGION_SIZE,
+    "The size of the underlying logging area of the Berkeley DB environment.",
+    (gptr*) &berkeley_region_size, (gptr*) &berkeley_region_size, 0, GET_ULONG,
+    OPT_ARG, 60*1024L, 60*1024L, (long) ~0, 0, 1, 0},
 #endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
@@ -5506,7 +5543,8 @@ log and this option does nothing anymore.",
   {"innodb_buffer_pool_size", OPT_INNODB_BUFFER_POOL_SIZE,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
-   GET_LONG, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
    "Number of times a thread is allowed to enter InnoDB within the same \
     SQL query after it has once got the ticket",
@@ -5530,9 +5568,10 @@ log and this option does nothing anymore.",
    (gptr*) &innobase_log_buffer_size, (gptr*) &innobase_log_buffer_size, 0,
    GET_LONG, REQUIRED_ARG, 1024*1024L, 256*1024L, ~0L, 0, 1024, 0},
   {"innodb_log_file_size", OPT_INNODB_LOG_FILE_SIZE,
-   "Size of each log file in a log group in megabytes.",
+   "Size of each log file in a log group.",
    (gptr*) &innobase_log_file_size, (gptr*) &innobase_log_file_size, 0,
-   GET_LONG, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, ~0L, 0, 1024*1024L, 0},
+   GET_LL, REQUIRED_ARG, 5*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 0,
+   1024*1024L, 0},
   {"innodb_log_files_in_group", OPT_INNODB_LOG_FILES_IN_GROUP,
    "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
    (gptr*) &innobase_log_files_in_group, (gptr*) &innobase_log_files_in_group,
@@ -5730,6 +5769,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.myisam_sort_buff_size,
    (gptr*) &max_system_variables.myisam_sort_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
+   "Use memory mapping for reading and writing MyISAM tables",
+   (gptr*) &opt_myisam_use_mmap,
+   (gptr*) &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG, 0, 
+    0, 0, 0, 0, 0},
   {"myisam_stats_method", OPT_MYISAM_STATS_METHOD,
    "Specifies how MyISAM index statistics collection code should threat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
@@ -5828,7 +5872,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"read_only", OPT_READONLY,
-   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
+   "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -5848,6 +5892,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+  {"max_sp_recursion_depth", OPT_MAX_SP_RECURSION_DEPTH,
+   "Maximum stored procedure recursion depth. (discussed with docs).",
+   (gptr*) &global_system_variables.max_sp_recursion_depth,
+   (gptr*) &max_system_variables.max_sp_recursion_depth, 0, GET_ULONG,
+   OPT_ARG, 0, 0, 255, 0, 1, 0 },
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
@@ -5916,13 +5965,21 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.sync_replication_timeout,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, ~0L, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
-  {"table_cache", OPT_TABLE_CACHE,
-   "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
-   0, 1, 0},
-  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT, "Timeout in "
-    "seconds to wait for a table level lock before returning an error. Used"
-     " only if the connection has active cursors.",
+  {"table_cache", OPT_TABLE_OPEN_CACHE,
+   "Deprecated; use --table_open_cache instead.",
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
+   REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+  {"table_definition_cache", OPT_TABLE_DEF_CACHE,
+   "The number of cached table definitions.",
+   (gptr*) &table_def_size, (gptr*) &table_def_size,
+   0, GET_ULONG, REQUIRED_ARG, 128, 1, 512*1024L, 0, 1, 0},
+  {"table_open_cache", OPT_TABLE_OPEN_CACHE,
+   "The number of cached open tables.",
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size,
+   0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+  {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT,
+   "Timeout in seconds to wait for a table level lock before returning an "
+   "error. Used only if the connection has active cursors.",
    (gptr*) &table_lock_wait_timeout, (gptr*) &table_lock_wait_timeout,
    0, GET_ULONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
   {"thread_cache_size", OPT_THREAD_CACHE_SIZE,
@@ -6122,7 +6179,8 @@ struct show_var_st status_vars[]= {
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
-  {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
+  {"Open_table_definitions",   (char*) 0,			SHOW_TABLE_DEFINITIONS},
+  {"Open_tables",              (char*) 0,                       SHOW_OPEN_TABLES},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_CONST},
@@ -6953,8 +7011,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_MYISAM_STATS_METHOD:
   {
     ulong method_conv;
-    myisam_stats_method_str= argument;
     int method;
+    LINT_INIT(method_conv);
+
+    myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);
@@ -7410,7 +7470,9 @@ SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
 
 #ifndef WITH_BERKELEY_STORAGE_ENGINE
 bool berkeley_shared_data;
-ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+ulong berkeley_max_lock, berkeley_log_buffer_size;
+ulonglong berkeley_cache_size;
+ulong berkeley_region_size, berkeley_cache_parts;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 #endif
 
@@ -7418,8 +7480,10 @@ char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 uint innobase_flush_log_at_trx_commit;
 ulong innobase_fast_shutdown;
 long innobase_mirrored_log_groups, innobase_log_files_in_group;
-long innobase_log_file_size, innobase_log_buffer_size;
-long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+longlong innobase_log_file_size;
+long innobase_log_buffer_size;
+longlong innobase_buffer_pool_size;
+long innobase_additional_mem_pool_size;
 long innobase_buffer_pool_awe_mem_mb;
 long innobase_file_io_threads, innobase_lock_wait_timeout;
 long innobase_force_recovery;

@@ -44,7 +44,7 @@ add_proc (){
 		;;
 	mysqld)
 		echo "$proc_no.mysqld" >> $dir_file
-                echo "[ndb_mgmd]"      >> $config_file
+                echo "[mysqld]"      >> $config_file
                 echo "Id: $node_id"    >> $config_file
                 echo "HostName: $2"    >> $config_file
 		node_id=`expr $node_id + 1`

@@ -214,29 +214,28 @@ bool mysql_create_view(THD *thd,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (strcmp(lex->create_view_definer->user.str,
+  if (strcmp(lex->definer->user.str,
              thd->security_ctx->priv_user) != 0 ||
       my_strcasecmp(system_charset_info,
-                    lex->create_view_definer->host.str,
+                    lex->definer->host.str,
                     thd->security_ctx->priv_host) != 0)
   {
     if (!(thd->security_ctx->master_access & SUPER_ACL))
     {
-      my_error(ER_VIEW_OTHER_USER, MYF(0), lex->create_view_definer->user.str,
-               lex->create_view_definer->host.str);
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       res= TRUE;
       goto err;
     }
     else
     {
-      if (!is_acl_user(lex->create_view_definer->host.str,
-                       lex->create_view_definer->user.str))
+      if (!is_acl_user(lex->definer->host.str,
+                       lex->definer->user.str))
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                             ER_NO_SUCH_USER,
                             ER(ER_NO_SUCH_USER),
-                            lex->create_view_definer->user.str,
-                            lex->create_view_definer->host.str);
+                            lex->definer->user.str,
+                            lex->definer->host.str);
       }
     }
   }
@@ -496,7 +495,7 @@ static const int num_view_backups= 3;
 static File_option view_parameters[]=
 {{{(char*) STRING_WITH_LEN("query")},
   offsetof(TABLE_LIST, query),
-  FILE_OPTIONS_STRING},
+  FILE_OPTIONS_ESTRING},
  {{(char*) STRING_WITH_LEN("md5")},
   offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
@@ -583,7 +582,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   dir.length= strlen(dir_buff);
 
   file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
+  file.length= (strxnmov(file_buff, FN_REFLEN-1, view->table_name, reg_ext,
                          NullS) - file_buff);
   /* init timestamp */
   if (!view->timestamp.str)
@@ -624,7 +623,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         TODO: special cascade/restrict procedure for alter?
       */
       if (parser->parse((gptr)view, thd->mem_root,
-                        view_parameters + revision_number_position, 1))
+                        view_parameters + revision_number_position, 1,
+                        &file_parser_dummy_hook))
       {
         DBUG_RETURN(thd->net.report_error? -1 : 0);
       }
@@ -658,8 +658,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= lex->create_view_algorithm;
-  view->definer.user= lex->create_view_definer->user;
-  view->definer.host= lex->create_view_definer->host;
+  view->definer.user= lex->definer->user;
+  view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
   if ((view->updatable_view= (can_be_merged &&
@@ -793,7 +793,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     be used here
   */
   if (parser->parse((gptr)table, thd->mem_root, view_parameters,
-                    required_view_parameters))
+                    required_view_parameters, &file_parser_dummy_hook))
     goto err;
 
   /*
@@ -807,7 +807,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
-    if (default_view_definer(thd->security_ctx, &table->definer))
+    if (get_default_definer(thd, &table->definer))
       goto err;
   }
 
@@ -1167,15 +1167,16 @@ err:
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
-  DBUG_ENTER("mysql_drop_view");
   char path[FN_REFLEN];
   TABLE_LIST *view;
-  bool type= 0;
   db_type not_used;
+  DBUG_ENTER("mysql_drop_view");
 
   for (view= views; view; view= view->next_local)
   {
-    strxnmov(path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+    TABLE_SHARE *share;
+    bool type= 0;
+    strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -1200,6 +1201,20 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     }
     if (my_delete(path, MYF(MY_WME)))
       goto err;
+
+    /*
+      For a view, there is only one table_share object which should never
+      be used outside of LOCK_open
+    */
+    if ((share= get_cached_table_share(view->db, view->table_name)))
+    {
+      DBUG_ASSERT(share->ref_count == 0);
+      pthread_mutex_lock(&share->mutex);
+      share->ref_count++;
+      share->version= 0;
+      pthread_mutex_unlock(&share->mutex);
+      release_table_share(share, RELEASE_WAIT_FOR_DROP);
+    }
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1478,7 +1493,7 @@ mysql_rename_view(THD *thd,
 
   DBUG_ENTER("mysql_rename_view");
 
-  strxnmov(view_path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
+  strxnmov(view_path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
            view->table_name, reg_ext, NullS);
   (void) unpack_filename(view_path, view_path);
 
@@ -1503,7 +1518,8 @@ mysql_rename_view(THD *thd,
 
     /* get view definition and source */
     if (parser->parse((gptr)&view_def, thd->mem_root, view_parameters,
-                      array_elements(view_parameters)-1))
+                      array_elements(view_parameters)-1,
+                      &file_parser_dummy_hook))
       goto err;
 
     /* rename view and it's backups */
@@ -1511,7 +1527,8 @@ mysql_rename_view(THD *thd,
                               view_def.revision - 1, num_view_backups))
       goto err;
 
-    strxnmov(dir_buff, FN_REFLEN, mysql_data_home, "/", view->db, "/", NullS);
+    strxnmov(dir_buff, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
+             NullS);
     (void) unpack_filename(dir_buff, dir_buff);
 
     pathstr.str=    (char*)dir_buff;

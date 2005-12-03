@@ -91,7 +91,9 @@ enum enum_sql_command {
   SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
   SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
   SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
+  SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
   SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
+  SQLCOM_SHOW_AUTHORS,
   /* This should be the last !!! */
 
   SQLCOM_END
@@ -457,7 +459,7 @@ public:
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
-  friend void lex_start(THD *thd, uchar *buf, uint length);
+  friend void lex_start(THD *thd, const uchar *buf, uint length);
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
@@ -624,7 +626,7 @@ public:
   void cut_subtree() { slave= 0; }
   bool test_limit();
 
-  friend void lex_start(THD *thd, uchar *buf, uint length);
+  friend void lex_start(THD *thd, const uchar *buf, uint length);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -720,11 +722,11 @@ typedef struct st_lex
   SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
-  uchar *buf;			/* The beginning of string, used by SPs */
-  uchar *ptr,*tok_start,*tok_end,*end_of_query;
+  const uchar *buf;		/* The beginning of string, used by SPs */
+  const uchar *ptr,*tok_start,*tok_end,*end_of_query;
   
   /* The values of tok_start/tok_end as they were one call of yylex before */
-  uchar *tok_start_prev, *tok_end_prev;
+  const uchar *tok_start_prev, *tok_end_prev;
 
   char *length,*dec,*change,*name;
   char *help_arg;
@@ -752,11 +754,16 @@ typedef struct st_lex
   TABLE_LIST **query_tables_last;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
-  st_lex_user *create_view_definer;
   char *create_view_start;
   char *create_view_select_start;
   /* Partition info structure filled in by PARTITION BY parse part */
   partition_info *part_info;
+
+  /*
+    The definer of the object being created (view, trigger, stored routine).
+    I.e. the value of DEFINER clause.
+  */
+  LEX_USER *definer;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -905,6 +912,14 @@ typedef struct st_lex
   SQL_LIST trg_table_fields;
 
   /*
+    trigger_definition_begin points to the beginning of the word "TRIGGER" in
+    CREATE TRIGGER statement. This is used to add possibly omitted DEFINER
+    clause to the trigger definition statement before dumping it to the
+    binlog. 
+  */
+  const char *trigger_definition_begin;
+
+  /*
     If non-0 then indicates that query requires prelocking and points to
     next_global member of last own element in query table list (i.e. last
     table which was not added to it as part of preparation to prelocking).
@@ -916,7 +931,7 @@ typedef struct st_lex
     Pointers to part of LOAD DATA statement that should be rewritten
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
-  uchar *fname_start, *fname_end;
+  const uchar *fname_start, *fname_end;
   
   bool escape_used;
 
@@ -1043,7 +1058,7 @@ struct st_lex_local: public st_lex
 
 extern void lex_init(void);
 extern void lex_free(void);
-extern void lex_start(THD *thd, uchar *buf,uint length);
+extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int yylex(void *arg, void *yythd);
 

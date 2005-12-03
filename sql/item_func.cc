@@ -362,40 +362,42 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 }
 
 
-Field *Item_func::tmp_table_field(TABLE *t_arg)
+Field *Item_func::tmp_table_field(TABLE *table)
 {
-  Field *res;
-  LINT_INIT(res);
+  Field *field;
+  LINT_INIT(field);
 
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > 11)
-      res= new Field_longlong(max_length, maybe_null, name, t_arg,
-			      unsigned_flag);
+      field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
     else
-      res= new Field_long(max_length, maybe_null, name, t_arg,
-			  unsigned_flag);
+      field= new Field_long(max_length, maybe_null, name, unsigned_flag);
     break;
   case REAL_RESULT:
-    res= new Field_double(max_length, maybe_null, name, t_arg, decimals);
+    field= new Field_double(max_length, maybe_null, name, decimals);
     break;
   case STRING_RESULT:
-    res= make_string_field(t_arg);
+    return make_string_field(table);
     break;
   case DECIMAL_RESULT:
-    res= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
-                                                              decimals,
-                                                              unsigned_flag),
-                               maybe_null, name, t_arg, decimals, unsigned_flag);
+    field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
+                                                                decimals,
+                                                                unsigned_flag),
+                                 maybe_null, name, decimals, unsigned_flag);
     break;
   case ROW_RESULT:
   default:
     // This case should never be chosen
     DBUG_ASSERT(0);
+    field= 0;
     break;
   }
-  return res;
+  if (field)
+    field->init(table);
+  return field;
 }
+
 
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
@@ -735,7 +737,7 @@ longlong Item_func_numhybrid::val_int()
   case INT_RESULT:
     return int_op();
   case REAL_RESULT:
-    return (longlong)real_op();
+    return (longlong) rint(real_op());
   case STRING_RESULT:
   {
     int err_not_used;
@@ -794,9 +796,9 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 
 void Item_func_signed::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as signed)", 11);
+  str->append(STRING_WITH_LEN(" as signed)"));
 
 }
 
@@ -855,9 +857,9 @@ longlong Item_func_signed::val_int()
 
 void Item_func_unsigned::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as unsigned)", 13);
+  str->append(STRING_WITH_LEN(" as unsigned)"));
 
 }
 
@@ -927,9 +929,9 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 
 void Item_decimal_typecast::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as decimal)", 12);
+  str->append(STRING_WITH_LEN(" as decimal)"));
 }
 
 
@@ -2234,7 +2236,7 @@ longlong Item_func_locate::val_int()
 
 void Item_func_locate::print(String *str)
 {
-  str->append("locate(", 7);
+  str->append(STRING_WITH_LEN("locate("));
   args[1]->print(str);
   str->append(',');
   args[0]->print(str);
@@ -3297,7 +3299,7 @@ longlong Item_func_benchmark::val_int()
 
 void Item_func_benchmark::print(String *str)
 {
-  str->append("benchmark(", 10);
+  str->append(STRING_WITH_LEN("benchmark("));
   char buffer[20];
   // my_charset_bin is good enough for numbers
   String st(buffer, sizeof(buffer), &my_charset_bin);
@@ -3811,9 +3813,9 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 
 void Item_func_set_user_var::print(String *str)
 {
-  str->append("(@", 2);
+  str->append(STRING_WITH_LEN("(@"));
   str->append(name.str, name.length);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   args[0]->print(str);
   str->append(')');
 }
@@ -3821,9 +3823,9 @@ void Item_func_set_user_var::print(String *str)
 
 void Item_func_set_user_var::print_as_stmt(String *str)
 {
-  str->append("set @", 5);
+  str->append(STRING_WITH_LEN("set @"));
   str->append(name.str, name.length);
-  str->append(":=", 2);
+  str->append(STRING_WITH_LEN(":="));
   args[0]->print(str);
   str->append(')');
 }
@@ -4054,7 +4056,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 
 void Item_func_get_user_var::print(String *str)
 {
-  str->append("(@", 2);
+  str->append(STRING_WITH_LEN("(@"));
   str->append(name.str,name.length);
   str->append(')');
 }
@@ -4479,15 +4481,15 @@ double Item_func_match::val_real()
 
 void Item_func_match::print(String *str)
 {
-  str->append("(match ", 7);
+  str->append(STRING_WITH_LEN("(match "));
   print_args(str, 1);
-  str->append(" against (", 10);
+  str->append(STRING_WITH_LEN(" against ("));
   args[0]->print(str);
   if (flags & FT_BOOL)
-    str->append(" in boolean mode", 16);
+    str->append(STRING_WITH_LEN(" in boolean mode"));
   else if (flags & FT_EXPAND)
-    str->append(" with query expansion", 21);
-  str->append("))", 2);
+    str->append(STRING_WITH_LEN(" with query expansion"));
+  str->append(STRING_WITH_LEN("))"));
 }
 
 longlong Item_func_bit_xor::val_int()
@@ -4637,7 +4639,8 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
+  dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
 }
 
 
@@ -4648,8 +4651,10 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
+  dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
 }
+
 
 void
 Item_func_sp::cleanup()
@@ -4690,25 +4695,30 @@ Item_func_sp::sp_result_field(void) const
 {
   Field *field;
   DBUG_ENTER("Item_func_sp::sp_result_field");
+  DBUG_PRINT("info", ("sp: %s, flags: %x, level: %lu",
+                      (m_sp ? "YES" : "NO"),
+                      (m_sp ? m_sp->m_flags : (uint)0),
+                      (m_sp ? m_sp->m_recursion_level : (ulong)0)));
 
   if (!m_sp)
   {
-    if (!(m_sp= sp_find_function(current_thd, m_name, TRUE)))
+    THD *thd= current_thd;
+    if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+                                &thd->sp_func_cache, TRUE)))
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
       DBUG_RETURN(0);
     }
   }
-  if (!dummy_table->s)
+  if (!dummy_table->alias)
   {
     char *empty_name= (char *) "";
-    TABLE_SHARE *share;
-    dummy_table->s= share= &dummy_table->share_not_to_be_used;      
-    dummy_table->alias = empty_name;
-    dummy_table->maybe_null = maybe_null;
+    dummy_table->alias= empty_name;
+    dummy_table->maybe_null= maybe_null;
     dummy_table->in_use= current_thd;
-    share->table_cache_key = empty_name;
-    share->table_name = empty_name;
+    dummy_table->s->table_cache_key.str = empty_name;
+    dummy_table->s->table_name.str= empty_name;
+    dummy_table->s->db.str= empty_name;
   }
   field= m_sp->make_field(max_length, name, dummy_table);
   DBUG_RETURN(field);
@@ -4775,12 +4785,6 @@ Item_func_sp::execute(Item **itp)
   res= m_sp->execute_function(thd, args, arg_count, itp);
   thd->restore_sub_statement_state(&statement_state);
 
-  if (res && mysql_bin_log.is_open() &&
-      (m_sp->m_chistics->daccess == SP_CONTAINS_SQL ||
-       m_sp->m_chistics->daccess == SP_MODIFIES_SQL_DATA))
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_FAILED_ROUTINE_BREAK_BINLOG,
-		 ER(ER_FAILED_ROUTINE_BREAK_BINLOG));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_restore_security_context(thd, save_ctx_func);
 error:
@@ -4894,7 +4898,7 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
 
 
 /*
-  Find the function and chack access rigths to the function
+  Find the function and check access rights to the function
 
   SYNOPSIS
     find_and_check_access()
@@ -4925,7 +4929,8 @@ Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
   bool res= TRUE;
 
   *save= 0;                                     // Safety if error
-  if (! m_sp && ! (m_sp= sp_find_function(thd, m_name, TRUE)))
+  if (! m_sp && ! (m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+                                         &thd->sp_func_cache, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
     goto error;

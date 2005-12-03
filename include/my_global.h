@@ -641,6 +641,15 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define O_NOFOLLOW      0
 #endif
 
+/* additional file share flags for win32 */
+#ifdef __WIN__
+#define _SH_DENYRWD     0x110    /* deny read/write mode & delete */
+#define _SH_DENYWRD     0x120    /* deny write mode & delete      */
+#define _SH_DENYRDD     0x130    /* deny read mode & delete       */
+#define _SH_DENYDEL     0x140    /* deny delete only              */
+#endif /* __WIN__ */
+
+
 /* #define USE_RECORD_LOCK	*/
 
 	/* Unsigned types supported by the compiler */
@@ -653,11 +662,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
-#ifdef PATH_MAX
-#define FN_REFLEN       PATH_MAX/* Max length of full path-name */
-#else
 #define FN_REFLEN	512	/* Max length of full path-name */
-#endif
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */

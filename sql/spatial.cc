@@ -178,7 +178,9 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
 {
   double res;
   if (bo != Geometry::wkb_xdr)
+  {
     float8get(res, ptr);
+  }
   else
   {
     char inv_array[8];
@@ -1791,7 +1793,7 @@ bool Gis_geometry_collection::get_data_as_wkt(String *txt,
     geom->set_data_ptr(data, (uint) (m_data_end - data));
     if (geom->as_wkt(txt, &data))
       return 1;
-    if (txt->append(",", 1, 512))
+    if (txt->append(STRING_WITH_LEN(","), 512))
       return 1;
   }
   txt->length(txt->length() - 1);

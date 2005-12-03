@@ -6,8 +6,7 @@ AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-# Don't forget to also update the NDB lines below.
-AM_INIT_AUTOMAKE(mysql, 5.1.2-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.1.4-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -61,7 +60,6 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
                    [Version of .frm files])
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
-AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
 
 
 # Canonicalize the configuration name.
@@ -311,6 +309,10 @@ case "$target_os" in
       # Use the built-in alloca()
       CFLAGS="$CFLAGS -Kalloca"
       CXXFLAGS="$CFLAGS -Kalloca"
+      # Use no_implicit for templates
+      CXXFLAGS="$CXXFLAGS -Tno_implicit"
+      AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
+        [1], [Defined by configure. Use explicit template instantiation.])
     fi
   ;;
 esac
@@ -1533,6 +1535,19 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
   OPTIMIZE_CXXFLAGS="-O3 -DNDEBUG"
 fi
 
+# If the user specified CFLAGS, we won't add any optimizations
+if test -n "$SAVE_CFLAGS"
+then
+  OPTIMIZE_CFLAGS=""
+  DEBUG_OPTIMIZE_CC=""
+fi
+# Ditto for CXXFLAGS
+if test -n "$SAVE_CXXFLAGS"
+then
+  OPTIMIZE_CXXFLAGS=""
+  DEBUG_OPTIMIZE_CXX=""
+fi
+
 AC_ARG_WITH(debug,
     [  --without-debug         Build a production version without debugging code],
     [with_debug=$withval],
@@ -1804,7 +1819,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
   localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
-  mkstemp mlockall perror poll pread pthread_attr_create mmap getpagesize \
+  mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
@@ -2165,6 +2180,7 @@ then
     AC_MSG_WARN([extra-tools disabled because --enable-thread-safe-client wasn't used])
   else
     tools_dirs="tools"
+    AC_CONFIG_FILES(tools/Makefile)
   fi
 fi
 
@@ -2186,9 +2202,12 @@ MYSQL_CHECK_OPENSSL
 MYSQL_CHECK_YASSL
 
 libmysqld_dirs=
+linked_libmysqld_targets=
 if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
+  linked_libmysqld_targets="linked_libmysqld_sources linked_libmysqldex_sources"
+  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2197,6 +2216,7 @@ fi
 # mysql_config --libmysqld-libs will print out something like
 # -L/path/to/lib/mysql -lmysqld -lmyisam -lmysys -lmystrings -ldbug ...
 AC_SUBST([libmysqld_dirs])
+AC_SUBST([linked_libmysqld_targets])
 
 # Shall we build the docs?
 AC_ARG_WITH(docs,
@@ -2301,7 +2321,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
@@ -2311,7 +2331,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
@@ -2416,6 +2436,7 @@ if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
+  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
@@ -2504,7 +2525,7 @@ case $SYSTEM_TYPE in
 esac
 
 for CONF in $other_configures; do
-  (cd `dirname $CONF`; ./`basename $CONF`)
+  (cd `dirname $CONF`; ./`basename $CONF` --build=$build_alias)
 done
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
@@ -2515,12 +2536,11 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  storage/myisam/Makefile storage/myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql/handlerton.cc sql-common/Makefile SSL/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
- include/Makefile sql-bench/Makefile tools/Makefile dnl
+ include/Makefile sql-bench/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl

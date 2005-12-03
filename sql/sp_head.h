@@ -115,10 +115,13 @@ public:
     MULTI_RESULTS= 8,           // Is set if a procedure with SELECT(s)
     CONTAINS_DYNAMIC_SQL= 16,   // Is set if a procedure with PREPARE/EXECUTE
     IS_INVOKED= 32,             // Is set if this sp_head is being used
-    HAS_SET_AUTOCOMMIT_STMT = 64 // Is set if a procedure with 'set autocommit'
+    HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
+    /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
+    HAS_COMMIT_OR_ROLLBACK= 128
   };
 
-  int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+  /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
+  int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
   enum enum_field_types m_returns; // For FUNCTIONs only
   Field::geometry_type m_geom_returns;
@@ -126,7 +129,7 @@ public:
   TYPELIB *m_returns_typelib;	// For FUNCTIONs only
   uint m_returns_len;		// For FUNCTIONs only
   uint m_returns_pack;		// For FUNCTIONs only
-  uchar *m_tmp_query;		// Temporary pointer to sub query string
+  const uchar *m_tmp_query;	// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
@@ -140,6 +143,32 @@ public:
   LEX_STRING m_definer_host;
   longlong m_created;
   longlong m_modified;
+  /* Recursion level of the current SP instance. The levels are numbered from 0 */
+  ulong m_recursion_level;
+  /*
+    A list of diferent recursion level instances for the same procedure.
+    For every recursion level we have a sp_head instance. This instances
+    connected in the list. The list ordered by increasing recursion level
+    (m_recursion_level).
+  */
+  sp_head *m_next_cached_sp;
+  /*
+    Pointer to the first element of the above list
+  */
+  sp_head *m_first_instance;
+  /*
+    Pointer to the first free (non-INVOKED) routine in the list of
+    cached instances for this SP. This pointer is set only for the first
+    SP in the list of instences (see above m_first_cached_sp pointer).
+    The pointer equal to 0 if we have no free instances.
+    For non-first instance value of this pointer meanless (point to itself);
+  */
+  sp_head *m_first_free_instance;
+  /*
+    Pointer to the last element in the list of instances of the SP.
+    For non-first instance value of this pointer meanless (point to itself);
+  */
+  sp_head *m_last_cached_sp;
   /*
     Set containing names of stored routines used by this routine.
     Note that unlike elements of similar set for statement elements of this
@@ -149,7 +178,7 @@ public:
   */
   HASH m_sroutines;
   // Pointers set during parsing
-  uchar *m_param_begin, *m_param_end, *m_body_begin;
+  const uchar *m_param_begin, *m_param_end, *m_body_begin;
 
   /*
     Security context for stored routine which should be run under
@@ -251,9 +280,10 @@ public:
 
   Field *make_field(uint max_length, const char *name, TABLE *dummy);
 
-  void set_info(char *definer, uint definerlen,
-		longlong created, longlong modified,
+  void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
+
+  void set_definer(char *definer, uint definerlen);
 
   void reset_thd_mem_root(THD *thd);
 
@@ -261,6 +291,8 @@ public:
 
   void optimize();
   void opt_mark(uint ip);
+
+  void recursion_level_error();
 
   inline sp_instr *
   get_instr(uint i)
@@ -291,9 +323,21 @@ public:
       my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
+    else if (m_type != TYPE_ENUM_PROCEDURE &&
+             (m_flags & sp_head::HAS_COMMIT_OR_ROLLBACK))
+    {
+      my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
+      return TRUE;
+    }
     return test(m_flags &
 		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
   }
+
+#ifndef DBUG_OFF
+  int show_routine_code(THD *thd);
+#endif
+
+
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -855,8 +899,8 @@ class sp_instr_cpush : public sp_instr
 
 public:
 
-  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex)
-    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
+  sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex, uint offset)
+    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE), m_cursor(offset)
   {}
 
   virtual ~sp_instr_cpush()
@@ -875,6 +919,7 @@ public:
 private:
 
   sp_lex_keeper m_lex_keeper;
+  uint m_cursor;                /* Frame offset (for debugging) */
 
 }; // class sp_instr_cpush : public sp_instr
 

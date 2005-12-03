@@ -59,7 +59,7 @@ case "$cpu_family--$model_name" in
     ;;
 
   # Intel ia32
-  *Xeon*)
+  *X[eE][oO][nN]*)
     # a Xeon is just another pentium4 ...
     # ... unless it has the "lm" (long-mode) flag set, 
     # in that case it's a Xeon with EM64T support 

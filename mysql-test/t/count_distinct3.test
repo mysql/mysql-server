@@ -17,7 +17,7 @@ while ($1)
   SET @rnd= RAND();
   SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
   SET @id_rev= @rnd_max - @id;
-  SET @grp= CAST(128.0 * @rnd AS UNSIGNED); 
+  SET @grp= CAST(127.0 * @rnd AS UNSIGNED); 
   INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev); 
   dec $1;
 }

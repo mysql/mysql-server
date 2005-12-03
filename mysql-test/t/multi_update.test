@@ -495,6 +495,11 @@ delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 
 drop table t1,t2;
 
+#
+# Test alter table and a concurrent multi update
+# (This will force update to reopen tables)
+#
+
 create table t1 (a int, b int);
 insert into t1 values (1, 2), (2, 3), (3, 4);
 create table t2 (a int);
@@ -511,6 +516,7 @@ send alter table t1 add column c int default 100 after a;
 
 connect (updater,localhost,root,,test);
 connection updater;
+sleep 2;
 send update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
 
 connection locker;

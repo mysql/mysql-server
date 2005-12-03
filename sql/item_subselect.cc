@@ -133,6 +133,7 @@ Item_subselect::select_transformer(JOIN *join)
 bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 {
   char const *save_where= thd_param->where;
+  uint8 uncacheable;
   bool res;
 
   DBUG_ASSERT(fixed == 0);
@@ -178,15 +179,17 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
     fix_length_and_dec();
   }
   else
-    return 1;
-  uint8 uncacheable= engine->uncacheable();
-  if (uncacheable)
+    goto err;
+  
+  if ((uncacheable= engine->uncacheable()))
   {
     const_item_cache= 0;
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
   fixed= 1;
+
+err:
   thd->where= save_where;
   return res;
 }
@@ -533,7 +536,7 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
 
 void Item_exists_subselect::print(String *str)
 {
-  str->append("exists", 6);
+  str->append(STRING_WITH_LEN("exists"));
   Item_subselect::print(str);
 }
 
@@ -1339,11 +1342,11 @@ err:
 void Item_in_subselect::print(String *str)
 {
   if (transformed)
-    str->append("<exists>", 8);
+    str->append(STRING_WITH_LEN("<exists>"));
   else
   {
     left_expr->print(str);
-    str->append(" in ", 4);
+    str->append(STRING_WITH_LEN(" in "));
   }
   Item_subselect::print(str);
 }
@@ -1362,7 +1365,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 void Item_allany_subselect::print(String *str)
 {
   if (transformed)
-    str->append("<exists>", 8);
+    str->append(STRING_WITH_LEN("<exists>"));
   else
   {
     left_expr->print(str);
@@ -1794,16 +1797,16 @@ void subselect_union_engine::print(String *str)
 
 void subselect_uniquesubquery_engine::print(String *str)
 {
-  str->append("<primary_index_lookup>(", 23);
+  str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   tab->ref.items[0]->print(str);
-  str->append(" in ", 4);
-  str->append(tab->table->s->table_name);
+  str->append(STRING_WITH_LEN(" in "));
+  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
-  str->append(" on ", 4);
+  str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
   if (cond)
   {
-    str->append(" where ", 7);
+    str->append(STRING_WITH_LEN(" where "));
     cond->print(str);
   }
   str->append(')');
@@ -1812,18 +1815,18 @@ void subselect_uniquesubquery_engine::print(String *str)
 
 void subselect_indexsubquery_engine::print(String *str)
 {
-  str->append("<index_lookup>(", 15);
+  str->append(STRING_WITH_LEN("<index_lookup>("));
   tab->ref.items[0]->print(str);
-  str->append(" in ", 4);
-  str->append(tab->table->s->table_name);
+  str->append(STRING_WITH_LEN(" in "));
+  str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
-  str->append(" on ", 4);
+  str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
   if (check_null)
-    str->append(" checking NULL", 14);
+    str->append(STRING_WITH_LEN(" checking NULL"));
     if (cond)
   {
-    str->append(" where ", 7);
+    str->append(STRING_WITH_LEN(" where "));
     cond->print(str);
   }
   str->append(')');

@@ -2811,7 +2811,7 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  if(ptr->m_header_bits & Tuple_header::CHAINED_ROW)
 	  {
 	    assert(len == fix_sz + 1);
-	    Local_key tmp; tmp= *part;
+	    Local_key tmp; tmp.assref(*part);
 	    Ptr<Var_page> tmpPage;
 	    part= get_ptr(&tmpPage, *(Var_part_ref*)part);
 	    len= tmpPage.p->get_entry_len(tmp.m_page_idx);
@@ -2896,7 +2896,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     else
     {
       Local_key tmp;
-      tmp= *org->get_var_part_ptr(regTabPtr);
+      tmp.assref(*org->get_var_part_ptr(regTabPtr));
       idx= tmp.m_page_idx;
       alloc= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
       if(!(pageP->get_entry_len(idx) & Var_page::CHAIN))

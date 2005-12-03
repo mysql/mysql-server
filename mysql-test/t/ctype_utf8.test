@@ -884,7 +884,9 @@ SELECT DISTINCT id FROM t1 ORDER BY id;
 DROP TABLE t1;
 
 #
-#  Bugs#10504: Character set does not support traditional mode
+#  Bug#10504: Character set does not support traditional mode
+#  Bug#14146: CHAR(...USING ...) and CONVERT(CHAR(...) USING...)
+#             produce different results
 #
 set names utf8;
 # correct value
@@ -894,12 +896,14 @@ select char(0xd18f using utf8);
 select char(53647 using utf8);
 # incorrect value: return with warning
 select char(0xff,0x8f using utf8);
+select convert(char(0xff,0x8f) using utf8);
 # incorrect value in strict mode: return NULL with "Error" level warning
 set sql_mode=traditional;
 select char(0xff,0x8f using utf8);
 select char(195 using utf8);
 select char(196 using utf8);
 select char(2557 using utf8);
+select convert(char(0xff,0x8f) using utf8);
 
 #
 # Check convert + char + using

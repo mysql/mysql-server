@@ -28,7 +28,7 @@ class ha_blackhole: public handler
   THR_LOCK thr_lock;
 
 public:
-  ha_blackhole(TABLE *table_arg);
+  ha_blackhole(TABLE_SHARE *table_arg);
   ~ha_blackhole()
   {
   }
@@ -49,7 +49,7 @@ public:
   }
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
@@ -84,4 +84,5 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+  bool has_transactions() { return 1; }
 };

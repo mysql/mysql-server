@@ -486,7 +486,6 @@ select s1 from t1 where s1 in (select version from
 information_schema.tables) union select version from
 information_schema.tables;
 s1
-0
 10
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
@@ -648,12 +647,16 @@ drop function sub1;
 select table_name from information_schema.views
 where table_schema='test';
 table_name
+v2
+v3
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select table_name from information_schema.views
 where table_schema='test';
 table_name
+v2
+v3
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -670,6 +673,16 @@ f1_key
 select constraint_name from information_schema.table_constraints
 where table_schema='test';
 constraint_name
+show create view v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`
+Warnings:
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+show create table v3;
+View	Create View
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select sql_no_cache `test`.`sub1`(1) AS `c`
+Warnings:
+Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
 drop view v3;
 drop table t4;
@@ -723,6 +736,7 @@ information_schema	ROUTINES	SQL_MODE
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	TRIGGERS	SQL_MODE
+information_schema	TRIGGERS	DEFINER
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
@@ -801,45 +815,45 @@ set @fired:= "Yes";
 end if;
 end|
 show triggers;
-Trigger	Event	Table	Statement	Timing	Created	sql_mode
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 trg1	INSERT	t1	
 begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	NULL	
+end	BEFORE	NULL		root@localhost
 trg2	UPDATE	t1	
 begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	NULL	
+end	BEFORE	NULL		root@localhost
 trg3	UPDATE	t1	
 begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	NULL	
+end	AFTER	NULL		root@localhost
 select * from information_schema.triggers;
-TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE
+TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
 NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	
 begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL	
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
 NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	
 begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL	
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
 NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	
 begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL	
+end	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		root@localhost
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -1034,3 +1048,11 @@ blob	65535	65535
 text	65535	65535
 text	65535	32767
 drop table t1;
+create table t1 (f1 int(11));
+create view v1 as select * from t1;
+drop table t1;
+select table_type from information_schema.tables
+where table_name="v1";
+table_type
+VIEW
+drop view v1;

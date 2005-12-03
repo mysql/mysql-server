@@ -340,10 +340,10 @@ public:
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
   int save_in_field(Field *to, bool no_conversions);
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
-  }  
+    return tmp_table_field_from_field_type(table, 0);
+  }
 };
 
 
@@ -355,9 +355,9 @@ public:
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -378,9 +378,9 @@ public:
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   String *val_str(String *str);
   void fix_length_and_dec();
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
   /* 
     Abstract method that defines which time zone is used for conversion.
@@ -618,9 +618,9 @@ public:
   }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   const char *func_name() const { return "sec_to_time"; }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -641,12 +641,12 @@ enum interval_type
 
 class Item_date_add_interval :public Item_date_func
 {
-  const interval_type int_type;
   String value;
-  const bool date_sub_interval;
   enum_field_types cached_field_type;
 
 public:
+  const interval_type int_type; // keep it public
+  const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
   String *val_str(String *);
@@ -662,10 +662,10 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  const interval_type int_type;
   String value;
   bool date_value;
  public:
+  const interval_type int_type; // keep it public
   Item_extract(interval_type type_arg, Item *a)
     :Item_int_func(a), int_type(type_arg) {}
   longlong val_int();
@@ -741,9 +741,9 @@ public:
   bool get_date(TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }  
   void fix_length_and_dec()
   {
@@ -763,9 +763,9 @@ public:
   bool get_time(TIME *ltime);
   const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -778,9 +778,9 @@ public:
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -796,9 +796,9 @@ public:
     decimals=0;
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -816,18 +816,9 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
 
-/*
-  TODO:
-       Change this when we support 
-       microseconds in TIME/DATETIME
-*/
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    if (cached_field_type == MYSQL_TYPE_TIME)
-      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
-    else if (cached_field_type == MYSQL_TYPE_DATETIME)
-      return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
-    return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
   void print(String *str);
   const char *func_name() const { return "add_time"; }
@@ -847,9 +838,9 @@ public:
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null= 1;
   }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -866,9 +857,9 @@ public:
     decimals=0;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  Field *tmp_table_field(TABLE *t_arg)
+  Field *tmp_table_field(TABLE *table)
   {
-    return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
+    return tmp_table_field_from_field_type(table, 0);
   }
 };
 
@@ -910,8 +901,8 @@ enum date_time_format
 
 class Item_func_get_format :public Item_str_func
 {
-  const timestamp_type type;
 public:
+  const timestamp_type type; // keep it public
   Item_func_get_format(timestamp_type type_arg, Item *a)
     :Item_str_func(a), type(type_arg)
   {}
@@ -942,7 +933,10 @@ public:
   const char *func_name() const { return "str_to_date"; }
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
-  Field *tmp_table_field(TABLE *t_arg);
+  Field *tmp_table_field(TABLE *table)
+  {
+    return tmp_table_field_from_field_type(table, 1);
+  }
 };
 
 

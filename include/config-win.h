@@ -279,10 +279,10 @@ inline double ulonglong2double(ulonglong value)
 			  *((T)+4)=(uchar) (((A) >> 32)); }
 #define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
 
-#define doubleget(V,M)	{ *((long *) &V) = *((long*) M); \
-			  *(((long *) &V)+1) = *(((long*) M)+1); }
-#define doublestore(T,V) { *((long *) T) = *((long*) &V); \
-			   *(((long *) T)+1) = *(((long*) &V)+1); }
+#define doubleget(V,M)	do { *((long *) &V) = *((long*) M); \
+			    *(((long *) &V)+1) = *(((long*) M)+1); } while(0)
+#define doublestore(T,V) do { *((long *) T) = *((long*) &V); \
+			      *(((long *) T)+1) = *(((long*) &V)+1); } while(0)
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }
 #define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
 #define floatget(V,M)   memcpy((byte*)(&V), (byte*)(M), sizeof(float))
@@ -392,8 +392,8 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
 
-#define HAVE_OPENSSL 1
-#define HAVE_YASSL 1
+/* #undef HAVE_OPENSSL */
+/* #undef HAVE_YASSL */
 
 /* Define charsets you want */
 /* #undef HAVE_CHARSET_armscii8 */

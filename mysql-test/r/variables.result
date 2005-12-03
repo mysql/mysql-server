@@ -351,6 +351,14 @@ set global rpl_recovery_rank=100;
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
+set @@max_sp_recursion_depth=10;
+select @@max_sp_recursion_depth;
+@@max_sp_recursion_depth
+10
+set @@max_sp_recursion_depth=0;
+select @@max_sp_recursion_depth;
+@@max_sp_recursion_depth
+0
 set sql_auto_is_null=1;
 select @@sql_auto_is_null;
 @@sql_auto_is_null
@@ -376,7 +384,7 @@ set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
 set sql_warnings=1;
-set global table_cache=100;
+set global table_open_cache=100;
 set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
@@ -508,11 +516,11 @@ SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 Variable_name	Value
 myisam_data_pointer_size	7
-SET GLOBAL table_cache=-1;
-SHOW VARIABLES LIKE 'table_cache';
+SET GLOBAL table_open_cache=-1;
+SHOW VARIABLES LIKE 'table_open_cache';
 Variable_name	Value
-table_cache	1
-SET GLOBAL table_cache=DEFAULT;
+table_open_cache	1
+SET GLOBAL table_open_cache=DEFAULT;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")

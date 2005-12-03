@@ -1,6 +1,6 @@
 ##############################################################################
 #
-#  List the test cases that are to be disabled temporarely.
+#  List the test cases that are to be disabled temporarily.
 #
 #  Separate the test case name and the comment with ':'.
 #
@@ -15,5 +15,8 @@ rpl_relayrotate : Unstable test case, bug#12429
 rpl_until       : Unstable test case, bug#12429
 rpl_deadlock    : Unstable test case, bug#12429
 kill            : Unstable test case, bug#9712
-archive_gis     : The test fails on 32bit Linux
-compress        : Magnus will fix
+ndb_cache2      : Bug #15004
+ndb_cache_multi2: Bug #15004
+func_group      : Bug #15448
+func_math       : Bug #15448
+group_min_max   : Bug #15448 

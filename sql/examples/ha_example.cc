@@ -71,7 +71,7 @@
 
 #include "ha_example.h"
 
-static handler* example_create_handler(TABLE *table);
+static handler* example_create_handler(TABLE_SHARE *table);
 
 handlerton example_hton= {
   "EXAMPLE",
@@ -213,13 +213,13 @@ static int free_share(EXAMPLE_SHARE *share)
 }
 
 
-static handler* example_create_handler(TABLE *table)
+static handler* example_create_handler(TABLE_SHARE *table)
 {
   return new ha_example(table);
 }
 
 
-ha_example::ha_example(TABLE *table_arg)
+ha_example::ha_example(TABLE_SHARE *table_arg)
   :handler(&example_hton, table_arg)
 {}
 
@@ -495,6 +495,8 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
 
 /*
   ::info() is used to return information to the optimizer.
+  see my_base.h for the complete description
+
   Currently this table handler doesn't implement most of the fields
   really needed. SHOW also makes use of this data
   Another note, you will probably want to have the following in your

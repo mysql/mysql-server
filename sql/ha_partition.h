@@ -67,6 +67,7 @@ private:
   u_long m_low_byte_first;
 
   uint m_tot_parts;                      // Total number of partitions;
+  uint m_no_locks;                        // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write
   int m_lock_type;                       // Remembers type of last
                                          // external_lock
@@ -121,6 +122,11 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 
 public:
+  virtual void set_part_info(partition_info *part_info)
+  {
+     m_part_info= part_info;
+     m_is_sub_partitioned= is_sub_partitioned(part_info);
+  }
   /*
     -------------------------------------------------------------------------
     MODULE create/delete handler object
@@ -132,7 +138,7 @@ public:
     partition handler.
     -------------------------------------------------------------------------
   */
-    ha_partition(TABLE * table);
+    ha_partition(TABLE_SHARE * table);
     ha_partition(partition_info * part_info);
    ~ha_partition();
   /*

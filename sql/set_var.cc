@@ -61,15 +61,19 @@
 
 /* WITH_BERKELEY_STORAGE_ENGINE */
 extern bool berkeley_shared_data;
-extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;
+extern ulong berkeley_max_lock, berkeley_log_buffer_size;
+extern ulonglong berkeley_cache_size;
+extern ulong berkeley_region_size, berkeley_cache_parts;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 
 /* WITH_INNOBASE_STORAGE_ENGINE */
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_fast_shutdown;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
-extern long innobase_log_file_size, innobase_log_buffer_size;
-extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern longlong innobase_log_file_size;
+extern long innobase_log_buffer_size;
+extern longlong innobase_buffer_pool_size;
+extern long innobase_additional_mem_pool_size;
 extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery;
@@ -235,9 +239,12 @@ sys_var_key_cache_long  sys_key_cache_age_threshold("key_cache_age_threshold",
 							      param_age_threshold));
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_bool_ptr       
+sys_var_trust_routine_creators
 sys_trust_routine_creators("log_bin_trust_routine_creators",
-                           &trust_routine_creators);
+                           &trust_function_creators);
+sys_var_bool_ptr       
+sys_trust_function_creators("log_bin_trust_function_creators",
+                            &trust_function_creators);
 sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
@@ -293,6 +300,8 @@ sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
                                                fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
+sys_var_thd_ulong	sys_max_sp_recursion_depth("max_sp_recursion_depth",
+                                                   &SV::max_sp_recursion_depth);
 sys_var_max_user_conn   sys_max_user_connections("max_user_connections");
 sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
@@ -305,6 +314,8 @@ sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
+sys_var_bool_ptr	sys_myisam_use_mmap("myisam_use_mmap", 
+                                            &opt_myisam_use_mmap);
 
 sys_var_thd_enum        sys_myisam_stats_method("myisam_stats_method",
                                                 &SV::myisam_stats_method,
@@ -414,7 +425,9 @@ sys_var_thd_ulong	sys_sync_replication_timeout(
                                                &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
-sys_var_long_ptr	sys_table_cache_size("table_cache",
+sys_var_long_ptr	sys_table_def_size("table_definition_cache",
+                                           &table_def_size);
+sys_var_long_ptr	sys_table_cache_size("table_open_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_table_lock_wait_timeout("table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
@@ -583,7 +596,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 /* Read only variables */
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
-
 sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
 sys_var_have_variable sys_have_berkeley_db("have_bdb", &have_berkeley_db);
 sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
@@ -607,7 +619,6 @@ sys_var_have_variable sys_have_query_cache("have_query_cache",
 sys_var_have_variable sys_have_raid("have_raid", &have_raid);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
-
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -622,11 +633,13 @@ struct show_var_st init_vars[]= {
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
-  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
+  {"bdb_cache_parts",         (char*) &berkeley_cache_parts,        SHOW_LONG},
+  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONGLONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
   {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
+  {"bdb_region_size",         (char*) &berkeley_region_size,	    SHOW_LONG},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
@@ -688,7 +701,7 @@ struct show_var_st init_vars[]= {
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
-  {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
+  {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONGLONG },
   {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
   {sys_innodb_commit_concurrency.name, (char*) &sys_innodb_commit_concurrency, SHOW_SYS},
   {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
@@ -706,7 +719,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_buffer_size", (char*) &innobase_log_buffer_size, SHOW_LONG },
-  {"innodb_log_file_size", (char*) &innobase_log_file_size, SHOW_LONG},
+  {"innodb_log_file_size", (char*) &innobase_log_file_size, SHOW_LONGLONG},
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
@@ -738,7 +751,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
-  {sys_trust_routine_creators.name,(char*) &sys_trust_routine_creators, SHOW_SYS},
+  {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
 #ifdef HAVE_REPLICATION
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
@@ -765,6 +778,8 @@ struct show_var_st init_vars[]= {
   {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
+  {sys_max_sp_recursion_depth.name,
+    (char*) &sys_max_sp_recursion_depth, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
@@ -776,6 +791,7 @@ struct show_var_st init_vars[]= {
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
+  {sys_myisam_use_mmap.name, (char*) &sys_myisam_use_mmap, SHOW_SYS},
   
   {sys_myisam_stats_method.name, (char*) &sys_myisam_stats_method, SHOW_SYS},
   
@@ -868,7 +884,8 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_TZNAME
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
-  {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
+  {"table_definition_cache",  (char*) &table_def_size,              SHOW_LONG},
+  {"table_open_cache",        (char*) &table_cache_size,            SHOW_LONG},
   {"table_lock_wait_timeout", (char*) &table_lock_wait_timeout,     SHOW_LONG },
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -3327,6 +3344,26 @@ bool process_key_caches(int (* func) (const char *name, KEY_CACHE *))
   return 0;
 }
 
+
+void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
+{
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_WARN_DEPRECATED_SYNTAX,
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "log_bin_trust_routine_creators",
+                      "log_bin_trust_function_creators"); 
+}
+
+void sys_var_trust_routine_creators::set_default(THD *thd, enum_var_type type)
+{
+  warn_deprecated(thd);
+  sys_var_bool_ptr::set_default(thd, type);
+}
+
+bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
+{
+  warn_deprecated(thd);
+  return sys_var_bool_ptr::update(thd, var);
+}
 
 /****************************************************************************
   Used templates

@@ -19,7 +19,7 @@ INCLUDES="$INCLUDES $ZLIB_INCLUDES"
 LIBS="$LIBS $ZLIB_LIBS"
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
-    [return compress(0, (unsigned long*) 0, "", 0);],
+    [return zlibCompileFlags();],
     [mysql_cv_compress="yes"
     AC_MSG_RESULT([ok])],
     [mysql_cv_compress="no"])
@@ -89,8 +89,9 @@ case $SYSTEM_TYPE in
         fi
         ;;
       *)
-        if test -f "$mysql_zlib_dir/lib/libz.a" -a \ 
-                -f "$mysql_zlib_dir/include/zlib.h"; then
+        if test \( -f "$mysql_zlib_dir/lib/libz.a"  -o -f "$mysql_zlib_dir/lib/libz.so" -o \
+                   -f "$mysql_zlib_dir/lib/libz.sl" -o -f "$mysql_zlib_dir/lib/libz.dylib" \) \
+                -a -f "$mysql_zlib_dir/include/zlib.h"; then
           ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
           ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
           MYSQL_CHECK_ZLIB_DIR

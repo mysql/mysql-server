@@ -96,6 +96,7 @@ require "lib/mtr_report.pl";
 require "lib/mtr_diff.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
+require "lib/mtr_stress.pl";
 
 $Devel::Trace::TRACE= 1;
 
@@ -271,6 +272,16 @@ our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
 
+our $opt_stress=               "";
+our $opt_stress_suite=     "main";
+our $opt_stress_mode=    "random";
+our $opt_stress_threads=        5;
+our $opt_stress_test_count=    20;
+our $opt_stress_loop_count=    "";
+our $opt_stress_test_duration= "";
+our $opt_stress_init_file=     "";
+our $opt_stress_test_file=     "";
+
 our $opt_verbose;
 
 our $opt_wait_for_master;
@@ -390,6 +401,10 @@ sub main () {
   elsif ( $opt_bench )
   {
     run_benchmarks(shift);      # Shift what? Extra arguments?!
+  }
+  elsif ( $opt_stress )
+  {
+    run_stress_test()
   }
   else
   {
@@ -546,6 +561,17 @@ sub command_line_setup () {
              'valgrind-mysqltest:s'     => \$opt_valgrind_mysqltest,
              'valgrind-all:s'           => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
+
+             # Stress testing 
+             'stress'                   => \$opt_stress,
+             'stress-suite=s'           => \$opt_stress_suite,
+             'stress-threads=i'         => \$opt_stress_threads,
+             'stress-test-file=s'       => \$opt_stress_test_file,
+             'stress-init-file=s'       => \$opt_stress_init_file,
+             'stress-mode=s'            => \$opt_stress_mode,
+             'stress-loop-count=i'      => \$opt_stress_loop_count,
+             'stress-test-count=i'      => \$opt_stress_test_count,
+             'stress-test-duration=i'   => \$opt_stress_test_duration,
 
              # Misc
              'big-test'                 => \$opt_big_test,
@@ -901,6 +927,9 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+
+      $exe_my_print_defaults=
+        mtr_exe_exists("$path_client_bindir/my_print_defaults");
     }
     else
     {
@@ -911,6 +940,8 @@ sub executable_setup () {
 
       $exe_im= mtr_exe_exists(
         "$glob_basedir/server-tools/instance-manager/mysqlmanager");
+      $exe_my_print_defaults=
+        mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
     }
 
     if ( $glob_use_embedded_server )
@@ -930,15 +961,13 @@ sub executable_setup () {
     }
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
-    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
-    $exe_my_print_defaults=
-      mtr_script_exists("$glob_basedir/extra/my_print_defaults");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
   }
@@ -947,6 +976,7 @@ sub executable_setup () {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -955,7 +985,7 @@ sub executable_setup () {
       mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
 			"$glob_basedir/scripts/mysql_fix_privilege_tables");
     $exe_my_print_defaults=
-      mtr_script_exists("$path_client_bindir/my_print_defaults");
+      mtr_exe_exists("$path_client_bindir/my_print_defaults");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
@@ -2008,7 +2038,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
-  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
@@ -2131,7 +2161,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
-  mtr_add_arg($args, "%s--log-bin-trust-routine-creators", $prefix);
+  mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
 
   if ( $opt_ssl_supported )
   {

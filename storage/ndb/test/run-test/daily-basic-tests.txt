@@ -528,6 +528,10 @@ max-time: 500
 cmd: testNdbApi
 args: -n Scan_4006 T1 D1 D2 
 
+max-time: 500
+cmd: testNdbApi
+args: -n Bug_WritePartialIgnoreError T1 
+
 #max-time: 500
 #cmd: testInterpreter
 #args: T1 

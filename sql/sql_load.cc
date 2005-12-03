@@ -286,7 +286,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif
     if (!dirname_length(ex->file_name))
     {
-      strxnmov(name, FN_REFLEN, mysql_real_data_home, tdb, NullS);
+      strxnmov(name, FN_REFLEN-1, mysql_real_data_home, tdb, NullS);
       (void) fn_format(name, ex->file_name, name, "",
 		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
     }
@@ -691,7 +691,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       length=(uint) (read_info.row_end-pos);
 
       if (!read_info.enclosed &&
-	  (enclosed_length && length == 4 && !memcmp(pos,"NULL",4)) ||
+	  (enclosed_length && length == 4 &&
+           !memcmp(pos, STRING_WITH_LEN("NULL"))) ||
 	  (length == 1 && read_info.found_null))
       {
         if (item->type() == Item::FIELD_ITEM)

@@ -48,6 +48,38 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 }
 
 
+String *Item_str_func::check_well_formed_result(String *str)
+{
+  /* Check whether we got a well-formed string */
+  CHARSET_INFO *cs= str->charset();
+  int well_formed_error;
+  uint wlen= cs->cset->well_formed_len(cs,
+                                       str->ptr(), str->ptr() + str->length(),
+                                       str->length(), &well_formed_error);
+  if (wlen < str->length())
+  {
+    THD *thd= current_thd;
+    char hexbuf[7];
+    enum MYSQL_ERROR::enum_warning_level level;
+    uint diff= str->length() - wlen;
+    set_if_smaller(diff, 3);
+    octet2hex(hexbuf, str->ptr() + wlen, diff);
+    if (thd->variables.sql_mode &
+        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    {
+      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+      null_value= 1;
+      str= 0;
+    }
+    else
+      level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
+                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+  }
+  return str;
+}
+
+
 double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1790,7 +1822,7 @@ String *Item_func_format::val_str(String *str)
 
 void Item_func_format::print(String *str)
 {
-  str->append("format(", 7);
+  str->append(STRING_WITH_LEN("format("));
   args[0]->print(str);
   str->append(',');  
   // my_charset_bin is good enough for numbers
@@ -1950,7 +1982,7 @@ String *Item_func_make_set::val_str(String *str)
 
 void Item_func_make_set::print(String *str)
 {
-  str->append("make_set(", 9);
+  str->append(STRING_WITH_LEN("make_set("));
   item->print(str);
   if (arg_count)
   {
@@ -1984,34 +2016,7 @@ String *Item_func_char::val_str(String *str)
   }
   str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
-
-  /* Check whether we got a well-formed string */
-  CHARSET_INFO *cs= collation.collation;
-  int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
-  if (wlen < str->length())
-  {
-    THD *thd= current_thd;
-    char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
-    uint diff= str->length() - wlen;
-    set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (thd->variables.sql_mode &
-        (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
-    {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-      null_value= 1;
-      str= 0;
-    }
-    else
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
-    push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
-  }
-  return str;
+  return check_well_formed_result(str);
 }
 
 
@@ -2311,6 +2316,8 @@ String *Item_func_conv::val_str(String *str)
 String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (use_cached_value)
+    return null_value ? 0 : &str_value;
   String *arg= args[0]->val_str(str);
   uint dummy_errors;
   if (!arg)
@@ -2320,7 +2327,7 @@ String *Item_func_conv_charset::val_str(String *str)
   }
   null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : &str_value;
+  return null_value ? 0 : check_well_formed_result(&str_value);
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
@@ -2331,9 +2338,9 @@ void Item_func_conv_charset::fix_length_and_dec()
 
 void Item_func_conv_charset::print(String *str)
 {
-  str->append("convert(", 8);
+  str->append(STRING_WITH_LEN("convert("));
   args[0]->print(str);
-  str->append(" using ", 7);
+  str->append(STRING_WITH_LEN(" using "));
   str->append(conv_charset->csname);
   str->append(')');
 }
@@ -2403,7 +2410,7 @@ void Item_func_set_collation::print(String *str)
 {
   str->append('(');
   args[0]->print(str);
-  str->append(" collate ", 9);
+  str->append(STRING_WITH_LEN(" collate "));
   DBUG_ASSERT(args[1]->basic_const_item() &&
               args[1]->type() == Item::STRING_ITEM);
   args[1]->str_value.print(str);
@@ -2523,9 +2530,9 @@ String *Item_func_unhex::val_str(String *str)
 
 void Item_func_binary::print(String *str)
 {
-  str->append("cast(", 5);
+  str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str);
-  str->append(" as binary)", 11);
+  str->append(STRING_WITH_LEN(" as binary)"));
 }
 
 
@@ -2630,7 +2637,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1, default_charset());
+    sep_buf.set(STRING_WITH_LEN(","), default_charset());
     sep = &sep_buf;
     break;
   default:
@@ -2745,7 +2752,8 @@ String *Item_func_quote::val_str(String *str)
   uint arg_length, new_length;
   if (!arg)					// Null argument
   {
-    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
+    /* Return the string 'NULL' */
+    str->copy(STRING_WITH_LEN("NULL"), collation.collation);
     null_value= 0;
     return str;
   }

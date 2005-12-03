@@ -1,0 +1,83 @@
+# Test case(s) in this file contain(s) GRANT/REVOKE statements, which are not
+# supported in embedded server. So, this test should not be run on embedded
+# server.
+
+-- source include/not_embedded.inc
+
+###########################################################################
+#
+# Tests for WL#2818:
+#   - Check that triggers created w/o DEFINER information work well:
+#     - create the first trigger;
+#     - manually remove definer information from corresponding TRG file;
+#     - create the second trigger (the first trigger will be reloaded; check
+#       that we receive a warning);
+#     - check that the triggers loaded correctly;
+#
+###########################################################################
+
+#
+# Prepare environment.
+#
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+#
+# Create a table and the first trigger.
+#
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+
+CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+#
+# Remove definers from TRG file.
+#
+
+--echo
+--echo ---> patching t1.TRG...
+
+--exec grep -v 'definers=' $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG > $MYSQL_TEST_DIR/var/tmp/t1.TRG
+--exec mv $MYSQL_TEST_DIR/var/tmp/t1.TRG $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG
+
+#
+# Create a new trigger.
+#
+
+--echo
+
+CREATE TRIGGER wl2818_trg2 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--echo
+
+SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+
+--echo
+
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;

@@ -1,3 +1,5 @@
+drop database if exists mysqltest;
+drop view if exists v1;
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
 Grants for test@localhost
@@ -13,7 +15,7 @@ create table mysqltest.t2 (a int, b int);
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
 create definer=root@localhost view v1 as select * from mysqltest.t1;
-ERROR HY000: You need the SUPER privilege for creation view with root@localhost definer
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 create view v1 as select * from mysqltest.t1;
 alter view v1 as select * from mysqltest.t1;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 'v1'
@@ -501,3 +503,20 @@ drop user test14256;
 insert into mysql.user select * from t1;
 flush privileges;
 drop table t1;
+create database mysqltest;
+use mysqltest;
+CREATE TABLE t1 (i INT);
+CREATE VIEW  v1 AS SELECT * FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`
+GRANT SELECT, LOCK TABLES ON mysqltest.* TO mysqltest_1@localhost;
+use mysqltest;
+LOCK TABLES v1 READ;
+SHOW CREATE TABLE v1;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+UNLOCK TABLES;
+use test;
+use test;
+drop user mysqltest_1@localhost;
+drop database mysqltest;

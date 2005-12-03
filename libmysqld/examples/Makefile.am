@@ -21,20 +21,21 @@ tests_sources   = $(mysql_client_test_embedded_SOURCES)
 CLEANFILES      = $(client_sources) $(tests_sources)
 
 link_sources:
+	set -x; \
 	for f in $(client_sources); do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(srcdir)/../../client/$$f $(srcdir)/$$f; \
-	done;
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/client/$$f $$f; \
+	done; \
 	for f in $(tests_sources); do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(srcdir)/../../tests/$$f $(srcdir)/$$f; \
-	done;
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/tests/$$f $$f; \
+	done
 
 DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
-		$(openssl_includes)
-LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@
+		$(openssl_includes) $(yassl_includes)
+LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@ $(yassl_libs)
 LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @LIBDL@ $(CXXLDFLAGS)
 
 mysqltest_embedded_LINK = $(CXXLINK)

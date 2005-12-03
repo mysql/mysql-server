@@ -423,11 +423,13 @@ NdbIndexStat::records_in_range(NdbDictionary::Index* index, NdbIndexScanOperatio
     NdbTransaction* trans = op->m_transConnection;
     if (op->interpret_exit_last_row() == -1 ||
         op->getValue(NdbDictionary::Column::RECORDS_IN_RANGE, (char*)out) == 0) {
+      m_error = op->getNdbError();
       DBUG_PRINT("error", ("op:%d", op->getNdbError().code));
       DBUG_RETURN(-1);
     }
     if (trans->execute(NdbTransaction::NoCommit,
                        NdbTransaction::AbortOnError, forceSend) == -1) {
+      m_error = trans->getNdbError();
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
@@ -443,6 +445,7 @@ NdbIndexStat::records_in_range(NdbDictionary::Index* index, NdbIndexScanOperatio
       cnt++;
     }
     if (ret == -1) {
+      m_error = op->getNdbError();
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);

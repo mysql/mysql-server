@@ -79,7 +79,7 @@ void print_cached_tables(void)
   {
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
     printf("%-14.14s %-32s%6ld%8ld%10ld%6d  %s\n",
-	   entry->s->db, entry->s->table_name, entry->s->version,
+	   entry->s->db.str, entry->s->table_name.str, entry->s->version,
 	   entry->in_use ? entry->in_use->thread_id : 0L,
 	   entry->in_use ? entry->in_use->dbug_thread_id : 0L,
 	   entry->db_stat ? 1 : 0, entry->in_use ? lock_descriptions[(int)entry->reginfo.lock_type] : "Not in use");
@@ -261,7 +261,7 @@ print_plan(JOIN* join, double read_time, double record_count,
     pos = join->positions[i];
     table= pos.table->table;
     if (table)
-      fputs(table->s->table_name, DBUG_FILE);
+      fputs(table->s->table_name.str, DBUG_FILE);
     fputc(' ', DBUG_FILE);
   }
   fputc('\n', DBUG_FILE);
@@ -278,7 +278,7 @@ print_plan(JOIN* join, double read_time, double record_count,
       pos= join->best_positions[i];
       table= pos.table->table;
       if (table)
-        fputs(table->s->table_name, DBUG_FILE);
+        fputs(table->s->table_name.str, DBUG_FILE);
       fputc(' ', DBUG_FILE);
     }
   }
@@ -289,7 +289,7 @@ print_plan(JOIN* join, double read_time, double record_count,
   for (plan_nodes= join->best_ref ; *plan_nodes ; plan_nodes++)
   {
     join_table= (*plan_nodes);
-    fputs(join_table->table->s->table_name, DBUG_FILE);
+    fputs(join_table->table->s->table_name.str, DBUG_FILE);
     fprintf(DBUG_FILE, "(%lu,%lu,%lu)",
             (ulong) join_table->found_records,
             (ulong) join_table->records,
@@ -336,8 +336,8 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
     {
       TABLE_LOCK_INFO table_lock_info;
       table_lock_info.thread_id= table->in_use->thread_id;
-      memcpy(table_lock_info.table_name, table->s->table_cache_key,
-	     table->s->key_length);
+      memcpy(table_lock_info.table_name, table->s->table_cache_key.str,
+	     table->s->table_cache_key.length);
       table_lock_info.table_name[strlen(table_lock_info.table_name)]='.';
       table_lock_info.waiting=wait;
       table_lock_info.lock_text=text;
@@ -484,7 +484,7 @@ Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
 	 tmp.opened_tables,
-	 (ulong) cached_tables(),
+	 (ulong) cached_open_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
 

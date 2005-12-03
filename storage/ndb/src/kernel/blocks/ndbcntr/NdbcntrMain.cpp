@@ -66,13 +66,13 @@ struct BlockInfo {
 };
 
 static BlockInfo ALL_BLOCKS[] = { 
+  { NDBFS_REF,   0 ,  2000,  2999 },
   { DBTC_REF,    1 ,  8000,  8035 },
   { DBDIH_REF,   1 ,  7000,  7173 },
   { DBLQH_REF,   1 ,  5000,  5030 },
   { DBACC_REF,   1 ,  3000,  3999 },
   { DBTUP_REF,   1 ,  4000,  4007 },
   { DBDICT_REF,  1 ,  6000,  6003 },
-  { NDBFS_REF,   0 ,  2000,  2999 },
   { NDBCNTR_REF, 0 ,  1000,  1999 },
   { QMGR_REF,    1 ,     1,   999 },
   { CMVMI_REF,   1 ,  9000,  9999 },
