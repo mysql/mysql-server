@@ -4961,9 +4961,20 @@ BEGIN
   DROP TABLE t1;
   RESTORE TABLE t1 FROM '../tmp';
 END|
---replace_result ": 7" ": X" ": 17" ": X" $MYSQL_TEST_DIR MYSQL_TEST_DIR
 call bug13012()|
 drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+  REPAIR TABLE t1,t2,t3,v1;
+  OPTIMIZE TABLE t1,t2,t3,v1;
+  ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+call bug13012()|
+call bug13012()|
+drop procedure bug13012|
+drop view v1;
 select * from t1|
 
 #

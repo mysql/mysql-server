@@ -4168,6 +4168,69 @@ test.t1	backup	status	OK
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
 drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+REPAIR TABLE t1,t2,t3,v1;
+OPTIMIZE TABLE t1,t2,t3,v1;
+ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	note	Unknown table 'test.v1'
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	note	Unknown table 'test.v1'
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	note	Unknown table 'test.v1'
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	note	Unknown table 'test.v1'
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+drop procedure bug13012|
+drop view v1;
 select * from t1|
 a
 a - table column
