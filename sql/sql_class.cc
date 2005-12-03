@@ -1815,6 +1815,7 @@ void TMP_TABLE_PARAM::init()
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
   table_charset= 0;
+  precomputed_group_by= 0;
 }
 
 
@@ -1948,6 +1949,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->last_insert_id=  last_insert_id;
   backup->next_insert_id=  next_insert_id;
   backup->insert_id_used=  insert_id_used;
+  backup->clear_next_insert_id= clear_next_insert_id;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
   backup->sent_row_count=   sent_row_count;
@@ -1999,6 +2001,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   last_insert_id=   backup->last_insert_id;
   next_insert_id=   backup->next_insert_id;
   insert_id_used=   backup->insert_id_used;
+  clear_next_insert_id= backup->clear_next_insert_id;
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
