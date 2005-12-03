@@ -898,7 +898,6 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   }
 
   key_info= table->key_info;
-  file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   bzero((char*) &create_info, sizeof(create_info));
   file->update_create_info(&create_info);
   primary_key= share->primary_key;
@@ -2316,6 +2315,12 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       there was errors during opening tables
     */
     const char *error= thd->net.last_error;
+    if (tables->view)
+      table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
+    else if (tables->schema_table)
+      table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
+    else
+      table->field[3]->store(STRING_WITH_LEN("BASE TABLE"), cs);
     table->field[20]->store(error, strlen(error), cs);
     thd->clear_error();
   }

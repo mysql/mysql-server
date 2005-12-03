@@ -3332,17 +3332,20 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
       }
-      if (m_table != (void *)tab)
-      {
-        m_table= (void *)tab;
-        m_table_version = tab->getObjectVersion();
-      }
-      else if (m_table_version < tab->getObjectVersion())
+      if (m_table_version < tab->getObjectVersion())
       {
         /*
           The table has been altered, caller has to retry
         */
-        DBUG_RETURN(my_errno= HA_ERR_TABLE_DEF_CHANGED);
+        NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
+        DBUG_RETURN(ndb_to_mysql_error(&err));
+      }
+      if (m_table != (void *)tab)
+      {
+        m_table= (void *)tab;
+        m_table_version = tab->getObjectVersion();
+        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+          DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
     }
@@ -3880,9 +3883,8 @@ int ha_ndbcluster::create(const char *name,
   uint pack_length, length, i, pk_length= 0;
   const void *data, *pack_data;
   char name2[FN_HEADLEN];
-  bool create_from_engine= test(info->table_options &
-                                HA_OPTION_CREATE_FROM_ENGINE);
-   
+  bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
   fn_format(name2, name, "", "",2);       // Remove the .frm extension

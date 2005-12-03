@@ -80,8 +80,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
-		$(top_builddir)/vio/libvio.a \
-                @yassl_libs_with_path@
+		$(top_builddir)/vio/libvio.a
 		
 
 #

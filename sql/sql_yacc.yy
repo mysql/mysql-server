@@ -1592,7 +1592,12 @@ sp_decls:
 
 sp_decl:
           DECLARE_SYM sp_decl_idents type 
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            LEX *lex= Lex;
+
+            lex->sphead->reset_lex(YYTHD);
+            lex->spcont->declare_var_boundary($2);
+          }
           sp_opt_default
           {
             LEX *lex= Lex;
@@ -1623,6 +1628,7 @@ sp_decl:
               lex->sphead->add_instr(in);
               ctx->set_default(off, it);
             }
+            ctx->declare_var_boundary(0);
             lex->sphead->restore_lex(YYTHD);
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
@@ -3374,7 +3380,6 @@ alter:
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
 	    lex->sql_command= SQLCOM_CREATE_VIEW;
-            lex->create_view_start= thd->query;
 	    lex->create_view_mode= VIEW_ALTER;
 	    /* first table in list is target VIEW name */
 	    lex->select_lex.add_table_to_list(thd, $6, NULL, 0);
@@ -8979,7 +8984,6 @@ view_tail:
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
 	  lex->sql_command= SQLCOM_CREATE_VIEW;
-	  lex->create_view_start= thd->query;
 	  /* first table in list is target VIEW name */
 	  if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0))
 	    YYABORT;
@@ -9010,11 +9014,21 @@ view_list:
 view_select:
 	SELECT_SYM remember_name select_init2
 	{
-	  Lex->create_view_select_start= $2;
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          char *stmt_beg= (lex->sphead ?
+                           (char *)lex->sphead->m_tmp_query :
+                           thd->query);
+	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	| '(' remember_name select_paren ')' union_opt
 	{
-	  Lex->create_view_select_start= $2;
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          char *stmt_beg= (lex->sphead ?
+                           (char *)lex->sphead->m_tmp_query :
+                           thd->query);
+	  lex->create_view_select_start= $2 - stmt_beg;
 	}
 	;
 
