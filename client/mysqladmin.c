@@ -107,7 +107,7 @@ static TYPELIB command_typelib=
 static struct my_option my_long_options[] =
 {
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"count", 'c',
