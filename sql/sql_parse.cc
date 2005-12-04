@@ -689,6 +689,9 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  thd->set_active_vio(net->vio);
+#endif
 
   if (!thd->host)                           // If TCP/IP connection
   {
