@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: region.h,v 11.51 2004/10/15 16:59:39 bostic Exp $
+ * $Id: region.h,v 12.7 2005/10/13 00:53:00 bostic Exp $
  */
 
 #ifndef _DB_REGION_H_
@@ -24,16 +24,18 @@
  *	file mapped into memory (mmap, MapViewOfFile)
  *	system memory (shmget, CreateFileMapping)
  *
- * If the regions are private to a process, they're in malloc.  If they're
- * public, they're in file mapped memory, or, optionally, in system memory.
- * Regions in the filesystem are named "__db.001", "__db.002" and so on.  If
- * we're not using a private environment allocated using malloc(3), the file
- * "__db.001" will always exist, as we use it to synchronize on the regions,
- * whether they exist in file mapped memory or system memory.
+ * By default, regions are created in filesystem-backed shared memory.  They
+ * can also be created in system shared memory (DB_SYSTEM_MEM), or, if private
+ * to a process, in heap memory (DB_PRIVATE).
  *
- * The file "__db.001" contains a REGENV structure and a linked list of some
- * number of REGION structures.  Each of the REGION structures describes and
- * locks one of the underlying shared regions used by DB.
+ * Regions in the filesystem are named "__db.001", "__db.002" and so on.  If
+ * we're not using a private environment allocated in heap, "__db.001" will
+ * always exist, as we use it to synchronize on the regions, whether they are
+ * in filesystem-backed memory or system memory.
+ *
+ * The file "__db.001" contains a REGENV structure and an array of REGION
+ * structures.  Each REGION structures describes an underlying chunk of
+ * shared memory.
  *
  *	__db.001
  *	+---------+
@@ -49,22 +51,32 @@
  *	|	  |   +----------+
  *	+---------+
  *
- * The only tricky part about manipulating the regions is correctly creating
- * or joining the REGENV file, i.e., __db.001.  We have to be absolutely sure
- * that only one process creates it, and that everyone else joins it without
- * seeing inconsistent data.  Once that region is created, we can use normal
- * shared locking procedures to do mutual exclusion for all other regions.
+ * The tricky part about manipulating the regions is creating or joining the
+ * database environment.  We have to be sure only a single thread of control
+ * creates and/or recovers a database environment.  All other threads should
+ * then join without seeing inconsistent data.
  *
- * One of the REGION structures in the main environment region describes the
- * environment region itself.
+ * We do this in two parts: first, we use the underlying O_EXCL flag to the
+ * open system call to serialize creation of the __db.001 file.  The thread
+ * of control creating that file then proceeds to create the remaining
+ * regions in the environment, including the mutex region.  Once the mutex
+ * region has been created, the creating thread of control fills in the
+ * __db.001 file's magic number.  Other threads of control (the ones that
+ * didn't create the __db.001 file), wait on the initialization of the
+ * __db.001 file's magic number.  After it has been initialized, all threads
+ * of control can proceed, using normal shared mutex locking procedures for
+ * exclusion.
  *
- * To lock a region, locate the REGION structure that describes it and acquire
- * the region's mutex.  There is one exception to this rule -- the lock for the
- * environment region itself is in the REGENV structure, and not in the REGION
- * that describes the environment region.  That's so that we can acquire a lock
- * without walking linked lists that could potentially change underneath us.
- * The REGION will not be moved or removed during the life of the region, and
- * so long-lived references to it can be held by the process.
+ * REGIONs are not moved or removed during the life of the environment, and
+ * so processes can have long-lived references to them.
+ *
+ * One of the REGION structures describes the environment region itself.
+ *
+ * The REGION array is not locked in any way.  It's an array so we don't have
+ * to manipulate data structures after a crash -- on some systems, we have to
+ * join and clean up the mutex region after application failure.  Using an
+ * array means we don't have to worry about broken links or other nastiness
+ * after the failure.
  *
  * All requests to create or join a region return a REGINFO structure, which
  * is held by the caller and used to open and subsequently close the reference
@@ -82,17 +94,19 @@
  * Although DB does not currently grow regions when they run out of memory, it
  * would be possible to do so.  To grow a region, allocate a new region of the
  * appropriate size, then copy the old region over it and insert the additional
- * space into the already existing shalloc arena.  Callers may have to fix up
- * local references, but that should be easy to do.  This failed in historic
- * versions of DB because the region lock lived in the mapped memory, and when
- * it was unmapped and remapped (or copied), threads could lose track of it.
- * Once we moved that lock into a region that is never unmapped, growing should
- * work.  That all said, current versions of DB don't implement region grow
- * because some systems don't support mutex copying, e.g., from OSF1 V4.0:
+ * memory into the already existing shalloc arena.  Region users must reset
+ * their base addresses and any local pointers into the memory, of course.
+ * This failed in historic versions of DB because the region mutexes lived in
+ * the mapped memory, and when it was unmapped and remapped (or copied),
+ * threads could lose track of it.  Also, some systems didn't support mutex
+ * copying, e.g., from OSF1 V4.0:
  *
  *	The address of an msemaphore structure may be significant.  If the
  *	msemaphore structure contains any value copied from an msemaphore
  *	structure at a different address, the result is undefined.
+ *
+ * All mutexes are now maintained in a separate region which is never unmapped,
+ * so growing regions should be possible.
  */
 
 #if defined(__cplusplus)
@@ -138,42 +152,55 @@ typedef struct __db_reg_env_ref {
 typedef struct __db_reg_env {
 	/*
 	 * !!!
-	 * The mutex must be the first entry in the structure to guarantee
-	 * correct alignment.
+	 * The magic, panic, version and envid fields of the region are fixed
+	 * in size, the timestamp field is the first field which is variable
+	 * length.  These fields must never change in order, to guarantee we
+	 * can always read them, no matter what Berkeley DB release we have.
+	 *
+	 * !!!
+	 * The magic and panic fields are NOT protected by any mutex, and for
+	 * this reason cannot be anything more complicated than zero/non-zero.
 	 */
-	DB_MUTEX   mutex;		/* Environment mutex. */
+	u_int32_t magic;		/* Valid region magic number. */
+	u_int32_t panic;		/* Environment is dead. */
+
+	u_int32_t majver;		/* Major DB version number. */
+	u_int32_t minver;		/* Minor DB version number. */
+	u_int32_t patchver;		/* Patch DB version number. */
+
+	u_int32_t envid;		/* Unique environment ID. */
+
+	time_t	  timestamp;		/* Creation time. */
+
+	u_int32_t init_flags;		/* Flags environment initialized with.*/
 
 	/*
-	 * !!!
-	 * Note, the magic and panic fields are NOT protected by any mutex,
-	 * and for this reason cannot be anything more complicated than a
-	 * zero/non-zero value.
+	 * The mtx_regenv mutex protects the environment reference count and
+	 * memory allocation from the primary shared region (the crypto and
+	 * replication implementations allocate memory from the primary shared
+	 * region).  The rest of the fields are initialized at creation time,
+	 * and so don't need mutex protection.  The flags, op_timestamp and
+	 * rep_timestamp fields are used by replication only and are
+	 * protected * by the replication mutex.  The rep_timestamp is
+	 * is not protected when it is used in recovery as that is already
+	 * single threaded.
 	 */
-	u_int32_t  magic;		/* Valid region magic number. */
-	u_int32_t  envid;		/* Unique environment ID. */
-
-	int	   envpanic;		/* Environment is dead. */
-
-	int	   majver;		/* Major DB version number. */
-	int	   minver;		/* Minor DB version number. */
-	int	   patch;		/* Patch DB version number. */
-
-	u_int32_t  init_flags;		/* Flags the env was initialized with.*/
-	roff_t	   cipher_off;		/* Offset of cipher area */
-
-					/* List of regions. */
-	SH_LIST_HEAD(__db_regionh) regionq;
-
+	db_mutex_t mtx_regenv;		/* Refcnt, region allocation mutex. */
 	u_int32_t  refcnt;		/* References to the environment. */
 
-	roff_t	   rep_off;		/* Offset of the replication area. */
-#define	DB_REGENV_REPLOCKED	0x0001	/* Env locked for rep backup. */
-	u_int32_t  flags;		/* Shared environment flags. */
-#define	DB_REGENV_TIMEOUT	30	/* Backup timeout. */
-	time_t	   op_timestamp;	/* Timestamp for operations. */
-	time_t	   rep_timestamp;	/* Timestamp for rep db handles. */
+	u_int32_t region_cnt;		/* Number of REGIONs. */
+	roff_t	  region_off;		/* Offset of region array */
 
-	size_t	   pad;			/* Guarantee that following memory is
+	roff_t	  cipher_off;		/* Offset of cipher area */
+
+	roff_t	  rep_off;		/* Offset of the replication area. */
+#define	DB_REGENV_REPLOCKED	0x0001	/* Env locked for rep backup. */
+	u_int32_t flags;		/* Shared environment flags. */
+#define	DB_REGENV_TIMEOUT	30	/* Backup timeout. */
+	time_t	  op_timestamp;		/* Timestamp for operations. */
+	time_t	  rep_timestamp;	/* Timestamp for rep db handles. */
+
+	size_t	pad;			/* Guarantee that following memory is
 					 * size_t aligned.  This is necessary
 					 * because we're going to store the
 					 * allocation region information there.
@@ -182,24 +209,15 @@ typedef struct __db_reg_env {
 
 /* Per-region shared region information. */
 typedef struct __db_region {
-	/*
-	 * !!!
-	 * The mutex must be the first entry in the structure to guarantee
-	 * correct alignment.
-	 */
-	DB_MUTEX   mutex;		/* Region mutex. */
+	u_int32_t	id;		/* Region id. */
+	reg_type_t	type;		/* Region type. */
 
-	SH_LIST_ENTRY q;		/* Linked list of REGIONs. */
+	roff_t	size_orig;		/* Region size in bytes (original). */
+	roff_t	size;			/* Region size in bytes (adjusted). */
 
-	reg_type_t type;		/* Region type. */
-	u_int32_t  id;			/* Region id. */
+	roff_t	primary;		/* Primary data structure offset. */
 
-	roff_t	   size_orig;		/* Region size in bytes (original). */
-	roff_t	   size;		/* Region size in bytes (adjusted). */
-
-	roff_t	   primary;		/* Primary data structure offset. */
-
-	long	   segid;		/* UNIX shmget(2), Win16 segment ID. */
+	long	segid;			/* UNIX shmget(2), Win16 segment ID. */
 } REGION;
 
 /*
@@ -233,26 +251,6 @@ struct __db_reginfo_t {		/* __db_r_attach IN parameters. */
 };
 
 /*
- * Mutex maintenance information each subsystem region must keep track
- * of to manage resources adequately.
- */
-typedef struct __db_regmaint_stat_t {
-	u_int32_t	st_hint_hit;
-	u_int32_t	st_hint_miss;
-	u_int32_t	st_records;
-	u_int32_t	st_clears;
-	u_int32_t	st_destroys;
-	u_int32_t	st_max_locks;
-} REGMAINT_STAT;
-
-typedef struct __db_regmaint_t {
-	u_int32_t  reglocks;		/* Maximum # of mutexes we track. */
-	u_int32_t  regmutex_hint;	/* Hint for next slot */
-	REGMAINT_STAT stat;		/* Stats */
-	roff_t	   regmutexes[1];	/* Region mutexes in use. */
-} REGMAINT;
-
-/*
  * R_ADDR	Return a per-process address for a shared region offset.
  * R_OFFSET	Return a shared region offset for a per-process address.
  */
@@ -263,39 +261,12 @@ typedef struct __db_regmaint_t {
 	(F_ISSET((reginfop)->dbenv, DB_ENV_PRIVATE) ? (roff_t)(p) :	\
 	(roff_t)((u_int8_t *)(p) - (u_int8_t *)(reginfop)->addr))
 
-/*
- * R_LOCK	Lock/unlock a region.
- * R_UNLOCK
- */
-#define	R_LOCK(dbenv, reginfo)						\
-	MUTEX_LOCK(dbenv, &(reginfo)->rp->mutex)
-#define	R_UNLOCK(dbenv, reginfo)					\
-	MUTEX_UNLOCK(dbenv, &(reginfo)->rp->mutex)
-
 /* PANIC_CHECK:	Check to see if the DB environment is dead. */
 #define	PANIC_CHECK(dbenv)						\
-	if (!F_ISSET((dbenv), DB_ENV_NOPANIC) &&			\
-	    (dbenv)->reginfo != NULL && ((REGENV *)			\
-	    ((REGINFO *)(dbenv)->reginfo)->primary)->envpanic != 0)	\
+	if ((dbenv)->reginfo != NULL && ((REGENV *)			\
+	    ((REGINFO *)(dbenv)->reginfo)->primary)->panic != 0 &&	\
+	    !F_ISSET((dbenv), DB_ENV_NOPANIC))				\
 		return (__db_panic_msg(dbenv));
-
-#define	PANIC_SET(dbenv, onoff)						\
-	if ((dbenv)->reginfo != NULL)					\
-		((REGENV *)((REGINFO *)					\
-		    (dbenv)->reginfo)->primary)->envpanic = (onoff);
-
-/*
- * All regions are created on 8K boundaries out of sheer paranoia, so we
- * don't make some underlying VM unhappy. Make sure we don't overflow or
- * underflow.
- */
-#define	OS_VMPAGESIZE		(8 * 1024)
-#define	OS_VMROUNDOFF(i) {						\
-	if ((i) <							\
-	    (UINT32_MAX - OS_VMPAGESIZE) + 1 || (i) < OS_VMPAGESIZE)	\
-		(i) += OS_VMPAGESIZE - 1;				\
-	(i) -= (i) % OS_VMPAGESIZE;					\
-}
 
 #if defined(__cplusplus)
 }

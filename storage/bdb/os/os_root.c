@@ -1,18 +1,16 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_root.c,v 11.8 2004/01/28 03:36:18 bostic Exp $
+ * $Id: os_root.c,v 12.2 2005/08/10 15:47:26 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
-
-#include <unistd.h>
 #endif
 
 #include "db_int.h"

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_rename.c,v 11.17 2004/07/06 13:55:48 bostic Exp $
+ * $Id: os_rename.c,v 12.2 2005/07/29 14:21:51 bostic Exp $
  */
 
 #include "db_config.h"
@@ -32,8 +32,10 @@ __os_rename(dbenv, old, new, silent)
 {
 	int ret;
 
-	RETRY_CHK((DB_GLOBAL(j_rename) != NULL ?
-	    DB_GLOBAL(j_rename)(old, new) : rename(old, new)), ret);
+	if (DB_GLOBAL(j_rename) != NULL)
+		ret = DB_GLOBAL(j_rename)(old, new);
+	else
+		RETRY_CHK((rename(old, new)), ret);
 
 	/*
 	 * If "silent" is not set, then errors are OK and we should not output

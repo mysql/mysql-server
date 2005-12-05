@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: log_archive.c,v 11.62 2004/07/16 21:38:59 mjc Exp $
+ * $Id: log_archive.c,v 12.9 2005/11/04 17:27:58 ubell Exp $
  */
 
 #include "db_config.h"
@@ -14,7 +14,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -41,7 +40,8 @@ __log_archive_pp(dbenv, listp, flags)
 	char ***listp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -61,12 +61,9 @@ __log_archive_pp(dbenv, listp, flags)
 			return (ret);
 	}
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __log_archive(dbenv, listp, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__log_archive(dbenv, listp, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -85,11 +82,10 @@ __log_archive(dbenv, listp, flags)
 	LOG *lp;
 	DB_LOGC *logc;
 	DB_LSN stable_lsn;
-	__txn_ckp_args *ckp_args;
 	u_int array_size, n;
 	u_int32_t fnum;
 	int ret, t_ret;
-	char **array, **arrayp, *name, *p, *pref, buf[MAXPATHLEN];
+	char **array, **arrayp, *name, *p, *pref;
 
 	dblp = dbenv->lg_handle;
 	lp = (LOG *)dblp->reginfo.primary;
@@ -117,24 +113,10 @@ __log_archive(dbenv, listp, flags)
 		return (0);
 
 	/*
-	 * Get the absolute pathname of the current directory.  It would
-	 * be nice to get the shortest pathname of the database directory,
-	 * but that's just not possible.
-	 *
-	 * XXX
-	 * Can't trust getcwd(3) to set a valid errno.  If it doesn't, just
-	 * guess that we ran out of memory.
+	 * Prepend the original absolute pathname if the user wants an
+	 * absolute path to the database environment directory.
 	 */
-	if (LF_ISSET(DB_ARCH_ABS)) {
-		__os_set_errno(0);
-		if ((pref = getcwd(buf, sizeof(buf))) == NULL) {
-			if (__os_get_errno() == 0)
-				__os_set_errno(ENOMEM);
-			ret = __os_get_errno();
-			goto err;
-		}
-	} else
-		pref = NULL;
+	pref = LF_ISSET(DB_ARCH_ABS) ? dbenv->db_abshome : NULL;
 
 	LF_CLR(DB_ARCH_ABS);
 	switch (flags) {
@@ -159,44 +141,18 @@ __log_archive(dbenv, listp, flags)
 		__log_autoremove(dbenv);
 		goto err;
 	case 0:
-		memset(&rec, 0, sizeof(rec));
-		if (!TXN_ON(dbenv)) {
-			__log_get_cached_ckp_lsn(dbenv, &stable_lsn);
-			if (IS_ZERO_LSN(stable_lsn) && (ret =
-			     __txn_findlastckp(dbenv, &stable_lsn, NULL)) != 0)
-				goto err;
-			if (IS_ZERO_LSN(stable_lsn))
-				goto err;
-		}
-		else if (__txn_getckp(dbenv, &stable_lsn) != 0) {
-			/*
-			 * A failure return means that there's no checkpoint
-			 * in the log (so we are not going to be deleting
-			 * any log files).
-			 */
-			goto err;
-		}
-		if ((ret = __log_cursor(dbenv, &logc)) != 0)
-			goto err;
-		if ((ret = __log_c_get(logc, &stable_lsn, &rec, DB_SET)) != 0 ||
-		    (ret = __txn_ckp_read(dbenv, rec.data, &ckp_args)) != 0) {
-			/*
-			 * A return of DB_NOTFOUND may only mean that the
-			 * checkpoint LSN is before the beginning of the
-			 * log files that we still have.  This is not
-			 * an error;  it just means our work is done.
-			 */
+
+		ret = __log_get_stable_lsn(dbenv, &stable_lsn);
+		/*
+		 * A return of DB_NOTFOUND means the checkpoint LSN
+		 * is before the beginning of the log files we have.
+		 * This is not an error; it just means we're done.
+		 */
+		if (ret != 0) {
 			if (ret == DB_NOTFOUND)
 				ret = 0;
-			if ((t_ret = __log_c_close(logc)) != 0 && ret == 0)
-				ret = t_ret;
 			goto err;
 		}
-		if ((ret = __log_c_close(logc)) != 0)
-			goto err;
-		stable_lsn = ckp_args->ckp_lsn;
-		__os_free(dbenv, ckp_args);
-
 		/* Remove any log files before the last stable LSN. */
 		fnum = stable_lsn.file - 1;
 		break;
@@ -277,6 +233,63 @@ err:		if (array != NULL) {
 }
 
 /*
+ * __log_get_stable_lsn --
+ *	Get the stable lsn based on where checkpoints are.
+ *
+ * PUBLIC: int __log_get_stable_lsn __P((DB_ENV *, DB_LSN *));
+ */
+int
+__log_get_stable_lsn(dbenv, stable_lsn)
+	DB_ENV *dbenv;
+	DB_LSN *stable_lsn;
+{
+	DB_LOGC *logc;
+	DBT rec;
+	__txn_ckp_args *ckp_args;
+	int ret, t_ret;
+
+	ret = 0;
+	memset(&rec, 0, sizeof(rec));
+	if (!TXN_ON(dbenv)) {
+		if ((ret = __log_get_cached_ckp_lsn(dbenv, stable_lsn)) != 0)
+			goto err;
+		/*
+		 * No need to check for a return value of DB_NOTFOUND;
+		 * __txn_findlastckp returns 0 if no checkpoint record
+		 * is found.  Instead of checking the return value, we
+		 * check to see if the return LSN has been filled in.
+		 */
+		if (IS_ZERO_LSN(*stable_lsn) && (ret =
+		     __txn_findlastckp(dbenv, stable_lsn, NULL)) != 0)
+			goto err;
+		/*
+		 * If the LSN has not been filled in return DB_NOTFOUND
+		 * so that the caller knows it may be done.
+		 */
+		if (IS_ZERO_LSN(*stable_lsn)) {
+			ret = DB_NOTFOUND;
+			goto err;
+		}
+	} else if ((ret = __txn_getckp(dbenv, stable_lsn)) != 0)
+		goto err;
+	if ((ret = __log_cursor(dbenv, &logc)) != 0)
+		goto err;
+	/*
+	 * If we can read it, set the stable_lsn to the ckp_lsn in the
+	 * checkpoint record.
+	 */
+	if ((ret = __log_c_get(logc, stable_lsn, &rec, DB_SET)) == 0 &&
+	    (ret = __txn_ckp_read(dbenv, rec.data, &ckp_args)) == 0) {
+		*stable_lsn = ckp_args->ckp_lsn;
+		__os_free(dbenv, ckp_args);
+	}
+	if ((t_ret = __log_c_close(logc)) != 0 && ret == 0)
+		ret = t_ret;
+err:
+	return (ret);
+}
+
+/*
  * __log_autoremove --
  *	Delete any non-essential log files.
  *
@@ -286,17 +299,31 @@ void
 __log_autoremove(dbenv)
 	DB_ENV *dbenv;
 {
+	int ret;
 	char **begin, **list;
 
-	if (__log_archive(dbenv, &list, DB_ARCH_ABS) != 0)
+	/*
+	 * Complain if there's an error, but don't return the error to our
+	 * caller.  Auto-remove is done when writing a log record, and we
+	 * don't want to fail a write, which could fail the corresponding
+	 * committing transaction, for a permissions error.
+	 */
+	if ((ret = __log_archive(dbenv, &list, DB_ARCH_ABS)) != 0) {
+		if (ret != DB_NOTFOUND)
+			__db_err(dbenv,
+			    "log file auto-remove: %s", db_strerror(ret));
 		return;
+	}
 
+	/*
+	 * Remove the files.  No error message needed for __os_unlink failure,
+	 * the underlying OS layer has its own error handling.
+	 */
 	if (list != NULL) {
 		for (begin = list; *list != NULL; ++list)
 			(void)__os_unlink(dbenv, *list);
 		__os_ufree(dbenv, begin);
 	}
-	return;
 }
 
 /*

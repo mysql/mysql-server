@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db185_int.in,v 11.14 2004/01/28 03:35:59 bostic Exp $
+ * $Id: db185_int.in,v 12.2 2005/10/06 14:36:52 bostic Exp $
  */
 
 #ifndef _DB185_INT_H_
@@ -82,8 +82,8 @@ typedef struct __db185 {
 	 */
 	DBC	  *dbc;			/* DB cursor. */
 					/* Various callback functions. */
-	int	  (*compare) __P((const DBT *, const DBT *));
-	size_t	  (*prefix) __P((const DBT *, const DBT *));
+	int	  (*compare) __P((const DBT185 *, const DBT185 *));
+	size_t	  (*prefix) __P((const DBT185 *, const DBT185 *));
 	u_int32_t (*hash) __P((const void *, size_t));
 } DB185;
 
@@ -96,9 +96,9 @@ typedef struct {
 	u_int32_t minkeypage;	/* minimum keys per page */
 	u_int32_t psize;	/* page size */
 	int	(*compare)	/* comparison function */
-	    __P((const DBT *, const DBT *));
+	    __P((const DBT185 *, const DBT185 *));
 	size_t	(*prefix)	/* prefix function */
-	    __P((const DBT *, const DBT *));
+	    __P((const DBT185 *, const DBT185 *));
 	int	lorder;		/* byte order */
 } BTREEINFO;
 

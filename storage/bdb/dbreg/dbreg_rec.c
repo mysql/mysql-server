@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dbreg_rec.c,v 11.133 2004/09/24 00:43:18 bostic Exp $
+ * $Id: dbreg_rec.c,v 12.8 2005/11/09 14:20:32 margo Exp $
  */
 
 #include "db_config.h"
@@ -84,11 +84,19 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 		goto out;
 
 	switch (argp->opcode) {
+	case DBREG_REOPEN:
+	case DBREG_PREOPEN:
 	case DBREG_OPEN:
+		/*
+		 * In general, we redo the open on REDO and abort on UNDO.
+		 * However, a reopen is a second instance of an open of
+		 * in-memory files and we don't want to close them yet
+		 * on abort, so just skip that here.
+		 */
 		if ((DB_REDO(op) ||
 		    op == DB_TXN_OPENFILES || op == DB_TXN_POPENFILES))
 			do_open = 1;
-		else
+		else if (argp->opcode != DBREG_REOPEN)
 			do_close = 1;
 		break;
 	case DBREG_CLOSE:
@@ -172,7 +180,9 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 	if (do_close) {
 		/*
 		 * If we are undoing an open, or redoing a close,
-		 * then we need to close the file.
+		 * then we need to close the file.  If we are simply
+		 * revoking then we just need to grab the DBP and revoke
+		 * the log id.
 		 *
 		 * If the file is deleted, then we can just ignore this close.
 		 * Otherwise, we should usually have a valid dbp we should
@@ -181,7 +191,7 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 		 * fact, not have the file open, and that's OK.
 		 */
 		do_rem = 0;
-		MUTEX_THREAD_LOCK(dbenv, dblp->mutexp);
+		MUTEX_LOCK(dbenv, dblp->mtx_dbreg);
 		if (argp->fileid < dblp->dbentry_cnt) {
 			/*
 			 * Typically, closes should match an open which means
@@ -206,12 +216,11 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 				    argp->opcode != DBREG_RCLOSE) ||
 				    argp->opcode == DBREG_CHKPNT) {
 					__db_err(dbenv,
-					    "Improper file close at %lu/%lu",
+				    "Warning: Improper file close at %lu/%lu",
 					    (u_long)lsnp->file,
 					    (u_long)lsnp->offset);
-					ret = EINVAL;
 				}
-				MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+				MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 				goto done;
 			}
 
@@ -228,7 +237,7 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 				 */
 				do_rem = F_ISSET(dbp, DB_AM_RECOVER) ||
 				    op == DB_TXN_ABORT;
-				MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+				MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 				if (op == DB_TXN_ABORT)
 					(void)__dbreg_close_id(dbp,
 					    NULL, DBREG_RCLOSE);
@@ -236,11 +245,13 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 					(void)__dbreg_revoke_id(dbp, 0,
 					    DB_LOGFILEID_INVALID);
 			} else if (dbe->deleted) {
-				MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
-				__dbreg_rem_dbentry(dblp, argp->fileid);
+				MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
+				if ((ret = __dbreg_rem_dbentry(
+				    dblp, argp->fileid)) != 0)
+					goto out;
 			}
 		} else
-			MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+			MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 
 		/*
 		 * During recovery, all files are closed.  On an abort, we only
@@ -273,7 +284,7 @@ __dbreg_register_recover(dbenv, dbtp, lsnp, op, info)
 			if (op == DB_TXN_ABORT &&
 			    !F_ISSET(dbp, DB_AM_RECOVER)) {
 				if ((t_ret = __db_refresh(dbp,
-				    NULL, DB_NOSYNC, NULL)) != 0 && ret == 0)
+				    NULL, DB_NOSYNC, NULL, 0)) != 0 && ret == 0)
 					ret = t_ret;
 			} else {
 				if (op == DB_TXN_APPLY &&
@@ -318,20 +329,22 @@ __dbreg_open_file(dbenv, txn, argp, info)
 	 * is what we expect.  If it's not, then we close the old file and
 	 * open the new one.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dblp->mutexp);
-	if (argp->fileid < dblp->dbentry_cnt)
+	MUTEX_LOCK(dbenv, dblp->mtx_dbreg);
+	if (argp->fileid != DB_LOGFILEID_INVALID &&
+	    argp->fileid < dblp->dbentry_cnt)
 		dbe = &dblp->dbentry[argp->fileid];
 	else
 		dbe = NULL;
 
 	if (dbe != NULL) {
 		if (dbe->deleted) {
-			MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+			MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 			return (ENOENT);
 		}
 
 		/*
-		 * At the end of OPENFILES, we may have a file open.  The
+		 * At the end of OPENFILES, we may have a file open.  If this
+		 * is a reopen, then we will always close and reopen.  If the
 		 * open was part of a committed transaction, so it doesn't
 		 * get undone.  However, if the fileid was previously used,
 		 * we'll see a close that may need to get undone.  There are
@@ -342,11 +355,12 @@ __dbreg_open_file(dbenv, txn, argp, info)
 		 * which case it should never be opened during recovery.
 		 */
 		if ((dbp = dbe->dbp) != NULL) {
-			if (dbp->meta_pgno != argp->meta_pgno ||
+			if (argp->opcode == DBREG_REOPEN ||
+			    dbp->meta_pgno != argp->meta_pgno ||
 			    argp->name.size == 0 ||
 			    memcmp(dbp->fileid, argp->uid.data,
 			    DB_FILE_ID_LEN) != 0) {
-				MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+				MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 				(void)__dbreg_revoke_id(dbp, 0,
 				    DB_LOGFILEID_INVALID);
 				if (F_ISSET(dbp, DB_AM_RECOVER))
@@ -360,7 +374,7 @@ __dbreg_open_file(dbenv, txn, argp, info)
 			 * here had better be the same dbp.
 			 */
 			DB_ASSERT(dbe->dbp == dbp);
-			MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+			MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 
 			/*
 			 * This is a successful open.  We need to record that
@@ -375,7 +389,7 @@ __dbreg_open_file(dbenv, txn, argp, info)
 		}
 	}
 
-	MUTEX_THREAD_UNLOCK(dbenv, dblp->mutexp);
+	MUTEX_UNLOCK(dbenv, dblp->mtx_dbreg);
 
 reopen:
 	/*
@@ -402,6 +416,6 @@ reopen:
 	}
 
 	return (__dbreg_do_open(dbenv,
-	    txn, dblp, argp->uid.data, argp->name.data,
-	    argp->ftype, argp->fileid, argp->meta_pgno, info, argp->id));
+	    txn, dblp, argp->uid.data, argp->name.data, argp->ftype,
+	    argp->fileid, argp->meta_pgno, info, argp->id, argp->opcode));
 }

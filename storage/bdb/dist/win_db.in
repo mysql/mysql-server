@@ -1,9 +1,14 @@
 /*-
- * $Id: win_db.in,v 11.4 2004/10/07 13:59:24 carol Exp $
+ * $Id: win_db.in,v 12.7 2005/11/02 03:12:17 mjc Exp $
  *
  * The following provides the information necessary to build Berkeley
  * DB on native Windows, and other Windows environments such as MinGW.
  */
+
+/*
+ * Avoid warnings with Visual Studio 8.
+ */
+#define _CRT_SECURE_NO_DEPRECATE 1
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,9 +45,12 @@
 #define	NO_SYSTEM_INCLUDES
 
 /*
- * Win32 has getcwd, snprintf and vsnprintf, but under different names.
+ * Microsoft's C runtime library has fsync, getcwd, getpid, snprintf and
+ * vsnprintf, but under different names.
  */
+#define	fsync			_commit
 #define	getcwd(buf, size)	_getcwd(buf, size)
+#define	getpid			_getpid
 #define	snprintf		_snprintf
 #define	vsnprintf		_vsnprintf
 
@@ -67,7 +75,7 @@ extern int getopt(int, char * const *, const char *);
 
 #ifdef _UNICODE
 #define TO_TSTRING(dbenv, s, ts, ret) do {				\
-		int __len = strlen(s) + 1;				\
+		int __len = (int)strlen(s) + 1;				\
 		ts = NULL;						\
 		if ((ret = __os_malloc((dbenv),				\
 		    __len * sizeof (_TCHAR), &(ts))) == 0 &&		\
@@ -97,4 +105,16 @@ extern int getopt(int, char * const *, const char *);
 #define TO_TSTRING(dbenv, s, ts, ret) (ret) = 0, (ts) = (_TCHAR *)(s)
 #define FROM_TSTRING(dbenv, ts, s, ret) (ret) = 0, (s) = (char *)(ts)
 #define FREE_STRING(dbenv, ts)
+#endif
+
+#ifndef INVALID_HANDLE_VALUE
+#define INVALID_HANDLE_VALUE ((HANDLE)-1)
+#endif
+
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#endif
+
+#ifndef INVALID_SET_FILE_POINTER
+#define INVALID_SET_FILE_POINTER ((DWORD)-1)
 #endif

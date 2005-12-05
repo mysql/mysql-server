@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_method.c,v 11.84 2004/10/14 18:09:32 bostic Exp $
+ * $Id: qam_method.c,v 12.2 2005/09/28 17:45:01 margo Exp $
  */
 
 #include "db_config.h"
@@ -302,7 +302,7 @@ __qam_rr(dbp, txn, name, subdb, newname, op)
 
 	PANIC_CHECK(dbenv);
 
-	if (subdb != NULL) {
+	if (subdb != NULL && name != NULL) {
 		__db_err(dbenv,
 		    "Queue does not support multiple databases per file");
 		return (EINVAL);

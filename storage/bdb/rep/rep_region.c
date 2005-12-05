@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: rep_region.c,v 1.53 2004/10/15 16:59:44 bostic Exp $
+ * $Id: rep_region.c,v 12.12 2005/10/19 19:10:40 sue Exp $
  */
 
 #include "db_config.h"
@@ -26,8 +26,8 @@
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
-#include "dbinc/log.h"
 #include "dbinc/db_am.h"
+#include "dbinc/log.h"
 
 static int __rep_egen_init  __P((DB_ENV *, REP *));
 
@@ -43,7 +43,6 @@ __rep_region_init(dbenv)
 {
 	REGENV *renv;
 	REGINFO *infop;
-	DB_MUTEX *db_mutexp;
 	DB_REP *db_rep;
 	REP *rep;
 	int ret;
@@ -53,31 +52,18 @@ __rep_region_init(dbenv)
 	renv = infop->primary;
 	ret = 0;
 
-	MUTEX_LOCK(dbenv, &renv->mutex);
 	if (renv->rep_off == INVALID_ROFF) {
 		/* Must create the region. */
-		if ((ret =
-		    __db_shalloc(infop, sizeof(REP), MUTEX_ALIGN, &rep)) != 0)
-			goto err;
+		if ((ret = __db_shalloc(infop, sizeof(REP), 0, &rep)) != 0)
+			return (ret);
 		memset(rep, 0, sizeof(*rep));
 		rep->tally_off = INVALID_ROFF;
 		rep->v2tally_off = INVALID_ROFF;
 		renv->rep_off = R_OFFSET(infop, rep);
 
-		if ((ret = __db_mutex_setup(dbenv, infop, &rep->mutex,
-		    MUTEX_NO_RECORD)) != 0)
-			goto err;
-
-		/*
-		 * We must create a place for the db_mutex separately;
-		 * mutexes have to be aligned to MUTEX_ALIGN, and the only way
-		 * to guarantee that is to make sure they're at the beginning
-		 * of a shalloc'ed chunk.
-		 */
-		if ((ret = __db_shalloc(infop, sizeof(DB_MUTEX),
-		    MUTEX_ALIGN, &db_mutexp)) != 0)
-			goto err;
-		rep->db_mutex_off = R_OFFSET(infop, db_mutexp);
+		if ((ret = __mutex_alloc(
+		    dbenv, MTX_REP_REGION, 0, &rep->mtx_region)) != 0)
+			return (ret);
 
 		/*
 		 * Because we have no way to prevent deadlocks and cannot log
@@ -86,16 +72,16 @@ __rep_region_init(dbenv)
 		 * accessed when messages arrive out-of-order, so it should
 		 * stay small and not be used in a high-performance app.
 		 */
-		if ((ret = __db_mutex_setup(dbenv, infop, db_mutexp,
-		    MUTEX_NO_RECORD)) != 0)
-			goto err;
+		if ((ret = __mutex_alloc(
+		    dbenv, MTX_REP_DATABASE, 0, &rep->mtx_clientdb)) != 0)
+			return (ret);
 
 		/* We have the region; fill in the values. */
 		rep->eid = DB_EID_INVALID;
 		rep->master_id = DB_EID_INVALID;
 		rep->gen = 0;
 		if ((ret = __rep_egen_init(dbenv, rep)) != 0)
-			goto err;
+			return (ret);
 		/*
 		 * Set default values for the min and max log records that we
 		 * wait before requesting a missing log record.
@@ -108,16 +94,10 @@ __rep_region_init(dbenv)
 		F_CLR(renv, DB_REGENV_REPLOCKED);
 	} else
 		rep = R_ADDR(infop, renv->rep_off);
-	MUTEX_UNLOCK(dbenv, &renv->mutex);
 
-	db_rep->rep_mutexp = &rep->mutex;
-	db_rep->db_mutexp = R_ADDR(infop, rep->db_mutex_off);
 	db_rep->region = rep;
 
 	return (0);
-
-err:	MUTEX_UNLOCK(dbenv, &renv->mutex);
-	return (ret);
 }
 
 /*
@@ -131,19 +111,29 @@ __rep_region_destroy(dbenv)
 	DB_ENV *dbenv;
 {
 	DB_REP *db_rep;
+	REGENV *renv;
+	REGINFO *infop;
 	int ret, t_ret;
 
-	ret = t_ret = 0;
-	db_rep = dbenv->rep_handle;
+	if (!REP_ON(dbenv))
+		return (0);
 
-	if (db_rep != NULL) {
-		if (db_rep->rep_mutexp != NULL)
-			ret = __db_mutex_destroy(db_rep->rep_mutexp);
-		if (db_rep->db_mutexp != NULL)
-			t_ret = __db_mutex_destroy(db_rep->db_mutexp);
+	ret = 0;
+
+	db_rep = dbenv->rep_handle;
+	if (db_rep->region != NULL) {
+		ret = __mutex_free(dbenv, &db_rep->region->mtx_region);
+		if ((t_ret = __mutex_free(
+		    dbenv, &db_rep->region->mtx_clientdb)) != 0 && ret == 0)
+			ret = t_ret;
 	}
 
-	return (ret == 0 ? t_ret : ret);
+	infop = dbenv->reginfo;
+	renv = infop->primary;
+	if (renv->rep_off != INVALID_ROFF)
+		__db_shalloc_free(infop, R_ADDR(infop, renv->rep_off));
+
+	return (ret);
 }
 
 /*
@@ -182,44 +172,61 @@ __rep_dbenv_close(dbenv)
 
 /*
  * __rep_preclose --
- *	If we are a client, shut down our client database and, if we're
- * actually closing the environment, close all databases we've opened
- * while applying messages.
+ *	If we are a client, shut down our client database and close
+ * all databases we've opened while applying messages as a client.
  *
- * PUBLIC: int __rep_preclose __P((DB_ENV *, int));
+ * PUBLIC: int __rep_preclose __P((DB_ENV *));
  */
 int
-__rep_preclose(dbenv, do_closefiles)
+__rep_preclose(dbenv)
 	DB_ENV *dbenv;
-	int do_closefiles;
 {
+	DB_LOG *dblp;
 	DB_REP *db_rep;
+	LOG *lp;
+	REP_BULK bulk;
 	int ret, t_ret;
 
 	ret = 0;
 
 	db_rep = dbenv->rep_handle;
-	MUTEX_LOCK(dbenv, db_rep->db_mutexp);
+	dblp = dbenv->lg_handle;
+	lp = dblp->reginfo.primary;
+
+	MUTEX_LOCK(dbenv, db_rep->region->mtx_clientdb);
 	if (db_rep->rep_db != NULL) {
 		ret = __db_close(db_rep->rep_db, NULL, DB_NOSYNC);
 		db_rep->rep_db = NULL;
 	}
 
-	if (do_closefiles) {
-		if ((t_ret = __dbreg_close_files(dbenv)) != 0 && ret == 0)
+	if ((t_ret = __dbreg_close_files(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	F_CLR(db_rep, DBREP_OPENFILES);
+	/*
+	 * If we have something in the bulk buffer, send anything in it
+	 * if we are able to.
+	 */
+	if (lp->bulk_off != 0 && dbenv->rep_send != NULL) {
+		memset(&bulk, 0, sizeof(bulk));
+		bulk.addr = R_ADDR(&dblp->reginfo, lp->bulk_buf);
+		bulk.offp = &lp->bulk_off;
+		bulk.len = lp->bulk_len;
+		bulk.type = REP_BULK_LOG;
+		bulk.eid = DB_EID_BROADCAST;
+		bulk.flagsp = &lp->bulk_flags;
+		if ((t_ret = __rep_send_bulk(dbenv, &bulk, 0)) != 0 && ret == 0)
 			ret = t_ret;
-		F_CLR(db_rep, DBREP_OPENFILES);
 	}
-	MUTEX_UNLOCK(dbenv, db_rep->db_mutexp);
+	MUTEX_UNLOCK(dbenv, db_rep->region->mtx_clientdb);
 	return (ret);
 }
 
 /*
  * __rep_egen_init --
- *	Initialize the value of egen in the region.  Called
- * only from __rep_region_init, which is guaranteed to be
- * single-threaded as we create the rep region.  We set the
- * rep->egen field which is normally protected by db_rep->rep_mutex.
+ *	Initialize the value of egen in the region.  Called only from
+ *	__rep_region_init, which is guaranteed to be single-threaded
+ *	as we create the rep region.  We set the rep->egen field which
+ *	is normally protected by db_rep->region->mutex.
  */
 static int
 __rep_egen_init(dbenv, rep)
@@ -249,7 +256,7 @@ __rep_egen_init(dbenv, rep)
 		 * File exists, open it and read in our egen.
 		 */
 		if ((ret = __os_open(dbenv, p, DB_OSO_RDONLY,
-		    __db_omode("rw----"), &fhp)) != 0)
+		    __db_omode(OWNER_RW), &fhp)) != 0)
 			goto err;
 		if ((ret = __os_read(dbenv, fhp, &rep->egen, sizeof(u_int32_t),
 		    &cnt)) < 0 || cnt == 0)
@@ -282,7 +289,7 @@ __rep_write_egen(dbenv, egen)
 	    __db_appname(dbenv, DB_APP_NONE, REP_EGENNAME, 0, NULL, &p)) != 0)
 		return (ret);
 	if ((ret = __os_open(dbenv, p, DB_OSO_CREATE | DB_OSO_TRUNC,
-	    __db_omode("rw----"), &fhp)) == 0) {
+	    __db_omode(OWNER_RW), &fhp)) == 0) {
 		if ((ret = __os_write(dbenv, fhp, &egen, sizeof(u_int32_t),
 		    &cnt)) != 0 || ((ret = __os_fsync(dbenv, fhp)) != 0))
 			__db_err(dbenv, "%s: %s", p, db_strerror(ret));

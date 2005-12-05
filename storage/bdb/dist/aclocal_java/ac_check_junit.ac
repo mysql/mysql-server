@@ -30,7 +30,7 @@ dnl     echo "exec @JUNIT@ my.package.name.AllJunitTests" >> $@
 dnl     chmod +x $@
 dnl
 dnl @author Luc Maisonobe
-dnl @version $Id: ac_check_junit.ac,v 1.1 2001/08/23 16:58:43 dda Exp $
+dnl @version $Id: ac_check_junit.ac,v 12.0 2004/11/17 03:43:38 bostic Exp $
 dnl
 AC_DEFUN([AC_CHECK_JUNIT],[
 AC_CACHE_VAL(ac_cv_prog_JUNIT,[

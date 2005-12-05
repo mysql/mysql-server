@@ -1,17 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_verify.c,v 1.51 2004/10/11 18:47:51 bostic Exp $
+ * $Id: qam_verify.c,v 12.3 2005/06/16 20:23:34 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
-
+#include <stdlib.h>
+#include <string.h>
 #endif
 
 #include "db_int.h"
@@ -21,9 +22,6 @@
 #include "dbinc/db_shash.h"
 #include "dbinc/mp.h"
 #include "dbinc/qam.h"
-#include <stdlib.h>
-#include <string.h>
-
 /*
  * __qam_vrfy_meta --
  *	Verify the queue-specific part of a metadata page.
@@ -93,6 +91,8 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 		 * it when handling extents.  It would get set up in open,
 		 * if we called open normally, but we don't.
 		 */
+		vdp->re_pad = meta->re_pad;
+		qp->re_pad = (int)meta->re_pad;
 		qp->re_len = vdp->re_len = meta->re_len;
 		qp->rec_page = vdp->rec_page = meta->rec_page;
 		qp->page_ext = vdp->page_ext = meta->page_ext;

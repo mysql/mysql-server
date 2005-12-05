@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn_stat.c,v 11.37 2004/10/15 16:59:44 bostic Exp $
+ * $Id: txn_stat.c,v 12.8 2005/10/07 20:21:43 ubell Exp $
  */
 
 #include "db_config.h"
@@ -52,7 +52,8 @@ __txn_stat_pp(dbenv, statp, flags)
 	DB_TXN_STAT **statp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -62,12 +63,9 @@ __txn_stat_pp(dbenv, statp, flags)
 	    "DB_ENV->txn_stat", flags, DB_STAT_CLEAR)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __txn_stat(dbenv, statp, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__txn_stat(dbenv, statp, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -84,7 +82,7 @@ __txn_stat(dbenv, statp, flags)
 	DB_TXNMGR *mgr;
 	DB_TXNREGION *region;
 	DB_TXN_STAT *stats;
-	TXN_DETAIL *txnp;
+	TXN_DETAIL *td;
 	size_t nbytes;
 	u_int32_t maxtxn, ndx;
 	int ret;
@@ -108,7 +106,7 @@ __txn_stat(dbenv, statp, flags)
 	if ((ret = __os_umalloc(dbenv, nbytes, &stats)) != 0)
 		return (ret);
 
-	R_LOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_LOCK(dbenv);
 	memcpy(stats, &region->stat, sizeof(*stats));
 	stats->st_last_txnid = region->last_txnid;
 	stats->st_last_ckp = region->last_ckp;
@@ -116,35 +114,44 @@ __txn_stat(dbenv, statp, flags)
 	stats->st_txnarray = (DB_TXN_ACTIVE *)&stats[1];
 
 	for (ndx = 0,
-	    txnp = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
-	    txnp != NULL && ndx < maxtxn;
-	    txnp = SH_TAILQ_NEXT(txnp, links, __txn_detail), ++ndx) {
-		stats->st_txnarray[ndx].txnid = txnp->txnid;
-		if (txnp->parent == INVALID_ROFF)
+	    td = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
+	    td != NULL && ndx < maxtxn;
+	    td = SH_TAILQ_NEXT(td, links, __txn_detail), ++ndx) {
+		stats->st_txnarray[ndx].txnid = td->txnid;
+		if (td->parent == INVALID_ROFF)
 			stats->st_txnarray[ndx].parentid = TXN_INVALID;
 		else
 			stats->st_txnarray[ndx].parentid =
 			    ((TXN_DETAIL *)R_ADDR(&mgr->reginfo,
-			    txnp->parent))->txnid;
-		stats->st_txnarray[ndx].lsn = txnp->begin_lsn;
-		if ((stats->st_txnarray[ndx].xa_status = txnp->xa_status) != 0)
+			    td->parent))->txnid;
+		stats->st_txnarray[ndx].pid = td->pid;
+		stats->st_txnarray[ndx].tid = td->tid;
+		stats->st_txnarray[ndx].lsn = td->begin_lsn;
+		if ((stats->st_txnarray[ndx].xa_status = td->xa_status) != 0)
 			memcpy(stats->st_txnarray[ndx].xid,
-			    txnp->xid, DB_XIDDATASIZE);
+			    td->xid, DB_XIDDATASIZE);
+		if (td->name != INVALID_ROFF) {
+			(void)strncpy(stats->st_txnarray[ndx].name,
+			    R_ADDR(&mgr->reginfo, td->name),
+			    sizeof(stats->st_txnarray[ndx].name) - 1);
+			stats->st_txnarray[ndx].name[
+			    sizeof(stats->st_txnarray[ndx].name) - 1] = '\0';
+		} else
+			stats->st_txnarray[ndx].name[0] = '\0';
 	}
 
-	stats->st_region_wait = mgr->reginfo.rp->mutex.mutex_set_wait;
-	stats->st_region_nowait = mgr->reginfo.rp->mutex.mutex_set_nowait;
+	__mutex_set_wait_info(dbenv, region->mtx_region,
+	    &stats->st_region_wait, &stats->st_region_nowait);
 	stats->st_regsize = mgr->reginfo.rp->size;
 	if (LF_ISSET(DB_STAT_CLEAR)) {
-		mgr->reginfo.rp->mutex.mutex_set_wait = 0;
-		mgr->reginfo.rp->mutex.mutex_set_nowait = 0;
+		__mutex_clear(dbenv, region->mtx_region);
 		memset(&region->stat, 0, sizeof(region->stat));
 		region->stat.st_maxtxns = region->maxtxns;
 		region->stat.st_maxnactive =
 		    region->stat.st_nactive = stats->st_nactive;
 	}
 
-	R_UNLOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_UNLOCK(dbenv);
 
 	*statp = stats;
 	return (0);
@@ -161,7 +168,8 @@ __txn_stat_print_pp(dbenv, flags)
 	DB_ENV *dbenv;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -171,12 +179,9 @@ __txn_stat_print_pp(dbenv, flags)
 	    flags, DB_STAT_ALL | DB_STAT_CLEAR)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __txn_stat_print(dbenv, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__txn_stat_print(dbenv, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -222,6 +227,7 @@ __txn_print_stats(dbenv, flags)
 	DB_TXN_STAT *sp;
 	u_int32_t i;
 	int ret;
+	char buf[DB_THREADID_STRLEN];
 
 	if ((ret = __txn_stat(dbenv, &sp, flags)) != 0)
 		return (ret);
@@ -262,12 +268,14 @@ __txn_print_stats(dbenv, flags)
 
 	qsort(sp->st_txnarray,
 	    sp->st_nactive, sizeof(sp->st_txnarray[0]), __txn_compare);
-	__db_msg(dbenv, "List of active transactions:");
+	__db_msg(dbenv, "Active transactions:");
 	DB_MSGBUF_INIT(&mb);
 	for (i = 0; i < sp->st_nactive; ++i) {
-		__db_msgadd(dbenv,
-		    &mb, "\tID: %lx; begin LSN: file/offset %lu/%lu",
+		__db_msgadd(dbenv, &mb,
+	    "\t%lx: pid/thread %s; begin LSN: file/offset %lu/%lu",
 		    (u_long)sp->st_txnarray[i].txnid,
+		    dbenv->thread_id_string(dbenv,
+		    sp->st_txnarray[i].pid, sp->st_txnarray[i].tid, buf),
 		    (u_long)sp->st_txnarray[i].lsn.file,
 		    (u_long)sp->st_txnarray[i].lsn.offset);
 		if (sp->st_txnarray[i].parentid != 0)
@@ -275,6 +283,9 @@ __txn_print_stats(dbenv, flags)
 			    (u_long)sp->st_txnarray[i].parentid);
 		if (sp->st_txnarray[i].xa_status != 0)
 			__txn_xid_stats(dbenv, &mb, &sp->st_txnarray[i]);
+		if (sp->st_txnarray[i].name[0] != '\0')
+			__db_msgadd(
+			    dbenv, &mb, "; \"%s\"", sp->st_txnarray[i].name);
 		DB_MSGBUF_FLUSH(dbenv, &mb);
 	}
 
@@ -302,23 +313,26 @@ __txn_print_all(dbenv, flags)
 	mgr = dbenv->tx_handle;
 	region = mgr->reginfo.primary;
 
-	R_LOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_LOCK(dbenv);
 
 	__db_print_reginfo(dbenv, &mgr->reginfo, "Transaction");
 
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
 	__db_msg(dbenv, "DB_TXNMGR handle information:");
-
-	__db_print_mutex(dbenv, NULL, mgr->mutexp, "DB_TXNMGR mutex", flags);
+	__mutex_print_debug_single(dbenv, "DB_TXNMGR mutex", mgr->mutex, flags);
 	__db_dl(dbenv,
 	    "Number of transactions discarded", (u_long)mgr->n_discards);
 
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
 	__db_msg(dbenv, "DB_TXNREGION handle information:");
+	__mutex_print_debug_single(
+	    dbenv, "DB_TXNREGION region mutex", region->mtx_region, flags);
 	STAT_ULONG("Maximum number of active txns", region->maxtxns);
 	STAT_HEX("Last transaction ID allocated", region->last_txnid);
 	STAT_HEX("Current maximum unused ID", region->cur_maxid);
 
+	__mutex_print_debug_single(
+	    dbenv, "checkpoint mutex", region->mtx_ckp, flags);
 	STAT_LSN("Last checkpoint LSN", &region->last_ckp);
 	__db_msg(dbenv,
 	    "%.24s\tLast checkpoint timestamp",
@@ -334,23 +348,23 @@ __txn_print_all(dbenv, flags)
 	 * Display list of XA transactions in the DB_ENV handle.
 	 */
 
-	R_UNLOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_UNLOCK(dbenv);
 
 	return (0);
 }
 
 static void
-__txn_xid_stats(dbenv, mbp, txnp)
+__txn_xid_stats(dbenv, mbp, txn_active)
 	DB_ENV *dbenv;
 	DB_MSGBUF *mbp;
-	DB_TXN_ACTIVE *txnp;
+	DB_TXN_ACTIVE *txn_active;
 {
 	u_int32_t v, *xp;
 	u_int i;
 	int cnt;
 	const char *s;
 
-	switch (txnp->xa_status) {
+	switch (txn_active->xa_status) {
 	case TXN_XA_ABORTED:
 		s = "ABORTED";
 		break;
@@ -372,14 +386,14 @@ __txn_xid_stats(dbenv, mbp, txnp)
 	default:
 		s = "UNKNOWN STATE";
 		__db_err(dbenv,
-		    "XA: unknown state: %lu", (u_long)txnp->xa_status);
+		    "XA: unknown state: %lu", (u_long)txn_active->xa_status);
 		break;
 	}
 	__db_msgadd(dbenv, mbp, "\tXA: %s; XID:\n\t\t", s == NULL ? "" : s);
-	for (cnt = 0, xp = (u_int32_t *)txnp->xid,
+	for (cnt = 0, xp = (u_int32_t *)txn_active->xid,
 	    i = 0; i < DB_XIDDATASIZE; i += sizeof(u_int32_t)) {
 		memcpy(&v, xp++, sizeof(u_int32_t));
-		__db_msgadd(dbenv, mbp, "%#x ", v);
+		__db_msgadd(dbenv, mbp, "%#lx ", (u_long)v);
 		if (++cnt == 4) {
 			DB_MSGBUF_FLUSH(dbenv, mbp);
 			__db_msgadd(dbenv, mbp, "\t\t");

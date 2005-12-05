@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_fset.c,v 11.34 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_fset.c,v 12.5 2005/10/07 20:21:33 ubell Exp $
  */
 
 #include "db_config.h"
@@ -32,7 +32,8 @@ __memp_fset_pp(dbmfp, pgaddr, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbenv = dbmfp->dbenv;
 
@@ -56,12 +57,9 @@ __memp_fset_pp(dbmfp, pgaddr, flags)
 		return (EACCES);
 	}
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_fset(dbmfp, pgaddr, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_fset(dbmfp, pgaddr, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -94,7 +92,7 @@ __memp_fset(dbmfp, pgaddr, flags)
 	hp = R_ADDR(&dbmp->reginfo[n_cache], c_mp->htab);
 	hp = &hp[NBUCKET(c_mp, bhp->mf_offset, bhp->pgno)];
 
-	MUTEX_LOCK(dbenv, &hp->hash_mutex);
+	MUTEX_LOCK(dbenv, hp->mtx_hash);
 
 	/* Set/clear the page bits. */
 	if (LF_ISSET(DB_MPOOL_CLEAN) &&
@@ -110,6 +108,6 @@ __memp_fset(dbmfp, pgaddr, flags)
 	if (LF_ISSET(DB_MPOOL_DISCARD))
 		F_SET(bhp, BH_DISCARD);
 
-	MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+	MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 	return (0);
 }

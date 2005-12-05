@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_rename.c,v 1.19 2004/10/05 14:55:36 mjc Exp $
+ * $Id: os_rename.c,v 12.1 2005/06/16 20:23:30 bostic Exp $
  */
 
 #include "db_config.h"

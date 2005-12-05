@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2004
+ * Copyright (c) 2000-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_server_int.h,v 1.25 2004/01/28 03:36:02 bostic Exp $
+ * $Id: db_server_int.h,v 12.4 2005/08/08 14:52:30 bostic Exp $
  */
 
 #ifndef _DB_SERVER_INT_H_
@@ -58,7 +58,7 @@ struct home_entry {
 DB_INIT_CDB | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL |		\
 DB_INIT_TXN | DB_JOINENV)
 
-#define	DB_SERVER_DBFLAGS	 (DB_DIRTY_READ | DB_NOMMAP | DB_RDONLY)
+#define	DB_SERVER_DBFLAGS	 (DB_NOMMAP | DB_RDONLY | DB_READ_UNCOMMITTED)
 #define	DB_SERVER_DBNOSHARE	 (DB_EXCL | DB_TRUNCATE)
 
 typedef struct ct_envdata ct_envdata;
@@ -144,5 +144,10 @@ extern int __dbsrv_verbose;
 	DB_ASSERT((ctp)->ct_type & (type));	\
 	__dbsrv_active(ctp);			\
 }
+
+#define	FREE_IF_CHANGED(dbenv, p, orig) do {	\
+	if ((p) != NULL && (p) != (orig))	\
+		__os_ufree((dbenv), (p));	\
+} while (0)
 
 #endif	/* !_DB_SERVER_INT_H_ */

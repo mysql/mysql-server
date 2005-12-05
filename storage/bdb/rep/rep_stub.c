@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: rep_stub.c,v 1.22 2004/09/29 15:36:04 bostic Exp $
+ * $Id: rep_stub.c,v 12.11 2005/10/09 16:12:07 bostic Exp $
  */
 
 #include "db_config.h"
@@ -22,17 +22,7 @@
  * If the library wasn't compiled with replication support, various routines
  * aren't available.  Stub them here, returning an appropriate error.
  */
-
 static int __db_norep __P((DB_ENV *));
-static int __rep_elect
-    __P((DB_ENV *, int, int, int, u_int32_t, int *, u_int32_t));
-static int __rep_flush __P((DB_ENV *));
-static int __rep_start __P((DB_ENV *, DBT *, u_int32_t));
-static int __rep_get_limit __P((DB_ENV *, u_int32_t *, u_int32_t *));
-static int __rep_set_limit __P((DB_ENV *, u_int32_t, u_int32_t));
-static int __rep_set_request __P((DB_ENV *, u_int32_t, u_int32_t));
-static int __rep_set_rep_transport __P((DB_ENV *, int, int (*)
-    (DB_ENV *, const DBT *, const DBT *, const DB_LSN *, int, u_int32_t)));
 
 /*
  * __db_norep --
@@ -58,36 +48,51 @@ __db_rep_enter(dbp, checkgen, checklock, return_now)
 	return (__db_norep(dbp->dbenv));
 }
 
-void
-__env_rep_enter(dbenv)
+int
+__env_rep_enter(dbenv, checklock)
 	DB_ENV *dbenv;
+	int checklock;
 {
-	COMPQUIET(dbenv, NULL);
-	return;
+	COMPQUIET(checklock, 0);
+	return (__db_norep(dbenv));
 }
 
-void
+int
 __env_db_rep_exit(dbenv)
 	DB_ENV *dbenv;
 {
-	COMPQUIET(dbenv, NULL);
-	return;
+	return (__db_norep(dbenv));
 }
 
-void
+int
 __op_rep_enter(dbenv)
 	DB_ENV *dbenv;
 {
-	COMPQUIET(dbenv, NULL);
-	return;
+	return (__db_norep(dbenv));
 }
 
-void
+int
 __op_rep_exit(dbenv)
 	DB_ENV *dbenv;
 {
-	COMPQUIET(dbenv, NULL);
-	return;
+	return (__db_norep(dbenv));
+}
+
+int
+__rep_bulk_message(dbenv, bulkp, repth, lsnp, dbt, flags)
+	DB_ENV *dbenv;
+	REP_BULK *bulkp;
+	REP_THROTTLE *repth;
+	DB_LSN *lsnp;
+	const DBT *dbt;
+	u_int32_t flags;
+{
+	COMPQUIET(bulkp, NULL);
+	COMPQUIET(repth, NULL);
+	COMPQUIET(lsnp, NULL);
+	COMPQUIET(dbt, NULL);
+	COMPQUIET(flags, 0);
+	return (__db_norep(dbenv));
 }
 
 int
@@ -99,22 +104,6 @@ __rep_dbenv_close(dbenv)
 }
 
 void
-__rep_dbenv_create(dbenv)
-	DB_ENV *dbenv;
-{
-	dbenv->rep_elect = __rep_elect;
-	dbenv->rep_flush = __rep_flush;
-	dbenv->rep_process_message = __rep_process_message;
-	dbenv->rep_start = __rep_start;
-	dbenv->rep_stat = __rep_stat_pp;
-	dbenv->rep_stat_print = __rep_stat_print_pp;
-	dbenv->get_rep_limit = __rep_get_limit;
-	dbenv->set_rep_limit = __rep_set_limit;
-	dbenv->set_rep_request = __rep_set_request;
-	dbenv->set_rep_transport = __rep_set_rep_transport;
-}
-
-void
 __rep_dbenv_refresh(dbenv)
 	DB_ENV *dbenv;
 {
@@ -122,7 +111,7 @@ __rep_dbenv_refresh(dbenv)
 	return;
 }
 
-static int
+int
 __rep_elect(dbenv, nsites, nvotes, priority, timeout, eidp, flags)
 	DB_ENV *dbenv;
 	int nsites, nvotes, priority;
@@ -138,14 +127,36 @@ __rep_elect(dbenv, nsites, nvotes, priority, timeout, eidp, flags)
 	return (__db_norep(dbenv));
 }
 
-static int
+int
 __rep_flush(dbenv)
 	DB_ENV *dbenv;
 {
 	return (__db_norep(dbenv));
 }
 
-static int
+int
+__rep_get_config(dbenv, which, onp)
+	DB_ENV *dbenv;
+	u_int32_t which;
+	int *onp;
+{
+	COMPQUIET(which, 0);
+	COMPQUIET(onp, NULL);
+	return (__db_norep(dbenv));
+}
+
+int
+__rep_set_config(dbenv, which, on)
+	DB_ENV *dbenv;
+	u_int32_t which;
+	int on;
+{
+	COMPQUIET(which, 0);
+	COMPQUIET(on, 0);
+	return (__db_norep(dbenv));
+}
+
+int
 __rep_get_limit(dbenv, gbytesp, bytesp)
 	DB_ENV *dbenv;
 	u_int32_t *gbytesp, *bytesp;
@@ -155,14 +166,13 @@ __rep_get_limit(dbenv, gbytesp, bytesp)
 	return (__db_norep(dbenv));
 }
 
-void
+int
 __rep_get_gen(dbenv, genp)
 	DB_ENV *dbenv;
 	u_int32_t *genp;
 {
-	COMPQUIET(dbenv, NULL);
 	COMPQUIET(genp, NULL);
-	return;
+	return (__db_norep(dbenv));
 }
 
 int
@@ -190,11 +200,9 @@ __rep_open(dbenv)
 }
 
 int
-__rep_preclose(dbenv, do_closefiles)
+__rep_preclose(dbenv)
 	DB_ENV *dbenv;
-	int do_closefiles;
 {
-	COMPQUIET(do_closefiles, 0);
 	return (__db_norep(dbenv));
 }
 
@@ -229,23 +237,24 @@ __rep_region_init(dbenv)
 }
 
 int
-__rep_send_message(dbenv, eid, rtype, lsnp, dbtp, flags)
+__rep_send_message(dbenv, eid, rtype, lsnp, dbtp, logflags, repflags)
 	DB_ENV *dbenv;
 	int eid;
 	u_int32_t rtype;
 	DB_LSN *lsnp;
 	const DBT *dbtp;
-	u_int32_t flags;
+	u_int32_t logflags, repflags;
 {
 	COMPQUIET(eid, 0);
 	COMPQUIET(rtype, 0);
 	COMPQUIET(lsnp, NULL);
 	COMPQUIET(dbtp, NULL);
-	COMPQUIET(flags, 0);
+	COMPQUIET(logflags, 0);
+	COMPQUIET(repflags, 0);
 	return (__db_norep(dbenv));
 }
 
-static int
+int
 __rep_set_limit(dbenv, gbytes, bytes)
 	DB_ENV *dbenv;
 	u_int32_t gbytes, bytes;
@@ -255,7 +264,7 @@ __rep_set_limit(dbenv, gbytes, bytes)
 	return (__db_norep(dbenv));
 }
 
-static int
+int
 __rep_set_rep_transport(dbenv, eid, f_send)
 	DB_ENV *dbenv;
 	int eid;
@@ -267,7 +276,7 @@ __rep_set_rep_transport(dbenv, eid, f_send)
 	return (__db_norep(dbenv));
 }
 
-static int
+int
 __rep_set_request(dbenv, min, max)
 	DB_ENV *dbenv;
 	u_int32_t min, max;
@@ -277,7 +286,7 @@ __rep_set_request(dbenv, min, max)
 	return (__db_norep(dbenv));
 }
 
-static int
+int
 __rep_start(dbenv, dbt, flags)
 	DB_ENV *dbenv;
 	DBT *dbt;
@@ -310,6 +319,15 @@ __rep_stat_print_pp(dbenv, flags)
 
 int
 __rep_stat_print(dbenv, flags)
+	DB_ENV *dbenv;
+	u_int32_t flags;
+{
+	COMPQUIET(flags, 0);
+	return (__db_norep(dbenv));
+}
+
+int
+__rep_sync(dbenv, flags)
 	DB_ENV *dbenv;
 	u_int32_t flags;
 {

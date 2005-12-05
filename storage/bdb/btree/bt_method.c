@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: bt_method.c,v 11.38 2004/09/22 03:31:26 bostic Exp $
+ * $Id: bt_method.c,v 12.2 2005/06/16 20:20:16 bostic Exp $
  */
 
 #include "db_config.h"
@@ -18,7 +18,6 @@
 #include "dbinc/btree.h"
 #include "dbinc/qam.h"
 
-static int __bam_set_bt_maxkey __P((DB *, u_int32_t));
 static int __bam_set_bt_minkey __P((DB *, u_int32_t));
 static int __bam_set_bt_prefix
 	       __P((DB *, size_t(*)(DB *, const DBT *, const DBT *)));
@@ -52,7 +51,6 @@ __bam_db_create(dbp)
 	t->bt_prefix = __bam_defpfx;
 
 	dbp->set_bt_compare = __bam_set_bt_compare;
-	dbp->set_bt_maxkey = __bam_set_bt_maxkey;
 	dbp->get_bt_minkey = __bam_get_bt_minkey;
 	dbp->set_bt_minkey = __bam_set_bt_minkey;
 	dbp->set_bt_prefix = __bam_set_bt_prefix;
@@ -205,31 +203,6 @@ __bam_set_bt_compare(dbp, func)
 	if (t->bt_prefix == __bam_defpfx)
 		t->bt_prefix = NULL;
 
-	return (0);
-}
-
-/*
- * __bam_set_bt_maxkey --
- *	Set the maximum keys per page.
- */
-static int
-__bam_set_bt_maxkey(dbp, bt_maxkey)
-	DB *dbp;
-	u_int32_t bt_maxkey;
-{
-	BTREE *t;
-
-	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_bt_maxkey");
-	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE);
-
-	t = dbp->bt_internal;
-
-	if (bt_maxkey < 1) {
-		__db_err(dbp->dbenv, "minimum bt_maxkey value is 1");
-		return (EINVAL);
-	}
-
-	t->bt_maxkey = bt_maxkey;
 	return (0);
 }
 

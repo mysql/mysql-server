@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_upg.c,v 11.35 2004/03/24 20:37:35 bostic Exp $
+ * $Id: db_upg.c,v 12.1 2005/06/16 20:21:15 bostic Exp $
  */
 
 #include "db_config.h"

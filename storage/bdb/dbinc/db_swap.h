@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db_swap.h,v 11.11 2004/01/28 03:36:02 bostic Exp $
+ * $Id: db_swap.h,v 12.3 2005/06/16 20:21:47 bostic Exp $
  */
 
 #ifndef _DB_SWAP_H_
@@ -47,7 +47,7 @@
 #undef	M_64_SWAP
 #define	M_64_SWAP(a) {							\
 	u_int64_t _tmp;							\
-	_tmp = a;							\
+	_tmp = (u_int64_t)a;						\
 	((u_int8_t *)&a)[0] = ((u_int8_t *)&_tmp)[7];			\
 	((u_int8_t *)&a)[1] = ((u_int8_t *)&_tmp)[6];			\
 	((u_int8_t *)&a)[2] = ((u_int8_t *)&_tmp)[5];			\
@@ -91,7 +91,7 @@
 #undef	M_32_SWAP
 #define	M_32_SWAP(a) {							\
 	u_int32_t _tmp;							\
-	_tmp = a;							\
+	_tmp = (u_int32_t)a;						\
 	((u_int8_t *)&a)[0] = ((u_int8_t *)&_tmp)[3];			\
 	((u_int8_t *)&a)[1] = ((u_int8_t *)&_tmp)[2];			\
 	((u_int8_t *)&a)[2] = ((u_int8_t *)&_tmp)[1];			\

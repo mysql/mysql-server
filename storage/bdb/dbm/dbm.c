@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dbm.c,v 11.18 2004/05/10 21:26:47 bostic Exp $
+ * $Id: dbm.c,v 12.2 2005/06/16 20:21:49 bostic Exp $
  */
 
 #include "db_config.h"
@@ -98,7 +98,7 @@ __db_dbm_init(file)
 	if (__cur_db != NULL)
 		dbm_close(__cur_db);
 	if ((__cur_db =
-	    dbm_open(file, O_CREAT | O_RDWR, __db_omode("rw----"))) != NULL)
+	    dbm_open(file, O_CREAT | O_RDWR, __db_omode(OWNER_RW))) != NULL)
 		return (0);
 	if ((__cur_db = dbm_open(file, O_RDONLY, 0)) != NULL)
 		return (0);
@@ -123,7 +123,8 @@ __db_dbm_fetch(key)
 
 	if (__cur_db == NULL) {
 		__db_no_open();
-		item.dptr = 0;
+		item.dptr = NULL;
+		item.dsize = 0;
 		return (item);
 	}
 	return (dbm_fetch(__cur_db, key));
@@ -136,7 +137,8 @@ __db_dbm_firstkey()
 
 	if (__cur_db == NULL) {
 		__db_no_open();
-		item.dptr = 0;
+		item.dptr = NULL;
+		item.dsize = 0;
 		return (item);
 	}
 	return (dbm_firstkey(__cur_db));
@@ -152,7 +154,8 @@ __db_dbm_nextkey(key)
 
 	if (__cur_db == NULL) {
 		__db_no_open();
-		item.dptr = 0;
+		item.dptr = NULL;
+		item.dsize = 0;
 		return (item);
 	}
 	return (dbm_nextkey(__cur_db));

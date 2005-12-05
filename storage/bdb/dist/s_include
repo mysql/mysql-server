@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_include,v 1.22 2004/04/19 18:27:17 mjc Exp $
+#	$Id: s_include,v 12.0 2004/11/17 03:43:35 bostic Exp $
 #
 # Build the automatically generated function prototype files.
 

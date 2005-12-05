@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_getlong.c,v 11.22 2004/10/28 14:43:26 bostic Exp $
+ * $Id: db_getlong.c,v 12.1 2005/06/16 20:20:53 bostic Exp $
  */
 
 #include "db_config.h"

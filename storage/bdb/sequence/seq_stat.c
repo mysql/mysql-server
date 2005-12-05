@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2004
+ * Copyright (c) 2004-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: seq_stat.c,v 1.19 2004/09/28 17:28:15 bostic Exp $
+ * $Id: seq_stat.c,v 12.6 2005/10/07 20:21:39 ubell Exp $
  */
 
 #include "db_config.h"
@@ -18,9 +18,9 @@
 #endif
 
 #include "db_int.h"
-#include "dbinc_auto/sequence_ext.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_am.h"
+#include "dbinc_auto/sequence_ext.h"
 
 #ifdef HAVE_STATISTICS
 static int __seq_print_all __P((DB_SEQUENCE *, u_int32_t));
@@ -40,13 +40,15 @@ __seq_stat(seq, spp, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	DB_SEQ_RECORD record;
 	DB_SEQUENCE_STAT *sp;
 	DBT data;
-	int ret;
+	int handle_check, ret, t_ret;
 
 	dbp = seq->seq_dbp;
 	dbenv = dbp->dbenv;
+
 	switch (flags) {
 	case DB_STAT_CLEAR:
 	case DB_STAT_ALL:
@@ -56,32 +58,41 @@ __seq_stat(seq, spp, flags)
 		return (__db_ferr(dbenv, "DB_SEQUENCE->stat", 0));
 	}
 
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
+
 	/* Allocate and clear the structure. */
 	if ((ret = __os_umalloc(dbenv, sizeof(*sp), &sp)) != 0)
-		return (ret);
+		goto err;
 	memset(sp, 0, sizeof(*sp));
 
-	if (seq->seq_mutexp != NULL) {
-		sp->st_wait = seq->seq_mutexp->mutex_set_wait;
-		sp->st_nowait = seq->seq_mutexp->mutex_set_nowait;
+	if (seq->mtx_seq != MUTEX_INVALID) {
+		__mutex_set_wait_info(
+		    dbenv, seq->mtx_seq, &sp->st_wait, &sp->st_nowait);
 
 		if (LF_ISSET(DB_STAT_CLEAR))
-			MUTEX_CLEAR(seq->seq_mutexp);
+			__mutex_clear(dbenv, seq->mtx_seq);
 	}
 	memset(&data, 0, sizeof(data));
 	data.data = &record;
 	data.ulen = sizeof(record);
 	data.flags = DB_DBT_USERMEM;
-retry:	if ((ret = dbp->get(dbp, NULL, &seq->seq_key, &data, 0)) != 0) {
+retry:	if ((ret = __db_get(dbp, NULL, &seq->seq_key, &data, 0)) != 0) {
 		if (ret == DB_BUFFER_SMALL &&
 		    data.size > sizeof(seq->seq_record)) {
 			if ((ret = __os_malloc(dbenv,
 			    data.size, &data.data)) != 0)
-				return (ret);
+				goto err;
 			data.ulen = data.size;
 			goto retry;
 		}
-		return (ret);
+		goto err;
 	}
 
 	if (data.data != &record)
@@ -97,7 +108,12 @@ retry:	if ((ret = dbp->get(dbp, NULL, &seq->seq_key, &data, 0)) != 0) {
 	*spp = sp;
 	if (data.data != &record)
 		__os_free(dbenv, data.data);
-	return (0);
+
+	/* Release replication block. */
+err:	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -111,16 +127,36 @@ __seq_stat_print(seq, flags)
 	DB_SEQUENCE *seq;
 	u_int32_t flags;
 {
-	int ret;
+	DB *dbp;
+	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
+
+	dbp = seq->seq_dbp;
+	dbenv = dbp->dbenv;
+
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	if ((ret = __seq_print_stats(seq, flags)) != 0)
-		return (ret);
+		goto err;
 
 	if (LF_ISSET(DB_STAT_ALL) &&
 	    (ret = __seq_print_all(seq, flags)) != 0)
-		return (ret);
+		goto err;
 
-	return (0);
+	/* Release replication block. */
+err:	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 
 }
 
@@ -166,7 +202,7 @@ __seq_print_stats(seq, flags)
 	    (u_long)sp->st_wait,
 	     DB_PCT(sp->st_wait, sp->st_wait + sp->st_nowait), NULL);
 	STAT_FMT("The current sequence value",
-	     INT64_FMT, int64_t, sp->st_current);
+	    INT64_FMT, int64_t, sp->st_current);
 	STAT_FMT("The cached sequence value",
 	    INT64_FMT, int64_t, sp->st_value);
 	STAT_FMT("The last cached sequence value",

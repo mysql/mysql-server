@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: lock_timer.c,v 11.141 2004/03/24 20:51:39 bostic Exp $
+ * $Id: lock_timer.c,v 12.2 2005/07/20 16:51:44 bostic Exp $
  */
 
 #include "db_config.h"
@@ -38,14 +38,11 @@ __lock_set_timeout(dbenv, locker, timeout, op)
 	db_timeout_t timeout;
 	u_int32_t op;
 {
-	DB_LOCKTAB *lt;
 	int ret;
 
-	lt = dbenv->lk_handle;
-
-	LOCKREGION(dbenv, lt);
+	LOCK_SYSTEM_LOCK(dbenv);
 	ret = __lock_set_timeout_internal(dbenv, locker, timeout, op);
-	UNLOCKREGION(dbenv, lt);
+	LOCK_SYSTEM_UNLOCK(dbenv);
 	return (ret);
 }
 
@@ -127,7 +124,7 @@ __lock_inherit_timeout(dbenv, parent, locker)
 	lt = dbenv->lk_handle;
 	region = lt->reginfo.primary;
 	ret = 0;
-	LOCKREGION(dbenv, lt);
+	LOCK_SYSTEM_LOCK(dbenv);
 
 	/* If the parent does not exist, we are done. */
 	LOCKER_LOCK(lt, region, parent, locker_ndx);
@@ -162,8 +159,7 @@ __lock_inherit_timeout(dbenv, parent, locker)
 	}
 
 done:
-err:
-	UNLOCKREGION(dbenv, lt);
+err:	LOCK_SYSTEM_UNLOCK(dbenv);
 	return (ret);
 }
 

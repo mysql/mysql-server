@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_dir.c,v 11.20 2004/10/13 19:12:17 bostic Exp $
+ * $Id: os_dir.c,v 12.2 2005/07/06 23:52:43 dda Exp $
  */
 
 #include "db_config.h"
@@ -27,12 +27,17 @@ __os_dirlist(dbenv, dir, namesp, cntp)
 	int arraysz, cnt, ret;
 	char **names, *onename;
 	_TCHAR tfilespec[MAXPATHLEN + 1];
+	_TCHAR *tdir;
 
 	if (DB_GLOBAL(j_dirlist) != NULL)
 		return (DB_GLOBAL(j_dirlist)(dir, namesp, cntp));
 
+	TO_TSTRING(dbenv, dir, tdir, ret);
+	if (ret != 0)
+		return (ret);
+
 	(void)_sntprintf(tfilespec, MAXPATHLEN,
-	    _T("%hs%hc*"), dir, PATH_SEPARATOR[0]);
+	    _T("%s%hc*"), tdir, PATH_SEPARATOR[0]);
 	if ((dirhandle = FindFirstFile(tfilespec, &fdata))
 	    == INVALID_HANDLE_VALUE)
 		return (__os_get_errno());
@@ -77,6 +82,8 @@ err:	if (!FindClose(dirhandle) && ret == 0)
 		*cntp = cnt;
 	} else if (names != NULL)
 		__os_dirfree(dbenv, names, cnt);
+
+	FREE_STRING(dbenv, tdir);
 
 	return (ret);
 }

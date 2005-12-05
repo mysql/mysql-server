@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash.c,v 11.200 2004/10/14 18:11:36 bostic Exp $
+ * $Id: hash.c,v 12.10 2005/10/20 18:57:07 bostic Exp $
  */
 
 #include "db_config.h"
@@ -73,21 +73,8 @@ static int  __ham_overwrite __P((DBC *, DBT *, u_int32_t));
 
 /*
  * __ham_quick_delete --
- *	When performing a DB->del operation that does not involve secondary
- *	indices and is not removing an off-page duplicate tree, we can
- *	speed things up substantially by removing the entire duplicate
- *	set, if any is present, in one operation, rather than by conjuring
- *	up and deleting each of the items individually.  (All are stored
- *	in one big HKEYDATA structure.)  We don't bother to distinguish
- *	on-page duplicate sets from single, non-dup items;  they're deleted
- *	in exactly the same way.
- *
- *	This function is called by __db_delete when the appropriate
- *	conditions are met, and it performs the delete in the optimized way.
- *
- *	The cursor should be set to the first item in the duplicate
- *	set, or to the sole key/data pair when the key does not have a
- *	duplicate set, before the function is called.
+ *	This function is called by __db_del when the appropriate conditions
+ *	are met, and it performs the delete in the optimized way.
  *
  * PUBLIC: int __ham_quick_delete __P((DBC *));
  */
@@ -97,19 +84,32 @@ __ham_quick_delete(dbc)
 {
 	int ret, t_ret;
 
+	/*
+	 * When performing a DB->del operation not involving secondary indices
+	 * and not removing an off-page duplicate tree, we can speed things up
+	 * substantially by removing the entire duplicate set, if any is
+	 * present, in one operation, rather than by conjuring up and deleting
+	 * each of the items individually.  (All are stored in one big HKEYDATA
+	 * structure.)  We don't bother to distinguish on-page duplicate sets
+	 * from single, non-dup items;  they're deleted in exactly the same way.
+	 *
+	 * The cursor should be set to the first item in the duplicate set, or
+	 * to the sole key/data pair when the key does not have a duplicate set,
+	 * before the function is called.
+	 *
+	 * We do not need to call CDB_LOCKING_INIT, __db_del calls here with
+	 * a write cursor.
+	 *
+	 * Assert we're initialized, but not to an off-page duplicate.
+	 * Assert we're not using secondary indices.
+	 */
+	DB_ASSERT(IS_INITIALIZED(dbc));
+	DB_ASSERT(dbc->internal->opd == NULL);
+	DB_ASSERT(!F_ISSET(dbc->dbp, DB_AM_SECONDARY));
+	DB_ASSERT(LIST_FIRST(&dbc->dbp->s_secondaries) == NULL);
+
 	if ((ret = __ham_get_meta(dbc)) != 0)
 		return (ret);
-
-	/* Assert that we're not using secondary indices. */
-	DB_ASSERT(!F_ISSET(dbc->dbp, DB_AM_SECONDARY));
-	/*
-	 * We should assert that we're not a primary either, but that
-	 * would require grabbing the dbp's mutex, so we don't bother.
-	 */
-
-	/* Assert that we're set, but not to an off-page duplicate. */
-	DB_ASSERT(IS_INITIALIZED(dbc));
-	DB_ASSERT(((HASH_CURSOR *)dbc->internal)->opd == NULL);
 
 	if ((ret = __ham_c_writelock(dbc)) == 0)
 		ret = __ham_del_pair(dbc, 1);
@@ -146,7 +146,7 @@ __ham_c_init(dbc)
 	}
 
 	dbc->internal = (DBC_INTERNAL *) new_curs;
-	dbc->c_close = __db_c_close;
+	dbc->c_close = __db_c_close_pp;
 	dbc->c_count = __db_c_count_pp;
 	dbc->c_del = __db_c_del_pp;
 	dbc->c_dup = __db_c_dup_pp;
@@ -195,7 +195,7 @@ __ham_c_close(dbc, root_pgno, rmroot)
 		lock_mode = DB_LOCK_READ;
 
 		/* To support dirty reads we must reget the write lock. */
-		if (F_ISSET(dbc->dbp, DB_AM_DIRTY) &&
+		if (F_ISSET(dbc->dbp, DB_AM_READ_UNCOMMITTED) &&
 		     F_ISSET((BTREE_CURSOR *)
 		     dbc->internal->opd->internal, C_DELETED))
 			lock_mode = DB_LOCK_WRITE;
@@ -1103,6 +1103,9 @@ done:	if (hcp->page != NULL) {
 	if (ret == 0 && F_ISSET(hcp, H_EXPAND)) {
 		ret = __ham_expand_table(dbc);
 		F_CLR(hcp, H_EXPAND);
+		/* If we are out of space, ignore the error. */
+		if (ret == ENOSPC && dbc->txn == NULL)
+			ret = 0;
 	}
 
 err2:	if ((t_ret = __ham_release_meta(dbc)) != 0 && ret == 0)
@@ -1221,12 +1224,13 @@ __ham_expand_table(dbc)
 		 * that, we calculate the last pgno.
 		 */
 
-		hcp->hdr->spares[logn + 1] = pgno - new_bucket;
 		pgno += hcp->hdr->max_bucket;
 
 		if ((ret = __memp_fget(mpf, &pgno, DB_MPOOL_CREATE, &h)) != 0)
 			goto err;
 
+		hcp->hdr->spares[logn + 1] =
+		    (pgno - new_bucket) - hcp->hdr->max_bucket;
 		mmeta->last_pgno = pgno;
 		mmeta->lsn = lsn;
 		dirty_meta = DB_MPOOL_DIRTY;
@@ -1442,27 +1446,31 @@ __ham_dup_return(dbc, val, flags)
 		 * duplicate which is itself a partial.
 		 */
 		memcpy(&tmp_val, val, sizeof(*val));
+
 		if (F_ISSET(&tmp_val, DB_DBT_PARTIAL)) {
 			/*
 			 * Take the user's length unless it would go
 			 * beyond the end of the duplicate.
 			 */
-			if (tmp_val.doff + hcp->dup_off > hcp->dup_len)
+			if (tmp_val.doff > hcp->dup_len)
 				tmp_val.dlen = 0;
-			else if (tmp_val.dlen + tmp_val.doff >
-			    hcp->dup_len)
-				tmp_val.dlen =
-				    hcp->dup_len - tmp_val.doff;
+			else if (tmp_val.dlen + tmp_val.doff > hcp->dup_len)
+				tmp_val.dlen = hcp->dup_len - tmp_val.doff;
 
-			/*
-			 * Calculate the new offset.
-			 */
-			tmp_val.doff += hcp->dup_off;
 		} else {
 			F_SET(&tmp_val, DB_DBT_PARTIAL);
 			tmp_val.dlen = hcp->dup_len;
-			tmp_val.doff = hcp->dup_off + sizeof(db_indx_t);
+			tmp_val.doff = 0;
 		}
+
+		/*
+		 * Set offset to the appropriate place within the
+		 * current duplicate -- need to take into account
+		 * both the dup_off and the current duplicate's
+		 * length.
+		 */
+		tmp_val.doff += hcp->dup_off + sizeof(db_indx_t);
+
 		myval = &tmp_val;
 	}
 
@@ -1856,7 +1864,7 @@ __ham_c_update(dbc, len, add, is_dup)
 	my_txn = IS_SUBTRANSACTION(dbc->txn) ? dbc->txn : NULL;
 	found = 0;
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 
 	/*
 	 * Calculate the order of this deleted record.
@@ -1869,7 +1877,7 @@ __ham_c_update(dbc, len, add, is_dup)
 		for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 		    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 		    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-			MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+			MUTEX_LOCK(dbenv, dbp->mutex);
 			for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 			    cp = TAILQ_NEXT(cp, links)) {
 				if (cp == dbc || cp->dbtype != DB_HASH)
@@ -1882,7 +1890,7 @@ __ham_c_update(dbc, len, add, is_dup)
 				    (!is_dup || hcp->dup_off == lcp->dup_off))
 					order = lcp->order + 1;
 			}
-			MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+			MUTEX_UNLOCK(dbenv, dbp->mutex);
 		}
 		hcp->order = order;
 	}
@@ -1890,7 +1898,7 @@ __ham_c_update(dbc, len, add, is_dup)
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links)) {
 			if (cp == dbc || cp->dbtype != DB_HASH)
@@ -1992,9 +2000,9 @@ __ham_c_update(dbc, len, add, is_dup)
 				}
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	if (found != 0 && DBC_LOGGING(dbc)) {
 		if ((ret = __ham_curadj_log(dbp, my_txn, &lsn, 0, hcp->pgno,
@@ -2036,11 +2044,11 @@ __ham_get_clist(dbp, pgno, indx, listp)
 	*listp = NULL;
 	dbenv = dbp->dbenv;
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links))
 			/*
@@ -2061,9 +2069,9 @@ __ham_get_clist(dbp, pgno, indx, listp)
 				(*listp)[nused++] = cp;
 			}
 
-		MUTEX_THREAD_UNLOCK(dbp->dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbp->dbenv, dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	if (listp != NULL) {
 		if (nused >= nalloc) {
@@ -2076,8 +2084,8 @@ __ham_get_clist(dbp, pgno, indx, listp)
 	}
 	return (0);
 err:
-	MUTEX_THREAD_UNLOCK(dbp->dbenv, dbp->mutexp);
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbp->dbenv, dbp->mutex);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 	return (ret);
 }
 

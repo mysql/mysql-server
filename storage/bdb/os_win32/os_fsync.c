@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_fsync.c,v 11.21 2004/07/06 21:06:38 mjc Exp $
+ * $Id: os_fsync.c,v 12.2 2005/08/10 15:47:27 bostic Exp $
  */
 
 #include "db_config.h"
@@ -13,7 +13,6 @@
 #include <sys/types.h>
 
 #include <fcntl.h>			/* XXX: Required by __hp3000s900 */
-#include <unistd.h>
 #include <string.h>
 #endif
 
