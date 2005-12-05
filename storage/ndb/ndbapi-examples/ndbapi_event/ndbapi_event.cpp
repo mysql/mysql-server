@@ -58,24 +58,29 @@
 
 /**
  *
- * Assume that there is a table TAB0 which is being updated by 
+ * Assume that there is a table t0 which is being updated by 
  * another process (e.g. flexBench -l 0 -stdtables).
- * We want to monitor what happens with columns COL0, COL2, COL11
+ * We want to monitor what happens with columns c0,c1,c2,c3.
  *
  * or together with the mysql client;
  *
  * shell> mysql -u root
  * mysql> create database TEST_DB;
  * mysql> use TEST_DB;
- * mysql> create table TAB0 (COL0 int primary key, COL1 int, COL11 int) engine=ndb;
+ * mysql> create table t0 (c0 int, c1 int, c2 char(4), c3 char(4),
+ *        primary key(c0, c2)) engine ndb charset latin1;
  *
  * In another window start ndbapi_event, wait until properly started
  *
-   insert into TAB0 values (1,2,3);
-   insert into TAB0 values (2,2,3);
-   insert into TAB0 values (3,2,9);
-   update TAB0 set COL1=10 where COL0=1;
-   delete from TAB0 where COL0=1;
+   insert into t0 values (1, 2, 'a', 'b');
+   insert into t0 values (3, 4, 'c', 'd');
+   update t0 set c3 = 'e' where c0 = 1 and c2 = 'a'; -- use pk
+   update t0 set c3 = 'f'; -- use scan
+   update t0 set c3 = 'F'; -- use scan update to 'same'
+   update t0 set c2 = 'g' where c0 = 1; -- update pk part
+   update t0 set c2 = 'G' where c0 = 1; -- update pk part to 'same'
+   update t0 set c0 = 5, c2 = 'H' where c0 = 3; -- update full PK
+   delete from t0;
  *
  * you should see the data popping up in the example window
  *
@@ -92,9 +97,10 @@ int myCreateEvent(Ndb* myNdb,
 		  const char **eventColumnName,
 		  const int noEventColumnName);
 
-int main()
+int main(int argc, char** argv)
 {
   ndb_init();
+  bool sep = argc > 1 && strcmp(argv[1], "-s") == 0;
 
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
@@ -126,13 +132,15 @@ int main()
 
   if (myNdb->init() == -1) APIERROR(myNdb->getNdbError());
 
-  const char *eventName= "CHNG_IN_TAB0";
-  const char *eventTableName= "TAB0";
-  const int noEventColumnName= 3;
+  const char *eventName= "CHNG_IN_t0";
+  const char *eventTableName= "t0";
+  const int noEventColumnName= 4;
   const char *eventColumnName[noEventColumnName]=
-    {"COL0",
-     "COL1",
-     "COL11"};
+    {"c0",
+     "c1",
+     "c2",
+     "c3"
+    };
   
   // Create events
   myCreateEvent(myNdb,
@@ -142,13 +150,14 @@ int main()
 		noEventColumnName);
 
   int j= 0;
-  while (j < 5) {
+  while (j < 99) {
 
     // Start "transaction" for handling events
     NdbEventOperation* op;
     printf("create EventOperation\n");
     if ((op = myNdb->createEventOperation(eventName)) == NULL)
       APIERROR(myNdb->getNdbError());
+    op->separateEvents(sep);
 
     printf("get values\n");
     NdbRecAttr* recAttr[noEventColumnName];
@@ -175,34 +184,45 @@ int main()
 	  i++;
 	  switch (op->getEventType()) {
 	  case NdbDictionary::Event::TE_INSERT:
-	    printf("%u INSERT: ", i);
+	    printf("%u INSERT", i);
 	    break;
 	  case NdbDictionary::Event::TE_DELETE:
-	    printf("%u DELETE: ", i);
+	    printf("%u DELETE", i);
 	    break;
 	  case NdbDictionary::Event::TE_UPDATE:
-	    printf("%u UPDATE: ", i);
+	    printf("%u UPDATE", i);
 	    break;
 	  default:
 	    abort(); // should not happen
 	  }
-	  for (int i = 1; i < noEventColumnName; i++) {
+          printf(" gci=%d\n", op->getGCI());
+          printf("post:  ");
+	  for (int i = 0; i < noEventColumnName; i++) {
 	    if (recAttr[i]->isNULL() >= 0) { // we have a value
-	      printf(" post[%u]=", i);
-	      if (recAttr[i]->isNULL() == 0) // we have a non-null value
-		printf("%u", recAttr[i]->u_32_value());
-	      else                           // we have a null value
-		printf("NULL");
-	    }
+	      if (recAttr[i]->isNULL() == 0) { // we have a non-null value
+                if (i < 2)
+                  printf("%-5u", recAttr[i]->u_32_value());
+                else
+                  printf("%-5.4s", recAttr[i]->aRef());
+              } else                           // we have a null value
+		printf("%-5s", "NULL");
+	    } else
+              printf("%-5s", "-");
+          }
+          printf("\npre :  ");
+	  for (int i = 0; i < noEventColumnName; i++) {
 	    if (recAttrPre[i]->isNULL() >= 0) { // we have a value
-	      printf(" pre[%u]=", i);
-	      if (recAttrPre[i]->isNULL() == 0) // we have a non-null value
-		printf("%u", recAttrPre[i]->u_32_value());
-	      else                              // we have a null value
-		printf("NULL");
-	    }
+	      if (recAttrPre[i]->isNULL() == 0) { // we have a non-null value
+                if (i < 2)
+                  printf("%-5u", recAttrPre[i]->u_32_value());
+                else
+                  printf("%-5.4s", recAttrPre[i]->aRef());
+              } else                              // we have a null value
+		printf("%-5s", "NULL");
+	    } else
+              printf("%-5s", "-");
 	  }
-	  printf("\n");
+          printf("\n");
 	}
       } else
 	;//printf("timed out\n");

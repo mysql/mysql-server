@@ -93,6 +93,12 @@ public:
    * Retrieve current state of the NdbEventOperation object
    */
   State getState();
+  /**
+   * By default events on same NdbEventOperation within same GCI
+   * are merged into a single event.  This can be changed with
+   * separateEvents(true).
+   */
+  void separateEvents(bool flag);
 
   /**
    * Activates the NdbEventOperation to start receiving events. The
