@@ -707,6 +707,13 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Avoid using the "bundled" zlib on "shared" builds: 
+  As it is not installed (on the build system), this gives dependency 
+  problems with "libtool" causing the build to fail.
+  (Change was done on Nov 11, but left uncommented.)
+
 * Tue Nov 22 2005 Joerg Bruehe <joerg@mysql.com>
 
 - Extend the file existence check for "init.d/mysql" on un-install
