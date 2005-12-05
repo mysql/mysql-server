@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_fput.c,v 11.59 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_fput.c,v 12.7 2005/10/07 20:21:33 ubell Exp $
  */
 
 #include "db_config.h"
@@ -19,7 +19,7 @@
 #include "dbinc/log.h"
 #include "dbinc/mp.h"
 
-static void __memp_reset_lru __P((DB_ENV *, REGINFO *));
+static int __memp_reset_lru __P((DB_ENV *, REGINFO *));
 
 /*
  * __memp_fput_pp --
@@ -34,14 +34,20 @@ __memp_fput_pp(dbmfp, pgaddr, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int ret;
+	DB_THREAD_INFO *ip;
+	int ret, t_ret;
 
 	dbenv = dbmfp->dbenv;
 	PANIC_CHECK(dbenv);
 
+	ENV_ENTER(dbenv, ip);
+
 	ret = __memp_fput(dbmfp, pgaddr, flags);
-	if (IS_ENV_REPLICATED(dbenv))
-		__op_rep_exit(dbenv);
+	if (IS_ENV_REPLICATED(dbenv) &&
+	    (t_ret = __op_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -64,26 +70,37 @@ __memp_fput(dbmfp, pgaddr, flags)
 	MPOOL *c_mp;
 	MPOOLFILE *mfp;
 	u_int32_t n_cache;
-	int adjust, ret;
+	int adjust, ret, t_ret;
 
 	dbenv = dbmfp->dbenv;
 	MPF_ILLEGAL_BEFORE_OPEN(dbmfp, "DB_MPOOLFILE->put");
-
 	dbmp = dbenv->mp_handle;
-	/* Validate arguments. */
+	ret = 0;
+
+	/*
+	 * Check arguments, but don't fail because we want to unpin the page
+	 * regardless.  The problem is when running with replication.  There
+	 * is a reference count we incremented when __memp_fget was called,
+	 * and we need to unpin the page and decrement that reference count.
+	 * If we see flag problems, mark the page dirty.
+	 */
 	if (flags) {
-		if ((ret = __db_fchk(dbenv, "memp_fput", flags,
-		    DB_MPOOL_CLEAN | DB_MPOOL_DIRTY | DB_MPOOL_DISCARD)) != 0)
-			return (ret);
-		if ((ret = __db_fcchk(dbenv, "memp_fput",
-		    flags, DB_MPOOL_CLEAN, DB_MPOOL_DIRTY)) != 0)
-			return (ret);
+		if (__db_fchk(dbenv, "memp_fput", flags,
+		    DB_MPOOL_CLEAN | DB_MPOOL_DIRTY | DB_MPOOL_DISCARD) != 0 ||
+		    __db_fcchk(dbenv, "memp_fput", flags,
+		    DB_MPOOL_CLEAN, DB_MPOOL_DIRTY) != 0) {
+			flags = DB_MPOOL_DIRTY;
+			ret = EINVAL;
+			DB_ASSERT(0);
+		}
 
 		if (LF_ISSET(DB_MPOOL_DIRTY) && F_ISSET(dbmfp, MP_READONLY)) {
 			__db_err(dbenv,
 			    "%s: dirty flag set for readonly file page",
 			    __memp_fn(dbmfp));
-			return (EACCES);
+			flags = 0;
+			ret = EINVAL;
+			DB_ASSERT(0);
 		}
 	}
 
@@ -98,24 +115,19 @@ __memp_fput(dbmfp, pgaddr, flags)
 		return (0);
 
 #ifdef DIAGNOSTIC
-	{
 	/*
 	 * Decrement the per-file pinned buffer count (mapped pages aren't
 	 * counted).
 	 */
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 	if (dbmfp->pinref == 0) {
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 		__db_err(dbenv,
 		    "%s: more pages returned than retrieved", __memp_fn(dbmfp));
-		ret = __db_panic(dbenv, EINVAL);
-	} else {
-		ret = 0;
-		--dbmfp->pinref;
+		return (__db_panic(dbenv, EACCES));
 	}
-	R_UNLOCK(dbenv, dbmp->reginfo);
-	if (ret != 0)
-		return (ret);
-	}
+	--dbmfp->pinref;
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 #endif
 
 	/* Convert a page address to a buffer header and hash bucket. */
@@ -125,7 +137,7 @@ __memp_fput(dbmfp, pgaddr, flags)
 	hp = R_ADDR(&dbmp->reginfo[n_cache], c_mp->htab);
 	hp = &hp[NBUCKET(c_mp, bhp->mf_offset, bhp->pgno)];
 
-	MUTEX_LOCK(dbenv, &hp->hash_mutex);
+	MUTEX_LOCK(dbenv, hp->mtx_hash);
 
 	/* Set/clear the page bits. */
 	if (LF_ISSET(DB_MPOOL_CLEAN) &&
@@ -146,10 +158,10 @@ __memp_fput(dbmfp, pgaddr, flags)
 	 * application returns a page twice.
 	 */
 	if (bhp->ref == 0) {
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 		__db_err(dbenv, "%s: page %lu: unpinned page returned",
 		    __memp_fn(dbmfp), (u_long)bhp->pgno);
-		return (__db_panic(dbenv, EINVAL));
+		return (__db_panic(dbenv, EACCES));
 	}
 
 	/* Note the activity so allocation won't decide to quit. */
@@ -170,7 +182,7 @@ __memp_fput(dbmfp, pgaddr, flags)
 	 * discard flags (for now) and leave the buffer's priority alone.
 	 */
 	if (--bhp->ref > 1 || (bhp->ref == 1 && !F_ISSET(bhp, BH_LOCKED))) {
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 		return (0);
 	}
 
@@ -224,7 +236,7 @@ __memp_fput(dbmfp, pgaddr, flags)
 
 done:
 	/* Reset the hash bucket's priority. */
-	hp->hash_priority = SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+	hp->hash_priority = SH_TAILQ_FIRSTP(&hp->hash_bucket, __bh)->priority;
 
 #ifdef DIAGNOSTIC
 	__memp_check_order(hp);
@@ -241,23 +253,25 @@ done:
 	if (F_ISSET(bhp, BH_LOCKED) && bhp->ref_sync != 0)
 		--bhp->ref_sync;
 
-	MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+	MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 
 	/*
 	 * On every buffer put we update the buffer generation number and check
 	 * for wraparound.
 	 */
 	if (++c_mp->lru_count == UINT32_MAX)
-		__memp_reset_lru(dbenv, dbmp->reginfo);
+		if ((t_ret =
+		    __memp_reset_lru(dbenv, dbmp->reginfo)) != 0 && ret == 0)
+			ret = t_ret;
 
-	return (0);
+	return (ret);
 }
 
 /*
  * __memp_reset_lru --
  *	Reset the cache LRU counter.
  */
-static void
+static int
 __memp_reset_lru(dbenv, infop)
 	DB_ENV *dbenv;
 	REGINFO *infop;
@@ -287,12 +301,14 @@ __memp_reset_lru(dbenv, infop)
 		if (SH_TAILQ_FIRST(&hp->hash_bucket, __bh) == NULL)
 			continue;
 
-		MUTEX_LOCK(dbenv, &hp->hash_mutex);
+		MUTEX_LOCK(dbenv, hp->mtx_hash);
 		for (bhp = SH_TAILQ_FIRST(&hp->hash_bucket, __bh);
 		    bhp != NULL; bhp = SH_TAILQ_NEXT(bhp, hq, __bh))
 			if (bhp->priority != UINT32_MAX &&
 			    bhp->priority > MPOOL_BASE_DECREMENT)
 				bhp->priority -= MPOOL_BASE_DECREMENT;
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 	}
+
+	return (0);
 }

@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_win32_dsp,v 1.12 2004/08/20 15:01:06 mjc Exp $
+#	$Id: s_win32_dsp,v 12.3 2005/10/20 01:45:53 mjc Exp $
 #
 # Build Windows/32 .dsp files.
 
@@ -13,9 +13,19 @@ create_dsp()
     match="$2"          # the string used to egrep the $sources file
     sources="$3"        # a modified version of $SRCFILES to facilitate matches
     dsptemplate="$4"    # overall template file for the .dsp
-    srctemplate="$5"    # template file for the src file fragments
+    extra_cppflags="$5" # extra flags to send to compiler
+    release_libs="$6"   # libraries to link against in Release builds
+    debug_libs="$7"     # libraries to link against in Debug builds
+    lib_suffix="$8"     # the library name is libdb@lib_suffix@@VERSION@
 
+    srctemplate="$BUILDDIR/srcfile_dsp.src"    # template file for the src file fragments
     dspoutput=$BUILDDIR/$projname.dsp
+
+
+    postbuild=$dspoutput.postbuild
+    if [ ! -f $postbuild ] ; then
+	    postbuild=/dev/null
+    fi
 
     rm -f $dspoutput.insert
     for srcpath in `egrep "$match" $sources | sed -e 's/[ 	].*//'`
@@ -36,7 +46,17 @@ create_dsp()
     done
     sed -e "/@SOURCE_FILES@/r$dspoutput.insert" \
         -e "/@SOURCE_FILES@/d" \
+	-e "/@POST_BUILD@/r$postbuild" \
+        -e "/@POST_BUILD@/d" \
         -e "s/@project_name@/$projname/g" \
+        -e "s/@bin_rel_dest@/Release/g" \
+        -e "s/@lib_rel_dest@/Release/g" \
+        -e "s/@bin_debug_dest@/Debug/g" \
+        -e "s/@lib_debug_dest@/Debug/g" \
+        -e "s,@extra_cppflags@,$extra_cppflags,g" \
+        -e "s,@release_libs@,$release_libs,g" \
+        -e "s,@debug_libs@,$debug_libs,g" \
+        -e "s,@lib_suffix@,$lib_suffix,g" \
         -e "s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/g" \
         -e "s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/g" \
       < $dsptemplate > $dspoutput.new
@@ -67,44 +87,44 @@ sed -e "s/#.*$//" \
 MODULES="`sed -e 's/^[^ ]* //' < $TMPA \
     | tr ' ' '\012' | sort | uniq`"
 
-for BUILDDIR in ../build_win32 ../build_win64
+for BUILDDIR in ../build_win32
 do
     for module in $MODULES
     do
         case "$module" in
         dynamic )
-            create_dsp db_dll " $module " $TMPA \
-                    $BUILDDIR/dynamic_dsp.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_dll " $module " $TMPA $BUILDDIR/dynamic_dsp.src
             ;;
         small )
-            create_dsp db_small " $module " $TMPA \
-                    $BUILDDIR/small_dsp.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_small " $module " $TMPA $BUILDDIR/static_dsp.src \
+                '/D "HAVE_SMALLBUILD"' '' '' _small
             ;;
         static )
-            create_dsp db_static " $module " $TMPA \
-                    $BUILDDIR/static_dsp.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_static " $module " $TMPA $BUILDDIR/static_dsp.src
             ;;
         java )
-            create_dsp db_java " $module " $TMPA \
-                    $BUILDDIR/java_dsp.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_java " $module " $TMPA $BUILDDIR/dynamic_dsp.src '' \
+                'libdb@DB_VERSION_MAJOR@@DB_VERSION_MINOR@.lib' \
+                'libdb@DB_VERSION_MAJOR@@DB_VERSION_MINOR@d.lib' _java
             ;;
         tcl )
-            create_dsp db_tcl " $module " $TMPA \
-                    $BUILDDIR/tcl_dsp.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_tcl " $module " $TMPA $BUILDDIR/dynamic_dsp.src \
+                '/D "DB_TCL_SUPPORT"' \
+                'libdb@DB_VERSION_MAJOR@@DB_VERSION_MINOR@.lib tcl84.lib' \
+                'libdb@DB_VERSION_MAJOR@@DB_VERSION_MINOR@d.lib tcl84g.lib' _tcl
             ;;
         testutil )
-            create_dsp db_test " $module " $TMPA \
-                    $BUILDDIR/db_test.src $BUILDDIR/srcfile_dsp.src
+            create_dsp db_test " $module " $TMPA $BUILDDIR/app_dsp.src \
+	        '' '/out:"$(OUTDIR)/dbkill.exe"' '/out:"$(OUTDIR)/dbkill.exe"'
+            ;;
+        app=ex_repquote )
+            create_dsp ex_repquote " $module " $TMPA \
+                    $BUILDDIR/app_dsp.src '' 'ws2_32.lib' 'ws2_32.lib'
             ;;
         app=* )
             appname=`echo $module | sed -e 's/^app=//'`
-            if [ -f $BUILDDIR/$appname.src ] ; then
-                    srcname=$BUILDDIR/$appname.src
-            else
-                    srcname=$BUILDDIR/app_dsp.src
-            fi
             create_dsp $appname " $module " $TMPA \
-                    $srcname $BUILDDIR/srcfile_dsp.src
+                    $BUILDDIR/app_dsp.src
             ;;
         vx|vxsmall )
             ;;

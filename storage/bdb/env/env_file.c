@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2002-2004
+ * Copyright (c) 2002-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: env_file.c,v 1.11 2004/03/24 20:51:38 bostic Exp $
+ * $Id: env_file.c,v 12.3 2005/06/16 20:21:56 bostic Exp $
  */
 
 #include "db_config.h"
@@ -17,82 +17,54 @@
 
 #include "db_int.h"
 
-static int __db_overwrite_pass __P((DB_ENV *,
-	       const char *, DB_FH *, u_int32_t, u_int32_t, int));
-
 /*
- * __db_fileinit --
- *	Initialize a regular file, optionally zero-filling it as well.
+ * __db_file_extend --
+ *	Initialize a regular file by writing the last page of the file.
  *
- * PUBLIC: int __db_fileinit __P((DB_ENV *, DB_FH *, size_t, int));
+ * PUBLIC: int __db_file_extend __P((DB_ENV *, DB_FH *, size_t));
  */
 int
-__db_fileinit(dbenv, fhp, size, zerofill)
+__db_file_extend(dbenv, fhp, size)
 	DB_ENV *dbenv;
 	DB_FH *fhp;
 	size_t size;
-	int zerofill;
 {
 	db_pgno_t pages;
-	size_t i;
 	size_t nw;
 	u_int32_t relative;
 	int ret;
-	char buf[OS_VMPAGESIZE];
-
-	/* Write nuls to the new bytes. */
-	memset(buf, 0, sizeof(buf));
+	char buf[8 * 1024];
 
 	/*
-	 * Extend the region by writing the last page.  If the region is >4Gb,
+	 * Extend the file by writing the last page.  If the region is >4Gb,
 	 * increment may be larger than the maximum possible seek "relative"
 	 * argument, as it's an unsigned 32-bit value.  Break the offset into
-	 * pages of 1MB each so that we don't overflow (2^20 + 2^32 is bigger
+	 * pages of 1MB each so we don't overflow -- (2^20 + 2^32 is bigger
 	 * than any memory I expect to see for awhile).
 	 */
+	memset(buf, 0, sizeof(buf));
+
 	if ((ret = __os_seek(dbenv, fhp, 0, 0, 0, 0, DB_OS_SEEK_END)) != 0)
 		return (ret);
-	pages = (db_pgno_t)((size - OS_VMPAGESIZE) / MEGABYTE);
-	relative = (u_int32_t)((size - OS_VMPAGESIZE) % MEGABYTE);
+	pages = (db_pgno_t)((size - sizeof(buf)) / MEGABYTE);
+	relative = (u_int32_t)((size - sizeof(buf)) % MEGABYTE);
 	if ((ret = __os_seek(dbenv,
 	    fhp, MEGABYTE, pages, relative, 0, DB_OS_SEEK_CUR)) != 0)
 		return (ret);
 	if ((ret = __os_write(dbenv, fhp, buf, sizeof(buf), &nw)) != 0)
 		return (ret);
 
-	/*
-	 * We may want to guarantee that there is enough disk space for the
-	 * file, so we also write a byte to each page.  We write the byte
-	 * because reading it is insufficient on systems smart enough not to
-	 * instantiate disk pages to satisfy a read (e.g., Solaris).
-	 */
-	if (zerofill) {
-		pages = (db_pgno_t)(size / MEGABYTE);
-		relative = (u_int32_t)(size % MEGABYTE);
-		if ((ret = __os_seek(dbenv, fhp,
-		    MEGABYTE, pages, relative, 1, DB_OS_SEEK_END)) != 0)
-			return (ret);
-
-		/* Write a byte to each page. */
-		for (i = 0; i < size; i += OS_VMPAGESIZE) {
-			if ((ret = __os_write(dbenv, fhp, buf, 1, &nw)) != 0)
-				return (ret);
-			if ((ret = __os_seek(dbenv, fhp,
-			    0, 0, OS_VMPAGESIZE - 1, 0, DB_OS_SEEK_CUR)) != 0)
-				return (ret);
-		}
-	}
 	return (0);
 }
 
 /*
- * __db_overwrite  --
- *	Overwrite a file.
+ * __db_file_multi_write  --
+ *	Overwrite a file with multiple passes to corrupt the data.
  *
- * PUBLIC: int __db_overwrite __P((DB_ENV *, const char *));
+ * PUBLIC: int __db_file_multi_write __P((DB_ENV *, const char *));
  */
 int
-__db_overwrite(dbenv, path)
+__db_file_multi_write(dbenv, path)
 	DB_ENV *dbenv;
 	const char *path;
 {
@@ -108,13 +80,13 @@ __db_overwrite(dbenv, path)
 		 * byte patterns.  Implies a fixed-block filesystem, journaling
 		 * or logging filesystems will require operating system support.
 		 */
-		if ((ret = __db_overwrite_pass(
+		if ((ret = __db_file_write(
 		    dbenv, path, fhp, mbytes, bytes, 255)) != 0)
 			goto err;
-		if ((ret = __db_overwrite_pass(
+		if ((ret = __db_file_write(
 		    dbenv, path, fhp, mbytes, bytes, 0)) != 0)
 			goto err;
-		if ((ret = __db_overwrite_pass(
+		if ((ret = __db_file_write(
 		    dbenv, path, fhp, mbytes, bytes, 255)) != 0)
 			goto err;
 	} else
@@ -126,11 +98,14 @@ err:	if (fhp != NULL)
 }
 
 /*
- * __db_overwrite_pass --
+ * __db_file_write --
  *	A single pass over the file, writing the specified byte pattern.
+ *
+ * PUBLIC: int __db_file_write __P((DB_ENV *,
+ * PUBLIC:     const char *, DB_FH *, u_int32_t, u_int32_t, int));
  */
-static int
-__db_overwrite_pass(dbenv, path, fhp, mbytes, bytes, pattern)
+int
+__db_file_write(dbenv, path, fhp, mbytes, bytes, pattern)
 	DB_ENV *dbenv;
 	const char *path;
 	DB_FH *fhp;
@@ -139,7 +114,7 @@ __db_overwrite_pass(dbenv, path, fhp, mbytes, bytes, pattern)
 {
 	size_t len, nw;
 	int i, ret;
-	char buf[8 * 1024];
+	char buf[32 * 1024];
 
 	if ((ret = __os_seek(dbenv, fhp, 0, 0, 0, 0, DB_OS_SEEK_SET)) != 0)
 		goto err;

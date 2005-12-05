@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db.src,v 11.28 2004/06/17 17:35:15 bostic Exp $
+ * $Id: db.src,v 12.2 2005/08/08 03:37:06 ubell Exp $
  */
 
 PREFIX	__db
@@ -236,3 +236,24 @@ ARG	pgno		db_pgno_t	lu
 PGDBT	header		DBT		s
 PGDBT	data		DBT		s
 END
+
+/*
+ * pg_sort: sort the free list
+ *
+ * meta:	meta page number
+ * meta_lsn:	lsn on meta page.
+ * last_free:	page number of new last free page.
+ * last_lsn;	lsn of last free page.
+ * last_pgno:	current last page number.
+ * list:	list of pages and lsns to sort.
+ */
+BEGIN pg_sort		61
+DB	fileid		int32_t		ld
+ARG	meta		db_pgno_t	lu
+POINTER	meta_lsn	DB_LSN *	lu
+ARG	last_free	db_pgno_t	lu
+POINTER	last_lsn	DB_LSN *	lu
+ARG	last_pgno	db_pgno_t	lu
+DBT	list		DBT		s
+END
+

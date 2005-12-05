@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: bt_stat.c,v 11.78 2004/09/22 03:31:26 bostic Exp $
+ * $Id: bt_stat.c,v 12.3 2005/06/16 20:20:23 bostic Exp $
  */
 
 #include "db_config.h"
@@ -155,7 +155,6 @@ meta_only:
 
 	/* Get metadata page statistics. */
 	sp->bt_metaflags = meta->dbmeta.flags;
-	sp->bt_maxkey = meta->maxkey;
 	sp->bt_minkey = meta->minkey;
 	sp->bt_re_len = meta->re_len;
 	sp->bt_re_pad = meta->re_pad;
@@ -246,16 +245,12 @@ __bam_stat_print(dbc, flags)
 	}
 	__db_msg(dbenv, "%s\tByte order", s);
 	__db_prflags(dbenv, NULL, sp->bt_metaflags, fn, NULL, "\tFlags");
-	if (dbp->type == DB_BTREE) {
-#ifdef NOT_IMPLEMENTED
-		__db_dl(dbenv, "Maximum keys per-page", (u_long)sp->bt_maxkey);
-#endif
+	if (dbp->type == DB_BTREE)
 		__db_dl(dbenv, "Minimum keys per-page", (u_long)sp->bt_minkey);
-	}
 	if (dbp->type == DB_RECNO) {
 		__db_dl(dbenv,
 		    "Fixed-length record size", (u_long)sp->bt_re_len);
-		__db_dl(dbenv,
+		__db_msg(dbenv,
 		    "%#x\tFixed-length record pad", (u_int)sp->bt_re_pad);
 	}
 	__db_dl(dbenv,

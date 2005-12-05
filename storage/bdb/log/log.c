@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: log.c,v 11.161 2004/10/15 16:59:42 bostic Exp $
+ * $Id: log.c,v 12.15 2005/10/14 15:20:24 bostic Exp $
  */
 
 #include "db_config.h"
@@ -40,7 +40,10 @@ __log_open(dbenv)
 {
 	DB_LOG *dblp;
 	LOG *lp;
-	int ret;
+	u_int8_t *bulk;
+	int region_locked, ret;
+
+	region_locked = 0;
 
 	/* Create/initialize the DB_LOG structure. */
 	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_LOG), &dblp)) != 0)
@@ -71,18 +74,15 @@ __log_open(dbenv)
 	/* Set the local addresses. */
 	lp = dblp->reginfo.primary =
 	    R_ADDR(&dblp->reginfo, dblp->reginfo.rp->primary);
+	dblp->bufp = R_ADDR(&dblp->reginfo, lp->buffer_off);
 
 	/*
-	 * If the region is threaded, then we have to lock both the handles
-	 * and the region, and we need to allocate a mutex for that purpose.
+	 * If the region is threaded, we have to lock the DBREG list, and we
+	 * need to allocate a mutex for that purpose.
 	 */
-	if (F_ISSET(dbenv, DB_ENV_THREAD) &&
-	    (ret = __db_mutex_setup(dbenv, &dblp->reginfo, &dblp->mutexp,
-	    MUTEX_ALLOC | MUTEX_NO_RLOCK)) != 0)
+	if ((ret = __mutex_alloc(dbenv,
+	    MTX_LOG_REGION, DB_MUTEX_THREAD, &dblp->mtx_dbreg)) != 0)
 		goto err;
-
-	/* Initialize the rest of the structure. */
-	dblp->bufp = R_ADDR(&dblp->reginfo, lp->buffer_off);
 
 	/*
 	 * Set the handle -- we may be about to run recovery, which allocates
@@ -124,8 +124,23 @@ __log_open(dbenv)
 		    (ret = __log_newfile(dblp, NULL, 0)) != 0)
 			goto err;
 
-		/* Initialize replication's next-expected LSN value. */
+		/*
+		 * Initialize replication's next-expected LSN value
+		 * and replication's bulk buffer.
+		 */
 		lp->ready_lsn = lp->lsn;
+		if (IS_ENV_REPLICATED(dbenv)) {
+			if ((ret = __db_shalloc(&dblp->reginfo, MEGABYTE, 0,
+			    &bulk)) != 0)
+				goto err;
+			lp->bulk_buf = R_OFFSET(&dblp->reginfo, bulk);
+			lp->bulk_len = MEGABYTE;
+			lp->bulk_off = 0;
+		} else {
+			lp->bulk_buf = INVALID_ROFF;
+			lp->bulk_len = 0;
+			lp->bulk_off = 0;
+		}
 	} else {
 		/*
 		 * A process joining the region may have reset the log file
@@ -133,6 +148,9 @@ __log_open(dbenv)
 		 * create.  We need to check that the size is reasonable given
 		 * the buffer size in the region.
 		 */
+		LOG_SYSTEM_LOCK(dbenv);
+		region_locked = 1;
+
 		 if (dbenv->lg_size != 0) {
 			if ((ret =
 			    __log_check_sizes(dbenv, dbenv->lg_size, 0)) != 0)
@@ -146,22 +164,21 @@ __log_open(dbenv)
 			F_SET(dbenv, DB_ENV_LOG_AUTOREMOVE);
 		if (lp->db_log_inmemory)
 			F_SET(dbenv, DB_ENV_LOG_INMEMORY);
+
+		LOG_SYSTEM_UNLOCK(dbenv);
+		region_locked = 0;
 	}
 
-	R_UNLOCK(dbenv, &dblp->reginfo);
 	return (0);
 
 err:	dbenv->lg_handle = NULL;
 	if (dblp->reginfo.addr != NULL) {
-		if (F_ISSET(&dblp->reginfo, REGION_CREATE))
-			ret = __db_panic(dbenv, ret);
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		if (region_locked)
+			LOG_SYSTEM_UNLOCK(dbenv);
 		(void)__db_r_detach(dbenv, &dblp->reginfo, 0);
 	}
 
-	if (dblp->mutexp != NULL)
-		__db_mutex_free(dbenv, &dblp->reginfo, dblp->mutexp);
-
+	(void)__mutex_free(dbenv, &dblp->mtx_dbreg);
 	__os_free(dbenv, dblp);
 
 	return (ret);
@@ -176,13 +193,9 @@ __log_init(dbenv, dblp)
 	DB_ENV *dbenv;
 	DB_LOG *dblp;
 {
-	DB_MUTEX *flush_mutexp;
 	LOG *lp;
 	int ret;
 	void *p;
-#ifdef  HAVE_MUTEX_SYSTEM_RESOURCES
-	u_int8_t *addr;
-#endif
 
 	/*
 	 * This is the first point where we can validate the buffer size,
@@ -194,12 +207,16 @@ __log_init(dbenv, dblp)
 		return (ret);
 
 	if ((ret = __db_shalloc(&dblp->reginfo,
-	    sizeof(*lp), MUTEX_ALIGN, &dblp->reginfo.primary)) != 0)
+	    sizeof(*lp), 0, &dblp->reginfo.primary)) != 0)
 		goto mem_err;
 	dblp->reginfo.rp->primary =
 	    R_OFFSET(&dblp->reginfo, dblp->reginfo.primary);
 	lp = dblp->reginfo.primary;
 	memset(lp, 0, sizeof(*lp));
+
+	if ((ret =
+	    __mutex_alloc(dbenv, MTX_LOG_REGION, 0, &lp->mtx_region)) != 0)
+		return (ret);
 
 	lp->fid_max = 0;
 	SH_TAILQ_INIT(&lp->fq);
@@ -224,31 +241,11 @@ __log_init(dbenv, dblp)
 	 */
 	ZERO_LSN(lp->cached_ckp_lsn);
 
-#ifdef  HAVE_MUTEX_SYSTEM_RESOURCES
-	/* Allocate room for the log maintenance info and initialize it. */
-	if ((ret = __db_shalloc(&dblp->reginfo,
-	    sizeof(REGMAINT) + LG_MAINT_SIZE, 0, &addr)) != 0)
-		goto mem_err;
-	__db_maintinit(&dblp->reginfo, addr, LG_MAINT_SIZE);
-	lp->maint_off = R_OFFSET(&dblp->reginfo, addr);
-#endif
-
-	if ((ret = __db_mutex_setup(dbenv, &dblp->reginfo, &lp->fq_mutex,
-	    MUTEX_NO_RLOCK)) != 0)
+	if ((ret =
+	    __mutex_alloc(dbenv, MTX_LOG_FILENAME, 0, &lp->mtx_filelist)) != 0)
 		return (ret);
-
-	/*
-	 * We must create a place for the flush mutex separately; mutexes have
-	 * to be aligned to MUTEX_ALIGN, and the only way to guarantee that is
-	 * to make sure they're at the beginning of a shalloc'ed chunk.
-	 */
-	if ((ret = __db_shalloc(&dblp->reginfo,
-	    sizeof(DB_MUTEX), MUTEX_ALIGN, &flush_mutexp)) != 0)
-		goto mem_err;
-	if ((ret = __db_mutex_setup(dbenv, &dblp->reginfo, flush_mutexp,
-	    MUTEX_NO_RLOCK)) != 0)
+	if ((ret = __mutex_alloc(dbenv, MTX_LOG_FLUSH, 0, &lp->mtx_flush)) != 0)
 		return (ret);
-	lp->flush_mutex_off = R_OFFSET(&dblp->reginfo, flush_mutexp);
 
 	/* Initialize the buffer. */
 	if ((ret = __db_shalloc(&dblp->reginfo, dbenv->lg_bsize, 0, &p)) != 0) {
@@ -258,6 +255,7 @@ mem_err:	__db_err(dbenv, "Unable to allocate memory for the log buffer");
 	lp->regionmax = dbenv->lg_regionmax;
 	lp->buffer_off = R_OFFSET(&dblp->reginfo, p);
 	lp->buffer_size = dbenv->lg_bsize;
+	lp->filemode = dbenv->lg_filemode;
 	lp->log_size = lp->log_nsize = dbenv->lg_size;
 
 	/* Initialize the commit Queue. */
@@ -276,7 +274,7 @@ mem_err:	__db_err(dbenv, "Unable to allocate memory for the log buffer");
 	 */
 	lp->persist.magic = DB_LOGMAGIC;
 	lp->persist.version = DB_LOGVERSION;
-	lp->persist.mode = (u_int32_t)dbenv->db_mode;
+	lp->persist.notused = 0;
 
 	/* Migrate persistent flags from the DB_ENV into the region. */
 	if (F_ISSET(dbenv, DB_ENV_LOG_AUTOREMOVE))
@@ -750,17 +748,10 @@ __log_valid(dblp, number, set_persist, fhpp, flags, statusp)
 	 * set the region's persistent information based on the headers.
 	 *
 	 * Override the current log file size.
-	 *
-	 * XXX
-	 * Always use the persistent header's mode, regardless of what was set
-	 * in the current environment.  We've always done it this way, but it's
-	 * probably a bug -- I can't think of a way not-changing the mode would
-	 * be a problem, though.
 	 */
 	if (set_persist) {
 		lp = dblp->reginfo.primary;
 		lp->log_size = persist->log_size;
-		lp->persist.mode = persist->mode;
 	}
 
 err:	if (fname != NULL)
@@ -791,6 +782,7 @@ __log_dbenv_refresh(dbenv)
 	DB_LOG *dblp;
 	LOG *lp;
 	REGINFO *reginfo;
+	struct __fname *fnp;
 	int ret, t_ret;
 
 	dblp = dbenv->lg_handle;
@@ -798,8 +790,18 @@ __log_dbenv_refresh(dbenv)
 	lp = reginfo->primary;
 
 	/* We may have opened files as part of XA; if so, close them. */
-	F_SET(dblp, DBLOG_RECOVER);
 	ret = __dbreg_close_files(dbenv);
+
+	/*
+	 * After we close the files, check for any unlogged closes left in
+	 * the shared memory queue.  If we find any, we need to panic the
+	 * region.  Note, just set "ret" -- a panic overrides any previously
+	 * set error return.
+	 */
+	for (fnp = SH_TAILQ_FIRST(&lp->fq, __fname); fnp != NULL;
+	    fnp = SH_TAILQ_NEXT(fnp, q, __fname))
+		if (F_ISSET(fnp, DB_FNAME_NOTLOGGED))
+			ret = __db_panic(dbenv, EINVAL);
 
 	/*
 	 * If a private region, return the memory to the heap.  Not needed for
@@ -808,8 +810,9 @@ __log_dbenv_refresh(dbenv)
 	 */
 	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
 		/* Discard the flush mutex. */
-		__db_shalloc_free(reginfo,
-		    R_ADDR(reginfo, lp->flush_mutex_off));
+		if ((t_ret =
+		    __mutex_free(dbenv, &lp->mtx_flush)) != 0 && ret == 0)
+			ret = t_ret;
 
 		/* Discard the buffer. */
 		__db_shalloc_free(reginfo, R_ADDR(reginfo, lp->buffer_off));
@@ -820,9 +823,9 @@ __log_dbenv_refresh(dbenv)
 			    R_ADDR(reginfo, lp->free_fid_stack));
 	}
 
-	/* Discard the per-thread lock. */
-	if (dblp->mutexp != NULL)
-		__db_mutex_free(dbenv, reginfo, dblp->mutexp);
+	/* Discard the per-thread DBREG mutex. */
+	if ((t_ret = __mutex_free(dbenv, &dblp->mtx_dbreg)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/* Detach from the region. */
 	if ((t_ret = __db_r_detach(dbenv, reginfo, 0)) != 0 && ret == 0)
@@ -848,9 +851,9 @@ __log_dbenv_refresh(dbenv)
  * __log_get_cached_ckp_lsn --
  *	Retrieve any last checkpoint LSN that we may have found on startup.
  *
- * PUBLIC: void __log_get_cached_ckp_lsn __P((DB_ENV *, DB_LSN *));
+ * PUBLIC: int __log_get_cached_ckp_lsn __P((DB_ENV *, DB_LSN *));
  */
-void
+int
 __log_get_cached_ckp_lsn(dbenv, ckp_lsnp)
 	DB_ENV *dbenv;
 	DB_LSN *ckp_lsnp;
@@ -861,9 +864,29 @@ __log_get_cached_ckp_lsn(dbenv, ckp_lsnp)
 	dblp = (DB_LOG *)dbenv->lg_handle;
 	lp = (LOG *)dblp->reginfo.primary;
 
-	R_LOCK(dbenv, &dblp->reginfo);
+	LOG_SYSTEM_LOCK(dbenv);
 	*ckp_lsnp = lp->cached_ckp_lsn;
-	R_UNLOCK(dbenv, &dblp->reginfo);
+	LOG_SYSTEM_UNLOCK(dbenv);
+
+	return (0);
+}
+
+/*
+ * __log_region_mutex_count --
+ *	Return the number of mutexes the log region will need.
+ *
+ * PUBLIC: u_int32_t __log_region_mutex_count __P((DB_ENV *));
+ */
+u_int32_t
+__log_region_mutex_count(dbenv)
+	DB_ENV *dbenv;
+{
+	/*
+	 * We need a few assorted mutexes, and one per transaction waiting
+	 * on the group commit list.  We can't know how many that will be,
+	 * but it should be bounded by the maximum active transactions.
+	 */
+	return (dbenv->tx_max + 5);
 }
 
 /*
@@ -881,44 +904,15 @@ __log_region_size(dbenv)
 	size_t s;
 
 	s = dbenv->lg_regionmax + dbenv->lg_bsize;
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	if (F_ISSET(dbenv, DB_ENV_THREAD))
-		s += sizeof(REGMAINT) + LG_MAINT_SIZE;
-#endif
-	return (s);
-}
 
-/*
- * __log_region_destroy
- *	Destroy any region maintenance info.
- *
- * PUBLIC: void __log_region_destroy __P((DB_ENV *, REGINFO *));
- */
-void
-__log_region_destroy(dbenv, infop)
-	DB_ENV *dbenv;
-	REGINFO *infop;
-{
 	/*
-	 * This routine is called in two cases: when discarding the mutexes
-	 * from a previous Berkeley DB run, during recovery, and two, when
-	 * discarding the mutexes as we shut down the database environment.
-	 * In the latter case, we also need to discard shared memory segments,
-	 * this is the last time we use them, and the last region-specific
-	 * call we make.
+	 * If running with replication, add in space for bulk buffer.
+	 * Allocate a megabyte and a little bit more space.
 	 */
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	LOG *lp;
+	if (IS_ENV_REPLICATED(dbenv))
+		s += MEGABYTE;
 
-	lp = R_ADDR(infop, infop->rp->primary);
-
-	/* Destroy mutexes. */
-	__db_shlocks_destroy(infop, R_ADDR(infop, lp->maint_off));
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, R_ADDR(infop, lp->maint_off));
-#endif
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, infop->primary);
+	return (s);
 }
 
 /*
@@ -940,7 +934,6 @@ __log_vtruncate(dbenv, lsn, ckplsn, trunclsn)
 	DB_LOG *dblp;
 	DB_LOGC *logc;
 	DB_LSN end_lsn;
-	DB_MUTEX *flush_mutexp;
 	LOG *lp;
 	u_int32_t bytes, c_len;
 	int ret, t_ret;
@@ -960,7 +953,7 @@ __log_vtruncate(dbenv, lsn, ckplsn, trunclsn)
 	dblp = (DB_LOG *)dbenv->lg_handle;
 	lp = (LOG *)dblp->reginfo.primary;
 
-	R_LOCK(dbenv, &dblp->reginfo);
+	LOG_SYSTEM_LOCK(dbenv);
 
 	/*
 	 * Flush the log so we can simply initialize the in-memory buffer
@@ -1000,11 +993,10 @@ __log_vtruncate(dbenv, lsn, ckplsn, trunclsn)
 	 * If the saved lsn is greater than our new end of log, reset it
 	 * to our current end of log.
 	 */
-	flush_mutexp = R_ADDR(&dblp->reginfo, lp->flush_mutex_off);
-	MUTEX_LOCK(dbenv, flush_mutexp);
+	MUTEX_LOCK(dbenv, lp->mtx_flush);
 	if (log_compare(&lp->s_lsn, lsn) > 0)
 		lp->s_lsn = lp->lsn;
-	MUTEX_UNLOCK(dbenv, flush_mutexp);
+	MUTEX_UNLOCK(dbenv, lp->mtx_flush);
 
 	/* Initialize the in-region buffer to a pristine state. */
 	ZERO_LSN(lp->f_lsn);
@@ -1017,17 +1009,14 @@ __log_vtruncate(dbenv, lsn, ckplsn, trunclsn)
 	if ((ret = __log_zero(dbenv, &lp->lsn, &end_lsn)) != 0)
 		goto err;
 
-err:	R_UNLOCK(dbenv, &dblp->reginfo);
+err:	LOG_SYSTEM_UNLOCK(dbenv);
 	return (ret);
 }
 
 /*
  * __log_is_outdated --
- *	Used by the replication system to identify if a client's logs
- * are too old.  The log represented by dbenv is compared to the file
- * number passed in fnum.  If the log file fnum does not exist and is
- * lower-numbered than the current logs, the we return *outdatedp non
- * zero, else we return it 0.
+ *	Used by the replication system to identify if a client's logs are too
+ *	old.
  *
  * PUBLIC: int __log_is_outdated __P((DB_ENV *, u_int32_t, int *));
  */
@@ -1046,12 +1035,17 @@ __log_is_outdated(dbenv, fnum, outdatedp)
 
 	dblp = dbenv->lg_handle;
 
+	/*
+	 * The log represented by dbenv is compared to the file number passed
+	 * in fnum.  If the log file fnum does not exist and is lower-numbered
+	 * than the current logs, return *outdatedp non-zero, else we return 0.
+	 */
 	if (F_ISSET(dbenv, DB_ENV_LOG_INMEMORY)) {
-		R_LOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_LOCK(dbenv);
 		lp = (LOG *)dblp->reginfo.primary;
 		filestart = SH_TAILQ_FIRST(&lp->logfiles, __db_filestart);
-		*outdatedp = (fnum < filestart->file);
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		*outdatedp = filestart == NULL ? 0 : (fnum < filestart->file);
+		LOG_SYSTEM_UNLOCK(dbenv);
 		return (0);
 	}
 
@@ -1068,10 +1062,10 @@ __log_is_outdated(dbenv, fnum, outdatedp)
 	 * too little.  If it's too little, then we need to indicate
 	 * that the LSN is outdated.
 	 */
-	R_LOCK(dbenv, &dblp->reginfo);
+	LOG_SYSTEM_LOCK(dbenv);
 	lp = (LOG *)dblp->reginfo.primary;
 	cfile = lp->lsn.file;
-	R_UNLOCK(dbenv, &dblp->reginfo);
+	LOG_SYSTEM_UNLOCK(dbenv);
 
 	if (cfile > fnum)
 		*outdatedp = 1;
@@ -1279,10 +1273,13 @@ __log_inmem_chkspace(dblp, len)
 	DB_LOG *dblp;
 	size_t len;
 {
+	DB_ENV *dbenv;
 	LOG *lp;
 	DB_LSN active_lsn, old_active_lsn;
 	struct __db_filestart *filestart;
+	int ret;
 
+	dbenv = dblp->dbenv;
 	lp = dblp->reginfo.primary;
 
 	DB_ASSERT(lp->db_log_inmemory);
@@ -1299,7 +1296,7 @@ __log_inmem_chkspace(dblp, len)
 	 * don't even bother checking: in that case we can always overwrite old
 	 * log records, because we're never going to abort.
 	 */
-	while (TXN_ON(dblp->dbenv) &&
+	while (TXN_ON(dbenv) &&
 	    RINGBUF_LEN(lp, lp->b_off, lp->a_off) <= len) {
 		old_active_lsn = lp->active_lsn;
 		active_lsn = lp->lsn;
@@ -1308,14 +1305,15 @@ __log_inmem_chkspace(dblp, len)
 		 * Drop the log region lock so we don't hold it while
 		 * taking the transaction region lock.
 		 */
-		R_UNLOCK(dblp->dbenv, &dblp->reginfo);
-		__txn_getactive(dblp->dbenv, &active_lsn);
-		R_LOCK(dblp->dbenv, &dblp->reginfo);
+		LOG_SYSTEM_UNLOCK(dbenv);
+		if ((ret = __txn_getactive(dbenv, &active_lsn)) != 0)
+			return (ret);
+		LOG_SYSTEM_LOCK(dbenv);
 		active_lsn.offset = 0;
 
 		/* If we didn't make any progress, give up. */
 		if (log_compare(&active_lsn, &old_active_lsn) == 0) {
-			__db_err(dblp->dbenv,
+			__db_err(dbenv,
       "In-memory log buffer is full (an active transaction spans the buffer)");
 			return (DB_LOG_BUFFER_FULL);
 		}

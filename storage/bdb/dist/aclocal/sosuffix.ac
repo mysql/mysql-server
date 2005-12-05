@@ -1,4 +1,4 @@
-# $Id: sosuffix.ac,v 1.4 2004/08/14 20:00:45 dda Exp $
+# $Id: sosuffix.ac,v 12.0 2004/11/17 03:43:38 bostic Exp $
 # Determine shared object suffixes.
 #
 # Our method is to use the libtool variable $library_names_spec,

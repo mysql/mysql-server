@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_open.c,v 11.37 2004/10/05 14:55:35 mjc Exp $
+ * $Id: os_open.c,v 12.6 2005/10/31 11:21:01 mjc Exp $
  */
 
 #include "db_config.h"
@@ -15,7 +15,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -68,9 +67,9 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 	tname = NULL;
 
 #define	OKFLAGS								\
-	(DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_DSYNC | DB_OSO_EXCL |	\
-	 DB_OSO_LOG | DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ |	\
-	 DB_OSO_TEMP | DB_OSO_TRUNC)
+	(DB_OSO_ABSMODE | DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_DSYNC |\
+	DB_OSO_EXCL | DB_OSO_RDONLY | DB_OSO_REGION |	DB_OSO_SEQ |	\
+	DB_OSO_TEMP | DB_OSO_TRUNC)
 	if ((ret = __db_fchk(dbenv, "__os_open", flags, OKFLAGS)) != 0)
 		return (ret);
 
@@ -85,7 +84,7 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 		if (LF_ISSET(DB_OSO_CREATE))
 			oflags |= O_CREAT;
 #ifdef O_DSYNC
-		if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC))
+		if (LF_ISSET(DB_OSO_DSYNC))
 			oflags |= O_DSYNC;
 #endif
 
@@ -120,8 +119,8 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 
 	/*
 	 * Otherwise, use the Windows/32 CreateFile interface so that we can
-	 * play magic games with log files to get data flush effects similar
-	 * to the POSIX O_DSYNC flag.
+	 * play magic games with files to get data flush effects similar to
+	 * the POSIX O_DSYNC flag.
 	 *
 	 * !!!
 	 * We currently ignore the 'mode' argument.  It would be possible
@@ -139,6 +138,8 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 		access |= GENERIC_WRITE;
 
 	share = FILE_SHARE_READ | FILE_SHARE_WRITE;
+	if (__os_is_winnt())
+		share |= FILE_SHARE_DELETE;
 	attr = FILE_ATTRIBUTE_NORMAL;
 
 	/*
@@ -156,7 +157,7 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 	else
 		createflag = OPEN_EXISTING;	/* open only if existing */
 
-	if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC)) {
+	if (LF_ISSET(DB_OSO_DSYNC)) {
 		F_SET(fhp, DB_FH_NOSYNC);
 		attr |= FILE_FLAG_WRITE_THROUGH;
 	}

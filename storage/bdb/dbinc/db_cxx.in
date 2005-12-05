@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_cxx.in,v 11.147 2004/10/07 21:39:48 bostic Exp $
+ * $Id: db_cxx.in,v 12.13 2005/10/18 14:17:08 mjc Exp $
  */
 
 #ifndef _DB_CXX_H_
@@ -88,6 +88,7 @@ class DbException;                               // forward
 class DbDeadlockException;                       // forward
 class DbLockNotGrantedException;                 // forward
 class DbMemoryException;                         // forward
+class DbRepHandleDeadException;                  // forward
 class DbRunRecoveryException;                    // forward
 
 ////////////////////////////////////////////////////////////////
@@ -178,8 +179,8 @@ class _exported Db
 	friend class DbEnv;
 
 public:
-	Db(DbEnv*, u_int32_t);      // create a Db object, then call open()
-	virtual ~Db();              // does *not* call close.
+	Db(DbEnv*, u_int32_t);      // Create a Db object.
+	virtual ~Db();              // Calls close() if the user hasn't.
 
 	// These methods exactly match those in the C interface.
 	//
@@ -187,6 +188,8 @@ public:
 	    int (*callback)(Db *, const Dbt *, const Dbt *, Dbt *),
 	    u_int32_t flags);
 	virtual int close(u_int32_t flags);
+	virtual int compact(DbTxn *txnid, Dbt *start, Dbt *stop,
+	    DB_COMPACT *c_data, u_int32_t flags, Dbt *end);
 	virtual int cursor(DbTxn *txnid, Dbc **cursorp, u_int32_t flags);
 	virtual int del(DbTxn *txnid, Dbt *key, u_int32_t flags);
 	virtual void err(int, const char *, ...);
@@ -204,17 +207,16 @@ public:
 	virtual int open(DbTxn *txnid,
 	    const char *, const char *subname, DBTYPE, u_int32_t, int);
 	virtual int pget(DbTxn *txnid, Dbt *key, Dbt *pkey, Dbt *data,
-		 u_int32_t flags);
+	    u_int32_t flags);
 	virtual int put(DbTxn *, Dbt *, Dbt *, u_int32_t);
 	virtual int remove(const char *, const char *, u_int32_t);
 	virtual int rename(const char *, const char *, const char *, u_int32_t);
 	virtual int set_alloc(db_malloc_fcn_type, db_realloc_fcn_type,
-		      db_free_fcn_type);
+	    db_free_fcn_type);
 	virtual void set_app_private(void *);
 	virtual int set_append_recno(int (*)(Db *, Dbt *, db_recno_t));
 	virtual int set_bt_compare(bt_compare_fcn_type); /*deprecated*/
 	virtual int set_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
-	virtual int set_bt_maxkey(u_int32_t);
 	virtual int get_bt_minkey(u_int32_t *);
 	virtual int set_bt_minkey(u_int32_t);
 	virtual int set_bt_prefix(bt_prefix_fcn_type); /*deprecated*/
@@ -226,7 +228,7 @@ public:
 	virtual int get_encrypt_flags(u_int32_t *);
 	virtual int set_encrypt(const char *, u_int32_t);
 	virtual void set_errcall(
-			void (*)(const DbEnv *, const char *, const char *));
+	    void (*)(const DbEnv *, const char *, const char *));
 	virtual void get_errfile(FILE **);
 	virtual void set_errfile(FILE *);
 	virtual void get_errpfx(const char **);
@@ -392,11 +394,15 @@ public:
 	    const char *newname, u_int32_t flags);
 	virtual void err(int, const char *, ...);
 	virtual void errx(const char *, ...);
+	virtual int failchk(u_int32_t);
+	virtual int fileid_reset(const char *, u_int32_t);
 	virtual void *get_app_private() const;
 	virtual int get_home(const char **);
 	virtual int get_open_flags(u_int32_t *);
 	virtual int open(const char *, u_int32_t, int);
 	virtual int remove(const char *, u_int32_t);
+	virtual int stat_print(u_int32_t flags);
+
 	virtual int set_alloc(db_malloc_fcn_type, db_realloc_fcn_type,
 			      db_free_fcn_type);
 	virtual void set_app_private(void *);
@@ -405,6 +411,8 @@ public:
 	virtual int get_data_dirs(const char ***);
 	virtual int set_data_dir(const char *);
 	virtual int get_encrypt_flags(u_int32_t *);
+	virtual int set_intermediate_dir(int, u_int32_t);
+	virtual int set_isalive(int (*)(DbEnv *, pid_t, db_threadid_t));
 	virtual int set_encrypt(const char *, u_int32_t);
 	virtual void set_errcall(
 			void (*)(const DbEnv *, const char *, const char *));
@@ -414,11 +422,15 @@ public:
 	virtual void set_errpfx(const char *);
 	virtual int get_flags(u_int32_t *);
 	virtual int set_flags(u_int32_t, int);
+	virtual bool is_bigendian();
+	virtual int lsn_reset(const char *, u_int32_t);
 	virtual int set_feedback(void (*)(DbEnv *, int, int));
 	virtual int get_lg_bsize(u_int32_t *);
 	virtual int set_lg_bsize(u_int32_t);
 	virtual int get_lg_dir(const char **);
 	virtual int set_lg_dir(const char *);
+	virtual int get_lg_filemode(int *);
+	virtual int set_lg_filemode(int);
 	virtual int get_lg_max(u_int32_t *);
 	virtual int set_lg_max(u_int32_t);
 	virtual int get_lg_regionmax(u_int32_t *);
@@ -436,6 +448,10 @@ public:
 	virtual int set_lk_max_objects(u_int32_t);
 	virtual int get_mp_mmapsize(size_t *);
 	virtual int set_mp_mmapsize(size_t);
+	virtual int get_mp_max_openfd(int *);
+	virtual int set_mp_max_openfd(int);
+	virtual int get_mp_max_write(int *, int *);
+	virtual int set_mp_max_write(int, int);
 	virtual void set_msgcall(void (*)(const DbEnv *, const char *));
 	virtual void get_msgfile(FILE **);
 	virtual void set_msgfile(FILE *);
@@ -447,8 +463,6 @@ public:
 	virtual int set_timeout(db_timeout_t, u_int32_t);
 	virtual int get_tmp_dir(const char **);
 	virtual int set_tmp_dir(const char *);
-	virtual int get_tas_spins(u_int32_t *);
-	virtual int set_tas_spins(u_int32_t);
 	virtual int get_tx_max(u_int32_t *);
 	virtual int set_tx_max(u_int32_t);
 	virtual int set_app_dispatch(int (*)(DbEnv *,
@@ -510,6 +524,7 @@ public:
 	virtual int log_file(DbLsn *lsn, char *namep, size_t len);
 	virtual int log_flush(const DbLsn *lsn);
 	virtual int log_put(DbLsn *lsn, const Dbt *data, u_int32_t flags);
+	virtual int log_printf(DbTxn *, const char *, ...);
 
 	virtual int log_stat(DB_LOG_STAT **spp, u_int32_t flags);
 	virtual int log_stat_print(u_int32_t flags);
@@ -526,6 +541,23 @@ public:
 	virtual int memp_sync(DbLsn *lsn);
 	virtual int memp_trickle(int pct, int *nwrotep);
 
+	// Mpool functions
+	//
+	virtual int mutex_alloc(u_int32_t, db_mutex_t *);
+	virtual int mutex_free(db_mutex_t);
+	virtual int mutex_get_align(u_int32_t *);
+	virtual int mutex_get_increment(u_int32_t *);
+	virtual int mutex_get_max(u_int32_t *);
+	virtual int mutex_get_tas_spins(u_int32_t *);
+	virtual int mutex_lock(db_mutex_t);
+	virtual int mutex_set_align(u_int32_t);
+	virtual int mutex_set_increment(u_int32_t);
+	virtual int mutex_set_max(u_int32_t);
+	virtual int mutex_set_tas_spins(u_int32_t);
+	virtual int mutex_stat(DB_MUTEX_STAT **, u_int32_t);
+	virtual int mutex_stat_print(u_int32_t);
+	virtual int mutex_unlock(db_mutex_t);
+
 	// Transaction functions
 	//
 	virtual int txn_begin(DbTxn *pid, DbTxn **tid, u_int32_t flags);
@@ -539,6 +571,7 @@ public:
 	// Replication functions
 	//
 	virtual int rep_elect(int, int, int, u_int32_t, int *, u_int32_t);
+	virtual int rep_flush();
 	virtual int rep_process_message(Dbt *, Dbt *, int *, DbLsn *);
 	virtual int rep_start(Dbt *, u_int32_t);
 	virtual int rep_stat(DB_REP_STAT **statp, u_int32_t flags);
@@ -547,6 +580,13 @@ public:
 	virtual int set_rep_limit(u_int32_t, u_int32_t);
 	virtual int set_rep_transport(int, int (*)(DbEnv *,
 	    const Dbt *, const Dbt *, const DbLsn *, int, u_int32_t));
+	virtual int set_rep_request(u_int32_t, u_int32_t);
+	virtual int set_thread_count(u_int32_t);
+	virtual int set_thread_id(void (*)(DbEnv *, pid_t *, db_threadid_t *));
+	virtual int set_thread_id_string(char *(*)(DbEnv *, pid_t, db_threadid_t, char *));
+	virtual int rep_set_config(u_int32_t which, int onoff);
+	virtual int rep_get_config(u_int32_t which, int *onoffp);
+	virtual int rep_sync(u_int32_t flags);
 
 	// Conversion functions
 	//
@@ -581,15 +621,18 @@ public:
 				       db_recops op);
 	static void _paniccall_intercept(DB_ENV *env, int errval);
 	static void _feedback_intercept(DB_ENV *env, int opcode, int pct);
-	static int _rep_send_intercept(DB_ENV *env,
-				       const DBT *cntrl, const DBT *data,
-				       const DB_LSN *lsn, int id,
-				       u_int32_t flags);
+	static int _isalive_intercept(DB_ENV *env, pid_t pid,
+	    db_threadid_t thrid);
+	static int _rep_send_intercept(DB_ENV *env, const DBT *cntrl,
+	    const DBT *data, const DB_LSN *lsn, int id, u_int32_t flags);
 	static void _stream_error_function(const DB_ENV *env,
-					   const char *prefix,
-					   const char *message);
+	    const char *prefix, const char *message);
 	static void _stream_message_function(const DB_ENV *env,
-					     const char *message);
+	    const char *message);
+	static void _thread_id_intercept(DB_ENV *env, pid_t *pidp,
+	    db_threadid_t *thridp);
+	static char *_thread_id_string_intercept(DB_ENV *env, pid_t pid,
+	    db_threadid_t thrid, char *buf);
 
 private:
 	void cleanup();
@@ -611,16 +654,16 @@ private:
 	__DB_STD(ostream) *message_stream_;
 
 	int (*app_dispatch_callback_)(DbEnv *, Dbt *, DbLsn *, db_recops);
+	int (*isalive_callback_)(DbEnv *, pid_t, db_threadid_t);
 	void (*error_callback_)(const DbEnv *, const char *, const char *);
 	void (*feedback_callback_)(DbEnv *, int, int);
 	void (*message_callback_)(const DbEnv *, const char *);
 	void (*paniccall_callback_)(DbEnv *, int);
-	int (*pgin_callback_)(DbEnv *dbenv, db_pgno_t pgno,
-			      void *pgaddr, Dbt *pgcookie);
-	int (*pgout_callback_)(DbEnv *dbenv, db_pgno_t pgno,
-			       void *pgaddr, Dbt *pgcookie);
-	int (*rep_send_callback_)(DbEnv *,
-	    const Dbt *, const Dbt *, const DbLsn *, int, u_int32_t);
+	int (*rep_send_callback_)(DbEnv *, const Dbt *, const Dbt *,
+	    const DbLsn *, int, u_int32_t);
+	void (*thread_id_callback_)(DbEnv *, pid_t *, db_threadid_t *);
+	char *(*thread_id_string_callback_)(DbEnv *, pid_t, db_threadid_t,
+	    char *);
 };
 
 //
@@ -768,7 +811,7 @@ public:
 	int remove(DbTxn *txnid, u_int32_t flags);
 	int stat(DB_SEQUENCE_STAT **sp, u_int32_t flags);
 	int stat_print(u_int32_t flags);
-	
+
 	int get(DbTxn *txnid, int32_t delta, db_seq_t *retp, u_int32_t flags);
 	int get_cachesize(int32_t *sizep);
 	int set_cachesize(int32_t size);
@@ -825,7 +868,9 @@ public:
 	int commit(u_int32_t flags);
 	int discard(u_int32_t flags);
 	u_int32_t id();
+	int get_name(const char **namep);
 	int prepare(u_int8_t *gid);
+	int set_name(const char *name);
 	int set_timeout(db_timeout_t timeout, u_int32_t flags);
 
 	virtual DB_TXN *get_DB_TXN()
@@ -1070,6 +1115,20 @@ public:
 	Dbt *get_dbt() const;
 private:
 	Dbt *dbt_;
+};
+
+//
+// A specific sort of exception that occurs when a change of replication
+// master requires that all handles be re-opened.
+//
+class _exported DbRepHandleDeadException : public DbException
+{
+public:
+	virtual ~DbRepHandleDeadException() throw();
+	DbRepHandleDeadException(const char *description);
+
+	DbRepHandleDeadException(const DbRepHandleDeadException &);
+	DbRepHandleDeadException &operator = (const DbRepHandleDeadException &);
 };
 
 //

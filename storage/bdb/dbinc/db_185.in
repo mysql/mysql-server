@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db_185.in,v 11.11 2004/01/28 03:36:01 bostic Exp $
+ * $Id: db_185.in,v 12.2 2005/06/16 20:21:45 bostic Exp $
  */
 
 #ifndef _DB_185_H_
@@ -72,7 +72,7 @@
  * XXX
  * SGI/IRIX already has a pgno_t.
  */
-#ifdef	sgi
+#ifdef	__sgi
 #define	pgno_t	db_pgno_t
 #endif
 

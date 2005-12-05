@@ -1,4 +1,4 @@
-# $Id: rectype.awk,v 11.4 2004/04/19 09:36:58 bostic Exp $
+# $Id: rectype.awk,v 12.0 2004/11/17 03:43:25 bostic Exp $
 #
 # Print out a range of the log.
 # Command line should set RECTYPE to a comma separated list

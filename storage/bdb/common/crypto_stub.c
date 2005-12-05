@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: crypto_stub.c,v 1.4 2004/01/28 03:35:52 bostic Exp $
+ * $Id: crypto_stub.c,v 12.2 2005/07/20 16:50:55 bostic Exp $
  */
 
 #include "db_config.h"
@@ -32,9 +32,9 @@ __crypto_region_init(dbenv)
 
 	infop = dbenv->reginfo;
 	renv = infop->primary;
-	MUTEX_LOCK(dbenv, &renv->mutex);
+	MUTEX_LOCK(dbenv, renv->mtx_regenv);
 	ret = !(renv->cipher_off == INVALID_ROFF);
-	MUTEX_UNLOCK(dbenv, &renv->mutex);
+	MUTEX_UNLOCK(dbenv, renv->mtx_regenv);
 
 	if (ret == 0)
 		return (0);

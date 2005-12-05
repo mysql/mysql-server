@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_perm,v 1.31 2004/10/05 18:56:58 bostic Exp $
+#	$Id: s_perm,v 12.0 2004/11/17 03:43:35 bostic Exp $
 
 d=..
 echo 'Updating Berkeley DB source tree permissions...'
@@ -39,7 +39,7 @@ run dist/s_vxworks 555
 run dist/s_win32 555
 run dist/s_win32_dsp 555
 run dist/vx_buildcd 555
-#run mod_db4/configure 555
+run mod_db4/configure 555
 
 run perl/BerkeleyDB/dbinfo 555
 run perl/BerkeleyDB/mkpod 555

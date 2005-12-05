@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2004
+ * Copyright (c) 2000-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_vrfyutil.c,v 11.40 2004/10/11 18:47:50 bostic Exp $
+ * $Id: db_vrfyutil.c,v 12.5 2005/06/16 20:21:15 bostic Exp $
  */
 
 #include "db_config.h"
@@ -102,13 +102,26 @@ __db_vrfy_dbinfo_destroy(dbenv, vdp)
 	DB_ENV *dbenv;
 	VRFY_DBINFO *vdp;
 {
-	VRFY_CHILDINFO *c, *d;
+	VRFY_CHILDINFO *c;
 	int t_ret, ret;
 
 	ret = 0;
 
-	for (c = LIST_FIRST(&vdp->subdbs); c != NULL; c = d) {
-		d = LIST_NEXT(c, links);
+	/*
+	 * Discard active page structures.  Ideally there wouldn't be any,
+	 * but in some error cases we may not have cleared them all out.
+	 */
+	while (LIST_FIRST(&vdp->activepips) != NULL)
+		if ((t_ret = __db_vrfy_putpageinfo(
+		    dbenv, vdp, LIST_FIRST(&vdp->activepips))) != 0) {
+			if (ret == 0)
+				ret = t_ret;
+			break;
+		}
+
+	/* Discard subdatabase list structures. */
+	while ((c = LIST_FIRST(&vdp->subdbs)) != NULL) {
+		LIST_REMOVE(c, links);
 		__os_free(NULL, c);
 	}
 
@@ -120,8 +133,6 @@ __db_vrfy_dbinfo_destroy(dbenv, vdp)
 
 	if ((t_ret = __db_close(vdp->pgset, NULL, 0)) != 0 && ret == 0)
 		ret = t_ret;
-
-	DB_ASSERT(LIST_FIRST(&vdp->activepips) == NULL);
 
 	if (vdp->extents != NULL)
 		__os_free(dbenv, vdp->extents);
@@ -184,7 +195,6 @@ __db_vrfy_getpageinfo(vdp, pgno, pipp)
 		/* Found it. */
 		DB_ASSERT(data.size == sizeof(VRFY_PAGEINFO));
 		pip = data.data;
-		DB_ASSERT(pip->pi_refcount == 0);
 		LIST_INSERT_HEAD(&vdp->activepips, pip, links);
 		goto found;
 	} else if (ret != DB_NOTFOUND)	/* Something nasty happened. */
@@ -198,8 +208,6 @@ __db_vrfy_getpageinfo(vdp, pgno, pipp)
 found:	pip->pi_refcount++;
 
 	*pipp = pip;
-
-	DB_ASSERT(pip->pi_refcount > 0);
 	return (0);
 }
 
@@ -220,11 +228,6 @@ __db_vrfy_putpageinfo(dbenv, vdp, pip)
 	DB *pgdbp;
 	VRFY_PAGEINFO *p;
 	int ret;
-#ifdef DIAGNOSTIC
-	int found;
-
-	found = 0;
-#endif
 
 	if (--pip->pi_refcount > 0)
 		return (0);
@@ -241,22 +244,14 @@ __db_vrfy_putpageinfo(dbenv, vdp, pip)
 	if ((ret = __db_put(pgdbp, NULL, &key, &data, 0)) != 0)
 		return (ret);
 
-	for (p = LIST_FIRST(&vdp->activepips); p != NULL;
-	    p = LIST_NEXT(p, links))
-		if (p == pip) {
-#ifdef DIAGNOSTIC
-			found++;
-#endif
-			DB_ASSERT(p->pi_refcount == 0);
-			LIST_REMOVE(p, links);
+	for (p =
+	    LIST_FIRST(&vdp->activepips); p != NULL; p = LIST_NEXT(p, links))
+		if (p == pip)
 			break;
-		}
-#ifdef DIAGNOSTIC
-	DB_ASSERT(found == 1);
-#endif
+	if (p != NULL)
+		LIST_REMOVE(p, links);
 
-	DB_ASSERT(pip->pi_refcount == 0);
-	__os_ufree(dbenv, pip);
+	__os_ufree(dbenv, p);
 	return (0);
 }
 
@@ -595,11 +590,11 @@ __db_vrfy_ccclose(dbc)
  *	Constructor for VRFY_PAGEINFO;  allocates and initializes.
  */
 static int
-__db_vrfy_pageinfo_create(dbenv, pgipp)
+__db_vrfy_pageinfo_create(dbenv, pipp)
 	DB_ENV *dbenv;
-	VRFY_PAGEINFO **pgipp;
+	VRFY_PAGEINFO **pipp;
 {
-	VRFY_PAGEINFO *pgip;
+	VRFY_PAGEINFO *pip;
 	int ret;
 
 	/*
@@ -609,13 +604,11 @@ __db_vrfy_pageinfo_create(dbenv, pgipp)
 	 * used, and so we always allocate with __os_umalloc so we can free
 	 * with __os_ufree.
 	 */
-	if ((ret = __os_umalloc(dbenv, sizeof(VRFY_PAGEINFO), &pgip)) != 0)
+	if ((ret = __os_umalloc(dbenv, sizeof(VRFY_PAGEINFO), &pip)) != 0)
 		return (ret);
-	memset(pgip, 0, sizeof(VRFY_PAGEINFO));
+	memset(pip, 0, sizeof(VRFY_PAGEINFO));
 
-	DB_ASSERT(pgip->pi_refcount == 0);
-
-	*pgipp = pgip;
+	*pipp = pip;
 	return (0);
 }
 
@@ -668,16 +661,17 @@ __db_salvage_destroy(vdp)
  *	in this search, as well as the page we're returning.
  *
  * PUBLIC: int __db_salvage_getnext
- * PUBLIC:     __P((VRFY_DBINFO *, db_pgno_t *, u_int32_t *));
+ * PUBLIC:     __P((VRFY_DBINFO *, DBC **, db_pgno_t *, u_int32_t *, int));
  */
 int
-__db_salvage_getnext(vdp, pgnop, pgtypep)
+__db_salvage_getnext(vdp, dbcp, pgnop, pgtypep, skip_overflow)
 	VRFY_DBINFO *vdp;
+	DBC **dbcp;
 	db_pgno_t *pgnop;
 	u_int32_t *pgtypep;
+	int skip_overflow;
 {
 	DB *dbp;
-	DBC *dbc;
 	DBT key, data;
 	int ret;
 	u_int32_t pgtype;
@@ -687,30 +681,29 @@ __db_salvage_getnext(vdp, pgnop, pgtypep)
 	memset(&key, 0, sizeof(DBT));
 	memset(&data, 0, sizeof(DBT));
 
-	if ((ret = __db_cursor(dbp, NULL, &dbc, 0)) != 0)
+	if (*dbcp == NULL &&
+	    (ret = __db_cursor(dbp, NULL, dbcp, 0)) != 0)
 		return (ret);
 
-	while ((ret = __db_c_get(dbc, &key, &data, DB_NEXT)) == 0) {
+	while ((ret = __db_c_get(*dbcp, &key, &data, DB_NEXT)) == 0) {
 		DB_ASSERT(data.size == sizeof(u_int32_t));
 		memcpy(&pgtype, data.data, sizeof(pgtype));
 
-		if ((ret = __db_c_del(dbc, 0)) != 0)
-			goto err;
-		if (pgtype != SALVAGE_IGNORE)
-			goto found;
+		if (skip_overflow && pgtype == SALVAGE_OVERFLOW)
+			continue;
+
+		if ((ret = __db_c_del(*dbcp, 0)) != 0)
+			return (ret);
+		if (pgtype != SALVAGE_IGNORE) {
+			DB_ASSERT(key.size == sizeof(db_pgno_t));
+			DB_ASSERT(data.size == sizeof(u_int32_t));
+
+			*pgnop = *(db_pgno_t *)key.data;
+			*pgtypep = *(u_int32_t *)data.data;
+			break;
+		}
 	}
 
-	/* No more entries--ret probably equals DB_NOTFOUND. */
-
-	if (0) {
-found:		DB_ASSERT(key.size == sizeof(db_pgno_t));
-		DB_ASSERT(data.size == sizeof(u_int32_t));
-
-		*pgnop = *(db_pgno_t *)key.data;
-		*pgtypep = *(u_int32_t *)data.data;
-	}
-
-err:	(void)__db_c_close(dbc);
 	return (ret);
 }
 
@@ -753,8 +746,7 @@ __db_salvage_isdone(vdp, pgno)
 	 * If it's there and is marked anything else, that's fine--we
 	 * want to mark it done.
 	 */
-	ret = __db_get(dbp, NULL, &key, &data, 0);
-	if (ret == 0) {
+	if ((ret = __db_get(dbp, NULL, &key, &data, 0)) == 0) {
 		/*
 		 * The key's already here.  Check and see if it's already
 		 * marked done.  If it is, return DB_KEYEXIST.  If it's not,
@@ -887,11 +879,12 @@ __db_vrfy_prdbt(dbtp, checkprint, prefix, handle, callback, is_recno, vdp)
 		 * Check and clear the SALVAGE_PRINTHEADER flag;  if
 		 * it was set, print a subdatabase header.
 		 */
-		if (F_ISSET(vdp, SALVAGE_PRINTHEADER))
+		if (F_ISSET(vdp, SALVAGE_PRINTHEADER)) {
 			(void)__db_prheader(
 			    NULL, "__OTHER__", 0, 0, handle, callback, vdp, 0);
-		F_CLR(vdp, SALVAGE_PRINTHEADER);
-		F_SET(vdp, SALVAGE_PRINTFOOTER);
+			F_CLR(vdp, SALVAGE_PRINTHEADER);
+			F_SET(vdp, SALVAGE_PRINTFOOTER);
+		}
 
 		/*
 		 * Even if the printable flag wasn't set by our immediate

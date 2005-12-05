@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: bt_recno.c,v 11.117 2004/03/28 17:01:01 bostic Exp $
+ * $Id: bt_recno.c,v 12.6 2005/08/08 14:27:59 bostic Exp $
  */
 
 #include "db_config.h"
@@ -203,7 +203,6 @@ __ram_c_del(dbc)
 	DB *dbp;
 	DB_LSN lsn;
 	DBT hdr, data;
-	EPG *epg;
 	int exact, ret, stack, t_ret;
 
 	dbp = dbc->dbp;
@@ -281,20 +280,10 @@ __ram_c_del(dbc)
 		 */
 		if (NUM_ENT(cp->page) == 0 && PGNO(cp->page) != cp->root) {
 			/*
-			 * We already have a locked stack of pages.  However,
-			 * there are likely entries in the stack that aren't
-			 * going to be emptied by removing the single reference
-			 * to the emptied page (or one of its parents).
-			 */
-			for (epg = cp->csp; epg >= cp->sp; --epg)
-				if (NUM_ENT(epg->page) > 1)
-					break;
-
-			/*
 			 * We want to delete a single item out of the last page
 			 * that we're not deleting.
 			 */
-			ret = __bam_dpages(dbc, epg);
+			ret = __bam_dpages(dbc, 0, 0);
 
 			/*
 			 * Regardless of the return from __bam_dpages, it will
@@ -764,7 +753,7 @@ __ram_ca(dbc_arg, op)
 	 */
 	DB_ASSERT(F_ISSET(cp_arg, C_RENUMBER));
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	/*
 	 * Adjust the cursors.  See the comment in __bam_ca_delete().
 	 */
@@ -780,7 +769,7 @@ __ram_ca(dbc_arg, op)
 		for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 		    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 		    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-			MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+			MUTEX_LOCK(dbenv, dbp->mutex);
 			for (dbc = TAILQ_FIRST(&ldbp->active_queue);
 			    dbc != NULL; dbc = TAILQ_NEXT(dbc, links)) {
 				cp = (BTREE_CURSOR *)dbc->internal;
@@ -789,7 +778,7 @@ __ram_ca(dbc_arg, op)
 				    order <= cp->order)
 					order = cp->order + 1;
 			}
-			MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+			MUTEX_UNLOCK(dbenv, dbp->mutex);
 		}
 	} else
 		order = INVALID_ORDER;
@@ -798,7 +787,7 @@ __ram_ca(dbc_arg, op)
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (dbc = TAILQ_FIRST(&ldbp->active_queue);
 		    dbc != NULL; dbc = TAILQ_NEXT(dbc, links)) {
 			cp = (BTREE_CURSOR *)dbc->internal;
@@ -868,9 +857,9 @@ iafter:				if (!adjusted && C_LESSTHAN(cp_arg, cp)) {
 				break;
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbp->dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbp->dbenv, dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	return (found);
 }
@@ -1037,6 +1026,18 @@ __ram_writeback(dbp)
 		return (0);
 	}
 
+	/*
+	 * We step through the records, writing each one out.  Use the record
+	 * number and the dbp->get() function, instead of a cursor, so we find
+	 * and write out "deleted" or non-existent records.  The DB handle may
+	 * be threaded, so allocate memory as we go.
+	 */
+	memset(&key, 0, sizeof(key));
+	key.size = sizeof(db_recno_t);
+	key.data = &keyno;
+	memset(&data, 0, sizeof(data));
+	F_SET(&data, DB_DBT_REALLOC);
+
 	/* Allocate a cursor. */
 	if ((ret = __db_cursor(dbp, NULL, &dbc, 0)) != 0)
 		return (ret);
@@ -1064,7 +1065,7 @@ __ram_writeback(dbp)
 	 */
 	if ((ret =
 	    __ram_update(dbc, DB_MAX_RECORDS, 0)) != 0 && ret != DB_NOTFOUND)
-		return (ret);
+		goto err;
 
 	/*
 	 * Close any existing file handle and re-open the file, truncating it.
@@ -1081,18 +1082,6 @@ __ram_writeback(dbp)
 		__db_err(dbenv, "%s: %s", t->re_source, db_strerror(ret));
 		goto err;
 	}
-
-	/*
-	 * We step through the records, writing each one out.  Use the record
-	 * number and the dbp->get() function, instead of a cursor, so we find
-	 * and write out "deleted" or non-existent records.  The DB handle may
-	 * be threaded, so allocate memory as we go.
-	 */
-	memset(&key, 0, sizeof(key));
-	key.size = sizeof(db_recno_t);
-	key.data = &keyno;
-	memset(&data, 0, sizeof(data));
-	F_SET(&data, DB_DBT_REALLOC);
 
 	/*
 	 * We'll need the delimiter if we're doing variable-length records,
