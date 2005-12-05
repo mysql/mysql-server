@@ -102,7 +102,7 @@ commit;
 sync_with_master;
 select * from t1;
 select * from t2;
---replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_column 1 # 8 # 9 # 11 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 show slave status;
 
