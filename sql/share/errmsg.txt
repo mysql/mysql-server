@@ -5730,7 +5730,7 @@ ER_EVENT_DOES_NOT_EXIST
 ER_EVENT_CANT_ALTER
         eng "Failed to alter event %s"
 ER_EVENT_DROP_FAILED
-        eng "Failed to DROP %s %s"
+        eng "Failed to drop %s"
 ER_EVENT_INTERVAL_NOT_POSITIVE
         eng "INTERVAL must be positive"
 ER_EVENT_ENDS_BEFORE_STARTS
