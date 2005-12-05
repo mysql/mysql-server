@@ -249,7 +249,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-zlib-dir=bundled \
 	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
@@ -351,8 +350,9 @@ BuildMySQL "--disable-shared \
 %if %{STATIC_BUILD}
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
-		--with-zlib-dir=bundled \
 		$USE_OTHER_LIBC_DIR \
+%else
+		--with-zlib-dir=bundled \
 %endif
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
@@ -689,6 +689,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
+
+- Avoid using the "bundled" zlib on "shared" builds: 
+  As it is not installed (on the build system), this gives dependency 
+  problems with "libtool" causing the build to fail.
+
 * Tue Nov 22 2005 Joerg Bruehe <joerg@mysql.com>
 
 - Extend the file existence check for "init.d/mysql" on un-install
