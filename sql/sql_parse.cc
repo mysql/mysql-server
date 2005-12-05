@@ -3675,9 +3675,6 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   {
-    if (check_global_access(thd, EVENT_ACL))
-      break;
-
     DBUG_ASSERT(lex->et);
     if (! lex->et->m_db.str)
     {
@@ -3686,7 +3683,9 @@ end_with_restore_list:
       lex->et= 0;
       goto error;
     }
-    
+    if (check_access(thd, EVENT_ACL, lex->et->m_db.str, 0, 0, 0,
+                     is_schema_db(lex->et->m_db.str)))
+      break;
     int result;
     uint create_options= lex->create_info.options;
     res= (result= evex_create_event(thd, lex->et, create_options));
@@ -3716,9 +3715,6 @@ end_with_restore_list:
   }
   case SQLCOM_ALTER_EVENT:
   {
-    if (check_global_access(thd, EVENT_ACL))
-      break;
-
     DBUG_ASSERT(lex->et);
     if (! lex->et->m_db.str)
     {
@@ -3727,6 +3723,9 @@ end_with_restore_list:
       lex->et= 0;
       goto error;
     }
+    if (check_access(thd, EVENT_ACL, lex->et->m_db.str, 0, 0, 0,
+                     is_schema_db(lex->et->m_db.str)))
+      break;
 
     int result;
     res= (result= evex_update_event(thd, lex->spname, lex->et));
@@ -3735,10 +3734,10 @@ end_with_restore_list:
       send_ok(thd, 1);
       break;
     case EVEX_KEY_NOT_FOUND:
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_qname.str);
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_name.str);
       break;
     default:
-      my_error(ER_EVENT_CANT_ALTER, MYF(0), lex->et->m_qname.str);
+      my_error(ER_EVENT_CANT_ALTER, MYF(0), lex->et->m_name.str);
       break;
     }
     delete lex->et;
@@ -3754,9 +3753,6 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_EVENT:
   {
-    if (check_global_access(thd, EVENT_ACL))
-      break;
-
     DBUG_ASSERT(lex->et);
     if (! lex->et->m_db.str)
     {
@@ -3765,6 +3761,9 @@ end_with_restore_list:
       lex->et= 0;
       goto error;
     }
+    if (check_access(thd, EVENT_ACL, lex->et->m_db.str, 0, 0, 0,
+                     is_schema_db(lex->et->m_db.str)))
+      break;
 
     int result;
     res= (result= evex_drop_event(thd, lex->et, lex->drop_if_exists));
@@ -3773,10 +3772,10 @@ end_with_restore_list:
       send_ok(thd, 1);
       break;
     case EVEX_KEY_NOT_FOUND:
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_qname.str);
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->m_name.str);
       break;
     default:
-      my_error(ER_EVENT_DROP_FAILED, MYF(0), lex->et->m_qname.str);
+      my_error(ER_EVENT_DROP_FAILED, MYF(0), lex->et->m_name.str);
       break;
     }
     delete lex->et;
@@ -3786,7 +3785,8 @@ end_with_restore_list:
   }
   case SQLCOM_SHOW_CREATE_EVENT:
   {
-    if (check_global_access(thd, EVENT_ACL))
+    if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
+                     is_schema_db(lex->spname->m_db.str)))
       break;
 
     if (lex->spname->m_name.length > NAME_LEN)
@@ -3794,6 +3794,7 @@ end_with_restore_list:
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
       goto error;
     }
+    /* TODO : Implement it */
     send_ok(thd, 1);
     break;
   }

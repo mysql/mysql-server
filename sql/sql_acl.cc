@@ -352,6 +352,14 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       if (table->s->fields <= 36 && (user.access & GRANT_ACL))
         user.access|= CREATE_USER_ACL;
 
+
+      /*
+        if it is pre 5.1.4 privilege table then map CREATE privilege on
+        CREATE|ALTER|DROP|EXECUTE EVENT
+      */
+      if (table->s->fields <= 37 && (user.access & CREATE_ACL))
+        user.access|= EVENT_ACL;
+
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
