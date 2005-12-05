@@ -1,16 +1,18 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_remove.c,v 11.219 2004/09/16 17:55:17 margo Exp $
+ * $Id: db_remove.c,v 12.16 2005/10/27 01:25:53 mjc Exp $
  */
 
 #include "db_config.h"
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
+
+#include <string.h>
 #endif
 
 #include "db_int.h"
@@ -20,53 +22,68 @@
 #include "dbinc/hash.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
+#include "dbinc/mp.h"
+#include "dbinc/txn.h"
 
-static int __db_dbtxn_remove __P((DB *, DB_TXN *, const char *));
+static int __db_dbtxn_remove __P((DB *, DB_TXN *, const char *, const char *));
 static int __db_subdb_remove __P((DB *, DB_TXN *, const char *, const char *));
 
 /*
- * __dbenv_dbremove_pp
+ * __env_dbremove_pp
  *	DB_ENV->dbremove pre/post processing.
  *
- * PUBLIC: int __dbenv_dbremove_pp __P((DB_ENV *,
+ * PUBLIC: int __env_dbremove_pp __P((DB_ENV *,
  * PUBLIC:     DB_TXN *, const char *, const char *, u_int32_t));
  */
 int
-__dbenv_dbremove_pp(dbenv, txn, name, subdb, flags)
+__env_dbremove_pp(dbenv, txn, name, subdb, flags)
 	DB_ENV *dbenv;
 	DB_TXN *txn;
 	const char *name, *subdb;
 	u_int32_t flags;
 {
 	DB *dbp;
+	DB_THREAD_INFO *ip;
 	int handle_check, ret, t_ret, txn_local;
+
+	dbp = NULL;
+	txn_local = 0;
 
 	PANIC_CHECK(dbenv);
 	ENV_ILLEGAL_BEFORE_OPEN(dbenv, "DB_ENV->dbremove");
 
-	/* Validate arguments. */
+	/*
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
+	 */
 	if ((ret = __db_fchk(dbenv, "DB->remove", flags, DB_AUTO_COMMIT)) != 0)
 		return (ret);
+
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __env_rep_enter(dbenv, 1)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	/*
 	 * Create local transaction as necessary, check for consistent
 	 * transaction usage.
 	 */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
+	if (IS_ENV_AUTO_COMMIT(dbenv, txn, flags)) {
 		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-			return (ret);
+			goto err;
 		txn_local = 1;
-	} else {
-		if (txn != NULL && !TXN_ON(dbenv))
-			return (__db_not_txn_env(dbenv));
-		txn_local = 0;
-	}
+	} else
+		if (txn != NULL && !TXN_ON(dbenv)) {
+			ret = __db_not_txn_env(dbenv);
+			goto err;
+		}
+	LF_CLR(DB_AUTO_COMMIT);
 
 	if ((ret = db_create(&dbp, dbenv, 0)) != 0)
-		goto err;
-
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 1, txn != NULL)) != 0)
 		goto err;
 
 	ret = __db_remove_int(dbp, txn, name, subdb, flags);
@@ -90,19 +107,27 @@ __dbenv_dbremove_pp(dbenv, txn, name, subdb, flags)
 		 dbp->lid = DB_LOCK_INVALIDID;
 	}
 
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
-err:	if (txn_local)
-		ret = __db_txn_auto_resolve(dbenv, txn, 0, ret);
+err:	if (txn_local && (t_ret =
+	    __db_txn_auto_resolve(dbenv, txn, 0, ret)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/*
 	 * We never opened this dbp for real, so don't include a transaction
 	 * handle, and use NOSYNC to avoid calling into mpool.
+	 *
+	 * !!!
+	 * Note we're reversing the order of operations: we started the txn and
+	 * then opened the DB handle; we're resolving the txn and then closing
+	 * closing the DB handle -- it's safer.
 	 */
-	if ((t_ret = __db_close(dbp, NULL, DB_NOSYNC)) != 0 && ret == 0)
+	if (dbp != NULL &&
+	    (t_ret = __db_close(dbp, NULL, DB_NOSYNC)) != 0 && ret == 0)
 		ret = t_ret;
 
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -120,7 +145,8 @@ __db_remove_pp(dbp, name, subdb, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
@@ -149,15 +175,21 @@ __db_remove_pp(dbp, name, subdb, flags)
 	if ((ret = __db_check_txn(dbp, NULL, DB_LOCK_INVALIDID, 0)) != 0)
 		return (ret);
 
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 1, 0)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
+
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 1, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	/* Remove the file. */
 	ret = __db_remove(dbp, NULL, name, subdb, flags);
 
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -206,15 +238,23 @@ __db_remove_int(dbp, txn, name, subdb, flags)
 	dbenv = dbp->dbenv;
 	real_name = tmpname = NULL;
 
-	/* Handle subdatabase removes separately. */
-	if (subdb != NULL) {
+	if (name == NULL && subdb == NULL) {
+		__db_err(dbenv, "Remove on temporary files invalid");
+		ret = EINVAL;
+		goto err;
+	}
+
+	if (name == NULL) {
+		MAKE_INMEM(dbp);
+		real_name = (char *)subdb;
+	} else if (subdb != NULL) {
 		ret = __db_subdb_remove(dbp, txn, name, subdb);
 		goto err;
 	}
 
 	/* Handle transactional file removes separately. */
 	if (txn != NULL) {
-		ret = __db_dbtxn_remove(dbp, txn, name);
+		ret = __db_dbtxn_remove(dbp, txn, name, subdb);
 		goto err;
 	}
 
@@ -223,15 +263,16 @@ __db_remove_int(dbp, txn, name, subdb, flags)
 	 *
 	 * Find the real name of the file.
 	 */
-	if ((ret = __db_appname(dbenv,
-	    DB_APP_DATA, name, 0, NULL, &real_name)) != 0)
+	if (!F_ISSET(dbp, DB_AM_INMEM) && (ret =
+	    __db_appname(dbenv, DB_APP_DATA, name, 0, NULL, &real_name)) != 0)
 		goto err;
 
 	/*
-	 * If force is set, remove the temporary file.  Ignore errors because
-	 * the backup file might not exist.
+	 * If this is a file and force is set, remove the temporary file, which
+	 * may have been left around.  Ignore errors because the temporary file
+	 * might not exist.
 	 */
-	if (LF_ISSET(DB_FORCE) &&
+	if (!F_ISSET(dbp, DB_AM_INMEM) && LF_ISSET(DB_FORCE) &&
 	    (ret = __db_backup_name(dbenv, real_name, NULL, &tmpname)) == 0)
 		(void)__os_unlink(dbenv, tmpname);
 
@@ -242,15 +283,89 @@ __db_remove_int(dbp, txn, name, subdb, flags)
 	    (ret = dbp->db_am_remove(dbp, NULL, name, subdb)) != 0)
 		goto err;
 
-	ret = __fop_remove(dbenv, NULL, dbp->fileid, name, DB_APP_DATA,
+	ret = F_ISSET(dbp, DB_AM_INMEM) ?
+	    __db_inmem_remove(dbp, NULL, real_name) :
+	    __fop_remove(dbenv, NULL, dbp->fileid, name, DB_APP_DATA,
 	    F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_LOG_NOT_DURABLE : 0);
 
-err:	if (real_name != NULL)
+err:	if (!F_ISSET(dbp, DB_AM_INMEM) && real_name != NULL)
 		__os_free(dbenv, real_name);
 	if (tmpname != NULL)
 		__os_free(dbenv, tmpname);
 
 	return (ret);
+}
+
+/*
+ * __db_inmem_remove --
+ *	Removal of a named in-memory database.
+ * PUBLIC: int __db_inmem_remove __P((DB *, DB_TXN *, const char *));
+ */
+int
+__db_inmem_remove(dbp, txn, name)
+	DB *dbp;
+	DB_TXN *txn;
+	const char *name;
+{
+	DB_ENV *dbenv;
+	DB_LSN lsn;
+	DBT fid_dbt, name_dbt;
+	u_int32_t locker;
+	int ret;
+
+	dbenv = dbp->dbenv;
+	locker = DB_LOCK_INVALIDID;
+
+	DB_ASSERT(name != NULL);
+
+	/* This had better exist if we are trying to do a remove. */
+	(void)__memp_set_flags(dbp->mpf, DB_MPOOL_NOFILE, 1);
+	if ((ret = __memp_fopen(dbp->mpf, NULL, name, 0, 0, 0)) != 0)
+		return (ret);
+	if ((ret = __memp_get_fileid(dbp->mpf, dbp->fileid)) != 0)
+		goto err;
+	dbp->preserve_fid = 1;
+
+	if (LOCKING_ON(dbenv)) {
+		if (dbp->lid == DB_LOCK_INVALIDID &&
+		    (ret = __lock_id(dbenv, &dbp->lid, NULL)) != 0)
+			goto err;
+		locker = txn == NULL ? dbp->lid : txn->txnid;
+	}
+
+	/*
+	 * In a transactional environment, we'll play the same game
+	 * that we play for databases in the file system -- create a
+	 * temporary database and put it in with the current name
+	 * and then rename this one to another name.  We'll then use
+	 * a commit-time event to remove the entry.
+	 */
+
+	if ((ret = __fop_lock_handle(dbenv,
+	    dbp, locker, DB_LOCK_WRITE, NULL, 0)) != 0)
+		goto err;
+
+	if (LOGGING_ON(dbenv)) {
+		memset(&fid_dbt, 0, sizeof(fid_dbt));
+		fid_dbt.data = dbp->fileid;
+		fid_dbt.size = DB_FILE_ID_LEN;
+		memset(&name_dbt, 0, sizeof(name_dbt));
+		name_dbt.data = (void *)name;
+		name_dbt.size = (u_int32_t)strlen(name) + 1;
+
+		if (txn != NULL && (ret =
+		    __txn_remevent(dbenv, txn, name, dbp->fileid, 1)) != 0)
+			goto err;
+
+		if ((ret = __crdel_inmem_remove_log(dbenv,
+		    txn, &lsn, 0, &name_dbt, &fid_dbt)) != 0)
+			goto err;
+	}
+
+	if (txn == NULL)
+		ret = __memp_nameop(dbenv, dbp->fileid, NULL, name, NULL, 1);
+
+err:	return (ret);
 }
 
 /*
@@ -323,10 +438,10 @@ err:
 }
 
 static int
-__db_dbtxn_remove(dbp, txn, name)
+__db_dbtxn_remove(dbp, txn, name, subdb)
 	DB *dbp;
 	DB_TXN *txn;
-	const char *name;
+	const char *name, *subdb;
 {
 	DB_ENV *dbenv;
 	int ret;
@@ -336,27 +451,32 @@ __db_dbtxn_remove(dbp, txn, name)
 	tmpname = NULL;
 
 	/*
-	 * This is a transactional rename, so we have to keep the name
+	 * This is a transactional remove, so we have to keep the name
 	 * of the file locked until the transaction commits.  As a result,
 	 * we implement remove by renaming the file to some other name
 	 * (which creates a dummy named file as a placeholder for the
 	 * file being rename/dremoved) and then deleting that file as
 	 * a delayed remove at commit.
 	 */
-	if ((ret = __db_backup_name(dbenv, name, txn, &tmpname)) != 0)
+	if ((ret = __db_backup_name(dbenv,
+	    F_ISSET(dbp, DB_AM_INMEM) ? subdb : name, txn, &tmpname)) != 0)
 		return (ret);
 
 	DB_TEST_RECOVERY(dbp, DB_TEST_PREDESTROY, ret, name);
 
-	if ((ret = __db_rename_int(dbp, txn, name, NULL, tmpname)) != 0)
+	if ((ret = __db_rename_int(dbp, txn, name, subdb, tmpname)) != 0)
 		goto err;
 
-	/* The internal removes will also translate into delayed removes. */
+	/*
+	 * The internal removes will also translate into delayed removes.
+	 */
 	if (dbp->db_am_remove != NULL &&
 	    (ret = dbp->db_am_remove(dbp, txn, tmpname, NULL)) != 0)
 		goto err;
 
-	ret = __fop_remove(dbenv, txn, dbp->fileid, tmpname, DB_APP_DATA,
+	ret = F_ISSET(dbp, DB_AM_INMEM) ?
+	     __db_inmem_remove(dbp, txn, tmpname) :
+	    __fop_remove(dbenv, txn, dbp->fileid, tmpname, DB_APP_DATA,
 	    F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_LOG_NOT_DURABLE : 0);
 
 	DB_TEST_RECOVERY(dbp, DB_TEST_POSTDESTROY, ret, name);

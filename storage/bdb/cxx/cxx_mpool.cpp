@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_mpool.cpp,v 11.28 2004/01/28 03:35:56 bostic Exp $
+ * $Id: cxx_mpool.cpp,v 12.1 2005/06/16 20:21:02 bostic Exp $
  */
 
 #include "db_config.h"

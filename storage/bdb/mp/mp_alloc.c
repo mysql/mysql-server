@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_alloc.c,v 11.47 2004/10/15 16:59:42 bostic Exp $
+ * $Id: mp_alloc.c,v 12.6 2005/08/12 13:17:22 bostic Exp $
  */
 
 #include "db_config.h"
@@ -39,12 +39,12 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 	BH *bhp;
 	DB_ENV *dbenv;
 	DB_MPOOL_HASH *dbht, *hp, *hp_end, *hp_tmp;
-	DB_MUTEX *mutexp;
 	MPOOL *c_mp;
 	MPOOLFILE *bh_mfp;
 	size_t freed_space;
-	u_int32_t buckets, buffers, high_priority, priority, put_counter;
-	u_int32_t total_buckets;
+	db_mutex_t mutex;
+	u_int32_t buckets, buffers, high_priority, priority;
+	u_int32_t put_counter, total_buckets;
 	int aggressive, giveup, ret;
 	void *p;
 
@@ -69,7 +69,8 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 	if (mfp != NULL)
 		len = (sizeof(BH) - sizeof(u_int8_t)) + mfp->stat.st_pagesize;
 
-	R_LOCK(dbenv, infop);
+	MPOOL_REGION_LOCK(dbenv, infop);
+
 	/*
 	 * Anything newer than 1/10th of the buffer pool is ignored during
 	 * allocation (unless allocation starts failing).
@@ -85,10 +86,10 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 	 * we need in the hopes it will coalesce into a contiguous chunk of the
 	 * right size.  In the latter case we branch back here and try again.
 	 */
-alloc:	if ((ret = __db_shalloc(infop, len, MUTEX_ALIGN, &p)) == 0) {
+alloc:	if ((ret = __db_shalloc(infop, len, 0, &p)) == 0) {
 		if (mfp != NULL)
 			c_mp->stat.st_pages++;
-		R_UNLOCK(dbenv, infop);
+		MPOOL_REGION_UNLOCK(dbenv, infop);
 
 found:		if (offsetp != NULL)
 			*offsetp = R_OFFSET(infop, p);
@@ -113,12 +114,13 @@ found:		if (offsetp != NULL)
 		}
 		return (0);
 	} else if (giveup || c_mp->stat.st_pages == 0) {
-		R_UNLOCK(dbenv, infop);
+		MPOOL_REGION_UNLOCK(dbenv, infop);
 
 		__db_err(dbenv,
 		    "unable to allocate space from the buffer cache");
 		return (ret);
 	}
+	ret = 0;
 
 	/*
 	 * We re-attempt the allocation every time we've freed 3 times what
@@ -187,7 +189,7 @@ found:		if (offsetp != NULL)
 		if ((++buckets % c_mp->htab_buckets) == 0) {
 			if (freed_space > 0)
 				goto alloc;
-			R_UNLOCK(dbenv, infop);
+			MPOOL_REGION_UNLOCK(dbenv, infop);
 
 			switch (++aggressive) {
 			case 1:
@@ -211,7 +213,7 @@ found:		if (offsetp != NULL)
 				break;
 			}
 
-			R_LOCK(dbenv, infop);
+			MPOOL_REGION_LOCK(dbenv, infop);
 			goto alloc;
 		}
 
@@ -239,9 +241,9 @@ found:		if (offsetp != NULL)
 		priority = hp->hash_priority;
 
 		/* Unlock the region and lock the hash bucket. */
-		R_UNLOCK(dbenv, infop);
-		mutexp = &hp->hash_mutex;
-		MUTEX_LOCK(dbenv, mutexp);
+		MPOOL_REGION_UNLOCK(dbenv, infop);
+		mutex = hp->mtx_hash;
+		MUTEX_LOCK(dbenv, mutex);
 
 #ifdef DIAGNOSTIC
 		__memp_check_order(hp);
@@ -299,14 +301,20 @@ found:		if (offsetp != NULL)
 		 */
 		if (mfp != NULL &&
 		    mfp->stat.st_pagesize == bh_mfp->stat.st_pagesize) {
-			__memp_bhfree(dbmp, hp, bhp, 0);
-
+			if ((ret = __memp_bhfree(dbmp, hp, bhp, 0)) != 0) {
+				MUTEX_UNLOCK(dbenv, mutex);
+				return (ret);
+			}
 			p = bhp;
 			goto found;
 		}
 
 		freed_space += __db_shalloc_sizeof(bhp);
-		__memp_bhfree(dbmp, hp, bhp, BH_FREE_FREEMEM);
+		if ((ret =
+		    __memp_bhfree(dbmp, hp, bhp, BH_FREE_FREEMEM)) != 0) {
+			MUTEX_UNLOCK(dbenv, mutex);
+			return (ret);
+		}
 		if (aggressive > 1)
 			aggressive = 1;
 
@@ -316,9 +324,9 @@ found:		if (offsetp != NULL)
 		 * hash bucket lock has already been discarded.
 		 */
 		if (0) {
-next_hb:		MUTEX_UNLOCK(dbenv, mutexp);
+next_hb:		MUTEX_UNLOCK(dbenv, mutex);
 		}
-		R_LOCK(dbenv, infop);
+		MPOOL_REGION_LOCK(dbenv, infop);
 
 		/*
 		 * Retry the allocation as soon as we've freed up sufficient
@@ -351,9 +359,8 @@ __memp_bad_buffer(hp)
 	 * Find the highest priority buffer in the bucket.  Buffers are
 	 * sorted by priority, so it's the last one in the bucket.
 	 */
-	priority = bhp->priority;
-	if (!SH_TAILQ_EMPTY(&hp->hash_bucket))
-	  priority = SH_TAILQ_LAST(&hp->hash_bucket, hq, __bh)->priority;
+	priority = SH_TAILQ_EMPTY(&hp->hash_bucket) ? bhp->priority :
+	    SH_TAILQ_LASTP(&hp->hash_bucket, hq, __bh)->priority;
 
 	/*
 	 * Set our buffer's priority to be just as bad, and append it to
@@ -363,7 +370,10 @@ __memp_bad_buffer(hp)
 	SH_TAILQ_INSERT_TAIL(&hp->hash_bucket, bhp, hq);
 
 	/* Reset the hash bucket's priority. */
-	hp->hash_priority = SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+	hp->hash_priority = SH_TAILQ_FIRSTP(&hp->hash_bucket, __bh)->priority;
+#ifdef DIAGNOSTIC
+	__memp_check_order(hp);
+#endif
 }
 
 #ifdef DIAGNOSTIC

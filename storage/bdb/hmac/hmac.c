@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
  * Some parts of this code originally written by Adam Stubblefield,
  * -- astubble@rice.edu.
  *
- * $Id: hmac.c,v 1.27 2004/01/28 03:36:11 bostic Exp $
+ * $Id: hmac.c,v 12.1 2005/06/16 20:22:55 bostic Exp $
  */
 
 #include "db_config.h"

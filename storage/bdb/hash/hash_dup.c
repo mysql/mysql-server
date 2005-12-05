@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash_dup.c,v 11.85 2004/06/03 16:32:21 margo Exp $
+ * $Id: hash_dup.c,v 12.3 2005/07/20 16:51:41 bostic Exp $
  */
 
 #include "db_config.h"
@@ -499,7 +499,8 @@ __ham_check_move(dbc, add_len)
 	    HOFFDUP_SIZE - old_len <= P_FREESPACE(dbp, hcp->page)))
 		return (0);
 
-	if (!ISBIG(hcp, new_datalen) && add_len <= P_FREESPACE(dbp, hcp->page))
+	if (!ISBIG(hcp, new_datalen) &&
+	    (new_datalen - old_len) <= P_FREESPACE(dbp, hcp->page))
 		return (0);
 
 	/*
@@ -842,11 +843,11 @@ __ham_c_chgpg(dbc, old_pgno, old_index, new_pgno, new_index)
 	my_txn = IS_SUBTRANSACTION(dbc->txn) ? dbc->txn : NULL;
 	found = 0;
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links)) {
 			if (cp == dbc || cp->dbtype != DB_HASH)
@@ -872,9 +873,9 @@ __ham_c_chgpg(dbc, old_pgno, old_index, new_pgno, new_index)
 					found = 1;
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	if (found != 0 && DBC_LOGGING(dbc)) {
 		if ((ret = __ham_chgpg_log(dbp, my_txn, &lsn, 0, DB_HAM_CHGPG,

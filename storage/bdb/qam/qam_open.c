@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_open.c,v 11.68 2004/02/27 12:38:31 bostic Exp $
+ * $Id: qam_open.c,v 12.4 2005/10/15 00:56:55 bostic Exp $
  */
 
 #include "db_config.h"
@@ -103,7 +103,7 @@ __qam_open(dbp, txn, name, base_pgno, mode, flags)
 		goto err;
 
 	if (mode == 0)
-		mode = __db_omode("rwrw--");
+		mode = __db_omode("rw-rw----");
 	t->mode = mode;
 	t->re_pad = qmeta->re_pad;
 	t->re_len = qmeta->re_len;
@@ -308,11 +308,11 @@ __qam_new_file(dbp, txn, fhp, name)
 
 	/* Build meta-data page. */
 
-	if (name == NULL) {
+	if (F_ISSET(dbp, DB_AM_INMEM)) {
 		pgno = PGNO_BASE_MD;
 		ret = __memp_fget(mpf, &pgno, DB_MPOOL_CREATE, &meta);
 	} else {
-		ret = __os_calloc(dbp->dbenv, 1, dbp->pgsize, &buf);
+		ret = __os_calloc(dbenv, 1, dbp->pgsize, &buf);
 		meta = (QMETA *)buf;
 	}
 	if (ret != 0)
@@ -321,9 +321,12 @@ __qam_new_file(dbp, txn, fhp, name)
 	if ((ret = __qam_init_meta(dbp, meta)) != 0)
 		goto err;
 
-	if (name == NULL)
+	if (F_ISSET(dbp, DB_AM_INMEM)) {
+		if ((ret = __db_log_page(dbp,
+		    txn, &meta->dbmeta.lsn, pgno, (PAGE *)meta)) != 0)
+			goto err;
 		ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
-	else {
+	} else {
 		pginfo.db_pagesize = dbp->pgsize;
 		pginfo.flags =
 		    F_ISSET(dbp, (DB_AM_CHKSUM | DB_AM_ENCRYPT | DB_AM_SWAP));

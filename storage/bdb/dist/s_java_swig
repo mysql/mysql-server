@@ -1,7 +1,11 @@
 #!/bin/sh -
-#       $Id: s_java_swig,v 11.11 2004/09/23 17:31:53 mjc Exp $
+#       $Id: s_java_swig,v 12.2 2005/10/17 19:20:12 bostic Exp $
 #
 # Run SWIG to generate the Java APIs
+
+t=/tmp/__db_a
+trap 'rm -f $t ; exit 0' 0
+trap 'rm -f $t ; exit 1' 1 2 3 13 15   
 
 SWIG=swig
 SWIG_DIR=../libdb_java
@@ -53,3 +57,9 @@ for f in *.java ; do
 	perl -p $SWIG_DIR/java-post.pl < $f > $JAVA_SRCDIR/$f || exit $?
 	rm -f $f
 done
+
+# db_config.h must be the first #include, move it to the top of the file.
+(
+      echo '#include "db_config.h"'
+      sed '/#include "db_config.h"/d' < db_java_wrap.c
+) > $t && cp $t db_java_wrap.c

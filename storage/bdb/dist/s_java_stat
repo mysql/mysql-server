@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_java_stat,v 1.33 2004/09/28 19:30:36 mjc Exp $
+#	$Id: s_java_stat,v 12.9 2005/11/04 00:09:21 mjc Exp $
 #
 # Build the Java files.
 
@@ -8,7 +8,7 @@ msgjava="/*-
  *
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2002-2004
+ * Copyright (c) 2002-2005
  *	Sleepycat Software.  All rights reserved.
  */"
 
@@ -28,8 +28,9 @@ jclass()
 	/__db_$1/d
 	/;/!d
 	/^}/d
-	/char[	 ]*\*/{
-		s/^[	 ]*[^\*]*\*[	 ]*\([^;]*\).*/\\
+	/db_threadid_t/d
+	/char[	 ]*/{
+		s/^[	 ]*char[*	 ]*[	 ]*\([^[;]*\).*/\\
 $2    private String \1;\\
 $2    public String get_\1() {\\
 $2        return \1;\\
@@ -84,12 +85,14 @@ $2    }/p
 }
 EOF
 	sed -n -f $s < ../dbinc/db.in |
-	perl -w -p -e 's/get_(st|bt|hash|qs)_/get_/;' \
+	perl -w -p -e 's/get_(st|bt|hash|qs|compact)_/get_/;' \
 	           -e 'if (m/get.*\(/) {' \
-	           -e     's/_n([b-df-hj-np-tv-z])/_num_$1/;' \
+	           -e     's/_n([b-df-hj-np-tv-z]|upgrade)/_num_$1/;' \
 	           -e     's/_(min|max)([a-z])/_$1_$2/;' \
-	           -e     's/pg(.)/_pages_$1/;' \
-	           -e     's/(count|flag|free|id\(|page|size|timeout)/_$1/g;' \
+	           -e     's/_cnt/_count_/;' \
+	           -e     's/_pg/_pages_/;' \
+	           -e     's/(count|flag|free|page|percent|size|timeout)/_$1/g;' \
+	           -e     's/([^p])(id\()/$1_$2/g;' \
 	           -e     's/__*/_/g;' \
 	           -e     's/_(.)/\U$1/g' \
 	           -e '};' \
@@ -109,8 +112,9 @@ jclass_jni()
 	/__db_$1/d
 	/;/!d
 	/^}/d
-	/char[	 ]*\*/{
-		s/^[	 ]*[^\*]*\*[	 ]*\([^;]*\).*/	JAVADB_STAT_STRING(jnienv, jobj, $1_\1_fid, statp, \1);/p
+	/db_threadid_t/d
+	/char[	 ]*/{
+		s/^[	 ]*char[*	 ]*[	 ]*\([^[;]*\).*/	JAVADB_STAT_STRING(jnienv, jobj, $1_\1_fid, statp, \1);/p
 		d
 	}
 	/time_t/{
@@ -150,8 +154,9 @@ jni_fieldid_decls()
 	/__db_$1/d
 	/;/!d
 	/^}/d
-	/char[	 ]*\*/{
-		s/^[	 ]*[^\*]*\*[	 ]*\([^;]*\).*/static jfieldID $1_\1_fid;/p
+	/db_threadid_t/d
+	/char[	 ]*/{
+		s/^[	 ]*char[*	 ]*[	 ]*\([^[;]*\).*/static jfieldID $1_\1_fid;/p
 		d
 	}
 	/time_t/{
@@ -187,8 +192,9 @@ jni_fieldids()
 	/__db_$1/d
 	/;/!d
 	/^}/d
-	/char[	 ]*\*/{
-		s/^[	 ]*[^\*]*\*[	 ]*\([^;]*\).*/	{ \&$1_\1_fid, \&$1_class, \"\1\", \"Ljava\/lang\/String;\" },/p
+	/db_threadid_t/d
+	/char[	 ]*/{
+		s/^[	 ]*char[*	 ]*[	 ]*\([^[;]*\).*/	{ \&$1_\1_fid, \&$1_class, \"\1\", \"Ljava\/lang\/String;\" },/p
 		d
 	}
 	/time_t/{
@@ -225,8 +231,9 @@ jclass_toString()
 	/__db_$1/d
 	/;/!d
 	/^}/d
-	/char[	 ]*\*/{
-		s/^[	 ]*[^\*]*\*[	 ]*\([^;]*\).*/$3            + "\\\\n$3  \1=" + \1/p
+	/db_threadid_t/d
+	/char[	 ]*/{
+		s/^[	 ]*char[*	 ]*[	 ]*\([^[;]*\).*/$3            + "\\\\n$3  \1=" + \1/p
 		d
 	}
 	/DB_TXN_ACTIVE[	 ]*\*/{
@@ -275,11 +282,41 @@ echo "$msgjava" > $c
 > $u2
 
 stat_class bt_stat BtreeStats " extends DatabaseStats"
+
+# Build CompactStats.java - not purely a statistics class, but close enough to
+# share this code.
+(echo "$msgjava"
+ echo
+ echo 'package com.sleepycat.db;'
+ echo
+ echo 'import com.sleepycat.db.internal.DbUtil;'
+ echo
+ echo "public class CompactStats"
+ echo '{'
+ echo "    // no public constructor"
+ echo "    protected CompactStats() {}"
+ echo
+ echo "    /* package */"
+ echo "    CompactStats(int fillpercent, int timeout, int pages) {"
+ echo "        this.compact_fillpercent = fillpercent;"
+ echo "        this.compact_timeout = timeout;"
+ echo "        this.compact_pages = pages;"
+ echo "    }"
+ jclass compact
+ jclass_toString compact CompactStats
+ echo '}'
+ echo '// end of TransactionStats.java') > $t
+jclass_jni compact __dbj_fill_compact
+f=../java/src/com/sleepycat/db/CompactStats.java
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
 stat_class h_stat HashStats " extends DatabaseStats"
 stat_class lock_stat LockStats
 stat_class log_stat LogStats
 stat_class mpool_fstat CacheFileStats
 stat_class mpool_stat CacheStats
+stat_class mutex_stat MutexStats
 stat_class qam_stat QueueStats " extends DatabaseStats"
 stat_class rep_stat ReplicationStats
 stat_class seq_stat SequenceStats

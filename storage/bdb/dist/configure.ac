@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 11.221 2004/11/16 01:07:57 mjc Exp $
+# $Id: configure.ac,v 12.9 2005/10/14 20:52:29 bostic Exp $
 # Process this file with autoconf to produce a configure script.
 
 PACKAGE=db
@@ -43,6 +43,7 @@ AC_SUBST(INSTALL_TARGET)
 AC_SUBST(JAR)
 AC_SUBST(JAVACFLAGS)
 AC_SUBST(LDFLAGS)
+AC_SUBST(LIBCSO_LIBS)
 AC_SUBST(LIBJSO_LIBS)
 AC_SUBST(LIBS)
 AC_SUBST(LIBSO_LIBS)
@@ -65,6 +66,7 @@ AC_SUBST(RPC_CLIENT_OBJS)
 AC_SUBST(RPC_SERVER_H)
 AC_SUBST(SOFLAGS)
 AC_SUBST(TEST_LIBS)
+AC_SUBST(db_cv_build_type)
 AC_SUBST(db_int_def)
 AC_SUBST(o)
 
@@ -134,10 +136,10 @@ INSTALL_TARGET="library_install"
 # because the makefile CC may be set to use $(LIBTOOL).
 #
 # Don't override anything if it's already set from the environment.
-optimize_def="-O"
+optimize_debug="-O"
 case "$host_os" in
 aix4.3.*|aix5*)
-	optimize_def="-O2"
+	optimize_debug="-O2"
 	CC=${CC-"xlc_r"}
 	CPPFLAGS="$CPPFLAGS -D_THREAD_SAFE"
 	LDFLAGS="$LDFLAGS -Wl,-brtl";;
@@ -151,7 +153,7 @@ freebsd*)
 gnu*|k*bsd*-gnu|linux*)
 	CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE -D_REENTRANT";;
 hpux*)	CPPFLAGS="$CPPFLAGS -D_REENTRANT";;
-irix*)	optimize_def="-O2"
+irix*)	optimize_debug="-O2"
 	CPPFLAGS="$CPPFLAGS -D_SGI_MP_SOURCE";;
 mpeix*)	CPPFLAGS="$CPPFLAGS -D_POSIX_SOURCE -D_SOCKET_SOURCE"
 	LIBS="$LIBS -lsocket -lsvipc";;
@@ -162,35 +164,30 @@ solaris*)
 	CPPFLAGS="$CPPFLAGS -D_REENTRANT";;
 esac
 
-# Set CFLAGS/CXXFLAGS.  We MUST set the flags before we call autoconf
-# compiler configuration macros, because if we don't, they set CFLAGS
-# to no optimization and -g, which isn't what we want.
-CFLAGS=${CFLAGS-$optimize_def}
-CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
-
-# If the user wants a debugging environment, add -g to the CFLAGS value.
-#
-# XXX
-# Some compilers can't mix optimizing and debug flags.  The only way to
-# handle this is to specify CFLAGS in the environment before configuring.
+# If the user wants a debugging environment, change any compiler optimization
+# flags to -g.  We used to add -g to the -O compiler flags, but compilers are
+# good enough at code re-organization that debugging with -O no longer works.
+# If you want to compile with a different set of flags, specify CFLAGS in the
+# environment before configuring.
 if test "$db_cv_debug" = "yes"; then
 	AC_DEFINE(DEBUG)
 	AH_TEMPLATE(DEBUG, [Define to 1 if you want a debugging version.])
 
-	CFLAGS="$CFLAGS -g"
-	CXXFLAGS="$CXXFLAGS -g"
-	db_cv_build_type=debug
-else
-	db_cv_build_type=release
+	optimize_debug="-g"
 fi
-AC_SUBST(db_cv_build_type)
+
+# Set CFLAGS/CXXFLAGS.  We MUST set the flags before we call autoconf
+# compiler configuration macros, because if we don't, they set CFLAGS
+# to no optimization and -g, which isn't what we want.
+CFLAGS=${CFLAGS-$optimize_debug}
+CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
 
 # The default compiler is cc (NOT gcc), the default CFLAGS is as specified
 # above, NOT what is set by AC_PROG_CC, as it won't set optimization flags
 # for any compiler other than gcc.
 AC_PROG_CC(cc gcc)
 
-# Set specific per-compiler flags.
+# We know what compiler we're going to use, now.  Set per-compiler flags.
 if test "$GCC" = "yes"; then
 	# We want -O2 if we're using gcc.
 	CFLAGS="$CFLAGS "
@@ -363,6 +360,14 @@ if test "$db_cv_cxx" = "yes"; then
 	fi
 fi
 
+# We split DbConstants.java into debug and release versions so Windows
+# developers don't need to do anything special to use the Debug DLL.
+if test "$db_cv_debug" = "yes"; then
+	db_cv_build_type=debug
+else
+	db_cv_build_type=release
+fi
+
 # Optional Java API.
 if test "$db_cv_java" = "yes"; then
 	# Java requires shared libraries.
@@ -438,13 +443,10 @@ fi
 #
 # The Berkeley DB library calls fdatasync, and it's only available in -lrt on
 # Solaris.  See if we can find it either without additional libraries or in
-# -lrt.  If fdatasync is found in -lrt, add -lrt to the Java and Tcl shared
-# library link lines.
+# -lrt.  If fdatasync is found in -lrt, add -lrt to the shared library links.
 AC_SEARCH_LIBS(fdatasync, rt, [dnl
     if test "$ac_cv_search_fdatasync" != "none required" ; then
-        LIBJSO_LIBS="$LIBJSO_LIBS -lrt";
-        LIBSO_LIBS="$LIBSO_LIBS -lrt";
-        LIBTSO_LIBS="$LIBTSO_LIBS -lrt";
+	LIBSO_LIBS="$LIBSO_LIBS -lrt";
     fi])
 
 # The test and example programs use the sched_yield function, taken from -lrt
@@ -482,9 +484,16 @@ AC_REPLACE_FUNCS(getcwd getopt memcmp memcpy memmove raise)
 AC_REPLACE_FUNCS(strcasecmp strdup strerror strtol strtoul)
 
 # Check for system functions we optionally use.
-AC_CHECK_FUNCS(_fstati64 clock_gettime directio fdatasync ftruncate getrusage)
-AC_CHECK_FUNCS(gettimeofday getuid pstat_getdynamic rand sched_yield)
-AC_CHECK_FUNCS(select snprintf srand sysconf vsnprintf yield)
+AC_CHECK_FUNCS(\
+   _fstati64 clock_gettime directio fchmod fcntl fdatasync ftruncate\
+   getrusage gettimeofday getuid pstat_getdynamic rand sched_yield\
+   select snprintf srand sysconf vsnprintf yield)
+
+# Pthread_self.
+# The use of pthread_self to identify threads can be forced.
+if test "$db_cv_pthread_self" = "yes"; then
+	AC_CHECK_FUNCS(pthread_self)
+fi
 
 # Pread/pwrite.
 # HP-UX has pread/pwrite, but it doesn't work with largefile support.
@@ -670,6 +679,12 @@ if test -d "$srcdir/../crypto" -a "$db_cv_build_cryptography" = "yes"; then
 	CRYPTO_OBJS="\$(CRYPTO_OBJS)"
 else
 	CRYPTO_OBJS="crypto_stub${o}"
+fi
+
+# If DIAGNOSTIC is defined, include the log print routines in the library
+# itself, various diagnostic modes use them.
+if test "$db_cv_diagnostic" = "yes"; then
+	ADDITIONAL_OBJS="$ADDITIONAL_OBJS \$(PRINT_OBJS)"
 fi
 
 # We need to add the additional object files into the Makefile with the correct

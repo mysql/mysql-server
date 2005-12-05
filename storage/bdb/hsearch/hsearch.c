@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hsearch.c,v 11.14 2004/01/28 03:36:11 bostic Exp $
+ * $Id: hsearch.c,v 12.2 2005/06/16 20:22:56 bostic Exp $
  */
 
 #include "db_config.h"
@@ -82,8 +82,8 @@ __db_hcreate(nel)
 	if ((ret = dbp->set_pagesize(dbp, 512)) != 0 ||
 	    (ret = dbp->set_h_ffactor(dbp, 16)) != 0 ||
 	    (ret = dbp->set_h_nelem(dbp, (u_int32_t)nel)) != 0 ||
-	    (ret = dbp->open(dbp,
-	    NULL, NULL, NULL, DB_HASH, DB_CREATE, __db_omode("rw----"))) != 0)
+	    (ret = dbp->open(dbp, NULL,
+	    NULL, NULL, DB_HASH, DB_CREATE, __db_omode(OWNER_RW))) != 0)
 		__os_set_errno(ret);
 
 	/*

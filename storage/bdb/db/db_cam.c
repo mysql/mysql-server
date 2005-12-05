@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2004
+ * Copyright (c) 2000-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_cam.c,v 11.156 2004/09/28 18:07:32 ubell Exp $
+ * $Id: db_cam.c,v 12.21 2005/10/07 20:21:22 ubell Exp $
  */
 
 #include "db_config.h"
@@ -52,6 +52,7 @@ static int __db_wrlock_err __P((DB_ENV *));
 	if (F_ISSET(dbc, DBC_WRITECURSOR))				\
 		(void)__lock_downgrade(					\
 		    (dbp)->dbenv, &(dbc)->mylock, DB_LOCK_IWRITE, 0);
+
 /*
  * __db_c_close --
  *	DBC->c_close.
@@ -85,16 +86,18 @@ __db_c_close(dbc)
 	 * access specific cursor close routine, btree depends on having that
 	 * order of operations.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 
 	if (opd != NULL) {
+		DB_ASSERT(F_ISSET(opd, DBC_ACTIVE));
 		F_CLR(opd, DBC_ACTIVE);
 		TAILQ_REMOVE(&dbp->active_queue, opd, links);
 	}
+	DB_ASSERT(F_ISSET(dbc, DBC_ACTIVE));
 	F_CLR(dbc, DBC_ACTIVE);
 	TAILQ_REMOVE(&dbp->active_queue, dbc, links);
 
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 
 	/* Call the access specific cursor close routine. */
 	if ((t_ret =
@@ -125,7 +128,7 @@ __db_c_close(dbc)
 		dbc->txn->cursors--;
 
 	/* Move the cursor(s) to the free queue. */
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 	if (opd != NULL) {
 		if (dbc->txn != NULL)
 			dbc->txn->cursors--;
@@ -133,7 +136,7 @@ __db_c_close(dbc)
 		opd = NULL;
 	}
 	TAILQ_INSERT_TAIL(&dbp->free_queue, dbc, links);
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 
 	return (ret);
 }
@@ -156,9 +159,9 @@ __db_c_destroy(dbc)
 	dbenv = dbp->dbenv;
 
 	/* Remove the cursor from the free queue. */
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 	TAILQ_REMOVE(&dbp->free_queue, dbc, links);
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 
 	/* Free up allocated memory. */
 	if (dbc->my_rskey.data != NULL)
@@ -176,7 +179,8 @@ __db_c_destroy(dbc)
 	 */
 	if (LOCKING_ON(dbenv) &&
 	    F_ISSET(dbc, DBC_OWN_LID) &&
-	    (t_ret = __lock_id_free(dbenv, dbc->lid)) != 0 && ret == 0)
+	    (t_ret = __lock_id_free(dbenv,
+	    ((DB_LOCKER *)dbc->lref)->id)) != 0 && ret == 0)
 		ret = t_ret;
 
 	__os_free(dbenv, dbc);
@@ -298,7 +302,7 @@ __db_c_del(dbc, flags)
 	 * to explicitly downgrade this lock.  The closed cursor
 	 * may only have had a read lock.
 	 */
-	if (F_ISSET(dbc->dbp, DB_AM_DIRTY) &&
+	if (F_ISSET(dbc->dbp, DB_AM_READ_UNCOMMITTED) &&
 	    dbc->internal->lock_mode == DB_LOCK_WRITE) {
 		if ((t_ret =
 		    __TLPUT(dbc, dbc->internal->lock)) != 0 && ret == 0)
@@ -413,8 +417,8 @@ __db_c_idup(dbc_orig, dbcp, flags)
 	}
 
 	/* Copy the locking flags to the new cursor. */
-	F_SET(dbc_n,
-	    F_ISSET(dbc_orig, DBC_WRITECURSOR | DBC_DIRTY_READ | DBC_DEGREE_2));
+	F_SET(dbc_n, F_ISSET(dbc_orig,
+	    DBC_READ_COMMITTED | DBC_READ_UNCOMMITTED | DBC_WRITECURSOR));
 
 	/*
 	 * If we're in CDB and this isn't an offpage dup cursor, then
@@ -504,9 +508,13 @@ __db_c_get(dbc_arg, key, data, flags)
 	DBC_INTERNAL *cp, *cp_n;
 	DB_MPOOLFILE *mpf;
 	db_pgno_t pgno;
-	u_int32_t multi, tmp_dirty, tmp_flags, tmp_rmw;
+	u_int32_t multi, orig_ulen, tmp_flags, tmp_read_uncommitted, tmp_rmw;
 	u_int8_t type;
-	int ret, t_ret;
+	int key_small, ret, t_ret;
+
+	COMPQUIET(orig_ulen, 0);
+
+	key_small = 0;
 
 	/*
 	 * Cursor Cleanup Note:
@@ -526,8 +534,10 @@ __db_c_get(dbc_arg, key, data, flags)
 	tmp_rmw = LF_ISSET(DB_RMW);
 	LF_CLR(DB_RMW);
 
-	tmp_dirty = LF_ISSET(DB_DIRTY_READ);
-	LF_CLR(DB_DIRTY_READ);
+	tmp_read_uncommitted =
+	    LF_ISSET(DB_READ_UNCOMMITTED) &&
+	    !F_ISSET(dbc_arg, DBC_READ_UNCOMMITTED);
+	LF_CLR(DB_READ_UNCOMMITTED);
 
 	multi = LF_ISSET(DB_MULTIPLE|DB_MULTIPLE_KEY);
 	LF_CLR(DB_MULTIPLE|DB_MULTIPLE_KEY);
@@ -539,13 +549,13 @@ __db_c_get(dbc_arg, key, data, flags)
 	if (flags == DB_GET_RECNO) {
 		if (tmp_rmw)
 			F_SET(dbc_arg, DBC_RMW);
-		if (tmp_dirty)
-			F_SET(dbc_arg, DBC_DIRTY_READ);
+		if (tmp_read_uncommitted)
+			F_SET(dbc_arg, DBC_READ_UNCOMMITTED);
 		ret = __bam_c_rget(dbc_arg, data);
 		if (tmp_rmw)
 			F_CLR(dbc_arg, DBC_RMW);
-		if (tmp_dirty)
-			F_CLR(dbc_arg, DBC_DIRTY_READ);
+		if (tmp_read_uncommitted)
+			F_CLR(dbc_arg, DBC_READ_UNCOMMITTED);
 		return (ret);
 	}
 
@@ -613,8 +623,8 @@ __db_c_get(dbc_arg, key, data, flags)
 		break;
 	}
 
-	if (tmp_dirty)
-		F_SET(dbc_arg, DBC_DIRTY_READ);
+	if (tmp_read_uncommitted)
+		F_SET(dbc_arg, DBC_READ_UNCOMMITTED);
 
 	/*
 	 * If this cursor is going to be closed immediately, we don't
@@ -624,8 +634,8 @@ __db_c_get(dbc_arg, key, data, flags)
 		dbc_n = dbc_arg;
 	else {
 		ret = __db_c_idup(dbc_arg, &dbc_n, tmp_flags);
-		if (tmp_dirty)
-			F_CLR(dbc_arg, DBC_DIRTY_READ);
+		if (tmp_read_uncommitted)
+			F_CLR(dbc_arg, DBC_READ_UNCOMMITTED);
 
 		if (ret != 0)
 			goto err;
@@ -654,8 +664,8 @@ __db_c_get(dbc_arg, key, data, flags)
 	ret = dbc_n->c_am_get(dbc_n, key, data, flags, &pgno);
 	if (tmp_rmw)
 		F_CLR(dbc_n, DBC_RMW);
-	if (tmp_dirty)
-		F_CLR(dbc_arg, DBC_DIRTY_READ);
+	if (tmp_read_uncommitted)
+		F_CLR(dbc_arg, DBC_READ_UNCOMMITTED);
 	F_CLR(dbc_n, DBC_MULTIPLE|DBC_MULTIPLE_KEY);
 	if (ret != 0)
 		goto err;
@@ -721,8 +731,22 @@ done:	/*
 			goto err;
 
 		if ((ret = __db_ret(dbp, cp_n->page, cp_n->indx,
-		    key, &dbc_arg->rkey->data, &dbc_arg->rkey->ulen)) != 0)
-			goto err;
+		    key, &dbc_arg->rkey->data, &dbc_arg->rkey->ulen)) != 0) {
+			/*
+			 * If the key DBT is too small, we still want to return
+			 * the size of the data.  Otherwise applications are
+			 * forced to check each one with a separate call.  We
+			 * don't want to copy the data, so we set the ulen to
+			 * zero before calling __db_ret.
+			 */
+			if (ret == DB_BUFFER_SMALL &&
+			    F_ISSET(data, DB_DBT_USERMEM)) {
+				key_small = 1;
+				orig_ulen = data->ulen;
+				data->ulen = 0;
+			} else
+				goto err;
+		}
 	}
 	if (multi != 0) {
 		/*
@@ -793,11 +817,11 @@ err:	/* Don't pass DB_DBT_ISSET back to application level, error or no. */
 		 * about the referencing page or cursor we need
 		 * to peek at the OPD cursor and get the lock here.
 		 */
-		if (F_ISSET(dbc_arg->dbp, DB_AM_DIRTY) &&
+		if (F_ISSET(dbc_arg->dbp, DB_AM_READ_UNCOMMITTED) &&
 		     F_ISSET((BTREE_CURSOR *)
 		     dbc_arg->internal->opd->internal, C_DELETED))
 			if ((t_ret =
-			    dbc_arg->c_am_writelock(dbc_arg)) != 0 && ret != 0)
+			    dbc_arg->c_am_writelock(dbc_arg)) != 0 && ret == 0)
 				ret = t_ret;
 		if ((t_ret = __db_c_cleanup(
 		    dbc_arg->internal->opd, opd, ret)) != 0 && ret == 0)
@@ -807,6 +831,12 @@ err:	/* Don't pass DB_DBT_ISSET back to application level, error or no. */
 
 	if ((t_ret = __db_c_cleanup(dbc_arg, dbc_n, ret)) != 0 && ret == 0)
 		ret = t_ret;
+
+	if (key_small) {
+		data->ulen = orig_ulen;
+		if (ret == 0)
+			ret = DB_BUFFER_SMALL;
+	}
 
 	if (flags == DB_CONSUME || flags == DB_CONSUME_WAIT)
 		CDB_LOCKING_DONE(dbp, dbc_arg);
@@ -1011,8 +1041,10 @@ __db_c_put(dbc_arg, key, data, flags)
 		}
 
 		/*
-		 * Now build the new datum from olddata and the partial
-		 * data we were given.
+		 * Now build the new datum from olddata and the partial data we
+		 * were given.  It's okay to do this if no record was returned
+		 * above: a partial put on an empty record is allowed, if a
+		 * little strange.  The data is zero-padded.
 		 */
 		if ((ret =
 		    __db_buildpartial(dbp, &olddata, data, &newdata)) != 0)
@@ -1071,8 +1103,18 @@ __db_c_put(dbc_arg, key, data, flags)
 	 * Note that __db_s_first and __db_s_next will take care of
 	 * thread-locking and refcounting issues.
 	 */
-	for (sdbp = __db_s_first(dbp);
-	    sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
+	if ((ret = __db_s_first(dbp, &sdbp)) != 0)
+		goto err;
+	for (; sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
+		/*
+		 * Don't process this secondary if the key is immutable and we
+		 * know that the old record exists.  This optimization can't be
+		 * used if we have not checked for the old record yet.
+		 */
+		if (have_oldrec && !nodel &&
+		    FLD_ISSET(sdbp->s_assoc_flags, DB_ASSOC_IMMUTABLE_KEY))
+			continue;
+
 		/*
 		 * Call the callback for this secondary, to get the
 		 * appropriate secondary key.
@@ -1088,8 +1130,7 @@ __db_c_put(dbc_arg, key, data, flags)
 				 * any necessary deletes in step 5.
 				 */
 				continue;
-			else
-				goto err;
+			goto err;
 		}
 
 		/*
@@ -1117,6 +1158,14 @@ __db_c_put(dbc_arg, key, data, flags)
 			DB_ASSERT(sdbc->mylock.off == LOCK_INVALID);
 			F_SET(sdbc, DBC_WRITER);
 		}
+
+		/*
+		 * Swap the primary key to the byte order of this secondary, if
+		 * necessary.  By doing this now, we can compare directly
+		 * against the data already in the secondary without having to
+		 * swap it after reading.
+		 */
+		SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 
 		/*
 		 * There are three cases here--
@@ -1161,9 +1210,9 @@ __db_c_put(dbc_arg, key, data, flags)
 			    "Put results in a non-unique secondary key in an ",
 			    "index not configured to support duplicates");
 					ret = EINVAL;
-					goto skipput;
 				}
-			} else if (ret != DB_NOTFOUND && ret != DB_KEYEMPTY)
+			}
+			if (ret != DB_NOTFOUND && ret != DB_KEYEMPTY)
 				goto skipput;
 		} else if (!F_ISSET(sdbp, DB_AM_DUPSORT)) {
 			/* Case 2. */
@@ -1190,6 +1239,9 @@ __db_c_put(dbc_arg, key, data, flags)
 			ret = 0;
 
 skipput:	FREE_IF_NEEDED(sdbp, &skey)
+
+		/* Make sure the primary key is back in native byte-order. */
+		SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 
 		if ((t_ret = __db_c_close(sdbc)) != 0 && ret == 0)
 			ret = t_ret;
@@ -1227,8 +1279,17 @@ skipput:	FREE_IF_NEEDED(sdbp, &skey)
 	if (nodel)
 		goto skip_s_update;
 
-	for (sdbp = __db_s_first(dbp);
-	    sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
+	if ((ret = __db_s_first(dbp, &sdbp)) != 0)
+		goto err;
+	for (; sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
+		/*
+		 * Don't process this secondary if the key is immutable.  We
+		 * know that the old record exists, so this optimization can
+		 * always be used.
+		 */
+		if (FLD_ISSET(sdbp->s_assoc_flags, DB_ASSOC_IMMUTABLE_KEY))
+			continue;
+
 		/*
 		 * Call the callback for this secondary to get the
 		 * old secondary key.
@@ -1243,8 +1304,7 @@ skipput:	FREE_IF_NEEDED(sdbp, &skey)
 				 * secondary.
 				 */
 				continue;
-			else
-				goto err;
+			goto err;
 		}
 		memset(&skey, 0, sizeof(DBT));
 		if ((ret = sdbp->s_callback(sdbp,
@@ -1280,6 +1340,7 @@ skipput:	FREE_IF_NEEDED(sdbp, &skey)
 			memset(&tempskey, 0, sizeof(DBT));
 			tempskey.data = oldskey.data;
 			tempskey.size = oldskey.size;
+			SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 			memset(&temppkey, 0, sizeof(DBT));
 			temppkey.data = pkey.data;
 			temppkey.size = pkey.size;
@@ -1288,6 +1349,7 @@ skipput:	FREE_IF_NEEDED(sdbp, &skey)
 				ret = __db_c_del(sdbc, DB_UPDATE_SECONDARY);
 			else if (ret == DB_NOTFOUND)
 				ret = __db_secondary_corrupt(dbp);
+			SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 		}
 
 		FREE_IF_NEEDED(sdbp, &skey);
@@ -1328,9 +1390,8 @@ skip_s_update:
 			goto err;
 		}
 
-		if ((ret = dbc_arg->c_am_writelock(dbc_arg)) != 0)
-			return (ret);
-		if ((ret = __db_c_dup(dbc_arg, &dbc_n, DB_POSITION)) != 0)
+		if ((ret = dbc_arg->c_am_writelock(dbc_arg)) != 0 ||
+		    (ret = __db_c_dup(dbc_arg, &dbc_n, DB_POSITION)) != 0)
 			goto err;
 		opd = dbc_n->internal->opd;
 		if ((ret = opd->c_am_put(
@@ -1530,7 +1591,7 @@ __db_c_cleanup(dbc, dbc_n, failed)
 	 * to explicitly downgrade this lock.  The closed cursor
 	 * may only have had a read lock.
 	 */
-	if (F_ISSET(dbp, DB_AM_DIRTY) &&
+	if (F_ISSET(dbp, DB_AM_READ_UNCOMMITTED) &&
 	    dbc->internal->lock_mode == DB_LOCK_WRITE) {
 		if ((t_ret =
 		    __TLPUT(dbc, dbc->internal->lock)) != 0 && ret == 0)
@@ -1573,13 +1634,14 @@ __db_c_pget(dbc, skey, pkey, data, flags)
 	u_int32_t flags;
 {
 	DB *pdbp, *sdbp;
-	DBC *pdbc;
-	DBT *save_rdata, nullpkey;
-	u_int32_t save_pkey_flags;
+	DBC *dbc_n, *pdbc;
+	DBT nullpkey;
+	u_int32_t save_pkey_flags, tmp_flags, tmp_read_uncommitted, tmp_rmw;
 	int pkeymalloc, ret, t_ret;
 
 	sdbp = dbc->dbp;
 	pdbp = sdbp->s_primary;
+	dbc_n = NULL;
 	pkeymalloc = t_ret = 0;
 
 	/*
@@ -1599,13 +1661,32 @@ __db_c_pget(dbc, skey, pkey, data, flags)
 		pkey = &nullpkey;
 	}
 
+	/* Clear OR'd in additional bits so we can check for flag equality. */
+	tmp_rmw = LF_ISSET(DB_RMW);
+	LF_CLR(DB_RMW);
+
+	tmp_read_uncommitted =
+	    LF_ISSET(DB_READ_UNCOMMITTED) &&
+	    !F_ISSET(dbc, DBC_READ_UNCOMMITTED);
+	LF_CLR(DB_READ_UNCOMMITTED);
+
 	/*
 	 * DB_GET_RECNO is a special case, because we're interested not in
 	 * the primary key/data pair, but rather in the primary's record
 	 * number.
 	 */
-	if ((flags & DB_OPFLAGS_MASK) == DB_GET_RECNO)
-		return (__db_c_pget_recno(dbc, pkey, data, flags));
+	if (flags == DB_GET_RECNO) {
+		if (tmp_rmw)
+			F_SET(dbc, DBC_RMW);
+		if (tmp_read_uncommitted)
+			F_SET(dbc, DBC_READ_UNCOMMITTED);
+		ret = __db_c_pget_recno(dbc, pkey, data, flags);
+		if (tmp_rmw)
+			F_CLR(dbc, DBC_RMW);
+		if (tmp_read_uncommitted)
+			F_CLR(dbc, DBC_READ_UNCOMMITTED);
+		return (ret);
+	}
 
 	/*
 	 * If the DBTs we've been passed don't have any of the
@@ -1623,28 +1704,23 @@ __db_c_pget(dbc, skey, pkey, data, flags)
 	 * the rkey/rdata from the *secondary* cursor.
 	 *
 	 * We accomplish all this by passing in the DBTs we started out
-	 * with to the c_get, but having swapped the contents of rskey and
-	 * rkey, respectively, into rkey and rdata;  __db_ret will treat
-	 * them like the normal key/data pair in a c_get call, and will
-	 * realloc them as need be (this is "step 1").  Then, for "step 2",
-	 * we swap back rskey/rkey/rdata to normal, and do a get on the primary
-	 * with the secondary dbc appointed as the owner of the returned-data
-	 * memory.
+	 * with to the c_get, but swapping the contents of rskey and rkey,
+	 * respectively, into rkey and rdata;  __db_ret will treat them like
+	 * the normal key/data pair in a c_get call, and will realloc them as
+	 * need be (this is "step 1").  Then, for "step 2", we swap back
+	 * rskey/rkey/rdata to normal, and do a get on the primary with the
+	 * secondary dbc appointed as the owner of the returned-data memory.
 	 *
 	 * Note that in step 2, we copy the flags field in case we need to
 	 * pass down a DB_DBT_PARTIAL or other flag that is compatible with
 	 * letting DB do the memory management.
 	 */
-	/* Step 1. */
-	save_rdata = dbc->rdata;
-	dbc->rdata = dbc->rkey;
-	dbc->rkey = dbc->rskey;
 
 	/*
-	 * It is correct, though slightly sick, to attempt a partial get
-	 * of a primary key.  However, if we do so here, we'll never find the
-	 * primary record;  clear the DB_DBT_PARTIAL field of pkey just
-	 * for the duration of the next call.
+	 * It is correct, though slightly sick, to attempt a partial get of a
+	 * primary key.  However, if we do so here, we'll never find the
+	 * primary record;  clear the DB_DBT_PARTIAL field of pkey just for the
+	 * duration of the next call.
 	 */
 	save_pkey_flags = pkey->flags;
 	F_CLR(pkey, DB_DBT_PARTIAL);
@@ -1653,67 +1729,114 @@ __db_c_pget(dbc, skey, pkey, data, flags)
 	 * Now we can go ahead with the meat of this call.  First, get the
 	 * primary key from the secondary index.  (What exactly we get depends
 	 * on the flags, but the underlying cursor get will take care of the
-	 * dirty work.)
+	 * dirty work.)  Duplicate the cursor, in case the later get on the
+	 * primary fails.
 	 */
-	if ((ret = __db_c_get(dbc, skey, pkey, flags)) != 0) {
-		/* Restore rskey/rkey/rdata and return. */
-		pkey->flags = save_pkey_flags;
-		dbc->rskey = dbc->rkey;
-		dbc->rkey = dbc->rdata;
-		dbc->rdata = save_rdata;
-		goto err;
+	switch (flags) {
+	case DB_CURRENT:
+	case DB_GET_BOTHC:
+	case DB_NEXT:
+	case DB_NEXT_DUP:
+	case DB_NEXT_NODUP:
+	case DB_PREV:
+	case DB_PREV_NODUP:
+		tmp_flags = DB_POSITION;
+		break;
+	default:
+		tmp_flags = 0;
+		break;
 	}
 
+	if (tmp_read_uncommitted)
+		F_SET(dbc, DBC_READ_UNCOMMITTED);
+
+	if ((ret = __db_c_dup(dbc, &dbc_n, tmp_flags)) != 0) {
+		if (tmp_read_uncommitted)
+			F_CLR(dbc, DBC_READ_UNCOMMITTED);
+
+		return (ret);
+	}
+
+	F_SET(dbc_n, DBC_TRANSIENT);
+
+	if (tmp_rmw)
+		F_SET(dbc_n, DBC_RMW);
+
+	/*
+	 * If we've been handed a primary key, it will be in native byte order,
+	 * so we need to swap it before reading from the secondary.
+	 */
+	if (flags == DB_GET_BOTH || flags == DB_GET_BOTHC ||
+	    flags == DB_GET_BOTH_RANGE)
+		SWAP_IF_NEEDED(pdbp, sdbp, pkey);
+
+	/* Step 1. */
+	dbc_n->rdata = dbc->rkey;
+	dbc_n->rkey = dbc->rskey;
+	ret = __db_c_get(dbc_n, skey, pkey, flags);
 	/* Restore pkey's flags in case we stomped the PARTIAL flag. */
 	pkey->flags = save_pkey_flags;
 
-	/*
-	 * Restore the cursor's rskey, rkey, and rdata DBTs.  If DB
-	 * is handling the memory management, we now have newly
-	 * reallocated buffers and ulens in rkey and rdata which we want
-	 * to put in rskey and rkey.  save_rdata contains the old value
-	 * of dbc->rdata.
-	 */
-	dbc->rskey = dbc->rkey;
-	dbc->rkey = dbc->rdata;
-	dbc->rdata = save_rdata;
+	if (tmp_read_uncommitted)
+		F_CLR(dbc_n, DBC_READ_UNCOMMITTED);
+	if (tmp_rmw)
+		F_CLR(dbc_n, DBC_RMW);
 
 	/*
-	 * Now we're ready for "step 2".  If either or both of pkey and
-	 * data do not have memory management flags set--that is, if DB is
-	 * managing their memory--we need to swap around the rkey/rdata
-	 * structures so that we don't wind up trying to use memory managed
-	 * by the primary database cursor, which we'll close before we return.
+	 * We need to swap the primary key to native byte order if we read it
+	 * successfully, or if we swapped it on entry above.  We can't return
+	 * with the application's data modified.
+	 */
+	if (ret == 0 || flags == DB_GET_BOTH || flags == DB_GET_BOTHC ||
+	    flags == DB_GET_BOTH_RANGE)
+		SWAP_IF_NEEDED(pdbp, sdbp, pkey);
+
+	if (ret != 0)
+		goto err;
+
+	/*
+	 * Now we're ready for "step 2".  If either or both of pkey and data do
+	 * not have memory management flags set--that is, if DB is managing
+	 * their memory--we need to swap around the rkey/rdata structures so
+	 * that we don't wind up trying to use memory managed by the primary
+	 * database cursor, which we'll close before we return.
 	 *
 	 * !!!
-	 * If you're carefully following the bouncing ball, you'll note
-	 * that in the DB-managed case, the buffer hanging off of pkey is
-	 * the same as dbc->rkey->data.  This is just fine;  we may well
-	 * realloc and stomp on it when we return, if we're going a
-	 * DB_GET_BOTH and need to return a different partial or key
-	 * (depending on the comparison function), but this is safe.
+	 * If you're carefully following the bouncing ball, you'll note that in
+	 * the DB-managed case, the buffer hanging off of pkey is the same as
+	 * dbc->rkey->data.  This is just fine;  we may well realloc and stomp
+	 * on it when we return, if we're doing a DB_GET_BOTH and need to
+	 * return a different partial or key (depending on the comparison
+	 * function), but this is safe.
 	 *
 	 * !!!
 	 * We need to use __db_cursor_int here rather than simply calling
-	 * pdbp->cursor, because otherwise, if we're in CDB, we'll
-	 * allocate a new locker ID and leave ourselves open to deadlocks.
-	 * (Even though we're only acquiring read locks, we'll still block
-	 * if there are any waiters.)
+	 * pdbp->cursor, because otherwise, if we're in CDB, we'll allocate a
+	 * new locker ID and leave ourselves open to deadlocks.  (Even though
+	 * we're only acquiring read locks, we'll still block if there are any
+	 * waiters.)
 	 */
 	if ((ret = __db_cursor_int(pdbp,
 	    dbc->txn, pdbp->type, PGNO_INVALID, 0, dbc->locker, &pdbc)) != 0)
 		goto err;
 
+	if (tmp_read_uncommitted)
+		F_SET(pdbc, DBC_READ_UNCOMMITTED);
+	if (tmp_rmw)
+		F_SET(pdbc, DBC_RMW);
+	if (F_ISSET(dbc, DBC_READ_COMMITTED))
+		F_SET(pdbc, DBC_READ_COMMITTED);
+
 	/*
-	 * We're about to use pkey a second time.  If DB_DBT_MALLOC
-	 * is set on it, we'll leak the memory we allocated the first time.
-	 * Thus, set DB_DBT_REALLOC instead so that we reuse that memory
-	 * instead of leaking it.
+	 * We're about to use pkey a second time.  If DB_DBT_MALLOC is set on
+	 * it, we'll leak the memory we allocated the first time.  Thus, set
+	 * DB_DBT_REALLOC instead so that we reuse that memory instead of
+	 * leaking it.
 	 *
 	 * !!!
-	 * This assumes that the user must always specify a compatible
-	 * realloc function if a malloc function is specified.  I think
-	 * this is a reasonable requirement.
+	 * This assumes that the user must always specify a compatible realloc
+	 * function if a malloc function is specified.  I think this is a
+	 * reasonable requirement.
 	 */
 	if (F_ISSET(pkey, DB_DBT_MALLOC)) {
 		F_CLR(pkey, DB_DBT_MALLOC);
@@ -1722,38 +1845,41 @@ __db_c_pget(dbc, skey, pkey, data, flags)
 	}
 
 	/*
-	 * Do the actual get.  Set DBC_TRANSIENT since we don't care
-	 * about preserving the position on error, and it's faster.
-	 * SET_RET_MEM so that the secondary DBC owns any returned-data
-	 * memory.
+	 * Do the actual get.  Set DBC_TRANSIENT since we don't care about
+	 * preserving the position on error, and it's faster.  SET_RET_MEM so
+	 * that the secondary DBC owns any returned-data memory.
 	 */
 	F_SET(pdbc, DBC_TRANSIENT);
 	SET_RET_MEM(pdbc, dbc);
 	ret = __db_c_get(pdbc, pkey, data, DB_SET);
 
 	/*
-	 * If the item wasn't found in the primary, this is a bug;
-	 * our secondary has somehow gotten corrupted, and contains
-	 * elements that don't correspond to anything in the primary.
-	 * Complain.
+	 * If the item wasn't found in the primary, this is a bug; our
+	 * secondary has somehow gotten corrupted, and contains elements that
+	 * don't correspond to anything in the primary.  Complain.
 	 */
 	if (ret == DB_NOTFOUND)
 		ret = __db_secondary_corrupt(pdbp);
 
 	/* Now close the primary cursor. */
-	t_ret = __db_c_close(pdbc);
+	if ((t_ret = __db_c_close(pdbc)) != 0 && ret == 0)
+		ret = t_ret;
 
-err:	if (pkeymalloc) {
+err:	/* Cleanup and cursor resolution. */
+	if ((t_ret = __db_c_cleanup(dbc, dbc_n, ret)) != 0 && ret == 0)
+		ret = t_ret;
+	if (pkeymalloc) {
 		/*
-		 * If pkey had a MALLOC flag, we need to restore it;
-		 * otherwise, if the user frees the buffer but reuses
-		 * the DBT without NULL'ing its data field or changing
-		 * the flags, we may drop core.
+		 * If pkey had a MALLOC flag, we need to restore it; otherwise,
+		 * if the user frees the buffer but reuses the DBT without
+		 * NULL'ing its data field or changing the flags, we may drop
+		 * core.
 		 */
 		F_CLR(pkey, DB_DBT_REALLOC);
 		F_SET(pkey, DB_DBT_MALLOC);
 	}
-	return (t_ret == 0 ? ret : t_ret);
+
+	return (ret);
 }
 
 /*
@@ -1880,6 +2006,7 @@ __db_c_del_secondary(dbc)
 
 	memset(&skey, 0, sizeof(DBT));
 	memset(&pkey, 0, sizeof(DBT));
+	pdbp = dbc->dbp->s_primary;
 
 	/*
 	 * Get the current item that we're pointing at.
@@ -1889,6 +2016,8 @@ __db_c_del_secondary(dbc)
 	F_SET(&skey, DB_DBT_PARTIAL | DB_DBT_USERMEM);
 	if ((ret = __db_c_get(dbc, &skey, &pkey, DB_CURRENT)) != 0)
 		return (ret);
+
+	SWAP_IF_NEEDED(pdbp, dbc->dbp, &pkey);
 
 	/*
 	 * Create a cursor on the primary with our locker ID,
@@ -1900,7 +2029,6 @@ __db_c_del_secondary(dbc)
 	 * interface.  This shouldn't be any less efficient
 	 * anyway.
 	 */
-	pdbp = dbc->dbp->s_primary;
 	if ((ret = __db_cursor_int(pdbp, dbc->txn,
 	    pdbp->type, PGNO_INVALID, 0, dbc->locker, &pdbc)) != 0)
 		return (ret);
@@ -1968,8 +2096,9 @@ __db_c_del_primary(dbc)
 	if ((ret = __db_c_get(dbc, &pkey, &data, DB_CURRENT)) != 0)
 		return (ret);
 
-	for (sdbp = __db_s_first(dbp);
-	    sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
+	if ((ret = __db_s_first(dbp, &sdbp)) != 0)
+		goto err;
+	for (; sdbp != NULL && ret == 0; ret = __db_s_next(&sdbp)) {
 		/*
 		 * Get the secondary key for this secondary and the current
 		 * item.
@@ -1985,13 +2114,13 @@ __db_c_del_primary(dbc)
 
 			/* We had a substantive error.  Bail. */
 			FREE_IF_NEEDED(sdbp, &skey);
-			goto done;
+			goto err;
 		}
 
 		/* Open a secondary cursor. */
 		if ((ret = __db_cursor_int(sdbp, dbc->txn, sdbp->type,
 		    PGNO_INVALID, 0, dbc->locker, &sdbc)) != 0)
-			goto done;
+			goto err;
 		/* See comment above and in __db_c_put. */
 		if (CDB_LOCKING(sdbp->dbenv)) {
 			DB_ASSERT(sdbc->mylock.off == LOCK_INVALID);
@@ -2014,6 +2143,7 @@ __db_c_del_primary(dbc)
 		memset(&tempskey, 0, sizeof(DBT));
 		tempskey.data = skey.data;
 		tempskey.size = skey.size;
+		SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 		memset(&temppkey, 0, sizeof(DBT));
 		temppkey.data = pkey.data;
 		temppkey.size = pkey.size;
@@ -2022,16 +2152,17 @@ __db_c_del_primary(dbc)
 			ret = __db_c_del(sdbc, DB_UPDATE_SECONDARY);
 		else if (ret == DB_NOTFOUND)
 			ret = __db_secondary_corrupt(dbp);
+		SWAP_IF_NEEDED(dbp, sdbp, &pkey);
 
 		FREE_IF_NEEDED(sdbp, &skey);
 
 		if ((t_ret = __db_c_close(sdbc)) != 0 && ret == 0)
 			ret = t_ret;
 		if (ret != 0)
-			goto done;
+			goto err;
 	}
 
-done:	if (sdbp != NULL && (t_ret = __db_s_done(sdbp)) != 0 && ret == 0)
+err:	if (sdbp != NULL && (t_ret = __db_s_done(sdbp)) != 0 && ret == 0)
 		ret = t_ret;
 	return (ret);
 }
@@ -2040,23 +2171,25 @@ done:	if (sdbp != NULL && (t_ret = __db_s_done(sdbp)) != 0 && ret == 0)
  * __db_s_first --
  *	Get the first secondary, if any are present, from the primary.
  *
- * PUBLIC: DB *__db_s_first __P((DB *));
+ * PUBLIC: int __db_s_first __P((DB *, DB **));
  */
-DB *
-__db_s_first(pdbp)
-	DB *pdbp;
+int
+__db_s_first(pdbp, sdbpp)
+	DB *pdbp, **sdbpp;
 {
 	DB *sdbp;
 
-	MUTEX_THREAD_LOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_LOCK(pdbp->dbenv, pdbp->mutex);
 	sdbp = LIST_FIRST(&pdbp->s_secondaries);
 
 	/* See __db_s_next. */
 	if (sdbp != NULL)
 		sdbp->s_refcnt++;
-	MUTEX_THREAD_UNLOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_UNLOCK(pdbp->dbenv, pdbp->mutex);
 
-	return (sdbp);
+	*sdbpp = sdbp;
+
+	return (0);
 }
 
 /*
@@ -2099,7 +2232,7 @@ __db_s_next(sdbpp)
 	pdbp = sdbp->s_primary;
 	closeme = NULL;
 
-	MUTEX_THREAD_LOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_LOCK(pdbp->dbenv, pdbp->mutex);
 	DB_ASSERT(sdbp->s_refcnt != 0);
 	if (--sdbp->s_refcnt == 0) {
 		LIST_REMOVE(sdbp, s_links);
@@ -2108,7 +2241,7 @@ __db_s_next(sdbpp)
 	sdbp = LIST_NEXT(sdbp, s_links);
 	if (sdbp != NULL)
 		sdbp->s_refcnt++;
-	MUTEX_THREAD_UNLOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_UNLOCK(pdbp->dbenv, pdbp->mutex);
 
 	*sdbpp = sdbp;
 
@@ -2136,13 +2269,13 @@ __db_s_done(sdbp)
 	pdbp = sdbp->s_primary;
 	doclose = 0;
 
-	MUTEX_THREAD_LOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_LOCK(pdbp->dbenv, pdbp->mutex);
 	DB_ASSERT(sdbp->s_refcnt != 0);
 	if (--sdbp->s_refcnt == 0) {
 		LIST_REMOVE(sdbp, s_links);
 		doclose = 1;
 	}
-	MUTEX_THREAD_UNLOCK(pdbp->dbenv, pdbp->mutexp);
+	MUTEX_UNLOCK(pdbp->dbenv, pdbp->mutex);
 
 	return (doclose ? __db_close(sdbp, NULL, 0) : 0);
 }

@@ -1,4 +1,4 @@
-#	$Id: s_winmsi.fcn,v 1.8 2005/04/16 15:56:44 philipr Exp $
+#	$Id: s_winmsi.fcn,v 1.9 2005/10/26 13:29:34 dda Exp $
 #
 # The common functions used by the s_winmsi scripts (both
 # for core DB and DB/XML).
@@ -12,6 +12,10 @@
 #   ERRORLOG             - a filename
 #   PRODUCT_NAME         - e.g. "Berkeley DB"
 #   PRODUCT_VERSION      - e.g. "4.1.25", derived from dist/RELEASE
+#   PRODUCT_MAJOR        - e.g. "4", (for release 4.1.25) from dist/RELEASE
+#   PRODUCT_MINOR        - e.g. "1", (for release 4.1.25) from dist/RELEASE
+#   PRODUCT_PATCH        - e.g. "25", (for release 4.1.25) from dist/RELEASE
+#   PRODUCT_MAJMIN       - e.g. "41", (for release 4.1.25) from dist/RELEASE
 #   PRODUCT_STAGE        - the staging directory for temp files and builds
 #   PRODUCT_LICENSEDIR   - the tree containing LICENSE and README
 #   PRODUCT_SUB_BLDDIR  - top of the subproduct build e.g. "dbxml-2.0.1/dbxml"
@@ -649,12 +653,12 @@ ProcessOneFeature() {
       XmlLevel=4
       local featcount=0
       local featurestring=""
-      while [ $(SlashCount $featurename) != 0 ]; do
-         Parent=`echo $featurename | sed -e 's:/.*::'`
-         featurename=`echo $featurename | sed -e 's:^[^/]*/::'`
-         featcount=$(($featcount + 1))
-         Xecho "<FeatureRef Id=\"$Parent\">" >> $outfeature
-      done
+      if [ $(SlashCount $featurename) -gt 0 ]; then
+         local parent=`echo $featurename | sed -e 's:/[^/]*$::' -e 's:.*/::'`
+         featurename=`echo $featurename | sed -e 's:^.*/::'`
+         featcount=1
+         Xecho "<FeatureRef Id=\"$parent\">" >> $outfeature
+      fi
 
 
       # TODO: how to get +default to work?
@@ -949,6 +953,10 @@ CleanInputFile() {
         -e 's/$/	/' \
         -e 's/		*/	/g'  \
         -e 's:\${PRODUCT_VERSION}:'"${PRODUCT_VERSION}":g \
+        -e 's:\${PRODUCT_MAJOR}:'"${PRODUCT_MAJOR}":g \
+        -e 's:\${PRODUCT_MINOR}:'"${PRODUCT_MINOR}":g \
+        -e 's:\${PRODUCT_PATCH}:'"${PRODUCT_PATCH}":g \
+        -e 's:\${PRODUCT_MAJMIN}:'"${PRODUCT_MAJMIN}":g \
         -e 's:\${PRODUCT_STAGE}:'"${PRODUCT_STAGE}":g \
 	-e 's:\${PRODUCT_SHARED_WINMSIDIR}:'"${PRODUCT_SHARED_WINMSIDIR}":g \
           < "$1" > "$2"

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_bh.c,v 11.99 2004/10/15 16:59:42 bostic Exp $
+ * $Id: mp_bh.c,v 12.11 2005/10/20 18:57:07 bostic Exp $
  */
 
 #include "db_config.h"
@@ -58,14 +58,14 @@ __memp_bhwrite(dbmp, hp, mfp, bhp, open_extents)
 	 * Walk the process' DB_MPOOLFILE list and find a file descriptor for
 	 * the file.  We also check that the descriptor is open for writing.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	MUTEX_LOCK(dbenv, dbmp->mutex);
 	for (dbmfp = TAILQ_FIRST(&dbmp->dbmfq);
 	    dbmfp != NULL; dbmfp = TAILQ_NEXT(dbmfp, q))
 		if (dbmfp->mfp == mfp && !F_ISSET(dbmfp, MP_READONLY)) {
 			++dbmfp->ref;
 			break;
 		}
-	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbmp->mutex);
 
 	if (dbmfp != NULL) {
 		/*
@@ -78,14 +78,14 @@ __memp_bhwrite(dbmp, hp, mfp, bhp, open_extents)
 			if (mfp->no_backing_file)
 				return (EPERM);
 
-			MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+			MUTEX_LOCK(dbenv, dbmp->mutex);
 			if (dbmfp->fhp == NULL)
 				ret = __db_appname(dbenv, DB_APP_TMP, NULL,
 				    F_ISSET(dbenv, DB_ENV_DIRECT_DB) ?
 				    DB_OSO_DIRECT : 0, &dbmfp->fhp, NULL);
 			else
 				ret = 0;
-			MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+			MUTEX_UNLOCK(dbenv, dbmp->mutex);
 			if (ret != 0) {
 				__db_err(dbenv,
 				    "unable to create temporary backing file");
@@ -125,22 +125,22 @@ __memp_bhwrite(dbmp, hp, mfp, bhp, open_extents)
 	 * has already been closed in another process, in which case it should
 	 * be marked dead.
 	 */
-	if (F_ISSET(mfp, MP_TEMP))
+	if (F_ISSET(mfp, MP_TEMP) || mfp->no_backing_file)
 		return (EPERM);
 
 	/*
 	 * It's not a page from a file we've opened.  If the file requires
-	 * input/output processing, see if this process has ever registered
-	 * information as to how to write this type of file.  If not, there's
-	 * nothing we can do.
+	 * application-specific input/output processing, see if this process
+	 * has ever registered information as to how to write this type of
+	 * file.  If not, there's nothing we can do.
 	 */
-	if (mfp->ftype != 0) {
-		MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	if (mfp->ftype != 0 && mfp->ftype != DB_FTYPE_SET) {
+		MUTEX_LOCK(dbenv, dbmp->mutex);
 		for (mpreg = LIST_FIRST(&dbmp->dbregq);
 		    mpreg != NULL; mpreg = LIST_NEXT(mpreg, q))
 			if (mpreg->ftype == mfp->ftype)
 				break;
-		MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbmp->mutex);
 		if (mpreg == NULL)
 			return (EPERM);
 	}
@@ -177,12 +177,12 @@ pgwrite:
 	 * Discard our reference, and, if we're the last reference, make sure
 	 * the file eventually gets closed.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	MUTEX_LOCK(dbenv, dbmp->mutex);
 	if (dbmfp->ref == 1)
 		F_SET(dbmfp, MP_FLUSH);
 	else
 		--dbmfp->ref;
-	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbmp->mutex);
 
 	return (ret);
 }
@@ -191,12 +191,12 @@ pgwrite:
  * __memp_pgread --
  *	Read a page from a file.
  *
- * PUBLIC: int __memp_pgread __P((DB_MPOOLFILE *, DB_MUTEX *, BH *, int));
+ * PUBLIC: int __memp_pgread __P((DB_MPOOLFILE *, db_mutex_t, BH *, int));
  */
 int
-__memp_pgread(dbmfp, mutexp, bhp, can_create)
+__memp_pgread(dbmfp, mutex, bhp, can_create)
 	DB_MPOOLFILE *dbmfp;
-	DB_MUTEX *mutexp;
+	db_mutex_t mutex;
 	BH *bhp;
 	int can_create;
 {
@@ -215,8 +215,8 @@ __memp_pgread(dbmfp, mutexp, bhp, can_create)
 
 	/* Lock the buffer and swap the hash bucket lock for the buffer lock. */
 	F_SET(bhp, BH_LOCKED | BH_TRASH);
-	MUTEX_LOCK(dbenv, &bhp->mutex);
-	MUTEX_UNLOCK(dbenv, mutexp);
+	MUTEX_LOCK(dbenv, bhp->mtx_bh);
+	MUTEX_UNLOCK(dbenv, mutex);
 
 	/*
 	 * Temporary files may not yet have been created.  We don't create
@@ -247,7 +247,8 @@ __memp_pgread(dbmfp, mutexp, bhp, can_create)
 		}
 
 		/* Clear any bytes that need to be cleared. */
-		len = mfp->clear_len == 0 ? pagesize : mfp->clear_len;
+		len = mfp->clear_len == DB_CLEARLEN_NOTSET ?
+		    pagesize : mfp->clear_len;
 		memset(bhp->buf, 0, len);
 
 #if defined(DIAGNOSTIC) || defined(UMRW)
@@ -266,8 +267,8 @@ __memp_pgread(dbmfp, mutexp, bhp, can_create)
 	ret = mfp->ftype == 0 ? 0 : __memp_pg(dbmfp, bhp, 1);
 
 	/* Unlock the buffer and reacquire the hash bucket lock. */
-err:	MUTEX_UNLOCK(dbenv, &bhp->mutex);
-	MUTEX_LOCK(dbenv, mutexp);
+err:	MUTEX_UNLOCK(dbenv, bhp->mtx_bh);
+	MUTEX_LOCK(dbenv, mutex);
 
 	/*
 	 * If no errors occurred, the data is now valid, clear the BH_TRASH
@@ -312,8 +313,8 @@ __memp_pgwrite(dbenv, dbmfp, hp, bhp)
 	 */
 	if (!F_ISSET(bhp, BH_LOCKED)) {
 		F_SET(bhp, BH_LOCKED);
-		MUTEX_LOCK(dbenv, &bhp->mutex);
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_LOCK(dbenv, bhp->mtx_bh);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 	}
 
 	/*
@@ -335,7 +336,8 @@ __memp_pgwrite(dbenv, dbmfp, hp, bhp)
 	if (LOGGING_ON(dbenv) && mfp->lsn_off != -1 &&
 	    !IS_CLIENT_PGRECOVER(dbenv)) {
 		memcpy(&lsn, bhp->buf + mfp->lsn_off, sizeof(DB_LSN));
-		if ((ret = __log_flush(dbenv, &lsn)) != 0)
+		if (!IS_NOT_LOGGED_LSN(lsn) &&
+		    (ret = __log_flush(dbenv, &lsn)) != 0)
 			goto err;
 	}
 
@@ -367,17 +369,15 @@ __memp_pgwrite(dbenv, dbmfp, hp, bhp)
 		 * fail the first test, acquire the log mutex and check again.
 		 */
 		DB_LOG *dblp;
-		DB_MUTEX *mtx;
 		LOG *lp;
 
 		dblp = dbenv->lg_handle;
 		lp = dblp->reginfo.primary;
 		if (!lp->db_log_inmemory &&
 		    log_compare(&lp->s_lsn, &LSN(bhp->buf)) <= 0) {
-			mtx = R_ADDR(&dblp->reginfo, lp->flush_mutex_off);
-			MUTEX_LOCK(dbenv, mtx);
+			MUTEX_LOCK(dbenv, lp->mtx_flush);
 			DB_ASSERT(log_compare(&lp->s_lsn, &LSN(bhp->buf)) > 0);
-			MUTEX_UNLOCK(dbenv, mtx);
+			MUTEX_UNLOCK(dbenv, lp->mtx_flush);
 		}
 	}
 #endif
@@ -411,8 +411,8 @@ file_dead:
 	 *
 	 * Unlock the buffer and reacquire the hash lock.
 	 */
-	MUTEX_UNLOCK(dbenv, &bhp->mutex);
-	MUTEX_LOCK(dbenv, &hp->hash_mutex);
+	MUTEX_UNLOCK(dbenv, bhp->mtx_bh);
+	MUTEX_LOCK(dbenv, hp->mtx_hash);
 
 	/*
 	 * If we rewrote the page, it will need processing by the pgin
@@ -462,42 +462,39 @@ __memp_pg(dbmfp, bhp, is_pgin)
 	dbmp = dbenv->mp_handle;
 	mfp = dbmfp->mfp;
 
-	MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	if ((ftype = mfp->ftype) == DB_FTYPE_SET)
+		mpreg = dbmp->pg_inout;
+	else {
+		MUTEX_LOCK(dbenv, dbmp->mutex);
+		for (mpreg = LIST_FIRST(&dbmp->dbregq);
+		    mpreg != NULL; mpreg = LIST_NEXT(mpreg, q))
+			if (ftype == mpreg->ftype)
+				break;
+		MUTEX_UNLOCK(dbenv, dbmp->mutex);
+	}
+	if (mpreg == NULL)
+		return (0);
 
-	ftype = mfp->ftype;
-	for (mpreg = LIST_FIRST(&dbmp->dbregq);
-	    mpreg != NULL; mpreg = LIST_NEXT(mpreg, q)) {
-		if (ftype != mpreg->ftype)
-			continue;
-		if (mfp->pgcookie_len == 0)
-			dbtp = NULL;
-		else {
-			dbt.size = (u_int32_t)mfp->pgcookie_len;
-			dbt.data = R_ADDR(dbmp->reginfo, mfp->pgcookie_off);
-			dbtp = &dbt;
-		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
-
-		if (is_pgin) {
-			if (mpreg->pgin != NULL &&
-			    (ret = mpreg->pgin(dbenv,
-			    bhp->pgno, bhp->buf, dbtp)) != 0)
-				goto err;
-		} else
-			if (mpreg->pgout != NULL &&
-			    (ret = mpreg->pgout(dbenv,
-			    bhp->pgno, bhp->buf, dbtp)) != 0)
-				goto err;
-		break;
+	if (mfp->pgcookie_len == 0)
+		dbtp = NULL;
+	else {
+		dbt.size = (u_int32_t)mfp->pgcookie_len;
+		dbt.data = R_ADDR(dbmp->reginfo, mfp->pgcookie_off);
+		dbtp = &dbt;
 	}
 
-	if (mpreg == NULL)
-		MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+	if (is_pgin) {
+		if (mpreg->pgin != NULL &&
+		    (ret = mpreg->pgin(dbenv, bhp->pgno, bhp->buf, dbtp)) != 0)
+			goto err;
+	} else
+		if (mpreg->pgout != NULL &&
+		    (ret = mpreg->pgout(dbenv, bhp->pgno, bhp->buf, dbtp)) != 0)
+			goto err;
 
 	return (0);
 
-err:	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
-	__db_err(dbenv, "%s: %s failed for page %lu",
+err:	__db_err(dbenv, "%s: %s failed for page %lu",
 	    __memp_fn(dbmfp), is_pgin ? "pgin" : "pgout", (u_long)bhp->pgno);
 	return (ret);
 }
@@ -506,10 +503,10 @@ err:	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
  * __memp_bhfree --
  *	Free a bucket header and its referenced data.
  *
- * PUBLIC: void __memp_bhfree
+ * PUBLIC: int __memp_bhfree
  * PUBLIC:     __P((DB_MPOOL *, DB_MPOOL_HASH *, BH *, u_int32_t));
  */
-void
+int
 __memp_bhfree(dbmp, hp, bhp, flags)
 	DB_MPOOL *dbmp;
 	DB_MPOOL_HASH *hp;
@@ -520,6 +517,7 @@ __memp_bhfree(dbmp, hp, bhp, flags)
 	MPOOL *c_mp, *mp;
 	MPOOLFILE *mfp;
 	u_int32_t n_cache;
+	int ret, t_ret;
 
 	/*
 	 * Assumes the hash bucket is locked and the MPOOL is not.
@@ -535,44 +533,57 @@ __memp_bhfree(dbmp, hp, bhp, flags)
 	SH_TAILQ_REMOVE(&hp->hash_bucket, bhp, hq, __bh);
 	if (bhp->priority == hp->hash_priority)
 		hp->hash_priority =
-		    SH_TAILQ_FIRST(&hp->hash_bucket, __bh) == NULL ?
-		    0 : SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+		    SH_TAILQ_EMPTY(&hp->hash_bucket) ?
+		    0 : SH_TAILQ_FIRSTP(&hp->hash_bucket, __bh)->priority;
+#ifdef DIAGNOSTIC
+	__memp_check_order(hp);
+#endif
 
 	/*
 	 * Discard the hash bucket's mutex, it's no longer needed, and
 	 * we don't want to be holding it when acquiring other locks.
 	 */
 	if (!LF_ISSET(BH_FREE_UNLOCKED))
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 
 	/*
 	 * Find the underlying MPOOLFILE and decrement its reference count.
 	 * If this is its last reference, remove it.
 	 */
 	mfp = R_ADDR(dbmp->reginfo, bhp->mf_offset);
-	MUTEX_LOCK(dbenv, &mfp->mutex);
+	MUTEX_LOCK(dbenv, mfp->mutex);
 	if (--mfp->block_cnt == 0 && mfp->mpf_cnt == 0)
-		(void)__memp_mf_discard(dbmp, mfp);
-	else
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
-
-	R_LOCK(dbenv, &dbmp->reginfo[n_cache]);
+		ret = __memp_mf_discard(dbmp, mfp);
+	else {
+		ret = 0;
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
+	}
 
 	/*
-	 * Clear the mutex this buffer recorded; requires the region lock
-	 * be held.
+	 * Free the associated mutex.
+	 *
+	 * XXX
+	 * This is wrong.  We fast-path the allocation of replacement buffers
+	 * by checking the required size, we shouldn't reallocate the mutex in
+	 * that case, either.  (Note that we should probably reset the mutex
+	 * statistics in case we re-use the mutex, though.)
 	 */
-	__db_shlocks_clear(&bhp->mutex, &dbmp->reginfo[n_cache],
-	    R_ADDR(&dbmp->reginfo[n_cache], mp->maint_off));
+	if ((t_ret = __mutex_free(dbenv, &bhp->mtx_bh)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/*
-	 * If we're not reusing the buffer immediately, free the buffer header
-	 * and data for real.
+	 * If we're not reusing the buffer immediately, free the buffer for
+	 * real.
 	 */
 	if (LF_ISSET(BH_FREE_FREEMEM)) {
+		MPOOL_REGION_LOCK(dbenv, &dbmp->reginfo[n_cache]);
+
 		__db_shalloc_free(&dbmp->reginfo[n_cache], bhp);
 		c_mp = dbmp->reginfo[n_cache].primary;
 		c_mp->stat.st_pages--;
+
+		MPOOL_REGION_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
 	}
-	R_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
+
+	return (ret);
 }

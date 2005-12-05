@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_stati.c,v 11.123 2004/07/19 16:40:51 bostic Exp $
+ * $Id: db_stati.c,v 12.10 2005/11/08 03:13:31 bostic Exp $
  */
 
 #include "db_config.h"
@@ -33,6 +33,7 @@
 #include "dbinc/btree.h"
 #include "dbinc/hash.h"
 #include "dbinc/qam.h"
+#include "dbinc/lock.h"
 #include "dbinc/log.h"
 #include "dbinc/mp.h"
 
@@ -57,7 +58,8 @@ __db_stat_pp(dbp, txn, spp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
@@ -67,17 +69,22 @@ __db_stat_pp(dbp, txn, spp, flags)
 	if ((ret = __db_stat_arg(dbp, flags)) != 0)
 		return (ret);
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	ret = __db_stat(dbp, txn, spp, flags);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -102,11 +109,11 @@ __db_stat(dbp, txn, spp, flags)
 
 	/* Acquire a cursor. */
 	if ((ret = __db_cursor(dbp, txn,
-	     &dbc, LF_ISSET(DB_DEGREE_2 | DB_DIRTY_READ))) != 0)
+	     &dbc, LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED))) != 0)
 		return (ret);
 
 	DEBUG_LWRITE(dbc, NULL, "DB->stat", NULL, NULL, flags);
-	LF_CLR(DB_DEGREE_2 | DB_DIRTY_READ);
+	LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED);
 
 	switch (dbp->type) {
 	case DB_BTREE:
@@ -145,7 +152,7 @@ __db_stat_arg(dbp, flags)
 	dbenv = dbp->dbenv;
 
 	/* Check for invalid function flags. */
-	LF_CLR(DB_DEGREE_2 | DB_DIRTY_READ);
+	LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED);
 	switch (flags) {
 	case 0:
 	case DB_FAST_STAT:
@@ -176,7 +183,8 @@ __db_stat_print_pp(dbp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
@@ -187,21 +195,26 @@ __db_stat_print_pp(dbp, flags)
 	 * !!!
 	 * The actual argument checking is simple, do it inline.
 	 */
-	if ((ret = __db_fchk(dbenv, "DB->stat_print",
-	    flags, DB_STAT_ALL | DB_STAT_CLEAR)) != 0)
+	if ((ret = __db_fchk(dbenv,
+	    "DB->stat_print", flags, DB_FAST_STAT | DB_STAT_ALL)) != 0)
 		return (ret);
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	ret = __db_stat_print(dbp, flags);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -217,14 +230,15 @@ __db_stat_print(dbp, flags)
 	u_int32_t flags;
 {
 	int ret;
+	time_t now;
 
-	if (flags == 0 || LF_ISSET(DB_STAT_ALL)) {
-		ret = __db_print_stats(dbp, flags);
-		if (flags == 0 || ret != 0)
-			return (ret);
-	}
+	(void)time(&now);
+	__db_msg(dbp->dbenv, "%.24s\tLocal time", ctime(&now));
 
 	if (LF_ISSET(DB_STAT_ALL) && (ret = __db_print_all(dbp, flags)) != 0)
+		return (ret);
+
+	if ((ret = __db_print_stats(dbp, flags)) != 0)
 		return (ret);
 
 	return (0);
@@ -284,38 +298,37 @@ __db_print_all(dbp, flags)
 	u_int32_t flags;
 {
 	static const FN fn[] = {
-		{ DB_AM_CHKSUM,		"DB_AM_CHKSUM" },
-		{ DB_AM_CL_WRITER,	"DB_AM_CL_WRITER" },
-		{ DB_AM_COMPENSATE,	"DB_AM_COMPENSATE" },
-		{ DB_AM_CREATED,	"DB_AM_CREATED" },
-		{ DB_AM_CREATED_MSTR,	"DB_AM_CREATED_MSTR" },
-		{ DB_AM_DBM_ERROR,	"DB_AM_DBM_ERROR" },
-		{ DB_AM_DELIMITER,	"DB_AM_DELIMITER" },
-		{ DB_AM_DIRTY,		"DB_AM_DIRTY" },
-		{ DB_AM_DISCARD,	"DB_AM_DISCARD" },
-		{ DB_AM_DUP,		"DB_AM_DUP" },
-		{ DB_AM_DUPSORT,	"DB_AM_DUPSORT" },
-		{ DB_AM_ENCRYPT,	"DB_AM_ENCRYPT" },
-		{ DB_AM_FIXEDLEN,	"DB_AM_FIXEDLEN" },
-		{ DB_AM_INMEM,		"DB_AM_INMEM" },
-		{ DB_AM_IN_RENAME,	"DB_AM_IN_RENAME" },
-		{ DB_AM_NOT_DURABLE,	"DB_AM_NOT_DURABLE" },
-		{ DB_AM_OPEN_CALLED,	"DB_AM_OPEN_CALLED" },
-		{ DB_AM_PAD,		"DB_AM_PAD" },
-		{ DB_AM_PGDEF,		"DB_AM_PGDEF" },
-		{ DB_AM_RDONLY,		"DB_AM_RDONLY" },
-		{ DB_AM_RECNUM,		"DB_AM_RECNUM" },
-		{ DB_AM_RECOVER,	"DB_AM_RECOVER" },
-		{ DB_AM_RENUMBER,	"DB_AM_RENUMBER" },
-		{ DB_AM_REPLICATION,	"DB_AM_REPLICATION" },
-		{ DB_AM_REVSPLITOFF,	"DB_AM_REVSPLITOFF" },
-		{ DB_AM_SECONDARY,	"DB_AM_SECONDARY" },
-		{ DB_AM_SNAPSHOT,	"DB_AM_SNAPSHOT" },
-		{ DB_AM_SUBDB,		"DB_AM_SUBDB" },
-		{ DB_AM_SWAP,		"DB_AM_SWAP" },
-		{ DB_AM_TXN,		"DB_AM_TXN" },
-		{ DB_AM_VERIFYING,	"DB_AM_VERIFYING" },
-		{ 0,			NULL }
+		{ DB_AM_CHKSUM,			"DB_AM_CHKSUM" },
+		{ DB_AM_CL_WRITER,		"DB_AM_CL_WRITER" },
+		{ DB_AM_COMPENSATE,		"DB_AM_COMPENSATE" },
+		{ DB_AM_CREATED,		"DB_AM_CREATED" },
+		{ DB_AM_CREATED_MSTR,		"DB_AM_CREATED_MSTR" },
+		{ DB_AM_DBM_ERROR,		"DB_AM_DBM_ERROR" },
+		{ DB_AM_DELIMITER,		"DB_AM_DELIMITER" },
+		{ DB_AM_DISCARD,		"DB_AM_DISCARD" },
+		{ DB_AM_DUP,			"DB_AM_DUP" },
+		{ DB_AM_DUPSORT,		"DB_AM_DUPSORT" },
+		{ DB_AM_ENCRYPT,		"DB_AM_ENCRYPT" },
+		{ DB_AM_FIXEDLEN,		"DB_AM_FIXEDLEN" },
+		{ DB_AM_INMEM,			"DB_AM_INMEM" },
+		{ DB_AM_IN_RENAME,		"DB_AM_IN_RENAME" },
+		{ DB_AM_NOT_DURABLE,		"DB_AM_NOT_DURABLE" },
+		{ DB_AM_OPEN_CALLED,		"DB_AM_OPEN_CALLED" },
+		{ DB_AM_PAD,			"DB_AM_PAD" },
+		{ DB_AM_PGDEF,			"DB_AM_PGDEF" },
+		{ DB_AM_RDONLY,			"DB_AM_RDONLY" },
+		{ DB_AM_READ_UNCOMMITTED,	"DB_AM_READ_UNCOMMITTED" },
+		{ DB_AM_RECNUM,			"DB_AM_RECNUM" },
+		{ DB_AM_RECOVER,		"DB_AM_RECOVER" },
+		{ DB_AM_RENUMBER,		"DB_AM_RENUMBER" },
+		{ DB_AM_REVSPLITOFF,		"DB_AM_REVSPLITOFF" },
+		{ DB_AM_SECONDARY,		"DB_AM_SECONDARY" },
+		{ DB_AM_SNAPSHOT,		"DB_AM_SNAPSHOT" },
+		{ DB_AM_SUBDB,			"DB_AM_SUBDB" },
+		{ DB_AM_SWAP,			"DB_AM_SWAP" },
+		{ DB_AM_TXN,			"DB_AM_TXN" },
+		{ DB_AM_VERIFYING,		"DB_AM_VERIFYING" },
+		{ 0,				NULL }
 	};
 	DB_ENV *dbenv;
 
@@ -331,7 +344,7 @@ __db_print_all(dbp, flags)
 	STAT_ISSET("DbEnv", dbp->dbenv);
 	STAT_STRING("Type", __db_dbtype_to_string(dbp->type));
 
-	__db_print_mutex(dbenv, NULL, dbp->mutexp, "Thread mutex", flags);
+	__mutex_print_debug_single(dbenv, "Thread mutex", dbp->mutex, flags);
 
 	STAT_STRING("File", dbp->fname);
 	STAT_STRING("Database", dbp->dname);
@@ -389,7 +402,7 @@ __db_print_cursor(dbp)
 	__db_msg(dbenv, "DB handle cursors:");
 
 	ret = 0;
-	MUTEX_THREAD_LOCK(dbp->dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbp->dbenv, dbp->mutex);
 	__db_msg(dbenv, "Active queue:");
 	for (dbc = TAILQ_FIRST(&dbp->active_queue);
 	    dbc != NULL; dbc = TAILQ_NEXT(dbc, links))
@@ -405,7 +418,7 @@ __db_print_cursor(dbp)
 	    dbc != NULL; dbc = TAILQ_NEXT(dbc, links))
 		if ((t_ret = __db_print_citem(dbc)) != 0 && ret == 0)
 			ret = t_ret;
-	MUTEX_THREAD_UNLOCK(dbp->dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbp->dbenv, dbp->mutex);
 
 	return (ret);
 }
@@ -417,17 +430,17 @@ int __db_print_citem(dbc)
 	static const FN fn[] = {
 		{ DBC_ACTIVE,		"DBC_ACTIVE" },
 		{ DBC_COMPENSATE,	"DBC_COMPENSATE" },
-		{ DBC_DEGREE_2,		"DBC_DEGREE_2" },
-		{ DBC_DIRTY_READ,	"DBC_DIRTY_READ" },
+		{ DBC_MULTIPLE,		"DBC_MULTIPLE" },
+		{ DBC_MULTIPLE_KEY,	"DBC_MULTIPLE_KEY" },
 		{ DBC_OPD,		"DBC_OPD" },
+		{ DBC_OWN_LID,		"DBC_OWN_LID" },
+		{ DBC_READ_COMMITTED,	"DBC_READ_COMMITTED" },
+		{ DBC_READ_UNCOMMITTED,	"DBC_READ_UNCOMMITTED" },
 		{ DBC_RECOVER,		"DBC_RECOVER" },
 		{ DBC_RMW,		"DBC_RMW" },
 		{ DBC_TRANSIENT,	"DBC_TRANSIENT" },
 		{ DBC_WRITECURSOR,	"DBC_WRITECURSOR" },
 		{ DBC_WRITER,		"DBC_WRITER" },
-		{ DBC_MULTIPLE,		"DBC_MULTIPLE" },
-		{ DBC_MULTIPLE_KEY,	"DBC_MULTIPLE_KEY" },
-		{ DBC_OWN_LID,		"DBC_OWN_LID" },
 		{ 0,			NULL }
 	};
 	DB *dbp;
@@ -438,16 +451,17 @@ int __db_print_citem(dbc)
 	dbenv = dbp->dbenv;
 	cp = dbc->internal;
 
-	STAT_HEX("DBC", dbc);
-	STAT_HEX("Associated dbp", dbc->dbp);
-	STAT_HEX("Associated txn", dbc->txn);
-	STAT_HEX("Internal", cp);
-	STAT_HEX("Default locker ID", dbc->lid);
+	STAT_POINTER("DBC", dbc);
+	STAT_POINTER("Associated dbp", dbc->dbp);
+	STAT_POINTER("Associated txn", dbc->txn);
+	STAT_POINTER("Internal", cp);
+	STAT_HEX("Default locker ID",
+	    dbc->lref == NULL ? 0 : ((DB_LOCKER *)dbc->lref)->id);
 	STAT_HEX("Locker", dbc->locker);
 	STAT_STRING("Type", __db_dbtype_to_string(dbc->dbtype));
 
-	STAT_HEX("Off-page duplicate cursor", cp->opd);
-	STAT_HEX("Referenced page", cp->page);
+	STAT_POINTER("Off-page duplicate cursor", cp->opd);
+	STAT_POINTER("Referenced page", cp->page);
 	STAT_ULONG("Root", cp->root);
 	STAT_ULONG("Page number", cp->pgno);
 	STAT_ULONG("Page index", cp->indx);
