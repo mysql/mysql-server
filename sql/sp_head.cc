@@ -958,10 +958,10 @@ int sp_head::execute(THD *thd)
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
   m_first_instance->m_first_free_instance= m_next_cached_sp;
-  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
-                      (ulong)m_first_instance, this, m_next_cached_sp,
-                      m_next_cached_sp->m_recursion_level,
-                      m_next_cached_sp->m_flags));
+//  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
+//                      (ulong)m_first_instance, this, m_next_cached_sp,
+//                      m_next_cached_sp->m_recursion_level,
+//                      m_next_cached_sp->m_flags));
   /*
     Check that if there are not any instances after this one then
     pointer to the last instance points on this instance or if there are

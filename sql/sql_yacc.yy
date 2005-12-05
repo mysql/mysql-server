@@ -1261,7 +1261,7 @@ create:
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	  }
           '('
@@ -1294,9 +1294,9 @@ create:
 	      YYABORT;
 	    sp->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+            
 	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities |= $<ulong_num>3;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	| CREATE
@@ -1314,32 +1314,35 @@ create:
 	| CREATE EVENT_SYM opt_if_not_exists sp_name
           {
             LEX *lex=Lex;
-            event_timed *et;
 
             if (lex->et)
             {
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
               // ToDo Andrey : Change the error message
               my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
               YYABORT;
             }
 
-            lex->create_info.options=$3;
+            lex->create_info.options= $3;
 	    
-            et= new event_timed();// implicitly calls event_timed::init()
-            lex->et = et;
+            if (!(lex->et= new event_timed())) // implicitly calls event_timed::init()
+              YYABORT;
 	    
-            if (!lex->et_compile_phase) 
-              et->init_name(YYTHD, $4);
-
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
               at each ';'.
             */
-            et->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
-            YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    
-            lex->sphead= 0;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+
+            if (!lex->et_compile_phase) 
+              lex->et->init_name(YYTHD, $4);
+
+            lex->sphead= 0;//defensive programming
           }
           ON SCHEDULE_SYM ev_schedule_time
           ev_on_completion
@@ -1347,9 +1350,14 @@ create:
           ev_comment
           DO_SYM ev_sql_stmt
           {
-            LEX *lex=Lex;
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
+            // Restore flag if it was cleared above
+            YYTHD->client_capabilities |= $<ulong_num>5;
 
-            lex->sql_command= SQLCOM_CREATE_EVENT;
+            Lex->sql_command= SQLCOM_CREATE_EVENT;
           }
       ;
 
@@ -1396,14 +1404,14 @@ ev_status: /* empty */
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->set_event_status(1);	   
+              lex->et->m_status= MYSQL_EVENT_ENABLED;	   
           }
         | DISABLE_SYM
           {
             LEX *lex=Lex;
             
             if (!lex->et_compile_phase)
-              lex->et->set_event_status(0);
+              lex->et->m_status= MYSQL_EVENT_DISABLED;
           }
       ;
 ev_starts: /* empty */
@@ -1438,13 +1446,13 @@ ev_on_completion: /* empty */
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->set_on_completion_drop(false);  
+              lex->et->m_on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;  
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->set_on_completion_drop(true);	    
+              lex->et->m_on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;	    
           }
       ;
 ev_comment: /* empty */
@@ -1489,10 +1497,6 @@ ev_sql_stmt:
             sp->restore_thd_mem_root(YYTHD);
 	    
             lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
-	    
-            // Restore flag if it was cleared above
-            if (lex->et->m_old_cmq)
-              YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 
             if (!lex->et_compile_phase)
             {
@@ -1577,7 +1581,7 @@ create_function_tail:
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lex->tok_start+1;
 	  }
@@ -1656,9 +1660,9 @@ create_function_tail:
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
+
 	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities |= $<ulong_num>2;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
@@ -4194,11 +4198,15 @@ alter:
 
             if (lex->et)
             {
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
               // ToDo Andrey : Change the error message
               my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
               YYABORT;
             }
-            lex->spname= 0;//defensive 
+            lex->spname= 0;//defensive programming
 	    
             et= new event_timed();// implicitly calls event_timed::init()
             lex->et = et;
@@ -4209,7 +4217,7 @@ alter:
                 stored procedure, otherwise yylex will chop it into pieces
                 at each ';'.
             */
-            et->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    
 	    /*
@@ -4225,8 +4233,12 @@ alter:
           ev_comment
           ev_opt_sql_stmt
           {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_ALTER_EVENT;
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
+            YYTHD->client_capabilities |= $<ulong_num>3;
+            Lex->sql_command= SQLCOM_ALTER_EVENT;
           }	  
       ;
 
@@ -6953,18 +6965,21 @@ drop:
         | DROP EVENT_SYM if_exists sp_name
           {
             LEX *lex=Lex;
-            event_timed *et;
 
             if (lex->et)
             {
               // ToDo Andrey : Change the error message
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
               my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
               YYABORT;
             }
 
-            et= new event_timed;
-            lex->et = et;
-            et->init_name(YYTHD, $4);
+            if (!(lex->et= new event_timed()))
+              YYABORT;
+            lex->et->init_name(YYTHD, $4);
 	  
             lex->sql_command = SQLCOM_DROP_EVENT;
             lex->drop_if_exists= $3;
@@ -7623,10 +7638,8 @@ show_param:
           }
         | CREATE EVENT_SYM sp_name
           {
-            LEX *lex= Lex;
-
-            lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
-            lex->spname= $3;
+            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
+            Lex->spname= $3;
           };
        ;
 
@@ -8515,7 +8528,7 @@ keyword_sp:
 	| AGGREGATE_SYM		{}
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
-        | AT_SYM                {}
+	| AT_SYM                {}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
@@ -8561,8 +8574,8 @@ keyword_sp:
 	| ESCAPE_SYM		{}
 	| EVENT_SYM		{}
 	| EVENTS_SYM		{}
-        | EVERY_SYM             {}
-        | EXPANSION_SYM         {}
+	| EVERY_SYM             {}
+	| EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
 	| FOUND_SYM		{}
@@ -8684,7 +8697,7 @@ keyword_sp:
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
-        | SCHEDULE_SYM		{}	
+	| SCHEDULE_SYM		{}	
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
@@ -10076,7 +10089,7 @@ trigger_tail:
 	    stored procedure, otherwise yylex will chop it into pieces
 	    at each ';'.
 	  */
-	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	  $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	  
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
@@ -10091,8 +10104,8 @@ trigger_tail:
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
 	  sp->init_strings(YYTHD, lex, $3);
 	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+
+	  YYTHD->client_capabilities |= $<ulong_num>11;
 	  sp->restore_thd_mem_root(YYTHD);
 	
 	  if (sp->is_not_allowed_in_function("trigger"))

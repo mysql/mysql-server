@@ -64,7 +64,7 @@ extern Time_zone * my_tz_find(const String *name, TABLE_LIST *tz_tables);
 extern Time_zone * my_tz_find_with_opening_tz_tables(THD *thd, const String *name);
 extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
 extern void        my_tz_free();
-my_time_t          sec_since_epoch_TIME(TIME *t);
+extern my_time_t   sec_since_epoch_TIME(TIME *t);
 
 extern TABLE_LIST fake_time_zone_tables_list;
 
