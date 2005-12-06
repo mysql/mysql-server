@@ -44,5 +44,8 @@ bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid innochecksum
 noinst_PROGRAMS =	charset2html
 
+perror.o: perror.c 
+	$(COMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
