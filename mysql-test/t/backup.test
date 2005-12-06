@@ -52,5 +52,6 @@ unlock tables;
 connection con1;
 reap;
 drop table t5;
+--system rm $MYSQL_TEST_DIR/var/tmp/t?.*
 
 # End of 4.1 tests
