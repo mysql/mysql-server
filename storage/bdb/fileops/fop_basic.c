@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: fop_basic.c,v 1.32 2004/11/15 20:04:50 bostic Exp $
+ * $Id: fop_basic.c,v 12.8 2005/10/12 17:52:16 bostic Exp $
  */
 
 #include "db_config.h"
@@ -24,9 +24,33 @@
 #include "dbinc/db_am.h"
 
 /*
- * This file implements the basic file-level operations.  This code
- * ought to be fairly independent of DB, other than through its
- * error-reporting mechanism.
+ * The transactional guarantees Berkeley DB provides for file
+ * system level operations (database physical file create, delete,
+ * rename) are based on our understanding of current file system
+ * semantics; a system that does not provide these semantics and
+ * guarantees could be in danger.
+ *
+ * First, as in standard database changes, fsync and fdatasync must
+ * work: when applied to the log file, the records written into the
+ * log must be transferred to stable storage.
+ *
+ * Second, it must not be possible for the log file to be removed
+ * without previous file system level operations being flushed to
+ * stable storage.  Berkeley DB applications write log records
+ * describing file system operations into the log, then perform the
+ * file system operation, then commit the enclosing transaction
+ * (which flushes the log file to stable storage).  Subsequently,
+ * a database environment checkpoint may make it possible for the
+ * application to remove the log file containing the record of the
+ * file system operation.  DB's transactional guarantees for file
+ * system operations require the log file removal not succeed until
+ * all previous filesystem operations have been flushed to stable
+ * storage.  In other words, the flush of the log file, or the
+ * removal of the log file, must block until all previous
+ * filesystem operations have been flushed to stable storage.  This
+ * semantic is not, as far as we know, required by any existing
+ * standards document, but we have never seen a filesystem where
+ * it does not apply.
  */
 
 /*
@@ -55,20 +79,22 @@ __fop_create(dbenv, txn, fhpp, name, appname, mode, flags)
 	char *real_name;
 
 	real_name = NULL;
+	fhp = NULL;
 
 	if ((ret =
 	    __db_appname(dbenv, appname, name, 0, NULL, &real_name)) != 0)
 		return (ret);
 
 	if (mode == 0)
-		mode = __db_omode("rw----");
+		mode = __db_omode(OWNER_RW);
 
 	if (DBENV_LOGGING(dbenv)) {
 		memset(&data, 0, sizeof(data));
 		data.data = (void *)name;
 		data.size = (u_int32_t)strlen(name) + 1;
 		if ((ret = __fop_create_log(dbenv, txn, &lsn,
-		    flags | DB_FLUSH, &data, (u_int32_t)appname, mode)) != 0)
+		    flags | DB_FLUSH,
+		    &data, (u_int32_t)appname, (u_int32_t)mode)) != 0)
 			goto err;
 	}
 
@@ -117,7 +143,7 @@ __fop_remove(dbenv, txn, fileid, name, appname, flags)
 
 	if (txn == NULL) {
 		if (fileid != NULL && (ret = __memp_nameop(
-		    dbenv, fileid, NULL, real_name, NULL)) != 0)
+		    dbenv, fileid, NULL, real_name, NULL, 0)) != 0)
 			goto err;
 	} else {
 		if (DBENV_LOGGING(dbenv)) {
@@ -127,11 +153,11 @@ __fop_remove(dbenv, txn, fileid, name, appname, flags)
 			memset(&ndbt, 0, sizeof(ndbt));
 			ndbt.data = (void *)name;
 			ndbt.size = (u_int32_t)strlen(name) + 1;
-			if ((ret = __fop_remove_log(dbenv,
-			    txn, &lsn, flags, &ndbt, &fdbt, appname)) != 0)
+			if ((ret = __fop_remove_log(dbenv, txn, &lsn,
+			    flags, &ndbt, &fdbt, (u_int32_t)appname)) != 0)
 				goto err;
 		}
-		ret = __txn_remevent(dbenv, txn, real_name, fileid);
+		ret = __txn_remevent(dbenv, txn, real_name, fileid, 0);
 	}
 
 err:	if (real_name != NULL)
@@ -192,8 +218,9 @@ __fop_write(dbenv,
 		memset(&namedbt, 0, sizeof(namedbt));
 		namedbt.data = (void *)name;
 		namedbt.size = (u_int32_t)strlen(name) + 1;
-		if ((ret = __fop_write_log(dbenv, txn, &lsn, flags,
-		    &namedbt, appname, pgsize, pageno, off, &data, istmp)) != 0)
+		if ((ret = __fop_write_log(dbenv, txn,
+		    &lsn, flags, &namedbt, (u_int32_t)appname,
+		    pgsize, pageno, off, &data, istmp)) != 0)
 			goto err;
 	}
 
@@ -265,7 +292,7 @@ __fop_rename(dbenv, txn, oldname, newname, fid, appname, flags)
 			goto err;
 	}
 
-	ret = __memp_nameop(dbenv, fid, newname, o, n);
+	ret = __memp_nameop(dbenv, fid, newname, o, n, 0);
 
 err:	if (o != NULL)
 		__os_free(dbenv, o);

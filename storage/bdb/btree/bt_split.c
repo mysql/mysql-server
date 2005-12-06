@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt_split.c,v 11.66 2004/10/01 13:00:21 bostic Exp $
+ * $Id: bt_split.c,v 12.4 2005/06/16 20:20:22 bostic Exp $
  */
 
 #include "db_config.h"
@@ -56,7 +56,6 @@
 
 static int __bam_broot __P((DBC *, PAGE *, PAGE *, PAGE *));
 static int __bam_page __P((DBC *, EPG *, EPG *));
-static int __bam_pinsert __P((DBC *, EPG *, PAGE *, PAGE *, int));
 static int __bam_psplit __P((DBC *, EPG *, PAGE *, PAGE *, db_indx_t *));
 static int __bam_root __P((DBC *, EPG *));
 static int __ram_root __P((DBC *, PAGE *, PAGE *, PAGE *));
@@ -338,7 +337,7 @@ __bam_page(dbc, pp, cp)
 	 * page can't hold the new keys, and has to be split in turn, in which
 	 * case we want to release all the locks we can.
 	 */
-	if ((ret = __bam_pinsert(dbc, pp, lp, rp, 1)) != 0)
+	if ((ret = __bam_pinsert(dbc, pp, lp, rp, BPI_SPACEONLY)) != 0)
 		goto err;
 
 	/*
@@ -349,7 +348,7 @@ __bam_page(dbc, pp, cp)
 	 * a page that's not in our direct ancestry.  Consider a cursor walking
 	 * backward through the leaf pages, that has our following page locked,
 	 * and is waiting on a lock for the page we're splitting.  In that case
-	 * we're going to deadlock here .  It's probably OK, stepping backward
+	 * we're going to deadlock here.  It's probably OK, stepping backward
 	 * through the tree isn't a common operation.
 	 */
 	if (ISLEAF(cp->page) && NEXT_PGNO(cp->page) != PGNO_INVALID) {
@@ -685,13 +684,15 @@ __ram_root(dbc, rootp, lp, rp)
 /*
  * __bam_pinsert --
  *	Insert a new key into a parent page, completing the split.
+ *
+ * PUBLIC: int __bam_pinsert __P((DBC *, EPG *, PAGE *, PAGE *, int));
  */
-static int
-__bam_pinsert(dbc, parent, lchild, rchild, space_check)
+int
+__bam_pinsert(dbc, parent, lchild, rchild, flags)
 	DBC *dbc;
 	EPG *parent;
 	PAGE *lchild, *rchild;
-	int space_check;
+	int flags;
 {
 	BINTERNAL bi, *child_bi;
 	BKEYDATA *child_bk, *tmp_bk;
@@ -714,7 +715,7 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 
 	/* If handling record numbers, count records split to the right page. */
 	nrecs = F_ISSET(cp, C_RECNUM) &&
-	    !space_check ? __bam_total(dbp, rchild) : 0;
+	    !LF_ISSET(BPI_SPACEONLY) ? __bam_total(dbp, rchild) : 0;
 
 	/*
 	 * Now we insert the new page's first key into the parent page, which
@@ -750,7 +751,7 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 
 		if (P_FREESPACE(dbp, ppage) < nbytes)
 			return (DB_NEEDSPLIT);
-		if (space_check)
+		if (LF_ISSET(BPI_SPACEONLY))
 			return (0);
 
 		/* Add a new record for the right page. */
@@ -780,7 +781,11 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 		child_bk = GET_BKEYDATA(dbp, rchild, 0);
 		switch (B_TYPE(child_bk->type)) {
 		case B_KEYDATA:
+			nbytes = BINTERNAL_PSIZE(child_bk->len);
+			nksize = child_bk->len;
+
 			/*
+			 * Prefix compression:
 			 * We set t->bt_prefix to NULL if we have a comparison
 			 * callback but no prefix compression callback.  But,
 			 * if we're splitting in an off-page duplicates tree,
@@ -792,6 +797,14 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 			 * as there's no way for an application to specify a
 			 * prefix compression callback that corresponds to its
 			 * comparison callback.
+			 *
+			 * No prefix compression if we don't have a compression
+			 * function, or the key we'd compress isn't a normal
+			 * key (for example, it references an overflow page).
+			 *
+			 * Generate a parent page key for the right child page
+			 * from a comparison of the last key on the left child
+			 * page and the first key on the right child page.
 			 */
 			if (F_ISSET(dbc, DBC_OPD)) {
 				if (dbp->dup_compare == __bam_defcmp)
@@ -800,12 +813,7 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 					func = NULL;
 			} else
 				func = t->bt_prefix;
-
-			nbytes = BINTERNAL_PSIZE(child_bk->len);
-			nksize = child_bk->len;
 			if (func == NULL)
-				goto noprefix;
-			if (ppage->prev_pgno == PGNO_INVALID && off <= 1)
 				goto noprefix;
 			tmp_bk = GET_BKEYDATA(dbp, lchild, NUM_ENT(lchild) -
 			    (TYPE(lchild) == P_LDUP ? O_INDX : P_INDX));
@@ -821,11 +829,11 @@ __bam_pinsert(dbc, parent, lchild, rchild, space_check)
 			if ((n = BINTERNAL_PSIZE(nksize)) < nbytes)
 				nbytes = n;
 			else
-noprefix:			nksize = child_bk->len;
+				nksize = child_bk->len;
 
-			if (P_FREESPACE(dbp, ppage) < nbytes)
+noprefix:		if (P_FREESPACE(dbp, ppage) < nbytes)
 				return (DB_NEEDSPLIT);
-			if (space_check)
+			if (LF_ISSET(BPI_SPACEONLY))
 				return (0);
 
 			memset(&bi, 0, sizeof(bi));
@@ -849,7 +857,7 @@ noprefix:			nksize = child_bk->len;
 
 			if (P_FREESPACE(dbp, ppage) < nbytes)
 				return (DB_NEEDSPLIT);
-			if (space_check)
+			if (LF_ISSET(BPI_SPACEONLY))
 				return (0);
 
 			memset(&bi, 0, sizeof(bi));
@@ -883,7 +891,7 @@ noprefix:			nksize = child_bk->len;
 
 		if (P_FREESPACE(dbp, ppage) < nbytes)
 			return (DB_NEEDSPLIT);
-		if (space_check)
+		if (LF_ISSET(BPI_SPACEONLY))
 			return (0);
 
 		/* Add a new record for the right page. */
@@ -904,13 +912,13 @@ noprefix:			nksize = child_bk->len;
 	 * If a Recno or Btree with record numbers AM page, or an off-page
 	 * duplicates tree, adjust the parent page's left page record count.
 	 */
-	if (F_ISSET(cp, C_RECNUM)) {
+	if (F_ISSET(cp, C_RECNUM) && !LF_ISSET(BPI_NORECNUM)) {
 		/* Log the change. */
 		if (DBC_LOGGING(dbc)) {
-		if ((ret = __bam_cadjust_log(dbp, dbc->txn,
-		    &LSN(ppage), 0, PGNO(ppage),
-		    &LSN(ppage), parent->indx, -(int32_t)nrecs, 0)) != 0)
-			return (ret);
+			if ((ret = __bam_cadjust_log(dbp, dbc->txn,
+			    &LSN(ppage), 0, PGNO(ppage), &LSN(ppage),
+			    parent->indx, -(int32_t)nrecs, 0)) != 0)
+				return (ret);
 		} else
 			LSN_NOT_LOGGED(LSN(ppage));
 

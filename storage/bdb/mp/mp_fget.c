@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_fget.c,v 11.96 2004/10/15 16:59:42 bostic Exp $
+ * $Id: mp_fget.c,v 12.8 2005/10/12 17:53:36 bostic Exp $
  */
 
 #include "db_config.h"
@@ -35,6 +35,7 @@ __memp_fget_pp(dbmfp, pgnoaddr, flags, addrp)
 	void *addrp;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	int rep_check, ret;
 
 	dbenv = dbmfp->dbenv;
@@ -70,9 +71,11 @@ __memp_fget_pp(dbmfp, pgnoaddr, flags, addrp)
 		}
 	}
 
+	ENV_ENTER(dbenv, ip);
+
 	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__op_rep_enter(dbenv);
+	if (rep_check && (ret = __op_rep_enter(dbenv)) != 0)
+		goto err;
 	ret = __memp_fget(dbmfp, pgnoaddr, flags, addrp);
 	/*
 	 * We only decrement the count in op_rep_exit if the operation fails.
@@ -80,7 +83,12 @@ __memp_fget_pp(dbmfp, pgnoaddr, flags, addrp)
 	 * pinned in memp_fput.
 	 */
 	if (ret != 0 && rep_check)
-		__op_rep_exit(dbenv);
+		(void)__op_rep_exit(dbenv);
+
+	/* Similarly if an app has a page pinned it is ACTIVE. */
+err:	if (ret != 0)
+		ENV_LEAVE(dbenv, ip);
+
 	return (ret);
 }
 
@@ -125,9 +133,9 @@ __memp_fget(dbmfp, pgnoaddr, flags, addrp)
 	switch (flags) {
 	case DB_MPOOL_LAST:
 		/* Get the last page number in the file. */
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		*pgnoaddr = mfp->last_pgno;
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 		break;
 	case DB_MPOOL_NEW:
 		/*
@@ -183,7 +191,7 @@ hb_search:
 
 	/* Search the hash chain for the page. */
 retry:	st_hsearch = 0;
-	MUTEX_LOCK(dbenv, &hp->hash_mutex);
+	MUTEX_LOCK(dbenv, hp->mtx_hash);
 	for (bhp = SH_TAILQ_FIRST(&hp->hash_bucket, __bh);
 	    bhp != NULL; bhp = SH_TAILQ_NEXT(bhp, hq, __bh)) {
 		++st_hsearch;
@@ -197,7 +205,7 @@ retry:	st_hsearch = 0;
 		 * unchanged.
 		 */
 		if (bhp->ref == UINT16_MAX) {
-			MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+			MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 
 			__db_err(dbenv,
 			    "%s: page %lu: reference count overflow",
@@ -225,12 +233,12 @@ retry:	st_hsearch = 0;
 			if (!first && bhp->ref_sync != 0) {
 				--bhp->ref;
 				b_incr = 0;
-				MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+				MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 				__os_yield(dbenv, 1);
 				goto retry;
 			}
 
-			MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+			MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 			/*
 			 * Explicitly yield the processor if not the first pass
 			 * through this loop -- if we don't, we might run to the
@@ -240,10 +248,10 @@ retry:	st_hsearch = 0;
 			if (!first)
 				__os_yield(dbenv, 1);
 
-			MUTEX_LOCK(dbenv, &bhp->mutex);
+			MUTEX_LOCK(dbenv, bhp->mtx_bh);
 			/* Wait for I/O to finish... */
-			MUTEX_UNLOCK(dbenv, &bhp->mutex);
-			MUTEX_LOCK(dbenv, &hp->hash_mutex);
+			MUTEX_UNLOCK(dbenv, bhp->mtx_bh);
+			MUTEX_LOCK(dbenv, hp->mtx_hash);
 		}
 
 		++mfp->stat.st_cache_hit;
@@ -293,10 +301,9 @@ retry:	st_hsearch = 0;
 		 * If not, complain and get out.
 		 */
 		if (flags == DB_MPOOL_FREE) {
-			if (bhp->ref == 1) {
-				__memp_bhfree(dbmp, hp, bhp, BH_FREE_FREEMEM);
-				return (0);
-			}
+			if (bhp->ref == 1)
+				return (__memp_bhfree(
+				    dbmp, hp, bhp, BH_FREE_FREEMEM));
 			__db_err(dbenv,
 			    "File %s: freeing pinned buffer for page %lu",
 				__memp_fns(dbmp, mfp), (u_long)*pgnoaddr);
@@ -312,7 +319,7 @@ retry:	st_hsearch = 0;
 		 * if the page exists, and allocate structures so we can add
 		 * the page to the buffer pool.
 		 */
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 
 		/*
 		 * The buffer is not in the pool, so we don't need to free it.
@@ -328,7 +335,7 @@ alloc:		/*
 		COMPQUIET(n_cache, 0);
 
 		extending = ret = 0;
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		switch (flags) {
 		case DB_MPOOL_NEW:
 			extending = 1;
@@ -352,7 +359,7 @@ alloc:		/*
 			ret = *pgnoaddr > mfp->last_pgno ? DB_PAGE_NOTFOUND : 0;
 			break;
 		}
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 		if (ret != 0)
 			goto err;
 
@@ -382,7 +389,7 @@ alloc:		/*
 		 * again.
 		 */
 		if (extending)
-			R_LOCK(dbenv, dbmp->reginfo);
+			MPOOL_SYSTEM_LOCK(dbenv);
 
 		/*
 		 * DB_MPOOL_NEW does not guarantee you a page unreferenced by
@@ -416,13 +423,15 @@ alloc:		/*
 				 * flags == DB_MPOOL_NEW, so extending is set
 				 * and we're holding the region locked.
 				 */
-				R_UNLOCK(dbenv, dbmp->reginfo);
+				MPOOL_SYSTEM_UNLOCK(dbenv);
 
-				R_LOCK(dbenv, &dbmp->reginfo[n_cache]);
+				MPOOL_REGION_LOCK(
+				    dbenv, &dbmp->reginfo[n_cache]);
 				__db_shalloc_free(
 				    &dbmp->reginfo[n_cache], alloc_bhp);
 				c_mp->stat.st_pages--;
-				R_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
+				MPOOL_REGION_UNLOCK(
+				    dbenv, &dbmp->reginfo[n_cache]);
 
 				alloc_bhp = NULL;
 				goto alloc;
@@ -438,7 +447,7 @@ alloc:		/*
 			if (*pgnoaddr > mfp->last_pgno)
 				mfp->last_pgno = *pgnoaddr;
 
-			R_UNLOCK(dbenv, dbmp->reginfo);
+			MPOOL_SYSTEM_UNLOCK(dbenv);
 			if (ret != 0)
 				goto err;
 		}
@@ -455,12 +464,12 @@ alloc:		/*
 		 * lock, we have to release the hash bucket and re-acquire it.
 		 * That's OK, because we have the buffer pinned down.
 		 */
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
-		R_LOCK(dbenv, &dbmp->reginfo[n_cache]);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
+		MPOOL_REGION_LOCK(dbenv, &dbmp->reginfo[n_cache]);
 		__db_shalloc_free(&dbmp->reginfo[n_cache], alloc_bhp);
 		c_mp->stat.st_pages--;
 		alloc_bhp = NULL;
-		R_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
+		MPOOL_REGION_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
 
 		/*
 		 * We can't use the page we found in the pool if DB_MPOOL_NEW
@@ -477,7 +486,7 @@ alloc:		/*
 		}
 
 		/* We can use the page -- get the bucket lock. */
-		MUTEX_LOCK(dbenv, &hp->hash_mutex);
+		MUTEX_LOCK(dbenv, hp->mtx_hash);
 		break;
 	case SECOND_MISS:
 		/*
@@ -504,8 +513,19 @@ alloc:		/*
 		bhp->pgno = *pgnoaddr;
 		bhp->mf_offset = mf_offset;
 		SH_TAILQ_INSERT_TAIL(&hp->hash_bucket, bhp, hq);
+
+		/*
+		 * Allocate the mutex.  This is the last BH initialization step,
+		 * because it's the only one that can fail, and everything else
+		 * must be set up or we can't jump to the err label because it
+		 * will call __memp_bhfree.
+		 */
+		if ((ret = __mutex_alloc(
+		    dbenv, MTX_MPOOL_BUFFER, 0, &bhp->mtx_bh)) != 0)
+			goto err;
+
 		hp->hash_priority =
-		    SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+		    SH_TAILQ_FIRSTP(&hp->hash_bucket, __bh)->priority;
 
 		/* If we extended the file, make sure the page is never lost. */
 		if (extending) {
@@ -532,7 +552,7 @@ alloc:		/*
 		 * if DB_MPOOL_CREATE is set.
 		 */
 		if (extending) {
-			if (mfp->clear_len == 0)
+			if (mfp->clear_len == DB_CLEARLEN_NOTSET)
 				memset(bhp->buf, 0, mfp->stat.st_pagesize);
 			else {
 				memset(bhp->buf, 0, mfp->clear_len);
@@ -552,19 +572,9 @@ alloc:		/*
 		}
 
 		/* Increment buffer count referenced by MPOOLFILE. */
-		MUTEX_LOCK(dbenv, &mfp->mutex);
+		MUTEX_LOCK(dbenv, mfp->mutex);
 		++mfp->block_cnt;
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
-
-		/*
-		 * Initialize the mutex.  This is the last initialization step,
-		 * because it's the only one that can fail, and everything else
-		 * must be set up or we can't jump to the err label because it
-		 * will call __memp_bhfree.
-		 */
-		if ((ret = __db_mutex_setup(dbenv,
-		    &dbmp->reginfo[n_cache], &bhp->mutex, 0)) != 0)
-			goto err;
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
 	}
 
 	DB_ASSERT(bhp->ref != 0);
@@ -580,7 +590,7 @@ alloc:		/*
 		SH_TAILQ_REMOVE(&hp->hash_bucket, bhp, hq, __bh);
 		SH_TAILQ_INSERT_TAIL(&hp->hash_bucket, bhp, hq);
 		hp->hash_priority =
-		    SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+		    SH_TAILQ_FIRSTP(&hp->hash_bucket, __bh)->priority;
 	}
 
 	/*
@@ -598,7 +608,7 @@ alloc:		/*
 	 */
 	if (F_ISSET(bhp, BH_TRASH) &&
 	    (ret = __memp_pgread(dbmfp,
-	    &hp->hash_mutex, bhp, LF_ISSET(DB_MPOOL_CREATE) ? 1 : 0)) != 0)
+	    hp->mtx_hash, bhp, LF_ISSET(DB_MPOOL_CREATE) ? 1 : 0)) != 0)
 		goto err;
 
 	/*
@@ -611,14 +621,17 @@ alloc:		/*
 			goto err;
 		F_CLR(bhp, BH_CALLPGIN);
 	}
+#ifdef DIAGNOSTIC
+	__memp_check_order(hp);
+#endif
 
-	MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+	MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 
 #ifdef DIAGNOSTIC
 	/* Update the file's pinned reference count. */
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 	++dbmfp->pinref;
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 
 	/*
 	 * We want to switch threads as often as possible, and at awkward
@@ -638,19 +651,19 @@ err:	/*
 	 */
 	if (b_incr) {
 		if (bhp->ref == 1)
-			__memp_bhfree(dbmp, hp, bhp, BH_FREE_FREEMEM);
+			(void)__memp_bhfree(dbmp, hp, bhp, BH_FREE_FREEMEM);
 		else {
 			--bhp->ref;
-			MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+			MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 		}
 	}
 
 	/* If alloc_bhp is set, free the memory. */
 	if (alloc_bhp != NULL) {
-		R_LOCK(dbenv, &dbmp->reginfo[n_cache]);
+		MPOOL_REGION_LOCK(dbenv, &dbmp->reginfo[n_cache]);
 		__db_shalloc_free(&dbmp->reginfo[n_cache], alloc_bhp);
 		c_mp->stat.st_pages--;
-		R_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
+		MPOOL_REGION_UNLOCK(dbenv, &dbmp->reginfo[n_cache]);
 	}
 
 	return (ret);

@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_load.c,v 11.100 2004/10/29 17:29:02 bostic Exp $
+ * $Id: db_load.c,v 12.8 2005/06/16 20:21:23 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2005\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -57,7 +57,9 @@ int	load __P((DB_ENV *, char *, DBTYPE, char **, u_int, LDG *, int *));
 int	main __P((int, char *[]));
 int	rheader __P((DB_ENV *, DB *, DBTYPE *, char **, int *, int *));
 int	usage __P((void));
-int	version_check __P((const char *));
+int	version_check __P((void));
+
+const char *progname;
 
 #define	G(f)	((LDG *)dbenv->app_private)->f
 
@@ -81,7 +83,15 @@ main(argc, argv)
 	int ch, existed, exitval, ret;
 	char **clist, **clp;
 
-	ldg.progname = "db_load";
+	if ((progname = strrchr(argv[0], '/')) == NULL)
+		progname = argv[0];
+	else
+		++progname;
+
+	if ((ret = version_check()) != 0)
+		return (ret);
+
+	ldg.progname = progname;
 	ldg.lineno = 0;
 	ldg.endodata = ldg.endofile = 0;
 	ldg.version = 1;
@@ -89,9 +99,6 @@ main(argc, argv)
 	ldg.hdrbuf = NULL;
 	ldg.home = NULL;
 	ldg.passwd = NULL;
-
-	if ((ret = version_check(ldg.progname)) != 0)
-		return (ret);
 
 	mode = NOTSET;
 	ldf = 0;
@@ -218,11 +225,11 @@ main(argc, argv)
 	switch (mode) {
 	case FILEID_RESET:
 		exitval = dbenv->fileid_reset(
-		    dbenv, argv[0], ldf & LDF_PASSWORD ? 1 : 0);
+		    dbenv, argv[0], ldf & LDF_PASSWORD ? DB_ENCRYPT : 0);
 		break;
 	case LSN_RESET:
 		exitval = dbenv->lsn_reset(
-		    dbenv, argv[0], ldf & LDF_PASSWORD ? 1 : 0);
+		    dbenv, argv[0], ldf & LDF_PASSWORD ? DB_ENCRYPT : 0);
 		break;
 	case NOTSET:
 	case STANDARD_LOAD:
@@ -401,7 +408,7 @@ retry_db:
 	/* Open the DB file. */
 	if ((ret = dbp->open(dbp, NULL, name, subdb, dbtype,
 	    DB_CREATE | (TXN_ON(dbenv) ? DB_AUTO_COMMIT : 0),
-	    __db_omode("rwrwrw"))) != 0) {
+	    __db_omode("rw-rw-rw-"))) != 0) {
 		dbp->err(dbp, ret, "DB->open: %s", name);
 		goto err;
 	}
@@ -652,23 +659,22 @@ err:	dbenv->err(dbenv, ret, "DB_ENV->open");
 			if ((ret = dbp->set_flags(dbp, flag)) != 0) {	\
 				dbp->err(dbp, ret, "%s: set_flags: %s",	\
 				    G(progname), name);			\
-				return (1);				\
+				goto err;				\
 			}						\
 			break;						\
 		case '0':						\
 			break;						\
 		default:						\
 			badnum(dbenv);					\
-			return (1);					\
+			goto err;					\
 		}							\
 		continue;						\
 	}
 #define	NUMBER(name, value, keyword, func, t)				\
 	if (strcmp(name, keyword) == 0) {				\
-		if (__db_getlong(dbenv,					\
-		    NULL, value, 1, LONG_MAX, &val) != 0)		\
-			return (1);					\
-		if ((ret = dbp->func(dbp, (t)val)) != 0)		\
+		if ((ret = __db_getlong(dbenv,				\
+		    NULL, value, 0, LONG_MAX, &val)) != 0 ||		\
+		    (ret = dbp->func(dbp, (t)val)) != 0)		\
 			goto nameerr;					\
 		continue;						\
 	}
@@ -725,9 +731,6 @@ configure(dbenv, dbp, clp, subdbp, keysp)
 			continue;
 		}
 
-#ifdef notyet
-		NUMBER(name, value, "bt_maxkey", set_bt_maxkey, u_int32_t);
-#endif
 		NUMBER(name, value, "bt_minkey", set_bt_minkey, u_int32_t);
 		NUMBER(name, value, "db_lorder", set_lorder, int);
 		NUMBER(name, value, "db_pagesize", set_pagesize, u_int32_t);
@@ -749,7 +752,7 @@ configure(dbenv, dbp, clp, subdbp, keysp)
 
 nameerr:
 	dbp->err(dbp, ret, "%s: %s=%s", G(progname), name, value);
-	return (1);
+err:	return (1);
 }
 
 /*
@@ -771,7 +774,7 @@ rheader(dbenv, dbp, dbtypep, subdbp, checkprintp, keysp)
 
 	*dbtypep = DB_UNKNOWN;
 	*checkprintp = 0;
-	name = p = NULL;
+	name = NULL;
 
 	/*
 	 * We start with a smallish buffer;  most headers are small.
@@ -780,10 +783,8 @@ rheader(dbenv, dbp, dbtypep, subdbp, checkprintp, keysp)
 	buflen = 4096;
 	if (G(hdrbuf) == NULL) {
 		hdr = 0;
-		if ((buf = malloc(buflen)) == NULL) {
-memerr:			dbp->errx(dbp, "could not allocate buffer %d", buflen);
-			return (1);
-		}
+		if ((buf = malloc(buflen)) == NULL)
+			goto memerr;
 		G(hdrbuf) = buf;
 		G(origline) = G(lineno);
 	} else {
@@ -832,7 +833,6 @@ memerr:			dbp->errx(dbp, "could not allocate buffer %d", buflen);
 		start += linelen;
 
 		if (name != NULL) {
-			*p = '=';
 			free(name);
 			name = NULL;
 		}
@@ -939,19 +939,21 @@ memerr:			dbp->errx(dbp, "could not allocate buffer %d", buflen);
 		goto err;
 	}
 	ret = 0;
+
 	if (0) {
 nameerr:	dbp->err(dbp, ret, "%s: %s=%s", G(progname), name, value);
-err:		ret = 1;
+		ret = 1;
 	}
 	if (0) {
 badfmt:		dbp->errx(dbp, "line %lu: unexpected format", G(lineno));
 		ret = 1;
 	}
-	if (name != NULL) {
-		if (p != NULL)
-			*p = '=';
-		free(name);
+	if (0) {
+memerr:		dbp->errx(dbp, "unable to allocate memory");
+err:		ret = 1;
 	}
+	if (name != NULL)
+		free(name);
 	return (ret);
 }
 
@@ -1293,17 +1295,16 @@ badend(dbenv)
 int
 usage()
 {
-	(void)fprintf(stderr, "%s\n\t%s\n",
-	    "usage: db_load [-nTV] [-c name=value] [-f file]",
+	(void)fprintf(stderr, "usage: %s %s\n\t%s\n", progname,
+	    "[-nTV] [-c name=value] [-f file]",
     "[-h home] [-P password] [-t btree | hash | recno | queue] db_file");
-	(void)fprintf(stderr, "%s\n",
-	    "usage: db_load -r lsn | fileid [-h home] [-P password] db_file");
+	(void)fprintf(stderr, "usage: %s %s\n",
+	    progname, "-r lsn | fileid [-h home] [-P password] db_file");
 	return (EXIT_FAILURE);
 }
 
 int
-version_check(progname)
-	const char *progname;
+version_check()
 {
 	int v_major, v_minor, v_patch;
 

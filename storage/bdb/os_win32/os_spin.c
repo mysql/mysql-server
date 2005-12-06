@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_spin.c,v 11.16 2004/03/24 15:13:16 bostic Exp $
+ * $Id: os_spin.c,v 12.2 2005/07/20 16:52:02 bostic Exp $
  */
 
 #include "db_config.h"
@@ -15,18 +15,12 @@
  * __os_spin --
  *	Return the number of default spins before blocking.
  */
-void
+u_int32_t
 __os_spin(dbenv)
 	DB_ENV *dbenv;
 {
 	SYSTEM_INFO SystemInfo;
-
-	/*
-	 * If the application specified a value or we've already figured it
-	 * out, return it.
-	 */
-	if (dbenv->tas_spins != 0)
-		return;
+	u_int32_t tas_spins;
 
 	/* Get the number of processors */
 	GetSystemInfo(&SystemInfo);
@@ -36,9 +30,11 @@ __os_spin(dbenv)
 	 * is a reasonable value.
 	 */
 	if (SystemInfo.dwNumberOfProcessors > 1)
-		 dbenv->tas_spins = 50 * SystemInfo.dwNumberOfProcessors;
+		 tas_spins = 50 * SystemInfo.dwNumberOfProcessors;
 	else
-		 dbenv->tas_spins = 1;
+		 tas_spins = 1;
+
+	return (tas_spins);
 }
 
 /*

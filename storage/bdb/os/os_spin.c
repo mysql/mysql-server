@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_spin.c,v 11.20 2004/06/23 14:10:56 bostic Exp $
+ * $Id: os_spin.c,v 12.3 2005/08/10 15:47:27 bostic Exp $
  */
 
 #include "db_config.h"
@@ -16,7 +16,6 @@
 #endif
 
 #include <limits.h>			/* Needed for sysconf on Solaris. */
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -39,18 +38,19 @@ __os_pstat_getdynamic()
 #endif
 
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
-static int __os_sysconf __P((void));
+static u_int32_t __os_sysconf __P((void));
 
 /*
  * __os_sysconf --
  *	Solaris, Linux.
  */
-static int
+static u_int32_t
 __os_sysconf()
 {
 	long nproc;
 
-	return ((nproc = sysconf(_SC_NPROCESSORS_ONLN)) > 1 ? (int)nproc : 1);
+	nproc = sysconf(_SC_NPROCESSORS_ONLN);
+	return ((u_int32_t)(nproc > 1 ? nproc : 1));
 }
 #endif
 
@@ -58,37 +58,32 @@ __os_sysconf()
  * __os_spin --
  *	Set the number of default spins before blocking.
  *
- * PUBLIC: void __os_spin __P((DB_ENV *));
+ * PUBLIC: u_int32_t __os_spin __P((DB_ENV *));
  */
-void
+u_int32_t
 __os_spin(dbenv)
 	DB_ENV *dbenv;
 {
-	/*
-	 * If the application specified a value or we've already figured it
-	 * out, return it.
-	 *
-	 * Don't repeatedly call the underlying function because it can be
-	 * expensive (for example, taking multiple filesystem accesses under
-	 * Debian Linux).
-	 */
-	if (dbenv->tas_spins != 0)
-		return;
+	u_int32_t tas_spins;
 
-	dbenv->tas_spins = 1;
+	COMPQUIET(dbenv, NULL);
+
+	tas_spins = 1;
 #if defined(HAVE_PSTAT_GETDYNAMIC)
-	dbenv->tas_spins = __os_pstat_getdynamic();
+	tas_spins = __os_pstat_getdynamic();
 #endif
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
-	dbenv->tas_spins = __os_sysconf();
+	tas_spins = __os_sysconf();
 #endif
 
 	/*
 	 * Spin 50 times per processor, we have anecdotal evidence that this
 	 * is a reasonable value.
 	 */
-	if (dbenv->tas_spins != 1)
-		dbenv->tas_spins *= 50;
+	if (tas_spins != 1)
+		tas_spins *= 50;
+
+	return (tas_spins);
 }
 
 /*

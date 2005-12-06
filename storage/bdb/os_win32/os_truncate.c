@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2004
+ * Copyright (c) 2004-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_truncate.c,v 1.9 2004/10/05 14:45:30 mjc Exp $
+ * $Id: os_truncate.c,v 12.4 2005/10/12 17:57:33 bostic Exp $
  */
 
 #include "db_config.h"
@@ -29,10 +29,12 @@ __os_truncate(dbenv, fhp, pgno, pgsize)
 			unsigned long low;
 			long high;
 		};
-	} oldpos;
+	} off;
 	off_t offset;
-	int ret, retries, t_ret;
+	HANDLE dup_handle;
+	int ret;
 
+	ret = 0;
 	offset = (off_t)pgsize * pgno;
 
 	if (DB_GLOBAL(j_ftruncate) != NULL) {
@@ -60,36 +62,28 @@ __os_truncate(dbenv, fhp, pgno, pgsize)
 	}
 #endif
 
-	retries = 0;
-	do {
-		/*
-		 * Windows doesn't provide truncate directly.  Instead,
-		 * it has SetEndOfFile, which truncates to the current
-		 * position.  So we have to save the current position,
-		 * seek to where we want to truncate to, then seek back
-		 * to where we were.  To avoid races, all of that needs
-		 * to be done while holding the file handle mutex.
-		 */
-		MUTEX_THREAD_LOCK(dbenv, fhp->mutexp);
-		oldpos.bigint = 0;
-		if ((oldpos.low = SetFilePointer(fhp->handle,
-		    0, &oldpos.high, FILE_CURRENT)) == -1 &&
-		    GetLastError() != NO_ERROR) {
-			ret = __os_get_errno();
-			goto end;
-		}
-		if ((ret = __os_seek(dbenv, fhp, pgsize, pgno,
-		    0, 0, DB_OS_SEEK_SET)) != 0)
-			goto end;
-		if (!SetEndOfFile(fhp->handle))
-			ret = __os_get_errno();
-		if ((t_ret = __os_seek(dbenv, fhp, pgsize,
-		    (db_pgno_t)(oldpos.bigint / pgsize),
-		    0, 0, DB_OS_SEEK_SET)) != 0 && ret == 0)
-			ret = t_ret;
-end:		MUTEX_THREAD_UNLOCK(dbenv, fhp->mutexp);
-	} while ((ret == EAGAIN || ret == EBUSY || ret == EINTR) &&
-	    ++retries < DB_RETRY);
+	/*
+	 * Windows doesn't provide truncate directly.  Instead, it has
+	 * SetEndOfFile, which truncates to the current position.  To
+	 * deal with that, we first duplicate the file handle, then
+	 * seek and set the end of file.  This is necessary to avoid
+	 * races with {Read,Write}File in other threads.
+	 */
+	if (!DuplicateHandle(GetCurrentProcess(), fhp->handle,
+	    GetCurrentProcess(), &dup_handle, 0, FALSE,
+	    DUPLICATE_SAME_ACCESS)) {
+		ret = __os_get_errno();
+		goto done;
+	}
+
+	off.bigint = (__int64)pgsize * pgno;
+	RETRY_CHK((SetFilePointer(dup_handle,
+	    off.low, &off.high, FILE_BEGIN) == INVALID_SET_FILE_POINTER &&
+	    GetLastError() != NO_ERROR) ||
+	    !SetEndOfFile(dup_handle), ret);
+
+	if (!CloseHandle(dup_handle) && ret == 0)
+		ret = __os_get_errno();
 
 done:	if (ret != 0)
 		__db_err(dbenv,

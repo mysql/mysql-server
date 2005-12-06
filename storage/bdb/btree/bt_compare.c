@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt_compare.c,v 11.20 2004/02/21 15:54:44 bostic Exp $
+ * $Id: bt_compare.c,v 12.1 2005/06/16 20:20:13 bostic Exp $
  */
 
 #include "db_config.h"

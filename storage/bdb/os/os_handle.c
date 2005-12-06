@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_handle.c,v 11.40 2004/08/19 17:59:22 sue Exp $
+ * $Id: os_handle.c,v 12.2 2005/08/10 15:47:25 bostic Exp $
  */
 
 #include "db_config.h"
@@ -14,7 +14,6 @@
 
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_region.c,v 11.21 2004/06/10 17:20:57 bostic Exp $
+ * $Id: os_region.c,v 12.4 2005/07/21 01:36:18 bostic Exp $
  */
 
 #include "db_config.h"
@@ -31,7 +31,18 @@ __os_r_attach(dbenv, infop, rp)
 {
 	int ret;
 
-	/* Round off the requested size for the underlying VM. */
+	/*
+	 * All regions are created on 8K boundaries out of sheer paranoia,
+	 * so we don't make some underlying VM unhappy. Make sure we don't
+	 * overflow or underflow.
+	 */
+#define	OS_VMPAGESIZE		(8 * 1024)
+#define	OS_VMROUNDOFF(i) {						\
+	if ((i) <							\
+	    (UINT32_MAX - OS_VMPAGESIZE) + 1 || (i) < OS_VMPAGESIZE)	\
+		(i) += OS_VMPAGESIZE - 1;				\
+	(i) -= (i) % OS_VMPAGESIZE;					\
+}
 	OS_VMROUNDOFF(rp->size);
 
 #ifdef DB_REGIONSIZE_MAX
@@ -52,7 +63,7 @@ __os_r_attach(dbenv, infop, rp)
 	 * I don't know of any architectures (yet!) where malloc is a problem.
 	 */
 	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
-#if defined(MUTEX_NO_MALLOC_LOCKS)
+#if defined(HAVE_MUTEX_HPPA_MSEM_INIT)
 		/*
 		 * !!!
 		 * There exist spinlocks that don't work in malloc memory, e.g.,
@@ -68,12 +79,8 @@ __os_r_attach(dbenv, infop, rp)
 			return (EINVAL);
 		}
 #endif
-		/*
-		 * Pad out the allocation, we're going to align it to mutex
-		 * alignment.
-		 */
-		if ((ret = __os_malloc(dbenv,
-		    sizeof(REGENV) + (MUTEX_ALIGN - 1), &infop->addr)) != 0)
+		if ((ret = __os_malloc(
+		    dbenv, sizeof(REGENV), &infop->addr)) != 0)
 			return (ret);
 
 		infop->max_alloc = rp->size;
@@ -97,7 +104,7 @@ __os_r_attach(dbenv, infop, rp)
 	 * the original values for restoration when the region is discarded.
 	 */
 	infop->addr_orig = infop->addr;
-	infop->addr = ALIGNP_INC(infop->addr_orig, MUTEX_ALIGN);
+	infop->addr = ALIGNP_INC(infop->addr_orig, sizeof(size_t));
 
 	rp->size_orig = rp->size;
 	if (infop->addr != infop->addr_orig)

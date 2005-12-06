@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
  * Some parts of this code originally written by Adam Stubblefield,
  * -- astubble@rice.edu.
  *
- * $Id: aes_method.c,v 1.20 2004/09/17 22:00:25 mjc Exp $
+ * $Id: aes_method.c,v 12.1 2005/06/16 20:20:55 bostic Exp $
  */
 
 #include "db_config.h"

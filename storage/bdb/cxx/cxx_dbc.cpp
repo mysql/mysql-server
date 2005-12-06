@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_dbc.cpp,v 11.59 2004/01/28 03:35:56 bostic Exp $
+ * $Id: cxx_dbc.cpp,v 12.2 2005/09/30 07:38:25 mjc Exp $
  */
 
 #include "db_config.h"
@@ -80,10 +80,10 @@ int Dbc::get(Dbt* key, Dbt *data, u_int32_t _flags)
 	ret = dbc->c_get(dbc, key, data, _flags);
 
 	if (!DB_RETOK_DBCGET(ret)) {
-		if (ret == ENOMEM && DB_OVERFLOWED_DBT(key))
+		if (ret == DB_BUFFER_SMALL && DB_OVERFLOWED_DBT(key))
 			DB_ERROR_DBT(DbEnv::get_DbEnv(dbc->dbp->dbenv),
 				"Dbc::get", key, ON_ERROR_UNKNOWN);
-		else if (ret == ENOMEM && DB_OVERFLOWED_DBT(data))
+		else if (ret == DB_BUFFER_SMALL && DB_OVERFLOWED_DBT(data))
 			DB_ERROR_DBT(DbEnv::get_DbEnv(dbc->dbp->dbenv),
 				"Dbc::get", data, ON_ERROR_UNKNOWN);
 		else
@@ -103,10 +103,10 @@ int Dbc::pget(Dbt* key, Dbt *pkey, Dbt *data, u_int32_t _flags)
 
 	/* Logic is the same as for Dbc::get - reusing macro. */
 	if (!DB_RETOK_DBCGET(ret)) {
-		if (ret == ENOMEM && DB_OVERFLOWED_DBT(key))
+		if (ret == DB_BUFFER_SMALL && DB_OVERFLOWED_DBT(key))
 			DB_ERROR_DBT(DbEnv::get_DbEnv(dbc->dbp->dbenv),
 				"Dbc::pget", key, ON_ERROR_UNKNOWN);
-		else if (ret == ENOMEM && DB_OVERFLOWED_DBT(data))
+		else if (ret == DB_BUFFER_SMALL && DB_OVERFLOWED_DBT(data))
 			DB_ERROR_DBT(DbEnv::get_DbEnv(dbc->dbp->dbenv),
 				"Dbc::pget", data, ON_ERROR_UNKNOWN);
 		else

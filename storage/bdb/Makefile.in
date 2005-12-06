@@ -24,13 +24,12 @@ top_srcdir = @top_srcdir@
 
 bdb_build = build_unix
 files = LICENSE Makefile Makefile.in README
-subdirs = btree build_vxworks build_win32 clib common cxx db dbinc \
+subdirs = btree build_win32 clib common cxx db dbinc \
   dbinc_auto db185 db_archive db_checkpoint db_deadlock db_dump \
-  db_dump185 db_load db_printlog db_recover db_stat db_upgrade \
-  db_verify dbm dbreg dist env examples_c examples_cxx fileops hash \
-	hsearch hmac include java libdb_java lock log mp mutex os os_vxworks \
-	os_win32 perl.BerkeleyDB perl.DB_File qam rep rpc_client rpc_server tcl \
-	test txn xa sequence
+  db_dump185 db_hotbackup db_load db_printlog db_recover db_stat db_upgrade \
+  db_verify dbm dbreg dist env fileops hash \
+  hsearch hmac include lock log mp mutex os \
+  os_win32 qam rep txn xa sequence
 
 @SET_MAKE@
 

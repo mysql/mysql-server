@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_stat.c,v 11.158 2004/07/15 18:26:48 ubell Exp $
+ * $Id: db_stat.c,v 12.6 2005/10/05 22:27:27 ubell Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2005\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -36,15 +36,16 @@ static const char copyright[] =
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
-#include "dbinc/txn.h"
 
 typedef enum { T_NOTSET,
-    T_DB, T_ENV, T_LOCK, T_LOG, T_MPOOL, T_REP, T_TXN } test_t;
+    T_DB, T_ENV, T_LOCK, T_LOG, T_MPOOL, T_MUTEX, T_REP, T_TXN } test_t;
 
 int	 db_init __P((DB_ENV *, char *, test_t, u_int32_t, int *));
 int	 main __P((int, char *[]));
 int	 usage __P((void));
-int	 version_check __P((const char *));
+int	 version_check __P((void));
+
+const char *progname;
 
 int
 main(argc, argv)
@@ -53,7 +54,6 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
-	const char *progname = "db_stat";
 	DB_ENV	*dbenv;
 	DB_BTREE_STAT *sp;
 	DB *alt_dbp, *dbp;
@@ -63,7 +63,12 @@ main(argc, argv)
 	int nflag, private, resize, ret;
 	char *db, *home, *p, *passwd, *subdb;
 
-	if ((ret = version_check(progname)) != 0)
+	if ((progname = strrchr(argv[0], '/')) == NULL)
+		progname = argv[0];
+	else
+		++progname;
+
+	if ((ret = version_check()) != 0)
 		return (ret);
 
 	dbenv = NULL;
@@ -74,7 +79,8 @@ main(argc, argv)
 	db = home = passwd = subdb = NULL;
 	env_flags = 0;
 
-	while ((ch = getopt(argc, argv, "C:cd:Eefh:L:lM:mNP:R:rs:tVZ")) != EOF)
+	while ((ch = getopt(argc,
+	    argv, "C:cd:Eefh:L:lM:mNP:R:rs:tVxX:Z")) != EOF)
 		switch (ch) {
 		case 'C': case 'c':
 			if (ttype != T_NOTSET && ttype != T_LOCK)
@@ -201,6 +207,20 @@ argcombo:			fprintf(stderr,
 		case 'V':
 			printf("%s\n", db_version(NULL, NULL, NULL));
 			return (EXIT_SUCCESS);
+		case 'X': case 'x':
+			if (ttype != T_NOTSET && ttype != T_MUTEX)
+				goto argcombo;
+			ttype = T_MUTEX;
+			if (ch != 'x')
+				for (p = optarg; *p; ++p)
+					switch (*p) {
+						case 'A':
+							LF_SET(DB_STAT_ALL);
+							break;
+						default:
+							return (usage());
+					}
+			break;
 		case 'Z':
 			LF_SET(DB_STAT_CLEAR);
 			break;
@@ -225,6 +245,7 @@ argcombo:			fprintf(stderr,
 	case T_MPOOL:
 	case T_REP:
 	case T_TXN:
+	case T_MUTEX:
 		if (fast != 0)
 			return (usage());
 		break;
@@ -351,6 +372,10 @@ retry:	if ((ret = db_env_create(&dbenv, env_flags)) != 0) {
 		if (dbenv->memp_stat_print(dbenv, flags))
 			goto err;
 		break;
+	case T_MUTEX:
+		if (dbenv->mutex_stat_print(dbenv, flags))
+			goto err;
+		break;
 	case T_REP:
 		if (dbenv->rep_stat_print(dbenv, flags))
 			goto err;
@@ -412,8 +437,7 @@ db_init(dbenv, home, ttype, cache, is_private)
 	 * error, I think.
 	 */
 	*is_private = 0;
-	if ((ret =
-	    dbenv->open(dbenv, home, DB_JOINENV | DB_USE_ENVIRON, 0)) == 0)
+	if ((ret = dbenv->open(dbenv, home, DB_USE_ENVIRON, 0)) == 0)
 		return (0);
 	if (ret == DB_VERSION_MISMATCH)
 		goto err;
@@ -456,17 +480,16 @@ err:	dbenv->err(dbenv, ret, "DB_ENV->open");
 int
 usage()
 {
-	fprintf(stderr, "usage: db_stat %s\n",
+	fprintf(stderr, "usage: %s %s\n", progname,
 	    "-d file [-fN] [-h home] [-P password] [-s database]");
-	fprintf(stderr, "usage: db_stat %s\n\t%s\n",
-	    "[-cEelmNrtVZ] [-C Aclop]",
-	    "[-h home] [-L A] [-M A] [-P password] [-R A]");
+	fprintf(stderr, "usage: %s %s\n\t%s\n", progname,
+	    "[-cEelmNrtVxZ] [-C Aclop]",
+	    "[-h home] [-L A] [-M A] [-P password] [-R A] [-X A]");
 	return (EXIT_FAILURE);
 }
 
 int
-version_check(progname)
-	const char *progname;
+version_check()
 {
 	int v_major, v_minor, v_patch;
 

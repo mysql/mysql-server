@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: lock_method.c,v 11.44 2004/06/01 21:50:05 bostic Exp $
+ * $Id: lock_method.c,v 12.6 2005/08/08 14:56:49 bostic Exp $
  */
 
 #include "db_config.h"
@@ -12,32 +12,12 @@
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#ifdef HAVE_RPC
-#include <rpc/rpc.h>
-#endif
-
 #include <string.h>
-#endif
-
-#ifdef HAVE_RPC
-#include "db_server.h"
 #endif
 
 #include "db_int.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
-
-#ifdef HAVE_RPC
-#include "dbinc_auto/rpc_client_ext.h"
-#endif
-
-static int __lock_get_lk_conflicts __P((DB_ENV *, const u_int8_t **, int *));
-static int __lock_set_lk_conflicts __P((DB_ENV *, u_int8_t *, int));
-static int __lock_get_lk_detect __P((DB_ENV *, u_int32_t *));
-static int __lock_get_lk_max_lockers __P((DB_ENV *, u_int32_t *));
-static int __lock_get_lk_max_locks __P((DB_ENV *, u_int32_t *));
-static int __lock_get_lk_max_objects __P((DB_ENV *, u_int32_t *));
-static int __lock_get_env_timeout __P((DB_ENV *, db_timeout_t *, u_int32_t));
 
 /*
  * __lock_dbenv_create --
@@ -55,59 +35,9 @@ __lock_dbenv_create(dbenv)
 	 * state or turn off mutex locking, and so we can neither check
 	 * the panic state or acquire a mutex in the DB_ENV create path.
 	 */
-
 	dbenv->lk_max = DB_LOCK_DEFAULT_N;
 	dbenv->lk_max_lockers = DB_LOCK_DEFAULT_N;
 	dbenv->lk_max_objects = DB_LOCK_DEFAULT_N;
-
-#ifdef	HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT)) {
-		dbenv->get_lk_conflicts = __dbcl_get_lk_conflicts;
-		dbenv->set_lk_conflicts = __dbcl_set_lk_conflict;
-		dbenv->get_lk_detect = __dbcl_get_lk_detect;
-		dbenv->set_lk_detect = __dbcl_set_lk_detect;
-		dbenv->set_lk_max = __dbcl_set_lk_max;
-		dbenv->get_lk_max_lockers = __dbcl_get_lk_max_lockers;
-		dbenv->set_lk_max_lockers = __dbcl_set_lk_max_lockers;
-		dbenv->get_lk_max_locks = __dbcl_get_lk_max_locks;
-		dbenv->set_lk_max_locks = __dbcl_set_lk_max_locks;
-		dbenv->get_lk_max_objects = __dbcl_get_lk_max_objects;
-		dbenv->set_lk_max_objects = __dbcl_set_lk_max_objects;
-
-		dbenv->lock_detect = __dbcl_lock_detect;
-		dbenv->lock_get = __dbcl_lock_get;
-		dbenv->lock_id = __dbcl_lock_id;
-		dbenv->lock_id_free = __dbcl_lock_id_free;
-		dbenv->lock_put = __dbcl_lock_put;
-		dbenv->lock_stat = __dbcl_lock_stat;
-		dbenv->lock_stat_print = NULL;
-		dbenv->lock_vec = __dbcl_lock_vec;
-	} else
-#endif
-	{
-		dbenv->get_lk_conflicts = __lock_get_lk_conflicts;
-		dbenv->set_lk_conflicts = __lock_set_lk_conflicts;
-		dbenv->get_lk_detect = __lock_get_lk_detect;
-		dbenv->set_lk_detect = __lock_set_lk_detect;
-		dbenv->set_lk_max = __lock_set_lk_max;
-		dbenv->get_lk_max_lockers = __lock_get_lk_max_lockers;
-		dbenv->set_lk_max_lockers = __lock_set_lk_max_lockers;
-		dbenv->get_lk_max_locks = __lock_get_lk_max_locks;
-		dbenv->set_lk_max_locks = __lock_set_lk_max_locks;
-		dbenv->get_lk_max_objects = __lock_get_lk_max_objects;
-		dbenv->set_lk_max_objects = __lock_set_lk_max_objects;
-		dbenv->get_timeout = __lock_get_env_timeout;
-		dbenv->set_timeout = __lock_set_env_timeout;
-
-		dbenv->lock_detect = __lock_detect_pp;
-		dbenv->lock_get = __lock_get_pp;
-		dbenv->lock_id = __lock_id_pp;
-		dbenv->lock_id_free = __lock_id_free_pp;
-		dbenv->lock_put = __lock_put_pp;
-		dbenv->lock_stat = __lock_stat_pp;
-		dbenv->lock_stat_print = __lock_stat_print_pp;
-		dbenv->lock_vec = __lock_vec_pp;
-	}
 }
 
 /*
@@ -131,24 +61,30 @@ __lock_dbenv_close(dbenv)
 /*
  * __lock_get_lk_conflicts
  *	Get the conflicts matrix.
+ *
+ * PUBLIC: int __lock_get_lk_conflicts
+ * PUBLIC:     __P((DB_ENV *, const u_int8_t **, int *));
  */
-static int
+int
 __lock_get_lk_conflicts(dbenv, lk_conflictsp, lk_modesp)
 	DB_ENV *dbenv;
 	const u_int8_t **lk_conflictsp;
 	int *lk_modesp;
 {
+	DB_LOCKTAB *lt;
+
 	ENV_NOT_CONFIGURED(dbenv,
 	    dbenv->lk_handle, "DB_ENV->get_lk_conflicts", DB_INIT_LOCK);
+
+	lt = dbenv->lk_handle;
 
 	if (LOCKING_ON(dbenv)) {
 		/* Cannot be set after open, no lock required to read. */
 		if (lk_conflictsp != NULL)
-			*lk_conflictsp =
-			    ((DB_LOCKTAB *)dbenv->lk_handle)->conflicts;
+			*lk_conflictsp = lt->conflicts;
 		if (lk_modesp != NULL)
-			*lk_modesp = ((DB_LOCKREGION *)((DB_LOCKTAB *)
-			    dbenv->lk_handle)->reginfo.primary)->stat.st_nmodes;
+			*lk_modesp = ((DB_LOCKREGION *)
+			    (lt->reginfo.primary))->stat.st_nmodes;
 	} else {
 		if (lk_conflictsp != NULL)
 			*lk_conflictsp = dbenv->lk_conflicts;
@@ -161,8 +97,10 @@ __lock_get_lk_conflicts(dbenv, lk_conflictsp, lk_modesp)
 /*
  * __lock_set_lk_conflicts
  *	Set the conflicts matrix.
+ *
+ * PUBLIC: int __lock_set_lk_conflicts __P((DB_ENV *, u_int8_t *, int));
  */
-static int
+int
 __lock_set_lk_conflicts(dbenv, lk_conflicts, lk_modes)
 	DB_ENV *dbenv;
 	u_int8_t *lk_conflicts;
@@ -186,7 +124,10 @@ __lock_set_lk_conflicts(dbenv, lk_conflicts, lk_modes)
 	return (0);
 }
 
-static int
+/*
+ * PUBLIC: int __lock_get_lk_detect __P((DB_ENV *, u_int32_t *));
+ */
+int
 __lock_get_lk_detect(dbenv, lk_detectp)
 	DB_ENV *dbenv;
 	u_int32_t *lk_detectp;
@@ -198,10 +139,9 @@ __lock_get_lk_detect(dbenv, lk_detectp)
 
 	if (LOCKING_ON(dbenv)) {
 		lt = dbenv->lk_handle;
-		LOCKREGION(dbenv, lt);
-		*lk_detectp = ((DB_LOCKREGION *)
-		    ((DB_LOCKTAB *)dbenv->lk_handle)->reginfo.primary)->detect;
-		UNLOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_LOCK(dbenv);
+		*lk_detectp = ((DB_LOCKREGION *)lt->reginfo.primary)->detect;
+		LOCK_SYSTEM_UNLOCK(dbenv);
 	} else
 		*lk_detectp = dbenv->lk_detect;
 	return (0);
@@ -246,7 +186,7 @@ __lock_set_lk_detect(dbenv, lk_detect)
 	if (LOCKING_ON(dbenv)) {
 		lt = dbenv->lk_handle;
 		region = lt->reginfo.primary;
-		LOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_LOCK(dbenv);
 		/*
 		 * Check for incompatible automatic deadlock detection requests.
 		 * There are scenarios where changing the detector configuration
@@ -265,7 +205,7 @@ __lock_set_lk_detect(dbenv, lk_detect)
 		} else
 			if (region->detect == DB_LOCK_NORUN)
 				region->detect = lk_detect;
-		UNLOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_UNLOCK(dbenv);
 	} else
 		dbenv->lk_detect = lk_detect;
 
@@ -291,7 +231,10 @@ __lock_set_lk_max(dbenv, lk_max)
 	return (0);
 }
 
-static int
+/*
+ * PUBLIC: int __lock_get_lk_max_locks __P((DB_ENV *, u_int32_t *));
+ */
+int
 __lock_get_lk_max_locks(dbenv, lk_maxp)
 	DB_ENV *dbenv;
 	u_int32_t *lk_maxp;
@@ -325,7 +268,10 @@ __lock_set_lk_max_locks(dbenv, lk_max)
 	return (0);
 }
 
-static int
+/*
+ * PUBLIC: int __lock_get_lk_max_lockers __P((DB_ENV *, u_int32_t *));
+ */
+int
 __lock_get_lk_max_lockers(dbenv, lk_maxp)
 	DB_ENV *dbenv;
 	u_int32_t *lk_maxp;
@@ -359,7 +305,10 @@ __lock_set_lk_max_lockers(dbenv, lk_max)
 	return (0);
 }
 
-static int
+/*
+ * PUBLIC: int __lock_get_lk_max_objects __P((DB_ENV *, u_int32_t *));
+ */
+int
 __lock_get_lk_max_objects(dbenv, lk_maxp)
 	DB_ENV *dbenv;
 	u_int32_t *lk_maxp;
@@ -393,7 +342,11 @@ __lock_set_lk_max_objects(dbenv, lk_max)
 	return (0);
 }
 
-static int
+/*
+ * PUBLIC: int __lock_get_env_timeout
+ * PUBLIC:     __P((DB_ENV *, db_timeout_t *, u_int32_t));
+ */
+int
 __lock_get_env_timeout(dbenv, timeoutp, flag)
 	DB_ENV *dbenv;
 	db_timeout_t *timeoutp;
@@ -410,7 +363,7 @@ __lock_get_env_timeout(dbenv, timeoutp, flag)
 	if (LOCKING_ON(dbenv)) {
 		lt = dbenv->lk_handle;
 		region = lt->reginfo.primary;
-		LOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_LOCK(dbenv);
 		switch (flag) {
 		case DB_SET_LOCK_TIMEOUT:
 			*timeoutp = region->lk_timeout;
@@ -422,7 +375,7 @@ __lock_get_env_timeout(dbenv, timeoutp, flag)
 			ret = 1;
 			break;
 		}
-		UNLOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_UNLOCK(dbenv);
 	} else
 		switch (flag) {
 		case DB_SET_LOCK_TIMEOUT:
@@ -465,7 +418,7 @@ __lock_set_env_timeout(dbenv, timeout, flags)
 	if (LOCKING_ON(dbenv)) {
 		lt = dbenv->lk_handle;
 		region = lt->reginfo.primary;
-		LOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_LOCK(dbenv);
 		switch (flags) {
 		case DB_SET_LOCK_TIMEOUT:
 			region->lk_timeout = timeout;
@@ -477,7 +430,7 @@ __lock_set_env_timeout(dbenv, timeout, flags)
 			ret = 1;
 			break;
 		}
-		UNLOCKREGION(dbenv, lt);
+		LOCK_SYSTEM_UNLOCK(dbenv);
 	} else
 		switch (flags) {
 		case DB_SET_LOCK_TIMEOUT:

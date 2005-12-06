@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_dup.c,v 11.39 2004/02/18 21:34:37 bostic Exp $
+ * $Id: db_dup.c,v 12.2 2005/06/16 20:21:10 bostic Exp $
  */
 
 #include "db_config.h"
@@ -66,7 +66,7 @@ __db_ditem(dbc, pagep, indx, nbytes)
 	 * memmove(3), the regions may overlap.
 	 */
 	from = (u_int8_t *)pagep + HOFFSET(pagep);
-	DB_ASSERT((int)inp[indx] - HOFFSET(pagep) >= 0);
+	DB_ASSERT(inp[indx] >= HOFFSET(pagep));
 	memmove(from + nbytes, from, inp[indx] - HOFFSET(pagep));
 	HOFFSET(pagep) += nbytes;
 

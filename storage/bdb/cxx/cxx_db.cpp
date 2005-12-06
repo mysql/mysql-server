@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_db.cpp,v 11.87 2004/07/15 18:26:48 ubell Exp $
+ * $Id: cxx_db.cpp,v 12.4 2005/10/18 14:25:53 mjc Exp $
  */
 
 #include "db_config.h"
@@ -219,6 +219,9 @@ int Db::error_policy()
 }
 
 DB_DESTRUCTOR(close, (u_int32_t flags), (db, flags), DB_RETOK_STD)
+DB_METHOD(compact, (DbTxn *txnid, Dbt *start, Dbt *stop,
+    DB_COMPACT *c_data, u_int32_t flags, Dbt *end),
+    (db, unwrap(txnid), start, stop, c_data, flags, end), DB_RETOK_STD)
 
 // The following cast implies that Dbc can be no larger than DBC
 DB_METHOD(cursor, (DbTxn *txnid, Dbc **cursorp, u_int32_t flags),
@@ -331,7 +334,7 @@ int Db::pget(DbTxn *txnid, Dbt *key, Dbt *pkey, Dbt *value, u_int32_t flags)
 
 	/* The logic here is identical to Db::get - reuse the macro. */
 	if (!DB_RETOK_DBGET(ret)) {
-		if (ret == ENOMEM && DB_OVERFLOWED_DBT(value))
+		if (ret == DB_BUFFER_SMALL && DB_OVERFLOWED_DBT(value))
 			DB_ERROR_DBT(env_, "Db::pget", value, error_policy());
 		else
 			DB_ERROR(env_, "Db::pget", ret, error_policy());
@@ -536,8 +539,6 @@ int Db::verify(const char *name, const char *subdb,
 
 DB_METHOD(set_bt_compare, (bt_compare_fcn_type func),
     (db, func), DB_RETOK_STD)
-DB_METHOD(set_bt_maxkey, (u_int32_t bt_maxkey),
-    (db, bt_maxkey), DB_RETOK_STD)
 DB_METHOD(get_bt_minkey, (u_int32_t *bt_minkeyp),
     (db, bt_minkeyp), DB_RETOK_STD)
 DB_METHOD(set_bt_minkey, (u_int32_t bt_minkey),

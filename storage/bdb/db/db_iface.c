@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_iface.c,v 11.121 2004/10/07 17:33:32 sue Exp $
+ * $Id: db_iface.c,v 12.29 2005/11/08 14:49:44 bostic Exp $
  */
 
 #include "db_config.h"
@@ -19,14 +19,20 @@
 #include "dbinc/db_page.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/btree.h"
+#ifndef HAVE_HASH
 #include "dbinc/hash.h"			/* For __db_no_hash_am(). */
+#endif
+#ifndef HAVE_QUEUE
 #include "dbinc/qam.h"			/* For __db_no_queue_am(). */
+#endif
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
 #include "dbinc/mp.h"
+#include "dbinc/txn.h"
 
 static int __db_associate_arg __P((DB *, DB *,
 	       int (*)(DB *, const DBT *, const DBT *, DBT *), u_int32_t));
+static int __db_c_del_arg __P((DBC *, u_int32_t));
 static int __db_c_get_arg __P((DBC *, DBT *, DBT *, u_int32_t));
 static int __db_c_pget_arg __P((DBC *, DBT *, u_int32_t));
 static int __db_c_put_arg __P((DBC *, DBT *, DBT *, u_int32_t));
@@ -39,18 +45,7 @@ static int __db_open_arg __P((DB *,
 	       DB_TXN *, const char *, const char *, DBTYPE, u_int32_t));
 static int __db_pget_arg __P((DB *, DBT *, u_int32_t));
 static int __db_put_arg __P((DB *, DBT *, DBT *, u_int32_t));
-static int __db_rdonly __P((const DB_ENV *, const char *));
 static int __dbt_ferr __P((const DB *, const char *, const DBT *, int));
-
-/*
- * A database should be required to be readonly if it's been explicitly
- * specified as such or if we're a client in a replicated environment and
- * we don't have the special "client-writer" designation.
- */
-#define	IS_READONLY(dbp)						\
-    (F_ISSET(dbp, DB_AM_RDONLY) ||					\
-    (IS_REP_CLIENT((dbp)->dbenv) &&					\
-    !F_ISSET((dbp), DB_AM_CL_WRITER)))
 
 /*
  * These functions implement the Berkeley DB API.  They are organized in a
@@ -58,14 +53,14 @@ static int __dbt_ferr __P((const DB *, const char *, const DBT *, int));
  * error checks (for example, PANIC'd region, replication state change
  * in progress, inconsistent transaction usage), call function-specific
  * check routines (_arg) to check for proper flag usage, etc., do pre-amble
- * processing (incrementing handle counts, handling auto-commit), call the
- * function and then do post-amble processing (DB_AUTO_COMMIT, dec handle
- * counts).
+ * processing (incrementing handle counts, handling local transactions),
+ * call the function and then do post-amble processing (local transactions,
+ * decrement handle counts).
  *
- * So, the basic structure is:
- *	Check for generic errors
- *	Call function-specific check routine
- *	Increment handle count
+ * The basic structure is:
+ *	Check for simple/generic errors (PANIC'd region)
+ *	Check if replication is changing state (increment handle count).
+ *	Call function-specific argument checking routine
  *	Create internal transaction if necessary
  *	Call underlying worker function
  *	Commit/abort internal transaction if necessary
@@ -88,14 +83,24 @@ __db_associate_pp(dbp, txn, sdbp, callback, flags)
 {
 	DBC *sdbc;
 	DB_ENV *dbenv;
-	int handle_check, ret, txn_local;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret, txn_local;
 
 	dbenv = dbp->dbenv;
+	txn_local = 0;
 
 	PANIC_CHECK(dbenv);
+	STRIP_AUTO_COMMIT(flags);
 
-	if ((ret = __db_associate_arg(dbp, sdbp, callback, flags)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	    (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	/*
 	 * Secondary cursors may have the primary's lock file ID, so we need
@@ -106,44 +111,43 @@ __db_associate_pp(dbp, txn, sdbp, callback, flags)
 	    TAILQ_FIRST(&sdbp->join_queue) != NULL) {
 		__db_err(dbenv,
     "Databases may not become secondary indices while cursors are open");
-		return (EINVAL);
+		ret = EINVAL;
+		goto err;
 	}
+
+	if ((ret = __db_associate_arg(dbp, sdbp, callback, flags)) != 0)
+		goto err;
 
 	/*
 	 * Create a local transaction as necessary, check for consistent
 	 * transaction usage, and, if we have no transaction but do have
 	 * locking on, acquire a locker id for the handle lock acquisition.
 	 */
-	txn_local = 0;
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-			return (ret);
+	if (IS_DB_AUTO_COMMIT(dbp, txn)) {
+		if ((ret = __txn_begin(dbenv, NULL, &txn, 0)) != 0)
+			goto err;
 		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	} else if (txn != NULL && !TXN_ON(dbenv))
-		return (__db_not_txn_env(dbenv));
+	}
 
 	/* Check for consistent transaction usage. */
 	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
 		goto err;
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		goto err;
-
 	while ((sdbc = TAILQ_FIRST(&sdbp->free_queue)) != NULL)
 		if ((ret = __db_c_destroy(sdbc)) != 0)
-			break;
+			goto err;
 
-	if (ret == 0)
-		ret = __db_associate(dbp, txn, sdbp, callback, flags);
+	ret = __db_associate(dbp, txn, sdbp, callback, flags);
+
+err:	if (txn_local &&
+	    (t_ret = __db_txn_auto_resolve(dbenv, txn, 0, ret)) && ret == 0)
+		ret = t_ret;
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
-err:	return (txn_local ? __db_txn_auto_resolve(dbenv, txn, 0, ret) : ret);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -201,8 +205,8 @@ __db_associate_arg(dbp, sdbp, callback, flags)
 		return (EINVAL);
 	}
 
-	if ((ret = __db_fchk(dbenv,
-	    "DB->associate", flags, DB_CREATE | DB_AUTO_COMMIT)) != 0)
+	if ((ret = __db_fchk(dbenv, "DB->associate", flags, DB_CREATE |
+	    DB_IMMUTABLE_KEY)) != 0)
 		return (ret);
 
 	return (0);
@@ -220,6 +224,7 @@ __db_close_pp(dbp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
@@ -228,20 +233,20 @@ __db_close_pp(dbp, flags)
 	PANIC_CHECK(dbenv);
 
 	/*
-	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * Close a DB handle -- as a handle destructor, we can't fail.
 	 *
-	 * Validate arguments and complain if they're wrong, but as a DB
-	 * handle destructor, we can't fail.
+	 * !!!
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
 	 */
-	if (flags != 0 && flags != DB_NOSYNC &&
-	    (t_ret = __db_ferr(dbenv, "DB->close", 0)) != 0 && ret == 0)
-		ret = t_ret;
+	if (flags != 0 && flags != DB_NOSYNC)
+		ret = __db_ferr(dbenv, "DB->close", 0);
+
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (t_ret = __db_rep_enter(dbp, 0, 0, 0)) != 0) {
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (t_ret = __db_rep_enter(dbp, 0, 0, 0)) != 0) {
 		handle_check = 0;
 		if (ret == 0)
 			ret = t_ret;
@@ -251,9 +256,10 @@ __db_close_pp(dbp, flags)
 		ret = t_ret;
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -271,6 +277,7 @@ __db_cursor_pp(dbp, txn, dbcp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	int handle_check, ret;
 
 	dbenv = dbp->dbenv;
@@ -278,30 +285,37 @@ __db_cursor_pp(dbp, txn, dbcp, flags)
 	PANIC_CHECK(dbenv);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->cursor");
 
-	if ((ret = __db_cursor_arg(dbp, flags)) != 0)
-		return (ret);
-
-	/*
-	 * Check for consistent transaction usage.  For now, assume that
-	 * this cursor might be used for read operations only (in which
-	 * case it may not require a txn).  We'll check more stringently
-	 * in c_del and c_put.  (Note that this all means that the
-	 * read-op txn tests have to be a subset of the write-op ones.)
-	 */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		return (ret);
+	if (txn == NULL) {
+		handle_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
+		if (handle_check && (ret = __op_rep_enter(dbenv)) != 0) {
+			handle_check = 0;
+			goto err;
+		}
+	} else
+		handle_check = 0;
+	if ((ret = __db_cursor_arg(dbp, flags)) != 0)
+		goto err;
+
+	/*
+	 * Check for consistent transaction usage.  For now, assume this
+	 * cursor might be used for read operations only (in which case
+	 * it may not require a txn).  We'll check more stringently in
+	 * c_del and c_put.  (Note this means the read-op txn tests have
+	 * to be a subset of the write-op ones.)
+	 */
+	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
+		goto err;
 
 	ret = __db_cursor(dbp, txn, dbcp, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	/* Release replication block on error. */
+	if (ret != 0 && handle_check)
+		(void)__op_rep_exit(dbenv);
 
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -347,13 +361,13 @@ __db_cursor(dbp, txn, dbcp, flags)
 			F_SET(dbc, DBC_WRITER);
 	}
 
-	if (LF_ISSET(DB_DIRTY_READ) ||
-	    (txn != NULL && F_ISSET(txn, TXN_DIRTY_READ)))
-		F_SET(dbc, DBC_DIRTY_READ);
+	if (LF_ISSET(DB_READ_UNCOMMITTED) ||
+	    (txn != NULL && F_ISSET(txn, TXN_READ_UNCOMMITTED)))
+		F_SET(dbc, DBC_READ_UNCOMMITTED);
 
-	if (LF_ISSET(DB_DEGREE_2) ||
-	    (txn != NULL && F_ISSET(txn, TXN_DEGREE_2)))
-		F_SET(dbc, DBC_DEGREE_2);
+	if (LF_ISSET(DB_READ_COMMITTED) ||
+	    (txn != NULL && F_ISSET(txn, TXN_READ_COMMITTED)))
+		F_SET(dbc, DBC_READ_COMMITTED);
 
 	*dbcp = dbc;
 	return (0);
@@ -376,13 +390,13 @@ __db_cursor_arg(dbp, flags)
 	dbenv = dbp->dbenv;
 
 	/*
-	 * DB_DIRTY_READ  and DB_DGREE_2 are the only valid bit-flags
-	 * and requires locking.
+	 * DB_READ_COMMITTED and DB_READ_UNCOMMITTED are the only valid
+	 * bit-flags; they require locking.
 	 */
-	if (LF_ISSET(DB_DIRTY_READ | DB_DEGREE_2)) {
+	if (LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED)) {
 		if (!LOCKING_ON(dbenv))
 			return (__db_fnl(dbenv, "DB->cursor"));
-		LF_CLR(DB_DIRTY_READ | DB_DEGREE_2);
+		LF_CLR(DB_READ_COMMITTED| DB_READ_UNCOMMITTED);
 	}
 
 	/* Check for invalid function flags. */
@@ -390,13 +404,13 @@ __db_cursor_arg(dbp, flags)
 	case 0:
 		break;
 	case DB_WRITECURSOR:
-		if (IS_READONLY(dbp))
+		if (DB_IS_READONLY(dbp))
 			return (__db_rdonly(dbenv, "DB->cursor"));
 		if (!CDB_LOCKING(dbenv))
 			return (__db_ferr(dbenv, "DB->cursor", 0));
 		break;
 	case DB_WRITELOCK:
-		if (IS_READONLY(dbp))
+		if (DB_IS_READONLY(dbp))
 			return (__db_rdonly(dbenv, "DB->cursor"));
 		break;
 	default:
@@ -420,41 +434,55 @@ __db_del_pp(dbp, txn, key, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret, txn_local;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret, txn_local;
 
 	dbenv = dbp->dbenv;
+	txn_local = 0;
 
 	PANIC_CHECK(dbenv);
+	STRIP_AUTO_COMMIT(flags);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->del");
 
+#if CONFIG_TEST
+	if (IS_REP_MASTER(dbenv))
+		DB_TEST_WAIT(dbenv, dbenv->test_check);
+#endif
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	     (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+			handle_check = 0;
+			goto err;
+	}
+
 	if ((ret = __db_del_arg(dbp, flags)) != 0)
-		return (ret);
+		goto err;
 
 	/* Create local transaction as necessary. */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-			return (ret);
+	if (IS_DB_AUTO_COMMIT(dbp, txn)) {
+		if ((ret = __txn_begin(dbenv, NULL, &txn, 0)) != 0)
+			goto err;
 		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	} else
-		txn_local = 0;
+	}
 
 	/* Check for consistent transaction usage. */
 	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
 		goto err;
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		goto err;
-
 	ret = __db_del(dbp, txn, key, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	if (txn_local &&
+	    (t_ret = __db_txn_auto_resolve(dbenv, txn, 0, ret)) && ret == 0)
+		ret = t_ret;
 
-err:	return (txn_local ? __db_txn_auto_resolve(dbenv, txn, 0, ret) : ret);
+	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -471,11 +499,10 @@ __db_del_arg(dbp, flags)
 	dbenv = dbp->dbenv;
 
 	/* Check for changes to a read-only tree. */
-	if (IS_READONLY(dbp))
+	if (DB_IS_READONLY(dbp))
 		return (__db_rdonly(dbenv, "DB->del"));
 
 	/* Check for invalid function flags. */
-	LF_CLR(DB_AUTO_COMMIT);
 	switch (flags) {
 	case 0:
 		break;
@@ -498,18 +525,21 @@ __db_fd_pp(dbp, fdp)
 	int *fdp;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	DB_FH *fhp;
-	int handle_check, ret;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->fd");
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
+	handle_check = IS_ENV_REPLICATED(dbenv);
 	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0)
-		return (ret);
+		goto err;
 
 	/*
 	 * !!!
@@ -521,21 +551,21 @@ __db_fd_pp(dbp, fdp)
 	 * XXX
 	 * Truly spectacular layering violation.
 	 */
-	if ((ret = __mp_xxx_fh(dbp->mpf, &fhp)) != 0)
-		goto err;
+	if ((ret = __mp_xxx_fh(dbp->mpf, &fhp)) == 0) {
+		if (fhp == NULL) {
+			*fdp = -1;
+			__db_err(dbenv,
+			    "Database does not have a valid file handle");
+			ret = ENOENT;
+		} else
+			*fdp = fhp->fd;
+	}
 
-	if (fhp == NULL) {
-		*fdp = -1;
-		__db_err(dbenv,
-		    "Database does not have a valid file handle");
-		ret = ENOENT;
-	} else
-		*fdp = fhp->fd;
+	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
-err:	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -553,29 +583,40 @@ __db_get_pp(dbp, txn, key, data, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	u_int32_t mode;
-	int handle_check, ret, txn_local;
+	int handle_check, ret, t_ret, txn_local;
 
 	dbenv = dbp->dbenv;
-
-	PANIC_CHECK(dbenv);
-	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->get");
-
-	if ((ret = __db_get_arg(dbp, key, data, flags)) != 0)
-		return (ret);
-
 	mode = 0;
 	txn_local = 0;
-	if (LF_ISSET(DB_DIRTY_READ))
-		mode = DB_DIRTY_READ;
+
+	PANIC_CHECK(dbenv);
+	STRIP_AUTO_COMMIT(flags);
+	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->get");
+
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	     (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+			handle_check = 0;
+			goto err;
+	}
+
+	if ((ret = __db_get_arg(dbp, key, data, flags)) != 0)
+		goto err;
+
+	if (LF_ISSET(DB_READ_UNCOMMITTED))
+		mode = DB_READ_UNCOMMITTED;
 	else if ((flags & DB_OPFLAGS_MASK) == DB_CONSUME ||
 	    (flags & DB_OPFLAGS_MASK) == DB_CONSUME_WAIT) {
 		mode = DB_WRITELOCK;
-		if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-			if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-				return (ret);
+		if (IS_DB_AUTO_COMMIT(dbp, txn)) {
+			if ((ret = __txn_begin(dbenv, NULL, &txn, 0)) != 0)
+				goto err;
 			txn_local = 1;
-			LF_CLR(DB_AUTO_COMMIT);
 		}
 	}
 
@@ -584,18 +625,17 @@ __db_get_pp(dbp, txn, key, data, flags)
 	    mode == DB_WRITELOCK || LF_ISSET(DB_RMW) ? 0 : 1)) != 0)
 		goto err;
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		goto err;
-
 	ret = __db_get(dbp, txn, key, data, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	if (txn_local &&
+	    (t_ret = __db_txn_auto_resolve(dbenv, txn, 0, ret)) && ret == 0)
+		ret = t_ret;
 
-err:	return (txn_local ? __db_txn_auto_resolve(dbenv, txn, 0, ret) : ret);
+	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -616,12 +656,12 @@ __db_get(dbp, txn, key, data, flags)
 	int ret, t_ret;
 
 	mode = 0;
-	if (LF_ISSET(DB_DIRTY_READ)) {
-		mode = DB_DIRTY_READ;
-		LF_CLR(DB_DIRTY_READ);
-	} else if (LF_ISSET(DB_DEGREE_2)) {
-		mode = DB_DEGREE_2;
-		LF_CLR(DB_DEGREE_2);
+	if (LF_ISSET(DB_READ_UNCOMMITTED)) {
+		mode = DB_READ_UNCOMMITTED;
+		LF_CLR(DB_READ_UNCOMMITTED);
+	} else if (LF_ISSET(DB_READ_COMMITTED)) {
+		mode = DB_READ_COMMITTED;
+		LF_CLR(DB_READ_COMMITTED);
 	} else if ((flags & DB_OPFLAGS_MASK) == DB_CONSUME ||
 	    (flags & DB_OPFLAGS_MASK) == DB_CONSUME_WAIT)
 		mode = DB_WRITELOCK;
@@ -684,14 +724,15 @@ __db_get_arg(dbp, key, data, flags)
 	 * flag in a path where CDB may have been configured.
 	 */
 	check_thread = dirty = 0;
-	if (LF_ISSET(DB_DIRTY_READ | DB_RMW | DB_DEGREE_2)) {
+	if (LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW)) {
 		if (!LOCKING_ON(dbenv))
 			return (__db_fnl(dbenv, "DB->get"));
-		dirty = LF_ISSET(DB_DIRTY_READ | DB_DEGREE_2);
-		if ((ret = __db_fcchk(dbenv,
-		    "DB->get", flags, DB_DIRTY_READ, DB_DEGREE_2)) != 0)
+		if ((ret = __db_fcchk(dbenv, "DB->get",
+		    flags, DB_READ_UNCOMMITTED, DB_READ_COMMITTED)) != 0)
 			return (ret);
-		LF_CLR(DB_DIRTY_READ | DB_RMW | DB_DEGREE_2);
+		if (LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED))
+			dirty = 1;
+		LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW);
 	}
 
 	multi = 0;
@@ -700,12 +741,6 @@ __db_get_arg(dbp, key, data, flags)
 			goto multi_err;
 		multi = LF_ISSET(DB_MULTIPLE) ? 1 : 0;
 		LF_CLR(DB_MULTIPLE);
-	}
-
-	if (LF_ISSET(DB_AUTO_COMMIT)) {
-		LF_CLR(DB_AUTO_COMMIT);
-		if (flags != DB_CONSUME && flags != DB_CONSUME_WAIT)
-			goto err;
 	}
 
 	/* Check for invalid function flags. */
@@ -723,9 +758,9 @@ __db_get_arg(dbp, key, data, flags)
 		check_thread = 1;
 		if (dirty) {
 			__db_err(dbenv,
-    "%s is not supported with DB_CONSUME or DB_CONSUME_WAIT",
-			     LF_ISSET(DB_DIRTY_READ) ?
-			     "DB_DIRTY_READ" : "DB_DEGREE_2");
+		    "%s is not supported with DB_CONSUME or DB_CONSUME_WAIT",
+			     LF_ISSET(DB_READ_UNCOMMITTED) ?
+			     "DB_READ_UNCOMMITTED" : "DB_READ_COMMITTED");
 			return (EINVAL);
 		}
 		if (multi)
@@ -785,27 +820,31 @@ __db_join_pp(primary, curslist, dbcp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = primary->dbenv;
 
 	PANIC_CHECK(dbenv);
 
-	if ((ret = __db_join_arg(primary, curslist, flags)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, primary);
+	handle_check = IS_ENV_REPLICATED(dbenv);
 	if (handle_check && (ret =
-	    __db_rep_enter(primary, 1, 0, curslist[0]->txn != NULL)) != 0)
-		return (ret);
+	    __db_rep_enter(primary, 1, 0, curslist[0]->txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
-	ret = __db_join(primary, curslist, dbcp, flags);
+	if ((ret = __db_join_arg(primary, curslist, flags)) == 0)
+		ret = __db_join(primary, curslist, dbcp, flags);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -867,6 +906,7 @@ __db_key_range_pp(dbp, txn, key, kr, flags)
 {
 	DBC *dbc;
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
@@ -876,19 +916,25 @@ __db_key_range_pp(dbp, txn, key, kr, flags)
 
 	/*
 	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
 	 */
 	if (flags != 0)
 		return (__db_ferr(dbenv, "DB->key_range", 0));
 
-	/* Check for consistent transaction usage. */
-	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	     (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
+
+	/* Check for consistent transaction usage. */
+	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 1)) != 0)
+		goto err;
 
 	/*
 	 * !!!
@@ -918,10 +964,11 @@ __db_key_range_pp(dbp, txn, key, kr, flags)
 		break;
 	}
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -942,16 +989,17 @@ __db_open_pp(dbp, txn, fname, dname, type, flags, mode)
 	int mode;
 {
 	DB_ENV *dbenv;
-	int handle_check, nosync, remove_me, ret, txn_local;
+	DB_THREAD_INFO *ip;
+	int handle_check, nosync, remove_me, ret, t_ret, txn_local;
 
 	dbenv = dbp->dbenv;
 	nosync = 1;
-	remove_me = 0;
+	remove_me = txn_local = 0;
+	handle_check = 0;
 
 	PANIC_CHECK(dbenv);
 
-	if ((ret = __db_open_arg(dbp, txn, fname, dname, type, flags)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	/*
 	 * Save the file and database names and flags.  We do this here
@@ -959,40 +1007,48 @@ __db_open_pp(dbp, txn, fname, dname, type, flags, mode)
 	 * DB->open method call, we strip DB_AUTO_COMMIT at this layer.
 	 */
 	if ((fname != NULL &&
-	    (ret = __os_strdup(dbenv, fname, &dbp->fname)) != 0) ||
-	    (dname != NULL &&
+	    (ret = __os_strdup(dbenv, fname, &dbp->fname)) != 0))
+		goto err;
+	if ((dname != NULL &&
 	    (ret = __os_strdup(dbenv, dname, &dbp->dname)) != 0))
-		return (ret);
+		goto err;
 	dbp->open_flags = flags;
 
 	/* Save the current DB handle flags for refresh. */
 	dbp->orig_flags = dbp->flags;
 
-	/*
-	 * Create local transaction as necessary, check for consistent
-	 * transaction usage.
-	 */
-	txn_local = 0;
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-			return (ret);
-		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	} else
-		if (txn != NULL && !TXN_ON(dbenv))
-			return (__db_not_txn_env(dbenv));
-
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
+	handle_check = IS_ENV_REPLICATED(dbenv);
 	if (handle_check &&
 	    (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
 		handle_check = 0;
 		goto err;
 	}
 
-	if ((ret = __db_open(dbp,
-	    txn, fname, dname, type, flags, mode, PGNO_BASE_MD)) != 0)
-		goto err;
+	/*
+	 * Create local transaction as necessary, check for consistent
+	 * transaction usage.
+	 */
+	if (IS_ENV_AUTO_COMMIT(dbenv, txn, flags)) {
+		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
+			goto err;
+		txn_local = 1;
+	} else
+		if (txn != NULL && !TXN_ON(dbenv)) {
+			ret = __db_not_txn_env(dbenv);
+			goto err;
+		}
+	LF_CLR(DB_AUTO_COMMIT);
+
+	/*
+	 * We check arguments after possibly creating a local transaction,
+	 * which is unusual -- the reason is some flags are illegal if any
+	 * kind of transaction is in effect.
+	 */
+	if ((ret = __db_open_arg(dbp, txn, fname, dname, type, flags)) == 0)
+		if ((ret = __db_open(dbp, txn, fname, dname, type,
+		    flags, mode, PGNO_BASE_MD)) != 0)
+			goto txnerr;
 
 	/*
 	 * You can open the database that describes the subdatabases in the
@@ -1009,7 +1065,7 @@ __db_open_pp(dbp, txn, fname, dname, type, flags, mode)
 		__db_err(dbenv,
     "files containing multiple databases may only be opened read-only");
 		ret = EINVAL;
-		goto err;
+		goto txnerr;
 	}
 
 	/*
@@ -1026,7 +1082,7 @@ __db_open_pp(dbp, txn, fname, dname, type, flags, mode)
 	 * If not transactional, remove the databases/subdatabases.  If we're
 	 * transactional, the child transaction abort cleans up.
 	 */
-err:	if (ret != 0 && txn == NULL) {
+txnerr:	if (ret != 0 && txn == NULL) {
 		remove_me = F_ISSET(dbp, DB_AM_CREATED);
 		if (F_ISSET(dbp, DB_AM_CREATED_MSTR) ||
 		    (dname == NULL && remove_me))
@@ -1037,12 +1093,16 @@ err:	if (ret != 0 && txn == NULL) {
 			(void)__db_remove_int(dbp, txn, fname, dname, DB_FORCE);
 	}
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (txn_local && (t_ret =
+	     __db_txn_auto_resolve(dbenv, txn, nosync, ret)) && ret == 0)
+		ret = t_ret;
 
-	return (txn_local ?
-	    __db_txn_auto_resolve(dbenv, txn, nosync, ret) : ret);
+err:	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -1066,9 +1126,9 @@ __db_open_arg(dbp, txn, fname, dname, type, flags)
 	/* Validate arguments. */
 #undef	OKFLAGS
 #define	OKFLAGS								\
-    (DB_AUTO_COMMIT | DB_CREATE | DB_DIRTY_READ | DB_EXCL |		\
-     DB_FCNTL_LOCKING | DB_NO_AUTO_COMMIT | DB_NOMMAP | DB_RDONLY |	\
-     DB_RDWRMASTER | DB_THREAD | DB_TRUNCATE | DB_WRITEOPEN)
+	(DB_AUTO_COMMIT | DB_CREATE | DB_EXCL | DB_FCNTL_LOCKING |	\
+	DB_NOMMAP | DB_NO_AUTO_COMMIT | DB_RDONLY | DB_RDWRMASTER |	\
+	DB_READ_UNCOMMITTED | DB_THREAD | DB_TRUNCATE | DB_WRITEOPEN)
 	if ((ret = __db_fchk(dbenv, "DB->open", flags, OKFLAGS)) != 0)
 		return (ret);
 	if (LF_ISSET(DB_EXCL) && !LF_ISSET(DB_CREATE))
@@ -1086,8 +1146,7 @@ __db_open_arg(dbp, txn, fname, dname, type, flags)
 	case DB_UNKNOWN:
 		if (LF_ISSET(DB_CREATE|DB_TRUNCATE)) {
 			__db_err(dbenv,
-	    "%s: DB_UNKNOWN type specified with DB_CREATE or DB_TRUNCATE",
-			    fname);
+	    "DB_UNKNOWN type specified with DB_CREATE or DB_TRUNCATE");
 			return (EINVAL);
 		}
 		ok_flags = 0;
@@ -1153,18 +1212,18 @@ __db_open_arg(dbp, txn, fname, dname, type, flags)
 
 	/* Subdatabase checks. */
 	if (dname != NULL) {
-		/* Subdatabases must be created in named files. */
-		if (fname == NULL) {
-			__db_err(dbenv,
-		    "multiple databases cannot be created in temporary files");
-			return (EINVAL);
-		}
-
-		/* QAM can't be done as a subdatabase. */
-		if (type == DB_QUEUE) {
+		/* QAM can only be done on in-memory subdatabases. */
+		if (type == DB_QUEUE && fname != NULL) {
 			__db_err(dbenv, "Queue databases must be one-per-file");
 			return (EINVAL);
 		}
+
+		/*
+		 * Named in-memory databases can't support certain flags,
+		 * so check here.
+		 */
+		if (fname == NULL)
+			F_CLR(dbp, DB_AM_CHKSUM | DB_AM_ENCRYPT);
 	}
 
 	return (0);
@@ -1185,30 +1244,35 @@ __db_pget_pp(dbp, txn, skey, pkey, data, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->pget");
 
-	if ((ret = __db_pget_arg(dbp, pkey, flags)) != 0)
-		return (ret);
-
-	if ((ret = __db_get_arg(dbp, skey, data, flags)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	    (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
+
+	if ((ret = __db_pget_arg(dbp, pkey, flags)) != 0 ||
+	    (ret = __db_get_arg(dbp, skey, data, flags)) != 0)
+		goto err;
 
 	ret = __db_pget(dbp, txn, skey, pkey, data, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1227,9 +1291,19 @@ __db_pget(dbp, txn, skey, pkey, data, flags)
 	u_int32_t flags;
 {
 	DBC *dbc;
+	u_int32_t mode;
 	int ret, t_ret;
 
-	if ((ret = __db_cursor(dbp, txn, &dbc, 0)) != 0)
+	if (LF_ISSET(DB_READ_UNCOMMITTED)) {
+		mode = DB_READ_UNCOMMITTED;
+		LF_CLR(DB_READ_UNCOMMITTED);
+	} else if (LF_ISSET(DB_READ_COMMITTED)) {
+		mode = DB_READ_COMMITTED;
+		LF_CLR(DB_READ_COMMITTED);
+	} else
+		mode = 0;
+
+	if ((ret = __db_cursor(dbp, txn, &dbc, mode)) != 0)
 		return (ret);
 
 	SET_RET_MEM(dbc, dbp);
@@ -1296,7 +1370,7 @@ __db_pget_arg(dbp, pkey, flags)
 	}
 
 	/* DB_CONSUME makes no sense on a secondary index. */
-	LF_CLR(DB_RMW);
+	LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW);
 	switch (flags) {
 	case DB_CONSUME:
 	case DB_CONSUME_WAIT:
@@ -1338,41 +1412,51 @@ __db_put_pp(dbp, txn, key, data, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret, txn_local;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, txn_local, t_ret;
 
 	dbenv = dbp->dbenv;
+	txn_local = 0;
 
 	PANIC_CHECK(dbenv);
+	STRIP_AUTO_COMMIT(flags);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->put");
 
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check &&
+	    (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
+
 	if ((ret = __db_put_arg(dbp, key, data, flags)) != 0)
-		return (ret);
+		goto err;
 
 	/* Create local transaction as necessary. */
-	if (IS_AUTO_COMMIT(dbenv, txn, flags)) {
-		if ((ret = __db_txn_auto_init(dbenv, &txn)) != 0)
-			return (ret);
+	if (IS_DB_AUTO_COMMIT(dbp, txn)) {
+		if ((ret = __txn_begin(dbenv, NULL, &txn, 0)) != 0)
+			goto err;
 		txn_local = 1;
-		LF_CLR(DB_AUTO_COMMIT);
-	} else
-		txn_local = 0;
+	}
 
 	/* Check for consistent transaction usage. */
 	if ((ret = __db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0)) != 0)
 		goto err;
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, txn != NULL)) != 0)
-		goto err;
-
 	ret = __db_put(dbp, txn, key, data, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+err:	if (txn_local &&
+	    (t_ret = __db_txn_auto_resolve(dbenv, txn, 0, ret)) && ret == 0)
+		ret = t_ret;
 
-err:	return (txn_local ? __db_txn_auto_resolve(dbenv, txn, 0, ret) : ret);
+	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -1392,8 +1476,8 @@ __db_put_arg(dbp, key, data, flags)
 	returnkey = 0;
 
 	/* Check for changes to a read-only tree. */
-	if (IS_READONLY(dbp))
-		return (__db_rdonly(dbenv, "put"));
+	if (DB_IS_READONLY(dbp))
+		return (__db_rdonly(dbenv, "DB->put"));
 
 	/* Check for puts on a secondary. */
 	if (F_ISSET(dbp, DB_AM_SECONDARY)) {
@@ -1402,7 +1486,6 @@ __db_put_arg(dbp, key, data, flags)
 	}
 
 	/* Check for invalid function flags. */
-	LF_CLR(DB_AUTO_COMMIT);
 	switch (flags) {
 	case 0:
 	case DB_NOOVERWRITE:
@@ -1442,6 +1525,82 @@ err:		return (__db_ferr(dbenv, "DB->put", 0));
 }
 
 /*
+ * __db_compact_pp --
+ *	DB->compact pre/post processing.
+ *
+ * PUBLIC: int __db_compact_pp __P((DB *, DB_TXN *,
+ * PUBLIC:       DBT *, DBT *, DB_COMPACT *, u_int32_t, DBT *));
+ */
+int
+__db_compact_pp(dbp, txn, start, stop, c_data, flags, end)
+	DB *dbp;
+	DB_TXN *txn;
+	DBT *start, *stop;
+	DB_COMPACT *c_data;
+	u_int32_t flags;
+	DBT *end;
+{
+	DB_COMPACT *dp, l_data;
+	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
+
+	dbenv = dbp->dbenv;
+
+	PANIC_CHECK(dbenv);
+	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->compact");
+
+	/*
+	 * !!!
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
+	 */
+	if ((flags & ~DB_COMPACT_FLAGS) != 0)
+		return (__db_ferr(dbenv, "DB->compact", 0));
+
+	/* Check for changes to a read-only database. */
+	if (DB_IS_READONLY(dbp))
+		return (__db_rdonly(dbenv, "DB->compact"));
+
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
+
+	if (c_data == NULL) {
+		dp = &l_data;
+		memset(dp, 0, sizeof(*dp));
+	} else
+		dp = c_data;
+
+	switch (dbp->type) {
+	case DB_HASH:
+		if (!LF_ISSET(DB_FREELIST_ONLY))
+			goto err;
+		/* FALLTHROUGH */
+	case DB_BTREE:
+	case DB_RECNO:
+		ret = __bam_compact(dbp, txn, start, stop, dp, flags, end);
+		break;
+
+	default:
+err:		ret = __dbh_am_chk(dbp, DB_OK_BTREE);
+		break;
+	}
+
+	/* Release replication block. */
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	ENV_LEAVE(dbenv, ip);
+	return (ret);
+}
+
+/*
  * __db_sync_pp --
  *	DB->sync pre/post processing.
  *
@@ -1453,31 +1612,38 @@ __db_sync_pp(dbp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
-	PANIC_CHECK(dbp->dbenv);
+	PANIC_CHECK(dbenv);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->sync");
 
 	/*
 	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
 	 */
 	if (flags != 0)
 		return (__db_ferr(dbenv, "DB->sync", 0));
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 0)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	ret = __db_sync(dbp);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1492,13 +1658,15 @@ __db_c_close_pp(dbc)
 	DBC *dbc;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	DB *dbp;
-	int handle_check, ret;
+	int handle_check, ret, t_ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
+	ENV_ENTER(dbenv, ip);
 
 	/*
 	 * If the cursor is already closed we have a serious problem, and we
@@ -1509,21 +1677,20 @@ __db_c_close_pp(dbc)
 		if (dbp != NULL)
 			__db_err(dbenv, "Closing already-closed cursor");
 		DB_ASSERT(0);
-		return (EINVAL);
+		ret = EINVAL;
+		goto err;
 	}
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 0, 0, dbc->txn != NULL)) != 0)
-		return (ret);
-
+	handle_check = dbc->txn == NULL && IS_ENV_REPLICATED(dbenv);
 	ret = __db_c_close(dbc);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check &&
+	    (t_ret = __op_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1540,8 +1707,9 @@ __db_c_count_pp(dbc, recnop, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	DB *dbp;
-	int handle_check, ret;
+	int ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -1550,30 +1718,21 @@ __db_c_count_pp(dbc, recnop, flags)
 
 	/*
 	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
+	 *
+	 * The cursor must be initialized, return EINVAL for an invalid cursor.
 	 */
 	if (flags != 0)
 		return (__db_ferr(dbenv, "DBcursor->count", 0));
 
-	/*
-	 * The cursor must be initialized, return EINVAL for an invalid cursor,
-	 * otherwise 0.
-	 */
 	if (!IS_INITIALIZED(dbc))
 		return (__db_curinval(dbenv));
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	ret = __db_c_count(dbc, recnop);
-
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1590,7 +1749,8 @@ __db_c_del_pp(dbc, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -1600,34 +1760,24 @@ __db_c_del_pp(dbc, flags)
 	if ((ret = __db_c_del_arg(dbc, flags)) != 0)
 		return (ret);
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for consistent transaction usage. */
 	if ((ret = __db_check_txn(dbp, dbc->txn, dbc->locker, 0)) != 0)
-		return (ret);
-
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+		goto err;
 
 	DEBUG_LWRITE(dbc, dbc->txn, "DBcursor->del", NULL, NULL, flags);
-
 	ret = __db_c_del(dbc, flags);
-
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+err:
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
 /*
  * __db_c_del_arg --
  *	Check DBC->c_del arguments.
- *
- * PUBLIC: int __db_c_del_arg __P((DBC *, u_int32_t));
  */
-int
+static int
 __db_c_del_arg(dbc, flags)
 	DBC *dbc;
 	u_int32_t flags;
@@ -1639,7 +1789,7 @@ __db_c_del_arg(dbc, flags)
 	dbenv = dbp->dbenv;
 
 	/* Check for changes to a read-only tree. */
-	if (IS_READONLY(dbp))
+	if (DB_IS_READONLY(dbp))
 		return (__db_rdonly(dbenv, "DBcursor->del"));
 
 	/* Check for invalid function flags. */
@@ -1676,7 +1826,8 @@ __db_c_dup_pp(dbc, dbcp, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -1685,23 +1836,16 @@ __db_c_dup_pp(dbc, dbcp, flags)
 
 	/*
 	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
 	 */
 	if (flags != 0 && flags != DB_POSITION)
 		return (__db_ferr(dbenv, "DBcursor->dup", 0));
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	ret = __db_c_dup(dbc, dbcp, flags);
-
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1719,7 +1863,8 @@ __db_c_get_pp(dbc, key, data, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	int ret;
+	DB_THREAD_INFO *ip;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -1729,21 +1874,13 @@ __db_c_get_pp(dbc, key, data, flags)
 	if ((ret = __db_c_get_arg(dbc, key, data, flags)) != 0)
 		return (ret);
 
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	DEBUG_LREAD(dbc, dbc->txn, "DBcursor->get",
 	    flags == DB_SET || flags == DB_SET_RANGE ? key : NULL, NULL, flags);
-
 	ret = __db_c_get(dbc, key, data, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1780,12 +1917,12 @@ __db_c_get_arg(dbc, key, data, flags)
 	 * flag in a path where CDB may have been configured.
 	 */
 	dirty = 0;
-	if (LF_ISSET(DB_DIRTY_READ | DB_RMW)) {
+	if (LF_ISSET(DB_READ_UNCOMMITTED | DB_RMW)) {
 		if (!LOCKING_ON(dbenv))
 			return (__db_fnl(dbenv, "DBcursor->get"));
-		if (LF_ISSET(DB_DIRTY_READ))
+		if (LF_ISSET(DB_READ_UNCOMMITTED))
 			dirty = 1;
-		LF_CLR(DB_DIRTY_READ | DB_RMW);
+		LF_CLR(DB_READ_UNCOMMITTED | DB_RMW);
 	}
 
 	multi = 0;
@@ -1802,7 +1939,7 @@ __db_c_get_arg(dbc, key, data, flags)
 	case DB_CONSUME_WAIT:
 		if (dirty) {
 			__db_err(dbenv,
-    "DB_DIRTY_READ is not supported with DB_CONSUME or DB_CONSUME_WAIT");
+    "DB_READ_UNCOMMITTED is not supported with DB_CONSUME or DB_CONSUME_WAIT");
 			return (EINVAL);
 		}
 		if (dbp->type != DB_QUEUE)
@@ -1902,6 +2039,7 @@ __db_secondary_close_pp(dbp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
@@ -1910,20 +2048,20 @@ __db_secondary_close_pp(dbp, flags)
 	PANIC_CHECK(dbenv);
 
 	/*
-	 * !!!
-	 * The actual argument checking is simple, do it inline.
+	 * As a DB handle destructor, we can't fail.
 	 *
-	 * Validate arguments and complain if they're wrong, but as a DB
-	 * handle destructor, we can't fail.
+	 * !!!
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
 	 */
-	if (flags != 0 && flags != DB_NOSYNC &&
-	    (t_ret = __db_ferr(dbenv, "DB->close", 0)) != 0 && ret == 0)
-		ret = t_ret;
+	if (flags != 0 && flags != DB_NOSYNC)
+		ret = __db_ferr(dbenv, "DB->close", 0);
+
+	ENV_ENTER(dbenv, ip);
 
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (t_ret = __db_rep_enter(dbp, 0, 0, 0)) != 0) {
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (t_ret = __db_rep_enter(dbp, 0, 0, 0)) != 0) {
 		handle_check = 0;
 		if (ret == 0)
 			ret = t_ret;
@@ -1933,9 +2071,10 @@ __db_secondary_close_pp(dbp, flags)
 		ret = t_ret;
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -1953,31 +2092,23 @@ __db_c_pget_pp(dbc, skey, pkey, data, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
 
-	if ((ret = __db_c_pget_arg(dbc, pkey, flags)) != 0)
+	if ((ret = __db_c_pget_arg(dbc, pkey, flags)) != 0 ||
+	    (ret = __db_c_get_arg(dbc, skey, data, flags)) != 0)
 		return (ret);
 
-	if ((ret = __db_c_get_arg(dbc, skey, data, flags)) != 0)
-		return (ret);
-
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	ENV_ENTER(dbenv, ip);
 
 	ret = __db_c_pget(dbc, skey, pkey, data, flags);
 
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -2059,7 +2190,8 @@ __db_c_put_pp(dbc, key, data, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -2069,27 +2201,19 @@ __db_c_put_pp(dbc, key, data, flags)
 	if ((ret = __db_c_put_arg(dbc, key, data, flags)) != 0)
 		return (ret);
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for consistent transaction usage. */
 	if ((ret = __db_check_txn(dbp, dbc->txn, dbc->locker, 0)) != 0)
-		return (ret);
-
-	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+		goto err;
 
 	DEBUG_LWRITE(dbc, dbc->txn, "DBcursor->put",
 	    flags == DB_KEYFIRST || flags == DB_KEYLAST ||
 	    flags == DB_NODUPDATA || flags == DB_UPDATE_SECONDARY ?
 	    key : NULL, data, flags);
-
 	ret =__db_c_put(dbc, key, data, flags);
-
-	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
-
+err:
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -2112,8 +2236,8 @@ __db_c_put_arg(dbc, key, data, flags)
 	key_flags = 0;
 
 	/* Check for changes to a read-only tree. */
-	if (IS_READONLY(dbp))
-		return (__db_rdonly(dbenv, "c_put"));
+	if (DB_IS_READONLY(dbp))
+		return (__db_rdonly(dbenv, "DBcursor->put"));
 
 	/* Check for puts on a secondary. */
 	if (F_ISSET(dbp, DB_AM_SECONDARY)) {
@@ -2238,19 +2362,6 @@ __dbt_ferr(dbp, name, dbt, check_thread)
 }
 
 /*
- * __db_rdonly --
- *	Common readonly message.
- */
-static int
-__db_rdonly(dbenv, name)
-	const DB_ENV *dbenv;
-	const char *name;
-{
-	__db_err(dbenv, "%s: attempt to modify a read-only tree", name);
-	return (EACCES);
-}
-
-/*
  * __db_curinval
  *	Report that a cursor is in an invalid state.
  */
@@ -2274,6 +2385,12 @@ __db_txn_auto_init(dbenv, txnidp)
 	DB_ENV *dbenv;
 	DB_TXN **txnidp;
 {
+	/*
+	 * Method calls where applications explicitly specify DB_AUTO_COMMIT
+	 * require additional validation: the DB_AUTO_COMMIT flag cannot be
+	 * specified if a transaction cookie is also specified, nor can the
+	 * flag be specified in a non-transactional environment.
+	 */
 	if (*txnidp != NULL) {
 		__db_err(dbenv,
     "DB_AUTO_COMMIT may not be specified along with a transaction handle");
@@ -2287,15 +2404,15 @@ __db_txn_auto_init(dbenv, txnidp)
 	}
 
 	/*
-	 * We're creating a transaction for the user, and we want it to block
-	 * if replication recovery is running.  Call the user-level API.
+	 * Our caller checked to see if replication is making a state change.
+	 * Don't call the user-level API (which would repeat that check).
 	 */
-	return (dbenv->txn_begin(dbenv, NULL, txnidp, 0));
+	return (__txn_begin(dbenv, NULL, txnidp, 0));
 }
 
 /*
  * __db_txn_auto_resolve --
- *	Handle DB_AUTO_COMMIT resolution.
+ *	Resolve local transactions.
  *
  * PUBLIC: int __db_txn_auto_resolve __P((DB_ENV *, DB_TXN *, int, int));
  */
@@ -2312,9 +2429,9 @@ __db_txn_auto_resolve(dbenv, txn, nosync, ret)
 	 * replication handle count.  Call the user-level API.
 	 */
 	if (ret == 0)
-		return (txn->commit(txn, nosync ? DB_TXN_NOSYNC : 0));
+		return (__txn_commit(txn, nosync ? DB_TXN_NOSYNC : 0));
 
-	if ((t_ret = txn->abort(txn)) != 0)
+	if ((t_ret = __txn_abort(txn)) != 0)
 		return (__db_panic(dbenv, t_ret));
 
 	return (ret);

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_byteorder.c,v 11.10 2004/01/28 03:35:52 bostic Exp $
+ * $Id: db_byteorder.c,v 12.1 2005/06/16 20:20:52 bostic Exp $
  */
 
 #include "db_config.h"

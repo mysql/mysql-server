@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash_open.c,v 11.191 2004/06/22 18:43:38 margo Exp $
+ * $Id: hash_open.c,v 12.7 2005/11/09 14:19:51 margo Exp $
  */
 
 #include "db_config.h"
@@ -58,7 +58,6 @@
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
 #include "dbinc/mp.h"
-#include "dbinc/db_swap.h"
 #include "dbinc/btree.h"
 #include "dbinc/fop.h"
 
@@ -118,6 +117,7 @@ __ham_open(dbp, txn, name, base_pgno, flags)
 			ret = EINVAL;
 			goto err2;
 		}
+		hashp->h_nelem = hcp->hdr->nelem;
 		if (F_ISSET(&hcp->hdr->dbmeta, DB_HASH_DUP))
 			F_SET(dbp, DB_AM_DUP);
 		if (F_ISSET(&hcp->hdr->dbmeta, DB_HASH_DUPSORT))
@@ -291,6 +291,7 @@ __ham_init_meta(dbp, meta, pgno, lsnp)
 	meta->high_mask = nbuckets - 1;
 	meta->low_mask = (nbuckets >> 1) - 1;
 	meta->ffactor = hashp->h_ffactor;
+	meta->nelem = hashp->h_nelem;
 	meta->h_charkey = hashp->h_hash(dbp, CHARKEY, sizeof(CHARKEY));
 	memcpy(meta->dbmeta.uid, dbp->fileid, DB_FILE_ID_LEN);
 
@@ -357,7 +358,7 @@ __ham_new_file(dbp, txn, fhp, name)
 	page = NULL;
 	buf = NULL;
 
-	if (name == NULL) {
+	if (F_ISSET(dbp, DB_AM_INMEM)) {
 		/* Build meta-data page. */
 		lpgno = PGNO_BASE_MD;
 		if ((ret =
@@ -366,6 +367,9 @@ __ham_new_file(dbp, txn, fhp, name)
 		LSN_NOT_LOGGED(lsn);
 		lpgno = __ham_init_meta(dbp, meta, PGNO_BASE_MD, &lsn);
 		meta->dbmeta.last_pgno = lpgno;
+		if ((ret = __db_log_page(dbp,
+		    txn, &lsn, meta->dbmeta.pgno, (PAGE *)meta)) != 0)
+			goto err;
 		ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
 		meta = NULL;
 		if (ret != 0)
@@ -378,6 +382,9 @@ __ham_new_file(dbp, txn, fhp, name)
 		P_INIT(page,
 		    dbp->pgsize, lpgno, PGNO_INVALID, PGNO_INVALID, 0, P_HASH);
 		LSN_NOT_LOGGED(page->lsn);
+		if ((ret =
+		    __db_log_page(dbp, txn, &page->lsn, lpgno, page)) != 0)
+			goto err;
 		ret = __memp_fput(mpf, page, DB_MPOOL_DIRTY);
 		page = NULL;
 		if (ret != 0)

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: hash_verify.c,v 1.63 2004/10/14 18:11:36 bostic Exp $
+ * $Id: hash_verify.c,v 12.8 2005/06/16 20:22:54 bostic Exp $
  */
 
 #include "db_config.h"
@@ -110,8 +110,6 @@ __ham_vrfy_meta(dbp, vdp, m, pgno, flags)
 	 * max_bucket, high_mask and low_mask: high_mask must be one
 	 * less than the next power of two above max_bucket, and
 	 * low_mask must be one less than the power of two below it.
-	 *
-	 *
 	 */
 	pwr = (m->max_bucket == 0) ? 1 : 1 << __db_log2(m->max_bucket + 1);
 	if (m->high_mask != pwr - 1) {
@@ -795,10 +793,10 @@ __ham_salvage(dbp, vdp, pgno, h, handle, callback, flags)
 	DBT dbt, unkdbt;
 	db_pgno_t dpgno;
 	int ret, err_ret, t_ret;
-	u_int32_t himark, tlen;
-	u_int8_t *hk;
+	u_int32_t himark, i;
+	u_int8_t *hk, *p;
 	void *buf;
-	u_int32_t dlen, len, i;
+	db_indx_t dlen, len, tlen;
 
 	memset(&dbt, 0, sizeof(DBT));
 	dbt.flags = DB_DBT_REALLOC;
@@ -830,28 +828,25 @@ __ham_salvage(dbp, vdp, pgno, h, handle, callback, flags)
 			break;
 
 		if (ret == 0) {
+			/* Set len to total entry length. */
+			len = LEN_HITEM(dbp, h, dbp->pgsize, i);
 			hk = P_ENTRY(dbp, h, i);
-			len = LEN_HKEYDATA(dbp, h, dbp->pgsize, i);
-			if ((u_int32_t)(hk + len - (u_int8_t *)h) >
+			if (len == 0 || len > dbp->pgsize ||
+			    (u_int32_t)(hk + len - (u_int8_t *)h) >
 			    dbp->pgsize) {
-				/*
-				 * Item is unsafely large;  either continue
-				 * or set it to the whole page, depending on
-				 * aggressiveness.
-				 */
-				if (!LF_ISSET(DB_AGGRESSIVE))
-					continue;
-				len = dbp->pgsize -
-				    (u_int32_t)(hk - (u_int8_t *)h);
+				/* Item is unsafely large; skip it. */
 				err_ret = DB_VERIFY_BAD;
+				continue;
 			}
 			switch (HPAGE_PTYPE(hk)) {
 			default:
 				if (!LF_ISSET(DB_AGGRESSIVE))
 					break;
 				err_ret = DB_VERIFY_BAD;
-				/* FALLTHROUGH */
+				break;
 			case H_KEYDATA:
+				/* Update len to size of item. */
+				len = LEN_HKEYDATA(dbp, h, dbp->pgsize, i);
 keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				dbt.size = len;
 				dbt.data = buf;
@@ -878,12 +873,12 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 					err_ret = ret;
 				break;
 			case H_OFFDUP:
-				if (len < HOFFPAGE_SIZE) {
+				if (len < HOFFDUP_SIZE) {
 					err_ret = DB_VERIFY_BAD;
 					continue;
 				}
 				memcpy(&dpgno,
-				    HOFFPAGE_PGNO(hk), sizeof(dpgno));
+				    HOFFDUP_PGNO(hk), sizeof(dpgno));
 				/* UNKNOWN iff pgno is bad or we're a key. */
 				if (!IS_VALID_PGNO(dpgno) || (i % 2 == 0)) {
 					if ((ret =
@@ -896,6 +891,7 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 					err_ret = ret;
 				break;
 			case H_DUPLICATE:
+				len = LEN_HKEYDATA(dbp, h, dbp->pgsize, i);
 				/*
 				 * We're a key;  printing dups will seriously
 				 * foul the output.  If we're being aggressive,
@@ -909,7 +905,12 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 					break;
 				}
 
-				/* Too small to have any data. */
+				/*
+				 * Check if too small to have any data.
+				 * But first, we have to update the len to
+				 * reflect the size of the data not the
+				 * size of the on-page entry.
+				 */
 				if (len <
 				    HKEYDATA_SIZE(2 * sizeof(db_indx_t))) {
 					err_ret = DB_VERIFY_BAD;
@@ -919,15 +920,17 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				/* Loop until we hit the total length. */
 				for (tlen = 0; tlen + sizeof(db_indx_t) < len;
 				    tlen += dlen) {
+					p = HKEYDATA_DATA(hk) + tlen;
 					tlen += sizeof(db_indx_t);
-					memcpy(&dlen, hk, sizeof(db_indx_t));
+					memcpy(&dlen, p, sizeof(db_indx_t));
+					p += sizeof(db_indx_t);
 					/*
 					 * If dlen is too long, print all the
 					 * rest of the dup set in a chunk.
 					 */
 					if (dlen + tlen > len)
 						dlen = len - tlen;
-					memcpy(buf, hk + tlen, dlen);
+					memcpy(buf, p, dlen);
 					dbt.size = dlen;
 					dbt.data = buf;
 					if ((ret = __db_vrfy_prdbt(&dbt, 0, " ",
