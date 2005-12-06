@@ -4910,8 +4910,10 @@ drop procedure bug14376|
 # variable declarations. In MySQL 5.0 it's vice versa.
 #
 
+--disable_warnings
 drop procedure if exists p1|
 drop table if exists t1|
+--enable_warnings
 create table t1 (a varchar(255))|
 insert into t1 (a) values ("a - table column")|
 create procedure p1(a varchar(255))
@@ -4946,6 +4948,36 @@ begin
   end;
 end|
 call p1("a - stored procedure parameter")|
+drop procedure p1|
+
+#
+# Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
+#
+--disable_warnings
+drop procedure if exists bug13012|
+--enable_warnings
+create procedure bug13012()
+BEGIN
+  REPAIR TABLE t1;
+  BACKUP TABLE t1 to '../tmp';
+  DROP TABLE t1;
+  RESTORE TABLE t1 FROM '../tmp';
+END|
+call bug13012()|
+drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+  REPAIR TABLE t1,t2,t3,v1;
+  OPTIMIZE TABLE t1,t2,t3,v1;
+  ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+call bug13012()|
+call bug13012()|
+drop procedure bug13012|
+drop view v1;
+select * from t1|
 
 #
 # BUG#NNNN: New bug synopsis
