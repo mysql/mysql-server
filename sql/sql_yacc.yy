@@ -1407,6 +1407,11 @@ create_function_tail:
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
+            if (!(sp->m_flags & sp_head::HAS_RETURN))
+            {
+              my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
+              YYABORT;
+            }
 	    /* Restore flag if it was cleared above */
 	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
