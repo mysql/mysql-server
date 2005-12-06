@@ -745,8 +745,6 @@ struct buf_block_struct{
 					buffer pool which are index pages,
 					but this flag is not set because
 					we do not keep track of all pages */
-	dict_index_t*	index;		/* index for which the adaptive
-					hash index has been created */
 	/* 2. Page flushing fields */
 
 	UT_LIST_NODE_T(buf_block_t) flush_list;
@@ -833,7 +831,7 @@ struct buf_block_struct{
 					records with the same prefix should be
 					indexed in the hash index */
 					
-	/* The following 4 fields are protected by btr_search_latch: */
+	/* The following 6 fields are protected by btr_search_latch: */
 
 	ibool		is_hashed;	/* TRUE if hash index has already been
 					built on this page; note that it does
@@ -850,6 +848,12 @@ struct buf_block_struct{
 	ulint		curr_side;	/* BTR_SEARCH_LEFT_SIDE or
 					BTR_SEARCH_RIGHT_SIDE in hash
 					indexing */
+	dict_index_t*	index;		/* Index for which the adaptive
+					hash index has been created.
+					This field may only be modified
+					while holding an s-latch or x-latch
+					on block->lock and an x-latch on
+					btr_search_latch. */
 	/* 6. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
