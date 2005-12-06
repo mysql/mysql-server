@@ -56,9 +56,6 @@ start slave;
 # (the only statement with position>=3000 is COMMIT).
 select master_pos_wait('master-bin.001',3000)>=0;
 select max(a) from t1;
---replace_column 1 # 8 # 9 # 23 # 33 #
---replace_result $MASTER_MYPORT MASTER_MYPORT
-show slave status;
 connection master;
 
 # The following DROP is a very important cleaning task:
