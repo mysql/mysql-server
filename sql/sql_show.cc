@@ -2931,9 +2931,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
   full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1);
-  if (!(proc_table= open_proc_type_table_for_read(thd, &open_tables_state_backup,
-                                                  "proc", 
-                                                  &mysql_proc_table_exists)))
+  if (!(proc_table= open_proc_table_for_read(thd, &open_tables_state_backup)))
   {
     DBUG_RETURN(1);
   }

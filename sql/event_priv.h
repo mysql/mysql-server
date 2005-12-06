@@ -51,6 +51,10 @@ extern pthread_mutex_t LOCK_event_arrays,
 int
 my_time_compare(TIME *a, TIME *b);
 
-
-TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type);             
+int
+evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
+                       const LEX_STRING rname, TABLE *table);
+                       
+TABLE *
+evex_open_event_table(THD *thd, enum thr_lock_type lock_type);             
 #endif /* _EVENT_PRIV_H_ */

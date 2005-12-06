@@ -208,7 +208,7 @@ TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
     SP_KEY_NOT_FOUND- No routine with given name
 */
 
-static int
+int
 evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING rname, TABLE *table)
 {
@@ -871,7 +871,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
-  ret= sp_db_find_routine_aux(thd, 0/*notype*/, et->m_db, et->m_name, table);
+  ret= evex_db_find_routine_aux(thd, et->m_db, et->m_name, table);
 
   if (ret == EVEX_OK)
   {
