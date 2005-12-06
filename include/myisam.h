@@ -33,8 +33,6 @@ extern "C" {
 #endif
 #include "my_handler.h"
 
-	/* defines used by myisam-funktions */
-
 /*
   There is a hard limit for the maximum number of keys as there are only
   8 bits in the index file header for the number of keys in a table.
@@ -45,14 +43,19 @@ extern "C" {
   running myisamchk compiled for 128 keys on a table with 255 keys.
 */
 #define MI_MAX_POSSIBLE_KEY         255             /* For myisam_chk */
+#if MAX_INDEXES > MI_MAX_POSSIBLE_KEY
+#define MI_MAX_KEY                  MI_MAX_POSSIBLE_KEY /* Max allowed keys */
+#else
+#define MI_MAX_KEY                  MAX_INDEXES         /* Max allowed keys */
+#endif
+
 #define MI_MAX_POSSIBLE_KEY_BUFF    (1024+6+6)      /* For myisam_chk */
 /*
   The following defines can be increased if necessary.
-  BUT: MI_MAX_KEY must be <= MI_MAX_POSSIBLE_KEY.
+  But beware the dependency of MI_MAX_POSSIBLE_KEY_BUFF and MI_MAX_KEY_LENGTH.
 */
-#define MI_MAX_KEY                  64              /* Max allowed keys */
+#define MI_MAX_KEY_LENGTH           1000            /* Max length in bytes */
 #define MI_MAX_KEY_SEG              16              /* Max segments for key */
-#define MI_MAX_KEY_LENGTH           1000
 
 #define MI_MAX_KEY_BUFF  (MI_MAX_KEY_LENGTH+MI_MAX_KEY_SEG*6+8+8)
 #define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
