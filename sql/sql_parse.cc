@@ -4133,14 +4133,6 @@ end_with_restore_list:
       }
     }
 #endif
-    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-	!(lex->sphead->m_flags & sp_head::HAS_RETURN))
-    {
-      my_error(ER_SP_NORETURN, MYF(0), name);
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    }
 
     /*
       We need to copy name and db in order to use them for

@@ -124,7 +124,7 @@ begin
 declare x int;
 set x = val+3;
 end|
-ERROR 42000: No RETURN found in FUNCTION f
+ERROR 42000: No RETURN found in FUNCTION test.f
 create function f(val int) returns int
 begin
 declare x int;
