@@ -17,9 +17,6 @@
 #ifndef _EVENT_PRIV_H_
 #define _EVENT_PRIV_H_
 
-#define EVEX_OPEN_TABLE_FOR_UPDATE() \
-       open_proc_type_table_for_update(thd, "event", &mysql_event_table_exists)
-
 
 enum
 {
@@ -53,5 +50,7 @@ extern pthread_mutex_t LOCK_event_arrays,
 
 int
 my_time_compare(TIME *a, TIME *b);
-                
+
+
+TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type);             
 #endif /* _EVENT_PRIV_H_ */

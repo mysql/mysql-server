@@ -719,7 +719,7 @@ event_timed::update_fields(THD *thd)
   if (!(m_status_changed || m_last_executed_changed))
     goto done;
   
-  if (!(table= EVEX_OPEN_TABLE_FOR_UPDATE()))
+  if (!(table= evex_open_event_table(thd, TL_WRITE)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if ((ret= sp_db_find_routine_aux(thd, 0/*notype*/, m_db, m_name, table)))

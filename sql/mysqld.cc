@@ -3568,6 +3568,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up(1);
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
+  shutdown_events();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
   exit(0);
