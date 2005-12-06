@@ -1462,7 +1462,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                                      bool first_no_prelock, bool *tabs_changed)
 {
   int ret= 0;
-  int tabschnd= 0;              /* Set if tables changed */
+  bool tabschnd= 0;             /* Set if tables changed */
   bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
@@ -1512,6 +1512,11 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
         */
         if (ret == SP_PARSE_ERROR)
           thd->clear_error();
+        /*
+          If we cleared the parse error, or when db_find_routine() flagged
+          an error with it's return value without calling my_error(), we
+          set the generic "mysql.proc table corrupt" error here.
+         */
         if (!thd->net.report_error)
         {
           char n[NAME_LEN*2+2];
