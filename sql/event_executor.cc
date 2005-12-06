@@ -36,6 +36,7 @@ my_bool event_executor_running_global_var= false;
 
 extern ulong thread_created;
 
+static my_bool evex_mutexes_initted= false;
 
 static int
 evex_load_events_from_db(THD *thd);
@@ -50,6 +51,19 @@ evex_load_events_from_db(THD *thd);
 pthread_handler_t event_executor_worker(void *arg);
 pthread_handler_t event_executor_main(void *arg);
 
+static
+void evex_init_mutexes()
+{
+  if (evex_mutexes_initted)
+  {
+    evex_mutexes_initted= true;
+    return;
+  }
+  pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
+}
+
 int
 init_events()
 {
@@ -59,15 +73,15 @@ init_events()
 
   DBUG_PRINT("info",("Starting events main thread"));
 
-  pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
-
+  evex_init_mutexes();
+  
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;  
   event_executor_running_global_var= false;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
+  DBUG_RETURN(0);
+/*
 #ifndef DBUG_FAULTY_THR
   //TODO Andrey: Change the error code returned!
   if (pthread_create(&th, NULL, event_executor_main, (void*)NULL))
@@ -77,6 +91,7 @@ init_events()
 #endif
 
   DBUG_RETURN(0);
+*/
 }
 
 
@@ -94,6 +109,7 @@ shutdown_events()
   DBUG_VOID_RETURN;
 }
 
+#ifdef ANDREY_0
 
 static int
 init_event_thread(THD* thd)
@@ -165,7 +181,7 @@ pthread_handler_t event_executor_main(void *arg)
     goto err;
 
   // make this thread invisible it has no vio -> show processlist won't see
-  thd->system_thread= 0;
+  thd->system_thread= 1;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   threads.append(thd);
@@ -350,7 +366,7 @@ err_no_thd:
   free_root(&evex_mem_root, MYF(0));
   sql_print_information("Event executor stopped");
 
-  shutdown_events();
+//  shutdown_events();
 
   my_thread_end();
   pthread_exit(0);
@@ -391,7 +407,7 @@ pthread_handler_t event_executor_worker(void *event_void)
   thd->init_for_queries();
 
   // make this thread visible it has no vio -> show processlist needs this flag
-  thd->system_thread= 0;
+  thd->system_thread= 1;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   threads.append(thd);
@@ -531,3 +547,20 @@ end:
                     ("Events loaded from DB. Status code %d", ret));
   DBUG_RETURN(ret);
 }
+
+#endif
+
+bool sys_var_event_executor::update(THD *thd, set_var *var)
+{
+#ifdef ANDREY_0
+  // here start the thread if not running.
+  VOID(pthread_mutex_lock(&LOCK_evex_running));
+  if ((my_bool) var->save_result.ulong_value && !evex_is_running) {
+    VOID(pthread_mutex_unlock(&LOCK_evex_running));
+    init_events();
+  } else 
+    VOID(pthread_mutex_unlock(&LOCK_evex_running));
+#endif  
+  return sys_var_bool_ptr::update(thd, var);
+}
+

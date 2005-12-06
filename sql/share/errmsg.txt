@@ -5737,3 +5737,7 @@ ER_EVENT_ENDS_BEFORE_STARTS
         eng "ENDS must be after STARTS"
 ER_EVENT_EXEC_TIME_IN_THE_PAST
         eng "Activation (AT) time is in the past"
+ER_EVENT_OPEN_TABLE_FAILED
+        eng "Failed to open mysql.event"
+ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
+        eng "No datetime expression provided"
