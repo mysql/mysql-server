@@ -2,10 +2,10 @@
 #
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996-2004
+# Copyright (c) 1996-2005
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id: gen_rec.awk,v 11.110 2004/10/20 20:40:58 bostic Exp $
+# $Id: gen_rec.awk,v 12.6 2005/10/12 18:48:44 ubell Exp $
 #
 
 # This awk script generates all the log, print, and read routines for the DB
@@ -445,11 +445,10 @@ function log_function()
 		printf("DbEnv->log_put call,\n\t\t * ") >> CFILE;
 		printf("so pass in the appropriate memory location to be ") \
 		    >> CFILE;
-		printf("filled\n\t\t * in by the log_put code.\n\t\t*/\n") \
+		printf("filled\n\t\t * in by the log_put code.\n\t\t */\n") \
 		    >> CFILE;
-		printf("\t\tDB_SET_BEGIN_LSNP(txnid, &rlsnp);\n") >> CFILE;
+		printf("\t\tDB_SET_TXN_LSNP(txnid, &rlsnp, &lsnp);\n") >> CFILE;
 		printf("\t\ttxn_num = txnid->txnid;\n") >> CFILE;
-		printf("\t\tlsnp = &txnid->last_lsn;\n") >> CFILE;
 		printf("\t}\n\n") >> CFILE;
 
 		# If we're logging a DB handle, make sure we have a log
@@ -608,7 +607,7 @@ function log_function()
 			printf("(DBT *)&logrec,\n") >> CFILE;
 			printf("\t\t    flags | DB_LOG_NOCOPY)) == 0") >> CFILE;
 			printf(" && txnid != NULL) {\n") >> CFILE;
-			printf("\t\t\ttxnid->last_lsn = *rlsnp;\n") >> CFILE;
+			printf("\t\t\t*lsnp = *rlsnp;\n") >> CFILE;
 
 			printf("\t\t\tif (rlsnp != ret_lsnp)\n") >> CFILE;
 			printf("\t\t\t\t *ret_lsnp = *rlsnp;\n") >> CFILE;
@@ -639,6 +638,8 @@ function log_function()
 			# Add a ND record to the txn list.
 			printf("\t\tSTAILQ_INSERT_HEAD(&txnid") >> CFILE;
 			printf("->logs, lr, links);\n") >> CFILE;
+			printf("\t\tF_SET((TXN_DETAIL *)") >> CFILE;
+			printf("txnid->td, TXN_DTL_INMEMORY);\n") >> CFILE;
 			# Update the return LSN.
 			printf("\t\tLSN_NOT_LOGGED(*ret_lsnp);\n") >> CFILE;
 			printf("\t}\n\n") >> CFILE;
@@ -649,7 +650,7 @@ function log_function()
 			printf(" && txnid != NULL) {\n") >> CFILE;
 
                 	# Update the transactions last_lsn.
-			printf("\t\ttxnid->last_lsn = *rlsnp;\n") >> CFILE;
+			printf("\t\t*lsnp = *rlsnp;\n") >> CFILE;
 			printf("\t\tif (rlsnp != ret_lsnp)\n") >> CFILE;
 			printf("\t\t\t *ret_lsnp = *rlsnp;\n") >> CFILE;
 			printf("\t}\n") >> CFILE;
@@ -660,9 +661,8 @@ function log_function()
 		printf("#ifdef LOG_DIAGNOSTIC\n") >> CFILE
 		printf("\tif (ret != 0)\n") >> CFILE;
 		printf("\t\t(void)%s_print(dbenv,\n", funcname) >> CFILE;
-		printf("\t\t    (DBT *)&logrec, ret_lsnp, NULL, NULL);\n") \
-		    >> CFILE
-		printf("#endif\n\n") >> CFILE
+		printf("\t\t    (DBT *)&logrec, ret_lsnp, ") >> CFILE
+		printf("DB_TXN_PRINT, NULL);\n#endif\n\n") >> CFILE
 		# Free and return
 		if (dbprivate) {
 			printf("#ifdef DIAGNOSTIC\n") >> CFILE
@@ -738,7 +738,7 @@ function print_function()
 	printf("\tint ret;\n\n") >> PFILE;
 
 	# Get rid of complaints about unused parameters.
-	printf("\tnotused2 = DB_TXN_ABORT;\n\tnotused3 = NULL;\n\n") >> PFILE;
+	printf("\tnotused2 = DB_TXN_PRINT;\n\tnotused3 = NULL;\n\n") >> PFILE;
 
 	# Call read routine to initialize structure
 	printf("\tif ((ret = %s_read(dbenv, dbtp->data, &argp)) != 0)\n", \

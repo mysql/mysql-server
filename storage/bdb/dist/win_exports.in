@@ -1,4 +1,4 @@
-# $Id: win_exports.in,v 1.41 2004/10/12 17:44:10 bostic Exp $
+# $Id: win_exports.in,v 12.12 2005/10/14 06:19:27 mjc Exp $
 
 # Standard interfaces.
 	db_create
@@ -65,9 +65,6 @@
 	__db_panic
 	__db_r_attach
 	__db_r_detach
-	__db_win32_mutex_init
-	__db_win32_mutex_lock
-	__db_win32_mutex_unlock
 	__ham_func2
 	__ham_func3
 	__ham_func4
@@ -76,24 +73,30 @@
 	__lock_id_set
 	__os_calloc
 	__os_closehandle
+	__os_dirfree
+	__os_dirlist
 	__os_free
 	__os_ioinfo
 	__os_malloc
+	__os_mkdir
 	__os_open
 	__os_openhandle
 	__os_read
 	__os_realloc
 	__os_strdup
 	__os_umalloc
+	__os_unlink
 	__os_write
 	__txn_id_set
 
-#These are needed for linking tools or java.
+# These are needed for linking tools or java.
 	__bam_adj_read
 	__bam_cadjust_read
 	__bam_cdel_read
 	__bam_curadj_read
+	__bam_merge_read
 	__bam_pgin
+	__bam_pgno_read
 	__bam_pgout
 	__bam_rcuradj_read
 	__bam_relink_read
@@ -102,22 +105,24 @@
 	__bam_rsplit_read
 	__bam_split_read
 	__crdel_metasub_read
+	__crdel_inmem_create_read
+	__crdel_inmem_rename_read
+	__crdel_inmem_remove_read
 	__db_addrem_read
 	__db_big_read
 	__db_cksum_read
 	__db_debug_read
 	__db_dispatch
+	__db_dl
 	__db_dumptree
 	__db_err
-	__db_fileid_reset
 	__db_getlong
 	__db_getulong
 	__db_global_values
 	__db_isbigendian
-	__db_lsn_reset
+	__db_msg
 	__db_noop_read
 	__db_omode
-	__db_overwrite
 	__db_ovref_read
 	__db_pg_alloc_read
 	__db_pg_free_read
@@ -125,6 +130,7 @@
 	__db_pg_init_read
 	__db_pg_new_read
 	__db_pg_prepare_read
+	__db_pg_sort_read
 	__db_pgin
 	__db_pgout
 	__db_pr_callback
@@ -158,12 +164,18 @@
 	__ham_splitdata_read
 	__lock_list_print
 	__log_stat_pp
+	__mutex_set_wait_info
 	__os_clock
+	__os_exists
 	__os_get_errno
 	__os_id
+	__os_mapfile
+	__os_seek
 	__os_set_errno
 	__os_sleep
+	__os_spin
 	__os_ufree
+	__os_unmapfile
 	__os_yield
 	__qam_add_read
 	__qam_del_read

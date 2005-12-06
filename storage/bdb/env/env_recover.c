@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: env_recover.c,v 11.126 2004/09/22 03:43:52 bostic Exp $
+ * $Id: env_recover.c,v 12.10 2005/10/19 15:14:11 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2005\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -62,6 +62,7 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 	DBT data;
 	DB_LOGC *logc;
 	DB_LSN ckp_lsn, first_lsn, last_lsn, lowlsn, lsn, stop_lsn, tlsn;
+	DB_TXNHEAD *txninfo;
 	DB_TXNREGION *region;
 	REGENV *renv;
 	REGINFO *infop;
@@ -71,18 +72,16 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 	u_int32_t hi_txn, log_size, txnid;
 	int32_t low;
 	int have_rec, progress, ret, t_ret;
-	int (**dtab) __P((DB_ENV *, DBT *, DB_LSN *, db_recops, void *));
 	char *p, *pass, t1[60], t2[60];
-	void *txninfo;
 
-	COMPQUIET(nfiles, (double)0);
+	COMPQUIET(nfiles, (double)0.001);
 
 	logc = NULL;
 	ckp_args = NULL;
-	dtab = NULL;
 	hi_txn = TXN_MAXIMUM;
 	txninfo = NULL;
 	pass = "initial";
+	ZERO_LSN(lsn);
 
 	/*
 	 * XXX
@@ -95,7 +94,7 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 	/*
 	 * If we need to, update the env handle timestamp.
 	 */
-	if (update) {
+	if (update && REP_ON(dbenv)) {
 		infop = dbenv->reginfo;
 		renv = infop->primary;
 		(void)time(&renv->rep_timestamp);
@@ -326,8 +325,8 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 			    (double)((log_size - first_lsn.offset) +
 			    last_lsn.offset) / log_size;
 		/* We are going to divide by nfiles; make sure it isn't 0. */
-		if (nfiles == 0)
-			nfiles = (double)0.001;
+		if (nfiles < 0.001)
+			nfiles = 0.001;
 	}
 
 	/* Find a low txnid. */
@@ -501,6 +500,7 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 #endif
 	}
 
+done:
 	/* Take a checkpoint here to force any dirty data pages to disk. */
 	if ((ret = __txn_checkpoint(dbenv, 0, 0, DB_FORCE)) != 0)
 		goto err;
@@ -509,7 +509,6 @@ __db_apprec(dbenv, max_lsn, trunclsn, update, flags)
 	if ((ret = __dbreg_close_files(dbenv)) != 0)
 		goto err;
 
-done:
 	if (max_lsn != NULL) {
 		if (!IS_ZERO_LSN(((DB_TXNHEAD *)txninfo)->ckplsn))
 			region->last_ckp = ((DB_TXNHEAD *)txninfo)->ckplsn;
@@ -559,13 +558,24 @@ done:
 		if ((ret = __env_openfiles(dbenv, logc,
 		    txninfo, &data, &first_lsn, NULL, nfiles, 1)) != 0)
 			goto err;
-	} else if (region->stat.st_nrestores == 0)
+	} else if (region->stat.st_nrestores == 0) {
 		/*
 		 * If there are no prepared transactions that need resolution,
 		 * we need to reset the transaction ID space and log this fact.
 		 */
 		if ((ret = __txn_reset(dbenv)) != 0)
 			goto err;
+	} else {
+		/*
+		 * If we have restored prepared txns then they are in process
+		 * as far as replication is concerned.
+		 */
+		if (REP_ON(dbenv))
+			((DB_REP *)dbenv->rep_handle)->region->op_cnt =
+			    region->stat.st_nrestores;
+		if ((ret = __txn_recycle_id(dbenv)) != 0)
+			goto err;
+	}
 
 	if (FLD_ISSET(dbenv->verbose, DB_VERB_RECOVERY)) {
 		(void)time(&now);
@@ -590,9 +600,6 @@ err:	if (logc != NULL && (t_ret = __log_c_close(logc)) != 0 && ret == 0)
 
 	if (txninfo != NULL)
 		__db_txnlist_end(dbenv, txninfo);
-
-	if (dtab != NULL)
-		__os_free(dbenv, dtab);
 
 	dbenv->tx_timestamp = 0;
 
@@ -627,8 +634,9 @@ __lsn_diff(low, high, current, max, is_forward)
 		if (current->file == low->file)
 			nf = (double)(current->offset - low->offset) / max;
 		else if (current->offset < low->offset)
-			nf = (double)(current->file - low->file - 1) +
-			    (double)(max - low->offset + current->offset) / max;
+			nf = (double)((current->file - low->file) - 1) +
+			    (double)((max - low->offset) + current->offset) /
+			    max;
 		else
 			nf = (double)(current->file - low->file) +
 			    (double)(current->offset - low->offset) / max;
@@ -636,9 +644,9 @@ __lsn_diff(low, high, current, max, is_forward)
 		if (current->file == high->file)
 			nf = (double)(high->offset - current->offset) / max;
 		else if (current->offset > high->offset)
-			nf = (double)(high->file - current->file - 1) +
+			nf = (double)((high->file - current->file) - 1) +
 			    (double)
-			    (max - current->offset + high->offset) / max;
+			    ((max - current->offset) + high->offset) / max;
 		else
 			nf = (double)(high->file - current->file) +
 			    (double)(high->offset - current->offset) / max;

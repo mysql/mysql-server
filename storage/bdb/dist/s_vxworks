@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_vxworks,v 1.52 2004/10/15 18:28:21 bostic Exp $
+#	$Id: s_vxworks,v 12.6 2005/11/03 17:46:13 bostic Exp $
 #
 # Build the VxWorks files.
 
@@ -29,15 +29,17 @@ i\\
 #endif
 }
 /@inttypes_h_decl@/d
-/@stdint_h_decl@/d
 /@stddef_h_decl@/d
+/@stdint_h_decl@/d
+/@unistd_h_decl@/d
+/@thread_h_decl@/d
 s/@u_int8_decl@/typedef unsigned char u_int8_t;/
 /@int16_decl@/d
 s/@u_int16_decl@/typedef unsigned short u_int16_t;/
 /@int32_decl@/d
 s/@u_int32_decl@/typedef unsigned int u_int32_t;/
 s/@int64_decl@//
-s/@u_int64_decl@//
+s/@u_int64_decl@/typedef unsigned long long u_int64_t;/
 /@u_char_decl@/d
 /@u_short_decl@/d
 /@u_int_decl@/d
@@ -46,6 +48,8 @@ s/@u_int64_decl@//
 s/@uintmax_t_decl@/typedef unsigned long uintmax_t;/
 s/@uintptr_t_decl@/typedef unsigned long uintptr_t;/
 s/@db_seq_decl@/typedef int db_seq_t;/
+/@pid_t_decl@/d
+s/@db_threadid_t_decl@/typedef uintmax_t db_threadid_t;/
 s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/
 s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/
 s/@DB_VERSION_PATCH@/$DB_VERSION_PATCH/
@@ -58,7 +62,8 @@ ENDOFSEDTEXT
 (echo "$msgc" &&
     sed -f $s ../dbinc/db.in &&
     cat ../dbinc_auto/ext_prot.in) > $t
-`egrep '@.*@' $t` && {
+test `egrep '@.*@' $t` && {
+	egrep '@.*@' $t
 	echo 'Unexpanded autoconf variables found in VxWorks db.h.'
 	exit 1
 }
@@ -67,11 +72,14 @@ cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
 cat <<ENDOFSEDTEXT > $s
+s/@INT64_FMT@/#define	INT64_FMT	"%lld"/
+s/@UINT64_FMT@/#define	UINT64_FMT	"%llu"/
 s/@PATH_SEPARATOR@/\/\\\\\\\\/
 s/@db_int_def@//
 ENDOFSEDTEXT
 (echo "$msgc" && sed -f $s ../dbinc/db_int.in) > $t
-`egrep '@.*@' $t` && {
+test `egrep '@.*@' $t` && {
+	egrep '@.*@' $t
 	echo 'Unexpanded autoconf variables found in VxWorks db_int.h.'
 	exit 1
 }
@@ -163,8 +171,8 @@ ENDOFSEDTEXT
 	echo '#include <db_int.h>'
 }
 
-PROGRAM_LIST="db_archive db_checkpoint db_deadlock db_dump db_load \
-    db_printlog db_recover db_stat db_upgrade db_verify ex_access"
+PROGRAM_LIST="db_archive db_checkpoint db_deadlock db_dump db_hotbackup \
+    db_load db_printlog db_recover db_stat db_upgrade db_verify ex_access"
 
 # Build VxWorks versions of the utilities.
 for i in $PROGRAM_LIST; do

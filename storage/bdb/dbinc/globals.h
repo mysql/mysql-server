@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: globals.h,v 11.9 2004/09/17 22:00:27 mjc Exp $
+ * $Id: globals.h,v 12.1 2005/06/16 20:21:47 bostic Exp $
  */
 
 /*******************************************************

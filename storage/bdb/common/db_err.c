@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_err.c,v 11.123 2004/09/22 03:07:50 bostic Exp $
+ * $Id: db_err.c,v 12.19 2005/10/19 19:06:29 sue Exp $
  */
 
 #include "db_config.h"
@@ -22,6 +22,7 @@
 #include "dbinc/db_shash.h"
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
+#include "dbinc/mp.h"
 #include "dbinc/txn.h"
 
 static void __db_msgcall __P((const DB_ENV *, const char *, va_list));
@@ -88,7 +89,7 @@ __db_fnl(dbenv, name)
 	const char *name;
 {
 	__db_err(dbenv,
-    "%s: the DB_DIRTY_READ, DB_DEGREE_2 and DB_RMW flags require locking",
+    "%s: DB_READ_COMMITTED, DB_READ_UNCOMMITTED and DB_RMW require locking",
 	    name);
 	return (EINVAL);
 }
@@ -186,7 +187,7 @@ __db_panic(dbenv, errval)
 	int errval;
 {
 	if (dbenv != NULL) {
-		PANIC_SET(dbenv, 1);
+		__db_panic_set(dbenv, 1);
 
 		__db_err(dbenv, "PANIC: %s", db_strerror(errval));
 
@@ -211,6 +212,22 @@ __db_panic(dbenv, errval)
 	 * Order shall return.
 	 */
 	return (DB_RUNRECOVERY);
+}
+
+/*
+ * __db_panic_set --
+ *	Set/clear unrecoverable error.
+ *
+ * PUBLIC: void __db_panic_set __P((DB_ENV *, int));
+ */
+void
+__db_panic_set(dbenv, on)
+	DB_ENV *dbenv;
+	int on;
+{
+	if (dbenv != NULL && dbenv->reginfo != NULL)
+		((REGENV *)
+		    ((REGINFO *)dbenv->reginfo)->primary)->panic = on ? 1 : 0;
 }
 
 /*
@@ -275,8 +292,16 @@ db_strerror(error)
 		return ("DB_REP_HANDLE_DEAD: Handle is no longer valid");
 	case DB_REP_HOLDELECTION:
 		return ("DB_REP_HOLDELECTION: Need to hold an election");
+	case DB_REP_IGNORE:
+		return ("DB_REP_IGNORE: Replication record ignored");
 	case DB_REP_ISPERM:
 		return ("DB_REP_ISPERM: Permanent record written");
+	case DB_REP_JOIN_FAILURE:
+		return
+	    ("DB_REP_JOIN_FAILURE: Unable to join replication group");
+	case DB_REP_LOCKOUT:
+		return
+	    ("DB_REP_LOCKOUT: Waiting for replication recovery to complete"); 
 	case DB_REP_NEWMASTER:
 		return ("DB_REP_NEWMASTER: A new master has declared itself");
 	case DB_REP_NEWSITE:
@@ -503,59 +528,6 @@ __db_msgfile(dbenv, fmt, ap)
 }
 
 /*
- * __db_logmsg --
- *	Write information into the DB log.
- *
- * PUBLIC: void __db_logmsg __P((const DB_ENV *,
- * PUBLIC:     DB_TXN *, const char *, u_int32_t, const char *, ...))
- * PUBLIC:    __attribute__ ((__format__ (__printf__, 5, 6)));
- */
-void
-#ifdef STDC_HEADERS
-__db_logmsg(const DB_ENV *dbenv,
-    DB_TXN *txnid, const char *opname, u_int32_t flags, const char *fmt, ...)
-#else
-__db_logmsg(dbenv, txnid, opname, flags, fmt, va_alist)
-	const DB_ENV *dbenv;
-	DB_TXN *txnid;
-	const char *opname, *fmt;
-	u_int32_t flags;
-	va_dcl
-#endif
-{
-	DBT opdbt, msgdbt;
-	DB_LSN lsn;
-	va_list ap;
-	char __logbuf[2048];	/* !!!: END OF THE STACK DON'T TRUST SPRINTF. */
-
-	if (!LOGGING_ON(dbenv))
-		return;
-
-#ifdef STDC_HEADERS
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	memset(&opdbt, 0, sizeof(opdbt));
-	opdbt.data = (void *)opname;
-	opdbt.size = (u_int32_t)(strlen(opname) + 1);
-
-	memset(&msgdbt, 0, sizeof(msgdbt));
-	msgdbt.data = __logbuf;
-	msgdbt.size = (u_int32_t)vsnprintf(__logbuf, sizeof(__logbuf), fmt, ap);
-
-	va_end(ap);
-
-	/*
-	 * XXX
-	 * Explicitly discard the const.  Otherwise, we have to const DB_ENV
-	 * references throughout the logging subsystem.
-	 */
-	(void)__db_debug_log(
-	    (DB_ENV *)dbenv, txnid, &lsn, flags, &opdbt, -1, &msgdbt, NULL, 0);
-}
-
-/*
  * __db_unknown_flag -- report internal error
  *
  * PUBLIC: int __db_unknown_flag __P((DB_ENV *, char *, u_int32_t));
@@ -620,38 +592,14 @@ __db_check_txn(dbp, txn, assoc_lid, read_op)
 
 	/*
 	 * Check for common transaction errors:
-	 *	Failure to pass a transaction handle to a DB operation
-	 *	Failure to configure the DB handle in a proper environment
-	 *	Operation on a handle whose open commit hasn't completed.
-	 *
-	 * Read operations don't require a txn even if we've used one before
-	 * with this handle, although if they do have a txn, we'd better be
-	 * prepared for it.
+	 *	an operation on a handle whose open commit hasn't completed.
+	 *	a transaction handle in a non-transactional environment
+	 *	a transaction handle for a non-transactional database
 	 */
 	if (txn == NULL) {
-		if (!read_op && F_ISSET(dbp, DB_AM_TXN)) {
-			__db_err(dbenv,
-    "DB handle previously used in transaction, missing transaction handle");
-			return (EINVAL);
-		}
-
 		if (dbp->cur_lid >= TXN_MINIMUM)
 			goto open_err;
 	} else {
-		if (F_ISSET(txn, TXN_DEADLOCK)) {
-			__db_err(dbenv,
-			    "Previous deadlock return not resolved");
-			return (EINVAL);
-		}
-		if (dbp->cur_lid >= TXN_MINIMUM &&
-		    dbp->cur_lid != txn->txnid) {
-			if ((ret = __lock_locker_is_parent(dbenv,
-			     dbp->cur_lid, txn->txnid, &isp)) != 0)
-				return (ret);
-			if (!isp)
-				goto open_err;
-		}
-
 		if (!TXN_ON(dbenv))
 			 return (__db_not_txn_env(dbenv));
 
@@ -659,6 +607,19 @@ __db_check_txn(dbp, txn, assoc_lid, read_op)
 			__db_err(dbenv,
     "Transaction specified for a DB handle opened outside a transaction");
 			return (EINVAL);
+		}
+
+		if (F_ISSET(txn, TXN_DEADLOCK)) {
+			__db_err(dbenv,
+			    "Previous deadlock return not resolved");
+			return (EINVAL);
+		}
+		if (dbp->cur_lid >= TXN_MINIMUM && dbp->cur_lid != txn->txnid) {
+			if ((ret = __lock_locker_is_parent(dbenv,
+			     dbp->cur_lid, txn->txnid, &isp)) != 0)
+				return (ret);
+			if (!isp)
+				goto open_err;
 		}
 	}
 
@@ -681,6 +642,15 @@ __db_check_txn(dbp, txn, assoc_lid, read_op)
 	    txn != NULL && dbp->associate_lid != assoc_lid) {
 		__db_err(dbenv,
 	    "Operation forbidden while secondary index is being created");
+		return (EINVAL);
+	}
+
+	/*
+	 * Check the txn and dbp are from the same env.
+	 */
+	if (txn != NULL && dbenv != txn->mgrp->dbenv) {
+		__db_err(dbenv,
+	    "Transaction and database from different environments");
 		return (EINVAL);
 	}
 
@@ -738,6 +708,69 @@ __db_rec_repl(dbenv, data_size, data_dlen)
 	return (EINVAL);
 }
 
+#if defined(DIAGNOSTIC) || defined(DEBUG_ROP)  || defined(DEBUG_WOP)
+/*
+ * __dbc_logging --
+ *	In DIAGNOSTIC mode, check for bad replication combinations.
+ *
+ * PUBLIC: int __dbc_logging __P((DBC *));
+ */
+int
+__dbc_logging(dbc)
+	DBC *dbc;
+{
+	DB_ENV *dbenv;
+	DB_REP *db_rep;
+	int ret;
+
+	dbenv = dbc->dbp->dbenv;
+	db_rep = dbenv->rep_handle;
+
+	ret = LOGGING_ON(dbenv) &&
+	    !F_ISSET(dbc, DBC_RECOVER) && !IS_REP_CLIENT(dbenv);
+
+	/*
+	 * If we're not using replication or running recovery, return.
+	 */
+	if (db_rep == NULL || F_ISSET(dbc, DBC_RECOVER))
+		return (ret);
+
+#ifndef	DEBUG_ROP
+	/*
+	 * Only check when DEBUG_ROP is not configured.  People often do
+	 * non-transactional reads, and debug_rop is going to write
+	 * a log record.
+	 */
+	{
+	REP *rep;
+
+	rep = db_rep->region;
+
+	/*
+	 * If we're a client and not running recovery or internally, error.
+	 */
+	if (IS_REP_CLIENT(dbenv) && !F_ISSET(dbc->dbp, DB_AM_CL_WRITER)) {
+		__db_err(dbenv, "Dbc_logging: Client update");
+		goto err;
+	}
+	if (IS_REP_MASTER(dbenv) && dbc->txn == NULL) {
+		__db_err(dbenv, "Dbc_logging: Master non-txn update");
+		goto err;
+	}
+	if (0) {
+err:		__db_err(dbenv, "Rep: flags 0x%lx msg_th %lu, start_th %d",
+		    (u_long)rep->flags, (u_long)rep->msg_th, rep->start_th);
+		__db_err(dbenv, "Rep: handle %lu, opcnt %lu, in_rec %d",
+		    (u_long)rep->handle_cnt, (u_long)rep->op_cnt,
+		    rep->in_recovery);
+		abort();
+	}
+	}
+#endif
+	return (ret);
+}
+#endif
+
 /*
  * __db_check_lsn --
  *	Display the log sequence error message.
@@ -754,4 +787,54 @@ __db_check_lsn(dbenv, lsn, prev)
 	    (u_long)(lsn)->file, (u_long)(lsn)->offset,
 	    (u_long)(prev)->file, (u_long)(prev)->offset);
 	return (EINVAL);
+}
+
+/*
+ * __db_rdonly --
+ *	Common readonly message.
+ * PUBLIC: int __db_rdonly __P((const DB_ENV *, const char *));
+ */
+int
+__db_rdonly(dbenv, name)
+	const DB_ENV *dbenv;
+	const char *name;
+{
+	__db_err(dbenv, "%s: attempt to modify a read-only database", name);
+	return (EACCES);
+}
+
+/*
+ * __db_space_err --
+ *	Common out of space message.
+ * PUBLIC: int __db_space_err __P((const DB *));
+ */
+int
+__db_space_err(dbp)
+	const DB *dbp;
+{
+	__db_err(dbp->dbenv,
+	    "%s: file limited to %lu pages",
+	    dbp->fname, (u_long)dbp->mpf->mfp->maxpgno);
+	return (ENOSPC);
+}
+
+/*
+ * __db_failed --
+ *	Common failed thread  message.
+ *
+ * PUBLIC: int __db_failed __P((const DB_ENV *,
+ * PUBLIC:      const char *, pid_t, db_threadid_t));
+ */
+int
+__db_failed(dbenv, msg, pid, tid)
+	const DB_ENV *dbenv;
+	const char *msg;
+	pid_t pid;
+	db_threadid_t tid;
+{
+	char buf[DB_THREADID_STRLEN];
+
+	__db_err(dbenv, "Thread/process %s failed: %s",
+	    dbenv->thread_id_string((DB_ENV*)dbenv, pid, tid, buf),  msg);
+	return (DB_RUNRECOVERY);
 }

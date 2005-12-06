@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *      Sleepycat Software.  All rights reserved.
  *
- * $Id: rep.src,v 1.5 2004/09/22 18:01:04 bostic Exp $
+ * $Id: rep.src,v 12.3 2005/10/27 13:27:03 bostic Exp $
  */
 
 PREFIX  __rep
@@ -29,17 +29,17 @@ INCLUDE
  */
 BEGIN_BUF update
 POINTER	first_lsn	DB_LSN *	lu
-ARG	num_files	int		d
+ARG	num_files	u_int32_t	lu
 END
 
 /*
  * file info
  */
 BEGIN_BUF fileinfo
-ARG	pgsize		size_t		lu
+ARG	pgsize		u_int32_t	lu
 ARG	pgno		db_pgno_t	lu
 ARG	max_pgno	db_pgno_t	lu
-ARG	filenum		int		d
+ARG	filenum		u_int32_t	lu
 ARG	id		int32_t		d
 ARG	type		u_int32_t	lu
 ARG	flags		u_int32_t	lu

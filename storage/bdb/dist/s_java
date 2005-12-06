@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_java,v 11.8 2004/04/06 20:43:35 mjc Exp $
+#	$Id: s_java,v 12.0 2004/11/17 03:43:35 bostic Exp $
 #
 # Build the Java files.
 

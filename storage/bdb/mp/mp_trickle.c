@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_trickle.c,v 11.35 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_trickle.c,v 12.4 2005/10/07 20:21:33 ubell Exp $
  */
 
 #include "db_config.h"
@@ -33,18 +33,16 @@ __memp_trickle_pp(dbenv, pct, nwrotep)
 	DB_ENV *dbenv;
 	int pct, *nwrotep;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
 	    dbenv->mp_handle, "memp_trickle", DB_INIT_MPOOL);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_trickle(dbenv, pct, nwrotep);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_trickle(dbenv, pct, nwrotep)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 

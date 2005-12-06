@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_reclaim.c,v 11.42 2004/06/10 04:46:44 ubell Exp $
+ * $Id: db_reclaim.c,v 12.2 2005/06/16 20:21:14 bostic Exp $
  */
 
 #include "db_config.h"
@@ -209,8 +209,8 @@ reinit:			*putp = 0;
 				ldbt.data = p;
 				ldbt.size = P_OVERHEAD(dbp);
 				ldbt.size += p->entries * sizeof(db_indx_t);
-				ddbt.data = (u_int8_t *)p + p->hf_offset;
-				ddbt.size = dbp->pgsize - p->hf_offset;
+				ddbt.data = (u_int8_t *)p + HOFFSET(p);
+				ddbt.size = dbp->pgsize - HOFFSET(p);
 				if ((ret = __db_pg_init_log(dbp,
 				    param->dbc->txn, &LSN(p), 0,
 				    p->pgno, &ldbt, &ddbt)) != 0)

@@ -11,7 +11,7 @@ dnl The general documentation, as well as the sample configure.in, is
 dnl included in the AC_PROG_JAVA macro.
 dnl
 dnl @author Stephane Bortzmeyer <bortzmeyer@pasteur.fr>
-dnl @version $Id: ac_prog_java_works.ac,v 1.1 2001/08/23 16:58:44 dda Exp $
+dnl @version $Id: ac_prog_java_works.ac,v 12.0 2004/11/17 03:43:38 bostic Exp $
 dnl
 AC_DEFUN([AC_PROG_JAVA_WORKS], [
 AC_CHECK_PROG(uudecode, uudecode$EXEEXT, yes)

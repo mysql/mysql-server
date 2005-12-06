@@ -21,10 +21,13 @@ Package=<4>
     Project_Dep_Name db_deadlock
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name DB_DLL
+    Project_Dep_Name db_dll
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name db_dump
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_hotbackup
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name db_load
@@ -45,7 +48,7 @@ Package=<4>
     Project_Dep_Name db_verify
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name DB_Static
+    Project_Dep_Name db_static
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name ex_access
@@ -63,7 +66,16 @@ Package=<4>
     Project_Dep_Name ex_mpool
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name ex_sequence
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name ex_tpcb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name example_database_load
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name example_database_read
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name excxx_access
@@ -81,10 +93,31 @@ Package=<4>
     Project_Dep_Name excxx_mpool
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name excxx_sequence
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name excxx_tpcb
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name excxx_example_database_load
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_example_database_read
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_repquote
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_txnguide
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_txnguide_inmem
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_txnguide
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_txnguide_inmem
     End Project Dependency
 }}}
 
@@ -99,7 +132,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -114,7 +147,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -129,7 +162,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name DB_DLL
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -156,7 +189,22 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_hotbackup"=.\db_hotbackup.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -171,25 +219,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name DB_DLL
-    End Project Dependency
-}}}
-
-###############################################################################
-
-Project: "db_lib"=.\db_lib.dsp - Package Owner=<4>
-
-Package=<5>
-{{{
-}}}
-
-Package=<4>
-{{{
-    Begin Project Dependency
     Project_Dep_Name db_dll
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name db_static
     End Project Dependency
 }}}
 
@@ -204,7 +234,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -219,7 +249,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -234,8 +264,20 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_small"=.\db_small.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
@@ -249,7 +291,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -276,7 +318,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name DB_DLL
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -309,7 +351,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -324,7 +366,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -339,7 +381,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -354,7 +396,58 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_csvcode"=.\ex_csvcode.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_csvload"=.\ex_csvload.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_csvcode
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_csvquery"=.\ex_csvquery.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_csvcode
     End Project Dependency
 }}}
 
@@ -369,7 +462,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -384,7 +477,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -399,7 +492,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -414,7 +507,22 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_sequence"=.\ex_sequence.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -429,7 +537,67 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_txnguide"=.\ex_txnguide.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_txnguide_inmem"=.\ex_txnguide_inmem.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "example_database_load"=.\example_database_load.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "example_database_read"=.\example_database_read.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -444,7 +612,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -459,7 +627,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -474,7 +642,37 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_example_database_load"=.\excxx_example_database_load.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_example_database_read"=.\excxx_example_database_read.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -489,7 +687,7 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -504,7 +702,22 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_sequence"=.\excxx_sequence.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 
@@ -519,7 +732,37 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name db_lib
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_txnguide"=.\excxx_txnguide.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_txnguide_inmem"=.\excxx_txnguide_inmem.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_dll
     End Project Dependency
 }}}
 

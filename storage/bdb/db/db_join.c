@@ -1,10 +1,10 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_join.c,v 11.75 2004/09/22 03:30:23 bostic Exp $
+ * $Id: db_join.c,v 12.6 2005/10/07 20:21:22 ubell Exp $
  */
 
 #include "db_config.h"
@@ -216,9 +216,9 @@ __db_join(primary, curslist, dbcp, flags)
 
 	*dbcp = dbc;
 
-	MUTEX_THREAD_LOCK(dbenv, primary->mutexp);
+	MUTEX_LOCK(dbenv, primary->mutex);
 	TAILQ_INSERT_TAIL(&primary->join_queue, dbc, links);
-	MUTEX_THREAD_UNLOCK(dbenv, primary->mutexp);
+	MUTEX_UNLOCK(dbenv, primary->mutex);
 
 	return (0);
 
@@ -250,24 +250,30 @@ __db_join_close_pp(dbc)
 	DBC *dbc;
 {
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	DB *dbp;
-	int handle_check, ret;
+	int handle_check, ret, t_ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
 
-	handle_check = IS_REPLICATED(dbenv, dbp);
+	ENV_ENTER(dbenv, ip);
+
+	handle_check = IS_ENV_REPLICATED(dbenv);
 	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 0, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	ret = __db_join_close(dbc);
 
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -309,8 +315,9 @@ __db_join_get_pp(dbc, key, data, flags)
 {
 	DB *dbp;
 	DB_ENV *dbenv;
+	DB_THREAD_INFO *ip;
 	u_int32_t handle_check, save_flags;
-	int ret;
+	int ret, t_ret;
 
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -320,11 +327,10 @@ __db_join_get_pp(dbc, key, data, flags)
 
 	PANIC_CHECK(dbenv);
 
-	if (LF_ISSET(DB_DIRTY_READ | DB_DEGREE_2 | DB_RMW)) {
+	if (LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW)) {
 		if (!LOCKING_ON(dbp->dbenv))
 			return (__db_fnl(dbp->dbenv, "DBcursor->c_get"));
-
-		LF_CLR(DB_DIRTY_READ | DB_DEGREE_2 | DB_RMW);
+		LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW);
 	}
 
 	switch (flags) {
@@ -352,19 +358,24 @@ __db_join_get_pp(dbc, key, data, flags)
 		return (EINVAL);
 	}
 
-	handle_check = IS_REPLICATED(dbp->dbenv, dbp);
+	ENV_ENTER(dbenv, ip);
+
+	handle_check = IS_ENV_REPLICATED(dbp->dbenv);
 	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0)
-		return (ret);
+	    (ret = __db_rep_enter(dbp, 1, 0, dbc->txn != NULL)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	/* Restore the original flags value. */
 	flags = save_flags;
 
 	ret = __db_join_get(dbc, key, data, flags);
 
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
+err:	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -390,7 +401,7 @@ __db_join_get(dbc, key_arg, data_arg, flags)
 	 * If the set of flags here changes, check that __db_join_primget
 	 * is updated to handle them properly.
 	 */
-	opmods = LF_ISSET(DB_RMW | DB_DEGREE_2 | DB_DIRTY_READ);
+	opmods = LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW);
 
 	/*
 	 * Since we are fetching the key as a datum in the secondary indices,
@@ -726,9 +737,9 @@ __db_join_close(dbc)
 	 * must happen before any action that can fail and return, or else
 	 * __db_close may loop indefinitely.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 	TAILQ_REMOVE(&dbp->join_queue, dbc, links);
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 
 	PANIC_CHECK(dbenv);
 
@@ -872,28 +883,29 @@ __db_join_primget(dbp, txn, lockerid, key, data, flags)
 	u_int32_t flags;
 {
 	DBC *dbc;
-	int ret, rmw, t_ret;
+	u_int32_t rmw;
+	int ret, t_ret;
 
 	if ((ret = __db_cursor_int(dbp,
 	    txn, dbp->type, PGNO_INVALID, 0, lockerid, &dbc)) != 0)
 		return (ret);
 
 	/*
-	 * The only allowable flags here are the two flags copied into
-	 * "opmods" in __db_join_get, DB_RMW and DB_DIRTY_READ.  The former
-	 * is an op on the c_get call, the latter on the cursor call.
-	 * It's a DB bug if we allow any other flags down in here.
+	 * The only allowable flags here are the two flags copied into "opmods"
+	 * in __db_join_get, DB_RMW and DB_READ_UNCOMMITTED.  The former is an
+	 * op on the c_get call, the latter on the cursor call.  It's a DB bug
+	 * if we allow any other flags down in here.
 	 */
 	rmw = LF_ISSET(DB_RMW);
-	if (LF_ISSET(DB_DIRTY_READ) ||
-	    (txn != NULL && F_ISSET(txn, TXN_DIRTY_READ)))
-		F_SET(dbc, DBC_DIRTY_READ);
+	if (LF_ISSET(DB_READ_UNCOMMITTED) ||
+	    (txn != NULL && F_ISSET(txn, TXN_READ_UNCOMMITTED)))
+		F_SET(dbc, DBC_READ_UNCOMMITTED);
 
-	if (LF_ISSET(DB_DEGREE_2) ||
-	    (txn != NULL && F_ISSET(txn, TXN_DEGREE_2)))
-		F_SET(dbc, DBC_DEGREE_2);
+	if (LF_ISSET(DB_READ_COMMITTED) ||
+	    (txn != NULL && F_ISSET(txn, TXN_READ_COMMITTED)))
+		F_SET(dbc, DBC_READ_COMMITTED);
 
-	LF_CLR(DB_RMW | DB_DIRTY_READ | DB_DEGREE_2);
+	LF_CLR(DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_RMW);
 	DB_ASSERT(flags == 0);
 
 	F_SET(dbc, DBC_TRANSIENT);

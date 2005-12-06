@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_page.h,v 11.63 2004/09/17 22:00:27 mjc Exp $
+ * $Id: db_page.h,v 12.6 2005/08/08 14:52:30 bostic Exp $
  */
 
 #ifndef _DB_PAGE_H_
@@ -48,6 +48,8 @@ extern "C" {
 #define	P_QAMDATA	11	/* Queue data page. */
 #define	P_LDUP		12	/* Off-page duplicate leaf. */
 #define	P_PAGETYPE_MAX	13
+/* Flag to __db_new */
+#define	P_DONTEXTEND	0x8000	/* Don't allocate if there are no free pages. */
 
 /*
  * When we create pages in mpool, we ask mpool to clear some number of bytes
@@ -100,12 +102,12 @@ typedef struct _btmeta33 {
 #define	BTM_MASK	0x07f
 	DBMETA	dbmeta;		/* 00-71: Generic meta-data header. */
 
-	u_int32_t maxkey;	/* 72-75: Btree: Maxkey. */
+	u_int32_t unused1;	/* 72-75: Unused space. */
 	u_int32_t minkey;	/* 76-79: Btree: Minkey. */
 	u_int32_t re_len;	/* 80-83: Recno: fixed-length record length. */
 	u_int32_t re_pad;	/* 84-87: Recno: fixed-length record pad. */
 	u_int32_t root;		/* 88-91: Root page. */
-	u_int32_t unused[92];	/* 92-459: Unused space */
+	u_int32_t unused2[92];	/* 92-459: Unused space. */
 	u_int32_t crypto_magic;		/* 460-463: Crypto magic number */
 	u_int32_t trash[3];		/* 464-475: Trash space - Do not use */
 	u_int8_t iv[DB_IV_BYTES];	/* 476-495: Crypto IV */
@@ -268,7 +270,7 @@ typedef struct _db_page {
 	(F_ISSET((dbp), DB_AM_ENCRYPT) ? ((u_int8_t *)(pg) +		\
 	SIZEOF_PAGE + SSZA(PG_CRYPTO, chksum)) :			\
 	(F_ISSET((dbp), DB_AM_CHKSUM) ? ((u_int8_t *)(pg) +		\
-	SIZEOF_PAGE + SSZA(PG_CHKSUM, chksum))			\
+	SIZEOF_PAGE + SSZA(PG_CHKSUM, chksum))				\
 	: NULL))
 
 /* PAGE element macros. */
@@ -588,6 +590,14 @@ typedef struct _boverflow {
 #define	BOVERFLOW_PSIZE							\
 	(BOVERFLOW_SIZE + sizeof(db_indx_t))
 
+#define	BITEM_SIZE(bk)							\
+	(B_TYPE((bk)->type) != B_KEYDATA ? BOVERFLOW_SIZE :		\
+	BKEYDATA_SIZE((bk)->len))
+
+#define	BITEM_PSIZE(bk)							\
+	(B_TYPE((bk)->type) != B_KEYDATA ? BOVERFLOW_PSIZE :		\
+	BKEYDATA_PSIZE((bk)->len))
+
 /*
  * Btree leaf and hash page layouts group indices in sets of two, one for the
  * key and one for the data.  Everything else does it in sets of one to save
@@ -649,6 +659,11 @@ typedef struct _rinternal {
 	(u_int16_t)DB_ALIGN(sizeof(RINTERNAL), sizeof(u_int32_t))
 #define	RINTERNAL_PSIZE							\
 	(RINTERNAL_SIZE + sizeof(db_indx_t))
+
+struct pglist {
+	db_pgno_t pgno;
+	DB_LSN lsn;
+};
 
 #if defined(__cplusplus)
 }

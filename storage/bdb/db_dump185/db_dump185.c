@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_dump185.c,v 11.19 2004/01/28 03:36:00 bostic Exp $
+ * $Id: db_dump185.c,v 12.1 2005/06/16 20:21:22 bostic Exp $
  */
 
 #ifndef lint

@@ -1,10 +1,10 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2002-2004
+ * Copyright (c) 2002-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mut_win32.c,v 1.18 2004/07/06 21:06:39 mjc Exp $
+ * $Id: mut_win32.c,v 12.15 2005/11/01 11:49:31 mjc Exp $
  */
 
 #include "db_config.h"
@@ -15,99 +15,129 @@
 #include <string.h>
 #endif
 
+#include "db_int.h"
+
 /*
  * This is where we load in the actual test-and-set mutex code.
  */
 #define	LOAD_ACTUAL_MUTEX_CODE
-#include "db_int.h"
+#include "dbinc/mutex_int.h"
 
 /* We don't want to run this code even in "ordinary" diagnostic mode. */
 #undef MUTEX_DIAG
 
+/*
+ * Common code to get an event handle.  This is executed whenever a mutex
+ * blocks, or when unlocking a mutex that a thread is waiting on.  We can't
+ * keep these handles around, since the mutex structure is in shared memory,
+ * and each process gets its own handle value.
+ *
+ * We pass security attributes so that the created event is accessible by all
+ * users, in case a Windows service is sharing an environment with a local
+ * process run as a different user.
+ */
 static _TCHAR hex_digits[] = _T("0123456789abcdef");
+static SECURITY_DESCRIPTOR null_sd;
+static SECURITY_ATTRIBUTES all_sa;
+static int security_initialized = 0;
 
-#define	GET_HANDLE(mutexp, event) do {					\
-	_TCHAR idbuf[] = _T("db.m00000000");				\
-	_TCHAR *p = idbuf + 12;						\
-	u_int32_t id;							\
-									\
-	for (id = (mutexp)->id; id != 0; id >>= 4)			\
-		*--p = hex_digits[id & 0xf];				\
-	event = CreateEvent(NULL, FALSE, FALSE, idbuf);			\
-	if (event == NULL)						\
-		return (__os_get_errno());				\
-} while (0)
+static __inline int get_handle(dbenv, mutexp, eventp)
+	DB_ENV *dbenv;
+	DB_MUTEX *mutexp;
+	HANDLE *eventp;
+{
+	_TCHAR idbuf[] = _T("db.m00000000");
+	_TCHAR *p = idbuf + 12;
+	int ret = 0;
+	u_int32_t id;
+
+	for (id = (mutexp)->id; id != 0; id >>= 4)
+		*--p = hex_digits[id & 0xf];
+
+	if (!security_initialized) {
+		InitializeSecurityDescriptor(&null_sd,
+		    SECURITY_DESCRIPTOR_REVISION);
+		SetSecurityDescriptorDacl(&null_sd, TRUE, 0, FALSE);
+		all_sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+		all_sa.bInheritHandle = FALSE;
+		all_sa.lpSecurityDescriptor = &null_sd;
+		security_initialized = 1;
+	}
+
+	if ((*eventp = CreateEvent(&all_sa, FALSE, FALSE, idbuf)) == NULL) {
+		ret = __os_get_errno();
+		__db_err(dbenv, "Win32 create event failed: %s",
+		    db_strerror(ret));
+	}
+
+	return (ret);
+}
 
 /*
  * __db_win32_mutex_init --
- *	Initialize a DB_MUTEX.
+ *	Initialize a Win32 mutex.
  *
- * PUBLIC: int __db_win32_mutex_init __P((DB_ENV *, DB_MUTEX *, u_int32_t));
+ * PUBLIC: int __db_win32_mutex_init __P((DB_ENV *, db_mutex_t, u_int32_t));
  */
 int
-__db_win32_mutex_init(dbenv, mutexp, flags)
+__db_win32_mutex_init(dbenv, mutex, flags)
 	DB_ENV *dbenv;
-	DB_MUTEX *mutexp;
+	db_mutex_t mutex;
 	u_int32_t flags;
 {
-	u_int32_t save;
+	DB_MUTEX *mutexp;
+	DB_MUTEXMGR *mtxmgr;
+	DB_MUTEXREGION *mtxregion;
 
-	/*
-	 * The only setting/checking of the MUTEX_MPOOL flag is in the mutex
-	 * mutex allocation code (__db_mutex_alloc/free).  Preserve only that
-	 * flag.  This is safe because even if this flag was never explicitly
-	 * set, but happened to be set in memory, it will never be checked or
-	 * acted upon.
-	 */
-	save = F_ISSET(mutexp, MUTEX_MPOOL);
-	memset(mutexp, 0, sizeof(*mutexp));
-	F_SET(mutexp, save);
-
-	/*
-	 * If this is a thread lock or the process has told us that there are
-	 * no other processes in the environment, and the application isn't
-	 * threaded, there aren't any threads to block.
-	 */
-	if (LF_ISSET(MUTEX_THREAD) || F_ISSET(dbenv, DB_ENV_PRIVATE)) {
-		if (!F_ISSET(dbenv, DB_ENV_THREAD)) {
-			F_SET(mutexp, MUTEX_IGNORE);
-			return (0);
-		}
-	}
+	mtxmgr = dbenv->mutex_handle;
+	mtxregion = mtxmgr->reginfo.primary;
+	mutexp = MUTEXP_SET(mutex);
 
 	mutexp->id = ((getpid() & 0xffff) << 16) ^ P_TO_UINT32(mutexp);
-	F_SET(mutexp, MUTEX_INITED);
+
 	return (0);
 }
 
 /*
  * __db_win32_mutex_lock
- *	Lock on a mutex, logically blocking if necessary.
+ *	Lock on a mutex, blocking if necessary.
  *
- * PUBLIC: int __db_win32_mutex_lock __P((DB_ENV *, DB_MUTEX *));
+ * PUBLIC: int __db_win32_mutex_lock __P((DB_ENV *, db_mutex_t));
  */
 int
-__db_win32_mutex_lock(dbenv, mutexp)
+__db_win32_mutex_lock(dbenv, mutex)
 	DB_ENV *dbenv;
-	DB_MUTEX *mutexp;
+	db_mutex_t mutex;
 {
+	DB_MUTEX *mutexp;
+	DB_MUTEXMGR *mtxmgr;
+	DB_MUTEXREGION *mtxregion;
 	HANDLE event;
 	u_int32_t nspins;
-	int ret, ms;
+	int ms, ret;
 #ifdef MUTEX_DIAG
 	LARGE_INTEGER now;
 #endif
 
-	if (F_ISSET(dbenv, DB_ENV_NOLOCKING) || F_ISSET(mutexp, MUTEX_IGNORE))
+	if (!MUTEX_ON(dbenv) || F_ISSET(dbenv, DB_ENV_NOLOCKING))
 		return (0);
+
+	mtxmgr = dbenv->mutex_handle;
+	mtxregion = mtxmgr->reginfo.primary;
+	mutexp = MUTEXP_SET(mutex);
 
 	event = NULL;
 	ms = 50;
 	ret = 0;
 
 loop:	/* Attempt to acquire the resource for N spins. */
-	for (nspins = dbenv->tas_spins; nspins > 0; --nspins) {
-		if (!MUTEX_SET(&mutexp->tas)) {
+	for (nspins =
+	    mtxregion->stat.st_mutex_tas_spins; nspins > 0; --nspins) {
+		/*
+		 * We can avoid the (expensive) interlocked instructions if
+		 * the mutex is already "set".
+		 */
+		if (mutexp->tas || !MUTEX_SET(&mutexp->tas)) {
 			/*
 			 * Some systems (notably those with newer Intel CPUs)
 			 * need a small pause here. [#6975]
@@ -119,17 +149,26 @@ loop:	/* Attempt to acquire the resource for N spins. */
 		}
 
 #ifdef DIAGNOSTIC
-		if (mutexp->locked)
+		if (F_ISSET(mutexp, DB_MUTEX_LOCKED)) {
+			char buf[DB_THREADID_STRLEN];
 			__db_err(dbenv,
-			    "__db_win32_mutex_lock: mutex double-locked!");
-
-		__os_id(&mutexp->locked);
+			    "Win32 lock failed: mutex already locked by %s",
+			     dbenv->thread_id_string(dbenv,
+			     mutexp->pid, mutexp->tid, buf));
+			return (__db_panic(dbenv, EACCES));
+		}
 #endif
+		F_SET(mutexp, DB_MUTEX_LOCKED);
+		dbenv->thread_id(dbenv, &mutexp->pid, &mutexp->tid);
+		CHECK_MTX_THREAD(dbenv, mutexp);
 
+#ifdef HAVE_STATISTICS
 		if (event == NULL)
 			++mutexp->mutex_set_nowait;
-		else {
+		else
 			++mutexp->mutex_set_wait;
+#endif
+		if (event != NULL) {
 			CloseHandle(event);
 			InterlockedDecrement(&mutexp->nwaiters);
 #ifdef MUTEX_DIAG
@@ -141,6 +180,15 @@ loop:	/* Attempt to acquire the resource for N spins. */
 			}
 #endif
 		}
+
+#ifdef DIAGNOSTIC
+		/*
+		 * We want to switch threads as often as possible.  Yield
+		 * every time we get a mutex to ensure contention.
+		 */
+		if (F_ISSET(dbenv, DB_ENV_YIELDCPU))
+			__os_yield(NULL, 1);
+#endif
 
 		return (0);
 	}
@@ -158,79 +206,92 @@ loop:	/* Attempt to acquire the resource for N spins. */
 		    now.QuadPart, mutexp, mutexp->id);
 #endif
 		InterlockedIncrement(&mutexp->nwaiters);
-		GET_HANDLE(mutexp, event);
+		if ((ret = get_handle(dbenv, mutexp, &event)) != 0)
+			goto err;
 	}
-	if ((ret = WaitForSingleObject(event, ms)) == WAIT_FAILED)
-		return (__os_get_errno());
+	if ((ret = WaitForSingleObject(event, ms)) == WAIT_FAILED) {
+		ret = __os_get_errno();
+		goto err;
+	}
 	if ((ms <<= 1) > MS_PER_SEC)
 		ms = MS_PER_SEC;
 
+	PANIC_CHECK(dbenv);
 	goto loop;
+
+err:	__db_err(dbenv, "Win32 lock failed: %s", db_strerror(ret));
+	return (__db_panic(dbenv, ret));
 }
 
 /*
  * __db_win32_mutex_unlock --
- *	Release a lock.
+ *	Release a mutex.
  *
- * PUBLIC: int __db_win32_mutex_unlock __P((DB_ENV *, DB_MUTEX *));
+ * PUBLIC: int __db_win32_mutex_unlock __P((DB_ENV *, db_mutex_t));
  */
 int
-__db_win32_mutex_unlock(dbenv, mutexp)
+__db_win32_mutex_unlock(dbenv, mutex)
 	DB_ENV *dbenv;
-	DB_MUTEX *mutexp;
+	db_mutex_t mutex;
 {
-	int ret;
+	DB_MUTEX *mutexp;
+	DB_MUTEXMGR *mtxmgr;
+	DB_MUTEXREGION *mtxregion;
 	HANDLE event;
+	int ret;
 #ifdef MUTEX_DIAG
-		LARGE_INTEGER now;
+	LARGE_INTEGER now;
 #endif
-
-	if (F_ISSET(dbenv, DB_ENV_NOLOCKING) || F_ISSET(mutexp, MUTEX_IGNORE))
+	if (!MUTEX_ON(dbenv) || F_ISSET(dbenv, DB_ENV_NOLOCKING))
 		return (0);
 
-#ifdef DIAGNOSTIC
-	if (!mutexp->tas || !mutexp->locked)
-		__db_err(dbenv,
-		    "__db_win32_mutex_unlock: ERROR: lock already unlocked");
+	mtxmgr = dbenv->mutex_handle;
+	mtxregion = mtxmgr->reginfo.primary;
+	mutexp = MUTEXP_SET(mutex);
 
-	mutexp->locked = 0;
+#ifdef DIAGNOSTIC
+	if (!mutexp->tas || !F_ISSET(mutexp, DB_MUTEX_LOCKED)) {
+		__db_err(dbenv, "Win32 unlock failed: lock already unlocked");
+		return (__db_panic(dbenv, EACCES));
+	}
 #endif
+	F_CLR(mutexp, DB_MUTEX_LOCKED);
 	MUTEX_UNSET(&mutexp->tas);
 
-	ret = 0;
-
 	if (mutexp->nwaiters > 0) {
-		GET_HANDLE(mutexp, event);
+		if ((ret = get_handle(dbenv, mutexp, &event)) != 0)
+			goto err;
 
 #ifdef MUTEX_DIAG
 		QueryPerformanceCounter(&now);
 		printf("[%I64d]: Signalling mutex %p, id %d\n",
 		    now.QuadPart, mutexp, mutexp->id);
 #endif
-		if (!PulseEvent(event))
+		if (!PulseEvent(event)) {
 			ret = __os_get_errno();
+			CloseHandle(event);
+			goto err;
+		}
 
 		CloseHandle(event);
 	}
 
-#ifdef DIAGNOSTIC
-	if (ret != 0)
-		__db_err(dbenv,
-		    "__db_win32_mutex_unlock: ERROR: unlock failed");
-#endif
+	return (0);
 
-	return (ret);
+err:	__db_err(dbenv, "Win32 unlock failed: %s", db_strerror(ret));
+	return (__db_panic(dbenv, ret));
 }
 
 /*
  * __db_win32_mutex_destroy --
- *	Destroy a DB_MUTEX - noop with this implementation.
+ *	Destroy a mutex.
  *
- * PUBLIC: int __db_win32_mutex_destroy __P((DB_MUTEX *));
+ * PUBLIC: int __db_win32_mutex_destroy __P((DB_ENV *, db_mutex_t));
  */
 int
-__db_win32_mutex_destroy(mutexp)
-	DB_MUTEX *mutexp;
+__db_win32_mutex_destroy(dbenv, mutex)
+	DB_ENV *dbenv;
+	db_mutex_t mutex;
 {
 	return (0);
 }

@@ -1,15 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- *	@(#)db_join.h	11.1 (Sleepycat) 7/25/99
+ * $Id: db_join.h,v 12.2 2005/06/16 20:21:47 bostic Exp $
  */
 
 #ifndef _DB_JOIN_H_
 #define	_DB_JOIN_H_
-
 /*
  * Joins use a join cursor that is similar to a regular DB cursor except
  * that it only supports c_get and c_close functionality.  Also, it does

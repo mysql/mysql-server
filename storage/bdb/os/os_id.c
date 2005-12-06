@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_id.c,v 1.9 2004/09/22 16:27:54 bostic Exp $
+ * $Id: os_id.c,v 12.15 2005/11/10 18:44:02 bostic Exp $
  */
 
 #include "db_config.h"
@@ -13,36 +13,58 @@
 #include <sys/types.h>
 
 #include <stdlib.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
+#include "dbinc/mutex_int.h"		/* Required to load appropriate
+					   header files for thread functions. */
 
 /*
  * __os_id --
- *	Return a 32-bit value identifying the current thread of control.
+ *	Return the current process ID.
  *
- * PUBLIC: void __os_id __P((u_int32_t *));
+ * PUBLIC: void __os_id __P((DB_ENV *, pid_t *, db_threadid_t*));
  */
 void
-__os_id(idp)
-	u_int32_t *idp;
+__os_id(dbenv, pidp, tidp)
+	DB_ENV *dbenv;
+	pid_t *pidp;
+	db_threadid_t *tidp;
 {
 	/*
-	 * By default, use the process ID.
+	 * We can't depend on dbenv not being NULL, this routine is called
+	 * from places where there's no DB_ENV handle.  It takes a DB_ENV
+	 * handle as an arg because it's the default DB_ENV->thread_id function.
 	 *
-	 * getpid() returns a pid_t which we convert to a u_int32_t.  I have
-	 * not yet seen a system where a pid_t has 64-bits, but I'm sure they
-	 * exist.  Since we're returning only the bottom 32-bits, you cannot
-	 * use the return of __os_id to reference a process (for example, you
-	 * cannot send a signal to the value returned by __os_id).  To send a
-	 * signal to the current process, use raise(3) instead.
+	 * We cache the pid in the DB_ENV handle, it's a fairly slow call on
+	 * lots of systems.
 	 */
-#ifdef	HAVE_VXWORKS
-	*idp = taskIdSelf();
+	if (pidp != NULL) {
+		if (dbenv == NULL) {
+#if defined(HAVE_VXWORKS)
+			*pidp = taskIdSelf();
 #else
-	*idp = (u_int32_t)getpid();
+			*pidp = getpid();
 #endif
+		} else
+			*pidp = dbenv->pid_cache;
+	}
+
+	if (tidp != NULL) {
+#if defined(DB_WIN32)
+		*tidp = GetCurrentThreadId();
+#elif defined(HAVE_MUTEX_UI_THREADS)
+		*tidp = thr_self();
+#elif defined(HAVE_MUTEX_SOLARIS_LWP) || \
+	defined(HAVE_MUTEX_PTHREADS) || defined(HAVE_PTHREAD_SELF)
+		*tidp = pthread_self();
+#else
+		/*
+		 * Default to just getpid.
+		 */
+		*tidp = 0;
+#endif
+	}
 }
 
 /*
@@ -57,7 +79,9 @@ __os_unique_id(dbenv, idp)
 	u_int32_t *idp;
 {
 	static int first = 1;
-	u_int32_t id, pid, sec, usec;
+	pid_t pid;
+	db_threadid_t tid;
+	u_int32_t id, sec, usec;
 
 	*idp = 0;
 
@@ -65,10 +89,10 @@ __os_unique_id(dbenv, idp)
 	 * Our randomized value is comprised of our process ID, the current
 	 * time of day and a couple of a stack addresses, all XOR'd together.
 	 */
-	__os_id(&pid);
+	__os_id(dbenv, &pid, &tid);
 	__os_clock(dbenv, &sec, &usec);
 
-	id = pid ^ sec ^ usec ^ P_TO_UINT32(&pid);
+	id = (u_int32_t)pid ^ sec ^ usec ^ P_TO_UINT32(&pid);
 
 	/*
 	 * We could try and find a reasonable random-number generator, but

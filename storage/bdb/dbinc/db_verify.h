@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_verify.h,v 1.34 2004/05/20 14:34:12 bostic Exp $
+ * $Id: db_verify.h,v 12.4 2005/06/16 20:21:47 bostic Exp $
  */
 
 #ifndef _DB_VERIFY_H_
@@ -124,7 +124,8 @@ struct __vrfy_dbinfo {
 	u_int8_t	leaf_type;
 
 	/* Queue needs these to verify data pages in the first pass. */
-	u_int32_t	re_len;
+	u_int32_t	re_pad;		/* Record pad character. */
+	u_int32_t	re_len;		/* Record length. */
 	u_int32_t	rec_page;
 	u_int32_t	page_ext;
 	u_int32_t       first_recno;
@@ -165,9 +166,9 @@ struct __vrfy_pageinfo {
 	db_indx_t	entries;	/* Actual number of entries. */
 	u_int16_t	unused;
 	db_recno_t	rec_cnt;	/* Record count. */
+	u_int32_t	re_pad;		/* Record pad character. */
 	u_int32_t	re_len;		/* Record length. */
 	u_int32_t	bt_minkey;
-	u_int32_t	bt_maxkey;
 	u_int32_t	h_ffactor;
 	u_int32_t	h_nelem;
 
@@ -180,16 +181,17 @@ struct __vrfy_pageinfo {
 	u_int32_t	olen;
 
 #define	VRFY_DUPS_UNSORTED	0x0001	/* Have to flag the negative! */
-#define	VRFY_HAS_DUPS		0x0002
-#define	VRFY_HAS_DUPSORT	0x0004	/* Has the flag set. */
-#define	VRFY_HAS_SUBDBS		0x0008
+#define	VRFY_HAS_CHKSUM		0x0002
+#define	VRFY_HAS_DUPS		0x0004
+#define	VRFY_HAS_DUPSORT	0x0008	/* Has the flag set. */
 #define	VRFY_HAS_RECNUMS	0x0010
-#define	VRFY_INCOMPLETE		0x0020	/* Meta or item order checks incomp. */
-#define	VRFY_IS_ALLZEROES	0x0040	/* Hash page we haven't touched? */
-#define	VRFY_IS_FIXEDLEN	0x0080
-#define	VRFY_IS_RECNO		0x0100
-#define	VRFY_IS_RRECNO		0x0200
-#define	VRFY_OVFL_LEAFSEEN	0x0400
+#define	VRFY_HAS_SUBDBS		0x0020
+#define	VRFY_INCOMPLETE		0x0040	/* Meta or item order checks incomp. */
+#define	VRFY_IS_ALLZEROES	0x0080	/* Hash page we haven't touched? */
+#define	VRFY_IS_FIXEDLEN	0x0100
+#define	VRFY_IS_RECNO		0x0200
+#define	VRFY_IS_RRECNO		0x0400
+#define	VRFY_OVFL_LEAFSEEN	0x0800
 	u_int32_t	flags;
 
 	LIST_ENTRY(__vrfy_pageinfo) links;

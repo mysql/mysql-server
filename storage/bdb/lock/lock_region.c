@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: lock_region.c,v 11.82 2004/10/15 16:59:42 bostic Exp $
+ * $Id: lock_region.c,v 12.6 2005/10/07 20:21:31 ubell Exp $
  */
 
 #include "db_config.h"
@@ -22,10 +22,6 @@
 static int  __lock_region_init __P((DB_ENV *, DB_LOCKTAB *));
 static size_t
 	    __lock_region_size __P((DB_ENV *));
-
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-static size_t __lock_region_maint __P((DB_ENV *));
-#endif
 
 /*
  * The conflict arrays are set up such that the row is the lock you are
@@ -73,7 +69,9 @@ __lock_open(dbenv)
 	DB_LOCKREGION *region;
 	DB_LOCKTAB *lt;
 	size_t size;
-	int ret;
+	int region_locked, ret;
+
+	region_locked = 0;
 
 	/* Create the lock table structure. */
 	if ((ret = __os_calloc(dbenv, 1, sizeof(DB_LOCKTAB), &lt)) != 0)
@@ -99,6 +97,16 @@ __lock_open(dbenv)
 	/* Set the local addresses. */
 	region = lt->reginfo.primary =
 	    R_ADDR(&lt->reginfo, lt->reginfo.rp->primary);
+
+	/* Set remaining pointers into region. */
+	lt->conflicts = R_ADDR(&lt->reginfo, region->conf_off);
+	lt->obj_tab = R_ADDR(&lt->reginfo, region->obj_off);
+	lt->locker_tab = R_ADDR(&lt->reginfo, region->locker_off);
+
+	dbenv->lk_handle = lt;
+
+	LOCK_SYSTEM_LOCK(dbenv);
+	region_locked = 1;
 
 	if (dbenv->lk_detect != DB_LOCK_NORUN) {
 		/*
@@ -131,22 +139,18 @@ __lock_open(dbenv)
 	if (dbenv->tx_timeout != 0)
 		region->tx_timeout = dbenv->tx_timeout;
 
-	/* Set remaining pointers into region. */
-	lt->conflicts = R_ADDR(&lt->reginfo, region->conf_off);
-	lt->obj_tab = R_ADDR(&lt->reginfo, region->obj_off);
-	lt->locker_tab = R_ADDR(&lt->reginfo, region->locker_off);
+	LOCK_SYSTEM_UNLOCK(dbenv);
+	region_locked = 0;
 
-	R_UNLOCK(dbenv, &lt->reginfo);
-
-	dbenv->lk_handle = lt;
 	return (0);
 
-err:	if (lt->reginfo.addr != NULL) {
-		if (F_ISSET(&lt->reginfo, REGION_CREATE))
-			ret = __db_panic(dbenv, ret);
-		R_UNLOCK(dbenv, &lt->reginfo);
+err:	dbenv->lk_handle = NULL;
+	if (lt->reginfo.addr != NULL) {
+		if (region_locked)
+			LOCK_SYSTEM_UNLOCK(dbenv);
 		(void)__db_r_detach(dbenv, &lt->reginfo, 0);
 	}
+
 	__os_free(dbenv, lt);
 	return (ret);
 }
@@ -165,9 +169,6 @@ __lock_region_init(dbenv, lt)
 	DB_LOCKER *lidp;
 	DB_LOCKOBJ *op;
 	DB_LOCKREGION *region;
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	size_t maint_size;
-#endif
 	u_int32_t i;
 	u_int8_t *addr;
 	int lk_modes, ret;
@@ -178,6 +179,10 @@ __lock_region_init(dbenv, lt)
 	lt->reginfo.rp->primary = R_OFFSET(&lt->reginfo, lt->reginfo.primary);
 	region = lt->reginfo.primary;
 	memset(region, 0, sizeof(*region));
+
+	if ((ret = __mutex_alloc(
+	    dbenv, MTX_LOCK_REGION, 0, &region->mtx_region)) != 0)
+		return (ret);
 
 	/* Select a conflict matrix if none specified. */
 	if (dbenv->lk_modes == 0)
@@ -229,33 +234,15 @@ __lock_region_init(dbenv, lt)
 	__db_hashinit(addr, region->locker_t_size);
 	region->locker_off = R_OFFSET(&lt->reginfo, addr);
 
-#ifdef	HAVE_MUTEX_SYSTEM_RESOURCES
-	maint_size = __lock_region_maint(dbenv);
-	/* Allocate room for the locker maintenance info and initialize it. */
-	if ((ret = __db_shalloc(&lt->reginfo,
-	    sizeof(REGMAINT) + maint_size, 0, &addr)) != 0)
-		goto mem_err;
-	__db_maintinit(&lt->reginfo, addr, maint_size);
-	region->maint_off = R_OFFSET(&lt->reginfo, addr);
-#endif
-
-	/*
-	 * Initialize locks onto a free list. Initialize and lock the mutex
-	 * so that when we need to block, all we need do is try to acquire
-	 * the mutex.
-	 */
+	/* Initialize locks onto a free list. */
 	SH_TAILQ_INIT(&region->free_locks);
 	for (i = 0; i < region->stat.st_maxlocks; ++i) {
 		if ((ret = __db_shalloc(&lt->reginfo,
-		    sizeof(struct __db_lock), MUTEX_ALIGN, &lp)) != 0)
+		    sizeof(struct __db_lock), 0, &lp)) != 0)
 			goto mem_err;
-		lp->status = DB_LSTAT_FREE;
+		lp->mtx_lock = MUTEX_INVALID;
 		lp->gen = 0;
-		if ((ret = __db_mutex_setup(dbenv, &lt->reginfo, &lp->mutex,
-		    MUTEX_LOGICAL_LOCK | MUTEX_NO_RLOCK | MUTEX_SELF_BLOCK))
-		    != 0)
-			return (ret);
-		MUTEX_LOCK(dbenv, &lp->mutex);
+		lp->status = DB_LSTAT_FREE;
 		SH_TAILQ_INSERT_HEAD(&region->free_locks, lp, links, __db_lock);
 	}
 
@@ -316,14 +303,13 @@ __lock_dbenv_refresh(dbenv)
 	 */
 	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
 		/* Discard the conflict matrix. */
-		__db_shalloc_free(reginfo, R_ADDR(&lt->reginfo, lr->conf_off));
+		__db_shalloc_free(reginfo, R_ADDR(reginfo, lr->conf_off));
 
 		/* Discard the object hash table. */
-		__db_shalloc_free(reginfo, R_ADDR(&lt->reginfo, lr->obj_off));
+		__db_shalloc_free(reginfo, R_ADDR(reginfo, lr->obj_off));
 
 		/* Discard the locker hash table. */
-		__db_shalloc_free(
-		    reginfo, R_ADDR(&lt->reginfo, lr->locker_off));
+		__db_shalloc_free(reginfo, R_ADDR(reginfo, lr->locker_off));
 
 		/* Discard locks. */
 		while ((lp =
@@ -360,6 +346,19 @@ __lock_dbenv_refresh(dbenv)
 }
 
 /*
+ * __lock_region_mutex_count --
+ *	Return the number of mutexes the lock region will need.
+ *
+ * PUBLIC: u_int32_t __lock_region_mutex_count __P((DB_ENV *));
+ */
+u_int32_t
+__lock_region_mutex_count(dbenv)
+	DB_ENV *dbenv;
+{
+	return (dbenv->lk_max);
+}
+
+/*
  * __lock_region_size --
  *	Return the region size.
  */
@@ -377,20 +376,16 @@ __lock_region_size(dbenv)
 	retval += __db_shalloc_size(sizeof(DB_LOCKREGION), 0);
 	retval += __db_shalloc_size(
 	    (size_t)(dbenv->lk_modes * dbenv->lk_modes), 0);
-	retval += __db_shalloc_size(__db_tablesize
-	    (dbenv->lk_max_lockers) * (sizeof(DB_HASHTAB)), 0);
-	retval += __db_shalloc_size(__db_tablesize
-	    (dbenv->lk_max_objects) * (sizeof(DB_HASHTAB)), 0);
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
+	retval += __db_shalloc_size(
+	    __db_tablesize(dbenv->lk_max_objects) * (sizeof(DB_HASHTAB)), 0);
+	retval += __db_shalloc_size(
+	    __db_tablesize(dbenv->lk_max_lockers) * (sizeof(DB_HASHTAB)), 0);
 	retval +=
-	    __db_shalloc_size(sizeof(REGMAINT) + __lock_region_maint(dbenv), 0);
-#endif
-	retval += __db_shalloc_size
-	    (sizeof(struct __db_lock), MUTEX_ALIGN) * dbenv->lk_max;
+	    __db_shalloc_size(sizeof(struct __db_lock), 0) * dbenv->lk_max;
 	retval +=
-	    __db_shalloc_size(sizeof(DB_LOCKOBJ), 1) * dbenv->lk_max_objects;
+	    __db_shalloc_size(sizeof(DB_LOCKOBJ), 0) * dbenv->lk_max_objects;
 	retval +=
-	    __db_shalloc_size(sizeof(DB_LOCKER), 1) * dbenv->lk_max_lockers;
+	    __db_shalloc_size(sizeof(DB_LOCKER), 0) * dbenv->lk_max_lockers;
 
 	/*
 	 * Include 16 bytes of string space per lock.  DB doesn't use it
@@ -402,52 +397,4 @@ __lock_region_size(dbenv)
 	retval += retval / 4;
 
 	return (retval);
-}
-
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-/*
- * __lock_region_maint --
- *	Return the amount of space needed for region maintenance info.
- */
-static size_t
-__lock_region_maint(dbenv)
-	DB_ENV *dbenv;
-{
-	size_t s;
-
-	s = sizeof(DB_MUTEX *) * dbenv->lk_max;
-	return (s);
-}
-#endif
-
-/*
- * __lock_region_destroy
- *	Destroy any region maintenance info.
- *
- * PUBLIC: void __lock_region_destroy __P((DB_ENV *, REGINFO *));
- */
-void
-__lock_region_destroy(dbenv, infop)
-	DB_ENV *dbenv;
-	REGINFO *infop;
-{
-	/*
-	 * This routine is called in two cases: when discarding the mutexes
-	 * from a previous Berkeley DB run, during recovery, and two, when
-	 * discarding the mutexes as we shut down the database environment.
-	 * In the latter case, we also need to discard shared memory segments,
-	 * this is the last time we use them, and the last region-specific
-	 * call we make.
-	 */
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	DB_LOCKREGION *lt;
-
-	lt = R_ADDR(infop, infop->rp->primary);
-
-	__db_shlocks_destroy(infop, R_ADDR(infop, lt->maint_off));
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, R_ADDR(infop, lt->maint_off));
-#endif
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, infop->primary);
 }

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt_open.c,v 11.92 2004/04/29 14:39:47 ubell Exp $
+ * $Id: bt_open.c,v 12.5 2005/09/28 17:44:17 margo Exp $
  */
 
 #include "db_config.h"
@@ -311,7 +311,6 @@ __bam_read_root(dbp, txn, base_pgno, flags)
 	 * metadata page will be created/initialized elsewhere.
 	 */
 	if (meta->dbmeta.magic == DB_BTREEMAGIC) {
-		t->bt_maxkey = meta->maxkey;
 		t->bt_minkey = meta->minkey;
 		t->re_pad = (int)meta->re_pad;
 		t->re_len = meta->re_len;
@@ -395,7 +394,6 @@ __bam_init_meta(dbp, meta, pgno, lsnp)
 	memcpy(meta->dbmeta.uid, dbp->fileid, DB_FILE_ID_LEN);
 
 	t = dbp->bt_internal;
-	meta->maxkey = t->bt_maxkey;
 	meta->minkey = t->bt_minkey;
 	meta->re_len = t->re_len;
 	meta->re_pad = (u_int32_t)t->re_pad;
@@ -428,7 +426,7 @@ __bam_new_file(dbp, txn, fhp, name)
 	DBT pdbt;
 	PAGE *root;
 	db_pgno_t pgno;
-	int ret;
+	int ret, t_ret;
 	void *buf;
 
 	dbenv = dbp->dbenv;
@@ -437,7 +435,7 @@ __bam_new_file(dbp, txn, fhp, name)
 	meta = NULL;
 	buf = NULL;
 
-	if (name == NULL) {
+	if (F_ISSET(dbp, DB_AM_INMEM)) {
 		/* Build the meta-data page. */
 		pgno = PGNO_BASE_MD;
 		if ((ret =
@@ -447,6 +445,9 @@ __bam_new_file(dbp, txn, fhp, name)
 		__bam_init_meta(dbp, meta, PGNO_BASE_MD, &lsn);
 		meta->root = 1;
 		meta->dbmeta.last_pgno = 1;
+		if ((ret =
+		    __db_log_page(dbp, txn, &lsn, pgno, (PAGE *)meta)) != 0)
+			goto err;
 		ret = __memp_fput(mpf, meta, DB_MPOOL_DIRTY);
 		meta = NULL;
 		if (ret != 0)
@@ -460,6 +461,9 @@ __bam_new_file(dbp, txn, fhp, name)
 		P_INIT(root, dbp->pgsize, 1, PGNO_INVALID, PGNO_INVALID,
 		    LEAFLEVEL, dbp->type == DB_RECNO ? P_LRECNO : P_LBTREE);
 		LSN_NOT_LOGGED(root->lsn);
+		if ((ret =
+		    __db_log_page(dbp, txn, &root->lsn, pgno, root)) != 0)
+			goto err;
 		ret = __memp_fput(mpf, root, DB_MPOOL_DIRTY);
 		root = NULL;
 		if (ret != 0)
@@ -509,10 +513,12 @@ __bam_new_file(dbp, txn, fhp, name)
 err:	if (buf != NULL)
 		__os_free(dbenv, buf);
 	else {
-		if (meta != NULL)
-			(void)__memp_fput(mpf, meta, 0);
-		if (root != NULL)
-			(void)__memp_fput(mpf, root, 0);
+		if (meta != NULL &&
+		    (t_ret = __memp_fput(mpf, meta, 0)) != 0 && ret == 0)
+			ret = t_ret;
+		if (root != NULL &&
+		    (t_ret = __memp_fput(mpf, root, 0)) != 0 && ret == 0)
+			ret = t_ret;
 	}
 	return (ret);
 }

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_handle.c,v 11.39 2004/07/06 21:06:38 mjc Exp $
+ * $Id: os_handle.c,v 12.3 2005/11/02 03:12:18 mjc Exp $
  */
 
 #include "db_config.h"
@@ -14,7 +14,6 @@
 
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -50,7 +49,7 @@ __os_openhandle(dbenv, name, flags, mode, fhpp)
 	retries = 0;
 	for (nrepeat = 1; nrepeat < 4; ++nrepeat) {
 		ret = 0;
-		fhp->fd = open(name, flags, mode);
+		fhp->fd = _open(name, flags, mode);
 
 		if (fhp->fd != -1) {
 			F_SET(fhp, DB_FH_OPENED);
@@ -113,7 +112,7 @@ __os_closehandle(dbenv, fhp)
 		else if (fhp->handle != INVALID_HANDLE_VALUE)
 			RETRY_CHK((!CloseHandle(fhp->handle)), ret);
 		else
-			RETRY_CHK((close(fhp->fd)), ret);
+			RETRY_CHK((_close(fhp->fd)), ret);
 
 		if (ret != 0)
 			__db_err(dbenv, "CloseHandle: %s", strerror(ret));

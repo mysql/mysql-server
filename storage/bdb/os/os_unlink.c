@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_unlink.c,v 11.28 2004/07/06 13:55:48 bostic Exp $
+ * $Id: os_unlink.c,v 12.3 2005/08/10 15:47:27 bostic Exp $
  */
 
 #include "db_config.h"
@@ -13,7 +13,6 @@
 #include <sys/types.h>
 
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -48,7 +47,7 @@ err:
 	return (ret);
 #else
 	if (F_ISSET(dbenv, DB_ENV_OVERWRITE))
-		(void)__db_overwrite(dbenv, path);
+		(void)__db_file_multi_write(dbenv, path);
 
 	return (__os_unlink(dbenv, path));
 #endif

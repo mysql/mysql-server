@@ -1,4 +1,4 @@
-# $Id: buildrel,v 1.65 2004/11/09 01:26:29 bostic Exp $
+# $Id: buildrel,v 12.1 2005/10/25 00:27:35 bostic Exp $
 #
 # Build the distribution package.
 #
@@ -41,7 +41,7 @@ rm -rf $R/docs && cp -r $D/docs $R/docs
 # Remove source directories we don't distribute.
 cd $R && rm -rf docs_src docs/api_java
 cd $R && rm -rf test/TODO test/upgrade test_perf test_purify
-cd $R && rm -rf test_server test_thread test_vxworks test_xa
+cd $R && rm -rf test_rep test_server test_thread test_vxworks test_xa
 cd $R && rm -rf java/src/com/sleepycat/xa
 
 # Fix symbolic links and permissions.

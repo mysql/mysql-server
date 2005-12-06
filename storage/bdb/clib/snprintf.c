@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: snprintf.c,v 11.18 2004/09/22 03:32:43 bostic Exp $
+ * $Id: snprintf.c,v 12.1 2005/06/16 20:20:50 bostic Exp $
  */
 
 #include "db_config.h"

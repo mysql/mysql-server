@@ -1,17 +1,19 @@
-# $Id: files.in,v 1.7 2005/04/15 19:00:36 philipr Exp $
+# $Id: files.in,v 1.8 2005/10/26 13:29:32 dda Exp $
 # Lists files needed to install particular
 # features in Windows.  Feature names must be
 # listed in features.in .
+#
 
 # Note: columns below must be separated by tabs.
+#       ${PRODUCT_MAJMIN} is a macro for "43" (for BDB 4.3.x)
 
 # feature	source file				targdir	shortname
 
-CoreAPI		build_win32/Release/libdb43.dll		/bin/
-DCoreAPI	build_win32/Debug/libdb43d.dll		/bin/debug/
+CoreAPI		build_win32/Release/libdb${PRODUCT_MAJMIN}.dll	/bin/
+DCoreAPI	build_win32/Debug/libdb${PRODUCT_MAJMIN}d.dll	/bin/debug/
 DCoreAPI	build_win32/Debug/db_dll.pdb		/bin/debug/
-CoreAPI		build_win32/Release/libdb43.lib		/lib/
-DCoreAPI	build_win32/Debug/libdb43d.lib		/lib/
+CoreAPI		build_win32/Release/libdb${PRODUCT_MAJMIN}.lib	/lib/
+DCoreAPI	build_win32/Debug/libdb${PRODUCT_MAJMIN}d.lib	/lib/
 CoreAPI		build_win32/Release/msvcr71.dll		/bin/
 DCoreAPI	build_win32/Debug/msvcr71d.dll		/bin/debug/
 CoreAPI		build_win32/Release/msvcp71.dll		/bin/
@@ -26,8 +28,8 @@ CoreAPI		${PRODUCT_STAGE}/dbvars.bat		/
 
 # We don't include the .lib files for Java, nobody needs to
 # link C/C++ against the java library
-JavaAPI		build_win32/Release/libdb_java43.dll	/bin/	dbj43.dll
-DJavaAPI 	build_win32/Debug/libdb_java43d.dll	/bin/debug/	dbj43d.dll
+JavaAPI		build_win32/Release/libdb_java${PRODUCT_MAJMIN}.dll	/bin/	dbj${PRODUCT_MAJMIN}.dll
+DJavaAPI 	build_win32/Debug/libdb_java${PRODUCT_MAJMIN}d.dll	/bin/debug/	dbj${PRODUCT_MAJMIN}d.dll
 DJavaAPI 	build_win32/Debug/db_java.pdb		/bin/debug/
 JavaAPI		build_win32/Release/db.jar		/jar/
 DJavaAPI	build_win32/Debug/db.jar		/jar/debug/
@@ -37,9 +39,9 @@ DJavaEx		build_win32/Debug/dbexamples.jar	/jar/debug/	dbexam~1.jar
 
 # We don't include the .lib files for Tcl, nobody needs to
 # link C/C++ against the Tcl library
-DTclAPI		build_win32/Debug/libdb_tcl43d.dll	/bin/debug/	dbt43d.dll
+DTclAPI		build_win32/Debug/libdb_tcl${PRODUCT_MAJMIN}d.dll	/bin/debug/	dbt${PRODUCT_MAJMIN}d.dll
 DTclAPI		build_win32/Debug/db_tcl.pdb		/bin/debug/
-TclAPI		build_win32/Release/libdb_tcl43.dll	/bin/	dbt43.dll
+TclAPI		build_win32/Release/libdb_tcl${PRODUCT_MAJMIN}.dll	/bin/	dbt${PRODUCT_MAJMIN}.dll
 
 PerlAPI		perl/BerkeleyDB/blib/			/lib/perl/
 

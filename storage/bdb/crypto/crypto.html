@@ -108,7 +108,7 @@ The setup of the security subsystem will be similar to replication initializatio
 since it is a sort of subsystem, but it does not have its own region.&nbsp;
 When the environment handle is created via <i>db_env_create</i>, we initialize
 our <i>set_encrypt</i> method to be the RPC or local version.&nbsp; Therefore
-the <i>__dbenv</i> structure needs a new pointer:
+the <i>DB_ENV</i> structure needs a new pointer:
 <pre>&nbsp;&nbsp;&nbsp; void&nbsp;&nbsp;&nbsp; *crypto_handle;&nbsp;&nbsp; /* Security handle */</pre>
 The crypto handle will really point to a new <i>__db_cipher</i> structure
 that will contain a set of functions and a pointer to the in-memory information
@@ -134,21 +134,21 @@ this is set up, it is read-only forever.
 <p>During <a href="../docs/api_c/env_set_encrypt.html">dbenv->set_encrypt</a>,
 we set the encryption, decryption and checksumming methods to the appropriate
 functions based on the flags.&nbsp; This function will allocate us a crypto
-handle that we store in the <i>__dbenv</i> structure just like all the
+handle that we store in the <i>DB_ENV</i> structure just like all the
 other subsystems.&nbsp; For now, only AES ciphering functions and SHA1
 checksumming functions are supported.&nbsp; Also we will copy the password
-into the <i>__dbenv</i> structure.&nbsp; We ultimately need to keep the
+into the <i>DB_ENV</i> structure.&nbsp; We ultimately need to keep the
 password in the environment's shared memory region or compare this one
 against the one that is there, if we are joining an existing environment,
 but we do not have it yet because open has not yet been called.&nbsp; We
 will allocate a structure that will be used in initialization and set up
 the function pointers to point to the algorithm-specific functions.
-<p>In the&nbsp; <i>__dbenv_open</i> path, in <i>__db_e_attach</i>, if we
+<p>In the&nbsp; <i>__env_open</i> path, in <i>__db_e_attach</i>, if we
 are creating the region and the <i>dbenv->passwd</i> field is set, we need
 to use the length of the password in the initial computation of the environment's
 size.&nbsp; This guarantees sufficient space for storing the password in
 shared memory.&nbsp; Then we will call a new function to initialize the
-security region, <i>__crypto_region_init</i> in <i>__dbenv_open</i>.&nbsp;
+security region, <i>__crypto_region_init</i> in <i>__env_open</i>.&nbsp;
 If we are the creator, we will allocate space in the shared region to store
 the password and copy the password into that space.&nbsp; Or, if we are
 not the creator we will compare the password stored in the dbenv with the
@@ -304,7 +304,7 @@ We will have per-process state vectors that are set up when a process begins.&nb
 That way we minimize the contention and only multi-threaded processes need
 acquire locks for the IV.&nbsp; We will have the state vector in the environment
 handle in heap memory, as well as the index and there will be a mutex protecting
-it for threaded access.&nbsp; This will be added to the <i>__dbenv</i>
+it for threaded access.&nbsp; This will be added to the <i>DB_ENV</i>
 structure:
 <pre>&nbsp;&nbsp;&nbsp; DB_MUTEX&nbsp;&nbsp;&nbsp; *mt_mutexp;&nbsp;&nbsp; /* Mersenne Twister mutex */
 &nbsp;&nbsp;&nbsp; int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *mti;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* MT index */

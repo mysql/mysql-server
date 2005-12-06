@@ -1,5 +1,5 @@
 /*
- * $Id: mt19937db.c,v 1.12 2004/06/14 16:54:27 mjc Exp $
+ * $Id: mt19937db.c,v 12.1 2005/07/20 16:50:57 bostic Exp $
  */
 #include "db_config.h"
 
@@ -69,7 +69,7 @@ __db_generate_iv(dbenv, iv)
 
 	ret = 0;
 	n = DB_IV_BYTES / sizeof(u_int32_t);
-	MUTEX_THREAD_LOCK(dbenv, dbenv->mt_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_mt);
 	if (dbenv->mt == NULL) {
 		if ((ret = __os_calloc(dbenv, 1, N*sizeof(unsigned long),
 		    &dbenv->mt)) != 0)
@@ -77,17 +77,16 @@ __db_generate_iv(dbenv, iv)
 		/* mti==N+1 means mt[N] is not initialized */
 		dbenv->mti = N + 1;
 	}
-	for (i = 0; i < n; i++)
-{
+	for (i = 0; i < n; i++) {
 		/*
 		 * We do not allow 0.  If we get one just try again.
 		 */
 		do {
 			iv[i] = (u_int32_t)__db_genrand(dbenv);
 		} while (iv[i] == 0);
-}
+	}
 
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->mt_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_mt);
 	return (0);
 }
 
@@ -137,7 +136,7 @@ __db_lsgenrand(seed_array, mt, mtip)
 
 static unsigned long 
 __db_genrand(dbenv)
-	DB_ENV *dbenv;
+    DB_ENV *dbenv;
 {
     unsigned long y;
     static unsigned long mag01[2]={0x0, MATRIX_A};
@@ -145,7 +144,7 @@ __db_genrand(dbenv)
     u_int32_t secs, seed, usecs;
 
     /*
-     * We are called with the mt_mutexp locked
+     * We are called with DB_ENV->mtx_mt locked.
      */
     if (dbenv->mti >= N) { /* generate N words at one time */
         int kk;
