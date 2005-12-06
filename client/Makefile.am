@@ -31,7 +31,8 @@ LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
                                 $(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
-				mysqltestmanagerc mysqltestmanager-pwgen
+				mysqltestmanagerc mysqltestmanager-pwgen \
+				mysqlslap
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
@@ -46,6 +47,7 @@ mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
+mysqlslap_SOURCES=              mysqlslap.c $(yassl_dummy_link_fix)
 mysqldump_SOURCES=              mysqldump.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc

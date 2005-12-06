@@ -49,7 +49,7 @@ sleep 2;
 wait_for_slave_to_stop;
 select * from t2;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 #
 show slave status;
 
 # clean up
