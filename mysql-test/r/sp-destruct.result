@@ -1,0 +1,77 @@
+use test;
+drop procedure if exists bug14233;
+drop function if exists bug14233;
+drop table if exists t1;
+drop view if exists v1;
+create procedure bug14233()
+set @x = 42;
+create function bug14233_f() returns int
+return 42;
+create table t1 (id int);
+create trigger t1_ai after insert on t1 for each row call bug14233();
+alter table mysql.proc drop type;
+call bug14233();
+ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+create view v1 as select bug14233_f();
+ERROR HY000: Failed to load routine test.bug14233_f. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+insert into t1 values (0);
+ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+flush table mysql.proc;
+call bug14233();
+ERROR HY000: Incorrect information in file: './mysql/proc.frm'
+create view v1 as select bug14233_f();
+ERROR HY000: Incorrect information in file: './mysql/proc.frm'
+insert into t1 values (0);
+ERROR HY000: Incorrect information in file: './mysql/proc.frm'
+flush table mysql.proc;
+call bug14233();
+ERROR 42S02: Table 'mysql.proc' doesn't exist
+create view v1 as select bug14233_f();
+ERROR 42S02: Table 'mysql.proc' doesn't exist
+insert into t1 values (0);
+ERROR 42S02: Table 'mysql.proc' doesn't exist
+flush table mysql.proc;
+flush privileges;
+delete from mysql.proc where name like 'bug14233%';
+insert into mysql.proc
+(
+db, name, type, specific_name, language, sql_data_access, is_deterministic,
+security_type, param_list, returns, body, definer, created, modified,
+sql_mode, comment
+)
+values
+(
+'test', 'bug14233_1', 'FUNCTION', 'bug14233_1', 'SQL', 'READS_SQL_DATA', 'NO',
+'DEFINER', '', 'int(10)',
+'select count(*) from mysql.user',
+'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+),
+(
+'test', 'bug14233_2', 'FUNCTION', 'bug14233_2', 'SQL', 'READS_SQL_DATA', 'NO',
+'DEFINER', '', 'int(10)',
+'begin declare x int; select count(*) into x from mysql.user; end',
+'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+),
+(
+'test', 'bug14233_3', 'PROCEDURE', 'bug14233_3', 'SQL', 'READS_SQL_DATA','NO',
+'DEFINER', '', '',
+'alksj wpsj sa ^#!@ ',
+'root@localhost', NOW() , '0000-00-00 00:00:00', '', ''
+);
+select bug14233_1();
+ERROR HY000: Failed to load routine test.bug14233_1. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+create view v1 as select bug14233_1();
+ERROR HY000: Failed to load routine test.bug14233_1. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+select bug14233_2();
+ERROR HY000: Failed to load routine test.bug14233_2. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+create view v1 as select bug14233_2();
+ERROR HY000: Failed to load routine test.bug14233_2. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+call bug14233_3();
+ERROR HY000: Failed to load routine test.bug14233_3. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+drop trigger t1_ai;
+create trigger t1_ai after insert on t1 for each row call bug14233_3();
+insert into t1 values (0);
+ERROR HY000: Failed to load routine test.bug14233_3. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
+delete from mysql.proc where name like 'bug14233%';
+drop trigger t1_ai;
+drop table t1;
