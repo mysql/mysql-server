@@ -121,6 +121,28 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
+				RelativePath="crypto\aes_method.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\btree\bt_compact.c">
+			</File>
+			<File
 				RelativePath="btree\bt_compare.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -501,6 +523,25 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="crypto\crypto.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="db\db.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -594,6 +635,9 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\common\db_clock.c">
 			</File>
 			<File
 				RelativePath="db\db_conv.c">
@@ -995,25 +1039,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="env\db_shash.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath="db\db_setid.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -1034,6 +1059,25 @@
 			</File>
 			<File
 				RelativePath="db\db_setlsn.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="env\db_shash.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
@@ -1280,6 +1324,9 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\env\env_failchk.c">
+			</File>
+			<File
 				RelativePath="env\env_file.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -1373,6 +1420,9 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\env\env_register.c">
 			</File>
 			<File
 				RelativePath="env\env_stat.c">
@@ -1812,6 +1862,9 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\lock\lock_failchk.c">
+			</File>
+			<File
 				RelativePath="lock\lock_id.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -1831,7 +1884,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="lock\lock_method.c">
+				RelativePath="lock\lock_list.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
@@ -1850,7 +1903,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="lock\lock_list.c">
+				RelativePath="lock\lock_method.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
@@ -2000,6 +2053,9 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\log\log_debug.c">
 			</File>
 			<File
 				RelativePath="log\log_get.c">
@@ -2325,6 +2381,37 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath="crypto\mersenne\mt19937db.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\mutex\mut_alloc.c">
+			</File>
+			<File
+				RelativePath=".\mutex\mut_method.c">
+			</File>
+			<File
+				RelativePath=".\mutex\mut_region.c">
+			</File>
+			<File
+				RelativePath=".\mutex\mut_stat.c">
+			</File>
+			<File
 				RelativePath="mutex\mut_tas.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -2345,25 +2432,6 @@
 			</File>
 			<File
 				RelativePath="mutex\mut_win32.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="mutex\mutex.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
@@ -2513,6 +2581,9 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\os_win32\os_flock.c">
 			</File>
 			<File
 				RelativePath="os_win32\os_fsync.c">
@@ -3104,6 +3175,12 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\rep\rep_elect.c">
+			</File>
+			<File
+				RelativePath=".\rep\rep_log.c">
+			</File>
+			<File
 				RelativePath="rep\rep_method.c">
 				<FileConfiguration
 					Name="Max|Win32">
@@ -3180,7 +3257,51 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\rep\rep_stub.c">
+			</File>
+			<File
 				RelativePath="rep\rep_util.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\rep\rep_verify.c">
+			</File>
+			<File
+				RelativePath="crypto\rijndael\rijndael-alg-fst.c">
+				<FileConfiguration
+					Name="Max|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="crypto\rijndael\rijndael-api-fst.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
@@ -3273,6 +3394,12 @@
 						AdditionalIncludeDirectories=""
 						PreprocessorDefinitions=""/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\txn\txn_chkpt.c">
+			</File>
+			<File
+				RelativePath=".\txn\txn_failchk.c">
 			</File>
 			<File
 				RelativePath="txn\txn_method.c">
@@ -3466,101 +3593,6 @@
 			</File>
 			<File
 				RelativePath="xa\xa_map.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="crypto\aes_method.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="crypto\crypto.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="crypto\mersenne\mt19937db.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="crypto\rijndael\rijndael-api-fst.c">
-				<FileConfiguration
-					Name="Max|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32">
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="crypto\rijndael\rijndael-alg-fst.c">
 				<FileConfiguration
 					Name="Max|Win32">
 					<Tool
