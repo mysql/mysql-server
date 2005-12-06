@@ -39,13 +39,13 @@ run dist/s_vxworks 555
 run dist/s_win32 555
 run dist/s_win32_dsp 555
 run dist/vx_buildcd 555
-run mod_db4/configure 555
+#run mod_db4/configure 555
 
-run perl/BerkeleyDB/dbinfo 555
-run perl/BerkeleyDB/mkpod 555
+#run perl/BerkeleyDB/dbinfo 555
+#run perl/BerkeleyDB/mkpod 555
 
-for i in `cd $d && find build_vxworks \
-    -name '*.wsp' -o -name '*.cdf' -o -name '*.wpj'`; do
+#for i in `cd $d && find build_vxworks \
+#    -name '*.wsp' -o -name '*.cdf' -o -name '*.wpj'`; do
 	#echo "	$i (775)"
-	chmod 775 $d/$i
-done
+#	chmod 775 $d/$i
+#done
