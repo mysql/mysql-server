@@ -2287,40 +2287,6 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
   DBUG_ASSERT(trx);
 
-  /*
-   Original bdb documentation says:
-   "The DB->stat method cannot be transaction-protected.
-   For this reason, it should be called in a thread of
-   control that has no open cursors or active transactions."
-   So, let's check if there are any changes have been done since
-   the beginning of the transaction..
-  */
-
-  if (!db_env->txn_stat(db_env, &txn_stat_ptr, 0) &&
-      txn_stat_ptr && txn_stat_ptr->st_nactive>=2)
-  {
-    DB_TXN_ACTIVE *atxn_stmt= 0, *atxn_all= 0;
-
-    u_int32_t all_id= trx->all->id(trx->all);
-    u_int32_t stmt_id= trx->stmt->id(trx->stmt);
-
-    DB_TXN_ACTIVE *cur= txn_stat_ptr->st_txnarray;
-    DB_TXN_ACTIVE *end= cur + txn_stat_ptr->st_nactive;
-    for (; cur!=end && (!atxn_stmt || !atxn_all); cur++)
-    {
-      if (cur->txnid==all_id) atxn_all= cur;
-      if (cur->txnid==stmt_id) atxn_stmt= cur;
-    }
-
-    if (atxn_stmt && atxn_all &&
-	log_compare(&atxn_stmt->lsn,&atxn_all->lsn))
-    {
-      free(txn_stat_ptr);
-      return HA_ADMIN_REJECT;
-    }
-    free(txn_stat_ptr);
-  }
-
   for (i=0 ; i < table_share->keys ; i++)
   {
     if (stat)
@@ -2328,7 +2294,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if ((key_file[i]->stat)(key_file[i], NULL, (void*) &stat, 0))
+    if ((key_file[i]->stat)(key_file[i], trx->all, (void*) &stat, 0))
       goto err; /* purecov: inspected */
     share->rec_per_key[i]= (stat->bt_ndata /
 			    (stat->bt_nkeys ? stat->bt_nkeys : 1));
@@ -2341,7 +2307,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if ((file->stat)(file, NULL, (void*) &stat, 0))
+    if ((file->stat)(file, trx->all, (void*) &stat, 0))
       goto err; /* purecov: inspected */
   }
   pthread_mutex_lock(&share->mutex);
