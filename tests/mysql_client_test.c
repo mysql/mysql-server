@@ -36,7 +36,7 @@
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
-#define MAX_KEY 64
+#define MAX_KEY MAX_INDEXES
 #define MAX_SERVER_ARGS 64
 
 /* set default options */

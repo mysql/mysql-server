@@ -11,12 +11,10 @@
 ##############################################################################
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
-rpl_relayrotate : Unstable test case, bug#12429
-rpl_until       : Unstable test case, bug#12429
-rpl_deadlock    : Unstable test case, bug#12429
 kill            : Unstable test case, bug#9712
 ndb_cache2      : Bug #15004
 ndb_cache_multi2: Bug #15004
 func_group      : Bug #15448
 func_math       : Bug #15448
 group_min_max   : Bug #15448 
+mysqlslap       : Bug #15483

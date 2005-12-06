@@ -3178,6 +3178,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   trp->is_covering= TRUE;
   trp->read_cost= total_cost;
   trp->records= records;
+  trp->cpk_scan= NULL;
 
   DBUG_PRINT("info",
              ("Returning covering ROR-intersect plan: cost %g, records %lu",

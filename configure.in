@@ -2365,6 +2365,7 @@ AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
 MYSQL_CHECK_BIG_TABLES
+MYSQL_CHECK_MAX_INDEXES
 
 MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
   \$(top_builddir)/storage/innobase/usr/libusr.a dnl
