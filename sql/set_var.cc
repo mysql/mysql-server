@@ -207,7 +207,7 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
-sys_var_bool_ptr        sys_event_executor("event_scheduler",
+sys_var_event_executor        sys_event_executor("event_scheduler",
                                                &event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
@@ -3363,6 +3363,7 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   warn_deprecated(thd);
   return sys_var_bool_ptr::update(thd, var);
 }
+
 
 /****************************************************************************
   Used templates
