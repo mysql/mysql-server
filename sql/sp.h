@@ -31,8 +31,6 @@
 #define SP_BAD_IDENTIFIER    -9
 #define SP_BODY_TOO_LONG    -10
 
-extern bool mysql_proc_table_exists;
-
 /* Drop all routines in database 'db' */
 int
 sp_drop_db_routines(THD *thd, char *db);
@@ -99,16 +97,8 @@ extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
   Routines which allow open/lock and close mysql.proc table even when
   we already have some tables open and locked.
 */
-TABLE *open_proc_type_table_for_read(THD *thd, Open_tables_state *backup,
-                                     const char *tname, bool *table_exists);
-TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
-                                       bool *table_exists);
-
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
 void close_proc_table(THD *thd, Open_tables_state *backup);
-
-int
-sp_db_find_routine_aux(THD *thd, int type, const LEX_STRING dbname,
-                       const LEX_STRING rname, TABLE *table);
 
 //
 // Utilities...
