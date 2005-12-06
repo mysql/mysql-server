@@ -68,4 +68,4 @@ for i in $DIR; do
 done
 
 # Build the example application's recovery routines.
-(cd ../examples_c/ex_apprec && sh auto_rebuild)
+#(cd ../examples_c/ex_apprec && sh auto_rebuild)

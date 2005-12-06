@@ -707,8 +707,7 @@ AC_SUBST(LTLIBOBJS)
 # Initial output file list.
 CREATE_LIST="Makefile
     db_cxx.h:$srcdir/../dbinc/db_cxx.in
-    db_int.h:$srcdir/../dbinc/db_int.in
-    include.tcl:$srcdir/../test/include.tcl"
+    db_int.h:$srcdir/../dbinc/db_int.in"
 
 # MinGW needs win_db.h.
 if test "$db_cv_mingw" = "yes"; then
