@@ -368,10 +368,10 @@ select 3 from t1 ;
 # Missing delimiter until eof
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing 
---system echo "sleep 7" > var/log/mysqltest.sql
---system echo "# Another comment" >> var/log/mysqltest.sql
+--system echo "sleep 7" > var/tmp/mysqltest.sql
+--system echo "# Another comment" >> var/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
@@ -737,20 +737,20 @@ while ($i)
 --error 1
 --exec echo "{;" | $MYSQL_TEST 2>&1
 
---system echo "while (0)" > var/log/mysqltest.sql
---system echo "echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0)" > var/tmp/mysqltest.sql
+--system echo "echo hej;" >> var/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
 
---system echo "while (0)" > var/log/mysqltest.sql
---system echo "{echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0)" > var/tmp/mysqltest.sql
+--system echo "{echo hej;" >> var/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
 
---system echo "while (0){" > var/log/mysqltest.sql
---system echo "echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0){" > var/tmp/mysqltest.sql
+--system echo "echo hej;" >> var/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
 
 # ----------------------------------------------------------------------------
 # Test error messages returned from comments starting with a command
@@ -778,7 +778,7 @@ select "a" as col1, "c" as col2;
 --exec echo "replace_result a;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "replace_result a ;" | $MYSQL_TEST 2>&1
---exec echo "replace_result a b;" | $MYSQL_TEST 2>&1
+--exec echo "replace_result a b; echo OK;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "--replace_result a b c" | $MYSQL_TEST 2>&1
 --error 1
@@ -848,7 +848,7 @@ select "a" as col1, "c" as col2;
 --exec echo " disconnect test_con1; "                  >> var/tmp/con.sql
 --exec echo " dec \$i;                               " >> var/tmp/con.sql
 --exec echo "}"                                        >> var/tmp/con.sql
---exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source var/tmp/con.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
 --exec echo "let \$i=200;"                              > var/tmp/con.sql
@@ -954,3 +954,29 @@ select "this will not be executed";
 --enable_parsing
 select "this will be executed";
 --enable_query_log
+
+#
+# Test zero length result file. Should not pass
+#
+--exec touch $MYSQL_TEST_DIR/var/tmp/zero_length_file.result
+--exec echo "echo ok;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--error 1
+--exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/zero_length_file.result  2>&1
+#
+# Test that a test file that does not generate any output fails.
+#
+--exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--error 1
+--exec $MYSQL_TEST -x var/tmp/query.sql  2>&1
+
+#
+# Test that mysqltest fails when there are no queries executed
+# but a result file exist
+# NOTE! This will never happen as long as it's not allowed to have
+# test files that does not produce any output
+#--exec echo "something" > $MYSQL_TEST_DIR/var/tmp/result_file.result
+#--exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+#--error 1
+#--exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/result_file.result 2>&1
+
+

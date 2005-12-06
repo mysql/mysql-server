@@ -331,6 +331,7 @@ mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_re
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a;'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a '
+OK
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c '
 select "a" as col1, "c" as col2;
@@ -356,6 +357,7 @@ mysqltest: At line 1: Missing connection db
 mysqltest: At line 1: Could not open connection 'con2': Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
+OK
 mysqltest: In included file "./var/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
 mysqltest: In included file "./var/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "./var/tmp/con.sql": At line 2: Connection test_con1 already exists
@@ -394,3 +396,5 @@ root@localhost
 --------------------------------------------------------------------------------
 this will be executed
 this will be executed
+mysqltest: Result length mismatch
+mysqltest: The test didn't produce any output
