@@ -1006,9 +1006,9 @@ typedef struct st_lex
   }
   void cleanup_after_one_table_open();
 
-  void push_context(Name_resolution_context *context)
+  bool push_context(Name_resolution_context *context)
   {
-    context_stack.push_front(context);
+    return context_stack.push_front(context);
   }
 
   void pop_context()
