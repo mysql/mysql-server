@@ -1091,7 +1091,7 @@ dict_load_foreign(
 				/* out: DB_SUCCESS or error code */
 	const char*	id,	/* in: foreign constraint id as a
 				null-terminated string */
-	ibool		check_types)/* in: TRUE=check type compatibility */
+	ibool		check_charsets)/* in: TRUE=check charset compatibility */
 {	
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1204,7 +1204,7 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	return(dict_foreign_add_to_cache(foreign, check_types));
+	return(dict_foreign_add_to_cache(foreign, check_charsets));
 }
 
 /***************************************************************************
@@ -1219,7 +1219,8 @@ dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
 	const char*	table_name,	/* in: table name */
-	ibool		check_types)	/* in: TRUE=check type compatibility */
+	ibool		check_charsets)	/* in: TRUE=check charset
+					compatibility */
 {
 	btr_pcur_t	pcur;
 	mem_heap_t* 	heap;
@@ -1319,7 +1320,7 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 	
-	err = dict_load_foreign(id, check_types);
+	err = dict_load_foreign(id, check_charsets);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

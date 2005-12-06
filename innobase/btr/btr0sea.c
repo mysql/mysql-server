@@ -904,6 +904,7 @@ btr_search_drop_page_hash_index(
 	ulint*		folds;
 	ulint		i;
 	mem_heap_t*	heap;
+	dict_index_t*	index;
 	ulint*		offsets;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -932,11 +933,16 @@ btr_search_drop_page_hash_index(
 
 	n_fields = block->curr_n_fields;
 	n_bytes = block->curr_n_bytes;
+	index = block->index;
 
-	ut_a(n_fields + n_bytes > 0);
+	/* NOTE: The fields of block must not be accessed after
+	releasing btr_search_latch, as the index page might only
+	be s-latched! */
 
 	rw_lock_s_unlock(&btr_search_latch);
 	
+	ut_a(n_fields + n_bytes > 0);
+
 	n_recs = page_get_n_recs(page);
 
 	/* Calculate and cache fold values into an array for fast deletion
@@ -949,14 +955,6 @@ btr_search_drop_page_hash_index(
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
 
-	if (!page_rec_is_supremum(rec)) {
-		ut_a(n_fields <= rec_get_n_fields(rec, block->index));
-
-		if (n_bytes > 0) {
-			ut_a(n_fields < rec_get_n_fields(rec, block->index));
-		}
-	}
-
 	tree_id = btr_page_get_index_id(page);
 	
 	prev_fold = 0;
@@ -964,18 +962,12 @@ btr_search_drop_page_hash_index(
 	heap = NULL;
 	offsets = NULL;
 
-	if (block->index == NULL) {
-
-		mem_analyze_corruption((byte*)block);
-
-		ut_a(block->index != NULL);
-	}
-
 	while (!page_rec_is_supremum(rec)) {
 		/* FIXME: in a mixed tree, not all records may have enough
 		ordering fields: */
-		offsets = rec_get_offsets(rec, block->index,
-				offsets, n_fields + (n_bytes > 0), &heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+					n_fields + (n_bytes > 0), &heap);
+		ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
 		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 
 		if (fold == prev_fold && prev_fold != 0) {
