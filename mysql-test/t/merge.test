@@ -297,3 +297,29 @@ select min(a), max(a) from t1;
 flush tables;
 select min(a), max(a) from t1;
 drop table t1, t2, t3;
+
+#
+# BUG#5390 - problems with merge tables
+# Problem #1: INSERT...SELECT
+#
+#drop table if exists t1, t2, t3;
+create table t1(a int);
+create table t2(a int);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int) engine=merge union=(t1, t2) insert_method=first;
+select * from t3;
+#
+insert t2 select * from t2;
+select * from t2;
+#
+insert t3 select * from t1;
+select * from t3;
+#
+insert t1 select * from t3;
+select * from t1;
+select * from t2;
+select * from t3;
+check table t1, t2;
+drop table t1, t2, t3;
+

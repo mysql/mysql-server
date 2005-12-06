@@ -712,7 +712,7 @@ int multi_update::prepare(List<Item> &not_used_values)
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	check_dup(table_ref->db, table_ref->real_name, update_tables))
+	mysql_lock_have_duplicate(thd, table, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->fatal_error != 0);
