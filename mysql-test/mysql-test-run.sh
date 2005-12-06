@@ -110,6 +110,20 @@ wait_for_pid()
   #$WAIT_PID pid $SLEEP_TIME_FOR_DELETE
 }
 
+# Check that valgrind is installed
+find_valgrind()
+{
+  FIND_VALGRIND=`which valgrind` # this will print an error if not found
+  # Give good warning to the user and stop
+  if [ -z "$FIND_VALGRIND" ] ; then
+    $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://valgrind.kde.org ."
+    exit 1
+  fi
+  # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
+  valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
+  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+}
+
 # No paths below as we can't be sure where the program is!
 
 SED=sed
@@ -255,7 +269,6 @@ DO_GDB=""
 MANUAL_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
-DO_VALGRIND_MYSQL_TEST=""
 SLEEP_TIME_AFTER_RESTART=1
 SLEEP_TIME_FOR_DELETE=10
 SLEEP_TIME_FOR_FIRST_MASTER=400		# Enough time to create innodb tables
@@ -470,15 +483,8 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --valgrind | --valgrind-all)
-      VALGRIND=`which valgrind` # this will print an error if not found
-      # Give good warning to the user and stop
-      if [ -z "$VALGRIND" ] ; then
-        $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://valgrind.kde.org ."
-        exit 1
-      fi
-      # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
-      valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
-      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$CWD/valgrind.supp"
+      find_valgrind;
+      VALGRIND=$FIND_VALGRIND
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
@@ -493,8 +499,13 @@ while test $# -gt 0; do
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
       ;;
-    --valgrind-mysqltest)
-      DO_VALGRIND_MYSQL_TEST=1
+    --valgrind-mysqltest | --valgrind-mysqltest-all)
+      find_valgrind;
+      VALGRIND_MYSQLTEST=$FIND_VALGRIND
+      if test "$1" = "--valgrind-mysqltest-all"
+      then
+        VALGRIND_MYSQLTEST="$VALGRIND_MYSQLTEST -v --show-reachable=yes"
+      fi
       ;;
     --skip-ndbcluster | --skip-ndb)
       USE_NDBCLUSTER=""
@@ -599,7 +610,7 @@ DASH72=`$ECHO '-------------------------------------------------------'|$CUT -c 
 if [ x$SOURCE_DIST = x1 ] ; then
  if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
    if [ -f "$BASEDIR/libmysqld/examples/mysqltest_embedded" ] ; then
-     MYSQL_TEST="$VALGRIND $BASEDIR/libmysqld/examples/mysqltest_embedded"
+     MYSQL_TEST="$BASEDIR/libmysqld/examples/mysqltest_embedded"
    else
      echo "Fatal error: Cannot find embedded server 'mysqltest_embedded'" 1>&2
      exit 1
@@ -733,7 +744,7 @@ else
  fi
  if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
    if [ -f "$CLIENT_BINDIR/mysqltest_embedded" ] ; then
-     MYSQL_TEST="$VALGRIND $CLIENT_BINDIR/mysqltest_embedded"
+     MYSQL_TEST="$CLIENT_BINDIR/mysqltest_embedded"
    else
      echo "Fatal error: Cannot find embedded server 'mysqltest_embedded'" 1>&2
      exit 1
@@ -744,7 +755,7 @@ else
      MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test_embedded"
    fi
  else
-   MYSQL_TEST="$VALGRIND_MYSQLTEST $CLIENT_BINDIR/mysqltest"
+   MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
    MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test"
  fi
 fi
@@ -759,8 +770,9 @@ then
 SLAVE_MYSQLD=$MYSQLD
 fi
 
-if [ x$DO_VALGRIND_MYSQL_TEST = x1 ] ; then
-  MYSQL_TEST="$VALGRIND $MYSQL_TEST"
+# If mysqltest should be valgrinded, add valgrind and options to MYSQL_TEST
+if ! [ -z "$VALGRIND_MYSQLTEST" ] ; then
+  MYSQL_TEST="$VALGRIND_MYSQLTEST $MYSQL_TEST"
 fi
 
 # If we should run all tests cases, we will use a local server for that
@@ -829,6 +841,7 @@ GPROF_DIR=$MYSQL_TMP_DIR/gprof
 GPROF_MASTER=$GPROF_DIR/master.gprof
 GPROF_SLAVE=$GPROF_DIR/slave.gprof
 TIMEFILE="$MYSQL_TEST_DIR/var/log/mysqltest-time"
+MYSQLTEST_LOG="$MYSQL_TEST_DIR/var/log/mysqltest.log"
 if [ -n "$DO_CLIENT_GDB" -o -n "$DO_GDB" ] ; then
   XTERM=`which xterm`
 fi
@@ -1773,6 +1786,10 @@ run_testcase ()
     fi
 
     res=$?
+
+    # Save the testcase log to mysqltest log file
+    echo "CURRENT_TEST: $tname" >> $MYSQLTEST_LOG
+    cat $TIMEFILE >> $MYSQLTEST_LOG
 
     pname=`$ECHO "$tname                        "|$CUT -c 1-24`
     RES="$pname"
