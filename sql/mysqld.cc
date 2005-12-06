@@ -395,7 +395,8 @@ extern ulong srv_commit_concurrency;
 #ifndef HAVE_U_INT32_T
 typedef unsigned int  u_int32_t;
 #endif
-extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE;
+extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE,
+                       bdb_DB_DIRECT_DB, bdb_DB_DIRECT_LOG;
 extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
@@ -4481,7 +4482,8 @@ enum options_mysqld
   OPT_BDB_HOME,                OPT_BDB_LOG,
   OPT_BDB_TMP,                 OPT_BDB_SYNC,
   OPT_BDB_LOCK,                OPT_BDB,
-  OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
+  OPT_BDB_NO_RECOVER,          OPT_BDB_SHARED,
+  OPT_BDB_DATA_DIRECT,         OPT_BDB_LOG_DIRECT,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
   OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
@@ -4687,6 +4689,9 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, OPT_BDB_DEFAULT, 0, 0,
    0, 0, 0},
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
+  {"bdb-data-direct", OPT_BDB_DATA_DIRECT,
+   "Turn off system buffering of BDB database files to avoid double caching.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-home", OPT_BDB_HOME, "Berkeley home directory.", (gptr*) &berkeley_home,
    (gptr*) &berkeley_home, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-lock-detect", OPT_BDB_LOCK,
@@ -4695,6 +4700,9 @@ Disable with --skip-bdb (will save memory).",
   {"bdb-logdir", OPT_BDB_LOG, "Berkeley DB log file directory.",
    (gptr*) &berkeley_logdir, (gptr*) &berkeley_logdir, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"bdb-log-direct", OPT_BDB_LOG_DIRECT,
+   "Turn off system buffering of BDB log files to avoid double caching.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bdb-no-recover", OPT_BDB_NO_RECOVER,
    "Don't try to recover Berkeley DB tables on start.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6869,6 +6877,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       berkeley_env_flags|= bdb_DB_TXN_NOSYNC;
     else
       berkeley_env_flags&= ~bdb_DB_TXN_NOSYNC;
+    break;
+  case OPT_BDB_LOG_DIRECT:
+    berkeley_env_flags|= bdb_DB_DIRECT_DB;
+    break;
+  case OPT_BDB_DATA_DIRECT:
+    berkeley_env_flags|= bdb_DB_DIRECT_LOG;
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(bdb_DB_RECOVER);
