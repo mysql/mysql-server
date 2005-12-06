@@ -20,9 +20,6 @@
 #include "sp_cache.h"
 #include "sql_trigger.h"
 
-#define SP_OPEN_TABLE_FOR_UPDATE() \
-       open_proc_type_table_for_update(thd, "proc", &mysql_proc_table_exists)
-
 static bool
 create_string(THD *thd, String *buf,
 	      int sp_type,
@@ -71,7 +68,7 @@ bool mysql_proc_table_exists= 1;
 
 
 /*
-  Close mysql.proc, opened with open_proc_type_table_for_read().
+  Close mysql.proc, opened with open_proc_table_for_read().
 
   SYNOPSIS
     close_proc_table()
@@ -89,16 +86,14 @@ void close_proc_table(THD *thd, Open_tables_state *backup)
 
 
 /*
-  Open table which has key structure like of mysql.proc for read.
+  Open the mysql.proc table for read.
 
   SYNOPSIS
-    open_proc_type_table_for_read()
-      thd           Thread context
-      backup        Pointer to Open_tables_state instance where information about
-                    currently open tables will be saved, and from which will be
-                    restored when we will end work with mysql.proc.
-      tname         Table name having primary key structure like mysql.proc
-      table_exists  Ptr to boolean to set whether the system table exists or not
+    open_proc_table_for_read()
+      thd     Thread context
+      backup  Pointer to Open_tables_state instance where information about
+              currently open tables will be saved, and from which will be
+              restored when we will end work with mysql.proc.
 
   NOTES
     Thanks to restrictions which we put on opening and locking of
@@ -109,11 +104,10 @@ void close_proc_table(THD *thd, Open_tables_state *backup)
 
   RETURN
     0	Error
-    #	Pointer to TABLE object of tname
+    #	Pointer to TABLE object of mysql.proc
 */
 
-TABLE *open_proc_type_table_for_read(THD *thd, Open_tables_state *backup,
-                                     const char *tname, bool *table_exists)
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
 {
   TABLE_LIST tables;
   TABLE *table;
@@ -121,22 +115,22 @@ TABLE *open_proc_type_table_for_read(THD *thd, Open_tables_state *backup,
   DBUG_ENTER("open_proc_table");
 
   /*
-    Speed up things if the table doesn't exists. *table_exists
+    Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
     is set when we create or read stored procedure or on flush privileges.
   */
-  if (!*table_exists)
+  if (!mysql_proc_table_exists)
     DBUG_RETURN(0);
 
   thd->reset_n_backup_open_tables_state(backup);
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) tname;
+  tables.table_name= tables.alias= (char*)"proc";
   if (!(table= open_table(thd, &tables, thd->mem_root, &not_used,
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
     thd->restore_backup_open_tables_state(backup);
-    *table_exists= 0;
+    mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
 
@@ -158,13 +152,11 @@ TABLE *open_proc_type_table_for_read(THD *thd, Open_tables_state *backup,
 
 
 /*
-  Open table with primary key struct like mysql.proc for update.
+  Open the mysql.proc table for update.
 
   SYNOPSIS
-    open_proc_type_table_for_update()
-      thd    Thread context
-      tname  Table name with primary key structure like mysql.proc
-      table_exists  Ptr to boolean to set whether the system table exists or not
+    open_proc_table_for_update()
+      thd  Thread context
 
   NOTES
     Table opened with this call should closed using close_thread_tables().
@@ -174,8 +166,7 @@ TABLE *open_proc_type_table_for_read(THD *thd, Open_tables_state *backup,
     #	Pointer to TABLE object of mysql.proc
 */
 
-TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
-                                       bool *table_exists)
+static TABLE *open_proc_table_for_update(THD *thd)
 {
   TABLE_LIST tables;
   TABLE *table;
@@ -183,7 +174,7 @@ TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) tname;
+  tables.table_name= tables.alias= (char*)"proc";
   tables.lock_type= TL_WRITE;
 
   table= open_ltable(thd, &tables, TL_WRITE);
@@ -195,7 +186,7 @@ TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
     transient.
   */
   if (!(thd->locked_tables || thd->prelocked_mode) || table)
-    *table_exists= test(table);
+    mysql_proc_table_exists= test(table);
 
   DBUG_RETURN(table);
 }
@@ -205,11 +196,10 @@ TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
   Find row in open mysql.proc table representing stored routine.
 
   SYNOPSIS
-    sp_db_find_routine_aux()
+    db_find_routine_aux()
       thd    Thread context
       type   Type of routine to find (function or procedure)
-      dbname Name of routine's database
-      rname  Name of the routine inside the db  
+      name   Name of routine
       table  TABLE object for open mysql.proc table.
 
   RETURN VALUE
@@ -217,14 +207,13 @@ TABLE *open_proc_type_table_for_update(THD *thd, const char *tname,
     SP_KEY_NOT_FOUND- No routine with given name
 */
 
-int
-sp_db_find_routine_aux(THD *thd, int type, const LEX_STRING dbname,
-                       const LEX_STRING rname, TABLE *table)
+static int
+db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
-  DBUG_ENTER("sp_db_find_routine_aux");
+  DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, rname.length, rname.str));
+		       type, name->m_name.length, name->m_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -233,10 +222,11 @@ sp_db_find_routine_aux(THD *thd, int type, const LEX_STRING dbname,
     'db', 'name' and 'type' and the first key is the primary key over the
     same fields.
   */
-  if (rname.length > table->field[1]->field_length)
+  if (name->m_name.length > table->field[1]->field_length)
     DBUG_RETURN(SP_KEY_NOT_FOUND);
-  table->field[0]->store(dbname.str, dbname.length, &my_charset_bin);
-  table->field[1]->store(rname.str, rname.length, &my_charset_bin);
+  table->field[0]->store(name->m_db.str, name->m_db.length, &my_charset_bin);
+  table->field[1]->store(name->m_name.str, name->m_name.length,
+                         &my_charset_bin);
   table->field[2]->store((longlong) type, TRUE);
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
@@ -293,12 +283,10 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 		       type, name->m_name.length, name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
-  if (!(table= open_proc_type_table_for_read(thd,&open_tables_state_backup,
-                                             "proc", &mysql_proc_table_exists)))
+  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
-  if ((ret= sp_db_find_routine_aux(thd, type, name->m_db, name->m_name,
-                                   table)) != SP_OK)
+  if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
     goto done;
 
   if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
@@ -505,7 +493,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     goto done;
   }
 
-  if (!(table= SP_OPEN_TABLE_FOR_UPDATE()))
+  if (!(table= open_proc_table_for_update(thd)))
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
@@ -626,10 +614,9 @@ db_drop_routine(THD *thd, int type, sp_name *name)
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  if (!(table= SP_OPEN_TABLE_FOR_UPDATE()))
+  if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-  if ((ret= sp_db_find_routine_aux(thd, type, name->m_db, name->m_name,
-                                   table)) == SP_OK)
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (table->file->delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
@@ -649,10 +636,9 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   DBUG_PRINT("enter", ("type: %d name: %.*s",
 		       type, name->m_name.length, name->m_name.str));
 
-  if (!(table= SP_OPEN_TABLE_FOR_UPDATE()))
+  if (!(table= open_proc_table_for_update(thd)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
-  if ((ret= sp_db_find_routine_aux(thd, type, name->m_db, name->m_name,
-                                   table)) == SP_OK)
+  if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     store_record(table,record[1]);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
@@ -874,7 +860,7 @@ sp_drop_db_routines(THD *thd, char *db)
   keylen= sizeof(key);
 
   ret= SP_OPEN_TABLE_FAILED;
-  if (!(table= SP_OPEN_TABLE_FOR_UPDATE()))
+  if (!(table= open_proc_table_for_update(thd)))
     goto err;
 
   ret= SP_OK;
