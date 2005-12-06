@@ -2519,6 +2519,12 @@ ha_innobase::open(
   	DBUG_RETURN(0);
 }
 
+uint
+ha_innobase::max_supported_key_part_length() const
+{
+	return(DICT_MAX_INDEX_COL_LEN - 1);
+}
+
 /**********************************************************************
 Closes a handle to an InnoDB table. */
 
@@ -4675,6 +4681,9 @@ create_index(
 				0, prefix_len);
 	}
 
+	/* Even though we've defined max_supported_key_part_length, we
+	still do our own checking using field_lengths to be absolutely
+	sure we don't create too long indexes. */
 	error = row_create_index_for_mysql(index, trx, field_lengths);
 
 	error = convert_error_code_to_mysql(error, NULL);
