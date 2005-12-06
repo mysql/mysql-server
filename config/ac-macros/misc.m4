@@ -693,6 +693,27 @@ dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_BIG_TABLES SECTION
 dnl ---------------------------------------------------------------------------
 
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_MAX_INDEXES
+dnl Sets MAX_INDEXES
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_MAX_INDEXES], [
+  AC_ARG_WITH([max-indexes],
+              [
+  --with-max-indexes=\#      Sets the maximum number of indexes per table, default 64],
+              [max_indexes="$withval"],
+              [max_indexes=64])
+  AC_MSG_CHECKING([max indexes per table])
+  AC_DEFINE_UNQUOTED([MAX_INDEXES], [$max_indexes],
+                     [Maximum number of indexes per table])
+  AC_MSG_RESULT([$max_indexes])
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_MAX_INDEXES SECTION
+dnl ---------------------------------------------------------------------------
+
+
 dnl MYSQL_NEEDS_MYSYS_NEW
 AC_DEFUN([MYSQL_NEEDS_MYSYS_NEW],
 [AC_CACHE_CHECK([needs mysys_new helpers], mysql_use_mysys_new,

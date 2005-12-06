@@ -243,6 +243,7 @@ EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLCHECK_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
+EXTRA_MYSQLSLAP_OPT=""
 EXTRA_MYSQLSHOW_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
@@ -519,6 +520,8 @@ while test $# -gt 0; do
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlcheck.trace"
       EXTRA_MYSQLDUMP_OPT="$EXTRA_MYSQLDUMP_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqldump.trace"
+      EXTRA_MYSQLSLAP_OPT="$EXTRA_MYSQLSLAP_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlslap.trace"
       EXTRA_MYSQLSHOW_OPT="$EXTRA_MYSQLSHOW_OPT \
        --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqlshow.trace"
       EXTRA_MYSQLBINLOG_OPT="$EXTRA_MYSQLBINLOG_OPT \
@@ -629,6 +632,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlslap" ] ; then
+   MYSQL_SLAP="$BASEDIR/client/.libs/mysqlslap"
+ else
+   MYSQL_SLAP="$BASEDIR/client/mysqlslap"
+ fi
  if [ -f "$BASEDIR/client/.libs/mysqlimport" ] ; then
    MYSQL_IMPORT="$BASEDIR/client/.libs/mysqlimport"
  else
@@ -709,6 +717,7 @@ else
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_CHECK="$CLIENT_BINDIR/mysqlcheck"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_SLAP="$CLIENT_BINDIR/mysqlslap"
  MYSQL_SHOW="$CLIENT_BINDIR/mysqlshow"
  MYSQL_IMPORT="$CLIENT_BINDIR/mysqlimport"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
@@ -796,6 +805,7 @@ MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
 MYSQL_CHECK="$MYSQL_CHECK --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_SLAP="$MYSQL_SLAP -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSLAP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
@@ -803,6 +813,7 @@ MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
+export MYSQL_SLAP
 export NDB_TOOLS_DIR
 export NDB_MGM
 export NDB_BACKUP_DIR
