@@ -628,6 +628,10 @@ static void die(const char *fmt, ...)
   va_end(args);
   free_used_memory();
   my_end(MY_CHECK_ERROR);
+
+  if (!silent)
+    printf("not ok\n");
+
   exit(1);
 }
 
@@ -3050,11 +3054,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     /* Allocate data for output */
-    /*
-      FIXME it may be a bug that for non string/blob types
-      'max_length' is 0, should try out 'length' in that case
-    */
-    uint max_length= max(field[col_idx].max_length + 1, 1024);
+    uint max_length= field[col_idx].max_length + 1;
     char *str_data= (char *) my_malloc(max_length, MYF(MY_WME | MY_FAE));
 
     bind[col_idx].buffer_type= MYSQL_TYPE_STRING;
@@ -3062,6 +3062,11 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     bind[col_idx].buffer_length= max_length;
     bind[col_idx].is_null= &is_null[col_idx];
     bind[col_idx].length= &length[col_idx];
+
+    DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %d",
+			col_idx,
+			bind[col_idx].buffer_type,
+			bind[col_idx].buffer_length));
   }
 
   /* Fill in the data into the structures created above */
@@ -3197,11 +3202,11 @@ static void append_metadata(DYNAMIC_STRING *ds,
   Append affected row count and other info to output
 */
 
-static void append_info(DYNAMIC_STRING *ds, ulong affected_rows,
+static void append_info(DYNAMIC_STRING *ds, ulonglong affected_rows,
 			const char *info)
 {
   char buf[40];
-  sprintf(buf,"affected rows: %lu\n", affected_rows);
+  sprintf(buf,"affected rows: %llu\n", affected_rows);
   dynstr_append(ds, buf);
   if (info)
   {
@@ -3231,17 +3236,20 @@ static void append_table_headings(DYNAMIC_STRING *ds,
 }
 
 /*
-  Fetch warnings from server and append to output
+  Fetch warnings from server and append to ds
+
+  RETURN VALUE
+   Number of warnings appended to ds
 */
 
-static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
+static int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 {
   uint count;
   MYSQL_RES *warn_res;
   DBUG_ENTER("append_warnings");
 
   if (!(count= mysql_warning_count(mysql)))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   /*
     If one day we will support execution of multi-statements
@@ -3257,12 +3265,12 @@ static void append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
     die("Warning count is %u but didn't get any warnings",
 	count);
 
-  dynstr_append_mem(ds, "Warnings:\n", 10);
   append_result(ds, warn_res);
   mysql_free_result(warn_res);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(count);
 }
+
 
 
 /*
@@ -3287,6 +3295,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
 {
   MYSQL_RES *res= 0;
   int err= 0, counter= 0;
+  DYNAMIC_STRING ds_warnings;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
@@ -3334,7 +3343,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
 
     if (!disable_result_log)
     {
-      ulong affected_rows;    /* Ok to be undef if 'disable_info' is set */
+      ulonglong affected_rows;    /* Ok to be undef if 'disable_info' is set */
       LINT_INIT(affected_rows);
 
       if (res)
@@ -3356,7 +3365,7 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
         query to find the warnings
       */
       if (!disable_info)
-        affected_rows= (ulong)mysql_affected_rows(mysql);
+        affected_rows= mysql_affected_rows(mysql);
 
       /*
         Add all warnings to the result. We can't do this if we are in
@@ -3364,7 +3373,15 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
         this will break protocol.
       */
       if (!disable_warnings && !mysql_more_results(mysql))
-	append_warnings(ds, mysql);
+      {
+	init_dynamic_string(&ds_warnings, NULL, 0, 256);
+	if (append_warnings(&ds_warnings, mysql))
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  dynstr_append_mem(ds, ds_warnings.str, ds_warnings.length);
+	}
+	dynstr_free(&ds_warnings);
+      }
 
       if (!disable_info)
 	append_info(ds, affected_rows, mysql_info(mysql));
@@ -3542,6 +3559,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
+  DYNAMIC_STRING ds_execute_warnings;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
@@ -3562,6 +3580,10 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   {
     handle_error(query, command,  mysql_stmt_errno(stmt),
 		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+#ifndef BUG15518_FIXED
+    mysql_stmt_close(stmt);
+    cur_con->stmt= NULL;
+#endif
     goto end;
   }
 
@@ -3569,10 +3591,10 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     Get the warnings from mysql_stmt_prepare and keep them in a
     separate string
   */
-
   if (!disable_warnings)
   {
-    init_dynamic_string(&ds_prepare_warnings, "", 1024, 1024);
+    init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
+    init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
     append_warnings(&ds_prepare_warnings, mysql);
   }
 
@@ -3588,7 +3610,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   */
   if (cursor_protocol_enabled)
   {
-    unsigned long type= CURSOR_TYPE_READ_ONLY;
+    ulong type= CURSOR_TYPE_READ_ONLY;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type))
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
 	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
@@ -3654,25 +3676,36 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 
       mysql_free_result(res);     /* Free normal result set with meta data */
 
+      /* Clear prepare warnings */
+      dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
       /*
 	This is a query without resultset
       */
-
-      /*
-	Add warnings from prepare to output
-       */
-      if (!disable_warnings)
-	dynstr_append(ds, ds_prepare_warnings.str);
     }
 
     if (!disable_warnings)
-      append_warnings(ds, mysql);
+    {
+      /* Get the warnings from execute */
+
+      /* Append warnings to ds - if there are any */
+      if (append_warnings(&ds_execute_warnings, mysql) ||
+	  ds_prepare_warnings.length)
+      {
+	dynstr_append_mem(ds, "Warnings:\n", 10);
+	if (ds_prepare_warnings.length)
+	  dynstr_append_mem(ds, ds_prepare_warnings.str,
+			    ds_prepare_warnings.length);
+	if (ds_execute_warnings.length)
+	  dynstr_append_mem(ds, ds_execute_warnings.str,
+			    ds_execute_warnings.length);
+      }
+    }
 
     if (!disable_info)
-      append_info(ds, (ulong)mysql_affected_rows(mysql), mysql_info(mysql));
+      append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
   }
 
@@ -3680,7 +3713,10 @@ end:
   free_replace();
 
   if (!disable_warnings)
+  {
     dynstr_free(&ds_prepare_warnings);
+    dynstr_free(&ds_execute_warnings);
+  }
 
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
@@ -3778,6 +3814,10 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
       DBUG_PRINT("view_create_error",
 		 ("Failed to create view '%s': %d: %s", query_str.str,
 		  mysql_errno(mysql), mysql_error(mysql)));
+
+      /* Log error to create view */
+      verbose_msg("Failed to create view '%s' %d: %s", query_str.str,
+		  mysql_errno(mysql), mysql_error(mysql));
     }
     else
     {
@@ -3817,6 +3857,11 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
       DBUG_PRINT("sp_create_error",
 		 ("Failed to create sp '%s': %d: %s", query_str.str,
 		  mysql_errno(mysql), mysql_error(mysql)));
+
+      /* Log error to create sp */
+      verbose_msg("Failed to create sp '%s' %d: %s", query_str.str,
+		  mysql_errno(mysql), mysql_error(mysql));
+
     }
     else
     {
@@ -4446,24 +4491,10 @@ int main(int argc, char **argv)
   }
 
   /*
-    The whole test has been executed sucessfully
+    The whole test has been executed _sucessfully_
     Time to compare result or save it to record file
     The entire output from test is now kept in ds_res
-   */
-
-  if (!query_executed && result_file && my_stat(result_file, &res_info, 0))
-  {
-    /*
-      my_stat() successful on result file. Check if we have not run a
-      single query, but we do have a result file that contains data.
-      Note that we don't care, if my_stat() fails. For example for
-      non-existing or non-readable file we assume it's fine to have
-      no query output from the test file, e.g. regarded as no error.
-    */
-    if (res_info.st_size)
-      die("No queries executed but result file found!");
-  }
-
+  */
   if (ds_res.length)
   {
     if (result_file)
@@ -4475,20 +4506,37 @@ int main(int argc, char **argv)
       }
       else
       {
-	/* Check that the output from test is equal to result file */
+	/* Check that the output from test is equal to result file
+	   - detect missing result file
+	   - detect zero size result file
+	 */
 	check_result(&ds_res, result_file, 0);
       }
     }
     else
     {
-      /* No result_file to compare with, print the result to stdout */
+      /* No result_file specified to compare with, print to stdout */
       printf("%s", ds_res.str);
     }
   }
   else
   {
-    /* The test didn't produce any output */
+    die("The test didn't produce any output");
   }
+
+  if (!query_executed && result_file && my_stat(result_file, &res_info, 0))
+  {
+    /*
+      my_stat() successful on result file. Check if we have not run a
+      single query, but we do have a result file that contains data.
+      Note that we don't care, if my_stat() fails. For example for
+      non-existing or non-readable file we assume it's fine to have
+      no query output from the test file, e.g. regarded as no error.
+    */
+    die("No queries executed but result file found!");
+  }
+
+
   dynstr_free(&ds_res);
 
   if (!got_end_timer)
