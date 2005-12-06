@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="98">
+<charsets max-id="99">
 
 <copyright>
  Copyright (C) 2003 MySQL AB
@@ -369,6 +369,9 @@ To make maintaining easier please:
   </collation>
   <collation name="cp1250_croatian_ci"	id="44">
     <order>Croatian</order>
+  </collation>
+  <collation name="cp1250_polish_ci"  id="99">
+    <order>Polish</order>
   </collation>
   <collation name="cp1250_czech_cs"	id="34"	order="Czech">
     <flag>compiled</flag>
