@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: xa_map.c,v 11.25 2004/10/15 16:59:46 bostic Exp $
+ * $Id: xa_map.c,v 12.4 2005/10/13 20:42:34 bostic Exp $
  */
 
 #include "db_config.h"
@@ -117,29 +117,23 @@ __db_unmap_rmid(rmid)
 
 /*
  * __db_map_xid
- *	Create a mapping between this XID and the transaction at
- *	"off" in the shared region.
+ *	Create a mapping between this XID and the transaction
+ *	"td" in the shared region.
  *
- * PUBLIC: int __db_map_xid __P((DB_ENV *, XID *, size_t));
+ * PUBLIC: int __db_map_xid __P((DB_ENV *, XID *, TXN_DETAIL *));
  */
 int
-__db_map_xid(dbenv, xid, off)
+__db_map_xid(dbenv, xid, td)
 	DB_ENV *dbenv;
 	XID *xid;
-	size_t off;
-{
-	REGINFO *infop;
 	TXN_DETAIL *td;
-
-	infop = &((DB_TXNMGR *)dbenv->tx_handle)->reginfo;
-	td = R_ADDR(infop, off);
-
-	R_LOCK(dbenv, infop);
+{
+	TXN_SYSTEM_LOCK(dbenv);
 	memcpy(td->xid, xid->data, XIDDATASIZE);
 	td->bqual = (u_int32_t)xid->bqual_length;
 	td->gtrid = (u_int32_t)xid->gtrid_length;
 	td->format = (int32_t)xid->formatID;
-	R_UNLOCK(dbenv, infop);
+	TXN_SYSTEM_UNLOCK(dbenv);
 
 	return (0);
 }

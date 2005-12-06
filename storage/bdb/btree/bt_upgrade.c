@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: bt_upgrade.c,v 11.30 2004/01/28 03:35:49 bostic Exp $
+ * $Id: bt_upgrade.c,v 12.1 2005/06/16 20:20:23 bostic Exp $
  */
 #include "db_config.h"
 

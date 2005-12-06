@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcasecmp.c,v 1.8 2004/01/28 03:35:52 bostic Exp $
+ * $Id: strcasecmp.c,v 12.0 2004/11/17 03:43:15 bostic Exp $
  */
 
 #include "db_config.h"

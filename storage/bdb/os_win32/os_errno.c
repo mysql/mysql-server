@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_errno.c,v 11.14 2004/07/06 21:06:38 mjc Exp $
+ * $Id: os_errno.c,v 12.2 2005/06/16 20:23:28 bostic Exp $
  */
 
 #include "db_config.h"
@@ -101,10 +101,8 @@ __os_get_errno()
 		ret = EACCES;
 		break;
 
+	case ERROR_LOCK_FAILED:
 	case ERROR_NOT_READY:
-		ret = EBUSY;
-		break;
-
 	case ERROR_LOCK_VIOLATION:
 	case ERROR_SHARING_VIOLATION:
 		ret = EBUSY;

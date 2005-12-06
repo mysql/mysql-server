@@ -1,4 +1,4 @@
-# $Id: options.ac,v 11.37 2004/06/10 16:38:18 bostic Exp $
+# $Id: options.ac,v 12.2 2005/10/12 14:45:42 bostic Exp $
 
 # Process user-specified options.
 AC_DEFUN(AM_OPTIONS_SET, [
@@ -161,6 +161,13 @@ AC_ARG_ENABLE(posixmutexes,
 	[db_cv_posixmutexes="$enable_posixmutexes"], [db_cv_posixmutexes="no"])
 AC_MSG_RESULT($db_cv_posixmutexes)
 
+AC_MSG_CHECKING(if --enable-pthread_self option specified)
+AC_ARG_ENABLE(pthread_self,
+	[AC_HELP_STRING([--enable-pthread_self],
+			[Force use of pthread_self to identify threads.])],
+	[db_cv_pthread_self="$enable_pthread_self"], [db_cv_pthread_self="no"])
+AC_MSG_RESULT($db_cv_pthread_self)
+
 AC_MSG_CHECKING(if --enable-rpc option specified)
 AC_ARG_ENABLE(rpc,
 	[AC_HELP_STRING([--enable-rpc],
@@ -224,20 +231,13 @@ if test "$with_mutex" != "no"; then
 fi
 AC_MSG_RESULT($with_mutex)
 
-AH_TEMPLATE(MUTEX_ALIGN,
-    [Define to a value if using non-standard mutex alignment.])
-AC_MSG_CHECKING(if --with-mutexalign=ALIGNMENT option specified)
+# --with-mutexalign=ALIGNMENT was the configuration option that Berkeley DB
+# used before the DbEnv::mutex_set_align method was added.
 AC_ARG_WITH(mutexalign,
 	[AC_HELP_STRING([--with-mutexalign=ALIGNMENT],
-			[Selection of non-standard mutex alignment.])],
-	[with_mutexalign="$withval"], [with_mutexalign="no"])
-if test "$with_mutexalign" = "yes"; then
-	AC_MSG_ERROR([--with-mutexalign requires a mutex alignment argument])
-fi
-if test "$with_mutexalign" != "no"; then
-	AC_DEFINE_UNQUOTED(MUTEX_ALIGN, $with_mutexalign)
-fi
-AC_MSG_RESULT($with_mutexalign)
+			[Obsolete; use DbEnv::mutex_set_align instead.])],
+	[AC_MSG_ERROR(
+    [--with-mutexalign no longer supported, use DbEnv::mutex_set_align])])
 
 AC_MSG_CHECKING([if --with-tcl=DIR option specified])
 AC_ARG_WITH(tcl,

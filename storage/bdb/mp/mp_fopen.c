@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_fopen.c,v 11.143 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_fopen.c,v 12.16 2005/10/31 02:22:31 bostic Exp $
  */
 
 #include "db_config.h"
@@ -36,7 +36,8 @@ __memp_fopen_pp(dbmfp, path, flags, mode, pagesize)
 	size_t pagesize;
 {
 	DB_ENV *dbenv;
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbenv = dbmfp->dbenv;
 
@@ -70,12 +71,10 @@ __memp_fopen_pp(dbmfp, path, flags, mode, pagesize)
 		return (EINVAL);
 	}
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_fopen(dbmfp, NULL, path, flags, mode, pagesize);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv,
+	    (__memp_fopen(dbmfp, NULL, path, flags, mode, pagesize)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -102,14 +101,14 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	db_pgno_t last_pgno;
 	size_t maxmap;
 	u_int32_t mbytes, bytes, oflags, pagesize;
-	int refinc, ret;
+	int created_fileid, refinc, ret;
 	char *rpath;
 	void *p;
 
 	dbenv = dbmfp->dbenv;
 	dbmp = dbenv->mp_handle;
 	mp = dbmp->reginfo[0].primary;
-	refinc = ret = 0;
+	created_fileid = refinc = ret = 0;
 	rpath = NULL;
 
 	/*
@@ -127,8 +126,19 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	 */
 	DB_ASSERT(mfp == NULL || path == NULL);
 
-	if (mfp == NULL && path == NULL)
+	/* If this handle is already open, return. */
+	if (F_ISSET(dbmfp, MP_OPEN_CALLED))
+		return (0);
+
+	if (path == NULL && mfp == NULL)
 		goto alloc;
+
+	/*
+	 * If there's no backing file, we can join existing files in the cache,
+	 * but there's nothing to read from disk.
+	 */
+	if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE))
+		goto check_mpoolfile;
 
 	/*
 	 * Our caller may be able to tell us which underlying MPOOLFILE we
@@ -140,12 +150,12 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 		 * failed creating the file DB_AM_DISCARD).  Increment the ref
 		 * count so the file cannot become dead and be unlinked.
 		 */
-		MUTEX_LOCK(dbenv, &mfp->mutex);
+		MUTEX_LOCK(dbenv, mfp->mutex);
 		if (!mfp->deadfile) {
 			++mfp->mpf_cnt;
 			refinc = 1;
 		}
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
 
 		/*
 		 * Test one last time to see if the file is dead -- it may have
@@ -169,6 +179,15 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	}
 
 	/*
+	 * XXX
+	 * A grievous layering violation, the DB_DSYNC_DB flag was left in
+	 * the DB_ENV structure and not driven through the cache API.  This
+	 * needs to be fixed when the general API configuration is fixed.
+	 */
+	if (F_ISSET(dbenv, DB_ENV_DSYNC_DB))
+		oflags |= DB_OSO_DSYNC;
+
+	/*
 	 * Get the real name for this file and open it.
 	 *
 	 * Supply a page size so os_open can decide whether to turn buffering
@@ -179,7 +198,7 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	 * the region, __memp_nameop may be simultaneously renaming the file.
 	 */
 	if (mfp != NULL) {
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		path = R_ADDR(dbmp->reginfo, mfp->path_off);
 	}
 	if ((ret =
@@ -187,7 +206,8 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 		ret = __os_open_extend(dbenv,
 		    rpath, (u_int32_t)pagesize, oflags, mode, &dbmfp->fhp);
 	if (mfp != NULL)
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
+
 	if (ret != 0) {
 		/* If it's a Queue extent file, it may not exist, that's OK. */
 		if (!LF_ISSET(DB_EXTENT))
@@ -200,9 +220,8 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	 * underlying file handle across seek and read/write calls.
 	 */
 	dbmfp->fhp->ref = 1;
-	if (F_ISSET(dbenv, DB_ENV_THREAD) &&
-	    (ret = __db_mutex_setup(dbenv, dbmp->reginfo,
-	    &dbmfp->fhp->mutexp, MUTEX_ALLOC | MUTEX_THREAD)) != 0)
+	if ((ret = __mutex_alloc(
+	    dbenv, MTX_MPOOL_FH, DB_MUTEX_THREAD, &dbmfp->fhp->mtx_fh)) != 0)
 		goto err;
 
 	/*
@@ -227,19 +246,18 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	 * don't use timestamps, otherwise there'd be no chance of any
 	 * other process joining the party.
 	 */
-	if (!F_ISSET(dbmfp, MP_FILEID_SET) &&
-	    (ret = __os_fileid(dbenv, rpath, 0, dbmfp->fileid)) != 0)
-		goto err;
+	if (!F_ISSET(dbmfp, MP_FILEID_SET)) {
+		if  ((ret = __os_fileid(dbenv, rpath, 0, dbmfp->fileid)) != 0)
+			goto err;
+		created_fileid = 1;
+	}
 
 	if (mfp != NULL)
 		goto have_mfp;
 
+check_mpoolfile:
 	/*
-	 * If not creating a temporary file, walk the list of MPOOLFILE's,
-	 * looking for a matching file.  Files backed by temporary files
-	 * or previously removed files can't match.
-	 *
-	 * DB_TRUNCATE support.
+	 * Walk the list of MPOOLFILE's, looking for a matching file.
 	 *
 	 * The fileID is a filesystem unique number (e.g., a UNIX dev/inode
 	 * pair) plus a timestamp.  If files are removed and created in less
@@ -255,17 +273,36 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 	 * a matching entry, we ensure that it's never found again, and we
 	 * create a new entry for the current request.
 	 */
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 	for (mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
 	    mfp != NULL; mfp = SH_TAILQ_NEXT(mfp, q, __mpoolfile)) {
 		/* Skip dead files and temporary files. */
 		if (mfp->deadfile || F_ISSET(mfp, MP_TEMP))
 			continue;
 
-		/* Skip non-matching files. */
-		if (memcmp(dbmfp->fileid, R_ADDR(dbmp->reginfo,
-		    mfp->fileid_off), DB_FILE_ID_LEN) != 0)
-			continue;
+		/*
+		 * Any remaining DB_MPOOL_NOFILE databases are in-memory
+		 * named databases and need only match other in-memory
+		 * databases with the same name.
+		 */
+		if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE)) {
+			if (!mfp->no_backing_file)
+				continue;
+
+			if (strcmp(path, R_ADDR(dbmp->reginfo, mfp->path_off)))
+				continue;
+
+			/*
+			 * We matched an in-memory file; grab the fileid if
+			 * it is set in the region, but not in the dbmfp.
+			 */
+			if (!F_ISSET(dbmfp, MP_FILEID_SET))
+				__memp_set_fileid(dbmfp,
+				    R_ADDR(dbmp->reginfo, mfp->fileid_off));
+		} else
+			if (memcmp(dbmfp->fileid, R_ADDR(dbmp->reginfo,
+			    mfp->fileid_off), DB_FILE_ID_LEN) != 0)
+				continue;
 
 		/*
 		 * If the file is being truncated, remove it from the system
@@ -276,15 +313,17 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 		 * loop, but I like the idea of checking all the entries.
 		 */
 		if (LF_ISSET(DB_TRUNCATE)) {
-			MUTEX_LOCK(dbenv, &mfp->mutex);
+			MUTEX_LOCK(dbenv, mfp->mutex);
 			mfp->deadfile = 1;
-			MUTEX_UNLOCK(dbenv, &mfp->mutex);
+			MUTEX_UNLOCK(dbenv, mfp->mutex);
 			continue;
 		}
 
 		/*
 		 * Some things about a file cannot be changed: the clear length,
-		 * page size, or lSN location.
+		 * page size, or LSN location.  However, if this is an attempt
+		 * to open a named in-memory file, we may not yet have that
+		 * information. so accept uninitialized entries.
 		 *
 		 * The file type can change if the application's pre- and post-
 		 * processing needs change.  For example, an application that
@@ -295,13 +334,17 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 		 * We do not check to see if the pgcookie information changed,
 		 * or update it if it is.
 		 */
-		if (dbmfp->clear_len != mfp->clear_len ||
-		    pagesize != mfp->stat.st_pagesize ||
-		    dbmfp->lsn_offset != mfp->lsn_off) {
+		if ((dbmfp->clear_len != DB_CLEARLEN_NOTSET &&
+		    mfp->clear_len != DB_CLEARLEN_NOTSET &&
+		    dbmfp->clear_len != mfp->clear_len) ||
+		    (pagesize != 0 && pagesize != mfp->stat.st_pagesize) ||
+		    (dbmfp->lsn_offset != -1 &&
+		    mfp->lsn_off != DB_LSN_OFF_NOTSET &&
+		    dbmfp->lsn_offset != mfp->lsn_off)) {
 			__db_err(dbenv,
 		    "%s: clear length, page size or LSN location changed",
 			    path);
-			R_UNLOCK(dbenv, dbmp->reginfo);
+			MPOOL_SYSTEM_UNLOCK(dbenv);
 			ret = EINVAL;
 			goto err;
 		}
@@ -318,26 +361,48 @@ __memp_fopen(dbmfp, mfp, path, flags, mode, pgsize)
 		 * deadfile because the reference count is 0 blocks us finding
 		 * the file without knowing it's about to be marked dead.
 		 */
-		MUTEX_LOCK(dbenv, &mfp->mutex);
+		MUTEX_LOCK(dbenv, mfp->mutex);
 		if (mfp->deadfile) {
-			MUTEX_UNLOCK(dbenv, &mfp->mutex);
+			MUTEX_UNLOCK(dbenv, mfp->mutex);
 			continue;
 		}
 		++mfp->mpf_cnt;
 		refinc = 1;
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
 
+		/* Initialize any fields that are not yet set. */
 		if (dbmfp->ftype != 0)
 			mfp->ftype = dbmfp->ftype;
+		if (dbmfp->clear_len != DB_CLEARLEN_NOTSET)
+			mfp->clear_len = dbmfp->clear_len;
+		if (dbmfp->lsn_offset != -1)
+			mfp->lsn_off = dbmfp->lsn_offset;
 
 		break;
 	}
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 
 	if (mfp != NULL)
 		goto have_mfp;
 
-alloc:	/* Allocate and initialize a new MPOOLFILE. */
+alloc:	/*
+	 * If we get here and we created a FILEID, then it's OK to set
+	 * the dbmfp as having its FILEID_SET, because we aren't trying
+	 * to match an existing file in the mpool.
+	 */
+	if (created_fileid)
+		F_SET(dbmfp, MP_FILEID_SET);
+	/*
+	 * If we didn't find the file and this is an in-memory file, then
+	 *  the create flag should be set.
+	 */
+	if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE) &&
+	    !LF_ISSET(DB_CREATE)) {
+		ret = ENOENT;
+		goto err;
+	}
+
+	/* Allocate and initialize a new MPOOLFILE. */
 	if ((ret = __memp_alloc(
 	    dbmp, dbmp->reginfo, NULL, sizeof(MPOOLFILE), NULL, &mfp)) != 0)
 		goto err;
@@ -360,19 +425,28 @@ alloc:	/* Allocate and initialize a new MPOOLFILE. */
 	if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_UNLINK))
 		mfp->unlink_on_close = 1;
 
-	if (LF_ISSET(DB_TXN_NOT_DURABLE))
-		F_SET(mfp, MP_NOT_DURABLE);
 	if (LF_ISSET(DB_DURABLE_UNKNOWN | DB_RDONLY))
 		F_SET(mfp, MP_DURABLE_UNKNOWN);
 	if (LF_ISSET(DB_DIRECT))
 		F_SET(mfp, MP_DIRECT);
 	if (LF_ISSET(DB_EXTENT))
 		F_SET(mfp, MP_EXTENT);
+	if (LF_ISSET(DB_TXN_NOT_DURABLE))
+		F_SET(mfp, MP_NOT_DURABLE);
 	F_SET(mfp, MP_CAN_MMAP);
 
+	/*
+	 * An in-memory database with no name is a temp file.  Named
+	 * in-memory databases get an artificially  bumped reference
+	 * count so they don't disappear on close; they need a remove
+	 * to make them disappear.
+	 */
 	if (path == NULL)
 		F_SET(mfp, MP_TEMP);
-	else {
+	else if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE))
+		mfp->mpf_cnt++;
+
+	if (path != NULL && !FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE)) {
 		/*
 		 * Don't permit files that aren't a multiple of the pagesize,
 		 * and find the number of the last page in the file, all the
@@ -407,17 +481,31 @@ alloc:	/* Allocate and initialize a new MPOOLFILE. */
 			--last_pgno;
 		mfp->orig_last_pgno = mfp->last_pgno = last_pgno;
 
-		/* Copy the file path into shared memory. */
-		if ((ret = __memp_alloc(dbmp, dbmp->reginfo,
-		    NULL, strlen(path) + 1, &mfp->path_off, &p)) != 0)
+		/*
+		 * Get the file ID if we weren't given one.  Generated file ID's
+		 * don't use timestamps, otherwise there'd be no chance of any
+		 * other process joining the party.
+		 */
+		if (!F_ISSET(dbmfp, MP_FILEID_SET) &&
+		    (ret = __os_fileid(dbenv, rpath, 0, dbmfp->fileid)) != 0)
 			goto err;
-		memcpy(p, path, strlen(path) + 1);
 
-		/* Copy the file identification string into shared memory. */
+	}
+
+	/* Copy the file identification string into shared memory. */
+	if (F_ISSET(dbmfp, MP_FILEID_SET)) {
 		if ((ret = __memp_alloc(dbmp, dbmp->reginfo,
 		    NULL, DB_FILE_ID_LEN, &mfp->fileid_off, &p)) != 0)
 			goto err;
 		memcpy(p, dbmfp->fileid, DB_FILE_ID_LEN);
+	}
+
+	/* Copy the file path into shared memory. */
+	if (path != NULL) {
+		if ((ret = __memp_alloc(dbmp, dbmp->reginfo,
+		    NULL, strlen(path) + 1, &mfp->path_off, &p)) != 0)
+			goto err;
+		memcpy(p, path, strlen(path) + 1);
 	}
 
 	/* Copy the page cookie into shared memory. */
@@ -432,17 +520,16 @@ alloc:	/* Allocate and initialize a new MPOOLFILE. */
 		mfp->pgcookie_len = dbmfp->pgcookie->size;
 	}
 
+	if ((ret =
+	    __mutex_alloc(dbenv, MTX_MPOOLFILE_HANDLE, 0, &mfp->mutex)) != 0)
+		goto err;
+
 	/*
 	 * Prepend the MPOOLFILE to the list of MPOOLFILE's.
 	 */
-	R_LOCK(dbenv, dbmp->reginfo);
-	ret = __db_mutex_setup(dbenv, dbmp->reginfo, &mfp->mutex,
-	    MUTEX_NO_RLOCK);
-	if (ret == 0)
-		SH_TAILQ_INSERT_HEAD(&mp->mpfq, mfp, q, __mpoolfile);
-	R_UNLOCK(dbenv, dbmp->reginfo);
-	if (ret != 0)
-		goto err;
+	MPOOL_SYSTEM_LOCK(dbenv);
+	SH_TAILQ_INSERT_HEAD(&mp->mpfq, mfp, q, __mpoolfile);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 
 have_mfp:
 	/*
@@ -492,7 +579,10 @@ have_mfp:
 	 */
 #define	DB_MAXMMAPSIZE	(10 * 1024 * 1024)	/* 10 MB. */
 	if (F_ISSET(mfp, MP_CAN_MMAP)) {
-		if (path == NULL)
+		maxmap = dbenv->mp_mmapsize == 0 ?
+		    DB_MAXMMAPSIZE : dbenv->mp_mmapsize;
+		if (path == NULL ||
+		    FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE))
 			F_CLR(mfp, MP_CAN_MMAP);
 		else if (!F_ISSET(dbmfp, MP_READONLY))
 			F_CLR(mfp, MP_CAN_MMAP);
@@ -501,10 +591,10 @@ have_mfp:
 		else if (LF_ISSET(DB_NOMMAP) || F_ISSET(dbenv, DB_ENV_NOMMAP))
 			F_CLR(mfp, MP_CAN_MMAP);
 		else {
-			R_LOCK(dbenv, dbmp->reginfo);
+			MPOOL_SYSTEM_LOCK(dbenv);
 			maxmap = mp->mp_mmapsize == 0 ?
 			    DB_MAXMMAPSIZE : mp->mp_mmapsize;
-			R_UNLOCK(dbenv, dbmp->reginfo);
+			MPOOL_SYSTEM_UNLOCK(dbenv);
 			if (mbytes > maxmap / MEGABYTE ||
 			    (mbytes == maxmap / MEGABYTE &&
 			    bytes >= maxmap % MEGABYTE))
@@ -529,26 +619,24 @@ have_mfp:
 	 *
 	 * Add the file to the process' list of DB_MPOOLFILEs.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	MUTEX_LOCK(dbenv, dbmp->mutex);
 
-	for (tmp_dbmfp = TAILQ_FIRST(&dbmp->dbmfq);
-	    tmp_dbmfp != NULL; tmp_dbmfp = TAILQ_NEXT(tmp_dbmfp, q))
-		if (dbmfp->mfp == tmp_dbmfp->mfp &&
-		    (F_ISSET(dbmfp, MP_READONLY) ||
-		    !F_ISSET(tmp_dbmfp, MP_READONLY))) {
-			if (dbmfp->fhp->mutexp != NULL)
-				__db_mutex_free(
-				    dbenv, dbmp->reginfo, dbmfp->fhp->mutexp);
-			(void)__os_closehandle(dbenv, dbmfp->fhp);
-
-			++tmp_dbmfp->fhp->ref;
-			dbmfp->fhp = tmp_dbmfp->fhp;
-			break;
-		}
+	if (dbmfp->fhp != NULL)
+		for (tmp_dbmfp = TAILQ_FIRST(&dbmp->dbmfq);
+		    tmp_dbmfp != NULL; tmp_dbmfp = TAILQ_NEXT(tmp_dbmfp, q))
+			if (dbmfp->mfp == tmp_dbmfp->mfp &&
+			    (F_ISSET(dbmfp, MP_READONLY) ||
+			    !F_ISSET(tmp_dbmfp, MP_READONLY))) {
+				__mutex_free(dbenv, &dbmfp->fhp->mtx_fh);
+				(void)__os_closehandle(dbenv, dbmfp->fhp);
+				++tmp_dbmfp->fhp->ref;
+				dbmfp->fhp = tmp_dbmfp->fhp;
+				break;
+			}
 
 	TAILQ_INSERT_TAIL(&dbmp->dbmfq, dbmfp, q);
 
-	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbmp->mutex);
 
 	if (0) {
 err:		if (refinc) {
@@ -558,9 +646,9 @@ err:		if (refinc) {
 			 * error trying to open the file, so we probably cannot
 			 * unlink it anyway.
 			 */
-			MUTEX_LOCK(dbenv, &mfp->mutex);
+			MUTEX_LOCK(dbenv, mfp->mutex);
 			--mfp->mpf_cnt;
-			MUTEX_UNLOCK(dbenv, &mfp->mutex);
+			MUTEX_UNLOCK(dbenv, mfp->mutex);
 		}
 
 	}
@@ -581,7 +669,8 @@ __memp_fclose_pp(dbmfp, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int rep_check, ret, t_ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbenv = dbmfp->dbenv;
 
@@ -591,15 +680,11 @@ __memp_fclose_pp(dbmfp, flags)
 	 * !!!
 	 * DB_MPOOL_DISCARD: Undocumented flag: DB private.
 	 */
-	ret = __db_fchk(dbenv, "DB_MPOOLFILE->close", flags, DB_MPOOL_DISCARD);
+	(void)__db_fchk(dbenv, "DB_MPOOLFILE->close", flags, DB_MPOOL_DISCARD);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	if ((t_ret = __memp_fclose(dbmfp, flags)) != 0 && ret == 0)
-		ret = t_ret;
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_fclose(dbmfp, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -637,7 +722,7 @@ __memp_fclose(dbmfp, flags)
 	if (dbmp == NULL)
 		goto done;
 
-	MUTEX_THREAD_LOCK(dbenv, dbmp->mutexp);
+	MUTEX_LOCK(dbenv, dbmp->mutex);
 
 	DB_ASSERT(dbmfp->ref >= 1);
 	if ((ref = --dbmfp->ref) == 0 && F_ISSET(dbmfp, MP_OPEN_CALLED))
@@ -649,7 +734,7 @@ __memp_fclose(dbmfp, flags)
 	 */
 	if (ref == 0 && dbmfp->fhp != NULL && --dbmfp->fhp->ref > 0)
 		dbmfp->fhp = NULL;
-	MUTEX_THREAD_UNLOCK(dbenv, dbmp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbmp->mutex);
 	if (ref != 0)
 		return (0);
 
@@ -670,11 +755,9 @@ __memp_fclose(dbmfp, flags)
 	 * files may not yet have been created.
 	 */
 	if (dbmfp->fhp != NULL) {
-		if (dbmfp->fhp->mutexp != NULL) {
-			__db_mutex_free(
-			    dbenv, dbmp->reginfo, dbmfp->fhp->mutexp);
-			dbmfp->fhp->mutexp = NULL;
-		}
+		if ((t_ret =
+		    __mutex_free(dbenv, &dbmfp->fhp->mtx_fh)) != 0 && ret == 0)
+			ret = t_ret;
 		if ((t_ret = __os_closehandle(dbenv, dbmfp->fhp)) != 0) {
 			__db_err(dbenv, "%s: %s",
 			    __memp_fn(dbmfp), db_strerror(t_ret));
@@ -704,11 +787,12 @@ __memp_fclose(dbmfp, flags)
 	 * when we try to flush them.
 	 */
 	deleted = 0;
-	MUTEX_LOCK(dbenv, &mfp->mutex);
+	MUTEX_LOCK(dbenv, mfp->mutex);
 	if (--mfp->mpf_cnt == 0 || LF_ISSET(DB_MPOOL_DISCARD)) {
 		if (LF_ISSET(DB_MPOOL_DISCARD) ||
-		    F_ISSET(mfp, MP_TEMP) || mfp->unlink_on_close)
+		    F_ISSET(mfp, MP_TEMP) || mfp->unlink_on_close) {
 			mfp->deadfile = 1;
+		}
 		if (mfp->unlink_on_close) {
 			if ((t_ret = __db_appname(dbmp->dbenv,
 			    DB_APP_DATA, R_ADDR(dbmp->reginfo,
@@ -729,7 +813,7 @@ __memp_fclose(dbmfp, flags)
 		}
 	}
 	if (deleted == 0)
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
 
 done:	/* Discard the DB_MPOOLFILE structure. */
 	if (dbmfp->pgcookie != NULL) {
@@ -755,10 +839,11 @@ __memp_mf_discard(dbmp, mfp)
 	DB_ENV *dbenv;
 	DB_MPOOL_STAT *sp;
 	MPOOL *mp;
-	int need_sync, ret;
+	int need_sync, ret, t_ret;
 
 	dbenv = dbmp->dbenv;
 	mp = dbmp->reginfo[0].primary;
+	ret = 0;
 
 	/*
 	 * Expects caller to be holding the MPOOLFILE mutex.
@@ -779,14 +864,18 @@ __memp_mf_discard(dbmp, mfp)
 	 */
 	mfp->deadfile = 1;
 
-	/* Discard the mutex we're holding. */
-	MUTEX_UNLOCK(dbenv, &mfp->mutex);
+	/* Discard the mutex we're holding and return it too the pool. */
+	MUTEX_UNLOCK(dbenv, mfp->mutex);
+	if ((t_ret = __mutex_free(dbenv, &mfp->mutex)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/* Lock the region and delete from the list of MPOOLFILEs. */
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 	SH_TAILQ_REMOVE(&mp->mpfq, mfp, q, __mpoolfile);
 
-	ret = need_sync ? __memp_mf_sync(dbmp, mfp) : 0;
+	if (need_sync &&
+	    (t_ret = __memp_mf_sync(dbmp, mfp, 1)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/* Copy the statistics into the region. */
 	sp = &mp->stat;
@@ -796,10 +885,6 @@ __memp_mf_discard(dbmp, mfp)
 	sp->st_page_create += mfp->stat.st_page_create;
 	sp->st_page_in += mfp->stat.st_page_in;
 	sp->st_page_out += mfp->stat.st_page_out;
-
-	/* Clear the mutex this MPOOLFILE recorded. */
-	__db_shlocks_clear(&mfp->mutex, dbmp->reginfo,
-	    R_ADDR(dbmp->reginfo, mp->maint_off));
 
 	/* Free the space. */
 	if (mfp->path_off != 0)
@@ -813,7 +898,73 @@ __memp_mf_discard(dbmp, mfp)
 		    R_ADDR(dbmp->reginfo, mfp->pgcookie_off));
 	__db_shalloc_free(&dbmp->reginfo[0], mfp);
 
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 
+	return (ret);
+}
+
+/*
+ * __memp_inmemlist --
+ *	Return a list of the named in-memory databases.
+ *
+ * PUBLIC: int __memp_inmemlist __P((DB_ENV *, char ***, int *));
+ */
+int
+__memp_inmemlist(dbenv, namesp, cntp)
+	DB_ENV *dbenv;
+	char ***namesp;
+	int *cntp;
+{
+	DB_MPOOL *dbmp;
+	MPOOL *mp;
+	MPOOLFILE *mfp;
+
+	int arraysz, cnt, ret;
+	char **names;
+
+	names = NULL;
+	dbmp = dbenv->mp_handle;
+	mp = dbmp->reginfo[0].primary;
+
+	arraysz = cnt = 0;
+	MPOOL_SYSTEM_LOCK(dbenv);
+	for (mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
+	    mfp != NULL; mfp = SH_TAILQ_NEXT(mfp, q, __mpoolfile)) {
+		/* Skip dead files and temporary files. */
+		if (mfp->deadfile || F_ISSET(mfp, MP_TEMP))
+			continue;
+
+		/* Skip entries that allow files. */
+		if (!mfp->no_backing_file)
+			continue;
+
+		/* We found one. */
+		if (cnt >= arraysz) {
+			arraysz += 100;
+			if ((ret = __os_realloc(dbenv,
+			    (u_int)arraysz * sizeof(names[0]), &names)) != 0)
+				goto nomem;
+		}
+		if ((ret = __os_strdup(dbenv,
+		    R_ADDR(dbmp->reginfo, mfp->path_off), &names[cnt])) != 0)
+			goto nomem;
+
+		cnt++;
+	}
+	MPOOL_SYSTEM_UNLOCK(dbenv);
+	*namesp = names;
+	*cntp = cnt;
+	return (0);
+
+nomem:	MPOOL_SYSTEM_UNLOCK(dbenv);
+	if (names != NULL) {
+		while (--cnt >= 0)
+			__os_free(dbenv, names[cnt]);
+		__os_free(dbenv, names);
+	}
+
+	/* Make sure we don't return any garbage. */
+	*cntp = 0;
+	*namesp = NULL;
 	return (ret);
 }

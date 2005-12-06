@@ -1,5 +1,5 @@
 /*
- * $Id: sha1.c,v 1.14 2004/01/28 03:36:11 bostic Exp $
+ * $Id: sha1.c,v 12.0 2004/11/17 03:43:56 bostic Exp $
  */
 
 #include "db_config.h"

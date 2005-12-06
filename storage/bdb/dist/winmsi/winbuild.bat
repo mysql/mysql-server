@@ -1,5 +1,5 @@
 @echo off
-::	$Id: winbuild.bat,v 1.4 2005/04/15 19:01:52 philipr Exp $
+::	$Id: winbuild.bat,v 1.5 2005/10/26 13:29:34 dda Exp $
 ::	Helper script to build Berkeley DB libraries and executables
 ::	using MSDEV
 ::
@@ -67,12 +67,6 @@ echo Building Berkeley DB
 devenv /useenv /build Debug /project build_all Berkeley_DB.sln >> ..\winbld.out 2>&1
 if not %errorlevel% == 0 goto ERROR
 devenv /useenv /build Release /project build_all Berkeley_DB.sln >> ..\winbld.out 2>&1
-if not %errorlevel% == 0 goto ERROR
-devenv /useenv /build "Debug Static" /project build_all Berkeley_DB.sln >> ..\winbld.out 2>&1
-if not %errorlevel% == 0 goto ERROR
-devenv /useenv /build "Release Static" /project build_all Berkeley_DB.sln >> ..\winbld.out 2>&1
-if not %errorlevel% == 0 goto ERROR
-devenv /useenv /build Debug /project ex_repquote Berkeley_DB.sln >> ..\winbld.out 2>&1
 if not %errorlevel% == 0 goto ERROR
 devenv /useenv /build Debug /project db_java Berkeley_DB.sln >> ..\winbld.out 2>&1
 if not %errorlevel% == 0 goto ERROR

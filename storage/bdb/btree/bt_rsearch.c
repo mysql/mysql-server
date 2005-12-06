@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt_rsearch.c,v 11.40 2004/07/23 17:21:09 bostic Exp $
+ * $Id: bt_rsearch.c,v 12.5 2005/08/08 03:37:05 ubell Exp $
  */
 
 #include "db_config.h"
@@ -100,44 +100,14 @@ __bam_rsearch(dbc, recnop, flags, stop, exactp)
 	 *
 	 * Retrieve the root page.
 	 */
-	pg = cp->root;
-	stack = LF_ISSET(S_STACK) ? 1 : 0;
-	lock_mode = stack ? DB_LOCK_WRITE : DB_LOCK_READ;
-	if ((ret = __db_lget(dbc, 0, pg, lock_mode, 0, &lock)) != 0)
-		return (ret);
-	if ((ret = __memp_fget(mpf, &pg, 0, &h)) != 0) {
-		/* Did not read it, so we can release the lock */
-		(void)__LPUT(dbc, lock);
-		return (ret);
-	}
 
-	/*
-	 * Decide if we need to save this page; if we do, write lock it.
-	 * We deliberately don't lock-couple on this call.  If the tree
-	 * is tiny, i.e., one page, and two threads are busily updating
-	 * the root page, we're almost guaranteed deadlocks galore, as
-	 * each one gets a read lock and then blocks the other's attempt
-	 * for a write lock.
-	 */
-	if (!stack &&
-	    ((LF_ISSET(S_PARENT) && (u_int8_t)(stop + 1) >= h->level) ||
-	    (LF_ISSET(S_WRITE) && h->level == LEAFLEVEL))) {
-		ret = __memp_fput(mpf, h, 0);
-		if ((t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
-			ret = t_ret;
-		if (ret != 0)
-			return (ret);
-		lock_mode = DB_LOCK_WRITE;
-		if ((ret = __db_lget(dbc, 0, pg, lock_mode, 0, &lock)) != 0)
-			return (ret);
-		if ((ret = __memp_fget(mpf, &pg, 0, &h)) != 0) {
-			/* Did not read it, so we can release the lock */
-			(void)__LPUT(dbc, lock);
-			return (ret);
-		}
-		stack = 1;
-	}
+	if ((ret = __bam_get_root(dbc, cp->root, stop, flags, &stack)) != 0)
+		return (ret);
+	lock_mode = cp->csp->lock_mode;
+	lock = cp->csp->lock;
+	h = cp->csp->page;
 
+	BT_STK_CLR(cp);
 	/*
 	 * If appending to the tree, set the record number now -- we have the
 	 * root page locked.
@@ -260,15 +230,15 @@ __bam_rsearch(dbc, recnop, flags, stop, exactp)
 		}
 		--indx;
 
+		/* Return if this is the lowest page wanted. */
+		if (stop == LEVEL(h)) {
+			BT_STK_ENTER(dbp->dbenv,
+			    cp, h, indx, lock, lock_mode, ret);
+			if (ret != 0)
+				goto err;
+			return (0);
+		}
 		if (stack) {
-			/* Return if this is the lowest page wanted. */
-			if (LF_ISSET(S_PARENT) && stop == h->level) {
-				BT_STK_ENTER(dbp->dbenv,
-				    cp, h, indx, lock, lock_mode, ret);
-				if (ret != 0)
-					goto err;
-				return (0);
-			}
 			BT_STK_PUSH(dbp->dbenv,
 			    cp, h, indx, lock, lock_mode, ret);
 			if (ret != 0)
@@ -286,8 +256,8 @@ __bam_rsearch(dbc, recnop, flags, stop, exactp)
 			 * never unlock it.
 			 */
 			if ((LF_ISSET(S_PARENT) &&
-			    (u_int8_t)(stop + 1) >= (u_int8_t)(h->level - 1)) ||
-			    (h->level - 1) == LEAFLEVEL)
+			    (u_int8_t)(stop + 1) >= (u_int8_t)(LEVEL(h) - 1)) ||
+			    (LEVEL(h) - 1) == LEAFLEVEL)
 				stack = 1;
 
 			if ((ret = __memp_fput(mpf, h, 0)) != 0)

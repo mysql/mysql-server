@@ -1,4 +1,4 @@
-# $Id: programs.ac,v 11.22 2004/06/10 16:38:18 bostic Exp $
+# $Id: programs.ac,v 12.1 2005/04/07 06:47:03 mjc Exp $
 
 # Check for programs used in building/installation.
 AC_DEFUN(AM_PROGRAMS_SET, [
@@ -51,6 +51,11 @@ AC_CHECK_TOOL(path_sh, sh, missing_sh)
 AC_PATH_PROG(db_cv_path_sh, $path_sh, missing_sh)
 if test "$db_cv_path_sh" = missing_sh; then
 	AC_MSG_ERROR([No sh utility found.])
+fi
+
+AC_CHECK_TOOL(db_cv_path_true, true, missing_true)
+if test "$db_cv_path_true" = missing_true; then
+	AC_MSG_ERROR([No true utility found.])
 fi
 
 # Don't strip the binaries if --enable-debug was specified.

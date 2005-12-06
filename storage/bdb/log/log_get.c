@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: log_get.c,v 11.110 2004/09/17 22:00:31 mjc Exp $
+ * $Id: log_get.c,v 12.16 2005/10/21 17:13:42 bostic Exp $
  */
 
 #include "db_config.h"
@@ -30,7 +30,7 @@ static int __log_c_get_int __P((DB_LOGC *, DB_LSN *, DBT *, u_int32_t));
 static int __log_c_hdrchk __P((DB_LOGC *, DB_LSN *, HDR *, int *));
 static int __log_c_incursor __P((DB_LOGC *, DB_LSN *, HDR *, u_int8_t **));
 static int __log_c_inregion __P((DB_LOGC *,
-	       DB_LSN *, RLOCK *, DB_LSN *, HDR *, u_int8_t **));
+	       DB_LSN *, RLOCK *, DB_LSN *, HDR *, u_int8_t **, int *));
 static int __log_c_io __P((DB_LOGC *,
 	       u_int32_t, u_int32_t, void *, size_t *, int *));
 static int __log_c_ondisk __P((DB_LOGC *,
@@ -50,7 +50,8 @@ __log_cursor_pp(dbenv, logcp, flags)
 	DB_LOGC **logcp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -60,12 +61,9 @@ __log_cursor_pp(dbenv, logcp, flags)
 	if ((ret = __db_fchk(dbenv, "DB_ENV->log_cursor", flags, 0)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __log_cursor(dbenv, logcp);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__log_cursor(dbenv, logcp)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -116,8 +114,9 @@ __log_c_close_pp(logc, flags)
 	DB_LOGC *logc;
 	u_int32_t flags;
 {
+	DB_THREAD_INFO *ip;
 	DB_ENV *dbenv;
-	int rep_check, ret;
+	int ret;
 
 	dbenv = logc->dbenv;
 
@@ -125,12 +124,9 @@ __log_c_close_pp(logc, flags)
 	if ((ret = __db_fchk(dbenv, "DB_LOGC->close", flags, 0)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __log_c_close(logc);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__log_c_close(logc)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -174,7 +170,8 @@ __log_c_get_pp(logc, alsn, dbt, flags)
 	u_int32_t flags;
 {
 	DB_ENV *dbenv;
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	dbenv = logc->dbenv;
 
@@ -199,12 +196,9 @@ __log_c_get_pp(logc, alsn, dbt, flags)
 		return (__db_ferr(dbenv, "DB_LOGC->get", 1));
 	}
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __log_c_get(logc, alsn, dbt, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__log_c_get(logc, alsn, dbt, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -300,9 +294,10 @@ __log_c_get_int(logc, alsn, dbt, flags)
 	logfile_validity status;
 	u_int32_t cnt;
 	u_int8_t *rp;
-	int eof, is_hmac, ret;
+	int eof, is_hmac, need_cksum, ret;
 
 	dbenv = logc->dbenv;
+	db_cipher = dbenv->crypto_handle;
 	dblp = dbenv->lg_handle;
 	lp = dblp->reginfo.primary;
 	is_hmac = 0;
@@ -391,7 +386,7 @@ __log_c_get_int(logc, alsn, dbt, flags)
 	case DB_LAST:				/* Last log record. */
 		if (rlock == L_NONE) {
 			rlock = L_ACQUIRED;
-			R_LOCK(dbenv, &dblp->reginfo);
+			LOG_SYSTEM_LOCK(dbenv);
 		}
 		nlsn.file = lp->lsn.file;
 		nlsn.offset = lp->lsn.offset - lp->len;
@@ -422,7 +417,11 @@ next_file:	++nlsn.file;
 		hdr.size = HDR_NORMAL_SZ;
 		is_hmac = 0;
 	}
-	/* Check to see if the record is in the cursor's buffer. */
+
+	/*
+	 * Check to see if the record is in the cursor's buffer -- if so,
+	 * we'll need to checksum it.
+	 */
 	if ((ret = __log_c_incursor(logc, &nlsn, &hdr, &rp)) != 0)
 		goto err;
 	if (rp != NULL)
@@ -434,7 +433,7 @@ next_file:	++nlsn.file;
 	 * buffer.  Else, check the region's buffer.
 	 *
 	 * If the record isn't in the region's buffer, then either logs are
-	 * in-memory, and we're done, or  we're going to have to read the
+	 * in-memory, and we're done, or we're going to have to read the
 	 * record from disk.  We want to make a point of not reading past the
 	 * end of the logical log (after recovery, there may be data after the
 	 * end of the logical log, not to mention the log file may have been
@@ -449,10 +448,18 @@ next_file:	++nlsn.file;
 		F_CLR(logc, DB_LOG_DISK);
 
 		if ((ret = __log_c_inregion(logc,
-		    &nlsn, &rlock, &last_lsn, &hdr, &rp)) != 0)
+		    &nlsn, &rlock, &last_lsn, &hdr, &rp, &need_cksum)) != 0)
 			goto err;
-		if (rp != NULL)
-			goto cksum;
+		if (rp != NULL) {
+			/*
+			 * If we read the entire record from the in-memory log
+			 * buffer, we don't need to checksum it, nor do we need
+			 * to worry about vtruncate issues.
+			 */
+			if (need_cksum)
+				goto cksum;
+			goto from_memory;
+		}
 		if (lp->db_log_inmemory)
 			goto nohdr;
 	}
@@ -467,7 +474,7 @@ next_file:	++nlsn.file;
 	 */
 	if (rlock == L_ACQUIRED) {
 		rlock = L_NONE;
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_UNLOCK(dbenv);
 	}
 	if ((ret = __log_c_ondisk(
 	    logc, &nlsn, &last_lsn, flags, &hdr, &rp, &eof)) != 0)
@@ -485,13 +492,13 @@ next_file:	++nlsn.file;
 
 cksum:	/*
 	 * Discard the region lock if we're still holding it.  (The path to
-	 * get here is that we acquired the lock because of the caller's
-	 * flag argument, but we found the record in the cursor's buffer.
-	 * Improbable, but it's easy to avoid.
+	 * get here is we acquired the region lock because of the caller's
+	 * flag argument, but we found the record in the in-memory or cursor
+	 * buffers.  Improbable, but it's easy to avoid.)
 	 */
 	if (rlock == L_ACQUIRED) {
 		rlock = L_NONE;
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_UNLOCK(dbenv);
 	}
 
 	/*
@@ -500,7 +507,6 @@ cksum:	/*
 	 * OK if we're searching for the end of the log, and very, very bad
 	 * if we're reading random log records.
 	 */
-	db_cipher = dbenv->crypto_handle;
 	if ((ret = __db_check_chksum(dbenv, db_cipher,
 	    hdr.chksum, rp + hdr.size, hdr.len - hdr.size, is_hmac)) != 0) {
 		if (F_ISSET(logc, DB_LOG_SILENT_ERR)) {
@@ -550,6 +556,18 @@ nohdr:		switch (flags) {
 		}
 	}
 
+from_memory:
+	/*
+	 * Discard the region lock if we're still holding it.  (The path to
+	 * get here is we acquired the region lock because of the caller's
+	 * flag argument, but we found the record in the in-memory or cursor
+	 * buffers.  Improbable, but it's easy to avoid.)
+	 */
+	if (rlock == L_ACQUIRED) {
+		rlock = L_NONE;
+		LOG_SYSTEM_UNLOCK(dbenv);
+	}
+
 	/* Copy the record into the user's DBT. */
 	if ((ret = __db_retcopy(dbenv, dbt, rp + hdr.size,
 	    (u_int32_t)(hdr.len - hdr.size),
@@ -579,7 +597,7 @@ nohdr:		switch (flags) {
 	logc->c_prev = hdr.prev;
 
 err:	if (rlock == L_ACQUIRED)
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_UNLOCK(dbenv);
 
 	return (ret);
 }
@@ -644,12 +662,13 @@ __log_c_incursor(logc, lsn, hdr, pp)
  *	Check to see if the requested record is in the region's buffer.
  */
 static int
-__log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
+__log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp, need_cksump)
 	DB_LOGC *logc;
 	DB_LSN *lsn, *last_lsn;
 	RLOCK *rlockp;
 	HDR *hdr;
 	u_int8_t **pp;
+	int *need_cksump;
 {
 	DB_ENV *dbenv;
 	DB_LOG *dblp;
@@ -666,11 +685,12 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	ret = 0;
 	b_region = 0;
 	*pp = NULL;
+	*need_cksump = 0;
 
 	/* If we haven't yet acquired the log region lock, do so. */
 	if (*rlockp == L_NONE) {
 		*rlockp = L_ACQUIRED;
-		R_LOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_LOCK(dbenv);
 	}
 
 	/*
@@ -737,7 +757,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	 *
 	 * There is one case where the header check can fail: on a scan through
 	 * in-memory logs, when we reach the end of a file we can read an empty
-	 * heady.  In that case, it's safe to return zero, here: it will be
+	 * header.  In that case, it's safe to return zero, here: it will be
 	 * caught in our caller.  Otherwise, the LSN is bogus.  Fail hard.
 	 */
 	if (lp->db_log_inmemory || log_compare(lsn, &lp->f_lsn) > 0) {
@@ -754,7 +774,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 		} else if (lsn->offset + hdr->len > lp->w_off + lp->buffer_size)
 			return (DB_NOTFOUND);
 		if (logc->bp_size <= hdr->len) {
-			len = (size_t)DB_ALIGN(hdr->len * 2, 128);
+			len = (size_t)DB_ALIGN((uintmax_t)hdr->len * 2, 128);
 			if ((ret =
 			    __os_realloc(logc->dbenv, len, &logc->bp)) != 0)
 				 return (ret);
@@ -803,7 +823,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	 * of waiting.
 	 */
 	if (logc->bp_size <= b_region + b_disk) {
-		len = (size_t)DB_ALIGN((b_region + b_disk) * 2, 128);
+		len = (size_t)DB_ALIGN((uintmax_t)(b_region + b_disk) * 2, 128);
 		if ((ret = __os_realloc(logc->dbenv, len, &logc->bp)) != 0)
 			return (ret);
 		logc->bp_size = (u_int32_t)len;
@@ -816,7 +836,7 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 	/* Release the region lock. */
 	if (*rlockp == L_ACQUIRED) {
 		*rlockp = L_NONE;
-		R_UNLOCK(dbenv, &dblp->reginfo);
+		LOG_SYSTEM_UNLOCK(dbenv);
 	}
 
 	/*
@@ -831,6 +851,9 @@ __log_c_inregion(logc, lsn, rlockp, last_lsn, hdr, pp)
 			return (ret);
 		if (nr < b_disk)
 			return (__log_c_shortread(logc, lsn, 0));
+
+		/* We read bytes from the disk, we'll need to checksum them. */
+		*need_cksump = 1;
 	}
 
 	/* Copy the header information into the caller's structure. */
@@ -898,7 +921,7 @@ __log_c_ondisk(logc, lsn, last_lsn, flags, hdr, pp, eofp)
 	 * Make sure we have enough space.
 	 */
 	if (logc->bp_size <= hdr->len) {
-		len = (size_t)DB_ALIGN(hdr->len * 2, 128);
+		len = (size_t)DB_ALIGN((uintmax_t)hdr->len * 2, 128);
 		if ((ret = __os_realloc(dbenv, len, &logc->bp)) != 0)
 			return (ret);
 		logc->bp_size = (u_int32_t)len;
@@ -1041,11 +1064,13 @@ __log_c_io(logc, fnum, offset, p, nrp, eofp)
 {
 	DB_ENV *dbenv;
 	DB_LOG *dblp;
+	LOG *lp;
 	int ret;
 	char *np;
 
 	dbenv = logc->dbenv;
 	dblp = dbenv->lg_handle;
+	lp = dblp->reginfo.primary;
 
 	/*
 	 * If we've switched files, discard the current file handle and acquire
@@ -1098,6 +1123,7 @@ __log_c_io(logc, fnum, offset, p, nrp, eofp)
 	}
 
 	/* Read the data. */
+	++lp->stat.st_rcount;
 	if ((ret = __os_read(dbenv, logc->c_fhp, p, *nrp, nrp)) != 0) {
 		if (!F_ISSET(logc, DB_LOG_SILENT_ERR))
 			__db_err(dbenv,
@@ -1178,3 +1204,134 @@ __log_c_set_maxrec(logc, np)
 
 	return (0);
 }
+
+#ifdef HAVE_REPLICATION
+/*
+ * __log_rep_split --
+ *	- Split a log buffer into individual records.
+ *
+ * This is used by a replication client to process a bulk log message from the
+ * master and convert it into individual __rep_apply requests.
+ *
+ * PUBLIC: int __log_rep_split __P((DB_ENV *, REP_CONTROL *, DBT *, DB_LSN *));
+ */
+int
+__log_rep_split(dbenv, rp, rec, ret_lsnp)
+	DB_ENV *dbenv;
+	REP_CONTROL *rp;
+	DBT *rec;
+	DB_LSN *ret_lsnp;
+{
+	DB_LSN save_lsn, tmp_lsn;
+	DB_REP *db_rep;
+	DBT logrec;
+	REP *rep;
+	REP_CONTROL tmprp;
+	u_int32_t len;
+	int is_dup, is_perm, ret, save_ret;
+	u_int8_t *p, *ep;
+#ifdef DIAGNOSTIC
+	DB_MSGBUF mb;
+#endif
+
+	memset(&logrec, 0, sizeof(logrec));
+	memset(&save_lsn, 0, sizeof(save_lsn));
+	memset(&tmp_lsn, 0, sizeof(tmp_lsn));
+	/*
+	 * We're going to be modifying the rp LSN contents so make
+	 * our own private copy to play with.
+	 */
+	memcpy(&tmprp, rp, sizeof(tmprp));
+	/*
+	 * We send the bulk buffer on a PERM record, so often we will have
+	 * DB_LOG_PERM set.  However, we only want to mark the last LSN
+	 * we have as a PERM record.  So clear it here, and when we're on
+	 * the last record below, set it.
+	 */
+	is_perm = F_ISSET(rp, DB_LOG_PERM);
+	F_CLR(&tmprp, DB_LOG_PERM);
+	ret = save_ret = 0;
+	db_rep = dbenv->rep_handle;
+	rep = db_rep->region;
+	for (ep = (u_int8_t *)rec->data + rec->size, p = (u_int8_t *)rec->data;
+	    p < ep; ) {
+		/*
+		 * First thing in the buffer is the length.  Then the LSN
+		 * of this record, then the record itself.
+		 */
+		/*
+		 * XXX
+		 * If/when we add architecture neutral log files we may want
+		 * to send/receive these lengths in network byte order.
+		 */
+		memcpy(&len, p, sizeof(len));
+		p += sizeof(len);
+		memcpy(&tmprp.lsn, p, sizeof(DB_LSN));
+		p += sizeof(DB_LSN);
+		logrec.data = p;
+		logrec.size = len;
+		RPRINT(dbenv, rep, (dbenv, &mb,
+		    "log_rep_split: Processing LSN [%lu][%lu]",
+		    (u_long)tmprp.lsn.file, (u_long)tmprp.lsn.offset));
+		RPRINT(dbenv, rep, (dbenv, &mb,
+    "log_rep_split: p %#lx ep %#lx logrec data %#lx, size %lu (%#lx)",
+		    P_TO_ULONG(p), P_TO_ULONG(ep), P_TO_ULONG(logrec.data),
+		    (u_long)logrec.size, (u_long)logrec.size));
+		is_dup = 0;
+		p += len;
+		if (p >= ep && is_perm)
+			F_SET(&tmprp, DB_LOG_PERM);
+		ret = __rep_apply(dbenv, &tmprp, &logrec, &tmp_lsn, &is_dup);
+		RPRINT(dbenv, rep, (dbenv, &mb,
+		    "log_split: rep_apply ret %d, tmp_lsn [%lu][%lu]",
+		    ret, (u_long)tmp_lsn.file, (u_long)tmp_lsn.offset));
+#if 0
+		/*
+		 * This buffer may be old and we've already gotten these
+		 * records.  Short-circuit processing this buffer.
+		 */
+		if (is_dup)
+			goto out;
+#endif
+		switch (ret) {
+		/*
+		 * If we received the pieces we need for running recovery,
+		 * short-circuit because recovery will truncate the log to
+		 * the LSN we want anyway.
+		 */
+		case DB_REP_LOGREADY:
+			goto out;
+		/*
+		 * If we just handled a special record, retain that information.
+		 */
+		case DB_REP_ISPERM:
+		case DB_REP_NOTPERM:
+		case DB_REP_STARTUPDONE:
+			save_ret = ret;
+			save_lsn = tmp_lsn;
+			ret = 0;
+			break;
+		/*
+		 * Normal processing, do nothing, just continue.
+		 */
+		case 0:
+			break;
+		/*
+		 * If we get an error, then stop immediately.
+		 */
+		default:
+			goto out;
+		}
+	}
+out:
+	/*
+	 * If we finish processing successfully, set our return values
+	 * based on what we saw.
+	 */
+	if (ret == 0) {
+		ret = save_ret;
+		*ret_lsnp = save_lsn;
+	}
+	return (ret);
+}
+#endif

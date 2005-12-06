@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam.h,v 11.49 2004/09/17 22:00:27 mjc Exp $
+ * $Id: qam.h,v 12.3 2005/10/16 18:42:40 bostic Exp $
  */
 
 #ifndef	_DB_QAM_H_
@@ -69,8 +69,8 @@ struct __queue {
 };
 
 /* Format for queue extent names. */
-#define	QUEUE_EXTENT "%s%c__dbq.%s.%d"
-#define	QUEUE_EXTENT_HEAD "__dbq.%s."
+#define	QUEUE_EXTENT		"%s%c__dbq.%s.%d"
+#define	QUEUE_EXTENT_HEAD	"__dbq.%s."
 
 typedef struct __qam_filelist {
 	DB_MPOOLFILE *mpf;

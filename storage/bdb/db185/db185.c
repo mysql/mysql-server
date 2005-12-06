@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db185.c,v 11.35 2004/03/24 20:37:35 bostic Exp $
+ * $Id: db185.c,v 12.2 2005/10/06 14:36:51 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2005\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -89,12 +89,6 @@ __db185_open(file, oflags, mode, type, openinfo)
 				(void)dbp->set_bt_minkey(dbp, bi->minkeypage);
 			if (bi->psize != 0)
 				(void)dbp->set_pagesize(dbp, bi->psize);
-			/*
-			 * !!!
-			 * Comparisons and prefix calls work because the DBT
-			 * structures in 1.85 and 2.0 have the same initial
-			 * fields.
-			 */
 			if (bi->prefix != NULL) {
 				db185p->prefix = bi->prefix;
 				dbp->set_bt_prefix(dbp, db185_prefix);
@@ -546,7 +540,14 @@ db185_compare(dbp, a, b)
 	DB *dbp;
 	const DBT *a, *b;
 {
-	return (((DB185 *)dbp->api_internal)->compare(a, b));
+	DBT185 a185, b185;
+
+	a185.data = a->data;
+	a185.size = a->size;
+	b185.data = b->data;
+	b185.size = b->size;
+
+	return (((DB185 *)dbp->api_internal)->compare(&a185, &b185));
 }
 
 /*
@@ -558,7 +559,14 @@ db185_prefix(dbp, a, b)
 	DB *dbp;
 	const DBT *a, *b;
 {
-	return (((DB185 *)dbp->api_internal)->prefix(a, b));
+	DBT185 a185, b185;
+
+	a185.data = a->data;
+	a185.size = a->size;
+	b185.data = b->data;
+	b185.size = b->size;
+
+	return (((DB185 *)dbp->api_internal)->prefix(&a185, &b185));
 }
 
 /*

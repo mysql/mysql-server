@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_sleep.c,v 11.23 2004/03/27 19:09:13 bostic Exp $
+ * $Id: os_sleep.c,v 12.2 2005/08/10 15:47:27 bostic Exp $
  */
 
 #include "db_config.h"
@@ -34,7 +34,6 @@
 #endif /* HAVE_VXWORKS */
 
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"

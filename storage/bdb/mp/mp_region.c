@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_region.c,v 11.68 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_region.c,v 12.7 2005/08/08 14:30:03 bostic Exp $
  */
 
 #include "db_config.h"
@@ -20,10 +20,8 @@
 #include "dbinc/mp.h"
 
 static int	__memp_init __P((DB_ENV *, DB_MPOOL *, u_int, u_int32_t));
-static void	__memp_init_config __P((DB_ENV *, MPOOL *));
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-static size_t	__memp_region_maint __P((REGINFO *));
-#endif
+static int	__memp_init_config __P((DB_ENV *, MPOOL *));
+static void	__memp_region_size __P((DB_ENV *, roff_t *, u_int32_t *));
 
 /*
  * __memp_open --
@@ -43,20 +41,8 @@ __memp_open(dbenv)
 	u_int32_t htab_buckets, *regids;
 	int ret;
 
-	/* Figure out how big each cache region is. */
-	reg_size = (dbenv->mp_gbytes / dbenv->mp_ncache) * GIGABYTE;
-	reg_size += ((dbenv->mp_gbytes %
-	    dbenv->mp_ncache) * GIGABYTE) / dbenv->mp_ncache;
-	reg_size += dbenv->mp_bytes / dbenv->mp_ncache;
-
-	/*
-	 * Figure out how many hash buckets each region will have.  Assume we
-	 * want to keep the hash chains with under 10 pages on each chain.  We
-	 * don't know the pagesize in advance, and it may differ for different
-	 * files.  Use a pagesize of 1K for the calculation -- we walk these
-	 * chains a lot, they must be kept short.
-	 */
-	htab_buckets = __db_tablesize((u_int32_t)(reg_size / (1 * 1024)) / 10);
+	/* Calculate the region size and hash bucket count. */
+	__memp_region_size(dbenv, &reg_size, &htab_buckets);
 
 	/* Create and initialize the DB_MPOOL structure. */
 	if ((ret = __os_calloc(dbenv, 1, sizeof(*dbmp), &dbmp)) != 0)
@@ -116,14 +102,9 @@ __memp_open(dbenv)
 			if ((ret =
 			    __memp_init(dbenv, dbmp, i, htab_buckets)) != 0)
 				goto err;
-			R_UNLOCK(dbenv, &dbmp->reginfo[i]);
 
 			regids[i] = dbmp->reginfo[i].id;
 		}
-
-		__memp_init_config(dbenv, mp);
-
-		R_UNLOCK(dbenv, dbmp->reginfo);
 	} else {
 		/*
 		 * Determine how many regions there are going to be, allocate
@@ -140,21 +121,6 @@ __memp_open(dbenv)
 			dbmp->reginfo[i].id = INVALID_REGION_ID;
 		dbmp->reginfo[0] = reginfo;
 
-		__memp_init_config(dbenv, mp);
-
-		/*
-		 * We have to unlock the primary mpool region before we attempt
-		 * to join the additional mpool regions.  If we don't, we can
-		 * deadlock.  The scenario is that we hold the primary mpool
-		 * region lock.  We then try to attach to an additional mpool
-		 * region, which requires the acquisition/release of the main
-		 * region lock (to search the list of regions).  If another
-		 * thread of control already holds the main region lock and is
-		 * waiting on our primary mpool region lock, we'll deadlock.
-		 * See [#4696] for more information.
-		 */
-		R_UNLOCK(dbenv, dbmp->reginfo);
-
 		/* Join remaining regions. */
 		regids = R_ADDR(dbmp->reginfo, mp->regids);
 		for (i = 1; i < dbmp->nreg; ++i) {
@@ -165,7 +131,6 @@ __memp_open(dbenv)
 			if ((ret = __db_r_attach(
 			    dbenv, &dbmp->reginfo[i], 0)) != 0)
 				goto err;
-			R_UNLOCK(dbenv, &dbmp->reginfo[i]);
 		}
 	}
 
@@ -175,28 +140,28 @@ __memp_open(dbenv)
 		    R_ADDR(&dbmp->reginfo[i], dbmp->reginfo[i].rp->primary);
 
 	/* If the region is threaded, allocate a mutex to lock the handles. */
-	if (F_ISSET(dbenv, DB_ENV_THREAD) &&
-	    (ret = __db_mutex_setup(dbenv, dbmp->reginfo, &dbmp->mutexp,
-	    MUTEX_ALLOC | MUTEX_THREAD)) != 0)
+	if ((ret = __mutex_alloc(
+	    dbenv, MTX_MPOOL_HANDLE, DB_MUTEX_THREAD, &dbmp->mutex)) != 0)
 		goto err;
 
 	dbenv->mp_handle = dbmp;
+
+	/* A process joining the region may reset the mpool configuration. */
+	if ((ret = __memp_init_config(dbenv, mp)) != 0)
+		return (ret);
+
 	return (0);
 
-err:	if (dbmp->reginfo != NULL && dbmp->reginfo[0].addr != NULL) {
-		if (F_ISSET(dbmp->reginfo, REGION_CREATE))
-			ret = __db_panic(dbenv, ret);
-
-		R_UNLOCK(dbenv, dbmp->reginfo);
-
+err:	dbenv->mp_handle = NULL;
+	if (dbmp->reginfo != NULL && dbmp->reginfo[0].addr != NULL) {
 		for (i = 0; i < dbmp->nreg; ++i)
 			if (dbmp->reginfo[i].id != INVALID_REGION_ID)
 				(void)__db_r_detach(
 				    dbenv, &dbmp->reginfo[i], 0);
 		__os_free(dbenv, dbmp->reginfo);
 	}
-	if (dbmp->mutexp != NULL)
-		__db_mutex_free(dbenv, dbmp->reginfo, dbmp->mutexp);
+
+	(void)__mutex_free(dbenv, &dbmp->mutex);
 	__os_free(dbenv, dbmp);
 	return (ret);
 }
@@ -215,30 +180,21 @@ __memp_init(dbenv, dbmp, reginfo_off, htab_buckets)
 	DB_MPOOL_HASH *htab;
 	MPOOL *mp;
 	REGINFO *reginfo;
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	size_t maint_size;
-#endif
 	u_int32_t i;
 	int ret;
 	void *p;
 
 	reginfo = &dbmp->reginfo[reginfo_off];
-	if ((ret = __db_shalloc(reginfo,
-	    sizeof(MPOOL), MUTEX_ALIGN, &reginfo->primary)) != 0)
+	if ((ret = __db_shalloc(
+	    reginfo, sizeof(MPOOL), 0, &reginfo->primary)) != 0)
 		goto mem_err;
 	reginfo->rp->primary = R_OFFSET(reginfo, reginfo->primary);
 	mp = reginfo->primary;
 	memset(mp, 0, sizeof(*mp));
 
-#ifdef	HAVE_MUTEX_SYSTEM_RESOURCES
-	maint_size = __memp_region_maint(reginfo);
-	/* Allocate room for the maintenance info and initialize it. */
-	if ((ret = __db_shalloc(reginfo,
-	    sizeof(REGMAINT) + maint_size, 0, &p)) != 0)
-		goto mem_err;
-	__db_maintinit(reginfo, p, maint_size);
-	mp->maint_off = R_OFFSET(reginfo, p);
-#endif
+	if ((ret =
+	    __mutex_alloc(dbenv, MTX_MPOOL_REGION, 0, &mp->mtx_region)) != 0)
+		return (ret);
 
 	if (reginfo_off == 0) {
 		SH_TAILQ_INIT(&mp->mpfq);
@@ -254,12 +210,12 @@ __memp_init(dbenv, dbmp, reginfo_off, htab_buckets)
 
 	/* Allocate hash table space and initialize it. */
 	if ((ret = __db_shalloc(reginfo,
-	    htab_buckets * sizeof(DB_MPOOL_HASH), MUTEX_ALIGN, &htab)) != 0)
+	    htab_buckets * sizeof(DB_MPOOL_HASH), 0, &htab)) != 0)
 		goto mem_err;
 	mp->htab = R_OFFSET(reginfo, htab);
 	for (i = 0; i < htab_buckets; i++) {
-		if ((ret = __db_mutex_setup(dbenv,
-		    reginfo, &htab[i].hash_mutex, MUTEX_NO_RLOCK)) != 0)
+		if ((ret = __mutex_alloc(
+		    dbenv, MTX_MPOOL_HASH_BUCKET, 0, &htab[i].mtx_hash)) != 0)
 			return (ret);
 		SH_TAILQ_INIT(&htab[i].hash_bucket);
 		htab[i].hash_page_dirty = htab[i].hash_priority = 0;
@@ -279,15 +235,77 @@ mem_err:__db_err(dbenv, "Unable to allocate memory for mpool region");
 }
 
 /*
+ * __memp_region_size --
+ *	Size the region and figure out how many hash buckets we'll have.
+ */
+static void
+__memp_region_size(dbenv, reg_sizep, htab_bucketsp)
+	DB_ENV *dbenv;
+	roff_t *reg_sizep;
+	u_int32_t *htab_bucketsp;
+{
+	roff_t reg_size;
+
+	/* Figure out how big each cache region is. */
+	reg_size = (roff_t)(dbenv->mp_gbytes / dbenv->mp_ncache) * GIGABYTE;
+	reg_size += ((roff_t)(dbenv->mp_gbytes %
+	    dbenv->mp_ncache) * GIGABYTE) / dbenv->mp_ncache;
+	reg_size += dbenv->mp_bytes / dbenv->mp_ncache;
+	*reg_sizep = reg_size;
+
+	/*
+	 * Figure out how many hash buckets each region will have.  Assume we
+	 * want to keep the hash chains with under 10 pages on each chain.  We
+	 * don't know the pagesize in advance, and it may differ for different
+	 * files.  Use a pagesize of 1K for the calculation -- we walk these
+	 * chains a lot, they must be kept short.
+	 *
+	 * XXX
+	 * Cache sizes larger than 10TB would cause 32-bit wrapping in the
+	 * calculation of the number of hash buckets.  This probably isn't
+	 * something we need to worry about right now, but is checked when the
+	 * cache size is set.
+	 */
+	*htab_bucketsp = __db_tablesize((u_int32_t)(reg_size / (10 * 1024)));
+}
+
+/*
+ * __memp_region_mutex_count --
+ *	Return the number of mutexes the mpool region will need.
+ *
+ * PUBLIC: u_int32_t __memp_region_mutex_count __P((DB_ENV *));
+ */
+u_int32_t
+__memp_region_mutex_count(dbenv)
+	DB_ENV *dbenv;
+{
+	roff_t reg_size;
+	u_int32_t htab_buckets;
+
+	__memp_region_size(dbenv, &reg_size, &htab_buckets);
+
+	/*
+	 * We need a couple of mutexes for the region itself, and one for each
+	 * file handle (MPOOLFILE).  More importantly, each configured cache
+	 * has one mutex per hash bucket and buffer header.  Hash buckets are
+	 * configured to have 10 pages or fewer on each chain, but we don't
+	 * want to fail if we have a large number of 512 byte pages, so double
+	 * the guess.
+	 */
+	return (dbenv->mp_ncache * htab_buckets * 21 + 50);
+}
+
+/*
  * __memp_init_config --
  *	Initialize shared configuration information.
  */
-static void
+static int
 __memp_init_config(dbenv, mp)
 	DB_ENV *dbenv;
 	MPOOL *mp;
 {
-	/* A process joining the region may reset the mpool configuration. */
+	MPOOL_SYSTEM_LOCK(dbenv);
+
 	if (dbenv->mp_mmapsize != 0)
 		mp->mp_mmapsize = dbenv->mp_mmapsize;
 	if (dbenv->mp_maxopenfd != 0)
@@ -296,6 +314,10 @@ __memp_init_config(dbenv, mp)
 		mp->mp_maxwrite = dbenv->mp_maxwrite;
 	if (dbenv->mp_maxwrite_sleep != 0)
 		mp->mp_maxwrite_sleep = dbenv->mp_maxwrite_sleep;
+
+	MPOOL_SYSTEM_UNLOCK(dbenv);
+
+	return (0);
 }
 
 /*
@@ -336,8 +358,11 @@ __memp_dbenv_refresh(dbenv)
 			    bucket < mp->htab_buckets; ++hp, ++bucket)
 				while ((bhp = SH_TAILQ_FIRST(
 				    &hp->hash_bucket, __bh)) != NULL)
-					__memp_bhfree(dbmp, hp, bhp,
-					    BH_FREE_FREEMEM | BH_FREE_UNLOCKED);
+					if ((t_ret = __memp_bhfree(
+					    dbmp, hp, bhp,
+					    BH_FREE_FREEMEM |
+					    BH_FREE_UNLOCKED)) != 0 && ret == 0)
+						ret = t_ret;
 		}
 
 	/* Discard DB_MPOOLFILEs. */
@@ -346,14 +371,16 @@ __memp_dbenv_refresh(dbenv)
 			ret = t_ret;
 
 	/* Discard DB_MPREGs. */
+	if (dbmp->pg_inout != NULL)
+		__os_free(dbenv, dbmp->pg_inout);
 	while ((mpreg = LIST_FIRST(&dbmp->dbregq)) != NULL) {
 		LIST_REMOVE(mpreg, q);
 		__os_free(dbenv, mpreg);
 	}
 
 	/* Discard the DB_MPOOL thread mutex. */
-	if (dbmp->mutexp != NULL)
-		__db_mutex_free(dbenv, dbmp->reginfo, dbmp->mutexp);
+	if ((t_ret = __mutex_free(dbenv, &dbmp->mutex)) != 0 && ret == 0)
+		ret = t_ret;
 
 	if (F_ISSET(dbenv, DB_ENV_PRIVATE)) {
 		/* Discard REGION IDs. */
@@ -382,63 +409,4 @@ __memp_dbenv_refresh(dbenv)
 
 	dbenv->mp_handle = NULL;
 	return (ret);
-}
-
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-/*
- * __memp_region_maint --
- *	Return the amount of space needed for region maintenance info.
- *
- */
-static size_t
-__memp_region_maint(infop)
-	REGINFO *infop;
-{
-	size_t s;
-	int numlocks;
-
-	/*
-	 * For mutex maintenance we need one mutex per possible page.
-	 * Compute the maximum number of pages this cache can have.
-	 * Also add in an mpool mutex and mutexes for all dbenv and db
-	 * handles.
-	 */
-	numlocks = ((infop->rp->size / DB_MIN_PGSIZE) + 1);
-	numlocks += DB_MAX_HANDLES;
-	s = sizeof(roff_t) * numlocks;
-	return (s);
-}
-#endif
-
-/*
- * __memp_region_destroy
- *	Destroy any region maintenance info.
- *
- * PUBLIC: void __memp_region_destroy __P((DB_ENV *, REGINFO *));
- */
-void
-__memp_region_destroy(dbenv, infop)
-	DB_ENV *dbenv;
-	REGINFO *infop;
-{
-	/*
-	 * This routine is called in two cases: when discarding the mutexes
-	 * from a previous Berkeley DB run, during recovery, and two, when
-	 * discarding the mutexes as we shut down the database environment.
-	 * In the latter case, we also need to discard shared memory segments,
-	 * this is the last time we use them, and the last region-specific
-	 * call we make.
-	 */
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	MPOOL *mp;
-
-	mp = R_ADDR(infop, infop->rp->primary);
-
-	/* Destroy mutexes. */
-	__db_shlocks_destroy(infop, R_ADDR(infop, mp->maint_off));
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, R_ADDR(infop, mp->maint_off));
-#endif
-	if (infop->primary != NULL && F_ISSET(dbenv, DB_ENV_PRIVATE))
-		__db_shalloc_free(infop, infop->primary);
 }

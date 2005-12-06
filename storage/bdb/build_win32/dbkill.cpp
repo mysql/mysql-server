@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: dbkill.cpp,v 11.9 2004/01/28 03:35:52 bostic Exp $
+ * $Id: dbkill.cpp,v 12.1 2005/06/16 20:20:43 bostic Exp $
  */
 /*
  * Kill -

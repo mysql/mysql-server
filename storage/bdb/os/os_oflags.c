@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_oflags.c,v 11.14 2004/07/09 18:39:10 mjc Exp $
+ * $Id: os_oflags.c,v 12.2 2005/06/16 20:23:26 bostic Exp $
  */
 
 #include "db_config.h"
@@ -70,17 +70,26 @@ __db_oflags(oflags)
 #ifndef	S_IWUSR
 #define	S_IWUSR	S_IWRITE	/* W for owner */
 #endif
+#ifndef	S_IXUSR
+#define	S_IXUSR	0		/* X for owner */
+#endif
 #ifndef	S_IRGRP
 #define	S_IRGRP	0		/* R for group */
 #endif
 #ifndef	S_IWGRP
 #define	S_IWGRP	0		/* W for group */
 #endif
+#ifndef	S_IXGRP
+#define	S_IXGRP	0		/* X for group */
+#endif
 #ifndef	S_IROTH
 #define	S_IROTH	0		/* R for other */
 #endif
 #ifndef	S_IWOTH
 #define	S_IWOTH	0		/* W for other */
+#endif
+#ifndef	S_IXOTH
+#define	S_IXOTH	0		/* X for other */
 #endif
 #else
 #ifndef	S_IRUSR
@@ -89,17 +98,26 @@ __db_oflags(oflags)
 #ifndef	S_IWUSR
 #define	S_IWUSR	0000200		/* W for owner */
 #endif
+#ifndef	S_IXUSR
+#define	S_IXUSR	0000100		/* X for owner */
+#endif
 #ifndef	S_IRGRP
 #define	S_IRGRP	0000040		/* R for group */
 #endif
 #ifndef	S_IWGRP
 #define	S_IWGRP	0000020		/* W for group */
 #endif
+#ifndef	S_IXGRP
+#define	S_IXGRP	0000010		/* X for group */
+#endif
 #ifndef	S_IROTH
 #define	S_IROTH	0000004		/* R for other */
 #endif
 #ifndef	S_IWOTH
 #define	S_IWOTH	0000002		/* W for other */
+#endif
+#ifndef	S_IXOTH
+#define	S_IXOTH	0000001		/* X for other */
 #endif
 #endif /* DB_WIN32 */
 
@@ -119,14 +137,20 @@ __db_omode(perm)
 		mode |= S_IRUSR;
 	if (perm[1] == 'w')
 		mode |= S_IWUSR;
-	if (perm[2] == 'r')
+	if (perm[2] == 'x')
+		mode |= S_IXUSR;
+	if (perm[3] == 'r')
 		mode |= S_IRGRP;
-	if (perm[3] == 'w')
+	if (perm[4] == 'w')
 		mode |= S_IWGRP;
-	if (perm[4] == 'r')
+	if (perm[5] == 'x')
+		mode |= S_IXGRP;
+	if (perm[6] == 'r')
 		mode |= S_IROTH;
-	if (perm[5] == 'w')
+	if (perm[7] == 'w')
 		mode |= S_IWOTH;
+	if (perm[8] == 'x')
+		mode |= S_IXOTH;
 	return (mode);
 }
 

@@ -1,3 +1,0 @@
-#!/bin/sh
-
-java -jar jrpcgen.jar -d gen -noclient -nobackup -p com.sleepycat.db.rpcserver -s ServerStubs ../db_server.x

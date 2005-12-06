@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_tags,v 1.18 2004/04/01 15:11:14 bostic Exp $
+#	$Id: s_tags,v 12.1 2005/10/25 14:21:21 bostic Exp $
 #
 # Build tags files.
 
@@ -55,7 +55,9 @@ fi
 ctags $flags $files 2>/dev/null
 chmod 444 $f
 
-#f=../test_perf/tags
-#echo "Building $f"
-#(cd ../test_perf && ctags $flags *.[ch] 2>/dev/null)
-#chmod 444 $f
+for i in test_perf test_rep test_server; do
+	f=../$i/tags
+	echo "Building $f"
+	(cd ../$i && ctags $flags *.[ch] 2>/dev/null)
+	chmod 444 $f
+done
