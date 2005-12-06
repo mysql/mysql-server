@@ -2761,8 +2761,9 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         uint unused_field_idx= NO_CACHED_FIELD_INDEX;
         TABLE_LIST *dummy;
         Field *f=find_field_in_table_ref(thd, table_list, column->column.ptr(),
+                                         column->column.length(),
                                          column->column.ptr(), NULL, NULL,
-                                         column->column.length(), 0, 1, 1, 0,
+                                         NULL, TRUE, FALSE,
                                          &unused_field_idx, FALSE, &dummy);
         if (f == (Field*)0)
         {
@@ -3616,11 +3617,28 @@ err:
 }
 
 
+/*
+  Check column rights in given security context
+
+  SYNOPSIS
+    check_grant_column()
+    thd                  thread handler
+    grant                grant information structure
+    db_name              db name
+    table_name           table  name
+    name                 column name
+    length               column name length
+    sctx                 security context
+
+  RETURN
+    FALSE OK
+    TRUE  access denied
+*/
+
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
 			const char *db_name, const char *table_name,
-			const char *name, uint length, uint show_tables)
+			const char *name, uint length,  Security_context *sctx)
 {
-  Security_context *sctx= thd->security_ctx;
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
   ulong want_access= grant->want_privilege & ~grant->privilege;
@@ -3651,28 +3669,74 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
     rw_unlock(&LOCK_grant);
     DBUG_RETURN(0);
   }
-#ifdef NOT_USED
-  if (show_tables && (grant_column || grant->privilege & COL_ACLS))
-  {
-    rw_unlock(&LOCK_grant);			/* purecov: deadcode */
-    DBUG_RETURN(0);				/* purecov: deadcode */
-  }
-#endif
 
 err:
   rw_unlock(&LOCK_grant);
-  if (!show_tables)
-  {
-    char command[128];
-    get_privilege_desc(command, sizeof(command), want_access);
-    my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-             command,
-             sctx->priv_user,
-             sctx->host_or_ip,
-             name,
-             table_name);
-  }
+  char command[128];
+  get_privilege_desc(command, sizeof(command), want_access);
+  my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+           command,
+           sctx->priv_user,
+           sctx->host_or_ip,
+           name,
+           table_name);
   DBUG_RETURN(1);
+}
+
+
+/*
+  Check the access right to a column depending on the type of table.
+
+  SYNOPSIS
+    check_column_grant_in_table_ref()
+    thd              thread handler
+    table_ref        table reference where to check the field
+    name             name of field to check
+    length           length of name
+
+  DESCRIPTION
+    Check the access rights to a column depending on the type of table
+    reference where the column is checked. The function provides a
+    generic interface to check column access rights that hides the
+    heterogeneity of the column representation - whether it is a view
+    or a stored table colum.
+
+  RETURN
+    FALSE OK
+    TRUE  access denied
+*/
+
+bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
+                                     const char *name, uint length)
+{
+  GRANT_INFO *grant;
+  const char *db_name;
+  const char *table_name;
+  Security_context *sctx= test(table_ref->security_ctx) ?
+                          table_ref->security_ctx : thd->security_ctx;
+
+  if (table_ref->view || table_ref->field_translation)
+  {
+    /* View or derived information schema table. */
+    grant= &(table_ref->grant);
+    db_name= table_ref->view_db.str;
+    table_name= table_ref->view_name.str;
+  }
+  else
+  {
+    /* Normal or temporary table. */
+    TABLE *table= table_ref->table;
+    grant= &(table->grant);
+    db_name= table->s->db;
+    table_name= table->s->table_name;
+  }
+
+  if (grant->want_privilege)
+    return check_grant_column(thd, grant, db_name, table_name, name,
+                              length, sctx);
+  else
+    return FALSE;
+
 }
 
 
