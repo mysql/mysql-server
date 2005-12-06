@@ -18562,60 +18562,54 @@ void
 Dblqh::execCREATE_TRIG_REQ(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference tupref = calcTupBlockRef(myNodeId);
 
-  sendSignal(tupref, GSN_CREATE_TRIG_REQ, signal, CreateTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, signal,
+             CreateTrigReq::SignalLength, JBB);
 }
 
 void
 Dblqh::execCREATE_TRIG_CONF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_CREATE_TRIG_CONF, signal, CreateTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_CONF, signal,
+             CreateTrigConf::SignalLength, JBB);
 }
 
 void
 Dblqh::execCREATE_TRIG_REF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_CREATE_TRIG_REF, signal, CreateTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REF, signal,
+             CreateTrigRef::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_REQ(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference tupref = calcTupBlockRef(myNodeId);
 
-  sendSignal(tupref, GSN_DROP_TRIG_REQ, signal, DropTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ, signal,
+             DropTrigReq::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_CONF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_DROP_TRIG_CONF, signal, DropTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_CONF, signal,
+             DropTrigConf::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_REF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_DROP_TRIG_REF, signal, DropTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_REF, signal,
+             DropTrigRef::SignalLength, JBB);
 }
 
 Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){
