@@ -5855,44 +5855,52 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   uint copy_length;
-  
+
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
-  
+
   /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
-  { 
+  {
     uint conv_errors;
     tmpstr.copy(from, length, cs, field_charset, &conv_errors);
     from= tmpstr.ptr();
-    length=  tmpstr.length();
+    length= tmpstr.length();
     if (conv_errors)
       error= 2;
   }
 
-  /* 
-    Make sure we don't break a multibyte sequence
-    as well as don't copy a malformed data.
-  */
+  /* Make sure we don't break a multibyte sequence or copy malformed data. */
   copy_length= field_charset->cset->well_formed_len(field_charset,
                                                     from,from+length,
                                                     field_length/
                                                     field_charset->mbmaxlen,
                                                     &well_formed_error);
   memcpy(ptr,from,copy_length);
-  if (copy_length < field_length)	// Append spaces if shorter
+
+  /* Append spaces if the string was shorter than the field. */
+  if (copy_length < field_length)
     field_charset->cset->fill(field_charset,ptr+copy_length,
-			      field_length-copy_length,
+                              field_length-copy_length,
                               field_charset->pad_char);
-  
+
+  /*
+    Check if we lost any important data (anything in a binary string,
+    or any non-space in others).
+  */
   if ((copy_length < length) && table->in_use->count_cuted_fields)
-  {					// Check if we loosed some info
-    const char *end=from+length;
-    from+= copy_length;
-    from+= field_charset->cset->scan(field_charset, from, end,
-				     MY_SEQ_SPACES);
-    if (from != end)
+  {
+    if (binary())
       error= 2;
+    else
+    {
+      const char *end=from+length;
+      from+= copy_length;
+      from+= field_charset->cset->scan(field_charset, from, end,
+                                       MY_SEQ_SPACES);
+      if (from != end)
+        error= 2;
+    }
   }
   if (error)
   {
@@ -6271,12 +6279,15 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   if ((copy_length < length) && table->in_use->count_cuted_fields &&
       !error_code)
   {
-    const char *end= from + length;
-    from+= copy_length;
-    from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
-    /* If we lost only spaces then produce a NOTE, not a WARNING */
-    if (from == end)
-      level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    if (!binary())
+    {
+      const char *end= from + length;
+      from+= copy_length;
+      from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
+      /* If we lost only spaces then produce a NOTE, not a WARNING */
+      if (from == end)
+        level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    }
     error_code= WARN_DATA_TRUNCATED;
   }
   if (error_code)
