@@ -1356,8 +1356,8 @@ source include/varchar.inc;
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
 --replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
---error 1005
 create table t1 (v varchar(65530), key(v));
+drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1485,7 +1485,7 @@ CREATE TEMPORARY TABLE t2
 DROP TABLE t1;
 
 #
-# Test that index column max sizes are checked (bug #13315)
+# Test that index column max sizes are honored (bug #13315)
 #
 
 # prefix index
@@ -1512,22 +1512,36 @@ create table t8 (col1 blob, index(col1(767)))
 create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
  character set = latin1 engine = innodb;
 
+show create table t9;
+
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
 
---error 1005
-create table t1 (col1 varchar(768), index (col1))
+# these should have their index length trimmed
+create table t1 (col1 varchar(768), index(col1))
  character set = latin1 engine = innodb;
---error 1005
-create table t2 (col1 varchar(768) primary key)
+create table t2 (col1 varbinary(768), index(col1))
  character set = latin1 engine = innodb;
---error 1005
-create table t3 (col1 varbinary(768) primary key)
+create table t3 (col1 text, index(col1(768)))
  character set = latin1 engine = innodb;
---error 1005
-create table t4 (col1 text, index(col1(768)))
+create table t4 (col1 blob, index(col1(768)))
  character set = latin1 engine = innodb;
---error 1005
-create table t5 (col1 blob, index(col1(768)))
+
+show create table t1;
+
+drop table t1, t2, t3, t4;
+
+# these should be refused
+--error 1071
+create table t1 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t2 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t3 (col1 text, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1071
+create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
 
 #
@@ -1751,6 +1765,56 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 drop table t1;
 drop table t2;
 commit;
+
+# tests for bugs #9802 and #13778
+
+# test that FKs between invalid types are not accepted
+
+set foreign_key_checks=0;
+create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+-- error 1005
+create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+set foreign_key_checks=1;
+drop table t2;
+
+# test that FKs between different charsets are not accepted in CREATE even
+# when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+-- error 1005
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
+set foreign_key_checks=1;
+drop table t1;
+
+# test that invalid datatype conversions with ALTER are not allowed
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+create table t1(a varchar(10) primary key) engine = innodb;
+-- error 1025,1025
+alter table t1 modify column a int;
+set foreign_key_checks=1;
+drop table t2,t1;
+
+# test that charset conversions with ALTER are allowed when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+alter table t1 convert to character set utf8;
+set foreign_key_checks=1;
+drop table t2,t1;
+
+# test that RENAME does not allow invalid charsets when f_k_c is 0
+
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+-- error 1025
+rename table t3 to t1;
+set foreign_key_checks=1;
+drop table t2,t3;
 
 #
 # Test that we can create a large (>1K) key

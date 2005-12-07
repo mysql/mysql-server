@@ -4948,6 +4948,52 @@ end|
 call p1("a - stored procedure parameter")|
 
 #
+# A test case for Bug#15392 "Server crashes during prepared statement
+# execute": make sure that stored procedure check for error conditions
+# properly and do not continue execution if an error has been set. 
+#
+# It's necessary to use several DBs because in the original code
+# the successful return of mysql_change_db overrode the error from
+# execution.
+drop schema if exists mysqltest1|
+drop schema if exists mysqltest2|
+drop schema if exists mysqltest3|
+create schema mysqltest1|
+create schema mysqltest2|
+create schema mysqltest3|
+use mysqltest3|
+
+create procedure mysqltest1.p1 (out prequestid varchar(100))
+begin
+  call mysqltest2.p2('call mysqltest3.p3(1, 2)');
+end|
+
+create procedure mysqltest2.p2(in psql text)
+begin
+  declare lsql text;
+  set @lsql= psql;
+  prepare lstatement from @lsql;
+  execute lstatement;
+  deallocate prepare lstatement;
+end|
+
+create procedure mysqltest3.p3(in p1 int)
+begin
+  select p1;
+end|
+
+--error ER_SP_WRONG_NO_OF_ARGS
+call mysqltest1.p1(@rs)|
+--error ER_SP_WRONG_NO_OF_ARGS
+call mysqltest1.p1(@rs)|
+--error ER_SP_WRONG_NO_OF_ARGS
+call mysqltest1.p1(@rs)|
+drop schema if exists mysqltest1|
+drop schema if exists mysqltest2|
+drop schema if exists mysqltest3|
+use test|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
