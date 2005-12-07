@@ -1199,6 +1199,12 @@ struct Sroutine_hash_entry
     for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
   */
   Sroutine_hash_entry *next;
+  /*
+    Uppermost view which directly or indirectly uses this routine.
+    0 if routine is not used in view. Note that it also can be 0 if
+    statement uses routine both via view and directly.
+  */
+  TABLE_LIST *belong_to_view;
 };
 
 
@@ -1253,9 +1259,11 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
 
   SYNOPSIS
     add_used_routine()
-      lex     - LEX representing statement
-      arena   - arena in which memory for new element will be allocated
-      key     - key for the hash representing set
+      lex             LEX representing statement
+      arena           Arena in which memory for new element will be allocated
+      key             Key for the hash representing set
+      belong_to_view  Uppermost view which uses this routine
+                      (0 if routine is not used by view)
 
   NOTES
     Will also add element to end of 'LEX::sroutines_list' list.
@@ -1278,7 +1286,8 @@ void sp_get_prelocking_info(THD *thd, bool *need_prelocking,
 */
 
 static bool add_used_routine(LEX *lex, Query_arena *arena,
-                             const LEX_STRING *key)
+                             const LEX_STRING *key,
+                             TABLE_LIST *belong_to_view)
 {
   if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
   {
@@ -1292,6 +1301,7 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
     memcpy(rn->key.str, key->str, key->length);
     my_hash_insert(&lex->sroutines, (byte *)rn);
     lex->sroutines_list.link_in_list((byte *)rn, (byte **)&rn->next);
+    rn->belong_to_view= belong_to_view;
     return TRUE;
   }
   return FALSE;
@@ -1322,7 +1332,7 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
                          sp_name *rt, char rt_type)
 {
   rt->set_routine_type(rt_type);
-  (void)add_used_routine(lex, arena, &rt->m_sroutines_key);
+  (void)add_used_routine(lex, arena, &rt->m_sroutines_key, 0);
   lex->sroutines_list_own_last= lex->sroutines_list.next;
   lex->sroutines_list_own_elements= lex->sroutines_list.elements;
 }
@@ -1392,20 +1402,23 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src)
 
   SYNOPSIS
     sp_update_stmt_used_routines()
-      thd - thread context
-      lex - LEX representing statement
-      src - hash representing set from which routines will be added
+      thd             Thread context
+      lex             LEX representing statement
+      src             Hash representing set from which routines will be added
+      belong_to_view  Uppermost view which uses these routines, 0 if none
 
   NOTE
     It will also add elements to end of 'LEX::sroutines_list' list.
 */
 
-static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
+static void
+sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src,
+                             TABLE_LIST *belong_to_view)
 {
   for (uint i=0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)hash_element(src, i);
-    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
   }
 }
 
@@ -1416,19 +1429,21 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, HASH *src)
 
   SYNOPSIS
     sp_update_stmt_used_routines()
-      thd  Thread context
-      lex  LEX representing statement
-      src  List representing set from which routines will be added
+      thd             Thread context
+      lex             LEX representing statement
+      src             List representing set from which routines will be added
+      belong_to_view  Uppermost view which uses these routines, 0 if none
 
   NOTE
     It will also add elements to end of 'LEX::sroutines_list' list.
 */
 
-static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src)
+static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
+                                         TABLE_LIST *belong_to_view)
 {
   for (Sroutine_hash_entry *rt= (Sroutine_hash_entry *)src->first;
        rt; rt= rt->next)
-    (void)add_used_routine(lex, thd->stmt_arena, &rt->key);
+    (void)add_used_routine(lex, thd->stmt_arena, &rt->key, belong_to_view);
 }
 
 
@@ -1493,8 +1508,11 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
     {
       if (!(first && first_no_prelock))
       {
-        sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
-        result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+        sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines,
+                                     rt->belong_to_view);
+        result|= sp->add_used_tables_to_table_list(thd,
+                                                   &lex->query_tables_last,
+                                                   rt->belong_to_view);
       }
     }
     first= FALSE;
@@ -1536,17 +1554,18 @@ sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 
   SYNOPSIS
     sp_cache_routines_and_add_tables_for_view()
-      thd     - thread context
-      lex     - LEX representing statement
-      aux_lex - LEX representing view
+      thd   Thread context
+      lex   LEX representing statement
+      view  Table list element representing view
 */
 
 void
-sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
+sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, TABLE_LIST *view)
 {
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
-  sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines_list);
+  sp_update_stmt_used_routines(thd, lex, &view->view->sroutines_list,
+                               view->top_table());
   (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
                                              *last_cached_routine_ptr, FALSE);
 }
@@ -1559,16 +1578,18 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 
   SYNOPSIS
     sp_cache_routines_and_add_tables_for_triggers()
-      thd      - thread context
-      lex      - LEX respresenting statement
-      triggers - triggers of the table
+      thd    thread context
+      lex    LEX respresenting statement
+      table  Table list element for table with trigger
 */
 
 void
 sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                              Table_triggers_list *triggers)
+                                              TABLE_LIST *table)
 {
-  if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key))
+  Table_triggers_list *triggers= table->table->triggers;
+  if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key,
+                       table->belong_to_view))
   {
     Sroutine_hash_entry **last_cached_routine_ptr=
                             (Sroutine_hash_entry **)lex->sroutines_list.next;
@@ -1578,10 +1599,12 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
       {
         if (triggers->bodies[i][j])
         {
-          (void)triggers->bodies[i][j]->add_used_tables_to_table_list(thd,
-                                          &lex->query_tables_last);
+          (void)triggers->bodies[i][j]->
+                add_used_tables_to_table_list(thd, &lex->query_tables_last,
+                                              table->belong_to_view);
           sp_update_stmt_used_routines(thd, lex,
-                                       &triggers->bodies[i][j]->m_sroutines);
+                                       &triggers->bodies[i][j]->m_sroutines,
+                                       table->belong_to_view);
         }
       }
     }
