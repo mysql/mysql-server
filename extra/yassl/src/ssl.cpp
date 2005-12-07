@@ -648,6 +648,10 @@ void OpenSSL_add_all_algorithms()  // compatibility only
 {}
 
 
+void SSL_library_init()  // compatibility only
+{}
+
+
 DH* DH_new(void)
 {
     DH* dh = new (ys) DH;
