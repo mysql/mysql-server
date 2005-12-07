@@ -290,7 +290,7 @@ event_timed::init_ends(THD *thd, Item *ends)
   if (ends->fix_fields(thd, &ends))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-    // the field was already fixed in init_ends
+  // the field was already fixed in init_ends
   if ((not_used= ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
@@ -537,10 +537,19 @@ event_timed::compute_next_execution_time()
   my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
 /*
   sql_print_information("[%s.%s]", m_db.str, m_name.str);
-  sql_print_information("time_now : [%d-%d-%d %d:%d:%d ]", time_now.year, time_now.month, time_now.day, time_now.hour, time_now.minute, time_now.second);
-  sql_print_information("m_starts : [%d-%d-%d %d:%d:%d ]", m_starts.year, m_starts.month, m_starts.day, m_starts.hour, m_starts.minute, m_starts.second);
-  sql_print_information("m_ends   : [%d-%d-%d %d:%d:%d ]", m_ends.year, m_ends.month, m_ends.day, m_ends.hour, m_ends.minute, m_ends.second);
-  sql_print_information("m_last_ex: [%d-%d-%d %d:%d:%d ]", m_last_executed.year, m_last_executed.month, m_last_executed.day, m_last_executed.hour, m_last_executed.minute, m_last_executed.second);
+  sql_print_information("time_now : [%d-%d-%d %d:%d:%d ]", 
+                         time_now.year, time_now.month, time_now.day,
+                         time_now.hour, time_now.minute, time_now.second);
+  sql_print_information("m_starts : [%d-%d-%d %d:%d:%d ]", m_starts.year,
+                        m_starts.month, m_starts.day, m_starts.hour,
+                        m_starts.minute, m_starts.second);
+  sql_print_information("m_ends   : [%d-%d-%d %d:%d:%d ]", m_ends.year,
+                        m_ends.month, m_ends.day, m_ends.hour,
+                        m_ends.minute, m_ends.second);
+  sql_print_information("m_last_ex: [%d-%d-%d %d:%d:%d ]", m_last_executed.year,
+                        m_last_executed.month, m_last_executed.day,
+                        m_last_executed.hour, m_last_executed.minute,
+                        m_last_executed.second);
 */
   //if time_now is after m_ends don't execute anymore
   if (m_ends.year && (tmp= my_time_compare(&m_ends, &time_now)) == -1)
@@ -702,7 +711,6 @@ event_timed::mark_last_executed()
 bool
 event_timed::drop(THD *thd)
 {
-
   return (bool) evex_drop_event(thd, this, false);
 }
 

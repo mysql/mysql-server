@@ -27,8 +27,6 @@
 
  - Use timestamps instead of datetime.
 
- - Don't use SP's functionality for opening and closing of tables
-
  - CREATE EVENT should not go into binary log! Does it now? The SQL statements
    issued by the EVENT are replicated.
    I have an idea how to solve the problem at failover. So the status field
@@ -44,31 +42,16 @@
    ENABLED to DISABLED status change and this is safe for replicating. As well
    an event may be deleted which is also safe for RBR.
 
- - Add a lock and use it for guarding access to events_array dynamic array.
-
- - Add checks everywhere where new instance of THD is created. NULL can be
-    returned and this will crash the server. The server will crash probably
-    later but should not be in this code! Add a global variable, and a lock
-	to guard it, that will specify an error in a worker thread so preventing
-	new threads from being spawned.
-
  - Maybe move all allocations during parsing to evex_mem_root thus saving
     double parsing in evex_create_event!
 
  - If the server is killed (stopping) try to kill executing events..
  
  - What happens if one renames an event in the DB while it is in memory?
-     Or even deleting it?
-
- - created & modified in the table should be UTC?
- 
- - Add a lock to event_timed to serialize execution of an event - do not
-     allow parallel executions. Hmm, however how last_executed is marked
-     then? The call to event_timed::mark_last_executed() must be moved to
-     event_timed::execute()?
- 
+   Or even deleting it?
+  
  - Consider using conditional variable when doing shutdown instead of
-     waiting some time (tries < 5).
+     waiting till all worker threads end.
  - Make event_timed::get_show_create_event() work
  - Add function documentation whenever needed.
  - Add logging to file
@@ -77,7 +60,7 @@ Warning:
  - For now parallel execution is not possible because the same sp_head cannot be
    executed few times!!! There is still no lock attached to particular event.
 
- */
+*/
 
 
 
@@ -216,17 +199,17 @@ TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
       table  TABLE object for open mysql.event table.
 
   RETURN VALUE
-    SP_OK           - Routine found
+    0                - Routine found
     SP_KEY_NOT_FOUND- No routine with given name
 */
 
 int
 evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
-                       const LEX_STRING rname, TABLE *table)
+                       const LEX_STRING ev_name, TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("evex_db_find_routine_aux");
-  DBUG_PRINT("enter", ("name: %.*s", rname.length, rname.str));
+  DBUG_PRINT("enter", ("name: %.*s", ev_name.length, ev_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -235,16 +218,16 @@ evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
     'db' and 'name' and the first key is the primary key over the
     same fields.
   */
-  if (rname.length > table->field[1]->field_length)
-    DBUG_RETURN(SP_KEY_NOT_FOUND);
+  if (ev_name.length > table->field[1]->field_length)
+    DBUG_RETURN(EVEX_KEY_NOT_FOUND);
 
   table->field[0]->store(dbname.str, dbname.length, &my_charset_bin);
-  table->field[1]->store(rname.str, rname.length, &my_charset_bin);
+  table->field[1]->store(ev_name.str, ev_name.length, &my_charset_bin);
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
   if (table->file->index_read_idx(table->record[0], 0, key,
-                                  table->key_info->key_length,HA_READ_KEY_EXACT))
-    DBUG_RETURN(SP_KEY_NOT_FOUND);
+                                 table->key_info->key_length,HA_READ_KEY_EXACT))
+    DBUG_RETURN(EVEX_KEY_NOT_FOUND);
 
   DBUG_RETURN(0);
 }
@@ -394,19 +377,18 @@ db_create_event(THD *thd, event_timed *et)
   
   restore_record(table, s->default_values); // Get default values for fields
 
-/* TODO : Uncomment these and add handling in sql_parse.cc or here
 
-  if (sp->m_name.length > table->field[MYSQL_PROC_FIELD_NAME]->field_length)
+  if (et->m_name.length > table->field[EVEX_FIELD_NAME]->field_length)
   {
-    ret= SP_BAD_IDENTIFIER;
-    goto done;
+    my_error(ER_TOO_LONG_IDENT, MYF(0), et->m_name.str);
+    goto err;
   }
-  if (sp->m_body.length > table->field[MYSQL_PROC_FIELD_BODY]->field_length)
+  if (et->m_body.length > table->field[EVEX_FIELD_BODY]->field_length)
   {
-    ret= SP_BODY_TOO_LONG;
-    goto done;
+    my_error(ER_TOO_LONG_BODY, MYF(0), et->m_name.str);
+    goto err;
   }
-*/
+
   if (!(et->m_expr) && !(et->m_execute_at.year))
   {
     DBUG_PRINT("error", ("neither m_expr nor m_execute_as are set!"));
@@ -434,7 +416,8 @@ db_create_event(THD *thd, event_timed *et)
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
     goto err;
   }
-  else if (mysql_bin_log.is_open())
+  
+  if (mysql_bin_log.is_open())
   {
     thd->clear_error();
     /* Such a statement can always go directly to binlog, no trans cache */
@@ -472,20 +455,20 @@ static int
 db_update_event(THD *thd, sp_name *name, event_timed *et)
 {
   TABLE *table;
-  int ret;
+  int ret= EVEX_OPEN_TABLE_FAILED;
   DBUG_ENTER("db_update_event");
   DBUG_PRINT("enter", ("name: %.*s", et->m_name.length, et->m_name.str));
   if (name)
     DBUG_PRINT("enter", ("rename to: %.*s", name->m_name.length, name->m_name.str));
 
-  // Todo: Handle in sql_prepare.cc SP_OPEN_TABLE_FAILED
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     goto err;
   }
 
-  if (evex_db_find_routine_aux(thd, et->m_db, et->m_name, table) == SP_KEY_NOT_FOUND)
+  if (EVEX_KEY_NOT_FOUND == evex_db_find_routine_aux(thd, et->m_db, et->m_name,
+                                                     table))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->m_name.str);
     goto err;    
@@ -526,8 +509,21 @@ err:
 
 
 /*
-    Use sp_name for look up, return in **ett if found
+   Looks for a named event in mysql.event and in case of success returns
+   an object will data loaded from the table.
+
+   SYNOPSIS
+     db_find_event()
+       thd      THD
+       name     the name of the event to find
+       ett      event's data if event is found
+       tbl      TABLE object to use when not NULL
+   
+   NOTES
+     1) Use sp_name for look up, return in **ett if found
+     2) tbl is not closed at exit
 */
+
 static int
 db_find_event(THD *thd, sp_name *name, event_timed **ett, TABLE *tbl)
 {
@@ -580,6 +576,22 @@ done:
   DBUG_RETURN(ret);
 }
 
+
+/*
+   Looks for a named event in mysql.event and then loads it from 
+   the table, compiles it and insert it into the cache.
+
+   SYNOPSIS
+     evex_load_and_compile_event()
+       thd       THD
+       spn       the name of the event to alter
+       use_lock  whether to obtain a lock on LOCK_event_arrays or not
+       
+   RETURN VALUE
+       0   - OK
+       < 0 - error (in this case underlying functions call my_error()).
+
+*/
 
 static int
 evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
@@ -727,7 +739,7 @@ done:
 
 
 /*
-                      Exported functions follow 
+                  -= Exported functions follow =-
 */
 
 /*
@@ -753,15 +765,6 @@ evex_create_event(THD *thd, event_timed *et, uint create_options)
   DBUG_ENTER("evex_create_event");
   DBUG_PRINT("enter", ("name: %*s options:%d", et->m_name.length,
                 et->m_name.str, create_options));
-
-/*
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if (!evex_is_running)
-  // TODO: put an warning to the user here.
-  //       Is it needed? (Andrey, 051129)
-  {}  
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
-*/
 
   if ((ret = db_create_event(thd, et)) == EVEX_WRITE_ROW_FAILED && 
         (create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
@@ -821,13 +824,6 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
   DBUG_ENTER("evex_update_event");
   DBUG_PRINT("enter", ("name: %*s", et->m_name.length, et->m_name.str));
 
-/*
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if (!evex_is_running)
-  // put an warning to the user here
-  {}  
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
-*/
   /*
     db_update_event() opens & closes the table to prevent
     crash later in the code when loading and compiling the new definition
@@ -837,17 +833,8 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if (!evex_is_running)
-  {
-    // not running - therefore no memory structures
-    VOID(pthread_mutex_unlock(&LOCK_evex_running));
-    goto done;
-  }
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+    UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_evex_running, done);
 
-  /*
-    It is possible that 2 (or 1) pass(es) won't find the event in memory.
-    The reason is that DISABLED events are not cached.
-  */
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
   evex_remove_from_cache(&et->m_db, &et->m_name, false);
   if (et->m_status == MYSQL_EVENT_ENABLED)
@@ -860,9 +847,14 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
       delete spn;
     }
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+
+  /*
+    It is possible that 2 (or 1) pass(es) won't find the event in memory.
+    The reason is that DISABLED events are not cached.
+  */
 
 done:
-
   DBUG_RETURN(ret);
 }
 
@@ -882,24 +874,17 @@ int
 evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
 {
   TABLE *table;
-  int ret;
+  int ret= EVEX_OPEN_TABLE_FAILED;
   bool opened;
   DBUG_ENTER("evex_drop_event");
 
-/*
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if (!evex_is_running)
-  // put an warning to the user here
-  {}  
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
-*/
-////
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  {
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    goto done;
+  }
 
-  ret= evex_db_find_routine_aux(thd, et->m_db, et->m_name, table);
-
-  if (ret == EVEX_OK)
+  if (!(ret= evex_db_find_routine_aux(thd, et->m_db, et->m_name, table)))
   {
     if (ret= table->file->delete_row(table->record[0]))
     { 	
