@@ -467,7 +467,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   bzero(&table, sizeof(table));
   table.in_use= thd;
   table.s = &table.share_not_to_be_used;
-  field= sp->make_field(0, 0, &table);
+  field= sp->create_result_field(0, 0, &table);
   field->sql_type(result);
   delete field;
 }

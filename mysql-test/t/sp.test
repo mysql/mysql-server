@@ -367,6 +367,7 @@ create function sub3(i int) returns int
 
 call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
+--error ER_OPERAND_COLUMNS
 call sub1("sub1c", (select i,d from t2 limit 1))|
 call sub1("sub1d", (select 1 from (select 1) a))|
 call sub2("sub2")|
@@ -4797,12 +4798,12 @@ begin
   declare continue handler for sqlexception select 'boo' as 'Handler';
 
   begin
-    declare v int default x;
+    declare v int default undefined_var;
 
     if v = 1 then
       select 1;
     else
-      select 2;
+      select v, isnull(v);
     end if;
   end;
 end|
@@ -4811,12 +4812,14 @@ create procedure bug14643_2()
 begin
   declare continue handler for sqlexception select 'boo' as 'Handler';
 
-  case x
+  case undefined_var
   when 1 then
     select 1;
   else
     select 2;
   end case;
+
+  select undefined_var;
 end|
 
 call bug14643_1()|
@@ -4910,8 +4913,10 @@ drop procedure bug14376|
 # variable declarations. In MySQL 5.0 it's vice versa.
 #
 
+--disable_warnings
 drop procedure if exists p1|
 drop table if exists t1|
+--enable_warnings
 create table t1 (a varchar(255))|
 insert into t1 (a) values ("a - table column")|
 create procedure p1(a varchar(255))
@@ -4946,6 +4951,36 @@ begin
   end;
 end|
 call p1("a - stored procedure parameter")|
+drop procedure p1|
+
+#
+# Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
+#
+--disable_warnings
+drop procedure if exists bug13012|
+--enable_warnings
+create procedure bug13012()
+BEGIN
+  REPAIR TABLE t1;
+  BACKUP TABLE t1 to '../tmp';
+  DROP TABLE t1;
+  RESTORE TABLE t1 FROM '../tmp';
+END|
+call bug13012()|
+drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+  REPAIR TABLE t1,t2,t3,v1;
+  OPTIMIZE TABLE t1,t2,t3,v1;
+  ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+call bug13012()|
+call bug13012()|
+drop procedure bug13012|
+drop view v1;
+select * from t1|
 
 #
 # A test case for Bug#15392 "Server crashes during prepared statement
