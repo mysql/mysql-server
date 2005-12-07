@@ -3126,10 +3126,12 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 
   SYNOPSIS
     add_used_tables_to_table_list()
-      thd                   - thread context
-      query_tables_last_ptr - (in/out) pointer the next_global member of last
-                              element of the list where tables will be added
-                              (or to its root).
+      thd                    [in]     Thread context
+      query_tables_last_ptr  [in/out] Pointer to the next_global member of
+                                      last element of the list where tables
+                                      will be added (or to its root).
+      belong_to_view         [in]     Uppermost view which uses this routine,
+                                      0 if none.
 
   DESCRIPTION
     Converts multi-set of tables used by this routine to table list and adds
@@ -3144,7 +3146,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 
 bool
 sp_head::add_used_tables_to_table_list(THD *thd,
-                                       TABLE_LIST ***query_tables_last_ptr)
+                                       TABLE_LIST ***query_tables_last_ptr,
+                                       TABLE_LIST *belong_to_view)
 {
   uint i;
   Query_arena *arena, backup;
@@ -3187,6 +3190,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->lock_type= stab->lock_type;
       table->cacheable_table= 1;
       table->prelocking_placeholder= 1;
+      table->belong_to_view= belong_to_view;
 
       /* Everyting else should be zeroed */
 
