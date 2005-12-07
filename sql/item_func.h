@@ -1374,8 +1374,8 @@ private:
   Field *result_field;
   char result_buf[64];
 
-  int execute(Item **itp);
-  int execute(Field **flp);
+  bool execute(Field **flp);
+  bool execute_impl(THD *thd, Field *return_value_fld);
   Field *sp_result_field(void) const;
 
 public:

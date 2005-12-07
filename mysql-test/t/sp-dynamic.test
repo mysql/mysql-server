@@ -1,4 +1,10 @@
 delimiter |;
+
+--disable_warnings
+drop procedure if exists p1|
+drop procedure if exists p2|
+--enable_warnings
+
 ###################################################################### 
 # Test Dynamic SQL in stored procedures. #############################
 ###################################################################### 
