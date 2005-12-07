@@ -2617,7 +2617,7 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_backup_table(thd, first_table);
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -2630,7 +2630,7 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_restore_table(thd, first_table);
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3134,7 +3134,7 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3146,7 +3146,7 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3168,7 +3168,7 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
@@ -3193,7 +3193,7 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
-    (TABLE_LIST*) select_lex->table_list.first=first_table;
+    select_lex->table_list.first= (byte*) first_table;
     lex->query_tables=all_tables;
     break;
   }
