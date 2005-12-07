@@ -432,7 +432,7 @@ bool federated_db_init()
   DBUG_ENTER("federated_db_init");
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
+  if (!hash_init(&federated_open_tables, system_charset_info, 32, 0, 0,
                     (hash_get_key) federated_get_key, 0, 0))
   {
     federated_init= TRUE;
@@ -1343,7 +1343,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
       query.append(FEDERATED_BTICK);
       query.append(FEDERATED_COMMA);
     }
-    query.length(query.length()- FEDERATED_COMMA_LEN);
+    query.length(query.length()- (FEDERATED_COMMA_LEN - 1));
     query.append(FEDERATED_FROM);
     query.append(FEDERATED_BTICK);
 
