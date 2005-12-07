@@ -660,6 +660,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
+TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
 
 bool mysql_xa_recover(THD *thd);
 
@@ -1101,8 +1102,8 @@ void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
-bool is_keyword(const char *name, uint len);
 
+bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
