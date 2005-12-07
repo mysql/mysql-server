@@ -2033,29 +2033,32 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 }//Qmgr::execAPI_REGREQ()
 
 
-void 
+void
 Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   jamEntry();
   ApiVersionReq * const req = (ApiVersionReq *)signal->getDataPtr();
-  
+
   Uint32 senderRef = req->senderRef;
   Uint32 nodeId = req->nodeId;
 
   ApiVersionConf * conf = (ApiVersionConf *)req;
   if(getNodeInfo(nodeId).m_connected)
+  {
     conf->version =  getNodeInfo(nodeId).m_version;
+    struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+    conf->inet_addr= in.s_addr;
+  }
   else
+  {
     conf->version =  0;
+    conf->inet_addr= 0;
+  }
   conf->nodeId = nodeId;
-  struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
-  conf->inet_addr= in.s_addr;
 
-  sendSignal(senderRef, 
+  sendSignal(senderRef,
 	     GSN_API_VERSION_CONF,
 	     signal,
 	     ApiVersionConf::SignalLength, JBB);
-
-
 }
 
 

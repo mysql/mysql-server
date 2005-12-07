@@ -2616,15 +2616,25 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
       thd->lex->sroutines_list.elements)
   {
-    bool first_no_prelocking, need_prelocking;
+    bool first_no_prelocking, need_prelocking, tabs_changed;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
     sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
 
-    if ((sp_cache_routines_and_add_tables(thd, thd->lex,
-                                         first_no_prelocking) ||
-        *start) && need_prelocking)
+    if (sp_cache_routines_and_add_tables(thd, thd->lex,
+                                         first_no_prelocking,
+                                         &tabs_changed))
+    {
+      /*
+        Serious error during reading stored routines from mysql.proc table.
+        Something's wrong with the table or its contents, and an error has
+        been emitted; we must abort.
+      */
+      result= -1;
+      goto err;
+    }
+    else if ((tabs_changed || *start) && need_prelocking)
     {
       query_tables_last_own= save_query_tables_last;
       *start= thd->lex->query_tables;
@@ -2748,9 +2758,18 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
           tables->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         if (!query_tables_last_own)
-            query_tables_last_own= thd->lex->query_tables_last;
-        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                      tables->table->triggers);
+          query_tables_last_own= thd->lex->query_tables_last;
+        if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
+                                                   tables->table->triggers))
+        {
+          /*
+            Serious error during reading stored routines from mysql.proc table.
+            Something's wrong with the table or its contents, and an error has
+            been emitted; we must abort.
+          */
+          result= -1;
+          goto err;
+        }
       }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
@@ -2771,9 +2790,21 @@ process_view_routines:
       /* We have at least one table in TL here. */
       if (!query_tables_last_own)
         query_tables_last_own= thd->lex->query_tables_last;
-      sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables->view);
+      if (sp_cache_routines_and_add_tables_for_view(thd, thd->lex,
+                                                    tables->view))
+      {
+        /*
+          Serious error during reading stored routines from mysql.proc table.
+          Something's wrong with the table or its contents, and an error has
+          been emitted; we must abort.
+        */
+        result= -1;
+        goto err;
+      }
     }
   }
+
+ err:
   thd->proc_info=0;
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
