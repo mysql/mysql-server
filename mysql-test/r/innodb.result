@@ -2804,13 +2804,13 @@ commit;
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
-ERROR HY000: Can't create table './test/t1.frm' (errno: 150)
+ERROR HY000: Can't create table 'test.t1' (errno: 150)
 set foreign_key_checks=1;
 drop table t2;
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
-ERROR HY000: Can't create table './test/t2.frm' (errno: 150)
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
 set foreign_key_checks=1;
 drop table t1;
 set foreign_key_checks=0;
