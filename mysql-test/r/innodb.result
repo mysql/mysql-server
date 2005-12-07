@@ -2437,7 +2437,9 @@ a	b
 20	NULL
 drop table t1;
 create table t1 (v varchar(65530), key(v));
-ERROR HY000: Can't create table 'test.t1' (errno: 139)
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+drop table t1;
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
@@ -2577,22 +2579,49 @@ create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
 create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
 character set = latin1 engine = innodb;
+show create table t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `col1` varchar(512) default NULL,
+  `col2` varchar(512) default NULL,
+  KEY `col1` (`col1`,`col2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
-create table t1 (col1 varchar(768), index (col1))
+create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: 139)
-create table t2 (col1 varchar(768) primary key)
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+create table t2 (col1 varbinary(768), index(col1))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table 'test.t2' (errno: 139)
-create table t3 (col1 varbinary(768) primary key)
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+create table t3 (col1 text, index(col1(768)))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table 'test.t3' (errno: 139)
-create table t4 (col1 text, index(col1(768)))
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+create table t4 (col1 blob, index(col1(768)))
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table 'test.t4' (errno: 139)
-create table t5 (col1 blob, index(col1(768)))
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` varchar(768) default NULL,
+  KEY `col1` (`col1`(767))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2, t3, t4;
+create table t1 (col1 varchar(768) primary key)
 character set = latin1 engine = innodb;
-ERROR HY000: Can't create table 'test.t5' (errno: 139)
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create table t2 (col1 varbinary(768) primary key)
+character set = latin1 engine = innodb;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create table t3 (col1 text, primary key(col1(768)))
+character set = latin1 engine = innodb;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+create table t4 (col1 blob, primary key(col1(768)))
+character set = latin1 engine = innodb;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 CREATE TABLE t1
 (
 id INT PRIMARY KEY
@@ -2772,6 +2801,38 @@ insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 drop table t1;
 drop table t2;
 commit;
+set foreign_key_checks=0;
+create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
+create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
+ERROR HY000: Can't create table './test/t1.frm' (errno: 150)
+set foreign_key_checks=1;
+drop table t2;
+set foreign_key_checks=0;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
+ERROR HY000: Can't create table './test/t2.frm' (errno: 150)
+set foreign_key_checks=1;
+drop table t1;
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+create table t1(a varchar(10) primary key) engine = innodb;
+alter table t1 modify column a int;
+Got one of the listed errors
+set foreign_key_checks=1;
+drop table t2,t1;
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
+alter table t1 convert to character set utf8;
+set foreign_key_checks=1;
+drop table t2,t1;
+set foreign_key_checks=0;
+create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+rename table t3 to t1;
+ERROR HY000: Error on rename of './test/t3' to './test/t1' (errno: 150)
+set foreign_key_checks=1;
+drop table t2,t3;
 create table t1 (a varchar(255) character set utf8,
 b varchar(255) character set utf8,
 c varchar(255) character set utf8,

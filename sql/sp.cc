@@ -1447,21 +1447,23 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src)
       first_no_prelock - If true, don't add tables or cache routines used by
                          the body of the first routine (i.e. *start)
                          will be executed in non-prelocked mode.
+      tabs_changed     - Set to TRUE some tables were added, FALSE otherwise
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
 
   RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
+     0     - success
+     non-0 - failure
 */
 
-static bool
+static int
 sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                                      Sroutine_hash_entry *start, 
-                                     bool first_no_prelock)
+                                     bool first_no_prelock, bool *tabs_changed)
 {
-  bool result= FALSE;
+  int ret= 0;
+  bool tabschnd= 0;             /* Set if tables changed */
   bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
@@ -1482,12 +1484,50 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       name.m_name.str+= 1;
       name.m_name.length= name.m_qname.length - name.m_db.length - 1;
 
-      if (db_find_routine(thd, type, &name, &sp) == SP_OK)
+      switch ((ret= db_find_routine(thd, type, &name, &sp)))
       {
-        if (type == TYPE_ENUM_FUNCTION)
-          sp_cache_insert(&thd->sp_func_cache, sp);
-        else
-          sp_cache_insert(&thd->sp_proc_cache, sp);
+      case SP_OK:
+        {
+          if (type == TYPE_ENUM_FUNCTION)
+            sp_cache_insert(&thd->sp_func_cache, sp);
+          else
+            sp_cache_insert(&thd->sp_proc_cache, sp);
+        }
+        break;
+      case SP_KEY_NOT_FOUND:
+        ret= SP_OK;
+        break;
+      case SP_OPEN_TABLE_FAILED:
+        /*
+          Force it to attempt opening it again on subsequent calls;
+          otherwise we will get one error message the first time, and
+          then ER_SP_PROC_TABLE_CORRUPT (below) on subsequent tries.
+        */
+        mysql_proc_table_exists= 1;
+        /* Fall through */
+      default:
+        /*
+          Any error when loading an existing routine is either some problem
+          with the mysql.proc table, or a parse error because the contents
+          has been tampered with (in which case we clear that error).
+        */
+        if (ret == SP_PARSE_ERROR)
+          thd->clear_error();
+        /*
+          If we cleared the parse error, or when db_find_routine() flagged
+          an error with it's return value without calling my_error(), we
+          set the generic "mysql.proc table corrupt" error here.
+         */
+        if (!thd->net.report_error)
+        {
+          char n[NAME_LEN*2+2];
+
+          /* m_qname.str is not always \0 terminated */
+          memcpy(n, name.m_qname.str, name.m_qname.length);
+          n[name.m_qname.length]= '\0';
+          my_error(ER_SP_PROC_TABLE_CORRUPT, MYF(0), n, ret);
+        }
+        break;
       }
     }
     if (sp)
@@ -1495,12 +1535,15 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       if (!(first && first_no_prelock))
       {
         sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines);
-        result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+        tabschnd|=
+          sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
       }
     }
     first= FALSE;
   }
-  DBUG_RETURN(result);
+  if (tabs_changed)             /* it can be NULL  */
+    *tabs_changed= tabschnd;
+  DBUG_RETURN(ret);
 }
 
 
@@ -1515,18 +1558,20 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       lex              - LEX representing statement
       first_no_prelock - If true, don't add tables or cache routines used by
                          the body of the first routine (i.e. *start)
+      tabs_changed     - Set to TRUE some tables were added, FALSE otherwise
                          
   RETURN VALUE
-    TRUE  - some tables were added
-    FALSE - no tables were added.
+     0     - success
+     non-0 - failure
 */
 
-bool
-sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
+int
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock,
+                                 bool *tabs_changed)
 {
   return sp_cache_routines_and_add_tables_aux(thd, lex,
            (Sroutine_hash_entry *)lex->sroutines_list.first,
-           first_no_prelock);
+           first_no_prelock, tabs_changed);
 }
 
 
@@ -1540,16 +1585,21 @@ sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
       thd     - thread context
       lex     - LEX representing statement
       aux_lex - LEX representing view
+                         
+  RETURN VALUE
+     0     - success
+     non-0 - failure
 */
 
-void
+int
 sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
 {
   Sroutine_hash_entry **last_cached_routine_ptr=
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
   sp_update_stmt_used_routines(thd, lex, &aux_lex->sroutines_list);
-  (void)sp_cache_routines_and_add_tables_aux(thd, lex, 
-                                             *last_cached_routine_ptr, FALSE);
+  return sp_cache_routines_and_add_tables_aux(thd, lex, 
+                                              *last_cached_routine_ptr, FALSE,
+                                              NULL);
 }
 
 
@@ -1563,12 +1613,18 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, LEX *aux_lex)
       thd      - thread context
       lex      - LEX respresenting statement
       triggers - triggers of the table
+
+  RETURN VALUE
+     0     - success
+     non-0 - failure
 */
 
-void
+int
 sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                               Table_triggers_list *triggers)
 {
+  int ret= 0;
+
   if (add_used_routine(lex, thd->stmt_arena, &triggers->sroutines_key))
   {
     Sroutine_hash_entry **last_cached_routine_ptr=
@@ -1586,10 +1642,11 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
         }
       }
     }
-    (void)sp_cache_routines_and_add_tables_aux(thd, lex,
-                                               *last_cached_routine_ptr, 
-                                               FALSE);
+    ret= sp_cache_routines_and_add_tables_aux(thd, lex,
+                                              *last_cached_routine_ptr, 
+                                              FALSE, NULL);
   }
+  return ret;
 }
 
 

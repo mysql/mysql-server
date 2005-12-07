@@ -1143,10 +1143,12 @@ int sp_head::execute(THD *thd)
      original thd->db will then have been freed */
   if (dbchanged)
   {
-    /* No access check when changing back to where we came from.
-       (It would generate an error from mysql_change_db() when olddb=="") */
+    /*
+      No access check when changing back to where we came from.
+      (It would generate an error from mysql_change_db() when olddb=="")
+    */
     if (! thd->killed)
-      ret= mysql_change_db(thd, olddb, 1);
+      ret|= (int) mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info", ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
@@ -1525,13 +1527,12 @@ int sp_head::execute_procedure(THD *thd, List<Item> *args)
 
 	    suv= new Item_func_set_user_var(guv->get_name(), item);
 	    /*
-	      we do not check suv->fixed, because it can't be fixed after
-	      creation
+              Item_func_set_user_var is not fixed after construction,
+              call fix_fields().
 	    */
-	    suv->fix_fields(thd, &item);
-	    suv->fix_length_and_dec();
-	    suv->check();
-	    suv->update();
+            if ((ret= test(!suv || suv->fix_fields(thd, &item) ||
+                           suv->check() || suv->update())))
+              break;
 	  }
 	}
       }
@@ -2103,7 +2104,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     cleanup_items() is called in sp_head::execute()
   */
-  return res;
+  return res || thd->net.report_error;
 }
 
 

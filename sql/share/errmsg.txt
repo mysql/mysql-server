@@ -5597,6 +5597,8 @@ ER_OLD_FILE_FORMAT
         eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
 ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
+ER_SP_PROC_TABLE_CORRUPT
+	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
 ER_PARTITION_REQUIRES_VALUES_ERROR
         eng "%s PARTITIONING requires definition of VALUES %s for each partition"
         swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"
