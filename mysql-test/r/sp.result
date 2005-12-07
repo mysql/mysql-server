@@ -4153,4 +4153,43 @@ A local variable in a nested compound statement takes precedence over table colu
 a - local variable in a nested compound statement
 A local variable in a nested compound statement takes precedence over table column in cursors
 a - local variable in a nested compound statement
+drop schema if exists mysqltest1|
+Warnings:
+Note	1008	Can't drop database 'mysqltest1'; database doesn't exist
+drop schema if exists mysqltest2|
+Warnings:
+Note	1008	Can't drop database 'mysqltest2'; database doesn't exist
+drop schema if exists mysqltest3|
+Warnings:
+Note	1008	Can't drop database 'mysqltest3'; database doesn't exist
+create schema mysqltest1|
+create schema mysqltest2|
+create schema mysqltest3|
+use mysqltest3|
+create procedure mysqltest1.p1 (out prequestid varchar(100))
+begin
+call mysqltest2.p2('call mysqltest3.p3(1, 2)');
+end|
+create procedure mysqltest2.p2(in psql text)
+begin
+declare lsql text;
+set @lsql= psql;
+prepare lstatement from @lsql;
+execute lstatement;
+deallocate prepare lstatement;
+end|
+create procedure mysqltest3.p3(in p1 int)
+begin
+select p1;
+end|
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+drop schema if exists mysqltest1|
+drop schema if exists mysqltest2|
+drop schema if exists mysqltest3|
+use test|
 drop table t1,t2;
