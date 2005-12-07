@@ -87,9 +87,9 @@ void sp_update_sp_used_routines(HASH *dst, HASH *src);
 bool sp_cache_routines_and_add_tables(THD *thd, LEX *lex, 
                                       bool first_no_prelock);
 void sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
-                                               LEX *aux_lex);
+                                               TABLE_LIST *view);
 void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                         Table_triggers_list *triggers);
+                                                   TABLE_LIST *table);
 
 extern "C" byte* sp_sroutine_key(const byte *ptr, uint *plen, my_bool first);
 

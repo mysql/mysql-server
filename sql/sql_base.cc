@@ -2117,8 +2117,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       {
         if (!query_tables_last_own)
             query_tables_last_own= thd->lex->query_tables_last;
-        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                      tables->table->triggers);
+        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex, tables);
       }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
@@ -2139,7 +2138,7 @@ process_view_routines:
       /* We have at least one table in TL here. */
       if (!query_tables_last_own)
         query_tables_last_own= thd->lex->query_tables_last;
-      sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables->view);
+      sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables);
     }
   }
   thd->proc_info=0;
