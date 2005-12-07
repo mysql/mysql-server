@@ -5593,10 +5593,13 @@ ER_SP_BAD_VAR_SHADOW 42000
         ger "Variable '%-.64s' muss mit `...` geschützt oder aber umbenannt werden"
 ER_TRG_NO_DEFINER
         eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
+        ger "Kein Definierer-Attribut für Trigger '%-.64s'.'%-.64s'. Der Trigger wird mit der Autorisierung des Aufrufers aktiviert, der möglicherweise keine zureichenden Berechtigungen hat. Bitte legen Sie den Trigger neu an."
 ER_OLD_FILE_FORMAT
         eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
+        ger "'%-.64s' hat altes Format, Sie sollten die '%s'-Objekt(e) neu erzeugen"
 ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
+        ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.64s überschritten"
 ER_SP_PROC_TABLE_CORRUPT
 	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
 ER_PARTITION_REQUIRES_VALUES_ERROR
@@ -5722,14 +5725,3 @@ ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
 ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
-ER_TRG_NO_DEFINER
-        eng "No definer attribute for trigger '%-.64s'.'%-.64s'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger."
-        ger "Kein Definierer-Attribut für Trigger '%-.64s'.'%-.64s'. Der Trigger wird mit der Autorisierung des Aufrufers aktiviert, der möglicherweise keine zureichenden Berechtigungen hat. Bitte legen Sie den Trigger neu an."
-ER_OLD_FILE_FORMAT
-        eng "'%-.64s' has an old format, you should re-create the '%s' object(s)"
-        ger "'%-.64s' hat altes Format, Sie sollten die '%s'-Objekt(e) neu erzeugen"
-ER_SP_RECURSION_LIMIT
-        eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
-        ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.64s überschritten"
-ER_SP_PROC_TABLE_CORRUPT
-	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
