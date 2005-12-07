@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ my_time_compare(TIME *a, TIME *b)
 inline int
 event_timed_compare(event_timed **a, event_timed **b)
 {
-  return my_time_compare(&(*a)->m_execute_at, &(*b)->m_execute_at);
+  return my_time_compare(&(*a)->execute_at, &(*b)->execute_at);
 }
 
 
@@ -258,55 +258,55 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     DBUG_RETURN(EVEX_GET_FIELD_FAILED);
   }
   
-  DBUG_PRINT("info", ("m_db.len=%d",et->m_db.length));  
-  DBUG_PRINT("info", ("m_name.len=%d",et->m_name.length));  
+  DBUG_PRINT("info", ("dbname.len=%d",et->dbname.length));  
+  DBUG_PRINT("info", ("name.len=%d",et->name.length));  
 
   table->field[EVEX_FIELD_DB]->
-      store(et->m_db.str, et->m_db.length, system_charset_info);
+      store(et->dbname.str, et->dbname.length, system_charset_info);
   table->field[EVEX_FIELD_NAME]->
-      store(et->m_name.str, et->m_name.length, system_charset_info);
+      store(et->name.str, et->name.length, system_charset_info);
 
   table->field[EVEX_FIELD_ON_COMPLETION]->set_notnull();
-  table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->m_on_completion);
+  table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->on_completion);
 
   table->field[EVEX_FIELD_STATUS]->set_notnull();
-  table->field[EVEX_FIELD_STATUS]->store((longlong)et->m_status);
-  et->m_status_changed= false;
+  table->field[EVEX_FIELD_STATUS]->store((longlong)et->status);
+//  et->status_changed= false;
 
   // ToDo: Andrey. How to use users current charset?
-  if (et->m_body.str)
+  if (et->body.str)
     table->field[EVEX_FIELD_BODY]->
-      store(et->m_body.str, et->m_body.length, system_charset_info);
+      store(et->body.str, et->body.length, system_charset_info);
 
-  if (et->m_starts.year)
+  if (et->starts.year)
   {
     table->field[EVEX_FIELD_STARTS]->set_notnull();// set NULL flag to OFF
-    table->field[EVEX_FIELD_STARTS]->store_time(&et->m_starts,MYSQL_TIMESTAMP_DATETIME);
+    table->field[EVEX_FIELD_STARTS]->store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
   }	   
 
-  if (et->m_ends.year)
+  if (et->ends.year)
   {
     table->field[EVEX_FIELD_ENDS]->set_notnull();
-    table->field[EVEX_FIELD_ENDS]->store_time(&et->m_ends, MYSQL_TIMESTAMP_DATETIME);
+    table->field[EVEX_FIELD_ENDS]->store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
   }
    
-  if (et->m_expr)
+  if (et->expression)
   {
     table->field[EVEX_FIELD_INTERVAL_EXPR]->set_notnull();
-    table->field[EVEX_FIELD_INTERVAL_EXPR]->store((longlong)et->m_expr);
+    table->field[EVEX_FIELD_INTERVAL_EXPR]->store((longlong)et->expression);
 
     table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_notnull();
     /*
        In the enum (C) intervals start from 0 but in mysql enum valid values start
        from 1. Thus +1 offset is needed!
     */
-    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->m_interval + 1);
+    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval + 1);
   }
-  else if (et->m_execute_at.year)
+  else if (et->execute_at.year)
   {
     // fix_fields already called in init_execute_at
     table->field[EVEX_FIELD_EXECUTE_AT]->set_notnull();
-    table->field[EVEX_FIELD_EXECUTE_AT]->store_time(&et->m_execute_at,
+    table->field[EVEX_FIELD_EXECUTE_AT]->store_time(&et->execute_at,
                                                     MYSQL_TIMESTAMP_DATETIME);    
     
 	//this will make it NULL because we don't call set_notnull
@@ -321,9 +321,9 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     
   ((Field_timestamp *)table->field[EVEX_FIELD_MODIFIED])->set_time();
 
-  if ((et->m_comment).length)
+  if (et->comment.length)
     table->field[EVEX_FIELD_COMMENT]->
-	store((et->m_comment).str, (et->m_comment).length, system_charset_info);
+	store(et->comment.str, et->comment.length, system_charset_info);
 
   DBUG_RETURN(0);  
 }
@@ -351,7 +351,7 @@ db_create_event(THD *thd, event_timed *et)
   char olddb[128];
   bool dbchanged= false;
   DBUG_ENTER("db_create_event");
-  DBUG_PRINT("enter", ("name: %.*s", et->m_name.length, et->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", et->name.length, et->name.str));
 
 
   DBUG_PRINT("info", ("open mysql.event for update"));
@@ -362,14 +362,14 @@ db_create_event(THD *thd, event_timed *et)
   }
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!evex_db_find_routine_aux(thd, et->m_db, et->m_name, table))
+  if (!evex_db_find_routine_aux(thd, et->dbname, et->name, table))
   {
-    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->name.str);
     goto err;    
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
-  if ((ret= sp_use_new_db(thd, et->m_db.str,olddb, sizeof(olddb),0, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, et->dbname.str,olddb, sizeof(olddb),0, &dbchanged)))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0));
     goto err;
@@ -378,31 +378,31 @@ db_create_event(THD *thd, event_timed *et)
   restore_record(table, s->default_values); // Get default values for fields
 
 
-  if (et->m_name.length > table->field[EVEX_FIELD_NAME]->field_length)
+  if (et->name.length > table->field[EVEX_FIELD_NAME]->field_length)
   {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), et->m_name.str);
+    my_error(ER_TOO_LONG_IDENT, MYF(0), et->name.str);
     goto err;
   }
-  if (et->m_body.length > table->field[EVEX_FIELD_BODY]->field_length)
+  if (et->body.length > table->field[EVEX_FIELD_BODY]->field_length)
   {
-    my_error(ER_TOO_LONG_BODY, MYF(0), et->m_name.str);
+    my_error(ER_TOO_LONG_BODY, MYF(0), et->name.str);
     goto err;
   }
 
-  if (!(et->m_expr) && !(et->m_execute_at.year))
+  if (!(et->expression) && !(et->execute_at.year))
   {
-    DBUG_PRINT("error", ("neither m_expr nor m_execute_as are set!"));
+    DBUG_PRINT("error", ("neither expression nor execute_at are set!"));
     my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));
     
     goto err;
   }
 
-  strxmov(definer, et->m_definer_user.str, "@", et->m_definer_host.str, NullS);
+  strxmov(definer, et->definer_user.str, "@", et->definer_host.str, NullS);
   if (table->field[EVEX_FIELD_DEFINER]->
-       store(definer, et->m_definer_user.length + 1 + et->m_definer_host.length,
+       store(definer, et->definer_user.length + 1 + et->definer_host.length,
              system_charset_info))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
     goto err;
   }
 
@@ -413,7 +413,7 @@ db_create_event(THD *thd, event_timed *et)
   ret= EVEX_OK;
   if (table->file->write_row(table->record[0]))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
     goto err;
   }
   
@@ -452,14 +452,15 @@ err:
 */
 
 static int
-db_update_event(THD *thd, sp_name *name, event_timed *et)
+db_update_event(THD *thd, sp_name *new_name, event_timed *et)
 {
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
   DBUG_ENTER("db_update_event");
-  DBUG_PRINT("enter", ("name: %.*s", et->m_name.length, et->m_name.str));
-  if (name)
-    DBUG_PRINT("enter", ("rename to: %.*s", name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %.*s", et->name.length, et->name.str));
+  if (new_name)
+    DBUG_PRINT("enter", ("rename to: %.*s", new_name->m_name.length,
+                                            new_name->m_name.str));
 
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
   {
@@ -467,10 +468,10 @@ db_update_event(THD *thd, sp_name *name, event_timed *et)
     goto err;
   }
 
-  if (EVEX_KEY_NOT_FOUND == evex_db_find_routine_aux(thd, et->m_db, et->m_name,
+  if (EVEX_KEY_NOT_FOUND == evex_db_find_routine_aux(thd, et->dbname, et->name,
                                                      table))
   {
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->name.str);
     goto err;    
   }
   
@@ -483,17 +484,17 @@ db_update_event(THD *thd, sp_name *name, event_timed *et)
   if ((ret= evex_fill_row(thd, table, et, true)))
     goto err;
    
-  if (name)
+  if (new_name)
   {    
     table->field[EVEX_FIELD_DB]->
-      store(name->m_db.str, name->m_db.length, system_charset_info);
+      store(new_name->m_db.str, new_name->m_db.length, system_charset_info);
     table->field[EVEX_FIELD_NAME]->
-      store(name->m_name.str, name->m_name.length, system_charset_info);
+      store(new_name->m_name.str, new_name->m_name.length, system_charset_info);
   }
 
   if ((ret= table->file->update_row(table->record[1], table->record[0])))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
     goto err;
   }
 
@@ -546,7 +547,7 @@ db_find_event(THD *thd, sp_name *name, event_timed **ett, TABLE *tbl)
 
   if ((ret= evex_db_find_routine_aux(thd, name->m_db, name->m_name, table)))
   {
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->m_name.str);
+    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
     goto done;    
   }
   et= new event_timed;
@@ -612,7 +613,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
 
   /*
     allocate on evex_mem_root. if you call without evex_mem_root
-    then m_sphead will not be cleared!
+    then sphead will not be cleared!
   */
   if ((ret= ett->compile(thd, &evex_mem_root)))
     goto done;
@@ -627,10 +628,10 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   VOID(push_dynamic(&evex_executing_queue, (gptr) &ett_copy));
 
   /*
-    There is a copy in the array which we don't need. m_sphead won't be
+    There is a copy in the array which we don't need. sphead won't be
     destroyed.
   */
-  ett->m_free_sphead_on_delete= false;
+  ett->free_sphead_on_delete= false;
   delete ett;
 
   /*
@@ -674,11 +675,11 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     event_timed **p_et= dynamic_element(&evex_executing_queue, i, event_timed**);
     event_timed *ett= *p_et;
     DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str,
-                ett->m_db.str, ett->m_name.str));
-    if (name->length == ett->m_name.length &&
-        db->length == ett->m_db.length &&
-        0 == strncmp(db->str, ett->m_db.str, db->length) &&
-        0 == strncmp(name->str, ett->m_name.str, name->length)
+                ett->dbname.str, ett->name.str));
+    if (name->length == ett->name.length &&
+        db->length == ett->dbname.length &&
+        0 == strncmp(db->str, ett->dbname.str, db->length) &&
+        0 == strncmp(name->str, ett->name.str, name->length)
        )
     {
       int idx;
@@ -722,10 +723,10 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     {
       event_timed *ett= dynamic_element(&events_array, i, event_timed*);
 
-      if (name->length == ett->m_name.length &&
-          db->length == ett->m_db.length &&
-          0 == strncmp(db->str, ett->m_db.str, db->length) &&
-          0 == strncmp(name->str, ett->m_name.str, name->length)
+      if (name->length == ett->name.length &&
+          db->length == ett->dbname.length &&
+          0 == strncmp(db->str, ett->dbname.str, db->length) &&
+          0 == strncmp(name->str, ett->name.str, name->length)
          )
         delete_dynamic_element(&events_array, i);
     } 
@@ -763,15 +764,15 @@ evex_create_event(THD *thd, event_timed *et, uint create_options)
   int ret = 0;
 
   DBUG_ENTER("evex_create_event");
-  DBUG_PRINT("enter", ("name: %*s options:%d", et->m_name.length,
-                et->m_name.str, create_options));
+  DBUG_PRINT("enter", ("name: %*s options:%d", et->name.length,
+                et->name.str, create_options));
 
   if ((ret = db_create_event(thd, et)) == EVEX_WRITE_ROW_FAILED && 
         (create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		      ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS),
-		      "EVENT", thd->lex->et->m_name.str);
+		      "EVENT", et->name.str);
     ret= 0;
     goto done;
   }
@@ -785,9 +786,9 @@ evex_create_event(THD *thd, event_timed *et, uint create_options)
     goto done;
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if (evex_is_running && et->m_status == MYSQL_EVENT_ENABLED)
+  if (evex_is_running && et->status == MYSQL_EVENT_ENABLED)
   {
-    sp_name spn(et->m_db, et->m_name);
+    sp_name spn(et->dbname, et->name);
     ret= evex_load_and_compile_event(thd, &spn, true);
   }
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
@@ -804,9 +805,9 @@ done:
 
    SYNOPSIS
      evex_update_event()
-       thd     THD
-       name    the real name of the event.    
-       et      event's data
+       thd        THD
+       et         event's data
+       new_name   set in case of RENAME TO.    
           
    NOTES
      et contains data about dbname and event name. 
@@ -815,14 +816,14 @@ done:
 */
 
 int
-evex_update_event(THD *thd, sp_name *name, event_timed *et)
+evex_update_event(THD *thd, event_timed *et, sp_name *name)
 {
   int ret, i;
   bool need_second_pass= true;
   sp_name *spn= 0;
 
   DBUG_ENTER("evex_update_event");
-  DBUG_PRINT("enter", ("name: %*s", et->m_name.length, et->m_name.str));
+  DBUG_PRINT("enter", ("name: %*s", et->name.length, et->name.str));
 
   /*
     db_update_event() opens & closes the table to prevent
@@ -836,13 +837,13 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
     UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_evex_running, done);
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
-  evex_remove_from_cache(&et->m_db, &et->m_name, false);
-  if (et->m_status == MYSQL_EVENT_ENABLED)
+  evex_remove_from_cache(&et->dbname, &et->name, false);
+  if (et->status == MYSQL_EVENT_ENABLED)
     if (name)
       ret= evex_load_and_compile_event(thd, name, false);
     else
     {
-      spn= new sp_name(et->m_db, et->m_name);
+      spn= new sp_name(et->dbname, et->name);
       ret= evex_load_and_compile_event(thd, spn, false);
       delete spn;
     }
@@ -884,9 +885,9 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
     goto done;
   }
 
-  if (!(ret= evex_db_find_routine_aux(thd, et->m_db, et->m_name, table)))
+  if (!(ret= evex_db_find_routine_aux(thd, et->dbname, et->name, table)))
   {
-    if (ret= table->file->delete_row(table->record[0]))
+    if ((ret= table->file->delete_row(table->record[0])))
     { 	
       my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
       goto done;
@@ -896,7 +897,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
   {
      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		    ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-		    "EVENT", thd->lex->et->m_name.str);
+		    "EVENT", et->name.str);
      ret= 0;
      goto done;
   } else
@@ -904,7 +905,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if (evex_is_running)
-    ret= evex_remove_from_cache(&et->m_db, &et->m_name, true);
+    ret= evex_remove_from_cache(&et->dbname, &et->name, true);
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
 done:  

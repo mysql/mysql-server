@@ -1415,14 +1415,14 @@ ev_status: /* empty */
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->m_status= MYSQL_EVENT_ENABLED;	   
+              lex->et->status= MYSQL_EVENT_ENABLED;	   
           }
         | DISABLE_SYM
           {
             LEX *lex=Lex;
             
             if (!lex->et_compile_phase)
-              lex->et->m_status= MYSQL_EVENT_DISABLED;
+              lex->et->status= MYSQL_EVENT_DISABLED;
           }
       ;
 ev_starts: /* empty */
@@ -1457,13 +1457,13 @@ ev_on_completion: /* empty */
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->m_on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;  
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;  
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->m_on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;	    
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;	    
           }
       ;
 ev_comment: /* empty */
@@ -1497,7 +1497,7 @@ ev_sql_stmt:
 	
             lex->sphead->m_body_begin= lex->ptr;
             if (!lex->et_compile_phase)
-              lex->et->m_body_begin= lex->ptr;
+              lex->et->body_begin= lex->ptr;
           }
           ev_sql_stmt_inner
           {

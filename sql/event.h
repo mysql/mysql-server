@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,41 +63,45 @@ class event_timed
   my_bool running;
   pthread_mutex_t LOCK_running;
 
+  bool status_changed;
+  bool last_executed_changed;
+  TIME last_executed;
+
 public:
-  LEX_STRING m_db;
-  LEX_STRING m_name;
-  LEX_STRING m_body;
+  LEX_STRING dbname;
+  LEX_STRING name;
+  LEX_STRING body;
 
-  LEX_STRING m_definer_user;
-  LEX_STRING m_definer_host;
-  LEX_STRING m_definer;// combination of user and host
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
+  LEX_STRING definer;// combination of user and host
 
-  LEX_STRING m_comment;
-  TIME m_starts;
-  TIME m_ends;
-  TIME m_execute_at;
-  longlong m_expr;
-  interval_type m_interval;
-  longlong m_created;
-  longlong m_modified;
-  TIME m_last_executed;
-  enum enum_event_on_completion m_on_completion;
-  enum enum_event_status m_status;
-  sp_head *m_sphead;
+  LEX_STRING comment;
+  TIME starts;
+  TIME ends;
+  TIME execute_at;
 
-  const uchar *m_body_begin;
+  longlong expression;
+  interval_type interval;
+
+  longlong created;
+  longlong modified;
+  enum enum_event_on_completion on_completion;
+  enum enum_event_status status;
+  sp_head *sphead;
+
+  const uchar *body_begin;
   
-  bool m_dropped;
-  bool m_free_sphead_on_delete;
-  uint m_flags;//all kind of purposes
-  bool m_last_executed_changed;
-  bool m_status_changed;
+  bool dropped;
+  bool free_sphead_on_delete;
+  uint flags;//all kind of purposes
 
-  event_timed():running(0), m_expr(0), m_created(0), m_modified(0),
-                m_on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
-                m_status(MYSQL_EVENT_ENABLED), m_sphead(0), m_dropped(false),
-                m_free_sphead_on_delete(true), m_flags(0),
-                m_last_executed_changed(false), m_status_changed(false)
+  event_timed():running(0), status_changed(false), last_executed_changed(false),
+                expression(0), created(0), modified(0),
+                on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
+                status(MYSQL_EVENT_ENABLED), sphead(0), dropped(false),
+                free_sphead_on_delete(true), flags(0)
+                
   {
     pthread_mutex_init(&LOCK_running, MY_MUTEX_INIT_FAST);
     init();
@@ -106,7 +110,7 @@ public:
   ~event_timed()
   {
     pthread_mutex_destroy(&LOCK_running);
-    if (m_free_sphead_on_delete)
+    if (free_sphead_on_delete)
 	    free_sp();
   }
   
@@ -120,10 +124,10 @@ public:
   init_execute_at(THD *thd, Item *expr);
 
   int
-  init_interval(THD *thd, Item *expr, interval_type interval);
+  init_interval(THD *thd, Item *expr, interval_type new_interval);
 
   void
-  init_name(THD *thd, sp_name *name);
+  init_name(THD *thd, sp_name *spn);
 
   int
   init_starts(THD *thd, Item *starts);
@@ -135,7 +139,7 @@ public:
   event_timed::init_body(THD *thd);
 
   void
-  init_comment(THD *thd, LEX_STRING *comment);
+  init_comment(THD *thd, LEX_STRING *set_comment);
 
   int
   load_from_row(MEM_ROOT *mem_root, TABLE *table);
@@ -163,11 +167,8 @@ public:
   
   void free_sp()
   {
-    if (m_sphead)
-    {
-      delete m_sphead;
-      m_sphead= 0;
-    }
+    delete sphead;
+    sphead= 0;
   }
 };
 
@@ -176,7 +177,7 @@ int
 evex_create_event(THD *thd, event_timed *et, uint create_options);
 
 int
-evex_update_event(THD *thd, sp_name *name, event_timed *et);
+evex_update_event(THD *thd, event_timed *et, sp_name *new_name);
 
 int
 evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists);

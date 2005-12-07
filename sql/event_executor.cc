@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2004-2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -226,7 +226,7 @@ event_executor_main(void *arg)
     for (i= 0; (i < evex_executing_queue.elements) && !thd->killed; ++i)
     {
       event_timed *et= *dynamic_element(&evex_executing_queue,i,event_timed**);
-//      printf("%llu\n", TIME_to_ulonglong_datetime(&et->m_execute_at));
+//      printf("%llu\n", TIME_to_ulonglong_datetime(&et->execute_at));
       if (!event_executor_running_global_var)
         break;
 
@@ -236,13 +236,13 @@ event_executor_main(void *arg)
         if this is the first event which is after time_now then no
         more need to iterate over more elements since the array is sorted.
       */ 
-      if (et->m_execute_at.year > 1969 &&
-          my_time_compare(&time_now, &et->m_execute_at) == -1)
+      if (et->execute_at.year > 1969 &&
+          my_time_compare(&time_now, &et->execute_at) == -1)
         break;
       
-      if (et->m_status == MYSQL_EVENT_ENABLED && 
-          !check_access(thd, EVENT_ACL, et->m_db.str, 0, 0, 0,
-                        is_schema_db(et->m_db.str)))
+      if (et->status == MYSQL_EVENT_ENABLED && 
+          !check_access(thd, EVENT_ACL, et->dbname.str, 0, 0, 0,
+                        is_schema_db(et->dbname.str)))
       {
         pthread_t th;
 
@@ -262,9 +262,9 @@ event_executor_main(void *arg)
         thd->proc_info = "Computing next time";
         et->compute_next_execution_time();
         et->update_fields(thd);
-        if ((et->m_execute_at.year && !et->m_expr)
-            || TIME_to_ulonglong_datetime(&et->m_execute_at) == 0L)
-          et->m_flags |= EVENT_EXEC_NO_MORE;
+        if ((et->execute_at.year && !et->expression)
+            || TIME_to_ulonglong_datetime(&et->execute_at) == 0L)
+          et->flags |= EVENT_EXEC_NO_MORE;
       }
     }
     /*
@@ -275,13 +275,13 @@ event_executor_main(void *arg)
     while (j < i && j < evex_executing_queue.elements)
     {
       event_timed *et= *dynamic_element(&evex_executing_queue, j, event_timed**);
-      if (et->m_flags & EVENT_EXEC_NO_MORE || et->m_status == MYSQL_EVENT_DISABLED)
+      if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
       {
         delete_dynamic_element(&evex_executing_queue, j);
         DBUG_PRINT("EVEX main thread", ("DELETING FROM EXECUTION QUEUE [%s.%s]", 
-                                         et->m_db.str, et->m_name.str));
+                                         et->dbname.str, et->name.str));
         // nulling the position, will delete later
-        if (et->m_dropped)
+        if (et->dropped)
         {
           // we have to drop the event
           int idx;
@@ -311,7 +311,7 @@ err:
   evex_is_running= false;  
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-  sql_print_information("Event executor stopping");
+  sql_print_information("Event scheduler stopping");
 
   /*
     TODO: A better will be with a conditional variable
@@ -334,7 +334,7 @@ err:
   // No need to use lock here if EVEX is not running but anyway
   delete_dynamic(&evex_executing_queue);
   delete_dynamic(&events_array);
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+  VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   
   thd->proc_info = "Clearing";
   DBUG_ASSERT(thd->net.buff != 0);
@@ -355,7 +355,7 @@ err_no_thd:
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   free_root(&evex_mem_root, MYF(0));
-  sql_print_information("Event executor stopped");
+  sql_print_information("Event scheduler stopped");
 
   my_thread_end();
   pthread_exit(0);
@@ -381,7 +381,7 @@ event_executor_worker(void *event_void)
 
   if (!(thd = new THD)) // note that contructor of THD uses DBUG_ !
   {
-    sql_print_error("Cannot create a THD structure in worker thread");
+    sql_print_error("Cannot create a THD structure in a scheduler worker thread");
     goto err_no_thd;
   }
   thd->thread_stack = (char*)&thd; // remember where our stack is
@@ -406,20 +406,20 @@ event_executor_worker(void *event_void)
   // thd->security_ctx->priv_host is char[MAX_HOSTNAME]
   
   strxnmov(thd->security_ctx->priv_host, sizeof(thd->security_ctx->priv_host),
-                event->m_definer_host.str, NullS);  
+                event->definer_host.str, NullS);  
 
-  thd->security_ctx->priv_user= event->m_definer_user.str;
+  thd->security_ctx->priv_user= event->definer_user.str;
 
-  thd->db= event->m_db.str;
+  thd->db= event->dbname.str;
   {
     char exec_time[200];
     int ret;
-    my_TIME_to_str(&event->m_execute_at, exec_time);
-    DBUG_PRINT("info", ("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->m_db.str, event->m_name.str,(int) event->m_expr, exec_time));
-    sql_print_information("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->m_db.str, event->m_name.str,(int) event->m_expr, exec_time);
+    my_TIME_to_str(&event->execute_at, exec_time);
+    DBUG_PRINT("info", ("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time));
+    sql_print_information("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time);
     ret= event->execute(thd, &worker_mem_root);
-    sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]. RetCode=%d", event->m_db.str, event->m_name.str,(int) event->m_expr, exec_time, ret); 
-    DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]", event->m_db.str, event->m_name.str,(int) event->m_expr, exec_time)); 
+    sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, exec_time, ret); 
+    DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time)); 
   }
   thd->db= 0;
 
@@ -495,19 +495,19 @@ evex_load_events_from_db(THD *thd)
     }
     
     DBUG_PRINT("evex_load_events_from_db",
-            ("Event %s loaded from row. Time to compile", et->m_name.str));
+            ("Event %s loaded from row. Time to compile", et->name.str));
     
     if ((ret= et->compile(thd, &evex_mem_root)))
     {
       sql_print_error("Error while compiling %s.%s. Aborting load.",
-                      et->m_db.str, et->m_name.str);
+                      et->dbname.str, et->name.str);
       goto end;
     }
     // let's find when to be executed  
     et->compute_next_execution_time();
     
     DBUG_PRINT("evex_load_events_from_db",
-                ("Adding %s to the executor list.", et->m_name.str));
+                ("Adding %s to the executor list.", et->name.str));
     VOID(push_dynamic(&events_array,(gptr) et));
     /*
       We always add at the end so the number of elements - 1 is the place
@@ -518,7 +518,7 @@ evex_load_events_from_db(THD *thd)
     et_copy= dynamic_element(&events_array, events_array.elements - 1,
                              event_timed*);
     VOID(push_dynamic(&evex_executing_queue,(gptr) &et_copy));
-    et->m_free_sphead_on_delete= false;
+    et->free_sphead_on_delete= false;
     delete et; 
   }
   end_read_record(&read_record_info);
