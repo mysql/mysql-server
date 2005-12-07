@@ -6759,7 +6759,10 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 {
   flags|= BLOB_FLAG;
   if (table)
+  {
     table->s->blob_fields++;
+    /* TODO: why do not fill table->s->blob_field array here? */
+  }
 }
 
 
@@ -8280,6 +8283,350 @@ void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
               ((decimals & FIELDFLAG_MAX_DEC) << FIELDFLAG_DEC_SHIFT) |
               (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
               (is_unsigned ? 0 : FIELDFLAG_DECIMAL));
+}
+
+
+/*
+  Initialize field definition for create
+
+  SYNOPSIS
+    thd                   Thread handle
+    fld_name              Field name
+    fld_type              Field type
+    fld_length            Field length
+    fld_decimals          Decimal (if any)
+    fld_type_modifier     Additional type information
+    fld_default_value     Field default value (if any)
+    fld_on_update_value   The value of ON UPDATE clause
+    fld_comment           Field comment
+    fld_change            Field change
+    fld_interval_list     Interval list (if any)
+    fld_charset           Field charset
+    fld_geom_type         Field geometry type (if any)
+
+  RETURN
+    FALSE on success
+    TRUE  on error
+*/
+
+bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
+                        char *fld_length, char *fld_decimals,
+                        uint fld_type_modifier, Item *fld_default_value,
+                        Item *fld_on_update_value, LEX_STRING *fld_comment,
+                        char *fld_change, List<String> *fld_interval_list,
+                        CHARSET_INFO *fld_charset, uint fld_geom_type)
+{
+  uint sign_len, allowed_type_modifier= 0;
+  ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
+
+  DBUG_ENTER("create_field::init()");
+  
+  field= 0;
+  field_name= fld_name;
+  def= fld_default_value;
+  flags= fld_type_modifier;
+  unireg_check= (fld_type_modifier & AUTO_INCREMENT_FLAG ?
+                 Field::NEXT_NUMBER : Field::NONE);
+  decimals= fld_decimals ? (uint)atoi(fld_decimals) : 0;
+  if (decimals >= NOT_FIXED_DEC)
+  {
+    my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
+             NOT_FIXED_DEC-1);
+    DBUG_RETURN(TRUE);
+  }
+
+  sql_type= fld_type;
+  length= 0;
+  change= fld_change;
+  interval= 0;
+  pack_length= key_length= 0;
+  charset= fld_charset;
+  geom_type= (Field::geometry_type) fld_geom_type;
+  interval_list.empty();
+
+  comment= *fld_comment;
+  /*
+    Set flag if this field doesn't have a default value
+  */
+  if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
+      (fld_type_modifier & NOT_NULL_FLAG) && fld_type != FIELD_TYPE_TIMESTAMP)
+    flags|= NO_DEFAULT_VALUE_FLAG;
+
+  if (fld_length && !(length= (uint) atoi(fld_length)))
+    fld_length= 0; /* purecov: inspected */
+  sign_len= fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
+
+  switch (fld_type) {
+  case FIELD_TYPE_TINY:
+    if (!fld_length)
+      length= MAX_TINYINT_WIDTH+sign_len;
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    break;
+  case FIELD_TYPE_SHORT:
+    if (!fld_length)
+      length= MAX_SMALLINT_WIDTH+sign_len;
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    break;
+  case FIELD_TYPE_INT24:
+    if (!fld_length)
+      length= MAX_MEDIUMINT_WIDTH+sign_len;
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    break;
+  case FIELD_TYPE_LONG:
+    if (!fld_length)
+      length= MAX_INT_WIDTH+sign_len;
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    break;
+  case FIELD_TYPE_LONGLONG:
+    if (!fld_length)
+      length= MAX_BIGINT_WIDTH;
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    break;
+  case FIELD_TYPE_NULL:
+    break;
+  case FIELD_TYPE_NEWDECIMAL:
+    if (!fld_length && !decimals)
+      length= 10;
+    if (length > DECIMAL_MAX_PRECISION)
+    {
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
+               DECIMAL_MAX_PRECISION);
+      DBUG_RETURN(TRUE);
+    }
+    if (length < decimals)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
+    }
+    length=
+      my_decimal_precision_to_length(length, decimals,
+                                     fld_type_modifier & UNSIGNED_FLAG);
+    pack_length=
+      my_decimal_get_binary_size(length, decimals);
+    break;
+  case MYSQL_TYPE_VARCHAR:
+    /*
+      Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
+      if they don't have a default value
+    */
+    max_field_charlength= MAX_FIELD_VARCHARLENGTH;
+    break;
+  case MYSQL_TYPE_STRING:
+    break;
+  case FIELD_TYPE_BLOB:
+  case FIELD_TYPE_TINY_BLOB:
+  case FIELD_TYPE_LONG_BLOB:
+  case FIELD_TYPE_MEDIUM_BLOB:
+  case FIELD_TYPE_GEOMETRY:
+    if (fld_default_value)
+    {
+      /* Allow empty as default value. */
+      String str,*res;
+      res= fld_default_value->val_str(&str);
+      if (res->length())
+      {
+        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
+                 fld_name); /* purecov: inspected */
+        DBUG_RETURN(TRUE);
+      }
+      def= 0;
+    }
+    flags|= BLOB_FLAG;
+    break;
+  case FIELD_TYPE_YEAR:
+    if (!fld_length || length != 2)
+      length= 4; /* Default length */
+    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    break;
+  case FIELD_TYPE_FLOAT:
+    /* change FLOAT(precision) to FLOAT or DOUBLE */
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    if (fld_length && !fld_decimals)
+    {
+      uint tmp_length= length;
+      if (tmp_length > PRECISION_FOR_DOUBLE)
+      {
+        my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
+        DBUG_RETURN(TRUE);
+      }
+      else if (tmp_length > PRECISION_FOR_FLOAT)
+      {
+        sql_type= FIELD_TYPE_DOUBLE;
+        length= DBL_DIG+7; /* -[digits].E+### */
+      }
+      else
+        length= FLT_DIG+6; /* -[digits].E+## */
+      decimals= NOT_FIXED_DEC;
+      break;
+    }
+    if (!fld_length && !fld_decimals)
+    {
+      length=  FLT_DIG+6;
+      decimals= NOT_FIXED_DEC;
+    }
+    if (length < decimals &&
+        decimals != NOT_FIXED_DEC)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
+    }
+    break;
+  case FIELD_TYPE_DOUBLE:
+    allowed_type_modifier= AUTO_INCREMENT_FLAG;
+    if (!fld_length && !fld_decimals)
+    {
+      length= DBL_DIG+7;
+      decimals= NOT_FIXED_DEC;
+    }
+    if (length < decimals &&
+        decimals != NOT_FIXED_DEC)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
+    }
+    break;
+  case FIELD_TYPE_TIMESTAMP:
+    if (!fld_length)
+      length= 14;  /* Full date YYYYMMDDHHMMSS */
+    else if (length != 19)
+    {
+      /*
+        We support only even TIMESTAMP lengths less or equal than 14
+        and 19 as length of 4.1 compatible representation.
+      */
+      length= ((length+1)/2)*2; /* purecov: inspected */
+      length= min(length,14); /* purecov: inspected */
+    }
+    flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+    if (fld_default_value)
+    {
+      /* Grammar allows only NOW() value for ON UPDATE clause */
+      if (fld_default_value->type() == Item::FUNC_ITEM && 
+          ((Item_func*)fld_default_value)->functype() == Item_func::NOW_FUNC)
+      {
+        unireg_check= (fld_on_update_value ? Field::TIMESTAMP_DNUN_FIELD:
+                                             Field::TIMESTAMP_DN_FIELD);
+        /*
+          We don't need default value any longer moreover it is dangerous.
+          Everything handled by unireg_check further.
+        */
+        def= 0;
+      }
+      else
+        unireg_check= (fld_on_update_value ? Field::TIMESTAMP_UN_FIELD:
+                                             Field::NONE);
+    }
+    else
+    {
+      /*
+        If we have default TIMESTAMP NOT NULL column without explicit DEFAULT
+        or ON UPDATE values then for the sake of compatiblity we should treat
+        this column as having DEFAULT NOW() ON UPDATE NOW() (when we don't
+        have another TIMESTAMP column with auto-set option before this one)
+        or DEFAULT 0 (in other cases).
+        So here we are setting TIMESTAMP_OLD_FIELD only temporary, and will
+        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when
+        information about all TIMESTAMP fields in table will be availiable.
+
+        If we have TIMESTAMP NULL column without explicit DEFAULT value
+        we treat it as having DEFAULT NULL attribute.
+      */
+      unireg_check= (fld_on_update_value ? Field::TIMESTAMP_UN_FIELD :
+                     (flags & NOT_NULL_FLAG ? Field::TIMESTAMP_OLD_FIELD :
+                                              Field::NONE));
+    }
+    break;
+  case FIELD_TYPE_DATE:
+    /* Old date type. */
+    if (protocol_version != PROTOCOL_VERSION-1)
+      sql_type= FIELD_TYPE_NEWDATE;
+    /* fall trough */
+  case FIELD_TYPE_NEWDATE:
+    length= 10;
+    break;
+  case FIELD_TYPE_TIME:
+    length= 10;
+    break;
+  case FIELD_TYPE_DATETIME:
+    length= 19;
+    break;
+  case FIELD_TYPE_SET:
+    {
+      if (fld_interval_list->elements > sizeof(longlong)*8)
+      {
+        my_error(ER_TOO_BIG_SET, MYF(0), fld_name); /* purecov: inspected */
+        DBUG_RETURN(TRUE);
+      }
+      pack_length= get_set_pack_length(fld_interval_list->elements);
+
+      List_iterator<String> it(*fld_interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        interval_list.push_back(tmp);
+      /*
+        Set fake length to 1 to pass the below conditions.
+        Real length will be set in mysql_prepare_table()
+        when we know the character set of the column
+      */
+      length= 1;
+      break;
+    }
+  case FIELD_TYPE_ENUM:
+    {
+      /* Should be safe. */
+      pack_length= get_enum_pack_length(fld_interval_list->elements);
+
+      List_iterator<String> it(*fld_interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        interval_list.push_back(tmp);
+      length= 1; /* See comment for FIELD_TYPE_SET above. */
+      break;
+   }
+  case MYSQL_TYPE_VAR_STRING:
+    DBUG_ASSERT(0);  /* Impossible. */
+    break;
+  case MYSQL_TYPE_BIT:
+    {
+      if (!fld_length)
+        length= 1;
+      if (length > MAX_BIT_FIELD_LENGTH)
+      {
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
+                 MAX_BIT_FIELD_LENGTH);
+        DBUG_RETURN(TRUE);
+      }
+      pack_length= (length + 7) / 8;
+      break;
+    }
+  case FIELD_TYPE_DECIMAL:
+    DBUG_ASSERT(0); /* Was obsolete */
+  }
+
+  if (!(flags & BLOB_FLAG) &&
+      ((length > max_field_charlength && fld_type != FIELD_TYPE_SET &&
+        fld_type != FIELD_TYPE_ENUM &&
+        (fld_type != MYSQL_TYPE_VARCHAR || fld_default_value)) ||
+       (!length &&
+        fld_type != MYSQL_TYPE_STRING &&
+        fld_type != MYSQL_TYPE_VARCHAR && fld_type != FIELD_TYPE_GEOMETRY)))
+  {
+    my_error((fld_type == MYSQL_TYPE_VAR_STRING ||
+              fld_type == MYSQL_TYPE_VARCHAR ||
+              fld_type == MYSQL_TYPE_STRING) ?  ER_TOO_BIG_FIELDLENGTH :
+                                                ER_TOO_BIG_DISPLAYWIDTH,
+              MYF(0),
+              fld_name, max_field_charlength); /* purecov: inspected */
+    DBUG_RETURN(TRUE);
+  }
+  fld_type_modifier&= AUTO_INCREMENT_FLAG;
+  if ((~allowed_type_modifier) & fld_type_modifier)
+  {
+    my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(FALSE); /* success */
 }
 
 

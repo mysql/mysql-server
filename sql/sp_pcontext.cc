@@ -51,21 +51,26 @@ sp_cond_check(LEX_STRING *sqlstate)
 }
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev)
-  : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
-    m_handlers(0), m_parent(prev), m_pboundary(0)
+  :Sql_alloc(), m_total_pvars(0), m_csubsize(0), m_hsubsize(0),
+   m_handlers(0), m_parent(prev), m_pboundary(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
+  VOID(my_init_dynamic_array(&m_case_expr_id_lst, sizeof(int), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
   VOID(my_init_dynamic_array(&m_handler, sizeof(sp_cond_type_t *), 16, 8));
   m_label.empty();
   m_children.empty();
   if (!prev)
+  {
     m_poffset= m_coffset= 0;
+    m_num_case_exprs= 0;
+  }
   else
   {
-    m_poffset= prev->current_pvars();
+    m_poffset= prev->m_poffset + prev->m_total_pvars;
     m_coffset= prev->current_cursors();
+    m_num_case_exprs= prev->get_num_case_exprs();
   }
 }
 
@@ -81,6 +86,7 @@ sp_pcontext::destroy()
   m_children.empty();
   m_label.empty();
   delete_dynamic(&m_pvar);
+  delete_dynamic(&m_case_expr_id_lst);
   delete_dynamic(&m_cond);
   delete_dynamic(&m_cursor);
   delete_dynamic(&m_handler);
@@ -99,16 +105,19 @@ sp_pcontext::push_context()
 sp_pcontext *
 sp_pcontext::pop_context()
 {
-  uint submax= max_pvars();
+  m_parent->m_total_pvars= m_parent->m_total_pvars + m_total_pvars;
 
-  if (submax > m_parent->m_psubsize)
-    m_parent->m_psubsize= submax;
-  submax= max_handlers();
+  uint submax= max_handlers();
   if (submax > m_parent->m_hsubsize)
     m_parent->m_hsubsize= submax;
+
   submax= max_cursors();
   if (submax > m_parent->m_csubsize)
     m_parent->m_csubsize= submax;
+
+  if (m_num_case_exprs > m_parent->m_num_case_exprs)
+    m_parent->m_num_case_exprs= m_num_case_exprs;
+
   return m_parent;
 }
 
@@ -191,25 +200,28 @@ sp_pcontext::find_pvar(uint offset)
   return NULL;                  // index out of bounds
 }
 
-void
+sp_pvar_t *
 sp_pcontext::push_pvar(LEX_STRING *name, enum enum_field_types type,
 		       sp_param_mode_t mode)
 {
   sp_pvar_t *p= (sp_pvar_t *)sql_alloc(sizeof(sp_pvar_t));
 
-  if (p)
-  {
-    if (m_pvar.elements == m_psubsize)
-      m_psubsize+= 1;
-    p->name.str= name->str;
-    p->name.length= name->length;
-    p->type= type;
-    p->mode= mode;
-    p->offset= current_pvars();
-    p->dflt= NULL;
-    insert_dynamic(&m_pvar, (gptr)&p);
-  }
+  if (!p)
+    return NULL;
+
+  ++m_total_pvars;
+
+  p->name.str= name->str;
+  p->name.length= name->length;
+  p->type= type;
+  p->mode= mode;
+  p->offset= current_pvars();
+  p->dflt= NULL;
+  insert_dynamic(&m_pvar, (gptr)&p);
+
+  return p;
 }
+
 
 sp_label_t *
 sp_pcontext::push_label(char *name, uint ip)
@@ -352,6 +364,29 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
   if (!scoped && m_parent)
     return m_parent->find_cursor(name, poff, scoped);
   return FALSE;
+}
+
+
+void
+sp_pcontext::retrieve_field_definitions(List<create_field> *field_def_lst)
+{
+  /* Put local/context fields in the result list. */
+
+  for (uint i = 0; i < m_pvar.elements; ++i)
+  {
+    sp_pvar_t *var_def;
+    get_dynamic(&m_pvar, (gptr) &var_def, i);
+
+    field_def_lst->push_back(&var_def->field_def);
+  }
+
+  /* Put the fields of the enclosed contexts in the result list. */
+
+  List_iterator_fast<sp_pcontext> li(m_children);
+  sp_pcontext *ctx;
+
+  while ((ctx = li++))
+    ctx->retrieve_field_definitions(field_def_lst);
 }
 
 /*
