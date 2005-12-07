@@ -1518,8 +1518,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
             Item_func_set_user_var is not fixed after construction,
             call fix_fields().
 	  */
-          if ((ret= test(!suv || suv->fix_fields(thd, &item) ||
-                         suv->check() || suv->update())))
+          if ((err_status= test(!suv || suv->fix_fields(thd, &item) ||
+                                suv->check() || suv->update())))
             break;
 	}
       }
