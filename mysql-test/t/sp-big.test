@@ -52,6 +52,9 @@ while ($1)
 --enable_query_log
 select count(*) from t1;
 select count(*) from t2;
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
 delimiter |;
 create procedure p1()
 begin
