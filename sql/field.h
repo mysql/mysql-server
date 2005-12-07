@@ -130,7 +130,19 @@ public:
             null_bit == field->null_bit);
   }
   virtual bool eq_def(Field *field);
+  
+  /*
+    pack_length() returns size (in bytes) used to store field data in memory
+    (i.e. it returns the maximum size of the field in a row of the table,
+    which is located in RAM).
+  */
   virtual uint32 pack_length() const { return (uint32) field_length; }
+
+  /*
+    pack_length_in_rec() returns size (in bytes) used to store field data on
+    storage (i.e. it returns the maximal size of the field in a row of the
+    table, which is located on disk).
+  */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
@@ -1395,6 +1407,12 @@ public:
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
                           bool maybe_null, bool is_unsigned);
+
+  bool init(THD *thd, char *field_name, enum_field_types type, char *length,
+            char *decimals, uint type_modifier, Item *default_value,
+            Item *on_update_value, LEX_STRING *comment, char *change,
+            List<String> *interval_list, CHARSET_INFO *cs,
+            uint uint_geom_type);
 };
 
 
