@@ -5808,10 +5808,8 @@ join_table:
           {
             YYERROR_UNLESS($1 && ($$=$3));
             /* Change the current name resolution context to a local context. */
-            Name_resolution_context *on_context;
-            if (!(on_context= make_join_on_context(YYTHD,$1,$3)))
+            if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
-            Lex->push_context(on_context);
           }
           expr
 	  {
@@ -5823,10 +5821,8 @@ join_table:
           {
             YYERROR_UNLESS($1 && ($$=$3));
             /* Change the current name resolution context to a local context. */
-            Name_resolution_context *on_context;
-            if (!(on_context= make_join_on_context(YYTHD,$1,$3)))
+            if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
-            Lex->push_context(on_context);
           }
           expr
           {
@@ -5853,10 +5849,8 @@ join_table:
           ON
           {
             /* Change the current name resolution context to a local context. */
-            Name_resolution_context *on_context;
-            if (!(on_context= make_join_on_context(YYTHD,$1,$5)))
+            if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
-            Lex->push_context(on_context);
           }
           expr
 	  {
@@ -5886,10 +5880,8 @@ join_table:
           ON
           {
             /* Change the current name resolution context to a local context. */
-            Name_resolution_context *on_context;
-            if (!(on_context= make_join_on_context(YYTHD,$1,$5)))
+            if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
-            Lex->push_context(on_context);
           }
           expr
           {
@@ -5950,10 +5942,9 @@ table_factor:
           ON
           {
             /* Change the current name resolution context to a local context. */
-            Name_resolution_context *on_context;
-            if (!(on_context= make_join_on_context(YYTHD,$3,$7)))
+            if (push_new_name_resolution_context(YYTHD, $3, $7))
               YYABORT;
-            Lex->push_context(on_context);
+
           }
           expr '}'
 	  {
