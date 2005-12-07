@@ -24,7 +24,8 @@ cmp_types_are_equal(
 				/* out: TRUE if the types are considered
 				equal in comparisons */
 	dtype_t*	type1,	/* in: type 1 */
-	dtype_t*	type2);	/* in: type 2 */
+	dtype_t*	type2,	/* in: type 2 */
+	ibool		check_charsets); /* in: whether to check charsets */
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. */
