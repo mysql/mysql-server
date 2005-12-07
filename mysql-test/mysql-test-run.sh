@@ -770,11 +770,6 @@ then
 SLAVE_MYSQLD=$MYSQLD
 fi
 
-# If mysqltest should be valgrinded, add valgrind and options to MYSQL_TEST
-if ! [ -z "$VALGRIND_MYSQLTEST" ] ; then
-  MYSQL_TEST="$VALGRIND_MYSQLTEST $MYSQL_TEST"
-fi
-
 # If we should run all tests cases, we will use a local server for that
 
 if [ -z "$1" -a -z "$DO_STRESS" ]
@@ -831,7 +826,10 @@ if [ x$USE_TIMER = x1 ] ; then
 fi
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+
+# Export MYSQL_TEST variable for use from .test files
 export MYSQL_TEST
+
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
@@ -1780,7 +1778,7 @@ run_testcase ()
     $RM -f r/$tname.*reject
     mysql_test_args="-R $result_file $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
-      `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
+      `$VALGRIND_MYSQLTEST $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
       do_gdb_test "$mysql_test_args" "$tf"
     fi
