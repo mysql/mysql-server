@@ -108,11 +108,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
   {						// Part field list
     SELECT_LEX *select_lex= &thd->lex->select_lex;
     Name_resolution_context *context= &select_lex->context;
-    TABLE_LIST *save_next_local;
-    TABLE_LIST *save_table_list;
-    TABLE_LIST *save_first_name_resolution_table;
-    TABLE_LIST *save_next_name_resolution_table;
-    bool        save_resolve_in_select_list;
+    Name_resolution_context_state ctx_state;
     int res;
 
     if (fields.elements != values.elements)
@@ -125,14 +121,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     select_lex->no_wrap_view_item= TRUE;
 
     /* Save the state of the current name resolution context. */
-    save_table_list=                  context->table_list;
-    save_first_name_resolution_table= context->first_name_resolution_table;
-    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                      context->first_name_resolution_table->
-                                               next_name_resolution_table :
-                                      NULL;
-    save_resolve_in_select_list=      context->resolve_in_select_list;
-    save_next_local=                  table_list->next_local;
+    ctx_state.save_state(context, table_list);
 
     /*
       Perform name resolution only in the first table - 'table_list',
@@ -143,13 +132,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     res= setup_fields(thd, 0, fields, 1, 0, 0);
 
     /* Restore the current context. */
-    table_list->next_local=                save_next_local;
-    context->table_list=                   save_table_list;
-    context->first_name_resolution_table=  save_first_name_resolution_table;
-    if (context->first_name_resolution_table)
-      context->first_name_resolution_table->
-               next_name_resolution_table= save_next_name_resolution_table;
-    context->resolve_in_select_list=       save_resolve_in_select_list;
+    ctx_state.restore_state(context, table_list);
     thd->lex->select_lex.no_wrap_view_item= FALSE;
 
     if (res)
@@ -280,13 +263,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   ulonglong id;
   COPY_INFO info;
   TABLE *table= 0;
-  TABLE_LIST *save_table_list;
-  TABLE_LIST *save_next_local;
-  TABLE_LIST *save_first_name_resolution_table;
-  TABLE_LIST *save_next_name_resolution_table;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   Name_resolution_context *context;
+  Name_resolution_context_state ctx_state;
 #ifndef EMBEDDED_LIBRARY
   char *query= thd->query;
 #endif
@@ -367,13 +347,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   context= &thd->lex->select_lex.context;
   /* Save the state of the current name resolution context. */
-  save_table_list=                  context->table_list;
-  save_first_name_resolution_table= context->first_name_resolution_table;
-  save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                    context->first_name_resolution_table->
-                                             next_name_resolution_table :
-                                    NULL;
-  save_next_local=                  table_list->next_local;
+  ctx_state.save_state(context, table_list);
 
   /*
     Perform name resolution only in the first table - 'table_list',
@@ -397,16 +371,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   its.rewind ();
  
   /* Restore the current context. */
-  table_list->next_local= save_next_local;
-  context->first_name_resolution_table= save_first_name_resolution_table;
-  if (context->first_name_resolution_table)
-    context->first_name_resolution_table->
-             next_name_resolution_table= save_next_name_resolution_table;
+  ctx_state.restore_state(context, table_list);
 
   /*
     Fill in the given fields and dump it to the table file
   */
-
   info.records= info.deleted= info.copied= info.updated= 0;
   info.ignore= ignore;
   info.handle_duplicates=duplic;
@@ -814,11 +783,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
-  TABLE_LIST *save_table_list;
-  TABLE_LIST *save_next_local;
-  TABLE_LIST *save_first_name_resolution_table;
-  TABLE_LIST *save_next_name_resolution_table;
-  bool        save_resolve_in_select_list;
+  Name_resolution_context_state ctx_state;
   bool insert_into_view= (table_list->view != 0);
   bool res= 0;
   DBUG_ENTER("mysql_prepare_insert");
@@ -858,15 +823,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);
 
   /* Save the state of the current name resolution context. */
-  save_table_list=                  context->table_list;
-  /* Here first_name_resolution_table points to the first select table. */
-  save_first_name_resolution_table= context->first_name_resolution_table;
-  save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                    context->first_name_resolution_table->
-                                             next_name_resolution_table :
-                                    NULL;
-  save_resolve_in_select_list=      context->resolve_in_select_list;
-  save_next_local=                  table_list->next_local;
+  ctx_state.save_state(context, table_list);
 
   /*
     Perform name resolution only in the first table - 'table_list',
@@ -891,23 +848,17 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     */       
     if (select_lex->group_list.elements == 0)
     {
-      context->table_list->next_local=       save_next_local;
+      context->table_list->next_local=       ctx_state.save_next_local;
       /* first_name_resolution_table was set by resolve_in_table_list_only() */
       context->first_name_resolution_table->
-        next_name_resolution_table=          save_next_local;
+        next_name_resolution_table=          ctx_state.save_next_local;
     }
     if (!res)
       res= setup_fields(thd, 0, update_values, 1, 0, 0);
   }
 
   /* Restore the current context. */
-  table_list->next_local= save_next_local;
-  context->table_list= save_table_list;
-  context->first_name_resolution_table= save_first_name_resolution_table;
-  if (context->first_name_resolution_table)
-    context->first_name_resolution_table->
-             next_name_resolution_table= save_next_name_resolution_table;
-  context->resolve_in_select_list= save_resolve_in_select_list;
+  ctx_state.restore_state(context, table_list);
 
   if (res)
     DBUG_RETURN(res);
@@ -2176,17 +2127,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   {
     /* Save the state of the current name resolution context. */
     Name_resolution_context *context= &lex->select_lex.context;
-    TABLE_LIST *save_table_list;
-    TABLE_LIST *save_next_local;
-    TABLE_LIST *save_first_name_resolution_table;
-    TABLE_LIST *save_next_name_resolution_table;
-    save_table_list=                  context->table_list;
-    save_first_name_resolution_table= context->first_name_resolution_table;
-    save_next_name_resolution_table=  (context->first_name_resolution_table) ?
-                                      context->first_name_resolution_table->
-                                               next_name_resolution_table :
-                                      NULL;
-    save_next_local= table_list->next_local;
+    Name_resolution_context_state ctx_state;
+
+    /* Save the state of the current name resolution context. */
+    ctx_state.save_state(context, table_list);
 
     /* Perform name resolution only in the first table - 'table_list'. */
     table_list->next_local= 0;
@@ -2202,20 +2146,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     */       
     if (lex->select_lex.group_list.elements == 0)
     {
-      context->table_list->next_local=       save_next_local;
+      context->table_list->next_local=       ctx_state.save_next_local;
       /* first_name_resolution_table was set by resolve_in_table_list_only() */
       context->first_name_resolution_table->
-        next_name_resolution_table=          save_next_local;
+        next_name_resolution_table=          ctx_state.save_next_local;
     }
     res= res || setup_fields(thd, 0, *info.update_values, 1, 0, 0);
 
     /* Restore the current context. */
-    table_list->next_local= save_next_local;
-    context->first_name_resolution_table= save_first_name_resolution_table;
-    if (context->first_name_resolution_table)
-      context->first_name_resolution_table->
-               next_name_resolution_table= save_next_name_resolution_table;
-
+    ctx_state.restore_state(context, table_list);
   }
 
   lex->current_select= lex_current_select_save;

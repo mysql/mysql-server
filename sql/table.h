@@ -407,9 +407,6 @@ public:
   const char *table_name();
   const char *db_name();
   GRANT_INFO *grant();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool check_grants(THD *thd, const char *name, uint length);
-#endif
 };
 
 
@@ -734,11 +731,11 @@ public:
 
 class Field_iterator_natural_join: public Field_iterator
 {
-  List_iterator_fast<Natural_join_column> *column_ref_it;
+  List_iterator_fast<Natural_join_column> column_ref_it;
   Natural_join_column *cur_column_ref;
 public:
-  Field_iterator_natural_join() :column_ref_it(NULL), cur_column_ref(NULL) {}
-  ~Field_iterator_natural_join() { delete column_ref_it; }
+  Field_iterator_natural_join() :cur_column_ref(NULL) {}
+  ~Field_iterator_natural_join() {}
   void set(TABLE_LIST *table);
   void next();
   bool end_of_fields() { return !cur_column_ref; }
@@ -785,7 +782,8 @@ public:
   GRANT_INFO *grant();
   Item *create_item(THD *thd) { return field_it->create_item(thd); }
   Field *field() { return field_it->field(); }
-  Natural_join_column *get_or_create_column_ref(THD *thd, bool *is_created);
+  Natural_join_column *get_or_create_column_ref(bool *is_created);
+  Natural_join_column *get_natural_column_ref();
 };
 
 
