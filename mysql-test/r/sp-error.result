@@ -1057,6 +1057,37 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop database mysqltest2;
 use test;
+DROP FUNCTION IF EXISTS bug13012|
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+REPAIR TABLE t1;
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+BACKUP TABLE t1 TO '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+RESTORE TABLE t1 FROM '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+create table t1 (a int)|
+CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
+CREATE FUNCTION bug13012_2() RETURNS INT
+BEGIN
+CALL bug13012_1();
+RETURN 1;
+END|
+SELECT bug13012_2()|
+ERROR 0A000: Not allowed to return a result set from a function
+drop table t1|
+drop procedure bug13012_1|
+drop function bug13012_2|
 drop function if exists bug11555_1;
 drop function if exists bug11555_2;
 drop view if exists v1, v2, v3, v4;
@@ -1097,34 +1128,3 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 drop function bug11555_1;
 drop table t1;
 drop view v1;
-DROP FUNCTION IF EXISTS bug13012|
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-REPAIR TABLE t1;
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-BACKUP TABLE t1 TO '/tmp';
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-CREATE FUNCTION bug13012() RETURNS INT
-BEGIN
-RESTORE TABLE t1 FROM '/tmp';
-RETURN 1;
-END|
-ERROR 0A000: Not allowed to return a result set from a function
-create table t1 (a int)|
-CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
-CREATE FUNCTION bug13012_2() RETURNS INT
-BEGIN
-CALL bug13012_1();
-RETURN 1;
-END|
-SELECT bug13012_2()|
-ERROR 0A000: Not allowed to return a result set from a function
-drop table t1|
-drop procedure bug13012_1|
-drop function bug13012_2|
