@@ -18,6 +18,9 @@
 #define _EVENT_PRIV_H_
 
 
+#define UNLOCK_MUTEX_AND_BAIL_OUT(__mutex, __label) \
+    { VOID(pthread_mutex_unlock(&__mutex)); goto __label; }
+
 enum
 {
   EVEX_FIELD_DB = 0,
