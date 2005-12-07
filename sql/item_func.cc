@@ -4716,7 +4716,7 @@ Item_func_sp::sp_result_field(void) const
     share->table_cache_key = empty_name;
     share->table_name = empty_name;
   }
-  field= m_sp->make_field(max_length, name, dummy_table);
+  field= m_sp->create_result_field(max_length, name, dummy_table);
   DBUG_RETURN(field);
 }
 
@@ -4729,17 +4729,17 @@ Item_func_sp::sp_result_field(void) const
    1  value =  NULL  or error
 */
 
-int
+bool
 Item_func_sp::execute(Field **flp)
 {
-  Item *it;
+  THD *thd= current_thd;
   Field *f;
-  if (execute(&it))
-  {
-    null_value= 1;
-    context->process_error(current_thd);
-    return 1;
-  }
+
+  /*
+    Get field in virtual tmp table to store result. Create the field if
+    invoked first time.
+  */
+  
   if (!(f= *flp))
   {
     *flp= f= sp_result_field();
@@ -4748,19 +4748,32 @@ Item_func_sp::execute(Field **flp)
     f->null_ptr= (uchar *)&null_value;
     f->null_bit= 1;
   }
-  it->save_in_field(f, 1);
-  return null_value= f->is_null();
+
+  /* Execute function and store the return value in the field. */
+
+  if (execute_impl(thd, f))
+  {
+    null_value= 1;
+    context->process_error(thd);
+    return TRUE;
+  }
+
+  /* Check that the field (the value) is not NULL. */
+
+  null_value= f->is_null();
+
+  return null_value;
 }
 
 
-int
-Item_func_sp::execute(Item **itp)
+bool
+Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
 {
-  DBUG_ENTER("Item_func_sp::execute");
-  THD *thd= current_thd;
-  int res= -1;
+  bool err_status= TRUE;
   Sub_statement_state statement_state;
   Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
+
+  DBUG_ENTER("Item_func_sp::execute_impl");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (context->security_ctx)
@@ -4778,7 +4791,7 @@ Item_func_sp::execute(Item **itp)
     function call into binlog.
   */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
-  res= m_sp->execute_function(thd, args, arg_count, itp);
+  err_status= m_sp->execute_function(thd, args, arg_count, return_value_fld);
   thd->restore_sub_statement_state(&statement_state);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4788,7 +4801,7 @@ error:
 #else
 error:
 #endif
-  DBUG_RETURN(res);
+  DBUG_RETURN(err_status);
 }
 
 
@@ -4884,7 +4897,7 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
   DBUG_ENTER("Item_func_sp::tmp_table_field");
 
   if (m_sp)
-    res= m_sp->make_field(max_length, (const char *)name, t_arg);
+    res= m_sp->create_result_field(max_length, (const char*) name, t_arg);
   
   if (!res) 
     res= Item_func::tmp_table_field(t_arg);

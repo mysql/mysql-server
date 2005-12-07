@@ -1,3 +1,5 @@
+drop procedure if exists p1|
+drop procedure if exists p2|
 create procedure p1()
 begin
 prepare stmt from "select 1";
