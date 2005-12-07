@@ -25,6 +25,7 @@ count(*)
 select count(*) from t2;
 count(*)
 0
+drop procedure if exists p1;
 create procedure p1()
 begin
 declare done integer default 0;

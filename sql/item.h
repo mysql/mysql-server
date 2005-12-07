@@ -383,8 +383,6 @@ public:
   { return (void*) sql_alloc((uint) size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  /* Special for SP local variable assignment - reusing slots */
-  static void *operator new(size_t size, Item *reuse, uint *rsize);
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
@@ -713,13 +711,13 @@ public:
     current value and pointer to current Item otherwise.
   */
   virtual Item *this_item() { return this; }
+  virtual const Item *this_item() const { return this; }
+
   /*
     For SP local variable returns address of pointer to Item representing its
     current value and pointer passed via parameter otherwise.
   */
   virtual Item **this_item_addr(THD *thd, Item **addr) { return addr; }
-  /* For SPs mostly. */
-  virtual Item *this_const_item() const { return const_cast<Item*>(this); }
 
   // Row emulation
   virtual uint cols() { return 1; }
@@ -748,21 +746,32 @@ public:
 
 class sp_head;
 
-/*
-  A reference to local SP variable (incl. reference to SP parameter), used in
-  runtime.
-  
-  NOTE
-    This item has a "value" item, defined as 
-      this_item() = thd->spcont->get_item(m_offset)
-    and it delegates everything to that item (if !this_item() then this item
-    poses as Item_null) except for name, which is the name of SP local
-    variable.
-*/
 
-class Item_splocal : public Item
+/*****************************************************************************
+  The class is a base class for representation of stored routine variables in
+  the Item-hierarchy. There are the following kinds of SP-vars:
+    - local variables (Item_splocal);
+    - CASE expression (Item_case_expr);
+*****************************************************************************/
+
+class Item_sp_variable :public Item
 {
-  uint m_offset;
+protected:
+  /*
+    THD, which is stored in fix_fields() and is used in this_item() to avoid
+    current_thd use.
+  */
+  THD *m_thd;
+
+public:
+  LEX_STRING m_name;
+
+  /*
+    Buffer, pointing to the string value of the item. We need it to
+    protect internal buffer from changes. See comment to analogous
+    member in Item_param for more details.
+  */
+  String str_value_ptr;
 
 public:
 #ifndef DBUG_OFF
@@ -770,11 +779,74 @@ public:
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
   */
-  sp_head *owner;
+  sp_head *m_sp;
 #endif
-  LEX_STRING m_name;
-  THD	     *thd;
 
+public:
+  Item_sp_variable(char *sp_var_name_str, uint sp_var_name_length);
+
+public:
+  bool fix_fields(THD *thd, Item **);
+
+  double val_real();
+  longlong val_int();
+  String *val_str(String *sp);
+  my_decimal *val_decimal(my_decimal *decimal_value);
+  bool is_null();
+
+public:
+  inline void make_field(Send_field *field);
+  
+  inline bool const_item() const;
+  
+  inline int save_in_field(Field *field, bool no_conversions);
+  inline bool send(Protocol *protocol, String *str);
+}; 
+
+/*****************************************************************************
+  Item_sp_variable inline implementation.
+*****************************************************************************/
+
+inline void Item_sp_variable::make_field(Send_field *field)
+{
+  Item *it= this_item();
+
+  if (name)
+    it->set_name(name, (uint) strlen(name), system_charset_info);
+  else
+    it->set_name(m_name.str, m_name.length, system_charset_info);
+  it->make_field(field);
+}
+
+inline bool Item_sp_variable::const_item() const
+{
+  return TRUE;
+}
+
+inline int Item_sp_variable::save_in_field(Field *field, bool no_conversions)
+{
+  return this_item()->save_in_field(field, no_conversions);
+}
+
+inline bool Item_sp_variable::send(Protocol *protocol, String *str)
+{
+  return this_item()->send(protocol, str);
+}
+
+
+/*****************************************************************************
+  A reference to local SP variable (incl. reference to SP parameter), used in
+  runtime.
+*****************************************************************************/
+
+class Item_splocal :public Item_sp_variable
+{
+  uint m_var_idx;
+
+  Type m_type;
+  Item_result m_result_type;
+
+public:
   /* 
     Position of this reference to SP variable in the statement (the
     statement itself is in sp_instr_stmt::m_query).
@@ -787,77 +859,93 @@ public:
   */
   uint pos_in_query;
 
-  Item_splocal(LEX_STRING name, uint offset, uint pos_in_q=0)
-    : m_offset(offset), m_name(name), thd(0), pos_in_query(pos_in_q)
-  {
-    maybe_null= TRUE;
-  }
-
-  /* For error printing */
-  inline LEX_STRING *my_name(LEX_STRING *get_name)
-  {
-    if (!get_name)
-      return &m_name;
-    (*get_name)= m_name;
-    return get_name;
-  }
+  Item_splocal(const LEX_STRING &sp_var_name, uint sp_var_idx,
+               enum_field_types sp_var_type, uint pos_in_q= 0);
 
   bool is_splocal() { return 1; } /* Needed for error checking */
 
   Item *this_item();
+  const Item *this_item() const;
   Item **this_item_addr(THD *thd, Item **);
-  Item *this_const_item() const;
 
-  bool fix_fields(THD *, Item **);
-  void cleanup();
-
-  inline uint get_offset()
-  {
-    return m_offset;
-  }
-
-  // Abstract methods inherited from Item. Just defer the call to
-  // the item in the frame
-  enum Type type() const;
-
-  double val_real();
-  longlong val_int();
-  String *val_str(String *sp);
-  my_decimal *val_decimal(my_decimal *);
-  bool is_null();
   void print(String *str);
 
-  void make_field(Send_field *field)
-  {
-    Item *it= this_item();
+public:
+  inline const LEX_STRING *my_name() const;
 
-    if (name)
-      it->set_name(name, (uint) strlen(name), system_charset_info);
-    else
-      it->set_name(m_name.str, m_name.length, system_charset_info);
-    it->make_field(field);
-  }
+  inline uint get_var_idx() const;
 
-  Item_result result_type() const
-  {
-    return this_const_item()->result_type();
-  }
-
-  bool const_item() const
-  {
-    return TRUE;
-  }
-
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return this_item()->save_in_field(field, no_conversions);
-  }
-
-  bool send(Protocol *protocol, String *str)
-  {
-    return this_item()->send(protocol, str);
-  }
+  inline enum Type type() const;
+  inline Item_result result_type() const;
 };
+
+/*****************************************************************************
+  Item_splocal inline implementation.
+*****************************************************************************/
+
+inline const LEX_STRING *Item_splocal::my_name() const
+{
+  return &m_name;
+}
+
+inline uint Item_splocal::get_var_idx() const
+{
+  return m_var_idx;
+}
+
+inline enum Item::Type Item_splocal::type() const
+{
+  return m_type;
+}
+
+inline Item_result Item_splocal::result_type() const
+{
+  return m_result_type;
+}
+
+
+/*****************************************************************************
+  A reference to case expression in SP, used in runtime.
+*****************************************************************************/
+
+class Item_case_expr :public Item_sp_variable
+{
+public:
+  Item_case_expr(int case_expr_id);
+
+public:
+  Item *this_item();
+  const Item *this_item() const;
+  Item **this_item_addr(THD *thd, Item **);
+
+  inline enum Type type() const;
+  inline Item_result result_type() const;
+
+public:
+  /*
+    NOTE: print() is intended to be used from views and for debug.
+    Item_case_expr can not occur in views, so here it is only for debug
+    purposes.
+  */
+  void print(String *str);
+
+private:
+  int m_case_expr_id;
+};
+
+/*****************************************************************************
+  Item_case_expr inline implementation.
+*****************************************************************************/
+
+inline enum Item::Type Item_case_expr::type() const
+{
+  return this_item()->type();
+}
+
+inline Item_result Item_case_expr::result_type() const
+{
+  return this_item()->result_type();
+}
 
 
 /*
@@ -885,7 +973,6 @@ public:
   }
 
   bool fix_fields(THD *, Item **);
-  void cleanup();
 
   enum Type type() const;
   double val_real();
