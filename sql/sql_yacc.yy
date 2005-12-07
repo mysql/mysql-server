@@ -1350,41 +1350,11 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-            LEX_STRING cmt = { 0, 0 };
-	    create_field *new_field;
-	    uint unused1= 0;
-	    int unused2= 0;
 
-	    if (!(new_field= new_create_field(YYTHD, (char*) "",
-					      (enum enum_field_types)$8,
-			  		      lex->length, lex->dec, lex->type,
-			  		      (Item *)0, (Item *) 0, &cmt, 0,
-					      &lex->interval_list, 
-			  		      (lex->charset ? lex->charset :
-					       default_charset_info),
-					      lex->uint_geom_type)))
-	      YYABORT;
-
-	    sp->m_returns_cs= new_field->charset;
-
-            if (new_field->interval_list.elements)
-            {
-	      new_field->interval= 
-                sp->create_typelib(&new_field->interval_list);
-            }
-            sp_prepare_create_field(YYTHD, new_field);
-
-	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
-				     HA_CAN_GEOMETRY))
-	      YYABORT;
-
-	    sp->m_returns= new_field->sql_type;
-	    sp->m_returns_cs= new_field->charset;
-	    sp->m_returns_len= new_field->length;
-	    sp->m_returns_pack= new_field->pack_flag;
-            sp->m_returns_typelib= new_field->interval;
-            sp->m_geom_returns= new_field->geom_type;
-            new_field->interval= NULL;
+            if (sp->fill_field_definition(YYTHD, lex,
+                                          (enum enum_field_types) $8,
+                                          &sp->m_return_field_def))
+              YYABORT;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
@@ -1506,8 +1476,28 @@ sp_fdparams:
 	| sp_fdparam
 	;
 
+sp_init_param:
+	  /* Empty */
+	  {
+	    LEX *lex= Lex;
+
+	    lex->length= 0;
+	    lex->dec= 0;
+	    lex->type= 0;
+	  
+	    lex->default_value= 0;
+	    lex->on_update_value= 0;
+	  
+	    lex->comment= null_lex_str;
+	    lex->charset= NULL;
+	  
+	    lex->interval_list.empty();
+	    lex->uint_geom_type= 0;
+	  }
+	;
+
 sp_fdparam:
-	  ident type
+	  ident sp_init_param type
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
@@ -1517,7 +1507,17 @@ sp_fdparam:
 	      my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
+	    sp_pvar_t *pvar= spc->push_pvar(&$1, (enum enum_field_types)$3,
+                                            sp_param_in);
+
+            if (lex->sphead->fill_field_definition(YYTHD, lex,
+                                                   (enum enum_field_types) $3,
+                                                   &pvar->field_def))
+            {
+              YYABORT;
+            }
+            pvar->field_def.field_name= pvar->name.str;
+            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1533,18 +1533,27 @@ sp_pdparams:
 	;
 
 sp_pdparam:
-	  sp_opt_inout ident type
+	  sp_opt_inout sp_init_param ident type
 	  {
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
-	    if (spc->find_pvar(&$2, TRUE))
+	    if (spc->find_pvar(&$3, TRUE))
 	    {
-	      my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
+	      my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
 	      YYABORT;
 	    }
-	    spc->push_pvar(&$2, (enum enum_field_types)$3,
-			   (sp_param_mode_t)$1);
+	    sp_pvar_t *pvar= spc->push_pvar(&$3, (enum enum_field_types)$4,
+			                    (sp_param_mode_t)$1);
+
+            if (lex->sphead->fill_field_definition(YYTHD, lex,
+                                                   (enum enum_field_types) $4,
+                                                   &pvar->field_def))
+            {
+              YYABORT;
+            }
+            pvar->field_def.field_name= pvar->name.str;
+            pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
 	  }
 	;
 
@@ -1596,45 +1605,60 @@ sp_decls:
 	;
 
 sp_decl:
-          DECLARE_SYM sp_decl_idents type 
+          DECLARE_SYM sp_decl_idents
           {
             LEX *lex= Lex;
 
             lex->sphead->reset_lex(YYTHD);
             lex->spcont->declare_var_boundary($2);
           }
+          type
           sp_opt_default
           {
             LEX *lex= Lex;
-            sp_pcontext *ctx= lex->spcont;
-            uint max= ctx->context_pvars();
-            enum enum_field_types type= (enum enum_field_types)$3;
-            Item *it= $5;
-            bool has_default= (it != NULL);
-
-            for (uint i = max-$2 ; i < max ; i++)
+            sp_pcontext *pctx= lex->spcont;
+            uint num_vars= pctx->context_pvars();
+            enum enum_field_types var_type= (enum enum_field_types) $4;
+            Item *dflt_value_item= $5;
+            create_field *create_field_op;
+            
+            if (!dflt_value_item)
             {
-              sp_instr_set *in;
-	      uint off= ctx->pvar_context2index(i);
-
-              ctx->set_type(off, type);
-              if (! has_default)
-                it= new Item_null();  /* QQ Set to the type with null_value? */
-              in = new sp_instr_set(lex->sphead->instructions(),
-                                    ctx,
-                                    off,
-                                    it, type, lex,
-                                    (i == max - 1));
-
-              /*
-                The last instruction is assigned to be responsible for
-                freeing LEX.
-              */
-              lex->sphead->add_instr(in);
-              ctx->set_default(off, it);
+              dflt_value_item= new Item_null();
+              /* QQ Set to the var_type with null_value? */
             }
-            ctx->declare_var_boundary(0);
+            
+            for (uint i = num_vars-$2 ; i < num_vars ; i++)
+            {
+              uint var_idx= pctx->pvar_context2index(i);
+              sp_pvar_t *pvar= pctx->find_pvar(var_idx);
+            
+              if (!pvar)
+                YYABORT;
+            
+              pvar->type= var_type;
+              pvar->dflt= dflt_value_item;
+            
+              if (lex->sphead->fill_field_definition(YYTHD, lex, var_type,
+                                                     &pvar->field_def))
+              {
+                YYABORT;
+              }
+            
+              pvar->field_def.field_name= pvar->name.str;
+              pvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            
+              /* The last instruction is responsible for freeing LEX. */
+
+              lex->sphead->add_instr(
+                new sp_instr_set(lex->sphead->instructions(), pctx, var_idx,
+                                 dflt_value_item, var_type, lex,
+                                 (i == num_vars - 1)));
+            }
+
+            pctx->declare_var_boundary(0);
             lex->sphead->restore_lex(YYTHD);
+
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
           }
@@ -1857,6 +1881,8 @@ sp_hcond:
 sp_decl_idents:
 	  ident
 	  {
+            /* NOTE: field definition is filled in sp_decl section. */
+
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
@@ -1870,6 +1896,8 @@ sp_decl_idents:
 	  }
 	| sp_decl_idents ',' ident
 	  {
+            /* NOTE: field definition is filled in sp_decl section. */
+
 	    LEX *lex= Lex;
 	    sp_pcontext *spc= lex->spcont;
 
@@ -1947,8 +1975,8 @@ sp_proc_stmt:
 	    {
 	      sp_instr_freturn *i;
 
-	      i= new sp_instr_freturn(sp->instructions(), lex->spcont,
-		                      $3, sp->m_returns, lex);
+	      i= new sp_instr_freturn(sp->instructions(), lex->spcont, $3,
+                                      sp->m_return_field_def.sql_type, lex);
 	      sp->add_instr(i);
 	      sp->m_flags|= sp_head::HAS_RETURN;
 	    }
@@ -1964,25 +1992,27 @@ sp_proc_stmt:
           { Lex->sphead->reset_lex(YYTHD); }
           expr WHEN_SYM
 	  {
-	    /* We "fake" this by using an anonymous variable which we
-	       set to the expression. Note that all WHENs are evaluate
-	       at the same frame level, so we then know that it's the
-	       top-most variable in the frame. */
 	    LEX *lex= Lex;
-	    uint offset= lex->spcont->current_pvars();
-	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
-                                               lex->spcont, offset, $3,
-                                               MYSQL_TYPE_STRING, lex, TRUE);
-	    LEX_STRING dummy={(char*)"", 0};
-
-	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
-	    lex->sphead->add_instr(i);
-	    lex->sphead->m_flags|= sp_head::IN_SIMPLE_CASE;
-            lex->sphead->restore_lex(YYTHD);
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *parsing_ctx= lex->spcont;
+	    int case_expr_id= parsing_ctx->register_case_expr();
+	    
+	    if (parsing_ctx->push_case_expr_id(case_expr_id))
+              YYABORT;
+	    
+	    sp->add_instr(
+	      new sp_instr_set_case_expr(sp->instructions(),
+	                                 parsing_ctx,
+	                                 case_expr_id,
+	                                 $3,
+	                                 lex));
+	    
+	    sp->m_flags|= sp_head::IN_SIMPLE_CASE;
+	    sp->restore_lex(YYTHD);
 	  }
 	  sp_case END CASE_SYM
 	  {
-	    Lex->spcont->pop_pvar();
+	    Lex->spcont->pop_case_expr_id();
 	  }
 	| sp_labeled_control
 	  {}
@@ -2293,20 +2323,20 @@ sp_case:
 	      i= new sp_instr_jump_if_not(ip, ctx, $2, lex);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
-	      LEX_STRING ivar;
 
-	      ivar.str= (char *)"_tmp_";
-	      ivar.length= 5;
-	      Item_splocal *var= new Item_splocal(ivar,
-                                                  ctx->current_pvars()-1);
+	      Item_case_expr *var;
+              Item *expr;
+
+              var= new Item_case_expr(ctx->get_current_case_expr_id());
+
 #ifndef DBUG_OFF
               if (var)
-                var->owner= sp;
+                var->m_sp= sp;
 #endif
-	      Item *expr= new Item_func_eq(var, $2);
+
+	      expr= new Item_func_eq(var, $2);
 
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
-              lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
@@ -4401,11 +4431,9 @@ simple_expr:
 	  {
 	    if ($3->is_splocal())
 	    {
-	      LEX_STRING *name;
 	      Item_splocal *il= static_cast<Item_splocal *>($3);
 
-	      name= il->my_name(NULL);
-	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), name->str);
+	      my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->my_name()->str);
 	      YYABORT;
 	    }
 	    $$= new Item_default_value(Lex->current_context(), $3);
@@ -5873,7 +5901,7 @@ select_var_ident:
                  var_list.push_back(var= new my_var($1,1,t->offset,t->type));
 #ifndef DBUG_OFF
 	       if (var)
-		 var->owner= lex->sphead;
+		 var->sp= lex->sphead;
 #endif
 	     }
 	   }
@@ -7175,11 +7203,12 @@ simple_ident:
 	  {
             /* We're compiling a stored procedure and found a variable */
             Item_splocal *splocal;
-            splocal= new Item_splocal($1, spv->offset, lex->tok_start_prev - 
+            splocal= new Item_splocal($1, spv->offset, spv->type,
+                                      lex->tok_start_prev - 
                                       lex->sphead->m_tmp_query);
 #ifndef DBUG_OFF
             if (splocal)
-              splocal->owner= lex->sphead;
+              splocal->m_sp= lex->sphead;
 #endif
 	    $$ = (Item*) splocal;
             lex->variables_used= 1;
