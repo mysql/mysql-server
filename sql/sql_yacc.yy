@@ -1312,6 +1312,10 @@ create:
 	    Lex->sql_command = SQLCOM_CREATE_USER;
           }
 	| CREATE EVENT_SYM opt_if_not_exists sp_name
+          /* 
+             BE CAREFUL when you add a new rule to update the block where 
+             YYTHD->client_capabilities is set back to original value
+          */
           {
             LEX *lex=Lex;
 
@@ -1351,12 +1355,19 @@ create:
           DO_SYM ev_sql_stmt
           {
             /*
+              Restore flag if it was cleared above
+              $1 - CREATE
+              $2 - EVENT_SYM
+              $3 - opt_if_not_exists
+              $4 - sp_name
+              $5 - the block above
+            */
+            YYTHD->client_capabilities |= $<ulong_num>5;
+
+            /*
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
-            // Restore flag if it was cleared above
-            YYTHD->client_capabilities |= $<ulong_num>5;
-
             Lex->sql_command= SQLCOM_CREATE_EVENT;
           }
       ;
@@ -4192,6 +4203,10 @@ alter:
 	  view_list_opt AS view_select view_check_option
 	  {}
 	| ALTER EVENT_SYM sp_name
+          /* 
+             BE CAREFUL when you add a new rule to update the block where 
+             YYTHD->client_capabilities is set back to original value
+          */
           {
             LEX *lex=Lex;
             event_timed *et;
@@ -4234,10 +4249,17 @@ alter:
           ev_opt_sql_stmt
           {
             /*
+              $1 - ALTER
+              $2 - EVENT_SYM
+              $3 - sp_name
+              $4 - the block above
+            */
+            YYTHD->client_capabilities |= $<ulong_num>4;
+
+            /*
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
-            YYTHD->client_capabilities |= $<ulong_num>3;
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }	  
       ;
