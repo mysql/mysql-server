@@ -341,6 +341,7 @@ long SSL_CTX_sess_set_cache_size(SSL_CTX*, long);
 long SSL_CTX_set_tmp_dh(SSL_CTX*, DH*);
 
 void OpenSSL_add_all_algorithms(void);
+void SSL_library_init();
 void SSLeay_add_ssl_algorithms(void);
 
 

@@ -4100,8 +4100,6 @@ x
 4711
 drop procedure bug14376|
 drop procedure if exists p1|
-Warnings:
-Note	1305	PROCEDURE p1 does not exist
 drop table if exists t1|
 create table t1 (a varchar(255))|
 insert into t1 (a) values ("a - table column")|
@@ -4153,6 +4151,89 @@ A local variable in a nested compound statement takes precedence over table colu
 a - local variable in a nested compound statement
 A local variable in a nested compound statement takes precedence over table column in cursors
 a - local variable in a nested compound statement
+drop procedure p1|
+drop procedure if exists bug13012|
+create procedure bug13012()
+BEGIN
+REPAIR TABLE t1;
+BACKUP TABLE t1 to '../tmp';
+DROP TABLE t1;
+RESTORE TABLE t1 FROM '../tmp';
+END|
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	backup	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	restore	status	OK
+drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+REPAIR TABLE t1,t2,t3,v1;
+OPTIMIZE TABLE t1,t2,t3,v1;
+ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1347	'test.v1' is not BASE TABLE
+drop procedure bug13012|
+drop view v1;
+select * from t1|
+a
+a - table column
 drop schema if exists mysqltest1|
 Warnings:
 Note	1008	Can't drop database 'mysqltest1'; database doesn't exist
