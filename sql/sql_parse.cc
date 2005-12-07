@@ -3689,21 +3689,8 @@ end_with_restore_list:
     int result;
     uint create_options= lex->create_info.options;
     res= (result= evex_create_event(thd, lex->et, create_options));
-    switch (result) {
-    case EVEX_OK:
+    if (result == EVEX_OK)
       send_ok(thd, 1);
-      break;
-    case EVEX_WRITE_ROW_FAILED:
-      my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), lex->et->m_name.str);
-      break;
-    case EVEX_NO_DB_ERROR:
-      my_error(ER_BAD_DB_ERROR, MYF(0), lex->et->m_db.str);
-      break;
-    default:
-      //includes EVEX_PARSE_ERROR
-      my_error(ER_EVENT_STORE_FAILED, MYF(0), lex->et->m_name.str);
-      break;
-    }
     /* lex->unit.cleanup() is called outside, no need to call it here */
     delete lex->et;
     lex->et= 0;
