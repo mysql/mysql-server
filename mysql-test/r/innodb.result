@@ -2846,3 +2846,4 @@ d varchar(255) character set utf8,
 e varchar(255) character set utf8,
 key (a,b,c,d,e)) engine=innodb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
+End of 5.0 tests
