@@ -322,10 +322,8 @@ event_timed::init_comment(THD *thd, LEX_STRING *comment)
 {
   DBUG_ENTER("event_timed::init_comment");
 
-  MEM_ROOT *root= thd->mem_root;
-  m_comment.length= comment->length;
-  m_comment.str= strmake_root(root, comment->str, comment->length);
-  DBUG_PRINT("m_comment", ("len=%d",m_comment.length));
+  m_comment.str= strmake_root(thd->mem_root, comment->str,
+                              m_comment.length= comment->length);
 
   DBUG_VOID_RETURN;
 }
@@ -359,6 +357,11 @@ event_timed::init_definer(THD *thd)
  
  SYNOPSIS
    event_timed::load_from_row()
+   
+ REMARKS
+   This method is silent on errors and should behave like that. Callers
+   should handle throwing of error messages. The reason is that the class
+   should not know about how to deal with communication.
 */
 
 int

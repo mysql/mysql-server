@@ -80,8 +80,6 @@ init_events()
   event_executor_running_global_var= false;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-  DBUG_RETURN(0);
-/*
 #ifndef DBUG_FAULTY_THR
   //TODO Andrey: Change the error code returned!
   if (pthread_create(&th, NULL, event_executor_main, (void*)NULL))
@@ -91,7 +89,6 @@ init_events()
 #endif
 
   DBUG_RETURN(0);
-*/
 }
 
 
@@ -109,7 +106,6 @@ shutdown_events()
   DBUG_VOID_RETURN;
 }
 
-#ifdef ANDREY_0
 
 static int
 init_event_thread(THD* thd)
@@ -479,13 +475,11 @@ evex_load_events_from_db(THD *thd)
   TABLE *table;
   READ_RECORD read_record_info;
   MYSQL_LOCK *lock;
-  Open_tables_state open_tables_state_backup;
   int ret= -1;
   
   DBUG_ENTER("evex_load_events_from_db");  
 
-  if (!(table= open_proc_type_table_for_read(thd, &open_tables_state_backup,
-                                             "event", &mysql_event_table_exists)))
+  if (!(table= evex_open_event_table(thd, TL_READ)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
@@ -541,18 +535,16 @@ evex_load_events_from_db(THD *thd)
 
 end:
   close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&open_tables_state_backup);
 
   DBUG_PRINT("evex_load_events_from_db",
                     ("Events loaded from DB. Status code %d", ret));
   DBUG_RETURN(ret);
 }
 
-#endif
+
 
 bool sys_var_event_executor::update(THD *thd, set_var *var)
 {
-#ifdef ANDREY_0
   // here start the thread if not running.
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if ((my_bool) var->save_result.ulong_value && !evex_is_running) {
@@ -560,7 +552,7 @@ bool sys_var_event_executor::update(THD *thd, set_var *var)
     init_events();
   } else 
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
-#endif  
+
   return sys_var_bool_ptr::update(thd, var);
 }
 

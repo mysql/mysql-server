@@ -31,6 +31,18 @@
 
  - CREATE EVENT should not go into binary log! Does it now? The SQL statements
    issued by the EVENT are replicated.
+   I have an idea how to solve the problem at failover. So the status field
+   will be ENUM('DISABLED', 'ENABLED', 'SLAVESIDE_DISABLED').
+   In this case when CREATE EVENT is replicated it should go into the binary
+   as SLAVESIDE_DISABLED if it is ENABLED, when it's created as DISABLEd it
+   should be replicated as disabled. If an event is ALTERed as DISABLED the
+   query should go untouched into the binary log, when ALTERed as enable then
+   it should go as SLAVESIDE_DISABLED. This is regarding the SQL interface.
+   TT routines however modify mysql.event internally and this does not go the log
+   so in this case queries has to be injected into the log...somehow... or
+   maybe a solution is RBR for this case, because the event may go only from
+   ENABLED to DISABLED status change and this is safe for replicating. As well
+   an event may be deleted which is also safe for RBR.
 
  - Add a lock and use it for guarding access to events_array dynamic array.
 
@@ -225,13 +237,13 @@ evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
   */
   if (rname.length > table->field[1]->field_length)
     DBUG_RETURN(SP_KEY_NOT_FOUND);
+
   table->field[0]->store(dbname.str, dbname.length, &my_charset_bin);
   table->field[1]->store(rname.str, rname.length, &my_charset_bin);
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0], 0,
-				  key, table->key_info->key_length,
-				  HA_READ_KEY_EXACT))
+  if (table->file->index_read_idx(table->record[0], 0, key,
+                                  table->key_info->key_length,HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
   DBUG_RETURN(0);
@@ -256,11 +268,13 @@ static int
 evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 {
   DBUG_ENTER("evex_fill_row");
-  int ret=0;
 
   if (table->s->fields != EVEX_FIELD_COUNT)
+  {
+    my_error(ER_EVENT_COL_COUNT_DOESNT_MATCH, MYF(0), "mysql", "event");
     DBUG_RETURN(EVEX_GET_FIELD_FAILED);
-
+  }
+  
   DBUG_PRINT("info", ("m_db.len=%d",et->m_db.length));  
   DBUG_PRINT("info", ("m_name.len=%d",et->m_name.length));  
 
@@ -361,27 +375,24 @@ db_create_event(THD *thd, event_timed *et)
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    goto done;
+    goto err;
   }
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
   if (!evex_db_find_routine_aux(thd, et->m_db, et->m_name, table))
   {
     my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->m_name.str);
-    goto done;    
+    goto err;    
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
-  if ((ret= sp_use_new_db(thd, et->m_db.str, olddb, sizeof(olddb),
-			  0, &dbchanged)))
+  if ((ret= sp_use_new_db(thd, et->m_db.str,olddb, sizeof(olddb),0, &dbchanged)))
   {
-    DBUG_PRINT("info", ("cannot use_new_db. code=%d", ret));
     my_error(ER_BAD_DB_ERROR, MYF(0));
-    DBUG_RETURN(0);
+    goto err;
   }
   
   restore_record(table, s->default_values); // Get default values for fields
-  strxmov(definer, et->m_definer_user.str, "@", et->m_definer_host.str, NullS);
 
 /* TODO : Uncomment these and add handling in sql_parse.cc or here
 
@@ -400,23 +411,29 @@ db_create_event(THD *thd, event_timed *et)
   {
     DBUG_PRINT("error", ("neither m_expr nor m_execute_as are set!"));
     my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));
-    goto done;
+    
+    goto err;
   }
 
+  strxmov(definer, et->m_definer_user.str, "@", et->m_definer_host.str, NullS);
   if (table->field[EVEX_FIELD_DEFINER]->
-       store(definer, (uint)strlen(definer), system_charset_info))
+       store(definer, et->m_definer_user.length + 1 + et->m_definer_host.length,
+             system_charset_info))
   {
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
-    goto done;
+    goto err;
   }
 
   ((Field_timestamp *)table->field[EVEX_FIELD_CREATED])->set_time();
   if ((ret= evex_fill_row(thd, table, et, false)))
-    goto done; 
+    goto err; 
 
   ret= EVEX_OK;
   if (table->file->write_row(table->record[0]))
+  {
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
+    goto err;
+  }
   else if (mysql_bin_log.is_open())
   {
     thd->clear_error();
@@ -425,12 +442,15 @@ db_create_event(THD *thd, event_timed *et)
     mysql_bin_log.write(&qinfo);
   }
 
-done:
   // No need to close the table, it will be closed in sql_parse::do_command
-
   if (dbchanged)
     (void) mysql_change_db(thd, olddb, 1);
-  DBUG_RETURN(ret);
+  DBUG_RETURN(EVEX_OK);
+
+err:
+  if (dbchanged)
+    (void) mysql_change_db(thd, olddb, 1);
+  DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
 
 
@@ -462,20 +482,23 @@ db_update_event(THD *thd, sp_name *name, event_timed *et)
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    goto done;
+    goto err;
   }
 
   if (evex_db_find_routine_aux(thd, et->m_db, et->m_name, table) == SP_KEY_NOT_FOUND)
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->m_name.str);
-    goto done;    
+    goto err;    
   }
   
   store_record(table,record[1]);
   
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET; // Don't update create on row update.
+  // Don't update create on row update.
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+
+  // evex_fill_row() calls my_error() in case of error so no need to handle it here
   if ((ret= evex_fill_row(thd, table, et, true)))
-    goto done;
+    goto err;
    
   if (name)
   {    
@@ -485,14 +508,20 @@ db_update_event(THD *thd, sp_name *name, event_timed *et)
       store(name->m_name.str, name->m_name.length, system_charset_info);
   }
 
-  if ((ret= table->file->update_row(table->record[1],table->record[0])))
+  if ((ret= table->file->update_row(table->record[1], table->record[0])))
   {
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->m_name.str);
-    goto done;
+    goto err;
   }
-done:
+
+  // close mysql.event or we crash later when loading the event from disk
   close_thread_tables(thd);
-  DBUG_RETURN(ret);
+  DBUG_RETURN(0);
+
+err:
+  if (table)
+    close_thread_tables(thd);
+  DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
 
 
@@ -500,7 +529,7 @@ done:
     Use sp_name for look up, return in **ett if found
 */
 static int
-db_find_event(THD *thd, sp_name *name, event_timed **ett)
+db_find_event(THD *thd, sp_name *name, event_timed **ett, TABLE *tbl)
 {
   TABLE *table;
   int ret;
@@ -508,27 +537,35 @@ db_find_event(THD *thd, sp_name *name, event_timed **ett)
   char *ptr;
   event_timed *et;  
   DBUG_ENTER("db_find_event");
-  DBUG_PRINT("enter", ("name: %*s",
-		       name->m_name.length, name->m_name.str));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-
-  if (!(table= evex_open_event_table(thd, TL_READ)))
+  if (tbl)
+    table= tbl;
+  else if (!(table= evex_open_event_table(thd, TL_READ)))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    ret= EVEX_GENERAL_ERROR;
     goto done;
   }
 
   if ((ret= evex_db_find_routine_aux(thd, name->m_db, name->m_name, table)))
-    goto done;
-
+  {
+    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->m_name.str);
+    goto done;    
+  }
   et= new event_timed;
   
   /*
-    The table should not be closed beforehand. 
-    ::load_from_row only loads and does not compile
+    1)The table should not be closed beforehand.  ::load_from_row() only loads
+      and does not compile
+
+    2)::load_from_row() is silent on error therefore we emit error msg here
   */
   if ((ret= et->load_from_row(&evex_mem_root, table)))
+  {
+    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
     goto done;
+  }
 
 done:
   if (ret && et)
@@ -536,7 +573,9 @@ done:
     delete et;
     et= 0;
   }
-  close_thread_tables(thd);
+  // don't close the table if we haven't opened it ourselves
+  if (!tbl)
+    close_thread_tables(thd);
   *ett= et;
   DBUG_RETURN(ret);
 }
@@ -555,22 +594,16 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   tmp_mem_root= thd->mem_root;
   thd->mem_root= &evex_mem_root;
 
-  if (db_find_event(thd, spn, &ett))
-  {
-    ret= EVEX_GENERAL_ERROR;
+  // no need to use my_error() here because db_find_event() has done it
+  if ((ret= db_find_event(thd, spn, &ett, NULL)))
     goto done;
-  }
 
   /*
-    allocate on evex_mem_root. call without evex_mem_root and
-    and m_sphead will not be cleared!
+    allocate on evex_mem_root. if you call without evex_mem_root
+    then m_sphead will not be cleared!
   */
-
   if ((ret= ett->compile(thd, &evex_mem_root)))
-  {
-    thd->mem_root= tmp_mem_root;
     goto done;
-  }
   
   ett->compute_next_execution_time();
   if (use_lock)
@@ -589,7 +622,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   delete ett;
 
   /*
-    We find where the first element resides in the arraay. And then do a
+    We find where the first element resides in the array. And then do a
     qsort of events_array.elements (the current number of elements).
     We know that the elements are stored in a contiguous block w/o holes.
   */
@@ -613,7 +646,6 @@ static int
 evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
 {
   uint i;
-  int ret= 0;
   bool need_second_pass= true;
 
   DBUG_ENTER("evex_remove_from_cache");
@@ -690,7 +722,7 @@ done:
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(0);
 }
 
 
@@ -711,8 +743,6 @@ done:
    NOTES
      - in case there is an event with the same name (db) and 
        IF NOT EXISTS is specified, an warning is put into the W stack.
-   TODO
-     - Add code for in-memory structures - caching & uncaching.
 */
 
 int
@@ -779,8 +809,6 @@ done:
      et contains data about dbname and event name. 
      name is the new name of the event, if not null this means
      that RENAME TO was specified in the query.
-   TODO
-     - Add code for in-memory structures - caching & uncaching.
 */
 
 int
@@ -800,16 +828,19 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
   {}  
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 */
-
+  /*
+    db_update_event() opens & closes the table to prevent
+    crash later in the code when loading and compiling the new definition
+  */
   if ((ret= db_update_event(thd, name, et)))
-    goto done_no_evex;
+    goto done;
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if (!evex_is_running)
   {
     // not running - therefore no memory structures
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
-    goto done_no_evex;
+    goto done;
   }
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
@@ -828,12 +859,9 @@ evex_update_event(THD *thd, sp_name *name, event_timed *et)
       ret= evex_load_and_compile_event(thd, spn, false);
       delete spn;
     }
-
-done:
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
-done_no_evex:
-  // No need to close the table, it will be closed in sql_parse::do_command
+done:
 
   DBUG_RETURN(ret);
 }
@@ -848,8 +876,6 @@ done_no_evex:
      et              event's name
      drop_if_exists  if set and the event not existing => warning onto the stack
           
- TODO
-   Update in-memory structures
 */
 
 int
@@ -875,9 +901,9 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
 
   if (ret == EVEX_OK)
   {
-    if (table->file->delete_row(table->record[0]))
+    if (ret= table->file->delete_row(table->record[0]))
     { 	
-      ret= EVEX_DELETE_ROW_FAILED;
+      my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
       goto done;
     }
   }
@@ -897,7 +923,10 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
 done:  
-  // No need to close the table, it will be closed in sql_parse::do_command
+  /*
+     No need to close the table, it will be closed in sql_parse::do_command()
+     and evex_remove_from_cache does not try to open a table
+  */
 
   DBUG_RETURN(ret);
 }

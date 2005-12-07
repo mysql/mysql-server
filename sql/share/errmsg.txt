@@ -5741,3 +5741,9 @@ ER_EVENT_OPEN_TABLE_FAILED
         eng "Failed to open mysql.event"
 ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
+ER_EVENT_COL_COUNT_DOESNT_MATCH
+        eng "Column count of %s.%s is wrong. Table probably corrupted"
+ER_EVENT_CANNOT_LOAD_FROM_TABLE
+        eng "Cannot load from mysql.event. Table probably corrupted"
+ER_EVENT_CANNOT_DELETE
+        eng "Failed to delete the event from mysql.event"

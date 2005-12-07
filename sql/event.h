@@ -40,17 +40,6 @@ extern ulong opt_event_executor;
 #define EVENT_EXEC_NO_MORE      (1L << 0)
 #define EVENT_NOT_USED          (1L << 1)
 
-#define SP_OK                 0
-#define SP_KEY_NOT_FOUND     -1
-#define SP_OPEN_TABLE_FAILED -2
-#define SP_WRITE_ROW_FAILED  -3
-#define SP_DELETE_ROW_FAILED -4
-#define SP_GET_FIELD_FAILED  -5
-#define SP_PARSE_ERROR       -6
-#define SP_INTERNAL_ERROR    -7
-#define SP_NO_DB_ERROR       -8
-#define SP_BAD_IDENTIFIER    -9
-#define SP_BODY_TOO_LONG    -10
 
 extern ulong opt_event_executor;
 
