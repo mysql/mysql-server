@@ -2,7 +2,7 @@
 
 #shift
 FROM=$USER@mysql.com
-INTERNALS=internals@lists.mysql.com
+COMMITS=commits@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
 VERSION="5.1"
@@ -61,14 +61,14 @@ EOF
  ) | /usr/sbin/sendmail -t
 
 #++
-# internals@ mail
+# commits@ mail
 #--
- echo "Notifying internals list at $INTERNALS"
+ echo "Notifying commits list at $COMMITS"
  (
    cat <<EOF
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
-To: $INTERNALS
+To: $COMMITS
 Subject: bk commit into $VERSION tree ($CHANGESET)$BS
 X-CSetKey: <$CSETKEY>
 $BH
