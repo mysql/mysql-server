@@ -3727,8 +3727,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     /* Normal or temporary table. */
     TABLE *table= table_ref->table;
     grant= &(table->grant);
-    db_name= table->s->db;
-    table_name= table->s->table_name;
+    db_name= table->s->db.str;
+    table_name= table->s->table_name.str;
   }
 
   if (grant->want_privilege)
