@@ -82,7 +82,8 @@ dict_load_foreigns(
 /*===============*/
 					/* out: DB_SUCCESS or error code */
 	const char*	table_name,	/* in: table name */
-	ibool		check_types);	/* in: TRUE=check type compatibility */
+	ibool		check_charsets);/* in: TRUE=check charsets
+					compatibility */
 /************************************************************************
 Prints to the standard output information on all tables found in the data
 dictionary system table. */
