@@ -117,6 +117,9 @@ typedef unsigned long long my_ulonglong;
 
 #define MYSQL_COUNT_ERROR (~(my_ulonglong) 0)
 
+/* backward compatibility define - to be removed eventually */
+#define ER_WARN_DATA_TRUNCATED WARN_DATA_TRUNCATED
+
 typedef struct st_mysql_rows {
   struct st_mysql_rows *next;		/* list of rows */
   MYSQL_ROW data;
