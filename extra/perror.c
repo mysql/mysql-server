@@ -23,14 +23,14 @@
 #include <m_string.h>
 #include <errno.h>
 #include <my_getopt.h>
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #endif
 
 static my_bool verbose, print_all_codes;
 
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;
 static char ndb_string[1024];
 #endif
@@ -41,7 +41,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   {"ndb", 257, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
    (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -233,7 +233,7 @@ int main(int argc,char *argv[])
 
       found=0;
       code=atoi(*argv);
-#ifdef HAVE_NDBCLUSTER_DB
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
       if (ndb_code)
       {
 	if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
