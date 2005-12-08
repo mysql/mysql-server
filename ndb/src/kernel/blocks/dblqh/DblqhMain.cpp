@@ -3532,6 +3532,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     jam();
     regTcPtr->activeCreat = ZTRUE;
     CRASH_INSERTION(5002);
+    CRASH_INSERTION2(5042, tabptr.i == c_error_insert_table_id);
   } else {
     regTcPtr->activeCreat = ZFALSE;
   }//if
@@ -18402,8 +18403,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-
-
+  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
+  {
+    c_error_insert_table_id = dumpState->args[1];
+    SET_ERROR_INSERT_VALUE(5042);
+  }
+  
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 

@@ -21,6 +21,7 @@
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
@@ -409,6 +410,43 @@ int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  
+  Uint32 tableId = ctx->getTab()->getTableId();
+  int dump[2] = { DumpStateOrd::LqhErrorInsert5042, 0 };
+  dump[1] = tableId;
+
+  int nodeId = restarter.getDbNodeId(1);
+
+  ndbout << "Restart node " << nodeId << endl; 
+  
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.dumpStateOneNode(nodeId, dump, 2))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -669,6 +707,13 @@ TESTCASE("LateCommit",
 	 "Test commit after node failure"){
   INITIALIZER(runLoadTable);
   STEP(runLateCommit);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15587",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runBug15587);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
