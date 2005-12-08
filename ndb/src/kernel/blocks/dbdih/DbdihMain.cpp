@@ -5187,15 +5187,16 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     /**
      * For each of replica record
      */
-    Uint32 replicaNo = 0;
+    bool found = false;
     ReplicaRecordPtr replicaPtr;
     for(replicaPtr.i = fragPtr.p->storedReplicas; replicaPtr.i != RNIL;
-        replicaPtr.i = replicaPtr.p->nextReplica, replicaNo++) {
+        replicaPtr.i = replicaPtr.p->nextReplica) {
       jam();
 
       ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
       if(replicaPtr.p->procNode == nodeId){
         jam();
+	found = true;
 	noOfRemovedReplicas++;
 	removeNodeFromStored(nodeId, fragPtr, replicaPtr);
 	if(replicaPtr.p->lcpOngoingFlag){
@@ -5210,6 +5211,15 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 	  replicaPtr.p->lcpOngoingFlag = false;
 	}
       }
+    }
+    if (!found)
+    {
+      jam();
+      /**
+       * Run updateNodeInfo to remove any dead nodes from list of activeNodes
+       *  see bug#15587
+       */
+      updateNodeInfo(fragPtr);
     }
     noOfRemainingLcpReplicas += fragPtr.p->noLcpReplicas;
   }
