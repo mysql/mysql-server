@@ -5148,10 +5148,17 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     Item_ref *ref= (Item_ref *)arg;
     if (ref->ref[0]->type() != FIELD_ITEM)
     {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "", "VALUES() function");
       return TRUE;
     }
     arg= ref->ref[0];
   }
+  /*
+    According to our SQL grammar, VALUES() function can reference
+    only to a column.
+  */
+  DBUG_ASSERT(arg->type() == FIELD_ITEM);
+
   Item_field *field_arg= (Item_field *)arg;
 
   if (field_arg->field->table->insert_values)

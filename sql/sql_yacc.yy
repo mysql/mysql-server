@@ -4438,7 +4438,7 @@ simple_expr:
 	    }
 	    $$= new Item_default_value(Lex->current_context(), $3);
 	  }
-	| VALUES '(' simple_ident ')'
+	| VALUES '(' simple_ident_nospvar ')'
 	  { $$= new Item_insert_value(Lex->current_context(), $3); }
 	| FUNC_ARG0 '(' ')'
 	  {
