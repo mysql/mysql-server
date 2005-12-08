@@ -14590,6 +14590,40 @@ static void test_bug14845()
   myquery(rc);
 }
 
+
+/*
+  Bug #15510: mysql_warning_count returns 0 after mysql_stmt_fetch which
+  should warn
+*/
+static void test_bug15510()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_RES *res;
+  int rc;
+  const char *query= "select 1 from dual where 1/0";
+
+  myheader("test_bug15510");
+
+  rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(mysql_warning_count(mysql));
+
+  /* Cleanup */
+  mysql_stmt_close(stmt);
+  rc= mysql_query(mysql, "set @@sql_mode=''");
+  myquery(rc);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -14849,6 +14883,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13488", test_bug13488 },
   { "test_bug13524", test_bug13524 },
   { "test_bug14845", test_bug14845 },
+  { "test_bug15510", test_bug15510},
   { 0, 0 }
 };
 

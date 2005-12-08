@@ -715,6 +715,7 @@ void free_old_query(MYSQL *mysql)
   init_alloc_root(&mysql->field_alloc,8192,0); /* Assume rowlength < 8192 */
   mysql->fields= 0;
   mysql->field_count= 0;			/* For API */
+  mysql->warning_count= 0;
   mysql->info= 0;
   DBUG_VOID_RETURN;
 }
@@ -2484,7 +2485,6 @@ get_info:
     DBUG_RETURN(1);
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
-  mysql->warning_count= 0;
   DBUG_PRINT("exit",("ok"));
   DBUG_RETURN(0);
 }
