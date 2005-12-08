@@ -155,6 +155,9 @@ Insert node failure handling when receiving COMPLETEREQ.
 5006:
 Insert node failure handling when receiving ABORTREQ.
 
+5042:
+As 5002, but with specified table (see DumpStateOrd)
+
 These error code can be combined with error codes for testing time-out
 handling in DBTC to ensure that node failures are also well handled in
 time-out handling. They can also be used to test multiple node failure

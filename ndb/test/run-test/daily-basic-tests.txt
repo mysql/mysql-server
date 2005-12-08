@@ -434,6 +434,10 @@ max-time: 500
 cmd: testScan
 args: -l 100 -n Scan-bug8262 T7
 
+max-time: 500
+cmd: testNodeRestart
+args: -n BugBug15587 T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
