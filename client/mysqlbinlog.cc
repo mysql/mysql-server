@@ -516,6 +516,9 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       start_datetime= 0;
       offset= 0; // print everything and protect against cycling rec_count
     }
+    if (server_id && (server_id != ev->server_id)) {
+      DBUG_RETURN(0);
+    }
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
@@ -742,6 +745,11 @@ static struct my_option my_long_options[] =
    (gptr*) &stop_position, (gptr*) &stop_position, 0, GET_ULL,
    REQUIRED_ARG, (ulonglong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
    (ulonglong)(~(my_off_t)0), 0, 0, 0},
+  {"server-id", OPT_SERVER_ID,
+   "Only extract binlog entries created by a certain server id "
+   "passed on the command line.",
+   (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
 requested binlog but rather continue printing until the end of the last \
 binlog of the MySQL server. If you send the output to the same MySQL server, \
