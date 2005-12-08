@@ -2676,6 +2676,7 @@ int read_query(struct st_query** q_ptr)
 end:
   while (*p && my_isspace(charset_info, *p))
     p++;
+
   if (!(q->query_buf= q->query= my_strdup(p, MYF(MY_WME))))
     die(NullS);
 
@@ -3573,6 +3574,13 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     cur_con->stmt= stmt;
   }
 
+  /* Init dynamic strings for warnings */
+  if (!disable_warnings)
+  {
+    init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
+    init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
+  }
+
   /*
     Prepare the query
   */
@@ -3580,10 +3588,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   {
     handle_error(query, command,  mysql_stmt_errno(stmt),
 		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
-#ifndef BUG15518_FIXED
-    mysql_stmt_close(stmt);
-    cur_con->stmt= NULL;
-#endif
     goto end;
   }
 
@@ -3592,12 +3596,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     separate string
   */
   if (!disable_warnings)
-  {
-    init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
-    init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
     append_warnings(&ds_prepare_warnings, mysql);
-  }
-
 
   /*
     No need to call mysql_stmt_bind_param() because we have no
@@ -3724,6 +3723,10 @@ end:
     variable then can be used from the test case itself.
   */
   var_set_errno(mysql_stmt_errno(stmt));
+#ifndef BUG15518_FIXED
+  mysql_stmt_close(stmt);
+  cur_con->stmt= NULL;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -4050,6 +4053,7 @@ void get_query_type(struct st_query* q)
       q->type= Q_COMMENT;
   }
   else if (q->type == Q_COMMENT_WITH_COMMAND &&
+	   q->first_word_len &&
            q->query[q->first_word_len-1] == ';')
   {
     /*

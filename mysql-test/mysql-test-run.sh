@@ -1002,6 +1002,18 @@ report_stats () {
       echo "WARNING: Got errors/warnings while running tests. Please examine"
       echo "$MY_LOG_DIR/warnings for details."
     fi
+
+    fi # USE_RUNNING_SERVER
+
+    # Check valgrind errors from mysqltest
+    if [ ! -z "$VALGRIND_MYSQLTEST" ]
+    then
+      if $GREP "ERROR SUMMARY" $MYSQLTEST_LOG | $GREP -v "0 errors" > /dev/null
+      then
+	  $ECHO "Valgrind detected errors!"
+	  $GREP "ERROR SUMMARY" $MYSQLTEST_LOG | $GREP -v "0 errors"
+	  $ECHO "See $MYSQLTEST_LOG"
+      fi
     fi
 }
 
