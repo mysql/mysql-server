@@ -31,6 +31,7 @@ extern ulong opt_event_executor;
 #define EVEX_PARSE_ERROR        SP_PARSE_ERROR
 #define EVEX_INTERNAL_ERROR     SP_INTERNAL_ERROR
 #define EVEX_NO_DB_ERROR        SP_NO_DB_ERROR
+#define EVEX_COMPILE_ERROR     -19
 #define EVEX_GENERAL_ERROR     -20
 #define EVEX_BAD_IDENTIFIER     SP_BAD_IDENTIFIER
 #define EVEX_BODY_TOO_LONG      SP_BODY_TOO_LONG

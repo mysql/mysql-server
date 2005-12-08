@@ -192,23 +192,23 @@ TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
   Find row in open mysql.event table representing event
 
   SYNOPSIS
-    evex_db_find_routine_aux()
+    evex_db_find_event_aux()
       thd    Thread context
       dbname Name of event's database
       rname  Name of the event inside the db  
       table  TABLE object for open mysql.event table.
 
   RETURN VALUE
-    0                - Routine found
-    SP_KEY_NOT_FOUND- No routine with given name
+    0                  - Routine found
+    EVEX_KEY_NOT_FOUND - No routine with given name
 */
 
 int
-evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
+evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING ev_name, TABLE *table)
 {
-  byte key[MAX_KEY_LENGTH];	// db, name, optional key length type
-  DBUG_ENTER("evex_db_find_routine_aux");
+  byte key[MAX_KEY_LENGTH];
+  DBUG_ENTER("evex_db_find_event_aux");
   DBUG_PRINT("enter", ("name: %.*s", ev_name.length, ev_name.str));
 
   /*
@@ -218,7 +218,8 @@ evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
     'db' and 'name' and the first key is the primary key over the
     same fields.
   */
-  if (ev_name.length > table->field[1]->field_length)
+  if (dbname.length > table->field[EVEX_FIELD_DB]->field_length ||
+      ev_name.length > table->field[EVEX_FIELD_NAME]->field_length)
     DBUG_RETURN(EVEX_KEY_NOT_FOUND);
 
   table->field[0]->store(dbname.str, dbname.length, &my_charset_bin);
@@ -337,6 +338,9 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
        thd  THD
        et   event_timed object containing information for the event 
    
+     Return value
+                        0 - OK
+       EVEX_GENERAL_ERROR - Failure
    DESCRIPTION 
      Creates an event. Relies on evex_fill_row which is shared with 
      db_update_event. The name of the event is inside "et".
@@ -362,7 +366,7 @@ db_create_event(THD *thd, event_timed *et)
   }
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!evex_db_find_routine_aux(thd, et->dbname, et->name, table))
+  if (!evex_db_find_event_aux(thd, et->dbname, et->name, table))
   {
     my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->name.str);
     goto err;    
@@ -376,7 +380,6 @@ db_create_event(THD *thd, event_timed *et)
   }
   
   restore_record(table, s->default_values); // Get default values for fields
-
 
   if (et->name.length > table->field[EVEX_FIELD_NAME]->field_length)
   {
@@ -392,28 +395,28 @@ db_create_event(THD *thd, event_timed *et)
   if (!(et->expression) && !(et->execute_at.year))
   {
     DBUG_PRINT("error", ("neither expression nor execute_at are set!"));
-    my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));
-    
+    my_error(ER_EVENT_NEITHER_M_EXPR_NOR_M_AT, MYF(0));    
     goto err;
   }
 
   strxmov(definer, et->definer_user.str, "@", et->definer_host.str, NullS);
-  if (table->field[EVEX_FIELD_DEFINER]->
+  if ((ret=table->field[EVEX_FIELD_DEFINER]->
        store(definer, et->definer_user.length + 1 + et->definer_host.length,
-             system_charset_info))
+             system_charset_info)))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
   }
 
   ((Field_timestamp *)table->field[EVEX_FIELD_CREATED])->set_time();
+
+  // evex_fill_row() calls my_error() in case of error so no need to handle it here
   if ((ret= evex_fill_row(thd, table, et, false)))
     goto err; 
 
-  ret= EVEX_OK;
   if (table->file->write_row(table->record[0]))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
   }
   
@@ -438,7 +441,7 @@ err:
 
 
 /*
-   Used to execute ALTER EVENT
+   Used to execute ALTER EVENT. Pendant to evex_update_event().
 
    SYNOPSIS
      db_update_event()
@@ -452,7 +455,7 @@ err:
 */
 
 static int
-db_update_event(THD *thd, sp_name *new_name, event_timed *et)
+db_update_event(THD *thd, event_timed *et, sp_name *new_name)
 {
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
@@ -467,13 +470,27 @@ db_update_event(THD *thd, sp_name *new_name, event_timed *et)
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     goto err;
   }
-
-  if (EVEX_KEY_NOT_FOUND == evex_db_find_routine_aux(thd, et->dbname, et->name,
+  
+  // first look whether we overwrite
+  if (new_name && !evex_db_find_event_aux(thd, new_name->m_db, new_name->m_name,
+                                            table))
+  {
+    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
+    goto err;    
+  }
+  /*
+    ...and then whether there is such an event. don't exchange the blocks
+    because you will get error 120 from table handler because new_name will
+    overwrite the key and SE will tell us that it cannot find the already found
+    row (copied into record[1] later
+  */
+  if (EVEX_KEY_NOT_FOUND == evex_db_find_event_aux(thd, et->dbname, et->name,
                                                      table))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->name.str);
     goto err;    
   }
+
   
   store_record(table,record[1]);
   
@@ -494,7 +511,7 @@ db_update_event(THD *thd, sp_name *new_name, event_timed *et)
 
   if ((ret= table->file->update_row(table->record[1], table->record[0])))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
   }
 
@@ -545,7 +562,7 @@ db_find_event(THD *thd, sp_name *name, event_timed **ett, TABLE *tbl)
     goto done;
   }
 
-  if ((ret= evex_db_find_routine_aux(thd, name->m_db, name->m_name, table)))
+  if ((ret= evex_db_find_event_aux(thd, name->m_db, name->m_name, table)))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
     goto done;    
@@ -816,20 +833,20 @@ done:
 */
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *name)
+evex_update_event(THD *thd, event_timed *et, sp_name *new_name)
 {
   int ret, i;
   bool need_second_pass= true;
-  sp_name *spn= 0;
 
   DBUG_ENTER("evex_update_event");
   DBUG_PRINT("enter", ("name: %*s", et->name.length, et->name.str));
 
   /*
     db_update_event() opens & closes the table to prevent
-    crash later in the code when loading and compiling the new definition
+    crash later in the code when loading and compiling the new definition.
+    Also on error conditions my_error() is called so no need to handle here
   */
-  if ((ret= db_update_event(thd, name, et)))
+  if ((ret= db_update_event(thd, et, new_name)))
     goto done;
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
@@ -839,21 +856,19 @@ evex_update_event(THD *thd, event_timed *et, sp_name *name)
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
   evex_remove_from_cache(&et->dbname, &et->name, false);
   if (et->status == MYSQL_EVENT_ENABLED)
-    if (name)
-      ret= evex_load_and_compile_event(thd, name, false);
+  {
+    if (new_name)
+      ret= evex_load_and_compile_event(thd, new_name, false);
     else
     {
-      spn= new sp_name(et->dbname, et->name);
-      ret= evex_load_and_compile_event(thd, spn, false);
-      delete spn;
+      sp_name spn(et->dbname, et->name);
+      ret= evex_load_and_compile_event(thd, &spn, false);
     }
+    if (ret == EVEX_COMPILE_ERROR)
+      my_error(ER_EVENT_COMPILE_ERROR, MYF(0));
+  }
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
-
-  /*
-    It is possible that 2 (or 1) pass(es) won't find the event in memory.
-    The reason is that DISABLED events are not cached.
-  */
 
 done:
   DBUG_RETURN(ret);
@@ -885,7 +900,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
     goto done;
   }
 
-  if (!(ret= evex_db_find_routine_aux(thd, et->dbname, et->name, table)))
+  if (!(ret= evex_db_find_event_aux(thd, et->dbname, et->name, table)))
   {
     if ((ret= table->file->delete_row(table->record[0])))
     { 	
@@ -893,15 +908,18 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
       goto done;
     }
   }
-  else if (ret == SP_KEY_NOT_FOUND && drop_if_exists)
-  {
-     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+  else if (ret == EVEX_KEY_NOT_FOUND)
+  { 
+    if (drop_if_exists)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		    ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-		    "EVENT", et->name.str);
-     ret= 0;
-     goto done;
-  } else
+		    "Event", et->name.str);
+      ret= 0;
+    } else
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->name.str);
     goto done;
+  }
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if (evex_is_running)
