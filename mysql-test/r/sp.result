@@ -4110,23 +4110,23 @@ call bug14376(4711)|
 x
 4711
 drop procedure bug14376|
-drop procedure if exists p1|
-drop table if exists t1|
-create table t1 (a varchar(255))|
-insert into t1 (a) values ("a - table column")|
-create procedure p1(a varchar(255))
+drop procedure if exists bug5967|
+drop table if exists t3|
+create table t3 (a varchar(255))|
+insert into t3 (a) values ("a - table column")|
+create procedure bug5967(a varchar(255))
 begin
 declare i varchar(255);
-declare c cursor for select a from t1;
+declare c cursor for select a from t3;
 select a;
-select a from t1 into i;
+select a from t3 into i;
 select i as 'Parameter takes precedence over table column';                     open c;
 fetch c into i;
 close c;
 select i as 'Parameter takes precedence over table column in cursors';
 begin
 declare a varchar(255) default 'a - local variable';
-declare c1 cursor for select a from t1;
+declare c1 cursor for select a from t3;
 select a as 'A local variable takes precedence over parameter';
 open c1;
 fetch c1 into i;
@@ -4134,9 +4134,9 @@ close c1;
 select i as 'A local variable takes precedence over parameter in cursors';
 begin
 declare a varchar(255) default 'a - local variable in a nested compound statement';
-declare c2 cursor for select a from t1;
+declare c2 cursor for select a from t3;
 select a as 'A local variable in a nested compound statement takes precedence over a local variable in the outer statement';
-select a from t1 into i;
+select a from t3 into i;
 select i as  'A local variable in a nested compound statement takes precedence over table column';
 open c2;
 fetch c2 into i;
@@ -4145,7 +4145,7 @@ select i as  'A local variable in a nested compound statement takes precedence o
 end;
 end;
 end|
-call p1("a - stored procedure parameter")|
+call bug5967("a - stored procedure parameter")|
 a
 a - stored procedure parameter
 Parameter takes precedence over table column
@@ -4162,7 +4162,7 @@ A local variable in a nested compound statement takes precedence over table colu
 a - local variable in a nested compound statement
 A local variable in a nested compound statement takes precedence over table column in cursors
 a - local variable in a nested compound statement
-drop procedure p1|
+drop procedure bug5967|
 drop procedure if exists bug13012|
 create procedure bug13012()
 BEGIN
@@ -4190,17 +4190,17 @@ call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
-test.t3	repair	error	Table 'test.t3' doesn't exist
+test.t3	repair	status	OK
 test.v1	repair	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
-test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.t3	optimize	status	OK
 test.v1	optimize	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
-test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
 Error	1347	'test.v1' is not BASE TABLE
@@ -4208,17 +4208,17 @@ call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
-test.t3	repair	error	Table 'test.t3' doesn't exist
+test.t3	repair	status	OK
 test.v1	repair	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
-test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.t3	optimize	status	OK
 test.v1	optimize	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
-test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
 Error	1347	'test.v1' is not BASE TABLE
@@ -4226,25 +4226,34 @@ call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 test.t2	repair	status	OK
-test.t3	repair	error	Table 'test.t3' doesn't exist
+test.t3	repair	status	OK
 test.v1	repair	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 test.t2	optimize	status	OK
-test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.t3	optimize	status	OK
 test.v1	optimize	error	'test.v1' is not BASE TABLE
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	Table is already up to date
 test.t2	analyze	status	Table is already up to date
-test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
 drop view v1;
 select * from t1|
-a
-a - table column
+id	data
+aa	0
+aa	1
+aa	2
+aa	3
+aa	4
+aa	5
+aa	6
+aa	7
+aa	8
+aa	9
 drop schema if exists mysqltest1|
 Warnings:
 Note	1008	Can't drop database 'mysqltest1'; database doesn't exist
@@ -4284,4 +4293,31 @@ drop schema if exists mysqltest1|
 drop schema if exists mysqltest2|
 drop schema if exists mysqltest3|
 use test|
+drop table if exists t3|
+drop procedure if exists bug15441|
+create table t3 (id int not null primary key, county varchar(25))|
+insert into t3 (id, county) values (1, 'York')|
+create procedure bug15441(c varchar(25))
+begin
+update t3 set id=2, county=values(c);
+end|
+call bug15441('county')|
+ERROR 42S22: Unknown column 'c' in 'field list'
+drop procedure bug15441|
+create procedure bug15441(county varchar(25))
+begin
+declare c varchar(25) default "hello";
+insert into t3 (id, county) values (1, county)
+on duplicate key update county= values(county);
+select * from t3;
+update t3 set id=2, county=values(id);
+select * from t3;
+end|
+call bug15441('Yale')|
+id	county
+1	Yale
+id	county
+2	NULL
+drop table t3|
+drop procedure bug15441|
 drop table t1,t2;
