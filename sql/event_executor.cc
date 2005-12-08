@@ -19,6 +19,15 @@
 #include "event_priv.h"
 #include "sp.h"
 
+
+/* 
+  Make this define DBUG_FAULTY_THR to be able to put breakpoints inside
+  code used by the scheduler's thread(s). In this case user connections
+  are not possible because the scheduler thread code is ran inside the
+  main thread (no spawning takes place. If you want to debug client 
+  connection then start with --one-thread and make the define
+  DBUG_FAULTY_THR2 !
+*/
 #define DBUG_FAULTY_THR2
 
 extern  ulong thread_created;
@@ -204,7 +213,7 @@ event_executor_main(void *arg)
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   if (evex_load_events_from_db(thd))
-   goto err;
+    goto err;
 
   THD_CHECK_SENTRY(thd);
   /* Read queries from the IO/THREAD until this thread is killed */

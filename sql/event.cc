@@ -89,6 +89,15 @@ MEM_ROOT evex_mem_root;
   a < b -> -1
 */
 
+static
+int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
+{
+ return cs->coll->strnncollsp(cs,
+                              (unsigned char *) s.str,s.length,
+                              (unsigned char *) t.str,t.length, 0);
+}
+
+
 inline int
 my_time_compare(TIME *a, TIME *b)
 {
@@ -472,11 +481,20 @@ db_update_event(THD *thd, event_timed *et, sp_name *new_name)
   }
   
   // first look whether we overwrite
-  if (new_name && !evex_db_find_event_aux(thd, new_name->m_db, new_name->m_name,
-                                            table))
+  if (new_name)
   {
-    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
-    goto err;    
+    if (!sortcmp_lex_string(et->name, new_name->m_name, system_charset_info) &&
+        !sortcmp_lex_string(et->dbname, new_name->m_db, system_charset_info))
+    {
+      my_error(ER_EVENT_SAME_NAME, MYF(0), et->name.str);
+      goto err;    
+    }
+  
+    if (!evex_db_find_event_aux(thd, new_name->m_db, new_name->m_name, table))
+    {
+      my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
+      goto err;
+    }  
   }
   /*
     ...and then whether there is such an event. don't exchange the blocks
@@ -676,7 +694,6 @@ static int
 evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
 {
   uint i;
-  bool need_second_pass= true;
 
   DBUG_ENTER("evex_remove_from_cache");
   /*
@@ -689,37 +706,31 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
  
   for (i= 0; i < evex_executing_queue.elements; ++i)
   {
-    event_timed **p_et= dynamic_element(&evex_executing_queue, i, event_timed**);
-    event_timed *ett= *p_et;
-    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str,
-                ett->dbname.str, ett->name.str));
-    if (name->length == ett->name.length &&
-        db->length == ett->dbname.length &&
-        0 == strncmp(db->str, ett->dbname.str, db->length) &&
-        0 == strncmp(name->str, ett->name.str, name->length)
-       )
+    event_timed *et= *dynamic_element(&evex_executing_queue, i, event_timed**);
+    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str, et->dbname.str, 
+                        et->name.str));
+    if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
+        !sortcmp_lex_string(*db, et->dbname, system_charset_info))
     {
-      int idx;
+      int idx= get_index_dynamic(&events_array, (gptr) et);
       //we are lucky the event is in the executing queue, no need of second pass
-      need_second_pass= false;
-      idx= get_index_dynamic(&events_array, (gptr) ett);
       if (idx == -1)
       {
         //this should never happen
         DBUG_PRINT("error", (" get_index_dynamic problem. %d."
-               "i=%d idx=%d evex_ex_queue.buf=%p evex_ex_queue.elements=%d ett=%p\n"
-               "events_array=%p events_array.elements=%d events_array.buf=%p\n"
-               "p_et=%p ett=%p",
-               __LINE__, i, idx, &evex_executing_queue.buffer,
-               evex_executing_queue.elements, ett, &events_array,
-               events_array.elements, events_array.buffer, p_et, ett));
+          "i=%d idx=%d evex_ex_queue.buf=%p evex_ex_queue.elements=%d et=%p\n"
+          "events_array=%p events_array.elements=%d events_array.buf=%p et=%p\n",
+           __LINE__, i, idx, &evex_executing_queue.buffer,
+           evex_executing_queue.elements, et, &events_array,
+           events_array.elements, events_array.buffer, et));
         DBUG_ASSERT(0);
       }
       //destruct first and then remove. the destructor will delete sp_head
-      ett->free_sp();
+      et->free_sp();
       delete_dynamic_element(&events_array, idx);
       delete_dynamic_element(&evex_executing_queue, i);
       // ok, we have cleaned
+      goto done;
     }
   }
 
@@ -733,20 +744,21 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
                   For instance, second_pass is needed when an event
                   was created as DISABLED but then altered as ENABLED.
   */
-  if (need_second_pass)
-    //we haven't found the event in the executing queue. This is nice! :)
-    //Look for it in the events_array.
-    for (i= 0; i < events_array.elements; ++i)
+  /*
+    we haven't found the event in the executing queue. This is nice! :)
+    Look for it in the events_array.
+  */
+  for (i= 0; i < events_array.elements; ++i)
+  {
+    event_timed *et= dynamic_element(&events_array, i, event_timed*);
+      
+    if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
+        !sortcmp_lex_string(*db, et->dbname, system_charset_info))
     {
-      event_timed *ett= dynamic_element(&events_array, i, event_timed*);
-
-      if (name->length == ett->name.length &&
-          db->length == ett->dbname.length &&
-          0 == strncmp(db->str, ett->dbname.str, db->length) &&
-          0 == strncmp(name->str, ett->name.str, name->length)
-         )
-        delete_dynamic_element(&events_array, i);
-    } 
+      delete_dynamic_element(&events_array, i);
+      break;
+    }
+  } 
 
 done:
   if (use_lock)
