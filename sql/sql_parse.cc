@@ -3674,96 +3674,40 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_CREATE_EVENT:
-  {
-    DBUG_ASSERT(lex->et);
-    
-    if (! lex->et->dbname.str)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      delete lex->et;
-      lex->et= 0;
-      goto error;
-    }
-    if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                     is_schema_db(lex->et->dbname.str)))
-      break;
-
-    if (!(res= evex_create_event(thd, lex->et, (uint) lex->create_info.options)))
-      send_ok(thd, 1);
-
-    /* lex->unit.cleanup() is called outside, no need to call it here */
-    delete lex->et;
-    delete lex->sphead;
-    lex->et= 0;
-    lex->sphead= 0;
-
-    break;
-  }
   case SQLCOM_ALTER_EVENT:
-  {
-    DBUG_ASSERT(lex->et);
-    if (! lex->et->dbname.str)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      delete lex->et;
-      lex->et= 0;
-      goto error;
-    }
-    if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                     is_schema_db(lex->et->dbname.str)))
-      break;
-
-    int result;
-    res= (result= evex_update_event(thd, lex->et, lex->spname));
-    switch (result) {
-    case EVEX_OK:
-      send_ok(thd, 1);
-      break;
-    case EVEX_KEY_NOT_FOUND:
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->name.str);
-      break;
-    default:
-      my_error(ER_EVENT_CANT_ALTER, MYF(0), lex->et->name.str);
-      break;
-    }
-    /* lex->unit.cleanup() is called outside, no need to call it here */
-    delete lex->et;
-    delete lex->sphead;
-    lex->et= 0;
-    lex->sphead= 0;
-    
-    break;
-  }
   case SQLCOM_DROP_EVENT:
   {
     DBUG_ASSERT(lex->et);
-    if (! lex->et->dbname.str)
-    {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      delete lex->et;
-      lex->et= 0;
-      goto error;
-    }
-    if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                     is_schema_db(lex->et->dbname.str)))
-      break;
+    do {
+      if (! lex->et->dbname.str)
+      {
+        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+        res= true;
+        break;
+      }
+      if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
+                       is_schema_db(lex->et->dbname.str)))
+        break;
+      switch (lex->sql_command) {
+      case SQLCOM_CREATE_EVENT:
+        res= evex_create_event(thd, lex->et, (uint) lex->create_info.options);
+        break;
+      case SQLCOM_ALTER_EVENT:
+        res= evex_update_event(thd, lex->et, lex->spname);
+        break;
+      case SQLCOM_DROP_EVENT:
+        evex_drop_event(thd, lex->et, lex->drop_if_exists);
+      default:;
+      }
+      if (!res)
+        send_ok(thd, 1);
 
-    int result;
-    res= (result= evex_drop_event(thd, lex->et, lex->drop_if_exists));
-    switch (result) {
-    case EVEX_OK:
-      send_ok(thd, 1);
-      break;
-    case EVEX_KEY_NOT_FOUND:
-      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), lex->et->name.str);
-      break;
-    default:
-      my_error(ER_EVENT_DROP_FAILED, MYF(0), lex->et->name.str);
-      break;
-    }
+      /* lex->unit.cleanup() is called outside, no need to call it here */
+    } while (0);  
     delete lex->et;
+    delete lex->sphead;
     lex->et= 0;
-
+    lex->sphead= 0;
     break;
   }
   case SQLCOM_SHOW_CREATE_EVENT:

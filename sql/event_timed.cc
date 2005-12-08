@@ -740,7 +740,7 @@ event_timed::update_fields(THD *thd)
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
-  if ((ret= evex_db_find_routine_aux(thd, dbname, name, table)))
+  if ((ret= evex_db_find_event_aux(thd, dbname, name, table)))
     goto done;
 
   store_record(table,record[1]);
@@ -893,6 +893,14 @@ done:
 }
 
 
+/*
+  Returns
+                     0 - Success
+    EVEX_COMPILE_ERROR - Error during compilation
+
+*/
+
+
 int
 event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 {
@@ -936,7 +944,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
     // QQ: anything else ?
     lex_end(&lex);
     thd->lex= old_lex;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(EVEX_COMPILE_ERROR);
   }
   
   sphead= lex.sphead;
