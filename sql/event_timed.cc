@@ -904,6 +904,7 @@ done:
 int
 event_timed::compile(THD *thd, MEM_ROOT *mem_root)
 {
+  int ret= 0;
   MEM_ROOT *tmp_mem_root= 0;
   LEX *old_lex= thd->lex, lex;
   char *old_db;
@@ -912,6 +913,19 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   char *old_query;
   uint old_query_len;
   st_sp_chistics *p;
+  CHARSET_INFO *old_character_set_client, *old_collation_connection,
+               *old_character_set_results;
+
+  old_character_set_client= thd->variables.character_set_client;
+  old_character_set_results= thd->variables.character_set_results;
+  old_collation_connection= thd->variables.collation_connection;
+  
+  thd->variables.character_set_client= 
+    thd->variables.character_set_results=
+      thd->variables.collation_connection=
+           get_charset_by_csname("utf8", MY_CS_PRIMARY, MYF(MY_WME));
+
+  thd->update_charset();
   
   DBUG_ENTER("event_timed::compile");
   // change the memory root for the execution time
@@ -944,7 +958,9 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
     // QQ: anything else ?
     lex_end(&lex);
     thd->lex= old_lex;
-    DBUG_RETURN(EVEX_COMPILE_ERROR);
+
+    ret= EVEX_COMPILE_ERROR;
+    goto done;
   }
   
   sphead= lex.sphead;
@@ -954,17 +970,25 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   sphead->set_definer(definer.str, definer.length);
   sphead->set_info(0, 0, &lex.sp_chistics, 0/*sql_mode*/);
   sphead->optimize();
+  ret= 0;
+done:
   lex_end(&lex);
   thd->lex= old_lex;
   thd->query= old_query;
   thd->query_length= old_query_len;
   thd->db= old_db;
+
+  thd->variables.character_set_client= old_character_set_client;
+  thd->variables.character_set_results= old_character_set_results;
+  thd->variables.collation_connection= old_collation_connection;
+  thd->update_charset();
+
   /*
     Change the memory root for the execution time.
   */
   if (mem_root)
     thd->mem_root= tmp_mem_root;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
