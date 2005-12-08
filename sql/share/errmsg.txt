@@ -5724,7 +5724,7 @@ ER_PLUGIN_IS_NOT_LOADED
 ER_EVENT_ALREADY_EXISTS
         eng "Event %s already exists"
 ER_EVENT_STORE_FAILED
-        eng "Failed to create event %s"
+        eng "Failed to store event %s. Error code %d from storage engine."
 ER_EVENT_DOES_NOT_EXIST
         eng "Event %s does not exist"
 ER_EVENT_CANT_ALTER
@@ -5747,3 +5747,5 @@ ER_EVENT_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.event. Table probably corrupted"
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
+ER_EVENT_COMPILE_ERROR
+        eng "Error during compilation of event's body"

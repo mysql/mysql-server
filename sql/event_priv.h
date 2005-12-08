@@ -55,7 +55,7 @@ int
 my_time_compare(TIME *a, TIME *b);
 
 int
-evex_db_find_routine_aux(THD *thd, const LEX_STRING dbname,
+evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING rname, TABLE *table);
                        
 TABLE *
