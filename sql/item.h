@@ -2056,6 +2056,16 @@ public:
   }
 };
 
+/*
+  Item_insert_value -- an implementation of VALUES() function.
+  You can use the VALUES(col_name) function in the UPDATE clause
+  to refer to column values from the INSERT portion of the INSERT
+  ... UPDATE statement. In other words, VALUES(col_name) in the
+  UPDATE clause refers to the value of col_name that would be
+  inserted, had no duplicate-key conflict occurred.
+  In all other places this function returns NULL.
+*/
+
 class Item_insert_value : public Item_field
 {
 public:

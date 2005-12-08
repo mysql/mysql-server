@@ -4914,24 +4914,24 @@ drop procedure bug14376|
 #
 
 --disable_warnings
-drop procedure if exists p1|
-drop table if exists t1|
+drop procedure if exists bug5967|
+drop table if exists t3|
 --enable_warnings
-create table t1 (a varchar(255))|
-insert into t1 (a) values ("a - table column")|
-create procedure p1(a varchar(255))
+create table t3 (a varchar(255))|
+insert into t3 (a) values ("a - table column")|
+create procedure bug5967(a varchar(255))
 begin
   declare i varchar(255);
-  declare c cursor for select a from t1;
+  declare c cursor for select a from t3;
   select a;
-  select a from t1 into i;
+  select a from t3 into i;
   select i as 'Parameter takes precedence over table column';                     open c;
   fetch c into i;
   close c;
   select i as 'Parameter takes precedence over table column in cursors';
   begin
     declare a varchar(255) default 'a - local variable';
-    declare c1 cursor for select a from t1;
+    declare c1 cursor for select a from t3;
     select a as 'A local variable takes precedence over parameter';
     open c1;
     fetch c1 into i;
@@ -4939,9 +4939,9 @@ begin
     select i as 'A local variable takes precedence over parameter in cursors';
     begin
       declare a varchar(255) default 'a - local variable in a nested compound statement';
-      declare c2 cursor for select a from t1;
+      declare c2 cursor for select a from t3;
       select a as 'A local variable in a nested compound statement takes precedence over a local variable in the outer statement';
-      select a from t1 into i;
+      select a from t3 into i;
       select i as  'A local variable in a nested compound statement takes precedence over table column';
       open c2;
       fetch c2 into i;
@@ -4950,8 +4950,8 @@ begin
     end;
   end;
 end|
-call p1("a - stored procedure parameter")|
-drop procedure p1|
+call bug5967("a - stored procedure parameter")|
+drop procedure bug5967|
 
 #
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
@@ -5027,6 +5027,56 @@ drop schema if exists mysqltest1|
 drop schema if exists mysqltest2|
 drop schema if exists mysqltest3|
 use test|
+
+#
+# Bug#15441 "Running SP causes Server to Crash": check that an SP variable
+# can not be used in VALUES() function.
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug15441|
+--enable_warnings
+create table t3 (id int not null primary key, county varchar(25))|
+insert into t3 (id, county) values (1, 'York')|
+
+# First check that a stored procedure that refers to a parameter in VALUES()
+# function won't parse.
+
+create procedure bug15441(c varchar(25))
+begin
+  update t3 set id=2, county=values(c);
+end|
+--error ER_BAD_FIELD_ERROR
+call bug15441('county')|
+drop procedure bug15441|
+
+# Now check the case when there is an ambiguity between column names
+# and stored procedure parameters: the parser shall resolve the argument
+# of VALUES() function to the column name.
+
+# It's hard to deduce what county refers to in every case (INSERT statement):
+# 1st county refers to the column
+# 2nd county refers to the procedure parameter
+# 3d and 4th county refers to the column, again, but
+# for 4th county it has the value of SP parameter
+
+# In UPDATE statement, just check that values() function returns NULL for
+# non- INSERT...UPDATE statements, as stated in the manual.
+
+create procedure bug15441(county varchar(25))
+begin
+  declare c varchar(25) default "hello";
+
+  insert into t3 (id, county) values (1, county)
+  on duplicate key update county= values(county);
+  select * from t3;
+
+  update t3 set id=2, county=values(id);
+  select * from t3;
+end|
+call bug15441('Yale')|
+drop table t3|
+drop procedure bug15441|
 
 #
 # BUG#NNNN: New bug synopsis
