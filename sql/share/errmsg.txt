@@ -5749,3 +5749,5 @@ ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
 ER_EVENT_COMPILE_ERROR
         eng "Error during compilation of event's body"
+ER_EVENT_SAME_NAME
+        eng "Same old and new event name"
