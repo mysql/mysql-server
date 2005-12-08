@@ -588,20 +588,15 @@ row_ins_set_detailed(
 	trx_t*		trx,		/* in: transaction */
 	dict_foreign_t*	foreign)	/* in: foreign key constraint */
 {
-		
-	FILE*	tf = os_file_create_tmpfile();
+	mutex_enter(&srv_misc_tmpfile_mutex);
+	rewind(srv_misc_tmpfile);
 
-	if (tf) {
-		ut_print_name(tf, trx, foreign->foreign_table_name);
-		dict_print_info_on_foreign_key_in_create_format(tf, trx,
-			foreign, FALSE);
+	ut_print_name(srv_misc_tmpfile, trx, foreign->foreign_table_name);
+	dict_print_info_on_foreign_key_in_create_format(srv_misc_tmpfile,
+				trx, foreign, FALSE);
+	trx_set_detailed_error_from_file(trx, srv_misc_tmpfile);
 
-		trx_set_detailed_error_from_file(trx, tf);
-
-		fclose(tf);
-	} else {
-		trx_set_detailed_error(trx, "temp file creation failed");
-	}
+	mutex_exit(&srv_misc_tmpfile_mutex);
 }
 
 /*************************************************************************
