@@ -1123,7 +1123,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
                                            trg_action_time_type time_type,
                                            bool old_row_is_record1)
 {
-  int res= 0;
+  bool err_status= FALSE;
   sp_head *sp_trigger= bodies[event][time_type];
 
   if (sp_trigger)
@@ -1183,7 +1183,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
-    res= sp_trigger->execute_function(thd, 0, 0, 0);
+    err_status= sp_trigger->execute_function(thd, 0, 0, 0);
     thd->restore_sub_statement_state(&statement_state);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1191,7 +1191,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 #endif // NO_EMBEDDED_ACCESS_CHECKS
   }
 
-  return res;
+  return err_status;
 }
 
 
