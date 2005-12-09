@@ -8635,6 +8635,41 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+/*
+  Returns well formed length of a EUC-KR string.
+*/
+static uint
+my_well_formed_len_euckr(CHARSET_INFO *cs __attribute__((unused)),
+                         const char *b, const char *e,
+                         uint pos, int *error)
+{
+  const char *b0= b;
+  const char *emb= e - 1; /* Last possible end of an MB character */
+
+  *error= 0;
+  while (pos-- && b < e)
+  {
+    if ((uchar) b[0] < 128)
+    {
+      /* Single byte ascii character */
+      b++;
+    }
+    else  if (b < emb && iseuc_kr(*b) && iseuc_kr(b[1]))
+    {
+      /* Double byte character */
+      b+= 2;
+    }
+    else
+    {
+      /* Wrong byte sequence */
+      *error= 1;
+      break;
+    }
+  }
+  return (uint) (b - b0);
+}
+
+
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
   NULL,			/* init */
@@ -8655,7 +8690,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_euc_kr,
   my_numchars_mb,
   my_charpos_mb,
-  my_well_formed_len_mb,
+  my_well_formed_len_euckr,
   my_lengthsp_8bit,
   my_numcells_8bit,
   my_mb_wc_euc_kr,	/* mb_wc   */
