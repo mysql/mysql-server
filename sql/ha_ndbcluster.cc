@@ -3221,6 +3221,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
+    if (!thd->transaction.on)
+      m_transaction_on= FALSE;
+    else
+      m_transaction_on= thd->variables.ndb_use_transactions;
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
@@ -3235,7 +3239,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           ERR_RETURN(ndb->getNdbError());
         no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
-        trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        if (m_transaction_on)
+          trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
@@ -3250,7 +3255,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             ERR_RETURN(ndb->getNdbError());
           no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
-          trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          if (m_transaction_on)
+            trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3284,10 +3290,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
     m_autoincrement_prefetch= 
       (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
-    if (!thd->transaction.on)
-      m_transaction_on= FALSE;
-    else
-      m_transaction_on= thd->variables.ndb_use_transactions;
 
     m_active_trans= thd_ndb->all ? thd_ndb->all : thd_ndb->stmt;
     DBUG_ASSERT(m_active_trans);

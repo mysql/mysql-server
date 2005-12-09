@@ -1895,3 +1895,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=BerkeleyDB DEFAULT CHARSET=latin1
 drop table t1;
 set storage_engine=MyISAM;
+set autocommit=0;
+create table t1 (a int) engine=bdb;
+commit;
+alter table t1 add primary key(a);
+drop table t1;
