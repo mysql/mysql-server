@@ -3269,6 +3269,8 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
   append_result(ds, warn_res);
   mysql_free_result(warn_res);
 
+  DBUG_PRINT("warnings", ("%s", ds->str));
+
   DBUG_RETURN(count);
 }
 
@@ -3292,11 +3294,10 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 
 static void run_query_normal(MYSQL *mysql, struct st_query *command,
 			     int flags, char *query, int query_len,
-			     DYNAMIC_STRING *ds)
+			     DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= 0;
   int err= 0, counter= 0;
-  DYNAMIC_STRING ds_warnings;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
@@ -3375,13 +3376,11 @@ static void run_query_normal(MYSQL *mysql, struct st_query *command,
       */
       if (!disable_warnings && !mysql_more_results(mysql))
       {
-	init_dynamic_string(&ds_warnings, NULL, 0, 256);
-	if (append_warnings(&ds_warnings, mysql))
+	if (append_warnings(ds_warnings, mysql) || ds_warnings->length)
 	{
 	  dynstr_append_mem(ds, "Warnings:\n", 10);
-	  dynstr_append_mem(ds, ds_warnings.str, ds_warnings.length);
+	  dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
 	}
-	dynstr_free(&ds_warnings);
       }
 
       if (!disable_info)
@@ -3555,7 +3554,8 @@ static void handle_no_error(struct st_query *q)
 */
 
 static void run_query_stmt(MYSQL *mysql, struct st_query *command,
-			   char *query, int query_len, DYNAMIC_STRING *ds)
+			   char *query, int query_len, DYNAMIC_STRING *ds,
+			   DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
@@ -3691,9 +3691,13 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 
       /* Append warnings to ds - if there are any */
       if (append_warnings(&ds_execute_warnings, mysql) ||
-	  ds_prepare_warnings.length)
+	  ds_prepare_warnings.length ||
+	  ds_warnings->length)
       {
 	dynstr_append_mem(ds, "Warnings:\n", 10);
+	if (ds_warnings->length)
+	  dynstr_append_mem(ds, ds_warnings->str,
+			    ds_warnings->length);
 	if (ds_prepare_warnings.length)
 	  dynstr_append_mem(ds, ds_prepare_warnings.str,
 			    ds_prepare_warnings.length);
@@ -3749,11 +3753,14 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 {
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
+  DYNAMIC_STRING ds_warnings;
   DYNAMIC_STRING eval_query;
   char *query;
   int query_len;
   my_bool view_created= 0, sp_created= 0;
   my_bool complete_query= ((flags & QUERY_SEND) && (flags & QUERY_REAP));
+
+  init_dynamic_string(&ds_warnings, NULL, 0, 256);
 
   /*
     Evaluate query if this is an eval command
@@ -3830,6 +3837,12 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
       view_created= 1;
       query= (char*)"SELECT * FROM mysqltest_tmp_v";
       query_len = strlen(query);
+
+      /*
+	 Collect warnings from create of the view that should otherwise
+         have been produced when the SELECT was executed
+      */
+      append_warnings(&ds_warnings, mysql);
     }
 
     dynstr_free(&query_str);
@@ -3888,9 +3901,10 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
   if (ps_protocol_enabled &&
       complete_query &&
       match_re(&ps_re, query))
-    run_query_stmt(mysql, command, query, query_len, ds);
+    run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len, ds);
+    run_query_normal(mysql, command, flags, query, query_len,
+		     ds, &ds_warnings);
 
   if (sp_created)
   {
@@ -3923,6 +3937,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     check_result(ds, command->record_file, command->require_file);
   }
 
+  dynstr_free(&ds_warnings);
   if (ds == &ds_result)
     dynstr_free(&ds_result);
   if (command->type == Q_EVAL)
