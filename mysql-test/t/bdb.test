@@ -973,3 +973,14 @@ drop table t1;
 
 # End varchar test
 eval set storage_engine=$default;
+
+#
+# Bug #14212: Server crash after COMMIT + ALTER TABLE
+#
+set autocommit=0;
+create table t1 (a int) engine=bdb;
+commit;
+alter table t1 add primary key(a);
+drop table t1;
+
+# End of 5.0 tests
