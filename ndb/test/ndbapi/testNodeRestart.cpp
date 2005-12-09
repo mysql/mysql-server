@@ -446,6 +446,56 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug15632(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  
+  int nodeId = restarter.getDbNodeId(1);
+
+  ndbout << "Restart node " << nodeId << endl; 
+  
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.insertErrorInNode(nodeId, 7165))
+    return NDBT_FAILED;
+  
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.insertErrorInNode(nodeId, 7171))
+    return NDBT_FAILED;
+  
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -596,6 +646,8 @@ TESTCASE("RestartNFDuringNR",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -685,6 +737,8 @@ TESTCASE("RestartNodeDuringLCP",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -714,6 +768,12 @@ TESTCASE("Bug15587",
   INITIALIZER(runLoadTable);
   STEP(runScanUpdateUntilStopped);
   STEP(runBug15587);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15632",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug15632);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
