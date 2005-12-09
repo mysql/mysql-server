@@ -8951,6 +8951,7 @@ err:
 TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
 {
   uint field_count= field_list.elements;
+  uint blob_count= 0;
   Field **field;
   create_field *cdef;                           /* column definition */
   uint record_length= 0;
@@ -8966,6 +8967,12 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
   table->field= field;
   table->s= share= (TABLE_SHARE*) (table+1);
   share->fields= field_count;
+
+  if (!(share->blob_field= (uint*)thd->alloc((field_list.elements + 1) *
+                                             sizeof(uint))))
+    return 0;
+
+  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
 
   /* Create all fields and calculate the total length of record */
   List_iterator_fast<create_field> it(field_list);
@@ -8983,9 +8990,15 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
     record_length+= (*field)->pack_length();
     if (! ((*field)->flags & NOT_NULL_FLAG))
       null_count++;
+
+    if ((*field)->flags & BLOB_FLAG)
+      share->blob_field[blob_count++]= (uint) (field - table->field);
+
     field++;
   }
   *field= NULL;                                 /* mark the end of the list */
+  s->blob_field[blob_count]= 0;             /* mark the end of the list */
+  s->blob_fields= blob_count;
 
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;
