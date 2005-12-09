@@ -10,5 +10,5 @@ user()
 #
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
-#	root	#	test	Sleep	#		NULL
-#	root	#	test	Query	#	NULL	show processlist
+<id>	root	<host>	test	<command>	<time>	<state>	<info>
+<id>	root	<host>	test	<command>	<time>	<state>	<info>

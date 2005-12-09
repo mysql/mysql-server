@@ -33,6 +33,9 @@
 Item_result
 sp_map_result_type(enum enum_field_types type);
 
+Item::Type
+sp_map_item_type(enum enum_field_types type);
+
 uint
 sp_get_flags_for_command(LEX *lex);
 
@@ -123,12 +126,9 @@ public:
   /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
   int m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
-  enum enum_field_types m_returns; // For FUNCTIONs only
-  Field::geometry_type m_geom_returns;
-  CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
-  TYPELIB *m_returns_typelib;	// For FUNCTIONs only
-  uint m_returns_len;		// For FUNCTIONs only
-  uint m_returns_pack;		// For FUNCTIONs only
+
+  create_field m_return_field_def; /* This is used for FUNCTIONs only. */
+
   const uchar *m_tmp_query;	// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
@@ -202,9 +202,6 @@ public:
   void
   init_strings(THD *thd, LEX *lex, sp_name *name);
 
-  TYPELIB *
-  create_typelib(List<String> *src);
-
   int
   create(THD *thd);
 
@@ -214,10 +211,10 @@ public:
   void
   destroy();
 
-  int
-  execute_function(THD *thd, Item **args, uint argcount, Item **resp);
+  bool
+  execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
 
-  int
+  bool
   execute_procedure(THD *thd, List<Item> *args);
 
   int
@@ -278,7 +275,12 @@ public:
 
   char *create_string(THD *thd, ulong *lenp);
 
-  Field *make_field(uint max_length, const char *name, TABLE *dummy);
+  Field *create_result_field(uint field_max_length, const char *field_name,
+                             TABLE *table);
+
+  bool fill_field_definition(THD *thd, LEX *lex,
+                             enum enum_field_types field_type,
+                             create_field *field_def);
 
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
@@ -363,7 +365,7 @@ private:
   */
   HASH m_sptabs;
 
-  int
+  bool
   execute(THD *thd);
 
   /*
@@ -1074,6 +1076,31 @@ private:
 }; // class sp_instr_error : public sp_instr
 
 
+class sp_instr_set_case_expr :public sp_instr
+{
+public:
+
+  sp_instr_set_case_expr(uint ip, sp_pcontext *ctx, uint case_expr_id,
+                         Item *case_expr, LEX *lex)
+    :sp_instr(ip, ctx), m_case_expr_id(case_expr_id), m_case_expr(case_expr),
+     m_lex_keeper(lex, TRUE)
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+private:
+
+  uint m_case_expr_id;
+  Item *m_case_expr;
+  sp_lex_keeper m_lex_keeper;
+
+}; // class sp_instr_set_case_expr : public sp_instr
+
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool
 sp_change_security_context(THD *thd, sp_head *sp,
@@ -1086,8 +1113,10 @@ TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
+Item *
+sp_prepare_func_item(THD* thd, Item **it_addr);
 
-Item *sp_eval_func_item(THD *thd, Item **it, enum_field_types type,
-                        Item *reuse, bool use_callers_arena);
+bool
+sp_eval_expr(THD *thd, Field *result_field, Item *expr_item);
 
 #endif /* _SP_HEAD_H_ */
