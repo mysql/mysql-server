@@ -61,6 +61,8 @@ Insert system error in GCP participant when receiving GCP_SAVEREQ.
 5007:
 Delay GCP_SAVEREQ by 10 secs
 
+7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
+
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 
