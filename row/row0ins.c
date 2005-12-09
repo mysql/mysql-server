@@ -710,7 +710,7 @@ row_ins_foreign_report_add_err(
 	}
 
 	if (rec) {
-		rec_print(ef, rec, foreign->foreign_index);
+		rec_print(ef, rec, foreign->referenced_index);
 	}
 	putc('\n', ef);
 
