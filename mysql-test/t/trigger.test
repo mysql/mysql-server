@@ -13,6 +13,8 @@ drop procedure if exists p1;
 # Create additional connections used through test
 connect (addconroot1, localhost, root,,);
 connect (addconroot2, localhost, root,,);
+# Connection without current database set
+connect (addconwithoutdb, localhost, root,,*NO-ONE*);
 connection default;
 
 create table t1 (i int);
@@ -946,3 +948,16 @@ CALL p2();
 drop procedure p2;
 drop table t1;
 
+#
+# Test for bug #14863 "Triggers: crash if create and there is no current
+# database". We should not crash and give proper error when database for
+# trigger or its table is not specified and there is no current database.
+#
+connection addconwithoutdb;
+--error ER_NO_DB_ERROR
+create trigger t1_bi before insert on test.t1 for each row set @a:=0;
+--error ER_NO_DB_ERROR
+create trigger test.t1_bi before insert on t1 for each row set @a:=0;
+--error ER_NO_DB_ERROR
+drop trigger t1_bi;
+connection default;
