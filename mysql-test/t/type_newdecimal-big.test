@@ -12,12 +12,31 @@ drop procedure if exists sp1;
 
 delimiter //;
 #
-create procedure sp1 () begin 
-  declare v1, v2, v3, v4 decimal(16,12); declare v5 int; 
-  set v1 = 1; set v2 = 2; set v3 = 1000000000000; set v4 = 2000000000000; set v5 = 0; 
-  while v5 < 100000 do
-   set v1 = v1 + 0.000000000001; set v2 = v2 - 0.000000000001; set v3 = v3 + 1; set v4 = v4 - 1; set v5 = v5 + 1; 
-  end while; select v1, v2, v3 * 0.000000000001, v4 * 0.000000000001; end;//
+CREATE PROCEDURE sp1()
+BEGIN 
+  DECLARE v1, v2, v3, v4 DECIMAL(28,12);
+  DECLARE v3_2, v4_2 DECIMAL(28, 12);
+  DECLARE counter INT;
+
+  SET v1 = 1;
+  SET v2 = 2;
+  SET v3 = 1000000000000;
+  SET v4 = 2000000000000;
+  SET counter = 0;
+  
+  WHILE counter < 100000 DO
+   SET v1 = v1 + 0.000000000001;
+   SET v2 = v2 - 0.000000000001;
+   SET v3 = v3 + 1;
+   SET v4 = v4 - 1;
+   SET counter = counter + 1; 
+  END WHILE;
+
+  SET v3_2 = v3 * 0.000000000001;
+  SET v4_2 = v4 * 0.000000000001;
+
+  SELECT v1, v2, v3, v3_2, v4, v4_2;
+END//
 #
 call sp1()//
 #-- should return 

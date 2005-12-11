@@ -2222,18 +2222,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     lex->query_tables= table;
     lex->query_tables_last= &table->next_global;
-    lex->query_tables_own_last= 0;;
+    lex->query_tables_own_last= 0;
     thd->no_warnings_for_error= no_warnings_for_error;
+    if (view_operator_func == NULL)
+      table->required_type=FRMTYPE_TABLE;
     open_and_lock_tables(thd, table);
     thd->no_warnings_for_error= 0;
     table->next_global= save_next_global;
     table->next_local= save_next_local;
-    /* if view are unsupported */
-    if (table->view && view_operator_func == NULL)
-    {
-      result_code= HA_ADMIN_NOT_BASE_TABLE;
-      goto send_result;
-    }
     thd->open_options&= ~extra_open_options;
 
     if (prepare_func)

@@ -1984,15 +1984,25 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
       thd->lex->sroutines_list.elements)
   {
-    bool first_no_prelocking, need_prelocking;
+    bool first_no_prelocking, need_prelocking, tabs_changed;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
     sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
 
-    if ((sp_cache_routines_and_add_tables(thd, thd->lex,
-                                         first_no_prelocking) ||
-        *start) && need_prelocking)
+    if (sp_cache_routines_and_add_tables(thd, thd->lex,
+                                         first_no_prelocking,
+                                         &tabs_changed))
+    {
+      /*
+        Serious error during reading stored routines from mysql.proc table.
+        Something's wrong with the table or its contents, and an error has
+        been emitted; we must abort.
+      */
+      result= -1;
+      goto err;
+    }
+    else if ((tabs_changed || *start) && need_prelocking)
     {
       query_tables_last_own= save_query_tables_last;
       *start= thd->lex->query_tables;
@@ -2116,9 +2126,18 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
           tables->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
         if (!query_tables_last_own)
-            query_tables_last_own= thd->lex->query_tables_last;
-        sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
-                                                      tables->table->triggers);
+          query_tables_last_own= thd->lex->query_tables_last;
+        if (sp_cache_routines_and_add_tables_for_triggers(thd, thd->lex,
+                                                          tables))
+        {
+          /*
+            Serious error during reading stored routines from mysql.proc table.
+            Something's wrong with the table or its contents, and an error has
+            been emitted; we must abort.
+          */
+          result= -1;
+          goto err;
+        }
       }
       free_root(&new_frm_mem, MYF(MY_KEEP_PREALLOC));
     }
@@ -2139,9 +2158,20 @@ process_view_routines:
       /* We have at least one table in TL here. */
       if (!query_tables_last_own)
         query_tables_last_own= thd->lex->query_tables_last;
-      sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables->view);
+      if (sp_cache_routines_and_add_tables_for_view(thd, thd->lex, tables))
+      {
+        /*
+          Serious error during reading stored routines from mysql.proc table.
+          Something's wrong with the table or its contents, and an error has
+          been emitted; we must abort.
+        */
+        result= -1;
+        goto err;
+      }
     }
   }
+
+ err:
   thd->proc_info=0;
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
@@ -2683,47 +2713,6 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-/*
-  Check column rights in given security context
-
-  SYNOPSIS
-    check_grant_column_in_sctx()
-    thd                  thread handler
-    grant                grant information structure
-    db                   db name
-    table                table  name
-    name                 column name
-    length               column name length
-    check_grants         need to check grants
-    sctx                 0 or security context
-
-  RETURN
-    FALSE OK
-    TRUE  access denied
-*/
-
-static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
-                                       const char *db, const char *table,
-                                       const char *name, uint length,
-                                       bool check_grants,
-                                       Security_context *sctx)
-{
-  if (!check_grants)
-    return FALSE;
-  Security_context *save_security_ctx= thd->security_ctx;
-  bool res;
-  if (sctx)
-  {
-    thd->security_ctx= sctx;
-  }
-  res= check_grant_column(thd, grant, db, table, name, length);
-  thd->security_ctx= save_security_ctx;
-  return res;
-}
-#endif
-
-
 /*
   Find a field by name in a view that uses merge algorithm.
 
@@ -2732,11 +2721,10 @@ static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
     thd				thread handler
     table_list			view to search for 'name'
     name			name of field
-    item_name                   name of item if it will be created (VIEW)
     length			length of name
+    item_name                   name of item if it will be created (VIEW)
     ref				expression substituted in VIEW should be passed
                                 using this reference (return view_ref_found)
-    check_grants		do check columns grants for view?
     register_tree_change        TRUE if ref is not stack variable and we
                                 need register changes in item tree
 
@@ -2748,8 +2736,8 @@ static bool check_grant_column_in_sctx(THD *thd, GRANT_INFO *grant,
 
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
-                   const char *name, const char *item_name,
-                   uint length, Item **ref, bool check_grants,
+                   const char *name, uint length,
+                   const char *item_name, Item **ref,
                    bool register_tree_change)
 {
   DBUG_ENTER("find_field_in_view");
@@ -2766,24 +2754,13 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   {
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
-      if (table_list->schema_table_reformed)
-        /*
-          Translation table items are always Item_fields and fixed already
-          ('mysql_schema_table' function). So we can return ->field. It is
-          used only for 'show & where' commands.
-        */
-        DBUG_RETURN(((Item_field*) (field_it.item()))->field);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (check_grant_column_in_sctx(thd, &table_list->grant,
-                                     table_list->view_db.str,
-                                     table_list->view_name.str, name, length,
-                                     check_grants,
-                                     table_list->security_ctx))
-        DBUG_RETURN(WRONG_GRANT);
-#endif
       // in PS use own arena or data will be freed after prepare
       if (register_tree_change)
         arena= thd->activate_stmt_arena_if_needed(&backup);
+      /*
+        create_item() may, or may not create a new Item, depending on
+        the column reference. See create_view_field() for details.
+      */
       Item *item= field_it.create_item(thd);
       if (register_tree_change && arena)
         thd->restore_active_arena(arena, &backup);
@@ -2825,7 +2802,6 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     length		 [in]  length of name
     ref                  [in/out] if 'name' is resolved to a view field, ref is
                                set to point to the found view field
-    check_grants	 [in]  do check columns grants?
     register_tree_change [in]  TRUE if ref is not stack variable and we
                                need register changes in item tree
     actual_table         [out] the original table reference where the field
@@ -2846,8 +2822,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
-                           uint length, Item **ref, bool check_grants,
-                           bool register_tree_change,
+                           uint length, Item **ref, bool register_tree_change,
                            TABLE_LIST **actual_table)
 {
   List_iterator_fast<Natural_join_column>
@@ -2872,23 +2847,16 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       break;
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_grants && nj_col->check_grants(thd, name, length))
-    DBUG_RETURN(WRONG_GRANT);
-#endif
-
   if (nj_col->view_field)
   {
     Item *item;
-    /*
-      The found field is a view field, we do as in find_field_in_view()
-      and return a pointer to pointer to the Item of that field.
-    */
     if (register_tree_change)
       arena= thd->activate_stmt_arena_if_needed(&backup);
-
+    /*
+      create_item() may, or may not create a new Item, depending on the
+      column reference. See create_view_field() for details.
+    */
     item= nj_col->create_item(thd);
-
     if (register_tree_change && arena)
       thd->restore_active_arena(arena, &backup);
 
@@ -2934,7 +2902,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     table			table where to search for the field
     name			name of field
     length			length of name
-    check_grants		do check columns grants?
     allow_rowid			do allow finding of "_rowid" field?
     cached_field_index_ptr	cached position in field list (used to speedup
                                 lookup for fields in prepared tables)
@@ -2946,9 +2913,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 
 Field *
 find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
-                    bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr,
-                    Security_context *sctx)
+                    bool allow_rowid, uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
@@ -2987,13 +2952,6 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
   update_field_dependencies(thd, field, table);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_grant_column_in_sctx(thd, &table->grant,
-                                 table->s->db, table->s->table_name,
-                                 name, length,
-                                 check_grants, sctx))
-    field= WRONG_GRANT;
-#endif
   DBUG_RETURN(field);
 }
 
@@ -3006,14 +2964,13 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
     thd			   [in]  thread handler
     table_list		   [in]  table reference to search
     name		   [in]  name of field
-    item_name              [in]  name of item if it will be created (VIEW)
-    table_name             [in]  optional table name that qualifies the field
-    db_name                [in]  optional database name that qualifies the
     length		   [in]  field length of name
+    item_name              [in]  name of item if it will be created (VIEW)
+    db_name                [in]  optional database name that qualifies the
+    table_name             [in]  optional table name that qualifies the field
     ref		       [in/out] if 'name' is resolved to a view field, ref
                                  is set to point to the found view field
-    check_grants_table	   [in]  do check columns grants for table?
-    check_grants_view	   [in]  do check columns grants for view?
+    check_privileges       [in]  check privileges
     allow_rowid		   [in]  do allow finding of "_rowid" field?
     cached_field_index_ptr [in]  cached position in field list (used to
                                  speedup lookup for fields in prepared tables)
@@ -3043,11 +3000,11 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, const char *item_name,
-                        const char *table_name, const char *db_name,
-                        uint length, Item **ref,
-                        bool check_grants_table, bool check_grants_view,
-                        bool allow_rowid, uint *cached_field_index_ptr,
+                        const char *name, uint length,
+                        const char *item_name, const char *db_name,
+                        const char *table_name, Item **ref,
+                        bool check_privileges, bool allow_rowid,
+                        uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table)
 {
   Field *fld;
@@ -3092,8 +3049,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   if (table_list->field_translation)
   {
     /* 'table_list' is a view or an information schema table. */
-    if ((fld= find_field_in_view(thd, table_list, name, item_name, length,
-                                 ref, check_grants_view,
+    if ((fld= find_field_in_view(thd, table_list, name, length, item_name, ref,
                                  register_tree_change)))
       *actual_table= table_list;
   }
@@ -3102,20 +3058,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     /* 'table_list' is a stored table. */
     DBUG_ASSERT(table_list->table);
     if ((fld= find_field_in_table(thd, table_list->table, name, length,
-                                  check_grants_table, allow_rowid,
-                                  cached_field_index_ptr,
-                                  table_list->security_ctx)))
+                                  allow_rowid,
+                                  cached_field_index_ptr)))
       *actual_table= table_list;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    /* check for views with temporary table algorithm */
-    if (check_grants_view && table_list->view &&
-        fld && fld != WRONG_GRANT &&
-        check_grant_column(thd, &table_list->grant,
-                           table_list->view_db.str,
-                           table_list->view_name.str,
-                           name, length))
-    fld= WRONG_GRANT;
-#endif
   }
   else
   {
@@ -3132,11 +3077,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       TABLE_LIST *table;
       while ((table= it++))
       {
-        if ((fld= find_field_in_table_ref(thd, table, name, item_name,
-                                          table_name, db_name, length, ref,
-                                          check_grants_table,
-                                          check_grants_view,
-                                          allow_rowid, cached_field_index_ptr,
+        if ((fld= find_field_in_table_ref(thd, table, name, length, item_name,
+                                          db_name, table_name, ref,
+                                          check_privileges, allow_rowid,
+                                          cached_field_index_ptr,
                                           register_tree_change, actual_table)))
           DBUG_RETURN(fld);
       }
@@ -3149,10 +3093,15 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       directly the top-most NATURAL/USING join.
     */
     fld= find_field_in_natural_join(thd, table_list, name, length, ref,
-                                    /* TIMOUR_TODO: check this with Sanja */
-                                    check_grants_table || check_grants_view,
                                     register_tree_change, actual_table);
   }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  /* Check if there are sufficient access rights to the found field. */
+  if (fld && check_privileges &&
+      check_column_grant_in_table_ref(thd, *actual_table, name, length))
+    fld= WRONG_GRANT;
+#endif
 
   DBUG_RETURN(fld);
 }
@@ -3235,21 +3184,11 @@ find_field_in_tables(THD *thd, Item_ident *item,
       */
     if (table_ref->table && !table_ref->view)
       found= find_field_in_table(thd, table_ref->table, name, length,
-                                 test(table_ref->table->
-                                      grant.want_privilege) &&
-                                 check_privileges,
-                                 1, &(item->cached_field_index),
-                                 table_ref->security_ctx);
+                                 TRUE, &(item->cached_field_index));
     else
-      found= find_field_in_table_ref(thd, table_ref, name, item->name,
-                                     NULL, NULL, length, ref,
-                                     (table_ref->table &&
-                                      test(table_ref->table->grant.
-                                           want_privilege) &&
-                                      check_privileges),
-                                     (test(table_ref->grant.want_privilege) &&
-                                      check_privileges),
-                                     1, &(item->cached_field_index),
+      found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
+                                     NULL, NULL, ref, check_privileges,
+                                     TRUE, &(item->cached_field_index),
                                      register_tree_change,
                                      &actual_table);
     if (found)
@@ -3289,17 +3228,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
-    Field *cur_field= find_field_in_table_ref(thd, cur_table, name, item->name,
-                                              table_name, db,
-                                              length, ref,
-                                              (cur_table->table &&
-                                               test(cur_table->table->grant.
-                                                    want_privilege) &&
-                                               check_privileges),
-                                              (test(cur_table->grant.
-                                                    want_privilege)
-                                               && check_privileges),
-                                              allow_rowid,
+    Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
+                                              item->name, db, table_name, ref,
+                                              check_privileges, allow_rowid,
                                               &(item->cached_field_index),
                                               register_tree_change,
                                               &actual_table);
@@ -3707,7 +3638,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   {
     bool is_created_1;
     bool found= FALSE;
-    if (!(nj_col_1= it_1.get_or_create_column_ref(thd, &is_created_1)))
+    if (!(nj_col_1= it_1.get_or_create_column_ref(&is_created_1)))
       goto err;
     field_name_1= nj_col_1->name();
 
@@ -3728,7 +3659,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       bool is_created_2;
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
-      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, &is_created_2)))
+      if (!(cur_nj_col_2= it_2.get_or_create_column_ref(&is_created_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
 
@@ -3920,13 +3851,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
   /* Append the columns of the first join operand. */
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
-    if (!(nj_col_1= it_1.get_or_create_column_ref(thd, &is_created)))
-      goto err;
-    /*
-      The following assert checks that mark_common_columns() was run and
-      we created the list table_ref_1->join_columns.
-    */
-    DBUG_ASSERT(!is_created);
+    nj_col_1= it_1.get_natural_column_ref();
     if (nj_col_1->is_common)
     {
       natural_using_join->join_columns->push_back(nj_col_1);
@@ -3972,13 +3897,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
   /* Append the non-equi-join columns of the second join operand. */
   for (it_2.set(table_ref_2); !it_2.end_of_fields(); it_2.next())
   {
-    if (!(nj_col_2= it_2.get_or_create_column_ref(thd, &is_created)))
-      goto err;
-    /*
-      The following assert checks that mark_common_columns() was run and
-      we created the list table_ref_2->join_columns.
-    */
-    DBUG_ASSERT(!is_created);
+    nj_col_2= it_2.get_natural_column_ref();
     if (!nj_col_2->is_common)
       non_join_columns->push_back(nj_col_2);
     else
@@ -4716,8 +4635,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
             because it was already created and stored with the natural join.
           */
           Natural_join_column *nj_col;
-          if (!(nj_col= field_iterator.get_or_create_column_ref(thd,
-                                                                &is_created)))
+          if (!(nj_col= field_iterator.get_or_create_column_ref(&is_created)))
             DBUG_RETURN(TRUE);
           DBUG_ASSERT(nj_col->table_field && !is_created);
           field_table= nj_col->table_ref->table;

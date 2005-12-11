@@ -266,9 +266,20 @@ protected:
     ls.elements= elm;
   }
 public:
-  base_list_iterator(base_list &list_par) 
-    :list(&list_par), el(&list_par.first), prev(0), current(0)
+  base_list_iterator() 
+    :list(0), el(0), prev(0), current(0)
   {}
+
+  base_list_iterator(base_list &list_par) 
+  { init(list_par); }
+
+  inline void init(base_list &list_par)
+  {
+    list= &list_par;
+    el= &list_par.first;
+    prev= 0;
+    current= 0;
+  }
 
   inline void *next(void)
   {
@@ -364,6 +375,8 @@ template <class T> class List_iterator :public base_list_iterator
 {
 public:
   List_iterator(List<T> &a) : base_list_iterator(a) {}
+  List_iterator() : base_list_iterator() {}
+  inline void init(List<T> &a) { base_list_iterator::init(a); }
   inline T* operator++(int) { return (T*) base_list_iterator::next(); }
   inline T *replace(T *a)   { return (T*) base_list_iterator::replace(a); }
   inline T *replace(List<T> &a) { return (T*) base_list_iterator::replace(a); }
@@ -385,6 +398,8 @@ protected:
 
 public:
   inline List_iterator_fast(List<T> &a) : base_list_iterator(a) {}
+  inline List_iterator_fast() : base_list_iterator() {}
+  inline void init(List<T> &a) { base_list_iterator::init(a); }
   inline T* operator++(int) { return (T*) base_list_iterator::next_fast(); }
   inline void rewind(void)  { base_list_iterator::rewind(); }
   void sublist(List<T> &list_arg, uint el_arg)

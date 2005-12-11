@@ -117,8 +117,8 @@ public:
   void set_table(TABLE *new_table);
 
   friend class Item_trigger_field;
-  friend void sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                Table_triggers_list *triggers);
+  friend int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
+                                                            TABLE_LIST *table);
 
 private:
   bool prepare_record1_accessors(TABLE *table);
