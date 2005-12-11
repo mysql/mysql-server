@@ -199,7 +199,7 @@ copy_dir_files()
        print_debug "Creating directory '$arg'"
        mkdir $BASE/$arg
      fi
-    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.dsp *.dsw \
+    for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
              *.vcproj *.sln *.dat *.000001 *.require *.opt
@@ -340,7 +340,7 @@ mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 #
 # Search the tree for plain text files and adapt the line end marker
 #
-find $BASE \( -name "*.dsp" -o -name "*.dsw" -o -name "*.cnf" -o -name "*.ini" \
+find $BASE \( -name "*.cnf" -o -name "*.ini" \
            -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT \
            -o -name "INSTALL*" -o -name LICENSE -o -name "README*" \
            -o -name "*.vcproj" -o -name "*.sln" \) -type f -print \
