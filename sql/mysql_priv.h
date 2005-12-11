@@ -661,6 +661,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
+TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
 
 bool mysql_xa_recover(THD *thd);
 
@@ -792,18 +793,15 @@ find_field_in_tables(THD *thd, Item_ident *item,
                      bool check_privileges, bool register_tree_change);
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, const char *item_name,
-                        const char *table_name, const char *db_name,
-                        uint length, Item **ref,
-                        bool check_grants_table, bool check_grants_view,
-                        bool allow_rowid,
+                        const char *name, uint length,
+                        const char *item_name, const char *db_name,
+                        const char *table_name, Item **ref,
+                        bool check_privileges, bool allow_rowid,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name,
-                    uint length, bool check_grants, bool allow_rowid,
-                    uint *cached_field_index_ptr,
-                    Security_context *sctx);
+find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
+                    bool allow_rowid, uint *cached_field_index_ptr);
 
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
@@ -919,8 +917,9 @@ create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
-Name_resolution_context *make_join_on_context(THD *thd, TABLE_LIST *left_op,
-                                              TABLE_LIST *right_op);
+bool push_new_name_resolution_context(THD *thd,
+                                      TABLE_LIST *left_op,
+                                      TABLE_LIST *right_op);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields);
 bool add_proc_to_list(THD *thd, Item *item);
@@ -1102,8 +1101,8 @@ void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
-bool is_keyword(const char *name, uint len);
 
+bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);

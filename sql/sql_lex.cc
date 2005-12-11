@@ -1130,6 +1130,11 @@ void st_select_lex::init_query()
   /*
     Add the name resolution context of the current (sub)query to the
     stack of contexts for the whole query.
+    TODO:
+    push_context may return an error if there is no memory for a new
+    element in the stack, however this method has no return value,
+    thus push_context should be moved to a place where query
+    initialization is checked for failure.
   */
   parent_lex->push_context(&context);
   cond_count= with_wild= 0;
