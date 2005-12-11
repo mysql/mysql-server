@@ -1095,7 +1095,7 @@ delimiter |;
 --disable_warnings
 DROP FUNCTION IF EXISTS bug12953|
 --enable_warnings
---error ER_SP_BADSTATEMENT
+--error ER_SP_NO_RETSET
 CREATE FUNCTION bug12953() RETURNS INT
 BEGIN
   OPTIMIZE TABLE t1;
@@ -1410,7 +1410,6 @@ delimiter ;|
 
 # BUG#12329: "Bogus error msg when executing PS with stored procedure after
 # SP was re-created". See also test for related bug#13399 in trigger.test
---disable_warnings
 drop function if exists bug12329;
 --enable_warnings
 create table t1 as select 1 a;
@@ -1517,6 +1516,105 @@ use mysqltest2;
 show procedure status;
 drop database mysqltest2;
 use test;
+
+#
+# Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
+#
+delimiter |;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug13012|
+--enable_warnings
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  REPAIR TABLE t1;
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  BACKUP TABLE t1 TO '/tmp';
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+  RESTORE TABLE t1 FROM '/tmp';
+  RETURN 1;
+END|
+create table t1 (a int)|
+CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
+CREATE FUNCTION bug13012_2() RETURNS INT
+BEGIN
+  CALL bug13012_1();
+  RETURN 1;
+END|
+--error ER_SP_NO_RETSET
+SELECT bug13012_2()|
+drop table t1|
+drop procedure bug13012_1|
+drop function bug13012_2|
+delimiter ;|
+
+# BUG#11555 "Stored procedures: current SP tables locking make 
+# impossible view security". We should not expose names of tables
+# which are implicitly used by view (via stored routines/triggers).
+#
+# Note that SQL standard assumes that you simply won't be able drop table
+# and leave some objects (routines/views/triggers) which were depending on
+# it. Such objects should be dropped in advance (by default) or will be
+# dropped simultaneously with table (DROP TABLE with CASCADE clause).
+# So these tests probably should go away once we will implement standard
+# behavior.
+--disable_warnings
+drop function if exists bug11555_1;
+drop function if exists bug11555_2;
+drop view if exists v1, v2, v3, v4;
+--enable_warnings
+create function bug11555_1() returns int return (select max(i) from t1);
+create function bug11555_2() returns int return bug11555_1();
+# It is OK to report name of implicitly used table which is missing
+# when we create view.
+--error ER_NO_SUCH_TABLE
+create view v1 as select bug11555_1();
+--error ER_NO_SUCH_TABLE
+create view v2 as select bug11555_2();
+# But we should hide name of missing implicitly used table when we use view
+create table t1 (i int);
+create view v1 as select bug11555_1();
+create view v2 as select bug11555_2();
+create view v3 as select * from v1;
+drop table t1;
+--error ER_VIEW_INVALID
+select * from v1;
+--error ER_VIEW_INVALID
+select * from v2;
+--error ER_VIEW_INVALID
+select * from v3;
+# Note that creation of view which depends on broken view is yet 
+# another form of view usage.
+--error ER_VIEW_INVALID
+create view v4 as select * from v1;
+drop view v1, v2, v3;
+# We also should hide details about broken triggers which are
+# invoked for view.
+drop function bug11555_1;
+drop function bug11555_2;
+create table t1 (i int);
+create table t2 (i int);
+create trigger t1_ai after insert on t1 for each row insert into t2 values (new.i);
+create view v1 as select * from t1;
+drop table t2;
+--error ER_VIEW_INVALID
+insert into v1 values (1);
+drop trigger t1_ai;
+create function bug11555_1() returns int return (select max(i) from t2);
+create trigger t1_ai after insert on t1 for each row set @a:=bug11555_1();
+--error ER_VIEW_INVALID
+insert into v1 values (2);
+drop function bug11555_1;
+drop table t1;
+drop view v1;
 
 
 # BUG#NNNN: New bug synopsis

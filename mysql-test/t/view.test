@@ -1744,7 +1744,6 @@ drop function f1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 create function f1 () returns int return (select max(col1) from t1);
 DROP TABLE t1;
-# following will show underlying table until BUG#11555 fix
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 drop function f1;
 drop function f2;

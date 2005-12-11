@@ -124,7 +124,7 @@ begin
 declare x int;
 set x = val+3;
 end|
-ERROR 42000: No RETURN found in FUNCTION f
+ERROR 42000: No RETURN found in FUNCTION test.f
 create function f(val int) returns int
 begin
 declare x int;
@@ -768,7 +768,7 @@ BEGIN
 OPTIMIZE TABLE t1;
 RETURN 1;
 END|
-ERROR 0A000: OPTIMIZE TABLE is not allowed in stored procedures
+ERROR 0A000: Not allowed to return a result set from a function
 DROP FUNCTION IF EXISTS bug12995|
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN
@@ -981,6 +981,8 @@ END |
 drop table t1|
 drop function bug_13627_f|
 drop function if exists bug12329;
+Warnings:
+Note	1305	FUNCTION bug12329 does not exist
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);
@@ -1055,3 +1057,74 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop database mysqltest2;
 use test;
+DROP FUNCTION IF EXISTS bug13012|
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+REPAIR TABLE t1;
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+BACKUP TABLE t1 TO '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+RESTORE TABLE t1 FROM '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+create table t1 (a int)|
+CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
+CREATE FUNCTION bug13012_2() RETURNS INT
+BEGIN
+CALL bug13012_1();
+RETURN 1;
+END|
+SELECT bug13012_2()|
+ERROR 0A000: Not allowed to return a result set from a function
+drop table t1|
+drop procedure bug13012_1|
+drop function bug13012_2|
+drop function if exists bug11555_1;
+drop function if exists bug11555_2;
+drop view if exists v1, v2, v3, v4;
+create function bug11555_1() returns int return (select max(i) from t1);
+create function bug11555_2() returns int return bug11555_1();
+create view v1 as select bug11555_1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+create view v2 as select bug11555_2();
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 (i int);
+create view v1 as select bug11555_1();
+create view v2 as select bug11555_2();
+create view v3 as select * from v1;
+drop table t1;
+select * from v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+select * from v2;
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+select * from v3;
+ERROR HY000: View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+create view v4 as select * from v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop view v1, v2, v3;
+drop function bug11555_1;
+drop function bug11555_2;
+create table t1 (i int);
+create table t2 (i int);
+create trigger t1_ai after insert on t1 for each row insert into t2 values (new.i);
+create view v1 as select * from t1;
+drop table t2;
+insert into v1 values (1);
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop trigger t1_ai;
+create function bug11555_1() returns int return (select max(i) from t2);
+create trigger t1_ai after insert on t1 for each row set @a:=bug11555_1();
+insert into v1 values (2);
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop function bug11555_1;
+drop table t1;
+drop view v1;

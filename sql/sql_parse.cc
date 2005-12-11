@@ -797,6 +797,9 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  thd->set_active_vio(net->vio);
+#endif
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
@@ -2614,7 +2617,8 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_backup_table(thd, first_table);
-
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_RESTORE_TABLE:
@@ -2626,6 +2630,8 @@ mysql_execute_command(THD *thd)
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_restore_table(thd, first_table);
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_ASSIGN_TO_KEYCACHE:
@@ -3128,6 +3134,8 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_CHECK:
@@ -3138,6 +3146,8 @@ end_with_restore_list:
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_ANALYZE:
@@ -3158,6 +3168,8 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
 
@@ -3181,6 +3193,8 @@ end_with_restore_list:
         mysql_bin_log.write(&qinfo);
       }
     }
+    select_lex->table_list.first= (byte*) first_table;
+    lex->query_tables=all_tables;
     break;
   }
   case SQLCOM_UPDATE:
@@ -4130,14 +4144,6 @@ end_with_restore_list:
       }
     }
 #endif
-    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-	!(lex->sphead->m_flags & sp_head::HAS_RETURN))
-    {
-      my_error(ER_SP_NORETURN, MYF(0), name);
-      delete lex->sphead;
-      lex->sphead= 0;
-      goto error;
-    }
 
     /*
       We need to copy name and db in order to use them for
@@ -5766,335 +5772,15 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
                         buf, "TIMESTAMP");
   }
 
-  if (!(new_field= new_create_field(thd, field_name, type, length, decimals,
-		type_modifier, default_value, on_update_value,
-		comment, change, interval_list, cs, uint_geom_type)))
+  if (!(new_field= new create_field()) ||
+      new_field->init(thd, field_name, type, length, decimals, type_modifier,
+                      default_value, on_update_value, comment, change,
+                      interval_list, cs, uint_geom_type))
     DBUG_RETURN(1);
 
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
-}
-
-/*****************************************************************************
-** Create field definition for create
-** Return 0 on failure, otherwise return create_field instance
-******************************************************************************/
-  
-create_field *
-new_create_field(THD *thd, char *field_name, enum_field_types type,
-		 char *length, char *decimals,
-		 uint type_modifier, 
-		 Item *default_value, Item *on_update_value,
-		 LEX_STRING *comment,
-		 char *change, List<String> *interval_list, CHARSET_INFO *cs,
-		 uint uint_geom_type)
-{
-  register create_field *new_field;
-  uint sign_len, allowed_type_modifier=0;
-  ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
-  DBUG_ENTER("new_create_field");
-  
-  if (!(new_field=new create_field()))
-    DBUG_RETURN(NULL);
-  new_field->field=0;
-  new_field->field_name=field_name;
-  new_field->def= default_value;
-  new_field->flags= type_modifier;
-  new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
-			    Field::NEXT_NUMBER : Field::NONE);
-  new_field->decimals= decimals ? (uint)atoi(decimals) : 0;
-  if (new_field->decimals >= NOT_FIXED_DEC)
-  {
-    my_error(ER_TOO_BIG_SCALE, MYF(0), new_field->decimals, field_name,
-             NOT_FIXED_DEC-1);
-    DBUG_RETURN(NULL);
-  }
-
-  new_field->sql_type=type;
-  new_field->length=0;
-  new_field->change=change;
-  new_field->interval=0;
-  new_field->pack_length= new_field->key_length= 0;
-  new_field->charset=cs;
-  new_field->geom_type= (Field::geometry_type) uint_geom_type;
-
-  new_field->comment=*comment;
-  /*
-    Set flag if this field doesn't have a default value
-  */
-  if (!default_value && !(type_modifier & AUTO_INCREMENT_FLAG) &&
-      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP)
-    new_field->flags|= NO_DEFAULT_VALUE_FLAG;
-
-  if (length && !(new_field->length= (uint) atoi(length)))
-    length=0; /* purecov: inspected */
-  sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
-
-  switch (type) {
-  case FIELD_TYPE_TINY:
-    if (!length) new_field->length=MAX_TINYINT_WIDTH+sign_len;
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    break;
-  case FIELD_TYPE_SHORT:
-    if (!length) new_field->length=MAX_SMALLINT_WIDTH+sign_len;
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    break;
-  case FIELD_TYPE_INT24:
-    if (!length) new_field->length=MAX_MEDIUMINT_WIDTH+sign_len;
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    break;
-  case FIELD_TYPE_LONG:
-    if (!length) new_field->length=MAX_INT_WIDTH+sign_len;
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    break;
-  case FIELD_TYPE_LONGLONG:
-    if (!length) new_field->length=MAX_BIGINT_WIDTH;
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    break;
-  case FIELD_TYPE_NULL:
-    break;
-  case FIELD_TYPE_NEWDECIMAL:
-    if (!length && !new_field->decimals)
-      new_field->length= 10;
-    if (new_field->length > DECIMAL_MAX_PRECISION)
-    {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), new_field->length, field_name,
-               DECIMAL_MAX_PRECISION);
-      DBUG_RETURN(NULL);
-    }
-    if (new_field->length < new_field->decimals)
-    {
-      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
-      DBUG_RETURN(NULL);
-    }
-    new_field->length=
-      my_decimal_precision_to_length(new_field->length, new_field->decimals,
-                                     type_modifier & UNSIGNED_FLAG);
-    new_field->pack_length=
-      my_decimal_get_binary_size(new_field->length, new_field->decimals);
-    break;
-  case MYSQL_TYPE_VARCHAR:
-    /*
-      Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
-      if they don't have a default value
-    */
-    max_field_charlength= MAX_FIELD_VARCHARLENGTH;
-    break;
-  case MYSQL_TYPE_STRING:
-    break;
-  case FIELD_TYPE_BLOB:
-  case FIELD_TYPE_TINY_BLOB:
-  case FIELD_TYPE_LONG_BLOB:
-  case FIELD_TYPE_MEDIUM_BLOB:
-  case FIELD_TYPE_GEOMETRY:
-    if (default_value)				// Allow empty as default value
-    {
-      String str,*res;
-      res=default_value->val_str(&str);
-      if (res->length())
-      {
-	my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
-                 field_name); /* purecov: inspected */
-	DBUG_RETURN(NULL);
-      }
-      new_field->def=0;
-    }
-    new_field->flags|=BLOB_FLAG;
-    break;
-  case FIELD_TYPE_YEAR:
-    if (!length || new_field->length != 2)
-      new_field->length=4;			// Default length
-    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
-    break;
-  case FIELD_TYPE_FLOAT:
-    /* change FLOAT(precision) to FLOAT or DOUBLE */
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    if (length && !decimals)
-    {
-      uint tmp_length=new_field->length;
-      if (tmp_length > PRECISION_FOR_DOUBLE)
-      {
-	my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-	DBUG_RETURN(NULL);
-      }
-      else if (tmp_length > PRECISION_FOR_FLOAT)
-      {
-	new_field->sql_type=FIELD_TYPE_DOUBLE;
-	new_field->length=DBL_DIG+7;			// -[digits].E+###
-      }
-      else
-	new_field->length=FLT_DIG+6;			// -[digits].E+##
-      new_field->decimals= NOT_FIXED_DEC;
-      break;
-    }
-    if (!length && !decimals)
-    {
-      new_field->length =  FLT_DIG+6;
-      new_field->decimals= NOT_FIXED_DEC;
-    }
-    if (new_field->length < new_field->decimals &&
-        new_field->decimals != NOT_FIXED_DEC)
-    {
-      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
-      DBUG_RETURN(NULL);
-    }
-    break;
-  case FIELD_TYPE_DOUBLE:
-    allowed_type_modifier= AUTO_INCREMENT_FLAG;
-    if (!length && !decimals)
-    {
-      new_field->length = DBL_DIG+7;
-      new_field->decimals=NOT_FIXED_DEC;
-    }
-    if (new_field->length < new_field->decimals &&
-        new_field->decimals != NOT_FIXED_DEC)
-    {
-      my_error(ER_M_BIGGER_THAN_D, MYF(0), field_name);
-      DBUG_RETURN(NULL);
-    }
-    break;
-  case FIELD_TYPE_TIMESTAMP:
-    if (!length)
-      new_field->length= 14;			// Full date YYYYMMDDHHMMSS
-    else if (new_field->length != 19)
-    {
-      /*
-        We support only even TIMESTAMP lengths less or equal than 14
-        and 19 as length of 4.1 compatible representation.
-      */
-      new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
-      new_field->length= min(new_field->length,14); /* purecov: inspected */
-    }
-    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
-    if (default_value)
-    {
-      /* Grammar allows only NOW() value for ON UPDATE clause */
-      if (default_value->type() == Item::FUNC_ITEM && 
-          ((Item_func*)default_value)->functype() == Item_func::NOW_FUNC)
-      {
-        new_field->unireg_check= (on_update_value?Field::TIMESTAMP_DNUN_FIELD:
-                                                  Field::TIMESTAMP_DN_FIELD);
-        /*
-          We don't need default value any longer moreover it is dangerous.
-          Everything handled by unireg_check further.
-        */
-        new_field->def= 0;
-      }
-      else
-        new_field->unireg_check= (on_update_value?Field::TIMESTAMP_UN_FIELD:
-                                                  Field::NONE);
-    }
-    else
-    {
-      /*
-        If we have default TIMESTAMP NOT NULL column without explicit DEFAULT
-        or ON UPDATE values then for the sake of compatiblity we should treat
-        this column as having DEFAULT NOW() ON UPDATE NOW() (when we don't
-        have another TIMESTAMP column with auto-set option before this one)
-        or DEFAULT 0 (in other cases).
-        So here we are setting TIMESTAMP_OLD_FIELD only temporary, and will
-        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when
-        information about all TIMESTAMP fields in table will be availiable.
-
-        If we have TIMESTAMP NULL column without explicit DEFAULT value
-        we treat it as having DEFAULT NULL attribute.
-      */
-      new_field->unireg_check= (on_update_value ?
-                                Field::TIMESTAMP_UN_FIELD :
-                                (new_field->flags & NOT_NULL_FLAG ?
-                                 Field::TIMESTAMP_OLD_FIELD:
-                                 Field::NONE));
-    }
-    break;
-  case FIELD_TYPE_DATE:				// Old date type
-    if (protocol_version != PROTOCOL_VERSION-1)
-      new_field->sql_type=FIELD_TYPE_NEWDATE;
-    /* fall trough */
-  case FIELD_TYPE_NEWDATE:
-    new_field->length=10;
-    break;
-  case FIELD_TYPE_TIME:
-    new_field->length=10;
-    break;
-  case FIELD_TYPE_DATETIME:
-    new_field->length=19;
-    break;
-  case FIELD_TYPE_SET:
-    {
-      if (interval_list->elements > sizeof(longlong)*8)
-      {
-	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
-	DBUG_RETURN(NULL);
-      }
-      new_field->pack_length= get_set_pack_length(interval_list->elements);
-
-      List_iterator<String> it(*interval_list);
-      String *tmp;
-      while ((tmp= it++))
-        new_field->interval_list.push_back(tmp);
-      /*
-        Set fake length to 1 to pass the below conditions.
-        Real length will be set in mysql_prepare_table()
-        when we know the character set of the column
-      */
-      new_field->length= 1;
-      break;
-    }
-  case FIELD_TYPE_ENUM:
-    {
-      // Should be safe
-      new_field->pack_length= get_enum_pack_length(interval_list->elements);
-
-      List_iterator<String> it(*interval_list);
-      String *tmp;
-      while ((tmp= it++))
-        new_field->interval_list.push_back(tmp);
-      new_field->length= 1; // See comment for FIELD_TYPE_SET above.
-      break;
-   }
-  case MYSQL_TYPE_VAR_STRING:
-    DBUG_ASSERT(0);                             // Impossible
-    break;
-  case MYSQL_TYPE_BIT:
-    {
-      if (!length)
-        new_field->length= 1;
-      if (new_field->length > MAX_BIT_FIELD_LENGTH)
-      {
-        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), field_name,
-                 MAX_BIT_FIELD_LENGTH);
-        DBUG_RETURN(NULL);
-      }
-      new_field->pack_length= (new_field->length + 7) / 8;
-      break;
-    }
-  case FIELD_TYPE_DECIMAL:
-    DBUG_ASSERT(0); /* Was obsolete */
-  }
-
-  if (!(new_field->flags & BLOB_FLAG) &&
-      ((new_field->length > max_field_charlength && type != FIELD_TYPE_SET && 
-        type != FIELD_TYPE_ENUM &&
-        (type != MYSQL_TYPE_VARCHAR || default_value)) ||
-       (!new_field->length &&
-        type != MYSQL_TYPE_STRING &&
-        type != MYSQL_TYPE_VARCHAR && type != FIELD_TYPE_GEOMETRY)))
-  {
-    my_error((type == MYSQL_TYPE_VAR_STRING || type == MYSQL_TYPE_VARCHAR ||
-              type == MYSQL_TYPE_STRING) ?  ER_TOO_BIG_FIELDLENGTH :
-             ER_TOO_BIG_DISPLAYWIDTH,
-             MYF(0),
-             field_name, max_field_charlength); /* purecov: inspected */
-    DBUG_RETURN(NULL);
-  }
-  type_modifier&= AUTO_INCREMENT_FLAG;
-  if ((~allowed_type_modifier) & type_modifier)
-  {
-    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(NULL);
-  }
-  DBUG_RETURN(new_field);
 }
 
 
@@ -6590,36 +6276,39 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 
 
 /*
-  Create a new name resolution context for a JOIN ... ON clause.
+  Push a new name resolution context for a JOIN ... ON clause to the
+  context stack of a query block.
 
   SYNOPSIS
-    make_join_on_context()
+    push_new_name_resolution_context()
     thd       pointer to current thread
     left_op   left  operand of the JOIN
     right_op  rigth operand of the JOIN
 
   DESCRIPTION
     Create a new name resolution context for a JOIN ... ON clause,
-    and set the first and last leaves of the list of table references
-    to be used for name resolution.
+    set the first and last leaves of the list of table references
+    to be used for name resolution, and push the newly created
+    context to the stack of contexts of the query.
 
   RETURN
-    A new context if all is OK
-    NULL - if a memory allocation error occured
+    FALSE  if all is OK
+    TRUE   if a memory allocation error occured
 */
 
-Name_resolution_context *
-make_join_on_context(THD *thd, TABLE_LIST *left_op, TABLE_LIST *right_op)
+bool
+push_new_name_resolution_context(THD *thd,
+                                 TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
   Name_resolution_context *on_context;
   if (!(on_context= new (thd->mem_root) Name_resolution_context))
-    return NULL;
+    return TRUE;
   on_context->init();
   on_context->first_name_resolution_table=
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
-  return on_context;
+  return thd->lex->push_context(on_context);
 }
 
 

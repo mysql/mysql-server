@@ -43,12 +43,22 @@ typedef struct
 
 
 /*
-  This is a run context? of one SP ?
-  THis is 
-   - a stack of cursors? 
-   - a stack of handlers?
-   - a stack of Items ?
-   - a stack of instruction locations in SP?
+  This class is a runtime context of a Stored Routine. It is used in an
+  execution and is intended to contain all dynamic objects (i.e.  objects, which
+  can be changed during execution), such as:
+    - stored routine variables;
+    - cursors;
+    - handlers;
+
+  Runtime context is used with sp_head class. sp_head class is intended to
+  contain all static things, related to the stored routines (code, for example).
+  sp_head instance creates runtime context for the execution of a stored
+  routine.
+
+  There is a parsing context (an instance of sp_pcontext class), which is used
+  on parsing stage. However, now it contains some necessary for an execution
+  things, such as definition of used stored routine variables. That's why
+  runtime context needs a reference to the parsing context.
 */
 
 class sp_rcontext : public Sql_alloc
@@ -68,62 +78,34 @@ class sp_rcontext : public Sql_alloc
 
 #ifndef DBUG_OFF
   /*
-    Routine to which this Item_splocal belongs. Used for checking if correct
-    runtime context is used for variable handling.
+    The routine for which this runtime context is created. Used for checking
+    if correct runtime context is used for variable handling.
   */
-  sp_head *owner;
+  sp_head *sp;
 #endif
 
-  sp_rcontext(sp_rcontext *prev, uint fsize, uint hmax, uint cmax);
+  sp_rcontext(sp_pcontext *root_parsing_ctx, Field *return_value_fld,
+              sp_rcontext *prev_runtime_ctx);
+  bool init(THD *thd);
 
-  ~sp_rcontext()
-  {
-    // Not needed?
-    //sql_element_free(m_frame);
-    //m_saved.empty();
-  }
+  ~sp_rcontext();
 
-  inline void
-  push_item(Item *i)
-  {
-    if (m_count < m_fsize)
-      m_frame[m_count++]= i;
-  }
-
-  inline void
-  set_item(uint idx, Item *i)
-  {
-    if (idx < m_count)
-      m_frame[idx]= i;
-  }
-
-  /* Returns 0 on success, -1 on (eval) failure */
   int
-  set_item_eval(THD *thd, uint idx, Item **i, enum_field_types type);
+  set_variable(THD *thd, uint var_idx, Item *value);
 
-  inline Item *
-  get_item(uint idx)
+  Item *
+  get_item(uint var_idx);
+
+  Item **
+  get_item_addr(uint var_idx);
+
+  bool
+  set_return_value(THD *thd, Item *return_value_item);
+
+  inline bool
+  is_return_value_set() const
   {
-    return m_frame[idx];
-  }
-
-  inline Item **
-  get_item_addr(uint idx)
-  {
-    return m_frame + idx;
-  }
-
-
-  inline void
-  set_result(Item *it)
-  {
-    m_result= it;
-  }
-
-  inline Item *
-  get_result()
-  {
-    return m_result;
+    return m_return_value_set;
   }
 
   inline void
@@ -195,14 +177,6 @@ class sp_rcontext : public Sql_alloc
     m_ihsp-= 1;
   }
 
-  // Save variables starting at fp and up
-  void
-  save_variables(uint fp);
-
-  // Restore variables down to fp
-  void
-  restore_variables(uint fp);
-
   void
   push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
@@ -221,13 +195,42 @@ class sp_rcontext : public Sql_alloc
     return m_cstack[i];
   }
 
+  /*
+    CASE expressions support.
+  */
+
+  int
+  set_case_expr(THD *thd, int case_expr_id, Item *case_expr_item);
+
+  Item *
+  get_case_expr(int case_expr_id);
+
+  Item **
+  get_case_expr_addr(int case_expr_id);
+
 private:
+  sp_pcontext *m_root_parsing_ctx;
 
-  uint m_count;
-  uint m_fsize;
-  Item **m_frame;
+  /* Virtual table for storing variables. */
+  TABLE *m_var_table;
 
-  Item *m_result;		// For FUNCTIONs
+  /*
+    Collection of Item_field proxies, each of them points to the corresponding
+    field in m_var_table.
+  */
+  Item **m_var_items;
+
+  /*
+    This is a pointer to a field, which should contain return value for stored
+    functions (only). For stored procedures, this pointer is NULL.
+  */
+  Field *m_return_value_fld;
+
+  /*
+    Indicates whether the return value (in m_return_value_fld) has been set
+    during execution.
+  */
+  bool m_return_value_set;
 
   sp_handler_t *m_handler;      // Visible handlers
   uint m_hcount;                // Stack pointer for m_handler
@@ -236,13 +239,22 @@ private:
   uint *m_in_handler;           // Active handler, for recursion check
   uint m_ihsp;                  // Stack pointer for m_in_handler
   int m_hfound;                 // Set by find_handler; -1 if not found
-  List<Item> m_saved;           // Saved variables during handler exec.
 
   sp_cursor **m_cstack;
   uint m_ccount;
 
-  sp_rcontext *m_prev_ctx;      // Previous context (NULL if none)
+  Item_cache **m_case_expr_holders;
 
+  /* Previous runtime context (NULL if none) */
+  sp_rcontext *m_prev_runtime_ctx;
+
+private:
+  bool init_var_table(THD *thd);
+  bool init_var_items();
+
+  Item_cache *create_case_expr_holder(THD *thd, Item_result result_type);
+
+  int set_variable(THD *thd, Field *field, Item *value);
 }; // class sp_rcontext : public Sql_alloc
 
 
