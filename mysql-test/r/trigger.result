@@ -780,3 +780,9 @@ end//
 CALL p2();
 drop procedure p2;
 drop table t1;
+create trigger t1_bi before insert on test.t1 for each row set @a:=0;
+ERROR 3D000: No database selected
+create trigger test.t1_bi before insert on t1 for each row set @a:=0;
+ERROR 3D000: No database selected
+drop trigger t1_bi;
+ERROR 3D000: No database selected
