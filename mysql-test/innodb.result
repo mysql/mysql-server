@@ -2862,3 +2862,16 @@ truncate t4;
 truncate t1;
 truncate t3;
 drop table t4,t3,t2,t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+key (a,b,c,d)) engine=innodb;
+drop table t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+e varchar(255) character set utf8,
+key (a,b,c,d,e)) engine=innodb;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
