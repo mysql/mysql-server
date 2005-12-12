@@ -4729,6 +4729,7 @@ ha_innobase::update_table_comment(
 	uint	length			= strlen(comment);
 	char*				str;
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	long	flen;
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -4748,42 +4749,42 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	/* output the data to a temporary file */
 
-		/* output the data to a temporary file */
-		fprintf(file, "InnoDB free: %lu kB",
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
+
+	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file,
+	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if(length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(file);
-			flen = fread(pos, 1, flen, file);
-			pos[flen] = 0;
-		}
-
-		fclose(file);
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (length + flen + 3 > 64000) {
+		flen = 64000 - 3 - length;
 	}
+
+	/* allocate buffer for the full string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(length + flen + 3, MYF(0));
+
+	if (str) {
+		char* pos	= str + length;
+		if (length) {
+			memcpy(str, comment, length);
+			*pos++ = ';';
+			*pos++ = ' ';
+		}
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
+		pos[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
         prebuilt->trx->op_info = (char*)"";
 
@@ -4802,6 +4803,7 @@ ha_innobase::get_foreign_key_create_info(void)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str	= 0;
+	long	flen;
 
 	ut_a(prebuilt != NULL);
 
@@ -4811,46 +4813,41 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	prebuilt->trx->op_info = (char*)"getting info on foreign keys";
 
-		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+	/* In case MySQL calls this in the middle of a SELECT query,
+	release possible adaptive hash latch to avoid
+	deadlocks of threads */
 
-		/* In case MySQL calls this in the middle of a SELECT query,
-		release possible adaptive hash latch to avoid
-		deadlocks of threads */
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-		trx_search_latch_release_if_reserved(prebuilt->trx);
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
 
-		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file,
+	/* output the data to a temporary file */
+	dict_print_info_on_foreign_keys(TRUE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		prebuilt->trx->op_info = (char*)"";
+	prebuilt->trx->op_info = (char*)"";
 
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if(flen > 64000 - 1) {
-			flen = 64000 - 1;
-		}
-
-		/* allocate buffer for the string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(flen + 1, MYF(0));
-
-		if (str) {
-			rewind(file);
-			flen = fread(str, 1, flen, file);
-			str[flen] = 0;
-		}
-
-		fclose(file);
-	} else {
-		/* unable to create temporary file */
-          	str = my_strdup(
-"/* Error: cannot display foreign key constraints */", MYF(0));
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
+		flen = 64000 - 1;
 	}
+
+	/* allocate buffer for the string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(flen + 1, MYF(0));
+
+	if (str) {
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(str, 1, flen, srv_dict_tmpfile);
+		str[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
   	return(str);
 }
