@@ -16,7 +16,10 @@
 
 #ifndef _EVENT_PRIV_H_
 #define _EVENT_PRIV_H_
+#include "mysql_priv.h"
 
+
+#define EVEX_USE_QUEUE
 
 #define UNLOCK_MUTEX_AND_BAIL_OUT(__mutex, __label) \
     { VOID(pthread_mutex_unlock(&__mutex)); goto __label; }
@@ -41,14 +44,6 @@ enum
   EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
 };
 
-extern bool evex_is_running;
-extern bool mysql_event_table_exists;
-extern DYNAMIC_ARRAY events_array;
-extern DYNAMIC_ARRAY evex_executing_queue;
-extern MEM_ROOT evex_mem_root;
-extern pthread_mutex_t LOCK_event_arrays,
-                       LOCK_workers_count,
-                       LOCK_evex_running;
 
 
 int
@@ -59,5 +54,72 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING rname, TABLE *table);
                        
 TABLE *
-evex_open_event_table(THD *thd, enum thr_lock_type lock_type);             
+evex_open_event_table(THD *thd, enum thr_lock_type lock_type);
+
+int 
+event_timed_compare_q(void *vptr, byte* a, byte *b);
+
+int
+evex_time_diff(TIME *a, TIME *b);
+
+
+
+#define EXEC_QUEUE_QUEUE_NAME executing_queue
+#define EXEC_QUEUE_DARR_NAME evex_executing_queue
+
+#ifdef EVEX_USE_QUEUE
+ #define EVEX_QUEUE_TYPE QUEUE
+ #define EVEX_PTOQEL byte *
+ #define EVEX_EQ_NAME executing_queue
+
+ #define evex_queue_first_element(queue, __cast) ((__cast)queue_top(queue))
+ #define evex_queue_element(queue, idx, __cast) ((__cast)queue_top(queue))
+ #define evex_queue_delete_element(queue, idx)  queue_remove(queue, idx)
+ #define evex_queue_destroy(queue)              delete_queue(queue)
+ #define evex_queue_first_updated(queue)        queue_replaced(queue)
+ #define evex_queue_insert(queue, element)      queue_insert_safe(queue, element);
+
+#else
+ #define EVEX_QUEUE_TYPE DYNAMIC_ARRAY
+ #define EVEX_PTOQEL gptr
+ #define EVEX_EQ_NAME evex_executing_queue
+
+ #define evex_queue_element(queue, idx, __cast) dynamic_element(queue,idx, __cast)
+ #define evex_queue_delete_element(queue, idx)  delete_dynamic_element(queue, idx);
+ #define evex_queue_destroy(queue)              delete_dynamic(queue)
+/*
+  push_dynamic() expects ptr to the memory to put in, to make things fast
+  so when a pointer has to be put inside a ptr-to-ptr is being passed
+*/
+ #define evex_queue_first_updated(queue)
+ #define evex_queue_insert(queue, element)      VOID(push_dynamic(queue, &element))
+ 
+ 
+#endif
+
+
+void
+evex_queue_init(EVEX_QUEUE_TYPE *queue);
+
+int
+evex_queue_insert2(EVEX_QUEUE_TYPE *queue, EVEX_PTOQEL element);
+
+void
+evex_queue_sort(EVEX_QUEUE_TYPE *queue);
+
+#define evex_queue_num_elements(queue) queue.elements
+
+
+extern bool evex_is_running;
+extern bool mysql_event_table_exists;
+extern DYNAMIC_ARRAY events_array;
+extern DYNAMIC_ARRAY EXEC_QUEUE_DARR_NAME;
+extern QUEUE EXEC_QUEUE_QUEUE_NAME;
+extern MEM_ROOT evex_mem_root;
+extern pthread_mutex_t LOCK_event_arrays,
+                       LOCK_workers_count,
+                       LOCK_evex_running;
+extern ulonglong evex_main_thread_id;
+
+
 #endif /* _EVENT_PRIV_H_ */

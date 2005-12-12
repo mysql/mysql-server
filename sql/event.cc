@@ -14,16 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
-#include "event.h"
 #include "event_priv.h"
+#include "event.h"
 #include "sp.h"
 
 /*
  TODO list :
  - The default value of created/modified should not be 0000-00-00 because of
    STRICT mode restricions.
- - Remove m_ prefixes of member variables.
 
  - Use timestamps instead of datetime.
 
@@ -53,8 +51,16 @@
  - Consider using conditional variable when doing shutdown instead of
      waiting till all worker threads end.
  - Make event_timed::get_show_create_event() work
+
  - Add function documentation whenever needed.
+
  - Add logging to file
+
+ - Move comparison code to class event_timed
+
+ - Overload event_timed::new to put the event directly in the DYNAMIC_ARRAY.
+   This will skip copy operation as well as will simplify the code which is
+   now aware of events_array DYNAMIC_ARRAY
 
 Warning:
  - For now parallel execution is not possible because the same sp_head cannot be
@@ -67,9 +73,9 @@ Warning:
 
 bool mysql_event_table_exists= 1;
 DYNAMIC_ARRAY events_array;
-DYNAMIC_ARRAY evex_executing_queue;
+DYNAMIC_ARRAY EXEC_QUEUE_DARR_NAME;
+QUEUE EXEC_QUEUE_QUEUE_NAME;
 MEM_ROOT evex_mem_root;
-
 
 
 //extern volatile uint thread_running;
@@ -78,8 +84,49 @@ MEM_ROOT evex_mem_root;
 ////////////////     Static functions follow ///////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
+void
+evex_queue_init(EVEX_QUEUE_TYPE *queue)
+{
+#ifndef EVEX_USE_QUEUE
+  VOID(my_init_dynamic_array(queue, sizeof(event_timed *), 50, 100));
+#else
+  if (init_queue_ex(queue, 100 /*num_el*/, 0 /*offset*/, 
+                   0 /*smallest_on_top*/, event_timed_compare_q, NULL,
+                   100 /*auto_extent*/))
+    sql_print_error("Insufficient memory to initialize executing queue.");
+#endif
+}
 
 
+int
+evex_queue_insert2(EVEX_QUEUE_TYPE *queue, EVEX_PTOQEL element)
+{
+#ifndef EVEX_USE_QUEUE
+  VOID(push_dynamic(queue, element));
+  return 0;
+#else
+  return queue_insert_safe(queue, element);  
+#endif
+}
+
+void
+evex_queue_top_updated(EVEX_QUEUE_TYPE *queue)
+{
+#ifdef EVEX_USE_QUEUE
+  queue_replaced(queue);
+#endif
+}
+
+void
+evex_queue_sort(EVEX_QUEUE_TYPE *queue)
+{
+#ifndef EVEX_USE_QUEUE
+  qsort((gptr) dynamic_element(queue, 0, event_timed**),
+                               queue->elements,
+                               sizeof(event_timed **),
+                               (qsort_cmp) event_timed_compare);
+#endif
+}
 
 /* NOTE Andrey: Document better
   Compares two TIME structures.
@@ -98,7 +145,7 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 }
 
 
-inline int
+int
 my_time_compare(TIME *a, TIME *b)
 {
 /*
@@ -107,6 +154,7 @@ my_time_compare(TIME *a, TIME *b)
 */
 
   DBUG_ENTER("my_time_compare");
+
   if (a->year > b->year)
     DBUG_RETURN(1);
   
@@ -143,18 +191,52 @@ my_time_compare(TIME *a, TIME *b)
   if (a->second < b->second)
     DBUG_RETURN(-1);
 
- /*!!  second_part is not compared !*/
+
+  if (a->second_part > b->second_part)
+    DBUG_RETURN(1);
+  
+  if (a->second_part < b->second_part)
+    DBUG_RETURN(-1);
+
 
   DBUG_RETURN(0);
+}
+
+int
+evex_time_diff(TIME *a, TIME *b)
+{
+  my_bool in_gap;
+  DBUG_ENTER("my_time_diff");
+  
+  return sec_since_epoch_TIME(a) - sec_since_epoch_TIME(b);
 }
 
 
 inline int
 event_timed_compare(event_timed **a, event_timed **b)
 {
-  return my_time_compare(&(*a)->execute_at, &(*b)->execute_at);
+  my_ulonglong a_t, b_t;
+  a_t= TIME_to_ulonglong_datetime(&(*a)->execute_at)*100L + 
+       (*a)->execute_at.second_part;
+  b_t= TIME_to_ulonglong_datetime(&(*b)->execute_at)*100L + 
+       (*b)->execute_at.second_part;
+
+  if (a_t > b_t)
+    return 1;
+  else if (a_t < b_t)
+    return -1;
+  else
+    return 0;
+  
+//  return my_time_compare(&(*a)->execute_at, &(*b)->execute_at);
 }
 
+
+int 
+event_timed_compare_q(void *vptr, byte* a, byte *b)
+{
+  return event_timed_compare((event_timed **)&a, (event_timed **)&b);
+}
 
 
 /*
@@ -660,7 +742,10 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   VOID(push_dynamic(&events_array,(gptr) ett));
   ett_copy= dynamic_element(&events_array, events_array.elements - 1,
                             event_timed*);
+/**
   VOID(push_dynamic(&evex_executing_queue, (gptr) &ett_copy));
+**/
+  evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) ett_copy);
 
   /*
     There is a copy in the array which we don't need. sphead won't be
@@ -674,11 +759,14 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
     qsort of events_array.elements (the current number of elements).
     We know that the elements are stored in a contiguous block w/o holes.
   */
+/**
   qsort((gptr) dynamic_element(&evex_executing_queue, 0, event_timed**),
                                evex_executing_queue.elements,
                                sizeof(event_timed **),
                                (qsort_cmp) event_timed_compare);
-
+**/
+  evex_queue_sort(&EVEX_EQ_NAME);
+  
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
@@ -703,7 +791,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
 
   if (use_lock)
     VOID(pthread_mutex_lock(&LOCK_event_arrays));
- 
+/**
   for (i= 0; i < evex_executing_queue.elements; ++i)
   {
     event_timed *et= *dynamic_element(&evex_executing_queue, i, event_timed**);
@@ -729,6 +817,25 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
       et->free_sp();
       delete_dynamic_element(&events_array, idx);
       delete_dynamic_element(&evex_executing_queue, i);
+      // ok, we have cleaned
+      goto done;
+    }
+  }
+**/
+  for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
+  {
+    event_timed *et= *evex_queue_element(&EVEX_EQ_NAME, i, event_timed**);
+    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str, et->dbname.str, 
+                        et->name.str));
+    if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
+        !sortcmp_lex_string(*db, et->dbname, system_charset_info))
+    {
+      int idx= get_index_dynamic(&events_array, (gptr) et);
+      //we are lucky the event is in the executing queue, no need of second pass
+      //destruct first and then remove. the destructor will delete sp_head
+      et->free_sp();
+      evex_queue_delete_element(&EVEX_EQ_NAME, idx);
+      evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
       goto done;
     }
