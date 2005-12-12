@@ -1084,7 +1084,7 @@ void Item_name_const::print(String *str)
     ref_pointer_array	Pointer to array of reference fields
     fields		All fields in select
     ref			Pointer to item
-    skip_registered     <=> the function must skipped for registered SUM items
+    skip_registered     <=> function be must skipped for registered SUM items
 
   NOTES
    This is from split_sum_func2() for items that should be split
