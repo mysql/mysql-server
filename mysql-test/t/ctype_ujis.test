@@ -1152,4 +1152,19 @@ SET collation_connection='ujis_bin';
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
 
+#
+# Bugs#15375: Unassigned multibyte codes are broken
+# into parts when converting to Unicode.
+# This query should return 0x003F0041. I.e. it should
+# scan unassigned double-byte character 0xA5FE, convert
+# it as QUESTION MARK 0x003F and then scan the next
+# character, which is a single byte character 0x41.
+#
+select hex(convert(_ujis 0xA5FE41 using ucs2));
+# This one should return 0x003F0041:
+# scan unassigned three-byte character 0x8FABF8,
+# convert it as QUESTION MARK 0x003F and then scan
+# the next character, which is a single byte character 0x41.
+select hex(convert(_ujis 0x8FABF841 using ucs2));
+
 # End of 4.1 tests
