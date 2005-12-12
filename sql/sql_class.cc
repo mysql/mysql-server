@@ -1505,10 +1505,10 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     my_var *mv= gl++;
     if (mv->local)
     {
-      Item_splocal *var;
-      (void)local_vars.push_back(var= new Item_splocal(mv->s, mv->offset));
+      Item_splocal *var= new Item_splocal(mv->s, mv->offset, mv->type);
+      (void)local_vars.push_back(var);
 #ifndef DBUG_OFF
-      var->owner= mv->owner;
+      var->m_sp= mv->sp;
 #endif
     }
     else
@@ -1781,8 +1781,8 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       if ((yy=var_li++)) 
       {
-	if (thd->spcont->set_item_eval(current_thd,
-				       yy->get_offset(), it.ref(), zz->type))
+	if (thd->spcont->set_variable(current_thd, yy->get_var_idx(),
+                                      *it.ref()))
 	  DBUG_RETURN(1);
       }
     }

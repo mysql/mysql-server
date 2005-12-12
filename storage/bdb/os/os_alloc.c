@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_alloc.c,v 11.41 2004/07/06 21:06:36 mjc Exp $
+ * $Id: os_alloc.c,v 12.2 2005/06/16 20:23:23 bostic Exp $
  */
 
 #include "db_config.h"
@@ -313,6 +313,14 @@ __os_realloc(dbenv, size, storep)
 
 	/* Back up to the real beginning */
 	ptr = &((union __db_allocinfo *)ptr)[-1];
+
+	{
+		size_t s;
+
+		s = ((union __db_allocinfo *)ptr)->size;
+		if (((u_int8_t *)ptr)[s - 1] != CLEAR_BYTE)
+			 __os_guard(dbenv);
+	}
 #endif
 
 	/*

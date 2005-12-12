@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_fmethod.c,v 11.142 2004/10/15 16:59:42 bostic Exp $
+ * $Id: mp_fmethod.c,v 12.7 2005/10/07 20:21:32 ubell Exp $
  */
 
 #include "db_config.h"
@@ -12,25 +12,13 @@
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#ifdef HAVE_RPC
-#include <rpc/rpc.h>
-#endif
-
 #include <string.h>
-#endif
-
-#ifdef HAVE_RPC
-#include "db_server.h"
 #endif
 
 #include "db_int.h"
 #include "dbinc/db_shash.h"
 #include "dbinc/log.h"
 #include "dbinc/mp.h"
-
-#ifdef HAVE_RPC
-#include "dbinc_auto/rpc_client_ext.h"
-#endif
 
 static int __memp_get_clear_len __P((DB_MPOOLFILE *, u_int32_t *));
 static int __memp_get_lsn_offset __P((DB_MPOOLFILE *, int32_t *));
@@ -52,7 +40,8 @@ __memp_fcreate_pp(dbenv, retp, flags)
 	DB_MPOOLFILE **retp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 
@@ -60,12 +49,9 @@ __memp_fcreate_pp(dbenv, retp, flags)
 	if ((ret = __db_fchk(dbenv, "DB_ENV->memp_fcreate", flags, 0)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_fcreate(dbenv, retp);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_fcreate(dbenv, retp)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -92,57 +78,28 @@ __memp_fcreate(dbenv, retp)
 	dbmfp->dbenv = dbenv;
 	dbmfp->mfp = INVALID_ROFF;
 
-#ifdef HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT)) {
-		dbmfp->get_clear_len = __dbcl_memp_get_clear_len;
-		dbmfp->set_clear_len = __dbcl_memp_set_clear_len;
-		dbmfp->get_fileid = __dbcl_memp_get_fileid;
-		dbmfp->set_fileid = __dbcl_memp_set_fileid;
-		dbmfp->get_flags = __dbcl_memp_get_flags;
-		dbmfp->set_flags = __dbcl_memp_set_flags;
-		dbmfp->get_ftype = __dbcl_memp_get_ftype;
-		dbmfp->set_ftype = __dbcl_memp_set_ftype;
-		dbmfp->get_lsn_offset = __dbcl_memp_get_lsn_offset;
-		dbmfp->set_lsn_offset = __dbcl_memp_set_lsn_offset;
-		dbmfp->get_maxsize = __dbcl_memp_get_maxsize;
-		dbmfp->set_maxsize = __dbcl_memp_set_maxsize;
-		dbmfp->get_pgcookie = __dbcl_memp_get_pgcookie;
-		dbmfp->set_pgcookie = __dbcl_memp_set_pgcookie;
-		dbmfp->get_priority = __dbcl_memp_get_priority;
-		dbmfp->set_priority = __dbcl_memp_set_priority;
-
-		dbmfp->get = __dbcl_memp_fget;
-		dbmfp->open = __dbcl_memp_fopen;
-		dbmfp->put = __dbcl_memp_fput;
-		dbmfp->set = __dbcl_memp_fset;
-		dbmfp->sync = __dbcl_memp_fsync;
-	} else
-#endif
-	{
-		dbmfp->get_clear_len = __memp_get_clear_len;
-		dbmfp->set_clear_len = __memp_set_clear_len;
-		dbmfp->get_fileid = __memp_get_fileid;
-		dbmfp->set_fileid = __memp_set_fileid;
-		dbmfp->get_flags = __memp_get_flags;
-		dbmfp->set_flags = __memp_set_flags;
-		dbmfp->get_ftype = __memp_get_ftype;
-		dbmfp->set_ftype = __memp_set_ftype;
-		dbmfp->get_lsn_offset = __memp_get_lsn_offset;
-		dbmfp->set_lsn_offset = __memp_set_lsn_offset;
-		dbmfp->get_maxsize = __memp_get_maxsize;
-		dbmfp->set_maxsize = __memp_set_maxsize;
-		dbmfp->get_pgcookie = __memp_get_pgcookie;
-		dbmfp->set_pgcookie = __memp_set_pgcookie;
-		dbmfp->get_priority = __memp_get_priority;
-		dbmfp->set_priority = __memp_set_priority;
-
-		dbmfp->get = __memp_fget_pp;
-		dbmfp->open = __memp_fopen_pp;
-		dbmfp->put = __memp_fput_pp;
-		dbmfp->set = __memp_fset_pp;
-		dbmfp->sync = __memp_fsync_pp;
-	}
 	dbmfp->close = __memp_fclose_pp;
+	dbmfp->get = __memp_fget_pp;
+	dbmfp->get_clear_len = __memp_get_clear_len;
+	dbmfp->get_fileid = __memp_get_fileid;
+	dbmfp->get_flags = __memp_get_flags;
+	dbmfp->get_ftype = __memp_get_ftype;
+	dbmfp->get_lsn_offset = __memp_get_lsn_offset;
+	dbmfp->get_maxsize = __memp_get_maxsize;
+	dbmfp->get_pgcookie = __memp_get_pgcookie;
+	dbmfp->get_priority = __memp_get_priority;
+	dbmfp->open = __memp_fopen_pp;
+	dbmfp->put = __memp_fput_pp;
+	dbmfp->set = __memp_fset_pp;
+	dbmfp->set_clear_len = __memp_set_clear_len;
+	dbmfp->set_fileid = __memp_set_fileid;
+	dbmfp->set_flags = __memp_set_flags;
+	dbmfp->set_ftype = __memp_set_ftype;
+	dbmfp->set_lsn_offset = __memp_set_lsn_offset;
+	dbmfp->set_maxsize = __memp_set_maxsize;
+	dbmfp->set_pgcookie = __memp_set_pgcookie;
+	dbmfp->set_priority = __memp_set_priority;
+	dbmfp->sync = __memp_fsync_pp;
 
 	*retp = dbmfp;
 	return (0);
@@ -365,7 +322,6 @@ __memp_get_maxsize(dbmfp, gbytesp, bytesp)
 	u_int32_t *gbytesp, *bytesp;
 {
 	DB_ENV *dbenv;
-	DB_MPOOL *dbmp;
 	MPOOLFILE *mfp;
 
 	if ((mfp = dbmfp->mfp) == NULL) {
@@ -373,15 +329,14 @@ __memp_get_maxsize(dbmfp, gbytesp, bytesp)
 		*bytesp = dbmfp->bytes;
 	} else {
 		dbenv = dbmfp->dbenv;
-		dbmp = dbenv->mp_handle;
 
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		*gbytesp = (u_int32_t)
 		    (mfp->maxpgno / (GIGABYTE / mfp->stat.st_pagesize));
 		*bytesp = (u_int32_t)
 		    ((mfp->maxpgno % (GIGABYTE / mfp->stat.st_pagesize)) *
 		    mfp->stat.st_pagesize);
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 	}
 
 	return (0);
@@ -397,7 +352,6 @@ __memp_set_maxsize(dbmfp, gbytes, bytes)
 	u_int32_t gbytes, bytes;
 {
 	DB_ENV *dbenv;
-	DB_MPOOL *dbmp;
 	MPOOLFILE *mfp;
 
 	if ((mfp = dbmfp->mfp) == NULL) {
@@ -405,15 +359,14 @@ __memp_set_maxsize(dbmfp, gbytes, bytes)
 		dbmfp->bytes = bytes;
 	} else {
 		dbenv = dbmfp->dbenv;
-		dbmp = dbenv->mp_handle;
 
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		mfp->maxpgno = (db_pgno_t)
 		    (gbytes * (GIGABYTE / mfp->stat.st_pagesize));
 		mfp->maxpgno += (db_pgno_t)
 		    ((bytes + mfp->stat.st_pagesize - 1) /
 		    mfp->stat.st_pagesize);
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 	}
 
 	return (0);
@@ -537,7 +490,7 @@ __memp_set_priority(dbmfp, priority)
 
 	/* Update the underlying file if we've already opened it. */
 	if (dbmfp->mfp != NULL)
-		dbmfp->mfp->priority = priority;
+		dbmfp->mfp->priority = dbmfp->priority;
 
 	return (0);
 }
@@ -549,22 +502,22 @@ __memp_set_priority(dbmfp, priority)
  * !!!
  * Undocumented interface: DB private.
  *
- * PUBLIC: void __memp_last_pgno __P((DB_MPOOLFILE *, db_pgno_t *));
+ * PUBLIC: int __memp_last_pgno __P((DB_MPOOLFILE *, db_pgno_t *));
  */
-void
+int
 __memp_last_pgno(dbmfp, pgnoaddr)
 	DB_MPOOLFILE *dbmfp;
 	db_pgno_t *pgnoaddr;
 {
 	DB_ENV *dbenv;
-	DB_MPOOL *dbmp;
 
 	dbenv = dbmfp->dbenv;
-	dbmp = dbenv->mp_handle;
 
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 	*pgnoaddr = dbmfp->mfp->last_pgno;
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
+
+	return (0);
 }
 
 /*

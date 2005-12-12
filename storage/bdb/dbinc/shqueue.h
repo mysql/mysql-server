@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: shqueue.h,v 11.15 2004/03/24 20:37:37 bostic Exp $
+ * $Id: shqueue.h,v 12.2 2005/08/12 13:17:21 bostic Exp $
  */
 
 #ifndef	_SYS_SHQUEUE_H_
@@ -227,12 +227,14 @@ struct {								\
 #define	__SH_TAILQ_LAST_OFF(head)					\
 	((ssize_t *)(((u_int8_t *)(head)) + (head)->stqh_last))
 
-#define	SH_TAILQ_LAST(head, field, type)				\
-	(SH_TAILQ_EMPTY(head) ? NULL :				\
-	(struct type *)((ssize_t)(head) +				\
+#define	SH_TAILQ_LASTP(head, field, type)				\
+	((struct type *)((ssize_t)(head) +				\
 	 ((ssize_t)((head)->stqh_last) -				\
 	 ((ssize_t)SH_PTR_TO_OFF(SH_TAILQ_FIRST(head, type),		\
-		&(SH_TAILQ_FIRST(head, type)->field.stqe_next))))))
+		&(SH_TAILQ_FIRSTP(head, type)->field.stqe_next))))))
+
+#define	SH_TAILQ_LAST(head, field, type)				\
+	(SH_TAILQ_EMPTY(head) ? NULL : SH_TAILQ_LASTP(head, field, type))
 
 /*
  * Given correct A.next: B.prev = SH_TAILQ_NEXT_TO_PREV(A)

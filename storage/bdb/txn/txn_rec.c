@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: txn_rec.c,v 11.64 2004/09/22 17:41:10 bostic Exp $
+ * $Id: txn_rec.c,v 12.4 2005/10/19 15:10:45 bostic Exp $
  */
 
 #include "db_config.h"
@@ -298,17 +298,15 @@ __txn_child_recover(dbenv, dbtp, lsnp, op, info)
 
 	/*
 	 * This is a record in a PARENT's log trail indicating that a
-	 * child committed.  If we are aborting, we need to update the
-	 * parent's LSN array.  If we are in recovery, then if the
+	 * child committed.  If we are aborting, return the childs last
+	 * record's LSN.  If we are in recovery, then if the
 	 * parent is committing, we set ourselves up to commit, else
 	 * we do nothing.
 	 */
 	if (op == DB_TXN_ABORT) {
-		/* Note that __db_txnlist_lsnadd rewrites its LSN
-		 * parameter, so you cannot reuse the argp->c_lsn field.
-		 */
-		ret = __db_txnlist_lsnadd(dbenv,
-		    info, &argp->c_lsn, TXNLIST_NEW);
+		*lsnp = argp->c_lsn;
+		ret = __db_txnlist_lsnadd(dbenv, info, &argp->prev_lsn);
+		goto out;
 	} else if (op == DB_TXN_BACKWARD_ROLL) {
 		/* Child might exist -- look for it. */
 		ret = __db_txnlist_find(dbenv, info, argp->child, &c_stat);
@@ -422,12 +420,12 @@ __txn_restore_txn(dbenv, lsnp, argp)
 
 	mgr = dbenv->tx_handle;
 	region = mgr->reginfo.primary;
-	R_LOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_LOCK(dbenv);
 
 	/* Allocate a new transaction detail structure. */
 	if ((ret =
 	    __db_shalloc(&mgr->reginfo, sizeof(TXN_DETAIL), 0, &td)) != 0) {
-		R_UNLOCK(dbenv, &mgr->reginfo);
+		TXN_SYSTEM_UNLOCK(dbenv);
 		return (ret);
 	}
 
@@ -451,7 +449,7 @@ __txn_restore_txn(dbenv, lsnp, argp)
 	region->stat.st_nactive++;
 	if (region->stat.st_nactive > region->stat.st_maxnactive)
 		region->stat.st_maxnactive = region->stat.st_nactive;
-	R_UNLOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_UNLOCK(dbenv);
 	return (0);
 }
 

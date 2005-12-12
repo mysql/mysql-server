@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_multi.cpp,v 1.4 2004/01/28 03:35:56 bostic Exp $
+ * $Id: cxx_multi.cpp,v 12.3 2005/09/30 07:40:20 mjc Exp $
  */
 
 #include "db_config.h"
@@ -29,7 +29,7 @@ bool DbMultipleDataIterator::next(Dbt &data)
 		if (data.get_size() == 0 && data.get_data() == data_)
 			data.set_data(0);
 	}
-	return (data.get_data() != 0);
+	return (p_ != 0);
 }
 
 bool DbMultipleKeyDataIterator::next(Dbt &key, Dbt &data)
@@ -46,7 +46,7 @@ bool DbMultipleKeyDataIterator::next(Dbt &key, Dbt &data)
 		data.set_data(data_ + *p_--);
 		data.set_size(*p_--);
 	}
-	return (data.get_data() != 0);
+	return (p_ != 0);
 }
 
 bool DbMultipleRecnoDataIterator::next(db_recno_t &recno, Dbt &data)
@@ -61,5 +61,5 @@ bool DbMultipleRecnoDataIterator::next(db_recno_t &recno, Dbt &data)
 		data.set_data(data_ + *p_--);
 		data.set_size(*p_--);
 	}
-	return (recno != 0);
+	return (p_ != 0);
 }

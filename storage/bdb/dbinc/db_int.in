@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_int.in,v 11.155 2004/10/28 16:07:38 ubell Exp $
+ * $Id: db_int.in,v 12.15 2005/11/03 17:46:08 bostic Exp $
  */
 
 #ifndef _DB_INTERNAL_H_
@@ -46,7 +46,7 @@ extern "C" {
 #endif
 #endif
 
-#if defined(HAVE_LONG_LONG) && defined(HAVE_UNSIGNED_LONG_LONG)
+#if defined(HAVE_64BIT_TYPES)
 #undef	INT64_MAX
 #undef	INT64_MIN
 #undef	UINT64_MAX
@@ -68,8 +68,8 @@ extern "C" {
 #define	INT64_MIN	(-INT64_MAX-1)
 #define	UINT64_MAX	18446744073709551615ULL
 
-#define	INT64_FMT	"%lld"
-#define	UINT64_FMT	"%llu"
+@INT64_FMT@
+@UINT64_FMT@
 #endif	/* DB_WIN32 */
 #endif	/* HAVE_LONG_LONG && HAVE_UNSIGNED_LONG_LONG */
 
@@ -102,17 +102,17 @@ extern "C" {
 /* Align an integer to a specific boundary. */
 #undef	DB_ALIGN
 #define	DB_ALIGN(v, bound)						\
-	(((v) + (bound) - 1) & ~(((uintmax_t)bound) - 1))
+	(((v) + (bound) - 1) & ~(((uintmax_t)(bound)) - 1))
 
 /* Increment a pointer to a specific boundary. */
 #undef	ALIGNP_INC
 #define	ALIGNP_INC(p, bound)						\
-	(void *)(((uintptr_t)(p) + (bound) - 1) & ~(((uintptr_t)bound) - 1))
+	(void *)(((uintptr_t)(p) + (bound) - 1) & ~(((uintptr_t)(bound)) - 1))
 
 /* Decrement a pointer to a specific boundary. */
 #undef	ALIGNP_DEC
 #define	ALIGNP_DEC(p, bound)						\
-	(void *)((uintptr_t)(p) & ~(((uintptr_t)bound) - 1))
+	(void *)((uintptr_t)(p) & ~(((uintptr_t)(bound)) - 1))
 
 /*
  * Print an address as a u_long (a u_long is the largest type we can print
@@ -180,7 +180,7 @@ typedef struct __fn {
 	((int)((total) == 0 ? 0 : ((double)(v) * 100) / (total)))
 #define	DB_PCT_PG(v, total, pgsize)					\
 	((int)((total) == 0 ? 0 :					\
-	    100 - ((double)(v) * 100) / ((total) * (pgsize))))
+	    100 - ((double)(v) * 100) / (((double)total) * (pgsize))))
 
 /*
  * Structure used for callback message aggregation.
@@ -220,6 +220,8 @@ typedef struct __db_msgbuf {
 #define	STAT_LSN(msg, lsnp)						\
 	__db_msg(dbenv, "%lu/%lu\t%s",					\
 	    (u_long)(lsnp)->file, (u_long)(lsnp)->offset, msg)
+#define	STAT_POINTER(msg, v)						\
+	__db_msg(dbenv, "%#lx\t%s", P_TO_ULONG(v), msg)
 #define	STAT_STRING(msg, p) do {					\
 	const char *__p = p;	/* p may be a function call. */		\
 	__db_msg(dbenv, "%s\t%s", __p == NULL ? "!Set" : __p, msg);	\
@@ -248,6 +250,7 @@ typedef struct __db_msgbuf {
 #define	DB_RETOK_LGGET(ret)	((ret) == 0 || (ret) == DB_NOTFOUND)
 #define	DB_RETOK_MPGET(ret)	((ret) == 0 || (ret) == DB_PAGE_NOTFOUND)
 #define	DB_RETOK_REPPMSG(ret)	((ret) == 0 || \
+				    (ret) == DB_REP_IGNORE || \
 				    (ret) == DB_REP_ISPERM || \
 				    (ret) == DB_REP_NEWMASTER || \
 				    (ret) == DB_REP_NEWSITE || \
@@ -292,20 +295,24 @@ typedef enum {
 } APPNAME;
 
 /*
+ * ALIVE_ON	The is_alive function is configured.
  * CDB_LOCKING	CDB product locking.
  * CRYPTO_ON	Security has been configured.
  * LOCKING_ON	Locking has been configured.
  * LOGGING_ON	Logging has been configured.
+ * MUTEX_ON	Mutexes have been configured.
  * MPOOL_ON	Memory pool has been configured.
  * REP_ON	Replication has been configured.
  * RPC_ON	RPC has been configured.
  * TXN_ON	Transactions have been configured.
  */
+#define	ALIVE_ON(dbenv)		((dbenv)->is_alive != NULL)
 #define	CDB_LOCKING(dbenv)	F_ISSET(dbenv, DB_ENV_CDB)
 #define	CRYPTO_ON(dbenv)	((dbenv)->crypto_handle != NULL)
 #define	LOCKING_ON(dbenv)	((dbenv)->lk_handle != NULL)
 #define	LOGGING_ON(dbenv)	((dbenv)->lg_handle != NULL)
 #define	MPOOL_ON(dbenv)		((dbenv)->mp_handle != NULL)
+#define	MUTEX_ON(dbenv)		((dbenv)->mutex_handle != NULL)
 #define	REP_ON(dbenv)		((dbenv)->rep_handle != NULL)
 #define	RPC_ON(dbenv)		((dbenv)->cl_handle != NULL)
 #define	TXN_ON(dbenv)		((dbenv)->tx_handle != NULL)
@@ -342,6 +349,74 @@ typedef enum {
 	if (F_ISSET((dbenv), DB_ENV_OPEN_CALLED))			\
 		ENV_REQUIRES_CONFIG(dbenv, handle, i, flags)
 
+#define	ENV_ENTER(dbenv, ip) do {					\
+	int __ret;							\
+	if ((dbenv)->thr_hashtab == NULL)				\
+		ip = NULL;						\
+	else {								\
+		if ((__ret =						\
+		    __env_set_state(dbenv, &(ip), THREAD_ACTIVE)) != 0)	\
+			return (__ret);					\
+	}								\
+} while (0)
+
+#ifdef DIAGNOSTIC
+#define	ENV_LEAVE(dbenv, ip) do {					\
+	if ((ip) != NULL) {						\
+		DB_ASSERT(ip->dbth_state == THREAD_ACTIVE);		\
+		(ip)->dbth_state = THREAD_OUT;				\
+	}								\
+} while (0)
+#else
+#define	ENV_LEAVE(dbenv, ip) do {					\
+	if ((ip) != NULL)						\
+		(ip)->dbth_state = THREAD_OUT;				\
+} while (0)
+#endif
+#ifdef DIAGNOSTIC
+#define	CHECK_THREAD(dbenv) do {					\
+	DB_THREAD_INFO *__ip;						\
+	if ((dbenv)->thr_hashtab != NULL) {				\
+		(void)__env_set_state(dbenv, &__ip, THREAD_DIAGNOSTIC);	\
+		DB_ASSERT(__ip != NULL &&				\
+		     __ip->dbth_state != THREAD_OUT);			\
+	}								\
+} while (0)
+#define	CHECK_MTX_THREAD(dbenv, mtx) do {				\
+	if (mtx->alloc_id != MTX_MUTEX_REGION &&			\
+	    mtx->alloc_id != MTX_ENV_REGION &&				\
+	    mtx->alloc_id != MTX_APPLICATION)				\
+		CHECK_THREAD(dbenv);					\
+} while (0)
+#else
+#define	CHECK_THREAD(dbenv)
+#define	CHECK_MTX_THREAD(dbenv, mtx)
+#endif
+
+typedef enum {
+	THREAD_SLOT_NOT_IN_USE=0,
+	THREAD_OUT,
+	THREAD_ACTIVE,
+	THREAD_BLOCKED
+#ifdef DIAGNOSTIC
+	, THREAD_DIAGNOSTIC
+#endif
+} DB_THREAD_STATE;
+
+typedef struct __db_thread_info {
+	pid_t		dbth_pid;
+	db_threadid_t	dbth_tid;
+	DB_THREAD_STATE	dbth_state;
+	SH_TAILQ_ENTRY	dbth_links;
+} DB_THREAD_INFO;
+
+typedef struct __env_thread_info {
+	u_int32_t	thr_count;
+	u_int32_t	thr_max;
+	u_int32_t	thr_nbucket;
+	roff_t		thr_hashoff;
+} THREAD_INFO;
+
 /*******************************************************
  * Database Access Methods.
  *******************************************************/
@@ -350,7 +425,7 @@ typedef enum {
  *	The database handle is free-threaded (was opened with DB_THREAD).
  */
 #define	DB_IS_THREADED(dbp)						\
-	((dbp)->mutexp != NULL)
+	((dbp)->mutex != MUTEX_INVALID)
 
 /* Initialization methods are often illegal before/after open is called. */
 #define	DB_ILLEGAL_AFTER_OPEN(dbp, name)				\
@@ -437,8 +512,10 @@ typedef enum { MU_REMOVE, MU_RENAME, MU_OPEN } mu_action;
 /*
  * File types for DB access methods.  Negative numbers are reserved to DB.
  */
-#define	DB_FTYPE_SET		-1	/* Call pgin/pgout functions. */
-#define	DB_FTYPE_NOTSET		 0	/* Don't call... */
+#define	DB_FTYPE_SET		-1		/* Call pgin/pgout functions. */
+#define	DB_FTYPE_NOTSET		 0		/* Don't call... */
+#define	DB_LSN_OFF_NOTSET	-1		/* Not yet set. */
+#define	DB_CLEARLEN_NOTSET	UINT32_MAX	/* Not yet set. */
 
 /* Structure used as the DB pgin/pgout pgcookie. */
 typedef struct __dbpginfo {
@@ -526,7 +603,7 @@ typedef struct __dbpginfo {
 struct __db_reginfo_t;	typedef struct __db_reginfo_t REGINFO;
 struct __db_txnhead;	typedef struct __db_txnhead DB_TXNHEAD;
 struct __db_txnlist;	typedef struct __db_txnlist DB_TXNLIST;
-struct __vrfy_childinfo; typedef struct __vrfy_childinfo VRFY_CHILDINFO;
+struct __vrfy_childinfo;typedef struct __vrfy_childinfo VRFY_CHILDINFO;
 struct __vrfy_dbinfo;   typedef struct __vrfy_dbinfo VRFY_DBINFO;
 struct __vrfy_pageinfo; typedef struct __vrfy_pageinfo VRFY_PAGEINFO;
 
@@ -541,10 +618,9 @@ struct __vrfy_pageinfo; typedef struct __vrfy_pageinfo VRFY_PAGEINFO;
 
 #include "dbinc/globals.h"
 #include "dbinc/debug.h"
-#include "dbinc/mutex.h"
 #include "dbinc/region.h"
-#include "dbinc_auto/mutex_ext.h"	/* XXX: Include after region.h. */
 #include "dbinc_auto/env_ext.h"
+#include "dbinc/mutex.h"
 #include "dbinc/os.h"
 #include "dbinc/rep.h"
 #include "dbinc_auto/clib_ext.h"
@@ -577,11 +653,14 @@ struct __vrfy_pageinfo; typedef struct __vrfy_pageinfo VRFY_PAGEINFO;
  * We explicitly use LOGGING_ON/IS_REP_CLIENT here because we don't want to pull
  * in the log headers, which IS_RECOVERING (and thus DBENV_LOGGING) rely on, and
  * because DBC_RECOVER should be set anytime IS_RECOVERING would be true.
+ *
+ * If we're not in recovery (master - doing an abort a client applying
+ * a txn), then a client's only path through here is on an internal
+ * operation, and a master's only path through here is a transactional
+ * operation.  Detect if either is not the case.
  */
 #if defined(DIAGNOSTIC) || defined(DEBUG_ROP)  || defined(DEBUG_WOP)
-#define	DBC_LOGGING(dbc)						\
-	(LOGGING_ON((dbc)->dbp->dbenv) &&				\
-	    !F_ISSET((dbc), DBC_RECOVER) && !IS_REP_CLIENT((dbc)->dbp->dbenv))
+#define	DBC_LOGGING(dbc)	__dbc_logging(dbc)
 #else
 #define	DBC_LOGGING(dbc)						\
 	((dbc)->txn != NULL && LOGGING_ON((dbc)->dbp->dbenv) &&		\

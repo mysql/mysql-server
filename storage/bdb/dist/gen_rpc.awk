@@ -1,5 +1,5 @@
 #
-# $Id: gen_rpc.awk,v 11.58 2004/08/19 20:28:37 mjc Exp $
+# $Id: gen_rpc.awk,v 12.4 2005/07/21 18:21:20 bostic Exp $
 # Awk script for generating client/server RPC code.
 #
 # This awk script generates most of the RPC routines for DB client/server
@@ -54,6 +54,12 @@ BEGIN {
 	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
 	    > XFILE
 	nendlist = 1;
+
+	# Output headers
+	general_headers()
+
+	# Put out the actual illegal and no-server functions.
+	illegal_functions(CFILE)
 }
 END {
 	if (error == 0) {
@@ -65,29 +71,60 @@ END {
 
 		printf("\t} = %d%03d;\n", major, minor) >> XFILE
 		printf("} = 351457;\n") >> XFILE
+
+		obj_init("DB", "dbp", obj_db, CFILE)
+		obj_init("DBC", "dbc", obj_dbc, CFILE)
+		obj_init("DB_ENV", "dbenv", obj_dbenv, CFILE)
+		obj_init("DB_TXN", "txn", obj_txn, CFILE)
 	}
 }
 
-/^[	 ]*BEGIN/ {
-	name = $2;
-	nofunc_code = 0;
-	funcvars = 0;
-	ret_code = 0;
-	if ($3 == "NOFUNC")
-		nofunc_code = 1;
-	if ($3 == "RETCODE")
-		ret_code = 1;
+/^[	 ]*LOCAL/ {
+	# LOCAL methods are ones where we don't override the handle
+	# method for RPC, nor is it illegal -- it's just satisfied
+	# locally.
+	next;
+}
+/^[	 ]*NOFUNC/ {
+	++obj_indx;
 
+	# NOFUNC methods are illegal on the RPC client.
+	if ($2 ~ "^db_")
+		obj_illegal(obj_db, "dbp", $2, $3)
+	else if ($2 ~ "^dbc_")
+		obj_illegal(obj_dbc, "dbc", $2, $3)
+	else if ($2 ~ "^env_")
+		obj_illegal(obj_dbenv, "dbenv", $2, $3)
+	else if ($2 ~ "^txn_")
+		obj_illegal(obj_txn, "txn", $2, $3)
+	else {
+		print "unexpected handle prefix: " $2
+		error = 1; exit
+	}
+	next;
+}
+/^[	 ]*BEGIN/ {
+	++obj_indx;
+
+	name = $2;
+	link_only = ret_code = 0
+	if ($3 == "LINKONLY")
+		link_only = 1
+	else if ($3 == "RETCODE")
+		ret_code = 1
+
+	funcvars = 0;
+	newvars = 0;
 	nvars = 0;
 	rvars = 0;
-	newvars = 0;
-	db_handle = 0;
-	env_handle = 0;
-	dbc_handle = 0;
-	txn_handle = 0;
-	mp_handle = 0;
-	dbt_handle = 0;
 	xdr_free = 0;
+
+	db_handle = 0;
+	dbc_handle = 0;
+	dbt_handle = 0;
+	env_handle = 0;
+	mp_handle = 0;
+	txn_handle = 0;
 }
 /^[	 ]*ARG/ {
 	rpc_type[nvars] = $2;
@@ -102,36 +139,36 @@ END {
 
 	if (c_type[nvars] == "DBT *")
 		dbt_handle = 1;
-
-	if (c_type[nvars] == "DB_ENV *") {
+	else if (c_type[nvars] == "DB_ENV *") {
 		ctp_type[nvars] = "CT_ENV";
 		env_handle = 1;
 		env_idx = nvars;
-	}
 
-	if (c_type[nvars] == "DB *") {
+		if (nvars == 0)
+			obj_func("dbenv", obj_dbenv);
+	} else if (c_type[nvars] == "DB *") {
 		ctp_type[nvars] = "CT_DB";
 		if (db_handle != 1) {
 			db_handle = 1;
 			db_idx = nvars;
 		}
-	}
 
-	if (c_type[nvars] == "DBC *") {
+		if (nvars == 0)
+			obj_func("dbp", obj_db);
+	} else if (c_type[nvars] == "DBC *") {
 		ctp_type[nvars] = "CT_CURSOR";
 		dbc_handle = 1;
 		dbc_idx = nvars;
-	}
 
-	if (c_type[nvars] == "DB_TXN *") {
+		if (nvars == 0)
+			obj_func("dbc", obj_dbc);
+	} else if (c_type[nvars] == "DB_TXN *") {
 		ctp_type[nvars] = "CT_TXN";
 		txn_handle = 1;
 		txn_idx = nvars;
-	}
 
-	if (c_type[nvars] == "DB_MPOOLFILE *") {
-		mp_handle = 1;
-		mp_idx = nvars;
+		if (nvars == 0)
+			obj_func("txn", obj_txn);
 	}
 
 	++nvars;
@@ -189,198 +226,10 @@ END {
 /^[	 ]*END/ {
 	#
 	# =====================================================
-	# File headers, if necessary.
+	# LINKONLY -- just reference the function, that's all.
 	#
-	if (first == 0) {
-		printf("#include \"db_config.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> CFILE
-		printf("#include <sys/types.h>\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include <rpc/rpc.h>\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include <string.h>\n") >> CFILE
-		printf("#endif\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include \"db_server.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include \"db_int.h\"\n") >> CFILE
-		printf("#include \"dbinc/txn.h\"\n") >> CFILE
-		printf("#include \"dbinc_auto/rpc_client_ext.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-
-		printf("#include \"db_config.h\"\n") >> TFILE
-		printf("\n") >> TFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> TFILE
-		printf("#include <sys/types.h>\n") >> TFILE
-		printf("\n") >> TFILE
-		printf("#include <string.h>\n") >> TFILE
-		printf("#endif\n") >> TFILE
-		printf("#include \"db_int.h\"\n") >> TFILE
-		printf("#include \"dbinc/txn.h\"\n") >> TFILE
-		printf("\n") >> TFILE
-
-		printf("#include \"db_config.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> SFILE
-		printf("#include <sys/types.h>\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include <rpc/rpc.h>\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include <string.h>\n") >> SFILE
-		printf("#endif\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include \"db_server.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include \"db_int.h\"\n") >> SFILE
-		printf("#include \"dbinc/db_server_int.h\"\n") >> SFILE
-		printf("#include \"dbinc_auto/rpc_server_ext.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-
-		printf("#include \"db_config.h\"\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> PFILE
-		printf("#include <sys/types.h>\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include <rpc/rpc.h>\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include <string.h>\n") >> PFILE
-		printf("#endif\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include \"db_server.h\"\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include \"db_int.h\"\n") >> PFILE
-		printf("#include \"dbinc/db_server_int.h\"\n") >> PFILE
-		printf("\n") >> PFILE
-
-		first = 1;
-	}
-	#
-	# =====================================================
-	# Generate Client Nofunc code first if necessary
-	# NOTE:  This code must be first, because we don't want any
-	# other code other than this function, so before we write
-	# out to the XDR and server files, we just generate this
-	# and move on if this is all we are doing.
-	#
-	if (nofunc_code == 1) {
-		#
-		# First time through, put out the general no server and
-		# illegal functions.
-		#
-		if (first_nofunc == 0) {
-			printf("static int __dbcl_noserver ") >> CFILE
-			printf("__P((DB_ENV *));\n\n") >> CFILE
-			printf("static int\n") >> CFILE
-			printf("__dbcl_noserver(dbenv)\n") >> CFILE
-			printf("\tDB_ENV *dbenv;\n") >> CFILE
-			printf("{\n\t__db_err(dbenv,") >> CFILE
-			printf(" \"No server environment\");\n") >> CFILE
-			printf("\treturn (DB_NOSERVER);\n") >> CFILE
-			printf("}\n\n") >> CFILE
-
-			printf("static int __dbcl_rpc_illegal ") >> CFILE
-			printf("__P((DB_ENV *, char *));\n\n") >> CFILE
-			printf("static int\n") >> CFILE
-			printf("__dbcl_rpc_illegal(dbenv, name)\n") >> CFILE
-			printf("\tDB_ENV *dbenv;\n\tchar *name;\n") >> CFILE
-			printf("{\n\t__db_err(dbenv,") >> CFILE
-			printf(" \"%%s method unsupported in RPC") >> CFILE
-			printf(" environments\", name);\n") >> CFILE
-			printf("\treturn (DB_OPNOTSUP);\n") >> CFILE
-			printf("}\n\n") >> CFILE
-
-			first_nofunc = 1
-		}
-		#
-		# Spit out PUBLIC prototypes.
-		#
-		delete p;
-		pi = 1;
-		p[pi++] = sprintf("int __dbcl_%s __P((", name);
-		p[pi++] = "";
-		for (i = 0; i < nvars; ++i) {
-			p[pi++] = pr_type[i];
-			p[pi++] = ", ";
-		}
-		p[pi - 1] = "";
-		p[pi] = "));";
-		proto_format(p, CFILE);
-
-		#
-		# Spit out function name/args.
-		#
-		printf("int\n") >> CFILE
-		printf("__dbcl_%s(", name) >> CFILE
-		sep = "";
-		for (i = 0; i < nvars; ++i) {
-			printf("%s%s", sep, args[i]) >> CFILE
-			sep = ", ";
-		}
-		printf(")\n") >> CFILE
-
-		for (i = 0; i < nvars; ++i)
-			if (func_arg[i] == 0)
-				printf("\t%s %s;\n", c_type[i], args[i]) \
-				    >> CFILE
-			else
-				printf("\t%s;\n", c_type[i]) >> CFILE
-
-		#
-		# Call error function and return EINVAL
-		#
-		printf("{\n") >> CFILE
-
-		#
-		# If we don't have a local env, set one.
-		#
-		if (env_handle == 0) {
-			printf("\tDB_ENV *dbenv;\n\n") >> CFILE
-			if (db_handle)
-				printf("\tdbenv = %s->dbenv;\n", \
-				    args[db_idx]) >> CFILE
-			else if (dbc_handle)
-				printf("\tdbenv = %s->dbp->dbenv;\n", \
-				    args[dbc_idx]) >> CFILE
-			else if (txn_handle)
-				printf("\tdbenv = %s->mgrp->dbenv;\n", \
-				    args[txn_idx]) >> CFILE
-			else if (mp_handle)
-				printf("\tdbenv = %s->dbenv;\n", \
-				    args[mp_idx]) >> CFILE
-			else
-				printf("\tdbenv = NULL;\n") >> CFILE
-		}
-		#
-		# Quiet the compiler for all variables.
-		#
-		# NOTE:  Index 'i' starts at 1, not 0.  Our first arg is
-		# the handle we need to get to the env, and we do not want
-		# to COMPQUIET that one.
-		for (i = 1; i < nvars; ++i) {
-			if (rpc_type[i] == "CONST" || rpc_type[i] == "DBT" ||
-			    rpc_type[i] == "LIST" || rpc_type[i] == "STRING" ||
-			    rpc_type[i] == "GID") {
-				printf("\tCOMPQUIET(%s, NULL);\n", args[i]) \
-				    >> CFILE
-			}
-			if (rpc_type[i] == "INT" || rpc_type[i] == "IGNORE" ||
-			    rpc_type[i] == "ID") {
-				printf("\tCOMPQUIET(%s, 0);\n", args[i]) \
-				    >> CFILE
-			}
-		}
-
-		if (!env_handle) {
-			printf("\treturn (__dbcl_rpc_illegal(dbenv, ") >> CFILE
-			printf("\"%s\"));\n", name) >> CFILE
-		} else
-			printf("\treturn (__dbcl_rpc_illegal(%s, \"%s\"));\n", \
-			    args[env_idx], name) >> CFILE
-		printf("}\n\n") >> CFILE
-
+	if (link_only)
 		next;
-	}
 
 	#
 	# =====================================================
@@ -716,7 +565,7 @@ END {
 	#
 	for (i = 0; i < nvars; ++i) {
 		if (rpc_type[i] == "ID") {
-			printf("\tlong %scl_id;\n", args[i]) >> PFILE
+			printf("\tunsigned int %scl_id;\n", args[i]) >> PFILE
 		}
 		if (rpc_type[i] == "STRING") {
 			printf("\tchar *%s;\n", args[i]) >> PFILE
@@ -851,8 +700,7 @@ END {
 			    args[txn_idx]) >> CFILE
 		else
 			printf("\tdbenv = NULL;\n") >> CFILE
-		printf("\tif (dbenv == NULL || !RPC_ON(dbenv))\n") \
-		    >> CFILE
+		printf("\tif (dbenv == NULL || !RPC_ON(dbenv))\n") >> CFILE
 		printf("\t\treturn (__dbcl_noserver(NULL));\n") >> CFILE
 	} else {
 		printf("\tif (%s == NULL || !RPC_ON(%s))\n", \
@@ -862,13 +710,8 @@ END {
 	}
 	printf("\n") >> CFILE
 
-	if (!env_handle)
-		printf("\tcl = (CLIENT *)dbenv->cl_handle;\n") >> CFILE
-	else
-		printf("\tcl = (CLIENT *)%s->cl_handle;\n", \
-		    args[env_idx]) >> CFILE
-
-	printf("\n") >> CFILE
+	printf("\tcl = (CLIENT *)%s->cl_handle;\n\n", \
+	    env_handle ? args[env_idx] : "dbenv") >> CFILE
 
 	#
 	# If there is a function arg, check that it is NULL
@@ -891,15 +734,22 @@ END {
 	#
 	for (i = 0; i < nvars; ++i) {
 		if (rpc_type[i] == "ID") {
-			printf("\tif (%s == NULL)\n", args[i]) >> CFILE
-			printf("\t\tmsg.%scl_id = 0;\n\telse\n", \
-			    args[i]) >> CFILE
+			# We don't need to check for a NULL DB_ENV *, because
+			# we already checked for it.  I frankly couldn't care
+			# less, but lint gets all upset at the wasted cycles.
+			if (c_type[i] != "DB_ENV *") {
+				printf("\tif (%s == NULL)\n", args[i]) >> CFILE
+				printf("\t\tmsg.%scl_id = 0;\n\telse\n", \
+				    args[i]) >> CFILE
+				indent = "\t\t";
+			} else
+				indent = "\t";
 			if (c_type[i] == "DB_TXN *") {
-				printf("\t\tmsg.%scl_id = %s->txnid;\n", \
-				    args[i], args[i]) >> CFILE
+				printf("%smsg.%scl_id = %s->txnid;\n", \
+				    indent, args[i], args[i]) >> CFILE
 			} else {
-				printf("\t\tmsg.%scl_id = %s->cl_id;\n", \
-				    args[i], args[i]) >> CFILE
+				printf("%smsg.%scl_id = %s->cl_id;\n", \
+				    indent, args[i], args[i]) >> CFILE
 			}
 		}
 		if (rpc_type[i] == "GID") {
@@ -1127,6 +977,177 @@ END {
 		printf("\treturn (replyp->status);\n") >> TFILE
 		printf("}\n\n") >> TFILE
 	}
+}
+
+function general_headers()
+{
+	printf("#include \"db_config.h\"\n") >> CFILE
+	printf("\n") >> CFILE
+	printf("#ifndef NO_SYSTEM_INCLUDES\n") >> CFILE
+	printf("#include <sys/types.h>\n") >> CFILE
+	printf("\n") >> CFILE
+	printf("#include <rpc/rpc.h>\n") >> CFILE
+	printf("\n") >> CFILE
+	printf("#include <string.h>\n") >> CFILE
+	printf("#endif\n") >> CFILE
+	printf("\n") >> CFILE
+	printf("#include \"db_server.h\"\n") >> CFILE
+	printf("\n") >> CFILE
+	printf("#include \"db_int.h\"\n") >> CFILE
+	printf("#include \"dbinc/txn.h\"\n") >> CFILE
+	printf("#include \"dbinc_auto/rpc_client_ext.h\"\n") >> CFILE
+	printf("\n") >> CFILE
+
+	printf("#include \"db_config.h\"\n") >> TFILE
+	printf("\n") >> TFILE
+	printf("#ifndef NO_SYSTEM_INCLUDES\n") >> TFILE
+	printf("#include <sys/types.h>\n") >> TFILE
+	printf("\n") >> TFILE
+	printf("#include <string.h>\n") >> TFILE
+	printf("#endif\n") >> TFILE
+	printf("#include \"db_int.h\"\n") >> TFILE
+	printf("#include \"dbinc/txn.h\"\n") >> TFILE
+	printf("\n") >> TFILE
+
+	printf("#include \"db_config.h\"\n") >> SFILE
+	printf("\n") >> SFILE
+	printf("#ifndef NO_SYSTEM_INCLUDES\n") >> SFILE
+	printf("#include <sys/types.h>\n") >> SFILE
+	printf("\n") >> SFILE
+	printf("#include <rpc/rpc.h>\n") >> SFILE
+	printf("\n") >> SFILE
+	printf("#include <string.h>\n") >> SFILE
+	printf("#endif\n") >> SFILE
+	printf("\n") >> SFILE
+	printf("#include \"db_server.h\"\n") >> SFILE
+	printf("\n") >> SFILE
+	printf("#include \"db_int.h\"\n") >> SFILE
+	printf("#include \"dbinc/db_server_int.h\"\n") >> SFILE
+	printf("#include \"dbinc_auto/rpc_server_ext.h\"\n") >> SFILE
+	printf("\n") >> SFILE
+
+	printf("#include \"db_config.h\"\n") >> PFILE
+	printf("\n") >> PFILE
+	printf("#ifndef NO_SYSTEM_INCLUDES\n") >> PFILE
+	printf("#include <sys/types.h>\n") >> PFILE
+	printf("\n") >> PFILE
+	printf("#include <rpc/rpc.h>\n") >> PFILE
+	printf("\n") >> PFILE
+	printf("#include <string.h>\n") >> PFILE
+	printf("#endif\n") >> PFILE
+	printf("\n") >> PFILE
+	printf("#include \"db_server.h\"\n") >> PFILE
+	printf("\n") >> PFILE
+	printf("#include \"db_int.h\"\n") >> PFILE
+	printf("#include \"dbinc/db_server_int.h\"\n") >> PFILE
+	printf("\n") >> PFILE
+}
+
+#
+# illegal_functions --
+#	Output general illegal-call functions
+function illegal_functions(OUTPUT)
+{
+	printf("static int __dbcl_dbp_illegal __P((DB *));\n") >> OUTPUT
+	printf("static int __dbcl_noserver __P((DB_ENV *));\n") >> OUTPUT
+	printf("static int __dbcl_txn_illegal __P((DB_TXN *));\n") >> OUTPUT
+	printf("\n") >> OUTPUT
+
+	printf("static int\n") >> OUTPUT
+	printf("__dbcl_noserver(dbenv)\n") >> OUTPUT
+	printf("\tDB_ENV *dbenv;\n") >> OUTPUT
+	printf("{\n\t__db_err(dbenv,") >> OUTPUT
+	printf(" \"No Berkeley DB RPC server environment\");\n") >> OUTPUT
+	printf("\treturn (DB_NOSERVER);\n") >> OUTPUT
+	printf("}\n\n") >> OUTPUT
+
+	printf("/*\n") >> OUTPUT
+	printf(" * __dbcl_dbenv_illegal --\n") >> OUTPUT
+	printf(" *	DB_ENV method not supported under RPC.\n") >> OUTPUT
+	printf(" *\n") >> OUTPUT
+	printf(" * PUBLIC: int __dbcl_dbenv_illegal __P((DB_ENV *));\n")\
+	    >> OUTPUT
+	printf(" */\n") >> OUTPUT
+	printf("int\n") >> OUTPUT
+	printf("__dbcl_dbenv_illegal(dbenv)\n") >> OUTPUT
+	printf("\tDB_ENV *dbenv;\n") >> OUTPUT
+	printf("{\n\t__db_err(dbenv,") >> OUTPUT
+	printf("\n\t    \"Interface not supported by ") >> OUTPUT
+	printf("Berkeley DB RPC client environments\");\n") >> OUTPUT
+	printf("\treturn (DB_OPNOTSUP);\n") >> OUTPUT
+	printf("}\n\n") >> OUTPUT
+	printf("/*\n") >> OUTPUT
+	printf(" * __dbcl_dbp_illegal --\n") >> OUTPUT
+	printf(" *	DB method not supported under RPC.\n") >> OUTPUT
+	printf(" */\n") >> OUTPUT
+	printf("static int\n") >> OUTPUT
+	printf("__dbcl_dbp_illegal(dbp)\n") >> OUTPUT
+	printf("\tDB *dbp;\n") >> OUTPUT
+	printf("{\n\treturn (__dbcl_dbenv_illegal(dbp->dbenv));\n") >> OUTPUT
+	printf("}\n\n") >> OUTPUT
+	printf("/*\n") >> OUTPUT
+	printf(" * __dbcl_txn_illegal --\n") >> OUTPUT
+	printf(" *	DB_TXN method not supported under RPC.\n") >> OUTPUT
+	printf(" */\n") >> OUTPUT
+	printf("static int\n__dbcl_txn_illegal(txn)\n") >> OUTPUT
+	printf("\tDB_TXN *txn;\n") >> OUTPUT
+	printf("{\n\treturn (__dbcl_dbenv_illegal(txn->mgrp->dbenv));\n")\
+	    >> OUTPUT
+	printf("}\n\n") >> OUTPUT
+}
+
+function obj_func(v, l)
+{
+	# Ignore db_create -- there's got to be something cleaner, but I
+	# don't want to rewrite rpc.src right now.
+	if (name == "db_create")
+		return;
+	if (name == "env_create")
+		return;
+
+	# Strip off the leading prefix for the method name -- there's got to
+	# be something cleaner, but I don't want to rewrite rpc.src right now.
+	len = length(name);
+	i = index(name, "_");
+	l[obj_indx] = sprintf("\t%s->%s = __dbcl_%s;",
+	    v, substr(name, i + 1, len - i), name);
+}
+
+function obj_illegal(l, handle, method, proto)
+{
+	# All of the functions return an int, with one exception.  Hack
+	# to make that work.
+	type = method == "db_get_mpf" ? "DB_MPOOLFILE *" : "int"
+
+	# Strip off the leading prefix for the method name -- there's got to
+	# be something cleaner, but I don't want to rewrite rpc.src right now.
+	len = length(method);
+	i = index(method, "_");
+
+	l[obj_indx] =\
+	    sprintf("\t%s->%s =\n\t    (%s (*)(",\
+	    handle, substr(method, i + 1, len - i), type)\
+	    proto\
+	    sprintf("))\n\t    __dbcl_%s_illegal;", handle);
+}
+
+function obj_init(obj, v, list, OUTPUT) {
+	printf("/*\n") >> OUTPUT
+	printf(" * __dbcl_%s_init --\n", v) >> OUTPUT
+	printf(" *\tInitialize %s handle methods.\n", obj) >> OUTPUT
+	printf(" *\n") >> OUTPUT
+	printf(\
+	    " * PUBLIC: void __dbcl_%s_init __P((%s *));\n", v, obj) >> OUTPUT
+	printf(" */\n") >> OUTPUT
+	printf("void\n") >> OUTPUT
+	printf("__dbcl_%s_init(%s)\n", v, v) >> OUTPUT
+	printf("\t%s *%s;\n", obj, v) >> OUTPUT
+	printf("{\n") >> OUTPUT
+	for (i = 1; i < obj_indx; ++i) {
+		if (i in list)
+			print list[i] >> OUTPUT
+	}
+	printf("\treturn;\n}\n\n") >> OUTPUT
 }
 
 #

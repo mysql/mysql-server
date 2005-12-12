@@ -1,17 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_printlog.c,v 11.64 2004/06/17 17:35:17 bostic Exp $
+ * $Id: db_printlog.c,v 12.5 2005/09/09 12:38:33 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996-2004\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2005\nSleepycat Software Inc.  All rights reserved.\n";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -33,12 +33,14 @@ static const char copyright[] =
 #include "dbinc/qam.h"
 #include "dbinc/txn.h"
 
-int lsn_arg __P((const char *, char *, DB_LSN *));
+int lsn_arg __P((char *, DB_LSN *));
 int main __P((int, char *[]));
 int open_rep_db __P((DB_ENV *, DB **, DBC **));
 int print_app_record __P((DB_ENV *, DBT *, DB_LSN *, db_recops));
 int usage __P((void));
-int version_check __P((const char *));
+int version_check __P((void));
+
+const char *progname;
 
 int
 main(argc, argv)
@@ -47,7 +49,6 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
-	const char *progname = "db_printlog";
 	DB *dbp;
 	DBC *dbc;
 	DBT data, keydbt;
@@ -60,7 +61,12 @@ main(argc, argv)
 	int (**dtab) __P((DB_ENV *, DBT *, DB_LSN *, db_recops, void *));
 	char *home, *passwd;
 
-	if ((ret = version_check(progname)) != 0)
+	if ((progname = strrchr(argv[0], '/')) == NULL)
+		progname = argv[0];
+	else
+		++progname;
+
+	if ((ret = version_check()) != 0)
 		return (ret);
 
 	dbp = NULL;
@@ -77,11 +83,11 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "b:e:h:NP:rRV")) != EOF)
 		switch (ch) {
 		case 'b':
-			if (lsn_arg(progname, optarg, &start))
+			if (lsn_arg(optarg, &start))
 				return (usage());
 			break;
 		case 'e':
-			if (lsn_arg(progname, optarg, &stop))
+			if (lsn_arg(optarg, &stop))
 				return (usage());
 			break;
 		case 'h':
@@ -177,8 +183,7 @@ main(argc, argv)
 			dbenv->err(dbenv, ret, "DB_ENV->open");
 			goto shutdown;
 		}
-	} else if ((ret = dbenv->open(dbenv, home,
-	    DB_JOINENV | DB_USE_ENVIRON, 0)) != 0 &&
+	} else if ((ret = dbenv->open(dbenv, home, DB_USE_ENVIRON, 0)) != 0 &&
 	    (ret == DB_VERSION_MISMATCH ||
 	    (ret = dbenv->open(dbenv, home,
 	    DB_CREATE | DB_INIT_LOG | DB_PRIVATE | DB_USE_ENVIRON, 0)) != 0)) {
@@ -297,14 +302,13 @@ shutdown:	exitval = 1;
 int
 usage()
 {
-	fprintf(stderr, "usage: db_printlog %s\n",
+	fprintf(stderr, "usage: %s %s\n", progname,
 	    "[-NrV] [-b file/offset] [-e file/offset] [-h home] [-P password]");
 	return (EXIT_FAILURE);
 }
 
 int
-version_check(progname)
-	const char *progname;
+version_check()
 {
 	int v_major, v_minor, v_patch;
 
@@ -400,9 +404,8 @@ err:	if (*dbpp != NULL)
  *	Parse a LSN argument.
  */
 int
-lsn_arg(progname, optarg, lsnp)
-	const char *progname;
-	char *optarg;
+lsn_arg(arg, lsnp)
+	char *arg;
 	DB_LSN *lsnp;
 {
 	char *p;
@@ -413,11 +416,11 @@ lsn_arg(progname, optarg, lsnp)
 	 *
 	 * Don't use getsubopt(3), some systems don't have it.
 	 */
-	if ((p = strchr(optarg, '/')) == NULL)
+	if ((p = strchr(arg, '/')) == NULL)
 		return (1);
 	*p = '\0';
 
-	if (__db_getulong(NULL, progname, optarg, 0, 0, &uval))
+	if (__db_getulong(NULL, progname, arg, 0, 0, &uval))
 		return (1);
 	if (uval > UINT32_MAX)
 		return (1);

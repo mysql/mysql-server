@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_pr.c,v 11.121 2004/10/28 14:48:43 bostic Exp $
+ * $Id: db_pr.c,v 12.17 2005/11/08 03:13:30 bostic Exp $
  */
 
 #include "db_config.h"
@@ -35,9 +35,10 @@
 void
 __db_loadme()
 {
-	u_int32_t id;
+	pid_t pid;
+	db_threadid_t tid;
 
-	__os_id(&id);
+	__os_id(NULL, &pid, &tid);
 }
 
 #ifdef HAVE_STATISTICS
@@ -106,38 +107,37 @@ __db_dumptree(dbp, op, name)
 }
 
 static const FN __db_flags_fn[] = {
-	{ DB_AM_CHKSUM,		"checksumming" },
-	{ DB_AM_CL_WRITER,	"client replica writer" },
-	{ DB_AM_COMPENSATE,	"created by compensating transaction" },
-	{ DB_AM_CREATED,	"database created" },
-	{ DB_AM_CREATED_MSTR,	"encompassing file created" },
-	{ DB_AM_DBM_ERROR,	"dbm/ndbm error" },
-	{ DB_AM_DELIMITER,	"variable length" },
-	{ DB_AM_DIRTY,		"dirty reads" },
-	{ DB_AM_DISCARD,	"discard cached pages" },
-	{ DB_AM_DUP,		"duplicates" },
-	{ DB_AM_DUPSORT,	"sorted duplicates" },
-	{ DB_AM_ENCRYPT,	"encrypted" },
-	{ DB_AM_FIXEDLEN,	"fixed-length records" },
-	{ DB_AM_INMEM,		"in-memory" },
-	{ DB_AM_IN_RENAME,	"file is being renamed" },
-	{ DB_AM_NOT_DURABLE,	"changes not logged" },
-	{ DB_AM_OPEN_CALLED,	"open called" },
-	{ DB_AM_PAD,		"pad value" },
-	{ DB_AM_PGDEF,		"default page size" },
-	{ DB_AM_RDONLY,		"read-only" },
-	{ DB_AM_RECNUM,		"Btree record numbers" },
-	{ DB_AM_RECOVER,	"opened for recovery" },
-	{ DB_AM_RENUMBER,	"renumber" },
-	{ DB_AM_REPLICATION,	"replication file" },
-	{ DB_AM_REVSPLITOFF,	"no reverse splits" },
-	{ DB_AM_SECONDARY,	"secondary" },
-	{ DB_AM_SNAPSHOT,	"load on open" },
-	{ DB_AM_SUBDB,		"subdatabases" },
-	{ DB_AM_SWAP,		"needswap" },
-	{ DB_AM_TXN,		"transactional" },
-	{ DB_AM_VERIFYING,	"verifier" },
-	{ 0,			NULL }
+	{ DB_AM_CHKSUM,			"checksumming" },
+	{ DB_AM_CL_WRITER,		"client replica writer" },
+	{ DB_AM_COMPENSATE,		"created by compensating transaction" },
+	{ DB_AM_CREATED,		"database created" },
+	{ DB_AM_CREATED_MSTR,		"encompassing file created" },
+	{ DB_AM_DBM_ERROR,		"dbm/ndbm error" },
+	{ DB_AM_DELIMITER,		"variable length" },
+	{ DB_AM_DISCARD,		"discard cached pages" },
+	{ DB_AM_DUP,			"duplicates" },
+	{ DB_AM_DUPSORT,		"sorted duplicates" },
+	{ DB_AM_ENCRYPT,		"encrypted" },
+	{ DB_AM_FIXEDLEN,		"fixed-length records" },
+	{ DB_AM_INMEM,			"in-memory" },
+	{ DB_AM_IN_RENAME,		"file is being renamed" },
+	{ DB_AM_NOT_DURABLE,		"changes not logged" },
+	{ DB_AM_OPEN_CALLED,		"open called" },
+	{ DB_AM_PAD,			"pad value" },
+	{ DB_AM_PGDEF,			"default page size" },
+	{ DB_AM_RDONLY,			"read-only" },
+	{ DB_AM_READ_UNCOMMITTED,	"read-uncommitted" },
+	{ DB_AM_RECNUM,			"Btree record numbers" },
+	{ DB_AM_RECOVER,		"opened for recovery" },
+	{ DB_AM_RENUMBER,		"renumber" },
+	{ DB_AM_REVSPLITOFF,		"no reverse splits" },
+	{ DB_AM_SECONDARY,		"secondary" },
+	{ DB_AM_SNAPSHOT,		"load on open" },
+	{ DB_AM_SUBDB,			"subdatabases" },
+	{ DB_AM_SWAP,			"needswap" },
+	{ DB_AM_TXN,			"transactional" },
+	{ DB_AM_VERIFYING,		"verifier" },
+	{ 0,				NULL }
 };
 
 /*
@@ -182,8 +182,7 @@ __db_prdb(dbp, flags)
 		bt = dbp->bt_internal;
 		__db_msg(dbenv, "bt_meta: %lu bt_root: %lu",
 		    (u_long)bt->bt_meta, (u_long)bt->bt_root);
-		__db_msg(dbenv, "bt_maxkey: %lu bt_minkey: %lu",
-		    (u_long)bt->bt_maxkey, (u_long)bt->bt_minkey);
+		__db_msg(dbenv, "bt_minkey: %lu", (u_long)bt->bt_minkey);
 		if (!LF_ISSET(DB_PR_RECOVERYTEST))
 			__db_msg(dbenv, "bt_compare: %#lx bt_prefix: %#lx",
 			    P_TO_ULONG(bt->bt_compare),
@@ -246,7 +245,8 @@ __db_prtree(dbp, flags)
 	 * Find out the page number of the last page in the database, then
 	 * dump each page.
 	 */
-	__memp_last_pgno(mpf, &last);
+	if ((ret = __memp_last_pgno(mpf, &last)) != 0)
+		return (ret);
 	for (i = 0; i <= last; ++i) {
 		if ((ret = __memp_fget(mpf, &i, 0, &h)) != 0)
 			return (ret);
@@ -362,8 +362,7 @@ __db_bmeta(dbp, h, flags)
 
 	__db_meta(dbp, (DBMETA *)h, fn, flags);
 
-	__db_msg(dbenv, "\tmaxkey: %lu minkey: %lu",
-	    (u_long)h->maxkey, (u_long)h->minkey);
+	__db_msg(dbenv, "\tminkey: %lu", (u_long)h->minkey);
 	if (dbp->type == DB_RECNO)
 		__db_msg(dbenv, "\tre_len: %#lx re_pad: %#lx",
 		    (u_long)h->re_len, (u_long)h->re_pad);
@@ -518,19 +517,29 @@ __db_prpage(dbp, h, flags)
 	pagesize = (u_int32_t)dbp->mpf->mfp->stat.st_pagesize;
 
 	/* Page number, page type. */
-	__db_msgadd(dbenv, &mb, "page %lu: %s level: %lu",
-	    (u_long)h->pgno, s, (u_long)h->level);
+	__db_msgadd(dbenv, &mb, "page %lu: %s:", (u_long)h->pgno, s);
+
+	/*
+	 * LSNs on a metadata page will be different from the original after an
+	 * abort, in some cases.  Don't display them if we're testing recovery.
+	 */
+	if (!LF_ISSET(DB_PR_RECOVERYTEST) ||
+	    (TYPE(h) != P_BTREEMETA && TYPE(h) != P_HASHMETA &&
+	    TYPE(h) != P_QAMMETA && TYPE(h) != P_QAMDATA))
+		__db_msgadd(dbenv, &mb, " LSN [%lu][%lu]:",
+		    (u_long)LSN(h).file, (u_long)LSN(h).offset);
+
+	/*
+	 * Page level (only applicable for Btree/Recno, but we always display
+	 * it, for no particular reason.
+	 */
+	__db_msgadd(dbenv, &mb, " level %lu", (u_long)h->level);
 
 	/* Record count. */
 	if (TYPE(h) == P_IBTREE ||
 	    TYPE(h) == P_IRECNO || (TYPE(h) == P_LRECNO &&
 	    h->pgno == ((BTREE *)dbp->bt_internal)->bt_root))
 		__db_msgadd(dbenv, &mb, " records: %lu", (u_long)RE_NREC(h));
-
-	/* LSN. */
-	if (!LF_ISSET(DB_PR_RECOVERYTEST))
-		__db_msgadd(dbenv, &mb, " (lsn.file: %lu lsn.offset: %lu)",
-		    (u_long)LSN(h).file, (u_long)LSN(h).offset);
 	DB_MSGBUF_FLUSH(dbenv, &mb);
 
 	switch (TYPE(h)) {
@@ -563,11 +572,6 @@ __db_prpage(dbp, h, flags)
 	default:
 		break;
 	}
-
-	/* LSN. */
-	if (LF_ISSET(DB_PR_RECOVERYTEST))
-		__db_msg(dbenv, " (lsn.file: %lu lsn.offset: %lu)",
-		    (u_long)LSN(h).file, (u_long)LSN(h).offset);
 
 	s = "\t";
 	if (TYPE(h) != P_IBTREE && TYPE(h) != P_IRECNO) {
@@ -680,7 +684,7 @@ __db_prpage(dbp, h, flags)
 		case P_IBTREE:
 			bi = sp;
 			__db_msgadd(dbenv, &mb,
-			    "count: %4lu pgno: %4lu type: %4lu",
+			    "count: %4lu pgno: %4lu type: %lu ",
 			    (u_long)bi->nrecs, (u_long)bi->pgno,
 			    (u_long)bi->type);
 			switch (B_TYPE(bi->type)) {
@@ -867,8 +871,8 @@ __db_lockmode_to_string(mode)
 		return ("Intent shared/read");
 	case DB_LOCK_IWR:
 		return ("Intent to read/write");
-	case DB_LOCK_DIRTY:
-		return ("Dirty read");
+	case DB_LOCK_READ_UNCOMMITTED:
+		return ("Read uncommitted");
 	case DB_LOCK_WWRITE:
 		return ("Was written");
 	default:
@@ -988,25 +992,31 @@ __db_dump_pp(dbp, subname, callback, handle, pflag, keyflag)
 	int pflag, keyflag;
 {
 	DB_ENV *dbenv;
-	int handle_check, ret;
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
 
 	dbenv = dbp->dbenv;
 
 	PANIC_CHECK(dbenv);
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->dump");
 
+	ENV_ENTER(dbenv, ip);
+
 	/* Check for replication block. */
-	handle_check = IS_REPLICATED(dbenv, dbp);
-	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 1)) != 0)
-		return (ret);
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __db_rep_enter(dbp, 1, 0, 1)) != 0) {
+		handle_check = 0;
+		goto err;
+	}
 
 	ret = __db_dump(dbp, subname, callback, handle, pflag, keyflag);
 
 	/* Release replication block. */
-	if (handle_check)
-		__env_db_rep_exit(dbenv);
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
-	return (0);
+err:	ENV_LEAVE(dbenv, ip);
+	return (ret);
 }
 
 /*
@@ -1088,8 +1098,11 @@ retry: while ((ret =
 		data.ulen = data.size;
 		goto retry;
 	}
+	if (ret == DB_NOTFOUND)
+		ret = 0;
 
-	(void)__db_prfooter(handle, callback);
+	if ((t_ret = __db_prfooter(handle, callback)) != 0 && ret == 0)
+		ret = t_ret;
 
 err:	if ((t_ret = __db_c_close(dbcp)) != 0 && ret == 0)
 		ret = t_ret;
@@ -1310,39 +1323,28 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 	case DB_BTREE:
 		if ((ret = callback(handle, "type=btree\n")) != 0)
 			goto err;
-		if (using_vdp) {
-			if (F_ISSET(pip, VRFY_HAS_RECNUMS))
-				if ((ret =
-				    callback(handle, "recnum=1\n")) != 0)
-					goto err;
-			if (pip->bt_maxkey != 0) {
-				snprintf(buf, buflen,
-				    "bt_maxkey=%lu\n", (u_long)pip->bt_maxkey);
-				if ((ret = callback(handle, buf)) != 0)
-					goto err;
-			}
-			if (pip->bt_minkey != 0 &&
-			    pip->bt_minkey != DEFMINKEYPAGE) {
-				snprintf(buf, buflen,
-				    "bt_minkey=%lu\n", (u_long)pip->bt_minkey);
-				if ((ret = callback(handle, buf)) != 0)
-					goto err;
-			}
-			break;
-		}
-
-		if ((ret = __db_get_flags(dbp, &flags)) != 0) {
-			__db_err(dbenv, "DB->get_flags: %s", db_strerror(ret));
-			goto err;
-		}
-		if (F_ISSET(dbp, DB_AM_RECNUM))
-			if ((ret = callback(handle, "recnum=1\n")) != 0)
+		if (using_vdp)
+			tmp_int = F_ISSET(pip, VRFY_HAS_RECNUMS) ? 1 : 0;
+		else {
+			if ((ret = __db_get_flags(dbp, &flags)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_flags: %s", db_strerror(ret));
 				goto err;
-		if ((ret = __bam_get_bt_minkey(dbp, &tmp_u_int32)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_bt_minkey: %s", db_strerror(ret));
-			goto err;
+			}
+			tmp_int = F_ISSET(dbp, DB_AM_RECNUM) ? 1 : 0;
 		}
+		if (tmp_int && (ret = callback(handle, "recnum=1\n")) != 0)
+			goto err;
+
+		if (using_vdp)
+			tmp_u_int32 = pip->bt_minkey;
+		else
+			if ((ret =
+			    __bam_get_bt_minkey(dbp, &tmp_u_int32)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_bt_minkey: %s", db_strerror(ret));
+				goto err;
+			}
 		if (tmp_u_int32 != 0 && tmp_u_int32 != DEFMINKEYPAGE) {
 			snprintf(buf, buflen,
 			    "bt_minkey=%lu\n", (u_long)tmp_u_int32);
@@ -1354,38 +1356,35 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 #ifdef HAVE_HASH
 		if ((ret = callback(handle, "type=hash\n")) != 0)
 			goto err;
-		if (using_vdp) {
-			if (pip->h_ffactor != 0) {
-				snprintf(buf, buflen,
-				    "h_ffactor=%lu\n", (u_long)pip->h_ffactor);
-				if ((ret = callback(handle, buf)) != 0)
-					goto err;
+		if (using_vdp)
+			tmp_u_int32 = pip->h_ffactor;
+		else
+			if ((ret =
+			    __ham_get_h_ffactor(dbp, &tmp_u_int32)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_h_ffactor: %s", db_strerror(ret));
+				goto err;
 			}
-			if (pip->h_nelem != 0) {
-				snprintf(buf, buflen,
-				    "h_nelem=%lu\n", (u_long)pip->h_nelem);
-				if ((ret = callback(handle, buf)) != 0)
-					goto err;
-			}
-			break;
-		}
-		if ((ret = __ham_get_h_ffactor(dbp, &tmp_u_int32)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_h_ffactor: %s", db_strerror(ret));
-			goto err;
-		}
 		if (tmp_u_int32 != 0) {
 			snprintf(buf, buflen,
 			    "h_ffactor=%lu\n", (u_long)tmp_u_int32);
 			if ((ret = callback(handle, buf)) != 0)
 				goto err;
 		}
-		if ((ret = __ham_get_h_nelem(dbp, &tmp_u_int32)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_h_nelem: %s", db_strerror(ret));
-			goto err;
-		}
-		if (tmp_u_int32 != 0) {
+
+		if (using_vdp)
+			tmp_u_int32 = pip->h_nelem;
+		else
+			if ((ret = __ham_get_h_nelem(dbp, &tmp_u_int32)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_h_nelem: %s", db_strerror(ret));
+				goto err;
+			}
+		/*
+		 * Hash databases have an h_nelem field of 0 or 1, neither
+		 * of those values is interesting.
+		 */
+		if (tmp_u_int32 > 1) {
 			snprintf(buf, buflen,
 			    "h_nelem=%lu\n", (u_long)tmp_u_int32);
 			if ((ret = callback(handle, buf)) != 0)
@@ -1400,36 +1399,41 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 #ifdef HAVE_QUEUE
 		if ((ret = callback(handle, "type=queue\n")) != 0)
 			goto err;
-		if (vdp != NULL) {
-			snprintf(buf,
-			    buflen, "re_len=%lu\n", (u_long)vdp->re_len);
-			if ((ret = callback(handle, buf)) != 0)
+		if (using_vdp)
+			tmp_u_int32 = vdp->re_len;
+		else
+			if ((ret = __ram_get_re_len(dbp, &tmp_u_int32)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_re_len: %s", db_strerror(ret));
 				goto err;
-			break;
-		}
-		if ((ret = __ram_get_re_len(dbp, &tmp_u_int32)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_re_len: %s", db_strerror(ret));
-			goto err;
-		}
+			}
 		snprintf(buf, buflen, "re_len=%lu\n", (u_long)tmp_u_int32);
 		if ((ret = callback(handle, buf)) != 0)
 			goto err;
-		if ((ret = __ram_get_re_pad(dbp, &tmp_int)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_re_pad: %s", db_strerror(ret));
-			goto err;
-		}
+
+		if (using_vdp)
+			tmp_int = (int)vdp->re_pad;
+		else
+			if ((ret = __ram_get_re_pad(dbp, &tmp_int)) != 0) {
+				__db_err(dbenv,
+				    "DB->get_re_pad: %s", db_strerror(ret));
+				goto err;
+			}
 		if (tmp_int != 0 && tmp_int != ' ') {
 			snprintf(buf, buflen, "re_pad=%#x\n", tmp_int);
 			if ((ret = callback(handle, buf)) != 0)
 				goto err;
 		}
-		if ((ret = __qam_get_extentsize(dbp, &tmp_u_int32)) != 0) {
-			__db_err(dbenv,
-			    "DB->get_q_extentsize: %s", db_strerror(ret));
-			goto err;
-		}
+
+		if (using_vdp)
+			tmp_u_int32 = vdp->page_ext;
+		else
+			if ((ret =
+			    __qam_get_extentsize(dbp, &tmp_u_int32)) != 0) {
+				__db_err(dbenv, "DB->get_q_extentsize: %s",
+				    db_strerror(ret));
+				goto err;
+			}
 		if (tmp_u_int32 != 0) {
 			snprintf(buf, buflen,
 			    "extentsize=%lu\n", (u_long)tmp_u_int32);
@@ -1444,38 +1448,42 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 	case DB_RECNO:
 		if ((ret = callback(handle, "type=recno\n")) != 0)
 			goto err;
-		if (using_vdp) {
-			if (F_ISSET(pip, VRFY_IS_RRECNO))
+		if (using_vdp)
+			tmp_int = F_ISSET(pip, VRFY_IS_RRECNO) ? 1 : 0;
+		else
+			tmp_int = F_ISSET(dbp, DB_AM_RENUMBER) ? 1 : 0;
+		if (tmp_int != 0 &&
+		    (ret = callback(handle, "renumber=1\n")) != 0)
+				goto err;
+
+		if (using_vdp)
+			tmp_int = F_ISSET(pip, VRFY_IS_FIXEDLEN) ? 1 : 0;
+		else
+			tmp_int = F_ISSET(dbp, DB_AM_FIXEDLEN) ? 1 : 0;
+		if (tmp_int) {
+			if (using_vdp)
+				tmp_u_int32 = pip->re_len;
+			else
 				if ((ret =
-				    callback(handle, "renumber=1\n")) != 0)
+				    __ram_get_re_len(dbp, &tmp_u_int32)) != 0) {
+					__db_err(dbenv, "DB->get_re_len: %s",
+					    db_strerror(ret));
 					goto err;
-			if (pip->re_len > 0) {
-				snprintf(buf, buflen,
-				    "re_len=%lu\n", (u_long)pip->re_len);
-				if ((ret = callback(handle, buf)) != 0)
-					goto err;
-			}
-			break;
-		}
-		if (F_ISSET(dbp, DB_AM_RENUMBER))
-			if ((ret = callback(handle, "renumber=1\n")) != 0)
-				goto err;
-		if (F_ISSET(dbp, DB_AM_FIXEDLEN)) {
-			if ((ret = __ram_get_re_len(dbp, &tmp_u_int32)) != 0) {
-				__db_err(dbenv,
-				    "DB->get_re_len: %s", db_strerror(ret));
-				goto err;
-			}
+				}
 			snprintf(buf, buflen,
 			    "re_len=%lu\n", (u_long)tmp_u_int32);
 			if ((ret = callback(handle, buf)) != 0)
 				goto err;
 
-			if ((ret = __ram_get_re_pad(dbp, &tmp_int)) != 0) {
-				__db_err(dbenv,
-				    "DB->get_re_pad: %s", db_strerror(ret));
-				goto err;
-			}
+			if (using_vdp)
+				tmp_int = (int)pip->re_pad;
+			else
+				if ((ret =
+				    __ram_get_re_pad(dbp, &tmp_int)) != 0) {
+					__db_err(dbenv, "DB->get_re_pad: %s",
+					    db_strerror(ret));
+					goto err;
+				}
 			if (tmp_int != 0 && tmp_int != ' ') {
 				snprintf(buf,
 				    buflen, "re_pad=%#x\n", (u_int)tmp_int);
@@ -1493,13 +1501,21 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 	}
 
 	if (using_vdp) {
+		if (F_ISSET(pip, VRFY_HAS_CHKSUM))
+			if ((ret = callback(handle, "chksum=1\n")) != 0)
+				goto err;
 		if (F_ISSET(pip, VRFY_HAS_DUPS))
 			if ((ret = callback(handle, "duplicates=1\n")) != 0)
 				goto err;
 		if (F_ISSET(pip, VRFY_HAS_DUPSORT))
 			if ((ret = callback(handle, "dupsort=1\n")) != 0)
 				goto err;
-		/* We should handle page size. XXX */
+		/*
+		 * !!!
+		 * We don't know if the page size was the default if we're
+		 * salvaging.  It doesn't seem that interesting to have, so
+		 * we ignore it for now.
+		 */
 	} else {
 		if (F_ISSET(dbp, DB_AM_CHKSUM))
 			if ((ret = callback(handle, "chksum=1\n")) != 0)

@@ -114,3 +114,26 @@ drop table t1;
 select hex(cast(0x10 as binary(2)));
 hex(cast(0x10 as binary(2)))
 1000
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'vb' at row 1
+drop table t1;
+create table t1 (c char(2), vc varchar(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+Warnings:
+Note	1265	Data truncated for column 'vc' at row 1
+drop table t1;
+set @old_sql_mode= @@sql_mode, sql_mode= 'traditional';
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, NULL);
+ERROR 22001: Data too long for column 'b' at row 1
+insert into t1 values(NULL, 0x412020);
+ERROR 22001: Data too long for column 'vb' at row 1
+drop table t1;
+set @@sql_mode= @old_sql_mode;
+End of 5.0 tests

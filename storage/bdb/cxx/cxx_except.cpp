@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_except.cpp,v 11.28 2004/09/22 03:34:48 bostic Exp $
+ * $Id: cxx_except.cpp,v 12.2 2005/10/14 12:20:04 mjc Exp $
  */
 
 #include "db_config.h"
@@ -293,6 +293,35 @@ DbLock* DbLockNotGrantedException::get_lock() const
 int DbLockNotGrantedException::get_index() const
 {
 	return index_;
+}
+
+////////////////////////////////////////////////////////////////////////
+//                                                                    //
+//                            DbRepHandleDeadException                //
+//                                                                    //
+////////////////////////////////////////////////////////////////////////
+
+DbRepHandleDeadException::~DbRepHandleDeadException() throw()
+{
+}
+
+DbRepHandleDeadException::DbRepHandleDeadException(const char *description)
+:	DbException(description, DB_REP_HANDLE_DEAD)
+{
+}
+
+DbRepHandleDeadException::DbRepHandleDeadException
+    (const DbRepHandleDeadException &that)
+:	DbException(that)
+{
+}
+
+DbRepHandleDeadException
+&DbRepHandleDeadException::operator =(const DbRepHandleDeadException &that)
+{
+	if (this != &that)
+		DbException::operator=(that);
+	return (*this);
 }
 
 ////////////////////////////////////////////////////////////////////////

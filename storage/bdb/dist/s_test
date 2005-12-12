@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_test,v 1.29 2004/05/13 18:51:43 mjc Exp $
+#	$Id: s_test,v 12.2 2005/06/23 15:26:39 carol Exp $
 #
 # Build the Tcl test files.
 
@@ -30,9 +30,13 @@ trap 'rm -f $t; exit 0' 0 1 2 3 13 15
  echo "global dict"				&& \
  echo "global util_path"			&& \
  echo ""					&& \
+ echo "global is_freebsd_test"			&& \
  echo "global is_hp_test"			&& \
+ echo "global is_linux_test"			&& \
  echo "global is_qnx_test"			&& \
+ echo "global is_sunos_test"			&& \
  echo "global is_windows_test"			&& \
+ echo "global is_windows9x_test"		&& \
  echo ""					&& \
  echo "set KILL \"@db_cv_path_kill@\"") > $t
 
@@ -55,9 +59,13 @@ cmp $t $f > /dev/null 2>&1 ||
  echo "global dict"				&& \
  echo "global util_path"			&& \
  echo ""					&& \
+ echo "global is_freebsd_test"			&& \
  echo "global is_hp_test"			&& \
+ echo "global is_linux_test"			&& \
  echo "global is_qnx_test"			&& \
+ echo "global is_sunos_test"			&& \
  echo "global is_windows_test"			&& \
+ echo "global is_windows9x_test"		&& \
  echo ""					&& \
  echo "set KILL ./dbkill.exe") > $t
 

@@ -248,13 +248,13 @@ return i+1|
 call sub1("sub1a", (select 7))|
 call sub1("sub1b", (select max(i) from t2))|
 call sub1("sub1c", (select i,d from t2 limit 1))|
+ERROR 21000: Operand should contain 1 column(s)
 call sub1("sub1d", (select 1 from (select 1) a))|
 call sub2("sub2")|
 select * from t1|
 id	data
 sub1a	7
 sub1b	3
-sub1c	1
 sub1d	1
 sub2	6
 select sub3((select max(i) from t2))|
@@ -2686,7 +2686,7 @@ call bug8937()|
 s	x	y	z
 16	3	1	6
 a
-3.2000
+3.2
 drop procedure bug8937|
 delete from t1|
 drop procedure if exists bug6900|
@@ -2890,21 +2890,30 @@ create function bug9775(v1 char(1)) returns enum('a','b') return v1|
 select bug9775('a'),bug9775('b'),bug9775('c')|
 bug9775('a')	bug9775('b')	bug9775('c')
 a	b	
+Warnings:
+Warning	1265	Data truncated for column 'bug9775('c')' at row 1
 drop function bug9775|
 create function bug9775(v1 int) returns enum('a','b') return v1|
 select bug9775(1),bug9775(2),bug9775(3)|
 bug9775(1)	bug9775(2)	bug9775(3)
 a	b	
+Warnings:
+Warning	1265	Data truncated for column 'bug9775(3)' at row 1
 drop function bug9775|
 create function bug9775(v1 char(1)) returns set('a','b') return v1|
 select bug9775('a'),bug9775('b'),bug9775('a,b'),bug9775('c')|
 bug9775('a')	bug9775('b')	bug9775('a,b')	bug9775('c')
-a	b	a,b	
+a	b	a	
+Warnings:
+Warning	1265	Data truncated for column 'v1' at row 1
+Warning	1265	Data truncated for column 'bug9775('c')' at row 1
 drop function bug9775|
 create function bug9775(v1 int) returns set('a','b') return v1|
 select bug9775(1),bug9775(2),bug9775(3),bug9775(4)|
 bug9775(1)	bug9775(2)	bug9775(3)	bug9775(4)
 a	b	a,b	
+Warnings:
+Warning	1265	Data truncated for column 'bug9775(4)' at row 1
 drop function bug9775|
 drop function if exists bug8861|
 create function bug8861(v1 int) returns year return v1|
@@ -2927,12 +2936,10 @@ create procedure bug9004_2(x char(16))
 call bug9004_1(x)|
 call bug9004_1('12345678901234567')|
 Warnings:
-Warning	1265	Data truncated for column 'id' at row 1
-Warning	1265	Data truncated for column 'id' at row 2
+Warning	1265	Data truncated for column 'x' at row 1
 call bug9004_2('12345678901234567890')|
 Warnings:
-Warning	1265	Data truncated for column 'id' at row 1
-Warning	1265	Data truncated for column 'id' at row 2
+Warning	1265	Data truncated for column 'x' at row 1
 delete from t1|
 drop procedure bug9004_1|
 drop procedure bug9004_2|
@@ -3527,14 +3534,15 @@ end|
 call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(1,0) unsigned default NULL
+  `spv1` decimal(3,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: 'test'
+Warning	1264	Out of range value for column 'spv1' at row 1
+Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
-  `spv1` decimal(6,3) unsigned default NULL
+  `spv1` decimal(6,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 call bug12589_3()|
 Table	Create Table
@@ -4016,34 +4024,37 @@ create procedure bug14643_1()
 begin
 declare continue handler for sqlexception select 'boo' as 'Handler';
 begin
-declare v int default x;
+declare v int default undefined_var;
 if v = 1 then
 select 1;
 else
-select 2;
+select v, isnull(v);
 end if;
 end;
 end|
 create procedure bug14643_2()
 begin
 declare continue handler for sqlexception select 'boo' as 'Handler';
-case x
+case undefined_var
 when 1 then
 select 1;
 else
 select 2;
 end case;
+select undefined_var;
 end|
 call bug14643_1()|
 Handler
 boo
-2
-2
+v	isnull(v)
+NULL	1
 call bug14643_2()|
 Handler
 boo
 2
 2
+Handler
+boo
 drop procedure bug14643_1|
 drop procedure bug14643_2|
 drop procedure if exists bug14304|
@@ -4100,8 +4111,6 @@ x
 4711
 drop procedure bug14376|
 drop procedure if exists p1|
-Warnings:
-Note	1305	PROCEDURE p1 does not exist
 drop table if exists t1|
 create table t1 (a varchar(255))|
 insert into t1 (a) values ("a - table column")|
@@ -4153,4 +4162,141 @@ A local variable in a nested compound statement takes precedence over table colu
 a - local variable in a nested compound statement
 A local variable in a nested compound statement takes precedence over table column in cursors
 a - local variable in a nested compound statement
+drop procedure p1|
+drop procedure if exists bug13012|
+create procedure bug13012()
+BEGIN
+REPAIR TABLE t1;
+BACKUP TABLE t1 to '../tmp';
+DROP TABLE t1;
+RESTORE TABLE t1 FROM '../tmp';
+END|
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	backup	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	restore	status	OK
+drop procedure bug13012|
+create view v1 as select * from t1|
+create procedure bug13012()
+BEGIN
+REPAIR TABLE t1,t2,t3,v1;
+OPTIMIZE TABLE t1,t2,t3,v1;
+ANALYZE TABLE t1,t2,t3,v1;
+END|
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+call bug13012()|
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+test.t3	repair	error	Table 'test.t3' doesn't exist
+test.v1	repair	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+test.t2	optimize	status	OK
+test.t3	optimize	error	Table 'test.t3' doesn't exist
+test.v1	optimize	error	'test.v1' is not BASE TABLE
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+test.t2	analyze	status	Table is already up to date
+test.t3	analyze	error	Table 'test.t3' doesn't exist
+test.v1	analyze	error	'test.v1' is not BASE TABLE
+Warnings:
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+Error	1146	Table 'test.t3' doesn't exist
+Error	1347	'test.v1' is not BASE TABLE
+drop procedure bug13012|
+drop view v1;
+select * from t1|
+a
+a - table column
+drop schema if exists mysqltest1|
+Warnings:
+Note	1008	Can't drop database 'mysqltest1'; database doesn't exist
+drop schema if exists mysqltest2|
+Warnings:
+Note	1008	Can't drop database 'mysqltest2'; database doesn't exist
+drop schema if exists mysqltest3|
+Warnings:
+Note	1008	Can't drop database 'mysqltest3'; database doesn't exist
+create schema mysqltest1|
+create schema mysqltest2|
+create schema mysqltest3|
+use mysqltest3|
+create procedure mysqltest1.p1 (out prequestid varchar(100))
+begin
+call mysqltest2.p2('call mysqltest3.p3(1, 2)');
+end|
+create procedure mysqltest2.p2(in psql text)
+begin
+declare lsql text;
+set @lsql= psql;
+prepare lstatement from @lsql;
+execute lstatement;
+deallocate prepare lstatement;
+end|
+create procedure mysqltest3.p3(in p1 int)
+begin
+select p1;
+end|
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+call mysqltest1.p1(@rs)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysqltest3.p3; expected 1, got 2
+drop schema if exists mysqltest1|
+drop schema if exists mysqltest2|
+drop schema if exists mysqltest3|
+use test|
 drop table t1,t2;

@@ -34,8 +34,16 @@ typedef struct sp_pvar
   LEX_STRING name;
   enum enum_field_types type;
   sp_param_mode_t mode;
-  uint offset;			// Offset in current frame
+  
+  /*
+    offset -- basically, this is an index of variable in the scope of root
+    parsing context. This means, that all variables in a stored routine
+    have distinct indexes/offsets.
+  */
+  uint offset;
+
   Item *dflt;
+  create_field field_def;
 } sp_pvar_t;
 
 
@@ -114,9 +122,9 @@ class sp_pcontext : public Sql_alloc
   //
 
   inline uint
-  max_pvars()
+  total_pvars()
   {
-    return m_psubsize + m_pvar.elements;
+    return m_total_pvars;
   }
 
   inline uint
@@ -155,16 +163,15 @@ class sp_pcontext : public Sql_alloc
       p->dflt= it;
   }
 
-  void
+  sp_pvar_t *
   push_pvar(LEX_STRING *name, enum enum_field_types type, sp_param_mode_t mode);
 
-  // Pop the last 'num' slots of the frame
-  inline void
-  pop_pvar(uint num = 1)
-  {
-    while (num--)
-      pop_dynamic(&m_pvar);
-  }
+  /*
+    Retrieve definitions of fields from the current context and its
+    children.
+  */
+  void
+  retrieve_field_definitions(List<create_field> *field_def_lst);
 
   // Find by name
   sp_pvar_t *
@@ -175,13 +182,52 @@ class sp_pcontext : public Sql_alloc
   find_pvar(uint offset);
 
   /*
-    Set the current scope boundary (for default values)
+    Set the current scope boundary (for default values).
     The argument is the number of variables to skip.   
   */
   inline void
   declare_var_boundary(uint n)
   {
     m_pboundary= n;
+  }
+
+  /*
+    CASE expressions support.
+  */
+
+  inline int
+  register_case_expr()
+  {
+    return m_num_case_exprs++;
+  }
+
+  inline int
+  get_num_case_exprs() const
+  {
+    return m_num_case_exprs;
+  }
+
+  inline bool
+  push_case_expr_id(int case_expr_id)
+  {
+    return insert_dynamic(&m_case_expr_id_lst, (gptr) &case_expr_id);
+  }
+
+  inline void
+  pop_case_expr_id()
+  {
+    pop_dynamic(&m_case_expr_id_lst);
+  }
+
+  inline int
+  get_current_case_expr_id() const
+  {
+    int case_expr_id;
+
+    get_dynamic((DYNAMIC_ARRAY*)&m_case_expr_id_lst, (gptr) &case_expr_id,
+                m_case_expr_id_lst.elements - 1);
+
+    return case_expr_id;
   }
 
   //
@@ -280,8 +326,18 @@ class sp_pcontext : public Sql_alloc
 
 protected:
 
+  /*
+    m_total_pvars -- number of variables (including all types of arguments)
+    in this context including all children contexts.
+    
+    m_total_pvars >= m_pvar.elements.
+
+    m_total_pvars of the root parsing context contains number of all
+    variables (including arguments) in all enclosed contexts.
+  */
+  uint m_total_pvars;		
+
   // The maximum sub context's framesizes
-  uint m_psubsize;		
   uint m_csubsize;
   uint m_hsubsize;
   uint m_handlers;		// No. of handlers in this context
@@ -290,8 +346,19 @@ private:
 
   sp_pcontext *m_parent;	// Parent context
 
-  uint m_poffset;		// Variable offset for this context
+  /*
+    m_poffset -- basically, this is an index of the first variable in this
+    parsing context.
+    
+    m_poffset is 0 for root context.
+
+    Since now each variable is stored in separate place, no reuse is done,
+    so m_poffset is different for all enclosed contexts.
+  */
+  uint m_poffset;
+
   uint m_coffset;		// Cursor offset for this context
+
   /*
     Boundary for finding variables in this context. This is the number
     of variables currently "invisible" to default clauses.
@@ -300,7 +367,10 @@ private:
   */
   uint m_pboundary;
 
+  int m_num_case_exprs;
+
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
+  DYNAMIC_ARRAY m_case_expr_id_lst; /* Stack of CASE expression ids. */
   DYNAMIC_ARRAY m_cond;		// Conditions
   DYNAMIC_ARRAY m_cursor;	// Cursors
   DYNAMIC_ARRAY m_handler;	// Handlers, for checking of duplicates

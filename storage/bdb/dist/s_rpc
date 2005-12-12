@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_rpc,v 11.20 2004/03/11 20:11:17 bostic Exp $
+#	$Id: s_rpc,v 12.0 2004/11/17 03:43:35 bostic Exp $
 #
 # Build the automatically generated RPC files
 

@@ -1,5 +1,5 @@
 #!/bin/bash -
-#	$Id: s_winmsi,v 1.6 2005/04/15 18:48:57 philipr Exp $
+#	$Id: s_winmsi,v 1.7 2005/10/26 13:29:32 dda Exp $
 #
 # Note: The s_winmsi script in Berkeley DB core closely parallels the
 # s_winmsi script in Berkeley DB/XML.  If you change one,
@@ -71,6 +71,14 @@ PRODUCT_SHARED_WINMSIDIR=`pwd`/winmsi
 PRODUCT_IMAGEDIR=$PRODUCT_SHARED_WINMSIDIR/images
 PRODUCT_ZIP_FILEFMT="db-X.Y.Z.NC.zip"
 PRODUCT_MSI_FILEFMT="db-X.Y.Z.NC.msi"
+
+PRODUCT_MAJOR=`echo "$PRODUCT_VERSION" | \
+    sed -e 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\1/'`
+PRODUCT_MINOR=`echo "$PRODUCT_VERSION" | \
+    sed -e 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\2/'`
+PRODUCT_PATCH=`echo "$PRODUCT_VERSION" | \
+    sed -e 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3/'`
+PRODUCT_MAJMIN="${PRODUCT_MAJOR}${PRODUCT_MINOR}"
 
 # Gather command line options, and use reasonable defaults
 SetupOptions \

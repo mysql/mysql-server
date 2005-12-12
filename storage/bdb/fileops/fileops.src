@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: fileops.src,v 1.13 2004/06/17 17:35:20 bostic Exp $
+ * $Id: fileops.src,v 12.2 2005/06/16 20:22:47 bostic Exp $
  */
 
 PREFIX	__fop
@@ -20,7 +20,6 @@ INCLUDE
 INCLUDE #include "db_int.h"
 INCLUDE #include "dbinc/crypto.h"
 INCLUDE #include "dbinc/db_page.h"
-INCLUDE #include "dbinc/db_dispatch.h"
 INCLUDE #include "dbinc/db_am.h"
 INCLUDE #include "dbinc/log.h"
 INCLUDE #include "dbinc/txn.h"

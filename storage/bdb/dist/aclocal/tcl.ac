@@ -1,4 +1,4 @@
-# $Id: tcl.ac,v 11.18 2004/03/11 20:11:17 bostic Exp $
+# $Id: tcl.ac,v 12.2 2005/06/28 20:45:25 gmf Exp $
 
 # The SC_* macros in this file are from the unix/tcl.m4 files in the Tcl
 # 8.3.0 distribution, with some minor changes.  For this reason, license
@@ -93,12 +93,11 @@ AC_DEFUN(SC_LOAD_TCLCONFIG, [
 		AC_MSG_ERROR([Berkeley DB requires Tcl version 8.4 or better.])
 	fi
 
-	#
-	# The eval is required to do the TCL_DBGX substitution in the
-	# TCL_LIB_FILE variable
-	#
-	eval TCL_LIB_FILE="${TCL_LIB_FILE}"
-	eval TCL_LIB_FLAG="${TCL_LIB_FLAG}"
+	# The eval is required to do substitution (for example, the TCL_DBGX
+	# substitution in the TCL_LIB_FILE variable.
+	eval "TCL_INCLUDE_SPEC=\"${TCL_INCLUDE_SPEC}\""
+	eval "TCL_LIB_FILE=\"${TCL_LIB_FILE}\""
+	eval "TCL_LIB_FLAG=\"${TCL_LIB_FLAG}\""
 	eval "TCL_LIB_SPEC=\"${TCL_LIB_SPEC}\""
 
 	#
@@ -115,8 +114,9 @@ AC_DEFUN(SC_LOAD_TCLCONFIG, [
 		LIBTSO_LIBS="$LIBTSO_LIBS $TCL_LIB_SPEC $TCL_LIB_FLAG";;
 	esac
 	AC_SUBST(TCL_BIN_DIR)
-	AC_SUBST(TCL_SRC_DIR)
+	AC_SUBST(TCL_INCLUDE_SPEC)
 	AC_SUBST(TCL_LIB_FILE)
+	AC_SUBST(TCL_SRC_DIR)
 
 	AC_SUBST(TCL_TCLSH)
 	TCL_TCLSH="${TCL_PREFIX}/bin/tclsh${TCL_VERSION}"
@@ -128,14 +128,8 @@ AC_DEFUN(AM_TCL_LOAD, [
 		AC_MSG_ERROR([Tcl requires shared libraries])
 	fi
 
-	AC_SUBST(TCFLAGS)
-
 	SC_PATH_TCLCONFIG
 	SC_LOAD_TCLCONFIG
-
-	if test x"$TCL_PREFIX" != x && test -f "$TCL_PREFIX/include/tcl.h"; then
-		TCFLAGS="-I$TCL_PREFIX/include"
-	fi
 
 	INSTALL_LIBS="${INSTALL_LIBS} \$(libtso_target)"
 ])

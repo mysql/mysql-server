@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash_page.c,v 11.102 2004/09/22 21:14:56 ubell Exp $
+ * $Id: hash_page.c,v 12.7 2005/10/13 22:22:43 ubell Exp $
  */
 
 #include "db_config.h"
@@ -842,21 +842,26 @@ __ham_replpair(dbc, dbt, make_dup)
 	DB_LSN	new_lsn;
 	HASH_CURSOR *hcp;
 	u_int32_t change;
-	u_int32_t dup_flag, len, memsize;
+	u_int32_t dup_flag, len, memsize, newlen;
 	int beyond_eor, is_big, is_plus, ret, type;
 	u_int8_t *beg, *dest, *end, *hk, *src;
 	void *memp;
 
 	/*
-	 * Big item replacements are handled in generic code.
-	 * Items that fit on the current page fall into 4 classes.
-	 * 1. On-page element, same size
-	 * 2. On-page element, new is bigger (fits)
-	 * 3. On-page element, new is bigger (does not fit)
-	 * 4. On-page element, old is bigger
-	 * Numbers 1, 2, and 4 are essentially the same (and should
-	 * be the common case).  We handle case 3 as a delete and
-	 * add.
+	 * Items that were already offpage (ISBIG) were handled before
+	 * we get in here.  So, we need only handle cases where the old
+	 * key is on a regular page.  That leaves us 6 cases:
+	 * 1. Original data onpage; new data is smaller
+	 * 2. Original data onpage; new data is the same size
+	 * 3. Original data onpage; new data is bigger, but not ISBIG,
+	 *    fits on page
+	 * 4. Original data onpage; new data is bigger, but not ISBIG,
+	 *    does not fit on page
+	 * 5. Original data onpage; New data is an off-page item.
+	 * 6. Original data was offpage; new item is smaller.
+	 *
+	 * Cases 1-3 are essentially the same (and should be the common case).
+	 * We handle 4-6 as delete and add.
 	 */
 	dbp = dbc->dbp;
 	dbenv = dbp->dbenv;
@@ -891,7 +896,7 @@ __ham_replpair(dbc, dbt, make_dup)
 	beyond_eor = dbt->doff + dbt->dlen > len;
 	if (beyond_eor) {
 		/*
-		 * The change is beyond the end of file.  If change
+		 * The change is beyond the end of record.  If change
 		 * is a positive number, we can simply add the extension
 		 * to it.  However, if change is negative, then we need
 		 * to figure out if the extension is larger than the
@@ -907,10 +912,21 @@ __ham_replpair(dbc, dbt, make_dup)
 			change -= (dbt->doff + dbt->dlen - len);
 	}
 
-	if ((is_plus && change > P_FREESPACE(dbp, hcp->page)) ||
+	newlen = (is_plus ? len + change : len - change);
+	if (ISBIG(hcp, newlen) ||
+	    (is_plus && change > P_FREESPACE(dbp, hcp->page)) ||
 	    beyond_eor || is_big) {
+	    	/* 
+		 * If we are in cases 4 or 5 then is_plus will be true.
+		 * If we don't have a transaction then we cannot roll back,
+		 * make sure there is enough room for the new page.
+		 */
+		if (is_plus && dbc->txn == NULL &&
+		    dbp->mpf->mfp->maxpgno != 0 &&
+		    dbp->mpf->mfp->maxpgno == dbp->mpf->mfp->last_pgno)
+		    	return (__db_space_err(dbp));
 		/*
-		 * Case 3 -- two subcases.
+		 * Cases 4-6 -- two subcases.
 		 * A. This is not really a partial operation, but an overwrite.
 		 *    Simple del and add works.
 		 * B. This is a partial and we need to construct the data that
@@ -1344,7 +1360,8 @@ __ham_add_el(dbc, key, val, type)
 	HASH_CURSOR *hcp;
 	HOFFPAGE doff, koff;
 	db_pgno_t next_pgno, pgno;
-	u_int32_t data_size, key_size, pairsize, rectype;
+	u_int32_t data_size, key_size;
+	u_int32_t pages, pagespace, pairsize, rectype;
 	int do_expand, is_keybig, is_databig, ret;
 	int key_type, data_type;
 
@@ -1393,6 +1410,24 @@ __ham_add_el(dbc, key, val, type)
 		    (PAGE *)hcp->page, 1, (PAGE **)&hcp->page)) != 0)
 			return (ret);
 		hcp->pgno = PGNO(hcp->page);
+	}
+
+	/*
+	 * If we don't have a transaction then make sure we will not
+	 * run out of file space before updating the key or data.
+	 */
+	if (dbc->txn == NULL &&
+	    dbp->mpf->mfp->maxpgno != 0 && (is_keybig || is_databig)) {
+		pagespace = P_MAXSPACE(dbp, dbp->pgsize);
+		pages = 0;
+		if (is_databig) 
+			pages = ((data_size - 1) / pagespace) + 1;
+		if (is_keybig) {
+			pages += ((key->size - 1) / pagespace) + 1;
+			if (pages >
+			    (dbp->mpf->mfp->maxpgno - dbp->mpf->mfp->last_pgno))
+				return (__db_space_err(dbp));
+		}
 	}
 
 	/*
@@ -1612,7 +1647,8 @@ __ham_get_cpage(dbc, mode)
 		 */
 		if ((LOCK_ISSET(hcp->lock) &&
 		    ((hcp->lock_mode == DB_LOCK_READ ||
-		    F_ISSET(dbp, DB_AM_DIRTY)) && mode == DB_LOCK_WRITE))) {
+		    F_ISSET(dbp, DB_AM_READ_UNCOMMITTED)) &&
+		    mode == DB_LOCK_WRITE))) {
 			/* Case 3. */
 			tmp_lock = hcp->lock;
 			LOCK_INIT(hcp->lock);
@@ -1628,7 +1664,7 @@ __ham_get_cpage(dbc, mode)
 			hcp->lock_mode = mode;
 			hcp->lbucket = hcp->bucket;
 			/* Case 3: release the original lock. */
-			if ((ret = __ENV_LPUT(dbp->dbenv, tmp_lock, 0)) != 0)
+			if ((ret = __ENV_LPUT(dbp->dbenv, tmp_lock)) != 0)
 				return (ret);
 		} else if (LOCK_ISSET(tmp_lock))
 			hcp->lock = tmp_lock;
@@ -1829,7 +1865,7 @@ __ham_c_delpg(dbc, old_pgno, new_pgno, num_ent, op, orderp)
 	my_txn = IS_SUBTRANSACTION(dbc->txn) ? dbc->txn : NULL;
 	found = 0;
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	/*
 	 * Find the highest order of any cursor our movement
 	 * may collide with.
@@ -1838,7 +1874,7 @@ __ham_c_delpg(dbc, old_pgno, new_pgno, num_ent, op, orderp)
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links)) {
 			if (cp == dbc || cp->dbtype != DB_HASH)
@@ -1855,13 +1891,13 @@ __ham_c_delpg(dbc, old_pgno, new_pgno, num_ent, op, orderp)
 				    F_ISSET(hcp, H_DELETED)));
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbp->mutex);
 	}
 
 	for (ldbp = __dblist_get(dbenv, dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links)) {
 			if (cp == dbc || cp->dbtype != DB_HASH)
@@ -1906,9 +1942,9 @@ __ham_c_delpg(dbc, old_pgno, new_pgno, num_ent, op, orderp)
 					found = 1;
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	if (found != 0 && DBC_LOGGING(dbc)) {
 		if ((ret = __ham_chgpg_log(dbp, my_txn, &lsn, 0, op,

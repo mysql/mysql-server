@@ -124,7 +124,7 @@ begin
 declare x int;
 set x = val+3;
 end|
-ERROR 42000: No RETURN found in FUNCTION f
+ERROR 42000: No RETURN found in FUNCTION test.f
 create function f(val int) returns int
 begin
 declare x int;
@@ -768,7 +768,7 @@ BEGIN
 OPTIMIZE TABLE t1;
 RETURN 1;
 END|
-ERROR 0A000: OPTIMIZE TABLE is not allowed in stored procedures
+ERROR 0A000: Not allowed to return a result set from a function
 DROP FUNCTION IF EXISTS bug12995|
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN
@@ -981,6 +981,8 @@ END |
 drop table t1|
 drop function bug_13627_f|
 drop function if exists bug12329;
+Warnings:
+Note	1305	FUNCTION bug12329 does not exist
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);
@@ -1055,3 +1057,34 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop database mysqltest2;
 use test;
+DROP FUNCTION IF EXISTS bug13012|
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+REPAIR TABLE t1;
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+BACKUP TABLE t1 TO '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+CREATE FUNCTION bug13012() RETURNS INT
+BEGIN
+RESTORE TABLE t1 FROM '/tmp';
+RETURN 1;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+create table t1 (a int)|
+CREATE PROCEDURE bug13012_1() REPAIR TABLE t1|
+CREATE FUNCTION bug13012_2() RETURNS INT
+BEGIN
+CALL bug13012_1();
+RETURN 1;
+END|
+SELECT bug13012_2()|
+ERROR 0A000: Not allowed to return a result set from a function
+drop table t1|
+drop procedure bug13012_1|
+drop function bug13012_2|

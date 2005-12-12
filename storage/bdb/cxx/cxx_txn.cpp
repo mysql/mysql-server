@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_txn.cpp,v 11.33 2004/09/22 22:20:31 mjc Exp $
+ * $Id: cxx_txn.cpp,v 12.2 2005/06/16 20:21:03 bostic Exp $
  */
 
 #include "db_config.h"
@@ -67,7 +67,9 @@ u_int32_t DbTxn::id()
 	return (txn->id(txn));		// no error
 }
 
+DBTXN_METHOD(get_name, 0, (const char **namep), (txn, namep))
 DBTXN_METHOD(prepare, 0, (u_int8_t *gid), (txn, gid))
+DBTXN_METHOD(set_name, 0, (const char *name), (txn, name))
 DBTXN_METHOD(set_timeout, 0, (db_timeout_t timeout, u_int32_t flags),
     (txn, timeout, flags))
 

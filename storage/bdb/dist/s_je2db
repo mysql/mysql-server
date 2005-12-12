@@ -52,7 +52,7 @@ E1='s/com\.sleepycat\.je/com.sleepycat.db/g'
 E2='/import com\.sleepycat\.db\.ForeignKeyNullifier/d'
 E3='/implements/s/, ForeignKeyNullifier//'
 E4='/<!-- begin JE only -->/,/<!-- end JE only -->/d'
-EXCLUDETESTS="\(\(ForeignKeyTest\)\|\(TupleSerialFactoryTest\)\)"
+EXCLUDETESTS="\(\(ForeignKeyTest\)\|\(TupleSerialFactoryTest\)\\|\(XACollectionTest\)\)"
 
 cd "$JESRC"
 for f in `find . -name '*.java' | grep $DIRMATCH` ; do

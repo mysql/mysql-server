@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_rw.c,v 11.39 2004/09/17 22:00:31 mjc Exp $
+ * $Id: os_rw.c,v 12.5 2005/08/10 15:47:26 bostic Exp $
  */
 
 #include "db_config.h"
@@ -14,7 +14,6 @@
 #include <sys/stat.h>
 
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -78,7 +77,7 @@ __os_io(dbenv, op, fhp, pgno, pagesize, buf, niop)
 	}
 slow:
 #endif
-	MUTEX_THREAD_LOCK(dbenv, fhp->mutexp);
+	MUTEX_LOCK(dbenv, fhp->mtx_fh);
 
 	if ((ret = __os_seek(dbenv, fhp,
 	    pagesize, pgno, 0, 0, DB_OS_SEEK_SET)) != 0)
@@ -95,7 +94,7 @@ slow:
 		break;
 	}
 
-err:	MUTEX_THREAD_UNLOCK(dbenv, fhp->mutexp);
+err:	MUTEX_UNLOCK(dbenv, fhp->mtx_fh);
 
 	return (ret);
 
@@ -206,6 +205,19 @@ __os_physwrite(dbenv, fhp, addr, len, nwp)
 		    cur_off <= sb.st_size);
 	}
 #endif
+
+	/*
+	 * Make a last "panic" check.  Imagine a thread of control running in
+	 * Berkeley DB, going to sleep.  Another thread of control decides to
+	 * run recovery because the environment is broken.  The first thing
+	 * recovery does is panic the existing environment, but we only check
+	 * the panic flag when crossing the public API.  If the sleeping thread
+	 * wakes up and writes something, we could have two threads of control
+	 * writing the log files at the same time.  So, before writing, make a
+	 * last panic check.  Obviously, there's still a window, but it's very,
+	 * very small.
+	 */
+	PANIC_CHECK(dbenv);
 
 	if (DB_GLOBAL(j_write) != NULL) {
 		*nwp = len;
