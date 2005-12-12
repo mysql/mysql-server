@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp.h,v 11.61 2004/09/17 22:00:27 mjc Exp $
+ * $Id: mp.h,v 12.5 2005/08/08 14:52:30 bostic Exp $
  */
 
 #ifndef	_DB_MP_H_
@@ -42,9 +42,14 @@ typedef enum {
  */
 struct __db_mpool {
 	/* These fields need to be protected for multi-threaded support. */
-	DB_MUTEX   *mutexp;		/* Structure thread lock. */
+	db_mutex_t mutex;		/* Thread mutex. */
 
-					/* List of pgin/pgout routines. */
+	/*
+	 * DB_MPREG structure for the DB pgin/pgout routines.
+	 *
+	 * Linked list of application-specified pgin/pgout routines.
+	 */
+	DB_MPREG *pg_inout;
 	LIST_HEAD(__db_mpregh, __db_mpreg) dbregq;
 
 					/* List of DB_MPOOLFILE's. */
@@ -102,6 +107,20 @@ struct __db_mpreg {
 #define	NBUCKET(mc, mf_offset, pgno)					\
 	(((pgno) ^ ((mf_offset) << 9)) % (mc)->htab_buckets)
 
+/* Macros to lock/unlock the mpool region as a whole. */
+#define	MPOOL_SYSTEM_LOCK(dbenv)					\
+	MUTEX_LOCK(dbenv, ((MPOOL *)((DB_MPOOL *)			\
+	    (dbenv)->mp_handle)->reginfo[0].primary)->mtx_region)
+#define	MPOOL_SYSTEM_UNLOCK(dbenv)					\
+	MUTEX_UNLOCK(dbenv, ((MPOOL *)((DB_MPOOL *)			\
+	    (dbenv)->mp_handle)->reginfo[0].primary)->mtx_region)
+
+/* Macros to lock/unlock a specific mpool region. */
+#define	MPOOL_REGION_LOCK(dbenv, infop)					\
+	MUTEX_LOCK(dbenv, ((MPOOL *)(infop)->primary)->mtx_region)
+#define	MPOOL_REGION_UNLOCK(dbenv, infop)				\
+	MUTEX_UNLOCK(dbenv, ((MPOOL *)(infop)->primary)->mtx_region)
+
 /*
  * MPOOL --
  *	Shared memory pool region.
@@ -117,6 +136,7 @@ struct __mpool {
 	 * the first of these pieces/files describes the entire pool, the
 	 * second only describe a piece of the cache.
 	 */
+	db_mutex_t	mtx_region;	/* Region mutex. */
 
 	/*
 	 * The lsn field and list of underlying MPOOLFILEs are thread protected
@@ -139,10 +159,6 @@ struct __mpool {
 	 */
 	u_int32_t nreg;			/* Number of underlying REGIONS. */
 	roff_t	  regids;		/* Array of underlying REGION Ids. */
-
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	roff_t	  maint_off;		/* Maintenance information offset */
-#endif
 
 	/*
 	 * The following structure fields only describe the per-cache portion
@@ -176,23 +192,12 @@ struct __mpool {
 };
 
 struct __db_mpool_hash {
-	DB_MUTEX	hash_mutex;	/* Per-bucket mutex. */
+	db_mutex_t	mtx_hash;	/* Per-bucket mutex. */
 
 	DB_HASHTAB	hash_bucket;	/* Head of bucket. */
 
 	u_int32_t	hash_page_dirty;/* Count of dirty pages. */
 	u_int32_t	hash_priority;	/* Minimum priority of bucket buffer. */
-
-#ifdef	HPUX_MUTEX_PAD
-	/*
-	 * !!!
-	 * We allocate the mpool hash buckets as an array, which means that
-	 * they are not individually aligned.  This fails on one platform:
-	 * HPUX 10.20, where mutexes require 16 byte alignment.   This is a
-	 * grievous hack for that single platform.
-	 */
-	u_int8_t	pad[HPUX_MUTEX_PAD];
-#endif
 };
 
 /*
@@ -218,13 +223,25 @@ struct __db_mpool_hash {
  *	Shared DB_MPOOLFILE information.
  */
 struct __mpoolfile {
-	DB_MUTEX mutex;
+	db_mutex_t mutex;		/* MPOOLFILE mutex. */
 
 	/* Protected by MPOOLFILE mutex. */
 	u_int32_t mpf_cnt;		/* Ref count: DB_MPOOLFILEs. */
 	u_int32_t block_cnt;		/* Ref count: blocks in cache. */
 
 	roff_t	  path_off;		/* File name location. */
+
+	/*
+	 * The following are used for file compaction processing.
+	 * They are only used when a thread is in the process
+	 * of trying to move free pages to the end of the file.
+	 * Other threads may look here when freeing a page.
+	 * Protected by a lock on the metapage.
+	 */
+	u_int32_t free_ref;		/* Refcount to freelist. */
+	u_int32_t free_cnt;		/* Count of free pages. */
+	size_t	  free_size;		/* Allocated size of free list. */
+	roff_t	  free_list;		/* Offset to free list. */
 
 	/*
 	 * We normally don't lock the deadfile field when we read it since we
@@ -323,7 +340,7 @@ struct __mpoolfile {
  *	Buffer header.
  */
 struct __bh {
-	DB_MUTEX	mutex;		/* Buffer thread/process lock. */
+	db_mutex_t	mtx_bh;		/* Buffer thread/process mutex. */
 
 	u_int16_t	ref;		/* Reference count. */
 	u_int16_t	ref_sync;	/* Sync wait-for reference count. */
@@ -351,6 +368,10 @@ struct __bh {
 	 */
 	u_int8_t   buf[1];		/* Variable length data. */
 };
+/*
+ * Flags to __memp_ftruncate.
+ */
+#define	MP_TRUNC_RECOVER	0x01
 
 #include "dbinc_auto/mp_ext.h"
 #endif /* !_DB_MP_H_ */

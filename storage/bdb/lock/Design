@@ -1,4 +1,4 @@
-# $Id: Design,v 11.5 2002/02/01 19:07:18 bostic Exp $
+# $Id: Design,v 12.0 2004/11/17 03:44:06 bostic Exp $
 
 Synchronization in the Locking Subsystem
 

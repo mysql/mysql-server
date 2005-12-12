@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_fsync.c,v 11.22 2004/07/06 20:54:09 mjc Exp $
+ * $Id: os_fsync.c,v 12.3 2005/09/07 17:30:20 bostic Exp $
  */
 
 #include "db_config.h"
@@ -12,9 +12,8 @@
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 
-#include <fcntl.h>			/* XXX: Required by __hp3000s900 */
+#include <fcntl.h>			/* Required on some platforms. */
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
@@ -69,6 +68,9 @@ __os_fsync(dbenv, fhp)
 {
 	int ret;
 
+	/* Check for illegal usage. */
+	DB_ASSERT(F_ISSET(fhp, DB_FH_OPENED) && fhp->fd != -1);
+
 	/*
 	 * Do nothing if the file descriptor has been marked as not requiring
 	 * any sync to disk.
@@ -76,13 +78,12 @@ __os_fsync(dbenv, fhp)
 	if (F_ISSET(fhp, DB_FH_NOSYNC))
 		return (0);
 
-	/* Check for illegal usage. */
-	DB_ASSERT(F_ISSET(fhp, DB_FH_OPENED) && fhp->fd != -1);
-
 	if (DB_GLOBAL(j_fsync) != NULL)
 		ret = DB_GLOBAL(j_fsync)(fhp->fd);
 	else
-#ifdef HAVE_FDATASYNC
+#if defined(F_FULLFSYNC)
+		RETRY_CHK((fcntl(fhp->fd, F_FULLFSYNC, 0)), ret);
+#elif defined(HAVE_FDATASYNC)
 		RETRY_CHK((fdatasync(fhp->fd)), ret);
 #else
 		RETRY_CHK((fsync(fhp->fd)), ret);

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: lock.h,v 11.53 2004/09/22 21:14:56 ubell Exp $
+ * $Id: lock.h,v 12.7 2005/10/07 20:21:23 ubell Exp $
  */
 
 #ifndef	_DB_LOCK_H_
@@ -54,11 +54,21 @@ typedef struct {
 	((t1)->tv_sec > (t2)->tv_sec ||					\
 	((t1)->tv_sec == (t2)->tv_sec && (t1)->tv_usec > (t2)->tv_usec))
 
+/* Macros to lock/unlock the lock region as a whole. */
+#define	LOCK_SYSTEM_LOCK(dbenv)						\
+	MUTEX_LOCK(dbenv, ((DB_LOCKREGION *)((DB_LOCKTAB *)		\
+	    (dbenv)->lk_handle)->reginfo.primary)->mtx_region)
+#define	LOCK_SYSTEM_UNLOCK(dbenv)					\
+	MUTEX_UNLOCK(dbenv, ((DB_LOCKREGION *)((DB_LOCKTAB *)		\
+	    (dbenv)->lk_handle)->reginfo.primary)->mtx_region)
+
 /*
  * DB_LOCKREGION --
  *	The lock shared region.
  */
 typedef struct __db_lockregion {
+	db_mutex_t	mtx_region;	/* Region mutex. */
+
 	u_int32_t	need_dd;	/* flag for deadlock detector */
 	u_int32_t	detect;		/* run dd on every conflict */
 	db_timeval_t	next_timeout;	/* next time to expire a lock */
@@ -79,15 +89,9 @@ typedef struct __db_lockregion {
 
 	roff_t		conf_off;	/* offset of conflicts array */
 	roff_t		obj_off;	/* offset of object hash table */
-	roff_t		osynch_off;	/* offset of the object mutex table */
 	roff_t		locker_off;	/* offset of locker hash table */
-	roff_t		lsynch_off;	/* offset of the locker mutex table */
 
 	DB_LOCK_STAT	stat;		/* stats about locking. */
-
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-	roff_t		maint_off;	/* offset of region maintenance info */
-#endif
 } DB_LOCKREGION;
 
 /*
@@ -122,9 +126,15 @@ typedef struct __db_lockobj {
  */
 typedef struct __db_locker {
 	u_int32_t id;			/* Locker id. */
+
+	pid_t pid;			/* Process owning locker ID */
+	db_threadid_t tid;		/* Thread owning locker ID */
+
 	u_int32_t dd_id;		/* Deadlock detector id. */
+
 	u_int32_t nlocks;		/* Number of locks held. */
 	u_int32_t nwrites;		/* Number of write locks held. */
+
 	roff_t  master_locker;		/* Locker of master transaction. */
 	roff_t  parent_locker;		/* Parent of this child. */
 	SH_LIST_HEAD(_child) child_locker;	/* List of descendant txns;
@@ -175,7 +185,7 @@ struct __db_lock {
 	 * Wait on mutex to wait on lock.  You reference your own mutex with
 	 * ID 0 and others reference your mutex with ID 1.
 	 */
-	DB_MUTEX	mutex;
+	db_mutex_t	mtx_lock;
 
 	u_int32_t	holder;		/* Who holds this lock. */
 	u_int32_t	gen;		/* Generation count. */
@@ -195,10 +205,9 @@ struct __db_lock {
  *		      (used by __lock_put_internal).
  * DB_LOCK_UNLINK:    Remove from the locker links (used in checklocker).
  * Make sure that these do not conflict with the interface flags because
- * we pass some of those around (i.e., DB_LOCK_REMOVE).
+ * we pass some of those around.
  */
 #define	DB_LOCK_DOALL		0x010000
-#define	DB_LOCK_DOWNGRADE	0x020000
 #define	DB_LOCK_FREE		0x040000
 #define	DB_LOCK_NOPROMOTE	0x080000
 #define	DB_LOCK_UNLINK		0x100000
@@ -212,11 +221,16 @@ struct __db_lock {
 	ndx = __lock_ohash(obj) % (reg)->object_t_size
 #define	SHOBJECT_LOCK(lt, reg, shobj, ndx)				\
 	ndx = __lock_lhash(shobj) % (reg)->object_t_size
+
+/*
+ * __lock_locker_hash --
+ *	Hash function for entering lockers into the locker hash table.
+ *	Since these are simply 32-bit unsigned integers at the moment,
+ *	just return the locker value.
+ */
+#define	__lock_locker_hash(locker)	(locker)
 #define	LOCKER_LOCK(lt, reg, locker, ndx)				\
 	ndx = __lock_locker_hash(locker) % (reg)->locker_t_size;
-
-#define	LOCKREGION(dbenv, lt)  R_LOCK((dbenv), &((DB_LOCKTAB *)lt)->reginfo)
-#define	UNLOCKREGION(dbenv, lt)  R_UNLOCK((dbenv), &((DB_LOCKTAB *)lt)->reginfo)
 
 #include "dbinc_auto/lock_ext.h"
 #endif /* !_DB_LOCK_H_ */

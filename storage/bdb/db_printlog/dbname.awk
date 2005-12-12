@@ -1,4 +1,4 @@
-# $Id: dbname.awk,v 1.7 2003/11/21 20:00:03 ubell Exp $
+# $Id: dbname.awk,v 12.1 2005/03/23 04:56:51 ubell Exp $
 #
 # Take a comma-separated list of database names and spit out all the
 # log records that affect those databases.
@@ -58,6 +58,7 @@ NR == 1 {
 	} else if ($2 <= nreg && files[$2] == 1) {
 		printme = 1
 	}
+	myfile = -1;
 }
 
 /^\[/{

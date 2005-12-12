@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_rec.c,v 11.78 2004/05/11 14:04:51 bostic Exp $
+ * $Id: qam_rec.c,v 12.8 2005/10/20 18:57:13 bostic Exp $
  */
 
 #include "db_config.h"
@@ -23,6 +23,12 @@
 #include "dbinc/log.h"
 #include "dbinc/mp.h"
 #include "dbinc/qam.h"
+#include "dbinc/txn.h"
+
+/* Determine if we are restoring prepared transactions from __txn_recover. */
+#define	IS_IN_RESTORE(dbenv)						 \
+	(((DB_TXNREGION *)((DB_TXNMGR *)				 \
+	     (dbenv)->tx_handle)->reginfo.primary)->stat.st_nrestores != 0)
 
 /*
  * __qam_incfirst_recover --
@@ -51,8 +57,10 @@ __qam_incfirst_recover(dbenv, dbtp, lsnp, op, info)
 	u_int32_t rec_ext;
 	int exact, modified, ret, t_ret;
 
+	LOCK_INIT(lock);
+	COMPQUIET(meta, NULL);
 	REC_PRINT(__qam_incfirst_print);
-	REC_INTRO(__qam_incfirst_read, 1);
+	REC_INTRO(__qam_incfirst_read, 1, 1);
 
 	metapg = ((QUEUE *)file_dbp->q_internal)->q_meta;
 
@@ -169,11 +177,12 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 	DB_LOCK lock;
 	DB_MPOOLFILE *mpf;
 	QMETA *meta;
+	QUEUE_CURSOR *cp;
 	db_pgno_t metapg;
-	int cmp_n, cmp_p, modified, ret;
+	int cmp_n, cmp_p, exact, modified, ret;
 
 	REC_PRINT(__qam_mvptr_print);
-	REC_INTRO(__qam_mvptr_read, 1);
+	REC_INTRO(__qam_mvptr_read, 1, 1);
 
 	metapg = ((QUEUE *)file_dbp->q_internal)->q_meta;
 
@@ -203,6 +212,9 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 	/*
 	 * Under normal circumstances, we never undo a movement of one of
 	 * the pointers.  Just move them along regardless of abort/commit.
+	 * When going forward we need to verify that this is really where
+	 * the pointer belongs.  A transaction may roll back and reinsert
+	 * a record that was missing at the time of this action.
 	 *
 	 * If we're undoing a truncate, we need to reset the pointers to
 	 * their state before the truncate.
@@ -222,11 +234,30 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 			modified = 1;
 		}
 	} else if (op == DB_TXN_APPLY || cmp_p == 0) {
-		if (argp->opcode & QAM_SETFIRST)
-			meta->first_recno = argp->new_first;
+		cp = (QUEUE_CURSOR *)dbc->internal;
+		if ((argp->opcode & QAM_SETFIRST) &&
+		    meta->first_recno == argp->old_first) {
+			if ((ret = __qam_position(dbc,
+			    &meta->first_recno, QAM_READ, &exact)) != 0)
+				goto err;
+			if (!exact)
+				meta->first_recno = argp->new_first;
+			if (cp->page != NULL && (ret =
+			    __qam_fput(file_dbp, cp->pgno, cp->page, 0)) != 0)
+				goto err;
+		}
 
-		if (argp->opcode & QAM_SETCUR)
-			meta->cur_recno = argp->new_cur;
+		if ((argp->opcode & QAM_SETCUR) &&
+		    meta->cur_recno == argp->old_cur) {
+			if ((ret = __qam_position(dbc,
+			    &meta->cur_recno, QAM_READ, &exact)) != 0)
+				goto err;
+			if (!exact)
+				meta->cur_recno = argp->new_cur;
+			if (cp->page != NULL && (ret =
+			    __qam_fput(file_dbp, cp->pgno, cp->page, 0)) != 0)
+				goto err;
+		}
 
 		modified = 1;
 		meta->dbmeta.lsn = *lsnp;
@@ -240,6 +271,11 @@ __qam_mvptr_recover(dbenv, dbtp, lsnp, op, info)
 
 done:	*lsnp = argp->prev_lsn;
 	ret = 0;
+
+	if (0) {
+err:		(void)__memp_fput(mpf, meta, 0);
+		(void)__LPUT(dbc, lock);
+	}
 
 out:	REC_CLOSE;
 }
@@ -272,8 +308,9 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 	int cmp_n, modified, ret, t_ret;
 
 	COMPQUIET(info, NULL);
+	COMPQUIET(pagep, NULL);
 	REC_PRINT(__qam_del_print);
-	REC_INTRO(__qam_del_read, 1);
+	REC_INTRO(__qam_del_read, 1, 1);
 
 	if ((ret = __qam_fget(file_dbp,
 	    &argp->pgno, DB_MPOOL_CREATE, &pagep)) != 0)
@@ -323,8 +360,12 @@ __qam_del_recover(dbenv, dbtp, lsnp, op, info)
 		 * foul up a concurrent put.  Having too late an LSN
 		 * is harmless in queue except when we're determining
 		 * what we need to roll forward during recovery.  [#2588]
+		 * If we are aborting a restored transaction then it
+		 * might get rolled forward later so the LSN needs to
+		 * be correct in that case too. [#12181]
 		 */
-		if (op == DB_TXN_BACKWARD_ROLL && cmp_n <= 0)
+		if (cmp_n <= 0 &&
+		      (op == DB_TXN_BACKWARD_ROLL || IS_IN_RESTORE(dbenv)))
 			LSN(pagep) = argp->lsn;
 		modified = 1;
 	} else if (op == DB_TXN_APPLY || (cmp_n > 0 && DB_REDO(op))) {
@@ -374,8 +415,9 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 	int cmp_n, modified, ret, t_ret;
 
 	COMPQUIET(info, NULL);
+	COMPQUIET(pagep, NULL);
 	REC_PRINT(__qam_delext_print);
-	REC_INTRO(__qam_delext_read, 1);
+	REC_INTRO(__qam_delext_read, 1, 1);
 
 	if ((ret = __qam_fget(file_dbp, &argp->pgno, 0, &pagep)) != 0) {
 		if (ret != DB_PAGE_NOTFOUND && ret != ENOENT)
@@ -436,7 +478,8 @@ __qam_delext_recover(dbenv, dbtp, lsnp, op, info)
 		 * is harmless in queue except when we're determining
 		 * what we need to roll forward during recovery.  [#2588]
 		 */
-		if (op == DB_TXN_BACKWARD_ROLL && cmp_n <= 0)
+		if (cmp_n <= 0 &&
+		      (op == DB_TXN_BACKWARD_ROLL || IS_IN_RESTORE(dbenv)))
 			LSN(pagep) = argp->lsn;
 		modified = 1;
 	} else if (op == DB_TXN_APPLY || (cmp_n > 0 && DB_REDO(op))) {
@@ -485,8 +528,9 @@ __qam_add_recover(dbenv, dbtp, lsnp, op, info)
 	int cmp_n, meta_dirty, modified, ret;
 
 	COMPQUIET(info, NULL);
+	COMPQUIET(pagep, NULL);
 	REC_PRINT(__qam_add_print);
-	REC_INTRO(__qam_add_read, 1);
+	REC_INTRO(__qam_add_read, 1, 1);
 
 	modified = 0;
 	if ((ret = __qam_fget(file_dbp, &argp->pgno, 0, &pagep)) != 0) {
@@ -570,7 +614,8 @@ __qam_add_recover(dbenv, dbtp, lsnp, op, info)
 		 * is harmless in queue except when we're determining
 		 * what we need to roll forward during recovery.  [#2588]
 		 */
-		if (op == DB_TXN_BACKWARD_ROLL && cmp_n <= 0)
+		if (cmp_n <= 0 &&
+		      (op == DB_TXN_BACKWARD_ROLL || IS_IN_RESTORE(dbenv)))
 			LSN(pagep) = argp->lsn;
 	}
 

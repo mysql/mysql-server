@@ -14,7 +14,7 @@ dnl The general documentation, as well as the sample configure.in, is
 dnl included in the AC_PROG_JAVA macro.
 dnl
 dnl @author Devin Weaver <ktohg@tritarget.com>
-dnl @version $Id: ac_try_run_javac.ac,v 1.1 2001/08/23 16:58:45 dda Exp $
+dnl @version $Id: ac_try_run_javac.ac,v 12.0 2004/11/17 03:43:38 bostic Exp $
 dnl
 AC_DEFUN([AC_TRY_RUN_JAVA],[
 AC_REQUIRE([AC_PROG_JAVAC])dnl

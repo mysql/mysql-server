@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_crypto,v 11.8 2003/11/24 22:41:26 bostic Exp $
+#	$Id: s_crypto,v 12.0 2004/11/17 03:43:35 bostic Exp $
 
 # Remove crypto from the DB source tree.
 

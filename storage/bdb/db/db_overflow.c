@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db_overflow.c,v 11.54 2004/03/28 17:17:50 bostic Exp $
+ * $Id: db_overflow.c,v 12.3 2005/08/08 17:30:51 bostic Exp $
  */
 
 #include "db_config.h"
@@ -241,8 +241,6 @@ __db_poff(dbc, dbt, pgnop)
 			LSN(lastp) = new_lsn;
 		LSN(pagep) = new_lsn;
 
-		P_INIT(pagep, dbp->pgsize,
-		    PGNO(pagep), PGNO_INVALID, PGNO_INVALID, 0, P_OVERFLOW);
 		OV_LEN(pagep) = pagespace;
 		OV_REF(pagep) = 1;
 		memcpy((u_int8_t *)pagep + P_OVERHEAD(dbp), p, pagespace);
@@ -288,7 +286,7 @@ __db_ovref(dbc, pgno, adjust)
 	mpf = dbp->mpf;
 
 	if ((ret = __memp_fget(mpf, &pgno, 0, &h)) != 0)
-		return (__db_pgerr(dbp, pgno, ret));
+		return (ret);
 
 	if (DBC_LOGGING(dbc)) {
 		if ((ret = __db_ovref_log(dbp,
@@ -327,7 +325,7 @@ __db_doff(dbc, pgno)
 
 	do {
 		if ((ret = __memp_fget(mpf, &pgno, 0, &pagep)) != 0)
-			return (__db_pgerr(dbp, pgno, ret));
+			return (ret);
 
 		DB_ASSERT(TYPE(pagep) == P_OVERFLOW);
 		/*

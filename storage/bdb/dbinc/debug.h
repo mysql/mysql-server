@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: debug.h,v 11.44 2004/09/24 00:43:18 bostic Exp $
+ * $Id: debug.h,v 12.2 2005/06/16 20:21:47 bostic Exp $
  */
 
 #ifndef _DB_DEBUG_H_
@@ -247,15 +247,15 @@ extern "C" {
 
 #define	DB_TEST_RECOVERY_LABEL	db_tr_err:
 
-#define	DB_TEST_CHECKPOINT(env, val)					\
-	if ((val) != 0)							\
+#define	DB_TEST_WAIT(env, val)					\
+	if ((val) != 0)						\
 		__os_sleep((env), (u_long)(val), 0)
 #else
 #define	DB_TEST_SUBLOCKS(env, flags)
 #define	DB_ENV_TEST_RECOVERY(env, val, ret, name)
 #define	DB_TEST_RECOVERY(dbp, val, ret, name)
 #define	DB_TEST_RECOVERY_LABEL
-#define	DB_TEST_CHECKPOINT(env, val)
+#define	DB_TEST_WAIT(env, val)
 #endif
 
 #if defined(__cplusplus)

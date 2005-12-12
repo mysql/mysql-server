@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: mp_stat.c,v 11.82 2004/10/15 16:59:43 bostic Exp $
+ * $Id: mp_stat.c,v 12.10 2005/10/27 01:26:00 mjc Exp $
  */
 
 #include "db_config.h"
@@ -28,12 +28,12 @@ static void __memp_print_bh
 		__P((DB_ENV *, DB_MPOOL *, BH *, roff_t *, u_int32_t));
 static int  __memp_print_all __P((DB_ENV *, u_int32_t));
 static int  __memp_print_stats __P((DB_ENV *, u_int32_t));
-static void __memp_print_hash __P((DB_ENV *,
+static int __memp_print_hash __P((DB_ENV *,
 		DB_MPOOL *, REGINFO *, roff_t *, u_int32_t));
 static int  __memp_stat __P((DB_ENV *,
 		DB_MPOOL_STAT **, DB_MPOOL_FSTAT ***, u_int32_t));
 static void __memp_stat_wait __P((
-		REGINFO *, MPOOL *, DB_MPOOL_STAT *, u_int32_t));
+		DB_ENV *, REGINFO *, MPOOL *, DB_MPOOL_STAT *, u_int32_t));
 
 /*
  * __memp_stat_pp --
@@ -49,7 +49,8 @@ __memp_stat_pp(dbenv, gspp, fspp, flags)
 	DB_MPOOL_FSTAT ***fspp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -59,12 +60,9 @@ __memp_stat_pp(dbenv, gspp, fspp, flags)
 	    "DB_ENV->memp_stat", flags, DB_STAT_CLEAR)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_stat(dbenv, gspp, fspp, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_stat(dbenv, gspp, fspp, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -85,7 +83,8 @@ __memp_stat(dbenv, gspp, fspp, flags)
 	MPOOL *c_mp, *mp;
 	MPOOLFILE *mfp;
 	size_t len, nlen;
-	u_int32_t pages, pagesize, i;
+	u_int32_t i, pagesize, st_bytes, st_gbytes, st_hash_buckets, st_pages;
+	u_int32_t tmp_wait, tmp_nowait;
 	int ret;
 	char *name, *tname;
 
@@ -112,12 +111,12 @@ __memp_stat(dbenv, gspp, fspp, flags)
 		sp->st_ncache = dbmp->nreg;
 		sp->st_regsize = dbmp->reginfo[0].rp->size;
 
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		sp->st_mmapsize = mp->mp_mmapsize;
 		sp->st_maxopenfd = mp->mp_maxopenfd;
 		sp->st_maxwrite = mp->mp_maxwrite;
 		sp->st_maxwrite_sleep = mp->mp_maxwrite_sleep;
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 
 		/* Walk the cache list and accumulate the global information. */
 		for (i = 0; i < mp->nreg; ++i) {
@@ -148,11 +147,12 @@ __memp_stat(dbenv, gspp, fspp, flags)
 			 * st_hash_nowait	calculated by __memp_stat_wait
 			 * st_hash_wait
 			 */
-			__memp_stat_wait(&dbmp->reginfo[i], c_mp, sp, flags);
-			sp->st_region_nowait +=
-			    dbmp->reginfo[i].rp->mutex.mutex_set_nowait;
-			sp->st_region_wait +=
-			    dbmp->reginfo[i].rp->mutex.mutex_set_wait;
+			__memp_stat_wait(
+			    dbenv, &dbmp->reginfo[i], c_mp, sp, flags);
+			__mutex_set_wait_info(dbenv,
+			    c_mp->mtx_region, &tmp_wait, &tmp_nowait);
+			sp->st_region_nowait += tmp_nowait;
+			sp->st_region_wait += tmp_wait;
 			sp->st_alloc += c_mp->stat.st_alloc;
 			sp->st_alloc_buckets += c_mp->stat.st_alloc_buckets;
 			if (sp->st_alloc_max_buckets <
@@ -166,14 +166,19 @@ __memp_stat(dbenv, gspp, fspp, flags)
 				    c_mp->stat.st_alloc_max_pages;
 
 			if (LF_ISSET(DB_STAT_CLEAR)) {
-				MUTEX_CLEAR(&dbmp->reginfo[i].rp->mutex);
+				__mutex_clear(dbenv, c_mp->mtx_region);
 
-				R_LOCK(dbenv, dbmp->reginfo);
-				pages = c_mp->stat.st_pages;
+				MPOOL_SYSTEM_LOCK(dbenv);
+				st_bytes = c_mp->stat.st_bytes;
+				st_gbytes = c_mp->stat.st_gbytes;
+				st_hash_buckets = c_mp->stat.st_hash_buckets;
+				st_pages = c_mp->stat.st_pages;
 				memset(&c_mp->stat, 0, sizeof(c_mp->stat));
-				c_mp->stat.st_hash_buckets = c_mp->htab_buckets;
-				c_mp->stat.st_pages = pages;
-				R_UNLOCK(dbenv, dbmp->reginfo);
+				c_mp->stat.st_bytes = st_bytes;
+				c_mp->stat.st_gbytes = st_gbytes;
+				c_mp->stat.st_hash_buckets = st_hash_buckets;
+				c_mp->stat.st_pages = st_pages;
+				MPOOL_SYSTEM_UNLOCK(dbenv);
 			}
 		}
 
@@ -185,7 +190,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 		 * statistics.  We added the cache information above, now we
 		 * add the per-file information.
 		 */
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		for (mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
 		    mfp != NULL; mfp = SH_TAILQ_NEXT(mfp, q, __mpoolfile)) {
 			sp->st_map += mfp->stat.st_map;
@@ -200,7 +205,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 				mfp->stat.st_pagesize = pagesize;
 			}
 		}
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 	}
 
 	/* Per-file statistics. */
@@ -208,7 +213,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 		*fspp = NULL;
 
 		/* Count the MPOOLFILE structures. */
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		for (i = 0, len = 0,
 		    mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
 		    mfp != NULL;
@@ -217,7 +222,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 			    sizeof(DB_MPOOL_FSTAT) +
 			    strlen(__memp_fns(dbmp, mfp)) + 1;
 		len += sizeof(DB_MPOOL_FSTAT *);	/* Trailing NULL */
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 
 		if (i == 0)
 			return (0);
@@ -244,7 +249,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 		 * Files may have been opened since we counted, don't walk
 		 * off the end of the allocated space.
 		 */
-		R_LOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_LOCK(dbenv);
 		for (mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
 		    mfp != NULL && i-- > 0;
 		    ++tfsp, ++tstruct, tname += nlen,
@@ -261,7 +266,7 @@ __memp_stat(dbenv, gspp, fspp, flags)
 			tstruct->file_name = tname;
 			memcpy(tname, name, nlen);
 		}
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MPOOL_SYSTEM_UNLOCK(dbenv);
 
 		*tfsp = NULL;
 	}
@@ -279,7 +284,8 @@ __memp_stat_print_pp(dbenv, flags)
 	DB_ENV *dbenv;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(dbenv,
@@ -291,12 +297,9 @@ __memp_stat_print_pp(dbenv, flags)
 	    "DB_ENV->memp_stat_print", flags, DB_STAT_MEMP_FLAGS)) != 0)
 		return (ret);
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __memp_stat_print(dbenv, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv, (__memp_stat_print(dbenv, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -393,7 +396,7 @@ __memp_print_stats(dbenv, flags)
 	__db_dl(dbenv, "The longest hash chain searched for a page",
 	    (u_long)gsp->st_hash_longest);
 	__db_dl(dbenv,
-	    "Total number of hash buckets examined for page location",
+	    "Total number of hash chain entries checked for page",
 	    (u_long)gsp->st_hash_examined);
 	__db_dl_pct(dbenv,
 	    "The number of hash bucket locks that required waiting",
@@ -477,17 +480,20 @@ __memp_print_all(dbenv, flags)
 	MPOOLFILE *mfp;
 	roff_t fmap[FMAP_ENTRIES + 1];
 	u_int32_t i, mfp_flags;
-	int cnt;
+	int cnt, ret;
 
 	dbmp = dbenv->mp_handle;
 	mp = dbmp->reginfo[0].primary;
+	ret = 0;
 
-	R_LOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_LOCK(dbenv);
 
 	__db_print_reginfo(dbenv, dbmp->reginfo, "Mpool");
-
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
+
 	__db_msg(dbenv, "MPOOL structure:");
+	__mutex_print_debug_single(
+	    dbenv, "MPOOL region mutex", mp->mtx_region, flags);
 	STAT_LSN("Maximum checkpoint LSN", &mp->lsn);
 	STAT_ULONG("Hash table entries", mp->htab_buckets);
 	STAT_ULONG("Hash table last-checked", mp->last_checked);
@@ -496,8 +502,8 @@ __memp_print_all(dbenv, flags)
 
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
 	__db_msg(dbenv, "DB_MPOOL handle information:");
-	__db_print_mutex(
-	    dbenv, NULL, dbmp->mutexp, "DB_MPOOL handle mutex", flags);
+	__mutex_print_debug_single(
+	    dbenv, "DB_MPOOL handle mutex", dbmp->mutex, flags);
 	STAT_ULONG("Underlying cache regions", dbmp->nreg);
 
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
@@ -516,10 +522,10 @@ __memp_print_all(dbenv, flags)
 		STAT_ULONG("Max gbytes", dbmfp->gbytes);
 		STAT_ULONG("Max bytes", dbmfp->bytes);
 		STAT_ULONG("Cache priority", dbmfp->priority);
-		STAT_HEX("mmap address", dbmfp->addr);
+		STAT_POINTER("mmap address", dbmfp->addr);
 		STAT_ULONG("mmap length", dbmfp->len);
 		__db_prflags(dbenv, NULL, dbmfp->flags, cfn, NULL, "\tFlags");
-		__db_print_fh(dbenv, dbmfp->fhp, flags);
+		__db_print_fh(dbenv, "File handle", dbmfp->fhp, flags);
 	}
 
 	__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
@@ -527,9 +533,9 @@ __memp_print_all(dbenv, flags)
 	for (cnt = 0, mfp = SH_TAILQ_FIRST(&mp->mpfq, __mpoolfile);
 	    mfp != NULL; mfp = SH_TAILQ_NEXT(mfp, q, __mpoolfile), ++cnt) {
 		__db_msg(dbenv, "File #%d: %s", cnt + 1, __memp_fns(dbmp, mfp));
-		__db_print_mutex(dbenv, NULL, &mfp->mutex, "Mutex", flags);
+		__mutex_print_debug_single(dbenv, "Mutex", mfp->mutex, flags);
 
-		MUTEX_LOCK(dbenv, &mfp->mutex);
+		MUTEX_LOCK(dbenv, mfp->mutex);
 		STAT_ULONG("Reference count", mfp->mpf_cnt);
 		STAT_ULONG("Block count", mfp->block_cnt);
 		STAT_ULONG("Last page number", mfp->last_pgno);
@@ -556,9 +562,9 @@ __memp_print_all(dbenv, flags)
 
 		if (cnt < FMAP_ENTRIES)
 			fmap[cnt] = R_OFFSET(dbmp->reginfo, mfp);
-		MUTEX_UNLOCK(dbenv, &mfp->mutex);
+		MUTEX_UNLOCK(dbenv, mfp->mutex);
 	}
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	MPOOL_SYSTEM_UNLOCK(dbenv);
 
 	if (cnt < FMAP_ENTRIES)
 		fmap[cnt] = INVALID_ROFF;
@@ -569,17 +575,19 @@ __memp_print_all(dbenv, flags)
 	for (i = 0; i < mp->nreg; ++i) {
 		__db_msg(dbenv, "%s", DB_GLOBAL(db_line));
 		__db_msg(dbenv, "Cache #%d:", i + 1);
-		__memp_print_hash(dbenv, dbmp, &dbmp->reginfo[i], fmap, flags);
+		if ((ret = __memp_print_hash(
+		    dbenv, dbmp, &dbmp->reginfo[i], fmap, flags)) != 0)
+			break;
 	}
 
-	return (0);
+	return (ret);
 }
 
 /*
  * __memp_print_hash --
  *	Display hash bucket statistics for a cache.
  */
-static void
+static int
 __memp_print_hash(dbenv, dbmp, reginfo, fmap, flags)
 	DB_ENV *dbenv;
 	DB_MPOOL *dbmp;
@@ -599,26 +607,27 @@ __memp_print_hash(dbenv, dbmp, reginfo, fmap, flags)
 	/* Display the hash table list of BH's. */
 	__db_msg(dbenv,
 	    "BH hash table (%lu hash slots)", (u_long)c_mp->htab_buckets);
-	__db_msg(dbenv, "bucket #: priority, mutex");
+	__db_msg(dbenv, "bucket #: priority, [mutex]");
 	__db_msg(dbenv,
-	    "\tpageno, file, ref, LSN, mutex, address, priority, flags");
+    "\tpageno, file, ref, LSN, [mutex], address, priority, flags");
 
 	for (hp = R_ADDR(reginfo, c_mp->htab),
 	    bucket = 0; bucket < c_mp->htab_buckets; ++hp, ++bucket) {
-		MUTEX_LOCK(dbenv, &hp->hash_mutex);
-		if ((bhp =
-		    SH_TAILQ_FIRST(&hp->hash_bucket, __bh)) != NULL) {
+		MUTEX_LOCK(dbenv, hp->mtx_hash);
+		if ((bhp = SH_TAILQ_FIRST(&hp->hash_bucket, __bh)) != NULL) {
 			__db_msgadd(dbenv, &mb, "bucket %lu: %lu, ",
 			    (u_long)bucket, (u_long)hp->hash_priority);
-			__db_print_mutex(
-			    dbenv, &mb, &hp->hash_mutex, ":", flags);
+			__mutex_print_debug_stats(
+			    dbenv, &mb, hp->mtx_hash, flags);
 			DB_MSGBUF_FLUSH(dbenv, &mb);
 		}
 		for (; bhp != NULL; bhp = SH_TAILQ_NEXT(bhp, hq, __bh))
 			__memp_print_bh(dbenv, dbmp, bhp, fmap, flags);
 
-		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+		MUTEX_UNLOCK(dbenv, hp->mtx_hash);
 	}
+
+	return (0);
 }
 
 /*
@@ -660,8 +669,8 @@ __memp_print_bh(dbenv, dbmp, bhp, fmap, flags)
 
 	__db_msgadd(dbenv, &mb, "%2lu, %lu/%lu, ", (u_long)bhp->ref,
 	    (u_long)LSN(bhp->buf).file, (u_long)LSN(bhp->buf).offset);
-	__db_print_mutex(dbenv, &mb, &bhp->mutex, ", ", flags);
-	__db_msgadd(dbenv, &mb, "%#08lx, %lu",
+	__mutex_print_debug_stats(dbenv, &mb, bhp->mtx_bh, flags);
+	__db_msgadd(dbenv, &mb, ", %#08lx, %lu",
 	    (u_long)R_OFFSET(dbmp->reginfo, bhp), (u_long)bhp->priority);
 	__db_prflags(dbenv, &mb, bhp->flags, fn, " (", ")");
 	DB_MSGBUF_FLUSH(dbenv, &mb);
@@ -672,27 +681,28 @@ __memp_print_bh(dbenv, dbmp, bhp, fmap, flags)
  *	Total hash bucket wait stats into the region.
  */
 static void
-__memp_stat_wait(reginfo, mp, mstat, flags)
+__memp_stat_wait(dbenv, reginfo, mp, mstat, flags)
+	DB_ENV *dbenv;
 	REGINFO *reginfo;
 	MPOOL *mp;
 	DB_MPOOL_STAT *mstat;
 	u_int32_t flags;
 {
 	DB_MPOOL_HASH *hp;
-	DB_MUTEX *mutexp;
-	u_int32_t i;
+	u_int32_t i, tmp_nowait, tmp_wait;
 
 	mstat->st_hash_max_wait = 0;
 	hp = R_ADDR(reginfo, mp->htab);
 	for (i = 0; i < mp->htab_buckets; i++, hp++) {
-		mutexp = &hp->hash_mutex;
-		mstat->st_hash_nowait += mutexp->mutex_set_nowait;
-		mstat->st_hash_wait += mutexp->mutex_set_wait;
-		if (mutexp->mutex_set_wait > mstat->st_hash_max_wait)
-			mstat->st_hash_max_wait = mutexp->mutex_set_wait;
+		__mutex_set_wait_info(
+		    dbenv, hp->mtx_hash, &tmp_wait, &tmp_nowait);
+		mstat->st_hash_nowait += tmp_nowait;
+		mstat->st_hash_wait += tmp_wait;
+		if (tmp_wait > mstat->st_hash_max_wait)
+			mstat->st_hash_max_wait = tmp_wait;
 
 		if (LF_ISSET(DB_STAT_CLEAR))
-			MUTEX_CLEAR(mutexp);
+			__mutex_clear(dbenv, hp->mtx_hash);
 	}
 }
 

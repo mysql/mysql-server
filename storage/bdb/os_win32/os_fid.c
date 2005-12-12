@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_fid.c,v 11.19 2004/07/06 21:06:38 mjc Exp $
+ * $Id: os_fid.c,v 12.4 2005/10/11 18:17:00 bostic Exp $
  */
 
 #include "db_config.h"
@@ -25,6 +25,8 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	int unique_okay;
 	u_int8_t *fidp;
 {
+	db_threadid_t tid;
+	pid_t pid;
 	size_t i;
 	u_int32_t tmp;
 	u_int8_t *p;
@@ -53,6 +55,10 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * this no real harm will be done, since the finished fileid
 	 * has so many other components.
 	 *
+	 * We use the bottom 32-bits of the process ID, hoping they
+	 * are more random than the top 32-bits (should we be on a
+	 * machine with 64-bit process IDs).
+	 *
 	 * We increment by 100000 on each call as a simple way of
 	 * randomizing;  simply incrementing seems potentially less useful
 	 * if pids are also simply incremented, since this is process-local
@@ -60,9 +66,10 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * pushes us out of pid space on most platforms, and has few
 	 * interesting properties in base 2.
 	 */
-	if (fid_serial == SERIAL_INIT)
-		__os_id(&fid_serial);
-	else
+	if (fid_serial == SERIAL_INIT) {
+		__os_id(dbenv, &pid, &tid);
+		fid_serial = pid;
+	} else
 		fid_serial += 100000;
 
 	/*

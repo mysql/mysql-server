@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_recover,v 1.17 2004/06/17 17:35:19 bostic Exp $
+#	$Id: s_recover,v 12.0 2004/11/17 03:43:35 bostic Exp $
 #
 # Build the automatically generated logging/recovery files.
 

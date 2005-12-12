@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn.h,v 11.54 2004/09/24 00:43:18 bostic Exp $
+ * $Id: txn.h,v 12.7 2005/10/13 00:53:00 bostic Exp $
  */
 
 #ifndef	_TXN_H_
@@ -39,18 +39,26 @@ struct __txn_logrec;	typedef struct __txn_logrec DB_TXNLOGREC;
 typedef struct __txn_detail {
 	u_int32_t txnid;		/* current transaction id
 					   used to link free list also */
+	pid_t pid;			/* Process owning txn */
+	db_threadid_t tid;	/* Thread owning txn */
+
 	DB_LSN	last_lsn;		/* last lsn written for this txn */
 	DB_LSN	begin_lsn;		/* lsn of begin record */
 	roff_t	parent;			/* Offset of transaction's parent. */
+	roff_t	name;			/* Offset of txn name. */
+
+	SH_TAILQ_HEAD(__tdkids)	kids;	/* Linked list of child txn detail. */
+	SH_TAILQ_ENTRY		klinks;
 
 #define	TXN_RUNNING		1
 #define	TXN_ABORTED		2
 #define	TXN_PREPARED		3
 #define	TXN_COMMITTED		4
 	u_int32_t status;		/* status of the transaction */
-#define	TXN_DTL_COLLECTED	0x1
-#define	TXN_DTL_RESTORED	0x2
-	u_int32_t flags;		/* collected during txn_recover */
+#define	TXN_DTL_COLLECTED	0x1	/* collected during txn_recover */
+#define	TXN_DTL_RESTORED	0x2	/* prepared txn restored */
+#define	TXN_DTL_INMEMORY	0x4	/* uses in memory logs */
+	u_int32_t flags;
 
 	SH_TAILQ_ENTRY	links;		/* free/active list */
 
@@ -80,33 +88,40 @@ struct __db_txnmgr {
 	/*
 	 * These fields need to be protected for multi-threaded support.
 	 *
-	 * !!!
-	 * As this structure is allocated in per-process memory, the mutex may
-	 * need to be stored elsewhere on architectures unable to support
-	 * mutexes in heap memory, e.g., HP/UX 9.
+	 * Lock list of active transactions (including the content of each
+	 * TXN_DETAIL structure on the list).
 	 */
-	DB_MUTEX	*mutexp;	/* Lock list of active transactions
-					 * (including the content of each
-					 * TXN_DETAIL structure on the list).
-					 */
+	db_mutex_t mutex;
 					/* List of active transactions. */
 	TAILQ_HEAD(_chain, __db_txn)	txn_chain;
-	u_int32_t	 n_discards;	/* Number of txns discarded. */
 
-/* These fields are never updated after creation, and so not protected. */
-	DB_ENV		*dbenv;		/* Environment. */
-	REGINFO		 reginfo;	/* Region information. */
+	u_int32_t n_discards;		/* Number of txns discarded. */
+
+	/* These fields are never updated after creation, so not protected. */
+	DB_ENV	*dbenv;			/* Environment. */
+	REGINFO	 reginfo;		/* Region information. */
 };
+
+/* Macros to lock/unlock the transaction region as a whole. */
+#define	TXN_SYSTEM_LOCK(dbenv)						\
+	MUTEX_LOCK(dbenv, ((DB_TXNREGION *)((DB_TXNMGR *)		\
+	    (dbenv)->tx_handle)->reginfo.primary)->mtx_region)
+#define	TXN_SYSTEM_UNLOCK(dbenv)					\
+	MUTEX_UNLOCK(dbenv, ((DB_TXNREGION *)((DB_TXNMGR *)		\
+	    (dbenv)->tx_handle)->reginfo.primary)->mtx_region)
 
 /*
  * DB_TXNREGION --
  *	The primary transaction data structure in the shared memory region.
  */
 struct __db_txnregion {
+	db_mutex_t	mtx_region;	/* Region mutex. */
+
 	u_int32_t	maxtxns;	/* maximum number of active TXNs */
 	u_int32_t	last_txnid;	/* last transaction id given out */
 	u_int32_t	cur_maxid;	/* current max unused id. */
 
+	db_mutex_t	mtx_ckp;	/* Single thread checkpoints. */
 	DB_LSN		last_ckp;	/* lsn of the last checkpoint */
 	time_t		time_ckp;	/* time of last checkpoint */
 
@@ -116,11 +131,6 @@ struct __db_txnregion {
 	u_int32_t	flags;
 					/* active TXN list */
 	SH_TAILQ_HEAD(__active) active_txn;
-#ifdef HAVE_MUTEX_SYSTEM_RESOURCES
-#define	TXN_MAINT_SIZE	(sizeof(roff_t) * DB_MAX_HANDLES)
-
-	roff_t		maint_off;	/* offset of region maintenance info */
-#endif
 };
 
 /*

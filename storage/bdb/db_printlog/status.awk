@@ -1,4 +1,4 @@
-# $Id: status.awk,v 10.5 2004/09/24 00:43:17 bostic Exp $
+# $Id: status.awk,v 12.0 2004/11/17 03:43:25 bostic Exp $
 #
 # Read through db_printlog output and list all the transactions encountered
 # and whether they committed or aborted.

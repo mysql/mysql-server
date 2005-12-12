@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_include,v 1.22 2004/04/19 18:27:17 mjc Exp $
+#	$Id: s_include,v 12.0 2004/11/17 03:43:35 bostic Exp $
 #
 # Build the automatically generated function prototype files.
 
@@ -72,7 +72,7 @@ head defonly _DB_INT_DEF_IN_ > $i_dfile
 # Process the standard directories, creating per-directory prototype
 # files and adding to the external prototype and #define files.
 for i in db btree clib common crypto dbreg env fileops hash hmac \
-    lock log mp mutex os qam rep rpc_client rpc_server sequence tcl txn xa; do
+    lock log mp mutex os qam rep sequence txn xa; do
 	head "_${i}_ext_h_" > $i_pfile
 
 	if [ $i = os ] ; then

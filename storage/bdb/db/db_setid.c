@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2004
+ * Copyright (c) 2000-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_setid.c,v 1.6 2004/09/24 13:41:08 bostic Exp $
+ * $Id: db_setid.c,v 12.8 2005/10/18 14:17:08 mjc Exp $
  */
 
 #include "db_config.h"
@@ -17,20 +17,64 @@
 
 #include "db_int.h"
 #include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
 #include "dbinc/db_swap.h"
 #include "dbinc/db_am.h"
+#include "dbinc/mp.h"
+
+static int __env_fileid_reset __P((DB_ENV *, const char *, int));
 
 /*
- * __db_fileid_reset --
- *	Reset the file IDs for every database in the file.
+ * __env_fileid_reset_pp --
+ *	DB_ENV->fileid_reset pre/post processing.
  *
- * PUBLIC: int __db_fileid_reset __P((DB_ENV *, char *, int));
+ * PUBLIC: int __env_fileid_reset_pp __P((DB_ENV *, const char *, u_int32_t));
  */
 int
-__db_fileid_reset(dbenv, name, passwd)
+__env_fileid_reset_pp(dbenv, name, flags)
 	DB_ENV *dbenv;
-	char *name;
-	int passwd;
+	const char *name;
+	u_int32_t flags;
+{
+	DB_THREAD_INFO *ip;
+	int handle_check, ret, t_ret;
+
+	PANIC_CHECK(dbenv);
+	ENV_ILLEGAL_BEFORE_OPEN(dbenv, "DB_ENV->fileid_reset");
+
+	/*
+	 * !!!
+	 * The actual argument checking is simple, do it inline, outside of
+	 * the replication block.
+	 */
+	if (flags != 0 && flags != DB_ENCRYPT)
+		return (__db_ferr(dbenv, "DB_ENV->fileid_reset", 0));
+
+	ENV_ENTER(dbenv, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(dbenv);
+	if (handle_check && (ret = __env_rep_enter(dbenv, 1)) != 0)
+		goto err;
+
+	ret = __env_fileid_reset(dbenv, name, LF_ISSET(DB_ENCRYPT) ? 1 : 0);
+
+	if (handle_check && (t_ret = __env_db_rep_exit(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+err:	ENV_LEAVE(dbenv, ip);
+	return (ret);
+}
+
+/*
+ * __env_fileid_reset --
+ *	Reset the file IDs for every database in the file.
+ */
+static int
+__env_fileid_reset(dbenv, name, encrypted)
+	DB_ENV *dbenv;
+	const char *name;
+	int encrypted;
 {
 	DB *dbp;
 	DBC *dbcp;
@@ -47,27 +91,21 @@ __db_fileid_reset(dbenv, name, passwd)
 	real_name = NULL;
 
 	/* Get the real backing file name. */
-	if ((ret = __db_appname(dbenv,
-	    DB_APP_DATA, name, 0, NULL, &real_name)) != 0)
+	if ((ret =
+	    __db_appname(dbenv, DB_APP_DATA, name, 0, NULL, &real_name)) != 0)
 		return (ret);
 
 	/* Get a new file ID. */
-	if ((ret = __os_fileid(dbenv, real_name, 1, fileid)) != 0) {
-		dbenv->err(dbenv, ret, "unable to get new file ID");
+	if ((ret = __os_fileid(dbenv, real_name, 1, fileid)) != 0)
 		goto err;
-	}
 
 	/* Create the DB object. */
-	if ((ret = db_create(&dbp, dbenv, 0)) != 0) {
-		dbenv->err(dbenv, ret, "db_create");
+	if ((ret = db_create(&dbp, dbenv, 0)) != 0)
 		goto err;
-	}
 
 	/* If configured with a password, the databases are encrypted. */
-	if (passwd && (ret = dbp->set_flags(dbp, DB_ENCRYPT)) != 0) {
-		dbp->err(dbp, ret, "DB->set_flags: DB_ENCRYPT");
+	if (encrypted && (ret = __db_set_flags(dbp, DB_ENCRYPT)) != 0)
 		goto err;
-	}
 
 	/*
 	 * Open the DB file.
@@ -76,26 +114,18 @@ __db_fileid_reset(dbenv, name, passwd)
 	 * Note DB_RDWRMASTER flag, we need to open the master database file
 	 * for writing in this case.
 	 */
-	if ((ret = dbp->open(dbp,
-	    NULL, name, NULL, DB_UNKNOWN, DB_RDWRMASTER, 0)) != 0) {
-		dbp->err(dbp, ret, "DB->open: %s", name);
+	if ((ret = __db_open(dbp, NULL,
+	    name, NULL, DB_UNKNOWN, DB_RDWRMASTER, 0, PGNO_BASE_MD)) != 0)
 		goto err;
-	}
 
 	mpf = dbp->mpf;
 
 	pgno = PGNO_BASE_MD;
-	if ((ret = mpf->get(mpf, &pgno, 0, &pagep)) != 0) {
-		dbp->err(dbp, ret,
-		    "%s: DB_MPOOLFILE->get: %lu", name, (u_long)pgno);
+	if ((ret = __memp_fget(mpf, &pgno, 0, &pagep)) != 0)
 		goto err;
-	}
 	memcpy(((DBMETA *)pagep)->uid, fileid, DB_FILE_ID_LEN);
-	if ((ret = mpf->put(mpf, pagep, DB_MPOOL_DIRTY)) != 0) {
-		dbp->err(dbp, ret,
-		    "%s: DB_MPOOLFILE->put: %lu", name, (u_long)pgno);
+	if ((ret = __memp_fput(mpf, pagep, DB_MPOOL_DIRTY)) != 0)
 		goto err;
-	}
 
 	/*
 	 * If the database file doesn't support subdatabases, we only have
@@ -108,11 +138,9 @@ __db_fileid_reset(dbenv, name, passwd)
 
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
-	if ((ret = dbp->cursor(dbp, NULL, &dbcp, 0)) != 0) {
-		dbp->err(dbp, ret, "DB->cursor");
+	if ((ret = __db_cursor(dbp, NULL, &dbcp, 0)) != 0)
 		goto err;
-	}
-	while ((ret = dbcp->c_get(dbcp, &key, &data, DB_NEXT)) == 0) {
+	while ((ret = __db_c_get(dbcp, &key, &data, DB_NEXT)) == 0) {
 		/*
 		 * XXX
 		 * We're handling actual data, not on-page meta-data, so it
@@ -121,33 +149,19 @@ __db_fileid_reset(dbenv, name, passwd)
 		 */
 		memcpy(&pgno, data.data, sizeof(db_pgno_t));
 		DB_NTOHL(&pgno);
-		if ((ret = mpf->get(mpf, &pgno, 0, &pagep)) != 0) {
-			dbp->err(dbp, ret,
-			    "%s: DB_MPOOLFILE->get: %lu", name, (u_long)pgno);
+		if ((ret = __memp_fget(mpf, &pgno, 0, &pagep)) != 0)
 			goto err;
-		}
 		memcpy(((DBMETA *)pagep)->uid, fileid, DB_FILE_ID_LEN);
-		if ((ret = mpf->put(mpf, pagep, DB_MPOOL_DIRTY)) != 0) {
-			dbp->err(dbp, ret,
-			    "%s: DB_MPOOLFILE->put: %lu", name, (u_long)pgno);
+		if ((ret = __memp_fput(mpf, pagep, DB_MPOOL_DIRTY)) != 0)
 			goto err;
-		}
 	}
 	if (ret == DB_NOTFOUND)
 		ret = 0;
-	else
-		dbp->err(dbp, ret, "DBcursor->get");
 
-err:	if (dbcp != NULL && (t_ret = dbcp->c_close(dbcp)) != 0) {
-		dbp->err(dbp, ret, "DBcursor->close");
-		if (ret == 0)
-			ret = t_ret;
-	}
-	if (dbp != NULL && (t_ret = dbp->close(dbp, 0)) != 0) {
-		dbenv->err(dbenv, ret, "DB->close");
-		if (ret == 0)
-			ret = t_ret;
-	}
+err:	if (dbcp != NULL && (t_ret = __db_c_close(dbcp)) != 0 && ret == 0)
+		ret = t_ret;
+	if (dbp != NULL && (t_ret = __db_close(dbp, NULL, 0)) != 0 && ret == 0)
+		ret = t_ret;
 	if (real_name != NULL)
 		__os_free(dbenv, real_name);
 

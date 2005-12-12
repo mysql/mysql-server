@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_map.c,v 11.51 2004/10/05 14:55:34 mjc Exp $
+ * $Id: os_map.c,v 12.2 2005/06/16 20:23:29 bostic Exp $
  */
 
 #include "db_config.h"
@@ -88,7 +88,7 @@ __os_r_sysdetach(dbenv, infop, destroy)
 
 	if (!F_ISSET(dbenv, DB_ENV_SYSTEM_MEM) && destroy) {
 		if (F_ISSET(dbenv, DB_ENV_OVERWRITE))
-			(void)__db_overwrite(dbenv, infop->name);
+			(void)__db_file_multi_write(dbenv, infop->name);
 		if ((t_ret = __os_unlink(dbenv, infop->name)) != 0 && ret == 0)
 			ret = t_ret;
 	}

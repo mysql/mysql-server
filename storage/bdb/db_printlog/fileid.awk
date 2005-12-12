@@ -1,4 +1,4 @@
-# $Id: fileid.awk,v 10.4 2000/07/17 22:07:17 ubell Exp $
+# $Id: fileid.awk,v 12.0 2004/11/17 03:43:25 bostic Exp $
 #
 # Take a comma-separated list of file numbers and spit out all the
 # log records that affect those file numbers.

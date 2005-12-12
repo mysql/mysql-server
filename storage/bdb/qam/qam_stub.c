@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_stub.c,v 1.12 2004/06/14 15:23:33 bostic Exp $
+ * $Id: qam_stub.c,v 12.1 2005/06/16 20:23:33 bostic Exp $
  */
 
 #include "db_config.h"

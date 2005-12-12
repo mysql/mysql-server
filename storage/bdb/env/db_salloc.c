@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_salloc.c,v 11.28 2004/09/17 22:00:27 mjc Exp $
+ * $Id: db_salloc.c,v 12.4 2005/10/15 00:51:56 bostic Exp $
  */
 
 #include "db_config.h"
@@ -58,7 +58,7 @@ __db_shalloc_init(infop, size)
 	SH_LIST_INIT(hp);
 
 	elp = (struct __data *)(hp + 1);
-	elp->len = size - sizeof(struct __head) - sizeof(elp->len);
+	elp->len = (size - sizeof(struct __head)) - sizeof(elp->len);
 	SH_LIST_INSERT_HEAD(hp, elp, links, __data);
 }
 
@@ -159,6 +159,14 @@ __db_shalloc(infop, len, align, retp)
 	    elp != NULL;
 	    elp = SH_LIST_NEXT(elp, links, __data)) {
 		/*
+		 * Skip chunks that are too small to work.  This avoids address
+		 * wrap-around in the subsequent calculations (if len were too
+		 * large).
+		 */
+		if (elp->len < len)
+			continue;
+
+		/*
 		 * Calculate the value of the returned pointer if we were to
 		 * use this chunk.
 		 *	+ Find the end of the chunk.
@@ -167,7 +175,6 @@ __db_shalloc(infop, len, align, retp)
 		 */
 		rp = (u_int8_t *)elp + sizeof(size_t) + elp->len;
 		rp = (u_int8_t *)rp - len;
-		rp = (u_int8_t *)((uintptr_t)rp & ~(align - 1));
 		rp = ALIGNP_DEC(rp, align);
 
 		/*

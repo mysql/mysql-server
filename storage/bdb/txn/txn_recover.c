@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn_recover.c,v 1.54 2004/10/15 16:59:44 bostic Exp $
+ * $Id: txn_recover.c,v 12.11 2005/10/14 21:12:18 ubell Exp $
  */
 
 #include "db_config.h"
@@ -25,40 +25,6 @@
 #include "dbinc_auto/db_ext.h"
 
 /*
- * __txn_continue
- *	Fill in the fields of the local transaction structure given
- *	the detail transaction structure.
- *
- * XXX
- * I'm not sure that we work correctly with nested txns.
- *
- * PUBLIC: void __txn_continue __P((DB_ENV *, DB_TXN *, TXN_DETAIL *, size_t));
- */
-void
-__txn_continue(env, txnp, td, off)
-	DB_ENV *env;
-	DB_TXN *txnp;
-	TXN_DETAIL *td;
-	size_t off;
-{
-	txnp->mgrp = env->tx_handle;
-	txnp->parent = NULL;
-	txnp->last_lsn = td->last_lsn;
-	txnp->txnid = td->txnid;
-	txnp->off = (roff_t)off;
-
-	txnp->abort = __txn_abort;
-	txnp->commit = __txn_commit;
-	txnp->discard = __txn_discard;
-	txnp->id = __txn_id;
-	txnp->prepare = __txn_prepare;
-
-	txnp->flags = 0;
-	if (F_ISSET(td, TXN_DTL_RESTORED))
-		F_SET(txnp, TXN_RESTORED);
-}
-
-/*
  * __txn_map_gid
  *	Return the txn that corresponds to this global ID.
  *
@@ -73,23 +39,23 @@ __txn_map_gid(dbenv, gid, tdp, offp)
 	roff_t *offp;
 {
 	DB_TXNMGR *mgr;
-	DB_TXNREGION *tmr;
+	DB_TXNREGION *region;
 
 	mgr = dbenv->tx_handle;
-	tmr = mgr->reginfo.primary;
+	region = mgr->reginfo.primary;
 
 	/*
 	 * Search the internal active transaction table to find the
 	 * matching xid.  If this is a performance hit, then we
 	 * can create a hash table, but I doubt it's worth it.
 	 */
-	R_LOCK(dbenv, &mgr->reginfo);
-	for (*tdp = SH_TAILQ_FIRST(&tmr->active_txn, __txn_detail);
+	TXN_SYSTEM_LOCK(dbenv);
+	for (*tdp = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
 	    *tdp != NULL;
 	    *tdp = SH_TAILQ_NEXT(*tdp, links, __txn_detail))
 		if (memcmp(gid, (*tdp)->xid, sizeof((*tdp)->xid)) == 0)
 			break;
-	R_UNLOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_UNLOCK(dbenv);
 
 	if (*tdp == NULL)
 		return (EINVAL);
@@ -112,7 +78,8 @@ __txn_recover_pp(dbenv, preplist, count, retp, flags)
 	long count, *retp;
 	u_int32_t flags;
 {
-	int rep_check, ret;
+	DB_THREAD_INFO *ip;
+	int ret;
 
 	PANIC_CHECK(dbenv);
 	ENV_REQUIRES_CONFIG(
@@ -125,12 +92,10 @@ __txn_recover_pp(dbenv, preplist, count, retp, flags)
 		return (EINVAL);
 	}
 
-	rep_check = IS_ENV_REPLICATED(dbenv) ? 1 : 0;
-	if (rep_check)
-		__env_rep_enter(dbenv);
-	ret = __txn_recover(dbenv, preplist, count, retp, flags);
-	if (rep_check)
-		__env_db_rep_exit(dbenv);
+	ENV_ENTER(dbenv, ip);
+	REPLICATION_WRAP(dbenv,
+	    (__txn_recover(dbenv, preplist, count, retp, flags)), ret);
+	ENV_LEAVE(dbenv, ip);
 	return (ret);
 }
 
@@ -181,7 +146,7 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 	DB_LSN min;
 	DB_PREPLIST *prepp;
 	DB_TXNMGR *mgr;
-	DB_TXNREGION *tmr;
+	DB_TXNREGION *region;
 	TXN_DETAIL *td;
 	XID *xidp;
 	long i;
@@ -204,7 +169,7 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 	 */
 
 	mgr = dbenv->tx_handle;
-	tmr = mgr->reginfo.primary;
+	region = mgr->reginfo.primary;
 
 	/*
 	 * During this pass we need to figure out if we are going to need
@@ -213,9 +178,9 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 	 * and the ones that we are collecting are restored (if they aren't
 	 * restored, then we never crashed; just the main server did).
 	 */
-	R_LOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_LOCK(dbenv);
 	if (flags == DB_FIRST) {
-		for (td = SH_TAILQ_FIRST(&tmr->active_txn, __txn_detail);
+		for (td = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
 		    td != NULL;
 		    td = SH_TAILQ_NEXT(td, links, __txn_detail)) {
 			if (F_ISSET(td, TXN_DTL_RESTORED))
@@ -229,7 +194,7 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 		open_files = 0;
 
 	/* Now begin collecting active transactions. */
-	for (td = SH_TAILQ_FIRST(&tmr->active_txn, __txn_detail);
+	for (td = SH_TAILQ_FIRST(&region->active_txn, __txn_detail);
 	    td != NULL && *retp < count;
 	    td = SH_TAILQ_NEXT(td, links, __txn_detail)) {
 		if (td->status != TXN_PREPARED ||
@@ -252,11 +217,10 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 		if (txns != NULL) {
 			if ((ret = __os_calloc(dbenv,
 			    1, sizeof(DB_TXN), &prepp->txn)) != 0) {
-				R_UNLOCK(dbenv, &mgr->reginfo);
+				TXN_SYSTEM_UNLOCK(dbenv);
 				goto err;
 			}
-			__txn_continue(dbenv,
-			    prepp->txn, td, R_OFFSET(&mgr->reginfo, td));
+			__txn_continue(dbenv, prepp->txn, td);
 			F_SET(prepp->txn, TXN_MALLOC);
 			memcpy(prepp->gid, td->xid, sizeof(td->xid));
 			prepp++;
@@ -268,17 +232,20 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 
 		(*retp)++;
 		F_SET(td, TXN_DTL_COLLECTED);
+		if (IS_ENV_REPLICATED(dbenv) &&
+		    (ret = __op_rep_enter(dbenv)) != 0)
+			goto err;
 	}
-	R_UNLOCK(dbenv, &mgr->reginfo);
+	TXN_SYSTEM_UNLOCK(dbenv);
 
 	/*
 	 * Now link all the transactions into the transaction manager's list.
 	 */
 	if (txns != NULL) {
-		MUTEX_THREAD_LOCK(dbenv, mgr->mutexp);
+		MUTEX_LOCK(dbenv, mgr->mutex);
 		for (i = 0; i < *retp; i++)
 			TAILQ_INSERT_TAIL(&mgr->txn_chain, txns[i].txn, links);
-		MUTEX_THREAD_UNLOCK(dbenv, mgr->mutexp);
+		MUTEX_UNLOCK(dbenv, mgr->mutex);
 	}
 
 	if (open_files && nrestores && *retp != 0 && !IS_MAX_LSN(min)) {
@@ -286,7 +253,9 @@ __txn_get_prepared(dbenv, xids, txns, count, retp, flags)
 		ret = __txn_openfiles(dbenv, &min, 0);
 		F_CLR((DB_LOG *)dbenv->lg_handle, DBLOG_RECOVER);
 	}
-err:
+	return (0);
+
+err:	TXN_SYSTEM_UNLOCK(dbenv);
 	return (ret);
 }
 
@@ -305,9 +274,9 @@ __txn_openfiles(dbenv, min, force)
 	DBT data;
 	DB_LOGC *logc;
 	DB_LSN open_lsn;
+	DB_TXNHEAD *txninfo;
 	__txn_ckp_args *ckp_args;
 	int ret, t_ret;
-	void *txninfo;
 
 	/*
 	 * Figure out the last checkpoint before the smallest

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: crypto.h,v 1.12 2004/01/28 03:36:00 bostic Exp $
+ * $Id: crypto.h,v 12.2 2005/07/20 16:51:03 bostic Exp $
  */
 
 #ifndef	_DB_CRYPTO_H_
@@ -56,7 +56,7 @@ struct __db_cipher {
 
 /*
  * Shared ciphering structure
- * No DB_MUTEX needed because all information is read-only after creation.
+ * No mutex needed because all information is read-only after creation.
  */
 typedef struct __cipher {
 	roff_t		passwd;		/* Offset to shared passwd */
