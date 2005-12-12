@@ -911,7 +911,7 @@ void sp_head::recursion_level_error()
     THD *thd= current_thd;
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
              thd->variables.max_sp_recursion_depth,
-             m_name);
+             m_name.str);
   }
   else
     my_error(ER_SP_NO_RECURSION, MYF(0));
