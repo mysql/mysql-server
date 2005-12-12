@@ -53,4 +53,14 @@ alter table t1 convert to character set utf8;
 select hex(a) from t1 where a = _big5 0xF9DC;
 drop table t1;
 
+#
+# Bugs#15375: Unassigned multibyte codes are broken
+# into parts when converting to Unicode.
+# This query should return 0x003F0041. I.e. it should
+# scan unassigned double-byte character 0xC840, convert
+# it as QUESTION MARK 0x003F and then scan the next
+# character, which is a single byte character 0x41.
+#
+select hex(convert(_big5 0xC84041 using ucs2));
+
 # End of 4.1 tests

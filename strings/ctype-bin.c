@@ -220,7 +220,7 @@ static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 			const unsigned char *end __attribute__((unused)))
 {
   if (str >= end)
-    return MY_CS_TOOFEW(0);
+    return MY_CS_TOOSMALL;
   
   *wc=str[0];
   return 1;
