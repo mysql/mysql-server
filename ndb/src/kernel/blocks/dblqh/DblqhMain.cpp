@@ -5870,12 +5870,21 @@ void Dblqh::execABORT(Signal* signal)
     warningReport(signal, 8);
     return;
   }//if
+  
+  TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  if (ERROR_INSERTED(5100))
+  {
+    SET_ERROR_INSERT_VALUE(5101);
+    return;
+  }
+  CRASH_INSERTION2(5101, regTcPtr->nextReplica != ZNIL);
+  
 /* ------------------------------------------------------------------------- */
 /*A GUIDING DESIGN PRINCIPLE IN HANDLING THESE ERROR SITUATIONS HAVE BEEN    */
 /*KEEP IT SIMPLE. THUS WE RATHER INSERT A WAIT AND SET THE ABORT_STATE TO    */
 /*ACTIVE RATHER THAN WRITE NEW CODE TO HANDLE EVERY SPECIAL SITUATION.       */
 /* ------------------------------------------------------------------------- */
-  TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->nextReplica != ZNIL) {
 /* ------------------------------------------------------------------------- */
 // We will immediately send the ABORT message also to the next LQH node in line.

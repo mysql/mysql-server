@@ -496,6 +496,45 @@ int runBug15632(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug15685(NDBT_Context* ctx, NDBT_Step* step){
+
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  NdbRestarter restarter;
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), 10) != 0){
+    return NDBT_FAILED;
+  }
+
+  if(hugoOps.startTransaction(pNdb) != 0)
+    goto err;
+  
+  if(hugoOps.pkUpdateRecord(pNdb, 0, 1, rand()) != 0)
+    goto err;
+
+  if(hugoOps.execute_NoCommit(pNdb) != 0)
+    goto err;
+
+  if (restarter.insertErrorInAllNodes(5100))
+    return NDBT_FAILED;
+  
+  hugoOps.execute_Rollback(pNdb);
+
+  if (restarter.waitClusterStarted() != 0)
+    goto err;
+
+  if (restarter.insertErrorInAllNodes(0))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+  
+err:
+  ctx->stopTest();
+  return NDBT_FAILED;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -774,6 +813,11 @@ TESTCASE("Bug15632",
 	 "Test bug with NF during NR"){
   INITIALIZER(runLoadTable);
   STEP(runBug15632);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15685",
+	 "Test bug with NF during abort"){
+  STEP(runBug15685);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
