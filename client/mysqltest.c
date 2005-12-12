@@ -2731,10 +2731,8 @@ end:
 
 static struct my_option my_long_options[] =
 {
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
    (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"big-test", 'B', "Define BIG_TEST to 1.", (gptr*) &opt_big_test,
@@ -2742,13 +2740,17 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
-   (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
-   0, 0, 0, 0, 0},
   {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
    (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -2757,6 +2759,9 @@ static struct my_option my_long_options[] =
   {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging.",
    (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
    MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
+  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
+   (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
   {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
    "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
    (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
