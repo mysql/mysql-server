@@ -5061,7 +5061,7 @@ simple_expr:
 	    }
 	    $$= new Item_default_value(Lex->current_context(), $3);
 	  }
-	| VALUES '(' simple_ident ')'
+	| VALUES '(' simple_ident_nospvar ')'
 	  { $$= new Item_insert_value(Lex->current_context(), $3); }
 	| FUNC_ARG0 '(' ')'
 	  {
@@ -9549,6 +9549,7 @@ subselect_end:
 	  LEX *lex=Lex;
           lex->pop_context();
 	  lex->current_select = lex->current_select->return_after_parsing();
+          lex->nest_level--;
 	};
 
 definer:

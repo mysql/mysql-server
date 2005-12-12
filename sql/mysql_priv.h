@@ -48,6 +48,7 @@ typedef Bitmap<64>  key_map;          /* Used for finding keys */
 typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #endif
 typedef ulong key_part_map;           /* Used for finding key parts */
+typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
   structures that have not been simplified away and embed more the one

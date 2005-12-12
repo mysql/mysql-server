@@ -1162,10 +1162,12 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     DBUG_RETURN(1);
   }
 end:
-  x_free(thd->db);
+  if (!(thd->slave_thread))
+    x_free(thd->db);
   if (dbname && dbname[0] == 0)
   {
-    x_free(dbname);
+    if (!(thd->slave_thread))
+      x_free(dbname);
     thd->db= NULL;
     thd->db_length= 0;
   }

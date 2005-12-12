@@ -301,6 +301,7 @@ cleanup:
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
     if (ha_autocommit_or_rollback(thd,error >= 0))
@@ -312,7 +313,6 @@ cleanup:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
     thd->row_count_func= deleted;
@@ -341,7 +341,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
-  thd->allow_sum_func= 0;
+  thd->lex->allow_sum_func= 0;
   if (setup_tables(thd, &thd->lex->select_lex.context,
                    &thd->lex->select_lex.top_join_list,
                    table_list, conds, &select_lex->leaf_tables,

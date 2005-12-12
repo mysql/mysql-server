@@ -134,6 +134,35 @@ drop function bug12480;
 drop table t1;
 
 #
+# #14614: Replication of tables with trigger generates error message if databases is changed
+# Note. The error message is emitted by _myfree() using fprintf() to the stderr
+# and because of that does not fall into the .result file.
+#
+
+create table t1 (i int);
+create table t2 (i int);
+
+delimiter |;
+create trigger tr1 before insert on t1 for each row
+begin
+ insert into t2 values (1);
+end|
+delimiter ;|
+
+create database other;
+use other;
+insert into test.t1 values (1);
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+connection master;
+use test;
+drop table t1,t2;
+drop database other;
+
+#
 # End of test
 #
 save_master_pos;
