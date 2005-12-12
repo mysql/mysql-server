@@ -14,9 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
-#include "event.h"
 #include "event_priv.h"
+#include "event.h"
 #include "sp.h"
 
 
@@ -40,6 +39,7 @@ pthread_mutex_t LOCK_event_arrays,
 
 bool evex_is_running= false;
 
+ulonglong evex_main_thread_id= 0;
 ulong opt_event_executor;
 my_bool event_executor_running_global_var= false;
 static my_bool evex_mutexes_initted= false;
@@ -74,6 +74,7 @@ void evex_init_mutexes()
   pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
 }
 
+
 int
 init_events()
 {
@@ -84,7 +85,7 @@ init_events()
   DBUG_PRINT("info",("Starting events main thread"));
 
   evex_init_mutexes();
-  
+
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;  
   event_executor_running_global_var= false;
@@ -109,6 +110,7 @@ shutdown_events()
   
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
+
   pthread_mutex_destroy(&LOCK_event_arrays);
   pthread_mutex_destroy(&LOCK_workers_count);
   pthread_mutex_destroy(&LOCK_evex_running);
@@ -182,7 +184,7 @@ event_executor_main(void *arg)
 
   if (init_event_thread(thd))
     goto err;
-
+  
   // make this thread invisible it has no vio -> show processlist won't see
   thd->system_thread= 1;
 
@@ -200,7 +202,12 @@ event_executor_main(void *arg)
     thus data should be freed at later stage.
   */
   VOID(my_init_dynamic_array(&events_array, sizeof(event_timed), 50, 100));
+/**
   VOID(my_init_dynamic_array(&evex_executing_queue, sizeof(event_timed *), 50, 100));
+**/
+
+  evex_queue_init(&EVEX_EQ_NAME);
+
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));  
 
   /*
@@ -217,107 +224,132 @@ event_executor_main(void *arg)
 
   THD_CHECK_SENTRY(thd);
   /* Read queries from the IO/THREAD until this thread is killed */
+  evex_main_thread_id= thd->thread_id;
+
   while (!thd->killed)
   {
     TIME time_now;
     my_time_t now;
     my_ulonglong cnt;
+    event_timed *et;
     
     DBUG_PRINT("info", ("EVEX External Loop %d", ++cnt));
     thd->proc_info = "Sleeping";
-    my_sleep(1000000);// sleep 1s
-    if (!event_executor_running_global_var)
+    if (!evex_queue_num_elements(EVEX_EQ_NAME) ||
+        !event_executor_running_global_var)
+    {
+      my_sleep(1000000);// sleep 1s
       continue;
-    time(&now);
-    my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
-
-    VOID(pthread_mutex_lock(&LOCK_event_arrays));
-    for (i= 0; (i < evex_executing_queue.elements) && !thd->killed; ++i)
-    {
-      event_timed *et= *dynamic_element(&evex_executing_queue,i,event_timed**);
-//      printf("%llu\n", TIME_to_ulonglong_datetime(&et->execute_at));
-      if (!event_executor_running_global_var)
-        break;
-
-      thd->proc_info = "Iterating";
-      THD_CHECK_SENTRY(thd);
-      /*
-        if this is the first event which is after time_now then no
-        more need to iterate over more elements since the array is sorted.
-      */ 
-      if (et->execute_at.year > 1969 &&
-          my_time_compare(&time_now, &et->execute_at) == -1)
-        break;
-      
-      if (et->status == MYSQL_EVENT_ENABLED && 
-          !check_access(thd, EVENT_ACL, et->dbname.str, 0, 0, 0,
-                        is_schema_db(et->dbname.str)))
-      {
-        pthread_t th;
-
-        DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
-        thd->proc_info = "Starting new thread";
-        sql_print_information("  Spawning a thread %d", ++iter_num);
-#ifndef DBUG_FAULTY_THR
-        if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
-        {
-          sql_print_error("Problem while trying to create a thread");
-          UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_event_arrays, err);
-        }
-#else
-        event_executor_worker((void *) et);
-#endif
-        et->mark_last_executed();
-        thd->proc_info = "Computing next time";
-        et->compute_next_execution_time();
-        et->update_fields(thd);
-        if ((et->execute_at.year && !et->expression)
-            || TIME_to_ulonglong_datetime(&et->execute_at) == 0L)
-          et->flags |= EVENT_EXEC_NO_MORE;
-      }
     }
-    /*
-      Let's remove elements which won't be executed any more
-      The number is "i" and it is <= up to evex_executing_queue.elements
-    */
-    j= 0;
-    while (j < i && j < evex_executing_queue.elements)
+
     {
-      event_timed *et= *dynamic_element(&evex_executing_queue, j, event_timed**);
-      if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
+      int t2sleep;
+      
+        
+      /*
+        now let's see how much time to sleep, we know there is at least 1
+        element in the queue.
+      */
+      VOID(pthread_mutex_lock(&LOCK_event_arrays));
+      if (!evex_queue_num_elements(EVEX_EQ_NAME))
       {
-        delete_dynamic_element(&evex_executing_queue, j);
-        DBUG_PRINT("EVEX main thread", ("DELETING FROM EXECUTION QUEUE [%s.%s]", 
-                                         et->dbname.str, et->name.str));
-        // nulling the position, will delete later
-        if (et->dropped)
-        {
-          // we have to drop the event
-          int idx;
-          et->drop(thd);
-          idx= get_index_dynamic(&events_array, (gptr) et);
-          DBUG_ASSERT(idx != -1);
-          delete_dynamic_element(&events_array, idx);
-        }
+        VOID(pthread_mutex_unlock(&LOCK_event_arrays));
         continue;
       }
-      ++j;
+      et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+        
+      time(&now);
+      my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
+      t2sleep= evex_time_diff(&et->execute_at, &time_now);
+      VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+      if (t2sleep > 0)
+      {
+        sql_print_information("Sleeping for %d seconds.", t2sleep);
+        printf("\nWHEN=%llu   NOW=%llu\n", TIME_to_ulonglong_datetime(&et->execute_at), TIME_to_ulonglong_datetime(&time_now));
+        /*
+          We sleep t2sleep seconds but we check every second whether this thread
+          has been killed, or there is new candidate
+        */
+        while (t2sleep-- && !thd->killed &&
+               evex_queue_num_elements(EVEX_EQ_NAME) &&
+               (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
+          my_sleep(1000000);
+        sql_print_information("Finished sleeping");
+      }
+      if (!event_executor_running_global_var)
+        continue;
+
     }
-    if (evex_executing_queue.elements)
-      //ToDo Andrey : put a lock here
-      qsort((gptr) dynamic_element(&evex_executing_queue, 0, event_timed**),
-                                   evex_executing_queue.elements,
-                                   sizeof(event_timed **),
-                                   (qsort_cmp) event_timed_compare
-                                 );
+
+
+    VOID(pthread_mutex_lock(&LOCK_event_arrays));
+
+    if (!evex_queue_num_elements(EVEX_EQ_NAME))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+      continue;
+    }
+    et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+      
+    /*
+      if this is the first event which is after time_now then no
+      more need to iterate over more elements since the array is sorted.
+    */ 
+    if (et->execute_at.year > 1969 &&
+        my_time_compare(&time_now, &et->execute_at) == -1)
+    {
+      VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+      continue;
+    } 
+      
+    if (et->status == MYSQL_EVENT_ENABLED)
+    {
+      pthread_t th;
+
+      DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
+      sql_print_information("  Spawning a thread %d", ++iter_num);
+#ifndef DBUG_FAULTY_THR
+      sql_print_information("  Thread is not debuggable!");
+      if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
+      {
+        sql_print_error("Problem while trying to create a thread");
+        UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_event_arrays, err);
+      }
+#else
+      event_executor_worker((void *) et);
+#endif
+      printf("[%10s] exec at [%llu]\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
+      et->mark_last_executed();
+      et->compute_next_execution_time();
+      printf("[%10s] next at [%llu]\n\n\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
+      et->update_fields(thd);
+      if ((et->execute_at.year && !et->expression) ||
+           TIME_to_ulonglong_datetime(&et->execute_at) == 0L)
+         et->flags |= EVENT_EXEC_NO_MORE;
+    }
+    if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
+    {
+      evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
+      if (et->dropped)
+      {
+        // we have to drop the event
+        int idx;
+        et->drop(thd);
+        idx= get_index_dynamic(&events_array, (gptr) et);
+        DBUG_ASSERT(idx != -1);
+        delete_dynamic_element(&events_array, idx);
+      }
+    } else
+        evex_queue_first_updated(&EVEX_EQ_NAME);
 
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
-  }
+  }// while
 
 err:
   // First manifest that this thread does not work and then destroy
   VOID(pthread_mutex_lock(&LOCK_evex_running));
-  evex_is_running= false;  
+  evex_is_running= false;
+  evex_main_thread_id= 0;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   sql_print_information("Event scheduler stopping");
@@ -341,7 +373,8 @@ err:
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
   // No need to use lock here if EVEX is not running but anyway
-  delete_dynamic(&evex_executing_queue);
+  delete_queue(&executing_queue);
+  evex_queue_destroy(&EVEX_EQ_NAME);
   delete_dynamic(&events_array);
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   
@@ -353,8 +386,10 @@ err:
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   thread_running--;
+#ifndef DBUG_FAULTY_THR
   THD_CHECK_SENTRY(thd);
   delete thd;
+#endif
   pthread_mutex_unlock(&LOCK_thread_count);
 
 
@@ -366,8 +401,10 @@ err_no_thd:
   free_root(&evex_mem_root, MYF(0));
   sql_print_information("Event scheduler stopped");
 
+#ifndef DBUG_FAULTY_THR
   my_thread_end();
   pthread_exit(0);
+#endif
   DBUG_RETURN(0);// Can't return anything here
 }
 
@@ -386,6 +423,7 @@ event_executor_worker(void *event_void)
 
   init_alloc_root(&worker_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
 
+#ifndef DBUG_FAULTY_THR
   my_thread_init();
 
   if (!(thd = new THD)) // note that contructor of THD uses DBUG_ !
@@ -411,6 +449,9 @@ event_executor_worker(void *event_void)
   thread_count++;
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+#else
+  thd= current_thd;
+#endif
 
   // thd->security_ctx->priv_host is char[MAX_HOSTNAME]
   
@@ -420,6 +461,8 @@ event_executor_worker(void *event_void)
   thd->security_ctx->priv_user= event->definer_user.str;
 
   thd->db= event->dbname.str;
+  if (!check_access(thd, EVENT_ACL, event->dbname.str, 0, 0, 0,
+                      is_schema_db(event->dbname.str)))
   {
     char exec_time[200];
     int ret;
@@ -434,6 +477,7 @@ event_executor_worker(void *event_void)
 
 err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
+#ifndef DBUG_FAULTY_THR
   thread_count--;
   thread_running--;
   /*
@@ -451,6 +495,7 @@ err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   THD_CHECK_SENTRY(thd);
   delete thd;
+#endif
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
 err_no_thd:
@@ -502,6 +547,12 @@ evex_load_events_from_db(THD *thd)
                       "Table probably corrupted");
       goto end;
     }
+    if (et->status != MYSQL_EVENT_ENABLED)
+    {
+      DBUG_PRINT("evex_load_events_from_db",("Event %s is disabled", et->name.str));
+      delete et;
+      continue;
+    }
     
     DBUG_PRINT("evex_load_events_from_db",
             ("Event %s loaded from row. Time to compile", et->name.str));
@@ -515,8 +566,7 @@ evex_load_events_from_db(THD *thd)
     // let's find when to be executed  
     et->compute_next_execution_time();
     
-    DBUG_PRINT("evex_load_events_from_db",
-                ("Adding %s to the executor list.", et->name.str));
+    DBUG_PRINT("evex_load_events_from_db", ("Adding to the exec list."));
     VOID(push_dynamic(&events_array,(gptr) et));
     /*
       We always add at the end so the number of elements - 1 is the place
@@ -526,23 +576,21 @@ evex_load_events_from_db(THD *thd)
     */
     et_copy= dynamic_element(&events_array, events_array.elements - 1,
                              event_timed*);
-    VOID(push_dynamic(&evex_executing_queue,(gptr) &et_copy));
+
+    evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) et_copy);
+    printf("%p %s\n", et_copy, et_copy->name.str);
     et->free_sphead_on_delete= false;
     delete et; 
   }
-  end_read_record(&read_record_info);
 
-  qsort((gptr) dynamic_element(&evex_executing_queue, 0, event_timed**),
-                               evex_executing_queue.elements,
-                               sizeof(event_timed **),
-                               (qsort_cmp) event_timed_compare
-                              );
-  VOID(pthread_mutex_unlock(&LOCK_event_arrays));
-
-  thd->version--;  // Force close to free memory
   ret= 0;
 
 end:
+  VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+  end_read_record(&read_record_info);
+
+  thd->version--;  // Force close to free memory
+
   close_thread_tables(thd);
 
   DBUG_PRINT("info", ("Finishing with status code %d", ret));

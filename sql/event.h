@@ -16,11 +16,9 @@
 
 #ifndef _EVENT_H_
 #define _EVENT_H_
-#include "sp_head.h"
+
 #include "sp.h"
-
-
-extern ulong opt_event_executor;
+#include "sp_head.h"
 
 #define EVEX_OK                 SP_OK
 #define EVEX_KEY_NOT_FOUND      SP_KEY_NOT_FOUND

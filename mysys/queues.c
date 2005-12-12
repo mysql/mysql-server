@@ -19,7 +19,7 @@
   Implemention of queues from "Algoritms in C" by Robert Sedgewick.
   An optimisation of _downheap suggested in Exercise 7.51 in "Data
   Structures & Algorithms in C++" by Mark Allen Weiss, Second Edition
-  was implemented by Mikael Ronström 2005. Also the O(N) algorithm
+  was implemented by Mikael Ronstrom 2005. Also the O(N) algorithm
   of queue_fix was implemented.
 */
 
@@ -66,6 +66,46 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   DBUG_RETURN(0);
 }
 
+
+
+/*
+  Init queue, uses init_queue internally for init work but also accepts
+  auto_extent as parameter
+
+  SYNOPSIS
+    init_queue_ex()
+    queue		Queue to initialise
+    max_elements	Max elements that will be put in queue
+    offset_to_key	Offset to key in element stored in queue
+			Used when sending pointers to compare function
+    max_at_top		Set to 1 if you want biggest element on top.
+    compare		Compare function for elements, takes 3 arguments.
+    first_cmp_arg	First argument to compare function
+    auto_extent         When the queue is full and there is insert operation
+                        extend the queue.
+
+  NOTES
+    Will allocate max_element pointers for queue array
+
+  RETURN
+    0	ok
+    1	Could not allocate memory
+*/
+
+int init_queue_ex(QUEUE *queue, uint max_elements, uint offset_to_key,
+	       pbool max_at_top, int (*compare) (void *, byte *, byte *),
+	       void *first_cmp_arg, uint auto_extent)
+{
+  int ret;
+  DBUG_ENTER("init_queue_ex");
+
+  if ((ret= init_queue(queue, max_elements, offset_to_key, max_at_top, compare,
+                       first_cmp_arg)))
+    DBUG_RETURN(ret);
+  
+  queue->auto_extent= auto_extent;
+  DBUG_RETURN(0);
+}
 
 /*
   Reinitialize queue for other usage
@@ -191,6 +231,31 @@ void queue_insert(register QUEUE *queue, byte *element)
     queue->root[idx]=element;
   }
 }
+
+/*
+  Does safe insert. If no more space left on the queue resize it.
+  Return codes:
+    0 - OK
+    1 - Cannot allocate more memory
+    2 - auto_extend is 0, the operation would
+  
+*/
+
+int queue_insert_safe(register QUEUE *queue, byte *element)
+{
+
+  if (queue->elements == queue->max_elements)
+  {
+    if (!queue->auto_extent)
+      return 2;
+    else if (resize_queue(queue, queue->max_elements + queue->auto_extent))
+      return 1;
+  }
+  
+  queue_insert(queue, element);
+  return 0;
+}
+
 
 	/* Remove item from queue */
 	/* Returns pointer to removed element */
