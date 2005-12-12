@@ -165,6 +165,7 @@ handling in DBTC to ensure that node failures are also well handled in
 time-out handling. They can also be used to test multiple node failure
 handling.
 
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBLQH
 -------------------------------------------------
 5011:
@@ -200,6 +201,9 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 8048: Make TC not choose own node for simple/dirty read
 5041: Crash is receiving simple read from other TC on different node
+
+5100,5101: Drop ABORT req in primary replica
+           Crash on "next" ABORT
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
