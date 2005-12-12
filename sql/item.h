@@ -640,7 +640,7 @@ public:
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
-                       Item **ref);
+                       Item **ref, bool skip_registered);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
@@ -2055,6 +2055,16 @@ public:
     return (this->*transformer)(args);
   }
 };
+
+/*
+  Item_insert_value -- an implementation of VALUES() function.
+  You can use the VALUES(col_name) function in the UPDATE clause
+  to refer to column values from the INSERT portion of the INSERT
+  ... UPDATE statement. In other words, VALUES(col_name) in the
+  UPDATE clause refers to the value of col_name that would be
+  inserted, had no duplicate-key conflict occurred.
+  In all other places this function returns NULL.
+*/
 
 class Item_insert_value : public Item_field
 {

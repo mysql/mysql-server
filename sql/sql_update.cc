@@ -632,6 +632,7 @@ int mysql_update(THD *thd,
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
@@ -644,7 +645,6 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
@@ -706,7 +706,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
-  thd->allow_sum_func= 0;
+  thd->lex->allow_sum_func= 0;
 
   if (setup_tables(thd, &select_lex->context, &select_lex->top_join_list,
                    table_list, conds, &select_lex->leaf_tables,
