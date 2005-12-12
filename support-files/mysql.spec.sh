@@ -35,7 +35,7 @@ Release:	%{release}
 License:	%{license}
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	Lenz Grimmer <build@mysql.com>
+Packager:	MySQL Production Engineering Team <build@mysql.com>
 Vendor:		MySQL AB
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -325,7 +325,13 @@ fi
 make test-force || true
 
 # Save mysqld-max
-mv sql/mysqld sql/mysqld-max
+# check if mysqld was installed in .libs/
+if test -f sql/.libs/mysqld
+then
+	cp sql/.libs/mysqld sql/mysqld-max
+else
+	cp sql/mysqld sql/mysqld-max
+fi
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 # Save the perror binary so it supports the NDB error codes (BUG#13740)
 mv extra/perror extra/perror.ndb
@@ -362,15 +368,19 @@ BuildMySQL "--disable-shared \
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
-%else
-		--with-zlib-dir=bundled \
 %endif
+		--with-zlib-dir=bundled \
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--with-archive-storage-engine \
 		--with-innodb \
 		--with-big-tables"
-nm --numeric-sort sql/mysqld > sql/mysqld.sym
+if test -f sql/.libs/mysqld
+then
+	nm --numeric-sort sql/.libs/mysqld > sql/mysqld.sym
+else
+	nm --numeric-sort sql/mysqld > sql/mysqld.sym
+fi
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
@@ -678,6 +688,8 @@ fi
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
 %{_libdir}/mysql/libvio.a
+%{_libdir}/mysql/libz.a
+%{_libdir}/mysql/libz.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -706,6 +718,13 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Dec 12 2005 Rodrigo Novo <rodrigo@mysql.com>
+
+- Added zlib to the list of (static) libraries installed
+- Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
+- Compile MySQL with bundled zlib
+- Fixed %packager name to "MySQL Production Engineering Team"
+
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
 - Avoid using the "bundled" zlib on "shared" builds: 
