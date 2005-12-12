@@ -30,7 +30,7 @@ wait_for_slave_to_stop;
 # here table should be still not deleted
 select * from t1;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 #
 show slave status;
 
 # this should fail right after start
@@ -40,7 +40,7 @@ select * from t1;
 sleep 2;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---replace_column 1 # 9 # 23 # 33 #
+--replace_column 1 # 9 # 11 # 23 # 33 #
 show slave status;
 
 # try replicate all until second insert to t2;
