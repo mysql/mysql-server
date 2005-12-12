@@ -8997,8 +8997,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
     field++;
   }
   *field= NULL;                                 /* mark the end of the list */
-  s->blob_field[blob_count]= 0;             /* mark the end of the list */
-  s->blob_fields= blob_count;
+  share->blob_field[blob_count]= 0;            /* mark the end of the list */
+  share->blob_fields= blob_count;
 
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;

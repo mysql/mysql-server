@@ -679,6 +679,9 @@ sp_head::create_result_field(uint field_max_length, const char *field_name,
                       Field::NONE,                  /* unreg check */
                       m_return_field_def.interval,
                       field_name ? field_name : (const char *) m_name.str);
+
+  if (field)
+    field->init(table);
   
   DBUG_RETURN(field);
 }

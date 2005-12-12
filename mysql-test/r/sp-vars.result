@@ -103,18 +103,18 @@ v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
 v17	v18	v19	v20
 12.00	12.12	12.00	12.12
 Warnings:
-Warning	1264	Out of range value adjusted for column 'v1' at row 1
-Warning	1264	Out of range value adjusted for column 'v1u' at row 1
-Warning	1264	Out of range value adjusted for column 'v2' at row 1
-Warning	1264	Out of range value adjusted for column 'v2u' at row 1
-Warning	1264	Out of range value adjusted for column 'v3' at row 1
-Warning	1264	Out of range value adjusted for column 'v3u' at row 1
-Warning	1264	Out of range value adjusted for column 'v4' at row 1
-Warning	1264	Out of range value adjusted for column 'v4u' at row 1
-Warning	1264	Out of range value adjusted for column 'v5' at row 1
-Warning	1264	Out of range value adjusted for column 'v5u' at row 1
-Warning	1264	Out of range value adjusted for column 'v6' at row 1
-Warning	1264	Out of range value adjusted for column 'v6u' at row 1
+Warning	1264	Out of range value for column 'v1' at row 1
+Warning	1264	Out of range value for column 'v1u' at row 1
+Warning	1264	Out of range value for column 'v2' at row 1
+Warning	1264	Out of range value for column 'v2u' at row 1
+Warning	1264	Out of range value for column 'v3' at row 1
+Warning	1264	Out of range value for column 'v3u' at row 1
+Warning	1264	Out of range value for column 'v4' at row 1
+Warning	1264	Out of range value for column 'v4u' at row 1
+Warning	1264	Out of range value for column 'v5' at row 1
+Warning	1264	Out of range value for column 'v5u' at row 1
+Warning	1264	Out of range value for column 'v6' at row 1
+Warning	1264	Out of range value for column 'v6u' at row 1
 Warning	1366	Incorrect integer value: 'String 10 ' for column 'v10' at row 1
 Warning	1366	Incorrect integer value: 'String10' for column 'v11' at row 1
 Warning	1265	Data truncated for column 'v12' at row 1
@@ -136,32 +136,32 @@ d1	d2	d3
 d1	d2	d3
 1234.00	1234.12	1234.12
 Warnings:
-Warning	1264	Out of range value adjusted for column 'i1' at row 1
-Warning	1264	Out of range value adjusted for column 'i2' at row 1
-Warning	1264	Out of range value adjusted for column 'i3' at row 1
-Warning	1264	Out of range value adjusted for column 'i4' at row 1
-Warning	1264	Out of range value adjusted for column 'i1' at row 1
-Warning	1264	Out of range value adjusted for column 'i2' at row 1
-Warning	1264	Out of range value adjusted for column 'i3' at row 1
-Warning	1264	Out of range value adjusted for column 'i4' at row 1
-Warning	1264	Out of range value adjusted for column 'u1' at row 1
-Warning	1264	Out of range value adjusted for column 'u2' at row 1
-Warning	1264	Out of range value adjusted for column 'u3' at row 1
-Warning	1264	Out of range value adjusted for column 'u4' at row 1
-Warning	1264	Out of range value adjusted for column 'u1' at row 1
-Warning	1264	Out of range value adjusted for column 'u2' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i2' at row 1
+Warning	1264	Out of range value for column 'i3' at row 1
+Warning	1264	Out of range value for column 'i4' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i2' at row 1
+Warning	1264	Out of range value for column 'i3' at row 1
+Warning	1264	Out of range value for column 'i4' at row 1
+Warning	1264	Out of range value for column 'u1' at row 1
+Warning	1264	Out of range value for column 'u2' at row 1
+Warning	1264	Out of range value for column 'u3' at row 1
+Warning	1264	Out of range value for column 'u4' at row 1
+Warning	1264	Out of range value for column 'u1' at row 1
+Warning	1264	Out of range value for column 'u2' at row 1
 Note	1265	Data truncated for column 'd3' at row 1
 Note	1265	Data truncated for column 'd3' at row 1
 SELECT sp_vars_check_ret1();
 sp_vars_check_ret1()
 127
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_vars_check_ret1()' at row 1
+Warning	1264	Out of range value for column 'sp_vars_check_ret1()' at row 1
 SELECT sp_vars_check_ret2();
 sp_vars_check_ret2()
 127
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_vars_check_ret2()' at row 1
+Warning	1264	Out of range value for column 'sp_vars_check_ret2()' at row 1
 SELECT sp_vars_check_ret3();
 sp_vars_check_ret3()
 0
@@ -188,18 +188,18 @@ v7	v8	v9	v10	v11	v12	v13	v14	v15	v16
 v17	v18	v19	v20
 12.00	12.12	12.00	12.12
 Warnings:
-Warning	1264	Out of range value adjusted for column 'v1' at row 1
-Warning	1264	Out of range value adjusted for column 'v1u' at row 1
-Warning	1264	Out of range value adjusted for column 'v2' at row 1
-Warning	1264	Out of range value adjusted for column 'v2u' at row 1
-Warning	1264	Out of range value adjusted for column 'v3' at row 1
-Warning	1264	Out of range value adjusted for column 'v3u' at row 1
-Warning	1264	Out of range value adjusted for column 'v4' at row 1
-Warning	1264	Out of range value adjusted for column 'v4u' at row 1
-Warning	1264	Out of range value adjusted for column 'v5' at row 1
-Warning	1264	Out of range value adjusted for column 'v5u' at row 1
-Warning	1264	Out of range value adjusted for column 'v6' at row 1
-Warning	1264	Out of range value adjusted for column 'v6u' at row 1
+Warning	1264	Out of range value for column 'v1' at row 1
+Warning	1264	Out of range value for column 'v1u' at row 1
+Warning	1264	Out of range value for column 'v2' at row 1
+Warning	1264	Out of range value for column 'v2u' at row 1
+Warning	1264	Out of range value for column 'v3' at row 1
+Warning	1264	Out of range value for column 'v3u' at row 1
+Warning	1264	Out of range value for column 'v4' at row 1
+Warning	1264	Out of range value for column 'v4u' at row 1
+Warning	1264	Out of range value for column 'v5' at row 1
+Warning	1264	Out of range value for column 'v5u' at row 1
+Warning	1264	Out of range value for column 'v6' at row 1
+Warning	1264	Out of range value for column 'v6u' at row 1
 Warning	1366	Incorrect integer value: 'String 10 ' for column 'v10' at row 1
 Warning	1366	Incorrect integer value: 'String10' for column 'v11' at row 1
 Warning	1265	Data truncated for column 'v12' at row 1
@@ -221,32 +221,32 @@ d1	d2	d3
 d1	d2	d3
 1234.00	1234.12	1234.12
 Warnings:
-Warning	1264	Out of range value adjusted for column 'i1' at row 1
-Warning	1264	Out of range value adjusted for column 'i2' at row 1
-Warning	1264	Out of range value adjusted for column 'i3' at row 1
-Warning	1264	Out of range value adjusted for column 'i4' at row 1
-Warning	1264	Out of range value adjusted for column 'i1' at row 1
-Warning	1264	Out of range value adjusted for column 'i2' at row 1
-Warning	1264	Out of range value adjusted for column 'i3' at row 1
-Warning	1264	Out of range value adjusted for column 'i4' at row 1
-Warning	1264	Out of range value adjusted for column 'u1' at row 1
-Warning	1264	Out of range value adjusted for column 'u2' at row 1
-Warning	1264	Out of range value adjusted for column 'u3' at row 1
-Warning	1264	Out of range value adjusted for column 'u4' at row 1
-Warning	1264	Out of range value adjusted for column 'u1' at row 1
-Warning	1264	Out of range value adjusted for column 'u2' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i2' at row 1
+Warning	1264	Out of range value for column 'i3' at row 1
+Warning	1264	Out of range value for column 'i4' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i2' at row 1
+Warning	1264	Out of range value for column 'i3' at row 1
+Warning	1264	Out of range value for column 'i4' at row 1
+Warning	1264	Out of range value for column 'u1' at row 1
+Warning	1264	Out of range value for column 'u2' at row 1
+Warning	1264	Out of range value for column 'u3' at row 1
+Warning	1264	Out of range value for column 'u4' at row 1
+Warning	1264	Out of range value for column 'u1' at row 1
+Warning	1264	Out of range value for column 'u2' at row 1
 Note	1265	Data truncated for column 'd3' at row 1
 Note	1265	Data truncated for column 'd3' at row 1
 SELECT sp_vars_check_ret1();
 sp_vars_check_ret1()
 127
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_vars_check_ret1()' at row 1
+Warning	1264	Out of range value for column 'sp_vars_check_ret1()' at row 1
 SELECT sp_vars_check_ret2();
 sp_vars_check_ret2()
 127
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_vars_check_ret2()' at row 1
+Warning	1264	Out of range value for column 'sp_vars_check_ret2()' at row 1
 SELECT sp_vars_check_ret3();
 sp_vars_check_ret3()
 0
@@ -352,13 +352,13 @@ Calling the routines, created in TRADITIONAL mode.
 ---------------------------------------------------------------
 
 CALL sp_vars_check_dflt();
-ERROR 22003: Out of range value adjusted for column 'v1' at row 1
+ERROR 22003: Out of range value for column 'v1' at row 1
 CALL sp_vars_check_assignment();
-ERROR 22003: Out of range value adjusted for column 'i1' at row 1
+ERROR 22003: Out of range value for column 'i1' at row 1
 SELECT sp_vars_check_ret1();
-ERROR 22003: Out of range value adjusted for column 'sp_vars_check_ret1()' at row 1
+ERROR 22003: Out of range value for column 'sp_vars_check_ret1()' at row 1
 SELECT sp_vars_check_ret2();
-ERROR 22003: Out of range value adjusted for column 'sp_vars_check_ret2()' at row 1
+ERROR 22003: Out of range value for column 'sp_vars_check_ret2()' at row 1
 SELECT sp_vars_check_ret3();
 ERROR HY000: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
 SELECT sp_vars_check_ret4();
@@ -428,11 +428,11 @@ FF
 HEX(v10)
 FF
 Warnings:
-Warning	1264	Out of range value adjusted for column 'v8' at row 1
-Warning	1264	Out of range value adjusted for column 'v9' at row 1
-Warning	1264	Out of range value adjusted for column 'v10' at row 1
-Warning	1264	Out of range value adjusted for column 'v1' at row 1
-Warning	1264	Out of range value adjusted for column 'v5' at row 1
+Warning	1264	Out of range value for column 'v8' at row 1
+Warning	1264	Out of range value for column 'v9' at row 1
+Warning	1264	Out of range value for column 'v10' at row 1
+Warning	1264	Out of range value for column 'v1' at row 1
+Warning	1264	Out of range value for column 'v5' at row 1
 DROP PROCEDURE p1;
 
 ---------------------------------------------------------------
@@ -675,7 +675,7 @@ t1	CREATE TABLE "t1" (
   "x" varbinary(19) default NULL
 )
 Warnings:
-Warning	1264	Out of range value adjusted for column 'x' at row 1
+Warning	1264	Out of range value for column 'x' at row 1
 DROP PROCEDURE p1;
 
 ---------------------------------------------------------------
@@ -777,9 +777,9 @@ SET var := arg;
 SELECT arg, var;
 END|
 CALL p1();
-ERROR 22003: Out of range value adjusted for column 'v' at row 1
+ERROR 22003: Out of range value for column 'v' at row 1
 CALL p2();
-ERROR 22003: Out of range value adjusted for column 'v' at row 1
+ERROR 22003: Out of range value for column 'v' at row 1
 CALL p3();
 ERROR 22001: Data too long for column 'v' at row 1
 CALL p4('aaa');
@@ -787,7 +787,7 @@ ERROR 22001: Data too long for column 'arg' at row 1
 CALL p5('aa');
 ERROR 22001: Data too long for column 'var' at row 1
 CALL p6(10);
-ERROR 22003: Out of range value adjusted for column 'var' at row 1
+ERROR 22003: Out of range value for column 'var' at row 1
 SET @@sql_mode = 'ansi';
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
@@ -833,17 +833,17 @@ SELECT f1(-2500);
 f1(-2500)
 0
 Warnings:
-Warning	1264	Out of range value adjusted for column 'arg' at row 1
+Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 SELECT f1(-2500);
-ERROR 22003: Out of range value adjusted for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
 CREATE FUNCTION f1(arg TINYINT UNSIGNED) RETURNS TINYINT
 BEGIN
 RETURN arg;
 END|
 SELECT f1(-2500);
-ERROR 22003: Out of range value adjusted for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
 DROP FUNCTION f1;
 
@@ -860,17 +860,17 @@ SELECT f1(8388699);
 f1(8388699)
 8388607
 Warnings:
-Warning	1264	Out of range value adjusted for column 'arg' at row 1
+Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 SELECT f1(8388699);
-ERROR 22003: Out of range value adjusted for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
 CREATE FUNCTION f1(arg MEDIUMINT) RETURNS MEDIUMINT
 BEGIN
 RETURN arg;
 END|
 SELECT f1(8388699);
-ERROR 22003: Out of range value adjusted for column 'arg' at row 1
+ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
 DROP FUNCTION f1;
 
@@ -896,7 +896,7 @@ sp_var
 @user_var
 0
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_var' at row 1
+Warning	1264	Out of range value for column 'sp_var' at row 1
 DROP PROCEDURE p1;
 DROP TABLE t1;
 
