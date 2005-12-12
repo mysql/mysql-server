@@ -14,9 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
-#include "event.h"
 #include "event_priv.h"
+#include "event.h"
 #include "sp.h"
 
 
@@ -789,7 +788,7 @@ event_timed::get_show_create_event(THD *thd, uint *length)
     + strlen("DO ") +
 	+ body.length + strlen(";");
   
-  ret= dst= (char*) alloc_root(thd->mem_root, len);
+  ret= dst= (char*) alloc_root(thd->mem_root, len + 1);
   memcpy(dst, "CREATE EVENT ", tmp_len= strlen("CREATE EVENT "));
   dst+= tmp_len;
   memcpy(dst, dbname.str, tmp_len=dbname.length);
@@ -832,7 +831,7 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   *dst= '\0';
 
   *length= len;
-  
+  dst[len]= '\0'; 
   return ret;
 }
 
