@@ -527,6 +527,7 @@ int mysql_update(THD *thd,
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
@@ -539,7 +540,6 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
