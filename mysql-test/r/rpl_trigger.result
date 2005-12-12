@@ -122,3 +122,15 @@ a=b && a=c
 1
 drop function bug12480;
 drop table t1;
+create table t1 (i int);
+create table t2 (i int);
+create trigger tr1 before insert on t1 for each row
+begin
+insert into t2 values (1);
+end|
+create database other;
+use other;
+insert into test.t1 values (1);
+use test;
+drop table t1,t2;
+drop database other;
