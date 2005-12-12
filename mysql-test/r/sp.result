@@ -3537,7 +3537,7 @@ tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(3,3) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Warnings:
-Warning	1264	Out of range value adjusted for column 'spv1' at row 1
+Warning	1264	Out of range value for column 'spv1' at row 1
 Warning	1366	Incorrect decimal value: 'test' for column 'spv1' at row 1
 call bug12589_2()|
 Table	Create Table
