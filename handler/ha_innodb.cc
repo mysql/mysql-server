@@ -2868,8 +2868,6 @@ ha_innobase::store_key_val_for_row(
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
-	ulint		blob_len;
-	byte*		blob_data;
 	ibool		is_null;
 
   	DBUG_ENTER("store_key_val_for_row");
@@ -2924,14 +2922,19 @@ ha_innobase::store_key_val_for_row(
 			ulint	len;
 			byte*	data;
 			ulint	key_len;
+			ulint	true_len;
 			CHARSET_INFO*	cs;
 			int	error=0;
 
+			key_len = key_part->length;
+
 			if (is_null) {
-				buff += key_part->length + 2;
+				buff += key_len + 2;
 				
 				continue;
 			}
+			cs = field->charset();
+			true_len = key_len;
 
 			lenlen = (ulint)
 				(((Field_varstring*)field)->length_bytes);
@@ -2941,23 +2944,22 @@ ha_innobase::store_key_val_for_row(
 				+ (ulint)get_field_offset(table, field)),
 				lenlen);
 
-			/* In a column prefix index, we may need to truncate
-			the stored value: */
-		
-			cs = key_part->field->charset();
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
 
-			if (cs->mbmaxlen > 1 && key_part->length > 0) {
-				key_len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) data,
-					(const char *) data + key_part->length,
-					key_part->length / cs->mbmaxlen, 
-					&error);
-			} else {
-				key_len = key_part->length;
+			if (key_len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) data,
+						(const char *) data + key_len,
+						key_len / cs->mbmaxlen, 
+						&error);
 			}
 
-			if (len > key_len) {
-				len = key_len;
+			/* In a column prefix index, we may need to truncate
+			the stored value: */
+
+			if (len > true_len) {
+				len = true_len;
 			}
 
 			/* The length in a key value is always stored in 2
@@ -2974,7 +2976,7 @@ ha_innobase::store_key_val_for_row(
 			actual data. The rest of the space was reset to zero
 			in the bzero() call above. */
 
-			buff += key_part->length;
+			buff += key_len;
 
 		} else if (mysql_type == FIELD_TYPE_TINY_BLOB
 		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
@@ -2984,16 +2986,24 @@ ha_innobase::store_key_val_for_row(
 			CHARSET_INFO*	cs;
 			ulint		key_len;
 			ulint		len;
+			ulint		true_len;
 			int		error=0;
+			ulint		blob_len;
+			byte*		blob_data;
 
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
+			key_len = key_part->length;
+
 		        if (is_null) {
-				buff += key_part->length + 2;
+				buff += key_len + 2;
 				 
 				continue;
 			}
 		    
+			cs = field->charset();
+			true_len = key_len;
+
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
 				+ (ulint)get_field_offset(table, field)),
@@ -3002,25 +3012,24 @@ ha_innobase::store_key_val_for_row(
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
 
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
+			
+			if (key_len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) blob_data,
+						(const char *) blob_data 
+							+ key_len,
+						key_len / cs->mbmaxlen,
+						&error);
+			}
+
 			/* All indexes on BLOB and TEXT are column prefix
 			indexes, and we may need to truncate the data to be
 			stored in the key value: */
 
-			cs = key_part->field->charset();
-			
-			if (cs->mbmaxlen > 1 && key_part->length > 0) {
-				key_len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) blob_data,
-					(const char *) blob_data 
-						+ key_part->length,
-					key_part->length / cs->mbmaxlen,
-					&error);
-			} else {
-				key_len = key_part->length;
-			}
-
-			if (blob_len > key_len) {
-				blob_len = key_len;
+			if (blob_len > true_len) {
+				blob_len = true_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
@@ -3035,7 +3044,7 @@ ha_innobase::store_key_val_for_row(
 			/* Note that we always reserve the maximum possible
 			length of the BLOB prefix in the key value. */
 
-			buff += key_part->length;
+			buff += key_len;
 		} else {
 			/* Here we handle all other data types except the
 			true VARCHAR, BLOB and TEXT. Note that the column
@@ -3043,38 +3052,64 @@ ha_innobase::store_key_val_for_row(
 			index. */
 
 			CHARSET_INFO*		cs;
-			ulint			len;
+			ulint			true_len;
+			ulint			key_len;
 			const mysql_byte*	src_start;
 			int			error=0;
+			enum_field_types	real_type;
+
+			key_len = key_part->length;
 
 		        if (is_null) {
-				 buff += key_part->length;
+				 buff += key_len;
 				 
 				 continue;
 			}
 
-			cs = key_part->field->charset();
 			src_start = record + key_part->offset;
+			real_type = field->real_type();
+			true_len = key_len;
 
-			if (key_part->length > 0 && cs->mbmaxlen > 1) {
-				len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) src_start,
-					(const char *) src_start + key_part->length,
-					key_part->length / cs->mbmaxlen, 
-					&error);
-			} else {
-				len = key_part->length;
+			/* Character set for the field is defined only
+			fields which type is string and real field
+			type is not enum or set. For these fields check
+			if character set is multi byte. */
+
+			if (real_type != FIELD_TYPE_ENUM 
+				&& real_type != FIELD_TYPE_SET
+				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
+					|| mysql_type == MYSQL_TYPE_STRING)) {
+
+				cs = field->charset();
+
+				/* For multi byte character sets we need to 
+				calculate the true length of the key */
+
+				if (key_len > 0 && cs->mbmaxlen > 1) {
+
+					true_len = (ulint) 
+						cs->cset->well_formed_len(cs,
+							(const char *)src_start,
+							(const char *)src_start 
+								+ key_len,
+							key_len / cs->mbmaxlen,
+							&error);
+				}
 			}
 
-			memcpy(buff, src_start, len);
-			buff+=len;
+			memcpy(buff, src_start, true_len);
+			buff += true_len;
 
-			/* Pad the unused space with spaces */
+			/* Pad the unused space with spaces. Note that no 
+			padding is ever needed for UCS-2 because in MySQL, 
+			all UCS2 characters are 2 bytes, as MySQL does not 
+			support surrogate pairs, which are needed to represent
+			characters in the range U+10000 to U+10FFFF. */
 
-			if (len < key_part->length) {
-				len = key_part->length - len;
-				memset(buff, ' ', len);
-				buff+=len;
+			if (true_len < key_len) {
+				ulint pad_len = key_len - true_len;
+				memset(buff, ' ', pad_len);
+				buff += pad_len;
 			}
 		}
   	}
