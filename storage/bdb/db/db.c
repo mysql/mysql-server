@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db.c,v 11.300 2004/10/26 17:38:41 bostic Exp $
+ * $Id: db.c,v 12.22 2005/11/12 17:41:44 bostic Exp $
  */
 
 #include "db_config.h"
@@ -52,6 +52,7 @@
 #include "dbinc/db_shash.h"
 #include "dbinc/db_swap.h"
 #include "dbinc/btree.h"
+#include "dbinc/fop.h"
 #include "dbinc/hash.h"
 #include "dbinc/lock.h"
 #include "dbinc/log.h"
@@ -241,8 +242,9 @@ __db_master_update(mdbp, sdbp, txn, subdb, type, action, newname, flags)
 		    __memp_fget(mdbp->mpf, &sdbp->meta_pgno, 0, &p)) != 0)
 			goto err;
 
-		/* Free the root on the master db. */
-		if (TYPE(p) == P_BTREEMETA) {
+		/* Free the root on the master db if it was created. */
+		if (TYPE(p) == P_BTREEMETA &&
+		    ((BTMETA *)p)->root != PGNO_INVALID) {
 			if ((ret = __memp_fget(mdbp->mpf,
 			     &((BTMETA *)p)->root, 0, &r)) != 0)
 				goto err;
@@ -389,18 +391,17 @@ done:	/*
  *	Set up the underlying environment during a db_open.
  *
  * PUBLIC: int __db_dbenv_setup __P((DB *,
- * PUBLIC:     DB_TXN *, const char *, u_int32_t, u_int32_t));
+ * PUBLIC:     DB_TXN *, const char *, const char *, u_int32_t, u_int32_t));
  */
 int
-__db_dbenv_setup(dbp, txn, fname, id, flags)
+__db_dbenv_setup(dbp, txn, fname, dname, id, flags)
 	DB *dbp;
 	DB_TXN *txn;
-	const char *fname;
+	const char *fname, *dname;
 	u_int32_t id, flags;
 {
 	DB *ldbp;
 	DB_ENV *dbenv;
-	DB_MPOOL *dbmp;
 	u_int32_t maxid;
 	int ret;
 
@@ -415,25 +416,20 @@ __db_dbenv_setup(dbp, txn, fname, id, flags)
 		    dbenv, 0, dbp->pgsize * DB_MINPAGECACHE, 0)) != 0)
 			return (ret);
 
-		if ((ret = __dbenv_open(dbenv, NULL, DB_CREATE |
+		if ((ret = __env_open(dbenv, NULL, DB_CREATE |
 		    DB_INIT_MPOOL | DB_PRIVATE | LF_ISSET(DB_THREAD), 0)) != 0)
 			return (ret);
 	}
 
 	/* Join the underlying cache. */
-	if ((ret = __db_dbenv_mpool(dbp, fname, flags)) != 0)
+	if ((!F_ISSET(dbp, DB_AM_INMEM) || dname == NULL) &&
+	    (ret = __db_dbenv_mpool(dbp, fname, flags)) != 0)
 		return (ret);
 
-	/*
-	 * We may need a per-thread mutex.  Allocate it from the mpool
-	 * region, there's supposed to be extra space there for that purpose.
-	 */
-	if (LF_ISSET(DB_THREAD)) {
-		dbmp = dbenv->mp_handle;
-		if ((ret = __db_mutex_setup(dbenv, dbmp->reginfo, &dbp->mutexp,
-		    MUTEX_ALLOC | MUTEX_THREAD)) != 0)
-			return (ret);
-	}
+	/* We may need a per-thread mutex. */
+	if (LF_ISSET(DB_THREAD) && (ret = __mutex_alloc(
+	    dbenv, MTX_DB_HANDLE, DB_MUTEX_THREAD, &dbp->mutex)) != 0)
+		return (ret);
 
 	/*
 	 * Set up a bookkeeping entry for this database in the log region,
@@ -441,13 +437,14 @@ __db_dbenv_setup(dbp, txn, fname, id, flags)
 	 * or a replication client, where we won't log registries, we'll
 	 * still need an FNAME struct, so LOGGING_ON is the correct macro.
 	 */
-	if (LOGGING_ON(dbenv) &&
-	    (ret = __dbreg_setup(dbp, fname, id)) != 0)
+	if (LOGGING_ON(dbenv) && dbp->log_filename == NULL &&
+	    (ret = __dbreg_setup(dbp,
+	    F_ISSET(dbp, DB_AM_INMEM) ? dname : fname, id)) != 0)
 		return (ret);
 
 	/*
 	 * If we're actively logging and our caller isn't a recovery function
-	 * that already did so, assign this dbp a log fileid.
+	 * that already did so, then assign this dbp a log fileid.
 	 */
 	if (DBENV_LOGGING(dbenv) && !F_ISSET(dbp, DB_AM_RECOVER) &&
 #if !defined(DEBUG_ROP)
@@ -465,13 +462,18 @@ __db_dbenv_setup(dbp, txn, fname, id, flags)
 	 * routines, where we don't want to do a lot of ugly and
 	 * expensive memcmps.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	for (maxid = 0, ldbp = LIST_FIRST(&dbenv->dblist);
 	    ldbp != NULL; ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		if (fname != NULL &&
-		    memcmp(ldbp->fileid, dbp->fileid, DB_FILE_ID_LEN) == 0 &&
-		    ldbp->meta_pgno == dbp->meta_pgno)
-			break;
+		if (!F_ISSET(dbp, DB_AM_INMEM)) {
+			if (memcmp(ldbp->fileid, dbp->fileid, DB_FILE_ID_LEN)
+			    == 0 && ldbp->meta_pgno == dbp->meta_pgno)
+				break;
+		} else if (dname != NULL) {
+			if (F_ISSET(ldbp, DB_AM_INMEM) &&
+			    strcmp(ldbp->dname, dname) == 0)
+				break;
+		}
 		if (ldbp->adj_fileid > maxid)
 			maxid = ldbp->adj_fileid;
 	}
@@ -493,7 +495,7 @@ __db_dbenv_setup(dbp, txn, fname, id, flags)
 		dbp->adj_fileid = ldbp->adj_fileid;
 		LIST_INSERT_AFTER(ldbp, dbp, dblistlinks);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	return (0);
 }
@@ -514,12 +516,19 @@ __db_dbenv_mpool(dbp, fname, flags)
 	DBT pgcookie;
 	DB_MPOOLFILE *mpf;
 	DB_PGINFO pginfo;
+	int fidset, ftype, ret;
+	int32_t lsn_off;
+	u_int8_t nullfid[DB_FILE_ID_LEN];
 	u_int32_t clear_len;
-	int ftype, ret;
 
 	COMPQUIET(mpf, NULL);
 
 	dbenv = dbp->dbenv;
+	lsn_off = 0;
+
+	/* It's possible that this database is already open. */
+	if (F_ISSET(dbp, DB_AM_OPEN_CALLED))
+		return (0);
 
 	/*
 	 * If we need to pre- or post-process a file's pages on I/O, set the
@@ -534,17 +543,28 @@ __db_dbenv_mpool(dbp, fname, flags)
 	case DB_RECNO:
 		ftype = F_ISSET(dbp, DB_AM_SWAP | DB_AM_ENCRYPT | DB_AM_CHKSUM)
 		    ? DB_FTYPE_SET : DB_FTYPE_NOTSET;
-		clear_len = CRYPTO_ON(dbenv) ? dbp->pgsize : DB_PAGE_DB_LEN;
+		clear_len = CRYPTO_ON(dbenv) ?
+		    (dbp->pgsize != 0 ? dbp->pgsize : DB_CLEARLEN_NOTSET) :
+		    DB_PAGE_DB_LEN;
 		break;
 	case DB_HASH:
 		ftype = DB_FTYPE_SET;
-		clear_len = CRYPTO_ON(dbenv) ? dbp->pgsize : DB_PAGE_DB_LEN;
+		clear_len = CRYPTO_ON(dbenv) ?
+		    (dbp->pgsize != 0 ? dbp->pgsize : DB_CLEARLEN_NOTSET) :
+		    DB_PAGE_DB_LEN;
 		break;
 	case DB_QUEUE:
 		ftype = F_ISSET(dbp,
 		    DB_AM_SWAP | DB_AM_ENCRYPT | DB_AM_CHKSUM) ?
 		    DB_FTYPE_SET : DB_FTYPE_NOTSET;
-		clear_len = CRYPTO_ON(dbenv) ? dbp->pgsize : DB_PAGE_QUEUE_LEN;
+
+		/*
+		 * If we came in here without a pagesize set, then we need
+		 * to mark the in-memory handle as having clear_len not
+		 * set, because we don't really know the clear length or
+		 * the page size yet (since the file doesn't yet exist).
+		 */
+		clear_len = dbp->pgsize != 0 ? dbp->pgsize : DB_CLEARLEN_NOTSET;
 		break;
 	case DB_UNKNOWN:
 		/*
@@ -564,6 +584,18 @@ __db_dbenv_mpool(dbp, fname, flags)
 			clear_len = DB_PAGE_DB_LEN;
 			break;
 		}
+
+		/*
+		 * This might be an in-memory file and we won't know its
+		 * file type until after we open it and read the meta-data
+		 * page.
+		 */
+		if (F_ISSET(dbp, DB_AM_INMEM)) {
+			clear_len = DB_CLEARLEN_NOTSET;
+			ftype = DB_FTYPE_NOTSET;
+			lsn_off = DB_LSN_OFF_NOTSET;
+			break;
+		}
 		/* FALLTHROUGH */
 	default:
 		return (__db_unknown_type(dbenv, "DB->open", dbp->type));
@@ -571,10 +603,14 @@ __db_dbenv_mpool(dbp, fname, flags)
 
 	mpf = dbp->mpf;
 
+	memset(nullfid, 0, DB_FILE_ID_LEN);
+	fidset = memcmp(nullfid, dbp->fileid, DB_FILE_ID_LEN);
+	if (fidset)
+		(void)__memp_set_fileid(mpf, dbp->fileid);
+
 	(void)__memp_set_clear_len(mpf, clear_len);
-	(void)__memp_set_fileid(mpf, dbp->fileid);
 	(void)__memp_set_ftype(mpf, ftype);
-	(void)__memp_set_lsn_offset(mpf, 0);
+	(void)__memp_set_lsn_offset(mpf, lsn_off);
 
 	pginfo.db_pagesize = dbp->pgsize;
 	pginfo.flags =
@@ -585,12 +621,34 @@ __db_dbenv_mpool(dbp, fname, flags)
 	(void)__memp_set_pgcookie(mpf, &pgcookie);
 
 	if ((ret = __memp_fopen(mpf, NULL, fname,
-	    LF_ISSET(DB_RDONLY | DB_NOMMAP |
-	    DB_ODDFILESIZE | DB_TRUNCATE) |
+	    LF_ISSET(DB_CREATE | DB_DURABLE_UNKNOWN |
+		DB_NOMMAP | DB_ODDFILESIZE | DB_RDONLY | DB_TRUNCATE) |
 	    (F_ISSET(dbenv, DB_ENV_DIRECT_DB) ? DB_DIRECT : 0) |
 	    (F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_TXN_NOT_DURABLE : 0),
-	    0, dbp->pgsize)) != 0)
+	    0, dbp->pgsize)) != 0) {
+		/*
+		 * The open didn't work; we need to reset the mpf,
+		 * retaining the in-memory semantics (if any).
+		 */
+		(void)__memp_fclose(dbp->mpf, 0);
+		(void)__memp_fcreate(dbenv, &dbp->mpf);
+		if (F_ISSET(dbp, DB_AM_INMEM))
+			MAKE_INMEM(dbp);
 		return (ret);
+	}
+
+	/*
+	 * Set the open flag.  We use it to mean that the dbp has gone
+	 * through mpf setup, including dbreg_register.  Also, below,
+	 * the underlying access method open functions may want to do
+	 * things like acquire cursors, so the open flag has to be set
+	 * before calling them.
+	 */
+	F_SET(dbp, DB_AM_OPEN_CALLED);
+	if (!fidset && fname != NULL) {
+		(void)__memp_get_fileid(dbp->mpf, dbp->fileid);
+		dbp->preserve_fid = 1;
+	}
 
 	return (0);
 }
@@ -624,7 +682,7 @@ __db_close(dbp, txn, flags)
 		(void)__db_check_txn(dbp, txn, DB_LOCK_INVALIDID, 0);
 
 	/* Refresh the structure and close any underlying resources. */
-	ret = __db_refresh(dbp, txn, flags, &deferred_close);
+	ret = __db_refresh(dbp, txn, flags, &deferred_close, 0);
 
 	/*
 	 * If we've deferred the close because the logging of the close failed,
@@ -644,11 +702,11 @@ __db_close(dbp, txn, flags)
 	 * dbenv, someone's already badly screwed up, so there's no reason
 	 * to bother engineering around this possibility.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	db_ref = --dbenv->db_ref;
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 	if (F_ISSET(dbenv, DB_ENV_DBLOCAL) && db_ref == 0 &&
-	    (t_ret = __dbenv_close(dbenv, 0)) != 0 && ret == 0)
+	    (t_ret = __env_close(dbenv, 0)) != 0 && ret == 0)
 		ret = t_ret;
 
 	/* Free the database handle. */
@@ -666,25 +724,32 @@ __db_close(dbp, txn, flags)
  * the actual handle) and during abort processing, we may have a
  * fully opened handle.
  *
- * PUBLIC: int __db_refresh __P((DB *, DB_TXN *, u_int32_t, int *));
+ * PUBLIC: int __db_refresh __P((DB *, DB_TXN *, u_int32_t, int *, int));
  */
 int
-__db_refresh(dbp, txn, flags, deferred_closep)
+__db_refresh(dbp, txn, flags, deferred_closep, reuse)
 	DB *dbp;
 	DB_TXN *txn;
 	u_int32_t flags;
-	int *deferred_closep;
+	int *deferred_closep, reuse;
 {
 	DB *sdbp;
 	DBC *dbc;
 	DB_ENV *dbenv;
 	DB_LOCKREQ lreq;
-	DB_MPOOL *dbmp;
+	REGENV *renv;
+	REGINFO *infop;
+	u_int32_t save_flags;
 	int resync, ret, t_ret;
 
 	ret = 0;
 
 	dbenv = dbp->dbenv;
+	infop = dbenv->reginfo;
+	if (infop != NULL)
+		renv = infop->primary;
+	else
+		renv = NULL;
 
 	/* If never opened, or not currently open, it's easy. */
 	if (!F_ISSET(dbp, DB_AM_OPEN_CALLED))
@@ -768,6 +833,7 @@ __db_refresh(dbp, txn, flags, deferred_closep)
 	    (t_ret = __memp_fsync(dbp->mpf)) != 0 && ret == 0)
 		ret = t_ret;
 
+never_opened:
 	/*
 	 * At this point, we haven't done anything to render the DB
 	 * handle unusable, at least by a transaction abort.  Take the
@@ -779,12 +845,15 @@ __db_refresh(dbp, txn, flags, deferred_closep)
 	 * In this case, we put off actually closing the dbp until we've
 	 * performed the abort.
 	 */
-	if (LOGGING_ON(dbp->dbenv)) {
+	if (!reuse && LOGGING_ON(dbp->dbenv)) {
 		/*
 		 * Discard the log file id, if any.  We want to log the close
-		 * if and only if this is not a recovery dbp.
+		 * if and only if this is not a recovery dbp or a client dbp,
+		 * or a dead dbp handle.
 		 */
-		if (F_ISSET(dbp, DB_AM_RECOVER))
+		DB_ASSERT(renv != NULL);
+		if (F_ISSET(dbp, DB_AM_RECOVER) || IS_REP_CLIENT(dbenv) ||
+		    dbp->timestamp != renv->rep_timestamp)
 			t_ret = __dbreg_revoke_id(dbp, 0, DB_LOGFILEID_INVALID);
 		else {
 			if ((t_ret = __dbreg_close_id(dbp,
@@ -808,6 +877,17 @@ __db_refresh(dbp, txn, flags, deferred_closep)
 					*deferred_closep = 1;
 				return (t_ret);
 			}
+			/*
+			 * If dbreg_close_id failed and we were not in a
+			 * transaction, then we need to finish this close
+			 * because the caller can't do anything with the
+			 * handle after we return an error.  We rely on
+			 * dbreg_close_id to mark the entry in some manner
+			 * so that we do not do a clean shutdown of this
+			 * environment.  If shutdown isn't clean, then the
+			 * application *must* run recovery and that will
+			 * generate the RCLOSE record.
+			 */
 		}
 
 		if (ret == 0)
@@ -824,7 +904,6 @@ __db_refresh(dbp, txn, flags, deferred_closep)
 	    ret == 0)
 		ret = t_ret;
 
-never_opened:
 	/*
 	 * Remove this DB handle from the DB_ENV's dblist, if it's been added.
 	 *
@@ -832,8 +911,8 @@ never_opened:
 	 * want to race with a thread searching for our underlying cache link
 	 * while opening a DB handle.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
-	if (dbp->dblistlinks.le_prev != NULL) {
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
+	if (!reuse && dbp->dblistlinks.le_prev != NULL) {
 		LIST_REMOVE(dbp, dblistlinks);
 		dbp->dblistlinks.le_prev = NULL;
 	}
@@ -845,9 +924,13 @@ never_opened:
 		    ret == 0)
 			ret = t_ret;
 		dbp->mpf = NULL;
+		if (reuse &&
+		    (t_ret = __memp_fcreate(dbenv, &dbp->mpf)) != 0 &&
+		    ret == 0)
+		    	ret = t_ret;
 	}
 
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 	/*
 	 * Call the access specific close function.
@@ -883,7 +966,7 @@ never_opened:
 	 * access-method specific data.
 	 */
 
-	if (dbp->lid != DB_LOCK_INVALIDID) {
+	if (!reuse && dbp->lid != DB_LOCK_INVALIDID) {
 		/* We may have pending trade operations on this dbp. */
 		if (txn != NULL)
 			__txn_remlock(dbenv, txn, &dbp->handle_lock, dbp->lid);
@@ -901,20 +984,57 @@ never_opened:
 		LOCK_INIT(dbp->handle_lock);
 	}
 
-	/* Discard the locker ID allocated as the fileid. */
-	if (F_ISSET(dbp, DB_AM_INMEM) && LOCKING_ON(dbenv) &&
+	/*
+	 * If this is a temporary file (un-named in-memory file), then
+	 * discard the locker ID allocated as the fileid.
+	 */
+	if (LOCKING_ON(dbenv) &&
+	    F_ISSET(dbp, DB_AM_INMEM) && !dbp->preserve_fid &&
+	    *(u_int32_t *)dbp->fileid != DB_LOCK_INVALIDID &&
 	    (t_ret = __lock_id_free(dbenv, *(u_int32_t *)dbp->fileid)) != 0 &&
 	    ret == 0)
 		ret = t_ret;
 
+	if (reuse) {
+		/*
+		 * If we are reusing this dbp, then we're done now. Re-init
+		 * the handle, preserving important flags, and then return.
+		 * This code is borrowed from __db_init, which does more
+		 * than we can do here.
+		 */
+		save_flags = F_ISSET(dbp, DB_AM_INMEM | DB_AM_TXN);
+
+		/*
+		 * XXX If this is an XA handle, we'll want to specify 
+		 * DB_XA_CREATE.
+		 */
+		if ((ret = __bam_db_create(dbp)) != 0)
+			return (ret);
+		if ((ret = __ham_db_create(dbp)) != 0)
+			return (ret);
+		if ((ret = __qam_db_create(dbp)) != 0)
+			return (ret);
+
+		/* Restore flags */
+		dbp->flags = dbp->orig_flags | save_flags;
+
+		if (FLD_ISSET(save_flags, DB_AM_INMEM)) {
+			/*
+			 * If this is inmem, then it may have a fileid
+			 * even if it was never opened, and we need to
+			 * clear out that fileid.
+			 */
+			memset(dbp->fileid, 0, sizeof(dbp->fileid));
+			MAKE_INMEM(dbp);
+		}
+		return (ret);
+	}
+
 	dbp->type = DB_UNKNOWN;
 
 	/* Discard the thread mutex. */
-	if (dbp->mutexp != NULL) {
-		dbmp = dbenv->mp_handle;
-		__db_mutex_free(dbenv, dbmp->reginfo, dbp->mutexp);
-		dbp->mutexp = NULL;
-	}
+	if ((t_ret = __mutex_free(dbenv, &dbp->mutex)) != 0 && ret == 0)
+		ret = t_ret;
 
 	/* Discard any memory allocated for the file and database names. */
 	if (dbp->fname != NULL) {
@@ -1004,7 +1124,7 @@ __db_log_page(dbp, txn, lsn, pgno, page)
  * PUBLIC:     const char *, DB_TXN *, char **));
  */
 #undef	BACKUP_PREFIX
-#define	BACKUP_PREFIX	"__db."
+#define	BACKUP_PREFIX	"__db"
 
 #undef	MAX_LSN_TO_TEXT
 #define	MAX_LSN_TO_TEXT	17
@@ -1026,16 +1146,18 @@ __db_backup_name(dbenv, name, txn, backup)
 	 * we allocate enough space for it, even in the case where we don't
 	 * use the entire filename for the backup name.
 	 */
-	len = strlen(name) + strlen(BACKUP_PREFIX) + MAX_LSN_TO_TEXT;
+	len = strlen(name) + strlen(BACKUP_PREFIX) + 1 + MAX_LSN_TO_TEXT;
 	if ((ret = __os_malloc(dbenv, len, &retp)) != 0)
 		return (ret);
 
 	/*
-	 * Create the name.  Backup file names are in one of two forms:
+	 * Create the name.  Backup file names are in one of three forms:
 	 *
 	 *	In a transactional env: __db.LSN(8).LSN(8)
 	 * and
-	 *	in a non-transactional env: __db.FILENAME
+	 *	In VXWORKS (where we want 8.3 support)
+	 * and
+	 *	in any other non-transactional env: __db.FILENAME
 	 *
 	 * If the transaction doesn't have a current LSN, we write a dummy
 	 * log record to force it, so we ensure all tmp names are unique.
@@ -1051,14 +1173,37 @@ __db_backup_name(dbenv, name, txn, backup)
 	 *	4. multi-component path + transaction
 	 */
 	p = __db_rpath(name);
-	if (txn == NULL)
+	if (txn == NULL) {
+#ifdef HAVE_VXWORKS
+	    { int i, n;
+		/* On VxWorks we must support 8.3 names. */
 		if (p == NULL)				/* Case 1. */
-			snprintf(retp, len, "%s%s", BACKUP_PREFIX, name);
-		else					/* Case 3. */
-			snprintf(retp, len, "%.*s%s%s",
+			n = snprintf(retp,
+			    len, "%s%.4s.tmp", BACKUP_PREFIX, name);
+		else				/* Case 3. */
+			n = snprintf(retp, len, "%.*s%s%.4s.tmp",
 			    (int)(p - name) + 1, name, BACKUP_PREFIX, p + 1);
-	else {
-		if (IS_ZERO_LSN(txn->last_lsn)) {
+
+		/*
+		 * Overwrite "." in the characters copied from the name.
+		 * If we backup 8 characters from the end, we're guaranteed
+		 * to a) include the four bytes we copied from the name
+		 * and b) not run off the beginning of the string.
+		 */
+		for (i = 0, p = (retp + n) - 8; i < 4; p++, i++)
+			if (*p == '.')
+				*p = '_';
+	    }
+#else
+		if (p == NULL)				/* Case 1. */
+			snprintf(retp, len, "%s.%s", BACKUP_PREFIX, name);
+		else					/* Case 3. */
+			snprintf(retp, len, "%.*s%s.%s",
+			    (int)(p - name) + 1, name, BACKUP_PREFIX, p + 1);
+#endif
+	} else {
+		lsn = ((TXN_DETAIL *)txn->td)->last_lsn;
+		if (IS_ZERO_LSN(lsn)) {
 			/*
 			 * Write dummy log record.   The two choices for dummy
 			 * log records are __db_noop_log and __db_debug_log;
@@ -1071,12 +1216,11 @@ __db_backup_name(dbenv, name, txn, backup)
 				__os_free(dbenv, retp);
 				return (ret);
 			}
-		} else
-			lsn = txn->last_lsn;
+		}
 
 		if (p == NULL)				/* Case 2. */
 			snprintf(retp, len,
-			    "%s%x.%x", BACKUP_PREFIX, lsn.file, lsn.offset);
+			    "%s.%x.%x", BACKUP_PREFIX, lsn.file, lsn.offset);
 		else					/* Case 4. */
 			snprintf(retp, len, "%.*s%x.%x",
 			    (int)(p - name) + 1, name, lsn.file, lsn.offset);
@@ -1235,7 +1379,8 @@ __db_testdocopy(dbenv, name)
 	/*
 	 * Maximum size of file, including adding a ".afterop".
 	 */
-	len = strlen(real_name) + strlen(BACKUP_PREFIX) + MAX_LSN_TO_TEXT + 9;
+	len = strlen(real_name) +
+	    strlen(BACKUP_PREFIX) + 1 + MAX_LSN_TO_TEXT + 9;
 
 	if ((ret = __os_malloc(dbenv, len, &copy)) != 0)
 		goto err;
@@ -1264,7 +1409,7 @@ __db_testdocopy(dbenv, name)
 	 * files named, say, 'a' and 'abc' we won't match 'abc' when
 	 * looking for 'a'.
 	 */
-	snprintf(backup, len, "%s%s.0x", BACKUP_PREFIX, name);
+	snprintf(backup, len, "%s.%s.0x", BACKUP_PREFIX, name);
 
 	/*
 	 * We need the directory path to do the __os_dirlist.
@@ -1343,10 +1488,10 @@ __db_makecopy(dbenv, src, dest)
 		return;
 
 	if (__os_open(dbenv,
-	    src, DB_OSO_RDONLY, __db_omode("rw----"), &rfhp) != 0)
+	    src, DB_OSO_RDONLY, __db_omode(OWNER_RW), &rfhp) != 0)
 		goto err;
 	if (__os_open(dbenv, dest,
-	    DB_OSO_CREATE | DB_OSO_TRUNC, __db_omode("rw----"), &wfhp) != 0)
+	    DB_OSO_CREATE | DB_OSO_TRUNC, __db_omode(OWNER_RW), &wfhp) != 0)
 		goto err;
 
 	for (;;)

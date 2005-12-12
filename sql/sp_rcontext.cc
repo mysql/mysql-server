@@ -29,40 +29,136 @@
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 
-sp_rcontext::sp_rcontext(sp_rcontext *prev, uint fsize, uint hmax, uint cmax)
-  : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
-    m_ihsp(0), m_hfound(-1), m_ccount(0), m_prev_ctx(prev)
+
+sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
+                         Field *return_value_fld,
+                         sp_rcontext *prev_runtime_ctx)
+  :m_root_parsing_ctx(root_parsing_ctx),
+   m_var_table(0),
+   m_var_items(0),
+   m_return_value_fld(return_value_fld),
+   m_return_value_set(FALSE),
+   m_hcount(0),
+   m_hsp(0),
+   m_ihsp(0),
+   m_hfound(-1),
+   m_ccount(0),
+   m_case_expr_holders(0),
+   m_prev_runtime_ctx(prev_runtime_ctx)
 {
-  m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
-  m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
-  m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
-  m_in_handler= (uint *)sql_alloc(hmax * sizeof(uint));
-  m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
-  m_saved.empty();
 }
 
 
-int
-sp_rcontext::set_item_eval(THD *thd, uint idx, Item **item_addr,
-			   enum_field_types type)
+sp_rcontext::~sp_rcontext()
 {
-  Item *it;
-  Item *reuse_it;
-  /* sp_eval_func_item will use callers_arena */
-  int res;
+  if (m_var_table)
+    free_blobs(m_var_table);
+}
 
-  reuse_it= get_item(idx);
-  it= sp_eval_func_item(thd, item_addr, type, reuse_it, TRUE);
-  if (! it)
-    res= -1;
-  else
+
+/*
+  Initialize sp_rcontext instance.
+
+  SYNOPSIS
+    thd   Thread handle
+  RETURN
+    FALSE   on success
+    TRUE    on error
+*/
+
+bool sp_rcontext::init(THD *thd)
+{
+  if (init_var_table(thd) || init_var_items())
+    return TRUE;
+
+  return
+    !(m_handler=
+      (sp_handler_t*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+                                sizeof(sp_handler_t))) ||
+    !(m_hstack=
+      (uint*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+                        sizeof(uint))) ||
+    !(m_in_handler=
+      (uint*)thd->alloc(m_root_parsing_ctx->max_handlers() *
+                        sizeof(uint))) ||
+    !(m_cstack=
+      (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursors() *
+                              sizeof(sp_cursor*))) ||
+    !(m_case_expr_holders=
+      (Item_cache**)thd->calloc(m_root_parsing_ctx->get_num_case_exprs() *
+                               sizeof (Item_cache*)));
+}
+
+
+/*
+  Create and initialize a table to store SP-vars.
+
+  SYNOPSIS
+    thd   Thread handler.
+  RETURN
+    FALSE   on success
+    TRUE    on error
+*/
+
+bool
+sp_rcontext::init_var_table(THD *thd)
+{
+  List<create_field> field_def_lst;
+
+  if (!m_root_parsing_ctx->total_pvars())
+    return FALSE;
+
+  m_root_parsing_ctx->retrieve_field_definitions(&field_def_lst);
+
+  DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->total_pvars());
+  
+  if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
+    return TRUE;
+
+  m_var_table->copy_blobs= TRUE;
+  m_var_table->alias= "";
+
+  return FALSE;
+}
+
+
+/*
+  Create and initialize an Item-adapter (Item_field) for each SP-var field.
+
+  RETURN
+    FALSE   on success
+    TRUE    on error
+*/
+
+bool
+sp_rcontext::init_var_items()
+{
+  uint idx;
+  uint num_vars= m_root_parsing_ctx->total_pvars();
+
+  if (!(m_var_items= (Item**) sql_alloc(num_vars * sizeof (Item *))))
+    return TRUE;
+
+  for (idx = 0; idx < num_vars; ++idx)
   {
-    res= 0;
-    set_item(idx, it);
+    if (!(m_var_items[idx]= new Item_field(m_var_table->field[idx])))
+      return TRUE;
   }
 
-  return res;
+  return FALSE;
 }
+
+
+bool
+sp_rcontext::set_return_value(THD *thd, Item *return_value_item)
+{
+  DBUG_ASSERT(m_return_value_fld);
+
+  m_return_value_set = TRUE;
+
+  return sp_eval_expr(thd, m_return_value_fld, return_value_item);
+}
+
 
 bool
 sp_rcontext::find_handler(uint sql_errno,
@@ -117,38 +213,21 @@ sp_rcontext::find_handler(uint sql_errno,
   }
   if (found < 0)
   {
-    if (m_prev_ctx)
-      return m_prev_ctx->find_handler(sql_errno, level);
+    if (m_prev_runtime_ctx)
+      return m_prev_runtime_ctx->find_handler(sql_errno, level);
     return FALSE;
   }
   m_hfound= found;
   return TRUE;
 }
 
-void
-sp_rcontext::save_variables(uint fp)
-{
-  while (fp < m_count)
-  {
-    m_saved.push_front(m_frame[fp]);
-    m_frame[fp++]= NULL;	// Prevent reuse
-  }
-}
-
-void
-sp_rcontext::restore_variables(uint fp)
-{
-  uint i= m_count;
-
-  while (i-- > fp)
-    m_frame[i]= m_saved.pop();
-}
 
 void
 sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 {
   m_cstack[m_ccount++]= new sp_cursor(lex_keeper, i);
 }
+
 
 void
 sp_rcontext::pop_cursors(uint count)
@@ -157,6 +236,40 @@ sp_rcontext::pop_cursors(uint count)
   {
     delete m_cstack[--m_ccount];
   }
+}
+
+
+int
+sp_rcontext::set_variable(THD *thd, uint var_idx, Item *value)
+{
+  return set_variable(thd, m_var_table->field[var_idx], value);
+}
+
+
+int
+sp_rcontext::set_variable(THD *thd, Field *field, Item *value)
+{
+  if (!value)
+  {
+    field->set_null();
+    return 0;
+  }
+
+  return sp_eval_expr(thd, field, value);
+}
+
+
+Item *
+sp_rcontext::get_item(uint var_idx)
+{
+  return m_var_items[var_idx];
+}
+
+
+Item **
+sp_rcontext::get_item_addr(uint var_idx)
+{
+  return m_var_items + var_idx;
 }
 
 
@@ -263,6 +376,102 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
 }
 
 
+/*
+  Create an instance of appropriate Item_cache class depending on the
+  specified type in the callers arena.
+
+  SYNOPSIS
+    thd           thread handler
+    result_type   type of the expression
+
+  RETURN
+    Pointer to valid object     on success
+    NULL                        on error
+
+  NOTE
+    We should create cache items in the callers arena, as they are used
+    between in several instructions.
+*/
+
+Item_cache *
+sp_rcontext::create_case_expr_holder(THD *thd, Item_result result_type)
+{
+  Item_cache *holder;
+  Query_arena current_arena;
+
+  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
+
+  holder= Item_cache::get_cache(result_type);
+
+  thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
+
+  return holder;
+}
+
+
+/*
+  Set CASE expression to the specified value.
+
+  SYNOPSIS
+    thd             thread handler
+    case_expr_id    identifier of the CASE expression
+    case_expr_item  a value of the CASE expression
+
+  RETURN
+    FALSE   on success
+    TRUE    on error
+
+  NOTE
+    The idea is to reuse Item_cache for the expression of the one CASE
+    statement. This optimization takes place when there is CASE statement
+    inside of a loop. So, in other words, we will use the same object on each
+    iteration instead of creating a new one for each iteration.
+
+  TODO
+    Hypothetically, a type of CASE expression can be different for each
+    iteration. For instance, this can happen if the expression contains a
+    session variable (something like @@VAR) and its type is changed from one
+    iteration to another.
+    
+    In order to cope with this problem, we check type each time, when we use
+    already created object. If the type does not match, we re-create Item.
+    This also can (should?) be optimized.
+*/
+
+int
+sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item *case_expr_item)
+{
+  if (!(case_expr_item= sp_prepare_func_item(thd, &case_expr_item)))
+    return TRUE;
+
+  if (!m_case_expr_holders[case_expr_id] ||
+      m_case_expr_holders[case_expr_id]->result_type() !=
+        case_expr_item->result_type())
+  {
+    m_case_expr_holders[case_expr_id]=
+      create_case_expr_holder(thd, case_expr_item->result_type());
+  }
+
+  m_case_expr_holders[case_expr_id]->store(case_expr_item);
+
+  return FALSE;
+}
+
+
+Item *
+sp_rcontext::get_case_expr(int case_expr_id)
+{
+  return m_case_expr_holders[case_expr_id];
+}
+
+
+Item **
+sp_rcontext::get_case_expr_addr(int case_expr_id)
+{
+  return (Item**) m_case_expr_holders + case_expr_id;
+}
+
+
 /***************************************************************************
  Select_fetch_into_spvars
 ****************************************************************************/
@@ -294,11 +503,8 @@ bool Select_fetch_into_spvars::send_data(List<Item> &items)
   */
   for (; pv= pv_iter++, item= item_iter++; )
   {
-    Item *reuse= thd->spcont->get_item(pv->offset);
-    /* Evaluate a new item on the arena of the calling instruction */
-    Item *it= sp_eval_func_item(thd, &item, pv->type, reuse, TRUE);
-
-    thd->spcont->set_item(pv->offset, it);
+    if (thd->spcont->set_variable(thd, pv->offset, item))
+      return TRUE;
   }
   return FALSE;
 }

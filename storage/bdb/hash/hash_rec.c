@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hash_rec.c,v 11.83 2004/10/25 16:52:13 ubell Exp $
+ * $Id: hash_rec.c,v 12.7 2005/09/28 17:44:52 margo Exp $
  */
 
 #include "db_config.h"
@@ -86,7 +86,7 @@ __ham_insdel_recover(dbenv, dbtp, lsnp, op, info)
 	COMPQUIET(info, NULL);
 
 	REC_PRINT(__ham_insdel_print);
-	REC_INTRO(__ham_insdel_read, 1);
+	REC_INTRO(__ham_insdel_read, 1, 0);
 
 	if ((ret = __memp_fget(mpf, &argp->pgno, 0, &pagep)) != 0) {
 		if (DB_UNDO(op)) {
@@ -116,7 +116,7 @@ __ham_insdel_recover(dbenv, dbtp, lsnp, op, info)
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 	/*
 	 * Two possible things going on:
 	 * redo a delete/undo a put: delete the item from the page.
@@ -207,7 +207,7 @@ __ham_newpage_recover(dbenv, dbtp, lsnp, op, info)
 	COMPQUIET(info, NULL);
 
 	REC_PRINT(__ham_newpage_print);
-	REC_INTRO(__ham_newpage_read, 1);
+	REC_INTRO(__ham_newpage_read, 1, 0);
 
 	REC_FGET(mpf, argp->new_pgno, &pagep, ppage);
 
@@ -219,7 +219,7 @@ __ham_newpage_recover(dbenv, dbtp, lsnp, op, info)
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 
 	flags = 0;
 	if ((cmp_p == 0 && DB_REDO(op) && argp->opcode == PUTOVFL) ||
@@ -250,7 +250,7 @@ ppage:	if (argp->prev_pgno != PGNO_INVALID) {
 
 		cmp_n = log_compare(lsnp, &LSN(pagep));
 		cmp_p = log_compare(&LSN(pagep), &argp->prevlsn);
-		CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->prevlsn);
+		CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->prevlsn);
 		flags = 0;
 
 		if ((cmp_p == 0 && DB_REDO(op) && argp->opcode == PUTOVFL) ||
@@ -280,7 +280,7 @@ npage:	if (argp->next_pgno != PGNO_INVALID) {
 
 		cmp_n = log_compare(lsnp, &LSN(pagep));
 		cmp_p = log_compare(&LSN(pagep), &argp->nextlsn);
-		CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->nextlsn);
+		CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->nextlsn);
 		flags = 0;
 
 		if ((cmp_p == 0 && DB_REDO(op) && argp->opcode == PUTOVFL) ||
@@ -343,13 +343,13 @@ __ham_replace_recover(dbenv, dbtp, lsnp, op, info)
 	COMPQUIET(info, NULL);
 
 	REC_PRINT(__ham_replace_print);
-	REC_INTRO(__ham_replace_read, 1);
+	REC_INTRO(__ham_replace_read, 1, 0);
 
 	REC_FGET(mpf, argp->pgno, &pagep, done);
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 
 	memset(&dbt, 0, sizeof(dbt));
 	flags = 0;
@@ -439,7 +439,7 @@ __ham_splitdata_recover(dbenv, dbtp, lsnp, op, info)
 	COMPQUIET(info, NULL);
 
 	REC_PRINT(__ham_splitdata_print);
-	REC_INTRO(__ham_splitdata_read, 1);
+	REC_INTRO(__ham_splitdata_read, 1, 0);
 
 	if ((ret = __memp_fget(mpf, &argp->pgno, 0, &pagep)) != 0) {
 		if (DB_UNDO(op)) {
@@ -469,7 +469,7 @@ __ham_splitdata_recover(dbenv, dbtp, lsnp, op, info)
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 
 	/*
 	 * There are two types of log messages here, one for the old page
@@ -539,7 +539,7 @@ __ham_copypage_recover(dbenv, dbtp, lsnp, op, info)
 	COMPQUIET(info, NULL);
 
 	REC_PRINT(__ham_copypage_print);
-	REC_INTRO(__ham_copypage_read, 1);
+	REC_INTRO(__ham_copypage_read, 1, 0);
 
 	flags = 0;
 
@@ -548,7 +548,7 @@ __ham_copypage_recover(dbenv, dbtp, lsnp, op, info)
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 
 	if (cmp_p == 0 && DB_REDO(op)) {
 		/* Need to redo update described. */
@@ -574,7 +574,7 @@ donext:	/* Now fix up the "next" page. */
 	/* For REDO just update the LSN. For UNDO copy page back. */
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->nextlsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->nextlsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->nextlsn);
 	flags = 0;
 	if (cmp_p == 0 && DB_REDO(op)) {
 		LSN(pagep) = *lsnp;
@@ -596,7 +596,7 @@ do_nn:	if (argp->nnext_pgno == PGNO_INVALID)
 
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->nnextlsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->nnextlsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->nnextlsn);
 
 	flags = 0;
 	if (cmp_p == 0 && DB_REDO(op)) {
@@ -646,13 +646,14 @@ __ham_metagroup_recover(dbenv, dbtp, lsnp, op, info)
 	PAGE *pagep;
 	db_pgno_t pgno;
 	u_int32_t flags, mmeta_flags;
-	int cmp_n, cmp_p, did_recover, groupgrow, ret;
+	int cmp_n, cmp_p, did_alloc, did_recover, groupgrow, ret;
 
 	COMPQUIET(info, NULL);
 	mmeta_flags = 0;
+	did_alloc = 0;
 	mmeta = NULL;
 	REC_PRINT(__ham_metagroup_print);
-	REC_INTRO(__ham_metagroup_read, 1);
+	REC_INTRO(__ham_metagroup_read, 1, 1);
 
 	/*
 	 * This logs the virtual create of pages pgno to pgno + bucket
@@ -664,13 +665,15 @@ __ham_metagroup_recover(dbenv, dbtp, lsnp, op, info)
 	 * are rolling backward.  If the file has not been extended
 	 * then the metapage could not have been updated.
 	 * The log record contains:
-	 * bucket: new bucket being allocated.
+	 * bucket: old maximum bucket
 	 * pgno: page number of the new bucket.
-	 * if bucket is a power of 2, then we allocated a whole batch of
-	 * pages; if it's not, then we simply allocated one new page.
+	 * We round up on log calculations, so we can figure out if we are
+	 * about to double the hash table if argp->bucket+1 is a power of 2.
+	 * If it is, then we are allocating an entire doubling of pages,
+	 * otherwise, we are simply allocated one new page.
 	 */
-	groupgrow = (u_int32_t)(1 << __db_log2(argp->bucket + 1)) ==
-	    argp->bucket + 1;
+	groupgrow =
+	    (u_int32_t)(1 << __db_log2(argp->bucket + 1)) == argp->bucket + 1;
 	pgno = argp->pgno;
 	if (argp->newalloc)
 		pgno += argp->bucket;
@@ -686,29 +689,32 @@ __ham_metagroup_recover(dbenv, dbtp, lsnp, op, info)
 	/* If we are undoing, then we don't want to create the page. */
 	if (ret != 0 && DB_REDO(op))
 		ret = __memp_fget(mpf, &pgno, DB_MPOOL_CREATE, &pagep);
-	else if (ret == DB_PAGE_NOTFOUND) {
-		groupgrow = 0;
+	else if (ret == DB_PAGE_NOTFOUND)
 		goto do_meta;
-	}
 #endif
 	if (ret != 0) {
 		if (ret != ENOSPC)
 			goto out;
 		pgno = 0;
-		groupgrow = 0;
 		goto do_meta;
 	}
 
+	/*
+	 * When we get here then either we did not grow the file
+	 * (groupgrow == 0) or we did grow the file and the allocation
+	 * of those new pages succeeded.
+	 */
+	did_alloc = groupgrow;
+
 	cmp_n = log_compare(lsnp, &LSN(pagep));
 	cmp_p = log_compare(&LSN(pagep), &argp->pagelsn);
-	CHECK_LSN(op, cmp_p, &LSN(pagep), &argp->pagelsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(pagep), &argp->pagelsn);
 
 	flags = 0;
 	if (cmp_p == 0 && DB_REDO(op)) {
 		pagep->lsn = *lsnp;
 		flags = DB_MPOOL_DIRTY;
-	}
-	else if (cmp_n == 0 && DB_UNDO(op)) {
+	} else if (cmp_n == 0 && DB_UNDO(op)) {
 #ifdef HAVE_FTRUNCATE
 		/* If this record allocated the pages give them back. */
 		if (argp->newalloc) {
@@ -739,7 +745,7 @@ do_meta:
 		goto out;
 	cmp_n = log_compare(lsnp, &hcp->hdr->dbmeta.lsn);
 	cmp_p = log_compare(&hcp->hdr->dbmeta.lsn, &argp->metalsn);
-	CHECK_LSN(op, cmp_p, &hcp->hdr->dbmeta.lsn, &argp->metalsn);
+	CHECK_LSN(dbenv, op, cmp_p, &hcp->hdr->dbmeta.lsn, &argp->metalsn);
 	did_recover = 0;
 	if (cmp_p == 0 && DB_REDO(op)) {
 		/* Redo the actual updating of bucket counts. */
@@ -753,9 +759,9 @@ do_meta:
 		did_recover = 1;
 	} else if (cmp_n == 0 && DB_UNDO(op)) {
 		/* Undo the actual updating of bucket counts. */
-		--hcp->hdr->max_bucket;
+		hcp->hdr->max_bucket = argp->bucket;
 		if (groupgrow) {
-			hcp->hdr->high_mask = hcp->hdr->low_mask;
+			hcp->hdr->high_mask = argp->bucket;
 			hcp->hdr->low_mask = hcp->hdr->high_mask >> 1;
 		}
 		hcp->hdr->dbmeta.lsn = argp->metalsn;
@@ -767,10 +773,10 @@ do_meta:
 	 * spares array indicates the beginning page number for the
 	 * indicated doubling.  We need to fill this in whenever the
 	 * spares array is invalid, if we never reclaim pages then
-	 * we have to allocate the pages to the
-	 * spares array in both the redo and undo cases.
+	 * we have to allocate the pages to the spares array in both
+	 * the redo and undo cases.
 	 */
-	if (groupgrow &&
+	if (did_alloc &&
 #ifdef HAVE_FTRUNCATE
 	    !DB_UNDO(op) &&
 #endif
@@ -862,7 +868,7 @@ __ham_groupalloc_recover(dbenv, dbtp, lsnp, op, info)
 	mmeta = NULL;
 	modified = 0;
 	REC_PRINT(__ham_groupalloc_print);
-	REC_INTRO(__ham_groupalloc_read, 0);
+	REC_INTRO(__ham_groupalloc_read, 0, 0);
 
 	pgno = PGNO_BASE_MD;
 	if ((ret = __memp_fget(mpf, &pgno, 0, &mmeta)) != 0) {
@@ -875,7 +881,7 @@ __ham_groupalloc_recover(dbenv, dbtp, lsnp, op, info)
 
 	cmp_n = log_compare(lsnp, &LSN(mmeta));
 	cmp_p = log_compare(&LSN(mmeta), &argp->meta_lsn);
-	CHECK_LSN(op, cmp_p, &LSN(mmeta), &argp->meta_lsn);
+	CHECK_LSN(dbenv, op, cmp_p, &LSN(mmeta), &argp->meta_lsn);
 
 	/*
 	 * Basically, we used mpool to allocate a chunk of pages.
@@ -1054,7 +1060,7 @@ __ham_curadj_recover(dbenv, dbtp, lsnp, op, info)
 
 	COMPQUIET(info, NULL);
 	REC_PRINT(__ham_curadj_print);
-	REC_INTRO(__ham_curadj_read, 0);
+	REC_INTRO(__ham_curadj_read, 0, 1);
 
 	if (op != DB_TXN_ABORT)
 		goto done;
@@ -1104,7 +1110,7 @@ __ham_chgpg_recover(dbenv, dbtp, lsnp, op, info)
 
 	COMPQUIET(info, NULL);
 	REC_PRINT(__ham_chgpg_print);
-	REC_INTRO(__ham_chgpg_read, 0);
+	REC_INTRO(__ham_chgpg_read, 0, 0);
 
 	if (op != DB_TXN_ABORT)
 		goto done;
@@ -1113,11 +1119,11 @@ __ham_chgpg_recover(dbenv, dbtp, lsnp, op, info)
 	indx = argp->old_indx;
 	order = argp->new_indx;
 
-	MUTEX_THREAD_LOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_LOCK(dbenv, dbenv->mtx_dblist);
 	for (ldbp = __dblist_get(dbenv, file_dbp->adj_fileid);
 	    ldbp != NULL && ldbp->adj_fileid == file_dbp->adj_fileid;
 	    ldbp = LIST_NEXT(ldbp, dblistlinks)) {
-		MUTEX_THREAD_LOCK(dbenv, file_dbp->mutexp);
+		MUTEX_LOCK(dbenv, file_dbp->mutex);
 
 		for (cp = TAILQ_FIRST(&ldbp->active_queue); cp != NULL;
 		    cp = TAILQ_NEXT(cp, links)) {
@@ -1183,17 +1189,17 @@ __ham_chgpg_recover(dbenv, dbtp, lsnp, op, info)
 				 * the cursor we're adjusting can't be closed
 				 * under us.
 				 */
-				MUTEX_THREAD_UNLOCK(dbenv, file_dbp->mutexp);
+				MUTEX_UNLOCK(dbenv, file_dbp->mutex);
 				if ((ret = __db_c_close(lcp->opd)) != 0)
 					goto out;
-				MUTEX_THREAD_LOCK(dbenv, file_dbp->mutexp);
+				MUTEX_LOCK(dbenv, file_dbp->mutex);
 				lcp->opd = NULL;
 				break;
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, file_dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, file_dbp->mutex);
 	}
-	MUTEX_THREAD_UNLOCK(dbenv, dbenv->dblist_mutexp);
+	MUTEX_UNLOCK(dbenv, dbenv->mtx_dblist);
 
 done:	*lsnp = argp->prev_lsn;
 out:	REC_CLOSE;

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000-2004
+ * Copyright (c) 2000-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: util_log.c,v 1.14 2004/01/28 03:35:52 bostic Exp $
+ * $Id: util_log.c,v 12.4 2005/10/12 17:47:17 bostic Exp $
  */
 
 #include "db_config.h"
@@ -40,16 +40,18 @@ __db_util_logset(progname, fname)
 	const char *progname;
 	char *fname;
 {
+	pid_t pid;
+	db_threadid_t tid;
 	FILE *fp;
 	time_t now;
-	u_int32_t id;
 
 	if ((fp = fopen(fname, "w")) == NULL)
 		goto err;
 
 	(void)time(&now);
-	__os_id(&id);
-	fprintf(fp, "%s: %lu %s", progname, (u_long)id, ctime(&now));
+
+	__os_id(NULL, &pid, &tid);
+	fprintf(fp, "%s: %lu %s", progname, (u_long)pid, ctime(&now));
 
 	if (fclose(fp) == EOF)
 		goto err;

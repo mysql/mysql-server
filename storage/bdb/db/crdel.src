@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: crdel.src,v 11.29 2004/06/17 17:35:15 bostic Exp $
+ * $Id: crdel.src,v 12.2 2005/09/28 17:44:18 margo Exp $
  */
 
 PREFIX	__crdel
@@ -39,5 +39,42 @@ DB	fileid		int32_t		ld
 ARG	pgno		db_pgno_t	lu
 PGDBT	page		DBT		s
 POINTER	lsn		DB_LSN *	lu
+END
+
+/*
+ * Inmem_create: Log the creation of an in-memory database.
+ *
+ * name: Name of the database
+ * fid: File id of the database
+ */
+BEGIN	inmem_create	138
+ARG	fileid	int32_t		ld
+DBT	name	DBT		s
+DBT	fid	DBT		s
+ARG	pgsize	u_int32_t	lu
+END
+
+/*
+ * Inmem_rename: Log the renaming of an in-memory only database.
+ *
+ * oldname: database's starting name
+ * newname: database's ending name
+ * fid: fileid
+ */
+BEGIN	inmem_rename	139
+DBT	oldname		DBT		s
+DBT	newname		DBT		s
+DBT	fid		DBT		s
+END
+
+/*
+ * Inmem_remove: Log the removal of an in-memory only database.
+ *
+ * name: database's ending name
+ * fid: fileid
+ */
+BEGIN	inmem_remove	140
+DBT	name		DBT		s
+DBT	fid		DBT		s
 END
 

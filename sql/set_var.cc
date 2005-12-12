@@ -791,9 +791,9 @@ struct show_var_st init_vars[]= {
   {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
-  {sys_myisam_use_mmap.name, (char*) &sys_myisam_use_mmap, SHOW_SYS},
   
   {sys_myisam_stats_method.name, (char*) &sys_myisam_stats_method, SHOW_SYS},
+  {sys_myisam_use_mmap.name, (char*) &sys_myisam_use_mmap, SHOW_SYS},
   
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
@@ -885,8 +885,8 @@ struct show_var_st init_vars[]= {
   {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
 #endif
   {"table_definition_cache",  (char*) &table_def_size,              SHOW_LONG},
-  {"table_open_cache",        (char*) &table_cache_size,            SHOW_LONG},
   {"table_lock_wait_timeout", (char*) &table_lock_wait_timeout,     SHOW_LONG },
+  {"table_open_cache",        (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
 #ifdef HAVE_THR_SETCONCURRENCY

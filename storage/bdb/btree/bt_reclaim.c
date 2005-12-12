@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998-2004
+ * Copyright (c) 1998-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: bt_reclaim.c,v 11.15 2004/01/28 03:35:49 bostic Exp $
+ * $Id: bt_reclaim.c,v 12.2 2005/06/16 20:20:19 bostic Exp $
  */
 
 #include "db_config.h"
@@ -69,7 +69,8 @@ __bam_truncate(dbc, countp)
 	ret = __bam_traverse(dbc,
 	    DB_LOCK_WRITE, dbc->internal->root, __db_truncate_callback, &trunc);
 
-	*countp = trunc.count;
+	if (countp != NULL)
+		*countp = trunc.count;
 
 	return (ret);
 }

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: qam_files.c,v 1.88 2004/10/21 14:54:42 bostic Exp $
+ * $Id: qam_files.c,v 12.6 2005/10/20 18:57:12 bostic Exp $
  */
 
 #include "db_config.h"
@@ -51,7 +51,7 @@ __qam_fprobe(dbp, pgno, addrp, mode, flags)
 	MPFARRAY *array;
 	QUEUE *qp;
 	u_int8_t fid[DB_FILE_ID_LEN];
-	u_int32_t extid, maxext, numext, offset, oldext, openflags;
+	u_int32_t i, extid, maxext, numext, lflags, offset, oldext, openflags;
 	char buf[MAXPATHLEN];
 	int ftype, less, ret, t_ret;
 
@@ -73,7 +73,7 @@ __qam_fprobe(dbp, pgno, addrp, mode, flags)
 	 * The file cannot go away because we must have a record locked
 	 * in that file.
 	 */
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 	extid = QAM_PAGE_EXTENT(dbp, pgno);
 
 	/* Array1 will always be in use if array2 is in use. */
@@ -87,6 +87,7 @@ __qam_fprobe(dbp, pgno, addrp, mode, flags)
 		goto alloc;
 	}
 
+retry:
 	if (extid < array->low_extent) {
 		less = 1;
 		offset = array->low_extent - extid;
@@ -134,11 +135,6 @@ __qam_fprobe(dbp, pgno, addrp, mode, flags)
 			 * If this is at the end of the array and the file at
 			 * the beginning has a zero pin count we can close
 			 * the bottom extent and put this one at the end.
-			 * TODO: If this process is "slow" then it might be
-			 * appending but miss one or more extents.
-			 * We could check to see if all the extents
-			 * are unpinned and close them in the else
-			 * clause below.
 			 */
 			mpf = array->mpfarray[0].mpf;
 			if (mpf != NULL && (ret = __memp_fclose(mpf, 0)) != 0)
@@ -166,12 +162,43 @@ __qam_fprobe(dbp, pgno, addrp, mode, flags)
 				array->low_extent = extid;
 				offset = 0;
 				numext = 0;
+			} else if (array->mpfarray[0].pinref == 0) {
+				/*
+				 * Check to see if there are extents marked
+				 * for deletion at the beginning of the cache.
+				 * If so close them so they will go away.
+				 */
+				for (i = 0; i < array->n_extent; i++) {
+					if (array->mpfarray[i].pinref != 0)
+						break;
+					mpf = array->mpfarray[i].mpf;
+					if (mpf == NULL)
+						continue;
+					(void)__memp_get_flags(mpf, &lflags);
+					if (!FLD_ISSET(lflags, DB_MPOOL_UNLINK))
+						break;
+
+					array->mpfarray[i].mpf = NULL;
+					if ((ret = __memp_fclose(mpf, 0)) != 0)
+						goto err;
+				}
+				if (i == 0)
+					goto increase;
+				memmove(&array->mpfarray[0],
+				     &array->mpfarray[i],
+				    (array->n_extent - i) *
+				    sizeof(array->mpfarray[0]));
+				memset(&array->mpfarray[array->n_extent - i],
+				     '\0', i * sizeof(array->mpfarray[0]));
+				array->low_extent += i;
+				array->hi_extent += i;
+				goto retry;
 			} else {
 				/*
 				 * Increase the size to at least include
 				 * the new one and double it.
 				 */
-				array->n_extent += offset;
+increase:			array->n_extent += offset;
 				array->n_extent <<= 2;
 			}
 alloc:			if ((ret = __os_realloc(dbenv,
@@ -219,6 +246,7 @@ alloc:			if ((ret = __os_realloc(dbenv,
 		(void)__memp_set_pgcookie(mpf, &qp->pgcookie);
 		(void)__memp_get_ftype(dbp->mpf, &ftype);
 		(void)__memp_set_ftype(mpf, ftype);
+		(void)__memp_set_clear_len(mpf, dbp->pgsize);
 
 		/* Set up the fileid for this extent. */
 		__qam_exid(dbp, fid, extid);
@@ -255,7 +283,7 @@ alloc:			if ((ret = __os_realloc(dbenv,
 		(void)__memp_set_flags(mpf, DB_MPOOL_UNLINK, 0);
 
 err:
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 
 	if (ret == 0) {
 		if (mode == QAM_PROBE_MPF) {
@@ -270,7 +298,7 @@ err:
 		} else
 			ret = __memp_fput(mpf, addrp, flags);
 
-		MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+		MUTEX_LOCK(dbenv, dbp->mutex);
 		/* Recalculate because we dropped the lock. */
 		offset = extid - array->low_extent;
 		DB_ASSERT(array->mpfarray[offset].pinref > 0);
@@ -285,7 +313,7 @@ err:
 					ret = t_ret;
 			}
 		}
-		MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+		MUTEX_UNLOCK(dbenv, dbp->mutex);
 	}
 	return (ret);
 }
@@ -314,7 +342,7 @@ __qam_fclose(dbp, pgnoaddr)
 	dbenv = dbp->dbenv;
 	qp = (QUEUE *)dbp->q_internal;
 
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 
 	extid = QAM_PAGE_EXTENT(dbp, pgnoaddr);
 	array = &qp->array1;
@@ -333,7 +361,7 @@ __qam_fclose(dbp, pgnoaddr)
 	ret = __memp_fclose(mpf, 0);
 
 done:
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+	MUTEX_UNLOCK(dbenv, dbp->mutex);
 	return (ret);
 }
 
@@ -365,7 +393,7 @@ __qam_fremove(dbp, pgnoaddr)
 	dbenv = dbp->dbenv;
 	ret = 0;
 
-	MUTEX_THREAD_LOCK(dbenv, dbp->mutexp);
+	MUTEX_LOCK(dbenv, dbp->mutex);
 
 	extid = QAM_PAGE_EXTENT(dbp, pgnoaddr);
 	array = &qp->array1;
@@ -416,8 +444,8 @@ __qam_fremove(dbp, pgnoaddr)
 			array->hi_extent--;
 	}
 
-err:
-	MUTEX_THREAD_UNLOCK(dbenv, dbp->mutexp);
+err:	MUTEX_UNLOCK(dbenv, dbp->mutex);
+
 #ifdef CONFIG_TEST
 	if (real_name != NULL)
 		__os_free(dbenv, real_name);
@@ -786,7 +814,8 @@ int __qam_nameop(dbp, txn, newname, op)
 			snprintf(exname, exlen,
 			     "%s%s", fullname, names[i] + len);
 			if ((t_ret = __memp_nameop(dbenv,
-			    fid, NULL, exname, NULL)) != 0 && ret == 0)
+			    fid, NULL, exname, NULL,
+			    F_ISSET(dbp, DB_AM_INMEM))) != 0 && ret == 0)
 				ret = t_ret;
 			break;
 

@@ -1,4 +1,4 @@
-# $Id: mutex.ac,v 11.46 2004/07/09 16:23:19 bostic Exp $
+# $Id: mutex.ac,v 12.6 2005/11/04 20:19:29 bostic Exp $
 
 # POSIX pthreads tests: inter-process safe and intra-process only.
 AC_DEFUN(AM_PTHREADS_SHARED, [
@@ -353,6 +353,28 @@ AC_TRY_COMPILE(,[
 ], [db_cv_mutex="ARM/gcc-assembly"])
 fi
 
+# MIPS/gcc: Linux
+if test "$db_cv_mutex" = no; then
+AC_TRY_COMPILE(,[
+#if (defined(__mips) || defined(__mips__)) && defined(__GNUC__)
+	exit(0);
+#else
+	FAIL TO COMPILE/LINK
+#endif
+], [db_cv_mutex="MIPS/gcc-assembly"])
+fi
+
+# MIPS/gcc: Linux
+if test "$db_cv_mutex" = no; then
+AC_TRY_COMPILE(,[
+#if (defined(__mips) || defined(__mips__)) && defined(__GNUC__)
+	exit(0);
+#else
+	FAIL TO COMPILE/LINK
+#endif
+], [db_cv_mutex="MIPS/gcc-assembly"])
+fi
+
 # PaRisc/gcc: HP/UX
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
@@ -400,12 +422,23 @@ fi
 # x86/gcc: FreeBSD, NetBSD, BSD/OS, Linux
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
-#if (defined(i386) || defined(__i386__) || defined(__x86_64__)) && defined(__GNUC__)
+#if (defined(i386) || defined(__i386__)) && defined(__GNUC__)
 	exit(0);
 #else
 	FAIL TO COMPILE/LINK
 #endif
 ], [db_cv_mutex="x86/gcc-assembly"])
+fi
+
+# x86_64/gcc: FreeBSD, NetBSD, BSD/OS, Linux
+if test "$db_cv_mutex" = no; then
+AC_TRY_COMPILE(,[
+#if (defined(x86_64) || defined(__x86_64__)) && defined(__GNUC__)
+	exit(0);
+#else
+	FAIL TO COMPILE/LINK
+#endif
+], [db_cv_mutex="x86_64/gcc-assembly"])
 fi
 
 # S390/cc: IBM OS/390 Unix
@@ -430,7 +463,7 @@ AC_TRY_COMPILE(,[
 ], [db_cv_mutex="S390/gcc-assembly"])
 fi
 
-# ia86/gcc: Linux
+# ia64/gcc: Linux
 if test "$db_cv_mutex" = no; then
 AC_TRY_COMPILE(,[
 #if defined(__ia64) && defined(__GNUC__)
@@ -457,6 +490,10 @@ if test "$db_cv_mutex" = no; then
 	db_cv_mutex="UNIX/fcntl"
 fi
 ])
+
+AC_SUBST(thread_h_decl)
+AC_SUBST(db_threadid_t_decl)
+db_threadid_t_decl=notset
 
 case "$db_cv_mutex" in
 68K/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
@@ -492,10 +529,14 @@ ia64/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AH_TEMPLATE(HAVE_MUTEX_IA64_GCC_ASSEMBLY,
 			    [Define to 1 to use the GCC compiler and IA64 assembly language mutexes.]);;
 POSIX/pthreads)		ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <pthread.h>"
+			db_threadid_t_decl="typedef pthread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
 			    [Define to 1 to use POSIX 1003.1 pthread_XXX mutexes.]);;
 POSIX/pthreads/private)	ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <pthread.h>"
+			db_threadid_t_decl="typedef pthread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
 			    [Define to 1 to use POSIX 1003.1 pthread_XXX mutexes.])
@@ -503,17 +544,19 @@ POSIX/pthreads/private)	ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
 			AH_TEMPLATE(HAVE_MUTEX_THREAD_ONLY,
 			    [Define to 1 to configure mutexes intra-process only.]);;
 POSIX/pthreads/library)	LIBS="$LIBS -lpthread"
-			LIBJSO_LIBS="$LIBJSO_LIBS -lpthread"
-			LIBTSO_LIBS="$LIBTSO_LIBS -lpthread"
+			LIBSO_LIBS="$LIBSO_LIBS -lpthread"
 			ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <pthread.h>"
+			db_threadid_t_decl="typedef pthread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
 			    [Define to 1 to use POSIX 1003.1 pthread_XXX mutexes.]);;
 POSIX/pthreads/library/private)
 			LIBS="$LIBS -lpthread"
-			LIBJSO_LIBS="$LIBJSO_LIBS -lpthread"
-			LIBTSO_LIBS="$LIBTSO_LIBS -lpthread"
+			LIBSO_LIBS="$LIBSO_LIBS -lpthread"
 			ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <pthread.h>"
+			db_threadid_t_decl="typedef pthread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_PTHREADS)
 			AH_TEMPLATE(HAVE_MUTEX_PTHREADS,
 			    [Define to 1 to use POSIX 1003.1 pthread_XXX mutexes.])
@@ -551,6 +594,8 @@ Solaris/_lock_try)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AH_TEMPLATE(HAVE_MUTEX_SOLARIS_LOCK_TRY,
 			    [Define to 1 to use the Solaris _lock_XXX mutexes.]);;
 Solaris/lwp)		ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <pthread.h>"
+			db_threadid_t_decl="typedef pthread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_SOLARIS_LWP)
 			AH_TEMPLATE(HAVE_MUTEX_SOLARIS_LWP,
 			    [Define to 1 to use the Solaris lwp threads mutexes.]);;
@@ -562,13 +607,17 @@ Tru64/cc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_TRU64_CC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_TRU64_CC_ASSEMBLY,
 			    [Define to 1 to use the CC compiler and Tru64 assembly language mutexes.]);;
-
 UI/threads)		ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <thread.h>"
+			db_threadid_t_decl="typedef thread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_UI_THREADS)
 			AH_TEMPLATE(HAVE_MUTEX_UI_THREADS,
 			    [Define to 1 to use the UNIX International mutexes.]);;
 UI/threads/library)	LIBS="$LIBS -lthread"
+			LIBSO_LIBS="$LIBSO_LIBS -lthread"
 			ADDITIONAL_OBJS="mut_pthread${o} $ADDITIONAL_OBJS"
+			thread_h_decl="#include <thread.h>"
+			db_threadid_t_decl="typedef thread_t db_threadid_t;"
 			AC_DEFINE(HAVE_MUTEX_UI_THREADS)
 			AH_TEMPLATE(HAVE_MUTEX_UI_THREADS,
 			    [Define to 1 to use the UNIX International mutexes.]);;
@@ -590,10 +639,18 @@ win32)			ADDITIONAL_OBJS="mut_win32${o} $ADDITIONAL_OBJS"
 win32/gcc)		ADDITIONAL_OBJS="mut_win32${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_WIN32_GCC)
 			AH_TEMPLATE(HAVE_MUTEX_WIN32_GCC, [Define to 1 to use the GCC compiler and Windows mutexes.]);;
+MIPS/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_MIPS_GCC_ASSEMBLY)
+			AH_TEMPLATE(HAVE_MUTEX_MIPS_GCC_ASSEMBLY,
+			    [Define to 1 to use the GCC compiler and MIPS assembly language mutexes.]);;
 x86/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
 			AC_DEFINE(HAVE_MUTEX_X86_GCC_ASSEMBLY)
 			AH_TEMPLATE(HAVE_MUTEX_X86_GCC_ASSEMBLY,
 			    [Define to 1 to use the GCC compiler and x86 assembly language mutexes.]);;
+x86_64/gcc-assembly)	ADDITIONAL_OBJS="mut_tas${o} $ADDITIONAL_OBJS"
+			AC_DEFINE(HAVE_MUTEX_X86_64_GCC_ASSEMBLY)
+			AH_TEMPLATE(HAVE_MUTEX_X86_64_GCC_ASSEMBLY,
+			[Define to 1 to use the GCC compiler and amd64 assembly language mutexes.]);;
 UNIX/fcntl)		AC_MSG_WARN(
 			    [NO FAST MUTEXES FOUND FOR THIS COMPILER/ARCHITECTURE.])
 			ADDITIONAL_OBJS="mut_fcntl${o} $ADDITIONAL_OBJS"
@@ -603,10 +660,24 @@ UNIX/fcntl)		AC_MSG_WARN(
 *)			AC_MSG_ERROR([Unknown mutex interface: $db_cv_mutex]);;
 esac
 
-if test "$db_cv_mutex" != "UNIX/fcntl"; then
-	AC_DEFINE(HAVE_MUTEX_THREADS)
-	AH_TEMPLATE(HAVE_MUTEX_THREADS,
-	    [Define to 1 if fast mutexes are available.])
+# The mutex selection often tells us what kind of thread package we're using.
+# We need to know if the thread ID type will fit into an integral type and we
+# can compare it for equality and generally treat it like an int, or if it's a
+# non-integral type and we have to treat it like a structure or other untyped
+# block of bytes.  For example, MVS typedef's pthread_t to a structure.
+AH_TEMPLATE(HAVE_INTEGRAL_THREAD_TYPE,
+    [Define to 1 if thread identifier type db_threadid_t is integral.])
+if test "$db_threadid_t_decl" = "notset"; then
+	db_threadid_t_decl="typedef uintmax_t db_threadid_t;"
+	AC_DEFINE(HAVE_INTEGRAL_THREAD_TYPE)
+else
+	AC_TRY_COMPILE(
+	#include <sys/types.h>
+	$thread_h_decl, [
+	$db_threadid_t_decl
+	db_threadid_t a;
+	a = 0;
+	], AC_DEFINE(HAVE_INTEGRAL_THREAD_TYPE))
 fi
 
 # There are 3 classes of mutexes:

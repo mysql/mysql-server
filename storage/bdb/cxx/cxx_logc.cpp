@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_logc.cpp,v 11.13 2004/02/05 02:25:12 mjc Exp $
+ * $Id: cxx_logc.cpp,v 12.1 2005/06/16 20:21:00 bostic Exp $
  */
 
 #include "db_config.h"

@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: cxx_lock.cpp,v 11.19 2004/01/28 03:35:56 bostic Exp $
+ * $Id: cxx_lock.cpp,v 12.1 2005/06/16 20:20:59 bostic Exp $
  */
 
 #include "db_config.h"

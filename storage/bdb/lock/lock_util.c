@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: lock_util.c,v 11.12 2004/09/22 03:48:29 bostic Exp $
+ * $Id: lock_util.c,v 12.2 2005/06/16 20:23:11 bostic Exp $
  */
 
 #include "db_config.h"
@@ -118,21 +118,6 @@ __lock_lhash(lock_obj)
 		FAST_HASH(obj_data);
 
 	return (__ham_func5(NULL, obj_data, lock_obj->lockobj.size));
-}
-
-/*
- * __lock_locker_hash --
- *	Hash function for entering lockers into the locker hash table.
- *	Since these are simply 32-bit unsigned integers, just return
- *	the locker value.
- *
- * PUBLIC: u_int32_t __lock_locker_hash __P((u_int32_t));
- */
-u_int32_t
-__lock_locker_hash(locker)
-	u_int32_t locker;
-{
-	return (locker);
 }
 
 /*

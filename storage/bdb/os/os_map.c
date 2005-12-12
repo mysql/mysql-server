@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_map.c,v 11.57 2004/07/06 13:55:48 bostic Exp $
+ * $Id: os_map.c,v 12.3 2005/07/21 01:36:18 bostic Exp $
  */
 
 #include "db_config.h"
@@ -55,7 +55,7 @@ __os_r_sysattach(dbenv, infop, rp)
 		 * threaded.  If we reach this point, we know we're public, so
 		 * it's an error.
 		 */
-#if defined(MUTEX_NO_SHMGET_LOCKS)
+#if defined(HAVE_MUTEX_HPPA_MSEM_INIT)
 		__db_err(dbenv,
 	    "architecture does not support locks inside system shared memory");
 		return (EINVAL);
@@ -163,9 +163,13 @@ __os_r_sysattach(dbenv, infop, rp)
 	 * systems without merged VM/buffer cache systems, or, more to the
 	 * point, *badly* merged VM/buffer cache systems.
 	 */
-	if (ret == 0 && F_ISSET(infop, REGION_CREATE))
-		ret = __db_fileinit(dbenv,
-		    fhp, rp->size, F_ISSET(dbenv, DB_ENV_REGION_INIT) ? 1 : 0);
+	if (ret == 0 && F_ISSET(infop, REGION_CREATE)) {
+		if (F_ISSET(dbenv, DB_ENV_REGION_INIT))
+			ret = __db_file_write(dbenv, "region file", fhp,
+			    rp->size / MEGABYTE, rp->size % MEGABYTE, 0x00);
+		else
+			ret = __db_file_extend(dbenv, fhp, rp->size);
+	}
 
 	/* Map the file in. */
 	if (ret == 0)

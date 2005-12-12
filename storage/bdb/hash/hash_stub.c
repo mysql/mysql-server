@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: hash_stub.c,v 1.10 2004/09/29 15:35:14 bostic Exp $
+ * $Id: hash_stub.c,v 12.1 2005/06/16 20:22:54 bostic Exp $
  */
 
 #include "db_config.h"

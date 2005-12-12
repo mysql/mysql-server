@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997-2004
+ * Copyright (c) 1997-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_open.c,v 11.60 2004/09/24 00:43:19 bostic Exp $
+ * $Id: os_open.c,v 12.7 2005/10/31 02:22:32 bostic Exp $
  */
 
 #include "db_config.h"
@@ -19,13 +19,11 @@
 
 #include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
 #include "db_int.h"
 
 static int __os_intermediate_dir __P((DB_ENV *, const char *));
-static int __os_mkdir __P((DB_ENV *, const char *));
 #ifdef HAVE_QNX
 static int __os_region_open __P((DB_ENV *, const char *, int, int, DB_FH **));
 #endif
@@ -94,9 +92,9 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 	oflags = 0;
 
 #define	OKFLAGS								\
-	(DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_DSYNC | DB_OSO_EXCL |	\
-	 DB_OSO_LOG | DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ |	\
-	 DB_OSO_TEMP | DB_OSO_TRUNC)
+	(DB_OSO_ABSMODE | DB_OSO_CREATE | DB_OSO_DIRECT | DB_OSO_DSYNC |\
+	DB_OSO_EXCL | DB_OSO_RDONLY | DB_OSO_REGION | DB_OSO_SEQ |	\
+	DB_OSO_TEMP | DB_OSO_TRUNC)
 	if ((ret = __db_fchk(dbenv, "__os_open", flags, OKFLAGS)) != 0)
 		return (ret);
 
@@ -126,7 +124,7 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 		oflags |= O_DIRECT;
 #endif
 #ifdef O_DSYNC
-	if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC))
+	if (LF_ISSET(DB_OSO_DSYNC))
 		oflags |= O_DSYNC;
 #endif
 
@@ -155,8 +153,25 @@ __os_open_extend(dbenv, name, page_size, flags, mode, fhpp)
 	if ((ret = __os_openhandle(dbenv, name, oflags, mode, &fhp)) != 0)
 		return (ret);
 
+#ifdef HAVE_FCHMOD
+	/*
+	 * If the code using Berkeley DB is a library, that code may not be able
+	 * to control the application's umask value.  Allow applications to set
+	 * absolute file modes.  We can't fix the race between file creation and
+	 * the fchmod call -- we can't modify the process' umask here since the
+	 * process may be multi-threaded and the umask value is per-process, not
+	 * per-thread.
+	 */
+	if (LF_ISSET(DB_OSO_CREATE) && LF_ISSET(DB_OSO_ABSMODE))
+		(void)fchmod(fhp->fd, mode);
+#endif
+
 #ifdef O_DSYNC
-	if (LF_ISSET(DB_OSO_LOG) && LF_ISSET(DB_OSO_DSYNC))
+	/*
+	 * If we can configure the file descriptor to flush on write, the
+	 * file descriptor does not need to be explicitly sync'd.
+	 */
+	if (LF_ISSET(DB_OSO_DSYNC))
 		F_SET(fhp, DB_FH_NOSYNC);
 #endif
 
@@ -349,7 +364,7 @@ __os_intermediate_dir(dbenv, name)
 	 * Allocate memory if temporary space is too small.
 	 */
 	if ((len = strlen(name)) > sizeof(buf) - 1) {
-		if ((ret = __os_umalloc(dbenv, len, &t)) != 0)
+		if ((ret = __os_umalloc(dbenv, len + 1, &t)) != 0)
 			return (ret);
 	} else
 		t = buf;
@@ -367,7 +382,8 @@ __os_intermediate_dir(dbenv, name)
 				savech = *p;
 				*p = '\0';
 				if (__os_exists(t, NULL) &&
-				    (ret = __os_mkdir(dbenv, t)) != 0)
+				    (ret = __os_mkdir(
+					dbenv, t, dbenv->dir_mode)) != 0)
 					break;
 				*p = savech;
 			}
@@ -377,36 +393,12 @@ __os_intermediate_dir(dbenv, name)
 				savech = *p;
 				*p = '\0';
 				if (__os_exists(t, NULL) &&
-				    (ret = __os_mkdir(dbenv, t)) != 0)
+				    (ret = __os_mkdir(
+					dbenv, t, dbenv->dir_mode)) != 0)
 					break;
 				*p = savech;
 			}
 	if (t != buf)
 		__os_free(dbenv, t);
-	return (ret);
-}
-
-/*
- * __os_mkdir --
- *	Create a directory.
- */
-static int
-__os_mkdir(dbenv, name)
-	DB_ENV *dbenv;
-	const char *name;
-{
-	int ret;
-
-	/* Make the directory, with paranoid permissions. */
-#ifdef HAVE_VXWORKS
-	RETRY_CHK((mkdir((char *)name)), ret);
-#else
-	RETRY_CHK((mkdir(name, 0600)), ret);
-	if (ret != 0)
-		return (ret);
-
-	/* Set the absolute permissions. */
-	RETRY_CHK((chmod(name, dbenv->dir_mode)), ret);
-#endif
 	return (ret);
 }

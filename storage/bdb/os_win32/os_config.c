@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999-2004
+ * Copyright (c) 1999-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: os_config.c,v 11.18 2004/02/09 20:54:27 mjc Exp $
+ * $Id: os_config.c,v 12.2 2005/06/16 20:23:28 bostic Exp $
  */
 
 #include "db_config.h"
@@ -85,4 +85,24 @@ __os_fs_notzero()
 			__os_notzero = 1;		/* Not Windows/NT */
 	}
 	return (__os_notzero);
+}
+
+/*
+ * __os_support_db_register --
+ *	Return 1 if the system supports DB_REGISTER.
+ */
+int
+__os_support_db_register()
+{
+	return (__os_is_winnt());
+}
+
+/*
+ * __os_support_replication --
+ *	Return 1 if the system supports replication.
+ */
+int
+__os_support_replication()
+{
+	return (__os_is_winnt());
 }

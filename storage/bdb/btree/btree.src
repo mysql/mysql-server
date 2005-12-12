@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: btree.src,v 10.42 2004/06/17 17:35:12 bostic Exp $
+ * $Id: btree.src,v 12.3 2005/08/08 03:37:05 ubell Exp $
  */
 
 PREFIX	__bam
@@ -210,10 +210,10 @@ END
 BEGIN relink		147
 /* Fileid of db affected. */
 DB	fileid		int32_t		ld
-/* The page being changed. */
+/* The page being removed. */
 ARG	pgno		db_pgno_t	lu
-/* The page's original lsn. */
-POINTER	lsn		DB_LSN *	lu
+/* The new page number, if any. */
+ARG	new_pgno	db_pgno_t	lu
 /* The previous page. */
 ARG	prev		db_pgno_t	lu
 /* The previous page's original lsn. */
@@ -222,4 +222,31 @@ POINTER	lsn_prev	DB_LSN *	lu
 ARG	next		db_pgno_t	lu
 /* The previous page's original lsn. */
 POINTER	lsn_next	DB_LSN *	lu
+END
+
+/*
+ * BTREE-merge -- Handles merging of pages during a compaction.
+ */
+BEGIN merge		148
+DB	fileid		int32_t		ld
+ARG	pgno		db_pgno_t	lu
+POINTER	lsn		DB_LSN *	lu
+ARG	npgno		db_pgno_t	lu
+POINTER nlsn		DB_LSN *	lu
+DBT	hdr		DBT		s
+DBT	data		DBT		s
+DBT	ind		DBT		s
+END
+
+/*
+ * BTREE-pgno -- Handles replacing a page number in the record
+ * refernece on pgno by indx.
+ */
+BEGIN pgno		149
+DB	fileid		int32_t		ld
+ARG	pgno		db_pgno_t	lu
+POINTER	lsn		DB_LSN *	lu
+ARG	indx		u_int32_t	lu
+ARG	opgno		db_pgno_t	lu
+ARG	npgno		db_pgno_t	lu
 END

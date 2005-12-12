@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001-2004
+ * Copyright (c) 2001-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn_util.c,v 11.28 2004/09/16 17:55:19 margo Exp $
+ * $Id: txn_util.c,v 12.2 2005/09/28 17:45:20 margo Exp $
  */
 
 #include "db_config.h"
@@ -35,6 +35,7 @@ struct __txn_event {
 			/* Delayed remove. */
 			char *name;
 			u_int8_t *fileid;
+			int inmem;
 		} r;
 		struct {
 			/* Lock event. */
@@ -79,14 +80,15 @@ __txn_closeevent(dbenv, txn, dbp)
  * Creates a remove event that can be added to the commit list.
  *
  * PUBLIC: int __txn_remevent __P((DB_ENV *,
- * PUBLIC:       DB_TXN *, const char *, u_int8_t*));
+ * PUBLIC:       DB_TXN *, const char *, u_int8_t *, int));
  */
 int
-__txn_remevent(dbenv, txn, name, fileid)
+__txn_remevent(dbenv, txn, name, fileid, inmem)
 	DB_ENV *dbenv;
 	DB_TXN *txn;
 	const char *name;
 	u_int8_t *fileid;
+	int inmem;
 {
 	int ret;
 	TXN_EVENT *e;
@@ -105,6 +107,7 @@ __txn_remevent(dbenv, txn, name, fileid)
 		memcpy(e->u.r.fileid, fileid, DB_FILE_ID_LEN);
 	}
 
+	e->u.r.inmem = inmem;
 	e->op = TXN_REMOVE;
 	TAILQ_INSERT_TAIL(&txn->events, e, links);
 
@@ -115,9 +118,10 @@ err:	if (e != NULL)
 
 	return (ret);
 }
+
 /*
  * __txn_remrem --
- *	Remove a remove event because the remove has be superceeded,
+ *	Remove a remove event because the remove has been superceeded,
  * by a create of the same name, for example.
  *
  * PUBLIC: void __txn_remrem __P((DB_ENV *, DB_TXN *, const char *));
@@ -285,8 +289,8 @@ __txn_doevents(dbenv, txn, opcode, preprocess)
 		case TXN_REMOVE:
 			if (e->u.r.fileid != NULL) {
 				if ((t_ret = __memp_nameop(dbenv,
-				    e->u.r.fileid,
-				    NULL, e->u.r.name, NULL)) != 0 && ret == 0)
+				    e->u.r.fileid, NULL, e->u.r.name,
+				    NULL, e->u.r.inmem)) != 0 && ret == 0)
 					ret = t_ret;
 			} else if ((t_ret =
 			    __os_unlink(dbenv, e->u.r.name)) != 0 && ret == 0)

@@ -68,3 +68,27 @@ drop table t1;
 
 # check that cast appends trailing zeros
 select hex(cast(0x10 as binary(2)));
+
+#
+# Bug #14299: BINARY space truncation should cause warning or error
+# 
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+drop table t1;
+create table t1 (c char(2), vc varchar(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+drop table t1;
+
+set @old_sql_mode= @@sql_mode, sql_mode= 'traditional';
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+--error ER_DATA_TOO_LONG
+insert into t1 values(0x412020, NULL);
+--error ER_DATA_TOO_LONG
+insert into t1 values(NULL, 0x412020);
+drop table t1;
+set @@sql_mode= @old_sql_mode;
+
+--echo End of 5.0 tests

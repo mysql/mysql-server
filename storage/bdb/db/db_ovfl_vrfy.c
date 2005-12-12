@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: db_ovfl_vrfy.c,v 11.56 2004/01/28 03:35:57 bostic Exp $
+ * $Id: db_ovfl_vrfy.c,v 12.1 2005/06/16 20:21:13 bostic Exp $
  */
 
 #include "db_config.h"

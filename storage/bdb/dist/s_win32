@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_win32,v 1.37 2004/10/15 18:28:21 bostic Exp $
+#	$Id: s_win32,v 12.10 2005/11/03 17:46:13 bostic Exp $
 #
 # Build Windows/32 include files.
 
@@ -19,6 +19,8 @@ cat <<ENDOFSEDTEXT > $s
 /@inttypes_h_decl@/d
 /@stdint_h_decl@/d
 s/@stddef_h_decl@/#include <stddef.h>/
+/@unistd_h_decl@/d
+/@thread_h_decl@/d
 s/@u_int8_decl@/typedef unsigned char u_int8_t;/
 s/@int16_decl@/typedef short int16_t;/
 s/@u_int16_decl@/typedef unsigned short u_int16_t;/
@@ -27,6 +29,8 @@ s/@u_int32_decl@/typedef unsigned int u_int32_t;/
 s/@int64_decl@/typedef __int64 int64_t;/
 s/@u_int64_decl@/typedef unsigned __int64 u_int64_t;/
 s/@db_seq_decl@/typedef int64_t db_seq_t;/
+s/@pid_t_decl@/typedef int pid_t;/
+s/@db_threadid_t_decl@/typedef u_int32_t db_threadid_t;/
 /@u_char_decl@/{
 	i\\
 #ifndef _WINSOCKAPI_
@@ -70,14 +74,12 @@ ENDOFSEDTEXT
 (echo "$msgc" &&
     sed -f $s ../dbinc/db.in &&
     cat ../dbinc_auto/ext_prot.in) > $t
-`egrep '@.*@' $t` && {
+test `egrep '@.*@' $t` && {
+	egrep '@.*@' $t
 	echo 'Unexpanded autoconf variables found in Windows db.h.'
 	exit 1
 }
 f=../build_win32/db.h
-cmp $t $f > /dev/null 2>&1 ||
-    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
-f=../build_win64/db.h
 cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
@@ -85,38 +87,33 @@ cat <<ENDOFSEDTEXT > $s
 s/@cxx_have_stdheaders@/#define	HAVE_CXX_STDHEADERS 1/
 ENDOFSEDTEXT
 (echo "$msgc" && sed -f $s ../dbinc/db_cxx.in) > $t
-`egrep '@.*@' $t` && {
+test `egrep '@.*@' $t` && {
+	egrep '@.*@' $t
 	echo 'Unexpanded autoconf variables found in Windows db_cxx.h.'
 	exit 1
 }
 f=../build_win32/db_cxx.h
 cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
-f=../build_win64/db_cxx.h
-cmp $t $f > /dev/null 2>&1 ||
-    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
 cat <<ENDOFSEDTEXT > $s
+s/@INT64_FMT@//
+s/@UINT64_FMT@//
 s/@PATH_SEPARATOR@/\\\\\\\\\/:/
 s/@db_int_def@//
 ENDOFSEDTEXT
 (echo "$msgc" && sed -f $s ../dbinc/db_int.in) > $t
-`egrep '@.*@' $t` && {
+test `egrep '@.*@' $t` && {
+	egrep '@.*@' $t
 	echo 'Unexpanded autoconf variables found in Windows db_int.h.'
 	exit 1
 }
 f=../build_win32/db_int.h
 cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
-f=../build_win64/db_int.h
-cmp $t $f > /dev/null 2>&1 ||
-    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
 f=../build_win32/db_config.h
 (echo "$msgc" && sed "s/__EDIT_DB_VERSION__/$DB_VERSION/" win_config.in) > $t
-cmp $t $f > /dev/null 2>&1 ||
-    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
-f=../build_win64/db_config.h
 cmp $t $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
@@ -144,9 +141,6 @@ cmp $t $f > /dev/null 2>&1 ||
 
 f=../build_win32/win_db.h
 i=win_db.in
-cmp $i $f > /dev/null 2>&1 ||
-    (echo "Building $f" && rm -f $f && cp $i $f && chmod 444 $f)
-f=../build_win64/win_db.h
 cmp $i $f > /dev/null 2>&1 ||
     (echo "Building $f" && rm -f $f && cp $i $f && chmod 444 $f)
 

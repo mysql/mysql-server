@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: hash_reclaim.c,v 11.17 2004/06/22 18:43:38 margo Exp $
+ * $Id: hash_reclaim.c,v 12.2 2005/06/16 20:22:53 bostic Exp $
  */
 
 #include "db_config.h"
@@ -88,6 +88,7 @@ __ham_truncate(dbc, countp)
 	if ((t_ret = __ham_release_meta(dbc)) != 0 && ret == 0)
 		ret = t_ret;
 
-	*countp = trunc.count;
+	if (countp != NULL)
+		*countp = trunc.count;
 	return (ret);
 }

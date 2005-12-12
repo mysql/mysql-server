@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_config,v 1.13 2003/07/02 15:27:44 bostic Exp $
+#	$Id: s_config,v 12.1 2005/08/16 05:19:18 mjc Exp $
 #
 # Build the autoconfiguration files.
 
@@ -20,14 +20,13 @@ rm -f configure
 autoconf
 
 # Edit version information we couldn't pre-compute.
-(echo "1,\$s/__EDIT_DB_VERSION_MAJOR__/$DB_VERSION_MAJOR/g" &&
- echo "1,\$s/__EDIT_DB_VERSION_MINOR__/$DB_VERSION_MINOR/g" &&
- echo "1,\$s/__EDIT_DB_VERSION_PATCH__/$DB_VERSION_PATCH/g" &&
- echo "1,\$s/__EDIT_DB_VERSION_STRING__/$DB_VERSION_STRING/g" &&
- echo "1,\$s/__EDIT_DB_VERSION_UNIQUE_NAME__/$DB_VERSION_UNIQUE_NAME/g" &&
- echo "1,\$s/__EDIT_DB_VERSION__/$DB_VERSION/g" &&
- echo "w" &&
- echo "q") | ed configure
+sed -e "s/__EDIT_DB_VERSION_MAJOR__/$DB_VERSION_MAJOR/g" \
+    -e "s/__EDIT_DB_VERSION_MINOR__/$DB_VERSION_MINOR/g" \
+    -e "s/__EDIT_DB_VERSION_PATCH__/$DB_VERSION_PATCH/g" \
+    -e "s/__EDIT_DB_VERSION_STRING__/$DB_VERSION_STRING/g" \
+    -e "s/__EDIT_DB_VERSION_UNIQUE_NAME__/$DB_VERSION_UNIQUE_NAME/g" \
+    -e "s/__EDIT_DB_VERSION__/$DB_VERSION/g" configure > configure.version
+mv configure.version configure
 
 rm -rf autom4te.cache
 chmod 555 configure

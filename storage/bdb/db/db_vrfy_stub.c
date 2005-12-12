@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: db_vrfy_stub.c,v 11.6 2004/06/14 15:23:32 bostic Exp $
+ * $Id: db_vrfy_stub.c,v 12.1 2005/06/16 20:21:15 bostic Exp $
  */
 
 #include "db_config.h"

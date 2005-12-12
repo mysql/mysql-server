@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996-2004
+ * Copyright (c) 1996-2005
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: txn.src,v 11.33 2004/07/27 12:35:19 bostic Exp $
+ * $Id: txn.src,v 12.2 2005/09/21 18:34:07 sue Exp $
  */
 
 PREFIX	__txn
@@ -44,10 +44,13 @@ INCLUDE
  * Note that we are using an int32_t for the timestamp.  This means that
  * in 2039 we will need to deprecate this log record and create one that
  * either changes the Epoch or has a 64-bit offset.
+ * envid:
+ *	Environment ID of this operation.
  */
 BEGIN regop		10
 ARG	opcode		u_int32_t	ld
 TIME	timestamp	int32_t		ld
+ARG	envid		u_int32_t	ld
 LOCKS	locks		DBT		s
 END
 
