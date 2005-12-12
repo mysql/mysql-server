@@ -4203,11 +4203,8 @@ test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
 call bug13012()|
 Table	Op	Msg_type	Msg_text
@@ -4226,11 +4223,8 @@ test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
 call bug13012()|
 Table	Op	Msg_type	Msg_text
@@ -4249,11 +4243,8 @@ test.t2	analyze	status	Table is already up to date
 test.t3	analyze	status	Table is already up to date
 test.v1	analyze	error	'test.v1' is not BASE TABLE
 Warnings:
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
-Error	1146	Table 'test.t3' doesn't exist
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
 drop view v1;
