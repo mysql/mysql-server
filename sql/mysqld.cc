@@ -6469,7 +6469,7 @@ static void mysql_init_variables(void)
 #else
   have_openssl=SHOW_OPTION_NO;
 #endif
-#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
+#ifdef HAVE_BROKEN_REALPATH
   have_symlink=SHOW_OPTION_NO;
 #else
   have_symlink=SHOW_OPTION_YES;
@@ -7165,7 +7165,7 @@ static void get_options(int argc,char **argv)
     usage();
     exit(0);
   }
-#if !defined(HAVE_REALPATH) || defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
   my_disable_symlinks=1;
   have_symlink=SHOW_OPTION_NO;
