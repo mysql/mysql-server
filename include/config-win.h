@@ -325,6 +325,11 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
 
+#ifndef __NT__
+#undef FILE_SHARE_DELETE
+#define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
+#endif
+
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf
