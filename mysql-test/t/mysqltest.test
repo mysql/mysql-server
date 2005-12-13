@@ -984,7 +984,7 @@ select "this will be executed";
 #            non-1st queries
 #
 
-# Failing multi statement query
+echo Failing multi statement query;
 # PS does not support multi statement
 --exec echo "--disable_ps_protocol"                    > var/tmp/bug11731.sql
 --exec echo "delimiter ||||;"                         >> var/tmp/bug11731.sql
@@ -999,14 +999,13 @@ select "this will be executed";
 drop table t1;
 
 --error 1
---exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out
-# The .out file should be empty, cat will fail!
---error 1
---exec cat $MYSQL_TEST_DIR/var/tmp/bug11731.out
+--exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out 2>&1
+# The .out file should be non existent
+--exec test ! -e $MYSQL_TEST_DIR/var/tmp/bug11731.out
 drop table t1;
 
 
-# Using expected error
+echo Multi statement using expected error;
 # PS does not support multi statement
 --exec echo "--disable_ps_protocol"                    > var/tmp/bug11731.sql
 --exec echo "delimiter ||||;"                         >> var/tmp/bug11731.sql
@@ -1018,11 +1017,12 @@ drop table t1;
 --exec echo "delimiter ;||||"                         >> var/tmp/bug11731.sql
 
 # These two should work since the error is expected
---exec $MYSQL_TEST -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql  2>&1
+--exec $MYSQL_TEST -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql 2>&1
 drop table t1;
 
---exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out
---exec cat $MYSQL_TEST_DIR/var/tmp/bug11731.out
+--exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out 2>&1
+# The .out file should exist
+--exec test -s $MYSQL_TEST_DIR/var/tmp/bug11731.out
 drop table t1;
 
 

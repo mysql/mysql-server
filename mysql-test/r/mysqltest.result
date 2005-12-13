@@ -396,12 +396,20 @@ root@localhost
 --------------------------------------------------------------------------------
 this will be executed
 this will be executed
+mysqltest: Result length mismatch
+mysqltest: The test didn't produce any output
+Failing multi statement query
 mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
+mysqltest: At line 3: query 'create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
+Multi statement using expected error
 create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
@@ -410,13 +418,4 @@ select-me
 select-me
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
-create table t1 (a int primary key);
-insert into t1 values (1);
-select 'select-me';
-insertz error query||||
-select-me
-select-me
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
-mysqltest: Result length mismatch
-mysqltest: The test didn't produce any output
