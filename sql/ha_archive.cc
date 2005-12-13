@@ -20,6 +20,7 @@
 
 #include "mysql_priv.h"
 
+#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
 #include "ha_archive.h"
 #include <my_dir.h>
 
