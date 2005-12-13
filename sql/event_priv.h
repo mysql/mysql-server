@@ -113,13 +113,11 @@ evex_queue_sort(EVEX_QUEUE_TYPE *queue);
 extern bool evex_is_running;
 extern bool mysql_event_table_exists;
 extern DYNAMIC_ARRAY events_array;
-extern DYNAMIC_ARRAY EXEC_QUEUE_DARR_NAME;
-extern QUEUE EXEC_QUEUE_QUEUE_NAME;
 extern MEM_ROOT evex_mem_root;
 extern pthread_mutex_t LOCK_event_arrays,
                        LOCK_workers_count,
                        LOCK_evex_running;
 extern ulonglong evex_main_thread_id;
-
+extern QUEUE EVEX_EQ_NAME;
 
 #endif /* _EVENT_PRIV_H_ */

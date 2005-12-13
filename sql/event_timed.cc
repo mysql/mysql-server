@@ -776,17 +776,7 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   uint len, tmp_len;
 
   len = strlen("CREATE EVENT ") + dbname.length + strlen(".") + name.length +
-        strlen(" ON SCHEDULE ") + strlen("EVERY 5 MINUTE ")
-/*
-	+ strlen("ON COMPLETION ")
-	+ (on_completion==MYSQL_EVENT_ON_COMPLETION_DROP?
-		         strlen("NOT PRESERVE "):strlen("PRESERVE "))
-	+ (status==MYSQL_EVENT_ENABLED?
-		         strlen("ENABLE "):strlen("DISABLE "))
-	+ strlen("COMMENT \"") + comment.length + strlen("\" ")
-*/
-    + strlen("DO ") +
-	+ body.length + strlen(";");
+        strlen(" ON SCHEDULE EVERY 5 MINUTE DO ") + body.length + strlen(";");
   
   ret= dst= (char*) alloc_root(thd->mem_root, len + 1);
   memcpy(dst, "CREATE EVENT ", tmp_len= strlen("CREATE EVENT "));
@@ -797,31 +787,8 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   dst+= tmp_len;
   memcpy(dst, name.str, tmp_len= name.length);
   dst+= tmp_len;
-  memcpy(dst, " ON SCHEDULE ", tmp_len= strlen(" ON SCHEDULE "));
-  dst+= tmp_len;
-  memcpy(dst, "EVERY 5 MINUTE ", tmp_len= strlen("EVERY 5 MINUTE "));
-  dst+= tmp_len;
-/*
-  memcpy(dst, "ON COMPLETION ", tmp_len =strlen("ON COMPLETION "));
-  dst+= tmp_len;
-  memcpy(dst, (on_completion==MYSQL_EVENT_ON_COMPLETION_DROP?
-		         "NOT PRESERVE ":"PRESERVE "),
-			 tmp_len =(on_completion==MYSQL_EVENT_ON_COMPLETION_DROP? 13:9));
-  dst+= tmp_len;
-
-  memcpy(dst, (status==MYSQL_EVENT_ENABLED?
-		         "ENABLE  ":"DISABLE  "),
-			 tmp_len= (status==MYSQL_EVENT_ENABLED? 8:9));
-  dst+=tmp_len;
-
-  memcpy(dst, "COMMENT \"", tmp_len= strlen("COMMENT \""));
-  dst+= tmp_len;
-  memcpy(dst, comment.str, tmp_len= comment.length);
-  dst+= tmp_len;
-  memcpy(dst, "\" ", tmp_len=2);
-  dst+= tmp_len;
-*/
-  memcpy(dst, "DO ", tmp_len=3);
+  memcpy(dst, " ON SCHEDULE EVERY 5 MINUTE DO ",
+         tmp_len= strlen(" ON SCHEDULE EVERY 5 MINUTE DO "));
   dst+= tmp_len;
 
   memcpy(dst, body.str, tmp_len= body.length);
@@ -829,9 +796,10 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   memcpy(dst, ";", 1);
   ++dst;
   *dst= '\0';
-
+ 
   *length= len;
   dst[len]= '\0'; 
+  sql_print_information("%d %d[%s]", len, dst-ret, ret);
   return ret;
 }
 

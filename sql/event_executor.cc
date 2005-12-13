@@ -25,7 +25,7 @@
   are not possible because the scheduler thread code is ran inside the
   main thread (no spawning takes place. If you want to debug client 
   connection then start with --one-thread and make the define
-  DBUG_FAULTY_THR2 !
+  DBUG_FAULTY_THR !
 */
 #define DBUG_FAULTY_THR2
 
@@ -202,9 +202,6 @@ event_executor_main(void *arg)
     thus data should be freed at later stage.
   */
   VOID(my_init_dynamic_array(&events_array, sizeof(event_timed), 50, 100));
-/**
-  VOID(my_init_dynamic_array(&evex_executing_queue, sizeof(event_timed *), 50, 100));
-**/
 
   evex_queue_init(&EVEX_EQ_NAME);
 
@@ -533,7 +530,7 @@ evex_load_events_from_db(THD *thd)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     event_timed *et, *et_copy;
-    if (!(et= new event_timed()))
+    if (!(et= new event_timed))
     {
       DBUG_PRINT("evex_load_events_from_db", ("Out of memory"));
       ret= -1;
