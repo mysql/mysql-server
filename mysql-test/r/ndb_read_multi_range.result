@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1, r1;
+DROP TABLE IF EXISTS t1, t2, r1;
 create table t1 (
 a int primary key,
 b int not null,
