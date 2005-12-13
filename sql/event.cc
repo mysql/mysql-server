@@ -23,8 +23,6 @@
  - The default value of created/modified should not be 0000-00-00 because of
    STRICT mode restricions.
 
- - Use timestamps instead of datetime.
-
  - CREATE EVENT should not go into binary log! Does it now? The SQL statements
    issued by the EVENT are replicated.
    I have an idea how to solve the problem at failover. So the status field
@@ -43,13 +41,14 @@
  - Maybe move all allocations during parsing to evex_mem_root thus saving
     double parsing in evex_create_event!
 
- - If the server is killed (stopping) try to kill executing events..
+ - If the server is killed (stopping) try to kill executing events?
  
  - What happens if one renames an event in the DB while it is in memory?
    Or even deleting it?
   
  - Consider using conditional variable when doing shutdown instead of
-     waiting till all worker threads end.
+   waiting till all worker threads end.
+ 
  - Make event_timed::get_show_create_event() work
 
  - Add function documentation whenever needed.
@@ -57,10 +56,6 @@
  - Add logging to file
 
  - Move comparison code to class event_timed
-
- - Overload event_timed::new to put the event directly in the DYNAMIC_ARRAY.
-   This will skip copy operation as well as will simplify the code which is
-   now aware of events_array DYNAMIC_ARRAY
 
 Warning:
  - For now parallel execution is not possible because the same sp_head cannot be
@@ -72,7 +67,6 @@ Warning:
 
 
 bool mysql_event_table_exists= 1;
-DYNAMIC_ARRAY events_array;
 QUEUE EVEX_EQ_NAME;
 MEM_ROOT evex_mem_root;
 
@@ -81,54 +75,12 @@ MEM_ROOT evex_mem_root;
 void
 evex_queue_init(EVEX_QUEUE_TYPE *queue)
 {
-#ifndef EVEX_USE_QUEUE
-  VOID(my_init_dynamic_array(queue, sizeof(event_timed *), 50, 100));
-#else
   if (init_queue_ex(queue, 100 /*num_el*/, 0 /*offset*/, 
                    0 /*smallest_on_top*/, event_timed_compare_q, NULL,
                    100 /*auto_extent*/))
     sql_print_error("Insufficient memory to initialize executing queue.");
-#endif
 }
 
-
-int
-evex_queue_insert2(EVEX_QUEUE_TYPE *queue, EVEX_PTOQEL element)
-{
-#ifndef EVEX_USE_QUEUE
-  VOID(push_dynamic(queue, element));
-  return 0;
-#else
-  return queue_insert_safe(queue, element);  
-#endif
-}
-
-void
-evex_queue_top_updated(EVEX_QUEUE_TYPE *queue)
-{
-#ifdef EVEX_USE_QUEUE
-  queue_replaced(queue);
-#endif
-}
-
-void
-evex_queue_sort(EVEX_QUEUE_TYPE *queue)
-{
-#ifndef EVEX_USE_QUEUE
-  qsort((gptr) dynamic_element(queue, 0, event_timed**),
-                               queue->elements,
-                               sizeof(event_timed **),
-                               (qsort_cmp) event_timed_compare);
-#endif
-}
-
-/* NOTE Andrey: Document better
-  Compares two TIME structures.
-
-  a > b ->  1
-  a = b ->  0
-  a < b -> -1
-*/
 
 static
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
@@ -714,7 +666,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
 {
   int ret= 0;
   MEM_ROOT *tmp_mem_root;
-  event_timed *ett, *ett_copy;
+  event_timed *ett;
 
   DBUG_ENTER("db_load_and_compile_event");
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
@@ -737,18 +689,12 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   if (use_lock)
     VOID(pthread_mutex_lock(&LOCK_event_arrays));
 
-  VOID(push_dynamic(&events_array,(gptr) ett));
-  ett_copy= dynamic_element(&events_array, events_array.elements - 1,
-                            event_timed*);
-
-  evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) ett_copy);
+  evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) ett);
 
   /*
     There is a copy in the array which we don't need. sphead won't be
     destroyed.
   */
-  ett->free_sphead_on_delete= false;
-  delete ett;
 
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
@@ -783,42 +729,13 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
         !sortcmp_lex_string(*db, et->dbname, system_charset_info))
     {
-      int idx= get_index_dynamic(&events_array, (gptr) et);
-      //we are lucky the event is in the executing queue, no need of second pass
-      //destruct first and then remove. the destructor will delete sp_head
       et->free_sp();
-      delete_dynamic_element(&events_array, idx);
+      delete et;
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
       goto done;
     }
   }
-
-  /*
-    ToDo Andrey : Think about whether second pass is needed. All events
-                  that are in memory are enabled. If an event is being
-                  disabled (by a SQL stmt) it will be uncached. Hmm...
-                  However is this true for events that has been 
-                  disabled because of another reason like - no need
-                  to be executed because ENDS is in the past?
-                  For instance, second_pass is needed when an event
-                  was created as DISABLED but then altered as ENABLED.
-  */
-  /*
-    we haven't found the event in the executing queue. This is nice! :)
-    Look for it in the events_array.
-  */
-  for (i= 0; i < events_array.elements; ++i)
-  {
-    event_timed *et= dynamic_element(&events_array, i, event_timed*);
-      
-    if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
-        !sortcmp_lex_string(*db, et->dbname, system_charset_info))
-    {
-      delete_dynamic_element(&events_array, i);
-      break;
-    }
-  } 
 
 done:
   if (use_lock)
