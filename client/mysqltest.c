@@ -1134,6 +1134,7 @@ static void do_exec(struct st_query *query)
   }
 
   free_replace();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1300,10 +1301,13 @@ int do_modify_var(struct st_query *query, const char *name,
 
 int do_system(struct st_query *q)
 {
+  DYNAMIC_STRING *ds;
   char *p=q->first_argument;
   VAR v;
   var_init(&v, 0, 0, 0, 0);
   eval_expr(&v, p, 0); /* NULL terminated */
+  ds= &ds_res;
+
   if (v.str_val_len)
   {
     char expr_buf[1024];
@@ -1316,8 +1320,11 @@ int do_system(struct st_query *q)
     {
       if (q->abort_on_error)
         die("system command '%s' failed", expr_buf);
-      /* If ! abort_on_error, display message and continue */
-      verbose_msg("system command '%s' failed", expr_buf);
+
+      /* If ! abort_on_error, log message and continue */
+      dynstr_append(ds, "system command '");
+      replace_dynstr_append(ds, expr_buf);
+      dynstr_append(ds, "' failed\n");
     }
   }
   else
@@ -1582,6 +1589,7 @@ int do_sleep(struct st_query *query, my_bool real_sleep)
   if (opt_sleep && !real_sleep)
     sleep_val= opt_sleep;
 
+  DBUG_PRINT("info", ("sleep_val: %f", sleep_val));
   my_sleep((ulong) (sleep_val * 1000000L));
   query->last_argument= sleep_end;
   return 0;
