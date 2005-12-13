@@ -34,6 +34,18 @@ extern ibool	srv_lower_case_table_names;
 extern mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
+/* Mutex for locking srv_dict_tmpfile.
+This mutex has a very high rank; threads reserving it should not
+be holding any InnoDB latches. */
+extern mutex_t	srv_dict_tmpfile_mutex;
+/* Temporary file for output from the data dictionary */
+extern FILE*	srv_dict_tmpfile;
+/* Mutex for locking srv_misc_tmpfile.
+This mutex has a very low rank; threads reserving it should not
+acquire any further latches or sleep before releasing this one. */
+extern mutex_t	srv_misc_tmpfile_mutex;
+/* Temporary file for miscellanous diagnostic output */
+extern FILE*	srv_misc_tmpfile;
 
 /* Server parameters which are read from the initfile */
 
