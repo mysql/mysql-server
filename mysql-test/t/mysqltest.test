@@ -689,7 +689,7 @@ system echo "hej" > /dev/null;
 --exec echo "system false;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
-system NonExistsinfComamdn;
+system NonExistsinfComamdn 2> /dev/null;
 --enable_abort_on_error
 
 
@@ -1024,6 +1024,5 @@ drop table t1;
 # The .out file should exist
 --exec test -s $MYSQL_TEST_DIR/var/tmp/bug11731.out
 drop table t1;
-
 
 

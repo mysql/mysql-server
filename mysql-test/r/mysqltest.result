@@ -304,6 +304,7 @@ mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: system command 'false' failed
+system command 'NonExistsinfComamdn 2> /dev/null' failed
 test
 test2
 test3
