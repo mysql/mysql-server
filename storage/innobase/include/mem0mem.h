@@ -31,13 +31,18 @@ typedef mem_block_info_t	mem_block_t;
 typedef mem_block_t	mem_heap_t;
 
 /* Types of allocation for memory heaps: DYNAMIC means allocation from the
-dynamic memory pool of the C compiler, BUFFER means allocation from the index
-page buffer pool; the latter method is used for very big heaps */
+dynamic memory pool of the C compiler, BUFFER means allocation from the
+buffer pool; the latter method is used for very big heaps */
 
 #define MEM_HEAP_DYNAMIC	0	/* the most common type */
 #define MEM_HEAP_BUFFER		1
-#define MEM_HEAP_BTR_SEARCH	2	/* this flag can be ORed to the
-					previous */
+#define MEM_HEAP_BTR_SEARCH	2	/* this flag can optionally be
+					ORed to MEM_HEAP_BUFFER, in which
+					case heap->free_block is used in
+					some cases for memory allocations,
+					and if it's NULL, the memory
+					allocation functions can return
+					NULL. */
 
 /* The following start size is used for the first block in the memory heap if
 the size is not specified, i.e., 0 is given as the parameter in the call of
@@ -98,13 +103,15 @@ heap freeing. */
 					  (heap), __FILE__, __LINE__)
 /*********************************************************************
 NOTE: Use the corresponding macros instead of this function. Creates a
-memory heap which allocates memory from dynamic space. For debugging
-purposes, takes also the file name and line as argument. */
+memory heap. For debugging purposes, takes also the file name and line as
+arguments. */
 UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
 /*=================*/
-					/* out, own: memory heap */
+					/* out, own: memory heap, NULL if
+					did not succeed (only possible for
+					MEM_HEAP_BTR_SEARCH type heaps)*/
 	ulint		n,		/* in: desired start block size,
 					this means that a single user buffer
 					of size n will fit in the block, 
@@ -121,11 +128,9 @@ mem_heap_create_func(
 					block is not unintentionally erased
 					(if allocated in the stack), before
 					the memory heap is explicitly freed. */
-	ulint		type,		/* in: MEM_HEAP_DYNAMIC
-					or MEM_HEAP_BUFFER */ 
+	ulint		type,		/* in: heap type */ 
 	const char*	file_name,	/* in: file name where created */
-	ulint		line		/* in: line where created */
-	);
+	ulint		line);		/* in: line where created */
 /*********************************************************************
 NOTE: Use the corresponding macro instead of this function. Frees the space
 occupied by a memory heap. In the debug version erases the heap memory
@@ -143,8 +148,9 @@ UNIV_INLINE
 void*
 mem_heap_alloc(
 /*===========*/
-				/* out: allocated storage, NULL if
-				did not succeed */
+				/* out: allocated storage, NULL if did not
+				succeed (only possible for
+				MEM_HEAP_BTR_SEARCH type heaps) */
 	mem_heap_t*   	heap, 	/* in: memory heap */
 	ulint           n);	/* in: number of bytes; if the heap is allowed
 				to grow into the buffer pool, this must be
@@ -220,8 +226,7 @@ UNIV_INLINE
 void*
 mem_alloc_func(
 /*===========*/
-					/* out, own: free storage, NULL
-					if did not succeed */
+					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line		/* in: line where created */
@@ -235,8 +240,7 @@ with mem_free. */
 void*
 mem_alloc_func_noninline(
 /*=====================*/
-					/* out, own: free storage,
-					NULL if did not succeed */
+					/* out, own: free storage */
 	ulint		n,		/* in: desired number of bytes */
 	const char*	file_name,	/* in: file name where created */
 	ulint		line		/* in: line where created */
