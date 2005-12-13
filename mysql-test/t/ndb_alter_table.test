@@ -149,7 +149,7 @@ connection server1;
 alter table t1 drop index c;
 connection server2;
 # This should fail since index information is not automatically refreshed
---error 1105
+--error 1015
 select * from t1 where b = 'two';
 select * from t1 where b = 'two';
 connection server1;

@@ -347,6 +347,8 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
+  add_arg(&al, "--log-slow-queries");
+  add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
   add_arg(&al, "--debug");
 #endif
@@ -520,6 +522,8 @@ void start_slave()
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+  add_arg(&al, "--log-slow-queries");
+  add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
   add_arg(&al, "--debug");
 #endif

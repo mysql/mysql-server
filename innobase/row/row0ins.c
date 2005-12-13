@@ -522,7 +522,7 @@ row_ins_cascade_calc_update_vec(
 				    && ufield->new_val.len
 				       < dtype_get_fixed_size(type)) {
 
-                                        ulint cset;
+					ulint	cset;
 
 				        ufield->new_val.data =
 						mem_heap_alloc(heap,
@@ -530,42 +530,42 @@ row_ins_cascade_calc_update_vec(
 					ufield->new_val.len = 
 						dtype_get_fixed_size(type);
 
-                                        /* Handle UCS2 strings differently.
-                                        As no new collations will be
-                                        introduced in 4.1, we hardcode the
-                                        charset-collation codes here.
-                                        In 5.0, the logic is based on
-                                        mbminlen. */
-                                        cset = dtype_get_charset_coll(
-                                          dtype_get_prtype(type));
+					/* Handle UCS2 strings differently.
+					As no new collations will be
+					introduced in 4.1, we hardcode the
+					charset-collation codes here.
+					In 5.0, the logic is based on
+					mbminlen. */
+					cset = dtype_get_charset_coll(
+						dtype_get_prtype(type));
 
-                                        if (cset == 35/*ucs2_general_ci*/
-                                            || cset == 90/*ucs2_bin*/
-                                            || (cset >= 128/*ucs2_unicode_ci*/
-                                          && cset <= 144
-                                          /*ucs2_persian_ci*/)) {
-                                          /* space=0x0020 */
-                                          ulint i;
-                                          for (i = 0;
-                                               i < ufield->new_val.len;
-                                               i += 2) {
-                                            mach_write_to_2(((byte*)
-                                              ufield->new_val.data)
-                                              + i, 0x0020);
-                                          }
-                                        } else {
-                                          ut_a(dtype_get_pad_char(type)
-                                              != ULINT_UNDEFINED);
+					if (cset == 35/*ucs2_general_ci*/
+					    || cset == 90/*ucs2_bin*/
+					    || (cset >= 128/*ucs2_unicode_ci*/
+						&& cset <= 144
+						/*ucs2_persian_ci*/)) {
+						/* space=0x0020 */
+						ulint	i;
+						for (i = 0;
+						     i < ufield->new_val.len;
+						     i += 2) {
+						    mach_write_to_2(((byte*)
+							ufield->new_val.data)
+							+ i, 0x0020);
+						}
+					} else {
+						ut_a(dtype_get_pad_char(type)
+						    != ULINT_UNDEFINED);
 
-                                          memset(ufield->new_val.data,
-                                              (byte)dtype_get_pad_char(
-                                                type),
-                                              ufield->new_val.len);
-                                        }
+						memset(ufield->new_val.data,
+						    (byte)dtype_get_pad_char(
+									type),
+						    ufield->new_val.len);
+					}
 
-                                        memcpy(ufield->new_val.data,
-                                          parent_ufield->new_val.data,
-                                          parent_ufield->new_val.len);
+					memcpy(ufield->new_val.data,
+						parent_ufield->new_val.data,
+						parent_ufield->new_val.len);
 				}
 
 				ufield->extern_storage = FALSE;
