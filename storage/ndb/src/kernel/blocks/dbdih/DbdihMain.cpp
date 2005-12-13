@@ -3771,6 +3771,11 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   /*------------------------------------------------------------------------*/
   // Verify that a starting node has also crashed. Reset the node start record.
   /*-------------------------------------------------------------------------*/
+#if 0
+  /**
+   * Node will crash by itself...
+   *   nodeRestart is run then...
+   */
   if (false && c_nodeStartMaster.startNode != RNIL && getNodeStatus(c_nodeStartMaster.startNode) == NodeRecord::ALIVE)
   {
     BlockReference cntrRef = calcNdbCntrBlockRef(c_nodeStartMaster.startNode);
@@ -3782,6 +3787,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,  SystemError::SignalLength, JBA);
     nodeResetStart();  
   }//if
+#endif
 
   /*--------------------------------------------------*/
   /*                                                  */
