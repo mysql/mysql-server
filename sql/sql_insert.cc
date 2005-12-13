@@ -257,7 +257,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
-  bool transactional_table;
+  bool transactional_table, joins_freed= FALSE;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -513,6 +513,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count++;
   }
 
+  free_underlaid_joins(thd, &thd->lex->select_lex);
+  joins_freed= TRUE;
+
   /*
     Now all rows are inserted.  Time to update logs and sends response to
     user
@@ -611,7 +614,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count_func= info.copied+info.deleted+info.updated;
     ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
-  free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -620,7 +622,8 @@ abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
 #endif
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  if (!joins_freed)
+    free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;
   DBUG_RETURN(TRUE);
 }
