@@ -3543,6 +3543,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     jam();
     regTcPtr->activeCreat = ZTRUE;
     CRASH_INSERTION(5002);
+    CRASH_INSERTION2(5042, tabptr.i == c_error_insert_table_id);
   } else {
     regTcPtr->activeCreat = ZFALSE;
   }//if
@@ -5880,12 +5881,21 @@ void Dblqh::execABORT(Signal* signal)
     warningReport(signal, 8);
     return;
   }//if
+  
+  TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  if (ERROR_INSERTED(5100))
+  {
+    SET_ERROR_INSERT_VALUE(5101);
+    return;
+  }
+  CRASH_INSERTION2(5101, regTcPtr->nextReplica != ZNIL);
+  
 /* ------------------------------------------------------------------------- */
 /*A GUIDING DESIGN PRINCIPLE IN HANDLING THESE ERROR SITUATIONS HAVE BEEN    */
 /*KEEP IT SIMPLE. THUS WE RATHER INSERT A WAIT AND SET THE ABORT_STATE TO    */
 /*ACTIVE RATHER THAN WRITE NEW CODE TO HANDLE EVERY SPECIAL SITUATION.       */
 /* ------------------------------------------------------------------------- */
-  TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->nextReplica != ZNIL) {
 /* ------------------------------------------------------------------------- */
 // We will immediately send the ABORT message also to the next LQH node in line.
@@ -18521,6 +18531,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 		"Shutting down node due to failed handling of GCP_SAVEREQ");
       
     }
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
+  {
+    c_error_insert_table_id = dumpState->args[1];
+    SET_ERROR_INSERT_VALUE(5042);
   }
 }//Dblqh::execDUMP_STATE_ORD()
 
