@@ -41,7 +41,7 @@ bool evex_is_running= false;
 
 ulonglong evex_main_thread_id= 0;
 ulong opt_event_executor;
-my_bool event_executor_running_global_var= false;
+volatile my_bool event_executor_running_global_var;
 static my_bool evex_mutexes_initted= false;
 static uint workers_count;
 
@@ -65,13 +65,14 @@ static
 void evex_init_mutexes()
 {
   if (evex_mutexes_initted)
-  {
-    evex_mutexes_initted= true;
     return;
-  }
+
+  evex_mutexes_initted= true;
   pthread_mutex_init(&LOCK_event_arrays, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_workers_count, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&LOCK_evex_running, MY_MUTEX_INIT_FAST);
+
+  event_executor_running_global_var= opt_event_executor;
 }
 
 
@@ -88,7 +89,6 @@ init_events()
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;  
-  event_executor_running_global_var= false;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
 #ifndef DBUG_FAULTY_THR
@@ -206,7 +206,6 @@ event_executor_main(void *arg)
   evex_queue_init(&EVEX_EQ_NAME);
   VOID(pthread_mutex_unlock(&LOCK_event_arrays));  
   evex_is_running= true;  
-  event_executor_running_global_var= opt_event_executor;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   if (evex_load_events_from_db(thd))
@@ -224,7 +223,7 @@ event_executor_main(void *arg)
     
     cnt++;
     DBUG_PRINT("info", ("EVEX External Loop %d", cnt));
-    if (cnt > 1000) continue;
+
     thd->proc_info = "Sleeping";
     if (!evex_queue_num_elements(EVEX_EQ_NAME) ||
         !event_executor_running_global_var)
@@ -573,18 +572,17 @@ end:
 }
 
 
-
 bool sys_var_event_executor::update(THD *thd, set_var *var)
 {
   // here start the thread if not running.
   VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if ((my_bool) var->save_result.ulong_value && !evex_is_running)
+  *value= var->save_result.ulong_value;
+  if ((my_bool) *value && !evex_is_running)
   {
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
     init_events();
   } else 
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
-
-  return sys_var_bool_ptr::update(thd, var);
+  return 0;
 }
 
