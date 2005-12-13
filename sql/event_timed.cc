@@ -725,6 +725,7 @@ bool
 event_timed::update_fields(THD *thd)
 {
   TABLE *table;
+  Open_tables_state backup;
   int ret= 0;
   bool opened;
 
@@ -736,8 +737,14 @@ event_timed::update_fields(THD *thd)
   if (!(status_changed || last_executed_changed))
     goto done;
   
+  thd->reset_n_backup_open_tables_state(&backup);
+
   if (!(table= evex_open_event_table(thd, TL_WRITE)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  {
+    ret= SP_OPEN_TABLE_FAILED;
+    goto done;
+  }
+
 
   if ((ret= evex_db_find_event_aux(thd, dbname, name, table)))
     goto done;
@@ -764,6 +771,7 @@ event_timed::update_fields(THD *thd)
 
 done:
   close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(&backup);
 
   DBUG_RETURN(ret);
 }
@@ -798,7 +806,7 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   *dst= '\0';
  
   *length= len;
-  dst[len]= '\0'; 
+
   sql_print_information("%d %d[%s]", len, dst-ret, ret);
   return ret;
 }

@@ -88,8 +88,6 @@ evex_queue_init(EVEX_QUEUE_TYPE *queue);
 
 
 extern bool evex_is_running;
-extern bool mysql_event_table_exists;
-//extern DYNAMIC_ARRAY events_array;
 extern MEM_ROOT evex_mem_root;
 extern pthread_mutex_t LOCK_event_arrays,
                        LOCK_workers_count,

@@ -64,12 +64,8 @@ Warning:
 */
 
 
-
-
-bool mysql_event_table_exists= 1;
 QUEUE EVEX_EQ_NAME;
 MEM_ROOT evex_mem_root;
-
 
 
 void
@@ -175,7 +171,6 @@ event_timed_compare(event_timed **a, event_timed **b)
   else
     return 0;
   
-//  return my_time_compare(&(*a)->execute_at, &(*b)->execute_at);
 }
 
 
@@ -204,23 +199,13 @@ TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
   bool not_used;
   DBUG_ENTER("open_proc_table");
 
-  /*
-    Speed up things if the table doesn't exists. *table_exists
-    is set when we create or read stored procedure or on flush privileges.
-  */
-  if (!mysql_event_table_exists)
-    DBUG_RETURN(0);
-
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "event";
   tables.lock_type= lock_type;
 
   if (simple_open_n_lock_tables(thd, &tables))
-  {
-    mysql_event_table_exists= 0;
     DBUG_RETURN(0);
-  }
 
   DBUG_RETURN(tables.table);
 }
@@ -638,7 +623,7 @@ done:
     et= 0;
   }
   // don't close the table if we haven't opened it ourselves
-  if (!tbl)
+  if (!tbl && table)
     close_thread_tables(thd);
   *ett= et;
   DBUG_RETURN(ret);
@@ -745,9 +730,7 @@ done:
 }
 
 
-/*
-                  -= Exported functions follow =-
-*/
+
 
 /*
    The function exported to the world for creating of events.
