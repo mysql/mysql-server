@@ -78,6 +78,8 @@ public:
     LqhDumpAllScanRec = 2301,
     LqhDumpAllActiveScanRec = 2302,
     LqhDumpLcpState = 2303,
+    LqhErrorInsert5042 = 2315,
+
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
     AccDumpAllActiveScanRec = 2402,

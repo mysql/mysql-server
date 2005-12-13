@@ -61,6 +61,8 @@ Insert system error in GCP participant when receiving GCP_SAVEREQ.
 5007:
 Delay GCP_SAVEREQ by 10 secs
 
+7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
+
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 
@@ -155,10 +157,14 @@ Insert node failure handling when receiving COMPLETEREQ.
 5006:
 Insert node failure handling when receiving ABORTREQ.
 
+5042:
+As 5002, but with specified table (see DumpStateOrd)
+
 These error code can be combined with error codes for testing time-out
 handling in DBTC to ensure that node failures are also well handled in
 time-out handling. They can also be used to test multiple node failure
 handling.
+
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBLQH
 -------------------------------------------------
@@ -197,6 +203,9 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5041: Crash is receiving simple read from other TC on different node
 
 8050: Send TCKEYREF is operation is non local
+
+5100,5101: Drop ABORT req in primary replica
+           Crash on "next" ABORT
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------

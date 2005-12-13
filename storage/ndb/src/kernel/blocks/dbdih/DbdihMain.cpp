@@ -215,7 +215,7 @@ void Dbdih::sendINCL_NODEREQ(Signal* signal, Uint32 nodeId)
   signal->theData[2] = c_nodeStartMaster.failNr;
   signal->theData[3] = 0;
   signal->theData[4] = currentgcp;  
-  sendSignal(nodeDihRef, GSN_INCL_NODEREQ, signal, 5, JBB);
+  sendSignal(nodeDihRef, GSN_INCL_NODEREQ, signal, 5, JBA);
 }//Dbdih::sendINCL_NODEREQ()
 
 void Dbdih::sendMASTER_GCPREQ(Signal* signal, Uint32 nodeId)
@@ -1868,6 +1868,14 @@ void Dbdih::gcpBlockedLab(Signal* signal)
   // global checkpoint id and the correct state. We do not wait for any reply
   // since the starting node will not send any.
   /*-------------------------------------------------------------------------*/
+  Uint32 startVersion = getNodeInfo(c_nodeStartMaster.startNode).m_version;
+  
+  if ((getMajor(startVersion) == 4 && startVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+      (getMajor(startVersion) == 5 && startVersion >= NDBD_INCL_NODECONF_VERSION_5))
+  {
+    c_INCL_NODEREQ_Counter.setWaitingFor(c_nodeStartMaster.startNode);
+  }
+  
   sendINCL_NODEREQ(signal, c_nodeStartMaster.startNode);
 }//Dbdih::gcpBlockedLab()
 
@@ -2070,6 +2078,13 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   jamEntry();
   Uint32 retRef = signal->theData[0];
   Uint32 nodeId = signal->theData[1];
+  if (nodeId == getOwnNodeId() && ERROR_INSERTED(7165))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_INCL_NODEREQ, signal, 5000, signal->getLength());
+    return;
+  }
+  
   Uint32 tnodeStartFailNr = signal->theData[2];
   currentgcp = signal->theData[4];
   CRASH_INSERTION(7127);
@@ -2097,6 +2112,15 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
     // id's and the lcp status.
     /*-----------------------------------------------------------------------*/
     CRASH_INSERTION(7171);
+    Uint32 masterVersion = getNodeInfo(refToNode(cmasterdihref)).m_version;
+    
+    if ((NDB_VERSION_MAJOR == 4 && masterVersion >= NDBD_INCL_NODECONF_VERSION_4) ||
+	(NDB_VERSION_MAJOR == 5 && masterVersion >= NDBD_INCL_NODECONF_VERSION_5))
+    {
+      signal->theData[0] = getOwnNodeId();
+      signal->theData[1] = getOwnNodeId();
+      sendSignal(cmasterdihref, GSN_INCL_NODECONF, signal, 2, JBB);
+    }
     return;
   }//if
   if (getNodeStatus(nodeId) != NodeRecord::STARTING) {
@@ -3747,8 +3771,16 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   /*------------------------------------------------------------------------*/
   // Verify that a starting node has also crashed. Reset the node start record.
   /*-------------------------------------------------------------------------*/
-  if (c_nodeStartMaster.startNode != RNIL) {
-    ndbrequire(getNodeStatus(c_nodeStartMaster.startNode)!= NodeRecord::ALIVE);
+  if (false && c_nodeStartMaster.startNode != RNIL && getNodeStatus(c_nodeStartMaster.startNode) == NodeRecord::ALIVE)
+  {
+    BlockReference cntrRef = calcNdbCntrBlockRef(c_nodeStartMaster.startNode);
+    SystemError * const sysErr = (SystemError*)&signal->theData[0];
+    sysErr->errorCode = SystemError::StartInProgressError;
+    sysErr->errorRef = reference();
+    sysErr->data1= 0;
+    sysErr->data2= __LINE__;
+    sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,  SystemError::SignalLength, JBA);
+    nodeResetStart();  
   }//if
 
   /*--------------------------------------------------*/
@@ -5195,15 +5227,16 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     /**
      * For each of replica record
      */
-    Uint32 replicaNo = 0;
+    bool found = false;
     ReplicaRecordPtr replicaPtr;
     for(replicaPtr.i = fragPtr.p->storedReplicas; replicaPtr.i != RNIL;
-        replicaPtr.i = replicaPtr.p->nextReplica, replicaNo++) {
+        replicaPtr.i = replicaPtr.p->nextReplica) {
       jam();
 
       ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
       if(replicaPtr.p->procNode == nodeId){
         jam();
+	found = true;
 	noOfRemovedReplicas++;
 	removeNodeFromStored(nodeId, fragPtr, replicaPtr);
 	if(replicaPtr.p->lcpOngoingFlag){
@@ -5218,6 +5251,15 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 	  replicaPtr.p->lcpOngoingFlag = false;
 	}
       }
+    }
+    if (!found)
+    {
+      jam();
+      /**
+       * Run updateNodeInfo to remove any dead nodes from list of activeNodes
+       *  see bug#15587
+       */
+      updateNodeInfo(fragPtr);
     }
     noOfRemainingLcpReplicas += fragPtr.p->noLcpReplicas;
   }
