@@ -3925,22 +3925,26 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
-  if (record)
+  if (command->record_file[0])
   {
-    /* Recording in progress */
-    if (!command->record_file[0])
-      die("Missing result file");
 
-    /* Dump the output from _this_ query to the specified record_file */
-    str_to_file(command->record_file, ds->str, ds->length);
-  }
-  else if (command->record_file[0])
-  {
-    /*
-      The output from _this_ query should be checked against an already
-      existing file which has been specified using --require or --result
-     */
-    check_result(ds, command->record_file, command->require_file);
+    /* A result file was specified for _this_ query  */
+    if (record)
+    {
+      /*
+	 Recording in progress
+         Dump the output from _this_ query to the specified record_file
+      */
+      str_to_file(command->record_file, ds->str, ds->length);
+
+    } else {
+
+      /*
+	The output from _this_ query should be checked against an already
+	existing file which has been specified using --require or --result
+      */
+      check_result(ds, command->record_file, command->require_file);
+    }
   }
 
   dynstr_free(&ds_warnings);
