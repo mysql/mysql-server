@@ -1833,4 +1833,38 @@ create table t1 (a varchar(255) character set utf8,
                  e varchar(255) character set utf8,
                  key (a,b,c,d,e)) engine=innodb;
 
+# test that foreign key errors are reported correctly (Bug #15550)
+
+create table t1(a int primary key) row_format=redundant engine=innodb;
+create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
+create table t3(a int primary key) row_format=compact engine=innodb;
+create table t4(a int primary key,constraint foreign key(a)references t3(a)) row_format=redundant engine=innodb;
+
+insert into t1 values(1);
+insert into t3 values(1);
+-- error 1452
+insert into t2 values(2);
+-- error 1452
+insert into t4 values(2);
+insert into t2 values(1);
+insert into t4 values(1);
+-- error 1451
+update t1 set a=2;
+-- error 1452
+update t2 set a=2;
+-- error 1451
+update t3 set a=2;
+-- error 1452
+update t4 set a=2;
+-- error 1451
+truncate t1;
+-- error 1451
+truncate t3;
+truncate t2;
+truncate t4;
+truncate t1;
+truncate t3;
+
+drop table t4,t3,t2,t1;
+
 --echo End of 5.0 tests
