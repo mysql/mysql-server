@@ -165,7 +165,7 @@ static struct my_option my_long_options[] =
    "Analyze distribution of keys. Will make some joins in MySQL faster. You can check the calculated distribution.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"block-search", 'b',

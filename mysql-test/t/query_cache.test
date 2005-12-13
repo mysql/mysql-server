@@ -712,6 +712,21 @@ show status like "Qcache_inserts";
 show status like "Qcache_hits";
 drop table t1;
 
+#
+# BUG#14652: Queries with leading '(' characters.
+#
+create table t1 (a int);
+flush status;
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+(select a from t1) union (select a from t1);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
+
 set GLOBAL query_cache_size=0;
 
 # End of 4.1 tests
