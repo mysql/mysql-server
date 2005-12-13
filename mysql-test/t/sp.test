@@ -5059,7 +5059,7 @@ drop procedure bug15441|
 
 
 #
-# BUG#15231: 
+# BUG#15231: Stored procedure bug with not found condition handler
 #
 --disable_warnings
 drop table if exists t3|
