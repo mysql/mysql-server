@@ -24,7 +24,7 @@
 #define NOT_FIXED_DEC			31
 #endif
 
-#define STRING_WITH_LEN(X)  ((char*) X), (sizeof(X)-1)
+#define STRING_WITH_LEN(X)  ((const char*) X), ((uint) (sizeof(X) - 1))
 
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
