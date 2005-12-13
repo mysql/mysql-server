@@ -73,17 +73,11 @@ Warning:
 
 bool mysql_event_table_exists= 1;
 DYNAMIC_ARRAY events_array;
-DYNAMIC_ARRAY EXEC_QUEUE_DARR_NAME;
-QUEUE EXEC_QUEUE_QUEUE_NAME;
+QUEUE EVEX_EQ_NAME;
 MEM_ROOT evex_mem_root;
 
 
-//extern volatile uint thread_running;
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////     Static functions follow ///////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
+
 void
 evex_queue_init(EVEX_QUEUE_TYPE *queue)
 {
@@ -201,6 +195,7 @@ my_time_compare(TIME *a, TIME *b)
 
   DBUG_RETURN(0);
 }
+
 
 int
 evex_time_diff(TIME *a, TIME *b)
@@ -519,14 +514,17 @@ db_create_event(THD *thd, event_timed *et)
     mysql_bin_log.write(&qinfo);
   }
 
-  // No need to close the table, it will be closed in sql_parse::do_command
   if (dbchanged)
     (void) mysql_change_db(thd, olddb, 1);
+  if (table)
+    close_thread_tables(thd);
   DBUG_RETURN(EVEX_OK);
 
 err:
   if (dbchanged)
     (void) mysql_change_db(thd, olddb, 1);
+  if (table)
+    close_thread_tables(thd);
   DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
 
@@ -742,9 +740,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   VOID(push_dynamic(&events_array,(gptr) ett));
   ett_copy= dynamic_element(&events_array, events_array.elements - 1,
                             event_timed*);
-/**
-  VOID(push_dynamic(&evex_executing_queue, (gptr) &ett_copy));
-**/
+
   evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) ett_copy);
 
   /*
@@ -754,19 +750,6 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   ett->free_sphead_on_delete= false;
   delete ett;
 
-  /*
-    We find where the first element resides in the array. And then do a
-    qsort of events_array.elements (the current number of elements).
-    We know that the elements are stored in a contiguous block w/o holes.
-  */
-/**
-  qsort((gptr) dynamic_element(&evex_executing_queue, 0, event_timed**),
-                               evex_executing_queue.elements,
-                               sizeof(event_timed **),
-                               (qsort_cmp) event_timed_compare);
-**/
-  evex_queue_sort(&EVEX_EQ_NAME);
-  
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
@@ -791,10 +774,10 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
 
   if (use_lock)
     VOID(pthread_mutex_lock(&LOCK_event_arrays));
-/**
-  for (i= 0; i < evex_executing_queue.elements; ++i)
+
+  for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
   {
-    event_timed *et= *dynamic_element(&evex_executing_queue, i, event_timed**);
+    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
     DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str, et->dbname.str, 
                         et->name.str));
     if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
@@ -802,39 +785,9 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     {
       int idx= get_index_dynamic(&events_array, (gptr) et);
       //we are lucky the event is in the executing queue, no need of second pass
-      if (idx == -1)
-      {
-        //this should never happen
-        DBUG_PRINT("error", (" get_index_dynamic problem. %d."
-          "i=%d idx=%d evex_ex_queue.buf=%p evex_ex_queue.elements=%d et=%p\n"
-          "events_array=%p events_array.elements=%d events_array.buf=%p et=%p\n",
-           __LINE__, i, idx, &evex_executing_queue.buffer,
-           evex_executing_queue.elements, et, &events_array,
-           events_array.elements, events_array.buffer, et));
-        DBUG_ASSERT(0);
-      }
       //destruct first and then remove. the destructor will delete sp_head
       et->free_sp();
       delete_dynamic_element(&events_array, idx);
-      delete_dynamic_element(&evex_executing_queue, i);
-      // ok, we have cleaned
-      goto done;
-    }
-  }
-**/
-  for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
-  {
-    event_timed *et= *evex_queue_element(&EVEX_EQ_NAME, i, event_timed**);
-    DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?",db->str,name->str, et->dbname.str, 
-                        et->name.str));
-    if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
-        !sortcmp_lex_string(*db, et->dbname, system_charset_info))
-    {
-      int idx= get_index_dynamic(&events_array, (gptr) et);
-      //we are lucky the event is in the executing queue, no need of second pass
-      //destruct first and then remove. the destructor will delete sp_head
-      et->free_sp();
-      evex_queue_delete_element(&EVEX_EQ_NAME, idx);
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
       goto done;
