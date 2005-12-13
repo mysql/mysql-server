@@ -160,6 +160,7 @@ event_executor_main(void *arg)
   THD *thd;			/* needs to be first for thread_stack */
   ulonglong iter_num= 0;
   uint i=0, j=0;
+  my_ulonglong cnt= 0;
 
   DBUG_ENTER("event_executor_main");
   DBUG_PRINT("event_executor_main", ("EVEX thread started"));    
@@ -194,24 +195,16 @@ event_executor_main(void *arg)
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  DBUG_PRINT("EVEX main thread", ("Initing events_array"));
-
-  VOID(pthread_mutex_lock(&LOCK_event_arrays));
-  /*
-    my_malloc is used as underlying allocator which does not use a mem_root
-    thus data should be freed at later stage.
-  */
-  VOID(my_init_dynamic_array(&events_array, sizeof(event_timed), 50, 100));
-
-  evex_queue_init(&EVEX_EQ_NAME);
-
-  VOID(pthread_mutex_unlock(&LOCK_event_arrays));  
+  DBUG_PRINT("EVEX main thread", ("Initing events_queuey"));
 
   /*
     eventually manifest that we are running, not to crashe because of
     usage of non-initialized memory structures.
   */
   VOID(pthread_mutex_lock(&LOCK_evex_running));
+  VOID(pthread_mutex_lock(&LOCK_event_arrays));
+  evex_queue_init(&EVEX_EQ_NAME);
+  VOID(pthread_mutex_unlock(&LOCK_event_arrays));  
   evex_is_running= true;  
   event_executor_running_global_var= opt_event_executor;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
@@ -222,15 +215,16 @@ event_executor_main(void *arg)
   THD_CHECK_SENTRY(thd);
   /* Read queries from the IO/THREAD until this thread is killed */
   evex_main_thread_id= thd->thread_id;
-
+  sql_print_information("Scheduler thread started");
   while (!thd->killed)
   {
     TIME time_now;
     my_time_t now;
-    my_ulonglong cnt;
     event_timed *et;
     
-    DBUG_PRINT("info", ("EVEX External Loop %d", ++cnt));
+    cnt++;
+    DBUG_PRINT("info", ("EVEX External Loop %d", cnt));
+    if (cnt > 1000) continue;
     thd->proc_info = "Sleeping";
     if (!evex_queue_num_elements(EVEX_EQ_NAME) ||
         !event_executor_running_global_var)
@@ -326,18 +320,12 @@ event_executor_main(void *arg)
     }
     if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
     {
-      evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
       if (et->dropped)
-      {
-        // we have to drop the event
-        int idx;
         et->drop(thd);
-        idx= get_index_dynamic(&events_array, (gptr) et);
-        DBUG_ASSERT(idx != -1);
-        delete_dynamic_element(&events_array, idx);
-      }
+      delete et;
+      evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
     } else
-        evex_queue_first_updated(&EVEX_EQ_NAME);
+      evex_queue_first_updated(&EVEX_EQ_NAME);
 
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   }// while
@@ -365,15 +353,15 @@ err:
     LEX_STRINGs reside in the memory root and will be destroyed with it.
     Hence no need of delete but only freeing of SP
   */
-  for (i= 0; i < events_array.elements; ++i)
-    dynamic_element(&events_array, i, event_timed*)->free_sp();
-
-  VOID(pthread_mutex_lock(&LOCK_event_arrays));
-  // No need to use lock here if EVEX is not running but anyway
-  delete_queue(&executing_queue);
+  // First we free all objects ...
+  for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
+  {
+    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    et->free_sp();
+    delete et;
+  }
+  // ... then we can thras the whole queue at once
   evex_queue_destroy(&EVEX_EQ_NAME);
-  delete_dynamic(&events_array);
-  VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   
   thd->proc_info = "Clearing";
   DBUG_ASSERT(thd->net.buff != 0);
@@ -529,7 +517,7 @@ evex_load_events_from_db(THD *thd)
   init_read_record(&read_record_info, thd, table ,NULL,1,0);
   while (!(read_record_info.read_record(&read_record_info)))
   {
-    event_timed *et, *et_copy;
+    event_timed *et;
     if (!(et= new event_timed))
     {
       DBUG_PRINT("evex_load_events_from_db", ("Out of memory"));
@@ -564,20 +552,10 @@ evex_load_events_from_db(THD *thd)
     et->compute_next_execution_time();
     
     DBUG_PRINT("evex_load_events_from_db", ("Adding to the exec list."));
-    VOID(push_dynamic(&events_array,(gptr) et));
-    /*
-      We always add at the end so the number of elements - 1 is the place
-      in the buffer.
-      DYNAMIC_ARRAY copies the object bit by bit so we have a hollow copy
-      in event_array. We don't need the original therefore we delete it.
-    */
-    et_copy= dynamic_element(&events_array, events_array.elements - 1,
-                             event_timed*);
 
-    evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) et_copy);
-    printf("%p %s\n", et_copy, et_copy->name.str);
-    et->free_sphead_on_delete= false;
-    delete et; 
+    evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) et);
+    DBUG_PRINT("evex_load_events_from_db", ("%p %*s",
+                et, et->name.length,et->name.str));
   }
 
   ret= 0;
