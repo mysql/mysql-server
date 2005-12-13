@@ -889,7 +889,8 @@ Drops a page hash index. */
 void
 btr_search_drop_page_hash_index(
 /*============================*/
-	page_t*	page)	/* in: index page, s- or x-latched */
+	page_t*	page)	/* in: index page, s- or x-latched, or an index page
+			for which we know that block->buf_fix_count == 0 */
 {
 	hash_table_t*	table;
 	buf_block_t*	block;
