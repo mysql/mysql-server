@@ -3500,12 +3500,6 @@ static void handle_error(const char *query, struct st_query *q,
           q->query, err_sqlstate, q->expected_errno[0].code.sqlstate);
   }
 
-  /*
-    If we do not abort on error, failure to run the query does not fail the
-    whole test case.
-  */
-  verbose_msg("query '%s' failed: %d: %s", q->query, err_errno,
-              err_error);
   DBUG_VOID_RETURN;
 }
 
