@@ -939,6 +939,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   sphead->optimize();
   ret= 0;
 done:
+  delete lex.et;
   lex_end(&lex);
   thd->lex= old_lex;
   thd->query= old_query;

@@ -3685,9 +3685,11 @@ end_with_restore_list:
         res= true;
         break;
       }
+
       if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
                        is_schema_db(lex->et->dbname.str)))
         break;
+
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
         res= evex_create_event(thd, lex->et, (uint) lex->create_info.options);
@@ -5652,6 +5654,11 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	    delete thd->lex->sphead;
 	    thd->lex->sphead= NULL;
 	  }
+          if (thd->lex->et)
+          {
+            delete thd->lex->et;
+            thd->lex->et= NULL;
+          }
 	}
 	else
 	{
@@ -5686,6 +5693,11 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	/* Clean up after failed stored procedure/function */
 	delete thd->lex->sphead;
 	thd->lex->sphead= NULL;
+      }
+      if (thd->lex->et)
+      {
+        delete thd->lex->et;
+        thd->lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";
