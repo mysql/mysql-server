@@ -239,7 +239,7 @@ enum options_mp {OPT_CHARSETS_DIR_MP=256, OPT_AUTO_CLOSE};
 static struct my_option my_long_options[] =
 {
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"backup", 'b', "Make a backup of the table as table_name.OLD.",

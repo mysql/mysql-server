@@ -194,7 +194,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     runs without --log-update or --log-bin).
   */
   int log_on= DELAYED_LOG_UPDATE | DELAYED_LOG_BIN ;
-  bool transactional_table, log_delayed;
+  bool transactional_table, log_delayed, joins_freed= FALSE;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -386,6 +386,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count++;
   }
 
+  free_underlaid_joins(thd, &thd->lex->select_lex);
+  joins_freed= TRUE;
+
   /*
     Now all rows are inserted.  Time to update logs and sends response to
     user
@@ -480,7 +483,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted+info.updated,(ulonglong)id,buff);
   }
-  free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   DBUG_RETURN(0);
 
@@ -489,7 +491,8 @@ abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
 #endif
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  if (!joins_freed)
+    free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   DBUG_RETURN(-1);
 }

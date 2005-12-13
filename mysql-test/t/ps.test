@@ -718,4 +718,33 @@ set @@tx_isolation=default;
 execute stmt;
 deallocate prepare stmt;
 
+#
+# Bug#14410 "Crash in Enum or Set type in CREATE TABLE and PS/SP"
+#
+# Part I. Make sure the typelib for ENUM is created in the statement memory
+# root.
+prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
+not null)";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+# Part II. Make sure that when the default value is converted to UTF-8,
+# the new item is # created in the statement memory root.
+set names latin1;
+prepare stmt from "create table t1 (a enum('test') default 'test')
+ character set utf8";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+# Cleanup
+set names default;
+deallocate prepare stmt;
+
 # End of 4.1 tests
+

@@ -2252,6 +2252,8 @@ String *Item_func_conv::val_str(String *str)
 String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  if (use_cached_value)
+    return null_value ? 0 : &str_value;
   String *arg= args[0]->val_str(str);
   uint dummy_errors;
   if (!arg)
