@@ -413,6 +413,27 @@ max-time: 500
 cmd: testScan
 args: -n ScanParallelism
 
+max-time: 500
+cmd: testNodeRestart
+args: -n Bug15587 T1
+
+max-time: 500
+cmd: testNodeRestart
+args: -n Bug15632 T1
+
+max-time: 500
+cmd: testNodeRestart
+args: -n Bug15685 T1
+
+# OLD FLEX
+max-time: 500
+cmd: flexBench
+args: -c 25 -t 10
+
+max-time: 500
+cmd: flexHammer
+args: -r 5 -t 32
+
 #
 # DICT TESTS
 max-time: 1500

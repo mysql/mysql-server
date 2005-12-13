@@ -6202,7 +6202,6 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
 	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
-    ndbrequire(c_apiConTimer_line[apiConnectptr.i] != 3615);
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
       jam();
       /*
@@ -6462,8 +6461,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	warningEvent(buf);
 	ndbout_c(buf);
 	ndbrequire(false);
+	releaseAbortResources(signal);
       }
-      releaseAbortResources(signal);
       return;
     }//if
     TloopCount++;

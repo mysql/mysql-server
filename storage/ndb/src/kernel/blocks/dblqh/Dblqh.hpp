@@ -2868,6 +2868,7 @@ private:
   UintR ctransidHash[1024];
   
   Uint32 c_diskless;
+  Uint32 c_error_insert_table_id;
   
 public:
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
