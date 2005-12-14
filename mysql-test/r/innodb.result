@@ -2846,4 +2846,33 @@ d varchar(255) character set utf8,
 e varchar(255) character set utf8,
 key (a,b,c,d,e)) engine=innodb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
+create table t1(a int primary key) row_format=redundant engine=innodb;
+create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
+create table t3(a int primary key) row_format=compact engine=innodb;
+create table t4(a int primary key,constraint foreign key(a)references t3(a)) row_format=redundant engine=innodb;
+insert into t1 values(1);
+insert into t3 values(1);
+insert into t2 values(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+insert into t4 values(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
+insert into t2 values(1);
+insert into t4 values(1);
+update t1 set a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+update t2 set a=2;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+update t3 set a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
+update t4 set a=2;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
+truncate t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+truncate t3;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
+truncate t2;
+truncate t4;
+truncate t1;
+truncate t3;
+drop table t4,t3,t2,t1;
 End of 5.0 tests
