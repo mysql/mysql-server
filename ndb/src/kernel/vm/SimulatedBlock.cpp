@@ -1872,6 +1872,8 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
       xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
                 src, srcPos, dst, dstPos, dstSize);
     keyPartLen[i++] = dstWords;
+    if (unlikely(dstWords == 0))
+      return 0;
   }
 
   return dstPos;
@@ -1900,7 +1902,8 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
     Uint32 typeId = AttributeDescriptor::getType(attrDesc);
     Uint32 lb, len;
     bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
-    ndbrequire(ok);
+    if (unlikely(!ok))
+      return 0;
     Uint32 xmul = cs->strxfrm_multiply;
     if (xmul == 0)
       xmul = 1;
@@ -1911,7 +1914,8 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
     Uint32 dstLen = xmul * (srcBytes - lb);
     ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
     int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
-    ndbrequire(n != -1);
+    if (unlikely(n == -1))
+      return 0;
     while ((n & 3) != 0) 
     {
       dstPtr[n++] = 0;
