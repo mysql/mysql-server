@@ -623,3 +623,14 @@ create table atablewithareallylongandirritatingname (a int);
 insert into atablewithareallylongandirritatingname values (2);
 select * from atablewithareallylongandirritatingname;
 drop table atablewithareallylongandirritatingname;
+
+#
+# Bug#15682
+#
+create table t1 (f1 varchar(50), f2 text,f3 int, primary key(f1)) engine=NDB;
+insert into t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from t1 order by f1;
+select * from t1 order by f2;
+select * from t1 order by f3;
+drop table t1;
