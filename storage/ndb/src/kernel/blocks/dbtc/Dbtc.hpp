@@ -141,6 +141,8 @@
 #define ZALREADYEXIST 630
 #define ZINCONSISTENTHASHINDEX 892
 #define ZNOTUNIQUE 893
+
+#define ZINVALID_KEY 290
 #endif
 
 class Dbtc: public SimulatedBlock {
