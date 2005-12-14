@@ -10,9 +10,6 @@ reset slave;
 start slave;
 stop slave;
 start slave;
-select master_pos_wait('master-bin.001',3000)>=0;
-master_pos_wait('master-bin.001',3000)>=0
-1
 select max(a) from t1;
 max(a)
 8000
