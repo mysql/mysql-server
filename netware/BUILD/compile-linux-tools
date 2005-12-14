@@ -28,7 +28,8 @@ rm -f */*.linux
 ./configure --without-innodb --without-docs
 
 # build	tools only
-make clean all-local
+make clean
+make
 (cd dbug; make libdbug.a)
 (cd strings; make libmystrings.a)
 (cd mysys; make libmysys.a)
@@ -53,7 +54,7 @@ make clean all-local
 # copying required linux tools
 cp extra/comp_err extra/comp_err.linux
 cp libmysql/conf_to_src libmysql/conf_to_src.linux
-cp libmysql_r/conf_to_src libmysql_r/conf_to_src.linux
+#cp libmysql_r/conf_to_src libmysql_r/conf_to_src.linux
 cp sql/gen_lex_hash sql/gen_lex_hash.linux
 cp strings/conf_to_src strings/conf_to_src.linux
 
