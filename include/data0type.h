@@ -13,6 +13,7 @@ Created 1/16/1996 Heikki Tuuri
 
 extern ulint	data_mysql_default_charset_coll;
 #define DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL 8
+#define DATA_MYSQL_BINARY_CHARSET_COLL 63
 
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
@@ -311,7 +312,7 @@ dtype_get_pad_char(
 /*===============*/
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
-	dtype_t*	type);	/* in: type */
+	const dtype_t*	type);	/* in: type */
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE

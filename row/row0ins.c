@@ -549,6 +549,15 @@ row_ins_cascade_calc_update_vec(
 					default:
 						ut_error;
 					case 1:
+						if (UNIV_UNLIKELY(
+							dtype_get_charset_coll(
+							dtype_get_prtype(type))
+					== DATA_MYSQL_BINARY_CHARSET_COLL)) {
+						    /* Do not pad BINARY
+						    columns. */
+						    return(ULINT_UNDEFINED);
+						}
+
 						/* space=0x20 */
 						memset(pad_start, 0x20,
 							pad_end - pad_start);

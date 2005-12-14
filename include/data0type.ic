@@ -188,26 +188,35 @@ dtype_get_pad_char(
 /*===============*/
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
-	dtype_t*	type)	/* in: type */
+	const dtype_t*	type)	/* in: type */
 {
-	if (type->mtype == DATA_CHAR
-	    || type->mtype == DATA_VARCHAR
-	    || type->mtype == DATA_BINARY
-	    || type->mtype == DATA_FIXBINARY
-	    || type->mtype == DATA_MYSQL
-	    || type->mtype == DATA_VARMYSQL
-	    || (type->mtype == DATA_BLOB
-		&& (type->prtype & DATA_BINARY_TYPE) == 0)) {
-
+	switch (type->mtype) {
+	case DATA_FIXBINARY:
+	case DATA_BINARY:
+		if (UNIV_UNLIKELY(dtype_get_charset_coll(type->prtype)
+		    == DATA_MYSQL_BINARY_CHARSET_COLL)) {
+			/* Starting from 5.0.18, do not pad
+			VARBINARY or BINARY columns. */
+			return(ULINT_UNDEFINED);
+		}
+		/* Fall through */
+	case DATA_CHAR:
+	case DATA_VARCHAR:
+	case DATA_MYSQL:
+	case DATA_VARMYSQL:
 		/* Space is the padding character for all char and binary
 	        strings, and starting from 5.0.3, also for TEXT strings. */
 
-		return((ulint)' ');
+		return(0x20);
+	case DATA_BLOB:
+		if ((type->prtype & DATA_BINARY_TYPE) == 0) {
+			return(0x20);
+		}
+		/* Fall through */
+	default:
+		/* No padding specified */
+		return(ULINT_UNDEFINED);
 	}
-
-	/* No padding specified */
-
-	return(ULINT_UNDEFINED);
 }
 
 /**************************************************************************
