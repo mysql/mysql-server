@@ -968,9 +968,9 @@ drop table t1;
 
 --error 1
 --exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out
-# The .out file should be empty, cat will fail!
+# The .out file should be empty
 --error 1
---exec cat $MYSQL_TEST_DIR/var/tmp/bug11731.out
+--exec test -s $MYSQL_TEST_DIR/var/tmp/bug11731.out
 drop table t1;
 
 
