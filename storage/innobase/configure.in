@@ -128,7 +128,7 @@ AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl
 		buf/Makefile data/Makefile dnl
 		dict/Makefile dyn/Makefile dnl
 		eval/Makefile fil/Makefile fsp/Makefile fut/Makefile dnl
-		ha/Makefile ibuf/Makefile include/Makefile dnl
+		ha/Makefile ibuf/Makefile dnl
 		lock/Makefile log/Makefile dnl
 		mach/Makefile mem/Makefile mtr/Makefile dnl
 		page/Makefile pars/Makefile que/Makefile dnl
