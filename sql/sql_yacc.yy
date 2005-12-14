@@ -38,6 +38,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "event.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -136,6 +137,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ASC
 %token  ASCII_SYM
 %token  ASENSITIVE_SYM
+%token  AT_SYM
 %token  ATAN
 %token  AUTHORS_SYM
 %token  AUTO_INC
@@ -186,6 +188,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COMMITTED_SYM
 %token  COMMIT_SYM
 %token  COMPACT_SYM
+%token  COMPLETION_SYM
 %token  COMPRESSED_SYM
 %token  CONCAT
 %token  CONCAT_WS
@@ -254,6 +257,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ENCODE_SYM
 %token  ENCRYPT
 %token  END
+%token  ENDS_SYM
 %token  ENGINES_SYM
 %token  ENGINE_SYM
 %token  ENUM
@@ -262,7 +266,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ERRORS
 %token  ESCAPED
 %token  ESCAPE_SYM
+%token  EVENT_SYM
 %token  EVENTS_SYM
+%token  EVERY_SYM
 %token  EXECUTE_SYM
 %token  EXISTS
 %token  EXIT_SYM
@@ -488,6 +494,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  POSITION_SYM
 %token  PRECISION
 %token  PREPARE_SYM
+%token  PRESERVE_SYM
 %token  PREV_SYM
 %token  PRIMARY_SYM
 %token  PRIVILEGES
@@ -544,6 +551,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ROW_SYM
 %token  RTREE_SYM
 %token  SAVEPOINT_SYM
+%token  SCHEDULE_SYM
 %token  SECOND_MICROSECOND_SYM
 %token  SECOND_SYM
 %token  SECURITY_SYM
@@ -583,6 +591,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SSL_SYM
 %token  STARTING
 %token  START_SYM
+%token  STARTS_SYM
 %token  STATUS_SYM
 %token  STD_SYM
 %token  STDDEV_SAMP_SYM
@@ -675,6 +684,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM
 %token  ZEROFILL
+
 
 %left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
@@ -857,6 +867,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
+%type <NONE> sp_proc_stmt_statement sp_proc_stmt_return
+%type <NONE> sp_proc_stmt_if sp_proc_stmt_case_simple sp_proc_stmt_case
+%type <NONE> sp_labeled_control sp_proc_stmt_unlabeled sp_proc_stmt_leave
+%type <NONE> sp_proc_stmt_iterate sp_proc_stmt_label sp_proc_stmt_goto
+%type <NONE> sp_proc_stmt_open sp_proc_stmt_fetch sp_proc_stmt_close
+
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
 %type <spcondtype> sp_cond sp_hcond
 %type <spblock> sp_decls sp_decl
@@ -1245,7 +1261,7 @@ create:
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	  }
           '('
@@ -1278,9 +1294,9 @@ create:
 	      YYABORT;
 	    sp->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+            
 	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities |= $<ulong_num>3;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	| CREATE
@@ -1295,7 +1311,228 @@ create:
 	  {
 	    Lex->sql_command = SQLCOM_CREATE_USER;
           }
-	;
+	| CREATE EVENT_SYM opt_if_not_exists sp_name
+          /* 
+             BE CAREFUL when you add a new rule to update the block where 
+             YYTHD->client_capabilities is set back to original value
+          */
+          {
+            LEX *lex=Lex;
+
+            if (lex->et)
+            {
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
+              // ToDo Andrey : Change the error message
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+              YYABORT;
+            }
+
+            lex->create_info.options= $3;
+	    
+            if (!(lex->et= new event_timed())) // implicitly calls event_timed::init()
+              YYABORT;
+	    
+            /*
+              We have to turn of CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
+            */
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
+
+            if (!lex->et_compile_phase) 
+              lex->et->init_name(YYTHD, $4);
+
+            lex->sphead= 0;//defensive programming
+          }
+          ON SCHEDULE_SYM ev_schedule_time
+          ev_on_completion
+          ev_status
+          ev_comment
+          DO_SYM ev_sql_stmt
+          {
+            /*
+              Restore flag if it was cleared above
+              $1 - CREATE
+              $2 - EVENT_SYM
+              $3 - opt_if_not_exists
+              $4 - sp_name
+              $5 - the block above
+            */
+            YYTHD->client_capabilities |= $<ulong_num>5;
+
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
+            Lex->sql_command= SQLCOM_CREATE_EVENT;
+          }
+      ;
+
+ev_schedule_time: EVERY_SYM expr interval
+	  {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_interval(YYTHD , $2, $3)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE, MYF(0));
+                YYABORT;
+                break;
+              }
+            }
+          }
+          ev_starts
+          ev_ends
+        | AT_SYM expr
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_execute_at(YYTHD, $2)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;  
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
+                YYABORT;
+                break;             
+              }
+            }
+          }
+      ;
+    
+ev_status: /* empty */
+        | ENABLE_SYM
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+              lex->et->status= MYSQL_EVENT_ENABLED;	   
+          }
+        | DISABLE_SYM
+          {
+            LEX *lex=Lex;
+            
+            if (!lex->et_compile_phase)
+              lex->et->status= MYSQL_EVENT_DISABLED;
+          }
+      ;
+ev_starts: /* empty */
+        | STARTS_SYM expr
+          {
+            LEX *lex= Lex;
+            if (!lex->et_compile_phase)
+              lex->et->init_starts(YYTHD, $2);
+          }
+      ;
+ev_ends: /* empty */
+        | ENDS_SYM expr
+          {
+            LEX *lex= Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_ends(YYTHD, $2)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
+                YYABORT;
+                break;
+              }
+            }
+          }
+      ;
+ev_on_completion: /* empty */
+        | ON COMPLETION_SYM PRESERVE_SYM
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;  
+          }
+        | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;	    
+          }
+      ;
+ev_comment: /* empty */
+        | COMMENT_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            if (!lex->et_compile_phase)
+            {
+              lex->comment= $2;
+              lex->et->init_comment(YYTHD, &$2);
+            }
+          }
+      ;
+
+ev_sql_stmt:
+          {
+            LEX *lex= Lex;
+            sp_head *sp;
+	  
+            if (!(sp= new sp_head()))
+              YYABORT;
+
+            sp->reset_thd_mem_root(YYTHD);
+            sp->init(lex);
+            
+            sp->m_type= TYPE_ENUM_PROCEDURE;
+            lex->sphead= sp;
+
+            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            lex->sphead->m_chistics= &lex->sp_chistics;
+	
+            lex->sphead->m_body_begin= lex->ptr;
+            if (!lex->et_compile_phase)
+              lex->et->body_begin= lex->ptr;
+          }
+          ev_sql_stmt_inner
+          {
+            LEX *lex=Lex;
+            sp_head *sp= lex->sphead;
+            // return back to the original memory root ASAP
+            sp->init_strings(YYTHD, lex, NULL);
+            sp->restore_thd_mem_root(YYTHD);
+	    
+            lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
+
+            if (!lex->et_compile_phase)
+            {
+              lex->et->init_body(YYTHD);
+              lex->et->init_definer(YYTHD);
+            }
+          }
+      ;
+	  
+ev_sql_stmt_inner:
+          sp_proc_stmt_statement
+        | sp_proc_stmt_return
+        | sp_proc_stmt_if
+        | sp_proc_stmt_case_simple
+        | sp_proc_stmt_case
+        | sp_labeled_control {}
+        | sp_proc_stmt_unlabeled
+        | sp_proc_stmt_leave
+        | sp_proc_stmt_iterate
+        | sp_proc_stmt_label
+        | sp_proc_stmt_goto
+        | sp_proc_stmt_open
+        | sp_proc_stmt_fetch
+        | sp_proc_stmt_close
+      ;
 
 clear_privileges:
         /* Nothing */
@@ -1355,7 +1592,7 @@ create_function_tail:
 	     * stored procedure, otherwise yylex will chop it into pieces
 	     * at each ';'.
 	     */
-	    sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lex->tok_start+1;
 	  }
@@ -1434,9 +1671,9 @@ create_function_tail:
 	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
+
 	    /* Restore flag if it was cleared above */
-	    if (sp->m_old_cmq)
-	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities |= $<ulong_num>2;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	;
@@ -1905,6 +2142,28 @@ sp_opt_default:
 	;
 
 sp_proc_stmt:
+	  sp_proc_stmt_statement
+        | sp_proc_stmt_return
+	| sp_proc_stmt_if
+	| sp_proc_stmt_case_simple
+        | sp_proc_stmt_case
+	| sp_labeled_control
+	  {}
+	| sp_proc_stmt_unlabeled
+	| sp_proc_stmt_leave
+	| sp_proc_stmt_iterate
+	| sp_proc_stmt_label
+	| sp_proc_stmt_goto
+	| sp_proc_stmt_open
+	| sp_proc_stmt_fetch
+        | sp_proc_stmt_close
+        ;
+
+sp_proc_stmt_if:
+        IF sp_if END IF {}
+        ;
+        
+sp_proc_stmt_statement:
 	  {
 	    LEX *lex= Lex;
 
@@ -1947,7 +2206,10 @@ sp_proc_stmt:
             }
 	    sp->restore_lex(YYTHD);
           }
-          | RETURN_SYM 
+        ;
+
+sp_proc_stmt_return:
+        RETURN_SYM 
           { Lex->sphead->reset_lex(YYTHD); }
           expr
 	  {
@@ -1970,13 +2232,18 @@ sp_proc_stmt:
 	    }
 	    sp->restore_lex(YYTHD);
 	  }
-	| IF sp_if END IF {}
-	| CASE_SYM WHEN_SYM
+        ;
+
+sp_proc_stmt_case_simple:
+	CASE_SYM WHEN_SYM
 	  {
 	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
 	  }
 	  sp_case END CASE_SYM {}
-        | CASE_SYM
+        ;
+        
+sp_proc_stmt_case:
+          CASE_SYM
           { Lex->sphead->reset_lex(YYTHD); }
           expr WHEN_SYM
 	  {
@@ -2000,9 +2267,10 @@ sp_proc_stmt:
 	  {
 	    Lex->spcont->pop_pvar();
 	  }
-	| sp_labeled_control
-	  {}
-	| { /* Unlabeled controls get a secret label. */
+        ;
+
+sp_proc_stmt_unlabeled:
+	  { /* Unlabeled controls get a secret label. */
 	    LEX *lex= Lex;
 
 	    lex->spcont->push_label((char *)"", lex->sphead->instructions());
@@ -2013,7 +2281,10 @@ sp_proc_stmt:
 
 	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
-	| LEAVE_SYM label_ident
+        ;
+
+sp_proc_stmt_leave:
+	  LEAVE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp = lex->sphead;
@@ -2043,7 +2314,10 @@ sp_proc_stmt:
               sp->add_instr(i);
 	    }
 	  }
-	| ITERATE_SYM label_ident
+        ;
+
+sp_proc_stmt_iterate:
+	  ITERATE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2071,7 +2345,10 @@ sp_proc_stmt:
               sp->add_instr(i);
 	    }
 	  }
-	| LABEL_SYM IDENT
+        ;
+
+sp_proc_stmt_label:
+	  LABEL_SYM IDENT
 	  {
 #ifdef SP_GOTO
 	    LEX *lex= Lex;
@@ -2096,7 +2373,10 @@ sp_proc_stmt:
 	    YYABORT;
 #endif
 	  }
-	| GOTO_SYM IDENT
+        ;
+
+sp_proc_stmt_goto:
+	  GOTO_SYM IDENT
 	  {
 #ifdef SP_GOTO
 	    LEX *lex= Lex;
@@ -2156,7 +2436,10 @@ sp_proc_stmt:
 	    YYABORT;
 #endif
 	  }
-	| OPEN_SYM ident
+        ;
+
+sp_proc_stmt_open:
+	  OPEN_SYM ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2171,7 +2454,10 @@ sp_proc_stmt:
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
 	    sp->add_instr(i);
 	  }
-	| FETCH_SYM sp_opt_fetch_noise ident INTO
+        ;
+
+sp_proc_stmt_fetch:
+	  FETCH_SYM sp_opt_fetch_noise ident INTO
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -2188,7 +2474,10 @@ sp_proc_stmt:
 	  }
 	  sp_fetch_list
 	  { }
-	| CLOSE_SYM ident
+        ;
+
+sp_proc_stmt_close:
+	  CLOSE_SYM ident
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
@@ -3913,8 +4202,83 @@ alter:
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
-	;
+	| ALTER EVENT_SYM sp_name
+          /* 
+             BE CAREFUL when you add a new rule to update the block where 
+             YYTHD->client_capabilities is set back to original value
+          */
+          {
+            LEX *lex=Lex;
+            event_timed *et;
 
+            if (lex->et)
+            {
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
+              // ToDo Andrey : Change the error message
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+              YYABORT;
+            }
+            lex->spname= 0;//defensive programming
+	    
+            et= new event_timed();// implicitly calls event_timed::init()
+            lex->et = et;
+            et->init_name(YYTHD, $3);
+
+            /*
+                We have to turn of CLIENT_MULTI_QUERIES while parsing a
+                stored procedure, otherwise yylex will chop it into pieces
+                at each ';'.
+            */
+            $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+            YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+	    
+	    /*
+	       defensive. in sql_parse.cc it is checked whether is not null
+	       and then deleted
+	    */
+            lex->sphead= 0;	    
+          }
+          ev_on_schedule
+          ev_rename_to
+          ev_on_completion
+          ev_status
+          ev_comment
+          ev_opt_sql_stmt
+          {
+            /*
+              $1 - ALTER
+              $2 - EVENT_SYM
+              $3 - sp_name
+              $4 - the block above
+            */
+            YYTHD->client_capabilities |= $<ulong_num>4;
+
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
+            Lex->sql_command= SQLCOM_ALTER_EVENT;
+          }	  
+      ;
+
+ev_on_schedule: /* empty */
+        | ON SCHEDULE_SYM ev_schedule_time;
+
+ev_opt_sql_stmt: /* empty*/
+        | DO_SYM ev_sql_stmt;
+
+ev_rename_to: /* empty */
+        | RENAME TO_SYM sp_name
+          {
+            LEX *lex=Lex;
+            lex->spname= $3; //use lex's spname to hold the new name
+	                     //the original name is in the event_timed object
+          }
+      ;
+  
 ident_or_empty:
 	/* empty */  { $$= 0; }
 	| ident      { $$= $1.str; };
@@ -6620,7 +6984,29 @@ drop:
             lex->sql_command= SQLCOM_DROP_TRIGGER;
             lex->spname= $3;
           }
-	;
+        | DROP EVENT_SYM if_exists sp_name
+          {
+            LEX *lex=Lex;
+
+            if (lex->et)
+            {
+              // ToDo Andrey : Change the error message
+              /*
+                Recursive events are not possible because recursive SPs
+                are not also possible. lex->sp_head is not stacked.
+              */
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+              YYABORT;
+            }
+
+            if (!(lex->et= new event_timed()))
+              YYABORT;
+            lex->et->init_name(YYTHD, $4);
+	  
+            lex->sql_command = SQLCOM_DROP_EVENT;
+            lex->drop_if_exists= $3;
+          }
+      ;
 
 table_list:
 	table_name
@@ -7272,7 +7658,12 @@ show_param:
 	    Lex->spname= $3;
 #endif
           }
-        ;
+        | CREATE EVENT_SYM sp_name
+          {
+            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
+            Lex->spname= $3;
+          };
+       ;
 
 show_engine_param:
 	STATUS_SYM
@@ -8159,6 +8550,7 @@ keyword_sp:
 	| AGGREGATE_SYM		{}
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
+	| AT_SYM                {}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
@@ -8179,6 +8571,7 @@ keyword_sp:
         | COLUMNS               {}
 	| COMMITTED_SYM		{}
 	| COMPACT_SYM		{}
+	| COMPLETION_SYM	{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
@@ -8195,13 +8588,16 @@ keyword_sp:
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
+	| ENDS_SYM		{}
 	| ENUM			{}
 	| ENGINE_SYM		{}
 	| ENGINES_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
+	| EVENT_SYM		{}
 	| EVENTS_SYM		{}
-        | EXPANSION_SYM         {}
+	| EVERY_SYM             {}
+	| EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
 	| FOUND_SYM		{}
@@ -8293,6 +8689,7 @@ keyword_sp:
         | PHASE_SYM             {}
 	| POINT_SYM		{}
 	| POLYGON		{}
+        | PRESERVE_SYM          {}
 	| PREV_SYM		{}
         | PRIVILEGES            {}
 	| PROCESS		{}
@@ -8322,6 +8719,7 @@ keyword_sp:
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
+	| SCHEDULE_SYM		{}	
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
@@ -8335,6 +8733,7 @@ keyword_sp:
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
 	| SQL_THREAD		{}
+	| STARTS_SYM		{}
 	| STATUS_SYM		{}
 	| STORAGE_SYM		{}
 	| STRING_SYM		{}
@@ -9061,6 +9460,7 @@ object_privilege:
 	| CREATE ROUTINE_SYM { Lex->grant |= CREATE_PROC_ACL; }
 	| ALTER ROUTINE_SYM { Lex->grant |= ALTER_PROC_ACL; }
 	| CREATE USER { Lex->grant |= CREATE_USER_ACL; }
+        | EVENT_SYM { Lex->grant |= EVENT_ACL;}
 	;
 
 
@@ -9711,7 +10111,7 @@ trigger_tail:
 	    stored procedure, otherwise yylex will chop it into pieces
 	    at each ';'.
 	  */
-	  sp->m_old_cmq= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	  $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	  
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
@@ -9726,8 +10126,8 @@ trigger_tail:
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
 	  sp->init_strings(YYTHD, lex, $3);
 	  /* Restore flag if it was cleared above */
-	  if (sp->m_old_cmq)
-	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
+
+	  YYTHD->client_capabilities |= $<ulong_num>11;
 	  sp->restore_thd_mem_root(YYTHD);
 	
 	  if (sp->is_not_allowed_in_function("trigger"))

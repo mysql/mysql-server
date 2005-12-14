@@ -35,6 +35,7 @@ typedef struct st_queue {
   uint offset_to_key;			/* compare is done on element+offset */
   int max_at_top;			/* Set if queue_top gives max */
   int  (*compare)(void *, byte *,byte *);
+  uint auto_extent;
 } QUEUE;
 
 #define queue_top(queue) ((queue)->root[1])
@@ -49,14 +50,19 @@ typedef int (*queue_compare)(void *,byte *, byte *);
 int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
 	       pbool max_at_top, queue_compare compare,
 	       void *first_cmp_arg);
+int init_queue_ex(QUEUE *queue,uint max_elements,uint offset_to_key,
+	       pbool max_at_top, queue_compare compare,
+	       void *first_cmp_arg, uint auto_extent);
 int reinit_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
                  pbool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
 int resize_queue(QUEUE *queue, uint max_elements);
 void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,byte *element);
+int queue_insert_safe(QUEUE *queue, byte *element);
 byte *queue_remove(QUEUE *queue,uint idx);
 #define queue_remove_all(queue) { (queue)->elements= 0; }
+#define queue_is_full(queue) (queue->elements == queue->max_elements)
 void _downheap(QUEUE *queue,uint idx);
 void queue_fix(QUEUE *queue);
 #define is_queue_inited(queue) ((queue)->root != 0)
