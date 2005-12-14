@@ -278,3 +278,28 @@ void freeze_size(DYNAMIC_ARRAY *array)
     array->max_element=elements;
   }
 }
+
+
+/*
+  Get the index of a dynamic element
+
+  SYNOPSIS
+    get_index_dynamic()
+     array	Array
+     element Whose element index 
+
+*/
+
+int get_index_dynamic(DYNAMIC_ARRAY *array, gptr element)
+{
+  uint ret;
+  if (array->buffer > element)
+    return -1;
+
+  ret= (element - array->buffer) /  array->size_of_element;
+  if (ret > array->elements)
+    return -1;
+
+  return ret;
+
+}
