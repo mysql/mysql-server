@@ -52,9 +52,8 @@ start slave;
 # which proves that the transaction restarted at
 # the right place.
 # We must wait for the transaction to commit before
-# reading, MASTER_POS_WAIT() will do it for sure
-# (the only statement with position>=3000 is COMMIT).
-select master_pos_wait('master-bin.001',3000)>=0;
+# reading:
+sync_with_master;
 select max(a) from t1;
 connection master;
 
