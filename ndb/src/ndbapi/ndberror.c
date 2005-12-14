@@ -227,6 +227,7 @@ ErrorBundle ErrorCodes[] = {
   { 277,  IE, "277" },
   { 278,  IE, "278" },
   { 287,  IE, "Index corrupted" },
+  { 290,  IE, "Corrupt key in TC, unable to xfrm" },
   { 631,  IE, "631" },
   { 632,  IE, "632" },
   { 702,  IE, "Request to non-master" },
@@ -295,7 +296,6 @@ ErrorBundle ErrorCodes[] = {
   { 4608, AE, "You can not takeOverScan unless you have used openScanExclusive"},
   { 4609, AE, "You must call nextScanResult before trying to takeOverScan"},
   { 4232, AE, "Parallelism can only be between 1 and 240" },
-  { 290,  AE, "Scan not started or has been closed by kernel due to timeout" },
 
   /** 
    * Event schema errors
