@@ -2314,7 +2314,10 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
   {
     keyPartLenPtr = keyPartLen;
     dstPos = xfrm_key(tabPtrI, src, dst, sizeof(Tmp) >> 2, keyPartLenPtr);
-    ndbrequire(dstPos);
+    if (unlikely(dstPos == 0))
+    {
+      goto error;
+    }
   } 
   else 
   {
@@ -2335,6 +2338,10 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
     dstHash[1] = tmp[1];
   }
   return true;  // success
+
+error:
+  terrorCode = ZINVALID_KEY;
+  return false;
 }
 
 /*
@@ -2944,7 +2951,15 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   UintR tnoOfStandby;
   UintR tnodeinfo;
 
+  terrorCode = 0;
+
   hash(signal); /* NOW IT IS TIME TO CALCULATE THE HASH VALUE*/
+  
+  if (unlikely(terrorCode))
+  {
+    releaseAtErrorLab(signal);
+    return;
+  }
 
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
