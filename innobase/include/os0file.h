@@ -187,7 +187,7 @@ Creates a temporary file. */
 FILE*
 os_file_create_tmpfile(void);
 /*========================*/
-			/* out: temporary file handle (never NULL) */
+			/* out: temporary file handle, or NULL on error */
 /***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned

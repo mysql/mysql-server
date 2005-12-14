@@ -293,6 +293,7 @@ cleanup:
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  free_underlaid_joins(thd, select_lex);
   if (transactional_table)
   {
     if (ha_autocommit_or_rollback(thd,error >= 0))
@@ -304,7 +305,6 @@ cleanup:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
     thd->row_count_func= deleted;
