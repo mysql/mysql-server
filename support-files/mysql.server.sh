@@ -56,12 +56,18 @@ if test -z "$basedir"
 then
   basedir=@prefix@
   bindir=@bindir@
-  datadir=@localstatedir@
+  if test -z "$datadir"
+  then
+    datadir=@localstatedir@
+  fi
   sbindir=@sbindir@
   libexecdir=@libexecdir@
 else
   bindir="$basedir/bin"
-  datadir="$basedir/data"
+  if test -z "$datadir"
+  then
+    datadir="$basedir/data"
+  fi
   sbindir="$basedir/sbin"
   libexecdir="$basedir/libexec"
 fi

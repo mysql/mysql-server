@@ -193,6 +193,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
       libname=`basename $i .a`
       $MV $i $BASE/lib/$libname.lib
     done
+    rm -f $BASE/lib/*.la
 fi
 
 copyfileto $BASE/include config.h include/*
@@ -288,6 +289,9 @@ if [ $BASE_SYSTEM = "netware" ] ; then
         $BASE/support-files/mysql*.spec \
         $BASE/support-files/mysql-log-rotate \
         $BASE/support-files/binary-configure \
+        $BASE/support-files/build-tags \
+	$BASE/support-files/MySQL-shared-compat.spec \
+        $BASE/support-files/ndb-config-2-node.ini \
         $BASE/INSTALL-BINARY \
         $BASE/MySQLEULA.txt
 else

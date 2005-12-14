@@ -2885,6 +2885,7 @@ private:
   UintR ctransidHash[1024];
   
   Uint32 c_diskless;
+  Uint32 c_error_insert_table_id;
   
 public:
   /**
