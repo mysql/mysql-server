@@ -180,7 +180,7 @@ BEGIN {
 		t = types[i];
 		if (modes[i] == "POINTER") {
 			ndx = index(t, "*");
-			t = substr(types[i], 0, ndx - 2);
+			t = substr(types[i], 1, ndx - 2);
 		}
 		printf("\t%s\t%s;\n", t, vars[i]) >> HFILE
 	}
