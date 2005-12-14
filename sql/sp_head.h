@@ -130,7 +130,6 @@ public:
   uint m_returns_len;		// For FUNCTIONs only
   uint m_returns_pack;		// For FUNCTIONs only
   const uchar *m_tmp_query;	// Temporary pointer to sub query string
-  uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE and execution
   LEX_STRING m_qname;		// db.name

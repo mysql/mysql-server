@@ -1,0 +1,19 @@
+create database events_test;
+use events_test;
+drop event if exists event1;
+create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
+alter event event1 rename to event2;
+alter event event2 disable;
+
+drop event event2;
+create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
+drop event event2;
+
+create table t_event3 (a int, b float);
+drop event if exists event3;
+create event event3 on schedule every 50 + 10 minute starts date_add("20010101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+set max_allowed_packet=128000000;
+select sha1(space(9999999));
+select count(*) from t_event3;
+drop event event3;
+drop database events_test;

@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "event.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -642,6 +643,9 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_DROP_INDEX]=1;
   uc_update_queries[SQLCOM_CREATE_VIEW]=1;
   uc_update_queries[SQLCOM_DROP_VIEW]=1;
+  uc_update_queries[SQLCOM_CREATE_EVENT]=1;
+  uc_update_queries[SQLCOM_ALTER_EVENT]=1;
+  uc_update_queries[SQLCOM_DROP_EVENT]=1;  
 }
 
 bool is_update_query(enum enum_sql_command command)
@@ -3667,6 +3671,60 @@ end_with_restore_list:
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
+  case SQLCOM_CREATE_EVENT:
+  case SQLCOM_ALTER_EVENT:
+  case SQLCOM_DROP_EVENT:
+  {
+    DBUG_ASSERT(lex->et);
+    do {
+      if (! lex->et->dbname.str)
+      {
+        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+        res= true;
+        break;
+      }
+
+      if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
+                       is_schema_db(lex->et->dbname.str)))
+        break;
+
+      switch (lex->sql_command) {
+      case SQLCOM_CREATE_EVENT:
+        res= evex_create_event(thd, lex->et, (uint) lex->create_info.options);
+        break;
+      case SQLCOM_ALTER_EVENT:
+        res= evex_update_event(thd, lex->et, lex->spname);
+        break;
+      case SQLCOM_DROP_EVENT:
+        evex_drop_event(thd, lex->et, lex->drop_if_exists);
+      default:;
+      }
+      if (!res)
+        send_ok(thd, 1);
+
+      /* lex->unit.cleanup() is called outside, no need to call it here */
+    } while (0);  
+    delete lex->et;
+    delete lex->sphead;
+    lex->et= 0;
+    lex->sphead= 0;
+    break;
+  }
+  case SQLCOM_SHOW_CREATE_EVENT:
+  {
+    if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
+                     is_schema_db(lex->spname->m_db.str)))
+      break;
+
+    if (lex->spname->m_name.length > NAME_LEN)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      goto error;
+    }
+    /* TODO : Implement it */
+    send_ok(thd, 1);
+    break;
+  }
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
@@ -5598,6 +5656,11 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	    delete thd->lex->sphead;
 	    thd->lex->sphead= NULL;
 	  }
+          if (thd->lex->et)
+          {
+            delete thd->lex->et;
+            thd->lex->et= NULL;
+          }
 	}
 	else
 	{
@@ -5632,6 +5695,11 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	/* Clean up after failed stored procedure/function */
 	delete thd->lex->sphead;
 	thd->lex->sphead= NULL;
+      }
+      if (thd->lex->et)
+      {
+        delete thd->lex->et;
+        thd->lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";

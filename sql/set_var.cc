@@ -104,6 +104,7 @@ extern ulong ndb_cache_check_time;
 
 
 
+extern my_bool event_executor_running_global_var;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -208,6 +209,8 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
+sys_var_event_executor        sys_event_executor("event_scheduler",
+                                               &event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
@@ -666,6 +669,7 @@ struct show_var_st init_vars[]= {
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_engine_condition_pushdown.name, 
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
+  {sys_event_executor.name,   (char*) &sys_event_executor,          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
@@ -3361,6 +3365,7 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   warn_deprecated(thd);
   return sys_var_bool_ptr::update(thd, var);
 }
+
 
 /****************************************************************************
   Used templates

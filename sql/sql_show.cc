@@ -147,6 +147,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+  {"Event","Server Admin","Creation, alteration, deletion and execution of events."},
   {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
