@@ -14,6 +14,12 @@ DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
 SHARED_LIB_VERSION=15:0:0
 
+# ndb version
+NDB_VERSION_MAJOR=5
+NDB_VERSION_MINOR=0
+NDB_VERSION_BUILD=18
+NDB_VERSION_STATUS=""
+
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
