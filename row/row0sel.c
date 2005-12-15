@@ -3972,12 +3972,12 @@ got_row:
 	/* We have an optimization to save CPU time: if this is a consistent
 	read on a unique condition on the clustered index, then we do not
 	store the pcur position, because any fetch next or prev will anyway
-	return 'end of file'. An exception is the MySQL HANDLER command
-	where the user can move the cursor with PREV or NEXT even after
-	a unique search. */
+	return 'end of file'. Exceptions are locking reads and the MySQL 
+	HANDLER command where the user can move the cursor with PREV or NEXT 
+	even after a unique search. */
 
 	if (!unique_search_from_clust_index
-	    || prebuilt->select_lock_type == LOCK_X
+	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER) {
 
 		/* Inside an update always store the cursor position */
