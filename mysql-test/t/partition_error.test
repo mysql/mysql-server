@@ -727,3 +727,11 @@ partitions 2
 (partition x1 values in 4,
  partition x2 values in (5));
 
+#
+# No partition for the given value
+#
+CREATE TABLE t1(a int)
+  PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN(5));
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (10);
+drop table t1;
