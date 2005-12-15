@@ -562,5 +562,6 @@ CREATE TABLE event (
 # EVENT privilege
 #
 
-ALTER TABLE mysql.user add Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_user_priv;
-ALTER TABLE mysql.db add Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+ALTER TABLE mysql.user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
+ALTER TABLE mysql.db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
+

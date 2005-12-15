@@ -3704,10 +3704,9 @@ end_with_restore_list:
 
       /* lex->unit.cleanup() is called outside, no need to call it here */
     } while (0);  
+    lex->et->free_sphead_on_delete= true;
     delete lex->et;
-    delete lex->sphead;
     lex->et= 0;
-    lex->sphead= 0;
     break;
   }
   case SQLCOM_SHOW_CREATE_EVENT:
@@ -5658,6 +5657,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	  }
           if (thd->lex->et)
           {
+            thd->lex->et->free_sphead_on_delete= true;
             delete thd->lex->et;
             thd->lex->et= NULL;
           }
@@ -5698,6 +5698,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       }
       if (thd->lex->et)
       {
+        thd->lex->et->free_sphead_on_delete= true;
         delete thd->lex->et;
         thd->lex->et= NULL;
       }

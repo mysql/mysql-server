@@ -807,7 +807,6 @@ event_timed::get_show_create_event(THD *thd, uint *length)
  
   *length= len;
 
-  sql_print_information("%d %d[%s]", len, dst-ret, ret);
   return ret;
 }
 
@@ -938,7 +937,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
     goto done;
   }
   
-  sphead= lex.sphead;
+  sphead= lex.et->sphead;
   sphead->m_db= dbname;
   //copy also chistics since they will vanish otherwise we get 0x0 pointer
   // Todo : Handle sql_mode !!
@@ -947,6 +946,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   sphead->optimize();
   ret= 0;
 done:
+  lex.et->free_sphead_on_delete= false;
   delete lex.et;
   lex_end(&lex);
   thd->lex= old_lex;
