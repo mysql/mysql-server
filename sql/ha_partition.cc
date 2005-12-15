@@ -1174,7 +1174,7 @@ int ha_partition::write_row(byte * buf)
   }
 #endif
   if (unlikely(error))
-    DBUG_RETURN(error);
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
   DBUG_RETURN(m_file[part_id]->write_row(buf));
@@ -2973,7 +2973,11 @@ void ha_partition::print_error(int error, myf errflag)
   DBUG_ENTER("ha_partition::print_error");
   /* Should probably look for my own errors first */
   /* monty: needs to be called for the last used partition ! */
-  m_file[0]->print_error(error, errflag);
+  if (error == HA_ERR_NO_PARTITION_FOUND)
+    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
+             m_part_info->part_expr->val_int());
+  else
+    m_file[0]->print_error(error, errflag);
   DBUG_VOID_RETURN;
 }
 

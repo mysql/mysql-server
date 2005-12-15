@@ -5725,3 +5725,5 @@ ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
 ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
+ER_NO_PARTITION_FOR_GIVEN_VALUE
+	eng "Table has no partition for value %d"

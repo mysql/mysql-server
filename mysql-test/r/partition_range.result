@@ -94,7 +94,7 @@ INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
 INSERT into t1 values (15, 1, 1);
-ERROR HY000: Got error 1 from storage engine
+ERROR HY000: Table has no partition for value 15
 select * from t1;
 a	b	c
 1	1	1
@@ -206,7 +206,7 @@ subpartition x22 engine myisam nodegroup 1)
 INSERT into t1 VALUES (1,1,1);
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
-ERROR HY000: Got error 1 from storage engine
+ERROR HY000: Table has no partition for value 5
 SELECT * from t1;
 a	b	c
 1	1	1
@@ -243,7 +243,7 @@ subpartition x22 tablespace t2 engine myisam)
 INSERT into t1 VALUES (1,1,1);
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
-ERROR HY000: Got error 1 from storage engine
+ERROR HY000: Table has no partition for value 5
 SELECT * from t1;
 a	b	c
 1	1	1
@@ -280,7 +280,7 @@ subpartition x22 tablespace t2)
 INSERT into t1 VALUES (1,1,1);
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
-ERROR HY000: Got error 1 from storage engine
+ERROR HY000: Table has no partition for value 5
 SELECT * from t1;
 a	b	c
 1	1	1
@@ -317,7 +317,7 @@ subpartition x22 engine myisam)
 INSERT into t1 VALUES (1,1,1);
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
-ERROR HY000: Got error 1 from storage engine
+ERROR HY000: Table has no partition for value 5
 SELECT * from t1;
 a	b	c
 1	1	1
