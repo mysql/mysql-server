@@ -544,3 +544,8 @@ partitions 2
 partition x2 values in (5));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
 partition x2 values in (5))' at line 8
+CREATE TABLE t1(a int)
+PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN(5));
+insert into t1 values (10);
+ERROR HY000: Table has no partition for value 10
+drop table t1;

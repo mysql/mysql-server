@@ -172,3 +172,34 @@ SELECT * FROM t1;
 
 drop table t1;
 
+#
+# BUG 15221 (Cannot reorganize with the same name)
+#
+create table t1
+(a int)
+partition by range (a)
+  ( partition p0 values less than(10),
+    partition p1 values less than (20),
+    partition p2 values less than maxvalue);
+
+alter table t1 reorganise partition p2 into (partition p2 values less than (30));
+show create table t1;
+drop table t1;
+
+CREATE TABLE t1 (a int, b int)
+PARTITION BY RANGE (a)
+(PARTITION x0 VALUES LESS THAN (2),
+ PARTITION x1 VALUES LESS THAN (4),
+ PARTITION x2 VALUES LESS THAN (6),
+ PARTITION x3 VALUES LESS THAN (8),
+ PARTITION x4 VALUES LESS THAN (10),
+ PARTITION x5 VALUES LESS THAN (12),
+ PARTITION x6 VALUES LESS THAN (14),
+ PARTITION x7 VALUES LESS THAN (16),
+ PARTITION x8 VALUES LESS THAN (18),
+ PARTITION x9 VALUES LESS THAN (20));
+
+ALTER TABLE t1 REORGANISE PARTITION x0,x1,x2 INTO
+(PARTITION x1 VALUES LESS THAN (6));
+show create table t1;
+drop table t1;

@@ -717,6 +717,9 @@ typedef struct st_ha_check_opt
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 bool is_partitions_in_table(partition_info *new_part_info,
                             partition_info *old_part_info);
+bool check_reorganise_list(partition_info *new_part_info,
+                           partition_info *old_part_info,
+                           List<char> list_part_names);
 bool set_up_defaults_for_partitioning(partition_info *part_info,
                                       handler *file,
                                       ulonglong max_rows,
