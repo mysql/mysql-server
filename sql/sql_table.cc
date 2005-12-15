@@ -3832,7 +3832,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         my_error(ER_ONLY_ON_RANGE_LIST_PARTITION, MYF(0), "REORGANISE");
         DBUG_RETURN(TRUE);
       }
-      if (is_partitions_in_table(alt_part_info, tab_part_info))
+      if (check_reorganise_list(alt_part_info, tab_part_info,
+                                alter_info->partition_names))
       {
         my_error(ER_SAME_NAME_PARTITION, MYF(0));
         DBUG_RETURN(TRUE);
@@ -3901,6 +3902,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
     }
     partition_changed= TRUE;
+    tab_part_info->no_parts= tab_part_info->partitions.elements;
     create_info->db_type= DB_TYPE_PARTITION_DB;
     thd->lex->part_info= tab_part_info;
     if (alter_info->flags == ALTER_ADD_PARTITION ||
