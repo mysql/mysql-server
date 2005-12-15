@@ -3014,7 +3014,6 @@ void ha_ndbcluster::position(const byte *record)
         }      
         *buff++= 0;
       }
-
       size_t len = key_part->length;
       const byte * ptr = record + key_part->offset;
       Field *field = key_part->field;

@@ -35,6 +35,7 @@ Level	Code	Message
 Error	1296	Got error 241 'Invalid schema object version' from NDB
 Error	1412	Table definition has changed, please retry transaction
 Error	1105	Unknown error
+flush table t1;
 select * from t1;
 a
 2
