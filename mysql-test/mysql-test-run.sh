@@ -279,7 +279,7 @@ DO_STRESS=""
 STRESS_SUITE="main"
 STRESS_MODE="random"
 STRESS_THREADS=5
-STRESS_TEST_COUNT=20
+STRESS_TEST_COUNT=""
 STRESS_LOOP_COUNT=""
 STRESS_TEST_DURATION=""
 STRESS_INIT_FILE=""
@@ -1906,7 +1906,7 @@ run_stress_test()
                     --stress-basedir=$STRESS_BASEDIR \
                     --server-logs-dir=$STRESS_BASEDIR \
                     --stress-mode=$STRESS_MODE \
-                    --mysqltest=$BASEDIR/client/mysqltest \
+                    --mysqltest=$CLIENT_BINDIR/mysqltest \
                     --threads=$STRESS_THREADS \
                     --verbose \
                     --cleanup \
@@ -1915,6 +1915,14 @@ run_stress_test()
   
   if [ -n "$STRESS_INIT_FILE" ] ; then 
     STRESS_TEST_ARGS="$STRESS_TEST_ARGS --stress-init-file=$STRESS_INIT_FILE"
+  fi
+
+  if [ -z "$STRESS_LOOP_COUNT" -a -z  "$STRESS_TEST_COUNT" -a 
+       -z "$STRESS_TEST_DURATION" ] ; then 
+
+    #Limit stress testing with 20 loops in case when any limit parameter
+    #was specified
+    STRESS_TEST_COUNT=20
   fi
 
   if [ -n "$STRESS_LOOP_COUNT" ] ; then 

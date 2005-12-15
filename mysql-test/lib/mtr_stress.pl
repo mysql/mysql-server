@@ -145,6 +145,14 @@ sub run_stress_test ()
     mtr_add_arg($args, "--stress-init-file=%", $::opt_stress_init_file);
   }
 
+  if ( !$::opt_stress_loop_count && !$::opt_stress_test_count &&
+       !$::opt_stress_test_duration )
+  {
+    #Limit stress testing with 20 loops in case when any limit parameter 
+    #was specified 
+    $::opt_stress_test_count=20;
+  }
+
   if ( $::opt_stress_loop_count )
   {
     mtr_add_arg($args, "--loop-count=%s", $::opt_stress_loop_count);
