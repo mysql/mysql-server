@@ -41,6 +41,7 @@ connection server1;
 --error 1412
 select * from t1;
 show warnings;
+flush table t1;
 select * from t1;
 
 # Connect to server2 and use the tables from there
