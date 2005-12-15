@@ -652,6 +652,7 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   int ret= 0;
   MEM_ROOT *tmp_mem_root;
   event_timed *ett;
+  Open_tables_state backup;
 
   DBUG_ENTER("db_load_and_compile_event");
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
@@ -659,10 +660,12 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, bool use_lock)
   tmp_mem_root= thd->mem_root;
   thd->mem_root= &evex_mem_root;
 
+  thd->reset_n_backup_open_tables_state(&backup);
   // no need to use my_error() here because db_find_event() has done it
   if ((ret= db_find_event(thd, spn, &ett, NULL)))
     goto done;
 
+  thd->restore_backup_open_tables_state(&backup);
   /*
     allocate on evex_mem_root. if you call without evex_mem_root
     then sphead will not be cleared!
