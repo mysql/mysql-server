@@ -109,6 +109,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   struct { int vars, conds, hndlrs, curs; } spblock;
   sp_name *spname;
   struct st_lex *lex;
+  sp_head *sphead;
 }
 
 %{
@@ -1345,8 +1346,6 @@ create:
 
             if (!lex->et_compile_phase) 
               lex->et->init_name(YYTHD, $4);
-
-            lex->sphead= 0;//defensive programming
           }
           ON SCHEDULE_SYM ev_schedule_time
           ev_on_completion
@@ -1482,33 +1481,46 @@ ev_sql_stmt:
           {
             LEX *lex= Lex;
             sp_head *sp;
-	  
-            if (!(sp= new sp_head()))
-              YYABORT;
-
-            sp->reset_thd_mem_root(YYTHD);
-            sp->init(lex);
+	    
+            $<sphead>$= lex->sphead;
             
-            sp->m_type= TYPE_ENUM_PROCEDURE;
-            lex->sphead= sp;
+            if (!lex->sphead)
+            {
+              if (!(sp= new sp_head()))
+                YYABORT;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-            lex->sphead->m_chistics= &lex->sp_chistics;
+              sp->reset_thd_mem_root(YYTHD);
+              sp->init(lex);
+            
+              sp->m_type= TYPE_ENUM_PROCEDURE;
+            
+              lex->sphead= sp;
+
+              bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+              lex->sphead->m_chistics= &lex->sp_chistics;
 	
-            lex->sphead->m_body_begin= lex->ptr;
+              lex->sphead->m_body_begin= lex->ptr;
+            }
+
             if (!lex->et_compile_phase)
               lex->et->body_begin= lex->ptr;
           }
           ev_sql_stmt_inner
           {
             LEX *lex=Lex;
-            sp_head *sp= lex->sphead;
-            // return back to the original memory root ASAP
-            sp->init_strings(YYTHD, lex, NULL);
-            sp->restore_thd_mem_root(YYTHD);
+            
+            if (!$<sphead>1)
+            {
+              sp_head *sp= lex->sphead;
+              // return back to the original memory root ASAP
+              sp->init_strings(YYTHD, lex, NULL);
+              sp->restore_thd_mem_root(YYTHD);
 	    
-            lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
+              lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
 
+              lex->et->sphead= lex->sphead;
+              lex->sphead= NULL;
+            }
             if (!lex->et_compile_phase)
             {
               lex->et->init_body(YYTHD);
@@ -4223,7 +4235,8 @@ alter:
             }
             lex->spname= 0;//defensive programming
 	    
-            et= new event_timed();// implicitly calls event_timed::init()
+            if (!(et= new event_timed()))// implicitly calls event_timed::init()
+              YYABORT;
             lex->et = et;
             et->init_name(YYTHD, $3);
 
@@ -4235,11 +4248,6 @@ alter:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    
-	    /*
-	       defensive. in sql_parse.cc it is checked whether is not null
-	       and then deleted
-	    */
-            lex->sphead= 0;	    
           }
           ev_on_schedule
           ev_rename_to

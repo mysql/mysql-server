@@ -30,7 +30,7 @@
 #define DBUG_FAULTY_THR2
 
 extern  ulong thread_created;
-
+extern const char *my_localhost;
 
 pthread_mutex_t LOCK_event_arrays,
                 LOCK_workers_count,
@@ -125,6 +125,7 @@ init_event_thread(THD* thd)
   DBUG_ENTER("init_event_thread");
   thd->client_capabilities= 0;
   thd->security_ctx->skip_grants();
+  thd->security_ctx->host= (char*)my_localhost;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread= 0;
@@ -211,6 +212,7 @@ event_executor_main(void *arg)
   if (evex_load_events_from_db(thd))
     goto err;
 
+  thd->security_ctx->user= my_strdup("event_scheduler", MYF(0));
   THD_CHECK_SENTRY(thd);
   /* Read queries from the IO/THREAD until this thread is killed */
   evex_main_thread_id= thd->thread_id;
@@ -254,8 +256,8 @@ event_executor_main(void *arg)
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
       if (t2sleep > 0)
       {
-        sql_print_information("Sleeping for %d seconds.", t2sleep);
-        printf("\nWHEN=%llu   NOW=%llu\n", TIME_to_ulonglong_datetime(&et->execute_at), TIME_to_ulonglong_datetime(&time_now));
+//        sql_print_information("Sleeping for %d seconds.", t2sleep);
+//        printf("\nWHEN=%llu   NOW=%llu\n", TIME_to_ulonglong_datetime(&et->execute_at), TIME_to_ulonglong_datetime(&time_now));
         /*
           We sleep t2sleep seconds but we check every second whether this thread
           has been killed, or there is new candidate
@@ -264,7 +266,7 @@ event_executor_main(void *arg)
                evex_queue_num_elements(EVEX_EQ_NAME) &&
                (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
           my_sleep(1000000);
-        sql_print_information("Finished sleeping");
+//        sql_print_information("Finished sleeping");
       }
       if (!event_executor_running_global_var)
         continue;
@@ -297,9 +299,9 @@ event_executor_main(void *arg)
       pthread_t th;
 
       DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
-      sql_print_information("  Spawning a thread %d", ++iter_num);
+//      sql_print_information("  Spawning a thread %d", ++iter_num);
 #ifndef DBUG_FAULTY_THR
-      sql_print_information("  Thread is not debuggable!");
+//      sql_print_information("  Thread is not debuggable!");
       if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
       {
         sql_print_error("Problem while trying to create a thread");
@@ -442,20 +444,18 @@ event_executor_worker(void *event_void)
   strxnmov(thd->security_ctx->priv_host, sizeof(thd->security_ctx->priv_host),
                 event->definer_host.str, NullS);  
 
-  thd->security_ctx->priv_user= event->definer_user.str;
+  thd->security_ctx->user= thd->security_ctx->priv_user= my_strdup(event->definer_user.str, MYF(0));
 
   thd->db= event->dbname.str;
   if (!check_access(thd, EVENT_ACL, event->dbname.str, 0, 0, 0,
                       is_schema_db(event->dbname.str)))
   {
-    char exec_time[200];
     int ret;
-    my_TIME_to_str(&event->execute_at, exec_time);
-    DBUG_PRINT("info", ("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time));
-    sql_print_information("    EVEX EXECUTING event for event %s.%s [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time);
+    DBUG_PRINT("info", ("    EVEX EXECUTING event for event %s.%s [EXPR:%d]", event->dbname.str, event->name.str,(int) event->expression));
+    sql_print_information("    EVEX EXECUTING event for event %s.%s [EXPR:%d]", event->dbname.str, event->name.str,(int) event->expression);
     ret= event->execute(thd, &worker_mem_root);
-    sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, exec_time, ret); 
-    DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d][EXECUTE_AT:%s]", event->dbname.str, event->name.str,(int) event->expression, exec_time)); 
+    sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret); 
+    DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret)); 
   }
   thd->db= 0;
 
@@ -505,6 +505,7 @@ evex_load_events_from_db(THD *thd)
   READ_RECORD read_record_info;
   MYSQL_LOCK *lock;
   int ret= -1;
+  uint count= 0;
   
   DBUG_ENTER("evex_load_events_from_db");  
 
@@ -555,6 +556,7 @@ evex_load_events_from_db(THD *thd)
     evex_queue_insert(&EVEX_EQ_NAME, (EVEX_PTOQEL) et);
     DBUG_PRINT("evex_load_events_from_db", ("%p %*s",
                 et, et->name.length,et->name.str));
+    count++;
   }
 
   ret= 0;
@@ -566,8 +568,8 @@ end:
   thd->version--;  // Force close to free memory
 
   close_thread_tables(thd);
-
-  DBUG_PRINT("info", ("Finishing with status code %d", ret));
+  sql_print_information("Scheduler loaded %d events", count);
+  DBUG_PRINT("info", ("Finishing with status code %d. Loaded %d events", ret, count));
   DBUG_RETURN(ret);
 }
 
