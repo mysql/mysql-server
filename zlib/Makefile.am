@@ -18,6 +18,8 @@
 
 pkglib_LTLIBRARIES=libz.la
 
+libz_la_LDFLAGS= -version-info=3:3:2
+
 noinst_HEADERS= crc32.h deflate.h inffast.h inffixed.h inflate.h \
 		inftrees.h trees.h zconf.h zlib.h zutil.h
 
