@@ -1705,7 +1705,7 @@ static
 lock_t*
 lock_rec_create(
 /*============*/
-				/* out: created lock, NULL if out of memory */
+				/* out: created lock */
 	ulint		type_mode,/* in: lock mode and wait flag, type is
 				ignored and replaced by LOCK_REC */
 	rec_t*		rec,	/* in: record on page */
@@ -1746,11 +1746,6 @@ lock_rec_create(
 	n_bytes = 1 + n_bits / 8;
 
 	lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t) + n_bytes);
-	
-	if (UNIV_UNLIKELY(lock == NULL)) {
-
-		return(NULL);
-	}
 
 	UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);
 
@@ -1886,8 +1881,7 @@ static
 lock_t*
 lock_rec_add_to_queue(
 /*==================*/
-				/* out: lock where the bit was set, NULL if out
-				of memory */
+				/* out: lock where the bit was set */
 	ulint		type_mode,/* in: lock mode, wait, gap etc. flags;
 				type is ignored and replaced by LOCK_REC */
 	rec_t*		rec,	/* in: record on page */
@@ -3405,8 +3399,7 @@ UNIV_INLINE
 lock_t*
 lock_table_create(
 /*==============*/
-				/* out, own: new lock object, or NULL if
-				out of memory */
+				/* out, own: new lock object */
 	dict_table_t*	table,	/* in: database table in dictionary cache */
 	ulint		type_mode,/* in: lock mode possibly ORed with
 				LOCK_WAIT */
@@ -3430,11 +3423,6 @@ lock_table_create(
 		trx->auto_inc_lock = lock;
 	} else {
 		lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t));
-	}
-
-	if (lock == NULL) {
-
-		return(NULL);
 	}
 
 	UT_LIST_ADD_LAST(trx_locks, trx->trx_locks, lock);

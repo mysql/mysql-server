@@ -368,7 +368,6 @@ BuildMySQL "--disable-shared \
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
-%else
 %endif
 		--with-zlib-dir=bundled \
 		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
