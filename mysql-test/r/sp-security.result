@@ -263,3 +263,24 @@ CREATE VIEW v1 AS SELECT test.bug12812()|
 ERROR 42000: execute command denied to user 'user_bug12812'@'localhost' for routine 'test.bug12812'
 DROP USER user_bug12812@localhost|
 drop function bug12812|
+create database db_bug14834;
+create user user1_bug14834@localhost identified by '';
+grant all on `db\_bug14834`.* to user1_bug14834@localhost;
+create user user2_bug14834@localhost identified by '';
+grant all on `db\_bug14834`.* to user2_bug14834@localhost;
+create user user3_bug14834@localhost identified by '';
+grant all on `db__ug14834`.* to user3_bug14834@localhost;
+create procedure p_bug14834() select user(), current_user();
+call p_bug14834();
+user()	current_user()
+user1_bug14834@localhost	user1_bug14834@localhost
+call p_bug14834();
+user()	current_user()
+user2_bug14834@localhost	user1_bug14834@localhost
+call p_bug14834();
+user()	current_user()
+user3_bug14834@localhost	user1_bug14834@localhost
+drop user user1_bug14834@localhost;
+drop user user2_bug14834@localhost;
+drop user user3_bug14834@localhost;
+drop database db_bug14834;

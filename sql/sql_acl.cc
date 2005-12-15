@@ -987,7 +987,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
       {
 	if (compare_hostname(&acl_db->host, host, ip))
 	{
-	  if (!acl_db->db || (db && !strcmp(acl_db->db, db)))
+	  if (!acl_db->db || (db && !wild_compare(db, acl_db->db, 0)))
 	  {
 	    sctx->db_access= acl_db->access;
 	    break;
