@@ -1,7 +1,6 @@
 -- source include/have_innodb.inc
 #
-# Note that these test work only on 5.0 because these test need
-# innodb_locks_unsafe_for_binlog option implemented.
+# Note that these tests uses a innodb_locks_unsafe_for_binlog option.
 #
 #
 # Test cases for a bug #15650
@@ -24,3 +23,33 @@ WHERE mm.id IS NULL;
 select ml.* from t1 as ml left join t2 as mm on (mm.id=ml.id)
 where mm.id is null lock in share mode;
 drop table t1,t2;
+
+#
+# Test case for unlock row bug where unlock releases all locks granted for
+# a row. Only the latest lock should be released.
+#
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+create table t1(a int not null, b int, primary key(a)) engine=innodb;
+insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2);
+commit;
+set autocommit = 0; 
+select * from t1 lock in share mode;
+update t1 set b = 5 where b = 1;
+connection b;
+set autocommit = 0;
+#
+# S-lock to records (2,2),(4,2), and (6,2) should not be released in a update
+#
+--error 1205
+select * from t1 where a = 2 and b = 2 for update;
+connection a;
+commit;
+connection b;
+commit;
+drop table t1;
+disconnect a;
+disconnect b;
+
