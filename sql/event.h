@@ -195,24 +195,30 @@ event_timed_compare(event_timed **a, event_timed **b);
 
 
 /*
-CREATE TABLE `event` (
-  `db` varchar(64) character set utf8 collate utf8_bin NOT NULL default '',
-  `name` varchar(64) character set utf8 collate utf8_bin NOT NULL default '',
-  `body` longblob NOT NULL,
-  `definer` varchar(77) character set utf8 collate utf8_bin NOT NULL default '',
-  `execute_at` datetime default NULL,
-  `transient_expression` int(11) default NULL,
-  `interval_type` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL,
-  `created` timestamp NOT NULL,
-  `modified` timestamp NOT NULL,
-  `last_executed` datetime default NULL,
-  `starts` datetime default NULL,
-  `ends` datetime default NULL,
-  `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
-  `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
-  `comment` varchar(64) character set utf8 collate utf8_bin NOT NULL default '',
-  PRIMARY KEY  (`db`,`name`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+CREATE TABLE event (
+  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  body longblob NOT NULL,
+  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  execute_at DATETIME default NULL,
+  interval_value int(11) default NULL,
+  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
+                       'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
+                       'DAY_MINUTE','DAY_SECOND',
+                       'HOUR_MINUTE','HOUR_SECOND',
+                       'MINUTE_SECOND','DAY_MICROSECOND',
+                       'HOUR_MICROSECOND','MINUTE_MICROSECOND',
+                       'SECOND_MICROSECOND') default NULL,
+  created TIMESTAMP NOT NULL,
+  modified TIMESTAMP NOT NULL,
+  last_executed DATETIME default NULL,
+  starts DATETIME default NULL,
+  ends DATETIME default NULL,
+  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
+  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  PRIMARY KEY  (db,name)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 */
 
 #endif /* _EVENT_H_ */
