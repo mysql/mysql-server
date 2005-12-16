@@ -188,12 +188,15 @@ event_timed_compare_q(void *vptr, byte* a, byte *b)
     evex_open_event_table_for_read()
       thd         Thread context
       lock_type   How to lock the table
+      table       The table pointer
   RETURN
-    0	Error
-    #	Pointer to TABLE object
+    1	Cannot lock table
+    2   The table is corrupted - different number of fields
+    0	OK
 */
 
-TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
+int
+evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
 {
   TABLE_LIST tables;
   bool not_used;
@@ -205,9 +208,17 @@ TABLE *evex_open_event_table(THD *thd, enum thr_lock_type lock_type)
   tables.lock_type= lock_type;
 
   if (simple_open_n_lock_tables(thd, &tables))
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
+  
+  if (tables.table->s->fields != EVEX_FIELD_COUNT)
+  {
+    my_error(ER_EVENT_COL_COUNT_DOESNT_MATCH, MYF(0), "mysql", "event");
+    close_thread_tables(thd);
+    DBUG_RETURN(2);
+  }
+  *table= tables.table;
 
-  DBUG_RETURN(tables.table);
+  DBUG_RETURN(0);
 }
 
 
@@ -382,7 +393,7 @@ db_create_event(THD *thd, event_timed *et)
 
 
   DBUG_PRINT("info", ("open mysql.event for update"));
-  if (!(table= evex_open_event_table(thd, TL_WRITE)))
+  if (evex_open_event_table(thd, TL_WRITE, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     goto err;
@@ -491,7 +502,7 @@ db_update_event(THD *thd, event_timed *et, sp_name *new_name)
     DBUG_PRINT("enter", ("rename to: %.*s", new_name->m_name.length,
                                             new_name->m_name.str));
 
-  if (!(table= evex_open_event_table(thd, TL_WRITE)))
+  if (evex_open_event_table(thd, TL_WRITE, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     goto err;
@@ -590,7 +601,7 @@ db_find_event(THD *thd, sp_name *name, event_timed **ett, TABLE *tbl)
 
   if (tbl)
     table= tbl;
-  else if (!(table= evex_open_event_table(thd, TL_READ)))
+  else if (evex_open_event_table(thd, TL_READ, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     ret= EVEX_GENERAL_ERROR;
@@ -869,7 +880,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
   bool opened;
   DBUG_ENTER("evex_drop_event");
 
-  if (!(table= evex_open_event_table(thd, TL_WRITE)))
+  if (evex_open_event_table(thd, TL_WRITE, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     goto done;

@@ -209,13 +209,13 @@ event_executor_main(void *arg)
   evex_is_running= true;  
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
+  thd->security_ctx->user= my_strdup("event_scheduler", MYF(0));
+
   if (evex_load_events_from_db(thd))
     goto err;
 
-  thd->security_ctx->user= my_strdup("event_scheduler", MYF(0));
-  THD_CHECK_SENTRY(thd);
-  /* Read queries from the IO/THREAD until this thread is killed */
   evex_main_thread_id= thd->thread_id;
+
   sql_print_information("Scheduler thread started");
   while (!thd->killed)
   {
@@ -509,8 +509,11 @@ evex_load_events_from_db(THD *thd)
   
   DBUG_ENTER("evex_load_events_from_db");  
 
-  if (!(table= evex_open_event_table(thd, TL_READ)))
+  if ((ret= evex_open_event_table(thd, TL_READ, &table)))
+  {
+    sql_print_error("Table mysql.event is damaged.");
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  }
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
 
