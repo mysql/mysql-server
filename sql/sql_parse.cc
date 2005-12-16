@@ -3696,7 +3696,7 @@ end_with_restore_list:
         res= evex_update_event(thd, lex->et, lex->spname);
         break;
       case SQLCOM_DROP_EVENT:
-        evex_drop_event(thd, lex->et, lex->drop_if_exists);
+        res= evex_drop_event(thd, lex->et, lex->drop_if_exists);
       default:;
       }
       if (!res)
