@@ -64,14 +64,6 @@ lock_clust_rec_some_has_impl(
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*****************************************************************
-Resets the lock bits for a single record. Releases transactions
-waiting for lock requests here. */
-
-void
-lock_rec_reset_and_release_wait(
-/*============================*/
-	rec_t*	rec);	/* in: record whose locks bits should be reset */
-/*****************************************************************
 Makes a record to inherit the locks of another record as gap type
 locks, but does not reset the lock bits of the other record. Also
 waiting lock requests on rec are inherited as GRANTED gap locks. */
@@ -427,6 +419,18 @@ lock_is_on_table(
 /*=============*/
 				/* out: TRUE if there are lock(s) */
 	dict_table_t*	table);	/* in: database table in dictionary cache */
+/*****************************************************************
+Removes a granted record lock of a transaction from the queue and grants
+locks to other transactions waiting in the queue if they now are entitled
+to a lock. */
+
+void
+lock_rec_unlock(
+/*============*/
+	trx_t*	trx,  		/* in: transaction that has set a record
+				lock */
+	rec_t*	rec,		/* in: record */
+	ulint	lock_mode);	/* in: LOCK_S or LOCK_X */
 /*************************************************************************
 Releases a table lock.
 Releases possible other transactions waiting for this lock. */
