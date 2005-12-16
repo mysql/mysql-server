@@ -1486,11 +1486,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 
@@ -1520,11 +1516,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(clust_pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 	}
