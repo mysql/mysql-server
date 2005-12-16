@@ -53,8 +53,8 @@ int
 evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING rname, TABLE *table);
                        
-TABLE *
-evex_open_event_table(THD *thd, enum thr_lock_type lock_type);
+int
+evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b);

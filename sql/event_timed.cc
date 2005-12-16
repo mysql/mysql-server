@@ -739,7 +739,7 @@ event_timed::update_fields(THD *thd)
   
   thd->reset_n_backup_open_tables_state(&backup);
 
-  if (!(table= evex_open_event_table(thd, TL_WRITE)))
+  if (evex_open_event_table(thd, TL_WRITE, &table))
   {
     ret= SP_OPEN_TABLE_FAILED;
     goto done;
