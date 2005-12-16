@@ -533,28 +533,28 @@ ALTER TABLE proc  MODIFY db
 
 
 CREATE TABLE event (
-  'db' VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  'name' VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  'body' longblob NOT NULL,
-  'definer' VARCHAR(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  'execute_at' DATETIME default NULL,
-  'transient_expression' int(11) default NULL,
-  'interval_type' ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
+  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  body longblob NOT NULL,
+  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  execute_at DATETIME default NULL,
+  interval_value int(11) default NULL,
+  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
                        'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
                        'DAY_MINUTE','DAY_SECOND',
                        'HOUR_MINUTE','HOUR_SECOND',
                        'MINUTE_SECOND','DAY_MICROSECOND',
                        'HOUR_MICROSECOND','MINUTE_MICROSECOND',
                        'SECOND_MICROSECOND') default NULL,
-  'created' TIMESTAMP NOT NULL default '0000-00-00 00:00:00',
-  'modified' TIMESTAMP NOT NULL default '0000-00-00 00:00:00',
-  'last_executed' DATETIME default NULL,
-  'starts' DATETIME default NULL,
-  'ends' DATETIME default NULL,
-  'status' ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
-  'on_completion' ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  'comment' varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  ('db','name')
+  created TIMESTAMP NOT NULL,
+  modified TIMESTAMP NOT NULL,
+  last_executed DATETIME default NULL,
+  starts DATETIME default NULL,
+  ends DATETIME default NULL,
+  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
+  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  PRIMARY KEY  (db,name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
 
