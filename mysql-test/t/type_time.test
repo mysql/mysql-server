@@ -21,4 +21,18 @@ select t, time_to_sec(t),sec_to_time(time_to_sec(t)) from t1;
 select sec_to_time(time_to_sec(t)) from t1;
 drop table t1;
 
+#
+# BUG #12440: Incorrect processing of time values containing
+# long fraction part and/or large exponent part.
+#
+# These must return normal result:
+SELECT CAST(235959.123456 AS TIME);
+SELECT CAST(0.235959123456e+6 AS TIME);
+SELECT CAST(235959123456e-6 AS TIME);
+# These must cut fraction part and produce warning:
+SELECT CAST(235959.1234567 AS TIME);
+SELECT CAST(0.2359591234567e6 AS TIME);
+# This must return NULL and produce warning:
+SELECT CAST(0.2359591234567e+30 AS TIME);
+
 # End of 4.1 tests
