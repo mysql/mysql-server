@@ -37,11 +37,15 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-debug \
 			compile-pentium-debug-max \
 			compile-pentium-debug-max-no-embedded \
+			compile-pentium-debug-max-no-ndb \
 			compile-pentium-debug-no-bdb \
 			compile-pentium-debug-openssl \
 			compile-pentium-debug-yassl \
 			compile-pentium-gcov \
 			compile-pentium-gprof \
+			compile-pentium-icc \
+			compile-pentium-icc-valgrind-max \
+			compile-pentium-icc-yassl \
 			compile-pentium-max \
 			compile-pentium-myodbc \
 			compile-pentium-mysqlfs-debug \
@@ -53,6 +57,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-ppc \
 			compile-ppc-debug \
 			compile-ppc-debug-max \
+			compile-ppc-debug-max-no-ndb \
 			compile-ppc-max \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
