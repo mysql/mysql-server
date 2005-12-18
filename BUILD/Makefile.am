@@ -23,7 +23,9 @@ EXTRA_DIST =		FINISH.sh \
 			compile-alpha-ccc \
 			compile-alpha-cxx \
 			compile-alpha-debug \
+			compile-dist \
 			compile-ia64-debug-max \
+			compile-irix-mips64-mipspro \
 			compile-pentium \
 			compile-pentium-debug \
 			compile-pentium-debug-max \
@@ -35,9 +37,10 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-myodbc \
 			compile-pentium-mysqlfs-debug \
 			compile-pentium-pgcc \
+			compile-pentium-valgrind-max \
+			compile-pentium64-debug-max \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
-			compile-irix-mips64-mipspro \
 			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
 
