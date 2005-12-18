@@ -277,9 +277,9 @@ our $opt_stress=               "";
 our $opt_stress_suite=     "main";
 our $opt_stress_mode=    "random";
 our $opt_stress_threads=        5;
-our $opt_stress_test_count=    20;
-our $opt_stress_loop_count=    "";
-our $opt_stress_test_duration= "";
+our $opt_stress_test_count=     0;
+our $opt_stress_loop_count=     0;
+our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
