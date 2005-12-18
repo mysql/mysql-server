@@ -157,7 +157,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
     goto err;
   }
   if ((error=d_search(info,keyinfo,
-                      (keyinfo->flag & HA_FULLTEXT ? SEARCH_FIND
+                      (keyinfo->flag & HA_FULLTEXT ? SEARCH_FIND | SEARCH_UPDATE
                                                    : SEARCH_SAME),
                        key,key_length,old_root,root_buff)) >0)
   {
