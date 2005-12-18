@@ -3014,25 +3014,6 @@ void ha_ndbcluster::position(const byte *record)
         }      
         *buff++= 0;
       }
-      size_t len = key_part->length;
-      const byte * ptr = record + key_part->offset;
-      Field *field = key_part->field;
-      if ((field->type() ==  MYSQL_TYPE_VARCHAR) &&
-	  ((Field_varstring*)field)->length_bytes == 1)
-      {
-	/** 
-	 * Keys always use 2 bytes length
-	 */
-	buff[0] = ptr[0];
-	buff[1] = 0;
-	memcpy(buff+2, ptr + 1, len);	
-	len += 2;
-      }
-      else
-      {
-	memcpy(buff, ptr, len);
-      }
-      buff += len;
     }
   } 
   else 
