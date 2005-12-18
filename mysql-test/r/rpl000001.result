@@ -50,7 +50,7 @@ select (@id := id) - id from t2;
 0
 kill @id;
 drop table t2;
-ERROR 08S01: Server shutdown in progress
+Got one of the listed errors
 set global sql_slave_skip_counter=1;
 start slave;
 select count(*) from t1;

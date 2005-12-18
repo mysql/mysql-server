@@ -473,10 +473,12 @@ void THD::awake(THD::killed_state state_to_set)
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
+  {
     thr_alarm_kill(real_id);
 #ifdef SIGNAL_WITH_VIO_CLOSE
-  close_active_vio();
+    close_active_vio();
 #endif    
+  }
   if (mysys_var)
   {
     pthread_mutex_lock(&mysys_var->mutex);
