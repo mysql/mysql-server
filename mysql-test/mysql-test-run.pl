@@ -964,7 +964,7 @@ sub executable_setup () {
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
     $exe_my_print_defaults=
-      mtr_script_exists("$glob_basedir/extra/my_print_defaults");
+      mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
@@ -982,7 +982,7 @@ sub executable_setup () {
       mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
 			"$glob_basedir/scripts/mysql_fix_privilege_tables");
     $exe_my_print_defaults=
-      mtr_script_exists("$path_client_bindir/my_print_defaults");
+      mtr_exe_exists("$path_client_bindir/my_print_defaults");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
