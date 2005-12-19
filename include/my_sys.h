@@ -820,6 +820,9 @@ my_bool my_gethwaddr(uchar *to);
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
 #endif
+#ifndef MAP_NORESERVE   
+#define MAP_NORESERVE 0         /* For irix and AIX */
+#endif
 
 #ifdef HAVE_MMAP64
 #define my_mmap(a,b,c,d,e,f)    mmap64(a,b,c,d,e,f)
