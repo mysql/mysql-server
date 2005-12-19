@@ -2616,7 +2616,9 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
     is_blob= (field->type() == FIELD_TYPE_BLOB);
-    if (field->has_charset() || is_blob)
+    if (field->has_charset() || is_blob ||
+        field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
+        field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
       longlong char_max_len= is_blob ? 
         (longlong) field->max_length() / field->charset()->mbminlen :

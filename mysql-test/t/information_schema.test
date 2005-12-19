@@ -759,3 +759,11 @@ show columns from t1;
 describe t1;
 show indexes from t1;
 drop table t1;
+
+#
+# Bug#14271 I_S: columns has no size for (var)binary columns
+#
+create table t1(f1 binary(32), f2 varbinary(64));
+select character_maximum_length, character_octet_length
+from information_schema.columns where table_name='t1';
+drop table t1;
