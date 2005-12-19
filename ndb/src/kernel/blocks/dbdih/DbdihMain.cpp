@@ -10976,7 +10976,11 @@ void Dbdih::initCommonData()
 
   cnoReplicas = 1;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
-  cnoReplicas = cnoReplicas > 4 ? 4 : cnoReplicas;
+  if (cnoReplicas > 4)
+  {
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+	      "Only up to four replicas are supported. Check NoOfReplicas.");
+  }
 
   cgcpDelay = 2000;
   ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL, &cgcpDelay);
@@ -11568,14 +11572,14 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     break;
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
-    Uint32 ownNodeGoup =
+    Uint32 ownNodeGroup =
       Sysfile::getNodeGroup(sd->nodeId, SYSFILE->nodeGroups);
 
-    sd->output = ownNodeGoup;
+    sd->output = ownNodeGroup;
     sd->mask.clear();
 
     NodeGroupRecordPtr ngPtr;
-    ngPtr.i = ownNodeGoup;
+    ngPtr.i = ownNodeGroup;
     ptrAss(ngPtr, nodeGroupRecord);
     for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
       jam();
@@ -11583,7 +11587,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     }
 #if 0
     for (int i = 0; i < MAX_NDB_NODES; i++) {
-      if (ownNodeGoup == 
+      if (ownNodeGroup == 
 	  Sysfile::getNodeGroup(i, SYSFILE->nodeGroups)) {
 	sd->mask.set(i);
       }
