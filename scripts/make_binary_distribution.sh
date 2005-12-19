@@ -132,6 +132,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
+  client/mysqlslap$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
   client/mysqlbinlog$BS \
@@ -153,6 +154,7 @@ else
     client/mysqltestmanagerc \
     client/mysqltestmanager-pwgen tools/mysqltestmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
+    client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqltestmanagerc \
