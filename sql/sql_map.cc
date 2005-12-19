@@ -25,10 +25,6 @@
 #include <sys/mman.h>
 #endif
 
-#ifndef MAP_NORESERVE
-#define MAP_NORESERVE 0				// For IRIX
-#endif
-
 mapped_files::mapped_files(const my_string filename,byte *magic,uint magic_length)
 {
 #ifdef HAVE_MMAP

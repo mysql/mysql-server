@@ -1176,13 +1176,6 @@ static uint max_bit(register uint value)
 static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,byte *buf);
 static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
 
-#ifndef MAP_NORESERVE
-#define MAP_NORESERVE 0		/* For irix */
-#endif
-#ifndef MAP_FAILED
-#define MAP_FAILED -1
-#endif
-
 my_bool _mi_memmap_file(MI_INFO *info)
 {
   byte *file_map;
