@@ -1,3 +1,4 @@
+source include/have_bdb.inc
 source include/federated.inc;
 
 connection slave;
