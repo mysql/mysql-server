@@ -1067,3 +1067,10 @@ show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	f1	1	f1	A	NULL	NULL	NULL	YES	BTREE	
 drop table t1;
+create table t1(f1 binary(32), f2 varbinary(64));
+select character_maximum_length, character_octet_length
+from information_schema.columns where table_name='t1';
+character_maximum_length	character_octet_length
+32	32
+64	64
+drop table t1;
