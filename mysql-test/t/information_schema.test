@@ -748,3 +748,14 @@ drop table t1;
 select table_type from information_schema.tables
 where table_name="v1";
 drop view v1;
+
+#
+# Bug #14387 SHOW COLUMNS doesn't work on temporary tables
+# Bug #15224 SHOW INDEX from temporary table doesn't work
+# Bug #12770 DESC cannot display the info. about temporary table
+#
+create temporary table t1(f1 int, index(f1));
+show columns from t1;
+describe t1;
+show indexes from t1;
+drop table t1;
