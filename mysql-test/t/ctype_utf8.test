@@ -882,4 +882,14 @@ set names utf8;
 select distinct char(a) from t1;
 drop table t1;
 
+#
+# Bug#15581: COALESCE function truncates mutli-byte TINYTEXT values
+#
+CREATE TABLE t1 (t TINYTEXT CHARACTER SET utf8);
+INSERT INTO t1 VALUES(REPEAT('a', 100));
+CREATE TEMPORARY TABLE t2 SELECT COALESCE(t) AS bug FROM t1;
+SELECT LENGTH(bug) FROM t2;
+DROP TABLE t2;
+DROP TABLE t1;
+
 # End of 4.1 tests
