@@ -218,7 +218,6 @@ class MYSQL_LOG: public TC_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  bool reset_pending;
   bool write_error, inited;
   bool need_start_event;
   /*

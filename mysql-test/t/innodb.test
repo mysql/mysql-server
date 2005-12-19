@@ -1356,8 +1356,8 @@ source include/varchar.inc;
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
 --replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
---error 1005
 create table t1 (v varchar(65530), key(v));
+drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1485,7 +1485,7 @@ CREATE TEMPORARY TABLE t2
 DROP TABLE t1;
 
 #
-# Test that index column max sizes are checked (bug #13315)
+# Test that index column max sizes are honored (bug #13315)
 #
 
 # prefix index
@@ -1512,22 +1512,36 @@ create table t8 (col1 blob, index(col1(767)))
 create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
  character set = latin1 engine = innodb;
 
+show create table t9;
+
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
 
---error 1005
-create table t1 (col1 varchar(768), index (col1))
+# these should have their index length trimmed
+create table t1 (col1 varchar(768), index(col1))
  character set = latin1 engine = innodb;
---error 1005
-create table t2 (col1 varchar(768) primary key)
+create table t2 (col1 varbinary(768), index(col1))
  character set = latin1 engine = innodb;
---error 1005
-create table t3 (col1 varbinary(768) primary key)
+create table t3 (col1 text, index(col1(768)))
  character set = latin1 engine = innodb;
---error 1005
-create table t4 (col1 text, index(col1(768)))
+create table t4 (col1 blob, index(col1(768)))
  character set = latin1 engine = innodb;
---error 1005
-create table t5 (col1 blob, index(col1(768)))
+
+show create table t1;
+
+drop table t1, t2, t3, t4;
+
+# these should be refused
+--error 1071
+create table t1 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t2 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+--error 1071
+create table t3 (col1 text, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+--error 1071
+create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
 
 #

@@ -1,12 +1,11 @@
 #------------------------------------------------------------------------------
-# MySQL Client
+# MySQL Slap
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
-SCREENNAME "MySQL Check Tool[scrollable]"
+SCREENNAME "MySQL Slap[scrollable]"
 COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
-DESCRIPTION "MySQL Check Tool"
+DESCRIPTION "MySQL Slap Tool"
 VERSION 4, 0
-STACKSIZE 32768
 XDCDATA ../netware/mysql.xdc
 #DEBUG
 

@@ -1877,13 +1877,12 @@ File create_frm(THD *thd, const char *name, const char *db,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
 
-#if SIZEOF_OFF_T > 4
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
   if (create_info->max_rows > UINT_MAX32)
     create_info->max_rows= UINT_MAX32;
   if (create_info->min_rows > UINT_MAX32)
     create_info->min_rows= UINT_MAX32;
-#endif
+
   /*
     Ensure that raid_chunks can't be larger than 255, as this would cause
     problems with drop database

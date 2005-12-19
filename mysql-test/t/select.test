@@ -2805,3 +2805,13 @@ EXPLAIN SELECT t2.key_a,foo
     WHERE t2.key_a=2 and key_b=5;
 
 DROP TABLE t1,t2,t3;
+
+#
+# Bug#15268 Unchecked null value caused server crash
+#
+create table t1(f1 char, f2 char not null);
+insert into t1 values(null,'a');
+create table t2 (f2 char not null);
+insert into t2 values('b');
+select * from t1 left join t2 on f1=t2.f2 where t1.f2='a';
+drop table t1,t2;
