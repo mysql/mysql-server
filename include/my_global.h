@@ -415,6 +415,9 @@ C_MODE_END
 #include <assert.h>
 
 /* Go around some bugs in different OS and compilers */
+#if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
+#define _LARGEFILE64_SOURCE
+#endif
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
