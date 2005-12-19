@@ -841,6 +841,7 @@ my_bool my_gethwaddr(uchar *to);
 /* not a complete set of mmap() flags, but only those that nesessary */
 #define PROT_READ        1
 #define PROT_WRITE       2
+#define MAP_NORESERVE    0
 #define MAP_SHARED       0x0001
 #define MAP_NOSYNC       0x0800
 #define MAP_FAILED       ((void *)-1)
