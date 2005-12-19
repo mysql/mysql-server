@@ -21,27 +21,46 @@ EXTRA_DIST =		FINISH.sh \
 			SETUP.sh \
 			autorun.sh \
 			check-cpu \
+			cleanup \
 			compile-alpha \
 			compile-alpha-ccc \
 			compile-alpha-cxx \
 			compile-alpha-debug \
+			compile-amd64-debug-max \
+			compile-amd64-max \
+			compile-darwin-mwcc \
+			compile-dist \
+			compile-hpux11-parisc2-aCC \
 			compile-ia64-debug-max \
+			compile-irix-mips64-mipspro \
 			compile-pentium \
 			compile-pentium-debug \
 			compile-pentium-debug-max \
+			compile-pentium-debug-max-no-embedded \
+			compile-pentium-debug-max-no-ndb \
 			compile-pentium-debug-no-bdb \
 			compile-pentium-debug-openssl \
 			compile-pentium-debug-yassl \
 			compile-pentium-gcov \
 			compile-pentium-gprof \
+			compile-pentium-icc \
+			compile-pentium-icc-valgrind-max \
+			compile-pentium-icc-yassl \
 			compile-pentium-max \
 			compile-pentium-myodbc \
 			compile-pentium-mysqlfs-debug \
 			compile-pentium-pgcc \
+			compile-pentium-valgrind-max \
+			compile-pentium64-debug \
+			compile-pentium64-debug-max \
+			compile-pentium64-valgrind-max \
+			compile-ppc \
+			compile-ppc-debug \
+			compile-ppc-debug-max \
+			compile-ppc-debug-max-no-ndb \
+			compile-ppc-max \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
-			compile-irix-mips64-mipspro \
-			compile-hpux11-parisc2-aCC \
 			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
 

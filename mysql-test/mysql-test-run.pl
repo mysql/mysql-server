@@ -277,9 +277,9 @@ our $opt_stress=               "";
 our $opt_stress_suite=     "main";
 our $opt_stress_mode=    "random";
 our $opt_stress_threads=        5;
-our $opt_stress_test_count=    20;
-our $opt_stress_loop_count=    "";
-our $opt_stress_test_duration= "";
+our $opt_stress_test_count=     0;
+our $opt_stress_loop_count=     0;
+our $opt_stress_test_duration=  0;
 our $opt_stress_init_file=     "";
 our $opt_stress_test_file=     "";
 
@@ -963,7 +963,7 @@ sub executable_setup () {
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
     $exe_mysqlslap=      mtr_exe_exists("$path_client_bindir/mysqlslap");
-    $exe_mysqlimport=      mtr_exe_exists("$path_client_bindir/mysqlimport");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -978,6 +978,7 @@ sub executable_setup () {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlslap=      mtr_exe_exists("$path_client_bindir/mysqlslap");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");

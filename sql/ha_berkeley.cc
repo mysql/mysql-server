@@ -666,7 +666,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 
     /* Open other keys;  These are part of the share structure */
     key_file[primary_key]=file;
-    key_type[primary_key]=DB_NOOVERWRITE;
+    key_type[primary_key]= hidden_primary_key ? 0 : DB_NOOVERWRITE;
 
     DB **ptr=key_file;
     for (uint i=0, used_keys=0; i < table_share->keys ; i++, ptr++)

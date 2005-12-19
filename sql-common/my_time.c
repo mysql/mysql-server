@@ -575,18 +575,34 @@ fractional:
   /* Get fractional second part */
   if ((end-str) >= 2 && *str == '.' && my_isdigit(&my_charset_latin1,str[1]))
   {
-    uint field_length=5;
+    int field_length= 5;
     str++; value=(uint) (uchar) (*str - '0');
-    while (++str != end && 
-           my_isdigit(&my_charset_latin1,str[0]) && 
-           field_length--)
-      value=value*10 + (uint) (uchar) (*str - '0');
-    if (field_length)
+    while (++str != end && my_isdigit(&my_charset_latin1, *str))
+    {
+      if (field_length-- > 0)
+        value= value*10 + (uint) (uchar) (*str - '0');
+    }
+    if (field_length > 0)
       value*= (long) log_10_int[field_length];
+    else if (field_length < 0)
+      *was_cut= 1;
     date[4]=value;
   }
   else
     date[4]=0;
+    
+  /* Check for exponent part: E<gigit> | E<sign><digit> */
+  /* (may occur as result of %g formatting of time value) */
+  if ((end - str) > 1 &&
+      (*str == 'e' || *str == 'E') &&
+      (my_isdigit(&my_charset_latin1, str[1]) ||
+       ((str[1] == '-' || str[1] == '+') &&
+        (end - str) > 2 &&
+        my_isdigit(&my_charset_latin1, str[2]))))
+  {
+    *was_cut= 1;
+    return 1;
+  }
 
   if (internal_format_positions[7] != 255)
   {

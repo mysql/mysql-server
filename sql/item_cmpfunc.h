@@ -723,9 +723,9 @@ public:
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String tmp(buff, sizeof(buff), cmp_charset), *res;
-    if (!(res= arg->val_str(&tmp)))
-      return 1;				/* Can't be right */
-    return sortcmp(value_res, res, cmp_charset);
+    res= arg->val_str(&tmp);
+    return (value_res ? (res ? sortcmp(value_res, res, cmp_charset) : 1) :
+            (res ? -1 : 0));
   }
   int compare(cmp_item *c)
   {
