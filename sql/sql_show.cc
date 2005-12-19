@@ -2069,6 +2069,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     bool res;
 
     lex->all_selects_list= lsel;
+    /*
+      Restore thd->temporary_tables to be able to process
+      temporary tables(only for 'show index' & 'show columns').
+      This should be changed when processing of temporary tables for
+      I_S tables will be done.
+    */
+    thd->temporary_tables= open_tables_state_backup.temporary_tables;
     res= open_normal_and_derived_tables(thd, show_table_list,
                                         MYSQL_LOCK_IGNORE_FLUSH);
     /*
@@ -2088,6 +2095,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                                              show_table_list->view_db.str :
                                              show_table_list->db),
                                             show_table_list->alias));
+    thd->temporary_tables= 0;
     close_thread_tables(thd);
     show_table_list->table= 0;
     goto err;
