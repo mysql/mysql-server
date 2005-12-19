@@ -132,6 +132,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
+  client/mysqlslap$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
   client/mysqlbinlog$BS \
@@ -153,6 +154,7 @@ else
     client/mysqltestmanagerc \
     client/mysqltestmanager-pwgen tools/mysqltestmanager \
     client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
+    client/.libs/mysqlslap \
     client/.libs/mysqldump client/.libs/mysqlimport \
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqltestmanagerc \
@@ -193,6 +195,7 @@ if [ $BASE_SYSTEM = "netware" ] ; then
       libname=`basename $i .a`
       $MV $i $BASE/lib/$libname.lib
     done
+    rm -f $BASE/lib/*.la
 fi
 
 copyfileto $BASE/include config.h include/*
@@ -288,6 +291,9 @@ if [ $BASE_SYSTEM = "netware" ] ; then
         $BASE/support-files/mysql*.spec \
         $BASE/support-files/mysql-log-rotate \
         $BASE/support-files/binary-configure \
+        $BASE/support-files/build-tags \
+	$BASE/support-files/MySQL-shared-compat.spec \
+        $BASE/support-files/ndb-config-2-node.ini \
         $BASE/INSTALL-BINARY \
         $BASE/MySQLEULA.txt
 else
