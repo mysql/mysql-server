@@ -17,6 +17,5 @@ ndb_cache_multi2: Bug#15004
 func_group      : Bug#15448
 func_math       : Bug#15448
 group_min_max   : Bug#15448 
-mysqlslap       : Bug#15483
 subselect       : Bug#15706
 type_time       : Bug#15805
