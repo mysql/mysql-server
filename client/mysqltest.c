@@ -247,6 +247,8 @@ typedef struct
 struct connection
 {
   MYSQL mysql;
+  /* Used when creating views and sp, to avoid implicit commit */
+  MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
 };
@@ -551,6 +553,8 @@ static void close_cons()
       mysql_stmt_close(next_con->stmt);
     next_con->stmt= 0;
     mysql_close(&next_con->mysql);
+    if (next_con->util_mysql)
+      mysql_close(next_con->util_mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
   }
   DBUG_VOID_RETURN;
@@ -1948,6 +1952,9 @@ int close_connection(struct st_query *q)
       }
 #endif
       mysql_close(&con->mysql);
+      if (con->util_mysql)
+	mysql_close(con->util_mysql);
+      con->util_mysql= 0;
       my_free(con->name, MYF(0));
       /*
          When the connection is closed set name to "closed_connection"
@@ -2040,16 +2047,15 @@ void init_manager()
     0 - success, non-0 - failure
 */
 
-int safe_connect(MYSQL* con, const char *host, const char *user,
-		 const char *pass,
-		 const char *db, int port, const char *sock)
+int safe_connect(MYSQL* mysql, const char *host, const char *user,
+		 const char *pass, const char *db, int port, const char *sock)
 {
   int con_error= 1;
   my_bool reconnect= 1;
   int i;
   for (i= 0; i < MAX_CON_TRIES; ++i)
   {
-    if (mysql_real_connect(con, host,user, pass, db, port, sock,
+    if (mysql_real_connect(mysql, host,user, pass, db, port, sock,
 			   CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
     {
       con_error= 0;
@@ -2061,7 +2067,7 @@ int safe_connect(MYSQL* con, const char *host, const char *user,
    TODO: change this to 0 in future versions, but the 'kill' test relies on
    existing behavior
   */
-  mysql_options(con, MYSQL_OPT_RECONNECT, (char *)&reconnect);
+  mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
   return con_error;
 }
 
@@ -2305,10 +2311,10 @@ int do_connect(struct st_query *q)
     con_db= 0;
   if (q->abort_on_error)
   {
-    if ((safe_connect(&next_con->mysql, con_host, con_user, con_pass,
-		      con_db, con_port, con_sock ? con_sock: 0)))
-      die("Could not open connection '%s': %s", con_name,
-          mysql_error(&next_con->mysql));
+    if (safe_connect(&next_con->mysql, con_host, con_user, con_pass,
+		     con_db, con_port, con_sock ? con_sock: 0))
+      die("Could not open connection '%s': %d %s", con_name,
+          mysql_errno(&next_con->mysql), mysql_error(&next_con->mysql));
   }
   else
     error= connect_n_handle_errors(q, &next_con->mysql, con_host, con_user,
@@ -3785,6 +3791,39 @@ end:
 }
 
 
+
+/*
+  Create a util connection if one does not already exists
+  and use that to run the query
+  This is done to avoid implict commit when creating/dropping objects such
+  as view, sp etc.
+*/
+
+static int util_query(MYSQL* org_mysql, const char* query){
+
+  MYSQL* mysql;
+  DBUG_ENTER("util_query");
+
+  if(!(mysql= cur_con->util_mysql))
+  {
+    DBUG_PRINT("info", ("Creating util_mysql"));
+    if (!(mysql= mysql_init(mysql)))
+      die("Failed in mysql_init()");
+
+    if (safe_connect(mysql, org_mysql->host, org_mysql->user,
+		     org_mysql->passwd, org_mysql->db, org_mysql->port,
+		     org_mysql->unix_socket))
+      die("Could not open util connection: %d %s",
+	  mysql_errno(mysql), mysql_error(mysql));
+
+    cur_con->util_mysql= mysql;
+  }
+
+  return mysql_query(mysql, query);
+}
+
+
+
 /*
   Run query
 
@@ -3865,7 +3904,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 			"CREATE OR REPLACE VIEW mysqltest_tmp_v AS ",
 			query_len+64, 256);
     dynstr_append_mem(&query_str, query, query_len);
-    if (mysql_query(mysql, query_str.str))
+    if (util_query(mysql, query_str.str))
     {
       /*
 	Failed to create the view, this is not fatal
@@ -3892,7 +3931,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 	 Collect warnings from create of the view that should otherwise
          have been produced when the SELECT was executed
       */
-      append_warnings(&ds_warnings, mysql);
+      append_warnings(&ds_warnings, cur_con->util_mysql);
     }
 
     dynstr_free(&query_str);
@@ -3909,12 +3948,12 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     */
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
-			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;\n",
+			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;",
 			query_len+64, 256);
-    mysql_query(mysql, query_str.str);
+    util_query(mysql, query_str.str);
     dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
     dynstr_append_mem(&query_str, query, query_len);
-    if (mysql_query(mysql, query_str.str))
+    if (util_query(mysql, query_str.str))
     {
       /*
 	Failed to create the stored procedure for this query,
@@ -3958,13 +3997,13 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 
   if (sp_created)
   {
-    if (mysql_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
+    if (util_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
       die("Failed to drop sp: %d: %s", mysql_errno(mysql), mysql_error(mysql));
   }
 
   if (view_created)
   {
-    if (mysql_query(mysql, "DROP VIEW mysqltest_tmp_v "))
+    if (util_query(mysql, "DROP VIEW mysqltest_tmp_v "))
       die("Failed to drop view: %d: %s",
 	  mysql_errno(mysql), mysql_error(mysql));
   }
@@ -4299,7 +4338,8 @@ int main(int argc, char **argv)
     die("Out of memory");
 
   if (safe_connect(&cur_con->mysql, host, user, pass, db, port, unix_sock))
-    die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
+    die("Could not open connection '%s': %d %s", cur_con->name,
+	mysql_errno(&cur_con->mysql), mysql_error(&cur_con->mysql));
 
   init_var_hash(&cur_con->mysql);
 
