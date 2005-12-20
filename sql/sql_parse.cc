@@ -2835,7 +2835,7 @@ mysql_execute_command(THD *thd)
         if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
         {
           TABLE_LIST *duplicate;
-          if ((duplicate= unique_table(create_table, select_tables)))
+          if ((duplicate= unique_table(thd, create_table, select_tables)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
             res= 1;
@@ -2851,7 +2851,7 @@ mysql_execute_command(THD *thd)
                tab= tab->next_local)
           {
             TABLE_LIST *duplicate;
-            if ((duplicate= unique_table(tab, select_tables)))
+            if ((duplicate= unique_table(thd, tab, select_tables)))
             {
               update_non_unique_table_error(tab, "CREATE", duplicate);
               res= 1;
