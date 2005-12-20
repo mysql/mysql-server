@@ -1137,26 +1137,50 @@ static void do_exec(struct st_query *query)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Set variable from the result of a query
 
-int var_query_set(VAR* v, const char *p, const char** p_end)
+  SYNOPSIS
+    var_query_set()
+    var	        variable to set from query
+    query       start of query string to execute
+    query_end   end of the query string to execute
+
+
+  DESCRIPTION
+    let @<var_name> = `<query>`
+
+    Execute the query and assign the first row of result to var as
+    a tab separated strings
+
+    Also assign each column of the result set to
+    variable "$<var_name>_<column_name>"
+    Thus the tab separated output can be read from $<var_name> and
+    and each individual column can be read as $<var_name>_<col_name>
+
+*/
+
+int var_query_set(VAR* var, const char *query, const char** query_end)
 {
-  char* end = (char*)((p_end && *p_end) ? *p_end : p + strlen(p));
+  char* end = (char*)((query_end && *query_end) ?
+		      *query_end : query + strlen(query));
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   LINT_INIT(res);
 
-  while (end > p && *end != '`')
+  while (end > query && *end != '`')
     --end;
-  if (p == end)
+  if (query == end)
     die("Syntax error in query, missing '`'");
-  ++p;
+  ++query;
 
-  if (mysql_real_query(mysql, p, (int)(end - p)) ||
+  if (mysql_real_query(mysql, query, (int)(end - query)) ||
       !(res = mysql_store_result(mysql)))
   {
     *end = 0;
-    die("Error running query '%s': %s", p, mysql_error(mysql));
+    die("Error running query '%s': %d: %s", query,
+	mysql_errno(mysql) ,mysql_error(mysql));
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1169,21 +1193,39 @@ int var_query_set(VAR* v, const char *p, const char** p_end)
     uint i;
     ulong *lengths;
     char *end;
+    MYSQL_FIELD *fields= mysql_fetch_fields(res);
 
     init_dynamic_string(&result, "", 16384, 65536);
     lengths= mysql_fetch_lengths(res);
     for (i=0; i < mysql_num_fields(res); i++)
     {
       if (row[0])
+      {
+	/* Add to <var_name>_<col_name> */
+	uint j;
+	char var_col_name[MAX_VAR_NAME];
+	uint length= snprintf(var_col_name, MAX_VAR_NAME,
+			      "$%s_%s", var->name, fields[i].name);
+	/* Convert characters not allowed in variable names to '_' */
+	for (j= 1; j < length; j++)
+	{
+	  if (!my_isvar(charset_info,var_col_name[j]))
+	     var_col_name[j]= '_';
+        }
+	var_set(var_col_name,  var_col_name + length,
+		row[i], row[i] + lengths[i]);
+
+        /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
+      }
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(v, result.str, (const char**) &end);
+    eval_expr(var, result.str, (const char**) &end);
     dynstr_free(&result);
   }
   else
-    eval_expr(v, "", 0);
+    eval_expr(var, "", 0);
 
   mysql_free_result(res);
   return 0;
@@ -4129,12 +4171,10 @@ static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   if (!(tmp_var->str_val = my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
+  if (name)
+    strmake(tmp_var->name, name, name_len);
   if (val)
-  {
-    memcpy(tmp_var->str_val, val, val_len);
-    tmp_var->str_val[val_len]=0;
-  }
+    strmake(tmp_var->str_val, val, val_len);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
