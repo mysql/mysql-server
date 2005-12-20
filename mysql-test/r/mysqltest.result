@@ -149,6 +149,9 @@ hello
 mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: Missing delimiter
+mysqltest: End of line junk detected: "sleep 7
+# Another comment
+"
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Extra delimiter ";" found
 MySQL
@@ -301,6 +304,7 @@ mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: system command 'false' failed
+system command 'NonExistsinfComamdn 2> /dev/null' failed
 test
 test2
 test3
@@ -328,6 +332,7 @@ mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_re
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a;'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a '
+OK
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c'
 mysqltest: At line 1: Wrong number of arguments to replace_result in 'replace_result a b c '
 select "a" as col1, "c" as col2;
@@ -353,6 +358,7 @@ mysqltest: At line 1: Missing connection db
 mysqltest: At line 1: Could not open connection 'con2': Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
+OK
 mysqltest: In included file "./var/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
 mysqltest: In included file "./var/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "./var/tmp/con.sql": At line 2: Connection test_con1 already exists
@@ -391,12 +397,20 @@ root@localhost
 --------------------------------------------------------------------------------
 this will be executed
 this will be executed
+mysqltest: Result length mismatch
+mysqltest: The test didn't produce any output
+Failing multi statement query
 mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
+mysqltest: At line 3: query 'create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
+Multi statement using expected error
 create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
@@ -405,11 +419,4 @@ select-me
 select-me
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
-create table t1 (a int primary key);
-insert into t1 values (1);
-select 'select-me';
-insertz error query||||
-select-me
-select-me
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
