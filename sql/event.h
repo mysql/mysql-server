@@ -102,13 +102,13 @@ public:
                 free_sphead_on_delete(true), flags(0)
                 
   {
-    pthread_mutex_init(&LOCK_running, MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
     init();
   }
  
   ~event_timed()
   {
-    pthread_mutex_destroy(&LOCK_running);
+    pthread_mutex_destroy(&this->LOCK_running);
     if (free_sphead_on_delete)
 	    free_sp();
   }
@@ -149,7 +149,7 @@ public:
   void
   mark_last_executed();
   
-  bool
+  int
   drop(THD *thd);
   
   bool

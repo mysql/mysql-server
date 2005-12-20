@@ -877,7 +877,6 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
 {
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
-  bool opened;
   DBUG_ENTER("evex_drop_event");
 
   if (evex_open_event_table(thd, TL_WRITE, &table))
@@ -912,11 +911,12 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
     ret= evex_remove_from_cache(&et->dbname, &et->name, true);
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-done:  
+done:
   /*
-     No need to close the table, it will be closed in sql_parse::do_command()
-     and evex_remove_from_cache does not try to open a table
+    evex_drop_event() is used by event_timed::drop therefore
+    we have to close our thread tables.
   */
+  close_thread_tables(thd);
 
   DBUG_RETURN(ret);
 }
