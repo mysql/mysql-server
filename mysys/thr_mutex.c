@@ -356,3 +356,80 @@ void safe_mutex_end(FILE *file __attribute__((unused)))
 }
 
 #endif /* THREAD && SAFE_MUTEX */
+
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+
+#include "mysys_priv.h"
+#include "my_static.h"
+#include <m_string.h>
+
+#include <m_ctype.h>
+#include <hash.h>
+#include <myisampack.h>
+#include <mysys_err.h>
+#include <my_sys.h>
+
+#undef pthread_mutex_t
+#undef pthread_mutex_init
+#undef pthread_mutex_lock
+#undef pthread_mutex_trylock
+#undef pthread_mutex_unlock
+#undef pthread_mutex_destroy
+#undef pthread_cond_wait
+#undef pthread_cond_timedwait
+
+ulong mutex_delay(ulong delayloops)
+{
+  ulong	i;
+  volatile ulong j;
+
+  j = 0;
+
+  for (i = 0; i < delayloops * 50; i++)
+    j += i;
+
+  return(j); 
+}	
+
+#define MY_PTHREAD_FASTMUTEX_SPINS 8
+#define MY_PTHREAD_FASTMUTEX_DELAY 4
+
+int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
+                              const pthread_mutexattr_t *attr)
+{
+  static int cpu_count= 0;
+#ifdef _SC_NPROCESSORS_CONF
+  if (!cpu_count && (attr == MY_MUTEX_INIT_FAST))
+    cpu_count= sysconf(_SC_NPROCESSORS_CONF);
+#endif
+  
+  if ((cpu_count > 1) && (attr == MY_MUTEX_INIT_FAST))
+    mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
+  else
+    mp->spins= 0;
+  return pthread_mutex_init(&mp->mutex, attr); 
+}
+
+int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
+{
+  int   res;
+  uint  i;
+  uint  maxdelay= MY_PTHREAD_FASTMUTEX_DELAY;
+
+  for (i= 0; i < mp->spins; i++)
+  {
+    res= pthread_mutex_trylock(&mp->mutex);
+
+    if (res == 0)
+      return 0;
+
+    if (res != EBUSY)
+      return res;
+
+    mutex_delay(maxdelay);
+    maxdelay += ((double) random() / (double) RAND_MAX) * 
+	        MY_PTHREAD_FASTMUTEX_DELAY + 1;
+  }
+  return pthread_mutex_lock(&mp->mutex);
+}
+#endif /* defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 
