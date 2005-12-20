@@ -714,10 +714,34 @@ event_timed::mark_last_executed()
 }
 
 
-bool
+/*
+  Returns :
+    0 - OK
+   -1 - Cannot open mysql.event
+   -2 - Cannot find the event in mysql.event (already deleted?)
+   
+   others - return code from SE in case deletion of the event row
+            failed.
+*/
+
+int
 event_timed::drop(THD *thd)
 {
-  return (bool) evex_drop_event(thd, this, false);
+  TABLE *table;
+  int ret= 0;
+  DBUG_ENTER("event_timed::drop");
+
+  if (evex_open_event_table(thd, TL_WRITE, &table))
+    DBUG_RETURN(-1);
+
+  if (evex_db_find_event_aux(thd, dbname, name, table))
+    DBUG_RETURN(-2);
+
+  if ((ret= table->file->delete_row(table->record[0])))
+    DBUG_RETURN(ret);
+    
+  close_thread_tables(thd);
+  DBUG_RETURN(0);
 }
 
 
@@ -783,11 +807,11 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   char *dst, *ret;
   uint len, tmp_len;
 
-  len = strlen("CREATE EVENT ") + dbname.length + strlen(".") + name.length +
-        strlen(" ON SCHEDULE EVERY 5 MINUTE DO ") + body.length + strlen(";");
+  len = strlen("CREATE EVENT `") + dbname.length + strlen(".") + name.length +
+        strlen("` ON SCHEDULE EVERY 5 MINUTE DO ") + body.length + strlen(";");
   
   ret= dst= (char*) alloc_root(thd->mem_root, len + 1);
-  memcpy(dst, "CREATE EVENT ", tmp_len= strlen("CREATE EVENT "));
+  memcpy(dst, "CREATE EVENT `", tmp_len= strlen("CREATE EVENT `"));
   dst+= tmp_len;
   memcpy(dst, dbname.str, tmp_len=dbname.length);
   dst+= tmp_len;
@@ -795,8 +819,8 @@ event_timed::get_show_create_event(THD *thd, uint *length)
   dst+= tmp_len;
   memcpy(dst, name.str, tmp_len= name.length);
   dst+= tmp_len;
-  memcpy(dst, " ON SCHEDULE EVERY 5 MINUTE DO ",
-         tmp_len= strlen(" ON SCHEDULE EVERY 5 MINUTE DO "));
+  memcpy(dst, "` ON SCHEDULE EVERY 5 MINUTE DO ",
+         tmp_len= strlen("` ON SCHEDULE EVERY 5 MINUTE DO "));
   dst+= tmp_len;
 
   memcpy(dst, body.str, tmp_len= body.length);
@@ -834,14 +858,14 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
    
   DBUG_ENTER("event_timed::execute");
 
-  VOID(pthread_mutex_lock(&LOCK_running));
+  VOID(pthread_mutex_lock(&this->LOCK_running));
   if (running) 
   {
-    VOID(pthread_mutex_unlock(&LOCK_running));
+    VOID(pthread_mutex_unlock(&this->LOCK_running));
     DBUG_RETURN(-100);
   }
   running= true;
-  VOID(pthread_mutex_unlock(&LOCK_running));
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
 
   // TODO Andrey : make this as member variable and delete in destructor
   empty_item_list.empty();
@@ -851,9 +875,9 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   
   ret= sphead->execute_procedure(thd, &empty_item_list);
 
-  VOID(pthread_mutex_lock(&LOCK_running));
+  VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
-  VOID(pthread_mutex_unlock(&LOCK_running));
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
 
 done:
   // Don't cache sphead if allocated on another mem_root

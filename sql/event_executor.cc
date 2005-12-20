@@ -90,14 +90,17 @@ init_events()
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   evex_is_running= false;  
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
-
+  
+  if (event_executor_running_global_var)
+  {
 #ifndef DBUG_FAULTY_THR
-  //TODO Andrey: Change the error code returned!
-  if (pthread_create(&th, NULL, event_executor_main, (void*)NULL))
-    DBUG_RETURN(ER_SLAVE_THREAD);
+    //TODO Andrey: Change the error code returned!
+    if (pthread_create(&th, NULL, event_executor_main, (void*)NULL))
+      DBUG_RETURN(ER_SLAVE_THREAD);
 #else
-  event_executor_main(NULL);
+    event_executor_main(NULL);
 #endif
+  }
 
   DBUG_RETURN(0);
 }
@@ -249,6 +252,17 @@ event_executor_main(void *arg)
         continue;
       }
       et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+      if (et->status == MYSQL_EVENT_DISABLED)
+      {
+        DBUG_PRINT("evex_load_events_from_db",("Now it is disabled-exec no more"));
+        if (et->dropped)
+          et->drop(thd);
+        delete et;
+        evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
+        VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+        sql_print_information("Event found disabled, dropping.");
+        continue;    
+      }
         
       time(&now);
       my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
@@ -256,8 +270,6 @@ event_executor_main(void *arg)
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
       if (t2sleep > 0)
       {
-//        sql_print_information("Sleeping for %d seconds.", t2sleep);
-//        printf("\nWHEN=%llu   NOW=%llu\n", TIME_to_ulonglong_datetime(&et->execute_at), TIME_to_ulonglong_datetime(&time_now));
         /*
           We sleep t2sleep seconds but we check every second whether this thread
           has been killed, or there is new candidate
@@ -266,11 +278,9 @@ event_executor_main(void *arg)
                evex_queue_num_elements(EVEX_EQ_NAME) &&
                (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
           my_sleep(1000000);
-//        sql_print_information("Finished sleeping");
       }
       if (!event_executor_running_global_var)
         continue;
-
     }
 
 
@@ -316,7 +326,7 @@ event_executor_main(void *arg)
       printf("[%10s] next at [%llu]\n\n\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
       et->update_fields(thd);
       if ((et->execute_at.year && !et->expression) ||
-           TIME_to_ulonglong_datetime(&et->execute_at) == 0L)
+           TIME_to_ulonglong_datetime(&et->execute_at) == 0)
          et->flags |= EVENT_EXEC_NO_MORE;
     }
     if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
@@ -551,6 +561,7 @@ evex_load_events_from_db(THD *thd)
                       et->dbname.str, et->name.str);
       goto end;
     }
+    
     // let's find when to be executed  
     et->compute_next_execution_time();
     
