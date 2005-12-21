@@ -393,6 +393,7 @@ public:
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
+             XPATH_NODESET, XPATH_NODESET_CMP,
              VIEW_FIXER_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
@@ -555,6 +556,7 @@ public:
       TRUE value is true (not equal to 0)
   */
   virtual bool val_bool();
+  virtual String *val_nodeset(String*) { return 0; }
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);
@@ -1911,6 +1913,7 @@ public:
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"
+#include "item_xmlfunc.h"
 
 class Item_copy_string :public Item
 {

@@ -502,6 +502,16 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
+Item *create_func_xml_extractvalue(Item *a, Item *b)
+{
+  return new Item_func_xml_extractvalue(a, b);
+}
+
+Item *create_func_xml_update(Item *a, Item *b, Item *c)
+{
+  return new Item_func_xml_update(a, b, c);
+}
+
 #ifdef HAVE_SPATIAL
 Item *create_func_as_wkt(Item *a)
 {
