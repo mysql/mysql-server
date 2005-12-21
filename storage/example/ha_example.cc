@@ -67,10 +67,10 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "../mysql_priv.h"
-#include <plugin.h>
-
+#include "mysql_priv.h"
 #include "ha_example.h"
+
+#include <plugin.h>
 
 static handler* example_create_handler(TABLE_SHARE *table);
 static int example_init_func();
@@ -100,12 +100,9 @@ handlerton example_hton= {
   example_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   NULL,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 
