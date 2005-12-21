@@ -26,8 +26,31 @@ extern "C" {
 #define MY_XML_OK	0
 #define MY_XML_ERROR	1
 
+/* 
+  A flag whether to use absolute tag names in call-back functions,
+  like "a", "a.b" and "a.b.c" (used in character set file parser),
+  or relative names like "a", "b" and "c".
+*/
+#define MY_XML_FLAG_RELATIVE_NAMES 1
+
+/*
+  A flag whether to skip normilization of text values before calling
+  call-back functions: i.e. skip leading/trailing spaces,
+  \r, \n, \t characters.
+*/
+#define MY_XML_FLAG_SKIP_TEXT_NORMALIZATION 2
+
+enum my_xml_node_type
+{
+  MY_XML_NODE_TAG,   /* can have TAG, ATTR and TEXT children */
+  MY_XML_NODE_ATTR,  /* can have TEXT children               */
+  MY_XML_NODE_TEXT   /* cannot have children                 */
+};
+
 typedef struct xml_stack_st
 {
+  int flags;
+  enum my_xml_node_type current_node_type;
   char errstr[128];
   char attr[128];
   char *attrend;

@@ -104,7 +104,8 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
     a->end=p->cur;
     if (a->beg[0] == p->cur[0])p->cur++;
     a->beg++;
-    my_xml_norm_text(a);
+    if (!(p->flags & MY_XML_FLAG_SKIP_TEXT_NORMALIZATION))
+      my_xml_norm_text(a);
     lex=MY_XML_STRING;
   }
   else
@@ -148,7 +149,10 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
   memcpy(st->attrend,str,len);
   st->attrend+=len;
   st->attrend[0]='\0';
-  return st->enter ?  st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
+  if (st->flags & MY_XML_FLAG_RELATIVE_NAMES)
+    return st->enter ? st->enter(st, str, len) : MY_XML_OK;
+  else
+    return st->enter ?  st->enter(st,st->attr,st->attrend-st->attr) : MY_XML_OK;
 }
 
 
@@ -167,7 +171,7 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
   char s[32];
   char g[32];
   int  rc;
-  
+
   /* Find previous '.' or beginning */
   for( e=p->attrend; (e>p->attr) && (e[0] != '.') ; e--);
   glen = (uint) ((e[0] == '.') ? (p->attrend-e-1) : p->attrend-e);
@@ -180,7 +184,10 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
     return MY_XML_ERROR;
   }
   
-  rc = p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
+  if (p->flags & MY_XML_FLAG_RELATIVE_NAMES)
+    rc= p->leave_xml ? p->leave_xml(p, str, slen) : MY_XML_OK;
+  else
+    rc = p->leave_xml ?  p->leave_xml(p,p->attr,p->attrend-p->attr) : MY_XML_OK;
   
   *e='\0';
   p->attrend=e;
@@ -240,6 +247,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
       
       if (MY_XML_IDENT == lex)
       {
+        p->current_node_type= MY_XML_NODE_TAG;
         if (MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))
           return MY_XML_ERROR;
       }
@@ -259,6 +267,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
           lex=my_xml_scan(p,&b);
           if ( (lex == MY_XML_IDENT) || (lex == MY_XML_STRING) )
           {
+            p->current_node_type= MY_XML_NODE_ATTR;
             if ((MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg)))  ||
                 (MY_XML_OK != my_xml_value(p,b.beg,(uint) (b.end-b.beg)))  ||
                 (MY_XML_OK != my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
@@ -273,6 +282,7 @@ int my_xml_parse(MY_XML_PARSER *p,const char *str, uint len)
         }
         else if ((MY_XML_STRING == lex) || (MY_XML_IDENT == lex))
         {
+          p->current_node_type= MY_XML_NODE_ATTR;
           if ((MY_XML_OK != my_xml_enter(p,a.beg,(uint) (a.end-a.beg))) ||
               (MY_XML_OK != my_xml_leave(p,a.beg,(uint) (a.end-a.beg))))
            return MY_XML_ERROR;
@@ -319,7 +329,8 @@ gt:
       for ( ; (p->cur < p->end) && (p->cur[0] != '<')  ; p->cur++);
       a.end=p->cur;
       
-      my_xml_norm_text(&a);
+      if (!(p->flags & MY_XML_FLAG_SKIP_TEXT_NORMALIZATION))
+        my_xml_norm_text(&a);
       if (a.beg != a.end)
       {
         my_xml_value(p,a.beg,(uint) (a.end-a.beg));
