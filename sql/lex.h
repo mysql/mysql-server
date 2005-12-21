@@ -631,6 +631,7 @@ static SYMBOL sql_functions[] = {
   { "EQUALS",		F_SYM(FUNC_ARG2),0,CREATE_FUNC_GEOM(create_func_equals)},
   { "EXTERIORRING",	F_SYM(FUNC_ARG1),0,CREATE_FUNC_GEOM(create_func_exteriorring)},
   { "EXTRACT",		SYM(EXTRACT_SYM)},
+  { "EXTRACTVALUE",	F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_xml_extractvalue)},
   { "EXP",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_exp)},
   { "EXPORT_SET",	SYM(EXPORT_SET)},
   { "FIELD",		SYM(FIELD_FUNC)},	/* For compability */
@@ -785,6 +786,7 @@ static SYMBOL sql_functions[] = {
   { "UNHEX",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_unhex)},
   { "UNIQUE_USERS",	SYM(UNIQUE_USERS)},
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP)},
+  { "UPDATEXML",	F_SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_xml_update)},
   { "UPPER",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
   { "UUID",		F_SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_uuid)},
   { "VARIANCE",		SYM(VARIANCE_SYM)},

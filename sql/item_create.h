@@ -102,7 +102,8 @@ Item *create_load_file(Item* a);
 Item *create_func_is_free_lock(Item* a);
 Item *create_func_is_used_lock(Item* a);
 Item *create_func_quote(Item* a);
-
+Item *create_func_xml_extractvalue(Item *a, Item *b);
+Item *create_func_xml_update(Item *a, Item *b, Item *c);
 #ifdef HAVE_SPATIAL
 
 Item *create_func_geometry_from_text(Item *a);
