@@ -53,11 +53,20 @@ struct st_plugin_int
 
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
-extern void plugin_init(void);
+extern int plugin_init(void);
+extern void plugin_load(void);
 extern void plugin_free(void);
 extern my_bool plugin_is_ready(LEX_STRING *name, int type);
 extern st_plugin_int *plugin_lock(LEX_STRING *name, int type);
 extern void plugin_unlock(struct st_plugin_int *plugin);
 extern my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl);
 extern my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name);
+
+extern my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
+
+typedef my_bool (plugin_foreach_func)(THD *thd, 
+                                      st_plugin_int *plugin,
+                                      void *arg);
+extern my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
+                              int type, void *arg);
 #endif

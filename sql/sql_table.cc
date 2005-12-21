@@ -27,7 +27,6 @@
 #include <io.h>
 #endif
 
-
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -40,7 +39,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    ha_rows *copied,ha_rows *deleted);
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
-                         enum db_type *new_engine);                             
+                         handlerton **new_engine);                             
 
 /*
   SYNOPSIS
@@ -290,7 +289,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     TABLE_SHARE *share;
-    table->db_type= DB_TYPE_UNKNOWN;
+    table->db_type= NULL;
     if ((share= get_cached_table_share(table->db, table->table_name)))
       table->db_type= share->db_type;
   }
@@ -304,7 +303,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
-    db_type table_type;
+    handlerton *table_type;
+    enum legacy_db_type frm_db_type;
 
     mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
     if (!close_temporary_table(thd, table))
@@ -331,12 +331,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       /* remove .frm file and engine files */
       build_table_path(path, sizeof(path), db, alias, reg_ext);
     }
-    if (table_type == DB_TYPE_UNKNOWN &&
+    if (table_type == NULL &&
         (drop_temporary ||
          (access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
-          mysql_frm_type(thd, path, &table_type) != FRMTYPE_TABLE)))
+          mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
     {
       // Table was not found on disk and table can't be created from engine
       if (if_exists)
@@ -349,13 +349,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      if (table_type == DB_TYPE_UNKNOWN)
-	mysql_frm_type(thd, path, &table_type);
+      if (table_type == NULL)
+      {
+	mysql_frm_type(thd, path, &frm_db_type);
+        table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
+      }
       *(end=fn_ext(path))=0;			// Remove extension for delete
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-	  (if_exists || table_type == DB_TYPE_UNKNOWN))
+	  (if_exists || table_type == NULL))
 	error= 0;
       if (error == HA_ERR_ROW_IS_REFERENCED)
       {
@@ -413,7 +416,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 }
 
 
-bool quick_rm_table(enum db_type base,const char *db,
+bool quick_rm_table(handlerton *base,const char *db,
 		   const char *table_name)
 {
   char path[FN_REFLEN];
@@ -1670,10 +1673,10 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     this information in the default_db_type variable, it is either
     DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
     */
-    enum db_type part_engine_type= create_info->db_type;
+    handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
     uint syntax_len;
-    if (part_engine_type == DB_TYPE_PARTITION_DB)
+    if (part_engine_type == &partition_hton)
     {
       /*
         This only happens at ALTER TABLE.
@@ -1681,7 +1684,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
         TABLE command.
       */
       part_engine_type= ha_checktype(thd,
-                                     part_info->default_engine_type, 0, 0);
+                        ha_legacy_type(part_info->default_engine_type), 0, 0);
     }
     else
     {
@@ -1702,7 +1705,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
     if ((!(file->partition_flags() & HA_CAN_PARTITION)) ||
-        create_info->db_type == DB_TYPE_PARTITION_DB)
+        create_info->db_type == &partition_hton)
     {
       /*
         The handler assigned to the table cannot handle partitioning.
@@ -1711,7 +1714,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_PRINT("info", ("db_type: %d  part_flag: %d",
                           create_info->db_type,file->partition_flags()));
       delete file;
-      create_info->db_type= DB_TYPE_PARTITION_DB;
+      create_info->db_type= &partition_hton;
       if (!(file= get_ha_partition(part_info)))
       {
         DBUG_RETURN(TRUE);
@@ -1928,8 +1931,9 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
-  tmp_table.s->db_low_byte_first= test(create_info->db_type == DB_TYPE_MYISAM ||
-                                       create_info->db_type == DB_TYPE_HEAP);
+  tmp_table.s->db_low_byte_first= 
+        test(create_info->db_type == &myisam_hton ||
+             create_info->db_type == &heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
   while ((item=it++))
@@ -2006,7 +2010,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 ****************************************************************************/
 
 bool
-mysql_rename_table(enum db_type base,
+mysql_rename_table(handlerton *base,
 		   const char *old_db,
 		   const char *old_name,
 		   const char *new_db,
@@ -2020,7 +2024,7 @@ mysql_rename_table(enum db_type base,
   int error=0;
   DBUG_ENTER("mysql_rename_table");
 
-  file= (base == DB_TYPE_UNKNOWN ? 0 :
+  file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
 
   build_table_path(from, sizeof(from), old_db, old_name, "");
@@ -2861,7 +2865,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *src_table= table_ident->table.str;
   int  err;
   bool res= TRUE;
-  db_type not_used;
+  enum legacy_db_type not_used;
 
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
@@ -3149,7 +3153,7 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
     fields.push_back(c_fld);
   }
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.db_type= (handlerton*) &default_hton;
   create_info.default_table_charset= thd->variables.collation_database;
   db_options= 0;
   if (mysql_prepare_table(thd, &create_info, &fields,
@@ -3173,7 +3177,7 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   {
     /* Re-initialize the create_info, which was changed by prepare table. */
     bzero((char*) &create_info,sizeof(create_info));
-    create_info.db_type=DB_TYPE_DEFAULT;
+    create_info.db_type= (handlerton*) &default_hton;
     create_info.default_table_charset= thd->variables.collation_database;
     /* Cleanup the fields list. We do not want to create existing fields. */
     fields.delete_elements();
@@ -3268,7 +3272,7 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
   }
 
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.db_type= (handlerton*) &default_hton;
   create_info.default_table_charset= thd->variables.collation_database;
 
   if ((drop_key)|| (drop.elements<= 0))
@@ -3484,13 +3488,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ha_rows copied,deleted;
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
-  enum db_type old_db_type,new_db_type;
+  handlerton *old_db_type, *new_db_type;
   uint need_copy_table= 0;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool online_add_empty_partition= FALSE;
   bool online_drop_partition= FALSE;
   bool partition_changed= FALSE;
-  enum db_type default_engine_type;
+  handlerton *default_engine_type;
 #endif
   DBUG_ENTER("mysql_alter_table");
 
@@ -3567,7 +3571,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   old_db_type= table->s->db_type;
-  if (create_info->db_type == DB_TYPE_DEFAULT)
+  if (create_info->db_type == (handlerton*) &default_hton)
     create_info->db_type= old_db_type;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -3671,7 +3675,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           DBUG_RETURN(TRUE);
         }
       }
-      create_info->db_type= DB_TYPE_PARTITION_DB;
+      create_info->db_type= &partition_hton;
       thd->lex->part_info= tab_part_info;
       if (table->file->alter_table_flags() & HA_ONLINE_ADD_EMPTY_PARTITION &&
           (tab_part_info->part_type == RANGE_PARTITION ||
@@ -3903,7 +3907,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     partition_changed= TRUE;
     tab_part_info->no_parts= tab_part_info->partitions.elements;
-    create_info->db_type= DB_TYPE_PARTITION_DB;
+    create_info->db_type= &partition_hton;
     thd->lex->part_info= tab_part_info;
     if (alter_info->flags == ALTER_ADD_PARTITION ||
         alter_info->flags == ALTER_REORGANISE_PARTITION)
@@ -3974,9 +3978,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (thd->lex->part_info != table->part_info)
         partition_changed= TRUE;
-      if (create_info->db_type != DB_TYPE_PARTITION_DB)
+      if (create_info->db_type != &partition_hton)
         thd->lex->part_info->default_engine_type= create_info->db_type;
-      create_info->db_type= DB_TYPE_PARTITION_DB;
+      create_info->db_type= &partition_hton;
     }
   }
 #endif
@@ -4667,7 +4671,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   error=0;
   if (!need_copy_table)
-    new_db_type=old_db_type=DB_TYPE_UNKNOWN; // this type cannot happen in regular ALTER
+    new_db_type=old_db_type= NULL; // this type cannot happen in regular ALTER
   if (mysql_rename_table(old_db_type,db,table_name,db,old_name))
   {
     error=1;
@@ -4997,7 +5001,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->col_list.empty();
   lex->alter_info.reset();
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.db_type= (handlerton*) &default_hton;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -5129,21 +5133,21 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 }
 
 static bool check_engine(THD *thd, const char *table_name,
-                         enum db_type *new_engine)
+                         handlerton **new_engine)
 {
-  enum db_type req_engine= *new_engine;
+  handlerton *req_engine= *new_engine;
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
-  if ((*new_engine=
-       ha_checktype(thd, req_engine, no_substitution, 1)) == DB_TYPE_UNKNOWN)
+  if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
+                                  no_substitution, 1)))
     return TRUE;
 
-  if (req_engine != *new_engine)
+  if (req_engine != (handlerton*) &default_hton && req_engine != *new_engine)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARN_USING_OTHER_HANDLER,
                        ER(ER_WARN_USING_OTHER_HANDLER),
-                       ha_get_storage_engine(*new_engine),
+                       ha_resolve_storage_engine_name(*new_engine),
                        table_name);
   }
   return FALSE;

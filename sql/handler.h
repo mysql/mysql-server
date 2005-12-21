@@ -178,7 +178,7 @@
 /* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
 #define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
 
-enum db_type
+enum legacy_db_type
 {
   DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
   DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
@@ -191,7 +191,7 @@ enum db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
-  DB_TYPE_DEFAULT // Must be last
+  DB_TYPE_DEFAULT=127 // Must be last
 };
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
@@ -315,8 +315,9 @@ typedef struct st_table TABLE;
 typedef struct st_table_share TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
-typedef bool (stat_print_fn)(THD *thd, const char *type, const char *file,
-                             const char *status);
+typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
+                             const char *file, uint file_len,
+                             const char *status, uint status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 
 /*
@@ -332,6 +333,13 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 */
 typedef struct
 {
+  /*
+    handlerton structure version
+   */
+  const int interface_version;
+#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x00000000
+
+
   /*
     storage engine name as it should be printed to a user
   */
@@ -351,7 +359,7 @@ typedef struct
     Historical number used for frm file to determine the correct storage engine.
     This is going away and new engines will just use "name" for this.
   */
-  enum db_type db_type;
+  enum legacy_db_type db_type;
   /* 
     Method that initizlizes a storage engine
   */
@@ -416,19 +424,17 @@ typedef struct
    handler *(*create)(TABLE_SHARE *table);
    void (*drop_database)(char* path);
    int (*panic)(enum ha_panic_function flag);
-   int (*release_temporary_latches)(THD *thd);
-   int (*update_statistics)();
    int (*start_consistent_snapshot)(THD *thd);
    bool (*flush_logs)();
    bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
-   int (*repl_report_sent_binlog)(THD *thd, char *log_file_name,
-                                  my_off_t end_offset);
    uint32 flags;                                /* global handler flags */
 } handlerton;
 
+extern const handlerton default_hton;
+
 struct show_table_alias_st {
   const char *alias;
-  const char *type;
+  enum legacy_db_type type;
 };
 
 /* Possible flags of a handlerton */
@@ -496,7 +502,7 @@ public:
   char* part_comment;
   char* data_file_name;
   char* index_file_name;
-  enum db_type engine_type;
+  handlerton *engine_type;
   enum partition_state part_state;
   uint16 nodegroup_id;
   
@@ -504,7 +510,7 @@ public:
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
     tablespace_name(NULL), range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
-    engine_type(DB_TYPE_UNKNOWN),part_state(PART_NORMAL),
+    engine_type(NULL),part_state(PART_NORMAL),
     nodegroup_id(UNDEF_NODEGROUP)
   {
     subpartitions.empty();
@@ -567,7 +573,7 @@ public:
   key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
   key_map some_fields_in_PF;
 
-  enum db_type default_engine_type;
+  handlerton *default_engine_type;
   Item_result part_result_type;
   partition_type part_type;
   partition_type subpart_type;
@@ -608,7 +614,7 @@ public:
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
     curr_part_elem(NULL), current_partition(NULL),
-    default_engine_type(DB_TYPE_UNKNOWN),
+    default_engine_type(NULL),
     part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
     part_info_len(0), part_func_len(0), subpart_func_len(0),
@@ -683,7 +689,7 @@ typedef struct st_ha_create_information
   ulong raid_chunksize;
   ulong used_fields;
   SQL_LIST merge_list;
-  enum db_type db_type;
+  handlerton *db_type;
   enum row_type row_type;
   uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
@@ -730,7 +736,7 @@ int get_parts_for_update(const byte *old_data, byte *new_data,
                          uint32 *old_part_id, uint32 *new_part_id);
 int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id);
-bool check_partition_info(partition_info *part_info,enum db_type eng_type,
+bool check_partition_info(partition_info *part_info,handlerton *eng_type,
                           handler *file, ulonglong max_rows);
 bool fix_partition_func(THD *thd, const char *name, TABLE *table);
 char *generate_partition_syntax(partition_info *part_info,
@@ -746,7 +752,7 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                part_id_range *part_spec);
 bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             uint part_info_len, TABLE *table,
-                            enum db_type default_db_type);
+                            handlerton *default_db_type);
 #endif
 
 
@@ -1416,32 +1422,56 @@ extern ulong total_ha, total_ha_2pc;
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 /* lookups */
-enum db_type ha_resolve_by_name(const char *name, uint namelen);
-const char *ha_get_storage_engine(enum db_type db_type);
+handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name);
+handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
+const char *ha_get_storage_engine(enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
-                         enum db_type db_type);
-enum db_type ha_checktype(THD *thd, enum db_type database_type,
+                         handlerton *db_type);
+handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                           bool no_substitute, bool report_error);
-bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag);
+
+
+inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
+{
+  return (db_type == NULL) ? DB_TYPE_UNKNOWN : db_type->db_type;
+}
+
+inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
+{
+  return db_type == NULL ? "UNKNOWN" : db_type->name;
+}
+
+inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
+{
+  return db_type == NULL ? FALSE : test(db_type->flags & flag);
+}
+
+inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
+{
+  return (db_type && db_type->create) ? 
+         (db_type->state == SHOW_OPTION_YES) : FALSE;
+}
 
 /* basic stuff */
 int ha_init(void);
+int ha_register_builtin_plugins();
+int ha_initialize_handlerton(handlerton *hton);
+
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);
 int ha_update_statistics();
 void ha_close_connection(THD* thd);
-my_bool ha_storage_engine_is_enabled(enum db_type database_type);
-bool ha_flush_logs(enum db_type db_type=DB_TYPE_DEFAULT);
+bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
 		    bool update_create_info);
-int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
+int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 
 /* statistics and info */
-bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat);
+bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);

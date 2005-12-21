@@ -55,6 +55,7 @@ static handler *myisam_create_handler(TABLE_SHARE *table);
 /* MyISAM handlerton */
 
 handlerton myisam_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "MyISAM",
   SHOW_OPTION_YES,
   "Default engine as of MySQL 3.23 with great performance", 
@@ -82,12 +83,9 @@ handlerton myisam_hton= {
   myisam_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   mi_panic,/* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 
