@@ -1574,6 +1574,20 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
 fi
 
+if test "$with_debug" = "no"
+then
+  AC_ARG_WITH([fast-mutexes],
+              AC_HELP_STRING([--with-fast-mutexes], 
+              [compile with fast mutexes (default is enabled)]),
+              [with_fast_mutexes=$withval], [with_fast_mutexes=yes])
+fi
+
+if test "$with_fast_mutexes" = "yes"
+then
+  AC_DEFINE([MY_PTHREAD_FASTMUTEX], [1], 
+            [Define to 1 if you want to use fast mutexes])
+fi
+
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
