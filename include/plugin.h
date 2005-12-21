@@ -51,6 +51,7 @@ struct st_mysql_plugin
   int type;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
   void *info;           /* pointer to type-specific plugin descriptor   */
   const char *name;     /* plugin name                                  */
+  uint version;         /* plugin version                               */
   const char *author;   /* plugin author (for SHOW PLUGINS)             */
   const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
   int (*init)(void);    /* the function to invoke when plugin is loaded */

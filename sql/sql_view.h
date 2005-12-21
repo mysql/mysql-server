@@ -27,7 +27,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST * view);
 
 bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
 
-frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt);
+frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt);
 
 int view_checksum(THD *thd, TABLE_LIST *view);
 

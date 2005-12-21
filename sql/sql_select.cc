@@ -8637,7 +8637,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
   {
     table->file= get_new_handler(share, &table->mem_root,
-                                 share->db_type= DB_TYPE_MYISAM);
+                                 share->db_type= &myisam_hton);
     if (group &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
@@ -8646,7 +8646,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else
   {
     table->file= get_new_handler(share, &table->mem_root,
-                                 share->db_type= DB_TYPE_HEAP);
+                                 share->db_type= &heap_hton);
   }
   if (!table->file)
     goto err;
@@ -8776,7 +8776,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
     share->max_rows= ~(ha_rows) 0;
   else
-    share->max_rows= (((share->db_type == DB_TYPE_HEAP) ?
+    share->max_rows= (((share->db_type == &heap_hton) ?
                           min(thd->variables.tmp_table_size,
                               thd->variables.max_heap_table_size) :
                           thd->variables.tmp_table_size)/ share->reclength);
@@ -8916,7 +8916,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
-  if (share->db_type == DB_TYPE_MYISAM)
+  if (share->db_type == &myisam_hton)
   {
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
@@ -9236,7 +9236,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   int write_err;
   DBUG_ENTER("create_myisam_from_heap");
 
-  if (table->s->db_type != DB_TYPE_HEAP || error != HA_ERR_RECORD_FILE_FULL)
+  if (table->s->db_type != &heap_hton || 
+      error != HA_ERR_RECORD_FILE_FULL)
   {
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
@@ -9244,9 +9245,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table= *table;
   share= *table->s;
   new_table.s= &share;
-  new_table.s->db_type= DB_TYPE_MYISAM;
+  new_table.s->db_type= &myisam_hton;
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
-                                        DB_TYPE_MYISAM)))
+                                        &myisam_hton)))
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
@@ -11685,7 +11686,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
   free_io_cache(entry);				// Safety
   entry->file->info(HA_STATUS_VARIABLE);
-  if (entry->s->db_type == DB_TYPE_HEAP ||
+  if (entry->s->db_type == &heap_hton ||
       (!entry->s->blob_fields &&
        ((ALIGN_SIZE(reclength) + HASH_OVERHEAD) * entry->file->records <
 	thd->variables.sortbuff_size)))

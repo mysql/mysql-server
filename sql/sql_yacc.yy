@@ -92,7 +92,7 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
   enum enum_var_type var_type;
   Key::Keytype key_type;
   enum ha_key_alg key_alg;
-  enum db_type db_type;
+  handlerton *db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
@@ -1174,7 +1174,7 @@ create:
 	  lex->change=NullS;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
-	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
+	  lex->create_info.db_type= lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->name=0;
 	}
@@ -2822,7 +2822,7 @@ part_definition:
           part_info->current_partition= p_elem;
           part_info->use_default_partitions= FALSE;
           part_info->partitions.push_back(p_elem);
-          p_elem->engine_type= DB_TYPE_UNKNOWN;
+          p_elem->engine_type= NULL;
           part_info->count_curr_parts++;
         }
         part_name {}
@@ -3005,7 +3005,7 @@ sub_part_definition:
           part_info->current_partition->subpartitions.push_back(p_elem);
           part_info->use_default_subpartitions= FALSE;
           part_info->count_curr_subparts++;
-          p_elem->engine_type= DB_TYPE_UNKNOWN;
+          p_elem->engine_type= NULL;
         }
         sub_name opt_part_options {}
         ;
@@ -3234,8 +3234,8 @@ default_collation:
 storage_engines:
 	ident_or_text
 	{
-	  $$ = ha_resolve_by_name($1.str,$1.length);
-	  if ($$ == DB_TYPE_UNKNOWN &&
+	  $$ = ha_resolve_by_name(YYTHD, &$1);
+	  if ($$ == NULL &&
 	      test(YYTHD->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION))
 	  {
 	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
@@ -3886,7 +3886,7 @@ alter:
           lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
-	  lex->create_info.db_type= DB_TYPE_DEFAULT;
+	  lex->create_info.db_type= (handlerton*) &default_hton;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
 	  lex->alter_info.reset();
@@ -7034,11 +7034,19 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
               YYABORT;
 	  }
+        | PLUGIN_SYM
+	  {
+	    LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_PLUGINS;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
+              YYABORT;
+	  }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
 	| ENGINE_SYM ALL 
-	  { Lex->create_info.db_type= DB_TYPE_DEFAULT; }
+	  { Lex->create_info.db_type= NULL; }
 	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild_and_where
 	  {
@@ -7130,14 +7138,24 @@ show_param:
           {
             LEX *lex= Lex;
             lex->sql_command = SQLCOM_SHOW_ENGINE_STATUS;
-            lex->create_info.db_type= DB_TYPE_INNODB;
+            if (!(lex->create_info.db_type=
+                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_INNODB)))
+            {
+	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
+	      YYABORT;
+            }
             WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS");
 	  }
         | MUTEX_SYM STATUS_SYM
           {
 	    LEX *lex= Lex;
             lex->sql_command = SQLCOM_SHOW_ENGINE_MUTEX; 
-            lex->create_info.db_type= DB_TYPE_INNODB;
+            if (!(lex->create_info.db_type=
+                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_INNODB)))
+            {
+	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
+	      YYABORT;
+            }
             WARN_DEPRECATED("SHOW MUTEX STATUS", "SHOW ENGINE INNODB MUTEX");
 	  }
 	| opt_full PROCESSLIST_SYM
@@ -7171,14 +7189,24 @@ show_param:
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
-	    lex->create_info.db_type= DB_TYPE_BERKELEY_DB;
+            if (!(lex->create_info.db_type=
+                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_BERKELEY_DB)))
+            {
+	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
+	      YYABORT;
+            }
 	    WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS");
 	  }
 	| LOGS_SYM
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
-	    lex->create_info.db_type= DB_TYPE_BERKELEY_DB;
+            if (!(lex->create_info.db_type=
+                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_BERKELEY_DB)))
+            {
+	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
+	      YYABORT;
+            }
 	    WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS");
 	  }
 	| GRANTS
@@ -9863,7 +9891,7 @@ opt_migrate:
     ;
 
 install:
-  INSTALL_SYM PLUGIN_SYM IDENT_sys SONAME_SYM TEXT_STRING_sys
+  INSTALL_SYM PLUGIN_SYM ident SONAME_SYM TEXT_STRING_sys
   {
     LEX *lex= Lex;
     lex->sql_command= SQLCOM_INSTALL_PLUGIN;
@@ -9872,7 +9900,7 @@ install:
   };
 
 uninstall:
-  UNINSTALL_SYM PLUGIN_SYM IDENT_sys
+  UNINSTALL_SYM PLUGIN_SYM ident
   {
     LEX *lex= Lex;
     lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;

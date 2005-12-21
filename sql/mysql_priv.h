@@ -607,7 +607,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool if_exists, bool drop_temporary,
 				   bool log_query);
-bool quick_rm_table(enum db_type base,const char *db,
+bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name);
 void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
@@ -754,7 +754,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              HA_CREATE_INFO *create_info,
                              Table_ident *src_table);
-bool mysql_rename_table(enum db_type base,
+bool mysql_rename_table(handlerton *base,
 			const char *old_db,
 			const char * old_name,
 			const char *new_db,
@@ -1005,7 +1005,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
-bool rm_temporary_table(enum db_type base, char *path);
+bool rm_temporary_table(handlerton *base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
@@ -1332,6 +1332,10 @@ extern handlerton partition_hton;
 #else
 extern SHOW_COMP_OPTION have_partition_db;
 #endif
+
+extern handlerton myisam_hton;
+extern handlerton myisammrg_hton;
+extern handlerton heap_hton;
 
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;

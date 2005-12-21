@@ -1177,7 +1177,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
   char path[FN_REFLEN];
   TABLE_LIST *view;
-  db_type not_used;
+  enum legacy_db_type not_used;
   DBUG_ENTER("mysql_drop_view");
 
   for (view= views; view; view= view->next_local)
@@ -1250,7 +1250,7 @@ err:
     FRMTYPE_VIEW	view
 */
 
-frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt)
+frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 {
   File file;
   uchar header[10];	//"TYPE=VIEW\n" it is 10 characters
@@ -1279,7 +1279,7 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, db_type *dbt)
        (header[2] < FRM_VER+3 || header[2] > FRM_VER+4)))
     DBUG_RETURN(FRMTYPE_TABLE);
 
-  *dbt= ha_checktype(thd, (enum db_type) (uint) *(header + 3), 0, 0);
+  *dbt= (enum legacy_db_type) (uint) *(header + 3);
   DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }
 

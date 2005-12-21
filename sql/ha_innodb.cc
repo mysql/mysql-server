@@ -208,6 +208,7 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
 handlerton innobase_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "InnoDB",
   SHOW_OPTION_YES,
   "Supports transactions, row-level locking, and foreign keys", 
@@ -231,16 +232,9 @@ handlerton innobase_hton = {
   innobase_create_handler,	/* Create a new handler */
   innobase_drop_database,	/* Drop a database */
   innobase_end,			/* Panic call */
-  innobase_release_temporary_latches,    /* Release temporary latches */
-  innodb_export_status,		/* Update Statistics */
   innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
   innobase_flush_logs,		/* Flush logs */
   innobase_show_status,		/* Show status */
-#ifdef HAVE_REPLICATION
-  innobase_repl_report_sent_binlog,    /* Replication Report Sent Binlog */
-#else
-  NULL,
-#endif
   HTON_NO_FLAGS
 };
 
@@ -1976,6 +1970,11 @@ innobase_repl_report_sent_binlog(
 {
         int     cmp;
         ibool   can_release_threads     = 0;
+
+	if (!innodb_inited) {
+		
+		return 0;
+	}
 
         /* If synchronous replication is not switched on, or this thd is
         sending binlog to a slave where we do not need synchronous replication,
@@ -6481,10 +6480,11 @@ ha_innobase::transactional_table_lock(
 Here we export InnoDB status variables to MySQL.  */
 
 int
-innodb_export_status(void)
+innodb_export_status()
 /*======================*/
 {
-  srv_export_innodb_status();
+  if (innodb_inited)
+    srv_export_innodb_status();
   return 0;
 }
 
@@ -6571,7 +6571,8 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton.name, "", str)) {
+	if (stat_print(thd, innobase_hton.name, strlen(innobase_hton.name), 
+                       STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
 	my_free(str, MYF(0));
@@ -6596,6 +6597,7 @@ innodb_mutex_show_status(
   ulint   rw_lock_count_os_wait= 0;
   ulint   rw_lock_count_os_yield= 0;
   ulonglong rw_lock_wait_time= 0;
+  uint    hton_name_len= strlen(innobase_hton.name), buf1len, buf2len;
   DBUG_ENTER("innodb_mutex_show_status");
 
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6610,16 +6612,17 @@ innodb_mutex_show_status(
     {
       if (mutex->count_using > 0)
       {
-	my_snprintf(buf1, sizeof(buf1), "%s:%s",
-		    mutex->cmutex_name, mutex->cfile_name);
-	my_snprintf(buf2, sizeof(buf2),
-		    "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		    "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		    mutex->count_using, mutex->count_spin_loop,
-		    mutex->count_spin_rounds,
-		    mutex->count_os_wait, mutex->count_os_yield,
-		    mutex->lspent_time/1000);
-	if (stat_print(thd, innobase_hton.name, buf1, buf2))
+	buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%s",
+		             mutex->cmutex_name, mutex->cfile_name);
+	buf2len= my_snprintf(buf2, sizeof(buf2),
+		             "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+		             "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+		             mutex->count_using, mutex->count_spin_loop,
+		             mutex->count_spin_rounds,
+		             mutex->count_os_wait, mutex->count_os_yield,
+		             mutex->lspent_time/1000);
+	if (stat_print(thd, innobase_hton.name, hton_name_len, 
+                       buf1, buf1len, buf2, buf2len))
         {
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
           mutex_exit(&mutex_list_mutex);
@@ -6641,15 +6644,16 @@ innodb_mutex_show_status(
     mutex = UT_LIST_GET_NEXT(list, mutex);
   }
 
-  my_snprintf(buf2, sizeof(buf2),
-	      "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-	      "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-	      rw_lock_count, rw_lock_count_spin_loop,
-	      rw_lock_count_spin_rounds,
-	      rw_lock_count_os_wait, rw_lock_count_os_yield,
-	      rw_lock_wait_time/1000);
+  buf2len= my_snprintf(buf2, sizeof(buf2),
+	               "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+	               "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+	               rw_lock_count, rw_lock_count_spin_loop,
+	               rw_lock_count_spin_rounds,
+	               rw_lock_count_os_wait, rw_lock_count_os_yield,
+	               rw_lock_wait_time/1000);
 
-  if (stat_print(thd, innobase_hton.name, "rw_lock_mutexes", buf2))
+  if (stat_print(thd, innobase_hton.name, hton_name_len, 
+                 STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len))
   {
     DBUG_RETURN(1);
   }
