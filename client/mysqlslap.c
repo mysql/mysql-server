@@ -91,9 +91,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <sslopt-vars.h>
-#include <sys/time.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
