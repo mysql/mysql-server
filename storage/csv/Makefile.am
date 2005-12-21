@@ -26,9 +26,6 @@ INCLUDES =              -I$(top_srcdir)/include \
                         -I$(srcdir)
 WRAPLIBS=
 
-$(top_builddir)/sql/sql_yacc.h: $(top_builddir)/sql/sql_yacc.yy
-	( cd $(top_builddir)/sql && $(MAKE) sql_yacc.cc )
-
 pkglib_LTLIBRARIES =	ha_csv.la
 
 ha_csv_la_LDFLAGS =	-module
