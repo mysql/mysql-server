@@ -101,8 +101,7 @@ bool mysqld_show_storage_engines(THD *thd)
 
 static int make_version_string(char *buf, int buf_length, uint version)
 {
-  return my_snprintf(buf, buf_length, "%d.%d.%d",
-                     (version>>24)&0xff, (version>>16)&0xff,version&0xffff);
+  return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
 static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
@@ -117,18 +116,23 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
   restore_record(table, s->default_values);
 
   table->field[0]->store(plugin->name.str, plugin->name.length, cs);
+
+  table->field[1]->store(version_buf,
+        make_version_string(version_buf, sizeof(version_buf), plug->version),
+        cs);
+
     
   switch (plugin->state)
   {
   /* case PLUGIN_IS_FREED: does not happen */
   case PLUGIN_IS_DELETED:
-    table->field[1]->store(STRING_WITH_LEN("DELETED"), cs);
+    table->field[2]->store(STRING_WITH_LEN("DELETED"), cs);
     break;
   case PLUGIN_IS_UNINITIALIZED:
-    table->field[1]->store(STRING_WITH_LEN("INACTIVE"), cs);
+    table->field[2]->store(STRING_WITH_LEN("INACTIVE"), cs);
     break;
   case PLUGIN_IS_READY:
-    table->field[1]->store(STRING_WITH_LEN("ACTIVE"), cs);
+    table->field[2]->store(STRING_WITH_LEN("ACTIVE"), cs);
     break;
   default:
     DBUG_ASSERT(0);
@@ -137,63 +141,56 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
   switch (plug->type)
   {
   case MYSQL_UDF_PLUGIN:
-    table->field[2]->store(STRING_WITH_LEN("UDF"), cs);
+    table->field[3]->store(STRING_WITH_LEN("UDF"), cs);
     break;
   case MYSQL_STORAGE_ENGINE_PLUGIN:
-    table->field[2]->store(STRING_WITH_LEN("STORAGE"), cs);
+    table->field[3]->store(STRING_WITH_LEN("STORAGE"), cs);
     break;
   case MYSQL_FTPARSER_PLUGIN:
-    table->field[2]->store(STRING_WITH_LEN("FTPARSER"), cs);
+    table->field[3]->store(STRING_WITH_LEN("FTPARSER"), cs);
     break;
   default:
-    table->field[2]->store(STRING_WITH_LEN("UNKNOWN"), cs);
+    table->field[3]->store(STRING_WITH_LEN("UNKNOWN"), cs);
     break;
   }
 
-  if (plug->version)
-  {
-    table->field[3]->store(version_buf,
-          make_version_string(version_buf, sizeof(version_buf), plug->version),
-          cs);
-    table->field[3]->set_notnull();
-  }
-  else
-    table->field[3]->set_null();
-
-  if (plug->info)
-  {
-    table->field[4]->store(version_buf,
-          make_version_string(version_buf, sizeof(version_buf), 
-                              *(uint *)plug->info), cs);
-    table->field[4]->set_notnull();
-  }
-  else
-    table->field[4]->set_null();
+  table->field[4]->store(version_buf,
+        make_version_string(version_buf, sizeof(version_buf), 
+                            *(uint *)plug->info), cs);
 
   if (plugin->plugin_dl)
   {
     table->field[5]->store(plugin->plugin_dl->dl.str, 
                            plugin->plugin_dl->dl.length, cs);
     table->field[5]->set_notnull();
-  }
-  else
-    table->field[5]->set_null();
-  
-  if (plug->author)
-  {
-    table->field[6]->store(plug->author, strlen(plug->author), cs);
+    table->field[6]->store(version_buf,
+          make_version_string(version_buf, sizeof(version_buf), 
+                              plugin->plugin_dl->version),
+          cs);
     table->field[6]->set_notnull();
   }
   else
-    table->field[6]->set_null();
-
-  if (plug->descr)
   {
-    table->field[7]->store(plug->descr, strlen(plug->descr), cs);
+    table->field[5]->set_null();
+    table->field[6]->set_null();
+  }
+
+
+  if (plug->author)
+  {
+    table->field[7]->store(plug->author, strlen(plug->author), cs);
     table->field[7]->set_notnull();
   }
   else
     table->field[7]->set_null();
+
+  if (plug->descr)
+  {
+    table->field[8]->store(plug->descr, strlen(plug->descr), cs);
+    table->field[8]->set_notnull();
+  }
+  else
+    table->field[8]->set_null();
 
   return schema_table_store_record(thd, table);
 }
@@ -4293,11 +4290,12 @@ ST_FIELD_INFO variables_fields_info[]=
 ST_FIELD_INFO plugin_fields_info[]=
 {
   {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_STATUS", 10, MYSQL_TYPE_STRING, 0, 0, "Status"},
   {"PLUGIN_TYPE", 10, MYSQL_TYPE_STRING, 0, 0, "Type"},
-  {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_LIBRARY", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
+  {"PLUGIN_LIBRARY_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_AUTHOR", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}

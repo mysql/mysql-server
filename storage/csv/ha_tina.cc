@@ -949,11 +949,11 @@ mysql_declare_plugin
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &tina_hton,
   tina_hton.name,
-  0x00010000 /* 0.1.0 */,
   "Brian Aker, MySQL AB",
   "CSV Storage Engine",
   tina_init_func, /* Plugin Init */
-  tina_done_func  /* Plugin Deinit */
+  tina_done_func, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
 }
 mysql_declare_plugin_end;
 

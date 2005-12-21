@@ -401,23 +401,6 @@ int ha_initialize_handlerton(handlerton *hton)
   if (hton == NULL)
     DBUG_RETURN(1);
 
-  /* check major version */
-  if ((hton->interface_version>>24) != (MYSQL_HANDLERTON_INTERFACE_VERSION>>24))
-  {
-    sql_print_error("handlerton major version incompatible");
-    DBUG_PRINT("warning", ("handlerton major version incompatible"));
-    DBUG_RETURN(1);
-  }
-
-  /* check minor version */
-  if ((hton->interface_version>>16)&0xff < 
-        (MYSQL_HANDLERTON_INTERFACE_VERSION>>16)&0xff)
-  {
-    sql_print_error("handlerton minor version incompatible");
-    DBUG_PRINT("warning", ("handlerton minor version incompatible"));
-    DBUG_RETURN(1);
-  }
-
   switch (hton->state)
   {
   case SHOW_OPTION_NO:

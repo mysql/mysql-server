@@ -337,7 +337,7 @@ typedef struct
     handlerton structure version
    */
   const int interface_version;
-#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x00000000
+#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x0000
 
 
   /*
