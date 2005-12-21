@@ -21,7 +21,7 @@
 #include "parse_file.h"
 
 static const LEX_STRING triggers_file_type=
-  {STRING_WITH_LEN("TRIGGERS")};
+  {(char *) STRING_WITH_LEN("TRIGGERS")};
 
 const char * const triggers_file_ext= ".TRG";
 
@@ -34,17 +34,17 @@ const char * const triggers_file_ext= ".TRG";
 static File_option triggers_file_parameters[]=
 {
   {
-    {STRING_WITH_LEN("triggers") },
+    {(char *) STRING_WITH_LEN("triggers") },
     offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
-    {STRING_WITH_LEN("sql_modes") },
+    {(char *) STRING_WITH_LEN("sql_modes") },
     offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
-    {STRING_WITH_LEN("definers") },
+    {(char *) STRING_WITH_LEN("definers") },
     offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
@@ -71,14 +71,14 @@ struct st_trigname
 };
 
 static const LEX_STRING trigname_file_type=
-  {STRING_WITH_LEN("TRIGGERNAME")};
+  {(char *) STRING_WITH_LEN("TRIGGERNAME")};
 
 const char * const trigname_file_ext= ".TRN";
 
 static File_option trigname_file_parameters[]=
 {
   {
-    {STRING_WITH_LEN("trigger_table")},
+    {(char *) STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
    FILE_OPTIONS_ESTRING
   },
@@ -1243,7 +1243,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
                         (char *)path, "TRIGGER");
     File_option sql_modes_parameters=
       {
-        {STRING_WITH_LEN("sql_modes") },
+        {(char *) STRING_WITH_LEN("sql_modes") },
         offsetof(class Table_triggers_list, definition_modes_list),
         FILE_OPTIONS_ULLLIST
       };

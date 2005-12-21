@@ -949,7 +949,7 @@ void Item_splocal::print(String *str)
 *****************************************************************************/
 
 Item_case_expr::Item_case_expr(int case_expr_id)
-  :Item_sp_variable(STRING_WITH_LEN("case_expr")),
+  :Item_sp_variable((char *) STRING_WITH_LEN("case_expr")),
    m_case_expr_id(case_expr_id)
 {
 }
