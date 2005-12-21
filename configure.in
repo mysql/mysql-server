@@ -2520,6 +2520,7 @@ AC_SUBST(mysql_se_libs)
 AC_SUBST(mysql_se_objs)
 AC_SUBST(mysql_se_htons)
 AC_SUBST(mysql_se_decls)
+AC_SUBST(mysql_se_plugins)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
