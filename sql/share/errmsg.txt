@@ -5726,4 +5726,4 @@ ER_PLUGIN_IS_NOT_LOADED
 ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
 ER_NO_PARTITION_FOR_GIVEN_VALUE
-	eng "Table has no partition for value %d"
+	eng "Table has no partition for value %ld"
