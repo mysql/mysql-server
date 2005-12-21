@@ -730,11 +730,11 @@ mysql_declare_plugin
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &example_hton,
   example_hton.name,
-  0x01000000 /* 1.0.0 */,
   "Brian Aker, MySQL AB",
   "Example Storage Engine",
   tina_init_func, /* Plugin Init */
-  tina_done_func  /* Plugin Deinit */
+  tina_done_func, /* Plugin Deinit */
+  0x0001 /* 0.1 */,
 }
 mysql_declare_plugin_end;
 
