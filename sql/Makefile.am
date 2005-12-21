@@ -46,6 +46,7 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
                         @yassl_libs@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
+			item_xmlfunc.h \
 			item_create.h item_subselect.h item_row.h \
 			mysql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
@@ -67,7 +68,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
-			item_row.cc item_geofunc.cc \
+			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc protocol.cc sql_state.c \
 			lock.cc my_lock.c \
