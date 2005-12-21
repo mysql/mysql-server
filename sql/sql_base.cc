@@ -1433,7 +1433,7 @@ void close_temporary_table(THD *thd, TABLE *table,
 
 void close_temporary(TABLE *table, bool free_share, bool delete_table)
 {
-  db_type table_type= table->s->db_type;
+  handlerton *table_type= table->s->db_type;
   DBUG_ENTER("close_temporary");
 
   free_io_cache(table);
@@ -1802,7 +1802,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
-      db_type not_used;
+      enum legacy_db_type not_used;
       strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", table_list->db, "/",
                table_list->table_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
@@ -3278,7 +3278,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(enum db_type base, char *path)
+bool rm_temporary_table(handlerton *base, char *path)
 {
   bool error=0;
   handler *file;

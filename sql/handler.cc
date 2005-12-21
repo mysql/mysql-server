@@ -37,10 +37,31 @@
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+#include "ha_innodb.h"
+#endif
 
 extern handlerton *sys_table_types[];
-  
+
 /* static functions defined in this file */
+
+static handler *create_default(TABLE_SHARE *table);
+
+const handlerton default_hton =
+{
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
+  "DEFAULT",
+  SHOW_OPTION_YES,
+  NULL,
+  DB_TYPE_DEFAULT,
+  NULL,
+  0, 0,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL,
+  create_default,
+  NULL, NULL, NULL, NULL, NULL,
+  HTON_NO_FLAGS
+};
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -53,12 +74,12 @@ ulong savepoint_alloc_size;
 
 struct show_table_alias_st sys_table_aliases[]=
 {
-  {"INNOBASE",	"InnoDB"},
-  {"NDB", "NDBCLUSTER"},
-  {"BDB", "BERKELEYDB"},
-  {"HEAP", "MEMORY"},
-  {"MERGE", "MRG_MYISAM"},
-  {NullS, NullS}
+  {"INNOBASE",  DB_TYPE_INNODB},
+  {"NDB",       DB_TYPE_NDBCLUSTER},
+  {"BDB",       DB_TYPE_BERKELEY_DB},
+  {"HEAP",      DB_TYPE_HEAP},
+  {"MERGE",     DB_TYPE_MRG_MYISAM},
+  {NullS,       DB_TYPE_UNKNOWN}
 };
 
 const char *ha_row_type[] = {
@@ -74,26 +95,22 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
-enum db_type ha_resolve_by_name(const char *name, uint namelen)
+handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
 {
-  THD *thd= current_thd;
   show_table_alias_st *table_alias;
-  handlerton **types;
+  st_plugin_int *plugin;
 
   if (thd && !my_strnncoll(&my_charset_latin1,
-                           (const uchar *)name, namelen,
+                           (const uchar *)name->str, name->length,
                            (const uchar *)"DEFAULT", 7))
-    return (enum db_type) thd->variables.table_type;
+    return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);
 
-retest:
-  for (types= sys_table_types; *types; types++)
+  if ((plugin= plugin_lock(name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
-    if ((!my_strnncoll(&my_charset_latin1,
-                       (const uchar *)name, namelen,
-                       (const uchar *)(*types)->name,
-                        strlen((*types)->name))) &&
-        !((*types)->flags & HTON_NOT_USER_SELECTABLE))
-      return (enum db_type) (*types)->db_type;
+    handlerton *hton= (handlerton *) plugin->plugin->info;
+    if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
+      return hton;
+    plugin_unlock(plugin);
   }
 
   /*
@@ -102,63 +119,99 @@ retest:
   for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
   {
     if (!my_strnncoll(&my_charset_latin1,
-                      (const uchar *)name, namelen,
+                      (const uchar *)name->str, name->length,
                       (const uchar *)table_alias->alias,
                       strlen(table_alias->alias)))
-    {
-      name= table_alias->type;
-      namelen= strlen(name);
-      goto retest;
-    }
+      return ha_resolve_by_legacy_type(thd, table_alias->type);
   }
 
-  return DB_TYPE_UNKNOWN;
+  return NULL;
 }
 
 
-const char *ha_get_storage_engine(enum db_type db_type)
+struct plugin_find_dbtype_st
 {
-  handlerton **types;
-  for (types= sys_table_types; *types; types++)
-  {
-    if (db_type == (*types)->db_type)
-      return (*types)->name;
-  }
-  return "*NONE*";
-}
+  enum legacy_db_type db_type;
+  handlerton *hton;
+};
 
 
-bool ha_check_storage_engine_flag(enum db_type db_type, uint32 flag)
+static my_bool plugin_find_dbtype(THD *unused, st_plugin_int *plugin,
+                                  void *arg)
 {
-  handlerton **types;
-  for (types= sys_table_types; *types; types++)
+  handlerton *types= (handlerton *) plugin->plugin->info;
+  if (types->db_type == ((struct plugin_find_dbtype_st *)arg)->db_type)
   {
-    if (db_type == (*types)->db_type)
-      return test((*types)->flags & flag);
-  }
-  return FALSE;                                 // No matching engine
-}
-
-
-my_bool ha_storage_engine_is_enabled(enum db_type database_type)
-{
-  handlerton **types;
-  for (types= sys_table_types; *types; types++)
-  {
-    if (database_type == (*types)->db_type)
-      return ((*types)->state == SHOW_OPTION_YES) ? TRUE : FALSE;
+    ((struct plugin_find_dbtype_st *)arg)->hton= types;
+    return TRUE;
   }
   return FALSE;
 }
 
 
+const char *ha_get_storage_engine(enum legacy_db_type db_type)
+{
+  struct plugin_find_dbtype_st info;
+  
+  switch (db_type)
+  {
+  case DB_TYPE_DEFAULT:
+    return "DEFAULT";
+  case DB_TYPE_UNKNOWN:
+    return "UNKNOWN";
+  default:
+    info.db_type= db_type;
+
+    if (!plugin_foreach(NULL, plugin_find_dbtype, 
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &info))
+      return "*NONE*";
+
+    return info.hton->name;
+  }
+}
+
+
+static handler *create_default(TABLE_SHARE *table)
+{
+  handlerton *hton=ha_resolve_by_legacy_type(current_thd, DB_TYPE_DEFAULT);
+  return (hton && hton != &default_hton && hton->create) ? 
+        hton->create(table) : NULL;
+}
+
+
+handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
+{
+  struct plugin_find_dbtype_st info;
+
+  switch (db_type)
+  {
+  case DB_TYPE_DEFAULT:
+    return (thd->variables.table_type != NULL) ?
+            thd->variables.table_type :
+            (global_system_variables.table_type != NULL ?
+             global_system_variables.table_type : &myisam_hton);
+  case DB_TYPE_UNKNOWN:
+    return NULL;
+  default:
+    info.db_type= db_type;
+    if (!plugin_foreach(NULL, plugin_find_dbtype, 
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &info))
+      return NULL;
+
+    return info.hton;
+  }
+}
+
+
 /* Use other database handler if databasehandler is not compiled in */
 
-enum db_type ha_checktype(THD *thd, enum db_type database_type,
+handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                           bool no_substitute, bool report_error)
 {
-  if (ha_storage_engine_is_enabled(database_type))
-    return database_type;
+  handlerton *hton= ha_resolve_by_legacy_type(thd, database_type);
+  if (ha_storage_engine_is_enabled(hton))
+    return hton;
+
   if (no_substitute)
   {
     if (report_error)
@@ -166,34 +219,28 @@ enum db_type ha_checktype(THD *thd, enum db_type database_type,
       const char *engine_name= ha_get_storage_engine(database_type);
       my_error(ER_FEATURE_DISABLED,MYF(0),engine_name,engine_name);
     }
-    return DB_TYPE_UNKNOWN;
+    return NULL;
   }
 
   switch (database_type) {
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-    return (database_type);
+    return ha_resolve_by_legacy_type(thd, DB_TYPE_HASH);
 #endif
   case DB_TYPE_MRG_ISAM:
-    return (DB_TYPE_MRG_MYISAM);
+    return ha_resolve_by_legacy_type(thd, DB_TYPE_MRG_MYISAM);
   default:
     break;
   }
-  
-  return ((enum db_type) thd->variables.table_type != DB_TYPE_UNKNOWN ?
-          (enum db_type) thd->variables.table_type :
-          ((enum db_type) global_system_variables.table_type !=
-           DB_TYPE_UNKNOWN ?
-           (enum db_type) global_system_variables.table_type : DB_TYPE_MYISAM)
-          );
+
+  return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);  
 } /* ha_checktype */
 
 
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
-                         enum db_type db_type)
+                         handlerton *db_type)
 {
   handler *file= NULL;
-  handlerton **types;
   /*
     handlers are allocated with new in the handlerton create() function
     we need to set the thd mem_root for these to be allocated correctly
@@ -201,20 +248,15 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
   THD *thd= current_thd;
   MEM_ROOT *thd_save_mem_root= thd->mem_root;
   thd->mem_root= alloc;
-  for (types= sys_table_types; *types; types++)
-  {
-    if (db_type == (*types)->db_type && (*types)->create)
-    {
-      file= ((*types)->state == SHOW_OPTION_YES) ?
-		(*types)->create(share) : NULL;
-      break;
-    }
-  }
+
+  if (db_type != NULL && db_type->state == SHOW_OPTION_YES && db_type->create)
+    file= db_type->create(share);
+
   thd->mem_root= thd_save_mem_root;
 
   if (!file)
   {
-    enum db_type def=(enum db_type) current_thd->variables.table_type;
+    handlerton *def= current_thd->variables.table_type;
     /* Try first with 'default table type' */
     if (db_type != def)
       return get_new_handler(share, alloc, def);
@@ -341,15 +383,71 @@ static int ha_finish_errors(void)
 }
 
 
-static inline void ha_was_inited_ok(handlerton **ht)
+static void ha_was_inited_ok(handlerton *ht)
 {
-  uint tmp= (*ht)->savepoint_offset;
-  (*ht)->savepoint_offset= savepoint_alloc_size;
+  uint tmp= ht->savepoint_offset;
+  ht->savepoint_offset= savepoint_alloc_size;
   savepoint_alloc_size+= tmp;
-  (*ht)->slot= total_ha++;
-  if ((*ht)->prepare)
+  ht->slot= total_ha++;
+  if (ht->prepare)
     total_ha_2pc++;
 }
+
+
+int ha_initialize_handlerton(handlerton *hton)
+{
+  DBUG_ENTER("ha_initialize_handlerton");
+
+  if (hton == NULL)
+    DBUG_RETURN(1);
+
+  /* check major version */
+  if ((hton->interface_version>>24) != (MYSQL_HANDLERTON_INTERFACE_VERSION>>24))
+  {
+    sql_print_error("handlerton major version incompatible");
+    DBUG_PRINT("warning", ("handlerton major version incompatible"));
+    DBUG_RETURN(1);
+  }
+
+  /* check minor version */
+  if ((hton->interface_version>>16)&0xff < 
+        (MYSQL_HANDLERTON_INTERFACE_VERSION>>16)&0xff)
+  {
+    sql_print_error("handlerton minor version incompatible");
+    DBUG_PRINT("warning", ("handlerton minor version incompatible"));
+    DBUG_RETURN(1);
+  }
+
+  switch (hton->state)
+  {
+  case SHOW_OPTION_NO:
+    break;
+  case SHOW_OPTION_YES:
+    if (!hton->init || !hton->init())
+    {
+      ha_was_inited_ok(hton);
+      break;
+    }
+    /* fall through */
+  default:
+    hton->state= SHOW_OPTION_DISABLED;
+    break;
+  }
+  DBUG_RETURN(0);
+}
+
+
+static my_bool init_handlerton(THD *unused1, st_plugin_int *plugin,
+                               void *unused2)
+{
+  if (plugin->state == PLUGIN_IS_UNINITIALIZED)
+  {
+    ha_initialize_handlerton((handlerton *) plugin->plugin->info);
+    plugin->state= PLUGIN_IS_READY;
+  }
+  return FALSE;
+}
+
 
 int ha_init()
 {
@@ -361,16 +459,8 @@ int ha_init()
   if (ha_init_errors())
     return 1;
 
-  /*
-    We now initialize everything here.
-  */
-  for (types= sys_table_types; *types; types++)
-  {
-    if (!(*types)->init || !(*types)->init())
-      ha_was_inited_ok(types); 
-    else
-      (*types)->state= SHOW_OPTION_DISABLED;
-  }
+  if (plugin_foreach(NULL, init_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+    return 1;
 
   DBUG_ASSERT(total_ha < MAX_HA);
   /*
@@ -383,43 +473,97 @@ int ha_init()
   return error;
 }
 
+
+int ha_register_builtin_plugins()
+{
+  handlerton **hton;
+  uint size= 0;
+  struct st_mysql_plugin *plugin;
+  DBUG_ENTER("ha_register_builtin_plugins");
+
+  for (hton= sys_table_types; *hton; hton++)
+    size+= sizeof(struct st_mysql_plugin);
+  
+  if (!(plugin= (struct st_mysql_plugin *)
+        my_once_alloc(size, MYF(MY_WME | MY_ZEROFILL))))
+    DBUG_RETURN(1);
+  
+  for (hton= sys_table_types; *hton; hton++, plugin++)
+  {
+    plugin->type= MYSQL_STORAGE_ENGINE_PLUGIN;
+    plugin->info= *hton;
+    plugin->version= 0;
+    plugin->name= (*hton)->name;
+    plugin->author= NULL;
+    plugin->descr= (*hton)->comment;
+    
+    if (plugin_register_builtin(plugin))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+
+
 	/* close, flush or restart databases */
 	/* Ignore this for other databases than ours */
 
+static my_bool panic_handlerton(THD *unused1, st_plugin_int *plugin,
+                               void *arg)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;  
+  if (hton->state == SHOW_OPTION_YES && hton->panic)
+    ((int*)arg)[0]|= hton->panic((enum ha_panic_function)((int*)arg)[1]);
+  return FALSE;
+}
+
+
 int ha_panic(enum ha_panic_function flag)
 {
-  int error=0;
-  handlerton **types;
-
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES && (*types)->panic)
-        error|= (*types)->panic(flag);
-  }
-  if (ha_finish_errors())
-    error= 1;
-  return error;
+  int error[2];
+  
+  error[0]= 0; error[1]= (int)flag;
+  plugin_foreach(NULL, panic_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, error);
+  
+  if (flag == HA_PANIC_CLOSE && ha_finish_errors())
+    error[0]= 1;
+  return error[0];
 } /* ha_panic */
+
+static my_bool dropdb_handlerton(THD *unused1, st_plugin_int *plugin,
+                                 void *path)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;  
+  if (hton->state == SHOW_OPTION_YES && hton->drop_database)
+    hton->drop_database((char *)path);
+  return FALSE;
+}
+
 
 void ha_drop_database(char* path)
 {
-  handlerton **types;
-
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES && (*types)->drop_database)
-      (*types)->drop_database(path);
-  }
+  plugin_foreach(NULL, dropdb_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, path);
 }
+
+
+static my_bool closecon_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *unused)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;  
+  /* there's no need to rollback here as all transactions must 
+     be rolled back already */
+  if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
+      thd->ha_data[hton->slot])
+    hton->close_connection(thd);
+  return FALSE;
+}
+
 
 /* don't bother to rollback here, it's done already */
 void ha_close_connection(THD* thd)
 {
-  handlerton **types;
-  for (types= sys_table_types; *types; types++)
-	/* XXX Maybe do a rollback if close_connection == NULL ? */
-    if (thd->ha_data[(*types)->slot] && (*types)->close_connection)
-      (*types)->close_connection(thd);
+  plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
 }
 
 /* ========================================================================
@@ -729,21 +873,46 @@ int ha_autocommit_or_rollback(THD *thd, int error)
 }
 
 
+struct xahton_st {
+  XID *xid;
+  int result;
+};
+
+static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
+                                   void *arg)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->recover)
+  {
+    hton->commit_by_xid(((struct xahton_st *)arg)->xid);
+    ((struct xahton_st *)arg)->result= 0;
+  }
+  return FALSE;
+}
+
+static my_bool xarollback_handlerton(THD *unused1, st_plugin_int *plugin,
+                                     void *arg)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->recover)
+  {
+    hton->rollback_by_xid(((struct xahton_st *)arg)->xid);
+    ((struct xahton_st *)arg)->result= 0;
+  }
+  return FALSE;
+}
+
+
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
-  handlerton **types;
-  int res= 1;
+  struct xahton_st xaop;
+  xaop.xid= xid;
+  xaop.result= 1;
+  
+  plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
 
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES && (*types)->recover)
-    {
-      if ((*(commit ? (*types)->commit_by_xid :
-             (*types)->rollback_by_xid))(xid));
-      res= 0;
-    }
-  }
-  return res;
+  return xaop.result;
 }
 
 
@@ -819,23 +988,92 @@ static char* xid_to_str(char *buf, XID *xid)
      in this case commit_list==0, tc_heuristic_recover == 0
      there should be no prepared transactions in this case.
 */
+
+struct xarecover_st
+{
+  int len, found_foreign_xids, found_my_xids;
+  XID *list;
+  HASH *commit_list;
+  bool dry_run;
+};
+
+static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
+                                    void *arg)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  struct xarecover_st *info= (struct xarecover_st *) arg;
+  int got;
+  
+  if (hton->state == SHOW_OPTION_YES && hton->recover)
+  {
+    while ((got= hton->recover(info->list, info->len)) > 0 )
+    {
+      sql_print_information("Found %d prepared transaction(s) in %s",
+                            got, hton->name);
+      for (int i=0; i < got; i ++)
+      {
+        my_xid x=info->list[i].get_my_xid();
+        if (!x) // not "mine" - that is generated by external TM
+        {
+#ifndef DBUG_OFF
+          char buf[XIDDATASIZE*4+6]; // see xid_to_str
+          sql_print_information("ignore xid %s", xid_to_str(buf, info->list+i));
+#endif
+          xid_cache_insert(info->list+i, XA_PREPARED);
+          info->found_foreign_xids++;
+          continue;
+        }
+        if (info->dry_run)
+        {
+          info->found_my_xids++;
+          continue;
+        }
+        // recovery mode
+        if (info->commit_list ?
+            hash_search(info->commit_list, (byte *)&x, sizeof(x)) != 0 :
+            tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
+        {
+#ifndef DBUG_OFF
+          char buf[XIDDATASIZE*4+6]; // see xid_to_str
+          sql_print_information("commit xid %s", xid_to_str(buf, info->list+i));
+#endif
+          hton->commit_by_xid(info->list+i);
+        }
+        else
+        {
+#ifndef DBUG_OFF
+          char buf[XIDDATASIZE*4+6]; // see xid_to_str
+          sql_print_information("rollback xid %s",
+                                xid_to_str(buf, info->list+i));
+#endif
+          hton->rollback_by_xid(info->list+i);
+        }
+      }
+      if (got < info->len)
+        break;
+    }
+  }
+  return FALSE;
+}
+
 int ha_recover(HASH *commit_list)
 {
-  int len, got, found_foreign_xids=0, found_my_xids=0;
-  handlerton **types;
-  XID *list=0;
-  bool dry_run=(commit_list==0 && tc_heuristic_recover==0);
+  struct xarecover_st info;
   DBUG_ENTER("ha_recover");
+  info.found_foreign_xids= info.found_my_xids= 0;
+  info.commit_list= commit_list;
+  info.dry_run= (info.commit_list==0 && tc_heuristic_recover==0);
+  info.list= NULL;
 
   /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(commit_list==0 || tc_heuristic_recover==0);
+  DBUG_ASSERT(info.commit_list==0 || tc_heuristic_recover==0);
   /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT(dry_run || total_ha_2pc>(ulong)opt_bin_log);
+  DBUG_ASSERT(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
 
   if (total_ha_2pc <= (ulong)opt_bin_log)
     DBUG_RETURN(0);
 
-  if (commit_list)
+  if (info.commit_list)
     sql_print_information("Starting crash recovery...");
 
 #ifndef WILL_BE_DELETED_LATER
@@ -845,73 +1083,28 @@ int ha_recover(HASH *commit_list)
   */
   DBUG_ASSERT(total_ha_2pc == (ulong) opt_bin_log+1); // only InnoDB and binlog
   tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
-  dry_run=FALSE;
+  info.dry_run=FALSE;
 #endif
 
-  for (len= MAX_XID_LIST_SIZE ; list==0 && len > MIN_XID_LIST_SIZE; len/=2)
+  for (info.len= MAX_XID_LIST_SIZE ; 
+       info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
   {
-    list=(XID *)my_malloc(len*sizeof(XID), MYF(0));
+    info.list=(XID *)my_malloc(info.len*sizeof(XID), MYF(0));
   }
-  if (!list)
+  if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY), len*sizeof(XID));
+    sql_print_error(ER(ER_OUTOFMEMORY), info.len*sizeof(XID));
     DBUG_RETURN(1);
   }
 
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state != SHOW_OPTION_YES || !(*types)->recover)
-      continue;
-    while ((got=(*(*types)->recover)(list, len)) > 0 )
-    {
-      sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, (*types)->name);
-      for (int i=0; i < got; i ++)
-      {
-        my_xid x=list[i].get_my_xid();
-        if (!x) // not "mine" - that is generated by external TM
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("ignore xid %s", xid_to_str(buf, list+i));
-#endif
-          xid_cache_insert(list+i, XA_PREPARED);
-          found_foreign_xids++;
-          continue;
-        }
-        if (dry_run)
-        {
-          found_my_xids++;
-          continue;
-        }
-        // recovery mode
-        if (commit_list ?
-            hash_search(commit_list, (byte *)&x, sizeof(x)) != 0 :
-            tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("commit xid %s", xid_to_str(buf, list+i));
-#endif
-          (*(*types)->commit_by_xid)(list+i);
-        }
-        else
-        {
-#ifndef DBUG_OFF
-          char buf[XIDDATASIZE*4+6]; // see xid_to_str
-          sql_print_information("rollback xid %s", xid_to_str(buf, list+i));
-#endif
-          (*(*types)->rollback_by_xid)(list+i);
-        }
-      }
-      if (got < len)
-        break;
-    }
-  }
-  my_free((gptr)list, MYF(0));
-  if (found_foreign_xids)
-    sql_print_warning("Found %d prepared XA transactions", found_foreign_xids);
-  if (dry_run && found_my_xids)
+  plugin_foreach(NULL, xarecover_handlerton, 
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &info);
+
+  my_free((gptr)info.list, MYF(0));
+  if (info.found_foreign_xids)
+    sql_print_warning("Found %d prepared XA transactions", 
+                      info.found_foreign_xids);
+  if (info.dry_run && info.found_my_xids)
   {
     sql_print_error("Found %d prepared transactions! It means that mysqld was "
                     "not shut down properly last time and critical recovery "
@@ -919,10 +1112,10 @@ int ha_recover(HASH *commit_list)
                     "after a crash. You have to start mysqld with "
                     "--tc-heuristic-recover switch to commit or rollback "
                     "pending transactions.",
-                    found_my_xids, opt_tc_log_file);
+                    info.found_my_xids, opt_tc_log_file);
     DBUG_RETURN(1);
   }
-  if (commit_list)
+  if (info.commit_list)
     sql_print_information("Crash recovery finished.");
   DBUG_RETURN(0);
 }
@@ -995,32 +1188,17 @@ bool mysql_xa_recover(THD *thd)
 
 int ha_release_temporary_latches(THD *thd)
 {
-  handlerton **types;
-
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES &&
-        (*types)->release_temporary_latches)
-      (*types)->release_temporary_latches(thd);
-  }
-  return 0;
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+  innobase_release_temporary_latches(thd);
+#endif
 }
 
 
-/* 
-  Export statistics for different engines. Currently we use it only for
-  InnoDB.
-*/
-
 int ha_update_statistics()
 {
-  handlerton **types;
-
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES && (*types)->update_statistics)
-      (*types)->update_statistics();
-  }
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+  innodb_export_status();
+#endif
   return 0;
 }
 
@@ -1129,20 +1307,25 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 }
 
 
+static my_bool snapshot_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES &&
+      hton->start_consistent_snapshot)
+  {
+    hton->start_consistent_snapshot(thd);
+    *((bool *)arg)= false;
+  }
+  return FALSE;
+}
+
 int ha_start_consistent_snapshot(THD *thd)
 {
   bool warn= true;
-  handlerton **types;
 
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES &&
-        (*types)->start_consistent_snapshot)
-    {
-      (*types)->start_consistent_snapshot(thd);
-      warn= false; /* hope user is using engine */
-    }
-  }
+  plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not
     exist:
@@ -1155,22 +1338,31 @@ int ha_start_consistent_snapshot(THD *thd)
 }
 
 
-bool ha_flush_logs(enum db_type db_type)
+static my_bool flush_handlerton(THD *thd, st_plugin_int *plugin,
+                                void *arg)
 {
-  bool result=0;
-  handlerton **types;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->flush_logs && hton->flush_logs())
+    return TRUE;
+  return FALSE;
+}
 
-  for (types= sys_table_types; *types; types++)
+
+bool ha_flush_logs(handlerton *db_type)
+{
+  if (db_type == NULL)
   {
-    if ((*types)->state == SHOW_OPTION_YES && 
-        (db_type == DB_TYPE_DEFAULT || db_type == (*types)->db_type) &&
-        (*types)->flush_logs)
-    {
-      if ((*types)->flush_logs())
-        result= 1;
-    }
+    if (plugin_foreach(NULL, flush_handlerton,
+                          MYSQL_STORAGE_ENGINE_PLUGIN, 0))
+      return TRUE;
   }
-  return result;
+  else
+  {
+    if (db_type->state != SHOW_OPTION_YES ||
+        (db_type->flush_logs && db_type->flush_logs()))
+      return TRUE;
+  }
+  return FALSE;
 }
 
 /*
@@ -1178,7 +1370,7 @@ bool ha_flush_logs(enum db_type db_type)
   The .frm file will be deleted only if we return 0 or ENOENT
 */
 
-int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
+int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                     const char *db, const char *alias, bool generate_warning)
 {
   handler *file;
@@ -1193,7 +1385,7 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
-  if (table_type == DB_TYPE_UNKNOWN ||
+  if (table_type == NULL ||
       ! (file=get_new_handler(&dummy_share, thd->mem_root, table_type)))
     DBUG_RETURN(ENOENT);
 
@@ -2486,40 +2678,50 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
     pointer		pointer to TYPELIB structure
 */
 
+static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
+                               void *arg)
+{
+  List<char> *found_exts= (List<char> *) arg;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  handler *file;
+  if (hton->state == SHOW_OPTION_YES && hton->create &&
+      (file= hton->create((TABLE_SHARE*) 0)))
+  {
+    List_iterator_fast<char> it(*found_exts);
+    const char **ext, *old_ext;
+    
+    for (ext= file->bas_ext(); *ext; ext++)
+    {
+      while ((old_ext= it++))
+      {
+        if (!strcmp(old_ext, *ext))
+	  break;
+      }
+      if (!old_ext)
+        found_exts->push_back((char *) *ext);
+
+      it.rewind();
+    }
+    delete file;
+  }
+  return FALSE;
+}
+
 TYPELIB *ha_known_exts(void)
 {
   MEM_ROOT *mem_root= current_thd->mem_root;
   if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
-    handlerton **types;
     List<char> found_exts;
-    List_iterator_fast<char> it(found_exts);
     const char **ext, *old_ext;
 
     known_extensions_id= mysys_usage_id;
     found_exts.push_back((char*) triggers_file_ext);
     found_exts.push_back((char*) trigname_file_ext);
-    for (types= sys_table_types; *types; types++)
-    {
-      if ((*types)->state == SHOW_OPTION_YES)
-      {
-	handler *file= get_new_handler((TABLE_SHARE*) 0, mem_root,
-                                       (enum db_type) (*types)->db_type);
-	for (ext= file->bas_ext(); *ext; ext++)
-	{
-	  while ((old_ext= it++))
-          {
-	    if (!strcmp(old_ext, *ext))
-	      break;
-          }
-	  if (!old_ext)
-	    found_exts.push_back((char *) *ext);
+    
+    plugin_foreach(NULL, exts_handlerton, 
+                   MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
 
-	  it.rewind();
-	}
-	delete file;
-      }
-    }
     ext= (const char **) my_once_alloc(sizeof(char *)*
                                        (found_exts.elements+1),
                                        MYF(MY_WME | MY_FAE));
@@ -2528,6 +2730,7 @@ TYPELIB *ha_known_exts(void)
     known_extensions.count= found_exts.elements;
     known_extensions.type_names= ext;
 
+    List_iterator_fast<char> it(found_exts);
     while ((old_ext= it++))
       *ext++= old_ext;
     *ext= 0;
@@ -2535,24 +2738,37 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
-static bool stat_print(THD *thd, const char *type, const char *file,
-                       const char *status)
+static bool stat_print(THD *thd, const char *type, uint type_len,
+                       const char *file, uint file_len,
+                       const char *status, uint status_len)
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();
-  protocol->store(type, system_charset_info);
-  protocol->store(file, system_charset_info);
-  protocol->store(status, system_charset_info);
+  protocol->store(type, type_len, system_charset_info);
+  protocol->store(file, file_len, system_charset_info);
+  protocol->store(status, status_len, system_charset_info);
   if (protocol->write())
     return TRUE;
   return FALSE;
 }
 
-bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat)
+
+static my_bool showstat_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
 {
-  handlerton **types;
+  enum ha_stat_type stat= *(enum ha_stat_type *) arg;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->show_status &&
+      hton->show_status(thd, stat_print, stat))
+    return TRUE;
+  return FALSE;
+}
+
+bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
+{
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
+  bool result;
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
@@ -2562,25 +2778,24 @@ bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
-  for (types= sys_table_types; *types; types++)
+  if (db_type == NULL)
   {
-    if ((*types)->state == SHOW_OPTION_YES &&
-        (db_type == DB_TYPE_DEFAULT || db_type == (*types)->db_type) &&
-        (*types)->show_status)
-    {
-      if ((*types)->show_status(thd, stat_print, stat))
-        return TRUE;
-    }
-    else if (db_type == (*types)->db_type &&
-             (*types)->state != SHOW_OPTION_YES)
-    {
-      if (stat_print(thd, (*types)->name, "", "DISABLED"))
-	return TRUE;
-    }
+    result= plugin_foreach(thd, showstat_handlerton, 
+                           MYSQL_STORAGE_ENGINE_PLUGIN, &stat);
+  }
+  else
+  {
+    if (db_type->state != SHOW_OPTION_YES)
+      result= stat_print(thd, db_type->name, strlen(db_type->name), 
+                         "", 0, "DISABLED", 8) ? 1 : 0;
+    else
+      result= db_type->show_status && 
+              db_type->show_status(thd, stat_print, stat) ? 1 : 0;
   }
 
-  send_eof(thd);
-  return FALSE;
+  if (!result)
+    send_eof(thd);
+  return result;
 }
 
 
@@ -2606,19 +2821,10 @@ bool ha_show_status(THD *thd, enum db_type db_type, enum ha_stat_type stat)
 int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
                                my_off_t end_offset)
 {
-  int result= 0;
-  handlerton **types;
-
-  for (types= sys_table_types; *types; types++)
-  {
-    if ((*types)->state == SHOW_OPTION_YES &&
-        (*types)->repl_report_sent_binlog)
-    {
-      (*types)->repl_report_sent_binlog(thd,log_file_name,end_offset);
-      result= 0;
-    }
-  }
-  return result;
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+  innobase_repl_report_sent_binlog(thd, log_file_name, end_offset);
+#endif
+  return 0;
 }
 
 
@@ -2643,3 +2849,4 @@ int ha_repl_report_replication_stop(THD *thd)
   return 0;
 }
 #endif /* HAVE_REPLICATION */
+

@@ -6788,7 +6788,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
 #endif
-    if (ha_flush_logs())
+    if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())
       result=1;
@@ -7104,7 +7104,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.db_type= (handlerton*) &default_hton;
   create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
@@ -7120,7 +7120,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.db_type= (handlerton*) &default_hton;
   create_info.default_table_charset= thd->variables.collation_database;
   alter_info->clear();
   alter_info->flags= ALTER_DROP_INDEX;

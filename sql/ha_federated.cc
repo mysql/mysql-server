@@ -367,6 +367,7 @@ static int federated_rollback(THD *thd, bool all);
 /* Federated storage engine handlerton */
 
 handlerton federated_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "FEDERATED",
   SHOW_OPTION_YES,
   "Federated MySQL storage engine", 
@@ -390,12 +391,9 @@ handlerton federated_hton= {
   federated_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   federated_db_end,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_ALTER_NOT_SUPPORTED
 };
 

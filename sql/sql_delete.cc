@@ -822,7 +822,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
   {
-    db_type table_type= table->s->db_type;
+    handlerton *table_type= table->s->db_type;
     TABLE_SHARE *share= table->s;
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
@@ -852,7 +852,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
   if (!dont_send_ok)
   {
-    db_type table_type;
+    enum legacy_db_type table_type;
     mysql_frm_type(thd, path, &table_type);
     if (table_type == DB_TYPE_UNKNOWN)
     {
@@ -860,7 +860,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
-    if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE)
+    if (!ha_check_storage_engine_flag(ha_resolve_by_legacy_type(thd, table_type),
+                                      HTON_CAN_RECREATE)
         || thd->lex->sphead)
       goto trunc_by_del;
     if (lock_and_wait_for_table_name(thd, table_list))

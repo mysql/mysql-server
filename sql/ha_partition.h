@@ -46,7 +46,7 @@ private:
   /* Data for the partition handler */
   char *m_file_buffer;                  // Buffer with names
   char *m_name_buffer_ptr;		// Pointer to first partition name
-  uchar *m_engine_array;                // Array of types of the handlers
+  handlerton **m_engine_array;          // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   partition_info *m_part_info;          // local reference to partition
   byte *m_start_key_ref;                // Reference of start key in current

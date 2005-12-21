@@ -34,11 +34,14 @@ AC_CACHE_CHECK([whether to use $2], [mysql_cv_use_]m4_bpatsubst([$3], -, _),
 [mysql_cv_use_]m4_bpatsubst([$3], -, _)=[$with_]m4_bpatsubst([$3], -, _))
 AH_TEMPLATE([$5], [Build $2])
 if test "[$mysql_cv_use_]m4_bpatsubst([$3], -, _)" != no; then
-AC_DEFINE([$5])
-mysql_se_decls="${mysql_se_decls},$6"
-mysql_se_htons="${mysql_se_htons},&$6"
+if test "$6" != "no"
+then
+  AC_DEFINE([$5])
+  mysql_se_decls="${mysql_se_decls},$6"
+  mysql_se_htons="${mysql_se_htons},&$6"
+  mysql_se_objs="$mysql_se_objs $8"
+fi
 mysql_se_dirs="$mysql_se_dirs $7"
-mysql_se_objs="$mysql_se_objs $8"
 mysql_se_libs="$mysql_se_libs $9"
 $10
 fi
