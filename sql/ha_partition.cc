@@ -69,6 +69,7 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
 static handler *partition_create_handler(TABLE_SHARE *share);
 
 handlerton partition_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "partition",
   SHOW_OPTION_YES,
   "Partition Storage Engine Helper", /* A comment used by SHOW to describe an engine */
@@ -92,12 +93,9 @@ handlerton partition_hton = {
   partition_create_handler, /* Create a new handler */
   NULL, /* Drop a database */
   NULL, /* Panic call */
-  NULL, /* Release temporary latches */
-  NULL, /* Update Statistics */
   NULL, /* Start Consistent Snapshot */
   NULL, /* Flush logs */
   NULL, /* Show status */
-  NULL, /* Replication Report Sent Binlog */
   HTON_NOT_USER_SELECTABLE
 };
 
@@ -697,6 +695,7 @@ bool ha_partition::create_handler_file(const char *name)
 void ha_partition::clear_handler_file()
 {
   my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
   m_file_buffer= NULL;
   m_name_buffer_ptr= NULL;
   m_engine_array= NULL;
@@ -715,18 +714,19 @@ bool ha_partition::create_handlers()
   for (i= 0; i < m_tot_parts; i++)
   {
     if (!(m_file[i]= get_new_handler(table_share, current_thd->mem_root,
-                                     (enum db_type) m_engine_array[i])))
+                                     m_engine_array[i])))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
   }
   m_file[m_tot_parts]= 0;
   /* For the moment we only support partition over the same table engine */
-  if (m_engine_array[0] == (uchar) DB_TYPE_MYISAM)
+  if (m_engine_array[0] == &myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
     m_myisam= TRUE;
   }
-  else if (m_engine_array[0] == (uchar) DB_TYPE_INNODB)
+  /* INNODB may not be compiled in... */
+  else if (ha_legacy_type(m_engine_array[0]) == DB_TYPE_INNODB)
   {
     DBUG_PRINT("info", ("InnoDB"));
     m_innodb= TRUE;
@@ -761,7 +761,7 @@ bool ha_partition::new_handlers_from_part_info()
     if (!(m_file[i]= get_new_handler(table_share, thd->mem_root,
                                      part_elem->engine_type)))
       goto error;
-    DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
+    DBUG_PRINT("info", ("engine_type: %u", (uint) ha_legacy_type(part_elem->engine_type)));
     if (m_is_sub_partitioned)
     {
       for (j= 0; j < m_part_info->no_subparts; j++)
@@ -769,11 +769,11 @@ bool ha_partition::new_handlers_from_part_info()
 	if (!(m_file[i]= get_new_handler(table_share, thd->mem_root,
                                          part_elem->engine_type)))
           goto error;
-	DBUG_PRINT("info", ("engine_type: %u", (uint) part_elem->engine_type));
+	DBUG_PRINT("info", ("engine_type: %u", (uint) ha_legacy_type(part_elem->engine_type)));
       }
     }
   } while (++i < m_part_info->no_parts);
-  if (part_elem->engine_type == DB_TYPE_MYISAM)
+  if (part_elem->engine_type == &myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
     m_myisam= TRUE;
@@ -795,7 +795,7 @@ bool ha_partition::get_from_handler_file(const char *name)
   char buff[FN_REFLEN], *address_tot_name_len;
   File file;
   char *file_buffer, *name_buffer_ptr;
-  uchar *engine_array;
+  handlerton **engine_array;
   uint i, len_bytes, len_words, tot_partition_words, tot_name_words, chksum;
   DBUG_ENTER("ha_partition::get_from_handler_file");
   DBUG_PRINT("enter", ("table name: '%s'", name));
@@ -824,7 +824,11 @@ bool ha_partition::get_from_handler_file(const char *name)
     goto err2;
   m_tot_parts= uint4korr((file_buffer) + 8);
   tot_partition_words= (m_tot_parts + 3) / 4;
-  engine_array= (uchar *) ((file_buffer) + 12);
+  if (!(engine_array= (handlerton **) my_malloc(m_tot_parts * sizeof(handlerton*),MYF(0))))
+    goto err2;
+  for (i= 0; i < m_tot_parts; i++)
+    engine_array[i]= ha_resolve_by_legacy_type(current_thd, 
+                (enum legacy_db_type) *(uchar *) ((file_buffer) + 12 + i));
   address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
   tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
   if (len_words != (tot_partition_words + tot_name_words + 4))

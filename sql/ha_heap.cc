@@ -27,6 +27,7 @@
 static handler *heap_create_handler(TABLE_SHARE *table);
 
 handlerton heap_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "MEMORY",
   SHOW_OPTION_YES,
   "Hash based, stored in memory, useful for temporary tables", 
@@ -50,12 +51,9 @@ handlerton heap_hton= {
   heap_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   heap_panic,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 

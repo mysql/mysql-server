@@ -134,7 +134,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
   TABLE_LIST *ren_table,*new_table;
   frm_type_enum frm_type;
-  db_type table_type;
+  enum legacy_db_type table_type;
 
   DBUG_ENTER("rename_tables");
 
@@ -176,7 +176,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
         if (table_type == DB_TYPE_UNKNOWN) 
           my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
         else
-          rc= mysql_rename_table(table_type, ren_table->db, old_alias,
+          rc= mysql_rename_table(ha_resolve_by_legacy_type(thd, table_type),
+                                 ren_table->db, old_alias,
                                  new_table->db, new_alias);
         break;
       }

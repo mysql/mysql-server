@@ -42,6 +42,7 @@ COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
 KEY_COLUMN_USAGE
+PLUGINS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -723,7 +724,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-102
+103
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -731,6 +732,7 @@ information_schema.columns
 where data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
+information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
 information_schema	TRIGGERS	ACTION_CONDITION
@@ -793,7 +795,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	16
+information_schema	17
 mysql	18
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row

@@ -33,7 +33,6 @@ static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static rw_lock_t THR_LOCK_plugin;
 static bool initialized= 0;
 
-
 static struct st_plugin_dl *plugin_dl_find(LEX_STRING *dl)
 {
   uint i;
@@ -348,6 +347,43 @@ void plugin_unlock(struct st_plugin_int *plugin)
 }
 
 
+static int plugin_initialize(struct st_plugin_int *plugin)
+{
+  DBUG_ENTER("plugin_initialize");
+  
+  if (plugin->plugin->init)
+  {
+    if (plugin->plugin->init())
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      DBUG_PRINT("warning", ("Plugin '%s' init function returned error.",
+                             plugin->name.str))
+      goto err;
+    }
+  }
+  
+  switch (plugin->plugin->type)
+  {
+  case MYSQL_STORAGE_ENGINE_PLUGIN:
+    if (ha_initialize_handlerton((handlerton*) plugin->plugin->info))
+    {
+      sql_print_error("Plugin '%s' handlerton init returned error.",
+                      plugin->name.str);
+      DBUG_PRINT("warning", ("Plugin '%s' handlerton init returned error.",
+                             plugin->name.str))
+      goto err;
+    }
+    break;
+  default:
+    break;
+  }
+
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
 static void plugin_call_initializer(void)
 {
   uint i;
@@ -356,20 +392,13 @@ static void plugin_call_initializer(void)
   {
     struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
                                                struct st_plugin_int *);
-    if (tmp->state == PLUGIN_IS_UNINITIALIZED && tmp->plugin->init)
-    {
-      DBUG_PRINT("info", ("Initializing plugin: '%s'", tmp->name.str));
-      if (tmp->plugin->init())
-      {
-        sql_print_error("Plugin '%s' init function returned error.",
-                        tmp->name.str);
-        DBUG_PRINT("warning", ("Plugin '%s' init function returned error.",
-                               tmp->name.str))
-        plugin_del(&tmp->name);
-      }
-    }
     if (tmp->state == PLUGIN_IS_UNINITIALIZED)
-      tmp->state= PLUGIN_IS_READY;
+    {
+      if (plugin_initialize(tmp))
+        plugin_del(&tmp->name);
+      else
+        tmp->state= PLUGIN_IS_READY;
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -410,42 +439,84 @@ static byte *get_hash_key(const byte *buff, uint *length,
 }
 
 
-void plugin_init(void)
+int plugin_init(void)
+{
+  int i;
+  DBUG_ENTER("plugin_init");
+
+  if (initialized)
+    DBUG_RETURN(0);
+
+  my_rwlock_init(&THR_LOCK_plugin, NULL);
+
+  if (my_init_dynamic_array(&plugin_dl_array,
+                            sizeof(struct st_plugin_dl),16,16) ||
+      my_init_dynamic_array(&plugin_array,
+                            sizeof(struct st_plugin_int),16,16))
+    goto err;
+
+  for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
+  {
+    if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
+                  get_hash_key, NULL, 0))
+      goto err;
+  }
+  
+  initialized= 1;
+
+  DBUG_RETURN(0);
+  
+err:
+  DBUG_RETURN(1);
+}
+
+
+my_bool plugin_register_builtin(struct st_mysql_plugin *plugin)
+{
+  struct st_plugin_int tmp;
+  DBUG_ENTER("plugin_register_builtin");
+
+  tmp.plugin= plugin;
+  tmp.name.str= (char *)plugin->name;
+  tmp.name.length= strlen(plugin->name);
+  tmp.state= PLUGIN_IS_UNINITIALIZED;
+
+  /* Cannot be unloaded */
+  tmp.ref_count= 1;
+  tmp.plugin_dl= 0;
+
+  if (insert_dynamic(&plugin_array, (gptr)&tmp))
+    DBUG_RETURN(1);
+
+  if (my_hash_insert(&plugin_hash[plugin->type],
+                     (byte*)dynamic_element(&plugin_array,
+                                            plugin_array.elements - 1,
+                                            struct st_plugin_int *)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+
+void plugin_load(void)
 {
   TABLE_LIST tables;
   TABLE *table;
   READ_RECORD read_record_info;
   int error, i;
   MEM_ROOT mem;
-  DBUG_ENTER("plugin_init");
-  if (initialized)
-    DBUG_VOID_RETURN;
-  my_rwlock_init(&THR_LOCK_plugin, NULL);
-  THD *new_thd = new THD;
-  if (!new_thd ||
-      my_init_dynamic_array(&plugin_dl_array,sizeof(struct st_plugin_dl),16,16) ||
-      my_init_dynamic_array(&plugin_array,sizeof(struct st_plugin_int),16,16))
+  THD *new_thd;
+  DBUG_ENTER("plugin_load");
+  
+  DBUG_ASSERT(initialized);
+  
+  if (!(new_thd= new THD))
   {
     sql_print_error("Can't allocate memory for plugin structures");
     delete new_thd;
-    delete_dynamic(&plugin_dl_array);
-    delete_dynamic(&plugin_array);
     DBUG_VOID_RETURN;
   }
-  for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
-  {
-    if (hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                  get_hash_key, NULL, 0))
-    {
-      sql_print_error("Can't allocate memory for plugin structures");
-      delete new_thd;
-      delete_dynamic(&plugin_dl_array);
-      delete_dynamic(&plugin_array);
-      DBUG_VOID_RETURN;
-    }
-  }
   init_sql_alloc(&mem, 1024, 0);
-  initialized= 1;
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
@@ -458,10 +529,6 @@ void plugin_init(void)
   {
     DBUG_PRINT("error",("Can't open plugin table"));
     sql_print_error("Can't open the mysql.plugin table. Please run the mysql_install_db script to create it.");
-    delete_dynamic(&plugin_dl_array);
-    delete_dynamic(&plugin_array);
-    for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
-      hash_free(&plugin_hash[i]);
     goto end;
   }
   table= tables.table;
@@ -530,27 +597,31 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
   int error;
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
   if (check_table_access(thd, INSERT_ACL, &tables, 0))
     DBUG_RETURN(TRUE);
+    
+  /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
+  if (! (table = open_ltable(thd, &tables, TL_WRITE)))
+    DBUG_RETURN(TRUE);
+
   rw_wrlock(&THR_LOCK_plugin);
   if (plugin_add(name, dl, REPORT_TO_USER))
     goto err;
   tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN);
-  if (tmp->plugin->init)
+  
+  if (plugin_initialize(tmp))
   {
-    if (tmp->plugin->init())
-    {
-      my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
-               "Plugin initialization function failed.");
-      goto err;
-    }
-    tmp->state= PLUGIN_IS_READY;
+    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
+             "Plugin initialization function failed.");
+    goto err;
   }
-  if (! (table = open_ltable(thd, &tables, TL_WRITE)))
-    goto deinit;
+
+  tmp->state= PLUGIN_IS_READY;
+
   restore_record(table, s->default_values);
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->field[1]->store(dl->str, dl->length, files_charset_info);
@@ -560,6 +631,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
     table->file->print_error(error, MYF(0));
     goto deinit;
   }
+  
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(FALSE);
 deinit:
@@ -578,12 +650,29 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
   TABLE_LIST tables;
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
+
+  bzero(&tables, sizeof(tables));
+  tables.db= (char *)"mysql";
+  tables.table_name= tables.alias= (char *)"plugin";
+
+  /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
+  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+    DBUG_RETURN(TRUE);
+
   rw_wrlock(&THR_LOCK_plugin);
-  if (! (plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
   }
+  if (!plugin->plugin_dl)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                 "Built-in plugins cannot be deleted,.");
+    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    goto err;
+  }
+  
   if (plugin->ref_count)
   {
     plugin->state= PLUGIN_IS_DELETED;
@@ -596,11 +685,7 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
       plugin->plugin->deinit();
     plugin_del(name);
   }
-  bzero(&tables, sizeof(tables));
-  tables.db= (char *)"mysql";
-  tables.table_name= tables.alias= (char *)"plugin";
-  if (! (table= open_ltable(thd, &tables, TL_WRITE)))
-    goto err;
+
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (! table->file->index_read_idx(table->record[0], 0,
@@ -615,6 +700,47 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
       goto err;
     }
   }
+  rw_unlock(&THR_LOCK_plugin);
+  DBUG_RETURN(FALSE);
+err:
+  rw_unlock(&THR_LOCK_plugin);
+  DBUG_RETURN(TRUE);
+}
+
+
+my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
+                       int type, void *arg)
+{
+  uint idx;
+  struct st_plugin_int *plugin;
+  DBUG_ENTER("mysql_uninstall_plugin");
+  rw_rdlock(&THR_LOCK_plugin);
+  
+  if (type == MYSQL_ANY_PLUGIN)
+  {
+    for (idx= 0; idx < plugin_array.elements; idx++)
+    {
+      plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
+      
+      /* FREED records may have garbage pointers */
+      if ((plugin->state != PLUGIN_IS_FREED) &&
+          func(thd, plugin, arg))
+        goto err;
+    }
+  }
+  else
+  {
+    HASH *hash= &plugin_hash[type];
+    for (idx= 0; idx < hash->records; idx++)
+    {
+      plugin= (struct st_plugin_int *) hash_element(hash, idx);
+      if ((plugin->state != PLUGIN_IS_FREED) &&
+          (plugin->state != PLUGIN_IS_DELETED) &&
+          func(thd, plugin, arg))
+        goto err;
+    }
+  }
+
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(FALSE);
 err:

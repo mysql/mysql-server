@@ -48,6 +48,7 @@ static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
 handlerton binlog_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "binlog",
   SHOW_OPTION_YES,
   "This is a meta storage engine to represent the binlog in a transaction",
@@ -71,12 +72,9 @@ handlerton binlog_hton = {
   NULL,                         /* Create a new handler */
   NULL,                         /* Drop a database */
   NULL,                         /* Panic call */
-  NULL,                         /* Release temporary latches */
-  NULL,                         /* Update Statistics */
   NULL,                         /* Start Consistent Snapshot */
   NULL,                         /* Flush logs */
   NULL,                         /* Show status */
-  NULL,                         /* Replication Report Sent Binlog */
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
 };
 

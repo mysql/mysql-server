@@ -599,7 +599,7 @@ static bool set_up_default_partitions(partition_info *part_info,
     partition_element *part_elem= new partition_element();
     if (likely(part_elem != 0))
     {
-      part_elem->engine_type= DB_TYPE_UNKNOWN;
+      part_elem->engine_type= NULL;
       part_elem->partition_name= default_name;
       default_name+=MAX_PART_NAME_SIZE;
       part_info->partitions.push_back(part_elem);
@@ -671,7 +671,7 @@ static bool set_up_default_subpartitions(partition_info *part_info,
       partition_element *subpart_elem= new partition_element();
       if (likely(subpart_elem != 0))
       {
-        subpart_elem->engine_type= DB_TYPE_UNKNOWN;
+        subpart_elem->engine_type= NULL;
         subpart_elem->partition_name= name_ptr;
         name_ptr+= MAX_PART_NAME_SIZE;
         part_elem->subpartitions.push_back(subpart_elem);
@@ -731,7 +731,7 @@ bool set_up_defaults_for_partitioning(partition_info *part_info,
     FALSE                  Ok, no mixed engines
 */
 
-static bool check_engine_mix(u_char *engine_array, uint no_parts)
+static bool check_engine_mix(handlerton **engine_array, uint no_parts)
 {
   /*
     Current check verifies only that all handlers are the same.
@@ -772,10 +772,10 @@ static bool check_engine_mix(u_char *engine_array, uint no_parts)
     This code is used early in the CREATE TABLE and ALTER TABLE process.
 */
 
-bool check_partition_info(partition_info *part_info,enum db_type eng_type,
+bool check_partition_info(partition_info *part_info,handlerton *eng_type,
                           handler *file, ulonglong max_rows)
 {
-  u_char *engine_array= NULL;
+  handlerton **engine_array= NULL;
   uint part_count= 0, i, no_parts, tot_partitions;
   bool result= TRUE;
   List_iterator<partition_element> part_it(part_info->partitions);
@@ -803,7 +803,8 @@ bool check_partition_info(partition_info *part_info,enum db_type eng_type,
     my_error(ER_SAME_NAME_PARTITION, MYF(0));
     goto end;
   }
-  engine_array= (u_char*)my_malloc(tot_partitions, MYF(MY_WME));
+  engine_array= (handlerton**)my_malloc(tot_partitions * sizeof(handlerton *), 
+                                        MYF(MY_WME));
   if (unlikely(!engine_array))
     goto end;
   i= 0;
@@ -813,10 +814,10 @@ bool check_partition_info(partition_info *part_info,enum db_type eng_type,
     partition_element *part_elem= part_it++;
     if (!is_sub_partitioned(part_info))
     {
-      if (part_elem->engine_type == DB_TYPE_UNKNOWN)
+      if (part_elem->engine_type == NULL)
         part_elem->engine_type= eng_type;
-      DBUG_PRINT("info", ("engine = %u",(uint)part_elem->engine_type));
-      engine_array[part_count++]= (u_char)part_elem->engine_type;
+      DBUG_PRINT("info", ("engine = %s", part_elem->engine_type->name));
+      engine_array[part_count++]= part_elem->engine_type;
     }
     else
     {
@@ -825,10 +826,10 @@ bool check_partition_info(partition_info *part_info,enum db_type eng_type,
       do
       {
         part_elem= sub_it++;
-        if (part_elem->engine_type == DB_TYPE_UNKNOWN)
+        if (part_elem->engine_type == NULL)
           part_elem->engine_type= eng_type;
-        DBUG_PRINT("info", ("engine = %u",(uint)part_elem->engine_type));
-        engine_array[part_count++]= (u_char)part_elem->engine_type;
+        DBUG_PRINT("info", ("engine = %s", part_elem->engine_type->name));
+        engine_array[part_count++]= part_elem->engine_type;
       } while (++j < no_subparts);
     }
   } while (++i < part_info->no_parts);
@@ -1895,9 +1896,9 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
   return err + add_space(fptr);
 }
 
-static int add_engine(File fptr, enum db_type engine_type)
+static int add_engine(File fptr, handlerton *engine_type)
 {
-  const char *engine_str= ha_get_storage_engine(engine_type);
+  const char *engine_str= engine_type->name;
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
   return err;
@@ -3092,7 +3093,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
 
 bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             uint part_info_len, TABLE* table,
-                            enum db_type default_db_type)
+                            handlerton *default_db_type)
 {
   Item *thd_free_list= thd->free_list;
   bool result= TRUE;
@@ -3129,7 +3130,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   part_info= lex.part_info;
   table->part_info= part_info;
   table->file->set_part_info(part_info);
-  if (part_info->default_engine_type == DB_TYPE_UNKNOWN)
+  if (part_info->default_engine_type == NULL)
     part_info->default_engine_type= default_db_type;
   else
   {

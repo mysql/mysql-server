@@ -114,20 +114,24 @@ static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
 static int berkeley_close_connection(THD *thd);
 static int berkeley_commit(THD *thd, bool all);
 static int berkeley_rollback(THD *thd, bool all);
+static int berkeley_rollback_to_savepoint(THD* thd, void *savepoint);
+static int berkeley_savepoint(THD* thd, void *savepoint);
+static int berkeley_release_savepoint(THD* thd, void *savepoint);
 static handler *berkeley_create_handler(TABLE_SHARE *table);
 
 handlerton berkeley_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "BerkeleyDB",
   SHOW_OPTION_YES,
   "Supports transactions and page-level locking", 
   DB_TYPE_BERKELEY_DB,
   berkeley_init,
   0, /* slot */
-  0, /* savepoint size */
+  sizeof(DB_TXN *), /* savepoint size */
   berkeley_close_connection,
-  NULL, /* savepoint_set */
-  NULL, /* savepoint_rollback */
-  NULL, /* savepoint_release */
+  berkeley_savepoint, /* savepoint_set */
+  berkeley_rollback_to_savepoint, /* savepoint_rollback */
+  berkeley_release_savepoint, /* savepoint_release */
   berkeley_commit,
   berkeley_rollback,
   NULL, /* prepare */
@@ -140,12 +144,9 @@ handlerton berkeley_hton = {
   berkeley_create_handler, /* Create a new handler */
   NULL, /* Drop a database */
   berkeley_end, /* Panic call */
-  NULL, /* Release temporary latches */
-  NULL, /* Update Statistics */
   NULL, /* Start Consistent Snapshot */
   berkeley_flush_logs, /* Flush logs */
   berkeley_show_status, /* Show status */
-  NULL, /* Replication Report Sent Binlog */
   HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME
 };
 
@@ -157,6 +158,7 @@ handler *berkeley_create_handler(TABLE_SHARE *table)
 typedef struct st_berkeley_trx_data {
   DB_TXN *all;
   DB_TXN *stmt;
+  DB_TXN *sp_level;
   uint bdb_lock_count;
 } berkeley_trx_data;
 
@@ -309,10 +311,53 @@ static int berkeley_rollback(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
+static int berkeley_savepoint(THD* thd, void *savepoint)
+{
+  int error;
+  DB_TXN **save_txn= (DB_TXN**) savepoint;
+  DBUG_ENTER("berkeley_savepoint");
+  berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
+  if (!(error= db_env->txn_begin(db_env, trx->sp_level, save_txn, 0)))
+  {
+    trx->sp_level= *save_txn;
+  }
+  DBUG_RETURN(error);
+}
+
+static int berkeley_rollback_to_savepoint(THD* thd, void *savepoint)
+{
+  int error;
+  DB_TXN *parent, **save_txn= (DB_TXN**) savepoint;
+  DBUG_ENTER("berkeley_rollback_to_savepoint");
+  berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
+  parent= (*save_txn)->parent;
+  if (!(error= (*save_txn)->abort(*save_txn)))
+  {
+    trx->sp_level= parent;
+    error= berkeley_savepoint(thd, savepoint);
+  }
+  DBUG_RETURN(error);
+}
+
+static int berkeley_release_savepoint(THD* thd, void *savepoint)
+{
+  int error;
+  DB_TXN *parent, **save_txn= (DB_TXN**) savepoint;
+  DBUG_ENTER("berkeley_release_savepoint");
+  berkeley_trx_data *trx=(berkeley_trx_data *)thd->ha_data[berkeley_hton.slot];
+  parent= (*save_txn)->parent;
+  if (!(error= (*save_txn)->commit(*save_txn,0)))
+  {
+    trx->sp_level= parent;
+    *save_txn= 0;
+  }
+  DBUG_RETURN(error);
+}
 
 static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
 {
   char **all_logs, **free_logs, **a, **f;
+  uint hton_name_len= strlen(berkeley_hton.name);
   int error=1;
   MEM_ROOT **root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
   MEM_ROOT show_logs_root, *old_mem_root= *root_ptr;
@@ -337,19 +382,20 @@ static bool berkeley_show_logs(THD *thd, stat_print_fn *stat_print)
   {
     for (a = all_logs, f = free_logs; *a; ++a)
     {
-      const char *status;
       if (f && *f && strcmp(*a, *f) == 0)
       {
         f++;
-        status= SHOW_LOG_STATUS_FREE;
+        if ((error= stat_print(thd, berkeley_hton.name, hton_name_len,
+                               *a, strlen(*a),
+                               STRING_WITH_LEN(SHOW_LOG_STATUS_FREE))))
+          break;
       }
       else
-        status= SHOW_LOG_STATUS_INUSE;
-  
-      if (stat_print(thd, berkeley_hton.name, *a, status))
       {
-        error=1;
-        goto err;
+        if ((error= stat_print(thd, berkeley_hton.name, hton_name_len,
+                               *a, strlen(*a),
+                               STRING_WITH_LEN(SHOW_LOG_STATUS_INUSE))))
+          break;
       }
     }
   }
@@ -1882,6 +1928,8 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
     if (!trx)
       DBUG_RETURN(1);
   }
+  if (trx->all == 0)
+    trx->sp_level= 0;
   if (lock_type != F_UNLCK)
   {
     if (!trx->bdb_lock_count++)
@@ -1900,12 +1948,13 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
           trx->bdb_lock_count--;        // We didn't get the lock
           DBUG_RETURN(error);
 	}
+        trx->sp_level= trx->all;
         trans_register_ha(thd, TRUE, &berkeley_hton);
 	if (thd->in_lock_tables)
 	  DBUG_RETURN(0);			// Don't create stmt trans
       }
       DBUG_PRINT("trans",("starting transaction stmt"));
-      if ((error= db_env->txn_begin(db_env, trx->all, &trx->stmt, 0)))
+      if ((error= db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0)))
       {
 	/* We leave the possible master transaction open */
         trx->bdb_lock_count--;                  // We didn't get the lock
@@ -1959,7 +2008,7 @@ int ha_berkeley::start_stmt(THD *thd, thr_lock_type lock_type)
   if (!trx->stmt)
   {
     DBUG_PRINT("trans",("starting transaction stmt"));
-    error= db_env->txn_begin(db_env, trx->all, &trx->stmt, 0);
+    error= db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0);
     trans_register_ha(thd, FALSE, &berkeley_hton);
   }
   transaction= trx->stmt;
