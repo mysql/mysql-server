@@ -3,7 +3,7 @@ Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4013
-Next DBLQH 5042
+Next DBLQH 5043
 Next DBDICT 6006
 Next DBDIH 7174
 Next DBTC 8037
@@ -311,6 +311,8 @@ DICT:
 LQH:
 5026  Crash when receiving COPY_ACTIVEREQ
 5027  Crash when receiving STAT_RECREQ
+
+5042  Crash starting node, when scan is finished on primary replica
 
 Test Crashes in handling take over
 ----------------------------------
