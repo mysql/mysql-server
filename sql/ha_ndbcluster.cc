@@ -59,6 +59,7 @@ static int ndbcluster_rollback(THD *thd, bool all);
 static handler* ndbcluster_create_handler(TABLE_SHARE *table);
 
 handlerton ndbcluster_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "ndbcluster",
   SHOW_OPTION_YES,
   "Clustered, fault-tolerant, memory-based tables", 
@@ -82,12 +83,9 @@ handlerton ndbcluster_hton = {
   ndbcluster_create_handler, /* Create a new handler */
   ndbcluster_drop_database, /* Drop a database */
   ndbcluster_end, /* Panic call */
-  NULL, /* Release temporary latches */
-  NULL, /* Update Statistics */
   NULL, /* Start Consistent Snapshot */
   NULL, /* Flush logs */
   ndbcluster_show_status, /* Show status */
-  NULL, /* Replication Report Sent Binlog */
   HTON_NO_FLAGS
 };
 
@@ -8060,10 +8058,12 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
     Ndb::Free_list_usage tmp; tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
-      my_snprintf(buf, sizeof(buf),
+      uint buflen=
+        my_snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
-      if (stat_print(thd, ndbcluster_hton.name, tmp.m_name, buf))
+      if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
+                     tmp.m_name, strlen(tmp.m_name), buf, buflen))
         DBUG_RETURN(TRUE);
     }
   }

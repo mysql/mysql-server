@@ -527,7 +527,7 @@ struct system_variables
   ulong read_rnd_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
-  ulong table_type;
+  handlerton *table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
   ulong completion_type;

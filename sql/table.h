@@ -153,7 +153,7 @@ typedef struct st_table_share
   ulong   timestamp_offset;		/* Set to offset+1 of record */
   ulong   reclength;			/* Recordlength */
 
-  enum db_type db_type;			/* table_type for handler */
+  handlerton *db_type;			/* table_type for handler */
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
 
@@ -200,7 +200,7 @@ typedef struct st_table_share
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   const uchar *partition_info;
   uint  partition_info_len;
-  enum db_type default_part_db_type;
+  handlerton *default_part_db_type;
 #endif
 } TABLE_SHARE;
 
@@ -324,6 +324,7 @@ enum enum_schema_tables
   SCH_COLUMN_PRIVILEGES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
+  SCH_PLUGINS,
   SCH_PROCEDURES,
   SCH_SCHEMATA,
   SCH_SCHEMA_PRIVILEGES,
@@ -642,7 +643,7 @@ typedef struct st_table_list
   bool          where_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
-  enum db_type  db_type;		/* table_type for handler */
+  handlerton	*db_type;		/* table_type for handler */
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be

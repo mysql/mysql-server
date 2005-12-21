@@ -327,6 +327,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   SQL_CRYPT *crypted=0;
   Field  **field_ptr, *reg_field;
   const char **interval_array;
+  enum legacy_db_type legacy_db_type;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -349,11 +350,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  share->default_part_db_type= ha_checktype(thd,
-                                            (enum db_type) (uint) *(head+61),0,
-                                            0);
+  share->default_part_db_type= 
+        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 0, 0);
 #endif
-  share->db_type= ha_checktype(thd, (enum db_type) (uint) *(head+3),0,0);
+  legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
+  share->db_type= ha_checktype(thd, legacy_db_type, 0, 0);
   share->db_create_options= db_create_options= uint2korr(head+30);
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
@@ -385,7 +386,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     share->blob_ptr_size= portable_sizeof_char_ptr;
   /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= test(share->db_type != DB_TYPE_ISAM);
+  share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -513,14 +514,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
-      enum db_type tmp_db_type= ha_resolve_by_name(next_chunk + 2,
-                                                   str_db_type_length);
-      if (tmp_db_type != DB_TYPE_UNKNOWN)
+      LEX_STRING name= { next_chunk + 2, str_db_type_length };
+      handlerton *tmp_db_type= ha_resolve_by_name(thd, &name);
+      if (tmp_db_type != NULL)
       {
         share->db_type= tmp_db_type;
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
-                            share->db_type));
+                            ha_legacy_type(share->db_type)));
       }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       else
@@ -528,10 +529,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
         {
           /* Use partition handler */
-          share->db_type= DB_TYPE_PARTITION_DB;
+          share->db_type= &partition_hton;
           DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                               str_db_type_length, next_chunk + 2,
-                              share->db_type));
+                              ha_legacy_type(share->db_type)));
         }
       }
 #endif
@@ -1634,7 +1635,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     handler *file= 0;
     const char *datext= "";
     
-    if (share->db_type != DB_TYPE_UNKNOWN)
+    if (share->db_type != NULL)
     {
       if ((file= get_new_handler(share, current_thd->mem_root,
                                  share->db_type)))
@@ -1900,7 +1901,8 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[1]= 1;
     fileinfo[2]= FRM_VER+3+ test(create_info->varchar);
 
-    fileinfo[3]= (uchar) ha_checktype(thd,create_info->db_type,0,0);
+    fileinfo[3]= (uchar) ha_legacy_type(
+          ha_checktype(thd,ha_legacy_type(create_info->db_type),0,0));
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;

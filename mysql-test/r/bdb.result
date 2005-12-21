@@ -285,6 +285,40 @@ n
 4
 5
 6
+set autocommit=0;
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+n
+3
+4
+5
+6
+7
+savepoint savept3;
+rollback to savepoint savept2;
+rollback to savepoint savept3;
+ERROR 42000: SAVEPOINT savept3 does not exist
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+n
+4
+5
+6
+7
+rollback to savepoint `my_savepoint`;
+ERROR 42000: SAVEPOINT my_savepoint does not exist
+rollback to savepoint savept2;
+ERROR 42000: SAVEPOINT savept2 does not exist
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
 rollback;
 drop table t1;
 create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) engine=BDB;

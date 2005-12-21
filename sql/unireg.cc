@@ -35,7 +35,7 @@ static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
 static uint pack_keys(uchar *keybuff,uint key_count, KEY *key_info,
                       ulong data_offset);
-static bool pack_header(uchar *forminfo,enum db_type table_type,
+static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
 			List<create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			ulong data_offset, handler *file);
@@ -43,7 +43,7 @@ static uint get_interval_id(uint *int_count,List<create_field> &create_fields,
 			    create_field *last_field);
 static bool pack_fields(File file, List<create_field> &create_fields,
                         ulong data_offset);
-static bool make_empty_rec(THD *thd, int file, enum db_type table_type,
+static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
 			   uint reclength, ulong data_offset,
@@ -103,7 +103,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     create_info->null_bits++;
   data_offset= (create_info->null_bits + 7) / 8;
 
-  if (pack_header(forminfo, create_info->db_type,create_fields,info_length,
+  if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
+                  create_fields,info_length,
 		  screens, create_info->table_options,
                   data_offset, db_file))
   {
@@ -115,7 +116,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     thd->net.last_error[0]=0;
     if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,1)))
       DBUG_RETURN(1);
-    if (pack_header(forminfo, create_info->db_type, create_fields,info_length,
+    if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
+                    create_fields,info_length,
 		    screens, create_info->table_options, data_offset, db_file))
     {
       my_free((gptr) screen_buff,MYF(0));
@@ -125,7 +127,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   reclength=uint2korr(forminfo+266);
 
   /* Calculate extra data segment length */
-  str_db_type.str= (char *) ha_get_storage_engine(create_info->db_type);
+  str_db_type.str= (char *) ha_resolve_storage_engine_name(create_info->db_type);
   str_db_type.length= strlen(str_db_type.str);
   /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
@@ -168,7 +170,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
-    fileinfo[61]= (uchar) part_info->default_engine_type;
+    fileinfo[61]= (uchar) ha_legacy_type(part_info->default_engine_type);
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
@@ -178,7 +180,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   VOID(my_seek(file,
 	       (ulong) uint2korr(fileinfo+6)+ (ulong) key_buff_length,
 	       MY_SEEK_SET,MYF(0)));
-  if (make_empty_rec(thd,file,create_info->db_type,create_info->table_options,
+  if (make_empty_rec(thd,file,ha_legacy_type(create_info->db_type),
+                     create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
 
@@ -480,7 +483,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
 
 	/* Make formheader */
 
-static bool pack_header(uchar *forminfo, enum db_type table_type,
+static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 			List<create_field> &create_fields,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
@@ -739,7 +742,7 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 
 	/* save an empty record on start of formfile */
 
-static bool make_empty_rec(THD *thd, File file,enum db_type table_type,
+static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 			   uint table_options,
 			   List<create_field> &create_fields,
 			   uint reclength,

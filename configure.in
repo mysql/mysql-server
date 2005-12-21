@@ -2411,9 +2411,14 @@ MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
 MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,storage/bdb,,,[
   MYSQL_SETUP_BERKELEY_DB
 ])
-MYSQL_STORAGE_ENGINE(example)
+MYSQL_STORAGE_ENGINE(example,,,,,no,storage/example,,,[
+  AC_CONFIG_FILES(storage/example/Makefile)
+])
 MYSQL_STORAGE_ENGINE(archive)
-MYSQL_STORAGE_ENGINE(csv,,,,,tina_hton,,ha_tina.o)
+dnl MYSQL_STORAGE_ENGINE(csv,,,,,tina_hton,,ha_tina.o)
+MYSQL_STORAGE_ENGINE(csv,,,,,no,storage/csv,,,[
+  AC_CONFIG_FILES(storage/csv/Makefile)
+])
 MYSQL_STORAGE_ENGINE(blackhole)
 MYSQL_STORAGE_ENGINE(federated)
 MYSQL_STORAGE_ENGINE(ndbcluster,,ndbcluster,,,,storage/ndb,,,[
