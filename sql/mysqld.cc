@@ -2624,6 +2624,18 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
+  if (plugin_init())
+  {
+    sql_print_error("Failed to init plugins.");
+    return 1;
+  }
+
+  if (ha_register_builtin_plugins())
+  {
+    sql_print_error("Failed to register built-in storage engines.");
+    return 1;
+  }
+
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
@@ -3107,17 +3119,15 @@ server.");
   /*
     Check that the default storage engine is actually available.
   */
-  if (!ha_storage_engine_is_enabled((enum db_type)
-                                    global_system_variables.table_type))
+  if (!ha_storage_engine_is_enabled(global_system_variables.table_type))
   {
     if (!opt_bootstrap)
     {
       sql_print_error("Default storage engine (%s) is not available",
-                      ha_get_storage_engine((enum db_type)
-                                            global_system_variables.table_type));
+                      global_system_variables.table_type->name);
       unireg_abort(1);
     }
-    global_system_variables.table_type= DB_TYPE_MYISAM;
+    global_system_variables.table_type= &myisam_hton;
   }
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
@@ -3472,7 +3482,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    plugin_init();
+    plugin_load();
 #ifdef HAVE_DLOPEN
     udf_init();
 #endif
@@ -6117,6 +6127,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
   {"Com_show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"Com_show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
+  {"Com_show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
   {"Com_show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
   {"Com_show_processlist",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROCESSLIST]), SHOW_LONG_STATUS},
   {"Com_show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
@@ -6427,7 +6438,7 @@ static void mysql_init_variables(void)
 
 
   /* Set default values for some option variables */
-  global_system_variables.table_type=   DB_TYPE_MYISAM;
+  global_system_variables.table_type= &myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
@@ -6820,9 +6831,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_STORAGE_ENGINE:
   {
-    if ((enum db_type)((global_system_variables.table_type=
-                        ha_resolve_by_name(argument, strlen(argument)))) ==
-        DB_TYPE_UNKNOWN)
+    LEX_STRING name= { argument, strlen(argument) };
+    if ((global_system_variables.table_type=
+                        ha_resolve_by_name(current_thd, &name)) == NULL)
     {
       fprintf(stderr,"Unknown/unsupported table type: %s\n",argument);
       exit(1);

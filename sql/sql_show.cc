@@ -48,6 +48,32 @@ static bool schema_table_store_record(THD *thd, TABLE *table);
 ** List all table types supported 
 ***************************************************************************/
 
+static my_bool show_handlerton(THD *thd, st_plugin_int *plugin,
+                               void *arg)
+{
+  handlerton *default_type= (handlerton *) arg;
+  Protocol *protocol= thd->protocol;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+
+  if (!(hton->flags & HTON_HIDDEN))
+  {
+    protocol->prepare_for_resend();
+    protocol->store(hton->name, system_charset_info);
+    const char *option_name= show_comp_option_name[(int) hton->state];
+
+    if (hton->state == SHOW_OPTION_YES && default_type == hton)
+      option_name= "DEFAULT";
+    protocol->store(option_name, system_charset_info);
+    protocol->store(hton->comment, system_charset_info);
+    protocol->store(hton->commit ? "YES" : "NO", system_charset_info);
+    protocol->store(hton->prepare ? "YES" : "NO", system_charset_info);
+    protocol->store(hton->savepoint_set ? "YES" : "NO", system_charset_info);
+    
+    return protocol->write() ? 1 : 0;
+  }
+  return 0;  
+}
+
 bool mysqld_show_storage_engines(THD *thd)
 {
   List<Item> field_list;
@@ -65,33 +91,125 @@ bool mysqld_show_storage_engines(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  const char *default_type_name= 
-    ha_get_storage_engine((enum db_type)thd->variables.table_type);
+  if (plugin_foreach(thd, show_handlerton, 
+                     MYSQL_STORAGE_ENGINE_PLUGIN, thd->variables.table_type))
+    DBUG_RETURN(TRUE);
 
-  handlerton **types;
-  for (types= sys_table_types; *types; types++)
-  {
-    if (!((*types)->flags & HTON_HIDDEN))
-    {
-      protocol->prepare_for_resend();
-      protocol->store((*types)->name, system_charset_info);
-      const char *option_name= show_comp_option_name[(int) (*types)->state];
-
-      if ((*types)->state == SHOW_OPTION_YES &&
-          !my_strcasecmp(system_charset_info, default_type_name, (*types)->name))
-        option_name= "DEFAULT";
-      protocol->store(option_name, system_charset_info);
-      protocol->store((*types)->comment, system_charset_info);
-      protocol->store((*types)->commit ? "YES" : "NO", system_charset_info);
-      protocol->store((*types)->prepare ? "YES" : "NO", system_charset_info);
-      protocol->store((*types)->savepoint_set ? "YES" : "NO", system_charset_info);
-      if (protocol->write())
-        DBUG_RETURN(TRUE);
-    }
-  }
   send_eof(thd);
   DBUG_RETURN(FALSE);
 }
+
+static int make_version_string(char *buf, int buf_length, uint version)
+{
+  return my_snprintf(buf, buf_length, "%d.%d.%d",
+                     (version>>24)&0xff, (version>>16)&0xff,version&0xffff);
+}
+
+static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
+                            void *arg)
+{
+  TABLE *table= (TABLE*) arg;
+  struct st_mysql_plugin *plug= plugin->plugin;
+  Protocol *protocol= thd->protocol;
+  CHARSET_INFO *cs= system_charset_info;
+  char version_buf[20];
+
+  restore_record(table, s->default_values);
+
+  table->field[0]->store(plugin->name.str, plugin->name.length, cs);
+    
+  switch (plugin->state)
+  {
+  /* case PLUGIN_IS_FREED: does not happen */
+  case PLUGIN_IS_DELETED:
+    table->field[1]->store(STRING_WITH_LEN("DELETED"), cs);
+    break;
+  case PLUGIN_IS_UNINITIALIZED:
+    table->field[1]->store(STRING_WITH_LEN("INACTIVE"), cs);
+    break;
+  case PLUGIN_IS_READY:
+    table->field[1]->store(STRING_WITH_LEN("ACTIVE"), cs);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  switch (plug->type)
+  {
+  case MYSQL_UDF_PLUGIN:
+    table->field[2]->store(STRING_WITH_LEN("UDF"), cs);
+    break;
+  case MYSQL_STORAGE_ENGINE_PLUGIN:
+    table->field[2]->store(STRING_WITH_LEN("STORAGE"), cs);
+    break;
+  case MYSQL_FTPARSER_PLUGIN:
+    table->field[2]->store(STRING_WITH_LEN("FTPARSER"), cs);
+    break;
+  default:
+    table->field[2]->store(STRING_WITH_LEN("UNKNOWN"), cs);
+    break;
+  }
+
+  if (plug->version)
+  {
+    table->field[3]->store(version_buf,
+          make_version_string(version_buf, sizeof(version_buf), plug->version),
+          cs);
+    table->field[3]->set_notnull();
+  }
+  else
+    table->field[3]->set_null();
+
+  if (plug->info)
+  {
+    table->field[4]->store(version_buf,
+          make_version_string(version_buf, sizeof(version_buf), 
+                              *(uint *)plug->info), cs);
+    table->field[4]->set_notnull();
+  }
+  else
+    table->field[4]->set_null();
+
+  if (plugin->plugin_dl)
+  {
+    table->field[5]->store(plugin->plugin_dl->dl.str, 
+                           plugin->plugin_dl->dl.length, cs);
+    table->field[5]->set_notnull();
+  }
+  else
+    table->field[5]->set_null();
+  
+  if (plug->author)
+  {
+    table->field[6]->store(plug->author, strlen(plug->author), cs);
+    table->field[6]->set_notnull();
+  }
+  else
+    table->field[6]->set_null();
+
+  if (plug->descr)
+  {
+    table->field[7]->store(plug->descr, strlen(plug->descr), cs);
+    table->field[7]->set_notnull();
+  }
+  else
+    table->field[7]->set_null();
+
+  return schema_table_store_record(thd, table);
+}
+
+
+int fill_plugins(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_plugins");
+  TABLE *table= tables->table;
+
+  if (plugin_foreach(thd, show_plugins, MYSQL_ANY_PLUGIN, table))
+    DBUG_RETURN(1);
+    
+  DBUG_RETURN(0);
+}
+
 
 /***************************************************************************
 ** List all Authors.
@@ -999,8 +1117,8 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(STRING_WITH_LEN(" ENGINE="));
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->part_info)
-      packet->append(ha_get_storage_engine(table->part_info->
-                                           default_engine_type));
+      packet->append(ha_resolve_storage_engine_name(
+                        table->part_info->default_engine_type));
     else
       packet->append(file->table_type());
 #else
@@ -2084,7 +2202,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   Security_context *sctx= thd->security_ctx;
   uint derived_tables= lex->derived_tables; 
   int error= 1;
-  db_type not_used;
+  enum legacy_db_type not_used;
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("get_all_tables");
 
@@ -4172,6 +4290,20 @@ ST_FIELD_INFO variables_fields_info[]=
 };
 
 
+ST_FIELD_INFO plugin_fields_info[]=
+{
+  {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"PLUGIN_STATUS", 10, MYSQL_TYPE_STRING, 0, 0, "Status"},
+  {"PLUGIN_TYPE", 10, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_LIBRARY", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
+  {"PLUGIN_AUTHOR", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 */
@@ -4192,6 +4324,8 @@ ST_SCHEMA_TABLE schema_tables[]=
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1},
+  {"PLUGINS", plugin_fields_info, create_schema_table,
+    fill_plugins, make_old_format, 0, -1, -1, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,

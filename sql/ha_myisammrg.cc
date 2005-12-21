@@ -37,6 +37,7 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table);
 /* MyISAM MERGE handlerton */
 
 handlerton myisammrg_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "MRG_MYISAM",
   SHOW_OPTION_YES,
   "Collection of identical MyISAM tables", 
@@ -60,12 +61,9 @@ handlerton myisammrg_hton= {
   myisammrg_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   myrg_panic,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 

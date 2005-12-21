@@ -3037,11 +3037,12 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
-    enum db_type db_type;
+    LEX_STRING name;
+    handlerton *db_type;
     if (!(res=var->value->val_str(&str)) ||
-	!(var->save_result.ulong_value=
-          (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
-        ha_checktype(thd, db_type, 1, 0) != db_type)
+        !(name.str= (char *)res->ptr()) || !(name.length= res->length()) ||
+	!(var->save_result.hton= db_type= ha_resolve_by_name(thd, &name)) ||
+        ha_checktype(thd, ha_legacy_type(db_type), 1, 0) != db_type)
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;
@@ -3059,29 +3060,28 @@ err:
 byte *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
 					    LEX_STRING *base)
 {
-  ulong val;
-  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
-        thd->variables.*offset);
-  const char *table_type= ha_get_storage_engine((enum db_type)val);
-  return (byte *) table_type;
+  handlerton *val;
+  val= (type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset;
+  return (byte *) val->name;
 }
 
 
 void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    global_system_variables.*offset= (ulong) DB_TYPE_MYISAM;
+    global_system_variables.*offset= &myisam_hton;
   else
-    thd->variables.*offset= (ulong) (global_system_variables.*offset);
+    thd->variables.*offset= global_system_variables.*offset;
 }
 
 
 bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL)
-    global_system_variables.*offset= var->save_result.ulong_value;
-  else
-    thd->variables.*offset= var->save_result.ulong_value;
+  handlerton **value= &(global_system_variables.*offset);
+  if (var->type != OPT_GLOBAL)
+    value= &(thd->variables.*offset);
+  *value= var->save_result.hton;
   return 0;
 }
 

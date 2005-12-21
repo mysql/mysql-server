@@ -379,9 +379,9 @@ public:
 class sys_var_thd_storage_engine :public sys_var_thd
 {
 protected:
-  ulong SV::*offset;
+  handlerton *SV::*offset;
 public:
-  sys_var_thd_storage_engine(const char *name_arg, ulong SV::*offset_arg)
+  sys_var_thd_storage_engine(const char *name_arg, handlerton *SV::*offset_arg)
     :sys_var_thd(name_arg), offset(offset_arg)
   {}
   bool check(THD *thd, set_var *var);
@@ -398,7 +398,7 @@ SHOW_TYPE type() { return SHOW_CHAR; }
 class sys_var_thd_table_type :public sys_var_thd_storage_engine
 {
 public:
-  sys_var_thd_table_type(const char *name_arg, ulong SV::*offset_arg)
+  sys_var_thd_table_type(const char *name_arg, handlerton *SV::*offset_arg)
     :sys_var_thd_storage_engine(name_arg, offset_arg)
   {}
   void warn_deprecated(THD *thd);
@@ -812,6 +812,7 @@ public:
     CHARSET_INFO *charset;
     ulong ulong_value;
     ulonglong ulonglong_value;
+    handlerton *hton;
     DATE_TIME_FORMAT *date_time_format;
     Time_zone *time_zone;
   } save_result;

@@ -51,18 +51,22 @@ TODO:
 #include "ha_tina.h"
 #include <sys/mman.h>
 
+#include <plugin.h>
+
 /* Stuff for shares */
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
 static handler *tina_create_handler(TABLE_SHARE *table);
+static int tina_init_func();
 
 handlerton tina_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "CSV",
   SHOW_OPTION_YES,
   "CSV storage engine", 
   DB_TYPE_CSV_DB,
-  NULL,    /* One needs to be written! */
+  (bool (*)()) tina_init_func,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -81,12 +85,9 @@ handlerton tina_hton= {
   tina_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   tina_end,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 
@@ -155,6 +156,35 @@ int get_mmap(TINA_SHARE *share, int write)
   DBUG_RETURN(0);
 }
 
+
+static int tina_init_func()
+{
+  if (!tina_init)
+  {
+    tina_init++;
+    VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
+    (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
+                     (hash_get_key) tina_get_key,0,0);
+  }
+  return 0;
+}
+
+static int tina_done_func()
+{
+  if (tina_init)
+  {
+    if (tina_open_tables.records)
+    {
+      return 1;
+    }
+    hash_free(&tina_open_tables);
+    pthread_mutex_destroy(&tina_mutex);
+    tina_init--;
+  }
+  return 0;
+}
+	
+
 /*
   Simple lock controls.
 */
@@ -164,19 +194,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   char *tmp_name;
   uint length;
 
-  if (!tina_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
-    if (!tina_init)
-    {
-      tina_init++;
-      VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
-      (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                       (hash_get_key) tina_get_key,0,0);
-    }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
-  }
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
   if (!(share=(TINA_SHARE*) hash_search(&tina_open_tables,
@@ -262,13 +279,7 @@ static int free_share(TINA_SHARE *share)
 
 int tina_end(ha_panic_function type)
 {
-  if (tina_init)
-  {
-    hash_free(&tina_open_tables);
-    VOID(pthread_mutex_destroy(&tina_mutex));
-  }
-  tina_init= 0;
-  return 0;
+  return tina_done_func();
 }
 
 /*
@@ -932,4 +943,17 @@ int ha_tina::create(const char *name, TABLE *table_arg,
 
   DBUG_RETURN(0);
 }
+
+mysql_declare_plugin
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &tina_hton,
+  tina_hton.name,
+  0x00010000 /* 0.1.0 */,
+  "Brian Aker, MySQL AB",
+  "CSV Storage Engine",
+  tina_init_func, /* Plugin Init */
+  tina_done_func  /* Plugin Deinit */
+}
+mysql_declare_plugin_end;
 

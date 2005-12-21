@@ -30,6 +30,7 @@ static handler *blackhole_create_handler(TABLE_SHARE *table);
 /* Blackhole storage engine handlerton */
 
 handlerton blackhole_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "BLACKHOLE",
   SHOW_OPTION_YES,
   "/dev/null storage engine (anything you write to it disappears)",
@@ -53,12 +54,9 @@ handlerton blackhole_hton= {
   blackhole_create_handler,    /* Create a new handler */
   NULL,    /* Drop a database */
   NULL,    /* Panic call */
-  NULL,    /* Release temporary latches */
-  NULL,    /* Update Statistics */
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
-  NULL,    /* Replication Report Sent Binlog */
   HTON_CAN_RECREATE
 };
 

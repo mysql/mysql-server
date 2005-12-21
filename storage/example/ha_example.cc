@@ -68,17 +68,20 @@
 #endif
 
 #include "../mysql_priv.h"
+#include <plugin.h>
 
 #include "ha_example.h"
 
 static handler* example_create_handler(TABLE_SHARE *table);
+static int example_init_func();
 
 handlerton example_hton= {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "EXAMPLE",
   SHOW_OPTION_YES,
   "Example storage engine", 
   DB_TYPE_EXAMPLE_DB,
-  NULL,    /* We do need to write one! */
+  (bool (*)()) example_init_func,
   0,       /* slot */
   0,       /* savepoint size. */
   NULL,    /* close_connection */
@@ -123,6 +126,34 @@ static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
 }
 
 
+static int example_init_func()
+{
+  if (!example_init)
+  {
+    example_init++;
+    VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
+    (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
+                     (hash_get_key) example_get_key,0,0);
+  }
+  return 0;
+}
+
+static int example_done_func()
+{
+  if (example_init)
+  {
+    if (example_open_tables.records)
+    {
+      return 1;
+    }
+    hash_free(&example_open_tables);
+    pthread_mutex_destroy(&example_mutex);
+    example_init--;
+  }
+  return 0;
+}
+
+
 /*
   Example of simple lock controls. The "share" it creates is structure we will
   pass to each example handler. Do you have to have one of these? Well, you have
@@ -134,25 +165,6 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
   uint length;
   char *tmp_name;
 
-  /*
-    So why does this exist? There is no way currently to init a storage engine.
-    Innodb and BDB both have modifications to the server to allow them to
-    do this. Since you will not want to do this, this is probably the next
-    best method.
-  */
-  if (!example_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
-    if (!example_init)
-    {
-      example_init++;
-      VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
-      (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
-                       (hash_get_key) example_get_key,0,0);
-    }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
-  }
   pthread_mutex_lock(&example_mutex);
   length=(uint) strlen(table_name);
 
@@ -186,7 +198,6 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   pthread_mutex_destroy(&share->mutex);
-  pthread_mutex_unlock(&example_mutex);
   my_free((gptr) share, MYF(0));
 
   return NULL;
@@ -713,3 +724,17 @@ int ha_example::create(const char *name, TABLE *table_arg,
   /* This is not implemented but we want someone to be able that it works. */
   DBUG_RETURN(0);
 }
+
+mysql_declare_plugin
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &example_hton,
+  example_hton.name,
+  0x01000000 /* 1.0.0 */,
+  "Brian Aker, MySQL AB",
+  "Example Storage Engine",
+  tina_init_func, /* Plugin Init */
+  tina_done_func  /* Plugin Deinit */
+}
+mysql_declare_plugin_end;
+
