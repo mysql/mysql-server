@@ -1246,6 +1246,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
   SYNOPSIS
     unique_table()
+    thd                   thread handle
     table                 table which should be checked
     table_list            list of tables
 
@@ -1271,7 +1272,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     0 if table is unique
 */
 
-TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
+TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
 {
   TABLE_LIST *res;
   const char *d_name, *t_name;
@@ -1306,9 +1307,10 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (;;)
   {
-    if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
-        (!res->table || res->table != table->table) &&
-        (res->select_lex && !res->select_lex->exclude_from_table_unique_test))
+    if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
+         (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
+        ((!res->table || res->table != table->table) &&
+         res->select_lex && !res->select_lex->exclude_from_table_unique_test))
       break;
     /*
       If we found entry of this table or or table of SELECT which already
