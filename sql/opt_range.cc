@@ -286,6 +286,13 @@ public:
     return parent->left == this ? &parent->left : &parent->right;
   }
   SEL_ARG *clone_tree();
+
+  /* Return TRUE if this represents "keypartK = const" or "keypartK IS NULL" */
+  bool is_singlepoint()
+  {
+    return !min_flag && !max_flag && 
+           !field->key_cmp((byte*) min_value, (byte*)max_value);
+  }
 };
 
 class SEL_IMERGE;
@@ -319,25 +326,51 @@ public:
   /* Note that #records for each key scan is stored in table->quick_rows */
 };
 
+class RANGE_OPT_PARAM
+{
+public:
+  THD	*thd;   /* Current thread handle */
+  TABLE *table; /* Table being analyzed */
+  COND *cond;   /* Used inside get_mm_tree(). */
+  table_map prev_tables;
+  table_map read_tables;
+  table_map current_table; /* Bit of the table being analyzed */
 
-typedef struct st_qsel_param {
-  THD	*thd;
-  TABLE *table;
-  KEY_PART *key_parts,*key_parts_end;
+  /* Array of parts of all keys for which range analysis is performed */
+  KEY_PART *key_parts;
+  KEY_PART *key_parts_end;
+  MEM_ROOT *mem_root; /* Memory that will be freed when range analysis completes */
+  MEM_ROOT *old_root; /* Memory that will last until the query end */
+  /*
+    Number of indexes used in range analysis (In SEL_TREE::keys only first
+    #keys elements are not empty)
+  */
+  uint keys;
+  
+  /* 
+    If true, the index descriptions describe real indexes (and it is ok to
+    call field->optimize_range(real_keynr[...], ...).
+    Otherwise index description describes fake indexes.
+  */
+  bool using_real_indexes;
+  
+  /*
+    used_key_no -> table_key_no translation table. Only makes sense if
+    using_real_indexes==TRUE
+  */
+  uint real_keynr[MAX_KEY];
+};
+
+class PARAM : public RANGE_OPT_PARAM
+{
+public:
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
-  MEM_ROOT *mem_root, *old_root;
-  table_map prev_tables,read_tables,current_table;
   uint baseflag, max_key_part, range_count;
 
-  uint keys; /* number of keys used in the query */
-
-  /* used_key_no -> table_key_no translation table */
-  uint real_keynr[MAX_KEY];
 
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
-  COND *cond;
 
   uint fields_bitmap_size;
   MY_BITMAP needed_fields;    /* bitmask of fields needed by the query */
@@ -349,7 +382,7 @@ typedef struct st_qsel_param {
 
  /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
-} PARAM;
+};
 
 class TABLE_READ_PLAN;
   class TRP_RANGE;
@@ -360,13 +393,13 @@ class TABLE_READ_PLAN;
 
 struct st_ror_scan_info;
 
-static SEL_TREE * get_mm_parts(PARAM *param,COND *cond_func,Field *field,
+static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
 			       Item_func::Functype type,Item *value,
 			       Item_result cmp_type);
-static SEL_ARG *get_mm_leaf(PARAM *param,COND *cond_func,Field *field,
+static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
-static SEL_TREE *get_mm_tree(PARAM *param,COND *cond);
+static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond);
 
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree);
@@ -409,8 +442,8 @@ static void print_rowid(byte* val, int len);
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 #endif
 
-static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
-static SEL_TREE *tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
+static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
+static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_or(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag);
@@ -423,7 +456,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const char *key,
                              uint length);
-bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param);
+bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, RANGE_OPT_PARAM* param);
 
 
 /*
@@ -455,9 +488,9 @@ public:
     trees_next(trees),
     trees_end(trees + PREALLOCED_TREES)
   {}
-  int or_sel_tree(PARAM *param, SEL_TREE *tree);
-  int or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree);
-  int or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge);
+  int or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree);
+  int or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree);
+  int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* imerge);
 };
 
 
@@ -473,7 +506,7 @@ public:
     -1 - Out of memory.
 */
 
-int SEL_IMERGE::or_sel_tree(PARAM *param, SEL_TREE *tree)
+int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 {
   if (trees_next == trees_end)
   {
@@ -524,7 +557,7 @@ int SEL_IMERGE::or_sel_tree(PARAM *param, SEL_TREE *tree)
    -1  An error occurred.
 */
 
-int SEL_IMERGE::or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree)
+int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree)
 {
   for (SEL_TREE** tree = trees;
        tree != trees_next;
@@ -558,7 +591,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(PARAM *param, SEL_TREE *new_tree)
    -1 - An error occurred
 */
 
-int SEL_IMERGE::or_sel_imerge_with_checks(PARAM *param, SEL_IMERGE* imerge)
+int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* imerge)
 {
   for (SEL_TREE** tree= imerge->trees;
        tree != imerge->trees_next;
@@ -604,7 +637,7 @@ inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2)
     other Error, both passed lists are unusable
 */
 
-int imerge_list_or_list(PARAM *param,
+int imerge_list_or_list(RANGE_OPT_PARAM *param,
                         List<SEL_IMERGE> *im1,
                         List<SEL_IMERGE> *im2)
 {
@@ -624,7 +657,7 @@ int imerge_list_or_list(PARAM *param,
     other Error
 */
 
-int imerge_list_or_tree(PARAM *param,
+int imerge_list_or_tree(RANGE_OPT_PARAM *param,
                         List<SEL_IMERGE> *im1,
                         SEL_TREE *tree)
 {
@@ -1776,6 +1809,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.old_root= thd->mem_root;
     param.needed_reg= &needed_reg;
     param.imerge_cost_buff_size= 0;
+    param.using_real_indexes= TRUE;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -1965,6 +1999,859 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   */
   DBUG_RETURN(records ? test(quick) : -1);
 }
+
+/****************************************************************************
+ * Partition pruning starts
+ ****************************************************************************/
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+
+struct st_part_prune_param;
+struct st_part_opt_info;
+
+typedef void (*mark_full_part_func)(partition_info*, uint32);
+typedef uint32 (*part_num_to_partition_id_func)(struct st_part_prune_param*,
+                                                uint32);
+typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
+                                    bool include_endpoint);
+
+/*
+  Partition pruning operation context
+*/
+typedef struct st_part_prune_param
+{
+  RANGE_OPT_PARAM range_param; /* Range optimizer parameters */
+  
+  /***************************************************************
+   Following fields are filled in based solely on partitioning 
+   definition and not modified after that:
+   **************************************************************/
+  partition_info *part_info; /* Copy of table->part_info */
+  /* Function to get partition id from partitioning fields only */
+  get_part_id_func get_top_partition_id_func;
+  /* Function to mark a partition as used (w/all subpartitions if they exist)*/
+  mark_full_part_func mark_full_partition_used;
+ 
+  /* Partitioning 'index' description, array of key parts */
+  KEY_PART *key;
+  
+  /*
+    Number of fields in partitioning 'index' definition created for
+    partitioning (0 if partitioning 'index' doesn't include partitioning
+    fields)
+  */
+  uint part_fields;
+  uint subpart_fields; /* Same as above for subpartitioning */
+  
+  /* 
+    Number of the last partitioning field keypart in the index, or -1 if
+    partitioning index definition doesn't include partitioning fields.
+  */
+  int last_part_partno;
+  int last_subpart_partno; /* Same as above for supartitioning */
+
+  /*
+    Function to be used to analyze non-singlepoint intervals (Can be pointer
+    to one of two functions - for RANGE and for LIST types).  NULL means 
+    partitioning type and/or expression doesn't allow non-singlepoint interval
+    analysis.
+    See get_list_array_idx_for_endpoint (or get_range_...) for description of
+    what the function does.
+  */
+  get_endpoint_func   get_endpoint;
+
+  /* Maximum possible value that can be returned by get_endpoint function */
+  uint32  max_endpoint_val;
+
+  /* 
+    For RANGE partitioning, part_num_to_part_id_range, for LIST partitioning,
+    part_num_to_part_id_list. Just to avoid the if-else clutter.
+  */
+  part_num_to_partition_id_func endpoints_walk_func;
+
+  /*
+    If true, process "key < const" as "part_func(key) < part_func(const)",
+    otherwise as "part_func(key) <= part_func(const)". Same for '>' and '>='.
+    This is defined iff get_endpoint != NULL.
+  */
+  bool force_include_bounds;
+ 
+  /*
+    is_part_keypart[i] == test(keypart #i in partitioning index is a member
+                               used in partitioning)
+    Used to maintain current values of cur_part_fields and cur_subpart_fields
+  */
+  my_bool *is_part_keypart;
+  /* Same as above for subpartitioning */
+  my_bool *is_subpart_keypart;
+
+  /***************************************************************
+   Following fields form find_used_partitions() recursion context:
+   **************************************************************/
+  SEL_ARG **arg_stack;     /* "Stack" of SEL_ARGs */
+  SEL_ARG **arg_stack_end; /* Top of the stack    */
+  /* Number of partitioning fields for which we have a SEL_ARG* in arg_stack */
+  uint cur_part_fields;
+  /* Same as cur_part_fields, but for subpartitioning */
+  uint cur_subpart_fields;
+ 
+  /***************************************************************
+   Following fields are used to store an 'iterator' that can be 
+   used to obtain a set of used of used partitions.
+   **************************************************************/
+  /* 
+    Start number, end number and 
+  */
+  part_num_to_partition_id_func part_num_to_part_id;
+  uint32 start_part_num;
+  uint32 end_part_num;
+} PART_PRUNE_PARAM;
+
+static bool create_partition_index_descrition(PART_PRUNE_PARAM *prune_par);
+static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree);
+static void mark_all_partitions_as_used(partition_info *part_info);
+static uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par, 
+                                        uint32 num);
+
+#ifndef DBUG_OFF
+static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end);
+static void dbug_print_field(Field *field);
+static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part);
+static void dbug_print_onepoint_range(SEL_ARG **start, uint num);
+#endif
+
+
+/*
+  Perform partition pruning for a given table and condition.
+
+  SYNOPSIS
+    prune_partitions()
+      thd           Thread handle
+      table         Table to perform partition pruning for
+      pprune_cond   Condition to use for partition pruning
+  
+  DESCRIPTION
+    This function assumes that all partitions are marked as unused when it
+    is invoked. The function analyzes the condition, finds partitions that
+    need to be used to retrieve the records that match the condition, and 
+    marks them as used by setting appropriate bit in part_info->used_partitions
+    In the worst case all partitions are marked as used.
+
+  NOTE
+    This function returns promptly if called for non-partitioned table.
+
+  RETURN
+    TRUE   We've inferred that no partitions need to be used (i.e. no table
+           records will satisfy pprune_cond)
+    FALSE  Otherwise
+*/
+
+bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
+{
+  bool retval= FALSE;
+  partition_info *part_info = table->part_info;
+  DBUG_ENTER("prune_partitions");
+
+  if (!part_info)
+    DBUG_RETURN(FALSE); /* not a partitioned table */
+  
+  if (!pprune_cond)
+  {
+    mark_all_partitions_as_used(part_info);
+    DBUG_RETURN(FALSE);
+  }
+  
+  PART_PRUNE_PARAM prune_param;
+  MEM_ROOT alloc;
+  RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
+
+  prune_param.part_info= part_info;
+
+  init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
+  range_par->mem_root= &alloc;
+  range_par->old_root= thd->mem_root;
+
+  if (create_partition_index_descrition(&prune_param))
+  {
+    mark_all_partitions_as_used(part_info);
+    free_root(&alloc,MYF(0));		// Return memory & allocator
+    DBUG_RETURN(FALSE);
+  }
+  
+  range_par->thd= thd;
+  range_par->table= table;
+  /* range_par->cond doesn't need initialization */
+  range_par->prev_tables= range_par->read_tables= 0;
+  range_par->current_table= table->map;
+
+  range_par->keys= 1; // one index
+  range_par->using_real_indexes= FALSE;
+  range_par->real_keynr[0]= 0;
+
+  thd->no_errors=1;				// Don't warn about NULL
+  thd->mem_root=&alloc;
+  
+  prune_param.key= prune_param.range_param.key_parts;
+  SEL_TREE *tree;
+  SEL_ARG *arg;
+  int res;
+
+  tree= get_mm_tree(range_par, pprune_cond);
+  if (!tree || (tree->type != SEL_TREE::KEY &&
+                tree->type != SEL_TREE::KEY_SMALLER))
+    goto all_used;
+
+  if (tree->type == SEL_TREE::IMPOSSIBLE)
+  {
+    retval= TRUE;
+    goto end;
+  }
+   
+  if (tree->merges.is_empty())
+  {
+    prune_param.arg_stack_end= prune_param.arg_stack;
+    prune_param.cur_part_fields= 0;
+    prune_param.cur_subpart_fields= 0;
+    prune_param.part_num_to_part_id= part_num_to_part_id_range;
+    prune_param.start_part_num= 0;
+    prune_param.end_part_num= prune_param.part_info->no_parts;
+    if (!tree->keys[0] || (-1 == (res= find_used_partitions(&prune_param,
+                                                            tree->keys[0]))))
+      goto all_used;
+  }
+  else
+  {
+    res= 0;
+    DBUG_ASSERT(tree->merges.elements == 1);
+    SEL_IMERGE *imerge= tree->merges.head();
+    for (SEL_TREE **ptree= imerge->trees; ptree < imerge->trees_next; ptree++)
+    {
+      prune_param.arg_stack_end= prune_param.arg_stack;
+      prune_param.cur_part_fields= 0;
+      prune_param.cur_subpart_fields= 0;
+      prune_param.part_num_to_part_id= part_num_to_part_id_range;
+      prune_param.start_part_num= 0;
+      prune_param.end_part_num= prune_param.part_info->no_parts;
+      if (-1 == (res |= find_used_partitions(&prune_param, (*ptree)->keys[0])))
+        goto all_used;
+    }
+  }
+  
+  if (!res)
+    retval= TRUE;
+  goto end;
+
+all_used:
+  mark_all_partitions_as_used(prune_param.part_info);
+end:
+  thd->no_errors=0;
+  thd->mem_root= range_par->old_root;
+  free_root(&alloc,MYF(0));			// Return memory & allocator
+  DBUG_RETURN(retval);
+}
+
+
+/*
+  Store key image to table record
+
+  SYNOPSIS
+    field  Field which key image should be stored.
+    ptr    Field value in key format.
+    len    Length of the value, in bytes.
+*/
+
+static void store_key_image_to_rec(Field *field, char *ptr, uint len)
+{
+  /* Do the same as print_key() does */ 
+  if (field->real_maybe_null())
+  {
+    if (*ptr)
+    {
+      field->set_null();
+      return;
+    }
+    ptr++;
+  }    
+  field->set_key_image(ptr, len); 
+}
+
+
+/*
+  For SEL_ARG* array, store sel_arg->min values into table record buffer
+
+  SYNOPSIS
+    store_selargs_to_rec()
+      ppar   Partition pruning context
+      start  Array SEL_ARG* for which the minimum values should be stored
+      num    Number of elements in the array
+*/
+
+static void store_selargs_to_rec(PART_PRUNE_PARAM *ppar, SEL_ARG **start,
+                                 int num)
+{
+  KEY_PART *parts= ppar->range_param.key_parts;
+  for (SEL_ARG **end= start + num; start != end; start++)
+  {
+    SEL_ARG *sel_arg= (*start);
+    store_key_image_to_rec(sel_arg->field, sel_arg->min_value,
+                           parts[sel_arg->part].length);
+  }
+}
+
+
+/* Mark a partition as used in the case when there are no subpartitions */
+static void mark_full_partition_used_no_parts(partition_info* part_info,
+                                              uint32 part_id)
+{
+  bitmap_set_bit(&part_info->used_partitions, part_id);
+}
+
+
+/* Mark a partition as used in the case when there are subpartitions */
+static void mark_full_partition_used_with_parts(partition_info *part_info,
+                                                uint32 part_id)
+{
+  uint32 start= part_id * part_info->no_subparts;
+  uint32 end=   start + part_info->no_subparts; 
+  for (; start != end; start++)
+    bitmap_set_bit(&part_info->used_partitions, start);
+}
+
+static
+uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par, uint32 num)
+{
+  return num; 
+}
+
+static
+uint32 part_num_to_part_id_list(PART_PRUNE_PARAM* prune_par, uint32 num)
+{
+  return prune_par->part_info->list_array[num].partition_id;
+}
+
+
+/*
+  Recursively walk the SEL_ARG tree, find/mark partitions that need to be used
+
+  SYNOPSIS
+    find_used_partitions()
+      ppar      Partition pruning context.
+      key_tree  Intervals tree to perform pruning for.
+
+  DESCRIPTION
+    This function 
+      * recursively walks the SEL_ARG* tree, collecting partitioning 
+        "intervals";
+      * finds the partitions one needs to use to get rows in these intervals;
+      * marks these partitions as used.
+      
+    WHAT IS CONSIDERED TO BE "INTERVALS"
+    A partition pruning "interval" is equivalent to condition in one of the 
+    forms:
+    
+    "partition_field1=const1 AND ... partition_fieldN=constN"          (1)
+    "subpartition_field1=const1 AND ... subpartition_fieldN=constN"    (2)
+    "(1) AND (2)"                                                      (3)
+    
+    In (1) and (2) all [sub]partitioning fields must be used, and "x=const"
+    includes "x IS NULL". 
+    
+    If partitioning is performed using 
+       
+       PARTITION BY RANGE(unary_monotonic_func(single_partition_field)),
+       
+    then the following is also an interval:
+
+           "   const1 OP1 single_partition_field OR const2"            (4)
+     
+    where OP1 and OP2 are '<' OR '<=', and const_i can be +/- inf.
+    Everything else is not a partition pruning "interval".
+
+  RETURN
+    1   OK, one or more [sub]partitions are marked as used.
+    0   The passed condition doesn't match any partitions
+   -1   Couldn't infer any partition pruning "intervals" from the passed 
+        SEL_ARG* tree. Marking partitions as used is the responsibility of
+        the caller.
+*/
+
+static 
+int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
+{
+  int res, left_res=0, right_res=0;
+  int partno= (int)key_tree->part;
+  bool pushed= FALSE;
+  bool set_full_part_if_bad_ret= FALSE;
+
+  if (key_tree->left != &null_element)
+  {
+    if (-1 == (left_res= find_used_partitions(ppar,key_tree->left)))
+      return -1;
+  }
+
+  if (key_tree->type == SEL_ARG::KEY_RANGE)
+  {
+    if (partno == 0 && (NULL != ppar->get_endpoint))
+    {
+      /* 
+        Partitioning is done by RANGE|INTERVAL(monotonic_expr(fieldX)), and
+        we got "const1 < fieldX < const2" interval.
+      */
+      DBUG_EXECUTE("info", dbug_print_segment_range(key_tree,
+                                                    ppar->range_param.
+                                                    key_parts););
+      /* Find minimum */
+      if (key_tree->min_flag & NO_MIN_RANGE)
+      {
+        ppar->start_part_num= 0;
+      }
+      else
+      {
+        store_key_image_to_rec(key_tree->field, key_tree->min_value, 
+                               ppar->range_param.key_parts[0].length);
+        bool include_endp= ppar->force_include_bounds ||
+                           !test(key_tree->min_flag & NEAR_MIN);
+        ppar->start_part_num= ppar->get_endpoint(ppar->part_info, 1,
+                                                 include_endp);
+        if (ppar->start_part_num == ppar->max_endpoint_val)
+        {
+          res= 0; /* No satisfying partitions */
+          goto pop_and_go_right;
+        }
+      }
+
+      /* Find maximum */
+      if (key_tree->min_flag & NO_MAX_RANGE)
+      {
+        ppar->end_part_num= ppar->max_endpoint_val;
+      }
+      else
+      {
+        store_key_image_to_rec(key_tree->field, key_tree->max_value,
+                               ppar->range_param.key_parts[0].length);
+        bool include_endp= ppar->force_include_bounds ||
+                           !test(key_tree->max_flag & NEAR_MAX);
+        ppar->end_part_num= ppar->get_endpoint(ppar->part_info, 0,
+                                               include_endp);
+        if (ppar->start_part_num == ppar->end_part_num)
+        {
+          res= 0; /* No satisfying partitions */
+          goto pop_and_go_right;
+        }
+      }
+      ppar->part_num_to_part_id= ppar->endpoints_walk_func;
+
+      /* 
+        Save our intent to mark full partition as used if we will not be able 
+        to obtain further limits on subpartitions
+      */
+      set_full_part_if_bad_ret= TRUE;
+      goto process_next_key_part;
+    }
+
+    if (key_tree->is_singlepoint())
+    {
+      pushed= TRUE;
+      ppar->cur_part_fields+=    ppar->is_part_keypart[partno];
+      ppar->cur_subpart_fields+= ppar->is_subpart_keypart[partno];
+      *(ppar->arg_stack_end++) = key_tree;
+
+      if (partno == ppar->last_part_partno &&
+          ppar->cur_part_fields == ppar->part_fields)
+      {
+        /* 
+          Ok, we've got "fieldN<=>constN"-type SEL_ARGs for all partitioning
+          fields. Save all constN constants into table record buffer.
+        */
+        store_selargs_to_rec(ppar, ppar->arg_stack, ppar->part_fields);
+        DBUG_EXECUTE("info", dbug_print_onepoint_range(ppar->arg_stack,
+                                                       ppar->part_fields););
+        uint32 part_id;
+        /* then find in which partition the {const1, ...,constN} tuple goes */
+        if (ppar->get_top_partition_id_func(ppar->part_info, &part_id))
+        {
+          res= 0; /* No satisfying partitions */
+          goto pop_and_go_right;
+        }
+        /* Rembember the limit we got - single partition #part_id */
+        ppar->part_num_to_part_id= part_num_to_part_id_range;
+        ppar->start_part_num= part_id;
+        ppar->end_part_num=   part_id + 1;
+        
+        /*
+          If there are no subpartitions/we fail to get any limit for them, 
+          then we'll mark full partition as used. 
+        */
+        set_full_part_if_bad_ret= TRUE;
+        goto process_next_key_part;
+      }
+
+      if (partno == ppar->last_subpart_partno)
+      {
+        /* 
+          Ok, we've got "fieldN<=>constN"-type SEL_ARGs for all subpartitioning
+          fields. Save all constN constants into table record buffer.
+        */
+        store_selargs_to_rec(ppar, ppar->arg_stack_end - ppar->subpart_fields,
+                             ppar->subpart_fields);
+        DBUG_EXECUTE("info", dbug_print_onepoint_range(ppar->arg_stack_end - 
+                                                       ppar->subpart_fields,
+                                                       ppar->subpart_fields););
+        /* Find the subpartition (it's HASH/KEY so we always have one) */
+        partition_info *part_info= ppar->part_info;
+        uint32 subpart_id= part_info->get_subpartition_id(part_info);
+        
+        /* Mark this partition as used in each subpartition. */
+        for (uint32 num= ppar->start_part_num; num != ppar->end_part_num; 
+             num++)
+        {
+          bitmap_set_bit(&part_info->used_partitions,
+                         ppar->part_num_to_part_id(ppar, num) * 
+                         part_info->no_subparts + subpart_id);
+          ppar->start_part_num++;
+        }
+        res= 1; /* Some partitions were marked as used */
+        goto pop_and_go_right;
+      }
+    }
+    else
+    {
+      /* 
+        Can't handle condition on current key part. If we're that deep that 
+        we're processing subpartititoning's key parts, this means we'll not be
+        able to infer any suitable condition, so bail out.
+      */
+      if (partno >= ppar->last_part_partno)
+        return -1;
+    }
+  }
+
+process_next_key_part:
+  if (key_tree->next_key_part)
+    res= find_used_partitions(ppar, key_tree->next_key_part);
+  else 
+    res= -1;
+  
+  if (res == -1) /* Got "full range" for key_tree->next_key_part call */
+  {
+    if (set_full_part_if_bad_ret)
+    {
+      for (uint32 num= ppar->start_part_num; num != ppar->end_part_num; 
+           num++)
+      {
+        ppar->mark_full_partition_used(ppar->part_info,
+                                       ppar->part_num_to_part_id(ppar, num));
+      }
+      res= 1;
+    }
+    else
+      return -1;
+  }
+
+  if (set_full_part_if_bad_ret)
+  {
+    /* Restore the "used partition iterator" to its default */
+    ppar->part_num_to_part_id= part_num_to_part_id_range;
+    ppar->start_part_num= 0;
+    ppar->end_part_num= ppar->part_info->no_parts;
+  }
+
+  if (pushed)
+  {
+pop_and_go_right:
+    /* Pop this key part info off the "stack" */
+    ppar->arg_stack_end--;
+    ppar->cur_part_fields-=    ppar->is_part_keypart[partno];
+    ppar->cur_subpart_fields-= ppar->is_subpart_keypart[partno];
+  }
+  
+  if (key_tree->right != &null_element)
+  {
+    if (-1 == (right_res= find_used_partitions(ppar,key_tree->right)))
+      return -1;
+  }
+  return (left_res || right_res || res);
+}
+ 
+
+static void mark_all_partitions_as_used(partition_info *part_info)
+{
+  bitmap_set_all(&part_info->used_partitions);
+}
+
+
+/*
+  Check if field types allow to construct partitioning index description
+ 
+  SYNOPSIS
+    fields_ok_for_partition_index()
+      pfield  NULL-terminated array of pointers to fields.
+
+  DESCRIPTION
+    For an array of fields, check if we can use all of the fields to create
+    partitioning index description.
+    
+    We can't process GEOMETRY fields - for these fields singlepoint intervals
+    cant be generated, and non-singlepoint are "special" kinds of intervals
+    to which our processing logic can't be applied.
+
+    It is not known if we could process ENUM fields, so they are disabled to be
+    on the safe side.
+
+  RETURN 
+    TRUE   Yes, fields can be used in partitioning index
+    FALSE  Otherwise
+*/
+
+static bool fields_ok_for_partition_index(Field **pfield)
+{
+  if (!pfield)
+    return FALSE;
+  for (; (*pfield); pfield++)
+  {
+    enum_field_types ftype= (*pfield)->real_type();
+    if (ftype == FIELD_TYPE_ENUM || ftype == FIELD_TYPE_GEOMETRY)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
+/*
+  Create partition index description and fill related info in the context
+  struct
+
+  SYNOPSIS
+    create_partition_index_descrition()
+      prune_par  INOUT Partition pruning context
+
+  DESCRIPTION
+    Create partition index description. Partition index description is:
+
+      part_index(used_fields_list(part_expr), used_fields_list(subpart_expr))
+
+    If partitioning/sub-partitioning uses BLOB or Geometry fields, then
+    corresponding fields_list(...) is not included into index description
+    and we don't perform partition pruning for partitions/subpartitions.
+
+  RETURN
+    TRUE   Out of memory or can't do partition pruning at all
+    FALSE  OK
+*/
+
+static bool create_partition_index_descrition(PART_PRUNE_PARAM *ppar)
+{
+  RANGE_OPT_PARAM *range_par= &(ppar->range_param);
+  partition_info *part_info= ppar->part_info;
+  uint used_part_fields, used_subpart_fields;
+
+  used_part_fields= fields_ok_for_partition_index(part_info->part_field_array) ?
+                      part_info->no_part_fields : 0;
+  used_subpart_fields= 
+    fields_ok_for_partition_index(part_info->subpart_field_array)? 
+      part_info->no_subpart_fields : 0;
+  
+  uint total_parts= used_part_fields + used_subpart_fields;
+
+  ppar->part_fields=      used_part_fields;
+  ppar->last_part_partno= (int)used_part_fields - 1;
+
+  ppar->subpart_fields= used_subpart_fields;
+  ppar->last_subpart_partno= 
+    used_subpart_fields?(int)(used_part_fields + used_subpart_fields - 1): -1;
+
+  if (is_sub_partitioned(part_info))
+  {
+    ppar->mark_full_partition_used=  mark_full_partition_used_with_parts;
+    ppar->get_top_partition_id_func= part_info->get_part_partition_id;
+  }
+  else
+  {
+    ppar->mark_full_partition_used=  mark_full_partition_used_no_parts;
+    ppar->get_top_partition_id_func= part_info->get_partition_id;
+  }
+
+  enum_monotonicity_info minfo;
+  ppar->get_endpoint= NULL;
+  if (part_info->part_expr && 
+      (minfo= part_info->part_expr->get_monotonicity_info()) != NON_MONOTONIC)
+  {
+    /*
+      ppar->force_include_bounds controls how we'll process "field < C" and 
+      "field > C" intervals.
+      If the partitioning function F is strictly increasing, then for any x, y
+      "x < y" => "F(x) < F(y)" (*), i.e. when we get interval "field < C" 
+      we can perform partition pruning on the equivalent "F(field) < F(C)".
+
+      If the partitioning function not strictly increasing (it is simply
+      increasing), then instead of (*) we get "x < y" => "F(x) <= F(y)"
+      i.e. for interval "field < C" we can perform partition pruning for
+      "F(field) <= F(C)".
+    */
+    ppar->force_include_bounds= test(minfo == MONOTONIC_INCREASING);
+    if (part_info->part_type == RANGE_PARTITION)
+    {
+      ppar->get_endpoint=        get_partition_id_range_for_endpoint;
+      ppar->endpoints_walk_func= part_num_to_part_id_range;
+      ppar->max_endpoint_val=    part_info->no_parts;
+    }
+    else if (part_info->part_type == LIST_PARTITION)
+    {
+      ppar->get_endpoint=        get_list_array_idx_for_endpoint;
+      ppar->endpoints_walk_func= part_num_to_part_id_list;
+      ppar->max_endpoint_val=    part_info->no_list_values;
+    }
+  }
+
+  KEY_PART *key_part;
+  MEM_ROOT *alloc= range_par->mem_root;
+  if (!total_parts || 
+      !(key_part= (KEY_PART*)alloc_root(alloc, sizeof(KEY_PART)*
+                                               total_parts)) ||
+      !(ppar->arg_stack= (SEL_ARG**)alloc_root(alloc, sizeof(SEL_ARG*)* 
+                                                      total_parts)) ||
+      !(ppar->is_part_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
+                                                           total_parts)) ||
+      !(ppar->is_subpart_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
+                                                           total_parts)))
+    return TRUE;
+
+  range_par->key_parts= key_part;
+  Field **field= (ppar->part_fields)? part_info->part_field_array :
+                                           part_info->subpart_field_array;
+  bool subpart_fields= FALSE;
+  for (uint part= 0; part < total_parts; part++, key_part++)
+  {
+    key_part->key=          0;
+    key_part->part=	    part;
+    key_part->length=       (*field)->pack_length_in_rec();
+    /* 
+      psergey-todo: check yet again if this is correct for tricky field types,
+        e.g. see "Fix a fatal error in decimal key handling" in 
+        open_binary_frm().
+    */
+    key_part->store_length= (*field)->pack_length();
+    if ((*field)->real_maybe_null())
+      key_part->store_length+= HA_KEY_NULL_LENGTH;
+    if ((*field)->type() == FIELD_TYPE_BLOB || 
+        (*field)->real_type() == MYSQL_TYPE_VARCHAR)
+      key_part->store_length+= HA_KEY_BLOB_LENGTH;
+
+    key_part->field=        (*field);
+    key_part->image_type =  Field::itRAW;
+    /* We don't set key_parts->null_bit as it will not be used */
+
+    ppar->is_part_keypart[part]= !subpart_fields;
+    ppar->is_subpart_keypart[part]= subpart_fields;
+ 
+    if (!*(++field))
+    {
+      field= part_info->subpart_field_array;
+      subpart_fields= TRUE;
+    }
+  }
+  range_par->key_parts_end= key_part;
+
+  DBUG_EXECUTE("info", print_partitioning_index(range_par->key_parts,
+                                                range_par->key_parts_end););
+  return FALSE;
+}
+
+
+#ifndef DBUG_OFF
+
+static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end)
+{
+  DBUG_ENTER("print_partitioning_index");
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "partitioning INDEX(");
+  for (KEY_PART *p=parts; p != parts_end; p++)
+  {
+    fprintf(DBUG_FILE, "%s%s", p==parts?"":" ,", p->field->field_name);
+  }
+  fprintf(DBUG_FILE, ");\n");
+  DBUG_UNLOCK_FILE;
+  DBUG_VOID_RETURN;
+}
+
+/* Print field value into debug trace, in NULL-aware way. */
+static void dbug_print_field(Field *field)
+{
+  if (field->is_real_null())
+    fprintf(DBUG_FILE, "NULL");
+  else
+  {
+    String str;
+    String *pstr;
+    pstr= field->val_str(&str);
+    fprintf(DBUG_FILE, "'%s'", pstr->c_ptr_safe());
+  }
+}
+
+
+/* Print a "c1 < keypartX < c2" - type interval into debug trace. */
+static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
+{
+  DBUG_ENTER("dbug_print_segment_range");
+  DBUG_LOCK_FILE;
+  if (!(arg->min_flag & NO_MIN_RANGE))
+  {
+    arg->field->set_key_image((char*)(arg->min_value), part->length); 
+    dbug_print_field(part->field);
+    if (arg->min_flag & NEAR_MIN)
+      fputs(" < ", DBUG_FILE);
+    else
+      fputs(" <= ", DBUG_FILE);
+  }
+
+  fprintf(DBUG_FILE, "%s", part->field->field_name);
+
+  if (!(arg->max_flag & NO_MAX_RANGE))
+  {
+    if (arg->max_flag & NEAR_MAX)
+      fputs(" < ", DBUG_FILE);
+    else
+      fputs(" <= ", DBUG_FILE);
+    arg->field->set_key_image((char*)(arg->max_value), part->length); 
+    dbug_print_field(part->field);
+  }
+  DBUG_UNLOCK_FILE;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Print a singlepoint multi-keypart range interval to debug trace
+ 
+  SYNOPSIS
+    dbug_print_onepoint_range()
+      start  Array of SEL_ARG* ptrs representing conditions on key parts
+      num    Number of elements in the array.
+
+  DESCRIPTION
+    This function prints a "keypartN=constN AND ... AND keypartK=constK"-type 
+    interval to debug trace.
+*/
+
+static void dbug_print_onepoint_range(SEL_ARG **start, uint num)
+{
+  DBUG_ENTER("dbug_print_onepoint_range");
+  DBUG_LOCK_FILE;
+  SEL_ARG **end= start + num;
+  for (SEL_ARG **arg= start; arg != end; arg++)
+  {
+    Field *field= (*arg)->field;
+    fprintf(DBUG_FILE, "%s%s=", (arg==start)?"":", ", field->field_name);
+    dbug_print_field(field);
+  }
+  DBUG_UNLOCK_FILE;
+  DBUG_VOID_RETURN;
+}
+#endif
+
+/****************************************************************************
+ * Partition pruning code ends
+ ****************************************************************************/
+#endif
 
 
 /*
@@ -3424,7 +4311,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
     0  on error
 */
 
-static SEL_TREE *get_ne_mm_tree(PARAM *param, Item_func *cond_func, 
+static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
                                 Field *field,
                                 Item *lt_value, Item *gt_value,
                                 Item_result cmp_type)
@@ -3459,7 +4346,7 @@ static SEL_TREE *get_ne_mm_tree(PARAM *param, Item_func *cond_func,
     Pointer to the tree built tree
 */
 
-static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func, 
+static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
                                   Field *field, Item *value,
                                   Item_result cmp_type, bool inv)
 {
@@ -3552,7 +4439,7 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
 
 	/* make a select tree of all keys in condition */
 
-static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
+static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
 {
   SEL_TREE *tree=0;
   SEL_TREE *ftree= 0;
@@ -3725,7 +4612,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
 
 static SEL_TREE *
-get_mm_parts(PARAM *param, COND *cond_func, Field *field,
+get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
@@ -3775,7 +4662,7 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
 
 
 static SEL_ARG *
-get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
+get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null();
@@ -3834,8 +4721,11 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
-  optimize_range= field->optimize_range(param->real_keynr[key_part->key],
-                                        key_part->part);
+  if (param->using_real_indexes)
+    optimize_range= field->optimize_range(param->real_keynr[key_part->key],
+                                          key_part->part);
+  else
+    optimize_range= TRUE;
 
   if (type == Item_func::LIKE_FUNC)
   {
@@ -4102,7 +4992,7 @@ sel_add(SEL_ARG *key1,SEL_ARG *key2)
 
 
 static SEL_TREE *
-tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
+tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 {
   DBUG_ENTER("tree_and");
   if (!tree1)
@@ -4172,7 +5062,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   using index_merge.
 */
 
-bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param)
+bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, RANGE_OPT_PARAM* param)
 {
   key_map common_keys= tree1->keys_map;
   DBUG_ENTER("sel_trees_can_be_ored");
@@ -4199,7 +5089,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, PARAM* param)
 }
 
 static SEL_TREE *
-tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
+tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 {
   DBUG_ENTER("tree_or");
   if (!tree1 || !tree2)

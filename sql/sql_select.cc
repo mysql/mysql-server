@@ -633,6 +633,21 @@ JOIN::optimize()
     DBUG_RETURN(0);
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  {
+    TABLE_LIST *tbl;
+    for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+    {
+      if (!tbl->embedding)
+      {
+        Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
+        tbl->table->no_partitions_used= prune_partitions(thd, tbl->table,
+	                                                 prune_cond);
+      }
+    }
+  }
+#endif
+
   /* Optimize count(*), min() and max() */
   if (tables_list && tmp_table_param.sum_func_count && ! group_list)
   {
@@ -2018,7 +2033,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-      if (!table->file->records && !embedding)
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if ((!table->file->records || table->no_partitions_used) && !embedding)
+#else
+      if (!table->file->records || && !embedding)
+#endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
 	set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -2045,8 +2064,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       while (embedding);
       continue;
     }
-
-    if ((table->s->system || table->file->records <= 1) && ! s->dependent &&
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    bool no_partitions_used= table->no_partitions_used;
+#else
+    const bool no_partitions_used= FALSE;
+#endif
+    if ((table->s->system || table->file->records <= 1 ||
+         no_partitions_used) &&
+	!s->dependent &&
 	!(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
         !table->fulltext_searched)
     {
@@ -13767,6 +13792,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
+    if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
+      item_list.push_back(item_null);
+  
     item_list.push_back(new Item_string(message,strlen(message),cs));
     if (result->send_data(item_list))
       join->error= 1;
@@ -13887,7 +13915,28 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(table->alias,
 					    strlen(table->alias),
 					    cs));
-      /* type */
+      /* "partitions" column */
+      if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
+      {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+        partition_info *part_info;
+        if (!table->derived_select_number && 
+            (part_info= table->part_info))
+        {          
+          char parts_buff[128]; 
+          String parts_str(parts_buff,sizeof(parts_buff),cs);
+          make_used_partitions_str(part_info, &parts_str);
+          item_list.push_back(new Item_string(parts_str.ptr(),
+                                              parts_str.length(), cs));
+        }
+        else
+          item_list.push_back(item_null);
+#else
+        /* just produce empty column if partitioning is not compiled in */
+        item_list.push_back(item_null); 
+#endif
+      }
+      /* "type" column */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
 					  cs));

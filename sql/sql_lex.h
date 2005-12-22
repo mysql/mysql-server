@@ -102,6 +102,11 @@ enum enum_sql_command {
 // describe/explain types
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
+/*
+  This is not #ifdef'ed because we want "EXPLAIN PARTITIONS ..." to produce
+  additional "partitions" column even if partitioning is not compiled in.
+*/
+#define DESCRIBE_PARTITIONS	4
 
 enum enum_sp_suid_behaviour
 {
