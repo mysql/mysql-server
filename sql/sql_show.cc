@@ -2767,6 +2767,46 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+int fill_schema_engines(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  TABLE *table= tables->table;
+  CHARSET_INFO *scs= system_charset_info;
+  handlerton **types;
+
+  DBUG_ENTER("fill_schema_engines");
+
+  for (types= sys_table_types; *types; types++)
+  {
+    if ((*types)->flags & HTON_HIDDEN)
+      continue;
+
+    if (!(wild && wild[0] &&
+          wild_case_compare(scs, (*types)->name,wild)))
+    {
+      const char *tmp;
+      restore_record(table, s->default_values);
+
+      table->field[0]->store((*types)->name, strlen((*types)->name), scs);
+      tmp= (*types)->state ? "DISABLED" : "ENABLED";
+      table->field[1]->store( tmp, strlen(tmp), scs);
+      table->field[2]->store((*types)->comment, strlen((*types)->comment), scs);
+      tmp= (*types)->commit ? "YES" : "NO";
+      table->field[3]->store( tmp, strlen(tmp), scs);
+      tmp= (*types)->prepare ? "YES" : "NO";
+      table->field[4]->store( tmp, strlen(tmp), scs);
+      tmp= (*types)->savepoint_set ? "YES" : "NO";
+      table->field[5]->store( tmp, strlen(tmp), scs);
+
+      if (schema_table_store_record(thd, table))
+        DBUG_RETURN(1);
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+
 int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   CHARSET_INFO **cs;
@@ -3821,6 +3861,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   ST_SCHEMA_TABLE *schema_table= get_schema_table(schema_table_idx);
   LEX_STRING db, table;
   DBUG_ENTER("mysql_schema_select");
+  DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
      We have to make non const db_name & table_name
      because of lower_case_table_names
@@ -3970,6 +4011,18 @@ ST_FIELD_INFO collation_fields_info[]=
   {"IS_DEFAULT", 3, MYSQL_TYPE_STRING, 0, 0, "Default"},
   {"IS_COMPILED", 3, MYSQL_TYPE_STRING, 0, 0, "Compiled"},
   {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
+ST_FIELD_INFO engines_fields_info[]=
+{
+  {"ENGINE", 64, MYSQL_TYPE_STRING, 0, 0, "Engine"},
+  {"SUPPORT", 8, MYSQL_TYPE_STRING, 0, 0, "Support"},
+  {"COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"TRANSACTIONS", 3, MYSQL_TYPE_STRING, 0, 0, "Transactions"},
+  {"XA", 3, MYSQL_TYPE_STRING, 0, 0, "XA"},
+  {"SAVEPOINTS", 3 ,MYSQL_TYPE_STRING, 0, 0, "Savepoints"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -4174,6 +4227,9 @@ ST_FIELD_INFO variables_fields_info[]=
 
 /*
   Description of ST_FIELD_INFO in table.h
+
+  Make sure that the order of schema_tables and enum_schema_tables are the same.
+
 */
 
 ST_SCHEMA_TABLE schema_tables[]=
@@ -4188,6 +4244,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2, 0},
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1, 0},
+  {"ENGINES", engines_fields_info, create_schema_table,
+        fill_schema_engines, make_old_format, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,

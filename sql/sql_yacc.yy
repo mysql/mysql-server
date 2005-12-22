@@ -7098,6 +7098,9 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
+            lex->orig_sql_command= SQLCOM_SHOW_AUTHORS;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
+              YYABORT;
 	  }
 	| AUTHORS_SYM
 	  {
