@@ -98,7 +98,7 @@ handlerton partition_hton = {
   NULL, /* Flush logs */
   NULL, /* Show status */
   NULL, /* Replication Report Sent Binlog */
-  HTON_NOT_USER_SELECTABLE
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
 };
 
 static handler *partition_create_handler(TABLE_SHARE *share)
