@@ -65,6 +65,7 @@ public:
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
     maybe_null=1; 
   }
+  enum_monotonicity_info get_monotonicity_info() const;
 };
 
 
@@ -234,6 +235,7 @@ public:
   Item_func_year(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "year"; }
+  enum_monotonicity_info get_monotonicity_info() const;
   void fix_length_and_dec()
   { 
     decimals=0;
