@@ -1915,10 +1915,12 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     - It is an internal temporary table,
     - Row-based logging is used and it we are creating a temporary table, or
     - The binary log is not open.
+    Otherwise, the statement shall be binlogged.
    */
   if (!internal_tmp_table &&
-      !(binlog_row_based &&
-        (create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+      (!binlog_row_based ||
+       (binlog_row_based &&
+        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
   error= FALSE;
 unlock_and_end:
@@ -3112,7 +3114,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
       Case 3 and 4 does nothing under RBR
     */
   }
-  else if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  else
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
 
   res= FALSE;
