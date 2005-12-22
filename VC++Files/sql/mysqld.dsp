@@ -460,10 +460,6 @@ SOURCE=.\ha_archive.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\examples\ha_example.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\ha_blackhole.cpp
 # End Source File
 # Begin Source File
