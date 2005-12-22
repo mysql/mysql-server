@@ -1,0 +1,51 @@
+# TBF - difference in row level logging
+# Temp tables are not replicated in rbr, but it is still good to hit rbr with everthing
+
+# See SHOW SLAVE STATUS displays well after RESET SLAVE (it should display the
+# --master-* options from mysqld, as this is what is going to be used next time
+# slave threads will be started). In bug 985, it displayed old values (of before
+# RESET SLAVE).
+# See if slave crashes when doing a CREATE TEMPORARY TABLE twice, separated by
+# RESET SLAVE.
+
+-- source include/master-slave.inc
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
+stop slave;
+change master to master_user='test';
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
+reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
+start slave;
+sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
+# test of crash with temp tables & RESET SLAVE
+# (test to see if RESET SLAVE clears temp tables in memory and disk)
+stop slave;
+reset slave;
+start slave;
+connection master;
+create temporary table t1 (a int);
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+reset slave;
+start slave;
+sync_with_master;
+show status like 'slave_open_temp_tables';

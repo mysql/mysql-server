@@ -1,0 +1,6 @@
+################################
+# Wrapper for rpl_deadlock.test#
+################################
+-- source include/have_innodb.inc
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_deadlock.test

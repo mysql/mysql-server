@@ -3712,8 +3712,8 @@ end_with_restore_list:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       send_ok(thd);
     }
@@ -3730,8 +3730,8 @@ end_with_restore_list:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       send_ok(thd);
     }
@@ -3748,8 +3748,8 @@ end_with_restore_list:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       send_ok(thd);
     }
@@ -3764,8 +3764,8 @@ end_with_restore_list:
     {
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-	mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       send_ok(thd);
     }
@@ -3844,8 +3844,8 @@ end_with_restore_list:
       if (!res && mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
     }
     else
@@ -3864,8 +3864,8 @@ end_with_restore_list:
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-	  mysql_bin_log.write(&qinfo);
+          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                            thd->query, thd->query_length, FALSE, FALSE);
 	}
 	if (lex->sql_command == SQLCOM_GRANT)
 	{
@@ -4161,12 +4161,12 @@ end_with_restore_list:
       			       db, name,
                                lex->sql_command == SQLCOM_CREATE_PROCEDURE, 1))
       {
-        close_thread_tables(thd);
         if (sp_grant_privileges(thd, db, name, 
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
 	  	       ER_PROC_AUTO_GRANT_FAIL,
 		       ER(ER_PROC_AUTO_GRANT_FAIL));
+        close_thread_tables(thd);
       }
 #endif
       send_ok(thd);
@@ -4394,8 +4394,8 @@ end_with_restore_list:
         if (mysql_bin_log.is_open())
         {
           thd->clear_error();
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-          mysql_bin_log.write(&qinfo);
+          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                            thd->query, thd->query_length, FALSE, FALSE);
         }
 	send_ok(thd);
 	break;
@@ -4483,8 +4483,8 @@ end_with_restore_list:
         if (mysql_bin_log.is_open())
         {
           thd->clear_error();
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-          mysql_bin_log.write(&qinfo);
+          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                            thd->query, thd->query_length, FALSE, FALSE);
         }
 	send_ok(thd);
 	break;
@@ -4608,8 +4608,8 @@ end_with_restore_list:
         buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
-        Query_log_event qinfo(thd, buff.ptr(), buff.length(), 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          buff.ptr(), buff.length(), FALSE, FALSE);
       }
       break;
     }
@@ -4622,8 +4622,8 @@ end_with_restore_list:
           mysql_bin_log.is_open())
       {
         thd->clear_error();
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       break;
     }
@@ -4826,15 +4826,24 @@ end_with_restore_list:
     if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment)))
       send_ok(thd);
     break;
+  case SQLCOM_BINLOG_BASE64_EVENT:
+  {
+#ifndef EMBEDDED_LIBRARY
+    mysql_client_binlog_statement(thd);
+#else /* EMBEDDED_LIBRARY */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "embedded");
+#endif /* EMBEDDED_LIBRARY */
+    break;
+  }
   default:
     DBUG_ASSERT(0);                             /* Impossible */
     send_ok(thd);
     break;
   }
   thd->proc_info="query end";
-  /* Two binlog-related cleanups: */
 
   /*
+    Binlog-related cleanup:
     Reset system variables temporarily modified by SET ONE SHOT.
 
     Exception: If this is a SET, do nothing. This is to allow
@@ -5570,7 +5579,6 @@ void mysql_init_multi_delete(LEX *lex)
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
-
 
 /*
   When you modify mysql_parse(), you may need to mofify

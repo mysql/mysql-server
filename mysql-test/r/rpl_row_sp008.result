@@ -1,0 +1,45 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t2;
+CREATE TABLE test.t1 (a INT,PRIMARY KEY(a));
+CREATE TABLE test.t2 (a INT,PRIMARY KEY(a));
+INSERT INTO test.t1 VALUES(1),(2);
+CREATE PROCEDURE test.p1()
+BEGIN
+SELECT SQL_CALC_FOUND_ROWS * FROM test.t1 LIMIT 1;
+INSERT INTO test.t2 VALUES(FOUND_ROWS());
+END|
+
+< ---- Master selects-- >
+-------------------------
+CALL test.p1();
+a
+1
+SELECT * FROM test.t2;
+a
+2
+
+< ---- Slave selects-- >
+------------------------
+SELECT * FROM test.t2;
+a
+2
+show binlog events;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	102	Query	1	193	use `test`; DROP TABLE IF EXISTS test.t2
+master-bin.000001	193	Query	1	299	use `test`; CREATE TABLE test.t1 (a INT,PRIMARY KEY(a))
+master-bin.000001	299	Query	1	405	use `test`; CREATE TABLE test.t2 (a INT,PRIMARY KEY(a))
+master-bin.000001	405	Table_map	1	444	test.t1
+master-bin.000001	444	Write_rows	1	483	
+master-bin.000001	483	Table_map	1	540	mysql.proc
+master-bin.000001	540	Write_rows	1	723	
+master-bin.000001	723	Table_map	1	762	test.t2
+master-bin.000001	762	Write_rows	1	796	
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;

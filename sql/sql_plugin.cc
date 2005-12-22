@@ -625,7 +625,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
   restore_record(table, s->default_values);
   table->field[0]->store(name->str, name->length, system_charset_info);
   table->field[1]->store(dl->str, dl->length, files_charset_info);
-  error= table->file->write_row(table->record[0]);
+  error= table->file->ha_write_row(table->record[0]);
   if (error)
   {
     table->file->print_error(error, MYF(0));
@@ -694,7 +694,7 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
                                     HA_READ_KEY_EXACT))
   {
     int error;
-    if ((error= table->file->delete_row(table->record[0])))
+    if ((error= table->file->ha_delete_row(table->record[0])))
     {
       table->file->print_error(error, MYF(0));
       goto err;

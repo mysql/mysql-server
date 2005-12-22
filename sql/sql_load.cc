@@ -414,38 +414,55 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
     {
+#ifdef HAVE_ROW_BASED_REPLICATION
       /*
-        Make sure last block (the one which caused the error) gets logged.
-        This is needed because otherwise after write of
-        (to the binlog, not to read_info (which is a cache))
-        Delete_file_log_event the bad block will remain in read_info (because
-        pre_read is not called at the end of the last block; remember pre_read
-        is called whenever a new block is read from disk).
-        At the end of mysql_load(), the destructor of read_info will call
-        end_io_cache() which will flush read_info, so we will finally have
-        this in the binlog:
-        Append_block # The last successfull block
-        Delete_file
-        Append_block # The failing block
-        which is nonsense.
-        Or could also be (for a small file)
-        Create_file  # The failing block
-        which is nonsense (Delete_file is not written in this case, because:
-        Create_file has not been written, so Delete_file is not written, then
-        when read_info is destroyed end_io_cache() is called which writes
-        Create_file.
+        We need to do the job that is normally done inside
+        binlog_query() here, which is to ensure that the pending event
+        is written before tables are unlocked and before any other
+        events are written.  We also need to update the table map
+        version for the binary log to mark that table maps are invalid
+        after this point.
       */
-      read_info.end_io_cache();
-      /* If the file was not empty, wrote_create_file is true */
-      if (lf_info.wrote_create_file)
+      if (binlog_row_based)
+        thd->binlog_flush_pending_rows_event(true);
+      else
+#endif
       {
-	if ((info.copied || info.deleted) && !transactional_table)
-	  write_execute_load_query_log_event(thd, handle_duplicates,
-					     ignore, transactional_table);
-	else
+	/*
+	  Make sure last block (the one which caused the error) gets
+	  logged.  This is needed because otherwise after write of (to
+	  the binlog, not to read_info (which is a cache))
+	  Delete_file_log_event the bad block will remain in read_info
+	  (because pre_read is not called at the end of the last
+	  block; remember pre_read is called whenever a new block is
+	  read from disk).  At the end of mysql_load(), the destructor
+	  of read_info will call end_io_cache() which will flush
+	  read_info, so we will finally have this in the binlog:
+
+	  Append_block # The last successfull block
+	  Delete_file
+	  Append_block # The failing block
+	  which is nonsense.
+	  Or could also be (for a small file)
+	  Create_file  # The failing block
+	  which is nonsense (Delete_file is not written in this case, because:
+	  Create_file has not been written, so Delete_file is not written, then
+	  when read_info is destroyed end_io_cache() is called which writes
+	  Create_file.
+	*/
+	read_info.end_io_cache();
+	/* If the file was not empty, wrote_create_file is true */
+	if (lf_info.wrote_create_file)
 	{
-	  Delete_file_log_event d(thd, db, transactional_table);
-	  mysql_bin_log.write(&d);
+	  if ((info.copied || info.deleted) && !transactional_table)
+	    write_execute_load_query_log_event(thd, handle_duplicates,
+					       ignore, transactional_table);
+	  else
+	  {
+	    Delete_file_log_event d(thd, db, transactional_table);
+            d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+	    mysql_bin_log.write(&d);
+	  }
 	}
       }
     }
@@ -462,15 +479,32 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     /*
-      As already explained above, we need to call end_io_cache() or the last
-      block will be logged only after Execute_load_query_log_event (which is
-      wrong), when read_info is destroyed.
-    */
-    read_info.end_io_cache();
-    if (lf_info.wrote_create_file)
-      write_execute_load_query_log_event(thd, handle_duplicates,
-					 ignore, transactional_table);
+      We need to do the job that is normally done inside
+      binlog_query() here, which is to ensure that the pending event
+      is written before tables are unlocked and before any other
+      events are written.  We also need to update the table map
+      version for the binary log to mark that table maps are invalid
+      after this point.
+     */
+    if (binlog_row_based)
+      thd->binlog_flush_pending_rows_event(true);
+    else
+#endif
+    {
+      /*
+        As already explained above, we need to call end_io_cache() or the last
+        block will be logged only after Execute_load_query_log_event (which is
+        wrong), when read_info is destroyed.
+      */
+      read_info.end_io_cache();
+      if (lf_info.wrote_create_file)
+      {
+        write_execute_load_query_log_event(thd, handle_duplicates,
+                                           ignore, transactional_table);
+      }
+    }
   }
 #endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
@@ -499,6 +533,7 @@ static bool write_execute_load_query_log_event(THD *thd,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE);
+  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 
@@ -910,7 +945,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      if (mysql_bin_log.is_open())
+      if (!binlog_row_based && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
 #endif

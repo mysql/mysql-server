@@ -1,0 +1,12 @@
+# Test for BUG#8436: verify that a multi-query (i.e. one query
+# containing several queries (assuming client has
+# CLIENT_MULTI_STATEMENTS) will be binlogged ONE-query-per-event (not
+# one binlog event containing all queries)
+
+# Requires statement logging
+-- source include/have_binlog_format_statement.inc
+-- source extra/rpl_tests/rpl_multi_query.test
+
+
+# End of 4.1 tests
+#

@@ -1,0 +1,47 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+#############################################################################
+# TEST: To test the LOAD_FILE() in rbr                                      #
+#############################################################################
+
+# Includes
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+--disable_warnings
+connection master;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+
+# Section 1 test 
+
+CREATE TABLE test.t1 (a INT, blob_column LONGBLOB, PRIMARY KEY(a));
+INSERT INTO test.t1  VALUES(1,'test');
+UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=1;
+delimiter |;
+create procedure test.p1()
+begin
+  INSERT INTO test.t1  VALUES(2,'test');
+  UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=2;
+end|
+delimiter ;|
+
+CALL test.p1();
+SELECT * FROM test.t1;
+save_master_pos;
+sync_slave_with_master;
+connection slave;
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1;
+
+connection master;
+# Lets cleanup
+#show binlog events;
+
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TABLE test.t1;
+
+# End of 5.0 test case

@@ -36,15 +36,24 @@ mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c my_create_tables.c
 
 
 dist-hook:
-	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
-		$(distdir)/std_data $(distdir)/lib
+	mkdir -p \
+		$(distdir)/t \
+                $(distdir)/extra/binlog_tests \
+                $(distdir)/extra/rpl_tests \
+		$(distdir)/r \
+		$(distdir)/include \
+		$(distdir)/std_data \
+		$(distdir)/lib
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.sql $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.disabled $(distdir)/t
-	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.slave-mi $(distdir)/t
-	$(INSTALL_SCRIPT) $(srcdir)/t/*.sh $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/t/*.opt $(srcdir)/t/*.sh $(srcdir)/t/*.slave-mi $(distdir)/t
+	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(distdir)/extra/binlog_tests
+	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(distdir)/extra/rpl_tests
+	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(distdir)/extra/binlog_tests
+	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(distdir)/extra/rpl_tests
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(distdir)/include
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(distdir)/std_data
@@ -59,6 +68,8 @@ dist-hook:
 install-data-local:
 	$(mkinstalldirs) \
 		$(DESTDIR)$(testdir)/t \
+		$(DESTDIR)$(testdir)/extra/binlog_tests \
+		$(DESTDIR)$(testdir)/extra/rpl_tests \
 		$(DESTDIR)$(testdir)/r \
 		$(DESTDIR)$(testdir)/include \
 		$(DESTDIR)$(testdir)/std_data \
@@ -74,6 +85,10 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/t/*.slave-mi $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(DESTDIR)$(testdir)/r
 	$(INSTALL_DATA) $(srcdir)/r/*.require $(DESTDIR)$(testdir)/r
+	$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.test $(DESTDIR)$(testdir)/extra/binlog_tests
+	$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.test $(DESTDIR)$(testdir)/extra/rpl_tests
+	-$(INSTALL_DATA) $(srcdir)/extra/binlog_tests/*.opt $(DESTDIR)$(testdir)/extra/binlog_tests
+	-$(INSTALL_DATA) $(srcdir)/extra/rpl_tests/*.opt $(DESTDIR)$(testdir)/extra/rpl_tests
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data

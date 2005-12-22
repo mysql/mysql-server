@@ -626,6 +626,8 @@ row_create_prebuilt(
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
 
+	prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
+
 	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(heap,
@@ -1486,11 +1488,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 
@@ -1520,11 +1518,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(clust_pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 	}

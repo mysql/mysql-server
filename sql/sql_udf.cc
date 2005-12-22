@@ -455,7 +455,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type, TRUE);
-  error = table->file->write_row(table->record[0]);
+  error = table->file->ha_write_row(table->record[0]);
 
   close_thread_tables(thd);
   if (error)
@@ -514,7 +514,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 				   HA_READ_KEY_EXACT))
   {
     int error;
-    if ((error = table->file->delete_row(table->record[0])))
+    if ((error = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
   close_thread_tables(thd);

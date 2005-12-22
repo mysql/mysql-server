@@ -36,21 +36,6 @@ select * from t2;
 f
 5
 7
-show binlog events;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	use `test`; drop table if exists t1,t2
-master-bin.000001	#	Query	1	#	use `test`; create table t1(f int)
-master-bin.000001	#	Query	1	#	use `test`; create table t2(f int)
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
-master-bin.000001	#	Query	1	#	use `test`; create temporary table t3(f int)
-master-bin.000001	#	Query	1	#	use `test`; insert into t3 select * from t1 where f<6
-master-bin.000001	#	Query	1	#	use `test`; create temporary table t3(f int)
-master-bin.000001	#	Query	1	#	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	#	Query	1	#	use `test`; insert into t3 select * from t1 where f>=4
-master-bin.000001	#	Query	1	#	use `test`; drop temporary table t3
-master-bin.000001	#	Query	1	#	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	#	Query	1	#	use `test`; drop temporary table t3
 drop table t1, t2;
 use test;
 SET TIMESTAMP=1040323920;

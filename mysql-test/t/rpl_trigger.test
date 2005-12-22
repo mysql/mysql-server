@@ -1,7 +1,8 @@
 #
 # Test of triggers with replication
-#
-
+# Adding statement include due to Bug 12574
+# TODO: Remove statement include once 12574 is patched
+--source include/have_binlog_format_statement.inc 
 source include/master-slave.inc;
 
 #

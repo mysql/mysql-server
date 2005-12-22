@@ -1,0 +1,119 @@
+# Requires statement logging
+-- source include/master-slave.inc
+
+# Clean up old slave's binlogs.
+# The slave is started with --log-slave-updates
+# and this test does SHOW BINLOG EVENTS on the slave's
+# binlog. But previous tests can influence the current test's
+# binlog (e.g. a temporary table in the previous test has not
+# been explicitly deleted, and at the beginning of the current
+# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
+# We wait for the slave to have written all he wants to the binlog
+# (otherwise RESET MASTER may come too early).
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+reset master;
+reset slave;
+# We are going to read the slave's binlog which contains file_id (for some LOAD
+# DATA INFILE); to make it repeatable (not influenced by other tests), we need
+# to stop and start the slave, to be sure file_id will start from 1.
+#  This can be done with 'server_stop slave', but
+# this would require the manager, so most of the time the test will be skipped
+# :(
+# To workaround this, I (Guilhem) add a (empty) rpl_log-slave.opt (because when
+# mysql-test-run finds such a file it restarts the slave before doing the
+# test). That's not very elegant but I could find no better way, sorry.
+
+let $VERSION=`select version()`;
+
+connection master;
+reset master;
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL);
+drop table t1;
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
+select count(*) from t1;
+drop table t1;
+--replace_result $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events;
+--replace_column 2 # 5 #
+show binlog events from 102 limit 1;
+--replace_column 2 # 5 #
+show binlog events from 102 limit 2;
+--replace_column 2 # 5 #
+show binlog events from 102 limit 2,1;
+flush logs;
+
+# We need an extra update before doing save_master_pos.
+# Otherwise, an unlikely scenario may occur:
+# * When the master's binlog_dump thread reads the end of master-bin.001,
+# it send the rotate event which is at this end, plus a fake rotate event
+# because it's starting to read a new binlog.
+# save_master_pos will record the position of the first of the two rotate
+# (because the fake one is not in the master's binlog anyway).
+# * Later the slave waits for the position of the first rotate event,
+# and it may quickly stop (in 'slave stop') without having received the fake
+# one.
+# So, depending on a few milliseconds, we end up with 2 rotate events in the
+# relay log or one, which influences the output of SHOW SLAVE STATUS, making
+# it not predictable and causing random test failures.
+# To make it predictable, we do a useless update now, but which has the
+# interest of making the slave catch both rotate events.
+
+create table t5 (a int);
+drop table t5;
+
+# Sync slave and force it to start on another binary log
+
+save_master_pos;
+connection slave;
+# Note that the above 'slave start' will cause a 3rd rotate event (a fake one)
+# to go into the relay log (the master always sends a fake one when replication
+# starts). 
+start slave;
+sync_with_master;
+flush logs;
+stop slave;
+connection master;
+
+# Create some entries for second log
+
+create table t1 (n int);
+insert into t1 values (1);
+drop table t1;
+--replace_result $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events;
+--replace_result $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000002';
+show binary logs;
+save_master_pos;
+connection slave;
+start slave;
+sync_with_master;
+show binary logs;
+--replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events in 'slave-bin.000001' from 4;
+--replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
+--replace_column 2 # 5 #
+show binlog events in 'slave-bin.000002' from 4;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
+# Need to recode the following
+
+#show new master for slave with master_log_file='master-bin.000001' and master_log_pos=4 and  master_server_id=1;
+#show new master for slave with master_log_file='master-bin.000001' and master_log_pos=79 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.000001' and master_log_pos=311 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.000002' and master_log_pos=4 and master_server_id=1;
+#show new master for slave with master_log_file='master-bin.000002' and master_log_pos=122 and master_server_id=1;
+
+--error 1220
+show binlog events in 'slave-bin.000005' from 4;

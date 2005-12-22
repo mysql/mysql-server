@@ -1,0 +1,19 @@
+-- source include/master-slave.inc
+
+#
+# BUG#5551 "Failed OPTIMIZE TABLE is logged to binary log"
+# Replication should work when OPTIMIZE TABLE timeouts, and 
+# when OPTIMIZE TABLE is executed on a non-existing table
+#
+
+eval CREATE TABLE t1 ( a int ) ENGINE=$engine_type;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection master1;
+OPTIMIZE TABLE t1;
+
+OPTIMIZE TABLE non_existing;  
+sync_slave_with_master;
+
+# End of 4.1 tests

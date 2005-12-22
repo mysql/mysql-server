@@ -1,0 +1,282 @@
+drop table if exists t1, t2;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+reset master;
+begin;
+insert into t1 values(1);
+insert into t2 select * from t1;
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t2
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(2);
+insert into t2 select * from t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t2
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Query	1	#	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(3);
+savepoint my_savepoint;
+insert into t1 values(4);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	328	Table_map	1	#	test.t1
+master-bin.000001	367	Write_rows	1	#	
+master-bin.000001	401	Table_map	1	#	test.t2
+master-bin.000001	440	Write_rows	1	#	
+master-bin.000001	479	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	576	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(5);
+savepoint my_savepoint;
+insert into t1 values(6);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into t1 values(7);
+commit;
+select a from t1 order by a;
+a
+5
+7
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	328	Table_map	1	#	test.t1
+master-bin.000001	367	Write_rows	1	#	
+master-bin.000001	401	Table_map	1	#	test.t2
+master-bin.000001	440	Write_rows	1	#	
+master-bin.000001	479	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	576	Table_map	1	#	test.t1
+master-bin.000001	615	Write_rows	1	#	
+master-bin.000001	649	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+reset master;
+select get_lock("a",10);
+get_lock("a",10)
+1
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+select get_lock("a",10);
+get_lock("a",10)
+1
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t2
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Query	1	#	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(9);
+insert into t2 select * from t1;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Table_map	1	#	test.t1
+master-bin.000001	141	Write_rows	1	#	
+master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	202	Table_map	1	#	test.t2
+master-bin.000001	241	Write_rows	1	#	
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(10);
+begin;
+insert into t2 select * from t1;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Table_map	1	#	test.t1
+master-bin.000001	141	Write_rows	1	#	
+master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	202	Table_map	1	#	test.t2
+master-bin.000001	241	Write_rows	1	#	
+insert into t1 values(11);
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Table_map	1	#	test.t1
+master-bin.000001	141	Write_rows	1	#	
+master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	202	Table_map	1	#	test.t2
+master-bin.000001	241	Write_rows	1	#	
+master-bin.000001	275	Query	1	#	use `test`; BEGIN
+master-bin.000001	343	Table_map	1	#	test.t1
+master-bin.000001	382	Write_rows	1	#	
+master-bin.000001	416	Xid	1	#	COMMIT /* xid= */
+alter table t2 engine=INNODB;
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(12);
+insert into t2 select * from t1;
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t2
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(13);
+insert into t2 select * from t1;
+rollback;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(14);
+savepoint my_savepoint;
+insert into t1 values(15);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(16);
+savepoint my_savepoint;
+insert into t1 values(17);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(18);
+commit;
+select a from t1 order by a;
+a
+16
+18
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t1
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+delete from t1;
+delete from t2;
+alter table t2 type=MyISAM;
+insert into t1 values (1);
+begin;
+select * from t1 for update;
+a
+1
+select (@before:=unix_timestamp())*0;
+(@before:=unix_timestamp())*0
+0
+begin;
+ select * from t1 for update;
+insert into t2 values (20);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select (@after:=unix_timestamp())*0;
+(@after:=unix_timestamp())*0
+0
+select (@after-@before) >= 2;
+(@after-@before) >= 2
+1
+drop table t1,t2;
+commit;
+begin;
+create temporary table ti (a int) engine=innodb;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam;
+commit;
+insert t1 values (1);
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3);
+select get_lock("lock1",60);
+get_lock("lock1",60)
+1
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	102	Query	1	#	use `test`; BEGIN
+master-bin.000001	170	Table_map	1	#	test.t1
+master-bin.000001	209	Write_rows	1	#	
+master-bin.000001	243	Table_map	1	#	test.t1
+master-bin.000001	282	Write_rows	1	#	
+master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	343	Table_map	1	#	test.t1
+master-bin.000001	382	Delete_rows	1	#	
+master-bin.000001	421	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	448	Query	1	#	use `test`; alter table t2 type=MyISAM
+master-bin.000001	537	Table_map	1	#	test.t1
+master-bin.000001	576	Write_rows	1	#	
+master-bin.000001	610	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	637	Table_map	1	#	test.t2
+master-bin.000001	676	Write_rows	1	#	
+master-bin.000001	710	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	789	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	875	Table_map	1	#	test.t0
+master-bin.000001	914	Write_rows	1	#	
+master-bin.000001	948	Table_map	1	#	test.t0
+master-bin.000001	987	Write_rows	1	#	
+master-bin.000001	1021	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+do release_lock("lock1");
+drop table t0,t2;

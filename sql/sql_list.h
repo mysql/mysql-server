@@ -441,6 +441,28 @@ struct ilink
 };
 
 
+/* Needed to be able to have an I_List of char* strings in mysqld.cc. */
+
+class i_string: public ilink
+{
+public:
+  const char* ptr;
+  i_string():ptr(0) { }
+  i_string(const char* s) : ptr(s) {}
+};
+
+/* needed for linked list of two strings for replicate-rewrite-db */
+class i_string_pair: public ilink
+{
+public:
+  const char* key;
+  const char* val;
+  i_string_pair():key(0),val(0) { }
+  i_string_pair(const char* key_arg, const char* val_arg) : 
+    key(key_arg),val(val_arg) {}
+};
+
+
 template <class T> class I_List_iterator;
 
 /*

@@ -26,6 +26,16 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_bitmap.h>
+
+#if !defined(MYSQL_CLIENT)
+#ifdef HAVE_ROW_BASED_REPLICATION
+extern my_bool binlog_row_based;
+#else
+extern const my_bool binlog_row_based;
+#endif
+#endif
+
 #define LOG_READ_EOF    -1
 #define LOG_READ_BOGUS  -2
 #define LOG_READ_IO     -3
@@ -196,6 +206,8 @@ struct sql_ex_info
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
+#define ROWS_HEADER_LEN        8
+#define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 
@@ -302,6 +314,14 @@ struct sql_ex_info
 /* DF = "Delete File" */
 #define DF_FILE_ID_OFFSET  0
 
+/* TM = "Table Map" */
+#define TM_MAPID_OFFSET    0
+#define TM_FLAGS_OFFSET    6
+
+/* RW = "RoWs" */
+#define RW_MAPID_OFFSET    0
+#define RW_FLAGS_OFFSET    6
+
 /* ELQ = "Execute Load Query" */
 #define ELQ_FILE_ID_OFFSET QUERY_HEADER_LEN
 #define ELQ_FN_POS_START_OFFSET ELQ_FILE_ID_OFFSET + 4
@@ -373,6 +393,12 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
+  The table map version internal to the log should be increased after
+  the event has been written to the binary log.
+ */
+#define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
+
+/*
    OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must be
    written to the binlog. OPTIONS_WRITTEN_TO_BINLOG could be written
    into the Format_description_log_event, so that if later we don't want
@@ -427,6 +453,10 @@ enum Log_event_type
   XID_EVENT= 16,
   BEGIN_LOAD_QUERY_EVENT= 17,
   EXECUTE_LOAD_QUERY_EVENT= 18,
+  TABLE_MAP_EVENT = 19,
+  WRITE_ROWS_EVENT = 20,
+  UPDATE_ROWS_EVENT = 21,
+  DELETE_ROWS_EVENT = 22,
 
   /*
     Add new events here - right above this comment!
@@ -504,6 +534,7 @@ typedef struct st_print_event_info
 
   /* Settings on how to print the events */
   bool short_form;
+  bool base64_output;
   my_off_t hexdump_from;
   uint8 common_header_len;
 
@@ -616,9 +647,10 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event *description_event);
   /* print*() functions are used by mysqlbinlog */
-  virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0) = 0;
+  virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print_base64(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   static void *operator new(size_t size)
@@ -646,7 +678,7 @@ public:
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() const = 0;
   virtual bool is_artificial_event() { return 0; }
-  inline bool get_cache_stmt() { return cache_stmt; }
+  inline bool get_cache_stmt() const { return cache_stmt; }
   Log_event(const char* buf, const Format_description_log_event* description_event);
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
@@ -778,8 +810,8 @@ public:
                  uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
-  void print_query_header(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print_query_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Query_log_event(const char* buf, uint event_len,
@@ -833,7 +865,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Slave_log_event(const char* buf, uint event_len);
@@ -921,7 +953,7 @@ public:
 		 bool use_rli_only_for_errors);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info = 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool commented);
 #endif
 
@@ -1011,7 +1043,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Start_log_event_v3(const char* buf,
@@ -1106,7 +1138,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Intvar_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1147,7 +1179,7 @@ class Rand_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Rand_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1184,7 +1216,7 @@ class Xid_log_event: public Log_event
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Xid_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1195,6 +1227,9 @@ class Xid_log_event: public Log_event
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
+#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
+  static my_bool show_xid;
+#endif
 };
 
 /*****************************************************************************
@@ -1226,7 +1261,7 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   User_var_log_event(const char* buf, const Format_description_log_event* description_event);
@@ -1252,7 +1287,7 @@ public:
   {}
   int exec_event(struct st_relay_log_info* rli);
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Stop_log_event(const char* buf, const Format_description_log_event* description_event):
@@ -1282,7 +1317,7 @@ public:
   uint ident_len;
   uint flags;
 #ifndef MYSQL_CLIENT
-  Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
+  Rotate_log_event(const char* new_log_ident_arg,
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
@@ -1290,7 +1325,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Rotate_log_event(const char* buf, uint event_len,
@@ -1343,7 +1378,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
 #endif
 
@@ -1411,7 +1446,7 @@ public:
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Append_block_log_event(const char* buf, uint event_len,
@@ -1422,8 +1457,8 @@ public:
   bool is_valid() const { return block != 0; }
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
-#endif
   const char* get_db() { return db; }
+#endif
 };
 
 
@@ -1446,7 +1481,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info, bool enable_local);
 #endif
 
@@ -1458,8 +1493,8 @@ public:
   bool is_valid() const { return file_id != 0; }
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
-#endif
   const char* get_db() { return db; }
+#endif
 };
 
 
@@ -1482,7 +1517,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Execute_load_log_event(const char* buf, uint event_len,
@@ -1493,8 +1528,8 @@ public:
   bool is_valid() const { return file_id != 0; }
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
-#endif
   const char* get_db() { return db; }
+#endif
 };
 
 
@@ -1567,7 +1602,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 #else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info,
 	     const char *local_fname);
@@ -1599,10 +1634,523 @@ public:
     Log_event(buf, description_event)
   {}
   ~Unknown_log_event() {}
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info= 0);
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
   Log_event_type get_type_code() { return UNKNOWN_EVENT;}
   bool is_valid() const { return 1; }
 };
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
+
+/*****************************************************************************
+
+  Table map log event class
+
+  Create a mapping from a (database name, table name) couple to a table
+  identifier (an integer number).
+
+ ****************************************************************************/
+
+class Table_map_log_event : public Log_event
+{
+public:
+  /* Constants */
+  enum
+  {
+    TYPE_CODE = TABLE_MAP_EVENT
+  };
+
+  enum enum_error
+  {
+    ERR_OPEN_FAILURE = -1,                 /* Failure to open table */
+    ERR_OK = 0,                                  /* No error */
+    ERR_TABLE_LIMIT_EXCEEDED = 1,        /* No more room for tables */
+    ERR_OUT_OF_MEM = 2,                         /* Out of memory */
+    ERR_BAD_TABLE_DEF = 3,       /* Table definition does not match */
+    ERR_RBR_TO_SBR = 4    /* daisy-chanining RBR to SBR not allowed */
+  };
+
+  enum enum_flag
+  {
+    /* 
+       Nothing here right now, but the flags support is there in
+       preparation for changes that are coming.
+    */
+  };
+
+  typedef uint16 flag_set;
+
+  /* Special constants representing sets of flags */
+  enum 
+  {
+    NO_FLAGS = 0U
+  };
+
+  void set_flags(flag_set flag) { m_flags |= flag; }
+  void clear_flags(flag_set flag) { m_flags &= ~flag; }
+  flag_set get_flags(flag_set flag) const { return m_flags & flag; }
+
+#ifndef MYSQL_CLIENT
+  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, 
+		      bool is_transactional, uint16 flags);
+#endif
+#ifdef HAVE_REPLICATION
+  Table_map_log_event(const char *buf, uint event_len, 
+                      const Format_description_log_event *description_event);
+#endif
+
+  ~Table_map_log_event();
+
+  virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
+  virtual bool is_valid() const { return m_memory; /* we check malloc */ }
+
+  virtual int get_data_size() { return m_data_size; } 
+#ifndef MYSQL_CLIENT
+  virtual bool write_data_header(IO_CACHE *file);
+  virtual bool write_data_body(IO_CACHE *file);
+  virtual const char *get_db() { return m_dbnam; }
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int exec_event(struct st_relay_log_info *rli);
+  virtual void pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+
+private:
+#ifndef MYSQL_CLIENT
+  TABLE      *m_table;
+#endif
+  char const    *m_dbnam;
+  my_size_t      m_dblen;
+  char const    *m_tblnam;
+  my_size_t      m_tbllen;
+  ulong          m_colcnt;
+  unsigned char *m_coltype;
+
+  gptr           m_memory;
+  ulong          m_table_id;
+  flag_set       m_flags;
+
+  my_size_t      m_data_size;
+};
+
+
+/*****************************************************************************
+
+ Row level log event class.
+
+ Common base class for all row-level log events.
+
+ RESPONSIBILITIES
+
+   Encode the common parts of all events containing rows, which are:
+   - Write data header and data body to an IO_CACHE.
+   - Provide an interface for adding an individual row to the event.
+
+ ****************************************************************************/
+
+class Rows_log_event : public Log_event
+{
+public:
+  /*
+    These definitions allow you to combine the flags into an
+    appropriate flag set using the normal bitwise operators.  The
+    implicit conversion from an enum-constant to an integer is
+    accepted by the compiler, which is then used to set the real set
+    of flags.
+  */
+
+  enum enum_flag
+  {
+    /* Last event of a statement */
+    STMT_END_F = (1U << 0),
+
+    /* Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
+    NO_FOREIGN_KEY_CHECKS_F = (1U << 1),
+
+    /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
+    RELAXED_UNIQUE_CHECKS_F = (1U << 2)
+  };
+
+  typedef uint16 flag_set;
+
+  /* Special constants representing sets of flags */
+  enum 
+  {
+      NO_FLAGS = 0U
+  };
+
+  virtual ~Rows_log_event();
+
+  void set_flags(flag_set flags) { m_flags |= flags; }
+  void clear_flags(flag_set flags) { m_flags &= ~flags; }
+  flag_set get_flags(flag_set flags) const { return m_flags & flags; }
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual int exec_event(struct st_relay_log_info *rli);
+#ifdef DBUG_RBR
+  virtual void pack_info(Protocol *protocol);
+#endif
+#endif
+
+#ifdef MYSQL_CLIENT
+  /* not for direct call, each derived has its own ::print() */
+  virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info)= 0;
+#endif
+
+#ifndef MYSQL_CLIENT
+  int add_row_data(byte *data, my_size_t length)
+  {
+    return do_add_row_data(data,length); 
+  }
+#endif
+
+  /* Member functions to implement superclass interface */
+  virtual int get_data_size()
+  { 
+    DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+                    return 6 + 1 + no_bytes_in_map(&m_cols) + 
+                    (m_rows_cur - m_rows_buf);); 
+    return ROWS_HEADER_LEN + 1 + no_bytes_in_map(&m_cols) + 
+      (m_rows_cur - m_rows_buf); 
+  }
+
+  MY_BITMAP const *get_cols() const { return &m_cols; }
+  my_size_t get_width() const       { return m_width; }
+  ulong get_table_id() const        { return m_table_id; }
+
+#ifndef MYSQL_CLIENT
+  virtual bool write_data_header(IO_CACHE *file);
+  virtual bool write_data_body(IO_CACHE *file);
+  virtual const char *get_db() { return m_table->s->db.str; }
+#endif
+  virtual bool is_valid() const
+  {
+    /* that's how we check malloc() succeeded */
+    return m_rows_buf && m_cols.bitmap;
+  }
+
+  /*
+    If there is no table map active for the event, write one to the
+    binary log.
+
+    LOCK_log has to be aquired before calling this function.
+
+    PARAMETERS
+      thd - Thread to use when writing the table map
+
+    RETURN VALUE
+      Error code, or zero if write succeeded.
+  */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+  int maybe_write_table_map(THD *thd, IO_CACHE *file, MYSQL_LOG *log) const
+  {
+    /*
+      N.B., get_cache_stmt() returns the value of 'using_trans' that
+      was provided to the constructor, i.e., get_cache_stmt() == true
+      if and only if the table is transactional.
+    */
+
+    int result= 0;
+    if (!log->is_table_mapped(m_table))
+      result= log->write_table_map(thd, file, m_table, get_cache_stmt());
+    return result;
+  }
+#endif
+
+protected:
+  /* 
+     The constructors are protected since you're supposed to inherit
+     this class, not create instances of this class.
+  */
+#ifndef MYSQL_CLIENT
+  Rows_log_event(THD*, TABLE*, ulong table_id, 
+		 MY_BITMAP const *cols, bool is_transactional);
+#endif
+  Rows_log_event(const char *row_data, uint event_len, 
+		 Log_event_type event_type,
+		 const Format_description_log_event *description_event);
+
+#ifndef MYSQL_CLIENT
+  virtual int do_add_row_data(byte *data, my_size_t length);
+#endif
+
+#ifndef MYSQL_CLIENT
+  TABLE *m_table;		/* The table the rows belong to */
+#endif
+  ulong       m_table_id;	/* Table ID */
+  MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
+  ulong       m_width;          /* The width of the columns bitmap */
+
+  /* Bit buffer in the same memory as the class */
+  uint32    m_bitbuf[128/(sizeof(uint32)*8)];
+
+  byte    *m_rows_buf;		/* The rows in packed format */
+  byte    *m_rows_cur;		/* One-after the end of the data */
+  byte    *m_rows_end;		/* One-after the end of the allocated space */
+
+  flag_set m_flags;		/* Flags for row-level events */
+
+private:
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  /*
+    Primitive to prepare for a sequence of row executions.
+
+    DESCRIPTION
+
+      Before doing a sequence of do_prepare_row() and do_exec_row()
+      calls, this member function should be called to prepare for the
+      entire sequence. Typically, this member function will allocate
+      space for any buffers that are needed for the two member
+      functions mentioned above.
+
+    RETURN VALUE
+
+      The member function will return 0 if all went OK, or a non-zero
+      error code otherwise.
+  */
+  virtual int do_before_row_operations(TABLE *table) = 0;
+
+  /*
+    Primitive to clean up after a sequence of row executions.
+
+    DESCRIPTION
+    
+      After doing a sequence of do_prepare_row() and do_exec_row(),
+      this member function should be called to clean up and release
+      any allocated buffers.
+  */
+  virtual int do_after_row_operations(TABLE *table, int error) = 0;
+
+  /*
+    Primitive to prepare for handling one row in a row-level event.
+    
+    DESCRIPTION 
+
+      The member function prepares for execution of operations needed for one
+      row in a row-level event by reading up data from the buffer containing
+      the row. No specific interpretation of the data is normally done here,
+      since SQL thread specific data is not available: that data is made
+      available for the do_exec function.
+
+    RETURN VALUE
+      A pointer to the start of the next row, or NULL if the preparation
+      failed. Currently, preparation cannot fail, but don't rely on this
+      behavior. 
+   */
+  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start) = 0;
+
+  /*
+    Primitive to do the actual execution necessary for a row.
+
+    DESCRIPTION
+      The member function will do the actual execution needed to handle a row.
+
+    RETURN VALUE
+      0 if execution succeeded, 1 if execution failed.
+      
+  */
+  virtual int do_exec_row(TABLE *table) = 0;
+#endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
+};
+
+
+/*****************************************************************************
+
+  Write row log event class
+
+  Log row insertions and updates. The event contain several
+  insert/update rows for a table. Note that each event contains only
+  rows for one table.
+
+ ****************************************************************************/
+class Write_rows_log_event : public Rows_log_event
+{
+public:
+  enum 
+  {
+    /* Support interface to THD::binlog_prepare_pending_rows_event */
+    TYPE_CODE = WRITE_ROWS_EVENT
+  };
+
+#if !defined(MYSQL_CLIENT)
+  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
+		       MY_BITMAP const *cols, bool is_transactional);
+#endif
+#ifdef HAVE_REPLICATION
+  Write_rows_log_event(const char *buf, uint event_len, 
+                       const Format_description_log_event *description_event);
+#endif
+#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+  static bool binlog_row_logging_function(THD *thd, TABLE *table,
+                                          bool is_transactional,
+                                          MY_BITMAP *cols,
+                                          uint fields,
+                                          const byte *before_record
+                                          __attribute__((unused)),
+                                          const byte *after_record)
+  {
+    return thd->binlog_write_row(table, is_transactional,
+                                 cols, fields, after_record);
+  }
+#endif
+
+private:
+  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  gptr  m_memory;
+  byte *m_search_record;
+
+  virtual int         do_before_row_operations(TABLE *table);
+  virtual int         do_after_row_operations(TABLE *table, int error);
+  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
+  virtual int         do_exec_row(TABLE *table);
+#endif
+};
+
+
+/*****************************************************************************
+
+  Update rows log event class
+
+  Log row updates with a before image. The event contain several
+  update rows for a table. Note that each event contains only rows for
+  one table.
+
+  Also note that the row data consists of pairs of row data: one row
+  for the old data and one row for the new data.
+
+ ****************************************************************************/
+class Update_rows_log_event : public Rows_log_event
+{
+public:
+  enum 
+  {
+    /* Support interface to THD::binlog_prepare_pending_rows_event */
+    TYPE_CODE = UPDATE_ROWS_EVENT
+  };
+
+#ifndef MYSQL_CLIENT
+  Update_rows_log_event(THD*, TABLE*, ulong table_id, 
+			MY_BITMAP const *cols, bool is_transactional);
+#endif
+
+#ifdef HAVE_REPLICATION
+  Update_rows_log_event(const char *buf, uint event_len, 
+			const Format_description_log_event *description_event);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+  static bool binlog_row_logging_function(THD *thd, TABLE *table,
+                                          bool is_transactional,
+                                          MY_BITMAP *cols,
+                                          uint fields,
+                                          const byte *before_record,
+                                          const byte *after_record)
+  {
+    return thd->binlog_update_row(table, is_transactional,
+                                  cols, fields, before_record, after_record);
+  }
+#endif
+
+private:
+  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  gptr  m_memory;
+  byte *m_key;
+  byte *m_search_record;
+
+  virtual int         do_before_row_operations(TABLE *table);
+  virtual int         do_after_row_operations(TABLE *table, int error);
+  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
+  virtual int         do_exec_row(TABLE *table);
+#endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
+};
+
+/*****************************************************************************
+
+  Delete rows log event class.
+
+  Log row deletions. The event contain several delete rows for a
+  table. Note that each event contains only rows for one table.
+
+  RESPONSIBILITIES
+
+    - Act as a container for rows that has been deleted on the master
+      and should be deleted on the slave. 
+
+  COLLABORATION
+
+    Row_writer
+      Create the event and add rows to the event.
+    Row_reader
+      Extract the rows from the event.
+
+ ****************************************************************************/
+class Delete_rows_log_event : public Rows_log_event
+{
+public:
+  enum 
+  {
+    /* Support interface to THD::binlog_prepare_pending_rows_event */
+    TYPE_CODE = DELETE_ROWS_EVENT
+  };
+
+#ifndef MYSQL_CLIENT
+  Delete_rows_log_event(THD*, TABLE*, ulong, 
+			MY_BITMAP const *cols, bool is_transactional);
+#endif
+#ifdef HAVE_REPLICATION
+  Delete_rows_log_event(const char *buf, uint event_len, 
+			const Format_description_log_event *description_event);
+#endif
+#if !defined(MYSQL_CLIENT) && defined(HAVE_ROW_BASED_REPLICATION)
+  static bool binlog_row_logging_function(THD *thd, TABLE *table,
+                                          bool is_transactional,
+                                          MY_BITMAP *cols,
+                                          uint fields,
+                                          const byte *before_record,
+                                          const byte *after_record
+                                          __attribute__((unused)))
+  {
+    return thd->binlog_delete_row(table, is_transactional,
+                                  cols, fields, before_record);
+  }
+#endif
+  
+private:
+  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  gptr  m_memory;
+  byte *m_key;
+  byte *m_search_record;
+
+  virtual int         do_before_row_operations(TABLE *table);
+  virtual int         do_after_row_operations(TABLE *table, int error);
+  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
+  virtual int         do_exec_row(TABLE *table);
+#endif
+};
+
+
 #endif /* _log_event_h */

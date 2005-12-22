@@ -84,8 +84,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::STMT_QUERY_TYPE,
+                        thd->query, thd->query_length, FALSE, FALSE);
     }
     send_ok(thd);
   }

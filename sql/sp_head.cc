@@ -695,6 +695,9 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
 
 /*
   StoredRoutinesBinlogging
+  This paragraph applies only to statement-based binlogging. Row-based
+  binlogging does not need anything special like this.
+
   Top-down overview:
 
   1. Statements
@@ -1258,56 +1261,62 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   thd->spcont= nctx;
 
-  binlog_save_options= thd->options;
-  need_binlog_call= mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG);
+  /*
+    If row-based binlogging, we don't need to binlog the function's call, let
+    each substatement be binlogged its way.
+  */
+  need_binlog_call= mysql_bin_log.is_open() &&
+    (thd->options & OPTION_BIN_LOG) && !binlog_row_based;
   if (need_binlog_call)
   {
     reset_dynamic(&thd->user_var_events);
     mysql_bin_log.start_union_events(thd);
+    binlog_save_options= thd->options;
+    thd->options&= ~OPTION_BIN_LOG;
   }
-    
-  thd->options&= ~OPTION_BIN_LOG;
+
   err_status= execute(thd);
-  thd->options= binlog_save_options;
-  
+
   if (need_binlog_call)
-    mysql_bin_log.stop_union_events(thd);
-
-  if (need_binlog_call && thd->binlog_evt_union.unioned_events)
   {
-    char buf[256];
-    String bufstr(buf, sizeof(buf), &my_charset_bin);
-    bufstr.length(0);
-    bufstr.append(STRING_WITH_LEN("DO "));
-    append_identifier(thd, &bufstr, m_name.str, m_name.length);
-    bufstr.append('(');
-    for (uint i=0; i < argcount; i++)
+    mysql_bin_log.stop_union_events(thd);
+    thd->options= binlog_save_options;
+    if (thd->binlog_evt_union.unioned_events)
     {
-      String str_value_holder;
-      String *str_value;
+      char buf[256];
+      String bufstr(buf, sizeof(buf), &my_charset_bin);
+      bufstr.length(0);
+      bufstr.append(STRING_WITH_LEN("DO "));
+      append_identifier(thd, &bufstr, m_name.str, m_name.length);
+      bufstr.append('(');
+      for (uint i=0; i < argcount; i++)
+      {
+        String str_value_holder;
+        String *str_value;
 
-      if (i)
-        bufstr.append(',');
+        if (i)
+          bufstr.append(',');
+        
+        str_value= sp_get_item_value(param_values[i], &str_value_holder);
 
-      str_value= sp_get_item_value(param_values[i], &str_value_holder);
-
-      if (str_value)
-        bufstr.append(*str_value);
-      else
-        bufstr.append(STRING_WITH_LEN("NULL"));
+        if (str_value)
+          bufstr.append(*str_value);
+        else
+          bufstr.append(STRING_WITH_LEN("NULL"));
+      }
+      bufstr.append(')');
+      
+      Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
+                            thd->binlog_evt_union.unioned_events_trans, FALSE);
+      if (mysql_bin_log.write(&qinfo) &&
+          thd->binlog_evt_union.unioned_events_trans)
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                     "Invoked ROUTINE modified a transactional table but MySQL "
+                     "failed to reflect this change in the binary log");
+      }
+      reset_dynamic(&thd->user_var_events);
     }
-    bufstr.append(')');
-    
-    Query_log_event qinfo(thd, bufstr.ptr(), bufstr.length(),
-                          thd->binlog_evt_union.unioned_events_trans, FALSE);
-    if (mysql_bin_log.write(&qinfo) && 
-        thd->binlog_evt_union.unioned_events_trans)
-    {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-                   "Invoked ROUTINE modified a transactional table but MySQL "
-                   "failed to reflect this change in the binary log");
-    }
-    reset_dynamic(&thd->user_var_events);
   }
 
   if (m_type == TYPE_ENUM_FUNCTION && !err_status)

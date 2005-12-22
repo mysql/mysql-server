@@ -1,0 +1,362 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists mysqltest1;
+create database mysqltest1;
+use mysqltest1;
+create table t1 (a varchar(100));
+use mysqltest1;
+create procedure foo()
+begin
+declare b int;
+set b = 8;
+insert into t1 values (b);
+insert into t1 values (unix_timestamp());
+end|
+select * from mysql.proc where name='foo' and db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+mysqltest1	foo	PROCEDURE	foo	SQL	CONTAINS_SQL	NO	DEFINER			begin
+declare b int;
+set b = 8;
+insert into t1 values (b);
+insert into t1 values (unix_timestamp());
+end	root@localhost	#	#		
+select * from mysql.proc where name='foo' and db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+mysqltest1	foo	PROCEDURE	foo	SQL	CONTAINS_SQL	NO	DEFINER			begin
+declare b int;
+set b = 8;
+insert into t1 values (b);
+insert into t1 values (unix_timestamp());
+end	root@localhost	#	#		
+set timestamp=1000000000;
+call foo();
+select * from t1;
+a
+8
+1000000000
+select * from t1;
+a
+8
+1000000000
+delete from t1;
+create procedure foo2()
+not deterministic
+select * from mysqltest1.t1;
+call foo2();
+a
+alter procedure foo2 contains sql;
+drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+create procedure foo3()
+deterministic
+insert into t1 values (15);
+grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
+grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
+grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
+create procedure foo4()
+deterministic
+begin
+insert into t2 values(3);
+insert into t1 values (5);
+end|
+call foo4();
+Got one of the listed errors
+call foo3();
+show warnings;
+Level	Code	Message
+call foo4();
+Got one of the listed errors
+alter procedure foo4 sql security invoker;
+call foo4();
+show warnings;
+Level	Code	Message
+select * from t1;
+a
+15
+5
+select * from t2;
+a
+3
+3
+3
+select * from t1;
+a
+15
+5
+select * from t2;
+a
+3
+3
+3
+delete from t2;
+alter table t2 add unique (a);
+drop procedure foo4;
+create procedure foo4()
+deterministic
+begin
+insert into t2 values(20),(20);
+end|
+call foo4();
+ERROR 23000: Duplicate entry '20' for key 1
+show warnings;
+Level	Code	Message
+Error	1062	Duplicate entry '20' for key 1
+select * from t2;
+a
+20
+select * from t2;
+a
+20
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+mysqltest1	foo4	PROCEDURE	foo4	SQL	CONTAINS_SQL	YES	DEFINER			begin
+insert into t2 values(20),(20);
+end	root@localhost	#	#		
+drop procedure foo4;
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+select * from mysql.proc where name="foo4" and db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+drop procedure foo;
+drop procedure foo2;
+drop procedure foo3;
+create function fn1(x int)
+returns int
+deterministic
+begin
+insert into t1 values (x);
+return x+2;
+end|
+delete t1,t2 from t1,t2;
+select fn1(20);
+fn1(20)
+22
+insert into t2 values(fn1(21));
+select * from t1;
+a
+21
+20
+select * from t2;
+a
+23
+select * from t1;
+a
+21
+20
+select * from t2;
+a
+23
+drop function fn1;
+create function fn1()
+returns int
+begin
+return unix_timestamp();
+end|
+alter function fn1 no sql;
+delete from t1;
+set timestamp=1000000000;
+insert into t1 values(fn1());
+create function fn2()
+returns int
+no sql
+begin
+return unix_timestamp();
+end|
+create function fn3()
+returns int
+not deterministic
+reads sql data
+begin
+return 0;
+end|
+select fn3();
+fn3()
+0
+select * from mysql.proc where db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+mysqltest1	fn1	FUNCTION	fn1	SQL	NO_SQL	NO	DEFINER		int(11)	begin
+return unix_timestamp();
+end	root@localhost	#	#		
+mysqltest1	fn2	FUNCTION	fn2	SQL	NO_SQL	NO	DEFINER		int(11)	begin
+return unix_timestamp();
+end	zedjzlcsjhd@localhost	#	#		
+mysqltest1	fn3	FUNCTION	fn3	SQL	READS_SQL_DATA	NO	DEFINER		int(11)	begin
+return 0;
+end	root@localhost	#	#		
+select * from t1;
+a
+1000000000
+use mysqltest1;
+select * from t1;
+a
+1000000000
+select * from mysql.proc where db='mysqltest1';
+db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment
+mysqltest1	fn1	FUNCTION	fn1	SQL	NO_SQL	NO	DEFINER		int(11)	begin
+return unix_timestamp();
+end	root@localhost	#	#		
+mysqltest1	fn2	FUNCTION	fn2	SQL	NO_SQL	NO	DEFINER		int(11)	begin
+return unix_timestamp();
+end	zedjzlcsjhd@localhost	#	#		
+mysqltest1	fn3	FUNCTION	fn3	SQL	READS_SQL_DATA	NO	DEFINER		int(11)	begin
+return 0;
+end	root@localhost	#	#		
+delete from t2;
+alter table t2 add unique (a);
+drop function fn1;
+create function fn1()
+returns int
+begin
+insert into t2 values(20),(20);
+return 10;
+end|
+select fn1();
+ERROR 23000: Duplicate entry '20' for key 1
+select * from t2;
+a
+20
+select * from t2;
+a
+20
+create trigger trg before insert on t1 for each row set new.a= 10;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+delete from t1;
+create trigger trg before insert on t1 for each row set new.a= 10;
+insert into t1 values (1);
+select * from t1;
+a
+10
+select * from t1;
+a
+10
+delete from t1;
+drop trigger trg;
+insert into t1 values (1);
+select * from t1;
+a
+1
+show binlog events in 'master-bin.000001' from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
+master-bin.000001	#	Query	1	#	create database mysqltest1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a varchar(100))
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Update_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop table t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t1 (a int)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t2 (a int)
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.user
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.db
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.tables_priv
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.tables_priv
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.procs_priv
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Update_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
+master-bin.000001	#	Table_map	1	#	mysql.procs_priv
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Update_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.procs_priv
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
+master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Delete_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysql.proc
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	mysqltest1.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
+master-bin.000001	#	Query	1	#	use `mysqltest1`; drop trigger trg
+master-bin.000001	#	Table_map	1	#	mysqltest1.t1
+master-bin.000001	#	Write_rows	1	#	
+select * from t1;
+a
+1
+create procedure foo()
+not deterministic
+reads sql data
+select * from t1;
+call foo();
+a
+1
+drop procedure foo;
+drop function fn1;
+drop database mysqltest1;
+drop user "zedjzlcsjhd"@127.0.0.1;

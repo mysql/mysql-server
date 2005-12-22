@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP FUNCTION test.f1;
+DROP TABLE IF EXISTS test.t1;
+create table test.t1 (a int, PRIMARY KEY(a));
+create function test.f1(i int) returns int
+begin
+insert into test.t1 values(i);
+return 0;
+end//
+select test.f1(1);
+test.f1(1)
+0
+select test.f1(2);
+test.f1(2)
+0
+select * from test.t1;
+a
+1
+2
+select * from test.t1;
+a
+1
+2
+DROP FUNCTION test.f1;
+DROP TABLE test.t1;

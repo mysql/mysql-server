@@ -1,0 +1,23 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists mysqltest1;
+drop database if exists mysqltest2;
+create database mysqltest1;
+create database mysqltest2;
+use mysqltest1;
+create table t1 (a int);
+insert into t1 values(1);
+select * from mysqltest1.t1;
+ERROR 42S02: Table 'mysqltest1.t1' doesn't exist
+use mysqltest2;
+create table t1 (a int);
+insert into t1 values(1);
+select * from mysqltest2.t1;
+a
+1
+drop database mysqltest1;
+drop database mysqltest2;

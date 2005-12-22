@@ -41,7 +41,12 @@ mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=              mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
                                 $(yassl_dummy_link_fix)
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c $(top_srcdir)/mysys/my_new.cc
+mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
+				$(top_srcdir)/mysys/my_new.cc \
+				$(top_srcdir)/mysys/my_bit.c \
+				$(top_srcdir)/mysys/my_bitmap.c \
+				$(top_srcdir)/mysys/my_vle.c \
+				$(top_srcdir)/mysys/base64.c
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)

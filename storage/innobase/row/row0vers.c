@@ -490,3 +490,141 @@ row_vers_build_for_consistent_read(
 
 	return(err);
 }
+
+/*********************************************************************
+Constructs the last committed version of a clustered index record,
+which should be seen by a semi-consistent read. */
+
+ulint
+row_vers_build_for_semi_consistent_read(
+/*====================================*/
+				/* out: DB_SUCCESS or DB_MISSING_HISTORY */
+	rec_t*		rec,	/* in: record in a clustered index; the
+				caller must have a latch on the page; this
+				latch locks the top of the stack of versions
+				of this records */
+	mtr_t*		mtr,	/* in: mtr holding the latch on rec */
+	dict_index_t*	index,	/* in: the clustered index */
+	ulint**		offsets,/* in/out: offsets returned by
+				rec_get_offsets(rec, index) */
+	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+				the offsets are allocated */
+	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
+				old_vers is allocated; memory for possible
+				intermediate versions is allocated and freed
+				locally within the function */
+	rec_t**		old_vers)/* out, own: rec, old version, or NULL if the
+				record does not exist in the view, that is,
+				it was freshly inserted afterwards */
+{
+	rec_t*		version;
+	mem_heap_t*	heap		= NULL;
+	byte*		buf;
+	ulint		err;
+	dulint		rec_trx_id;
+
+	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
+		|| mtr_memo_contains(mtr, buf_block_align(rec),
+						MTR_MEMO_PAGE_S_FIX));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(rec_offs_validate(rec, index, *offsets));
+
+	rw_lock_s_lock(&(purge_sys->latch));
+	/* The S-latch on purge_sys prevents the purge view from
+	changing.  Thus, if we have an uncommitted transaction at
+	this point, then purge cannot remove its undo log even if
+	the transaction could commit now. */
+
+	version = rec;
+
+	for (;;) {
+		trx_t*		version_trx;
+		mem_heap_t*	heap2;
+		rec_t*		prev_version;
+		dulint		version_trx_id;
+
+		version_trx_id = row_get_rec_trx_id(
+					version, index, *offsets);
+		if (rec == version) {
+			rec_trx_id = version_trx_id;
+		}
+
+		mutex_enter(&kernel_mutex);
+		version_trx = trx_get_on_id(version_trx_id);
+		mutex_exit(&kernel_mutex);
+
+		if (!version_trx
+		    || version_trx->conc_state == TRX_NOT_STARTED
+		    || version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+
+			/* We found a version that belongs to a
+			committed transaction: return it. */
+
+			if (rec == version) {
+				*old_vers = rec;
+				err = DB_SUCCESS;
+				break;
+			}
+
+			/* We assume that a rolled-back transaction stays in
+			TRX_ACTIVE state until all the changes have been
+			rolled back and the transaction is removed from
+			the global list of transactions. */
+
+			if (!ut_dulint_cmp(rec_trx_id, version_trx_id)) {
+				/* The transaction was committed while
+				we searched for earlier versions.
+				Return the current version as a
+				semi-consistent read. */
+
+				version = rec;
+				*offsets = rec_get_offsets(version,
+					index, *offsets,
+					ULINT_UNDEFINED, offset_heap);
+			}
+
+			buf = mem_heap_alloc(in_heap, rec_offs_size(*offsets));
+			*old_vers = rec_copy(buf, version, *offsets);
+			rec_offs_make_valid(*old_vers, index, *offsets);
+			err = DB_SUCCESS;
+
+			break;
+		}
+
+		heap2 = heap;
+		heap = mem_heap_create(1024);
+
+		err = trx_undo_prev_version_build(rec, mtr, version, index,
+						*offsets, heap, &prev_version);
+		if (heap2) {
+			mem_heap_free(heap2); /* free version */
+		}
+
+		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+			break;
+		}
+
+		if (prev_version == NULL) {
+			/* It was a freshly inserted version */
+			*old_vers = NULL;
+			err = DB_SUCCESS;
+
+			break;
+		}
+
+		version = prev_version;
+		*offsets = rec_get_offsets(version, index, *offsets,
+					ULINT_UNDEFINED, offset_heap);
+	}/* for (;;) */
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	rw_lock_s_unlock(&(purge_sys->latch));
+
+	return(err);
+}

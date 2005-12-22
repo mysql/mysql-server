@@ -1,0 +1,129 @@
+# Test how replication of tables work when the definition on the
+# master and slave differs.
+
+# Consider making these part of the basic RBR tests.
+
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+connection master;
+eval CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
+eval CREATE TABLE t5 (a INT, b INT, c INT) ENGINE=$engine_type;
+eval CREATE TABLE t6 (a INT, b INT, c INT) ENGINE=$engine_type;
+
+# Table used to detect that slave is running
+eval CREATE TABLE t9 (a INT PRIMARY KEY) ENGINE=$engine_type;
+
+sync_slave_with_master;
+# On the slave, we add one column last in table 't1',
+ALTER TABLE t1 ADD x INT DEFAULT 42;
+# ... add one column in the middle of table 't2', and
+ALTER TABLE t2 ADD x INT DEFAULT 42 AFTER a;
+# ... add one column first in table 't3'.
+ALTER TABLE t3 ADD x INT DEFAULT 42 FIRST;
+# ... change the type of the single column in table 't4'
+ALTER TABLE t4 MODIFY a FLOAT;
+# ... change the type of the middle column of table 't5'
+ALTER TABLE t5 MODIFY b FLOAT;
+# ... change the type of the last column of table 't6'
+ALTER TABLE t6 MODIFY c FLOAT;
+
+# Each of these should generate an error and stop the slave
+connection master;
+INSERT INTO t9 VALUES (1);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t1 VALUES (1,2);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+INSERT INTO t9 VALUES (2);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t2 VALUES (2,4);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+INSERT INTO t9 VALUES (3);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t3 VALUES (3,6);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+INSERT INTO t9 VALUES (4);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t4 VALUES (4);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+INSERT INTO t9 VALUES (5);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t5 VALUES (5,10,25);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+INSERT INTO t9 VALUES (6);
+sync_slave_with_master;
+# Now slave is guaranteed to be running
+connection master;
+INSERT INTO t6 VALUES (6,12,36);
+connection slave;
+wait_for_slave_to_stop;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--vertical_results
+SHOW SLAVE STATUS;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t9;
+--enable_warnings
+sync_slave_with_master;

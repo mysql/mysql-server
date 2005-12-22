@@ -1,0 +1,2 @@
+let $engine_type=MYISAM;
+-- source extra/rpl_tests/rpl_row_001.test

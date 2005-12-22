@@ -1,0 +1,71 @@
+# Testcase for BUG#6287 "Slave skips auto_increment values in Replication with InnoDB"
+# The bug was that if on master, INSERT IGNORE ignored some
+# rows, and the table was InnoDB with auto_inc column, then on slave
+# some rows received an auto_inc bigger than on master.
+# Slave needs to be started with --innodb to store table in InnoDB.
+# Same test for MyISAM (which had no bug).
+
+-- source include/master-slave.inc
+
+eval CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned,
+ unique (b)
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+ a int unsigned, # to force INSERT SELECT to have a certain order
+ b int unsigned
+) ENGINE=$engine_type;
+
+
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+
+# An alternation of values which will conflict in t1 and will not.
+
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 5);
+INSERT INTO t2 VALUES (4, 3);
+INSERT INTO t2 VALUES (5, 4);
+INSERT INTO t2 VALUES (6, 6);
+
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+
+# Compare results
+
+SELECT * FROM t1 ORDER BY a;
+
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+# Now do the same for MyISAM
+
+connection master;
+drop table t1;
+eval CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned,
+ unique (b)
+) ENGINE=$engine_type2;
+
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+
+SELECT * FROM t1 ORDER BY a;
+
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+connection master;
+drop table t1, t2;
+sync_slave_with_master;
+
+# End of 4.1 tests

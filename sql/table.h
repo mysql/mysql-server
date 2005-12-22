@@ -189,7 +189,8 @@ typedef struct st_table_share
   bool is_view;
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
-
+  ulong table_map_id;                   /* for row-based replication */
+  ulonglong table_map_version;
   /*
     TRUE if this is a system table like 'mysql.proc', which we want to be
     able to open and lock even when we already have some tables open and
@@ -220,6 +221,8 @@ struct st_table {
   Field **field;			/* Pointer to fields */
 
   byte *record[2];			/* Pointer to records */
+  byte *write_row_record;		/* Used as optimisation in
+					   THD::write_row */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
   key_map quick_keys, used_keys, keys_in_use_for_query;
   KEY  *key_info;			/* data of keys in database */

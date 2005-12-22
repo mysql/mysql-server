@@ -844,6 +844,14 @@ typedef long		my_ptrdiff_t;
 typedef long long	my_ptrdiff_t;
 #endif
 
+#if HAVE_SIZE_T
+typedef size_t             my_size_t;
+#elif SIZEOF_CHARP <= SIZEOF_LONG
+typedef unsigned long      my_size_t;
+#else
+typedef unsigned long long my_size_t;
+#endif
+       
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
@@ -1122,6 +1130,12 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
 				    (((uint32) ((uchar) (A)[3])) << 24)) +\
 				    (((ulonglong) ((uchar) (A)[4])) << 32))
+#define uint6korr(A)	((ulonglong)(((uint32)    ((uchar) (A)[0]))          + \
+                                     (((uint32)    ((uchar) (A)[1])) << 8)   + \
+                                     (((uint32)    ((uchar) (A)[2])) << 16)  + \
+                                     (((uint32)    ((uchar) (A)[3])) << 24)) + \
+                         (((ulonglong) ((uchar) (A)[4])) << 32) +       \
+                         (((ulonglong) ((uchar) (A)[5])) << 40))
 #define uint8korr(A)	(*((ulonglong *) (A)))
 #define sint8korr(A)	(*((longlong *) (A)))
 #define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
@@ -1134,6 +1148,12 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
                              *((T)+2)=(uchar) (((A) >> 16));\
                              *((T)+3)=(uchar) (((A) >> 24)); \
                              *((T)+4)=(uchar) (((A) >> 32)); } while(0)
+#define int6store(T,A)  do { *(T)=    (uchar)((A));          \
+                             *((T)+1)=(uchar) (((A) >> 8));  \
+                             *((T)+2)=(uchar) (((A) >> 16)); \
+                             *((T)+3)=(uchar) (((A) >> 24)); \
+                             *((T)+4)=(uchar) (((A) >> 32)); \
+                             *((T)+5)=(uchar) (((A) >> 40)); } while(0)
 #define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
 
 typedef union {
@@ -1190,6 +1210,12 @@ do { doubleget_union _tmp; \
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
 				    (((uint32) ((uchar) (A)[3])) << 24)) +\
 				    (((ulonglong) ((uchar) (A)[4])) << 32))
+#define uint6korr(A)	((ulonglong)(((uint32)    ((uchar) (A)[0]))          + \
+                                     (((uint32)    ((uchar) (A)[1])) << 8)   + \
+                                     (((uint32)    ((uchar) (A)[2])) << 16)  + \
+                                     (((uint32)    ((uchar) (A)[3])) << 24)) + \
+                         (((ulonglong) ((uchar) (A)[4])) << 32) +       \
+                         (((ulonglong) ((uchar) (A)[5])) << 40))
 #define uint8korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
@@ -1217,6 +1243,12 @@ do { doubleget_union _tmp; \
                                   *(((char *)(T))+2)=(((A) >> 16));\
                                   *(((char *)(T))+3)=(((A) >> 24)); \
                                   *(((char *)(T))+4)=(((A) >> 32)); } while(0)
+#define int6store(T,A)       do { *((char *)(T))=((A));\
+                                  *(((char *)(T))+1)=(((A) >> 8));  \
+                                  *(((char *)(T))+2)=(((A) >> 16)); \
+                                  *(((char *)(T))+3)=(((A) >> 24)); \
+                                  *(((char *)(T))+4)=(((A) >> 32)); \
+                                  *(((char *)(T))+5)=(((A) >> 40)); } while(0)
 #define int8store(T,A)       do { uint def_temp= (uint) (A), def_temp2= (uint) ((A) >> 32); \
                                   int4store((T),def_temp); \
                                   int4store((T+4),def_temp2); } while(0)

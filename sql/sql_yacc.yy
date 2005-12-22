@@ -897,6 +897,7 @@ statement:
 	  alter
 	| analyze
 	| backup
+	| binlog_base64_event
 	| call
 	| change
 	| check
@@ -4399,6 +4400,13 @@ analyze:
 	table_list opt_mi_check_type
 	{}
 	;
+
+binlog_base64_event:
+        BINLOG_SYM TEXT_STRING_sys
+        {
+           Lex->sql_command = SQLCOM_BINLOG_BASE64_EVENT;
+           Lex->comment= $2;
+        }
 
 check:
 	CHECK_SYM table_or_tables

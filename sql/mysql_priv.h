@@ -248,50 +248,50 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
    TODO: separate three contexts above, move them to separate bitfields.
 */
 
-#define SELECT_DISTINCT         (1L << 0)       // SELECT, user
-#define SELECT_STRAIGHT_JOIN    (1L << 1)       // SELECT, user
-#define SELECT_DESCRIBE         (1L << 2)       // SELECT, user
-#define SELECT_SMALL_RESULT     (1L << 3)       // SELECT, user
-#define SELECT_BIG_RESULT       (1L << 4)       // SELECT, user
-#define OPTION_FOUND_ROWS       (1L << 5)       // SELECT, user
-#define OPTION_TO_QUERY_CACHE   (1L << 6)       // SELECT, user
-#define SELECT_NO_JOIN_CACHE    (1L << 7)       // intern
-#define OPTION_BIG_TABLES       (1L << 8)       // THD, user
-#define OPTION_BIG_SELECTS      (1L << 9)       // THD, user
-#define OPTION_LOG_OFF          (1L << 10)      // THD, user
-#define OPTION_UPDATE_LOG       (1L << 11)      // THD, user, unused
-#define TMP_TABLE_ALL_COLUMNS   (1L << 12)      // SELECT, intern
-#define OPTION_WARNINGS         (1L << 13)      // THD, user
-#define OPTION_AUTO_IS_NULL     (1L << 14)      // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (1L << 15)      // SELECT, intern, parser
-#define OPTION_SAFE_UPDATES     (1L << 16)      // THD, user
-#define OPTION_BUFFER_RESULT    (1L << 17)      // SELECT, user
-#define OPTION_BIN_LOG          (1L << 18)      // THD, user
-#define OPTION_NOT_AUTOCOMMIT   (1L << 19)      // THD, user
-#define OPTION_BEGIN            (1L << 20)      // THD, intern
-#define OPTION_TABLE_LOCK       (1L << 21)      // THD, intern
-#define OPTION_QUICK            (1L << 22)      // SELECT (for DELETE)
-#define OPTION_QUOTE_SHOW_CREATE (1L << 23)     // THD, user
+#define SELECT_DISTINCT         (LL(1) << 0)       // SELECT, user
+#define SELECT_STRAIGHT_JOIN    (LL(1) << 1)       // SELECT, user
+#define SELECT_DESCRIBE         (LL(1) << 2)       // SELECT, user
+#define SELECT_SMALL_RESULT     (LL(1) << 3)       // SELECT, user
+#define SELECT_BIG_RESULT       (LL(1) << 4)       // SELECT, user
+#define OPTION_FOUND_ROWS       (LL(1) << 5)       // SELECT, user
+#define OPTION_TO_QUERY_CACHE   (LL(1) << 6)       // SELECT, user
+#define SELECT_NO_JOIN_CACHE    (LL(1) << 7)       // intern
+#define OPTION_BIG_TABLES       (LL(1) << 8)       // THD, user
+#define OPTION_BIG_SELECTS      (LL(1) << 9)       // THD, user
+#define OPTION_LOG_OFF          (LL(1) << 10)      // THD, user
+#define OPTION_UPDATE_LOG       (LL(1) << 11)      // THD, user, unused
+#define TMP_TABLE_ALL_COLUMNS   (LL(1) << 12)      // SELECT, intern
+#define OPTION_WARNINGS         (LL(1) << 13)      // THD, user
+#define OPTION_AUTO_IS_NULL     (LL(1) << 14)      // THD, user, binlog
+#define OPTION_FOUND_COMMENT    (LL(1) << 15)      // SELECT, intern, parser
+#define OPTION_SAFE_UPDATES     (LL(1) << 16)      // THD, user
+#define OPTION_BUFFER_RESULT    (LL(1) << 17)      // SELECT, user
+#define OPTION_BIN_LOG          (LL(1) << 18)      // THD, user
+#define OPTION_NOT_AUTOCOMMIT   (LL(1) << 19)      // THD, user
+#define OPTION_BEGIN            (LL(1) << 20)      // THD, intern
+#define OPTION_TABLE_LOCK       (LL(1) << 21)      // THD, intern
+#define OPTION_QUICK            (LL(1) << 22)      // SELECT (for DELETE)
+#define OPTION_QUOTE_SHOW_CREATE (LL(1) << 23)     // THD, user
 
 /* Thr following is used to detect a conflict with DISTINCT
    in the user query has requested */
-#define SELECT_ALL              (1L << 24)      // SELECT, user, parser
+#define SELECT_ALL              (LL(1) << 24)      // SELECT, user, parser
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25) // THD, intern
+#define OPTION_STATUS_NO_TRANS_UPDATE   (LL(1) << 25) // THD, intern
 
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26) // THD, user, binlog
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (LL(1) << 26) // THD, user, binlog
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27) // THD, user, binlog
-#define SELECT_NO_UNLOCK                (1L << 28) // SELECT, intern
-#define OPTION_SCHEMA_TABLE             (1L << 29) // SELECT, intern
+#define OPTION_RELAXED_UNIQUE_CHECKS    (LL(1) << 27) // THD, user, binlog
+#define SELECT_NO_UNLOCK                (LL(1) << 28) // SELECT, intern
+#define OPTION_SCHEMA_TABLE             (LL(1) << 29) // SELECT, intern
 /* Flag set if setup_tables already done */
-#define OPTION_SETUP_TABLES_DONE        (1L << 30) // intern
+#define OPTION_SETUP_TABLES_DONE        (LL(1) << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
-#define OPTION_SQL_NOTES                (1UL << 31) // THD, user
+#define OPTION_SQL_NOTES                (LL(1) << 31) // THD, user
 /* 
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
@@ -600,6 +600,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
+void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
@@ -1198,6 +1199,13 @@ extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
+extern const char *opt_binlog_format;
+#ifdef HAVE_ROW_BASED_REPLICATION
+extern my_bool binlog_row_based;
+extern ulong opt_binlog_rows_event_max_size;
+#else
+extern const my_bool binlog_row_based;
+#endif
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern ulong specialflag, current_pid;
@@ -1338,6 +1346,7 @@ extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
 
 extern SHOW_COMP_OPTION have_isam;
+extern SHOW_COMP_OPTION have_row_based_replication;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

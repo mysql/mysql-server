@@ -1,0 +1,237 @@
+drop table if exists t1, t2;
+reset master;
+create table t1 (a int) engine=bdb;
+create table t2 (a int) engine=innodb;
+begin;
+insert t1 values (5);
+commit;
+begin;
+insert t2 values (5);
+commit;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=bdb
+master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	test.t2
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+drop table t1,t2;
+reset master;
+create table t1 (n int) engine=innodb;
+begin;
+commit;
+drop table t1;
+show binlog events in 'master-bin.000001' from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (n int) engine=innodb
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Table_map	1	#	test.t1
+master-bin.000001	#	Write_rows	1	#	
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
+show binlog events in 'master-bin.000002' from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	1	#	use `test`; drop table t1
