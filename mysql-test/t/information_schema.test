@@ -748,3 +748,9 @@ drop table t1;
 select table_type from information_schema.tables
 where table_name="v1";
 drop view v1;
+
+#
+# Show engines
+#
+
+select * from information_schema.engines WHERE ENGINE="MyISAM";

@@ -314,6 +314,9 @@ typedef struct st_foreign_key_info
   List<LEX_STRING> referenced_fields;
 } FOREIGN_KEY_INFO;
 
+/*
+  Make sure that the order of schema_tables and enum_schema_tables are the same.
+*/
 
 enum enum_schema_tables
 {
@@ -322,6 +325,7 @@ enum enum_schema_tables
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
   SCH_COLUMN_PRIVILEGES,
+  SCH_ENGINES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_PROCEDURES,
