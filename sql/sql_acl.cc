@@ -1468,8 +1468,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                   acl_user->host.hostname ? acl_user->host.hostname : "",
                   new_password));
     thd->clear_error();
-    Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
-    mysql_bin_log.write(&qinfo);
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE, buff, query_length, FALSE, FALSE);
   }
 end:
   close_thread_tables(thd);
@@ -1654,7 +1653,7 @@ static bool update_user_table(THD *thd, TABLE *table,
   }
   store_record(table,record[1]);
   table->field[2]->store(new_password, new_password_len, system_charset_info);
-  if ((error=table->file->update_row(table->record[1],table->record[0])))
+  if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(1);
@@ -1871,14 +1870,14 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     */
     table->file->ha_retrieve_all_cols();
     if (cmp_record(table,record[1]) &&
-	(error=table->file->update_row(table->record[1],table->record[0])))
+	(error=table->file->ha_update_row(table->record[1],table->record[0])))
     {						// This should never happen
       table->file->print_error(error,MYF(0));	/* purecov: deadcode */
       error= -1;				/* purecov: deadcode */
       goto end;					/* purecov: deadcode */
     }
   }
-  else if ((error=table->file->write_row(table->record[0]))) // insert
+  else if ((error=table->file->ha_write_row(table->record[0]))) // insert
   {						// This should never happen
     if (error && error != HA_ERR_FOUND_DUPP_KEY &&
 	error != HA_ERR_FOUND_DUPP_UNIQUE)	/* purecov: inspected */
@@ -1988,16 +1987,17 @@ static int replace_db_table(TABLE *table, const char *db,
     if (rights)
     {
       table->file->ha_retrieve_all_cols();
-      if ((error=table->file->update_row(table->record[1],table->record[0])))
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])))
 	goto table_error;			/* purecov: deadcode */
     }
     else	/* must have been a revoke of all privileges */
     {
-      if ((error = table->file->delete_row(table->record[1])))
+      if ((error = table->file->ha_delete_row(table->record[1])))
 	goto table_error;			/* purecov: deadcode */
     }
   }
-  else if (rights && (error=table->file->write_row(table->record[0])))
+  else if (rights && (error=table->file->ha_write_row(table->record[0])))
   {
     if (error && error != HA_ERR_FOUND_DUPP_KEY) /* purecov: inspected */
       goto table_error; /* purecov: deadcode */
@@ -2365,9 +2365,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       GRANT_COLUMN *grant_column;
       if (privileges)
-	error=table->file->update_row(table->record[1],table->record[0]);
+	error=table->file->ha_update_row(table->record[1],table->record[0]);
       else
-	error=table->file->delete_row(table->record[1]);
+	error=table->file->ha_delete_row(table->record[1]);
       if (error)
       {
 	table->file->print_error(error,MYF(0)); /* purecov: inspected */
@@ -2382,7 +2382,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     else					// new grant
     {
       GRANT_COLUMN *grant_column;
-      if ((error=table->file->write_row(table->record[0])))
+      if ((error=table->file->ha_write_row(table->record[0])))
       {
 	table->file->print_error(error,MYF(0)); /* purecov: inspected */
 	result= -1;				/* purecov: inspected */
@@ -2434,8 +2434,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	if (privileges)
 	{
 	  int tmp_error;
-	  if ((tmp_error=table->file->update_row(table->record[1],
-						 table->record[0])))
+	  if ((tmp_error=table->file->ha_update_row(table->record[1],
+						    table->record[0])))
 	  {					/* purecov: deadcode */
 	    table->file->print_error(tmp_error,MYF(0)); /* purecov: deadcode */
 	    result= -1;				/* purecov: deadcode */
@@ -2447,7 +2447,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	else
 	{
 	  int tmp_error;
-	  if ((tmp_error = table->file->delete_row(table->record[1])))
+	  if ((tmp_error = table->file->ha_delete_row(table->record[1])))
 	  {					/* purecov: deadcode */
 	    table->file->print_error(tmp_error,MYF(0)); /* purecov: deadcode */
 	    result= -1;				/* purecov: deadcode */
@@ -2555,15 +2555,15 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   {
     if (store_table_rights || store_col_rights)
     {
-      if ((error=table->file->update_row(table->record[1],table->record[0])))
+      if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
 	goto table_error;			/* purecov: deadcode */
     }
-    else if ((error = table->file->delete_row(table->record[1])))
+    else if ((error = table->file->ha_delete_row(table->record[1])))
       goto table_error;				/* purecov: deadcode */
   }
   else
   {
-    error=table->file->write_row(table->record[0]);
+    error=table->file->ha_write_row(table->record[0]);
     if (error && error != HA_ERR_FOUND_DUPP_KEY)
       goto table_error;				/* purecov: deadcode */
   }
@@ -2672,15 +2672,15 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   {
     if (store_proc_rights)
     {
-      if ((error=table->file->update_row(table->record[1],table->record[0])))
+      if ((error=table->file->ha_update_row(table->record[1],table->record[0])))
 	goto table_error;
     }
-    else if ((error= table->file->delete_row(table->record[1])))
+    else if ((error= table->file->ha_delete_row(table->record[1])))
       goto table_error;
   }
   else
   {
-    error=table->file->write_row(table->record[0]);
+    error=table->file->ha_write_row(table->record[0]);
     if (error && error != HA_ERR_FOUND_DUPP_KEY)
       goto table_error;
   }
@@ -3119,6 +3119,16 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   grant_option=TRUE;
   thd->mem_root= old_root;
+  /*
+    This flush is here only becuase there is code that writes rows to
+    system tables after executing a binlog_query().
+
+    TODO: Ensure that no writes are executed after a binlog_query() by
+    moving the writes to before calling binlog_query(). Then remove
+    this line (and add an assert inside send_ok() that checks that
+    everything is in a consistent state).
+   */
+  thd->binlog_flush_pending_rows_event(true);
   rw_unlock(&LOCK_grant);
   if (!result && !no_error)
     send_ok(thd);
@@ -4670,13 +4680,13 @@ static int modify_grant_table(TABLE *table, Field *host_field,
                       system_charset_info);
     user_field->store(user_to->user.str, user_to->user.length,
                       system_charset_info);
-    if ((error= table->file->update_row(table->record[1], table->record[0])))
+    if ((error= table->file->ha_update_row(table->record[1], table->record[0])))
       table->file->print_error(error, MYF(0));
   }
   else
   {
     /* delete */
-    if ((error=table->file->delete_row(table->record[0])))
+    if ((error=table->file->ha_delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
 
@@ -5683,7 +5693,7 @@ void update_schema_privilege(TABLE *table, char *buff, const char* db,
     table->field[i++]->store(column, col_length, cs);
   table->field[i++]->store(priv, priv_length, cs);
   table->field[i]->store(is_grantable, strlen(is_grantable), cs);
-  table->file->write_row(table->record[0]);
+  table->file->ha_write_row(table->record[0]);
 }
 
 

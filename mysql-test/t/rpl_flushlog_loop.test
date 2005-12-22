@@ -1,0 +1,30 @@
+# Testing if "flush logs" command bouncing resulting in logs created in a loop 
+# in case of bi-directional replication
+-- source include/master-slave.inc
+
+# This test is dependent on the actual events written to the binary
+# log. To not break statement-based testing, we only run this test
+# under statement-based logging.
+
+connection slave;
+--disable_warnings
+stop slave;
+--enable_warnings
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
+start slave;
+connection master;
+--disable_warnings
+stop slave;
+--enable_warnings
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$SLAVE_MYPORT;
+start slave;
+sleep 5;
+flush logs;
+sleep 5;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;

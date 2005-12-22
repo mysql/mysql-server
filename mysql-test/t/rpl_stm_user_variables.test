@@ -1,0 +1,5 @@
+# row-based and statement binlog difference in result files
+-- source include/have_binlog_format_statement.inc
+-- source extra/rpl_tests/rpl_user_variables.test
+
+# End of 4.1 tests

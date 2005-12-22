@@ -122,6 +122,8 @@ class ha_innobase: public handler
   	int write_row(byte * buf);
   	int update_row(const byte * old_data, byte * new_data);
   	int delete_row(const byte * buf);
+	bool was_semi_consistent_read();
+	void try_semi_consistent_read(bool yes);
 	void unlock_row();
 
   	int index_init(uint index, bool sorted);

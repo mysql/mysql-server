@@ -22,6 +22,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "rpl_filter.h"
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
@@ -29,7 +30,7 @@
 
 #include <myisampack.h>
 #include <errno.h>
-  
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define NDB_MAX_ATTRIBUTES_IN_TABLE 128
 #include "ha_ndbcluster.h"
@@ -37,11 +38,14 @@
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
+
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 #include "ha_innodb.h"
 #endif
 
 extern handlerton *sys_table_types[];
+
+#define BITMAP_STACKBUF_SIZE (128/8)
 
 /* static functions defined in this file */
 
@@ -1937,6 +1941,9 @@ void handler::print_error(int error, myf errflag)
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
              table_share->table_name.str);
     break;
+  case HA_ERR_RBR_LOGGING_FAILED:
+    textno= ER_BINLOG_ROW_LOGGING_FAILED;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -2721,6 +2728,7 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
+
 static bool stat_print(THD *thd, const char *type, uint type_len,
                        const char *file, uint file_len,
                        const char *status, uint status_len)
@@ -2779,6 +2787,106 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   if (!result)
     send_eof(thd);
   return result;
+}
+
+/*
+  Function to check if the conditions for row-based binlogging is
+  correct for the table.
+
+  A row in the given table should be replicated if:
+  - Row-based replication is on
+  - It is not a temporary table
+  - The binlog is enabled
+  - The table shall be binlogged (binlog_*_db rules) [Seems disabled /Matz]
+*/
+
+#ifdef HAVE_ROW_BASED_REPLICATION
+static bool check_table_binlog_row_based(THD *thd, TABLE *table)
+{
+  return
+    binlog_row_based &&
+    thd && (thd->options & OPTION_BIN_LOG) &&
+    (table->s->tmp_table == NO_TMP_TABLE);
+}
+
+template<class RowsEventT> int binlog_log_row(TABLE* table,
+                                              const byte *before_record,
+                                              const byte *after_record)
+{
+  bool error= 0;
+  THD *const thd= current_thd;
+
+  if (check_table_binlog_row_based(thd, table))
+  {
+    MY_BITMAP cols;
+    /* Potential buffer on the stack for the bitmap */
+    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
+    uint n_fields= table->s->fields;
+    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+    if (likely(!(error= bitmap_init(&cols,
+                                    use_bitbuf ? bitbuf : NULL,
+                                    (n_fields + 7) & ~7UL,
+                                    false))))
+    {
+      bitmap_set_all(&cols);
+      error=
+        RowsEventT::binlog_row_logging_function(thd, table,
+                                                table->file->has_transactions(),
+                                                &cols, table->s->fields,
+                                                before_record, after_record);
+      if (!use_bitbuf)
+        bitmap_free(&cols);
+    }
+  }
+  return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+}
+
+
+/*
+  Instantiate the versions we need for the above template function, because we
+  have -fno-implicit-template as compiling option.
+*/
+
+template int binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
+template int binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
+template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+
+#endif /* HAVE_ROW_BASED_REPLICATION */
+
+int handler::ha_write_row(byte *buf)
+{
+  int error;
+  if (likely(!(error= write_row(buf))))
+  {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    error= binlog_log_row<Write_rows_log_event>(table, 0, buf);
+#endif
+  }
+  return error;
+}
+
+int handler::ha_update_row(const byte *old_data, byte *new_data)
+{
+  int error;
+  if (likely(!(error= update_row(old_data, new_data))))
+  {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data);
+#endif
+  }
+  return error;
+}
+
+int handler::ha_delete_row(const byte *buf)
+{
+  int error;
+  if (likely(!(error= delete_row(buf))))
+  {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    error= binlog_log_row<Delete_rows_log_event>(table, buf, 0);
+#endif
+  }
+  return error;
 }
 
 

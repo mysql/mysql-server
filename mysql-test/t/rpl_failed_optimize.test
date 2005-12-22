@@ -1,20 +1,6 @@
-source include/have_innodb.inc;
-source include/master-slave.inc;
-
-#
-# BUG#5551 "Failed OPTIMIZE TABLE is logged to binary log"
-# Replication should work when OPTIMIZE TABLE timeouts, and 
-# when OPTIMIZE TABLE is executed on a non-existing table
-#
-
-CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
-BEGIN;
-INSERT INTO t1 VALUES (1);
-
-connection master1;
-OPTIMIZE TABLE t1;
-
-OPTIMIZE TABLE non_existing;  
-sync_slave_with_master;
-
-# End of 4.1 tests
+#######################################
+# Wrapper for rpl_failed_optimize.test#
+#######################################
+-- source include/have_innodb.inc
+let $engine_type=InnoDB;
+-- source extra/rpl_tests/rpl_failed_optimize.test

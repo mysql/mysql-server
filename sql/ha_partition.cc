@@ -647,7 +647,7 @@ bool ha_partition::create_handler_file(const char *name)
     if (!m_is_sub_partitioned)
     {
       name_buffer_ptr= strmov(name_buffer_ptr, part_elem->partition_name)+1;
-      *engine_array= (uchar) part_elem->engine_type;
+      *engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
       DBUG_PRINT("info", ("engine: %u", *engine_array));
       engine_array++;
     }
@@ -660,7 +660,7 @@ bool ha_partition::create_handler_file(const char *name)
 	name_buffer_ptr+= name_add(name_buffer_ptr,
 				    part_elem->partition_name,
 				    subpart_elem->partition_name);
-	*engine_array= (uchar) part_elem->engine_type;
+	*engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
 	engine_array++;
       }
     }

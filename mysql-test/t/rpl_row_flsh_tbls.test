@@ -1,0 +1,6 @@
+# depends on the binlog output
+-- source include/have_binlog_format_row.inc
+
+let $rename_event_pos= 615;
+-- source extra/rpl_tests/rpl_flsh_tbls.test
+

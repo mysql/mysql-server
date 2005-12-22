@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1(a int not null primary key) engine=myisam;
+insert delayed into t1 values (1),(2),(3);
+flush tables;
+select * from t1;
+a
+1
+2
+3
+show binlog events;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	102	Query	1	222	use `test`; create table t1(a int not null primary key) engine=myisam
+master-bin.000001	222	Table_map	1	261	test.t1
+master-bin.000001	261	Write_rows	1	305	
+master-bin.000001	305	Query	1	380	use `test`; flush tables
+select * from t1;
+a
+1
+2
+3
+drop table t1;

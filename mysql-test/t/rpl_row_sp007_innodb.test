@@ -1,0 +1,6 @@
+#################################
+# Wrapper for rpl_row_sp007.test#
+#################################
+-- source include/have_innodb.inc
+let $engine_type=INNODB;
+-- source extra/rpl_tests/rpl_row_sp007.test

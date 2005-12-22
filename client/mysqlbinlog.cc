@@ -63,6 +63,7 @@ void sql_print_error(const char *format, ...);
 
 static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static bool opt_hexdump= 0;
+static bool opt_base64_output= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -533,11 +534,19 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     else
       print_event_info->hexdump_from= pos;
 
+    print_event_info->base64_output= opt_base64_output;
+
     switch (ev_type) {
     case QUERY_EVENT:
       if (check_database(((Query_log_event*)ev)->db))
         goto end;
-      ev->print(result_file, print_event_info);
+      if (opt_base64_output)
+      {
+        ev->print_header(result_file, print_event_info);
+        ev->print_base64(result_file, print_event_info);
+      }
+      else
+        ev->print(result_file, print_event_info);
       break;
     case CREATE_FILE_EVENT:
     {
@@ -557,7 +566,13 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      ce->print(result_file, print_event_info, TRUE);
+      if (opt_base64_output)
+      {
+        ce->print_header(result_file, print_event_info);
+        ce->print_base64(result_file, print_event_info);
+      }
+      else
+        ce->print(result_file, print_event_info, TRUE);
 
       // If this binlog is not 3.23 ; why this test??
       if (description_event->binlog_version >= 3)
@@ -653,6 +668,12 @@ static struct my_option my_long_options[] =
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"base64-output", OPT_BASE64_OUTPUT,
+   "Print all binlog entries using base64 encoding. "
+   "This is for debugging only. Logs produced using this option "
+   "should not be applied on production systems.",
+   (gptr*) &opt_base64_output, (gptr*) &opt_base64_output, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things

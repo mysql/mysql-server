@@ -4132,9 +4132,13 @@ end|
 --error 1062
 select bug12379()|
 select 1|
+# statement-based binlogging will show warning which row-based won't;
+# so we hide it (this warning is already tested in rpl_stm_sp.test)
+--disable_warnings
 call bug12379_1()|
 select 2|
 call bug12379_2()|
+--enable_warnings
 select 3|
 --error 1062
 call bug12379_3()|

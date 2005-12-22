@@ -585,14 +585,14 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     }
 
     ret= SP_OK;
-    if (table->file->write_row(table->record[0]))
+    if (table->file->ha_write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
     else if (mysql_bin_log.is_open())
     {
       thd->clear_error();
       /* Such a statement can always go directly to binlog, no trans cache */
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                        thd->query, thd->query_length, FALSE, FALSE);
     }
 
   }
@@ -618,7 +618,7 @@ db_drop_routine(THD *thd, int type, sp_name *name)
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
-    if (table->file->delete_row(table->record[0]))
+    if (table->file->ha_delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
   }
   close_thread_tables(thd);
@@ -653,7 +653,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
       table->field[MYSQL_PROC_FIELD_COMMENT]->store(chistics->comment.str,
 						    chistics->comment.length,
 						    system_charset_info);
-    if ((table->file->update_row(table->record[1],table->record[0])))
+    if ((table->file->ha_update_row(table->record[1],table->record[0])))
       ret= SP_WRITE_ROW_FAILED;
   }
   close_thread_tables(thd);
@@ -873,7 +873,7 @@ sp_drop_db_routines(THD *thd, char *db)
 
     do
     {
-      if (! table->file->delete_row(table->record[0]))
+      if (! table->file->ha_delete_row(table->record[0]))
 	deleted= TRUE;		/* We deleted something */
       else
       {

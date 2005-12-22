@@ -18,7 +18,6 @@
 #define RPL_FILTER_H
 
 #include "mysql.h"
-#include "my_list.h"
 
 typedef struct st_table_rule_ent
 {

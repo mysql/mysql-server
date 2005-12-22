@@ -1,0 +1,2 @@
+let $engine_type=MyISAM;
+-- source extra/rpl_tests/rpl_row_multi_update3.test

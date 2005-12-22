@@ -1,0 +1,213 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
+CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
+CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8;
+SHOW BINLOG EVENTS FROM 212;
+Log_name	#
+Pos	212
+Event_type	Query
+Server_id	#
+End_log_pos	#
+Info	use `test`; CREATE TABLE t1 (a INT, b INT)
+Log_name	#
+Pos	305
+Event_type	Query
+Server_id	#
+End_log_pos	#
+Info	use `test`; CREATE TABLE t2 (a INT, b INT) ENGINE=Merge
+Log_name	#
+Pos	411
+Event_type	Query
+Server_id	#
+End_log_pos	#
+Info	use `test`; CREATE TABLE t3 (a INT, b INT) CHARSET=utf8
+Log_name	#
+Pos	517
+Event_type	Query
+Server_id	#
+End_log_pos	#
+Info	use `test`; CREATE TABLE t4 (a INT, b INT) ENGINE=Merge CHARSET=utf8
+**** On Master ****
+SHOW CREATE TABLE t1;
+Table	t1
+Create Table	CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	t2
+Create Table	CREATE TABLE `t2` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+SHOW CREATE TABLE t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+**** On Slave ****
+SHOW CREATE TABLE t1;
+Table	t1
+Create Table	CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	t2
+Create Table	CREATE TABLE `t2` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=()
+SHOW CREATE TABLE t3;
+Table	t3
+Create Table	CREATE TABLE `t3` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+CREATE TABLE t5 (b INT, c INT) SELECT * FROM t3;
+CREATE TEMPORARY TABLE tt3 (a INT, b INT);
+INSERT INTO tt3 VALUES (1,2), (2,4), (3,6), (4,2), (5,10), (6,12);
+CREATE TABLE t6 (b INT, c INT) SELECT * FROM tt3;
+**** On Master ****
+SHOW CREATE TABLE t5;
+Table	t5
+Create Table	CREATE TABLE `t5` (
+  `c` int(11) default NULL,
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t5 ORDER BY a,b,c;
+c	a	b
+SHOW CREATE TABLE t6;
+Table	t6
+Create Table	CREATE TABLE `t6` (
+  `c` int(11) default NULL,
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t6 ORDER BY a,b,c;
+c	a	b
+NULL	1	2
+NULL	2	4
+NULL	3	6
+NULL	4	2
+NULL	5	10
+NULL	6	12
+**** On Slave ****
+SHOW CREATE TABLE t5;
+Table	t5
+Create Table	CREATE TABLE `t5` (
+  `c` int(11) default NULL,
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SELECT * FROM t5 ORDER BY a,b,c;
+c	a	b
+SHOW CREATE TABLE t6;
+Table	t6
+Create Table	CREATE TABLE `t6` (
+  `c` int(11) default NULL,
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SELECT * FROM t6 ORDER BY a,b,c;
+c	a	b
+NULL	1	2
+NULL	2	4
+NULL	3	6
+NULL	4	2
+NULL	5	10
+NULL	6	12
+CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
+ERROR 23000: Duplicate entry '2' for key 1
+SHOW BINLOG EVENTS FROM 1256;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+CREATE TABLE t7 (a INT, b INT UNIQUE);
+INSERT INTO t7 SELECT a,b FROM tt3;
+ERROR 23000: Duplicate entry '2' for key 1
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+SHOW BINLOG EVENTS FROM 1256;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	1256	Query	1	1356	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+master-bin.000001	1356	Table_map	1	1396	test.t7
+master-bin.000001	1396	Write_rows	1	1452	
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+CREATE TEMPORARY TABLE tt4 (a INT, b INT);
+INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
+BEGIN;
+INSERT INTO t7 SELECT a,b FROM tt4;
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SHOW BINLOG EVENTS FROM 1452;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	1452	Table_map	1	1492	test.t7
+master-bin.000001	1492	Write_rows	1	1548	
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+4	8
+5	10
+6	12
+SELECT * FROM t7 ORDER BY a,b;
+a	b
+1	2
+2	4
+3	6
+4	8
+5	10
+6	12
+CREATE TABLE t8 LIKE t4;
+CREATE TABLE t9 LIKE tt4;
+CREATE TEMPORARY TABLE tt5 LIKE t4;
+CREATE TEMPORARY TABLE tt6 LIKE tt4;
+**** On Master ****
+SHOW CREATE TABLE t8;
+Table	t8
+Create Table	CREATE TABLE `t8` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8 UNION=()
+SHOW CREATE TABLE t9;
+Table	t9
+Create Table	CREATE TABLE `t9` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW BINLOG EVENTS FROM 1548;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	1548	Query	1	1634	use `test`; CREATE TABLE t8 LIKE t4
+master-bin.000001	1634	Query	1	1773	use `test`; CREATE TABLE `t9` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+)
+**** On Slave ****
+SHOW CREATE TABLE t8;
+Table	t8
+Create Table	CREATE TABLE `t8` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8 UNION=()
+SHOW CREATE TABLE t9;
+Table	t9
+Create Table	CREATE TABLE `t9` (
+  `a` int(11) default NULL,
+  `b` int(11) default NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1

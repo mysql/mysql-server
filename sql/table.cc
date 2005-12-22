@@ -1206,6 +1206,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
+  outparam->write_row_record= NULL;
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   *root_ptr= &outparam->mem_root;
@@ -1396,6 +1397,25 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   *root_ptr= old_root;
   thd->status_var.opened_tables++;
+#ifdef HAVE_REPLICATION
+
+  /*
+     This constant is used to mark that no table map version has been
+     assigned.  No arithmetic is done on the value: it will be
+     overwritten with a value taken from MYSQL_BIN_LOG.
+  */
+  share->table_map_version= ~(ulonglong)0;
+
+  /*
+    Since openfrm() can be called without any locking (for example,
+    ha_create_table... functions), we do not assign a table map id
+    here.  Instead we assign a value that is not used elsewhere, and
+    then assign a table map id inside open_table() under the
+    protection of the LOCK_open mutex.
+   */
+  share->table_map_id= ULONG_MAX;
+#endif
+
   DBUG_RETURN (0);
 
  err:

@@ -1,0 +1,4 @@
+# Requires statement logging
+-- source include/have_binlog_format_row.inc
+-- source extra/rpl_tests/rpl_log.test
+

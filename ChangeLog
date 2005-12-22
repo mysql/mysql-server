@@ -1,0 +1,49 @@
+2005-09-25  Mats Kindahl  <mats@mysql.com>
+
+	* sql/log_event.cc (find_and_fetch_row): Added the optimization
+	that if a record is found using a key with HA_NOSAME flag set, we
+	do not need to compare records to see if it is the correct one.
+
+2005-09-23  Mats Kindahl  <mats@mysql.com>
+
+	* sql/log_event.cc (replace_record): Added function to overwrite
+	existing row if there were a duplicate key.
+
+2005-09-17  Mats Kindahl  <mats@mysql.com>
+
+	* mysql-test/t/rpl_row_multi_query.test: This test is explicitly
+	for testing that multi-queries are logged as one Query_log_event
+	per sub-query instead of one Query_log_event for the entire
+	multi-query.
+
+	The test was removed
+
+	* mysql-test/t/rpl_stm_flsh_tbls.test: Added rename_event_pos
+	parameter.
+
+	* mysql-test/t/rpl_row_flsh_tbls.test: Added rename_event_pos
+	parameter.
+
+	* mysql-test/extra/rpl_tests/rpl_flsh_tbls.test: Takes one
+	additional parameter with the position of the RENAME TABLE
+	event. The SHOW BINLOG EVENTS is only used to check the presence
+	of the RENAME TABLE event and the FLUSH TABLES event.
+
+2005-09-16  Mats Kindahl  <mats@mysql.com>
+
+	* mysql-test/t/rpl_row_err_ignoredtable.test: This test is
+	statement-oriented since it tests that errorneous statements are
+	sent through the binlog.  This does not happen with RBR, since
+	statements are not replicated through the binlog.
+
+	Test was removed.
+
+	* mysql-test/t/rpl_row_loaddata_m.test: This test is purely
+	statement-based, so it was removed as a test for row-based
+	logging.  The LOAD DATA is not replicated as two statements, but
+	is rather replicated using row-based events, and this is a test
+	that the correct events are put into the binary log on execution
+	of LOAD DATA INFILE.
+
+	Test was removed.
+

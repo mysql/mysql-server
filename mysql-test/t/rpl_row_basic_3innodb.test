@@ -1,0 +1,6 @@
+-- source include/have_innodb.inc
+
+let $type= 'INNODB' ;
+let $extra_index= ;
+-- source include/rpl_row_basic.inc
+

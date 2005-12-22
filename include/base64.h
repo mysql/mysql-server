@@ -21,8 +21,7 @@
 extern "C" {
 #endif
 
-
-#include <mysys_priv.h>
+#include <my_global.h>
 
 /*
   Calculate how much memory needed for dst of base64_encode()

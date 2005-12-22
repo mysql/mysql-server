@@ -1,0 +1,30 @@
+source include/master-slave.inc;
+
+eval CREATE TABLE t1 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+ a int unsigned not null auto_increment primary key,
+ b int unsigned
+) ENGINE=$engine_type;
+
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests
+
+connection master;
+drop table t1, t2;
+sync_slave_with_master;

@@ -44,11 +44,11 @@ insert t1 values (1);
 flush tables with read lock;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	98		
+master-bin.000001	102		
  commit;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	98		
+master-bin.000001	102		
 unlock tables;
 drop table t1;
 set autocommit=1;

@@ -1,0 +1,72 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/13/2005 Created from Bug 12335                         #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+# End of cleanup
+
+# Begin test section 1
+
+eval CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=$engine_type;
+
+delimiter |;
+CREATE PROCEDURE test.p1()
+BEGIN
+  INSERT INTO test.t1 VALUES (4);
+  SELECT  get_lock("test", 100);
+  UPDATE test.t1 set a=a+4 WHERE a=4;
+END|
+CREATE PROCEDURE test.p2()
+BEGIN
+  UPDATE test.t1 SET a=a+1;
+END|
+delimiter ;|
+
+SELECT get_lock("test", 200);
+
+connection master1;
+send CALL test.p1();
+
+connection master;
+# To make sure tha the call on master1 arrived at the get_lock
+sleep 1;
+CALL test.p2();
+SELECT release_lock("test");
+SELECT * FROM test.t1; 
+#show binlog events;
+
+sync_slave_with_master;
+connection slave;
+SELECT * FROM test.t1;
+
+connection master;
+DROP TABLE IF EXISTS test.t1;
+eval CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=$engine_type;
+CALL test.p2();
+CALL test.p1();
+SELECT * FROM test.t1;
+
+sync_slave_with_master;
+connection slave;
+SELECT * FROM test.t1;
+connection master;
+#show binlog events from 719;
+
+DROP PROCEDURE IF EXISTS test.p1;
+DROP PROCEDURE IF EXISTS test.p2;
+DROP TABLE IF EXISTS test.t1;
+sync_slave_with_master;
+
+# End of 5.0 test case

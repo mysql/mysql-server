@@ -40,6 +40,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   ha_rows	deleted;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
+  bool          ha_delete_row_bypassed= 0;
   DBUG_ENTER("mysql_delete");
 
   if (open_and_lock_tables(thd, table_list))
@@ -77,15 +78,18 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       !(table->triggers && table->triggers->has_delete_triggers()))
   {
-    deleted= table->file->records;
+    ha_rows const maybe_deleted= table->file->records;
     if (!(error=table->file->delete_all_rows()))
     {
       error= -1;				// ok
+      deleted= maybe_deleted;
+      ha_delete_row_bypassed= 1;
       goto cleanup;
     }
     if (error != HA_ERR_WRONG_COMMAND)
     {
       table->file->print_error(error,MYF(0));
+      ha_delete_row_bypassed= 1;
       error=0;
       goto cleanup;
     }
@@ -211,7 +215,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         break;
       }
 
-      if (!(error= table->file->delete_row(table->record[0])))
+      if (!(error= table->file->ha_delete_row(table->record[0])))
       {
 	deleted++;
         if (table->triggers &&
@@ -293,10 +297,24 @@ cleanup:
     {
       if (error < 0)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_table, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
+
+      /*
+        If 'handler::delete_all_rows()' was called, we replicate
+        statement-based; otherwise, 'ha_delete_row()' was used to
+        delete specific rows which we might log row-based.
+      */
+      THD::enum_binlog_query_type const
+          query_type(ha_delete_row_bypassed ?
+                     THD::STMT_QUERY_TYPE :
+                     THD::ROW_QUERY_TYPE);
+      int log_result= thd->binlog_query(query_type,
+                                        thd->query, thd->query_length,
+                                        transactional_table, FALSE);
+
+      if (log_result && transactional_table)
+      {
 	error=1;
+      }
     }
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -592,7 +610,7 @@ bool multi_delete::send_data(List<Item> &values)
                                             TRG_ACTION_BEFORE, FALSE))
 	DBUG_RETURN(1);
       table->status|= STATUS_DELETED;
-      if (!(error=table->file->delete_row(table->record[0])))
+      if (!(error=table->file->ha_delete_row(table->record[0])))
       {
 	deleted++;
         if (table->triggers &&
@@ -705,7 +723,7 @@ int multi_delete::do_deletes()
         local_error= 1;
         break;
       }
-      if ((local_error=table->file->delete_row(table->record[0])))
+      if ((local_error=table->file->ha_delete_row(table->record[0])))
       {
 	table->file->print_error(local_error,MYF(0));
 	break;
@@ -772,10 +790,13 @@ bool multi_delete::send_eof()
     {
       if (local_error == 0)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_tables, FALSE);
-      if (mysql_bin_log.write(&qinfo) && !normal_tables)
+      if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                            thd->query, thd->query_length,
+                            transactional_tables, FALSE) &&
+          !normal_tables)
+      {
 	local_error=1;  // Log write failed: roll back the SQL statement
+      }
     }
     if (!transactional_tables)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -880,10 +901,13 @@ end:
     {
       if (mysql_bin_log.is_open())
       {
+        /*
+          TRUNCATE must always be statement-based binlogged (not row-based) so
+          we don't test binlog_row_based.
+        */
         thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      0, FALSE);
-	mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          thd->query, thd->query_length, FALSE, FALSE);
       }
       send_ok(thd);		// This should return record count
     }

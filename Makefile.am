@@ -110,24 +110,52 @@ tags:
 
 test:
 	cd mysql-test ; \
-	./mysql-test-run && \
-	./mysql-test-run --ps-protocol
+	./mysql-test-run --mysqld=--binlog-format=statement && \
+	./mysql-test-run --ps-protocol --mysqld=--binlog-format=row
+
+test-full:
+	cd mysql-test ; \
+	./mysql-test-run --mysqld=--binlog-format=statement && \
+	./mysql-test-run --ps-protocol --mysqld=--binlog-format=statement && \
+	./mysql-test-run --mysqld=--binlog-format=row && \
+	./mysql-test-run --ps-protocol --mysqld=--binlog-format=row
 
 test-force:
-	cd mysql-test; \
-	./mysql-test-run --force && \
-	./mysql-test-run --ps-protocol --force
+	cd mysql-test ; \
+	./mysql-test-run --force --mysqld=--binlog-format=statement && \
+	./mysql-test-run --ps-protocol --force --mysqld=--binlog-format=row
+
+test-force-full:
+	cd mysql-test ; \
+	./mysql-test-run --force --mysqld=--binlog-format=statement && \
+	./mysql-test-run --force --ps-protocol --mysqld=--binlog-format=statement && \
+	./mysql-test-run --force --mysqld=--binlog-format=row && \
+	./mysql-test-run --force --ps-protocol --mysqld=--binlog-format=row
 
 # We are testing a new Perl version of the test script
 test-pl:
-	cd mysql-test; \
-	./mysql-test-run.pl && \
-	./mysql-test-run.pl --ps-protocol
+	cd mysql-test ; \
+	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
+
+test-full-pl:
+	cd mysql-test ; \
+	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --mysqld=--binlog-format=row && \
+	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
 
 test-force-pl:
-	cd mysql-test; \
-	./mysql-test-run.pl --force && \
-	./mysql-test-run.pl --ps-protocol --force
+	cd mysql-test ; \
+	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --ps-protocol --force --mysqld=--binlog-format=row
+
+test-force-full-pl:
+	cd mysql-test ; \
+	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=statement && \
+	./mysql-test-run.pl --force --mysqld=--binlog-format=row && \
+	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=row
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

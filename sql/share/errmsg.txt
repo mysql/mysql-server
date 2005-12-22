@@ -5727,3 +5727,9 @@ ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
 ER_NO_PARTITION_FOR_GIVEN_VALUE
 	eng "Table has no partition for value %ld"
+ER_BINLOG_ROW_LOGGING_FAILED
+	eng "Writing one row to the row-based binary log failed"
+ER_BINLOG_ROW_WRONG_TABLE_DEF
+	eng "Table definition on master and slave does not match"
+ER_BINLOG_ROW_RBR_TO_SBR
+	eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"

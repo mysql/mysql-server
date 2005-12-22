@@ -441,6 +441,33 @@ volatile bool mqh_used = 0;
 my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+/*
+  This variable below serves as an optimization for (opt_binlog_format ==
+  BF_ROW) as we need to do this test for every row. Stmt-based is default.
+*/
+my_bool binlog_row_based= FALSE;
+ulong opt_binlog_rows_event_max_size;
+const char *binlog_format_names[]= {"STATEMENT", "ROW", NullS};
+/*
+  Note that BF_UNSPECIFIED is last, after the end of binlog_format_names: it
+  has no corresponding cell in this array. We use this value to be able to
+  know if the user has explicitely specified a binlog format (then we require
+  also --log-bin) or not (then we fall back to statement-based).
+*/
+enum binlog_format { BF_STMT= 0, BF_ROW= 1, BF_UNSPECIFIED= 2 };
+#else
+const my_bool binlog_row_based= FALSE;
+const char *binlog_format_names[]= {"STATEMENT", NullS};
+enum binlog_format { BF_STMT= 0, BF_UNSPECIFIED= 2 };
+#endif
+
+TYPELIB binlog_format_typelib=
+  { array_elements(binlog_format_names)-1,"",
+    binlog_format_names, NULL };
+const char *opt_binlog_format= 0;
+enum binlog_format opt_binlog_format_id= BF_UNSPECIFIED;
+
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
 #endif
@@ -528,6 +555,7 @@ MY_BITMAP temp_pool;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
+SHOW_COMP_OPTION have_row_based_replication;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -3032,8 +3060,44 @@ with --log-bin instead.");
   {
     sql_print_warning("You need to use --log-bin to make "
                       "--log-slave-updates work.");
-      unireg_abort(1);
+    unireg_abort(1);
   }
+
+  if (!opt_bin_log && (opt_binlog_format_id != BF_UNSPECIFIED))
+  {
+    sql_print_warning("You need to use --log-bin to make "
+                      "--binlog-format work.");
+    unireg_abort(1);
+  }
+  if (opt_binlog_format_id == BF_UNSPECIFIED)
+  {
+    /*
+      We use statement-based by default, but could change this to be row-based
+      if this is a cluster build (i.e. have_ndbcluster is true)...
+    */
+    opt_binlog_format_id= BF_STMT;
+  }
+#ifdef HAVE_ROW_BASED_REPLICATION
+  if (opt_binlog_format_id == BF_ROW) 
+  {
+    binlog_row_based= TRUE;
+    /*
+      Row-based binlogging turns on InnoDB unsafe locking, because the locks
+      are not needed when using row-based binlogging. In fact
+      innodb-locks-unsafe-for-binlog is unsafe only for stmt-based, it's
+      safe for row-based.
+    */
+#ifdef HAVE_INNOBASE_DB
+    innobase_locks_unsafe_for_binlog= TRUE;
+#endif
+    /* Trust stored function creators because they can do no harm */
+    trust_function_creators= 1;
+  }
+#endif
+  /* Check that we have not let the format to unspecified at this point */
+  DBUG_ASSERT((uint)opt_binlog_format_id <=
+              array_elements(binlog_format_names)-1);
+  opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 
   if (opt_slow_log)
     mysql_slow_log.open_slow_log(opt_slow_logname);
@@ -4504,6 +4568,13 @@ enum options_mysqld
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
+  OPT_BINLOG_FORMAT,
+#ifndef DBUG_OFF
+  OPT_BINLOG_SHOW_XID,
+#endif
+#ifdef HAVE_ROW_BASED_REPLICATION
+  OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
+#endif
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
@@ -4732,12 +4803,46 @@ Disable with --skip-bdb (will save memory).",
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    (gptr*) &my_bind_addr_str, (gptr*) &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-format", OPT_BINLOG_FORMAT,
+#ifdef HAVE_ROW_BASED_REPLICATION
+   "Tell the master the form of binary logging to use: either 'row' for "
+   "row-based binary logging (which automatically turns on "
+   "innodb_locks_unsafe_for_binlog as it is safe in this case), or "
+   "'statement' for statement-based logging. ",
+#else
+   "Tell the master the form of binary logging to use: this release build "
+   "supports only statement-based binary logging, so only 'statement' is "
+   "a legal value; MySQL-Max release builds support row-based binary logging "
+   "in addition.",
+#endif
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },   
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-ignore-db", OPT_BINLOG_IGNORE_DB,
    "Tells the master that updates to the given database should not be logged tothe binary log.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
+  {"binlog-show-xid", OPT_BINLOG_SHOW_XID,
+   "Option used by mysql-test for debugging and testing: "
+   "do not display the XID in SHOW BINLOG EVENTS; "
+   "may be removed in future versions",
+   (gptr*) &Xid_log_event::show_xid, (gptr*) &Xid_log_event::show_xid,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
+#ifdef HAVE_ROW_BASED_REPLICATION
+  {"binlog-row-event-max-size", OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+   "The maximum size of a row-based binary log event in bytes. Rows will be "
+   "grouped into events smaller than this size if possible. "
+   "The value has to be a multiple of 256.",
+   (gptr*) &opt_binlog_rows_event_max_size, 
+   (gptr*) &opt_binlog_rows_event_max_size, 0, 
+   GET_ULONG, REQUIRED_ARG, 
+   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
+   /* sub_size */     0, /* block_size */ 256, 
+   /* app_type */ 0
+  },
+#endif
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-set-client-handshake", OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
@@ -4905,7 +5010,9 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"innodb_locks_unsafe_for_binlog", OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
-   "Force InnoDB not to use next-key locking. Instead use only row-level locking",
+   "Force InnoDB not to use next-key locking, to use only row-level locking."
+   " This is unsafe if you are using statement-based binary logging, and safe"
+   " if you are using row-based binary logging.",
    (gptr*) &innobase_locks_unsafe_for_binlog,
    (gptr*) &innobase_locks_unsafe_for_binlog, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_log_arch_dir", OPT_INNODB_LOG_ARCH_DIR,
@@ -4984,8 +5091,12 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
    "a function is allowed only to users having the SUPER privilege and only "
-   "if this function may not break binary logging.",
-   (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
+   "if this function may not break binary logging."
+#ifdef HAVE_ROW_BASED_REPLICATION
+   " If using --binlog-format=row, the security issues do not exist and the "
+   "binary logging cannot break so this option is automatically set to 1."
+#endif
+   ,(gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
@@ -6459,6 +6570,11 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  have_row_based_replication= SHOW_OPTION_YES;
+#else
+  have_row_based_replication= SHOW_OPTION_NO;
+#endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   have_ndbcluster=SHOW_OPTION_DISABLED;
   global_system_variables.ndb_index_stat_enable=TRUE;
@@ -6680,6 +6796,28 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int)OPT_BINLOG_IGNORE_DB:
   {
     binlog_filter->add_ignore_db(argument);
+    break;
+  }
+  case OPT_BINLOG_FORMAT:
+  {
+    int id;
+    if ((id= find_type(argument, &binlog_format_typelib, 2)) <= 0)
+    {
+#ifdef HAVE_ROW_BASED_REPLICATION
+      fprintf(stderr, 
+	      "Unknown binary log format: '%s' "
+	      "(should be '%s' or '%s')\n", 
+	      argument,
+              binlog_format_names[BF_STMT],
+              binlog_format_names[BF_ROW]);
+#else
+      fprintf(stderr, 
+	      "Unknown binary log format: '%s' (only legal value is '%s')\n", 
+	      argument, binlog_format_names[BF_STMT]);
+#endif
+      exit(1);
+    }
+    opt_binlog_format_id= (enum binlog_format)(id-1);
     break;
   }
   case (int)OPT_BINLOG_DO_DB:
@@ -7229,6 +7367,7 @@ static void get_options(int argc,char **argv)
       init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
+
 }
 
 

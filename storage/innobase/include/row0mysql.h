@@ -612,6 +612,31 @@ struct row_prebuilt_struct {
 					that was decided in ha_innodb.cc,
 					::store_lock(), ::external_lock(),
 					etc. */
+	ulint		row_read_type;	/* ROW_READ_WITH_LOCKS if row locks
+					should be the obtained for records
+					under an UPDATE or DELETE cursor.
+					If innodb_locks_unsafe_for_binlog
+					is TRUE, this can be set to
+					ROW_READ_TRY_SEMI_CONSISTENT, so that
+					if the row under an UPDATE or DELETE
+					cursor was locked by another
+					transaction, InnoDB will resort
+					to reading the last committed value
+					('semi-consistent read').  Then,
+					this field will be set to
+					ROW_READ_DID_SEMI_CONSISTENT to
+					indicate that.  If the row does not
+					match the WHERE condition, MySQL will
+					invoke handler::unlock_row() to
+					clear the flag back to
+					ROW_READ_TRY_SEMI_CONSISTENT and
+					to simply skip the row.  If
+					the row matches, the next call to
+					row_search_for_mysql() will lock
+					the row.
+					This eliminates lock waits in some
+					cases; note that this breaks
+					serializability. */
 	ulint		mysql_prefix_len;/* byte offset of the end of
 					the last requested column */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
@@ -656,6 +681,11 @@ struct row_prebuilt_struct {
 /* Values for hint_need_to_fetch_extra_cols */
 #define ROW_RETRIEVE_PRIMARY_KEY	1
 #define ROW_RETRIEVE_ALL_COLS		2
+
+/* Values for row_read_type */
+#define ROW_READ_WITH_LOCKS		0
+#define ROW_READ_TRY_SEMI_CONSISTENT	1
+#define ROW_READ_DID_SEMI_CONSISTENT	2
 
 
 #ifndef UNIV_NONINL

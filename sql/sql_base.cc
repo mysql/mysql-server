@@ -1029,6 +1029,19 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     /* Fallthrough */
   }
 
+  /*
+    For RBR: before calling close_thread_tables(), storage engines
+    should autocommit. Hence if there is a a pending event, it belongs
+    to a non-transactional engine, which writes directly to the table,
+    and should therefore be flushed before unlocking and closing the
+    tables.  The test above for locked tables will not be triggered
+    since RBR locks and unlocks tables on a per-event basis.
+
+    TODO (WL#3023): Change the semantics so that RBR does not lock and
+    unlock tables on a per-event basis.
+  */
+  thd->binlog_flush_pending_rows_event(true);
+
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -1171,7 +1184,8 @@ void close_temporary_tables(THD *thd)
     next=table->next;
     close_temporary(table, 1, 1);
   }
-  if (query && found_user_tables && mysql_bin_log.is_open())
+  if (query && found_user_tables && mysql_bin_log.is_open() &&
+      !binlog_row_based) // CREATE TEMP TABLE not binlogged if row-based
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();
@@ -2038,6 +2052,8 @@ static bool reopen_table(TABLE *table)
   tmp.keys_in_use_for_query= tmp.s->keys_in_use;
   tmp.used_keys= 	tmp.s->keys_for_keyread;
 
+  tmp.s->table_map_id=  table->s->table_map_id;
+
   /* Get state */
   tmp.in_use=    	thd;
   tmp.reginfo.lock_type=table->reginfo.lock_type;
@@ -2343,6 +2359,48 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
 
 /*
+  Function to assign a new table map id to a table.
+
+  PARAMETERS
+
+    table - Pointer to table structure
+
+  PRE-CONDITION(S)
+
+    table is non-NULL
+    The LOCK_open mutex is locked
+
+  POST-CONDITION(S)
+
+    table->s->table_map_id is given a value that with a high certainty
+    is not used by any other table.
+
+    table->s->table_map_id is not ULONG_MAX.
+ */
+static void assign_new_table_id(TABLE *table)
+{
+  static ulong last_table_id= ULONG_MAX;
+
+  DBUG_ENTER("assign_new_table_id(TABLE*)");
+
+  /* Preconditions */
+  DBUG_ASSERT(table != NULL);
+  safe_mutex_assert_owner(&LOCK_open);
+
+  ulong tid= ++last_table_id;                   /* get next id */
+  /* There is one reserved number that cannot be used. */
+  if (unlikely(tid == ULONG_MAX))
+    tid= ++last_table_id;
+  table->s->table_map_id= tid;
+  DBUG_PRINT("info", ("table_id=%lu", tid));
+
+  /* Post conditions */
+  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
   Load a table definition from file and open unireg table
 
   SYNOPSIS
@@ -2490,7 +2548,21 @@ retry:
        goto err;
      break;
    }
-  
+
+  /*
+    We assign a new table id under the protection of the LOCK_open
+    mutex.  We assign a new table id here instead of inside openfrm()
+    since that function can be used without acquiring any lock (e.g.,
+    inside ha_create_table()).  Insted of creatint a new mutex and
+    using it for the sole purpose of serializing accesses to a static
+    variable, we assign the table id here.
+
+    CAVEAT. This means that the table cannot be used for
+    binlogging/replication purposes, unless open_table() has been called
+    directly or indirectly.
+   */
+  assign_new_table_id(entry);
+
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
   {
@@ -2511,10 +2583,11 @@ retry:
       uint query_buf_size= 20 + share->db.length + share->table_name.length +1;
       if ((query= (char*) my_malloc(query_buf_size,MYF(MY_WME))))
       {
+        /* this DELETE FROM is needed even with row-based binlogging */
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
-        mysql_bin_log.write(&qinfo);
+        thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          query, (ulong)(end-query), FALSE, FALSE);
         my_free(query, MYF(0));
       }
       else

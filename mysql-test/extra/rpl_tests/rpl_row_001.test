@@ -1,0 +1,84 @@
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval LOAD DATA LOCAL INFILE '$MYSQL_TEST_DIR/std_data/words.dat' INTO TABLE t1;
+SELECT * FROM t1 LIMIT 10;
+
+#
+# Test slave with wrong password
+#
+save_master_pos;
+connection slave;
+sync_with_master;
+STOP SLAVE;
+connection master;
+SET PASSWORD FOR root@"localhost" = PASSWORD('foo');
+connection slave;
+START SLAVE;
+connection master;
+#
+# Give slave time to do at last one failed connect retry
+# This one must be short so that the slave will not stop retrying
+real_sleep 2;
+SET PASSWORD FOR root@"localhost" = PASSWORD('');
+# Give slave time to connect (will retry every second)
+sleep 2;
+
+CREATE TABLE t3(n INT);
+INSERT INTO t3 VALUES(1),(2);
+sync_slave_with_master;
+SELECT * FROM t3;
+SELECT SUM(LENGTH(word)) FROM t1;
+connection master;
+DROP TABLE t1,t3;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# Test if the slave SQL thread can be more than 16K behind the slave
+# I/O thread (> IO_SIZE)
+
+connection master;
+# we'll use table-level locking to delay slave SQL thread
+eval CREATE TABLE t1 (n INT) ENGINE=$engine_type;
+sync_slave_with_master;
+connection master;
+RESET MASTER;
+connection slave;
+STOP SLAVE;
+RESET SLAVE;
+
+connection master;
+let $1=5000;
+# Generate 16K of relay log
+disable_query_log;
+while ($1)
+{
+ eval INSERT INTO t1 VALUES($1);
+ dec $1;
+}
+enable_query_log;
+SELECT COUNT(*) FROM t1;
+save_master_pos;
+
+# Try to cause a large relay log lag on the slave by locking t1
+connection slave;
+LOCK TABLES t1 READ;
+START SLAVE;
+UNLOCK TABLES;
+sync_with_master;
+SELECT COUNT(*) FROM t1;
+
+connection master;
+DROP TABLE t1;
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES(3456);
+sync_slave_with_master;
+SELECT n FROM t1;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
