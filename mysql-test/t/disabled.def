@@ -22,6 +22,6 @@ group_min_max   : Bug #15448
 innodb_concurrent : Results are not deterministic, Elliot will fix (BUG#3300)
 subselect       : Bug#15706
 type_time       : Bug#15805
-rpl000002       : Bug#15920 Temporary tables are not binlogged in SBR
+#rpl000002       : Bug#15920 Temporary tables are not binlogged in SBR
 ps_7ndb         : Bug#15923 Core dump in RBR mode when executing test suite
 sp_trans        : Bug#15924 Code dump in RBR mode when executing test suite

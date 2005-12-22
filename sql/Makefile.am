@@ -54,6 +54,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
 			opt_range.h protocol.h rpl_tblmap.h \
+			log.h sql_show.h rpl_rli.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h rpl_filter.h \

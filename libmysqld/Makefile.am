@@ -70,7 +70,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
-			ha_tina.cc ha_example.cc ha_partition.cc
+			ha_partition.cc
 libmysqld_a_DEPENDENCIES= @mysql_se_objs@
 libmysqld_a_SOURCES=
 
