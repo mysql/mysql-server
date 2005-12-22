@@ -42,6 +42,7 @@ sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/openssl.m4)
 sinclude(config/ac-macros/readline.m4)
+sinclude(config/ac-macros/replication.m4)
 sinclude(config/ac-macros/yassl.m4)
 sinclude(config/ac-macros/zlib.m4)
 
@@ -1834,7 +1835,8 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
-AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
+AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
+  chsize cuserid fchmod fcntl \
   fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
@@ -2386,6 +2388,7 @@ AC_SUBST(readline_h_ln_cmd)
 
 MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
+MYSQL_CHECK_REPLICATION
 
 MYSQL_STORAGE_ENGINE(innobase,,innodb,,,,storage/innobase,ha_innodb.o,[ dnl
   \$(top_builddir)/storage/innobase/usr/libusr.a dnl

@@ -16,6 +16,7 @@
 
 #include <base64.h>
 #include <m_string.h>  /* strchr() */
+#include <m_ctype.h>  /* my_isspace() */
 
 #ifndef MAIN
 
@@ -115,7 +116,6 @@ pos(unsigned char c)
   }                                                             \
   if (i == size)                                                \
   {                                                             \
-    i= size + 1;                                                \
     break;                                                      \
   }                                                             \
 }

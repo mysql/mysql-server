@@ -1,4 +1,4 @@
-source include/master-slave.inc;
+-- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -81,9 +81,10 @@ drop temporary table t3;
 
 select * from t2;
 
---replace_result $VERSION VERSION
---replace_column 2 # 5 #
-show binlog events;
+# Commented out 8/30/2005 to make compatable with both sbr and rbr
+#--replace_result $VERSION VERSION
+#--replace_column 2 # 5 #
+#show binlog events;
 
 drop table t1, t2;
 
@@ -130,5 +131,3 @@ create temporary table t3 (f int);
 sync_with_master;
 
 # The server will now close done
-
-# End of 4.1 tests

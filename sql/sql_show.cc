@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
+#include "sql_show.h"
 #include "repl_failsafe.h"
 #include "sp.h"
 #include "sp_head.h"
@@ -37,10 +38,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
-static int
-store_create_info(THD *thd, TABLE_LIST *table_list, String *packet);
-static int
-view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 static bool schema_table_store_record(THD *thd, TABLE *table);
 
 
@@ -540,7 +537,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   buffer.length(0);
   if ((table_list->view ?
        view_store_create_info(thd, table_list, &buffer) :
-       store_create_info(thd, table_list, &buffer)))
+       store_create_info(thd, table_list, &buffer, NULL)))
     DBUG_RETURN(TRUE);
 
   List<Item> field_list;
@@ -719,7 +716,7 @@ mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd)
   DBUG_PRINT("enter",("table: %s",table_list->table->s->table_name.str));
 
   protocol->prepare_for_resend();
-  if (store_create_info(thd, table_list, packet))
+  if (store_create_info(thd, table_list, packet, NULL))
     DBUG_RETURN(-1);
 
   if (fd < 0)
@@ -872,8 +869,31 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 
 #define LIST_PROCESS_HOST_LEN 64
 
-static int
-store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
+/*
+  Build a CREATE TABLE statement for a table.
+
+  SYNOPSIS
+    store_create_info()
+    thd               The thread
+    table_list        A list containing one table to write statement
+                      for.
+    packet            Pointer to a string where statement will be
+                      written.
+    create_info_arg   Pointer to create information that can be used
+                      to tailor the format of the statement.  Can be
+                      NULL, in which case only SQL_MODE is considered
+                      when building the statement.
+
+  NOTE
+    Currently always return 0, but might return error code in the
+    future.
+
+  RETURN
+    0       OK
+ */
+int
+store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
+                  HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
@@ -1108,10 +1128,17 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-      packet->append(STRING_WITH_LEN(" TYPE="));
-    else
-      packet->append(STRING_WITH_LEN(" ENGINE="));
+    /*
+      IF   check_create_info
+      THEN add ENGINE only if it was used when creating the table
+    */
+    if (!create_info_arg ||
+        (create_info_arg->used_fields & HA_CREATE_USED_ENGINE))
+    {
+      if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+        packet->append(STRING_WITH_LEN(" TYPE="));
+      else
+        packet->append(STRING_WITH_LEN(" ENGINE="));
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->part_info)
       packet->append(ha_resolve_storage_engine_name(
@@ -1119,19 +1146,28 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     else
       packet->append(file->table_type());
 #else
-    packet->append(file->table_type());
+      packet->append(file->table_type());
 #endif
+    }
     
     if (share->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
 	!(thd->variables.sql_mode & MODE_MYSQL40))
     {
-      packet->append(STRING_WITH_LEN(" DEFAULT CHARSET="));
-      packet->append(share->table_charset->csname);
-      if (!(share->table_charset->state & MY_CS_PRIMARY))
+      /*
+        IF   check_create_info
+        THEN add DEFAULT CHARSET only if it was used when creating the table
+      */
+      if (!create_info_arg ||
+          (create_info_arg->used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
       {
-	packet->append(STRING_WITH_LEN(" COLLATE="));
-	packet->append(table->s->table_charset->name);
+        packet->append(STRING_WITH_LEN(" DEFAULT CHARSET="));
+        packet->append(share->table_charset->csname);
+        if (!(share->table_charset->state & MY_CS_PRIMARY))
+        {
+          packet->append(STRING_WITH_LEN(" COLLATE="));
+          packet->append(table->s->table_charset->name);
+        }
       }
     }
 
@@ -1236,7 +1272,6 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
     buff->append(STRING_WITH_LEN("SQL SECURITY INVOKER "));
 }
 
-
 /*
   Append DEFINER clause to the given buffer.
   
@@ -1259,7 +1294,7 @@ void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
 }
 
 
-static int
+int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
@@ -1924,7 +1959,7 @@ typedef struct st_index_field_values
 static bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
-  if ((error= table->file->write_row(table->record[0])))
+  if ((error= table->file->ha_write_row(table->record[0])))
   {
     if (create_myisam_from_heap(thd, table, 
                                 table->pos_in_table_list->schema_table_param,

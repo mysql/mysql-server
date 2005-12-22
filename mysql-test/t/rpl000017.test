@@ -1,7 +1,7 @@
-connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
+source include/master-slave.inc;
+connection slave;
+stop slave;
 connection master;
-reset master;
 grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
 grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 connection slave;

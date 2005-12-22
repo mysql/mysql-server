@@ -1,3 +1,6 @@
+# Requires statement logging
+-- source include/have_binlog_format_statement.inc
+
 # You must run this test with --manager.
 
 require_manager;
@@ -18,6 +21,7 @@ drop table if exists t1;
 create table t1 type=HEAP select 10 as a;
 insert into t1 values(11);
 save_master_pos;
+--replace_column 2 # 5 #
 show binlog events from 79;
 connection slave;
 reset slave;
@@ -35,6 +39,7 @@ select * from t1;
 # (the LIMIT is to not use the query cache)
 select * from t1 limit 10;
 save_master_pos;
+--replace_column 2 # 5 #
 show binlog events in 'master-bin.002' from 79;
 
 connection slave;

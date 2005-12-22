@@ -53,7 +53,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
-			opt_range.h protocol.h \
+			opt_range.h protocol.h rpl_tblmap.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h rpl_filter.h \
@@ -87,7 +87,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-			slave.cc sql_repl.cc rpl_filter.cc \
+			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
                         sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
@@ -96,7 +96,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
                         tztime.cc my_time.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
-			sql_plugin.cc\
+			sql_plugin.cc sql_binlog.cc \
 			handlerton.cc
 EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
 			ha_innodb.h  ha_berkeley.h  ha_archive.h \

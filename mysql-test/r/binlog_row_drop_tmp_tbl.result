@@ -1,0 +1,18 @@
+drop database if exists `drop-temp+table-test`;
+reset master;
+create database `drop-temp+table-test`;
+use `drop-temp+table-test`;
+create temporary table shortn1 (a int);
+create temporary table `table:name` (a int);
+create temporary table shortn2 (a int);
+select get_lock("a",10);
+get_lock("a",10)
+1
+select get_lock("a",10);
+get_lock("a",10)
+1
+show binlog events;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	#	Query	1	#	create database `drop-temp+table-test`
+drop database `drop-temp+table-test`;

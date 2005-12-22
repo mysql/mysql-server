@@ -806,12 +806,13 @@ export MYSQL_DUMP_DIR
 MYSQL_CHECK="$MYSQL_CHECK --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLCHECK_OPT"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SLAP="$MYSQL_SLAP -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSLAP_OPT"
+MYSQL_DUMP_SLAVE="$MYSQL_DUMP_DIR --no-defaults -uroot --socket=$SLAVE_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_SHOW="$MYSQL_SHOW -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLSHOW_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT
+export MYSQL MYSQL_CHECK MYSQL_DUMP MYSQL_DUMP_SLAVE MYSQL_SHOW MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES MYSQL_IMPORT
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR MYSQL_MY_PRINT_DEFAULTS
 export MYSQL_SLAP
 export NDB_TOOLS_DIR
@@ -1287,9 +1288,10 @@ start_master()
           --innodb_data_file_path=ibdata1:128M:autoextend \
 	  --open-files-limit=1024 \
           --log-bin-trust-function-creators \
+          --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
-           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
+           $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
@@ -1308,9 +1310,10 @@ start_master()
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
           --log-bin-trust-function-creators \
+          --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
-           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
+           $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS"
   fi
 
@@ -1441,8 +1444,9 @@ start_slave()
           --master-retry-count=10 \
           -O slave_net_timeout=10 \
           --log-bin-trust-function-creators \
+          --loose-binlog-show-xid=0 \
            $SMALL_SERVER \
-           $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+           $EXTRA_SLAVE_MYSQLD_OPT $EXTRA_SLAVE_OPT"
   CUR_MYERR=$slave_err
   CUR_MYSOCK=$slave_sock
 

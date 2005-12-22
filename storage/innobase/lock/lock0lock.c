@@ -2386,7 +2386,7 @@ lock_rec_free_all_from_discard_page(
 /*****************************************************************
 Resets the lock bits for a single record. Releases transactions waiting for
 lock requests here. */
-
+static
 void
 lock_rec_reset_and_release_wait(
 /*============================*/
@@ -3747,6 +3747,72 @@ lock_table_dequeue(
 }	
 
 /*=========================== LOCK RELEASE ==============================*/
+
+/*****************************************************************
+Removes a granted record lock of a transaction from the queue and grants
+locks to other transactions waiting in the queue if they now are entitled
+to a lock. */
+
+void
+lock_rec_unlock(
+/*============*/
+	trx_t*	trx,  		/* in: transaction that has set a record
+				lock */
+	rec_t*	rec,		/* in: record */
+	ulint	lock_mode)	/* in: LOCK_S or LOCK_X */
+{
+	lock_t* lock;
+	ulint heap_no;
+
+	ut_ad(trx && rec);
+
+	mutex_enter(&kernel_mutex);
+
+	heap_no = rec_get_heap_no(rec, page_rec_is_comp(rec));
+
+	lock = lock_rec_get_first(rec);
+
+	/* Remove the record lock */
+
+	while (lock != NULL) {
+		if (lock->trx == trx && lock_get_mode(lock) == lock_mode) {
+			ut_a(!lock_get_wait(lock));
+
+			lock_rec_reset_nth_bit(lock, heap_no);
+
+			break;
+		}
+
+		lock = lock_rec_get_next(rec, lock);
+	}
+
+	if (UNIV_UNLIKELY(lock == NULL)) {
+		mutex_exit(&kernel_mutex);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: unlock row could not find a %lu mode lock on the record\n",
+			(ulong)lock_mode);
+
+		return;
+	}
+
+	/* Check if we can now grant waiting lock requests */
+
+	lock = lock_rec_get_first(rec);
+
+	while (lock != NULL) {
+		if (lock_get_wait(lock)
+			&& !lock_rec_has_to_wait_in_queue(lock)) {
+
+			/* Grant the lock */
+			lock_grant(lock);
+		}
+
+		lock = lock_rec_get_next(rec, lock);
+	}
+
+	mutex_exit(&kernel_mutex);
+} 
 
 /*************************************************************************
 Releases a table lock.

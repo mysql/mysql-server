@@ -5,6 +5,9 @@
 # binlog if it was a transactional table, it resulted in an
 # inconsistency between binlog and the internal list of temp tables.
 
+# This does not work for RBR yet.
+--source include/have_binlog_format_statement.inc
+
 -- source include/have_innodb.inc
 --disable_warnings
 drop table if exists t1, t2;

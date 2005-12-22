@@ -269,6 +269,12 @@ inline double ulonglong2double(ulonglong value)
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
 				    (((uint32) ((uchar) (A)[3])) << 24)) +\
 				    (((ulonglong) ((uchar) (A)[4])) << 32))
+#define uint6korr(A)	((ulonglong)(((uint32)    ((uchar) (A)[0]))          + \
+                                     (((uint32)    ((uchar) (A)[1])) << 8)   + \
+                                     (((uint32)    ((uchar) (A)[2])) << 16)  + \
+                                     (((uint32)    ((uchar) (A)[3])) << 24)) + \
+                         (((ulonglong) ((uchar) (A)[4])) << 32) +       \
+                         (((ulonglong) ((uchar) (A)[5])) << 40))
 #define uint8korr(A)	(*((ulonglong *) (A)))
 #define sint8korr(A)	(*((longlong *) (A)))
 #define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
@@ -281,6 +287,12 @@ inline double ulonglong2double(ulonglong value)
 			  *((T)+2)=(uchar) (((A) >> 16));\
 			  *((T)+3)=(uchar) (((A) >> 24)); \
 			  *((T)+4)=(uchar) (((A) >> 32)); }
+#define int6store(T,A)	{ *(T)    =(uchar)((A));          \
+			  *((T)+1)=(uchar) (((A) >> 8));  \
+			  *((T)+2)=(uchar) (((A) >> 16)); \
+			  *((T)+3)=(uchar) (((A) >> 24)); \
+			  *((T)+4)=(uchar) (((A) >> 32)); \
+			  *((T)+5)=(uchar) (((A) >> 40)); }
 #define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
 
 #define doubleget(V,M)	do { *((long *) &V) = *((long*) M); \

@@ -827,6 +827,7 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
                   HA_CAN_INDEX_BLOBS |
                   HA_CAN_SQL_HANDLER |
                   HA_NOT_EXACT_COUNT |
+                  HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS |
                   HA_PRIMARY_KEY_IN_READ_INDEX |
                   HA_CAN_GEOMETRY |
                   HA_TABLE_SCAN_ON_INDEX),
@@ -3052,6 +3053,9 @@ ha_innobase::store_key_val_for_row(
 				 continue;
 			}
 
+			/* In a column prefix index, we may need to truncate
+			the stored value: */
+
 			cs = key_part->field->charset();
 			src_start = record + key_part->offset;
 
@@ -3068,7 +3072,11 @@ ha_innobase::store_key_val_for_row(
 			memcpy(buff, src_start, len);
 			buff+=len;
 
-			/* Pad the unused space with spaces */
+			/* Pad the unused space with spaces. Note that no 
+			padding is ever needed for UCS-2 because in MySQL, 
+			all UCS2 characters are 2 bytes, as MySQL does not 
+			support surrogate pairs, which are needed to represent
+			characters in the range U+10000 to U+10FFFF. */
 
 			if (len < key_part->length) {
 				len = key_part->length - len;
@@ -3791,9 +3799,9 @@ ha_innobase::delete_row(
 }
 
 /**************************************************************************
-Removes a new lock set on a row. This can be called after a row has been read
-in the processing of an UPDATE or a DELETE query, if the option
-innodb_locks_unsafe_for_binlog is set. */
+Removes a new lock set on a row, if it was not read optimistically. This can 
+be called after a row has been read in the processing of an UPDATE or a DELETE
+query, if the option innodb_locks_unsafe_for_binlog is set. */
 
 void
 ha_innobase::unlock_row(void)
@@ -3803,7 +3811,7 @@ ha_innobase::unlock_row(void)
 
 	DBUG_ENTER("ha_innobase::unlock_row");
 
-	if (last_query_id != user_thd->query_id) {
+	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
 		ut_print_timestamp(stderr);
 		sql_print_error("last_query_id is %lu != user_thd_query_id is "
 				"%lu", (ulong) last_query_id,
@@ -3811,9 +3819,45 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-	
-	if (srv_locks_unsafe_for_binlog) {
+
+	switch (prebuilt->row_read_type) {
+	case ROW_READ_WITH_LOCKS:
+		if (!srv_locks_unsafe_for_binlog) {
+			break;
+		}
+		/* fall through */
+	case ROW_READ_TRY_SEMI_CONSISTENT:
 		row_unlock_for_mysql(prebuilt, FALSE);
+		break;
+	case ROW_READ_DID_SEMI_CONSISTENT:
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+		break;
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+bool
+ha_innobase::was_semi_consistent_read(void)
+/*=======================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	return(prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT);
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+void
+ha_innobase::try_semi_consistent_read(bool yes)
+/*===========================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	if (yes && srv_locks_unsafe_for_binlog) {
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+	} else {
+		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 }
 
@@ -4326,6 +4370,13 @@ ha_innobase::rnd_init(
 		err = change_active_index(MAX_KEY);
 	} else {
 		err = change_active_index(primary_key);
+	}
+
+	/* Don't use semi-consistent read in random row reads (by position).
+	This means we must disable semi_consistent_read if scan is false */
+
+	if (!scan) {
+		try_semi_consistent_read(0);
 	}
 
   	start_of_scan = 1;

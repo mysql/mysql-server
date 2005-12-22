@@ -1,0 +1,32 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int);
+insert into t1 values (10);
+create table t2 (a int);
+create table t3 (a int) engine=merge union(t1);
+create table t4 (a int);
+insert into t4 select * from t3;
+rename table t1 to t5, t2 to t1;
+flush no_write_to_binlog tables;
+SHOW BINLOG EVENTS FROM 652 ;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; rename table t1 to t5, t2 to t1
+select * from t3;
+a
+flush tables;
+SHOW BINLOG EVENTS FROM 652 ;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; rename table t1 to t5, t2 to t1
+master-bin.000001	#	Query	1	#	use `test`; flush tables
+select * from t3;
+a
+stop slave;
+drop table t1;
+flush tables with read lock;
+start slave;
+stop slave;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction

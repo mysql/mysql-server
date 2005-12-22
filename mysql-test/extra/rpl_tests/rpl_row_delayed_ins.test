@@ -1,0 +1,22 @@
+# See if INSERT DELAYED gets replicated
+# Only in row-based, as we do SHOW BINLOG EVENTS
+
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+connection master;
+let $VERSION=`select version()`;
+eval create table t1(a int not null primary key) engine=$engine_type;
+insert delayed into t1 values (1),(2),(3);
+flush tables;
+select * from t1;
+sync_slave_with_master;
+
+connection master;
+--replace_result $VERSION VERSION
+show binlog events;
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+sync_slave_with_master;

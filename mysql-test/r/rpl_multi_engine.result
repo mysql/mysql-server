@@ -1,0 +1,365 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create database if not exists mysqltest1;
+use mysqltest1;
+drop table if exists t1;
+CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc
+VARCHAR(255), bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, f FLOAT DEFAULT
+0, total BIGINT UNSIGNED, y YEAR, t TIMESTAMP,PRIMARY KEY(id));
+use mysqltest1;
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=memory;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=memory;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=memory;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+alter table t1 engine=memory;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint(9) NOT NULL,
+  `b1` bit(8) default NULL,
+  `vc` varchar(255) default NULL,
+  `bc` char(255) default NULL,
+  `d` decimal(10,4) default '0.0000',
+  `f` float default '0',
+  `total` bigint(20) unsigned default NULL,
+  `y` year(4) default NULL,
+  `t` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`id`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14 00:00:00
+UPDATE t1 SET b1 = 0, t="2005-09-09" WHERE b1 = 1;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+42	0	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-09-09 00:00:00
+DELETE FROM mysqltest1.t1 WHERE id = 42;
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
+id	hex(b1)	vc	bc	d	f	total	y	t
+DROP TABLE t1;

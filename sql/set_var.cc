@@ -619,6 +619,7 @@ sys_var_have_variable sys_have_query_cache("have_query_cache",
 sys_var_have_variable sys_have_raid("have_raid", &have_raid);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
+sys_var_have_variable sys_have_row_based_replication("have_row_based_replication",&have_row_based_replication);
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
@@ -643,6 +644,7 @@ struct show_var_st init_vars[]= {
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
+  {"binlog_format",           (char*) &opt_binlog_format,           SHOW_CHAR_PTR},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
@@ -695,6 +697,7 @@ struct show_var_st init_vars[]= {
   {sys_have_raid.name,        (char*) &have_raid,                   SHOW_HAVE},
   {sys_have_rtree_keys.name,  (char*) &have_rtree_keys,             SHOW_HAVE},
   {sys_have_symlink.name,     (char*) &have_symlink,                SHOW_HAVE},
+  {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},

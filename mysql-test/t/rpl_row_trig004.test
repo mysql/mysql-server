@@ -1,0 +1,14 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Oct/18/2005                                                #
+#############################################################################
+# TEST: Use before insert triggers and has the second insert fail           #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/have_innodb.inc
+-- source include/master-slave.inc
+let $engine_type=INNODB;
+-- source extra/rpl_tests/rpl_trig004.test
+

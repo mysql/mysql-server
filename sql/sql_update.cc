@@ -355,6 +355,9 @@ int mysql_update(THD *thd,
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
         goto err;
+
+      table->file->try_semi_consistent_read(1);
+
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
       else
@@ -367,6 +370,9 @@ int mysql_update(THD *thd,
       {
 	if (!(select && select->skip_record()))
 	{
+          if (table->file->was_semi_consistent_read())
+	    continue;  /* repeat the read of the same row if it still exists */
+
 	  table->file->position(table->record[0]);
 	  if (my_b_write(&tempfile,table->file->ref,
 			 table->file->ref_length))
@@ -386,6 +392,7 @@ int mysql_update(THD *thd,
       if (thd->killed && !error)
 	error= 1;				// Aborted
       limit= tmp_limit;
+      table->file->try_semi_consistent_read(0);
       end_read_record(&info);
      
       /* Change select to use tempfile */
@@ -420,6 +427,7 @@ int mysql_update(THD *thd,
   
   if (select && select->quick && select->quick->reset())
         goto err;
+  table->file->try_semi_consistent_read(1);
   init_read_record(&info,thd,table,select,0,1);
 
   updated= found= 0;
@@ -435,10 +443,14 @@ int mysql_update(THD *thd,
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
   will_batch= !table->file->start_bulk_update();
+
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (!(select && select->skip_record()))
     {
+      if (table->file->was_semi_consistent_read())
+	    continue;  /* repeat the read of the same row if it still exists */
+
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
@@ -498,8 +510,8 @@ int mysql_update(THD *thd,
         else
         {
           /* Non-batched update */
-	  error= table->file->update_row((byte*) table->record[1],
-	                                 (byte*) table->record[0]);
+	  error= table->file->ha_update_row((byte*) table->record[1],
+	                                   (byte*) table->record[0]);
         }
         if (!error)
 	{
@@ -594,6 +606,7 @@ int mysql_update(THD *thd,
     updated-= dup_key_found;
   if (will_batch)
     table->file->end_bulk_update();
+  table->file->try_semi_consistent_read(0);
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   delete select;
@@ -624,10 +637,13 @@ int mysql_update(THD *thd,
     {
       if (error < 0)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_table, FALSE);
-      if (mysql_bin_log.write(&qinfo) && transactional_table)
+      if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                            thd->query, thd->query_length,
+                            transactional_table, FALSE) &&
+          transactional_table)
+      {
 	error=1;				// Rollback update
+      }
     }
     if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -1364,8 +1380,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  */
 	  main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
 	}
-	if ((error=table->file->update_row(table->record[1],
-					   table->record[0])))
+	if ((error=table->file->ha_update_row(table->record[1],
+					      table->record[0])))
 	{
 	  updated--;
           if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
@@ -1400,7 +1416,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if (error= tmp_table->file->write_row(tmp_table->record[0]))
+      if (error= tmp_table->file->ha_write_row(tmp_table->record[0]))
       {
         if (error != HA_ERR_FOUND_DUPP_KEY &&
             error != HA_ERR_FOUND_DUPP_UNIQUE &&
@@ -1517,8 +1533,8 @@ int multi_update::do_updates(bool from_send_error)
 
       if (compare_record(table, thd->query_id))
       {
-	if ((local_error=table->file->update_row(table->record[1],
-						 table->record[0])))
+	if ((local_error=table->file->ha_update_row(table->record[1],
+						    table->record[0])))
 	{
 	  if (!ignore || local_error != HA_ERR_FOUND_DUPP_KEY)
 	    goto err;
@@ -1597,10 +1613,13 @@ bool multi_update::send_eof()
     {
       if (local_error == 0)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    transactional_tables, FALSE);
-      if (mysql_bin_log.write(&qinfo) && trans_safe)
+      if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                            thd->query, thd->query_length,
+                            transactional_tables, FALSE) &&
+          trans_safe)
+      {
 	local_error= 1;				// Rollback update
+      }
     }
     if (!transactional_tables)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;

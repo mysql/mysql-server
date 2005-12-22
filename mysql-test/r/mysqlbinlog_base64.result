@@ -1,0 +1,89 @@
+create table t1 (a int);
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+update t1 set a=a+2 where a=2;
+update t1 set a=a+2 where a=3;
+create table t2 (word varchar(20));
+load data infile '../../std_data/words.dat' into table t2;
+drop table t1;
+drop table t2;
+select * from t1;
+a
+1
+4
+5
+select * from t2;
+word
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+Aarhus
+Aaron
+Ababa
+aback
+abaft
+abandon
+abandoned
+abandoning
+abandonment
+abandons
+abase
+abased
+abasement
+abasements
+abases
+abash
+abashed
+abashes
+abashing
+abasing
+abate
+abated
+abatement
+abatements
+abater
+abates
+abating
+Abba
+abbe
+abbey
+abbeys
+abbot
+abbots
+Abbott
+abbreviate
+abbreviated
+abbreviates
+abbreviating
+abbreviation
+abbreviations
+Abby
+abdomen
+abdomens
+abdominal
+abduct
+abducted
+abduction
+abductions
+abductor
+abductors
+abducts
+Abe
+abed
+Abel
+Abelian
+Abelson
+Aberdeen
+Abernathy
+aberrant
+aberration
+drop table t1;
+drop table t2;

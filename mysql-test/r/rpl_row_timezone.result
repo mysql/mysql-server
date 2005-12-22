@@ -1,0 +1,121 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set timestamp=100000000;
+create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
+create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
+select @@time_zone;
+@@time_zone
+Europe/Moscow
+select @@time_zone;
+@@time_zone
+Europe/Moscow
+insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+select * from t1;
+t	n
+2005-01-01 00:00:00	1
+2005-06-11 09:39:02	2
+2004-01-01 00:00:00	3
+2004-06-11 09:39:02	4
+select * from t1;
+t	n
+2005-01-01 00:00:00	1
+2005-06-11 09:39:02	2
+2004-01-01 00:00:00	3
+2004-06-11 09:39:02	4
+delete from t1;
+set time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+select * from t1;
+t	n
+2004-01-01 00:00:00	5
+2004-06-11 09:39:02	6
+set time_zone='Europe/Moscow';
+select * from t1;
+t	n
+2004-01-01 00:00:00	5
+2004-06-11 09:39:02	6
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+ROLLBACK;
+use test;
+SET TIMESTAMP=100000000;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
+SET @@session.sql_mode=0;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
+create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
+SET TIMESTAMP=100000000;
+create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
+SET TIMESTAMP=100000000;
+delete from t1;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+delete from t1;
+set time_zone='UTC';
+load data infile '../../std_data/rpl_timezone2.dat' into table t1;
+Warnings:
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1261	Row 1 doesn't contain data for all columns
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1261	Row 2 doesn't contain data for all columns
+select * from t1;
+t	n
+0000-00-00 00:00:00	7
+0000-00-00 00:00:00	8
+set time_zone='UTC';
+select * from t1;
+t	n
+0000-00-00 00:00:00	7
+0000-00-00 00:00:00	8
+set time_zone='Europe/Moscow';
+set time_zone='Europe/Moscow';
+delete from t1;
+insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
+set time_zone='MET';
+insert into t2 (select * from t1);
+select * from t1;
+t	n
+2003-12-31 22:00:00	9
+2004-06-11 07:39:02	10
+select * from t2;
+t	n
+2003-12-31 22:00:00	9
+2004-06-11 07:39:02	10
+delete from t2;
+set timestamp=1000072000;
+insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
+select * from t2;
+t	n
+2001-09-09 23:46:40	11
+2001-09-09	12
+23:46:40	13
+delete from t2;
+insert into t2 values (from_unixtime(1000000000),NULL),
+(unix_timestamp('2001-09-09 03:46:40'),NULL);
+select * from t2;
+t	n
+2001-09-09 03:46:40	14
+1000000000	15
+select * from t2;
+t	n
+2001-09-09 03:46:40	14
+1000000000	15
+set global time_zone='MET';
+delete from t2;
+set time_zone='UTC';
+insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
+insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
+select * from t2;
+t	n
+2003-12-31 23:00:00	16
+2005-01-01 08:00:00	17
+select * from t2;
+t	n
+2003-12-31 23:00:00	16
+2005-01-01 08:00:00	17
+drop table t1, t2;

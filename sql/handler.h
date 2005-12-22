@@ -74,6 +74,13 @@
 */
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
+/*
+  If HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS is set, it means that the engine can
+  do this: the position of an arbitrary record can be retrieved using
+  position() when the table has a primary key, effectively allowing random
+  access on the table based on a given record.
+*/ 
+#define HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS (1 << 16) 
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
 #define HA_CAN_FULLTEXT        (1 << 21)
@@ -1054,11 +1061,9 @@ public:
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
-  virtual int write_row(byte * buf) { return  HA_ERR_WRONG_COMMAND; }
-  virtual int update_row(const byte * old_data, byte * new_data)
-   { return  HA_ERR_WRONG_COMMAND; }
-  virtual int delete_row(const byte * buf)
-   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int ha_write_row(byte * buf);
+  virtual int ha_update_row(const byte * old_data, byte * new_data);
+  virtual int ha_delete_row(const byte * buf);
   /*
     SYNOPSIS
       start_bulk_update()
@@ -1189,6 +1194,26 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
   virtual int external_lock(THD *thd, int lock_type) { return 0; }
+  /*
+    In an UPDATE or DELETE, if the row under the cursor was locked by another
+    transaction, and the engine used an optimistic read of the last
+    committed row value under the cursor, then the engine returns 1 from this
+    function. MySQL must NOT try to update this optimistic value. If the
+    optimistic value does not match the WHERE condition, MySQL can decide to
+    skip over this row. Currently only works for InnoDB. This can be used to
+    avoid unnecessary lock waits.
+
+    If this method returns nonzero, it will also signal the storage
+    engine that the next read will be a locking re-read of the row.
+  */
+  virtual bool was_semi_consistent_read() { return 0; }
+  /*
+    Tell the engine whether it should avoid unnecessary lock waits.
+    If yes, in an UPDATE or DELETE, if the row under the cursor was locked
+    by another transaction, the engine may try an optimistic read of
+    the last committed row value under the cursor.
+  */
+  virtual void try_semi_consistent_read(bool) {}
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
   /*
@@ -1405,6 +1430,31 @@ public:
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
+
+private:
+
+  /*
+    Row-level primitives for storage engines. 
+    These should be overridden by the storage engine class. To call
+    these methods, use the corresponding 'ha_*' method above.
+  */
+  friend int ndb_add_binlog_index(THD *, void *);
+
+  virtual int write_row(byte *buf __attribute__((unused))) 
+  { 
+    return HA_ERR_WRONG_COMMAND; 
+  }
+
+  virtual int update_row(const byte *old_data __attribute__((unused)),
+                         byte *new_data __attribute__((unused)))
+  { 
+    return HA_ERR_WRONG_COMMAND; 
+  }
+
+  virtual int delete_row(const byte *buf __attribute__((unused)))
+  { 
+    return HA_ERR_WRONG_COMMAND; 
+  }
 };
 
 	/* Some extern variables used with handlers */

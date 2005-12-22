@@ -1,3 +1,8 @@
+# Mixed DDL-DML (CREATE ... SELECT ...) statements can only be
+# replicated properly in statement-based replication.
+# Currently statement based due to bug 12345
+--source include/have_binlog_format_statement.inc
+
 source include/master-slave.inc;
 
 # Test replication of auto_increment

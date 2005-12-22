@@ -2042,6 +2042,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
   mtr_add_arg($args, "%s--core", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
+  mtr_add_arg($args, "%s--loose-binlog-show-xid=0", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
@@ -2165,6 +2166,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
+  mtr_add_arg($args, "%s--loose-binlog-show-xid=0", $prefix);
 
   if ( $opt_ssl_supported )
   {
@@ -2485,6 +2487,10 @@ sub run_mysqltest ($) {
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
                          "--socket=$master->[0]->{'path_mysock'} --password=";
+
+ my $cmdline_mysqldumpslave= "$exe_mysqldump --no-defaults -uroot " .
+                         "--socket=$slave->[0]->{'path_mysock'} --password=";
+
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
@@ -2568,6 +2574,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
   $ENV{'MYSQL_SLAP'}=               $cmdline_mysqlslap unless $glob_win32;
   $ENV{'MYSQL_IMPORT'}=             $cmdline_mysqlimport;
+  $ENV{'MYSQL_DUMP_SLAVE'}=         $cmdline_mysqldumpslave;
   $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;

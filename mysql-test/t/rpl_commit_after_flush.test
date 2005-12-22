@@ -1,19 +1,6 @@
-source include/master-slave.inc;
-source include/have_innodb.inc;
-create table t1 (a int) engine=innodb;
-begin;
-insert into t1 values(1);
-flush tables with read lock;
-commit;
-save_master_pos;
-connection slave;
-sync_with_master;
-# cleanup
-connection master;
-unlock tables;
-drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
-
-# End of 4.1 tests
+#####################################
+# Wrapper for rpl_commit_after_flush#
+#####################################
+-- source include/have_innodb.inc
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_commit_after_flush.test
