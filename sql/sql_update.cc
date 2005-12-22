@@ -737,7 +737,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
     {
       update_non_unique_table_error(table_list, "UPDATE", duplicate);
       my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
@@ -960,7 +960,7 @@ reopen_tables:
         tl->lock_type != TL_READ_NO_INSERT)
     {
       TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(tl, table_list)))
+      if ((duplicate= unique_table(thd, tl, table_list)))
       {
         update_non_unique_table_error(table_list, "UPDATE", duplicate);
         DBUG_RETURN(TRUE);
@@ -1147,8 +1147,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) &&
-	find_table_in_local_list(update_tables, table_ref->db,
-				table_ref->table_name))
+        unique_table(thd, table_ref, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);
