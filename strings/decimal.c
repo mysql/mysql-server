@@ -1069,9 +1069,9 @@ int decimal2longlong(decimal_t *from, longlong *to)
     }
   }
   /* boundary case: 9223372036854775808 */
-  if (unlikely(from->sign==0 && x < 0 && -x < 0))
+  if (unlikely(from->sign==0 && x == LONGLONG_MIN))
   {
-    *to= -1-x;
+    *to= LONGLONG_MAX;
     return E_DEC_OVERFLOW;
   }
 
@@ -2675,7 +2675,8 @@ void test_pr(const char *s1, int prec, int dec, char filler, const char *orig,
   int slen= sizeof(s2);
   int res;
 
-  sprintf(s, "'%s', %d, %d, '%c'", s1, prec, dec, filler);
+  sprintf(s, filler ? "'%s', %d, %d, '%c'" : "'%s', %d, %d, '\\0'",
+          s1, prec, dec, filler);
   end= strend(s1);
   string2decimal(s1, &a, &end);
   res= decimal2string(&a, s2, &slen, prec, dec, filler);
