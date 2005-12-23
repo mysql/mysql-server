@@ -506,9 +506,9 @@ int azrewind (s)
   SEEK_END is not implemented, returns error.
   In this version of the library, azseek can be extremely slow.
 */
-z_off_t azseek (s, offset, whence)
+my_off_t azseek (s, offset, whence)
   azio_stream *s;
-  z_off_t offset;
+  my_off_t offset;
   int whence;
 {
 
@@ -589,7 +589,7 @@ z_off_t azseek (s, offset, whence)
   given compressed file. This position represents a number of bytes in the
   uncompressed data stream.
 */
-z_off_t ZEXPORT aztell (file)
+my_off_t ZEXPORT aztell (file)
   azio_stream *file;
 {
   return azseek(file, 0L, SEEK_CUR);
