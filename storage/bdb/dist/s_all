@@ -2,7 +2,7 @@
 #	$Id: s_all,v 12.0 2004/11/17 03:43:35 bostic Exp $
 
 sh s_perm		# permissions.
-sh s_symlink		# symbolic links.
+#sh s_symlink		# symbolic links.
 sh s_readme		# distribution README file.
 
 #
