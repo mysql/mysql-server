@@ -83,6 +83,7 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/storage/myisam/libmyisam.a \
 		$(top_builddir)/storage/myisammrg/libmyisammrg.a \
+		$(top_builddir)/storage/archive/libarchive.a \
 		$(top_builddir)/storage/heap/libheap.a \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
