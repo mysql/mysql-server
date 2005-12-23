@@ -19,6 +19,7 @@
 #endif
 
 #include <zlib.h>
+#include "../storage/archive/azlib.h"
 
 /*
   Please read ha_archive.cc first. If you are looking for more general
@@ -33,7 +34,7 @@ typedef struct st_archive_share {
   pthread_mutex_t mutex;
   THR_LOCK lock;
   File meta_file;           /* Meta file we use */
-  gzFile archive_write;     /* Archive file we are working with */
+  azio_stream archive_write;     /* Archive file we are working with */
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
@@ -49,7 +50,7 @@ class ha_archive: public handler
 {
   THR_LOCK_DATA lock;        /* MySQL lock */
   ARCHIVE_SHARE *share;      /* Shared lock info */
-  gzFile archive;            /* Archive file we are working with */
+  azio_stream archive;            /* Archive file we are working with */
   z_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
@@ -77,19 +78,19 @@ public:
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
-  int real_write_row(byte *buf, gzFile writer);
+  int real_write_row(byte *buf, azio_stream *writer);
   int delete_all_rows();
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
-  int get_row(gzFile file_to_read, byte *buf);
+  int get_row(azio_stream *file_to_read, byte *buf);
   int read_meta_file(File meta_file, ha_rows *rows);
   int write_meta_file(File meta_file, ha_rows rows, bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table);
   int free_share(ARCHIVE_SHARE *share);
   bool auto_repair() const { return 1; } // For the moment we just do this
-  int read_data_header(gzFile file_to_read);
-  int write_data_header(gzFile file_to_write);
+  int read_data_header(azio_stream *file_to_read);
+  int write_data_header(azio_stream *file_to_write);
   void position(const byte *record);
   void info(uint);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
