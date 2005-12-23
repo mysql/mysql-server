@@ -30,13 +30,13 @@
   a storage engine without indexes that could compress data very well.
   So, welcome to a completely compressed storage engine. This storage
   engine only does inserts. No replace, deletes, or updates. All reads are 
-  complete table scans. Compression is done through gzip (bzip compresses
+  complete table scans. Compression is done through azip (bzip compresses
   better, but only marginally, if someone asks I could add support for
-  it too, but beaware that it costs a lot more in CPU time then gzip).
+  it too, but beaware that it costs a lot more in CPU time then azip).
   
   We keep a file pointer open for each instance of ha_archive for each read
   but for writes we keep one open file handle just for that. We flush it
-  only if we have a read occur. gzip handles compressing lots of records
+  only if we have a read occur. azip handles compressing lots of records
   at once much better then doing lots of little records between writes.
   It is possible to not lock on writes but this would then mean we couldn't
   handle bulk inserts as well (that is if someone was trying to read at
@@ -84,7 +84,7 @@
    Add truncate table command.
    Implement versioning, should be easy.
    Allow for errors, find a way to mark bad rows.
-   Talk to the gzip guys, come up with a writable format so that updates are doable
+   Talk to the azip guys, come up with a writable format so that updates are doable
      without switching to a block method.
    Add optional feature so that rows can be flushed at interval (which will cause less
      compression but may speed up ordered searches).
@@ -256,15 +256,15 @@ ha_archive::ha_archive(TABLE_SHARE *table_arg)
 /*
   This method reads the header of a datafile and returns whether or not it was successful.
 */
-int ha_archive::read_data_header(gzFile file_to_read)
+int ha_archive::read_data_header(azio_stream *file_to_read)
 {
   uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::read_data_header");
 
-  if (gzrewind(file_to_read) == -1)
+  if (azrewind(file_to_read) == -1)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  if (gzread(file_to_read, data_buffer, DATA_BUFFER_SIZE) != DATA_BUFFER_SIZE)
+  if (azread(file_to_read, data_buffer, DATA_BUFFER_SIZE) != DATA_BUFFER_SIZE)
     DBUG_RETURN(errno ? errno : -1);
   
   DBUG_PRINT("ha_archive::read_data_header", ("Check %u", data_buffer[0]));
@@ -280,7 +280,7 @@ int ha_archive::read_data_header(gzFile file_to_read)
 /*
   This method writes out the header of a datafile and returns whether or not it was successful.
 */
-int ha_archive::write_data_header(gzFile file_to_write)
+int ha_archive::write_data_header(azio_stream *file_to_write)
 {
   uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::write_data_header");
@@ -288,7 +288,7 @@ int ha_archive::write_data_header(gzFile file_to_write)
   data_buffer[0]= (uchar)ARCHIVE_CHECK_HEADER;
   data_buffer[1]= (uchar)ARCHIVE_VERSION;
 
-  if (gzwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
+  if (azwrite(file_to_write, &data_buffer, DATA_BUFFER_SIZE) != 
       DATA_BUFFER_SIZE)
     goto error;
   DBUG_PRINT("ha_archive::write_data_header", ("Check %u", (uint)data_buffer[0]));
@@ -427,8 +427,11 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
       a gzip file that can be both read and written we keep a writer open
       that is shared amoung all open tables.
     */
-    if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
+    if (!(azopen(&(share->archive_write), share->data_file_name, O_WRONLY|O_APPEND|O_BINARY)))
+    {
+      DBUG_PRINT("info", ("Could not open archive write file"));
       share->crashed= TRUE;
+    }
     VOID(my_hash_insert(&archive_open_tables, (byte*) share));
     thr_lock_init(&share->lock);
   }
@@ -453,7 +456,7 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
-    if (gzclose(share->archive_write) == Z_ERRNO)
+    if (azclose(&(share->archive_write)))
       rc= 1;
     if (my_close(share->meta_file, MYF(0)))
       rc= 1;
@@ -494,7 +497,7 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM); // Not handled well by calling code!
   thr_lock_data_init(&share->lock,&lock,NULL);
 
-  if ((archive= gzopen(share->data_file_name, "rb")) == NULL)
+  if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
   {
     if (errno == EROFS || errno == EACCES)
       DBUG_RETURN(my_errno= errno);
@@ -528,7 +531,7 @@ int ha_archive::close(void)
   DBUG_ENTER("ha_archive::close");
 
   /* First close stream */
-  if (gzclose(archive) == Z_ERRNO)
+  if (azclose(&archive))
     rc= 1;
   /* then also close share */
   rc|= free_share(share);
@@ -574,18 +577,18 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     error= my_errno;
     goto error;
   }
-  if ((archive= gzdopen(create_file, "wb")) == NULL)
+  if (!azdopen(&archive, create_file, O_WRONLY|O_BINARY))
   {
     error= errno;
     goto error2;
   }
-  if (write_data_header(archive))
+  if (write_data_header(&archive))
   {
     error= errno;
     goto error3;
   }
 
-  if (gzclose(archive))
+  if (azclose(&archive))
   {
     error= errno;
     goto error2;
@@ -596,8 +599,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 
 error3:
-  /* We already have an error, so ignore results of gzclose. */
-  (void)gzclose(archive);
+  /* We already have an error, so ignore results of azclose. */
+  (void)azclose(&archive);
 error2:
   my_close(create_file, MYF(0));
   delete_table(name);
@@ -609,13 +612,13 @@ error:
 /*
   This is where the actual row is written out.
 */
-int ha_archive::real_write_row(byte *buf, gzFile writer)
+int ha_archive::real_write_row(byte *buf, azio_stream *writer)
 {
   z_off_t written;
   uint *ptr, *end;
   DBUG_ENTER("ha_archive::real_write_row");
 
-  written= gzwrite(writer, buf, table->s->reclength);
+  written= azwrite(writer, buf, table->s->reclength);
   DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
@@ -636,7 +639,7 @@ int ha_archive::real_write_row(byte *buf, gzFile writer)
     if (size)
     {
       ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
-      written= gzwrite(writer, data_ptr, (unsigned)size);
+      written= azwrite(writer, data_ptr, (unsigned)size);
       if (written != (z_off_t)size)
         DBUG_RETURN(errno ? errno : -1);
     }
@@ -667,7 +670,7 @@ int ha_archive::write_row(byte *buf)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
   share->rows_recorded++;
-  rc= real_write_row(buf, share->archive_write);
+  rc= real_write_row(buf, &(share->archive_write));
   pthread_mutex_unlock(&share->mutex);
 
   DBUG_RETURN(rc);
@@ -694,20 +697,20 @@ int ha_archive::rnd_init(bool scan)
 
     /* 
       If dirty, we lock, and then reset/flush the data.
-      I found that just calling gzflush() doesn't always work.
+      I found that just calling azflush() doesn't always work.
     */
     if (share->dirty == TRUE)
     {
       pthread_mutex_lock(&share->mutex);
       if (share->dirty == TRUE)
       {
-        gzflush(share->archive_write, Z_SYNC_FLUSH);
+        azflush(&(share->archive_write), Z_SYNC_FLUSH);
         share->dirty= FALSE;
       }
       pthread_mutex_unlock(&share->mutex);
     }
 
-    if (read_data_header(archive))
+    if (read_data_header(&archive))
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
@@ -719,15 +722,15 @@ int ha_archive::rnd_init(bool scan)
   This is the method that is used to read a row. It assumes that the row is 
   positioned where you want it.
 */
-int ha_archive::get_row(gzFile file_to_read, byte *buf)
+int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
 {
-  int read; // Bytes read, gzread() returns int
+  int read; // Bytes read, azread() returns int
   uint *ptr, *end;
   char *last;
   size_t total_blob_length= 0;
   DBUG_ENTER("ha_archive::get_row");
 
-  read= gzread(file_to_read, buf, table->s->reclength);
+  read= azread(file_to_read, buf, table->s->reclength);
   DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, table->s->reclength));
 
   if (read == Z_STREAM_ERROR)
@@ -762,7 +765,7 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     size_t size= ((Field_blob*) table->field[*ptr])->get_length();
     if (size)
     {
-      read= gzread(file_to_read, last, size);
+      read= azread(file_to_read, last, size);
       if ((size_t) read != size)
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
@@ -792,8 +795,8 @@ int ha_archive::rnd_next(byte *buf)
 
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= gztell(archive);
-  rc= get_row(archive, buf);
+  current_position= aztell(&archive);
+  rc= get_row(&archive, buf);
 
 
   if (rc != HA_ERR_END_OF_FILE)
@@ -830,9 +833,9 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
   current_position= (z_off_t)my_get_ptr(pos, ref_length);
-  (void)gzseek(archive, current_position, SEEK_SET);
+  (void)azseek(&archive, current_position, SEEK_SET);
 
-  DBUG_RETURN(get_row(archive, buf));
+  DBUG_RETURN(get_row(&archive, buf));
 }
 
 /*
@@ -861,17 +864,17 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::optimize");
   int rc;
-  gzFile writer;
+  azio_stream writer;
   char writer_filename[FN_REFLEN];
 
   /* Flush any waiting data */
-  gzflush(share->archive_write, Z_SYNC_FLUSH);
+  azflush(&(share->archive_write), Z_SYNC_FLUSH);
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
-  if ((writer= gzopen(writer_filename, "wb")) == NULL)
+  if (!(azopen(&writer, writer_filename, O_CREAT|O_WRONLY|O_TRUNC|O_BINARY)))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
 
   /* 
@@ -881,6 +884,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (check_opt->flags == T_EXTEND)
   {
+    DBUG_PRINT("info", ("archive extended rebuild"));
     byte *buf; 
 
     /* 
@@ -897,14 +901,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       Now we will rewind the archive file so that we are positioned at the 
       start of the file.
     */
-    rc= read_data_header(archive);
+    rc= read_data_header(&archive);
     
     /*
       Assuming now error from rewinding the archive file, we now write out the 
       new header for out data file.
     */
     if (!rc)
-      rc= write_data_header(writer);
+      rc= write_data_header(&writer);
 
     /* 
       On success of writing out the new header, we now fetch each row and
@@ -913,9 +917,9 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     if (!rc)
     {
       share->rows_recorded= 0;
-      while (!(rc= get_row(archive, buf)))
+      while (!(rc= get_row(&archive, buf)))
       {
-        real_write_row(buf, writer);
+        real_write_row(buf, &writer);
         share->rows_recorded++;
       }
     }
@@ -926,31 +930,31 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   } 
   else
   {
+    DBUG_PRINT("info", ("archive quick rebuild"));
     /* 
       The quick method is to just read the data raw, and then compress it directly.
     */
-    int read; // Bytes read, gzread() returns int
+    int read; // Bytes read, azread() returns int
     char block[IO_SIZE];
-    if (gzrewind(archive) == -1)
+    if (azrewind(&archive) == -1)
     {
       rc= HA_ERR_CRASHED_ON_USAGE;
+      DBUG_PRINT("info", ("archive HA_ERR_CRASHED_ON_USAGE"));
       goto error;
     }
 
-    while ((read= gzread(archive, block, IO_SIZE)))
-      gzwrite(writer, block, read);
+    while ((read= azread(&archive, block, IO_SIZE)))
+      azwrite(&writer, block, read);
   }
 
-  gzflush(writer, Z_SYNC_FLUSH);
-  gzclose(share->archive_write);
-  share->archive_write= writer; 
+  azclose(&writer);
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
 
   DBUG_RETURN(0); 
 
 error:
-  gzclose(writer);
+  azclose(&writer);
 
   DBUG_RETURN(rc); 
 }
@@ -1092,7 +1096,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   thd->proc_info= "Checking table";
   /* Flush any waiting data */
-  gzflush(share->archive_write, Z_SYNC_FLUSH);
+  azflush(&(share->archive_write), Z_SYNC_FLUSH);
 
   /* 
     First we create a buffer that we can use for reading rows, and can pass
@@ -1106,10 +1110,10 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     start of the file.
   */
   if (!rc)
-    read_data_header(archive);
+    read_data_header(&archive);
 
   if (!rc)
-    while (!(rc= get_row(archive, buf)))
+    while (!(rc= get_row(&archive, buf)))
       count--;
 
   my_free((char*)buf, MYF(0));

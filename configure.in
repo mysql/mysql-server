@@ -2413,7 +2413,7 @@ MYSQL_STORAGE_ENGINE(berkeley,,berkeley-db,,,,storage/bdb,,,[
   MYSQL_SETUP_BERKELEY_DB
 ])
 MYSQL_STORAGE_ENGINE(example)
-MYSQL_STORAGE_ENGINE(archive)
+MYSQL_STORAGE_ENGINE(archive,,,,,,storage/archive)
 MYSQL_STORAGE_ENGINE(csv,,,,,tina_hton,,ha_tina.o)
 MYSQL_STORAGE_ENGINE(blackhole)
 MYSQL_STORAGE_ENGINE(federated)
@@ -2535,6 +2535,7 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile storage/heap/Makefile dnl
  storage/myisam/Makefile storage/myisammrg/Makefile dnl
+ storage/archive/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl
