@@ -7,20 +7,19 @@
 
 connection master;
 create table t1 (a int primary key);
+create table t4 (a int primary key);
 # generate an error that goes to the binlog
 --error 1062
 insert into t1 values (1),(1);
+insert into t4 values (1),(2);
 save_master_pos;
 connection slave;
 # as the t1 table is ignored on the slave, the slave should be able to sync
 sync_with_master;
-# The port number is different when doing the release build with
-# Do-compile, hence we have to replace the port number here accordingly
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
-show slave status;
 # check that the table has been ignored, because otherwise the test is nonsense
 show tables like 't1';
+show tables like 't4';
+SELECT * FROM test.t4;
 connection master;
 drop table t1;
 save_master_pos;
@@ -46,17 +45,20 @@ real_sleep 2;
 select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;
+insert into t4 values (3),(4);
 connection master;
 --error 0,1053,2013
 reap;
 connection master1;
---replace_column 2 # 5 #
-show binlog events from 102;
 save_master_pos;
 connection slave;
-# SQL slave thread should not have stopped (because table of the killed
-# query is in the ignore list).
 sync_with_master;
+SELECT * FROM test.t4;
 
+connection master1;
+DROP TABLE test.t4;
+save_master_pos;
+connection slave;
+sync_with_master;
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012. delete me if needed
