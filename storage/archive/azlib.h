@@ -166,9 +166,9 @@ typedef struct azio_stream {
   char     *msg;    /* error message */
   int      transparent; /* 1 if input file is not a .gz file */
   char     mode;    /* 'w' or 'r' */
-  z_off_t  start;   /* start of compressed data in file (header skipped) */
-  z_off_t  in;      /* bytes into deflate or inflate */
-  z_off_t  out;     /* bytes out of deflate or inflate */
+  my_off_t  start;   /* start of compressed data in file (header skipped) */
+  my_off_t  in;      /* bytes into deflate or inflate */
+  my_off_t  out;     /* bytes out of deflate or inflate */
   int      back;    /* one character push-back */
   int      last;    /* true if push-back is last character */
 } azio_stream;
@@ -232,8 +232,8 @@ extern int azflush(azio_stream *file, int flush);
    degrade compression.
 */
 
-extern z_off_t azseek (azio_stream *file,
-                                      z_off_t offset, int whence);
+extern my_off_t azseek (azio_stream *file,
+                                      my_off_t offset, int whence);
 /*
       Sets the starting position for the next gzread or gzwrite on the
    given compressed file. The offset represents a number of bytes in the
@@ -257,7 +257,7 @@ extern int azrewind(azio_stream *file);
    gzrewind(file) is equivalent to (int)gzseek(file, 0L, SEEK_SET)
 */
 
-extern z_off_t aztell(azio_stream *file);
+extern my_off_t aztell(azio_stream *file);
 /*
      Returns the starting position for the next gzread or gzwrite on the
    given compressed file. This position represents a number of bytes in the

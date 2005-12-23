@@ -51,7 +51,7 @@ class ha_archive: public handler
   THR_LOCK_DATA lock;        /* MySQL lock */
   ARCHIVE_SHARE *share;      /* Shared lock info */
   azio_stream archive;            /* Archive file we are working with */
-  z_off_t current_position;  /* The position of the row we just read */
+  my_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
   ha_rows scan_rows;         /* Number of rows left in scan */

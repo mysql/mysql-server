@@ -247,8 +247,7 @@ ha_archive::ha_archive(TABLE_SHARE *table_arg)
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
   /* The size of the offset value we will use for position() */
-  ref_length = 2 << ((zlibCompileFlags() >> 6) & 3);
-  DBUG_ASSERT(ref_length <= sizeof(z_off_t));
+  ref_length = sizeof(my_off_t);
 }
 
 /*
@@ -612,7 +611,7 @@ error:
 */
 int ha_archive::real_write_row(byte *buf, azio_stream *writer)
 {
-  z_off_t written;
+  my_off_t written;
   uint *ptr, *end;
   DBUG_ENTER("ha_archive::real_write_row");
 
@@ -621,7 +620,7 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
-  if (written != (z_off_t)table->s->reclength)
+  if (written != (my_off_t)table->s->reclength)
     DBUG_RETURN(errno ? errno : -1);
   /*
     We should probably mark the table as damagaged if the record is written
@@ -638,7 +637,7 @@ int ha_archive::real_write_row(byte *buf, azio_stream *writer)
     {
       ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
       written= azwrite(writer, data_ptr, (unsigned)size);
-      if (written != (z_off_t)size)
+      if (written != (my_off_t)size)
         DBUG_RETURN(errno ? errno : -1);
     }
   }
@@ -830,7 +829,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= (z_off_t)my_get_ptr(pos, ref_length);
+  current_position= (my_off_t)my_get_ptr(pos, ref_length);
   (void)azseek(&archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(&archive, buf));
