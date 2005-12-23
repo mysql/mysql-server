@@ -14,14 +14,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-# Process this file with automake to create Makefile.in
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
+			@ZLIB_INCLUDES@
 
-AUTOMAKE_OPTIONS =	foreign
-
-# These are built from source in the Docs directory
-EXTRA_DIST =		
-SUBDIRS =	
-DIST_SUBDIRS = . bdb heap innobase myisam myisammrg ndb archive
+LDADD =			libarchive.a $(top_srcdir)/mysys/libmysys.a \
+			$(top_srcdir)/dbug/libdbug.a \
+			$(top_srcdir)/strings/libmystrings.a \
+			@ZLIB_LIBS@
+pkglib_LIBRARIES =	libarchive.a
+noinst_PROGRAMS	=	archive_test
+archive_test_LDFLAGS = @NOINST_LDFLAGS@
+noinst_HEADERS =	azlib.h
+libarchive_a_SOURCES =	azio.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
