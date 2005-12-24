@@ -8218,7 +8218,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         uint convert_blob_length)
 {
   Item::Type orig_type= type;
-  Item *orig_item;
+  Item *orig_item= 0;
 
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
@@ -8271,10 +8271,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     }
     else
       result= create_tmp_field_from_field(thd, (*from_field= field->field),
-                                       item->name, table,
-                                       modify_item ? field :
-                                       NULL,
-                                       convert_blob_length);
+                                          orig_item ? orig_item->name :
+                                          item->name,
+                                          table,
+                                          modify_item ? field :
+                                          NULL,
+                                          convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
     return result;
