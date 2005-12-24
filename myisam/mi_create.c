@@ -72,7 +72,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
   LINT_INIT(dfile);
   LINT_INIT(file);
-  pthread_mutex_lock(&THR_LOCK_myisam);
   errpos=0;
   options=0;
   bzero((byte*) &share,sizeof(share));
@@ -135,7 +134,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	pack_reclength++;
         min_pack_length++;
         /* We must test for 257 as length includes pack-length */
- 	if (test(rec->length >= 257))
+        if (test(rec->length >= 257))
 	{
 	  long_varchar_count++;
 	  pack_reclength+= 2;			/* May be packed on 3 bytes */
@@ -541,6 +540,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     MI_EXTEND_BLOCK_LENGTH;
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
+
+  pthread_mutex_lock(&THR_LOCK_myisam);
 
   if (ci->index_file_name)
   {
