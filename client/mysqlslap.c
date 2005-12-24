@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+   original idea: Brian Aker via playing with ab for too many years
    coded by: Patrick Galbraith
 */
 
@@ -75,6 +76,11 @@
 
     mysqlslap -D -c 5 -l 5 -i 5 -q query.sql \
               --create create.sql -d insert.sql -F ";" -n 5
+
+TODO:
+  Add language for better tests
+  String length for files and those put on the command line are not
+  setup to handle binary data.
 */
 
 #define SHOW_VERSION "0.1"
@@ -93,36 +99,35 @@
 #include <sslopt-vars.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <ctype.h>
 
 
-static int drop_schema(MYSQL *mysql, const char *db);
-unsigned int get_random_string(char *buf);
-static int build_table_string(void);
-static int build_insert_string(void);
-static int build_query_string(void);
-static int create_schema(MYSQL *mysql, const char *db,const char *script);
-static int run_scheduler(const char *script, int(*task)(const char *),
-                         unsigned int concur);
-int run_task(const char *script);
-int load_data(const char *script);
 static char **defaults_argv;
 
 static char *host= NULL, *opt_password= NULL, *user= NULL,
             *user_supplied_query= NULL, *user_supplied_data= NULL,
-            *create_string= NULL, *default_engine= NULL, *delimiter= NULL,
+            *create_string= NULL, *default_engine= NULL,
             *opt_mysql_unix_port= NULL;
 
+const char *delimiter= "\n";
+
+const char *create_schema_string= "mysqlslap";
+
+static my_bool opt_preserve_enter= FALSE, opt_preserve_exit= FALSE;
+
+static my_bool opt_only_print= FALSE;
+
 static my_bool opt_compress= FALSE, tty_password= FALSE,
-               opt_drop= FALSE, create_string_alloced= FALSE,
+               create_string_alloced= FALSE,
                insert_string_alloced= FALSE, query_string_alloced= FALSE,
                generated_insert_flag= FALSE, opt_silent= FALSE,
-               auto_generate_sql= FALSE, opt_skip_create= FALSE,
-               opt_skip_data_load= FALSE, opt_skip_query= FALSE;
+               auto_generate_sql= FALSE;
 
-static int verbose= 0, num_int_cols=0, num_char_cols=0, delimiter_length= 0;
+static int verbose, num_int_cols, num_char_cols, delimiter_length;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-static unsigned int number_of_rows= 1000, number_of_iterations= 1000,
-  concurrency= 1, concurrency_load= 1, children_spawned= 1;
+static unsigned int number_of_rows, number_of_iterations;
+static unsigned int actual_insert_rows= 0;
+static unsigned int  concurrency, concurrency_load, children_spawned;
 
 const char *default_dbug_option="d:t:o,/tmp/mysqlslap.trace";
 
@@ -133,13 +138,40 @@ static uint opt_mysql_port= 0;
 
 static const char *load_default_groups[]= { "mysqlslap","client",0 };
 
+typedef struct statement statement;
+
+struct statement {
+  char *string;
+  size_t length;
+  statement *next;
+};
+
+static statement *create_statements= NULL, 
+                 *insert_statements= NULL, 
+                 *query_statements= NULL;
+
+/* Prototypes */
+int parse_delimeter(const char *script, statement **stmt);
+static int drop_schema(MYSQL *mysql, const char *db);
+unsigned int get_random_string(char *buf);
+static int build_table_string(void);
+static int build_insert_string(void);
+static int build_query_string(void);
+static int create_schema(MYSQL *mysql, const char *db, statement *stmt);
+static int run_scheduler(statement *stmts,
+              int(*task)(statement *stmt), unsigned int concur);
+int run_task(statement *stmt);
+int load_data(statement *load_stmt);
+
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
+
 #define ALPHANUMERICS_SIZE (sizeof(ALPHANUMERICS)-1)
 
 
+
 /* Return the time in ms between two timevals */
-static double timedif(struct timeval end, struct timeval begin)
+static double timedif (struct timeval end, struct timeval begin)
 {
   double seconds;
   DBUG_ENTER("timedif");
@@ -183,10 +215,8 @@ int main(int argc, char **argv)
     my_end(0);
     exit(1);
   }
-    ;
   /* globals? Yes, so we only have to run strlen once */
-  if (delimiter)
-    delimiter_length= strlen(delimiter);
+  delimiter_length= strlen(delimiter);
 
   if (argc > 2)
   {
@@ -212,14 +242,17 @@ int main(int argc, char **argv)
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
 
   client_flag|= CLIENT_MULTI_RESULTS;
-  if (!(mysql_real_connect(&mysql,host,user,opt_password,
-                           argv[0],opt_mysql_port,opt_mysql_unix_port,
-                           client_flag)))
+  if (!opt_only_print) 
   {
-    fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
-    free_defaults(defaults_argv);
-    my_end(0);
-    exit(1);
+    if (!(mysql_real_connect(&mysql,host,user,opt_password,
+                             argv[0],opt_mysql_port,opt_mysql_unix_port,
+                             client_flag)))
+    {
+      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
+      free_defaults(defaults_argv);
+      my_end(0);
+      exit(1);
+    }
   }
 
   /*
@@ -227,32 +260,33 @@ int main(int argc, char **argv)
     a stored_procedure that doesn't use data, or we know we already have
     data in the table.
   */
-  if (opt_drop)
-    drop_schema(&mysql, "mysqlslap");
+  if (!opt_preserve_enter)
+    drop_schema(&mysql, create_schema_string);
 
-  if (!opt_skip_create)
-    create_schema(&mysql, "mysqlslap", create_string);
+  if (create_statements)
+    create_schema(&mysql, create_schema_string, create_statements);
 
-  if (!opt_skip_data_load)
+  if (insert_statements)
   {
     gettimeofday(&start_time, NULL);
-    DBUG_PRINT("info", ("user_supplied_data %s", user_supplied_data));
-    run_scheduler(user_supplied_data, load_data, concurrency_load);
+    run_scheduler(insert_statements, load_data, concurrency_load);
     gettimeofday(&load_time, NULL);
     time_difference= timedif(load_time, start_time);
+
     if (!opt_silent)
     {
       printf("Seconds to load data: %.5f\n",time_difference);
       printf("Number of clients loading data: %d\n", children_spawned);
-      printf("Number of inserts per client: %d\n", number_of_rows);
+      printf("Number of inserts per client: %d\n", number_of_rows * actual_insert_rows);
     }
   }
 
-  if (!opt_skip_query)
+  if (query_statements)
   {
-    run_scheduler(user_supplied_query, run_task, concurrency);
+    gettimeofday(&start_time, NULL);
+    run_scheduler(query_statements, run_task, concurrency);
     gettimeofday(&run_time, 0);
-    time_difference= timedif(run_time, load_time);
+    time_difference= timedif(run_time, start_time);
 
     if (!opt_silent)
     {
@@ -261,20 +295,58 @@ int main(int argc, char **argv)
       printf("Number of queries per client: %d\n", number_of_iterations);
     }
   }
-  if (opt_drop)
-    drop_schema(&mysql, "mysqlslap");
+  if (!opt_preserve_exit)
+    drop_schema(&mysql, create_schema_string);
 
-  mysql_close(&mysql); /* Close & free connection */
+  if (!opt_only_print) 
+    mysql_close(&mysql); /* Close & free connection */
 
   /* now free all the strings we created */
   if (opt_password)
-    my_free(opt_password,MYF(0));
+    my_free(opt_password, MYF(0));
   if (create_string_alloced)
-    my_free(create_string,MYF(0));
+    my_free(create_string, MYF(0));
   if (insert_string_alloced)
-    my_free(user_supplied_data,MYF(0));
+    my_free(user_supplied_data, MYF(0));
   if (query_string_alloced)
-    my_free(user_supplied_query,MYF(0));
+    my_free(user_supplied_query, MYF(0));
+
+  if (create_statements)
+  {
+    statement *ptr, *nptr;
+    for (ptr= create_statements; ptr;)
+    {
+      nptr= ptr->next;
+      my_free(ptr->string, MYF(0)); 
+      my_free((byte *)ptr, MYF(0));
+      ptr= nptr;
+    }
+  }
+
+  if (insert_statements)
+  {
+    statement *ptr, *nptr;
+    for (ptr= insert_statements; ptr;)
+    {
+      nptr= ptr->next;
+      my_free(ptr->string, MYF(0)); 
+      my_free((byte *)ptr, MYF(0));
+      ptr= nptr;
+    }
+  }
+
+  if (query_statements)
+  {
+    statement *ptr, *nptr;
+    for (ptr= query_statements; ptr;)
+    {
+      nptr= ptr->next;
+      my_free(ptr->string, MYF(0)); 
+      my_free((byte *)ptr, MYF(0));
+      ptr= nptr;
+    }
+  }
+
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     my_free(shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
@@ -300,9 +372,12 @@ static struct my_option my_long_options[] =
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
     (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_UINT,
     REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"create", OPT_CREATE_SLAP_SCHEMA, "File or string to use for create.",
+  {"create", OPT_CREATE_SLAP_SCHEMA, "File or string to use create tables.",
     (gptr*) &create_string, (gptr*) &create_string, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
+  {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
+    (gptr*) &create_schema_string, (gptr*) &create_schema_string, 0, GET_STR, 
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"data", 'd',
     "File or string with INSERT to use for populating data.",
     (gptr*) &user_supplied_data, (gptr*) &user_supplied_data, 0,
@@ -314,10 +389,6 @@ static struct my_option my_long_options[] =
     "Delimiter to use in SQL statements supplied in file or command line.",
     (gptr*) &delimiter, (gptr*) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
-  {"drop-schema", 'D',
-    "Drop schema if it exists prior to running and after running.",
-    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
     (gptr*) &default_engine, (gptr*) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -327,18 +398,26 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of iterations.", (gptr*) &number_of_iterations,
     (gptr*) &number_of_iterations, 0, GET_UINT, REQUIRED_ARG,
-    1000, 0, 0, 0, 0, 0},
-  {"number-char-cols", 'x', "Number of INT columns to create table with if specifying --sql-generate-sql.",
+    1, 0, 0, 0, 0, 0},
+  {"number-char-cols", 'x', 
+    "Number of INT columns to create table with if specifying --sql-generate-sql.",
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
-  {"number-int-cols", 'y', "Number of VARCHAR columns to create table with if specifying --sql-generate-sql.",
-    (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0, GET_UINT, REQUIRED_ARG,
+  {"number-int-cols", 'y', 
+    "Number of VARCHAR columns to create table with if specifying \
+      --sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"number-rows", 'n', "Number of rows to insert when loading data.", 
+    (gptr*) &number_of_rows, (gptr*) &number_of_rows, 0, GET_UINT, 
+    REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"only-print", OPT_MYSQL_ONLY_PRINT,
+    "This causes mysqlslap to not connect to the databases, but instead print \
+      out what it would have done instead.",
+    (gptr*) &opt_only_print, (gptr*) &opt_only_print, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
-  {"number-rows", 'n', "Number of rows to insert when loading data.", (gptr*) &number_of_rows,
-    (gptr*) &number_of_rows, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
-    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    "Password to use when connecting to server. If password is not given it's \
+      asked from the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
     (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
@@ -346,18 +425,17 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"preserve-schema-enter", OPT_MYSQL_PRESERVE_SCHEMA_ENTER,
+    "Preserve the schema from the mysqlslap run.",
+    (gptr*) &opt_preserve_enter, (gptr*) &opt_preserve_enter, 0, GET_BOOL,
+    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"preserve-schema-exit", OPT_MYSQL_PRESERVE_SCHEMA_EXIT,
+    "Preserve the schema from the mysqlslap run.",
+    (gptr*) &opt_preserve_exit, (gptr*) &opt_preserve_exit, 0, GET_BOOL,
+    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-create-schema", 'A', "Don't create a schema, use existing schema.",
-    (gptr*) &opt_skip_create, (gptr*) &opt_skip_create, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
-  {"skip-data-load", 'L', "Don't load any data, use existing data set.",
-    (gptr*) &opt_skip_data_load, (gptr*) &opt_skip_data_load, 0,
-    GET_BOOL,  NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-query", 'Q', "Don't run any queries.",
-    (gptr*) &opt_skip_query, (gptr*) &opt_skip_query, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"silent", 's', "Run program in silent mode - no output.",
     (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -379,8 +457,9 @@ static struct my_option my_long_options[] =
     (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
-    "More verbose output; You can use this multiple times to get even more verbose output.",
-    (gptr*) &verbose, (gptr*) &verbose, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    "More verbose output; You can use this multiple times to get even more \
+      verbose output.", (gptr*) &verbose, (gptr*) &verbose, 0, 
+      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -502,16 +581,14 @@ build_table_string(void)
 
   init_dynamic_string(&table_string, "", 1024, 1024);
 
-  dynstr_append_mem(&table_string, "CREATE TABLE `t1` (\n", 20);
+  dynstr_append(&table_string, "CREATE TABLE `t1` (");
   for (col_count= 1; col_count <= num_int_cols; col_count++)
   {
     sprintf(buf, "intcol%d INT(32)", col_count); 
     dynstr_append(&table_string, buf);
 
     if (col_count < num_int_cols || num_char_cols > 0)
-      dynstr_append_mem(&table_string, ",", 1);
-
-    dynstr_append_mem(&table_string, "\n", 1);
+      dynstr_append(&table_string, ",");
   }
   for (col_count= 1; col_count <= num_char_cols; col_count++)
   {
@@ -519,11 +596,9 @@ build_table_string(void)
     dynstr_append(&table_string, buf);
 
     if (col_count < num_char_cols)
-      dynstr_append_mem(&table_string, ",", 1);
-
-    dynstr_append_mem(&table_string, "\n", 1);
+      dynstr_append(&table_string, ",");
   }
-  dynstr_append_mem(&table_string, ")\n", 2);
+  dynstr_append(&table_string, ")");
   create_string= (char *)my_malloc(table_string.length+1, MYF(MY_WME));
   create_string_alloced= 1;
   strmov(create_string, table_string.str);
@@ -536,7 +611,7 @@ build_table_string(void)
   build_insert_string()
 
   This function builds insert statements when the user opts to not supply
-  a insert file or string containing insert data
+  an insert file or string containing insert data
 */
 static int
 build_insert_string(void)
@@ -654,8 +729,8 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
-  if(auto_generate_sql && create_string &&
-     user_supplied_data && user_supplied_query)
+  if (auto_generate_sql && (create_string ||
+     user_supplied_data || user_supplied_query))
   {
       fprintf(stderr,
               "%s: Can't use --auto-generate-sql when create, insert, and query strings are specified!\n",
@@ -663,120 +738,95 @@ get_options(int *argc,char ***argv)
       exit(1);
   }
 
-  if (opt_skip_create && opt_drop)
-  {
-    fprintf(stderr,"You cannot specify to drop the schema and skip schema creation!\n");
-    exit(1);
-  }
+  if (opt_only_print)
+    opt_silent= TRUE;
 
-  if (!opt_skip_create)
+  if (!create_string && auto_generate_sql)
   {
-    if (auto_generate_sql && !create_string)
       build_table_string();
-    else if (create_string && my_stat(create_string, &sbuf, MYF(0)))
+  }
+  else if (create_string && my_stat(create_string, &sbuf, MYF(0)))
+  {
+    File data_file;
+    if (!MY_S_ISREG(sbuf.st_mode))
     {
-      File data_file;
-      if (!MY_S_ISREG(sbuf.st_mode))
-      {
-        fprintf(stderr,"%s: Create file was not a regular file\n",
-                my_progname);
-        exit(1);
-      }
-      if ((data_file= my_open(create_string, O_RDWR, MYF(0))) == -1)
-      {
-        fprintf(stderr,"%s: Could not open create file\n", my_progname);
-        exit(1);
-      }
-      create_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-      create_string_alloced= 1;
-      my_read(data_file, create_string, sbuf.st_size, MYF(0));
-      create_string[sbuf.st_size]= '\0';
-      my_close(data_file,MYF(0));
-    }
-    else if (!auto_generate_sql && !create_string)
-    {
-      fprintf(stderr,"%s: Must use --auto-generate-sql or --create option\n",
+      fprintf(stderr,"%s: Create file was not a regular file\n",
               my_progname);
       exit(1);
     }
-  }
-
-  if (opt_skip_data_load)
-  {
-    if (user_supplied_data)
-      fprintf(stderr,
-              "Warning: Specified data to INSERT, but data load is disabled.\n");
-  }
-  else
-  {
-    if (!user_supplied_data && auto_generate_sql)
+    if ((data_file= my_open(create_string, O_RDWR, MYF(0))) == -1)
     {
-      int length;
-      generated_insert_flag= 1;
-      length= build_insert_string();
-      DBUG_PRINT("info", ("user_supplied_data is %s", user_supplied_data));
-    }
-    else if (my_stat(user_supplied_data, &sbuf, MYF(0)))
-    {
-      File data_file;
-      if (!MY_S_ISREG(sbuf.st_mode))
-      {
-        fprintf(stderr,"%s: User data supplied file was not a regular file\n",
-                my_progname);
-        exit(1);
-      }
-      if ((data_file= my_open(user_supplied_data, O_RDWR, MYF(0))) == -1)
-      {
-        fprintf(stderr,"%s: Could not open data supplied file\n", my_progname);
-        exit(1);
-      }
-      user_supplied_data= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-      insert_string_alloced= 1;
-      my_read(data_file, user_supplied_data, sbuf.st_size, MYF(0));
-      user_supplied_data[sbuf.st_size]= '\0';
-      my_close(data_file,MYF(0));
-    }
-    else if (!user_supplied_query && !auto_generate_sql)
-    {
-      fprintf(stderr,"%s: No user supplied data to insert or --auto-generate-sql\
-              specified!\n", my_progname);
+      fprintf(stderr,"%s: Could not open create file\n", my_progname);
       exit(1);
     }
+    create_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+    create_string_alloced= 1;
+    my_read(data_file, create_string, sbuf.st_size, MYF(0));
+    create_string[sbuf.st_size]= '\0';
+    my_close(data_file,MYF(0));
   }
 
-  if (!opt_skip_query)
+  if (create_string)
+    parse_delimeter(create_string, &create_statements);
+
+  if (!user_supplied_data && auto_generate_sql)
   {
-    if (!user_supplied_query && auto_generate_sql)
+    int length;
+    generated_insert_flag= 1;
+    length= build_insert_string();
+    DBUG_PRINT("info", ("user_supplied_data is %s", user_supplied_data));
+  }
+  else if (user_supplied_data && my_stat(user_supplied_data, &sbuf, MYF(0)))
+  {
+    File data_file;
+    if (!MY_S_ISREG(sbuf.st_mode))
     {
-      build_query_string();
-    }
-    else if (my_stat(user_supplied_query, &sbuf, MYF(0)))
-    {
-      File data_file;
-      if (!MY_S_ISREG(sbuf.st_mode))
-      {
-        fprintf(stderr,"%s: User query supplied file was not a regular file\n",
-                my_progname);
-        exit(1);
-      }
-      if ((data_file= my_open(user_supplied_query, O_RDWR, MYF(0))) == -1)
-      {
-        fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
-        exit(1);
-      }
-      user_supplied_query= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-      query_string_alloced= 1;
-      my_read(data_file, user_supplied_query, sbuf.st_size, MYF(0));
-      user_supplied_query[sbuf.st_size]= '\0';
-      my_close(data_file,MYF(0));
-    }
-    else if (!user_supplied_query && !auto_generate_sql)
-    {
-      fprintf(stderr,"%s: No user supplied query or --auto-generate-sql\
-              specified!\n", my_progname);
+      fprintf(stderr,"%s: User data supplied file was not a regular file\n",
+              my_progname);
       exit(1);
     }
+    if ((data_file= my_open(user_supplied_data, O_RDWR, MYF(0))) == -1)
+    {
+      fprintf(stderr,"%s: Could not open data supplied file\n", my_progname);
+      exit(1);
+    }
+    user_supplied_data= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+    insert_string_alloced= 1;
+    my_read(data_file, user_supplied_data, sbuf.st_size, MYF(0));
+    user_supplied_data[sbuf.st_size]= '\0';
+    my_close(data_file,MYF(0));
   }
+
+  if (user_supplied_data)
+    parse_delimeter(user_supplied_data, &insert_statements);
+
+  if (!user_supplied_query && auto_generate_sql)
+  {
+    build_query_string();
+  }
+  else if (user_supplied_query && my_stat(user_supplied_query, &sbuf, MYF(0)))
+  {
+    File data_file;
+    if (!MY_S_ISREG(sbuf.st_mode))
+    {
+      fprintf(stderr,"%s: User query supplied file was not a regular file\n",
+              my_progname);
+      exit(1);
+    }
+    if ((data_file= my_open(user_supplied_query, O_RDWR, MYF(0))) == -1)
+    {
+      fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
+      exit(1);
+    }
+    user_supplied_query= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+    query_string_alloced= 1;
+    my_read(data_file, user_supplied_query, sbuf.st_size, MYF(0));
+    user_supplied_query[sbuf.st_size]= '\0';
+    my_close(data_file,MYF(0));
+  }
+
+  if (user_supplied_query)
+    parse_delimeter(user_supplied_query, &query_statements);
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -785,70 +835,74 @@ get_options(int *argc,char ***argv)
 
 
 static int
-create_schema(MYSQL *mysql,const char *db,const char *script)
+create_schema(MYSQL *mysql, const char *db, statement *stmt)
 {
-  char query[HUGE_STRING_LENGTH], buffer[HUGE_STRING_LENGTH];
+  char query[HUGE_STRING_LENGTH];
+  statement *ptr;
 
   DBUG_ENTER("create_schema");
-  snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
-  DBUG_PRINT("info", ("query %s", query)); 
-  mysql_query(mysql, query);
 
   snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
   DBUG_PRINT("info", ("query %s", query)); 
-  if (mysql_query(mysql, query))
+  if (opt_only_print) 
   {
-    fprintf(stderr,"%s: Cannot create schema %s : %s\n", my_progname, db,
-            mysql_error(mysql));
-    exit(1);
+    printf("%s;\n", query);
   }
-
-  if (mysql_select_db(mysql,db))
+  else
   {
-    fprintf(stderr,"%s: Cannot select schema '%s': %s\n",my_progname, db,
-	    mysql_error(mysql));
-    exit(1);
-  }
-
-  snprintf(buffer, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
-           default_engine);
-  if (mysql_query(mysql, buffer))
-  {
-    fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
-            mysql_error(mysql));
-    exit(1);
-  }
-
-  if (delimiter)
-  {
-    char *retstr;
-    char buf[HUGE_STRING_LENGTH];
-
-    while ((retstr= strstr(script, delimiter)))
+    if (mysql_query(mysql, query))
     {
-      strncpy(buf, script, retstr - script);
-      buf[retstr - script]= '\0';
-      script+= retstr - script + delimiter_length;
-      DBUG_PRINT("info", ("running create QUERY %s", (char *)buf));
-      if (mysql_query(mysql, buf))
+      fprintf(stderr,"%s: Cannot create schema %s : %s\n", my_progname, db,
+              mysql_error(mysql));
+      exit(1);
+    }
+  }
+
+  if (opt_only_print) 
+  {
+    printf("use %s;\n", db);
+  }
+  else
+  {
+    if (mysql_select_db(mysql,  db))
+    {
+      fprintf(stderr,"%s: Cannot select schema '%s': %s\n",my_progname, db,
+              mysql_error(mysql));
+      exit(1);
+    }
+  }
+
+  snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
+           default_engine);
+  if (opt_only_print) 
+  {
+    printf("%s;\n", query);
+  }
+  else
+  {
+    if (mysql_query(mysql, query))
+    {
+      fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
+              mysql_error(mysql));
+      exit(1);
+    }
+  }
+
+  for (ptr= stmt; ptr; ptr= ptr->next)
+  {
+    if (opt_only_print) 
+    {
+      printf("%.*s;\n", (uint)ptr->length, ptr->string);
+    }
+    else
+    {
+      if (mysql_real_query(mysql, ptr->string, ptr->length))
       {
-        fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
-                my_progname, (char *)buf, mysql_error(mysql));
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
         exit(1);
       }
     }
-  }
-  /*
-    remainder, if there was a delimeter, or the whole query if not a 
-    delimiter. If less than 3, can't be anything useful
-  */
-  if ((strlen(script)) < 3)
-    DBUG_RETURN(0);
-  if (mysql_query(mysql, script))
-  {
-    fprintf(stderr,"%s: Cannot create tables: %s\n", my_progname,
-            mysql_error(mysql));
-    exit(1);
   }
 
   DBUG_RETURN(0);
@@ -861,11 +915,18 @@ drop_schema(MYSQL *mysql,const char *db)
 
   DBUG_ENTER("drop_schema");
   snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
-  if (mysql_query(mysql, query))
+  if (opt_only_print) 
   {
-    fprintf(stderr,"%s: Cannot drop database '%s' ERROR : %s\n",
-            my_progname, db, mysql_error(mysql));
-    exit(1);
+    printf("%s;\n", query);
+  }
+  else
+  {
+    if (mysql_query(mysql, query))
+    {
+      fprintf(stderr,"%s: Cannot drop database '%s' ERROR : %s\n",
+              my_progname, db, mysql_error(mysql));
+      exit(1);
+    }
   }
 
   DBUG_RETURN(0);
@@ -873,8 +934,8 @@ drop_schema(MYSQL *mysql,const char *db)
 
 
 static int
-run_scheduler(const char *script,
-              int(*task)(const char *), unsigned int concur)
+run_scheduler(statement *stmts,
+              int(*task)(statement *stmt), unsigned int concur)
 {
   uint x;
 
@@ -895,9 +956,9 @@ run_scheduler(const char *script,
                           script, pid, getgid()));
       if (verbose >= 2)
         fprintf(stderr,
-                "%s: fork returned 0, calling task(\"%s\") pid %d gid %d\n",
-                my_progname, script, pid, getgid());
-      task(script);
+                "%s: fork returned 0, calling task pid %d gid %d\n",
+                my_progname, pid, getgid());
+      task(stmts);
       exit(0);
       break;
     case -1:
@@ -932,7 +993,7 @@ WAIT:
 }
 
 int
-run_task(const char *script)
+run_task(statement *qstmt)
 {
   uint counter= 0, x;
   MYSQL mysql;
@@ -945,125 +1006,127 @@ run_task(const char *script)
   mysql_init(&mysql);
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
-  if (!(mysql_real_connect(&mysql, host, user, opt_password,
-                           "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
-                           0)))
+  if (!opt_only_print) 
   {
-    fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
-    exit(1);
+    if (!(mysql_real_connect(&mysql, host, user, opt_password,
+                             "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
+                             0)))
+    {
+      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
+      exit(1);
+    }
   }
   DBUG_PRINT("info", ("connected."));
 
   for (x= 0; x < number_of_iterations; x++)
   {
-    if (delimiter)
+    statement *ptr;
+    for (ptr= qstmt; ptr; ptr= ptr->next)
     {
-      char *retstr;
-      char buf[HUGE_STRING_LENGTH];
-
-      while((retstr= strstr(script, delimiter)))
+      if (opt_only_print) 
       {
-        strncpy(buf, script, retstr - script);
-        buf[retstr - script]= '\0';
-        script+= retstr - script + delimiter_length;
-        DBUG_PRINT("info", ("running QUERY %s", buf));
-        if (mysql_query(&mysql, buf))
+        printf("%.*s;\n", (uint)ptr->length, ptr->string);
+      }
+      else
+      {
+        if (mysql_real_query(&mysql, ptr->string, ptr->length))
         {
-          fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
-                  my_progname, buf, mysql_error(&mysql));
+          fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
           exit(1);
         }
 
         result= mysql_store_result(&mysql);
         while ((row = mysql_fetch_row(result)))
-        {
           counter++;
-        }
         mysql_free_result(result);
         result= 0;
       }
     }
-    if ((strlen(script)) < 3)
-      goto end;
-    if (mysql_query(&mysql, script))
-    {
-      fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
-              my_progname, script, mysql_error(&mysql));
-      exit(1);
-    }
-
-    result= mysql_store_result(&mysql);
-    while ((row = mysql_fetch_row(result)))
-      counter++;
-    mysql_free_result(result);
-    result= 0;
-
   }
 
-end:
-  mysql_close(&mysql);
+  if (!opt_only_print) 
+    mysql_close(&mysql);
   DBUG_RETURN(0);
 }
 
 
 int
-load_data(const char *script)
+load_data(statement *load_stmt)
 {
-  unsigned int x;
+  uint x;
   MYSQL mysql;
 
   DBUG_ENTER("load_data");
   DBUG_PRINT("info", ("task load_data, pid %d", getpid()));
   mysql_init(&mysql);
 
-  if (!(mysql_real_connect(&mysql, host, user, opt_password,
-                           "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
-                           0)))
+  if (!opt_only_print) 
   {
-    fprintf(stderr,"%s: Unable to connect to mysqlslap ERROR: %s\n",
-            my_progname, mysql_error(&mysql));
-    exit(1);
+    if (!(mysql_real_connect(&mysql, host, user, opt_password,
+                             "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
+                             0)))
+    {
+      fprintf(stderr,"%s: Unable to connect to mysqlslap ERROR: %s\n",
+              my_progname, mysql_error(&mysql));
+      exit(1);
+    }
   }
 
   for (x= 0; x < number_of_rows; x++)
   {
-    if (delimiter)
+    statement *ptr;
+    for (ptr= load_stmt; ptr; ptr= ptr->next)
     {
-      char *retstr;
-      char buf[HUGE_STRING_LENGTH];
-
-      while((retstr= strstr(script, delimiter)))
+      if (opt_only_print) 
       {
-        strncpy(buf, script, retstr - script);
-        buf[retstr - script]= '\0';
-        script+= retstr - script + delimiter_length;
-        DBUG_PRINT("info", ("running INSERT %s", buf));
-        if (mysql_query(&mysql, buf))
+        printf("%.*s;\n", (uint)ptr->length, ptr->string);
+      }
+      else
+      {
+        if (mysql_real_query(&mysql, ptr->string, ptr->length))
         {
-          fprintf(stderr,"%s: Cannot run query %s ERROR : %s\n",
-                  my_progname, buf, mysql_error(&mysql));
+          DBUG_PRINT("info", ("iteration %d with INSERT statement %s", script));
+          fprintf(stderr,"%s: Cannot insert into table using sql: %.*s ERROR: %s\n",
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
           exit(1);
         }
       }
     }
-    if ((strlen(script)) < 3)
-      goto end;
-    if (mysql_query(&mysql, script))
-    {
-      DBUG_PRINT("info", ("iteration %d with INSERT statement %s", script));
-      fprintf(stderr,"%s: Cannot insert into table using script: %s ERROR: %s\n",
-              my_progname, script, mysql_error(&mysql));
-      exit(1);
-    }
-    /* this causes variable data on the insert string */
-    if (auto_generate_sql)
-    {
-      build_insert_string();
-      strmov((char *)script, (char *)user_supplied_data);
-    }
   }
 
-end:
-  mysql_close(&mysql);
+  if (!opt_only_print) 
+    mysql_close(&mysql);
   DBUG_RETURN(0);
+}
+
+int
+parse_delimeter(const char *script, statement **stmt)
+{
+  char *retstr;
+  char *ptr= (char *)script;
+  statement **sptr= stmt;
+  statement *tmp;
+  uint length= strlen(script);
+
+  DBUG_PRINT("info", ("Parsing %s\n", script));
+
+  for (*sptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL)), tmp= *sptr;
+       (retstr= strchr(ptr, delimiter[0])); 
+       tmp->next=  (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL)),
+       tmp= tmp->next)
+  {
+    tmp->string= my_strdup_with_length(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
+    tmp->length= (size_t)(retstr - script);
+    DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));
+    ptr+= retstr - script + 1;
+    if (isspace(*ptr))
+      ptr++;
+  }
+  tmp->string= my_strdup_with_length(ptr, (size_t)((script + length) - ptr), 
+                                     MYF(MY_FAE));
+  tmp->length= (size_t)((script + length) - ptr);
+  DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));
+
+  return 0;
 }
