@@ -401,7 +401,7 @@ void end_thr_alarm(my_bool free_structures)
 {
   DBUG_ENTER("end_thr_alarm");
   if (alarm_aborted != 1)			/* If memory not freed */
-  {    
+  {
     pthread_mutex_lock(&LOCK_alarm);
     DBUG_PRINT("info",("Resheduling %d waiting alarms",alarm_queue.elements));
     alarm_aborted= -1;				/* mark aborted */
@@ -415,13 +415,10 @@ void end_thr_alarm(my_bool free_structures)
     if (free_structures)
     {
       struct timespec abstime;
-      /*
-	The following test is just for safety, the caller should not
-	depend on this
-      */
-      DBUG_ASSERT(!alarm_queue.elements);
-      /* Wait until alarm thread dies */
 
+      DBUG_ASSERT(!alarm_queue.elements);
+
+      /* Wait until alarm thread dies */
       set_timespec(abstime, 10);		/* Wait up to 10 seconds */
       while (alarm_thread_running)
       {
@@ -429,16 +426,13 @@ void end_thr_alarm(my_bool free_structures)
 	if (error == ETIME || error == ETIMEDOUT)
 	  break;				/* Don't wait forever */
       }
-      if (!alarm_queue.elements)
+      delete_queue(&alarm_queue);
+      alarm_aborted= 1;
+      pthread_mutex_unlock(&LOCK_alarm);
+      if (!alarm_thread_running)              /* Safety */
       {
-	delete_queue(&alarm_queue);
-	alarm_aborted= 1;
-	pthread_mutex_unlock(&LOCK_alarm);
-	if (!alarm_thread_running)		/* Safety */
-	{
-	  pthread_mutex_destroy(&LOCK_alarm);
-	  pthread_cond_destroy(&COND_alarm);
-	}
+        pthread_mutex_destroy(&LOCK_alarm);
+        pthread_cond_destroy(&COND_alarm);
       }
     }
     else
