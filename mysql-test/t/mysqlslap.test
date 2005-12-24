@@ -2,8 +2,12 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
---exec $MYSQL_SLAP --silent --drop-schema --concurrency=5 --concurrency-load=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --number-rows=12 --auto-generate-sql
+--exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --number-rows=12 --auto-generate-sql
 
---exec $MYSQL_SLAP --silent --drop-schema --concurrency=5 --concurrency-load=5 --iterations=20 --number-rows=10 --query="select * from t1" --data="INSERT INTO t1 VALUES (1, 'This is a test')" --create="CREATE TABLE t1 (id int, name varchar(64))"
+--exec $MYSQL_SLAP --only-print --concurrency=5 --concurrency-load=5 --iterations=20 --number-rows=10 --query="select * from t1" --data="INSERT INTO t1 VALUES (1, 'This is a test')" --create="CREATE TABLE t1 (id int, name varchar(64))"
 
---exec $MYSQL_SLAP --silent --drop-schema --concurrency=5 --concurrency-load=5 --iterations=20 --delimiter=";" --number-rows=10 --query="select * from t1;select * from t2" --data="INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32))"
+--exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --number-rows=10 --query="select * from t1" --data="INSERT INTO t1 VALUES (1, 'This is a test')" --create="CREATE TABLE t1 (id int, name varchar(64))"
+
+--exec $MYSQL_SLAP --only-print --concurrency=5 --concurrency-load=5 --iterations=20 --delimiter=";" --number-rows=10 --query="select * from t1;select * from t2" --data="INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32))"
+
+--exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --delimiter=";" --number-rows=10 --query="select * from t1;select * from t2" --data="INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32))"
