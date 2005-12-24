@@ -78,10 +78,6 @@ const char * const trigname_file_ext= ".TRN";
 static File_option trigname_file_parameters[]=
 {
   {
-    /*
-      FIXME: Length specified for "trigger_table" key is erroneous, problem
-      caused by this are reported as BUG#14090 and should be fixed ASAP.
-    */
     {(char *) STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
    FILE_OPTIONS_ESTRING
@@ -154,6 +150,17 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     QQ: This function could be merged in mysql_alter_table() function
     But do we want this ?
   */
+
+  /*
+    Note that once we will have check for TRIGGER privilege in place we won't
+    need second part of condition below, since check_access() function also
+    checks that db is specified.
+  */
+  if (!thd->lex->spname->m_db.length || create && !tables->db_length)
+  {
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (!create &&
       !(tables= add_table_for_trigger(thd, thd->lex->spname)))
@@ -285,6 +292,9 @@ end:
                      definer. The caller is responsible to provide memory for
                      storing LEX_STRING object.
 
+  NOTE
+    Assumes that trigger name is fully qualified.
+
   RETURN VALUE
     False - success
     True  - error
@@ -308,8 +318,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
   /* Trigger must be in the same schema as target table. */
   if (my_strcasecmp(table_alias_charset, table->s->db.str,
-                    lex->spname->m_db.str ? lex->spname->m_db.str :
-                                            thd->db))
+                    lex->spname->m_db.str))
   {
     my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
     return 1;
@@ -1010,7 +1019,6 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
 
 static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 {
-  const char *db= !trig->m_db.str ? thd->db : trig->m_db.str;
   LEX *lex= thd->lex;
   char path_buff[FN_REFLEN];
   LEX_STRING path;
@@ -1018,7 +1026,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   struct st_trigname trigname;
   DBUG_ENTER("add_table_for_trigger");
 
-  strxnmov(path_buff, FN_REFLEN-1, mysql_data_home, "/", db, "/",
+  strxnmov(path_buff, FN_REFLEN-1, mysql_data_home, "/", trig->m_db.str, "/",
            trig->m_name.str, trigname_file_ext, NullS);
   path.length= unpack_filename(path_buff, path_buff);
   path.str= path_buff;
@@ -1047,7 +1055,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   /* We need to reset statement table list to be PS/SP friendly. */
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
-  DBUG_RETURN(sp_add_to_query_tables(thd, lex, db,
+  DBUG_RETURN(sp_add_to_query_tables(thd, lex, trig->m_db.str,
                                      trigname.trigger_table.str, TL_WRITE));
 }
 

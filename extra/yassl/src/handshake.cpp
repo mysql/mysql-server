@@ -656,7 +656,11 @@ DoProcessReply(SSL& ssl, mySTL::auto_ptr<input_buffer> buffered)
 {
     ssl.getSocket().wait();                  // wait for input if blocking
     uint ready = ssl.getSocket().get_ready();
-    if (!ready) return buffered;
+    if (!ready) {
+      // Nothing to receive after blocking wait => error
+      ssl.SetError(receive_error);
+      return buffered= null_buffer;
+    }
 
     // add buffered data if its there
     uint buffSz = buffered.get() ? buffered.get()->get_size() : 0;
