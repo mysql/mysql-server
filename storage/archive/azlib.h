@@ -31,6 +31,7 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
+#include <zutil.h>
 #include <zlib.h>
 
 #include "../../mysys/mysys_priv.h"
