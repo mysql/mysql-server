@@ -2323,3 +2323,22 @@ CREATE VIEW v2 AS SELECT f1();
 select * from v2;
 drop view v2,v1;
 drop function f1;
+
+#
+# Bug#14861: aliased column names are not preserved.
+#
+create table t1 (id numeric, warehouse_id numeric);
+create view v1 as select id from t1;
+create view v2 as
+select t1.warehouse_id, v1.id as receipt_id
+from t1, v1 where t1.id = v1.id;
+
+insert into t1 (id, warehouse_id) values(3, 2);
+insert into t1 (id, warehouse_id) values(4, 2);
+insert into t1 (id, warehouse_id) values(5, 1);
+
+select v2.receipt_id as alias1, v2.receipt_id as alias2 from v2
+order by v2.receipt_id;
+
+drop view v2, v1;
+drop table t1;
