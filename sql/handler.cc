@@ -60,7 +60,7 @@ handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
   HTON_NO_FLAGS };
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
 #include "ha_archive.h"
 extern handlerton archive_hton;
 #else
@@ -314,7 +314,7 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
   case DB_TYPE_EXAMPLE_DB:
     return new (alloc) ha_example(table);
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
   case DB_TYPE_ARCHIVE_DB:
     return new (alloc) ha_archive(table);
 #endif
@@ -513,7 +513,7 @@ int ha_panic(enum ha_panic_function flag)
   if (have_federated_db == SHOW_OPTION_YES)
     error|= federated_db_end();
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
   if (have_archive_db == SHOW_OPTION_YES)
     error|= archive_db_end();
 #endif
