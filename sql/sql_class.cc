@@ -1969,6 +1969,23 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
 
+  /*
+    For row-based replication and before executing a function/trigger,
+    the pending rows event has to be flushed.  The function/trigger
+    might execute statement that require the pending event to be
+    flushed. A simple example:
+
+      CREATE FUNCTION foo() RETURNS INT
+      BEGIN
+        SAVEPOINT x;
+        RETURN 0;
+      END
+
+      INSERT INTO t1 VALUES (1), (foo()), (2);
+  */
+  if (binlog_row_based)
+    thd->binlog_flush_pending_rows_event(false);
+
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !binlog_row_based)
     options&= ~OPTION_BIN_LOG;
