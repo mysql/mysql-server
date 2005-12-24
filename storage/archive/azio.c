@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 
-#include "zutil.h"
 #include "azlib.h"
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
@@ -26,13 +25,13 @@ static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 #define COMMENT      0x10 /* bit 4 set: file comment present */
 #define RESERVED     0xE0 /* bits 5..7: reserved */
 
-local int az_open(azio_stream *s, const char *path, int Flags, File  fd);
-local int do_flush(azio_stream *file, int flush);
-local int    get_byte(azio_stream *s);
-local void   check_header(azio_stream *s);
-local int    destroy(azio_stream *s);
-local void putLong(File file, uLong x);
-local uLong  getLong(azio_stream *s);
+int az_open(azio_stream *s, const char *path, int Flags, File  fd);
+int do_flush(azio_stream *file, int flush);
+int    get_byte(azio_stream *s);
+void   check_header(azio_stream *s);
+int    destroy(azio_stream *s);
+void putLong(File file, uLong x);
+uLong  getLong(azio_stream *s);
 
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
@@ -43,7 +42,7 @@ local uLong  getLong(azio_stream *s);
   can be checked to distinguish the two cases (if errno is zero, the
   zlib error is Z_MEM_ERROR).
 */
-local int az_open (azio_stream *s, const char *path, int Flags, File fd)
+int az_open (azio_stream *s, const char *path, int Flags, File fd)
 {
   int err;
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
@@ -155,7 +154,7 @@ int azdopen(azio_stream *s, File fd, int Flags)
   for end of file.
   IN assertion: the stream s has been sucessfully opened for reading.
 */
-local int get_byte(s)
+int get_byte(s)
   azio_stream *s;
 {
   if (s->z_eof) return EOF;
@@ -184,7 +183,7 @@ local int get_byte(s)
   s->stream.avail_in is zero for the first time, but may be non-zero
   for concatenated .gz files.
 */
-local void check_header(azio_stream *s)
+void check_header(azio_stream *s)
 {
   int method; /* method byte */
   int flags;  /* flags byte */
@@ -250,7 +249,7 @@ local void check_header(azio_stream *s)
  * Cleanup then free the given azio_stream. Return a zlib error code.
  Try freeing in the reverse order of allocations.
  */
-local int destroy (s)
+int destroy (s)
   azio_stream *s;
 {
   int err = Z_OK;
@@ -426,7 +425,7 @@ int azwrite (azio_stream *s, voidpc buf, unsigned len)
   Flushes all pending output into the compressed file. The parameter
   flush is as in the deflate() function.
 */
-local int do_flush (s, flush)
+int do_flush (s, flush)
   azio_stream *s;
   int flush;
 {
@@ -524,7 +523,6 @@ my_off_t azseek (s, offset, whence)
     if (whence == SEEK_SET) {
       offset -= s->in;
     }
-    if (offset < 0) return -1L;
 
     /* At this point, offset is the number of zero bytes to write. */
     /* There was a zmemzero here if inbuf was null -Brian */
@@ -546,7 +544,6 @@ my_off_t azseek (s, offset, whence)
   if (whence == SEEK_CUR) {
     offset += s->out;
   }
-  if (offset < 0) return -1L;
 
   if (s->transparent) {
     /* map to my_seek */
@@ -599,7 +596,7 @@ my_off_t ZEXPORT aztell (file)
 /* ===========================================================================
   Outputs a long in LSB order to the given file
 */
-local void putLong (File file, uLong x)
+void putLong (File file, uLong x)
 {
   int n;
   byte buffer[1];
@@ -616,7 +613,7 @@ local void putLong (File file, uLong x)
   Reads a long in LSB order from the given azio_stream. Sets z_err in case
   of error.
 */
-local uLong getLong (azio_stream *s)
+uLong getLong (azio_stream *s)
 {
   uLong x = (uLong)get_byte(s);
   int c;
