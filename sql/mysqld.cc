@@ -6323,7 +6323,7 @@ static void mysql_init_variables(void)
 #else
   have_example_db= SHOW_OPTION_NO;
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
   have_archive_db= SHOW_OPTION_YES;
 #else
   have_archive_db= SHOW_OPTION_NO;
