@@ -267,7 +267,7 @@ int destroy (s)
       err = inflateEnd(&(s->stream));
     }
   }
-  if (s->file < 0 && my_close(s->file, MYF(0))) 
+  if (s->file > 0 && my_close(s->file, MYF(0))) 
   {
 #ifdef ESPIPE
     if (errno != ESPIPE) /* fclose is broken for pipes in HP/UX */
