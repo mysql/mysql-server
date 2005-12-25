@@ -1659,3 +1659,4 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 client/mysqlslap
+storage/archive/archive_test
