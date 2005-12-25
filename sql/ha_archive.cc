@@ -591,8 +591,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     goto error2;
   }
 
-  my_close(create_file, MYF(0));
-
   DBUG_RETURN(0);
 
 error3:
