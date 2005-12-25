@@ -1023,7 +1023,7 @@ run_scheduler(statement *stmts,
     case 0:
       /* child */
       DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                          script, pid, getgid()));
+                          stmts->string, pid, getgid()));
       if (verbose >= 2)
         fprintf(stderr,
                 "%s: fork returned 0, calling task pid %d gid %d\n",
@@ -1071,7 +1071,7 @@ run_task(statement *qstmt)
   MYSQL_ROW row;
 
   DBUG_ENTER("run_task");
-  DBUG_PRINT("info", ("task script \"%s\"", script));
+  DBUG_PRINT("info", ("task script \"%s\"", qstmt->string));
 
   mysql_init(&mysql);
 
@@ -1156,9 +1156,10 @@ load_data(statement *load_stmt)
       {
         if (mysql_real_query(&mysql, ptr->string, ptr->length))
         {
-          DBUG_PRINT("info", ("iteration %d with INSERT statement %s", script));
+          DBUG_PRINT("info", ("iteration %d with INSERT statement %s", ptr->string));
           fprintf(stderr,"%s: Cannot insert into table using sql:%.*s: ERROR: %s\n",
-                  my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
+                  my_progname, (uint)ptr->length, ptr->string,
+                  mysql_error(&mysql));
           exit(1);
         }
       }
