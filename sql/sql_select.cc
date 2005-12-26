@@ -2036,7 +2036,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((!table->file->records || table->no_partitions_used) && !embedding)
 #else
-      if (!table->file->records || && !embedding)
+      if (!table->file->records && !embedding)
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
