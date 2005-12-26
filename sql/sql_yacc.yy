@@ -853,7 +853,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         definer view_replace_or_algorithm view_replace view_algorithm_opt
         view_algorithm view_or_trigger_tail view_suid view_tail view_list_opt
         view_list view_select view_check_option trigger_tail
-        install uninstall partition_entry
+        install uninstall partition_entry binlog_base64_event
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -4407,6 +4407,7 @@ binlog_base64_event:
            Lex->sql_command = SQLCOM_BINLOG_BASE64_EVENT;
            Lex->comment= $2;
         }
+        ;
 
 check:
 	CHECK_SYM table_or_tables
