@@ -2478,14 +2478,93 @@ bool get_partition_id_list(partition_info *part_info,
     if (list_value < part_func_value)
       min_list_index= list_index + 1;
     else if (list_value > part_func_value)
+    {
+      if (!list_index)
+        goto notfound;
       max_list_index= list_index - 1;
-    else {
+    }
+    else
+    {
       *part_id= (uint32)list_array[list_index].partition_id;
       DBUG_RETURN(FALSE);
     }
   }
+notfound:
   *part_id= 0;
   DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Find the sub-array part_info->list_array that corresponds to given interval
+
+  SYNOPSIS 
+    get_list_array_idx_for_endpoint()
+      part_info         Partitioning info (partitioning type must be LIST)
+      left_endpoint     TRUE  - the interval is [a; +inf) or (a; +inf)
+                        FALSE - the interval is (-inf; a] or (-inf; a)
+      include_endpoint  TRUE iff the interval includes the endpoint
+
+  DESCRIPTION
+    This function finds the sub-array of part_info->list_array where values of
+    list_array[idx].list_value are contained within the specifed interval.
+    list_array is ordered by list_value, so
+    1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the 
+       sought sub-array starts at some index idx and continues till array end.
+       The function returns first number idx, such that 
+       list_array[idx].list_value is contained within the passed interval.
+       
+    2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
+       sought sub-array starts at array start and continues till some last 
+       index idx.
+       The function returns first number idx, such that 
+       list_array[idx].list_value is NOT contained within the passed interval.
+       If all array elements are contained, part_info->no_list_values is
+       returned.
+
+  NOTE
+    The caller will call this function and then will run along the sub-array of
+    list_array to collect partition ids. If the number of list values is 
+    significantly higher then number of partitions, this could be slow and
+    we could invent some other approach. The "run over list array" part is
+    already wrapped in a get_next()-like function.
+
+  RETURN
+    The edge of corresponding sub-array of part_info->list_array
+*/
+
+uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
+                                       bool left_endpoint,
+                                       bool include_endpoint)
+{
+  DBUG_ENTER("get_list_array_idx_for_endpoint");
+  LIST_PART_ENTRY *list_array= part_info->list_array;
+  uint list_index;
+  longlong list_value;
+  uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
+  /* Get the partitioning function value for the endpoint */
+  longlong part_func_value= part_info->part_expr->val_int();
+  while (max_list_index >= min_list_index)
+  {
+    list_index= (max_list_index + min_list_index) >> 1;
+    list_value= list_array[list_index].list_value;
+    if (list_value < part_func_value)
+      min_list_index= list_index + 1;
+    else if (list_value > part_func_value)
+    {
+      if (!list_index)
+        goto notfound;
+      max_list_index= list_index - 1;
+    }
+    else 
+    {
+      DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
+    }
+  }
+notfound:
+  if (list_value < part_func_value)
+    list_index++;
+  DBUG_RETURN(list_index);
 }
 
 
@@ -2516,6 +2595,89 @@ bool get_partition_id_range(partition_info *part_info,
         DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
 }
+
+
+/*
+  Find the sub-array of part_info->range_int_array that covers given interval
+ 
+  SYNOPSIS 
+    get_partition_id_range_for_endpoint()
+      part_info         Partitioning info (partitioning type must be RANGE)
+      left_endpoint     TRUE  - the interval is [a; +inf) or (a; +inf)
+                        FALSE - the interval is (-inf; a] or (-inf; a).
+      include_endpoint  TRUE <=> the endpoint itself is included in the
+                        interval
+
+  DESCRIPTION
+    This function finds the sub-array of part_info->range_int_array where the
+    elements have non-empty intersections with the given interval.
+ 
+    A range_int_array element at index idx represents the interval
+      
+      [range_int_array[idx-1], range_int_array[idx]),
+
+    intervals are disjoint and ordered by their right bound, so
+    
+    1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the
+       sought sub-array starts at some index idx and continues till array end.
+       The function returns first number idx, such that the interval
+       represented by range_int_array[idx] has non empty intersection with 
+       the passed interval.
+       
+    2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
+       sought sub-array starts at array start and continues till some last
+       index idx.
+       The function returns first number idx, such that the interval
+       represented by range_int_array[idx] has EMPTY intersection with the
+       passed interval.
+       If the interval represented by the last array element has non-empty 
+       intersection with the passed interval, part_info->no_parts is
+       returned.
+       
+  RETURN
+    The edge of corresponding part_info->range_int_array sub-array.
+*/
+
+uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
+                                           bool left_endpoint,
+                                           bool include_endpoint)
+{
+  DBUG_ENTER("get_partition_id_range_for_endpoint");
+  longlong *range_array= part_info->range_int_array;
+  uint max_partition= part_info->no_parts - 1;
+  uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
+  /* Get the partitioning function value for the endpoint */
+  longlong part_func_value= part_info->part_expr->val_int();
+  while (max_part_id > min_part_id)
+  {
+    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
+    if (range_array[loc_part_id] < part_func_value)
+      min_part_id= loc_part_id + 1;
+    else
+      max_part_id= loc_part_id - 1;
+  }
+  loc_part_id= max_part_id;
+  if (loc_part_id < max_partition && 
+      part_func_value >= range_array[loc_part_id+1])
+  {
+     loc_part_id++;
+  }
+  if (left_endpoint)
+  {
+    if (part_func_value >= range_array[loc_part_id])
+      loc_part_id++;
+  }
+  else 
+  {
+    if (part_func_value == range_array[loc_part_id])
+      loc_part_id += test(include_endpoint);
+    else if (part_func_value > range_array[loc_part_id])
+      loc_part_id++;
+    loc_part_id++;
+  }
+  DBUG_RETURN(loc_part_id);
+}
+
 
 bool get_partition_id_hash_nosub(partition_info *part_info,
                                  uint32 *part_id)
@@ -3205,10 +3367,16 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   */
     uint part_func_len= part_info->part_func_len;
     uint subpart_func_len= part_info->subpart_func_len; 
+    uint bitmap_bits= part_info->no_subparts? 
+                       (part_info->no_subparts* part_info->no_parts):
+                        part_info->no_parts;
+    uint bitmap_bytes= bitmap_buffer_size(bitmap_bits);
+    uint32 *bitmap_buf;
     char *part_func_string, *subpart_func_string= NULL;
     if (!((part_func_string= thd->alloc(part_func_len))) ||
         (subpart_func_len &&
-        !((subpart_func_string= thd->alloc(subpart_func_len)))))
+        !((subpart_func_string= thd->alloc(subpart_func_len)))) ||
+        !((bitmap_buf= (uint32*)thd->alloc(bitmap_bytes))))
     {
       my_error(ER_OUTOFMEMORY, MYF(0), part_func_len);
       free_items(thd->free_list);
@@ -3221,6 +3389,8 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
              subpart_func_len);
     part_info->part_func_string= part_func_string;
     part_info->subpart_func_string= subpart_func_string;
+
+    bitmap_init(&part_info->used_partitions, bitmap_buf, bitmap_bytes*8, FALSE);
   }
 
   result= FALSE;
@@ -3294,3 +3464,60 @@ void set_key_field_ptr(KEY *key_info, const byte *new_buf,
   } while (++i < key_parts);
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  Fill the string comma-separated line of used partitions names
+  SYNOPSIS
+    make_used_partitions_str()
+      part_info  IN  Partitioning info
+      parts_str  OUT The string to fill
+*/
+
+void make_used_partitions_str(partition_info *part_info, String *parts_str)
+{
+  parts_str->length(0);
+  partition_element *pe;
+  uint partition_id= 0;
+  List_iterator<partition_element> it(part_info->partitions);
+  
+  if (part_info->subpart_type != NOT_A_PARTITION)
+  {
+    partition_element *head_pe;
+    while ((head_pe= it++))
+    {
+      List_iterator<partition_element> it2(head_pe->subpartitions);
+      while ((pe= it2++))
+      {
+        if (bitmap_is_set(&part_info->used_partitions, partition_id))
+        {
+          if (parts_str->length())
+            parts_str->append(',');
+          parts_str->append(head_pe->partition_name,
+                           strlen(head_pe->partition_name),
+                           system_charset_info);
+          parts_str->append('_');
+          parts_str->append(pe->partition_name,
+                           strlen(pe->partition_name),
+                           system_charset_info);
+        }
+        partition_id++;
+      }
+    }
+  }
+  else
+  {
+    while ((pe= it++))
+    {
+      if (bitmap_is_set(&part_info->used_partitions, partition_id))
+      {
+        if (parts_str->length())
+          parts_str->append(',');
+        parts_str->append(pe->partition_name, strlen(pe->partition_name),
+                         system_charset_info);
+      }
+      partition_id++;
+    }
+  }
+}
+

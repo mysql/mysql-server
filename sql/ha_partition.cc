@@ -2799,6 +2799,8 @@ int ha_partition::reset(void)
   handler **file;
   DBUG_ENTER("ha_partition::reset");
   file= m_file;
+  if (m_part_info)
+    bitmap_clear_all(&m_part_info->used_partitions);
   do
   {
     if ((tmp= (*file)->reset()))
