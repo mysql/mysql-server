@@ -192,4 +192,46 @@ insert into t1 values ('a'),('b'),('c');
 explain partitions select * from t1 where a='b';
 drop table t1;
 
+#
+# Test cases for bugs found in code review:
+#
+create table t1 (
+  a1 int not null
+)
+partition by range (a1) (
+  partition p0 values less than (3),
+  partition p1 values less than (6),
+  partition p2 values less than (9)
+);
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a1 > 3;
+explain partitions select * from t1 where a1 >= 3;
 
+explain partitions select * from t1 where a1 < 3 and a1 > 3;
+drop table t1;
+
+#
+create table t3 (a int, b int) 
+  partition by list(a) subpartition by hash(b) subpartitions 4 (
+    partition p0 values in (1),
+    partition p1 values in (2),
+    partition p2 values in (3),
+    partition p3 values in (4)
+  );
+insert into t3 values (1,1),(2,2),(3,3);
+
+explain partitions select * from t3 where a=2 or b=1;
+explain partitions select * from t3 where a=4 or b=2;
+explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
+
+# Test for NULLs
+create table t1 (a int) partition by hash(a) partitions 2;
+insert into t1 values (1),(2);
+explain partitions select * from t1 where a is null;
+
+# this selects both
+explain partitions select * from t1 where a is not null;
+drop table t1;
+
+# No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
+# being fixed.

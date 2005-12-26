@@ -24,16 +24,42 @@
 */
 
 /*
-  Classes in this file are used in the following way:
-  1. For a selection condition a tree of SEL_IMERGE/SEL_TREE/SEL_ARG objects
-     is created. #of rows in table and index statistics are ignored at this
-     step.
-  2. Created SEL_TREE and index stats data are used to construct a
-     TABLE_READ_PLAN-derived object (TRP_*). Several 'candidate' table read
-     plans may be created.
-  3. The least expensive table read plan is used to create a tree of
-     QUICK_SELECT_I-derived objects which are later used for row retrieval.
-     QUICK_RANGEs are also created in this step.
+  This file contains:
+
+  RangeAnalysisModule  
+    A module that accepts a condition, index (or partitioning) description, 
+    and builds lists of intervals (in index/partitioning space), such that 
+    all possible records that match the condition are contained within the 
+    intervals.
+    The entry point for the range analysis module is get_mm_tree() function.
+    
+    The lists are returned in form of complicated structure of interlinked
+    SEL_TREE/SEL_IMERGE/SEL_ARG objects.
+    See check_quick_keys, find_used_partitions for examples of how to walk 
+    this structure.
+    All direct "users" of this module are located within this file, too.
+
+
+  PartitionPruningModule
+    A module that accepts a partitioned table, condition, and finds which
+    partitions we will need to use in query execution. Search down for
+    "PartitionPruningModule" for description.
+    The module has single entry point - prune_partitions() function.
+
+
+  Range/index_merge/groupby-minmax optimizer module  
+    A module that accepts a table, condition, and returns 
+     - a QUICK_*_SELECT object that can be used to retrieve rows that match
+       the specified condition, or a "no records will match the condition" 
+       statement.
+
+    The module entry points are
+      test_quick_select()
+      get_quick_select_for_ref()
+
+
+  Record retrieval code for range/index_merge/groupby-min-max.
+    Implementations of QUICK_*_SELECT classes.
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -301,6 +327,11 @@ class SEL_IMERGE;
 class SEL_TREE :public Sql_alloc
 {
 public:
+  /*
+    Starting an effort to document this field:
+    (for some i, keys[i]->type == SEL_ARG::IMPOSSIBLE) => 
+       (type == SEL_TREE::IMPOSSIBLE)
+  */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
   SEL_TREE() :type(KEY)
@@ -354,6 +385,8 @@ public:
   */
   bool using_real_indexes;
   
+  bool remove_jump_scans;
+  
   /*
     used_key_no -> table_key_no translation table. Only makes sense if
     using_real_indexes==TRUE
@@ -380,7 +413,7 @@ public:
   uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
   uint imerge_cost_buff_size; /* size of the buffer */
 
- /* TRUE if last checked tree->key can be used for ROR-scan */
+  /* TRUE if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;
 };
 
@@ -1810,6 +1843,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.needed_reg= &needed_reg;
     param.imerge_cost_buff_size= 0;
     param.using_real_indexes= TRUE;
+    param.remove_jump_scans= TRUE;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -2005,6 +2039,87 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
  ****************************************************************************/
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 
+/*
+  PartitionPruningModule
+
+  This part of the code does partition pruning. Partition pruning solves the
+  following problem: given a query over partitioned tables, find partitions
+  that we will not need to access (i.e. partitions that we can assume to be
+  empty) when executing the query.
+  The set of partitions to prune doesn't depend on which query execution
+  plan will be used to execute the query.
+  
+  HOW IT WORKS
+  
+  Partition pruning module makes use of RangeAnalysisModule. The following
+  examples show how the problem of partition pruning can be reduced to the 
+  range analysis problem:
+  
+  EXAMPLE 1
+    Consider a query:
+    
+      SELECT * FROM t1 WHERE (t1.a < 5 OR t1.a = 10) AND t1.a > 3 AND t1.b='z'
+    
+    where table t1 is partitioned using PARTITION BY RANGE(t1.a).  An apparent
+    way to find the used (i.e. not pruned away) partitions is as follows:
+    
+    1. analyze the WHERE clause and extract the list of intervals over t1.a
+       for the above query we will get this list: {(3 < t1.a < 5), (t1.a=10)}
+
+    2. for each interval I
+       {
+         find partitions that have non-empty intersection with I;
+         mark them as used;
+       }
+       
+  EXAMPLE 2
+    Suppose the table is partitioned by HASH(part_func(t1.a, t1.b)). Then
+    we need to:
+
+    1. Analyze the WHERE clause and get a list of intervals over (t1.a, t1.b).
+       The list of intervals we'll obtain will look like this:
+       ((t1.a, t1.b) = (1,'foo')),
+       ((t1.a, t1.b) = (2,'bar')), 
+       ((t1,a, t1.b) > (10,'zz'))  (**)
+       
+    2. for each interval I 
+       {
+         if (the interval has form "(t1.a, t1.b) = (const1, const2)" )
+         {
+           calculate HASH(part_func(t1.a, t1.b));
+           find which partition has records with this hash value and mark
+             it as used;
+         }
+         else
+         {
+           mark all partitions as used; 
+           break;
+         }
+       }
+
+   For both examples the step #1 is exactly what RangeAnalysisModule could
+   be used to do, if it was provided with appropriate index description
+   (array of KEY_PART structures). 
+   In example #1, we need to provide it with description of index(t1.a), 
+   in example #2, we need to provide it with description of index(t1.a, t1.b).
+   
+   These index descriptions are further called "partitioning index
+   descriptions". Note that it doesn't matter if such indexes really exist,
+   as range analysis module only uses the description.
+   
+   Putting it all together, partitioning module works as follows:
+   
+   prune_partitions() {
+     call create_partition_index_descrition();
+
+     call get_mm_tree(); // invoke the RangeAnalysisModule
+     
+     // analyze the obtained interval list and get used partitions 
+     call find_used_partitions();
+  }
+
+*/
+
 struct st_part_prune_param;
 struct st_part_opt_info;
 
@@ -2019,7 +2134,7 @@ typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
 */
 typedef struct st_part_prune_param
 {
-  RANGE_OPT_PARAM range_param; /* Range optimizer parameters */
+  RANGE_OPT_PARAM range_param; /* Range analyzer parameters */
   
   /***************************************************************
    Following fields are filled in based solely on partitioning 
@@ -2096,18 +2211,30 @@ typedef struct st_part_prune_param
  
   /***************************************************************
    Following fields are used to store an 'iterator' that can be 
-   used to obtain a set of used of used partitions.
+   used to obtain a set of used artitions.
    **************************************************************/
   /* 
-    Start number, end number and 
+    Start and end+1 partition "numbers". They can have two meanings depending
+    depending of the value of part_num_to_part_id:
+    part_num_to_part_id_range - numbers are partition ids
+    part_num_to_part_id_list  - numbers are indexes in part_info->list_array
   */
-  part_num_to_partition_id_func part_num_to_part_id;
   uint32 start_part_num;
   uint32 end_part_num;
+
+  /* 
+    A function that should be used to convert two above "partition numbers"
+    to partition_ids.
+  */
+  part_num_to_partition_id_func part_num_to_part_id;
 } PART_PRUNE_PARAM;
 
 static bool create_partition_index_descrition(PART_PRUNE_PARAM *prune_par);
 static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree);
+static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
+                                       SEL_IMERGE *imerge);
+static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
+                                            List<SEL_IMERGE> &merges);
 static void mark_all_partitions_as_used(partition_info *part_info);
 static uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par, 
                                         uint32 num);
@@ -2185,6 +2312,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   range_par->keys= 1; // one index
   range_par->using_real_indexes= FALSE;
+  range_par->remove_jump_scans= FALSE;
   range_par->real_keynr[0]= 0;
 
   thd->no_errors=1;				// Don't warn about NULL
@@ -2196,8 +2324,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   int res;
 
   tree= get_mm_tree(range_par, pprune_cond);
-  if (!tree || (tree->type != SEL_TREE::KEY &&
-                tree->type != SEL_TREE::KEY_SMALLER))
+  if (!tree)
     goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
@@ -2205,6 +2332,9 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     retval= TRUE;
     goto end;
   }
+
+  if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+    goto all_used;
    
   if (tree->merges.is_empty())
   {
@@ -2220,27 +2350,30 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
   else
   {
-    res= 0;
-    DBUG_ASSERT(tree->merges.elements == 1);
-    SEL_IMERGE *imerge= tree->merges.head();
-    for (SEL_TREE **ptree= imerge->trees; ptree < imerge->trees_next; ptree++)
+    if (tree->merges.elements == 1)
     {
-      prune_param.arg_stack_end= prune_param.arg_stack;
-      prune_param.cur_part_fields= 0;
-      prune_param.cur_subpart_fields= 0;
-      prune_param.part_num_to_part_id= part_num_to_part_id_range;
-      prune_param.start_part_num= 0;
-      prune_param.end_part_num= prune_param.part_info->no_parts;
-      if (-1 == (res |= find_used_partitions(&prune_param, (*ptree)->keys[0])))
+      if (-1 == (res |= find_used_partitions_imerge(&prune_param,
+                                                    tree->merges.head())))
+        goto all_used;
+    }
+    else
+    {
+      if (-1 == (res |= find_used_partitions_imerge_list(&prune_param,
+                                                         tree->merges)))
         goto all_used;
     }
   }
   
-  if (!res)
-    retval= TRUE;
+  /*
+    res == 0 => no used partitions => retval=TRUE
+    res == 1 => some used partitions => retval=FALSE
+    res == -1 - we jump over this line to all_used:
+  */
+  retval= test(!res);
   goto end;
 
 all_used:
+  retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
   thd->no_errors=0;
@@ -2316,16 +2449,113 @@ static void mark_full_partition_used_with_parts(partition_info *part_info,
     bitmap_set_bit(&part_info->used_partitions, start);
 }
 
-static
-uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par, uint32 num)
+/* See comment in PART_PRUNE_PARAM::part_num_to_part_id about what this is */
+static uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* ppar, uint32 num)
 {
   return num; 
 }
 
-static
-uint32 part_num_to_part_id_list(PART_PRUNE_PARAM* prune_par, uint32 num)
+/* See comment in PART_PRUNE_PARAM::part_num_to_part_id about what this is */
+static uint32 part_num_to_part_id_list(PART_PRUNE_PARAM* ppar, uint32 num)
 {
-  return prune_par->part_info->list_array[num].partition_id;
+  return ppar->part_info->list_array[num].partition_id;
+}
+
+
+/*
+  Find the set of used partitions for List<SEL_IMERGE>
+  SYNOPSIS
+    find_used_partitions_imerge_list
+      ppar      Partition pruning context.
+      key_tree  Intervals tree to perform pruning for.
+      
+  DESCRIPTION
+    List<SEL_IMERGE> represents "imerge1 AND imerge2 AND ...". 
+    The set of used partitions is an intersection of used partitions sets
+    for imerge_{i}.
+    We accumulate this intersection a separate bitmap.
+ 
+  RETURN 
+    See find_used_partitions()
+*/
+
+static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
+                                            List<SEL_IMERGE> &merges)
+{
+  MY_BITMAP all_merges;
+  uint bitmap_bytes;
+  uint32 *bitmap_buf;
+  uint n_bits= ppar->part_info->used_partitions.n_bits;
+  bitmap_bytes= bitmap_buffer_size(n_bits);
+  if (!(bitmap_buf= (uint32*)alloc_root(ppar->range_param.mem_root,
+                                        bitmap_bytes)))
+  {
+    /* 
+      Fallback, process just first SEL_IMERGE. This can leave us with more
+      partitions marked as used then actually needed.
+    */
+    return find_used_partitions_imerge(ppar, merges.head());
+  }
+  bitmap_init(&all_merges, bitmap_buf, n_bits, FALSE);
+  bitmap_set_prefix(&all_merges, n_bits);
+  
+  List_iterator<SEL_IMERGE> it(merges);
+  SEL_IMERGE *imerge;
+  while ((imerge=it++))
+  {
+    int res= find_used_partitions_imerge(ppar, imerge);
+    if (!res)
+    {
+      /* no used partitions on one ANDed imerge => no used partitions at all */
+      return 0;
+    }
+    
+    if (res != -1)
+      bitmap_intersect(&all_merges, &ppar->part_info->used_partitions);
+
+    if (bitmap_is_clear_all(&all_merges))
+      return 0;
+
+    bitmap_clear_all(&ppar->part_info->used_partitions);
+  }
+  memcpy(ppar->part_info->used_partitions.bitmap, all_merges.bitmap,
+         bitmap_bytes);
+  return 1;
+}
+
+
+/*
+  Find the set of used partitions for SEL_IMERGE structure
+  SYNOPSIS
+    find_used_partitions_imerge()
+      ppar      Partition pruning context.
+      key_tree  Intervals tree to perform pruning for.
+      
+  DESCRIPTION
+    SEL_IMERGE represents "tree1 OR tree2 OR ...". The implementation is
+    trivial - just use mark used partitions for each tree and bail out early
+    if for some tree_{i} all partitions are used.
+ 
+  RETURN 
+    See find_used_partitions().
+*/
+
+static
+int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
+{
+  int res= 0;
+  for (SEL_TREE **ptree= imerge->trees; ptree < imerge->trees_next; ptree++)
+  {
+    ppar->arg_stack_end= ppar->arg_stack;
+    ppar->cur_part_fields= 0;
+    ppar->cur_subpart_fields= 0;
+    ppar->part_num_to_part_id= part_num_to_part_id_range;
+    ppar->start_part_num= 0;
+    ppar->end_part_num= ppar->part_info->no_parts;
+    if (-1 == (res |= find_used_partitions(ppar, (*ptree)->keys[0])))
+      return -1;
+  }
+  return res;
 }
 
 
@@ -2370,8 +2600,8 @@ uint32 part_num_to_part_id_list(PART_PRUNE_PARAM* prune_par, uint32 num)
     1   OK, one or more [sub]partitions are marked as used.
     0   The passed condition doesn't match any partitions
    -1   Couldn't infer any partition pruning "intervals" from the passed 
-        SEL_ARG* tree. Marking partitions as used is the responsibility of
-        the caller.
+        SEL_ARG* tree (which means that all partitions should be marked as
+        used) Marking partitions as used is the responsibility of the caller.
 */
 
 static 
@@ -2401,11 +2631,15 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                                                     key_parts););
       /* Find minimum */
       if (key_tree->min_flag & NO_MIN_RANGE)
-      {
         ppar->start_part_num= 0;
-      }
       else
       {
+        /*
+          Store the interval edge in the record buffer, and call the
+          function that maps the edge in table-field space to an edge
+          in ordered-set-of-partitions (for RANGE partitioning) or 
+          indexes-in-ordered-array-of-list-constants (for LIST) space.
+        */
         store_key_image_to_rec(key_tree->field, key_tree->min_value, 
                                ppar->range_param.key_parts[0].length);
         bool include_endp= ppar->force_include_bounds ||
@@ -2419,11 +2653,9 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         }
       }
 
-      /* Find maximum */
-      if (key_tree->min_flag & NO_MAX_RANGE)
-      {
+      /* Find maximum, do the same as above but for right interval bound */
+      if (key_tree->max_flag & NO_MAX_RANGE)
         ppar->end_part_num= ppar->max_endpoint_val;
-      }
       else
       {
         store_key_image_to_rec(key_tree->field, key_tree->max_value,
@@ -2441,7 +2673,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       ppar->part_num_to_part_id= ppar->endpoints_walk_func;
 
       /* 
-        Save our intent to mark full partition as used if we will not be able 
+        Save our intent to mark full partition as used if we will not be able
         to obtain further limits on subpartitions
       */
       set_full_part_if_bad_ret= TRUE;
@@ -2507,7 +2739,6 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
           bitmap_set_bit(&part_info->used_partitions,
                          ppar->part_num_to_part_id(ppar, num) * 
                          part_info->no_subparts + subpart_id);
-          ppar->start_part_num++;
         }
         res= 1; /* Some partitions were marked as used */
         goto pop_and_go_right;
@@ -2726,8 +2957,7 @@ static bool create_partition_index_descrition(PART_PRUNE_PARAM *ppar)
     key_part->length=       (*field)->pack_length_in_rec();
     /* 
       psergey-todo: check yet again if this is correct for tricky field types,
-        e.g. see "Fix a fatal error in decimal key handling" in 
-        open_binary_frm().
+      e.g. see "Fix a fatal error in decimal key handling" in open_binary_frm()
     */
     key_part->store_length= (*field)->pack_length();
     if ((*field)->real_maybe_null())
@@ -2768,7 +2998,7 @@ static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end)
   {
     fprintf(DBUG_FILE, "%s%s", p==parts?"":" ,", p->field->field_name);
   }
-  fprintf(DBUG_FILE, ");\n");
+  fputs(");\n", DBUG_FILE);
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
@@ -2780,7 +3010,9 @@ static void dbug_print_field(Field *field)
     fprintf(DBUG_FILE, "NULL");
   else
   {
-    String str;
+    char buf[256];
+    String str(buf, sizeof(buf), &my_charset_bin);
+    str.length(0);
     String *pstr;
     pstr= field->val_str(&str);
     fprintf(DBUG_FILE, "'%s'", pstr->c_ptr_safe());
@@ -2795,7 +3027,7 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
   DBUG_LOCK_FILE;
   if (!(arg->min_flag & NO_MIN_RANGE))
   {
-    arg->field->set_key_image((char*)(arg->min_value), part->length); 
+    store_key_image_to_rec(part->field, (char*)(arg->min_value), part->length);
     dbug_print_field(part->field);
     if (arg->min_flag & NEAR_MIN)
       fputs(" < ", DBUG_FILE);
@@ -2811,9 +3043,10 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
       fputs(" < ", DBUG_FILE);
     else
       fputs(" <= ", DBUG_FILE);
-    arg->field->set_key_image((char*)(arg->max_value), part->length); 
+    store_key_image_to_rec(part->field, (char*)(arg->min_value), part->length);
     dbug_print_field(part->field);
   }
+  fputs("\n", DBUG_FILE);
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
@@ -2837,12 +3070,14 @@ static void dbug_print_onepoint_range(SEL_ARG **start, uint num)
   DBUG_ENTER("dbug_print_onepoint_range");
   DBUG_LOCK_FILE;
   SEL_ARG **end= start + num;
+
   for (SEL_ARG **arg= start; arg != end; arg++)
   {
     Field *field= (*arg)->field;
     fprintf(DBUG_FILE, "%s%s=", (arg==start)?"":", ", field->field_name);
     dbug_print_field(field);
   }
+  fputs("\n", DBUG_FILE);
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
@@ -5062,7 +5297,8 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   using index_merge.
 */
 
-bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, RANGE_OPT_PARAM* param)
+bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, 
+                           RANGE_OPT_PARAM* param)
 {
   key_map common_keys= tree1->keys_map;
   DBUG_ENTER("sel_trees_can_be_ored");
@@ -5087,6 +5323,79 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, RANGE_OPT_PARAM* pa
   }
   DBUG_RETURN(FALSE);
 }
+
+
+/*
+  Remove the trees that are not suitable for record retrieval.
+  SYNOPSIS
+    param  Range analysis parameter
+    tree   Tree to be processed, tree->type is KEY or KEY_SMALLER
+ 
+  DESCRIPTION
+    This function walks through tree->keys[] and removes the SEL_ARG* trees
+    that are not "maybe" trees (*) and cannot be used to construct quick range
+    selects.
+    (*) - have type MAYBE or MAYBE_KEY. Perhaps we should remove trees of
+          these types here as well.
+
+    A SEL_ARG* tree cannot be used to construct quick select if it has
+    tree->part != 0. (e.g. it could represent "keypart2 < const").
+
+    WHY THIS FUNCTION IS NEEDED
+    
+    Normally we allow construction of SEL_TREE objects that have SEL_ARG
+    trees that do not allow quick range select construction. For example for
+    " keypart1=1 AND keypart2=2 " the execution will proceed as follows:
+    tree1= SEL_TREE { SEL_ARG{keypart1=1} }
+    tree2= SEL_TREE { SEL_ARG{keypart2=2} } -- can't make quick range select
+                                               from this
+    call tree_and(tree1, tree2) -- this joins SEL_ARGs into a usable SEL_ARG
+                                   tree.
+    
+    There is an exception though: when we construct index_merge SEL_TREE,
+    any SEL_ARG* tree that cannot be used to construct quick range select can
+    be removed, because current range analysis code doesn't provide any way
+    that tree could be later combined with another tree.
+    Consider an example: we should not construct
+    st1 = SEL_TREE { 
+      merges = SEL_IMERGE { 
+                            SEL_TREE(t.key1part1 = 1), 
+                            SEL_TREE(t.key2part2 = 2)   -- (*)
+                          } 
+                   };
+    because 
+     - (*) cannot be used to construct quick range select, 
+     - There is no execution path that would cause (*) to be converted to 
+       a tree that could be used.
+
+    The latter is easy to verify: first, notice that the only way to convert
+    (*) into a usable tree is to call tree_and(something, (*)).
+
+    Second look at what tree_and/tree_or function would do when passed a
+    SEL_TREE that has the structure like st1 tree has, and conlcude that 
+    tree_and(something, (*)) will not be called.
+
+  RETURN
+    0  Ok, some suitable trees left
+    1  No tree->keys[] left.
+*/
+
+static bool remove_nonrange_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree)
+{
+  bool res= FALSE;
+  for (uint i=0; i < param->keys; i++)
+  {
+    if (tree->keys[i])
+    {
+      if (tree->keys[i]->part)
+        tree->keys[i]= NULL;
+      else
+        res= TRUE;
+    }
+  }
+  return res;
+}
+
 
 static SEL_TREE *
 tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
@@ -5131,6 +5440,13 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     /* ok, two trees have KEY type but cannot be used without index merge */
     if (tree1->merges.is_empty() && tree2->merges.is_empty())
     {
+      if (param->remove_jump_scans)
+      {
+        bool no_trees= remove_nonrange_trees(param, tree1);
+        no_trees= no_trees || remove_nonrange_trees(param, tree2);
+        if (no_trees)
+          DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
+      }
       SEL_IMERGE *merge;
       /* both trees are "range" trees, produce new index merge structure */
       if (!(result= new SEL_TREE()) || !(merge= new SEL_IMERGE()) ||
@@ -5153,7 +5469,9 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       /* one tree is index merge tree and another is range tree */
       if (tree1->merges.is_empty())
         swap_variables(SEL_TREE*, tree1, tree2);
-
+      
+      if (param->remove_jump_scans && remove_nonrange_trees(param, tree2))
+         DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
       /* add tree2 to tree1->merges, checking if it collapses to ALWAYS */
       if (imerge_list_or_tree(param, &tree1->merges, tree2))
         result= new SEL_TREE(SEL_TREE::ALWAYS);
