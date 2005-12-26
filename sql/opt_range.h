@@ -249,6 +249,7 @@ public:
 
 
 struct st_qsel_param;
+class PARAM;
 class SEL_ARG;
 
 /*
@@ -283,12 +284,12 @@ protected:
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                                struct st_table_ref *ref,
                                                ha_rows records);
-  friend bool get_quick_keys(struct st_qsel_param *param,
+  friend bool get_quick_keys(PARAM *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
                              char *min_key, uint min_key_flag,
                              char *max_key, uint max_key_flag);
-  friend QUICK_RANGE_SELECT *get_quick_select(struct st_qsel_param*,uint idx,
+  friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
                                               SEL_ARG *key_tree,
                                               MEM_ROOT *alloc);
   friend class QUICK_SELECT_DESC;
@@ -717,5 +718,9 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);
 uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
+#endif
 
 #endif

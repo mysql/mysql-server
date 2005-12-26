@@ -300,6 +300,7 @@ struct st_table {
   FILESORT_INFO sort;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
+  bool no_partitions_used; /* If true, all partitions have been pruned away */
 #endif
 
   bool fill_item_list(List<Item> *item_list) const;
