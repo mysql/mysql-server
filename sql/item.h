@@ -368,6 +368,28 @@ public:
   }
 };
 
+
+/*
+  This enum is used to report information about monotonicity of function
+  represented by Item* tree.
+  Monotonicity is defined only for Item* trees that represent table
+  partitioning expressions (i.e. have no subselects/user vars/PS parameters
+  etc etc). An Item* tree is assumed to have the same monotonicity properties
+  as its correspoinding function F:
+
+  [signed] longlong F(field1, field2, ...) {
+    put values of field_i into table record buffer;
+    return item->val_int(); 
+  }
+*/
+
+typedef enum monotonicity_info 
+{
+   NON_MONOTONIC,              /* none of the below holds */
+   MONOTONIC_INCREASING,       /* F() is unary and "x < y" => "F(x) <  F(y)" */
+   MONOTONIC_STRICT_INCREASING /* F() is unary and "x < y" => "F(x) <= F(y)" */
+} enum_monotonicity_info;
+
 /*************************************************************************/
 
 typedef bool (Item::*Item_processor)(byte *arg);
@@ -466,6 +488,15 @@ public:
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
+  
+  /*
+    Return information about function monotonicity. See comment for
+    enum_monotonicity_info for details. This function can only be called
+    after fix_fields() call.
+  */
+  virtual enum_monotonicity_info get_monotonicity_info() const
+  { return NON_MONOTONIC; }
+
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   /*
     Return double precision floating point representation of item.
@@ -1139,6 +1170,10 @@ public:
   enum_field_types field_type() const
   {
     return field->type();
+  }
+  enum_monotonicity_info get_monotonicity_info() const
+  {
+    return MONOTONIC_STRICT_INCREASING;
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }

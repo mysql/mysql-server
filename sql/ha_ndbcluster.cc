@@ -3121,7 +3121,6 @@ void ha_ndbcluster::info(uint flag)
   DBUG_VOID_RETURN;
 }
 
-
 int ha_ndbcluster::extra(enum ha_extra_function operation)
 {
   DBUG_ENTER("extra");
@@ -3130,6 +3129,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_RESET"));
     DBUG_PRINT("info", ("Clearing condition stack"));
     cond_clear();
+    if (m_part_info)
+      bitmap_clear_all(&m_part_info->used_partitions);
     break;
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));

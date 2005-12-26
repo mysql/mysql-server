@@ -7419,7 +7419,9 @@ describe_command:
 opt_extended_describe:
 	/* empty */ {}
 	| EXTENDED_SYM { Lex->describe|= DESCRIBE_EXTENDED; }
+	| PARTITIONS_SYM { Lex->describe|= DESCRIBE_PARTITIONS; }
 	;
+
 
 opt_describe_column:
 	/* empty */	{}
