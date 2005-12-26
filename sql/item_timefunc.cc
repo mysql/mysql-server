@@ -885,6 +885,19 @@ longlong Item_func_to_days::val_int()
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
 }
 
+enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM)
+  {
+    if (args[0]->field_type() == MYSQL_TYPE_DATE)
+      return MONOTONIC_STRICT_INCREASING;
+    if (args[0]->field_type() == MYSQL_TYPE_DATETIME)
+      return MONOTONIC_INCREASING;
+  }
+  return NON_MONOTONIC;
+}
+
+
 longlong Item_func_dayofyear::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1067,6 +1080,14 @@ longlong Item_func_year::val_int()
   return (longlong) ltime.year;
 }
 
+enum_monotonicity_info Item_func_year::get_monotonicity_info() const
+{
+  if (args[0]->type() == Item::FIELD_ITEM &&
+      (args[0]->field_type() == MYSQL_TYPE_DATE ||
+       args[0]->field_type() == MYSQL_TYPE_DATETIME))
+    return MONOTONIC_INCREASING;
+  return NON_MONOTONIC;
+}
 
 longlong Item_func_unix_timestamp::val_int()
 {

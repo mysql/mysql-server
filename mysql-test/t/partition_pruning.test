@@ -1,0 +1,238 @@
+#
+# Partition pruning tests. Currently we only detect which partitions to
+# prune, so the test is EXPLAINs.
+#
+-- source include/have_partition.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
+
+
+# Check if we can infer from condition on partition fields that 
+# no records will match.
+create table t1 ( a int not null) partition by hash(a) partitions 2;
+insert into t1 values (1),(2),(3);
+explain select * from t1 where a=5 and a=6;
+drop table t1;
+
+# Simple HASH partitioning
+create table t1 (
+  a int(11) not null
+) partition by hash (a) partitions 2;
+insert into t1 values (1),(2),(3);
+
+explain partitions select * from t1 where a=1;
+explain partitions select * from t1 where a=2;
+explain partitions select * from t1 where a=1 or a=2;
+
+# Partitioning over several fields
+create table t2 (
+  a int not null,
+  b int not null
+) partition by key(a,b) partitions 2;
+insert into t2 values (1,1),(2,2),(3,3);
+
+explain partitions select * from t2 where a=1;
+explain partitions select * from t2 where b=1;
+
+explain partitions select * from t2 where a=1 and b=1;
+
+# RANGE(expr) partitioning 
+create table t3 (
+  a int
+)
+partition by range (a*1) ( 
+  partition p0 values less than (10),
+  partition p1 values less than (20)
+);
+insert into t3 values (5),(15);
+
+explain partitions select * from t3 where a=11;
+explain partitions select * from t3 where a=10;
+explain partitions select * from t3 where a=20;
+
+explain partitions select * from t3 where a=30;
+
+# LIST(expr) partitioning
+create table t4 (a int not null, b int not null) partition by LIST (a+b) (
+  partition p0 values in (12),
+  partition p1 values in (14)
+);
+insert into t4 values (10,2), (10,4);
+
+# empty OR one
+explain partitions select * from t4 where (a=10 and b=1) or (a=10 and b=2);
+
+# empty OR one OR empty
+explain partitions select * from t4 
+  where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
+
+# one OR empty OR one
+explain partitions select * from t4 where (a=10 and b=2) or (a=10 and b=3)
+  or (a=10 and b = 4);
+
+# empty OR full
+explain partitions select * from t4 where (a=10 and b=1) or a=11;
+
+# one OR full
+explain partitions select * from t4 where (a=10 and b=2) or a=11;
+
+drop table t1, t2, t3, t4;
+
+# LIST(expr)/HASH subpartitioning.
+create table t5 (a int not null, b int not null, 
+                 c int not null, d int not null) 
+partition by LIST(a+b) subpartition by HASH (c+d) subpartitions 2
+(
+  partition p0 values in (12),
+  partition p1 values in (14)
+);
+ 
+insert into t5 values (10,2,0,0), (10,4,0,0), (10,2,0,1), (10,4,0,1);
+explain partitions select * from t5;
+
+# empty OR one OR empty
+explain partitions select * from t5
+  where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
+
+# one OR empty OR one
+explain partitions select * from t5 where (a=10 and b=2) or (a=10 and b=3)
+  or (a=10 and b = 4);
+
+# conditions on subpartitions only
+explain partitions select * from t5 where (c=1 and d=1);
+explain partitions select * from t5 where (c=2 and d=1);
+
+# mixed partition/subpartitions.
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+(c=2 and d=1);
+
+# same as above
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+(b=2 and c=2 and d=1);
+
+# LIST(field) partitioning, interval analysis.
+create table t6 (a int not null) partition by LIST(a) (
+  partition p1 values in (1),
+  partition p3 values in (3),
+  partition p5 values in (5),
+  partition p7 values in (7),
+  partition p9 values in (9)
+);
+insert into t6 values (1),(3),(5);
+
+explain partitions select * from t6 where a <  1;
+explain partitions select * from t6 where a <= 1;
+explain partitions select * from t6 where a >  9;
+explain partitions select * from t6 where a >= 9;
+
+explain partitions select * from t6 where a > 0 and a < 5;
+explain partitions select * from t6 where a > 5 and a < 12;
+explain partitions select * from t6 where a > 3 and a < 8 ;
+
+explain partitions select * from t6 where a >= 0 and a <= 5;
+explain partitions select * from t6 where a >= 5 and a <= 12;
+explain partitions select * from t6 where a >= 3 and a <= 8;
+
+explain partitions select * from t6 where a > 3 and a < 5;
+
+# RANGE(field) partitioning, interval analysis.
+create table t7 (a int not null) partition by RANGE(a) (
+  partition p10 values less than (10),
+  partition p30 values less than (30),
+  partition p50 values less than (50),
+  partition p70 values less than (70),
+  partition p90 values less than (90)
+);
+insert into t7 values (10),(30),(50);
+
+# leftmost intervals
+explain partitions select * from t7 where a < 5;
+explain partitions select * from t7 where a < 10;
+explain partitions select * from t7 where a <= 10;
+explain partitions select * from t7 where a = 10;
+
+#rightmost intervals
+explain partitions select * from t7 where a < 90;
+explain partitions select * from t7 where a = 90;
+explain partitions select * from t7 where a > 90;
+explain partitions select * from t7 where a >= 90;
+
+# misc intervals
+explain partitions select * from t7 where a > 11 and a < 29;
+
+# LIST(monontonic_func) partitioning
+create table t8 (a date not null) partition by RANGE(YEAR(a)) (
+  partition p0 values less than (1980),
+  partition p1 values less than (1990),
+  partition p2 values less than (2000)
+);
+insert into t8 values ('1985-05-05'),('1995-05-05');
+
+explain partitions select * from t8 where a < '1980-02-02';
+
+# LIST(strict_monotonic_func) partitioning
+create table t9 (a date not null) partition by RANGE(TO_DAYS(a)) (
+  partition p0 values less than (732299), -- 2004-12-19
+  partition p1 values less than (732468), -- 2005-06-06
+  partition p2 values less than (732664)  -- 2005-12-19
+);
+insert into t9 values ('2005-05-05'), ('2005-04-04');
+
+explain partitions select * from t9 where a <  '2004-12-19';
+explain partitions select * from t9 where a <= '2004-12-19';
+
+drop table t5,t6,t7,t8,t9;
+
+# Test the case where we can't create partitioning 'index'
+create table t1 (a enum('a','b','c','d') default 'a') 
+  partition by hash (ascii(a)) partitions 2;
+insert into t1 values ('a'),('b'),('c');
+explain partitions select * from t1 where a='b';
+drop table t1;
+
+#
+# Test cases for bugs found in code review:
+#
+create table t1 (
+  a1 int not null
+)
+partition by range (a1) (
+  partition p0 values less than (3),
+  partition p1 values less than (6),
+  partition p2 values less than (9)
+);
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a1 > 3;
+explain partitions select * from t1 where a1 >= 3;
+
+explain partitions select * from t1 where a1 < 3 and a1 > 3;
+drop table t1;
+
+#
+create table t3 (a int, b int) 
+  partition by list(a) subpartition by hash(b) subpartitions 4 (
+    partition p0 values in (1),
+    partition p1 values in (2),
+    partition p2 values in (3),
+    partition p3 values in (4)
+  );
+insert into t3 values (1,1),(2,2),(3,3);
+
+explain partitions select * from t3 where a=2 or b=1;
+explain partitions select * from t3 where a=4 or b=2;
+explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
+drop table t3;
+
+# Test for NULLs
+create table t1 (a int) partition by hash(a) partitions 2;
+insert into t1 values (1),(2);
+explain partitions select * from t1 where a is null;
+
+# this selects both
+explain partitions select * from t1 where a is not null;
+drop table t1;
+
+# No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
+# being fixed.
