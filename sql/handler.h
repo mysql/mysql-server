@@ -547,19 +547,52 @@ public:
 
   List<char> part_field_list;
   List<char> subpart_field_list;
-
+  
+  /* 
+    If there is no subpartitioning, use only this func to get partition ids.
+    If there is subpartitioning, use the this func to get partition id when
+    you have both partition and subpartition fields.
+  */
   get_part_id_func get_partition_id;
-  get_part_id_func get_part_partition_id;
-  get_subpart_id_func get_subpartition_id;
 
+  /* Get partition id when we don't have subpartition fields */
+  get_part_id_func get_part_partition_id;
+
+  /* 
+    Get subpartition id when we have don't have partition fields by we do
+    have subpartition ids.
+    Mikael said that for given constant tuple 
+    {subpart_field1, ..., subpart_fieldN} the subpartition id will be the
+    same in all subpartitions
+  */
+  get_subpart_id_func get_subpartition_id;
+  
+  /* NULL-terminated list of fields used in partitioned expression */
   Field **part_field_array;
+  /* NULL-terminated list of fields used in subpartitioned expression */
   Field **subpart_field_array;
+
+  /* 
+    Array of all fields used in partition and subpartition expression,
+    without duplicates, NULL-terminated.
+  */
   Field **full_part_field_array;
 
   Item *part_expr;
   Item *subpart_expr;
 
   Item *item_free_list;
+  
+  /* 
+    A bitmap of partitions used by the current query. 
+    Usage pattern:
+    * It is guaranteed that all partitions are set to be unused on query start.
+    * Before index/rnd_init(), partition pruning code sets the bits for used
+      partitions.
+    * The handler->extra(HA_EXTRA_RESET) call at query end sets all partitions
+      to be unused.
+  */
+  MY_BITMAP used_partitions;
 
   union {
     longlong *range_int_array;
@@ -760,6 +793,13 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
 bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             uint part_info_len, TABLE *table,
                             handlerton *default_db_type);
+void make_used_partitions_str(partition_info *part_info, String *parts_str);
+uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
+                                       bool left_endpoint,
+                                       bool include_endpoint);
+uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
+                                           bool left_endpoint,
+                                           bool include_endpoint);
 #endif
 
 
