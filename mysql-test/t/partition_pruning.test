@@ -223,6 +223,7 @@ insert into t3 values (1,1),(2,2),(3,3);
 explain partitions select * from t3 where a=2 or b=1;
 explain partitions select * from t3 where a=4 or b=2;
 explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
+drop table t3;
 
 # Test for NULLs
 create table t1 (a int) partition by hash(a) partitions 2;
