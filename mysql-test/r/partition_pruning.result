@@ -249,6 +249,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	p1_sp2,p3_sp1	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t3;
 create table t1 (a int) partition by hash(a) partitions 2;
 insert into t1 values (1),(2);
 explain partitions select * from t1 where a is null;
