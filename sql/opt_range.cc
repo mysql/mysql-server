@@ -5388,7 +5388,10 @@ static bool remove_nonrange_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree)
     if (tree->keys[i])
     {
       if (tree->keys[i]->part)
+      {
         tree->keys[i]= NULL;
+        tree->keys_map.clear_bit(i);
+      }
       else
         res= TRUE;
     }
