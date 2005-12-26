@@ -2,7 +2,7 @@
 # SQL Syntax for Prepared Statements test
 #
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4;
 
 # Avoid wrong warnings if mysql_client_test fails
 drop database if exists client_test_db;
