@@ -5393,7 +5393,7 @@ static bool remove_nonrange_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree)
         res= TRUE;
     }
   }
-  return res;
+  return !res;
 }
 
 
