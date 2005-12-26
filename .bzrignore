@@ -1660,3 +1660,4 @@ zlib/*.ds?
 zlib/*.vcproj
 client/mysqlslap
 storage/archive/archive_test
+item_xmlfunc.cc
