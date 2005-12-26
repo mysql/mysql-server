@@ -2493,9 +2493,10 @@ notfound:
   DBUG_RETURN(TRUE);
 }
 
+
 /*
-  Find the part of part_info->list_array that corresponds to given interval
-  
+  Find the sub-array part_info->list_array that corresponds to given interval
+
   SYNOPSIS 
     get_list_array_idx_for_endpoint()
       part_info         Partitioning info (partitioning type must be LIST)
@@ -2504,17 +2505,16 @@ notfound:
       include_endpoint  TRUE iff the interval includes the endpoint
 
   DESCRIPTION
-    This function finds the part of part_info->list_array where values of
+    This function finds the sub-array of part_info->list_array where values of
     list_array[idx].list_value are contained within the specifed interval.
     list_array is ordered by list_value, so
     1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the 
-       sought array part starts at some index idx and continues till array 
-       end.
+       sought sub-array starts at some index idx and continues till array end.
        The function returns first number idx, such that 
        list_array[idx].list_value is contained within the passed interval.
        
     2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
-       sought array part starts at array start and continues till some last 
+       sought sub-array starts at array start and continues till some last 
        index idx.
        The function returns first number idx, such that 
        list_array[idx].list_value is NOT contained within the passed interval.
@@ -2522,14 +2522,14 @@ notfound:
        returned.
 
   NOTE
-    The caller will call this function and then will run along the part of 
+    The caller will call this function and then will run along the sub-array of
     list_array to collect partition ids. If the number of list values is 
     significantly higher then number of partitions, this could be slow and
     we could invent some other approach. The "run over list array" part is
     already wrapped in a get_next()-like function.
 
   RETURN
-    The edge of corresponding part_info->list_array part.
+    The edge of corresponding sub-array of part_info->list_array
 */
 
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
@@ -2541,6 +2541,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   uint list_index;
   longlong list_value;
   uint min_list_index= 0, max_list_index= part_info->no_list_values - 1;
+  /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_info->part_expr->val_int();
   while (max_list_index >= min_list_index)
   {
@@ -2596,8 +2597,8 @@ bool get_partition_id_range(partition_info *part_info,
 
 
 /*
-  Find the part of part_info->range_int_array that covers the given interval
-  
+  Find the sub-array of part_info->range_int_array that covers given interval
+ 
   SYNOPSIS 
     get_partition_id_range_for_endpoint()
       part_info         Partitioning info (partitioning type must be RANGE)
@@ -2607,9 +2608,9 @@ bool get_partition_id_range(partition_info *part_info,
                         interval
 
   DESCRIPTION
-    This function finds the part of part_info->range_int_array where the
+    This function finds the sub-array of part_info->range_int_array where the
     elements have non-empty intersections with the given interval.
-    
+ 
     A range_int_array element at index idx represents the interval
       
       [range_int_array[idx-1], range_int_array[idx]),
@@ -2617,14 +2618,13 @@ bool get_partition_id_range(partition_info *part_info,
     intervals are disjoint and ordered by their right bound, so
     
     1. For [a; +inf) or (a; +inf)-type intervals (left_endpoint==TRUE), the
-       sought array part starts at some index idx and continues till array 
-       end.
+       sought sub-array starts at some index idx and continues till array end.
        The function returns first number idx, such that the interval
        represented by range_int_array[idx] has non empty intersection with 
        the passed interval.
        
     2. For (-inf; a] or (-inf; a)-type intervals (left_endpoint==FALSE), the
-       sought array part starts at array start and continues till some last 
+       sought sub-array starts at array start and continues till some last
        index idx.
        The function returns first number idx, such that the interval
        represented by range_int_array[idx] has EMPTY intersection with the
@@ -2634,7 +2634,7 @@ bool get_partition_id_range(partition_info *part_info,
        returned.
        
   RETURN
-    The edge of corresponding part_info->range_int_array part.
+    The edge of corresponding part_info->range_int_array sub-array.
 */
 
 uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
@@ -2645,6 +2645,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   longlong *range_array= part_info->range_int_array;
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
+  /* Get the partitioning function value for the endpoint */
   longlong part_func_value= part_info->part_expr->val_int();
   while (max_part_id > min_part_id)
   {
