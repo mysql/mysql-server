@@ -854,8 +854,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_real_table_in_list(update_tables, table_ref->db,
-				table_ref->real_name))
+	mysql_lock_have_duplicate(thd, table, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);
