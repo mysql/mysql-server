@@ -11137,7 +11137,7 @@ void Dbdih::initCommonData()
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
   if (cnoReplicas > 4)
   {
-    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+    progError(__LINE__, ERR_INVALID_CONFIG,
 	      "Only up to four replicas are supported. Check NoOfReplicas.");
   }
 
