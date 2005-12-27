@@ -3467,11 +3467,19 @@ void set_key_field_ptr(KEY *key_info, const byte *new_buf,
 
 
 /*
-  Fill the string comma-separated line of used partitions names
+  Return comma-separated list of used partitions in the provided given string
+
   SYNOPSIS
     make_used_partitions_str()
       part_info  IN  Partitioning info
       parts_str  OUT The string to fill
+
+  DESCRIPTION
+    Generate a list of used partitions (from bits in part_info->used_partitions
+    bitmap), asd store it into the provided String object.
+    
+  NOTE
+    The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
 */
 
 void make_used_partitions_str(partition_info *part_info, String *parts_str)
