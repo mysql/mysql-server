@@ -203,3 +203,14 @@ ALTER TABLE t1 REORGANISE PARTITION x0,x1,x2 INTO
 (PARTITION x1 VALUES LESS THAN (6));
 show create table t1;
 drop table t1;
+
+# Testcase for BUG#15819
+create table t1 (a int not null, b int not null) partition by LIST (a+b) (
+  partition p0 values in (12),
+  partition p1 values in (14)
+);
+--error 1500
+insert into t1 values (10,1);
+
+drop table t1;
+
