@@ -986,7 +986,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                uint offset_to_list,
                                const char *db_name,
                                const char *table_name);
-TABLE_LIST *unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
+TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table);
@@ -1274,6 +1274,8 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
 bool mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
+TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
+                                      TABLE_LIST *haystack);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
 bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
