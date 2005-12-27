@@ -2797,7 +2797,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - Row-based replication is on
   - It is not a temporary table
   - The binlog is enabled
-  - The table shall be binlogged (binlog_*_db rules) [Seems disabled /Matz]
+  - The table shall be binlogged (binlog_*_db rules)
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
@@ -2806,7 +2806,8 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   return
     binlog_row_based &&
     thd && (thd->options & OPTION_BIN_LOG) &&
-    (table->s->tmp_table == NO_TMP_TABLE);
+    (table->s->tmp_table == NO_TMP_TABLE) &&
+    binlog_filter->db_ok(table->s->db.str);
 }
 
 template<class RowsEventT> int binlog_log_row(TABLE* table,
