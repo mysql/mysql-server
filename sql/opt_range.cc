@@ -313,11 +313,46 @@ public:
   }
   SEL_ARG *clone_tree();
 
-  /* Return TRUE if this represents "keypartK = const" or "keypartK IS NULL" */
+
+  /*
+    Check if this SEL_ARG object represents a single-point interval
+
+    SYNOPSIS
+      is_singlepoint()
+    
+    DESCRIPTION
+      Check if this SEL_ARG object (not tree) represents a single-point
+      interval, i.e. if it represents a "keypart = const" or 
+      "keypart IS NULL".
+
+    RETURN
+      TRUE   This SEL_ARG object represents a singlepoint interval
+      FALSE  Otherwise
+  */
+
   bool is_singlepoint()
   {
-    return !min_flag && !max_flag && 
-           !field->key_cmp((byte*) min_value, (byte*)max_value);
+    /* 
+      Check for NEAR_MIN ("strictly less") and NO_MIN_RANGE (-inf < field) 
+      flags, and the same for right edge.
+    */
+    if (min_flag || max_flag)
+      return FALSE;
+    byte *min_val= min_value;
+    byte *max_val= min_value;
+
+    if (maybe_null)
+    {
+      /* First byte is a NULL value indicator */
+      if (*min_val != *max_val)
+        return FALSE;
+
+      if (*min_val)
+        return TRUE; /* This "x IS NULL" */
+      min_val++;
+      max_val++;
+    }
+    return !field->key_cmp(min_val, max_val);
   }
 };
 
@@ -2110,7 +2145,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
    Putting it all together, partitioning module works as follows:
    
    prune_partitions() {
-     call create_partition_index_descrition();
+     call create_partition_index_description();
 
      call get_mm_tree(); // invoke the RangeAnalysisModule
      
@@ -2229,7 +2264,7 @@ typedef struct st_part_prune_param
   part_num_to_partition_id_func part_num_to_part_id;
 } PART_PRUNE_PARAM;
 
-static bool create_partition_index_descrition(PART_PRUNE_PARAM *prune_par);
+static bool create_partition_index_description(PART_PRUNE_PARAM *prune_par);
 static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree);
 static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
                                        SEL_IMERGE *imerge);
@@ -2243,7 +2278,7 @@ static uint32 part_num_to_part_id_range(PART_PRUNE_PARAM* prune_par,
 static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end);
 static void dbug_print_field(Field *field);
 static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part);
-static void dbug_print_onepoint_range(SEL_ARG **start, uint num);
+static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 #endif
 
 
@@ -2297,7 +2332,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->mem_root= &alloc;
   range_par->old_root= thd->mem_root;
 
-  if (create_partition_index_descrition(&prune_param))
+  if (create_partition_index_description(&prune_param))
   {
     mark_all_partitions_as_used(part_info);
     free_root(&alloc,MYF(0));		// Return memory & allocator
@@ -2335,9 +2370,10 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
     goto all_used;
-   
+
   if (tree->merges.is_empty())
   {
+    /* Range analysis has produced a single list of intervals. */
     prune_param.arg_stack_end= prune_param.arg_stack;
     prune_param.cur_part_fields= 0;
     prune_param.cur_subpart_fields= 0;
@@ -2352,14 +2388,30 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   {
     if (tree->merges.elements == 1)
     {
-      if (-1 == (res |= find_used_partitions_imerge(&prune_param,
-                                                    tree->merges.head())))
+      /* 
+        Range analysis has produced a "merge" of several intervals lists, a 
+        SEL_TREE that represents an expression in form         
+          sel_imerge = (tree1 OR tree2 OR ... OR treeN)
+        that cannot be reduced to one tree. This can only happen when 
+        partitioning index has several keyparts and the condition is OR of
+        conditions that refer to different key parts. For example, we'll get
+        here for "partitioning_field=const1 OR subpartitioning_field=const2"
+      */
+      if (-1 == (res= find_used_partitions_imerge(&prune_param,
+                                                  tree->merges.head())))
         goto all_used;
     }
     else
     {
-      if (-1 == (res |= find_used_partitions_imerge_list(&prune_param,
-                                                         tree->merges)))
+      /* 
+        Range analysis has produced a list of several imerges, i.e. a
+        structure that represents a condition in form 
+        imerge_list= (sel_imerge1 AND sel_imerge2 AND ... AND sel_imergeN)
+        This is produced for complicated WHERE clauses that range analyzer
+        can't really analyze properly.
+      */
+      if (-1 == (res= find_used_partitions_imerge_list(&prune_param,
+                                                       tree->merges)))
         goto all_used;
     }
   }
@@ -2384,12 +2436,19 @@ end:
 
 
 /*
-  Store key image to table record
+  Store field key image to table record
 
   SYNOPSIS
-    field  Field which key image should be stored.
-    ptr    Field value in key format.
-    len    Length of the value, in bytes.
+    store_key_image_to_rec()
+      field  Field which key image should be stored
+      ptr    Field value in key format
+      len    Length of the value, in bytes
+
+  DESCRIPTION
+    Copy the field value from its key image to the table record. The source
+    is the value in key image format, occupying len bytes in buffer pointed
+    by ptr. The destination is table record, in "field value in table record"
+    format.
 */
 
 static void store_key_image_to_rec(Field *field, char *ptr, uint len)
@@ -2414,8 +2473,12 @@ static void store_key_image_to_rec(Field *field, char *ptr, uint len)
   SYNOPSIS
     store_selargs_to_rec()
       ppar   Partition pruning context
-      start  Array SEL_ARG* for which the minimum values should be stored
+      start  Array of SEL_ARG* for which the minimum values should be stored
       num    Number of elements in the array
+
+  DESCRIPTION
+    For each SEL_ARG* interval in the specified array, store the left edge
+    field value (sel_arg->min, key image format) into the table record.
 */
 
 static void store_selargs_to_rec(PART_PRUNE_PARAM *ppar, SEL_ARG **start,
@@ -2569,7 +2632,7 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
 
   DESCRIPTION
     This function 
-      * recursively walks the SEL_ARG* tree, collecting partitioning 
+      * recursively walks the SEL_ARG* tree collecting partitioning 
         "intervals";
       * finds the partitions one needs to use to get rows in these intervals;
       * marks these partitions as used.
@@ -2578,9 +2641,9 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
     A partition pruning "interval" is equivalent to condition in one of the 
     forms:
     
-    "partition_field1=const1 AND ... partition_fieldN=constN"          (1)
-    "subpartition_field1=const1 AND ... subpartition_fieldN=constN"    (2)
-    "(1) AND (2)"                                                      (3)
+    "partition_field1=const1 AND ... AND partition_fieldN=constN"        (1)
+    "subpartition_field1=const1 AND ... AND subpartition_fieldN=constN"  (2)
+    "(1) AND (2)"                                                        (3)
     
     In (1) and (2) all [sub]partitioning fields must be used, and "x=const"
     includes "x IS NULL". 
@@ -2591,7 +2654,7 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
        
     then the following is also an interval:
 
-           "   const1 OP1 single_partition_field OR const2"            (4)
+           "   const1 OP1 single_partition_field OP2 const2"              (4)
      
     where OP1 and OP2 are '<' OR '<=', and const_i can be +/- inf.
     Everything else is not a partition pruning "interval".
@@ -2695,7 +2758,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
           fields. Save all constN constants into table record buffer.
         */
         store_selargs_to_rec(ppar, ppar->arg_stack, ppar->part_fields);
-        DBUG_EXECUTE("info", dbug_print_onepoint_range(ppar->arg_stack,
+        DBUG_EXECUTE("info", dbug_print_singlepoint_range(ppar->arg_stack,
                                                        ppar->part_fields););
         uint32 part_id;
         /* then find in which partition the {const1, ...,constN} tuple goes */
@@ -2725,7 +2788,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         */
         store_selargs_to_rec(ppar, ppar->arg_stack_end - ppar->subpart_fields,
                              ppar->subpart_fields);
-        DBUG_EXECUTE("info", dbug_print_onepoint_range(ppar->arg_stack_end - 
+        DBUG_EXECUTE("info", dbug_print_singlepoint_range(ppar->arg_stack_end- 
                                                        ppar->subpart_fields,
                                                        ppar->subpart_fields););
         /* Find the subpartition (it's HASH/KEY so we always have one) */
@@ -2852,7 +2915,7 @@ static bool fields_ok_for_partition_index(Field **pfield)
   struct
 
   SYNOPSIS
-    create_partition_index_descrition()
+    create_partition_index_description()
       prune_par  INOUT Partition pruning context
 
   DESCRIPTION
@@ -2869,7 +2932,7 @@ static bool fields_ok_for_partition_index(Field **pfield)
     FALSE  OK
 */
 
-static bool create_partition_index_descrition(PART_PRUNE_PARAM *ppar)
+static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
 {
   RANGE_OPT_PARAM *range_par= &(ppar->range_param);
   partition_info *part_info= ppar->part_info;
@@ -3056,7 +3119,7 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
   Print a singlepoint multi-keypart range interval to debug trace
  
   SYNOPSIS
-    dbug_print_onepoint_range()
+    dbug_print_singlepoint_range()
       start  Array of SEL_ARG* ptrs representing conditions on key parts
       num    Number of elements in the array.
 
@@ -3065,9 +3128,9 @@ static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part)
     interval to debug trace.
 */
 
-static void dbug_print_onepoint_range(SEL_ARG **start, uint num)
+static void dbug_print_singlepoint_range(SEL_ARG **start, uint num)
 {
-  DBUG_ENTER("dbug_print_onepoint_range");
+  DBUG_ENTER("dbug_print_singlepoint_range");
   DBUG_LOCK_FILE;
   SEL_ARG **end= start + num;
 
