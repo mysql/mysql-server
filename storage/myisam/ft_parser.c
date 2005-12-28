@@ -284,22 +284,110 @@ static int ft_parse_internal(void *param, byte *doc, uint doc_len)
 
 
 int ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
-                    struct st_mysql_ftparser *parser)
+                    struct st_mysql_ftparser *parser,
+                    MYSQL_FTPARSER_PARAM *param)
 {
-  MYSQL_FTPARSER_PARAM param;
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");
   DBUG_ASSERT(parser);
   my_param.wtree= wtree;
   my_param.with_alloc= with_alloc;
 
-  param.mysql_parse= ft_parse_internal;
-  param.mysql_add_word= ft_add_word;
-  param.ftparser_state= 0;
-  param.mysql_ftparam= &my_param;
-  param.cs= wtree->custom_arg;
-  param.doc= doc;
-  param.length= doclen;
-  param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
-  DBUG_RETURN(parser->parse(&param));
+  param->mysql_parse= ft_parse_internal;
+  param->mysql_add_word= ft_add_word;
+  param->mysql_ftparam= &my_param;
+  param->cs= wtree->custom_arg;
+  param->doc= doc;
+  param->length= doclen;
+  param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
+  DBUG_RETURN(parser->parse(param));  
+}
+
+
+MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr)
+{
+  uint32 ftparser_nr;
+  struct st_mysql_ftparser *parser;
+  if (! info->ftparser_param)
+  {
+    /* info->ftparser_param can not be zero after the initialization,
+       because it always includes built-in fulltext parser. And built-in
+       parser can be called even if the table has no fulltext indexes and
+       no varchar/text fields. */
+    if (! info->s->ftparsers)
+    {
+      /* It's ok that modification to shared structure is done w/o mutex
+         locks, because all threads would set the same variables to the
+         same values. */
+      uint i, j, keys= info->s->state.header.keys, ftparsers= 1;
+      for (i= 0; i < keys; i++)
+      {
+        MI_KEYDEF *keyinfo= &info->s->keyinfo[i];
+        if (keyinfo->flag & HA_FULLTEXT)
+        {
+          for (j= 0;; j++)
+          {
+            if (j == i)
+            {
+              keyinfo->ftparser_nr= ftparsers++;
+              break;
+            }
+            if (info->s->keyinfo[j].flag & HA_FULLTEXT &&
+                keyinfo->parser == info->s->keyinfo[j].parser)
+            {
+              keyinfo->ftparser_nr= info->s->keyinfo[j].ftparser_nr;
+              break;
+            }
+          }
+        }
+      }
+      info->s->ftparsers= ftparsers;
+    }
+    info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
+      my_malloc(sizeof(MYSQL_FTPARSER_PARAM) *
+                info->s->ftparsers, MYF(MY_WME|MY_ZEROFILL));
+    if (! info->ftparser_param)
+      return 0;
+  }
+  if (keynr == NO_SUCH_KEY)
+  {
+    ftparser_nr= 0;
+    parser= &ft_default_parser;
+  }
+  else
+  {
+    ftparser_nr= info->s->keyinfo[keynr].ftparser_nr;
+    parser= info->s->keyinfo[keynr].parser;
+  }
+  if (! info->ftparser_param[ftparser_nr].mysql_add_word)
+  {
+    /* Note, that mysql_add_word is used here as a flag:
+       mysql_add_word == 0 - parser is not initialized
+       mysql_add_word != 0 - parser is initialized, or no
+                             initialization needed. */
+    info->ftparser_param[ftparser_nr].mysql_add_word= (void *)1;
+    if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
+      return 0;
+  }
+  return &info->ftparser_param[ftparser_nr];
+}
+
+
+void ftparser_call_deinitializer(MI_INFO *info)
+{
+  uint i, keys= info->s->state.header.keys;
+  if (! info->ftparser_param)
+    return;
+  for (i= 0; i < keys; i++)
+  {
+    MI_KEYDEF *keyinfo= &info->s->keyinfo[i];
+    MYSQL_FTPARSER_PARAM *ftparser_param=
+      &info->ftparser_param[keyinfo->ftparser_nr];
+    if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
+    {
+      if (keyinfo->parser->deinit)
+        keyinfo->parser->deinit(ftparser_param);
+      ftparser_param->mysql_add_word= 0;
+    }
+  }
 }

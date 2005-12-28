@@ -297,7 +297,7 @@ err:
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   uint i;
-  if (!(file=mi_open(name, mode, test_if_locked)))
+  if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
   
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
@@ -1473,6 +1473,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   pos=table_arg->key_info;
   for (i=0; i < share->keys ; i++, pos++)
   {
+    if (pos->flags & HA_USES_PARSER)
+      create_flags|= HA_CREATE_RELIES_ON_SQL_LAYER;
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ? 
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :

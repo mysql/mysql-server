@@ -210,6 +210,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   FT_DOC     *dptr;
   FT_INFO    *dlist=NULL;
   my_off_t    saved_lastpos=info->lastpos;
+  struct st_mysql_ftparser *parser;
+  MYSQL_FTPARSER_PARAM *ftparser_param;
   DBUG_ENTER("ft_init_nlq_search");
 
 /* black magic ON */
@@ -223,6 +225,9 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   aio.keynr=keynr;
   aio.charset=info->s->keyinfo[keynr].seg->charset;
   aio.keybuff=info->lastkey+info->s->base.max_key_length;
+  parser= info->s->keyinfo[keynr].parser;
+  if (! (ftparser_param= ftparser_call_initializer(info, keynr)))
+    goto err;
 
   bzero(&wtree,sizeof(wtree));
 
@@ -230,7 +235,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
             NULL, NULL);
 
   ft_parse_init(&wtree, aio.charset);
-  if (ft_parse(&wtree, query, query_len, 0, info->s->keyinfo[keynr].parser))
+  if (ft_parse(&wtree, query, query_len, 0, parser, ftparser_param))
     goto err;
 
   if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
@@ -250,7 +255,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
       if (!(*info->read_record)(info,docid,record))
       {
         info->update|= HA_STATE_AKTIV;
-        _mi_ft_parse(&wtree, info, keynr, record,1);
+        _mi_ft_parse(&wtree, info, keynr, record, 1, ftparser_param);
       }
     }
     delete_queue(&best);

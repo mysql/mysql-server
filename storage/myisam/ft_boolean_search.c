@@ -284,28 +284,29 @@ static int ftb_parse_query_internal(void *param, byte *query, uint len)
 static void _ftb_parse_query(FTB *ftb, byte *query, uint len,
                              struct st_mysql_ftparser *parser)
 {
-  MYSQL_FTPARSER_PARAM param;
+  MYSQL_FTPARSER_PARAM *param;
   MY_FTB_PARAM ftb_param;
   DBUG_ENTER("_ftb_parse_query");
   DBUG_ASSERT(parser);
 
   if (ftb->state != UNINITIALIZED)
-    return;
+    DBUG_VOID_RETURN;
 
   ftb_param.ftb= ftb;
   ftb_param.depth= 0;
   ftb_param.ftbe= ftb->root;
   ftb_param.up_quot= 0;
 
-  param.mysql_parse= ftb_parse_query_internal;
-  param.mysql_add_word= ftb_query_add_word;
-  param.ftparser_state= 0;
-  param.mysql_ftparam= (void *)&ftb_param;
-  param.cs= ftb->charset;
-  param.doc= query;
-  param.length= len;
-  param.mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
-  parser->parse(&param);
+  if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr)))
+    DBUG_VOID_RETURN;
+  param->mysql_parse= ftb_parse_query_internal;
+  param->mysql_add_word= ftb_query_add_word;
+  param->mysql_ftparam= (void *)&ftb_param;
+  param->cs= ftb->charset;
+  param->doc= query;
+  param->length= len;
+  param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
+  parser->parse(param);
   DBUG_VOID_RETURN;
 }
  
@@ -629,30 +630,30 @@ static int ftb_check_phrase_internal(void *param, byte *document, uint len)
     1 is returned if phrase found, 0 else.
 */
 
-static int _ftb_check_phrase(const byte *document, uint len,
-                FTB_EXPR *ftbe, CHARSET_INFO *cs,
-                struct st_mysql_ftparser *parser)
+static int _ftb_check_phrase(FTB *ftb, const byte *document, uint len,
+                FTB_EXPR *ftbe, struct st_mysql_ftparser *parser)
 {
   MY_FTB_PHRASE_PARAM ftb_param;
-  MYSQL_FTPARSER_PARAM param;
+  MYSQL_FTPARSER_PARAM *param;
   DBUG_ENTER("_ftb_check_phrase");
   DBUG_ASSERT(parser);
+  if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr)))
+    DBUG_RETURN(0);
   ftb_param.phrase= ftbe->phrase;
   ftb_param.document= ftbe->document;
-  ftb_param.cs= cs;
+  ftb_param.cs= ftb->charset;
   ftb_param.phrase_length= list_length(ftbe->phrase);
   ftb_param.document_length= 1;
   ftb_param.match= 0;
 
-  param.mysql_parse= ftb_check_phrase_internal;
-  param.mysql_add_word= ftb_phrase_add_word;
-  param.ftparser_state= 0;
-  param.mysql_ftparam= (void *)&ftb_param;
-  param.cs= cs;
-  param.doc= (byte *)document;
-  param.length= len;
-  param.mode= MYSQL_FTPARSER_WITH_STOPWORDS;
-  parser->parse(&param);
+  param->mysql_parse= ftb_check_phrase_internal;
+  param->mysql_add_word= ftb_phrase_add_word;
+  param->mysql_ftparam= (void *)&ftb_param;
+  param->cs= ftb->charset;
+  param->doc= (byte *)document;
+  param->length= len;
+  param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
+  parser->parse(param);
   DBUG_RETURN(ftb_param.match ? 1 : 0);
 }
 
@@ -696,8 +697,8 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
           {
             if (!ftsi.pos)
               continue;
-            not_found = ! _ftb_check_phrase(ftsi.pos, ftsi.len,
-                                      ftbe, ftb->charset, parser);
+            not_found = ! _ftb_check_phrase(ftb, ftsi.pos, ftsi.len,
+                                            ftbe, parser);
           }
           if (not_found) break;
         } /* ftbe->quot */
@@ -861,7 +862,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   FT_SEG_ITERATOR ftsi, ftsi2;
   my_off_t  docid=ftb->info->lastpos;
   MY_FTB_FIND_PARAM ftb_param;
-  MYSQL_FTPARSER_PARAM param;
+  MYSQL_FTPARSER_PARAM *param;
   struct st_mysql_ftparser *parser= ftb->keynr == NO_SUCH_KEY ?
                                     &ft_default_parser :
                                     ftb->info->s->keyinfo[ftb->keynr].parser;
@@ -869,6 +870,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   if (docid == HA_OFFSET_ERROR)
     return -2.0;
   if (!ftb->queue.elements)
+    return 0;
+  if (! (param= ftparser_call_initializer(ftb->info, ftb->keynr)))
     return 0;
 
   if (ftb->state != INDEX_SEARCH && docid <= ftb->lastpos)
@@ -894,20 +897,20 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 
   ftb_param.ftb= ftb;
   ftb_param.ftsi= &ftsi2;
-  param.mysql_parse= ftb_find_relevance_parse;
-  param.mysql_add_word= ftb_find_relevance_add_word;
-  param.ftparser_state= 0;
-  param.mysql_ftparam= (void *)&ftb_param;
-  param.cs= ftb->charset;
-  param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
   while (_mi_ft_segiterator(&ftsi))
   {
     if (!ftsi.pos)
       continue;
-
-    param.doc= (byte *)ftsi.pos;
-    param.length= ftsi.len;
-    parser->parse(&param);
+    /* Since subsequent call to _ftb_check_phrase overwrites param elements,
+       it must be reinitialized at each iteration _inside_ the loop. */
+    param->mysql_parse= ftb_find_relevance_parse;
+    param->mysql_add_word= ftb_find_relevance_add_word;
+    param->mysql_ftparam= (void *)&ftb_param;
+    param->cs= ftb->charset;
+    param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
+    param->doc= (byte *)ftsi.pos;
+    param->length= ftsi.len;
+    parser->parse(param);
   }
   ftbe=ftb->root;
   if (ftbe->docid[1]==docid && ftbe->cur_weight>0 &&
