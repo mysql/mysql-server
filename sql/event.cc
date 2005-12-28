@@ -211,6 +211,11 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
        table  the row to fill out
        et     Event's data
    
+   Returns
+     0 - ok
+     EVEX_GENERAL_ERROR    - bad data
+     EVEX_GET_FIELD_FAILED - field count does not match. table corrupted? 
+
    DESCRIPTION 
      Used both when an event is created and when it is altered.
 */
@@ -218,6 +223,8 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
 static int
 evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 {
+  enum evex_table_field field_num;
+
   DBUG_ENTER("evex_fill_row");
 
   if (table->s->fields != EVEX_FIELD_COUNT)
@@ -229,10 +236,13 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
   DBUG_PRINT("info", ("dbname.len=%d",et->dbname.length));  
   DBUG_PRINT("info", ("name.len=%d",et->name.length));  
 
-  table->field[EVEX_FIELD_DB]->
-      store(et->dbname.str, et->dbname.length, system_charset_info);
-  table->field[EVEX_FIELD_NAME]->
-      store(et->name.str, et->name.length, system_charset_info);
+  if (table->field[field_num= EVEX_FIELD_DB]->
+                  store(et->dbname.str, et->dbname.length, system_charset_info))
+    goto trunc_err;
+
+  if (table->field[field_num= EVEX_FIELD_NAME]->
+                  store(et->name.str, et->name.length, system_charset_info))
+    goto trunc_err;
 
   table->field[EVEX_FIELD_ON_COMPLETION]->set_notnull();
   table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->on_completion);
@@ -243,8 +253,9 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
   // ToDo: Andrey. How to use users current charset?
   if (et->body.str)
-    table->field[EVEX_FIELD_BODY]->
-      store(et->body.str, et->body.length, system_charset_info);
+    if (table->field[field_num= EVEX_FIELD_BODY]->
+                     store(et->body.str, et->body.length, system_charset_info))
+      goto trunc_err;
 
   if (et->starts.year)
   {
@@ -290,10 +301,14 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
   ((Field_timestamp *)table->field[EVEX_FIELD_MODIFIED])->set_time();
 
   if (et->comment.length)
-    table->field[EVEX_FIELD_COMMENT]->
-	store(et->comment.str, et->comment.length, system_charset_info);
+    if (table->field[field_num= EVEX_FIELD_COMMENT]->
+	store(et->comment.str, et->comment.length, system_charset_info))
+      goto trunc_err;
 
-  DBUG_RETURN(0);  
+  DBUG_RETURN(0);
+trunc_err:
+  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0));
+  DBUG_RETURN(EVEX_GENERAL_ERROR);
 }
 
 
@@ -353,11 +368,21 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
   
   restore_record(table, s->default_values); // Get default values for fields
 
-  if (et->name.length > table->field[EVEX_FIELD_NAME]->field_length)
+  if (system_charset_info->cset->numchars(system_charset_info, et->dbname.str,
+                                    et->dbname.str + et->dbname.length)
+                                    > EVEX_DB_FIELD_LEN)
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), et->dbname.str);
+    goto err;
+  }
+  if (system_charset_info->cset->numchars(system_charset_info, et->name.str,
+                                    et->name.str + et->name.length)
+                                    > EVEX_DB_FIELD_LEN)
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), et->name.str);
     goto err;
   }
+
   if (et->body.length > table->field[EVEX_FIELD_BODY]->field_length)
   {
     my_error(ER_TOO_LONG_BODY, MYF(0), et->name.str);
