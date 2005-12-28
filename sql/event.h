@@ -173,13 +173,16 @@ public:
 
 
 int
-evex_create_event(THD *thd, event_timed *et, uint create_options);
+evex_create_event(THD *thd, event_timed *et, uint create_options,
+                  uint *rows_affected);
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *new_name);
+evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
+                  uint *rows_affected);
 
 int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists);
+evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+                uint *rows_affected);
 
 
 int
