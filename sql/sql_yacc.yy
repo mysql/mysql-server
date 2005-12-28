@@ -1411,12 +1411,13 @@ ev_schedule_time: EVERY_SYM expr interval
           }
       ;
     
-ev_status: /* empty */
+ev_status: /* empty */ {$<ulong_num>$= 0;}
         | ENABLED_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->status= MYSQL_EVENT_ENABLED;	   
+              lex->et->status= MYSQL_EVENT_ENABLED;
+            $<ulong_num>$= 1;	   
           }
         | DISABLED_SYM
           {
@@ -1424,6 +1425,7 @@ ev_status: /* empty */
             
             if (!lex->et_compile_phase)
               lex->et->status= MYSQL_EVENT_DISABLED;
+            $<ulong_num>$= 1;
           }
       ;
 ev_starts: /* empty */
@@ -1453,21 +1455,23 @@ ev_ends: /* empty */
             }
           }
       ;
-ev_on_completion: /* empty */
+ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
         | ON COMPLETION_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;  
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;
+            $<ulong_num>$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
-              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;	    
+              lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;
+            $<ulong_num>$= 1;
           }
       ;
-ev_comment: /* empty */
+ev_comment: /* empty */ {$<ulong_num>$= 0;}
         | COMMENT_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
@@ -1476,6 +1480,7 @@ ev_comment: /* empty */
               lex->comment= $2;
               lex->et->init_comment(YYTHD, &$2);
             }
+            $<ulong_num>$= 1;
           }
       ;
 
@@ -4270,24 +4275,42 @@ alter:
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
+            printf("5=%d 6=%d 7=%d 8=%d 9=%d 10=%d", $<ulong_num>5 , $<ulong_num>6 , $<ulong_num>7 ,
+                $<ulong_num>8 , $<ulong_num>9 , $<ulong_num>10);
+            if (!($<ulong_num>5 || $<ulong_num>6 || $<ulong_num>7 ||
+                $<ulong_num>8 || $<ulong_num>9 || $<ulong_num>10))
+            {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
             Lex->sql_command= SQLCOM_ALTER_EVENT;
           }	  
       ;
 
-ev_on_schedule: /* empty */
-        | ON SCHEDULE_SYM ev_schedule_time;
+ev_on_schedule: /* empty */ { $<ulong_num>$= 0;}
+        | ON SCHEDULE_SYM ev_schedule_time
+          {
+            $<ulong_num>$= 1;
+          }
+        ;
 
-ev_opt_sql_stmt: /* empty*/
-        | DO_SYM ev_sql_stmt;
-
-ev_rename_to: /* empty */
+ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
         | RENAME TO_SYM sp_name
           {
             LEX *lex=Lex;
             lex->spname= $3; //use lex's spname to hold the new name
 	                     //the original name is in the event_timed object
+            $<ulong_num>$= 1;
           }
       ;
+
+ev_opt_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
+        | DO_SYM ev_sql_stmt
+          {
+            $<ulong_num>$= 1;
+          }
+        ;
+
   
 ident_or_empty:
 	/* empty */  { $$= 0; }
