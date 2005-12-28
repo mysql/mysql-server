@@ -385,6 +385,7 @@ my_bool sp_automatic_privileges= 1;
 static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
 #endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
+uint mysqld_port_timeout;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
@@ -1357,7 +1358,12 @@ static void network_init(void)
   struct sockaddr_un	UNIXaddr;
 #endif
   int	arg=1;
+  int   ret;
+  uint  waited;
+  uint  this_wait;
+  uint  retry;
   DBUG_ENTER("server_init");
+  LINT_INIT(ret);
 
   set_ports();
 
@@ -1383,8 +1389,26 @@ static void network_init(void)
     */
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
 #endif /* __WIN__ */
-    if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
-	     sizeof(IPaddr)) < 0)
+    /*
+      Sometimes the port is not released fast enough when stopping and
+      restarting the server. This happens quite often with the test suite
+      on busy Linux systems. Retry to bind the address at these intervals:
+      Sleep intervals: 1, 2, 4,  6,  9, 13, 17, 22, ...
+      Retry at second: 1, 3, 7, 13, 22, 35, 52, 74, ...
+      Limit the sequence by mysqld_port_timeout (set --port-open-timeout=#).
+    */
+    for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
+    {
+      if (((ret= bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
+                      sizeof(IPaddr))) >= 0) ||
+          (socket_errno != EADDRINUSE) ||
+          (waited >= mysqld_port_timeout))
+        break;
+      sql_print_information("Retrying bind on TCP/IP port %u", mysqld_port);
+      this_wait= retry * retry / 3 + 1;
+      sleep(this_wait);
+    }
+    if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
       sql_perror("Can't start server: Bind on TCP/IP port");
@@ -4552,7 +4576,8 @@ enum options_mysqld
   OPT_TIMED_MUTEXES,
   OPT_OLD_STYLE_USER_LIMITS,
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
-  OPT_TABLE_LOCK_WAIT_TIMEOUT
+  OPT_TABLE_LOCK_WAIT_TIMEOUT,
+  OPT_PORT_OPEN_TIMEOUT
 };
 
 
@@ -5092,6 +5117,10 @@ Disable with --skip-ndbcluster (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &mysqld_port,
    (gptr*) &mysqld_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port-open-timeout", OPT_PORT_OPEN_TIMEOUT,
+   "Maximum time in seconds to wait for the port to become free. "
+   "(Default: no wait)", (gptr*) &mysqld_port_timeout,
+   (gptr*) &mysqld_port_timeout, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log", OPT_RELAY_LOG,
    "The location and name to use for relay logs.",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,

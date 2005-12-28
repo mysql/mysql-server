@@ -1261,6 +1261,7 @@ start_master()
   	    --server-id=$id  \
           --basedir=$MY_BASEDIR \
           --port=$this_master_myport \
+          --port-open-timeout=380 \
           --local-infile \
           --exit-info=256 \
           --core \
@@ -1285,6 +1286,7 @@ start_master()
           --server-id=$id --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
           --port=$this_master_myport \
+          --port-open-timeout=380 \
           --local-infile \
           --datadir=$MASTER_MYDDIR$1 \
           --pid-file=$MASTER_MYPID$1 \
@@ -1417,6 +1419,7 @@ start_slave()
           --datadir=$slave_datadir \
           --pid-file=$slave_pid \
           --port=$slave_port \
+          --port-open-timeout=380 \
           --socket=$slave_sock \
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
