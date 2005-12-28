@@ -165,6 +165,7 @@ static SYMBOL symbols[] = {
   { "DETERMINISTIC",    SYM(DETERMINISTIC_SYM)},
   { "DIRECTORY",	SYM(DIRECTORY_SYM)},
   { "DISABLE",		SYM(DISABLE_SYM)},
+  { "DISABLED",		SYM(DISABLED_SYM)},
   { "DISCARD",		SYM(DISCARD)},
   { "DISTINCT",		SYM(DISTINCT)},
   { "DISTINCTROW",	SYM(DISTINCT)},	/* Access likes this */
@@ -180,6 +181,7 @@ static SYMBOL symbols[] = {
   { "ELSE",             SYM(ELSE)},
   { "ELSEIF",           SYM(ELSEIF_SYM)},
   { "ENABLE",		SYM(ENABLE_SYM)},
+  { "ENABLED",		SYM(ENABLED_SYM)},
   { "ENCLOSED",		SYM(ENCLOSED)},
   { "END",		SYM(END)},
   { "ENDS",		SYM(ENDS_SYM)},

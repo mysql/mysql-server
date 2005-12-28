@@ -240,6 +240,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DETERMINISTIC_SYM
 %token  DIRECTORY_SYM
 %token  DISABLE_SYM
+%token  DISABLED_SYM
 %token  DISCARD
 %token  DISTINCT
 %token  DIV_SYM
@@ -254,6 +255,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ELSEIF_SYM
 %token  ELT_FUNC
 %token  ENABLE_SYM
+%token  ENABLED_SYM
 %token  ENCLOSED
 %token  ENCODE_SYM
 %token  ENCRYPT
@@ -1410,13 +1412,13 @@ ev_schedule_time: EVERY_SYM expr interval
       ;
     
 ev_status: /* empty */
-        | ENABLE_SYM
+        | ENABLED_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->status= MYSQL_EVENT_ENABLED;	   
           }
-        | DISABLE_SYM
+        | DISABLED_SYM
           {
             LEX *lex=Lex;
             
@@ -8592,6 +8594,7 @@ keyword_sp:
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
+	| DISABLED_SYM		{}
 	| DISCARD		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
@@ -8611,6 +8614,7 @@ keyword_sp:
 	| FOUND_SYM		{}
 	| DISABLE_SYM		{}
 	| ENABLE_SYM		{}
+	| ENABLED_SYM		{}
 	| FULL			{}
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
