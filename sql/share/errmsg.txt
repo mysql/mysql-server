@@ -5751,3 +5751,5 @@ ER_EVENT_COMPILE_ERROR
         eng "Error during compilation of event's body"
 ER_EVENT_SAME_NAME
         eng "Same old and new event name"
+ER_EVENT_DATA_TOO_LONG
+        eng "Data for column '%s' too long"

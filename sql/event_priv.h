@@ -24,7 +24,7 @@
 #define UNLOCK_MUTEX_AND_BAIL_OUT(__mutex, __label) \
     { VOID(pthread_mutex_unlock(&__mutex)); goto __label; }
 
-enum
+enum evex_table_field
 {
   EVEX_FIELD_DB = 0,
   EVEX_FIELD_NAME,
@@ -42,9 +42,10 @@ enum
   EVEX_FIELD_ON_COMPLETION,
   EVEX_FIELD_COMMENT,
   EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
-};
+} ;
 
-
+#define EVEX_DB_FIELD_LEN 64
+#define EVEX_NAME_FIELD_LEN 64
 
 int
 my_time_compare(TIME *a, TIME *b);
