@@ -6706,6 +6706,14 @@ static const char esperanto[]=
     "& U < \\u016d <<< \\u016c";
 
 /*
+  A simplified version of Hungarian, without consonant contractions.
+*/
+static const char hungarian[]=
+    "&O < \\u00F6 <<< \\u00D6 << \\u0151 <<< \\u0150"
+    "&U < \\u00FC <<< \\u00DC << \\u0171 <<< \\u0170";
+
+
+/*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
   for consequent scan of collations
@@ -8627,6 +8635,39 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 };
 
 
+CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
+{
+    146,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "ucs2",		/* cs name    */
+    "ucs2_hungarian_ci",/* name         */
+    "",			/* comment      */
+    hungarian,		/* tailoring    */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
+
 #endif
 
 
@@ -9228,6 +9269,38 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
     "utf8_esperanto_ci",/* name         */
     "",			/* comment      */
     esperanto,		/* tailoring    */
+    ctype_utf8,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    NULL,		/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    8,			/* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,			/* mbminlen     */
+    3,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
+CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
+{
+    210,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",		/* cs name    */
+    "utf8_hungarian_ci",/* name         */
+    "",			/* comment      */
+    hungarian,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
