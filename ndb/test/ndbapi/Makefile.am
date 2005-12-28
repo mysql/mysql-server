@@ -35,7 +35,8 @@ testPartitioning \
 testBitfield \
 DbCreate DbAsyncGenerator \
 test_event_multi_table \
-testSRBank
+testSRBank \
+test_event_merge
 
 #flexTimedAsynch
 #testBlobs
@@ -80,6 +81,7 @@ DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterfa
 DbAsyncGenerator_SOURCES = bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testSRBank_SOURCES = testSRBank.cpp
+test_event_merge_SOURCES = test_event_merge.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
@@ -160,3 +162,4 @@ testScan.dsp: Makefile \
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/ndb/config/win-sources $@ $(testScan_SOURCES)
 	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
