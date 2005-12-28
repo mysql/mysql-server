@@ -1352,11 +1352,48 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
   return t_is_prefix ? (int) (t - te) : (int) ((se-s) - (te-t));
 }
 
-static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
+static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)), 
                                    const uchar *s, uint slen, 
                                    const uchar *t, uint tlen)
 {
-  return my_strnncoll_ucs2_bin(cs,s,slen,t,tlen,0);
+  const uchar *se, *te;
+  uint minlen;
+
+  /* extra safety to make sure the lengths are even numbers */
+  slen= (slen >> 1) << 1;
+  tlen= (tlen >> 1) << 1;
+
+  se= s + slen;
+  te= t + tlen;
+
+  for (minlen= min(slen, tlen); minlen; minlen-= 2)
+  {
+    int s_wc= s[0] * 256 + s[1];
+    int t_wc= t[0] * 256 + t[1];
+    if ( s_wc != t_wc )
+      return  s_wc > t_wc ? 1 : -1;
+
+    s+= 2;
+    t+= 2;
+  }
+
+  if (slen != tlen)
+  {
+    int swap= 1;
+    if (slen < tlen)
+    {
+      s= t;
+      se= te;
+      swap= -1;
+    }
+
+    for ( ; s < se ; s+= 2)
+    {
+      if (s[0] || s[1] != ' ')
+        return (s[0] == 0 && s[1] < ' ') ? -swap : swap;
+    }
+  }
+  return 0;
 }
 
 
