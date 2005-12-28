@@ -5726,9 +5726,9 @@ ER_EVENT_ALREADY_EXISTS
 ER_EVENT_STORE_FAILED
         eng "Failed to store event %s. Error code %d from storage engine."
 ER_EVENT_DOES_NOT_EXIST
-        eng "Unknown event '%s'"
+        eng "Unknown event '%-.64s'"
 ER_EVENT_CANT_ALTER
-        eng "Failed to alter event %s"
+        eng "Failed to alter event '%-.64s'"
 ER_EVENT_DROP_FAILED
         eng "Failed to drop %s"
 ER_EVENT_INTERVAL_NOT_POSITIVE
