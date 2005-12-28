@@ -3675,6 +3675,7 @@ end_with_restore_list:
   case SQLCOM_ALTER_EVENT:
   case SQLCOM_DROP_EVENT:
   {
+    uint rows_affected= 1;
     DBUG_ASSERT(lex->et);
     do {
       if (! lex->et->dbname.str)
@@ -3690,17 +3691,18 @@ end_with_restore_list:
 
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
-        res= evex_create_event(thd, lex->et, (uint) lex->create_info.options);
+        res= evex_create_event(thd, lex->et, (uint) lex->create_info.options,
+                               &rows_affected);
         break;
       case SQLCOM_ALTER_EVENT:
-        res= evex_update_event(thd, lex->et, lex->spname);
+        res= evex_update_event(thd, lex->et, lex->spname, &rows_affected);
         break;
       case SQLCOM_DROP_EVENT:
-        res= evex_drop_event(thd, lex->et, lex->drop_if_exists);
+        res= evex_drop_event(thd, lex->et, lex->drop_if_exists, &rows_affected);
       default:;
       }
       if (!res)
-        send_ok(thd, 1);
+        send_ok(thd, rows_affected);
 
       /* lex->unit.cleanup() is called outside, no need to call it here */
     } while (0);  

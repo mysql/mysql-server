@@ -61,8 +61,15 @@ event_executor_worker(void *arg);
 pthread_handler_t
 event_executor_main(void *arg);
 
-static
-void evex_init_mutexes()
+static int
+evex_time_diff(TIME *a, TIME *b)
+{
+  return sec_since_epoch_TIME(a) - sec_since_epoch_TIME(b);
+}
+
+
+static void
+evex_init_mutexes()
 {
   if (evex_mutexes_initted)
     return;
@@ -239,8 +246,6 @@ event_executor_main(void *arg)
 
     {
       int t2sleep;
-      
-        
       /*
         now let's see how much time to sleep, we know there is at least 1
         element in the queue.
@@ -272,7 +277,7 @@ event_executor_main(void *arg)
       {
         /*
           We sleep t2sleep seconds but we check every second whether this thread
-          has been killed, or there is new candidate
+          has been killed, or there is a new candidate
         */
         while (t2sleep-- && !thd->killed &&
                evex_queue_num_elements(EVEX_EQ_NAME) &&
@@ -308,10 +313,13 @@ event_executor_main(void *arg)
     {
       pthread_t th;
 
+      printf("[%10s] exec at [%llu]\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
+      et->mark_last_executed();
+      et->compute_next_execution_time();
+      printf("[%10s] next at [%llu]\n\n\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
+      et->update_fields(thd);
       DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
-//      sql_print_information("  Spawning a thread %d", ++iter_num);
 #ifndef DBUG_FAULTY_THR
-//      sql_print_information("  Thread is not debuggable!");
       if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
       {
         sql_print_error("Problem while trying to create a thread");
@@ -320,24 +328,15 @@ event_executor_main(void *arg)
 #else
       event_executor_worker((void *) et);
 #endif
-      printf("[%10s] exec at [%llu]\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
-      et->mark_last_executed();
-      et->compute_next_execution_time();
-      printf("[%10s] next at [%llu]\n\n\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
-      et->update_fields(thd);
       if ((et->execute_at.year && !et->expression) ||
            TIME_to_ulonglong_datetime(&et->execute_at) == 0)
          et->flags |= EVENT_EXEC_NO_MORE;
-    }
-    if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
-    {
-      if (et->dropped)
-        et->drop(thd);
-      delete et;
-      evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
-    } else
-      evex_queue_first_updated(&EVEX_EQ_NAME);
 
+      if ((et->flags & EVENT_EXEC_NO_MORE) || et->status == MYSQL_EVENT_DISABLED)
+        evex_queue_delete_element(&EVEX_EQ_NAME, 1);// 1 is top
+      else
+        evex_queue_first_updated(&EVEX_EQ_NAME);
+    }
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   }// while
 
@@ -454,7 +453,8 @@ event_executor_worker(void *event_void)
   strxnmov(thd->security_ctx->priv_host, sizeof(thd->security_ctx->priv_host),
                 event->definer_host.str, NullS);  
 
-  thd->security_ctx->user= thd->security_ctx->priv_user= my_strdup(event->definer_user.str, MYF(0));
+  thd->security_ctx->user= thd->security_ctx->priv_user=
+                             my_strdup(event->definer_user.str, MYF(0));
 
   thd->db= event->dbname.str;
   if (!check_access(thd, EVENT_ACL, event->dbname.str, 0, 0, 0,
@@ -467,6 +467,13 @@ event_executor_worker(void *event_void)
     sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret); 
     DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret)); 
   }
+  if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
+  {
+    if (event->dropped)
+      event->drop(thd);
+    delete event;
+  }
+
   thd->db= 0;
 
 err:

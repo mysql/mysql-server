@@ -59,10 +59,6 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b);
 
-int
-evex_time_diff(TIME *a, TIME *b);
-
-
 
 #define EXEC_QUEUE_QUEUE_NAME executing_queue
 #define EXEC_QUEUE_DARR_NAME evex_executing_queue
