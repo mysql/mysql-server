@@ -5722,7 +5722,7 @@ ER_DROP_PARTITION_WHEN_FK_DEFINED
 ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
 ER_EVENT_ALREADY_EXISTS
-        eng "Event %s already exists"
+        eng "Event '%-.64s' already exists"
 ER_EVENT_STORE_FAILED
         eng "Failed to store event %s. Error code %d from storage engine."
 ER_EVENT_DOES_NOT_EXIST

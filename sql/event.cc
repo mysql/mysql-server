@@ -71,9 +71,8 @@ MEM_ROOT evex_mem_root;
 void
 evex_queue_init(EVEX_QUEUE_TYPE *queue)
 {
-  if (init_queue_ex(queue, 100 /*num_el*/, 0 /*offset*/, 
-                   0 /*smallest_on_top*/, event_timed_compare_q, NULL,
-                   100 /*auto_extent*/))
+  if (init_queue_ex(queue, 30 /*num_el*/, 0 /*offset*/, 0 /*smallest_on_top*/,
+                    event_timed_compare_q, NULL, 30 /*auto_extent*/))
     sql_print_error("Insufficient memory to initialize executing queue.");
 }
 
@@ -81,103 +80,37 @@ evex_queue_init(EVEX_QUEUE_TYPE *queue)
 static
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
- return cs->coll->strnncollsp(cs,
-                              (unsigned char *) s.str,s.length,
-                              (unsigned char *) t.str,t.length, 0);
+ return cs->coll->strnncollsp(cs, (unsigned char *) s.str,s.length,
+                                  (unsigned char *) t.str,t.length, 0);
 }
 
 
 int
 my_time_compare(TIME *a, TIME *b)
 {
-/*
- Or maybe it is faster to use TIME_to_ulonglong_datetime
- for "a" and "b"
-*/
-
-  DBUG_ENTER("my_time_compare");
-
-  if (a->year > b->year)
-    DBUG_RETURN(1);
-  
-  if (a->year < b->year)
-    DBUG_RETURN(-1);
-
-  if (a->month > b->month)
-    DBUG_RETURN(1);
-  
-  if (a->month < b->month)
-    DBUG_RETURN(-1);
-
-  if (a->day > b->day)
-    DBUG_RETURN(1);
-  
-  if (a->day < b->day)
-    DBUG_RETURN(-1);
-
-  if (a->hour > b->hour)
-    DBUG_RETURN(1);
-  
-  if (a->hour < b->hour)
-    DBUG_RETURN(-1);
-
-  if (a->minute > b->minute)
-    DBUG_RETURN(1);
-  
-  if (a->minute < b->minute)
-    DBUG_RETURN(-1);
-
-  if (a->second > b->second)
-    DBUG_RETURN(1);
-  
-  if (a->second < b->second)
-    DBUG_RETURN(-1);
-
-
-  if (a->second_part > b->second_part)
-    DBUG_RETURN(1);
-  
-  if (a->second_part < b->second_part)
-    DBUG_RETURN(-1);
-
-
-  DBUG_RETURN(0);
-}
-
-
-int
-evex_time_diff(TIME *a, TIME *b)
-{
-  my_bool in_gap;
-  DBUG_ENTER("my_time_diff");
-  
-  return sec_since_epoch_TIME(a) - sec_since_epoch_TIME(b);
-}
-
-
-inline int
-event_timed_compare(event_timed **a, event_timed **b)
-{
-  my_ulonglong a_t, b_t;
-  a_t= TIME_to_ulonglong_datetime(&(*a)->execute_at)*100L + 
-       (*a)->execute_at.second_part;
-  b_t= TIME_to_ulonglong_datetime(&(*b)->execute_at)*100L + 
-       (*b)->execute_at.second_part;
+  my_ulonglong a_t= TIME_to_ulonglong_datetime(a)*100L + a->second_part;
+  my_ulonglong b_t= TIME_to_ulonglong_datetime(b)*100L + b->second_part;
 
   if (a_t > b_t)
     return 1;
   else if (a_t < b_t)
     return -1;
-  else
-    return 0;
-  
+
+  return 0;
+}
+
+
+inline int
+event_timed_compare(event_timed *a, event_timed *b)
+{
+  return my_time_compare(&a->execute_at, &b->execute_at);
 }
 
 
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b)
 {
-  return event_timed_compare((event_timed **)&a, (event_timed **)&b);
+  return event_timed_compare((event_timed *)a, (event_timed *)b);
 }
 
 
@@ -369,8 +302,10 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
    SYNOPSIS
      db_create_event()
-       thd  THD
-       et   event_timed object containing information for the event 
+       thd             THD
+       et              event_timed object containing information for the event
+       create_if_not - if an warning should be generated in case event exists
+       rows_affected - how many rows were affected
    
      Return value
                         0 - OK
@@ -381,9 +316,10 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 */
 
 static int
-db_create_event(THD *thd, event_timed *et)
+db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
+                uint *rows_affected)
 {
-  int ret= EVEX_OK;
+  int ret= 0;
   TABLE *table;
   char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   char olddb[128];
@@ -391,7 +327,7 @@ db_create_event(THD *thd, event_timed *et)
   DBUG_ENTER("db_create_event");
   DBUG_PRINT("enter", ("name: %.*s", et->name.length, et->name.str));
 
-
+  *rows_affected= 0;
   DBUG_PRINT("info", ("open mysql.event for update"));
   if (evex_open_event_table(thd, TL_WRITE, &table))
   {
@@ -402,8 +338,10 @@ db_create_event(THD *thd, event_timed *et)
   DBUG_PRINT("info", ("check existance of an event with the same name"));
   if (!evex_db_find_event_aux(thd, et->dbname, et->name, table))
   {
-    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->name.str);
-    goto err;    
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		      ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
+		      et->name.str);
+    goto ok;    
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
@@ -461,7 +399,9 @@ db_create_event(THD *thd, event_timed *et)
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
-
+  
+  *rows_affected= 1;
+ok:
   if (dbchanged)
     (void) mysql_change_db(thd, olddb, 1);
   if (table)
@@ -755,6 +695,7 @@ done:
        et             event's data
        create_options Options specified when in the query. We are
                       interested whether there is IF NOT EXISTS
+       rows_affected  How many rows were affected
           
    NOTES
      - in case there is an event with the same name (db) and 
@@ -762,7 +703,8 @@ done:
 */
 
 int
-evex_create_event(THD *thd, event_timed *et, uint create_options)
+evex_create_event(THD *thd, event_timed *et, uint create_options,
+                  uint *rows_affected)
 {
   int ret = 0;
 
@@ -770,22 +712,9 @@ evex_create_event(THD *thd, event_timed *et, uint create_options)
   DBUG_PRINT("enter", ("name: %*s options:%d", et->name.length,
                 et->name.str, create_options));
 
-  if ((ret = db_create_event(thd, et)) == EVEX_WRITE_ROW_FAILED && 
-        (create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
-  {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		      ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS),
-		      "EVENT", et->name.str);
-    ret= 0;
-    goto done;
-  }
-  /*
-    A warning is thrown only when create_options is set to 
-    HA_LEX_CREATE_IF_NOT_EXISTS. In this case if EVEX_WRITE_ROW_FAILED,
-    which means that we have duplicated key -> warning. In all
-    other cases -> error.
-  */
-  if (ret)
+  if ((ret = db_create_event(thd, et,
+                             create_options & HA_LEX_CREATE_IF_NOT_EXISTS,
+                             rows_affected)))
     goto done;
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
@@ -819,7 +748,8 @@ done:
 */
 
 int
-evex_update_event(THD *thd, event_timed *et, sp_name *new_name)
+evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
+                  uint *rows_affected)
 {
   int ret, i;
   bool need_second_pass= true;
@@ -873,7 +803,8 @@ done:
 */
 
 int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists)
+evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+                uint *rows_affected)
 {
   TABLE *table;
   int ret= EVEX_OPEN_TABLE_FAILED;
