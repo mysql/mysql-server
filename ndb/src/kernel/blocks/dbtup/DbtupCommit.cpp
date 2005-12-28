@@ -445,6 +445,7 @@ Dbtup::commitRecord(Signal* signal,
     befOpPtr.p->changeMask.bitOR(attributeMask);
     befOpPtr.p->gci = regOperPtr->gci;
     
+    befOpPtr.p->optype = opType;
     operPtr.p = befOpPtr.p;
     checkDetachedTriggers(signal,
                           befOpPtr.p,
@@ -483,6 +484,7 @@ Dbtup::commitRecord(Signal* signal,
     befOpPtr.p->pageIndex  = befOpPtr.p->pageIndexC;
     befOpPtr.p->gci = regOperPtr->gci;
 
+    befOpPtr.p->optype = opType;
     operPtr.p = befOpPtr.p;
     checkDetachedTriggers(signal,
                           befOpPtr.p,
