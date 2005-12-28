@@ -25,16 +25,19 @@
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 
 class NdbEventOperationImpl;
+
 struct EventBufData
 {
   union {
     SubTableData *sdata;
-    char *memory;
+    Uint32 *memory;
   };
   LinearSectionPtr ptr[3];
   unsigned sz;
   NdbEventOperationImpl *m_event_op;
   EventBufData *m_next; // Next wrt to global order
+  EventBufData *m_next_hash; // Next in per-GCI hash
+  Uint32 m_pkhash; // PK hash (without op) for fast compare
 };
 
 class EventBufData_list
@@ -116,6 +119,34 @@ void EventBufData_list::append(const EventBufData_list &list)
   m_sz+= list.m_sz;
 }
 
+// GCI bucket has also a hash over data, with key event op, table PK.
+// It can only be appended to and is invalid after remove_first().
+class EventBufData_hash
+{
+public:
+  struct Pos { // search result
+    Uint32 index;       // index into hash array
+    EventBufData* data; // non-zero if found
+    Uint32 pkhash;      // PK hash
+  };
+
+  static Uint32 getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
+  static bool getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3], LinearSectionPtr ptr2[3]);
+
+  void search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
+  void append(Pos& hpos, EventBufData* data);
+
+  enum { GCI_EVENT_HASH_SIZE = 101 };
+  EventBufData* m_hash[GCI_EVENT_HASH_SIZE];
+};
+
+inline
+void EventBufData_hash::append(Pos& hpos, EventBufData* data)
+{
+  data->m_next_hash = m_hash[hpos.index];
+  m_hash[hpos.index] = data;
+}
+
 struct Gci_container
 {
   enum State 
@@ -127,6 +158,7 @@ struct Gci_container
   Uint32 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
   Uint64 m_gci;                    // GCI
   EventBufData_list m_data;
+  EventBufData_hash m_data_hash;
 };
 
 class NdbEventOperationImpl : public NdbEventOperation {
@@ -173,6 +205,8 @@ public:
 		   */
   Uint32 m_eventId;
   Uint32 m_oid;
+
+  bool m_separateEvents;
   
   EventBufData *m_data_item;
 
@@ -212,7 +246,6 @@ public:
   void add_op();
   void remove_op();
   void init_gci_containers();
-  Uint32 m_active_op_count;
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
@@ -233,10 +266,15 @@ public:
 
   NdbEventOperationImpl *move_data();
 
-  // used by both user thread and receive thread
-  int copy_data_alloc(const SubTableData * const f_sdata,
-		      LinearSectionPtr f_ptr[3],
-		      EventBufData *ev_buf);
+  // routines to copy/merge events
+  EventBufData* alloc_data();
+  int alloc_mem(EventBufData* data, LinearSectionPtr ptr[3]);
+  int copy_data(const SubTableData * const sdata,
+                LinearSectionPtr ptr[3],
+                EventBufData* data);
+  int merge_data(const SubTableData * const sdata,
+                 LinearSectionPtr ptr[3],
+                 EventBufData* data);
 
   void free_list(EventBufData_list &list);
 
@@ -290,6 +328,8 @@ private:
   // dropped event operations that have not yet
   // been deleted
   NdbEventOperationImpl *m_dropped_ev_op;
+
+  Uint32 m_active_op_count;
 };
 
 inline
