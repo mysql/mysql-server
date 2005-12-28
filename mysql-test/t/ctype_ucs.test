@@ -419,4 +419,12 @@ insert into t1 values (0x005b);
 select hex(a) from t1;
 drop table t1;
 
+#
+# Bug #14583 Bug on query using a LIKE on indexed field with ucs2_bin collation
+#
+create table t1(f1 varchar(5) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL) engine=InnoDB;
+insert into t1 values('a');
+create index t1f1 on t1(f1);
+select f1 from t1 where f1 like 'a%';
+drop table t1;
 # End of 4.1 tests
