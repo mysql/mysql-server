@@ -4275,10 +4275,8 @@ alter:
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
-            printf("5=%d 6=%d 7=%d 8=%d 9=%d 10=%d", $<ulong_num>5 , $<ulong_num>6 , $<ulong_num>7 ,
-                $<ulong_num>8 , $<ulong_num>9 , $<ulong_num>10);
             if (!($<ulong_num>5 || $<ulong_num>6 || $<ulong_num>7 ||
-                $<ulong_num>8 || $<ulong_num>9 || $<ulong_num>10))
+                  $<ulong_num>8 || $<ulong_num>9 || $<ulong_num>10))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
