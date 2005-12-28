@@ -183,6 +183,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
   if (flags & HA_CREATE_DELAY_KEY_WRITE)
     options|= HA_OPTION_DELAY_KEY_WRITE;
+  if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)
+    options|= HA_OPTION_RELIES_ON_SQL_LAYER;
 
   packed=(packed+7)/8;
   if (pack_reclength != INT_MAX32)

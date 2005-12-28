@@ -96,7 +96,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 /* parses a document i.e. calls ft_parse for every keyseg */
 
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
-                  const byte *record, my_bool with_alloc)
+                  const byte *record, my_bool with_alloc,
+                  MYSQL_FTPARSER_PARAM *param)
 {
   FT_SEG_ITERATOR ftsi;
   struct st_mysql_ftparser *parser;
@@ -109,7 +110,8 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc, parser))
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc, parser,
+                   param))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -118,10 +120,12 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
 FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
 {
   TREE ptree;
+  MYSQL_FTPARSER_PARAM *param;
   DBUG_ENTER("_mi_ft_parserecord");
-
+  if (! (param= ftparser_call_initializer(info, keynr)))
+    DBUG_RETURN(NULL);
   bzero((char*) &ptree, sizeof(ptree));
-  if (_mi_ft_parse(&ptree, info, keynr, record,0))
+  if (_mi_ft_parse(&ptree, info, keynr, record, 0, param))
     DBUG_RETURN(NULL);
 
   DBUG_RETURN(ft_linearize(&ptree));

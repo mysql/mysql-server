@@ -21,12 +21,31 @@
 
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
-
+const char *plugin_type_names[]=
+{
+  "UDF",
+  "STORAGE ENGINE",
+  "FTPARSER"
+};
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= 0x0000;
-
+/* Note that 'int version' must be the first field of every plugin
+   sub-structure (plugin->info).
+*/
+static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
+{
+  0x0000,
+  0x0000,
+  0x0000
+};
+static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
+{
+  0x0000, /* UDF: not implemented */
+  0x0000, /* STORAGE ENGINE: not implemented */
+  MYSQL_FTPARSER_INTERFACE_VERSION
+};
 static DYNAMIC_ARRAY plugin_dl_array;
 static DYNAMIC_ARRAY plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
@@ -48,6 +67,27 @@ static struct st_plugin_dl *plugin_dl_find(LEX_STRING *dl)
       DBUG_RETURN(tmp);
   }
   DBUG_RETURN(0);
+}
+
+
+static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
+{
+  uint i;
+  DBUG_ENTER("plugin_dl_insert_or_reuse");
+  for (i= 0; i < plugin_dl_array.elements; i++)
+  {
+    struct st_plugin_dl *tmp= dynamic_element(&plugin_dl_array, i,
+                                              struct st_plugin_dl *);
+    if (! tmp->ref_count)
+    {
+      memcpy(tmp, plugin_dl, sizeof(struct st_plugin_dl));
+      DBUG_RETURN(tmp);
+    }
+  }
+  if (insert_dynamic(&plugin_dl_array, (gptr)plugin_dl))
+    DBUG_RETURN(0);
+  DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
+                              struct st_plugin_dl *));
 }
 
 
@@ -144,7 +184,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
     &dummy_errors);
   plugin_dl.dl.str[plugin_dl.dl.length]= 0;
   /* Add this dll to array */
-  if (insert_dynamic(&plugin_dl_array, (gptr)&plugin_dl))
+  if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     dlclose(plugin_dl.handle);
     my_free(plugin_dl.dl.str, MYF(0));
@@ -154,8 +194,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
       sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
-                              struct st_plugin_dl *));
+  DBUG_RETURN(tmp);
 #else
   DBUG_ENTER("plugin_dl_add");
   if (report & REPORT_TO_USER)
@@ -236,7 +275,7 @@ my_bool plugin_is_ready(LEX_STRING *name, int type)
 struct st_plugin_int *plugin_lock(LEX_STRING *name, int type)
 {
   struct st_plugin_int *rc;
-  DBUG_ENTER("plugin_find");
+  DBUG_ENTER("plugin_lock");
   rw_wrlock(&THR_LOCK_plugin);
   if ((rc= plugin_find_internal(name, type)))
   {
@@ -247,6 +286,27 @@ struct st_plugin_int *plugin_lock(LEX_STRING *name, int type)
   }
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(rc);
+}
+
+
+static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
+{
+  uint i;
+  DBUG_ENTER("plugin_insert_or_reuse");
+  for (i= 0; i < plugin_array.elements; i++)
+  {
+    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
+                                               struct st_plugin_int *);
+    if (tmp->state == PLUGIN_IS_FREED)
+    {
+      memcpy(tmp, plugin, sizeof(struct st_plugin_int));
+      DBUG_RETURN(tmp);
+    }
+  }
+  if (insert_dynamic(&plugin_array, (gptr)plugin))
+    DBUG_RETURN(0);
+  DBUG_RETURN(dynamic_element(&plugin_array, plugin_array.elements - 1,
+                              struct st_plugin_int *));
 }
 
 
@@ -275,12 +335,28 @@ static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
                        (const uchar *)plugin->name,
                        name_len))
     {
+      struct st_plugin_int *tmp_plugin_ptr;
+      if (*(int*)plugin->info <
+          min_plugin_info_interface_version[plugin->type] ||
+          ((*(int*)plugin->info) >> 8) >
+          (cur_plugin_info_interface_version[plugin->type] >> 8))
+      {
+        char buf[256];
+        strxnmov(buf, sizeof(buf) - 1, "API version for ",
+                 plugin_type_names[plugin->type], " plugin is too different",
+                 NullS);
+        if (report & REPORT_TO_USER)
+          my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dl->str, 0, buf);
+        if (report & REPORT_TO_LOG)
+          sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dl->str, 0, buf);
+        goto err;
+      }
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-      if (insert_dynamic(&plugin_array, (gptr)&tmp))
+      if (! (tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
       {
         if (report & REPORT_TO_USER)
           my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_int));
@@ -288,14 +364,9 @@ static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
           sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_int));
         goto err;
       }
-      if (my_hash_insert(&plugin_hash[plugin->type],
-                         (byte*)dynamic_element(&plugin_array,
-                                                plugin_array.elements - 1,
-                                                struct st_plugin_int *)))
+      if (my_hash_insert(&plugin_hash[plugin->type], (byte*)tmp_plugin_ptr))
       {
-        struct st_plugin_int *tmp_plugin= dynamic_element(&plugin_array,
-            plugin_array.elements - 1, struct st_plugin_int *);
-        tmp_plugin->state= PLUGIN_IS_FREED;
+        tmp_plugin_ptr->state= PLUGIN_IS_FREED;
         if (report & REPORT_TO_USER)
           my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_int));
         if (report & REPORT_TO_LOG)
@@ -332,7 +403,7 @@ static void plugin_del(LEX_STRING *name)
 
 void plugin_unlock(struct st_plugin_int *plugin)
 {
-  DBUG_ENTER("plugin_release");
+  DBUG_ENTER("plugin_unlock");
   rw_wrlock(&THR_LOCK_plugin);
   DBUG_ASSERT(plugin && plugin->ref_count);
   plugin->ref_count--;

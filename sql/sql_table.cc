@@ -4427,7 +4427,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				 key_name,
 				 key_info->algorithm,
                                  test(key_info->flags & HA_GENERATED_KEY),
-				 key_parts));
+				 key_parts,
+                                 key_info->flags & HA_USES_PARSER ?
+                                 &key_info->parser->name : 0));
   }
   {
     Key *key;

@@ -119,10 +119,12 @@ void _mi_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, byte *, int, my_bool, struct st_mysql_ftparser *parser);
+int ft_parse(TREE *, byte *, int, my_bool, struct st_mysql_ftparser *parser,
+             MYSQL_FTPARSER_PARAM *param);
 FT_WORD * ft_linearize(TREE *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
-uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool);
+uint _mi_ft_parse(TREE *, MI_INFO *, uint, const byte *, my_bool,
+                  MYSQL_FTPARSER_PARAM *param);
 
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, byte *, uint, uint, byte *);
 FT_INFO *ft_init_boolean_search(MI_INFO *, uint, byte *, uint, CHARSET_INFO *);
@@ -142,4 +144,6 @@ void ft_boolean_close_search(FT_INFO *);
 float ft_boolean_get_relevance(FT_INFO *);
 my_off_t ft_boolean_get_docid(FT_INFO *);
 void ft_boolean_reinit_search(FT_INFO *);
-
+extern MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
+                                                       uint keynr);
+extern void ftparser_call_deinitializer(MI_INFO *info);
