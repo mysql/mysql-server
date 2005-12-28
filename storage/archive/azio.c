@@ -12,6 +12,7 @@
 /* @(#) $Id$ */
 
 #include <stdio.h>
+#include <string.h>
 
 #include "azlib.h"
 
@@ -51,8 +52,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->stream.zalloc = (alloc_func)0;
   s->stream.zfree = (free_func)0;
   s->stream.opaque = (voidpf)0;
-  zmemzero(s->inbuf, Z_BUFSIZE);
-  zmemzero(s->outbuf, Z_BUFSIZE);
+  memset(s->inbuf, 0, Z_BUFSIZE);
+  memset(s->outbuf, 0, Z_BUFSIZE);
   s->stream.next_in = s->inbuf;
   s->stream.next_out = s->outbuf;
   s->stream.avail_in = s->stream.avail_out = 0;
@@ -73,7 +74,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     err = Z_STREAM_ERROR;
 #else
     err = deflateInit2(&(s->stream), level,
-                       Z_DEFLATED, -MAX_WBITS, DEF_MEM_LEVEL, strategy);
+                       Z_DEFLATED, -MAX_WBITS, 8, strategy);
     /* windowBits is passed < 0 to suppress zlib header */
 
     s->stream.next_out = s->outbuf;
@@ -114,7 +115,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     /* Write a very simple .gz header:
   */
     snprintf(buffer, 10, "%c%c%c%c%c%c%c%c%c%c", gz_magic[0], gz_magic[1],
-            Z_DEFLATED, 0 /*flags*/, 0,0,0,0 /*time*/, 0 /*xflags*/, OS_CODE);
+            Z_DEFLATED, 0 /*flags*/, 0,0,0,0 /*time*/, 0 /*xflags*/, 0x03);
     s->start = 10L;
     my_write(s->file, buffer, s->start, MYF(0));
     /* We use 10L instead of ftell(s->file) to because ftell causes an
@@ -317,7 +318,7 @@ int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned len)
       uInt n = s->stream.avail_in;
       if (n > s->stream.avail_out) n = s->stream.avail_out;
       if (n > 0) {
-        zmemcpy(s->stream.next_out, s->stream.next_in, n);
+        memcpy(s->stream.next_out, s->stream.next_in, n);
         next_out += n;
         s->stream.next_out = (Bytef *)next_out;
         s->stream.next_in   += n;
