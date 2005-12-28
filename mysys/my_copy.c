@@ -53,7 +53,7 @@ struct utimbuf {
 int my_copy(const char *from, const char *to, myf MyFlags)
 {
   uint Count;
-  my_bool new_file_stat; /* 1 if we could stat "to" */
+  my_bool new_file_stat= 0; /* 1 if we could stat "to" */
   int create_flag;
   File from_file,to_file;
   char buff[IO_SIZE];
@@ -62,7 +62,6 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
 
   from_file=to_file= -1;
-  LINT_INIT(new_file_stat);
   DBUG_ASSERT(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
   if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
     new_file_stat= test(my_stat((char*) to, &new_stat_buff, MYF(0)));
