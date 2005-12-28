@@ -135,22 +135,7 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
     DBUG_ASSERT(0);
   }
 
-  switch (plug->type)
-  {
-  case MYSQL_UDF_PLUGIN:
-    table->field[3]->store(STRING_WITH_LEN("UDF"), cs);
-    break;
-  case MYSQL_STORAGE_ENGINE_PLUGIN:
-    table->field[3]->store(STRING_WITH_LEN("STORAGE"), cs);
-    break;
-  case MYSQL_FTPARSER_PLUGIN:
-    table->field[3]->store(STRING_WITH_LEN("FTPARSER"), cs);
-    break;
-  default:
-    table->field[3]->store(STRING_WITH_LEN("UNKNOWN"), cs);
-    break;
-  }
-
+  table->field[3]->store(STRING_WITH_LEN(plugin_type_names[plug->type]), cs);
   table->field[4]->store(version_buf,
         make_version_string(version_buf, sizeof(version_buf), 
                             *(uint *)plug->info), cs);

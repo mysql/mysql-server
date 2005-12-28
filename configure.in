@@ -2581,7 +2581,9 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
  zlib/Makefile dnl
- cmd-line-utils/readline/Makefile)
+ cmd-line-utils/readline/Makefile dnl
+ plugin/Makefile dnl
+ plugin/fulltext/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 

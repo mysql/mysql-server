@@ -141,10 +141,18 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	~(HA_OPTION_PACK_RECORD | HA_OPTION_PACK_KEYS |
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
-	  HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE))
+          HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
+          HA_OPTION_RELIES_ON_SQL_LAYER))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
+      goto err;
+    }
+    if ((share->options & HA_OPTION_RELIES_ON_SQL_LAYER) &&
+        ! (open_flags & HA_OPEN_FROM_SQL_LAYER))
+    {
+      DBUG_PRINT("error", ("table cannot be openned from non-sql layer"));
+      my_errno= HA_ERR_UNSUPPORTED;
       goto err;
     }
     /* Don't call realpath() if the name can't be a link */
@@ -418,6 +426,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	pos->flag=0;
 	pos++;
       }
+      share->ftparsers= 0;
     }
 
     disk_pos_assert(disk_pos + share->base.fields *MI_COLUMNDEF_SIZE, end_pos);
@@ -1051,6 +1060,7 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;
+   keydef->ftparser_nr  = 0;
    return ptr;
 }
 

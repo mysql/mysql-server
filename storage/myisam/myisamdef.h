@@ -191,6 +191,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   ulong state_diff_length;
   uint	rec_reflength;			/* rec_reflength in use now */
   uint  unique_name_length;
+  uint32 ftparsers;                     /* Number of distinct ftparsers + 1 */
   File	kfile;				/* Shared keyfile */
   File	data_file;			/* Shared data file */
   int	mode;				/* mode of file on open */
@@ -231,6 +232,7 @@ struct st_myisam_info {
   /* accumulate indexfile changes between write's */
   TREE	        *bulk_insert;
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
+  MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit  */
   char *filename;			/* parameter to open filename */
   uchar *buff,				/* Temp area for key */
 	*lastkey,*lastkey2;		/* Last used search key */

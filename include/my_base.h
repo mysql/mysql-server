@@ -51,6 +51,7 @@
 #define HA_OPEN_DELAY_KEY_WRITE		8	/* Don't update index  */
 #define HA_OPEN_ABORT_IF_CRASHED	16
 #define HA_OPEN_FOR_REPAIR		32	/* open even if crashed */
+#define HA_OPEN_FROM_SQL_LAYER          64
 
 	/* The following is parameter to ha_rkey() how to use key */
 
@@ -246,6 +247,7 @@ enum ha_base_keytype {
 #define HA_OPTION_DELAY_KEY_WRITE	64
 #define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
 #define HA_OPTION_CREATE_FROM_ENGINE    256
+#define HA_OPTION_RELIES_ON_SQL_LAYER   512
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 
@@ -256,6 +258,7 @@ enum ha_base_keytype {
 #define HA_CREATE_TMP_TABLE	4
 #define HA_CREATE_CHECKSUM	8
 #define HA_CREATE_DELAY_KEY_WRITE 64
+#define HA_CREATE_RELIES_ON_SQL_LAYER 128
 
 /*
   The following flags (OR-ed) are passed to handler::info() method.

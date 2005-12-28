@@ -28,7 +28,8 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ @yassl_dir@ \
 			@sql_server@ scripts @man_dirs@ tests \
 			@mysql_se_plugins@ \
 			netware @libmysqld_dirs@ \
-			@bench_dirs@ support-files @tools_dirs@
+			@bench_dirs@ support-files @tools_dirs@ \
+			plugin
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
@@ -37,7 +38,8 @@ DIST_SUBDIRS =		. include @docs_dirs@ zlib \
                         vio sql libmysql_r libmysql client scripts \
 			@man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@\
-			@bench_dirs@ support-files server-tools tools
+			@bench_dirs@ support-files server-tools tools \
+			plugin
 
 # Run these targets before any others, also make part of clean target,
 # to make sure we create new links after a clean.

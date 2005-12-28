@@ -198,6 +198,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   uint16 maxlength;			/* max length of (packed) key (auto) */
   uint16 block_size;			/* block_size (auto) */
   uint32 version;			/* For concurrent read/write */
+  uint32 ftparser_nr;                   /* distinct ftparser number */
 
   HA_KEYSEG *seg,*end;
   struct st_mysql_ftparser *parser;     /* Fulltext [pre]parser */
