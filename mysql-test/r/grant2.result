@@ -107,14 +107,13 @@ delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 drop database mysqltest;
 use test;
-insert into mysql.user (user, host) values
-('mysqltest_1', 'host1'),
-('mysqltest_2', 'host2'),
-('mysqltest_3', 'host3'),
-('mysqltest_4', 'host4'),
-('mysqltest_5', 'host5'),
-('mysqltest_6', 'host6'),
-('mysqltest_7', 'host7');
+create user mysqltest_1@host1;
+create user mysqltest_2@host2;
+create user mysqltest_3@host3;
+create user mysqltest_4@host4;
+create user mysqltest_5@host5;
+create user mysqltest_6@host6;
+create user mysqltest_7@host7;
 flush privileges;
 drop user mysqltest_3@host3;
 drop user mysqltest_1@host1, mysqltest_2@host2, mysqltest_4@host4,
