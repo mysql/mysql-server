@@ -5242,7 +5242,7 @@ int Field_date::store(double nr)
   else
     tmp= (longlong) rint(nr);
 
-  return Field_date::store(tmp);
+  return Field_date::store(tmp, TRUE);
 }
 
 
@@ -5263,6 +5263,9 @@ int Field_date::store(longlong nr, bool unsigned_val)
     nr= 0;
     error= 2;
   }
+
+  if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
+    nr=floor(nr/1000000.0);			// Timestamp to date
 
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
