@@ -61,6 +61,10 @@ functions */
 #define __WIN__			      /* To make it easier in VC++ */
 #endif
 
+#ifndef MAX_INDEXES
+#define MAX_INDEXES 64
+#endif
+
 /* File and lock constants */
 #define O_SHARE		0x1000		/* Open file in sharing mode */
 #ifdef __BORLANDC__
