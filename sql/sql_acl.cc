@@ -67,6 +67,7 @@ static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
+static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
 static bool update_user_table(THD *thd, TABLE *table,
@@ -1094,10 +1095,8 @@ static void acl_insert_user(const char *user, const char *host,
   qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
 
-  /* We must free acl_check_hosts as its memory is mapped to acl_user */
-  delete_dynamic(&acl_wild_hosts);
-  hash_free(&acl_check_hosts);
-  init_check_host();
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
 }
 
 
@@ -1282,7 +1281,7 @@ static void init_check_host(void)
 	if (j == acl_wild_hosts.elements)	// If new
 	  (void) push_dynamic(&acl_wild_hosts,(char*) &acl_user->host);
       }
-      else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
+      else if (!hash_search(&acl_check_hosts,(byte*) acl_user->host.hostname,
 			    (uint) strlen(acl_user->host.hostname)))
       {
 	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
@@ -1296,6 +1295,22 @@ static void init_check_host(void)
   freeze_size(&acl_wild_hosts);
   freeze_size(&acl_check_hosts.array);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Rebuild lists used for checking of allowed hosts
+
+  We need to rebuild 'acl_check_hosts' and 'acl_wild_hosts' after adding,
+  dropping or renaming user, since they contain pointers to elements of
+  'acl_user' array, which are invalidated by drop operation, and use
+  ACL_USER::host::hostname as a key, which is changed by rename.
+*/
+void rebuild_check_host(void)
+{
+  delete_dynamic(&acl_wild_hosts);
+  hash_free(&acl_check_hosts);
+  init_check_host();
 }
 
 
@@ -5251,6 +5266,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
   }
 
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5275,7 +5293,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
-  int result= 0;
+  int result;
   String wrong_users;
   LEX_USER *user_from;
   LEX_USER *user_to;
@@ -5306,6 +5324,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
     }
   }
+
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
