@@ -218,13 +218,6 @@ create table if not exists t1 select 1,2,3,4;
 create table if not exists t1 select 1;
 select * from t1;
 drop table t1;
-create table t1 select 1,2,3;
-create table if not exists t1 select 1,2;
---error 1136
-create table if not exists t1 select 1,2,3,4;
-create table if not exists t1 select 1;
-select * from t1;
-drop table t1;
 
 #
 # Test create table if not exists with duplicate key error
