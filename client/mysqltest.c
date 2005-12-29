@@ -3549,11 +3549,12 @@ static void handle_error(const char *query, struct st_query *q,
   if (i)
   {
     if (q->expected_errno[0].type == ERR_ERRNO)
-      die("query '%s' failed with wrong errno %d instead of %d...",
-          q->query, err_errno, q->expected_errno[0].code.errnum);
+      die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
+          q->query, err_errno, err_error, q->expected_errno[0].code.errnum);
     else
-      die("query '%s' failed with wrong sqlstate %s instead of %s...",
-          q->query, err_sqlstate, q->expected_errno[0].code.sqlstate);
+      die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
+          q->query, err_sqlstate, err_error,
+	  q->expected_errno[0].code.sqlstate);
   }
 
   DBUG_VOID_RETURN;
