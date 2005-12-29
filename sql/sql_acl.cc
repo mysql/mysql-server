@@ -1151,7 +1151,7 @@ static void init_check_host(void)
 	if (j == acl_wild_hosts.elements)	// If new
 	  (void) push_dynamic(&acl_wild_hosts,(char*) &acl_user->host);
       }
-      else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
+      else if (!hash_search(&acl_check_hosts,(byte*) acl_user->host.hostname,
 			    (uint) strlen(acl_user->host.hostname)))
       {
 	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
@@ -3719,17 +3719,25 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 						     record[0])))
       {
 	tables[0].table->file->print_error(error, MYF(0));
-	DBUG_RETURN(-1);
+	result= -1;
+	goto end;
       }
       delete_dynamic_element(&acl_users, acl_userd);
     }
   }
 
+  if (result)
+    my_error(ER_DROP_USER, MYF(0));
+
+end:
+  /* Reload acl_check_hosts as its memory is mapped to acl_user */
+  delete_dynamic(&acl_wild_hosts);
+  hash_free(&acl_check_hosts);
+  init_check_host();
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_DROP_USER, MYF(0));
   DBUG_RETURN(result);
 }
 
