@@ -7448,10 +7448,9 @@ static void fix_paths(void)
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
-  strmake(opt_plugin_dir, get_relative_path(LIBDIR),
-          sizeof(opt_plugin_dir) - 1);
+  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
+                                      get_relative_path(LIBDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
-  (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr, mysql_home);
 
   char *sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
