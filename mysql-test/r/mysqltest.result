@@ -16,7 +16,7 @@ otto
 mysqltest: At line 1: query 'select otto from (select 1 as otto) as t1' succeeded - should have failed with sqlstate 42S22...
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
-mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22 instead of 00000...
+mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000...
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -133,7 +133,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
-mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1000...
+mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000...
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 1064 as "after_--enable_abort_on_error" ;
@@ -141,7 +141,7 @@ after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
-mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146 instead of 1064...
+mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
 hello
 hello
 ;;;;;;;;
@@ -222,6 +222,25 @@ mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in =hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
+var1
+hi	1	hi there
+hi
+1
+hi there
+var2
+2
+
+
+var2 again
+2
+
+2
+
+var3 two columns with same name
+1	2	3
+2
+2
+3
 mysqltest: At line 1: Missing file name in source
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "./var/tmp/recursive.sql": At line 1: Source directives are nesting too deep
@@ -355,7 +374,7 @@ mysqltest: At line 1: Missing connection user
 mysqltest: At line 1: Missing connection user
 mysqltest: At line 1: Missing connection password
 mysqltest: At line 1: Missing connection db
-mysqltest: At line 1: Could not open connection 'con2': Unknown database 'illegal_db'
+mysqltest: At line 1: Could not open connection 'con2': 1049 Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 OK

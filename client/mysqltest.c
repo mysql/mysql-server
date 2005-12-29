@@ -247,6 +247,8 @@ typedef struct
 struct connection
 {
   MYSQL mysql;
+  /* Used when creating views and sp, to avoid implicit commit */
+  MYSQL* util_mysql;
   char *name;
   MYSQL_STMT* stmt;
 };
@@ -551,6 +553,8 @@ static void close_cons()
       mysql_stmt_close(next_con->stmt);
     next_con->stmt= 0;
     mysql_close(&next_con->mysql);
+    if (next_con->util_mysql)
+      mysql_close(next_con->util_mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
   }
   DBUG_VOID_RETURN;
@@ -1137,26 +1141,50 @@ static void do_exec(struct st_query *query)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Set variable from the result of a query
 
-int var_query_set(VAR* v, const char *p, const char** p_end)
+  SYNOPSIS
+    var_query_set()
+    var	        variable to set from query
+    query       start of query string to execute
+    query_end   end of the query string to execute
+
+
+  DESCRIPTION
+    let @<var_name> = `<query>`
+
+    Execute the query and assign the first row of result to var as
+    a tab separated strings
+
+    Also assign each column of the result set to
+    variable "$<var_name>_<column_name>"
+    Thus the tab separated output can be read from $<var_name> and
+    and each individual column can be read as $<var_name>_<col_name>
+
+*/
+
+int var_query_set(VAR* var, const char *query, const char** query_end)
 {
-  char* end = (char*)((p_end && *p_end) ? *p_end : p + strlen(p));
+  char* end = (char*)((query_end && *query_end) ?
+		      *query_end : query + strlen(query));
   MYSQL_RES *res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   LINT_INIT(res);
 
-  while (end > p && *end != '`')
+  while (end > query && *end != '`')
     --end;
-  if (p == end)
+  if (query == end)
     die("Syntax error in query, missing '`'");
-  ++p;
+  ++query;
 
-  if (mysql_real_query(mysql, p, (int)(end - p)) ||
+  if (mysql_real_query(mysql, query, (int)(end - query)) ||
       !(res = mysql_store_result(mysql)))
   {
     *end = 0;
-    die("Error running query '%s': %s", p, mysql_error(mysql));
+    die("Error running query '%s': %d: %s", query,
+	mysql_errno(mysql) ,mysql_error(mysql));
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1169,21 +1197,39 @@ int var_query_set(VAR* v, const char *p, const char** p_end)
     uint i;
     ulong *lengths;
     char *end;
+    MYSQL_FIELD *fields= mysql_fetch_fields(res);
 
     init_dynamic_string(&result, "", 16384, 65536);
     lengths= mysql_fetch_lengths(res);
     for (i=0; i < mysql_num_fields(res); i++)
     {
       if (row[0])
+      {
+	/* Add to <var_name>_<col_name> */
+	uint j;
+	char var_col_name[MAX_VAR_NAME];
+	uint length= snprintf(var_col_name, MAX_VAR_NAME,
+			      "$%s_%s", var->name, fields[i].name);
+	/* Convert characters not allowed in variable names to '_' */
+	for (j= 1; j < length; j++)
+	{
+	  if (!my_isvar(charset_info,var_col_name[j]))
+	     var_col_name[j]= '_';
+        }
+	var_set(var_col_name,  var_col_name + length,
+		row[i], row[i] + lengths[i]);
+
+        /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
+      }
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(v, result.str, (const char**) &end);
+    eval_expr(var, result.str, (const char**) &end);
     dynstr_free(&result);
   }
   else
-    eval_expr(v, "", 0);
+    eval_expr(var, "", 0);
 
   mysql_free_result(res);
   return 0;
@@ -1906,6 +1952,9 @@ int close_connection(struct st_query *q)
       }
 #endif
       mysql_close(&con->mysql);
+      if (con->util_mysql)
+	mysql_close(con->util_mysql);
+      con->util_mysql= 0;
       my_free(con->name, MYF(0));
       /*
          When the connection is closed set name to "closed_connection"
@@ -1998,16 +2047,15 @@ void init_manager()
     0 - success, non-0 - failure
 */
 
-int safe_connect(MYSQL* con, const char *host, const char *user,
-		 const char *pass,
-		 const char *db, int port, const char *sock)
+int safe_connect(MYSQL* mysql, const char *host, const char *user,
+		 const char *pass, const char *db, int port, const char *sock)
 {
   int con_error= 1;
   my_bool reconnect= 1;
   int i;
   for (i= 0; i < MAX_CON_TRIES; ++i)
   {
-    if (mysql_real_connect(con, host,user, pass, db, port, sock,
+    if (mysql_real_connect(mysql, host,user, pass, db, port, sock,
 			   CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
     {
       con_error= 0;
@@ -2019,7 +2067,7 @@ int safe_connect(MYSQL* con, const char *host, const char *user,
    TODO: change this to 0 in future versions, but the 'kill' test relies on
    existing behavior
   */
-  mysql_options(con, MYSQL_OPT_RECONNECT, (char *)&reconnect);
+  mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
   return con_error;
 }
 
@@ -2263,10 +2311,10 @@ int do_connect(struct st_query *q)
     con_db= 0;
   if (q->abort_on_error)
   {
-    if ((safe_connect(&next_con->mysql, con_host, con_user, con_pass,
-		      con_db, con_port, con_sock ? con_sock: 0)))
-      die("Could not open connection '%s': %s", con_name,
-          mysql_error(&next_con->mysql));
+    if (safe_connect(&next_con->mysql, con_host, con_user, con_pass,
+		     con_db, con_port, con_sock ? con_sock: 0))
+      die("Could not open connection '%s': %d %s", con_name,
+          mysql_errno(&next_con->mysql), mysql_error(&next_con->mysql));
   }
   else
     error= connect_n_handle_errors(q, &next_con->mysql, con_host, con_user,
@@ -3506,11 +3554,12 @@ static void handle_error(const char *query, struct st_query *q,
   if (i)
   {
     if (q->expected_errno[0].type == ERR_ERRNO)
-      die("query '%s' failed with wrong errno %d instead of %d...",
-          q->query, err_errno, q->expected_errno[0].code.errnum);
+      die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
+          q->query, err_errno, err_error, q->expected_errno[0].code.errnum);
     else
-      die("query '%s' failed with wrong sqlstate %s instead of %s...",
-          q->query, err_sqlstate, q->expected_errno[0].code.sqlstate);
+      die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
+          q->query, err_sqlstate, err_error,
+	  q->expected_errno[0].code.sqlstate);
   }
 
   DBUG_VOID_RETURN;
@@ -3748,6 +3797,39 @@ end:
 }
 
 
+
+/*
+  Create a util connection if one does not already exists
+  and use that to run the query
+  This is done to avoid implict commit when creating/dropping objects such
+  as view, sp etc.
+*/
+
+static int util_query(MYSQL* org_mysql, const char* query){
+
+  MYSQL* mysql;
+  DBUG_ENTER("util_query");
+
+  if(!(mysql= cur_con->util_mysql))
+  {
+    DBUG_PRINT("info", ("Creating util_mysql"));
+    if (!(mysql= mysql_init(mysql)))
+      die("Failed in mysql_init()");
+
+    if (safe_connect(mysql, org_mysql->host, org_mysql->user,
+		     org_mysql->passwd, org_mysql->db, org_mysql->port,
+		     org_mysql->unix_socket))
+      die("Could not open util connection: %d %s",
+	  mysql_errno(mysql), mysql_error(mysql));
+
+    cur_con->util_mysql= mysql;
+  }
+
+  return mysql_query(mysql, query);
+}
+
+
+
 /*
   Run query
 
@@ -3828,7 +3910,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 			"CREATE OR REPLACE VIEW mysqltest_tmp_v AS ",
 			query_len+64, 256);
     dynstr_append_mem(&query_str, query, query_len);
-    if (mysql_query(mysql, query_str.str))
+    if (util_query(mysql, query_str.str))
     {
       /*
 	Failed to create the view, this is not fatal
@@ -3855,7 +3937,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 	 Collect warnings from create of the view that should otherwise
          have been produced when the SELECT was executed
       */
-      append_warnings(&ds_warnings, mysql);
+      append_warnings(&ds_warnings, cur_con->util_mysql);
     }
 
     dynstr_free(&query_str);
@@ -3872,12 +3954,12 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
     */
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
-			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;\n",
+			"DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;",
 			query_len+64, 256);
-    mysql_query(mysql, query_str.str);
+    util_query(mysql, query_str.str);
     dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
     dynstr_append_mem(&query_str, query, query_len);
-    if (mysql_query(mysql, query_str.str))
+    if (util_query(mysql, query_str.str))
     {
       /*
 	Failed to create the stored procedure for this query,
@@ -3921,13 +4003,13 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
 
   if (sp_created)
   {
-    if (mysql_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
+    if (util_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
       die("Failed to drop sp: %d: %s", mysql_errno(mysql), mysql_error(mysql));
   }
 
   if (view_created)
   {
-    if (mysql_query(mysql, "DROP VIEW mysqltest_tmp_v "))
+    if (util_query(mysql, "DROP VIEW mysqltest_tmp_v "))
       die("Failed to drop view: %d: %s",
 	  mysql_errno(mysql), mysql_error(mysql));
   }
@@ -4134,12 +4216,10 @@ static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   if (!(tmp_var->str_val = my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
+  if (name)
+    strmake(tmp_var->name, name, name_len);
   if (val)
-  {
-    memcpy(tmp_var->str_val, val, val_len);
-    tmp_var->str_val[val_len]=0;
-  }
+    strmake(tmp_var->str_val, val, val_len);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
@@ -4264,7 +4344,8 @@ int main(int argc, char **argv)
     die("Out of memory");
 
   if (safe_connect(&cur_con->mysql, host, user, pass, db, port, unix_sock))
-    die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
+    die("Could not open connection '%s': %d %s", cur_con->name,
+	mysql_errno(&cur_con->mysql), mysql_error(&cur_con->mysql));
 
   init_var_hash(&cur_con->mysql);
 
