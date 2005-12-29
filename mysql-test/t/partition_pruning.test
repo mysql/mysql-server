@@ -230,9 +230,22 @@ create table t1 (a int) partition by hash(a) partitions 2;
 insert into t1 values (1),(2);
 explain partitions select * from t1 where a is null;
 
-# this selects both
+# this uses both partitions
 explain partitions select * from t1 where a is not null;
 drop table t1;
 
+# Join tests
+create table t1 (a int not null, b int not null, key(a), key(b))
+  partition by hash(a) partitions 4;
+insert into t1 values (1,1),(2,2),(3,3),(4,4);
+
+explain partitions 
+select * from t1 X, t1 Y 
+where X.b = Y.b and (X.a=1 or X.a=2) and (Y.a=2 or Y.a=3);
+
+explain partitions
+select * from t1 X, t1 Y where X.a = Y.a and (X.a=1 or X.a=2);
+
+drop table t1;
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.

@@ -2246,11 +2246,11 @@ typedef struct st_part_prune_param
  
   /***************************************************************
    Following fields are used to store an 'iterator' that can be 
-   used to obtain a set of used artitions.
+   used to obtain a set of used partitions.
    **************************************************************/
   /* 
     Start and end+1 partition "numbers". They can have two meanings depending
-    depending of the value of part_num_to_part_id:
+    of the value of part_num_to_part_id:
     part_num_to_part_id_range - numbers are partition ids
     part_num_to_part_id_list  - numbers are indexes in part_info->list_array
   */
@@ -2536,7 +2536,7 @@ static uint32 part_num_to_part_id_list(PART_PRUNE_PARAM* ppar, uint32 num)
     List<SEL_IMERGE> represents "imerge1 AND imerge2 AND ...". 
     The set of used partitions is an intersection of used partitions sets
     for imerge_{i}.
-    We accumulate this intersection a separate bitmap.
+    We accumulate this intersection in a separate bitmap.
  
   RETURN 
     See find_used_partitions()
@@ -2554,7 +2554,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
                                         bitmap_bytes)))
   {
     /* 
-      Fallback, process just first SEL_IMERGE. This can leave us with more
+      Fallback, process just the first SEL_IMERGE. This can leave us with more
       partitions marked as used then actually needed.
     */
     return find_used_partitions_imerge(ppar, merges.head());
@@ -2623,20 +2623,20 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
 
 
 /*
-  Recursively walk the SEL_ARG tree, find/mark partitions that need to be used
+  Collect partitioning ranges for the SEL_ARG tree and mark partitions as used
 
   SYNOPSIS
     find_used_partitions()
       ppar      Partition pruning context.
-      key_tree  Intervals tree to perform pruning for.
+      key_tree  SEL_ARG range tree to perform pruning for
 
   DESCRIPTION
     This function 
-      * recursively walks the SEL_ARG* tree collecting partitioning 
-        "intervals";
-      * finds the partitions one needs to use to get rows in these intervals;
-      * marks these partitions as used.
-      
+      * recursively walks the SEL_ARG* tree collecting partitioning "intervals"
+      * finds the partitions one needs to use to get rows in these intervals
+      * marks these partitions as used
+  
+  NOTES    
     WHAT IS CONSIDERED TO BE "INTERVALS"
     A partition pruning "interval" is equivalent to condition in one of the 
     forms:
@@ -2687,7 +2687,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
     {
       /* 
         Partitioning is done by RANGE|INTERVAL(monotonic_expr(fieldX)), and
-        we got "const1 < fieldX < const2" interval.
+        we got "const1 CMP fieldX CMP const2" interval
       */
       DBUG_EXECUTE("info", dbug_print_segment_range(key_tree,
                                                     ppar->range_param.
@@ -2761,7 +2761,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         DBUG_EXECUTE("info", dbug_print_singlepoint_range(ppar->arg_stack,
                                                        ppar->part_fields););
         uint32 part_id;
-        /* then find in which partition the {const1, ...,constN} tuple goes */
+        /* Find in which partition the {const1, ...,constN} tuple goes */
         if (ppar->get_top_partition_id_func(ppar->part_info, &part_id))
         {
           res= 0; /* No satisfying partitions */
@@ -2843,7 +2843,10 @@ process_next_key_part:
 
   if (set_full_part_if_bad_ret)
   {
-    /* Restore the "used partition iterator" to its default */
+    /*
+      Restore the "used partitions iterator" to the default setting that
+      specifies iteration over all partitions.
+    */
     ppar->part_num_to_part_id= part_num_to_part_id_range;
     ppar->start_part_num= 0;
     ppar->end_part_num= ppar->part_info->no_parts;

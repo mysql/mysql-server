@@ -567,9 +567,9 @@ public:
   */
   get_subpart_id_func get_subpartition_id;
   
-  /* NULL-terminated list of fields used in partitioned expression */
+  /* NULL-terminated array of fields used in partitioned expression */
   Field **part_field_array;
-  /* NULL-terminated list of fields used in subpartitioned expression */
+  /* NULL-terminated array of fields used in subpartitioned expression */
   Field **subpart_field_array;
 
   /* 
