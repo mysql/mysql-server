@@ -131,3 +131,15 @@ lock table mysql.user write;
  revoke all on *.* from 'mysqltest_1'@'localhost';
 unlock tables;
 drop user 'mysqltest_1'@'localhost';
+insert into mysql.user (user, host) values
+('mysqltest_1', 'host1'),
+('mysqltest_2', 'host2'),
+('mysqltest_3', 'host3'),
+('mysqltest_4', 'host4'),
+('mysqltest_5', 'host5'),
+('mysqltest_6', 'host6'),
+('mysqltest_7', 'host7');
+flush privileges;
+drop user mysqltest_3@host3;
+drop user mysqltest_1@host1, mysqltest_2@host2, mysqltest_4@host4,
+mysqltest_5@host5, mysqltest_6@host6, mysqltest_7@host7;
