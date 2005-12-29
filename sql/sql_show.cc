@@ -135,18 +135,20 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
     DBUG_ASSERT(0);
   }
 
-  table->field[3]->store(STRING_WITH_LEN(plugin_type_names[plug->type]), cs);
+  table->field[3]->store(plugin_type_names[plug->type].str,
+                         plugin_type_names[plug->type].length,
+                         cs);
   table->field[4]->store(version_buf,
-        make_version_string(version_buf, sizeof(version_buf), 
+        make_version_string(version_buf, sizeof(version_buf),
                             *(uint *)plug->info), cs);
 
   if (plugin->plugin_dl)
   {
-    table->field[5]->store(plugin->plugin_dl->dl.str, 
+    table->field[5]->store(plugin->plugin_dl->dl.str,
                            plugin->plugin_dl->dl.length, cs);
     table->field[5]->set_notnull();
     table->field[6]->store(version_buf,
-          make_version_string(version_buf, sizeof(version_buf), 
+          make_version_string(version_buf, sizeof(version_buf),
                               plugin->plugin_dl->version),
           cs);
     table->field[6]->set_notnull();

@@ -220,6 +220,7 @@ int main(int argc, char **argv)
   int client_flag= 0;
   double load_difference;
   double query_difference;
+  statement *eptr;
   int x;
 
   DBUG_ENTER("main");
@@ -278,7 +279,6 @@ int main(int argc, char **argv)
   }
 
   // Main interations loop
-  statement *eptr;
   for (eptr= engine_statements; eptr; eptr= eptr->next)
   {
     if (!opt_silent)
@@ -1069,11 +1069,11 @@ run_scheduler(statement *stmts,
   ulonglong client_limit= 0;
   File lock_file;
   struct timeval start_time, end_time;
+  DBUG_ENTER("run_scheduler");
 
   if (limit)
     client_limit=  limit / concur;
 
-  DBUG_ENTER("run_scheduler");
   /* reset to 0 */
   children_spawned= 0;
 
