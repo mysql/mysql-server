@@ -538,7 +538,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= str_db_type_length + 2;
     }
-    if (next_chunk + 4 < buff_end)
+    if (next_chunk + 5 < buff_end)
     {
       uint32 partition_info_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -561,7 +561,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         goto err;
       }
 #endif
-      next_chunk+= 4 + partition_info_len;
+      next_chunk+= 5 + partition_info_len;
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
