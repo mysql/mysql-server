@@ -21,11 +21,11 @@
 
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
-const char *plugin_type_names[]=
+LEX_STRING plugin_type_names[]=
 {
-  "UDF",
-  "STORAGE ENGINE",
-  "FTPARSER"
+  { STRING_WITH_LEN("UDF") },
+  { STRING_WITH_LEN("STORAGE ENGINE") },
+  { STRING_WITH_LEN("FTPARSER") }
 };
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
@@ -43,7 +43,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0x0000, /* UDF: not implemented */
-  0x0000, /* STORAGE ENGINE: not implemented */
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION
 };
 static DYNAMIC_ARRAY plugin_dl_array;
@@ -343,8 +343,8 @@ static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
       {
         char buf[256];
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
-                 plugin_type_names[plugin->type], " plugin is too different",
-                 NullS);
+                 plugin_type_names[plugin->type].str,
+                 " plugin is too different", NullS);
         if (report & REPORT_TO_USER)
           my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dl->str, 0, buf);
         if (report & REPORT_TO_LOG)

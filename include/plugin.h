@@ -138,10 +138,13 @@ enum enum_ft_token_type
   and 0 means neither operator was used.
 
   weight_adjust: A weighting factor that determines how much a match
-  for the word counts.  Can be used to increase or decrease the word's
-  importance.
+  for the word counts.  Positive values increase, negative - decrease the
+  relative word's importance in the query.
 
-  wasign: The sign of the weight_adjust value.
+  wasign: The sign of the word's weight in the query. If it's non-negative
+  the match for the word will increase document relevance, if it's
+  negative - decrease (the word becomes a "noise word", the less of it the
+  better).
 
   trunc: Corresponds to the '*' operator in the default setting of the
   ft_boolean_syntax system variable.
