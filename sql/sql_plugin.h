@@ -53,7 +53,7 @@ struct st_plugin_int
 
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
-extern const char *plugin_type_names[];
+extern LEX_STRING plugin_type_names[];
 extern int plugin_init(void);
 extern void plugin_load(void);
 extern void plugin_free(void);
