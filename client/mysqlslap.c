@@ -38,9 +38,9 @@
   selects for each):
 
     mysqlslap --create="CREATE TABLE A (a int)" \
-              --data="INSERT INTO A (23)" --load-concurrency=8 --number-rows=8 \
+              --data="INSERT INTO A (23)" --concurrency-load=8 --number-rows=8 \
               --query="SELECT * FROM A" --concurrency=50 --iterations=200 \
-              --load-concurrency=5
+              --concurrency-load=5
 
   Let the program build create, insert and query SQL statements with a table
   of two int columns, three varchar columns, with five clients loading data
@@ -58,7 +58,7 @@
 
     mysqlslap --concurrency=5 --iterations=20 \
               --number-int-cols=2 --number-char-cols=3 \
-              --number-rows=12 --auto-generate-sql \
+              --number-of-rows=12 --auto-generate-sql \
               --skip-data-load --skip-create-schema
 
   Tell the program to load the create, insert and query SQL statements from
@@ -70,7 +70,7 @@
 
     mysqlslap --drop-schema --concurrency=5 --concurrency-load=5 \
               --iterations=5 --query=query.sql --create=create.sql \
-              --data=insert.sql --delimiter=";" --number-rows=5
+              --data=insert.sql --delimiter=";" --number-of-rows=5
 
   Same as the last test run, with short options
 
@@ -80,10 +80,12 @@
 TODO:
   Add language for better tests
   String length for files and those put on the command line are not
-  setup to handle binary data.
+    setup to handle binary data.
+  Report results of each thread into the lock file we use.
+
 */
 
-#define SHOW_VERSION "0.1"
+#define SHOW_VERSION "0.9"
 
 #define HUGE_STRING_LENGTH 8096
 #define RAND_STRING_SIZE 126
@@ -101,6 +103,8 @@ TODO:
 #include <sys/wait.h>
 #include <ctype.h>
 
+#define MYSLAPLOCK "/myslaplock.lck"
+#define MYSLAPLOCK_DIR "/tmp"
 
 static char **defaults_argv;
 
@@ -113,9 +117,14 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
+const char *lock_directory;
+char lock_file_str[FN_REFLEN];
+
 static my_bool opt_preserve_enter= FALSE, opt_preserve_exit= FALSE;
 
 static my_bool opt_only_print= FALSE;
+
+static my_bool opt_slave;
 
 static my_bool opt_compress= FALSE, tty_password= FALSE,
                create_string_alloced= FALSE,
@@ -126,10 +135,12 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
 static int verbose, num_int_cols, num_char_cols, delimiter_length;
 static int iterations;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-static unsigned int repeat_data, repeat_query;
-static unsigned int actual_insert_rows= 0;
-static unsigned int actual_queries= 0;
-static unsigned int children_spawned;
+static uint repeat_data, repeat_query;
+static ulonglong actual_insert_rows= 0;
+static ulonglong actual_queries= 0;
+static uint children_spawned;
+static ulonglong num_of_rows;
+static ulonglong num_of_query;
 const char *concurrency_str= NULL;
 uint *concurrency;
 const char *concurrency_load_str= NULL;
@@ -161,16 +172,17 @@ static statement *create_statements= NULL,
 uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
-unsigned int get_random_string(char *buf);
+uint get_random_string(char *buf);
 static int build_table_string(void);
 static int build_insert_string(void);
 static int build_query_string(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               statement *engine_stmt);
-static int run_scheduler(statement *stmts,
-              int(*task)(statement *stmt), unsigned int concur);
-int run_task(statement *stmt);
-int load_data(statement *load_stmt);
+static double run_scheduler(statement *stmts,
+              int(*task)(statement *stmt, ulonglong limit, uint repeat), 
+              uint concur, ulonglong limit, uint repeat);
+int run_task(statement *stmt, ulong limit, uint repeat);
+int load_data(statement *load_stmt, ulonglong limit);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -206,8 +218,8 @@ int main(int argc, char **argv)
 {
   MYSQL mysql;
   int client_flag= 0;
-  double time_difference;
-  struct timeval start_time, load_time, run_time;
+  double load_difference;
+  double query_difference;
   int x;
 
   DBUG_ENTER("main");
@@ -215,7 +227,7 @@ int main(int argc, char **argv)
 
   /* Seed the random number generator if we will be using it. */
   if (auto_generate_sql)
-    srandom((unsigned int)time(NULL));
+    srandom((uint)time(NULL));
 
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv=argv;
@@ -282,36 +294,54 @@ int main(int argc, char **argv)
       if (!opt_preserve_enter)
         drop_schema(&mysql, create_schema_string);
 
+      /* 
+        Three stag process:
+        create
+        insert
+        run jobs
+      */
+
+      /* First we create */
       if (create_statements)
         create_schema(&mysql, create_schema_string, create_statements, eptr);
 
+      /* For the second act we load data */
       if (insert_statements)
       {
-        gettimeofday(&start_time, NULL);
-        run_scheduler(insert_statements, load_data, concurrency_load[0]);
-        gettimeofday(&load_time, NULL);
-        time_difference= timedif(load_time, start_time);
-
-        if (!opt_silent)
+        uint *current;
+        for (current= concurrency_load; current && *current; current++)
         {
-          printf("Seconds to load data: %.5f\n",time_difference);
-          printf("Number of clients loading data: %d\n", children_spawned);
-          printf("Number of inserts per client: %d\n", repeat_data * actual_insert_rows);
+          load_difference= run_scheduler(insert_statements, run_task, 
+                                         *current, num_of_rows, repeat_data); 
+
+          if (!opt_silent)
+          {
+            printf("Seconds to load data: %.5f\n", load_difference);
+            printf("Number of clients loading data: %d\n", children_spawned);
+            printf("Number of inserts per client: %llu\n", 
+                   num_of_rows ? (unsigned long long)(num_of_rows / *current) :
+                   (unsigned long long)repeat_data * actual_insert_rows);
+          }
         }
       }
 
+      /* For the final stage we run whatever queries we were asked to run */
       if (query_statements)
       {
-        gettimeofday(&start_time, NULL);
-        run_scheduler(query_statements, run_task, concurrency[0]);
-        gettimeofday(&run_time, 0);
-        time_difference= timedif(run_time, start_time);
-
-        if (!opt_silent)
+        uint *current;
+        for (current= concurrency; current && *current; current++)
         {
-          printf("Seconds to run all queries: %.5f\n", time_difference);
-          printf("Number of clients running queries: %d\n", children_spawned);
-          printf("Number of queries per client: %d\n", repeat_query * actual_queries);
+          query_difference= run_scheduler(query_statements, run_task, 
+                                          *current, num_of_query, repeat_query); 
+
+          if (!opt_silent)
+          {
+            printf("Seconds to run all queries: %.5f\n", query_difference);
+            printf("Number of clients running queries: %d\n", children_spawned);
+            printf("Number of queries per client: %llu\n", 
+                   num_of_query ? (unsigned long long)(num_of_query / *current) : 
+                   (unsigned long long)repeat_query * actual_queries);
+          }
         }
       }
 
@@ -325,6 +355,10 @@ int main(int argc, char **argv)
 
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */
+
+
+  /* Remove lock file */
+  my_delete(lock_file_str, MYF(0));
 
   /* now free all the strings we created */
   if (opt_password)
@@ -345,7 +379,8 @@ int main(int argc, char **argv)
     for (ptr= create_statements; ptr;)
     {
       nptr= ptr->next;
-      my_free(ptr->string, MYF(0)); 
+      if (ptr->string)
+        my_free(ptr->string, MYF(0)); 
       my_free((byte *)ptr, MYF(0));
       ptr= nptr;
     }
@@ -357,7 +392,8 @@ int main(int argc, char **argv)
     for (ptr= engine_statements; ptr;)
     {
       nptr= ptr->next;
-      my_free(ptr->string, MYF(0)); 
+      if (ptr->string)
+        my_free(ptr->string, MYF(0)); 
       my_free((byte *)ptr, MYF(0));
       ptr= nptr;
     }
@@ -369,7 +405,8 @@ int main(int argc, char **argv)
     for (ptr= insert_statements; ptr;)
     {
       nptr= ptr->next;
-      my_free(ptr->string, MYF(0)); 
+      if (ptr->string)
+        my_free(ptr->string, MYF(0)); 
       my_free((byte *)ptr, MYF(0));
       ptr= nptr;
     }
@@ -381,7 +418,8 @@ int main(int argc, char **argv)
     for (ptr= query_statements; ptr;)
     {
       nptr= ptr->next;
-      my_free(ptr->string, MYF(0)); 
+      if (ptr->string)
+        my_free(ptr->string, MYF(0)); 
       my_free((byte *)ptr, MYF(0));
       ptr= nptr;
     }
@@ -439,6 +477,9 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
     (gptr*) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"lock-directory", OPT_MYSQL_LOCK_DIRECTORY, "Connect to host.", 
+    (gptr*) &lock_directory, (gptr*) &lock_directory, 0, GET_STR, 
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of INT columns to create table with if specifying --sql-generate-sql.",
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
@@ -447,6 +488,14 @@ static struct my_option my_long_options[] =
     "Number of VARCHAR columns to create table with if specifying \
       --sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"number-of-query", OPT_MYSQL_NUMBER_OF_QUERY, 
+    "Limit each client to this number of queries (this is not exact).",
+    (gptr*) &num_of_query, (gptr*) &num_of_query, 0,
+    GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"number-of-rows", OPT_MYSQL_NUMBER_OF_ROWS, 
+    "Limit each client to this number of rows (this is not exact).",
+    (gptr*) &num_of_rows, (gptr*) &num_of_rows, 0,
+    GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"only-print", OPT_MYSQL_ONLY_PRINT,
     "This causes mysqlslap to not connect to the databases, but instead print \
       out what it would have done instead.",
@@ -473,6 +522,9 @@ static struct my_option my_long_options[] =
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"query", 'q', "Query to run or file containing query to run.",
+    (gptr*) &user_supplied_query, (gptr*) &user_supplied_query,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"repeat-data", OPT_MYSQL_REPEAT_DATA, "Number of times to repeat what was specified by \
     the --data option",
     (gptr*) &repeat_data, (gptr*) &repeat_data, 0, GET_UINT, 
@@ -490,9 +542,9 @@ static struct my_option my_long_options[] =
     (gptr*) &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
 #endif
-  {"query", 'q', "Query to run or file containing query to run.",
-    (gptr*) &user_supplied_query, (gptr*) &user_supplied_query,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"slave", OPT_MYSQL_SLAP_SLAVE, "Follow master locks for other slap clients",
+    (gptr*) &opt_slave, (gptr*) &opt_slave, 0, GET_BOOL,  NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
     (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -594,7 +646,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 
-unsigned int
+uint
 get_random_string(char *buf)
 {
   char *buf_ptr= buf;
@@ -789,6 +841,11 @@ get_options(int *argc,char ***argv)
      concurrency= (uint *)my_malloc(sizeof(uint) * 2, MYF(MY_ZEROFILL));
     concurrency[0]= 1;
   }
+
+  if (lock_directory)
+    snprintf(lock_file_str, FN_REFLEN, "%s/%s", lock_directory, MYSLAPLOCK);
+  else
+    snprintf(lock_file_str, FN_REFLEN, "%s/%s", MYSLAPLOCK_DIR, MYSLAPLOCK);
 
   if (concurrency_load_str)
     parse_comma(concurrency_load_str, &concurrency_load);
@@ -1003,16 +1060,32 @@ drop_schema(MYSQL *mysql, const char *db)
 }
 
 
-static int
+static double 
 run_scheduler(statement *stmts,
-              int(*task)(statement *stmt), unsigned int concur)
+              int(*task)(statement *stmt, ulonglong limit, uint repeat), 
+              uint concur, ulonglong limit, uint repeat)
 {
   uint x;
+  ulonglong client_limit= 0;
+  File lock_file;
+  struct timeval start_time, end_time;
+
+  if (limit)
+    client_limit=  limit / concur;
 
   DBUG_ENTER("run_scheduler");
   /* reset to 0 */
   children_spawned= 0;
 
+  lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
+
+  if (!opt_slave)
+    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
+    {
+      fprintf(stderr,"%s: Could not get lockfile\n",
+              my_progname);
+      exit(0);
+    }
   for (x= 0; x < concur; x++)
   {
     int pid;
@@ -1028,7 +1101,7 @@ run_scheduler(statement *stmts,
         fprintf(stderr,
                 "%s: fork returned 0, calling task pid %d gid %d\n",
                 my_progname, pid, getgid());
-      task(stmts);
+      task(stmts, client_limit, repeat);
       exit(0);
       break;
     case -1:
@@ -1050,6 +1123,13 @@ run_scheduler(statement *stmts,
     }
     children_spawned++;
   }
+  /* Lets release use some clients! */
+  if (!opt_slave)
+    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+
+  gettimeofday(&start_time, NULL);
+
+  my_close(lock_file, MYF(0));
 
 WAIT:
   while (x--)
@@ -1058,14 +1138,16 @@ WAIT:
     pid= wait(&status);
     DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
   }
+  gettimeofday(&end_time, NULL);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(timedif(end_time, start_time));
 }
 
 int
-run_task(statement *qstmt)
+run_task(statement *qstmt, ulonglong limit, uint repeat)
 {
-  uint counter= 0, x;
+  ulonglong counter= 0, x, queries;
+  File lock_file;
   MYSQL mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -1076,6 +1158,8 @@ run_task(statement *qstmt)
   mysql_init(&mysql);
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
+  lock_file= my_open(lock_file_str, O_RDWR, MYF(0));
+  my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
   if (!opt_only_print) 
   {
     if (!(mysql_real_connect(&mysql, host, user, opt_password,
@@ -1088,7 +1172,10 @@ run_task(statement *qstmt)
   }
   DBUG_PRINT("info", ("connected."));
 
-  for (x= 0; x < repeat_query; x++)
+  queries= 0; 
+
+limit_not_met:
+  for (x= 0; x < repeat; x++)
   {
     statement *ptr;
     for (ptr= qstmt; ptr && ptr->length; ptr= ptr->next)
@@ -1105,15 +1192,26 @@ run_task(statement *qstmt)
                   my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
           exit(1);
         }
-
-        result= mysql_store_result(&mysql);
-        while ((row = mysql_fetch_row(result)))
-          counter++;
-        mysql_free_result(result);
-        result= 0;
+        if (mysql_field_count(&mysql))
+        {
+          result= mysql_store_result(&mysql);
+          while ((row = mysql_fetch_row(result)))
+            counter++;
+          mysql_free_result(result);
+        }
       }
+      queries++;
+
+      if (limit && queries == limit)
+        DBUG_RETURN(0);
     }
   }
+
+  if (limit && queries < limit)
+    goto limit_not_met;
+
+  my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+  my_close(lock_file, MYF(0));
 
   if (!opt_only_print) 
     mysql_close(&mysql);
@@ -1121,10 +1219,13 @@ run_task(statement *qstmt)
 }
 
 
+#ifdef TO_BE_DELETED
+
 int
-load_data(statement *load_stmt)
+load_data(statement *load_stmt, ulonglong limit)
 {
   uint x;
+  uint inserted;
   MYSQL mysql;
 
   DBUG_ENTER("load_data");
@@ -1143,7 +1244,7 @@ load_data(statement *load_stmt)
     }
   }
 
-  for (x= 0; x < repeat_data; x++)
+  for (x= 0, inserted= 0; x < repeat_data; x++)
   {
     statement *ptr;
     for (ptr= load_stmt; ptr && ptr->length; ptr= ptr->next)
@@ -1163,6 +1264,10 @@ load_data(statement *load_stmt)
           exit(1);
         }
       }
+      inserted++;
+
+      if (limit && inserted == limit)
+        return 0;
     }
   }
 
@@ -1170,6 +1275,8 @@ load_data(statement *load_stmt)
     mysql_close(&mysql);
   DBUG_RETURN(0);
 }
+
+#endif
 
 
 uint

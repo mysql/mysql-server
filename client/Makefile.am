@@ -52,7 +52,9 @@ mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
-mysqlslap_SOURCES=              mysqlslap.c $(yassl_dummy_link_fix)
+mysqlslap_SOURCES=              mysqlslap.c $(top_srcdir)/mysys/my_lock.c \
+				$(top_srcdir)/mysys/my_alarm.c \
+  				$(yassl_dummy_link_fix)
 mysqldump_SOURCES=              mysqldump.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
