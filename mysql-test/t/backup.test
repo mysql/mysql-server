@@ -7,7 +7,7 @@ connect (con2,localhost,root,,);
 connection con1;
 set SQL_LOG_BIN=0;
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t4;
 --enable_warnings
 create table t4(n int);
 --replace_result ": 1" ": X" ": 2" ": X" ": 22" ": X" ": 23" ": X" $MYSQL_TEST_DIR MYSQL_TEST_DIR
