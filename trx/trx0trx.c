@@ -794,7 +794,8 @@ trx_commit_off_kernel(
 		in trx sys header if MySQL binlogging is on or the database
 		server is a MySQL replication slave */
 
-		if (trx->mysql_log_file_name) {
+		if (trx->mysql_log_file_name
+				&& trx->mysql_log_file_name[0] != '\0') {
 			trx_sys_update_mysql_binlog_offset(
 					trx->mysql_log_file_name,
 					trx->mysql_log_offset,
