@@ -1701,7 +1701,7 @@ public:
   ~Table_map_log_event();
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory; /* we check malloc */ }
+  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
   virtual int get_data_size() { return m_data_size; } 
 #ifndef MYSQL_CLIENT
