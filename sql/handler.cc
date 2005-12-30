@@ -1178,6 +1178,7 @@ int ha_release_temporary_latches(THD *thd)
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
   innobase_release_temporary_latches(thd);
 #endif
+  return 0;
 }
 
 

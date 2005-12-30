@@ -2322,7 +2322,7 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
   for (int i= 0 ; field ; i++, p_field++, field= *p_field)
   {
     if (bitmap_is_set(cols,i))
-      ptr= field->pack(ptr, field->ptr + offset);
+      ptr= (byte*)field->pack(ptr, field->ptr + offset);
   }
 
   /*
@@ -2398,7 +2398,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   }
   else
   {
-    if (unlikely(!(row_data= my_multi_malloc(MYF(MY_WME),
+    if (unlikely(!(row_data= (byte*)my_multi_malloc(MYF(MY_WME),
                                              &before_row, before_maxlen,
                                              &after_row, after_maxlen,
                                              NULL))))
@@ -2420,7 +2420,7 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   if (!table->write_row_record)
   {
     /* add_row_data copies row_data to internal buffer */
-    my_free(row_data, MYF(MY_WME));
+    my_free((gptr)row_data, MYF(MY_WME));
   }
   
   return error;
@@ -2439,7 +2439,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   bool error= 0;
   my_size_t const max_len= max_row_length(table, record);
   byte *row_data= table->write_row_record;
-  if (!row_data && unlikely(!(row_data= my_malloc(max_len, MYF(MY_WME)))))
+  if (!row_data && unlikely(!(row_data= (byte*)my_malloc(max_len, MYF(MY_WME)))))
     return HA_ERR_OUT_OF_MEM;
   my_size_t const len= pack_row(table, cols, row_data, record);
 
@@ -2451,7 +2451,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
   /* add_row_data copies row_data */
   if (table->write_row_record == 0)
-    my_free(row_data, MYF(MY_WME));
+    my_free((gptr)row_data, MYF(MY_WME));
 
   return error;
 }
