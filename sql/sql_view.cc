@@ -568,8 +568,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
-  char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
-  LEX_STRING dir, file;
+  char dir_buff[FN_REFLEN], file_buff[FN_REFLEN], path_buff[FN_REFLEN];
+  LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
 
   /* print query */
@@ -584,15 +584,17 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info", ("View: %s", str.ptr()));
 
   /* print file name */
-  (void) my_snprintf(dir_buff, FN_REFLEN, "%s/%s/",
-		     mysql_data_home, view->db);
-  unpack_filename(dir_buff, dir_buff);
+  dir.length= build_table_filename(dir_buff, sizeof(dir_buff),
+                                   view->db, "", "");
   dir.str= dir_buff;
-  dir.length= strlen(dir_buff);
 
-  file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN-1, view->table_name, reg_ext,
-                         NullS) - file_buff);
+  path.length= build_table_filename(path_buff, sizeof(path_buff),
+                                    view->db, view->table_name, reg_ext);
+  path.str= path_buff;
+
+  file.str= path.str + dir.length;
+  file.length= path.length - dir.length;
+
   /* init timestamp */
   if (!view->timestamp.str)
     view->timestamp.str= view->timestamp_buffer;
@@ -1184,9 +1186,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   {
     TABLE_SHARE *share;
     bool type= 0;
-    strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
-             view->table_name, reg_ext, NullS);
-    (void) unpack_filename(path, path);
+    build_table_filename(path, sizeof(path),
+                         view->db, view->table_name, reg_ext);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (access(path, F_OK) ||
 	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))
