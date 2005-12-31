@@ -232,9 +232,9 @@ DROP TABLE t1;
 #
 create table t1 (a int);
 --error 1103
-alter table t1 rename to `t1\\`;
+alter table t1 rename to ``;
 --error 1103
-rename table t1 to `t1\\`;
+rename table t1 to ``;
 drop table t1;
 
 #

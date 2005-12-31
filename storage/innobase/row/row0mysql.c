@@ -3484,7 +3484,8 @@ row_is_mysql_tmp_table_name(
 	const char*	name)	/* in: table name in the form
 				'database/tablename' */
 {
-	return(strstr(name, "/#sql") != NULL);
+	//return(strstr(name, "/#sql") != NULL);
+	return(strstr(name, "/@0023sql") != NULL);
 }
 
 /*************************************************************************

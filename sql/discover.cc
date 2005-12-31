@@ -55,7 +55,8 @@ int readfrm(const char *name,
   *frmdata= NULL;      // In case of errors
   *len= 0;
   error= 1;
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),
+  if ((file=my_open(fn_format(index_file,name,"",reg_ext,
+                              MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		    O_RDONLY | O_SHARE,
 		    MYF(0))) < 0)  
     goto err_end; 
@@ -112,7 +113,8 @@ int writefrm(const char *name, const void *frmdata, uint len)
   //DBUG_DUMP("frmdata", (char*)frmdata, len);
 
   error= 0;
-  if ((file=my_create(fn_format(index_file,name,"",reg_ext,4),
+  if ((file=my_create(fn_format(index_file,name,"",reg_ext,
+                      MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		      CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     if (my_write(file,(byte*)frmdata,len,MYF(MY_WME | MY_NABP)))

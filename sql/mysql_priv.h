@@ -1174,6 +1174,7 @@ extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
 extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
+extern uint reg_ext_length;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
@@ -1499,6 +1500,23 @@ bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
+char *fn_rext(char *name);
+
+/* Conversion functions */
+uint strconvert(CHARSET_INFO *from_cs, const char *from,
+                CHARSET_INFO *to_cs, char *to, uint to_length);
+uint build_table_filename(char *buff, size_t bufflen, const char *db,
+                          const char *table, const char *ext);
+inline uint filename_to_tablename(const char *from, char *to, uint to_length)
+{
+  return strconvert(&my_charset_filename, from,
+                    system_charset_info, to, to_length);
+}
+inline uint tablename_to_filename(const char *from, char *to, uint to_length)
+{
+  return strconvert(system_charset_info, from,
+                    &my_charset_filename, to, to_length);
+}
 
 /* from hostname.cc */
 struct in_addr;
