@@ -437,9 +437,10 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                continue;
        }
 #endif
+      if (!MY_S_ISDIR(file->mystat->st_mode))
+        continue;
       VOID(filename_to_tablename(file->name, uname, sizeof(uname)));
-      if (!MY_S_ISDIR(file->mystat->st_mode) ||
-          (wild && wild_compare(uname, wild, 0)))
+      if (wild && wild_compare(uname, wild, 0))
         continue;
       file->name= uname;
     }

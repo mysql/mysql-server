@@ -1504,20 +1504,11 @@ char *fn_rext(char *name);
 
 /* Conversion functions */
 uint strconvert(CHARSET_INFO *from_cs, const char *from,
-                CHARSET_INFO *to_cs, char *to, uint to_length);
+                CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
+uint filename_to_tablename(const char *from, char *to, uint to_length);
+uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext);
-inline uint filename_to_tablename(const char *from, char *to, uint to_length)
-{
-  return strconvert(&my_charset_filename, from,
-                    system_charset_info, to, to_length);
-}
-inline uint tablename_to_filename(const char *from, char *to, uint to_length)
-{
-  return strconvert(system_charset_info, from,
-                    &my_charset_filename, to, to_length);
-}
-
 /* from hostname.cc */
 struct in_addr;
 my_string ip_to_hostname(struct in_addr *in,uint *errors);

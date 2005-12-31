@@ -102,6 +102,38 @@ static bool abort_and_upgrade_lock(THD *thd, TABLE *table, const char *db,
   DBUG_RETURN(FALSE);
 }
 
+
+#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
+#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
+
+uint filename_to_tablename(const char *from, char *to, uint to_length)
+{
+  uint errors, res= strconvert(&my_charset_filename, from,
+                               system_charset_info,  to, to_length, &errors);
+  if (errors) // Old 5.0 name
+  {
+    res= strxnmov(to, to_length, MYSQL50_TABLE_NAME_PREFIX,  from, NullS) - to;
+    sql_print_error("Invalid (old?) table or database name '%s'", from);
+    /*
+      TODO: add a stored procedure for fix table and database names,
+      and mention its name in error log.
+    */
+  }
+  return res;
+}
+
+
+uint tablename_to_filename(const char *from, char *to, uint to_length)
+{
+  uint errors;
+  if (from[0] && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+                          MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+    return my_snprintf(to, to_length, "%s", from + 9);
+  return strconvert(system_charset_info, from,
+                    &my_charset_filename, to, to_length, &errors);
+}
+
+
 /*
   Creates path to a file: mysql_data_dir/db/table.ext
 
