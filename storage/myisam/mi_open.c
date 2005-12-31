@@ -95,7 +95,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   head_length=sizeof(share_buff.state.header);
   bzero((byte*) &info,sizeof(info));
 
-  my_realpath(name_buff, fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
+  my_realpath(name_buff, fn_format(org_name,name,"",MI_NAME_IEXT,
+                                   MY_UNPACK_FILENAME|MY_APPEND_EXT),MYF(0));
   pthread_mutex_lock(&THR_LOCK_myisam);
   if (!(old_info=test_if_reopen(name_buff)))
   {
@@ -159,7 +160,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (!strcmp(name_buff, org_name) ||
         my_readlink(index_name, org_name, MYF(0)) == -1)
       (void) strmov(index_name, org_name);
-    (void) fn_format(data_name,org_name,"",MI_NAME_DEXT,2+4+16);
+    *strrchr(org_name, '.')= '\0';
+    (void) fn_format(data_name,org_name,"",MI_NAME_DEXT,
+                     MY_APPEND_EXT|MY_UNPACK_FILENAME|MY_RESOLVE_SYMLINKS);
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);

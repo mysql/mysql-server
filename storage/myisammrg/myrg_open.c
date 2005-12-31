@@ -46,7 +46,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   LINT_INIT(key_parts);
 
   bzero((char*) &file,sizeof(file));
-  if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
+  if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,
+                            MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		  O_RDONLY | O_SHARE,MYF(0))) < 0)
      goto err;
    errpos=1;

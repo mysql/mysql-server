@@ -155,18 +155,15 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
       old_alias= ren_table->table_name;
       new_alias= new_table->table_name;
     }
-    sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    new_table->db, new_alias, reg_ext);
-    unpack_filename(name, name);
+    build_table_filename(name, sizeof(name),
+                         new_table->db, new_alias, reg_ext);
     if (!access(name,F_OK))
     {
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
-    sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    ren_table->db, old_alias,
-	    reg_ext);
-    unpack_filename(name, name);
+    build_table_filename(name, sizeof(name),
+                         ren_table->db, old_alias, reg_ext);
 
     frm_type= mysql_frm_type(thd, name, &table_type);
     switch (frm_type)

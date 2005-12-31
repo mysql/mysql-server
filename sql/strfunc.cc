@@ -235,3 +235,79 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
     *end_of_word= ptr;
   return res;
 }
+
+
+/*
+  Converts a string between character sets
+
+  SYNOPSIS
+    strconvert()
+    from_cs       source character set
+    from          source, a null terminated string
+    to            destination buffer
+    to_length     destination buffer length
+
+  NOTES
+    'to' is always terminated with a '\0' character.
+    If there is no enough space to convert whole string,
+    only prefix is converted, and terminated with '\0'.
+
+  RETURN VALUES
+    result string length
+*/
+
+
+uint strconvert(CHARSET_INFO *from_cs, const char *from,
+                CHARSET_INFO *to_cs, char *to, uint to_length)
+{
+  int cnvres;
+  my_wc_t wc;
+  char *to_start= to;
+  uchar *to_end= (uchar*) to + to_length - 1;
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
+	       const uchar *)= from_cs->cset->mb_wc;
+  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
+    to_cs->cset->wc_mb;
+  uint error_count= 0;
+
+  while (1)
+  {
+    /*
+      Using 'from + 10' is safe:
+      - it is enough to scan a single character in any character set.
+      - if remaining string is shorter than 10, then mb_wc will return
+        with error because of unexpected '\0' character.
+    */
+    if ((cnvres= (*mb_wc)(from_cs, &wc,
+                          (uchar*) from, (uchar*) from + 10)) > 0)
+    {
+      if (!wc)
+        break;
+      from+= cnvres;
+    }
+    else if (cnvres == MY_CS_ILSEQ)
+    {
+      error_count++;
+      from++;
+      wc= '?';
+    }
+    else
+      break; // Impossible char.
+
+outp:
+
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
+      to+= cnvres;
+    else if (cnvres == MY_CS_ILUNI && wc != '?')
+    {
+      error_count++;
+      wc= '?';
+      goto outp;
+    }
+    else
+      break;
+  }
+  *to= '\0';
+  return (uint32) (to - to_start);
+
+}
