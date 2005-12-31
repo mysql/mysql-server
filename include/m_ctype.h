@@ -269,6 +269,7 @@ extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_cp1250_czech_ci;
+extern CHARSET_INFO my_charset_filename;
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,

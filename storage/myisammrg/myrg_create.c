@@ -33,7 +33,8 @@ int myrg_create(const char *name, const char **table_names,
   DBUG_ENTER("myrg_create");
 
   errpos=0;
-  if ((file = my_create(fn_format(buff,name,"",MYRG_NAME_EXT,4),0,
+  if ((file = my_create(fn_format(buff,name,"",MYRG_NAME_EXT,
+                                  MY_UNPACK_FILENAME|MY_APPEND_EXT),0,
        O_RDWR | O_EXCL | O_NOFOLLOW,MYF(MY_WME))) < 0)
     goto err;
   errpos=1;

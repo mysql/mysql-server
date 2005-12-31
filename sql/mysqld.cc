@@ -511,7 +511,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
-
+uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
 
@@ -7455,7 +7455,7 @@ fn_format_relative_to_data_home(my_string to, const char *name,
     dir=tmp_path;
   }
   return !fn_format(to, name, dir, extension,
-		    MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH);
+		    MY_APPEND_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH);
 }
 
 

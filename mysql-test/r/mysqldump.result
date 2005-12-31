@@ -1627,7 +1627,7 @@ mysqldump: Couldn't find table: "T_"
 test_sequence
 ------ Testing with illegal database names ------
 mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
-mysqldump: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
+mysqldump: Got error: 1049: Unknown database 'mysqld\ump_test_db' when selecting the database
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
 use test;
