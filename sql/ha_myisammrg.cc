@@ -105,8 +105,9 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   char name_buff[FN_REFLEN];
 
   DBUG_PRINT("info", ("ha_myisammrg::open"));
-  if (!(file=myrg_open(fn_format(name_buff,name,"","",2 | 4), mode,
-		       test_if_locked)))
+  if (!(file=myrg_open(fn_format(name_buff,name,"","",
+                                 MY_UNPACK_FILENAME|MY_APPEND_EXT),
+                       mode, test_if_locked)))
   {
     DBUG_PRINT("info", ("ha_myisammrg::open exit %d", my_errno));
     return (my_errno ? my_errno : -1);
@@ -469,8 +470,8 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
         This means that it might not be possible to move the DATADIR of
         an embedded server without changing the paths in the .MRG file.
       */
-      uint length= my_snprintf(buff, FN_REFLEN, "%s/%s/%s", mysql_data_home,
-			       tables->db, tables->table_name);
+      uint length= build_table_filename(buff, sizeof(buff),
+                                        tables->db, tables->table_name, "");
       /*
         If a MyISAM table is in the same directory as the MERGE table,
         we use the table name without a path. This means that the
@@ -488,7 +489,9 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
     *pos++= table_name;
   }
   *pos=0;
-  DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
+  DBUG_RETURN(myrg_create(fn_format(buff,name,"","",
+                                    MY_RESOLVE_SYMLINKS|
+                                    MY_UNPACK_FILENAME|MY_APPEND_EXT),
 			  table_names,
                           create_info->merge_insert_method,
                           (my_bool) 0));
