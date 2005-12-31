@@ -32,7 +32,6 @@ bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			$(top_builddir)/storage/myisam/libmyisam.a \
 			$(top_builddir)/storage/myisammrg/libmyisammrg.a \
-			$(top_builddir)/storage/archive/libarchive.a \
 			$(top_builddir)/storage/heap/libheap.a \
 			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \
