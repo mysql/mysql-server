@@ -547,8 +547,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (ci->index_file_name)
   {
-    fn_format(filename, ci->index_file_name,"",MI_NAME_IEXT,4);
-    fn_format(linkname,name, "",MI_NAME_IEXT,4);
+    char *iext= strrchr(ci->index_file_name, '.');
+    int have_iext= iext && !strcmp(iext, MI_NAME_IEXT);
+    
+    fn_format(filename, ci->index_file_name, "", MI_NAME_IEXT,
+              MY_UNPACK_FILENAME| (have_iext ? MY_REPLACE_EXT :MY_APPEND_EXT));
+    fn_format(linkname, name, "", MI_NAME_IEXT,
+              MY_UNPACK_FILENAME|MY_APPEND_EXT);
     linkname_ptr=linkname;
     /*
       Don't create the table if the link or file exists to ensure that one
@@ -558,8 +563,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
   else
   {
-    fn_format(filename,name,"",MI_NAME_IEXT,(4+ (flags & HA_DONT_TOUCH_DATA) ?
-					     32 : 0));
+    fn_format(filename, name, "", MI_NAME_IEXT,
+              (MY_UNPACK_FILENAME |
+               (flags & HA_DONT_TOUCH_DATA) ? MY_RETURN_REAL_PATH : 0) |
+                MY_APPEND_EXT);
     linkname_ptr=0;
     /* Replace the current file */
     create_flag=MY_DELETE_OLD;
@@ -590,7 +597,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #ifdef USE_RAID
     if (share.base.raid_type)
     {
-      (void) fn_format(filename,name,"",MI_NAME_DEXT,2+4);
+      (void) fn_format(filename, name, "", MI_NAME_DEXT,
+                       MY_UNPACK_FILENAME | MY_APPEND_EXT);
       if ((dfile=my_raid_create(filename, 0, create_mode,
 				share.base.raid_type,
 				share.base.raid_chunks,
@@ -603,14 +611,21 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     {
       if (ci->data_file_name)
       {
-	fn_format(filename, ci->data_file_name,"",MI_NAME_DEXT,4);
-	fn_format(linkname, name, "",MI_NAME_DEXT,4);
+        char *dext= strrchr(ci->data_file_name, '.');
+        int have_dext= dext && !strcmp(dext, MI_NAME_DEXT);
+
+	fn_format(filename, ci->data_file_name, "", MI_NAME_DEXT,
+	          MY_UNPACK_FILENAME |
+	          (have_dext ? MY_REPLACE_EXT : MY_APPEND_EXT));
+	fn_format(linkname, name, "",MI_NAME_DEXT,
+	          MY_UNPACK_FILENAME | MY_APPEND_EXT);
 	linkname_ptr=linkname;
 	create_flag=0;
       }
       else
       {
-	fn_format(filename,name,"",MI_NAME_DEXT,4);
+	fn_format(filename,name,"", MI_NAME_DEXT,
+	          MY_UNPACK_FILENAME | MY_APPEND_EXT);
 	linkname_ptr=0;
 	create_flag=MY_DELETE_OLD;
       }
@@ -759,13 +774,15 @@ err:
   case 2:
     /* QQ: Tõnu should add a call to my_raid_delete() here */
   if (! (flags & HA_DONT_TOUCH_DATA))
-    my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_DEXT,2+4),
+    my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_DEXT,
+                                     MY_UNPACK_FILENAME | MY_APPEND_EXT),
 			   MYF(0));
     /* fall through */
   case 1:
     VOID(my_close(file,MYF(0)));
     if (! (flags & HA_DONT_TOUCH_DATA))
-      my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_IEXT,2+4),
+      my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_IEXT,
+                                       MY_UNPACK_FILENAME | MY_APPEND_EXT),
 			     MYF(0));
   }
   my_free((char*) rec_per_key_part, MYF(0));

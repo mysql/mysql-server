@@ -226,8 +226,20 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
 		       dir->str, file_name->str, (ulong) base));
 
-  fn_format(path, file_name->str, dir->str, 0, MY_UNPACK_FILENAME);
-  path_end= strlen(path);
+  if (dir)
+  {
+    fn_format(path, file_name->str, dir->str, 0, MY_UNPACK_FILENAME);
+    path_end= strlen(path);
+  }
+  else
+  {
+    /*
+      if not dir is passed, it means file_name is a full path,
+      including dir name, file name itself, and an extension,
+      and with unpack_filename() executed over it.
+    */    
+    path_end= strxnmov(path, FN_REFLEN, file_name->str, NullS) - path;
+  }
 
   // temporary file name
   path[path_end]='~';

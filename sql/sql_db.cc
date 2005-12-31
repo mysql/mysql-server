@@ -425,8 +425,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
 
   /* Check directory */
-  strxmov(path, mysql_data_home, "/", db, NullS);
-  path_len= unpack_dirname(path,path);    // Convert if not unix
+  path_len= build_table_filename(path, sizeof(path), db, "", "");
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
@@ -549,9 +548,12 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
-  /* Check directory */
-  strxmov(path, mysql_data_home, "/", db, "/", MY_DB_OPT_FILE, NullS);
-  fn_format(path, path, "", "", MYF(MY_UNPACK_FILENAME));
+  /* 
+     Recreate db options file: /dbpath/.db.opt
+     We pass MY_DB_OPT_FILE as "extension" to avoid
+     "table name to file name" encoding.
+  */
+  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE);
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
@@ -629,8 +631,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     goto exit2;
   }
 
-  (void) sprintf(path,"%s/%s",mysql_data_home,db);
-  length= unpack_dirname(path,path);		// Convert if not unix
+  length= build_table_filename(path, sizeof(path), db, "", "");
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -852,7 +853,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       found_other_files++;
       continue;
     }
-    extension= fn_ext(file->name);
+    if (!(extension= strrchr(file->name, '.')))
+      extension= strend(file->name);
     if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
       if (find_type(extension, ha_known_exts(),1+2) <= 0)
@@ -870,7 +872,9 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       if (!table_list)
 	goto err;
       table_list->db= (char*) (table_list+1);
-      strmov(table_list->table_name= strmov(table_list->db,db)+1, file->name);
+      table_list->table_name= strmov(table_list->db, db) + 1;
+      VOID(filename_to_tablename(file->name, table_list->table_name,
+                                 strlen(file->name) + 1));
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
@@ -1151,8 +1155,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     }
   }
 #endif
-  (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
-  length=unpack_dirname(path,path);		// Convert if not unix
+  length= build_table_filename(path, sizeof(path), dbname, "", "");
   if (length && path[length-1] == FN_LIBCHAR)
     path[length-1]=0;				// remove ending '\'
   if (my_access(path,F_OK))

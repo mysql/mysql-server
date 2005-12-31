@@ -274,8 +274,42 @@ f	float(3,3)	YES		NULL
 drop table t1;
 SET @old_sql_mode= @@sql_mode, sql_mode= '';
 SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
-CREATE TABLE `a/b` (i INT);
-ERROR 42000: Incorrect table name 'a/b'
+CREATE TABLE ```ab``cd``` (i INT);
+SHOW CREATE TABLE ```ab``cd```;
+Table	Create Table
+`ab`cd`	CREATE TABLE ```ab``cd``` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```ab``cd```;
+CREATE TABLE ```ab````cd``` (i INT);
+SHOW CREATE TABLE ```ab````cd```;
+Table	Create Table
+`ab``cd`	CREATE TABLE ```ab````cd``` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```ab````cd```;
+CREATE TABLE ```a` (i INT);
+SHOW CREATE TABLE ```a`;
+Table	Create Table
+`a	CREATE TABLE ```a` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE ```a`;
+CREATE TABLE `a.1` (i INT);
+SHOW CREATE TABLE `a.1`;
+Table	Create Table
+a.1	CREATE TABLE `a.1` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE `a.1`;
+SET sql_mode= 'ANSI_QUOTES';
+CREATE TABLE """a" (i INT);
+SHOW CREATE TABLE """a";
+Table	Create Table
+"a	CREATE TABLE """a" (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE """a";
 SET sql_mode= '';
 SET sql_quote_show_create= OFF;
 CREATE TABLE t1 (i INT);

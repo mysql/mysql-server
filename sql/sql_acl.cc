@@ -2796,9 +2796,10 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       if (!(rights & CREATE_ACL))
       {
         char buf[FN_REFLEN];
-        sprintf(buf,"%s/%s/%s.frm",mysql_data_home, table_list->db,
-                table_list->table_name);
-        fn_format(buf,buf,"","",4+16+32);
+        build_table_filename(buf, sizeof(buf), table_list->db,
+                             table_list->table_name, reg_ext);
+        fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
+                                    MY_RETURN_REAL_PATH | MY_APPEND_EXT);
         if (access(buf,F_OK))
         {
           my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);

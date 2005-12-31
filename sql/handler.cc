@@ -2023,7 +2023,7 @@ int handler::delete_table(const char *name)
 
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
-    fn_format(buff, name, "", *ext, 2 | 4);
+    fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (my_delete_with_symlink(buff, MYF(0)))
     {
       if ((error= my_errno) != ENOENT)
