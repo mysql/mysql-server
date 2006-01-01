@@ -39,6 +39,7 @@
 
 #define mysql_declare_plugin                                          \
 int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION; \
+int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin); \
 struct st_mysql_plugin _mysql_plugin_declarations_[]= {
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0}}
 
