@@ -448,7 +448,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   if(!regOperPtr.p->is_first_operation())
   {
     /**
-     * Out of order commit 
+     * Out of order commit   XXX check effect on triggers
      */
     fix_commit_order(regOperPtr);
   }
