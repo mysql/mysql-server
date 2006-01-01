@@ -376,10 +376,10 @@ NdbEventOperationImpl::receive_event()
 	     AttributeHeader(*aAttrPtr).getAttributeId());
       receive_data(tAttr, aDataPtr, tDataSz);
       if (is_update)
-      {
 	receive_data(tAttr1, aDataPtr, tDataSz);
-	tAttr1= tAttr1->next();
-      }
+      else
+        tAttr1->setUNDEFINED(); // do not leave unspecified
+      tAttr1= tAttr1->next();
       // next
       aAttrPtr++;
       aDataPtr+= (tDataSz + 3) >> 2;
