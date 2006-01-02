@@ -9264,6 +9264,15 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
 // completion. Signal completion through scanCompletedStatus-flag.
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
+    scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
+    if (ERROR_INSERTED(5042))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      tcConnectptr.p->copyCountWords = ~0;
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, scanptr.p->scanNodeId),
+		 GSN_NDB_TAMPER, signal, 1, JBA);
+    }
     return;
   }//if
 
