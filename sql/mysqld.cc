@@ -6186,6 +6186,335 @@ The minimum value for this variable is 4096.",
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static int show_question(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONGLONG;
+  var->value= (char *)&thd->query_id;
+  return 0;
+}
+
+static int show_net_compression(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_MY_BOOL;
+  var->value= (char *)&thd->net.compress;
+  return 0;
+}
+
+static int show_starttime(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long) (thd->query_start() - start_time);
+  return 0;
+}
+
+#ifdef HAVE_REPLICATION
+static int show_rpl_status(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= const_cast<char*>(rpl_status_type[(int)rpl_status]);
+  return 0;
+}
+
+static int show_slave_running(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  pthread_mutex_lock(&LOCK_active_mi);
+  var->value= const_cast<char*>((active_mi && active_mi->slave_running &&
+               active_mi->rli.slave_running) ? "ON" : "OFF");
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+static int show_slave_retried_trans(THD *thd, show_var_st *var, char *buff)
+{
+  /*
+    TODO: with multimaster, have one such counter per line in
+    SHOW SLAVE STATUS, and have the sum over all lines here.
+  */
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type=SHOW_LONG;
+    var->value= buff;
+    pthread_mutex_lock(&active_mi->rli.data_lock);
+    *((long *)buff)= (long)active_mi->rli.retried_trans;
+    pthread_mutex_unlock(&active_mi->rli.data_lock);
+  }
+  else
+    var->type=SHOW_UNDEF;
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+#endif /* HAVE_REPLICATION */
+
+static int show_open_tables(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)cached_open_tables();
+  return 0;
+}
+
+static int show_table_definitions(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)cached_table_definitions();
+  return 0;
+}
+
+#ifdef HAVE_OPENSSL
+/* Functions relying on CTX */
+static int show_ssl_ctx_sess_accept(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_accept_good(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_connect_good(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_accept_renegotiate(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_connect_renegotiate(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_cb_hits(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_hits(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_cache_full(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_misses(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_timeouts(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_number(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_connect(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_sess_get_cache_size(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_get_verify_mode(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_get_verify_depth(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (!ssl_acceptor_fd ? 0 :
+                     SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context));
+  return 0;
+}
+
+static int show_ssl_ctx_get_session_cache_mode(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  if (!ssl_acceptor_fd)
+    var->value= "NONE";
+  else
+    switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
+    {
+    case SSL_SESS_CACHE_OFF:
+      var->value= "OFF"; break;
+    case SSL_SESS_CACHE_CLIENT:
+      var->value= "CLIENT"; break;
+    case SSL_SESS_CACHE_SERVER:
+      var->value= "SERVER"; break;
+    case SSL_SESS_CACHE_BOTH:
+      var->value= "BOTH"; break;
+    case SSL_SESS_CACHE_NO_AUTO_CLEAR:
+      var->value= "NO_AUTO_CLEAR"; break;
+    case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
+      var->value= "NO_INTERNAL_LOOKUP"; break;
+    default:
+      var->value= "Unknown"; break;
+    }
+  return 0;
+}
+
+/* Functions relying on SSL */
+static int show_ssl_get_version(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
+        SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
+  return 0;
+}
+
+static int show_ssl_session_reused(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
+                         SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
+                         0;
+}
+
+static int show_ssl_get_default_timeout(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
+                         SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg) :
+                         0;
+  return 0;
+}
+
+static int show_ssl_get_verify_mode(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
+                         SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg) :
+                         0;
+  return 0;
+}
+
+static int show_ssl_get_verify_depth(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= (long)thd->net.vio->ssl_arg ?
+                         SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg) :
+                         0;
+  return 0;
+}
+
+static int show_ssl_get_cipher(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= const_cast<char*>(thd->net.vio->ssl_arg ?
+              SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "");
+  return 0;
+}
+
+static int show_ssl_get_cipher_list(THD *thd, show_var_st *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= buff;
+  if (thd->net.vio->ssl_arg)
+  {
+    int i;
+    const char *p;
+    for (i=0 ; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)); i++)
+    {
+      buff= strmov(buff, p);
+      *buff++= ':';
+    }
+    if (i)
+      buff--;
+  }
+  *buff=0;
+  return 0;
+}
+
+#endif /* HAVE_OPENSSL */
+
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+int innodb_export_status(void);
+static int show_innodb_vars(THD *thd, show_var_st *var, char *buff)
+{
+  innodb_export_status();
+  var->type= SHOW_ARRAY;
+  var->value= (char *) &innodb_status_variables;
+  return 0;
+}
+#endif
 
 struct show_var_st status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
@@ -6296,7 +6625,7 @@ struct show_var_st status_vars[]= {
   {"Com_xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
   {"Com_xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
   {"Com_xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
-  {"Compression",              (char*) 0,                        SHOW_NET_COMPRESSION},
+  {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
@@ -6321,25 +6650,25 @@ struct show_var_st status_vars[]= {
   {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"Innodb_",                  (char*) &innodb_status_variables, SHOW_VARS},
+  {"Innodb_",                  (char*) &show_innodb_vars, SHOW_FUNC},
 #endif /* WITH_INNOBASE_STORAGE_ENGINE */
-  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed, SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused, SHOW_KEY_CACHE_CONST_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used, SHOW_KEY_CACHE_CONST_LONG},
-  {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests, SHOW_KEY_CACHE_LONGLONG},
-  {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read, SHOW_KEY_CACHE_LONGLONG},
-  {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests, SHOW_KEY_CACHE_LONGLONG},
-  {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONGLONG},
+  {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests), SHOW_KEY_CACHE_LONGLONG},
+  {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read), SHOW_KEY_CACHE_LONGLONG},
+  {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
+  {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
+  {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_ARRAY},
 #endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
-  {"Open_table_definitions",   (char*) 0,			SHOW_TABLE_DEFINITIONS},
-  {"Open_tables",              (char*) 0,                       SHOW_OPEN_TABLES},
+  {"Open_table_definitions",   (char*) &show_table_definitions, SHOW_FUNC},
+  {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_CONST},
@@ -6351,16 +6680,20 @@ struct show_var_st status_vars[]= {
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
-  {"Questions",                (char*) 0,                       SHOW_QUESTION},
-  {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
+  {"Questions",                (char*) &show_question,            SHOW_FUNC},
+#ifdef HAVE_REPLICATION
+  {"Rpl_status",               (char*) &show_rpl_status,          SHOW_FUNC},
+#endif
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
   {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
   {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONG_STATUS},
   {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONG_STATUS},
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
-  {"Slave_retried_transactions",(char*) 0,                      SHOW_SLAVE_RETRIED_TRANS},
-  {"Slave_running",            (char*) 0,                       SHOW_SLAVE_RUNNING},
+#ifdef HAVE_REPLICATION
+  {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
+  {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
+#endif
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
   {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},
@@ -6368,29 +6701,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONG_STATUS},
   {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONG_STATUS},
 #ifdef HAVE_OPENSSL
-  {"Ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"Ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
-  {"Ssl_callback_cache_hits",  (char*) 0,	SHOW_SSL_CTX_SESS_CB_HITS},
-  {"Ssl_cipher",               (char*) 0,  	SHOW_SSL_GET_CIPHER},
-  {"Ssl_cipher_list",          (char*) 0,  	SHOW_SSL_GET_CIPHER_LIST},
-  {"Ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
-  {"Ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
-  {"Ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"Ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"Ssl_default_timeout",      (char*) 0,  	SHOW_SSL_GET_DEFAULT_TIMEOUT},
-  {"Ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"Ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
-  {"Ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
-  {"Ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
-  {"Ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"Ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
-  {"Ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"Ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
-  {"Ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
-  {"Ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
-  {"Ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
-  {"Ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
-  {"Ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
+  {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate, SHOW_FUNC},
+  {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept, SHOW_FUNC},
+  {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits, SHOW_FUNC},
+  {"Ssl_cipher",               (char*) &show_ssl_get_cipher, SHOW_FUNC},
+  {"Ssl_cipher_list",          (char*) &show_ssl_get_cipher_list, SHOW_FUNC},
+  {"Ssl_client_connects",      (char*) &show_ssl_ctx_sess_connect, SHOW_FUNC},
+  {"Ssl_connect_renegotiates", (char*) &show_ssl_ctx_sess_connect_renegotiate, SHOW_FUNC},
+  {"Ssl_ctx_verify_depth",     (char*) &show_ssl_ctx_get_verify_depth, SHOW_FUNC},
+  {"Ssl_ctx_verify_mode",      (char*) &show_ssl_ctx_get_verify_mode, SHOW_FUNC},
+  {"Ssl_default_timeout",      (char*) &show_ssl_get_default_timeout, SHOW_FUNC},
+  {"Ssl_finished_accepts",     (char*) &show_ssl_ctx_sess_accept_good, SHOW_FUNC},
+  {"Ssl_finished_connects",    (char*) &show_ssl_ctx_sess_connect_good, SHOW_FUNC},
+  {"Ssl_session_cache_hits",   (char*) &show_ssl_ctx_sess_hits, SHOW_FUNC},
+  {"Ssl_session_cache_misses", (char*) &show_ssl_ctx_sess_misses, SHOW_FUNC},
+  {"Ssl_session_cache_mode",   (char*) &show_ssl_ctx_get_session_cache_mode, SHOW_FUNC},
+  {"Ssl_session_cache_overflows", (char*) &show_ssl_ctx_sess_cache_full, SHOW_FUNC},
+  {"Ssl_session_cache_size",   (char*) &show_ssl_ctx_sess_get_cache_size, SHOW_FUNC},
+  {"Ssl_session_cache_timeouts", (char*) &show_ssl_ctx_sess_timeouts, SHOW_FUNC},
+  {"Ssl_sessions_reused",      (char*) &show_ssl_session_reused, SHOW_FUNC},
+  {"Ssl_used_session_cache_entries",(char*) &show_ssl_ctx_sess_number, SHOW_FUNC},
+  {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
+  {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
+  {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -6403,7 +6736,7 @@ struct show_var_st status_vars[]= {
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
-  {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
+  {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
