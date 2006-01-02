@@ -1180,15 +1180,6 @@ int ha_release_temporary_latches(THD *thd)
 #endif
 }
 
-
-int ha_update_statistics()
-{
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  innodb_export_status();
-#endif
-  return 0;
-}
-
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;

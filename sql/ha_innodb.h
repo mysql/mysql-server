@@ -277,7 +277,6 @@ void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offse
 
 void innobase_drop_database(char *path);
 bool innobase_show_status(THD* thd, stat_print_fn*, enum ha_stat_type);
-int innodb_export_status(void);
 
 int innobase_release_temporary_latches(THD *thd);
 
