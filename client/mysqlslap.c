@@ -184,7 +184,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
               statement *engine_stmt);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-int run_task(statement *stmt, ulong limit);
+int run_task(statement *stmt, ulonglong limit);
 void statement_cleanup(statement *stmt);
 
 static const char ALPHANUMERICS[]=
