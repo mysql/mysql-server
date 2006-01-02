@@ -278,7 +278,7 @@ int main(int argc, char **argv)
     }
   }
 
-  // Main interations loop
+  /* Main interations loop */
   for (eptr= engine_statements; eptr; eptr= eptr->next)
   {
     if (!opt_silent)
@@ -1287,7 +1287,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   statement **sptr= stmt;
   statement *tmp;
   uint length= strlen(script);
-  uint count= 0; // We know that there is always one
+  uint count= 0; /* We know that there is always one */
 
   DBUG_PRINT("info", ("Parsing %s\n", script));
 
@@ -1322,7 +1322,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
 uint
 parse_comma(const char *string, uint **range)
 {
-  uint count= 1,x; // We know that there is always one
+  uint count= 1,x; /* We know that there is always one */
   char *retstr;
   char *ptr= (char *)string;
   uint *nptr;
@@ -1330,7 +1330,7 @@ parse_comma(const char *string, uint **range)
   for (;*ptr; ptr++)
     if (*ptr == ',') count++;
   
-  // One extra spot for the NULL
+  /* One extra spot for the NULL */
   nptr= *range= (uint *)my_malloc(sizeof(uint) * (count + 1), MYF(MY_ZEROFILL));
 
   ptr= (char *)string;
