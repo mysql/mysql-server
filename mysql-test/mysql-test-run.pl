@@ -2503,7 +2503,8 @@ sub run_mysqltest ($) {
   {
     $cmdline_mysqlslap= "$exe_mysqlslap -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
-                         "--socket=$master->[0]->{'path_mysock'} --password=";
+                         "--socket=$master->[0]->{'path_mysock'} --password= " .
+                         "--lock-directory=$opt_tmpdir";
     if ( $opt_debug )
     {
       $cmdline_mysqlslap .=
