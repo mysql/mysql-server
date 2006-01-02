@@ -112,3 +112,11 @@ create table t1 (
   key(b)
 ) engine=ndbcluster;
 
+# bug#16125
+create table t1 (
+  pk1 int primary key,
+  b bit(32) not null
+) engine=ndbcluster;
+
+insert into t1 values (1,1);
+drop table t1;

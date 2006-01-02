@@ -208,3 +208,9 @@ b bit(9),
 key(b)
 ) engine=ndbcluster;
 ERROR HY000: Can't create table './test/t1.frm' (errno: 743)
+create table t1 (
+pk1 int primary key,
+b bit(32) not null
+) engine=ndbcluster;
+insert into t1 values (1,1);
+drop table t1;
