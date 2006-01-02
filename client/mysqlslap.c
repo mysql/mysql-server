@@ -1,4 +1,3 @@
-#include <brian.h>
 /* Copyright (C) 2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -27,27 +26,18 @@
   then reporting the timing of each stage.
 
   MySQL slap runs three stages:
-  1) Create table (single client)
+  1) Create schema,table, and optionally any SP or data you want to beign
+     the test with. (single client)
   2) Load test (many clients)
   3) Cleanup (disconnection, drop table if specified, single client)
 
   Examples:
 
-  Supply your own create, insert and query SQL statements, with eight
-  clients loading data (eight inserts for each) and 50 clients querying (200
-  selects for each):
+  Supply your own create and query SQL statements, with 50 clients 
+  querying (200 selects for each):
 
     mysqlslap --create="CREATE TABLE A (a int);INSERT INTO A (23)" \
               --query="SELECT * FROM A" --concurrency=50 --iterations=200
-
-  Let the program build create, insert and query SQL statements with a table
-  of two int columns, three varchar columns, with five clients loading data
-  (12 inserts each), five clients querying (20 times each), and drop schema
-  before creating:
-
-    mysqlslap --concurrency=5 --iterations=20 \
-              --number-int-cols=2 --number-char-cols=3 \
-              --auto-generate-sql
 
   Let the program build the query SQL statement with a table of two int
   columns, three varchar columns, five clients querying (20 times each),
@@ -60,9 +50,9 @@
 
   Tell the program to load the create, insert and query SQL statements from
   the specified files, where the create.sql file has multiple table creation
-  statements delimited by ';', multiple insert statements delimited by ';',
-  and multiple queries delimited by ';', run all the load statements with
-  five clients (five times each), and run all the queries in the query file
+  statements delimited by ';' and multiple insert statements delimited by ';'.
+  The --query file will have multiple queries delimited by ';', run all the 
+  load statements, and then run all the queries in the query file
   with five clients (five times each):
 
     mysqlslap --drop-schema --concurrency=5 \
@@ -74,6 +64,9 @@ TODO:
   String length for files and those put on the command line are not
     setup to handle binary data.
   Report results of each thread into the lock file we use.
+  More stats
+  Break up tests and run them on multiple hosts at once.
+  Allow output to be fed into a database directly.
 
 */
 
@@ -156,7 +149,6 @@ struct stats {
   long int timing;
   uint users;
   unsigned long long rows;
-  stats *next;
 };
 
 typedef struct conclusions conclusions;
@@ -168,6 +160,7 @@ struct conclusions {
   long int min_timing;
   uint users;
   unsigned long long avg_rows;
+  // The following are not used yet
   unsigned long long max_rows;
   unsigned long long min_rows;
 };
@@ -192,37 +185,13 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
 int run_task(statement *stmt, ulong limit);
+void statement_cleanup(statement *stmt);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
 
 #define ALPHANUMERICS_SIZE (sizeof(ALPHANUMERICS)-1)
 
-
-
-#ifdef DELETE_LATER
-/* Return the time in ms between two timevals */
-static double timedif (struct timeval end, struct timeval begin)
-{
-  double seconds;
-  DBUG_ENTER("timedif");
-
-  seconds= (double)(end.tv_usec - begin.tv_usec)/1000000;
-  DBUG_PRINT("info", ("end.tv_usec %d - begin.tv_usec %d = "
-                      "%d microseconds ( fseconds %f)",
-                      end.tv_usec, begin.tv_usec,
-                      (end.tv_usec - begin.tv_usec),
-                      seconds));
-  seconds += (double)(end.tv_sec - begin.tv_sec);
-  DBUG_PRINT("info", ("end.tv_sec %d - begin.tv_sec %d = "
-                      "%d seconds (fseconds %f)",
-                      end.tv_sec, begin.tv_sec,
-                      (end.tv_sec - begin.tv_sec), seconds));
-
-  DBUG_PRINT("info", ("returning time %f seconds", seconds));
-  DBUG_RETURN(seconds);
-}
-#endif
 
 static long int timedif(struct timeval a, struct timeval b)
 {
@@ -236,13 +205,13 @@ static long int timedif(struct timeval a, struct timeval b)
 }
 
 
-
-
 int main(int argc, char **argv)
 {
   MYSQL mysql;
   int client_flag= 0;
   int x;
+  unsigned long long client_limit;
+  statement *eptr;
 
   DBUG_ENTER("main");
   MY_INIT(argv[0]);
@@ -300,31 +269,28 @@ int main(int argc, char **argv)
   }
 
   // Main iterations loop
-  unsigned long long client_limit;
-
   eptr= engine_statements;
   do
   {
     /* For the final stage we run whatever queries we were asked to run */
     uint *current;
     conclusions conclusion;
+
     for (current= concurrency; current && *current; current++)
     {
-      stats *head_sptr= NULL; // Not assigning NULL causes compiler to complain
-      stats *sptr= NULL; // Not assigning NULL causes compiler to complain
-      stats *nptr= NULL; // Just used for deallocation
+      stats *head_sptr;
+      stats *sptr;
+
+      head_sptr= (stats *)my_malloc(sizeof(stats) * *current, MYF(MY_ZEROFILL));
 
       bzero(&conclusion, sizeof(conclusions));
+
       if (num_of_query)
         client_limit=  num_of_query / *current;
       else
         client_limit= actual_queries;
 
-      for (x= 0, sptr= head_sptr= 
-           (stats *)my_malloc(sizeof(stats), MYF(MY_ZEROFILL));
-           x < iterations; x++, 
-           sptr= sptr->next= (stats *)my_malloc(sizeof(stats), MYF(MY_ZEROFILL))
-           )
+      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr+= sizeof(stats))
       {
         /*
           We might not want to load any data, such as when we are calling
@@ -339,18 +305,15 @@ int main(int argc, char **argv)
 
         run_scheduler(sptr, query_statements, *current, client_limit); 
       }
+
       generate_stats(&conclusion, eptr, head_sptr);
+
       if (!opt_silent)
         print_conclusions(&conclusion);
       if (opt_csv_str)
         print_conclusions_csv(&conclusion);
 
-      for (sptr= head_sptr; sptr;)
-      {
-        nptr= sptr->next;
-        my_free((byte *)sptr, MYF(0));
-        sptr= nptr;
-      }
+      my_free((byte *)head_sptr, MYF(0));
     }
 
     if (!opt_preserve)
@@ -370,44 +333,9 @@ int main(int argc, char **argv)
 
   my_free((byte *)concurrency, MYF(0));
 
-  if (create_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= create_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
-  
-  if (engine_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= engine_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
-
-  if (query_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= query_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
+  statement_cleanup(create_statements);
+  statement_cleanup(engine_statements);
+  statement_cleanup(query_statements);
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
@@ -787,13 +715,7 @@ get_options(int *argc,char ***argv)
       exit(1);
   }
 
-  if (concurrency_str)
-    parse_comma(concurrency_str, &concurrency);
-  else
-  {
-     concurrency= (uint *)my_malloc(sizeof(uint) * 2, MYF(MY_ZEROFILL));
-    concurrency[0]= 1;
-  }
+  parse_comma(concurrency_str ? concurrency_str : "1", &concurrency);
 
   if (lock_directory)
     snprintf(lock_file_str, FN_REFLEN, "%s/%s", lock_directory, MYSLAPLOCK);
@@ -1270,7 +1192,7 @@ generate_stats(conclusions *con, statement *eng, stats *sptr)
   con->avg_rows= sptr->rows;
   
   // With no next, we know it is the last element that was malloced
-  for (ptr= sptr, x= 0; x < iterations; ptr= ptr->next, x++)
+  for (ptr= sptr, x= 0; x < iterations; ptr+= sizeof(stats), x++)
   {
     con->avg_timing+= ptr->timing;
 
@@ -1285,4 +1207,20 @@ generate_stats(conclusions *con, statement *eng, stats *sptr)
     con->engine= eng->string;
   else
     con->engine= NULL;
+}
+
+void
+statement_cleanup(statement *stmt)
+{
+  statement *ptr, *nptr;
+  if (!stmt)
+    return;
+
+  for (ptr= stmt; ptr; ptr= nptr)
+  {
+    nptr= ptr->next;
+    if (ptr->string)
+      my_free(ptr->string, MYF(0)); 
+    my_free((byte *)ptr, MYF(0));
+  }
 }
