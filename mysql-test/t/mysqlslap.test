@@ -2,12 +2,12 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
---exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
 
---exec $MYSQL_SLAP --only-print --concurrency=1 --concurrency-load=1 --iterations=20  --query="select * from t1" --data="INSERT INTO t1 VALUES (1, 'This is a test')" --create="CREATE TABLE t1 (id int, name varchar(64))"
+--exec $MYSQL_SLAP --only-print --iterations=20  --query="select * from t1" --create="CREATE TABLE t1 (id int, name varchar(64)); INSERT INTO t1 VALUES (1, 'This is a test')" --delimiter=";"
 
---exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --query="select * from t1" --data="INSERT INTO t1 VALUES (1, 'This is a test')" --create="CREATE TABLE t1 (id int, name varchar(64))"
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --query="select * from t1" --create="CREATE TABLE t1 (id int, name varchar(64)); INSERT INTO t1 VALUES (1, 'This is a test')" --delimiter=";"
 
---exec $MYSQL_SLAP --only-print --concurrency=1 --concurrency-load=1 --iterations=1 --delimiter=";" --query="select * from t1;select * from t2" --data="INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32))" --engine="archive,myisam"
+--exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam"
 
---exec $MYSQL_SLAP --silent --concurrency=5 --concurrency-load=5 --iterations=20 --delimiter=";" --query="select * from t1;select * from t2" --data="INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32))"
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')"
