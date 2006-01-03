@@ -1570,7 +1570,6 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
 bool Field::quote_data(String *unquoted_string)
 {
   char escaped_string[IO_SIZE];
-  char *unquoted_string_buffer= (char *)(unquoted_string->ptr());
   DBUG_ENTER("Field::quote_data");
 
   if (!needs_quotes())
@@ -4541,8 +4540,6 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
   }
-  if (error > 1)
-    error= 2;
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -7064,7 +7061,7 @@ void Field_blob::get_key_image(char *buff, uint length, imagetype type)
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, blob, blob_length);
-    if (gobj->get_mbr(&mbr, &dummy))
+    if (!gobj || gobj->get_mbr(&mbr, &dummy))
       bzero(buff, SIZEOF_STORED_DOUBLE*4);
     else
     {
@@ -7393,7 +7390,7 @@ void Field_geom::get_key_image(char *buff, uint length, imagetype type)
   }
   get_ptr(&blob);
   gobj= Geometry::construct(&buffer, blob, blob_length);
-  if (gobj->get_mbr(&mbr, &dummy))
+  if (!gobj || gobj->get_mbr(&mbr, &dummy))
     bzero(buff, SIZEOF_STORED_DOUBLE*4);
   else
   {
@@ -8151,17 +8148,14 @@ const char *Field_bit::unpack(char *to, const char *from)
 */
 
 Field_bit_as_char::Field_bit_as_char(char *ptr_arg, uint32 len_arg,
-                                     uchar *null_ptr_arg, uchar null_bit_arg, 
-                                     uchar *bit_ptr_arg, uchar bit_ofs_arg, 
-                                     enum utype unireg_check_arg, 
+                                     uchar *null_ptr_arg, uchar null_bit_arg,
+                                     enum utype unireg_check_arg,
                                      const char *field_name_arg,
                                      struct st_table *table_arg)
-  : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, bit_ptr_arg,
-              bit_ofs_arg, unireg_check_arg, field_name_arg, table_arg),
+  : Field_bit(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, 0,
+              0, unireg_check_arg, field_name_arg, table_arg),
     create_length(len_arg)
 {
-  bit_ptr= 0;
-  bit_ofs= 0;
   bit_len= 0;
   field_length= ((len_arg + 7) & ~7) / 8;
 }
@@ -8518,8 +8512,8 @@ Field *make_field(char *ptr, uint32 field_length,
     return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
   case FIELD_TYPE_BIT:
     return f_bit_as_char(pack_flag) ?
-           new Field_bit_as_char(ptr, field_length, null_pos, null_bit, bit_ptr,
-                                 bit_offset, unireg_check, field_name, table) :
+           new Field_bit_as_char(ptr, field_length, null_pos, null_bit,
+                                 unireg_check, field_name, table) :
            new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
                          bit_offset, unireg_check, field_name, table);
   default:					// Impossible (Wrong version)
