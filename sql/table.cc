@@ -1040,7 +1040,10 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
     ret_value=uint4korr(pos);
   }
   if (! save_names)
-    my_free((gptr) buf,MYF(0));
+  {
+    if (names)
+      my_free((gptr) buf,MYF(0));
+  }
   else if (!names)
     bzero((char*) save_names,sizeof(save_names));
   else

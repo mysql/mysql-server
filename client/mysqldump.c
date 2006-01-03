@@ -1306,7 +1306,7 @@ static uint dump_routines_for_db(char *db)
   fprintf(sql_file, "DELIMITER ;\n");
 
   if (lock_tables)
-    mysql_query_with_error_report(sock, 0, "UNLOCK TABLES");
+    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
   DBUG_RETURN(0);
 }
 
@@ -2095,7 +2095,10 @@ static void dump_table(char *table, char *db)
     else
       res=mysql_store_result(sock);
     if (!res)
+    {
       DB_error(sock, "when retrieving data from server");
+      goto err;
+    }
     if (verbose)
       fprintf(stderr, "-- Retrieving rows...\n");
     if (mysql_num_fields(res) != num_fields)
@@ -2625,7 +2628,7 @@ static int dump_all_tables_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    mysql_query_with_error_report(sock, 0, "UNLOCK TABLES");
+    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -2680,23 +2683,23 @@ static my_bool dump_all_views_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    mysql_query(sock,"UNLOCK TABLES");
+    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
   return 0;
 } /* dump_all_tables_in_db */
 
 
 /*
-  get_actual_table_name -- executes a SHOW TABLES LIKE '%s' to get the actual 
-  table name from the server for the table name given on the command line.  
-  we do this because the table name given on the command line may be a 
+  get_actual_table_name -- executes a SHOW TABLES LIKE '%s' to get the actual
+  table name from the server for the table name given on the command line.
+  we do this because the table name given on the command line may be a
   different case (e.g.  T1 vs t1)
-  
+
   RETURN
     int - 0 if a tablename was retrieved.  1 if not
 */
 
-static int get_actual_table_name(const char *old_table_name, 
-                                  char *new_table_name, 
+static int get_actual_table_name(const char *old_table_name,
+                                  char *new_table_name,
                                   int buf_size)
 {
   int retval;
@@ -2708,7 +2711,7 @@ static int get_actual_table_name(const char *old_table_name,
 
   /* Check memory for quote_for_like() */
   DBUG_ASSERT(2*sizeof(old_table_name) < sizeof(show_name_buff));
-  my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s", 
+  my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
 	      quote_for_like(old_table_name, show_name_buff));
 
   if (mysql_query_with_error_report(sock, 0, query))
@@ -2717,7 +2720,7 @@ static int get_actual_table_name(const char *old_table_name,
   }
 
   retval = 1;
-  
+
   if ((table_res= mysql_store_result(sock)))
   {
     my_ulonglong num_rows= mysql_num_rows(table_res);
@@ -2839,7 +2842,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     check_io(md_result_file);
   }
   if (lock_tables)
-    mysql_query_with_error_report(sock, 0, "UNLOCK TABLES");
+    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
   DBUG_RETURN(0);
 } /* dump_selected_tables */
 

@@ -287,7 +287,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 }
 
 
-/* 
+/*
   Load database options file
 
   load_db_opt()
@@ -313,68 +313,72 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   bzero((char*) create,sizeof(*create));
   create->default_table_charset= thd->variables.collation_server;
-  
+
   /* Check if options for this database are already in the hash */
   if (!get_dbopt(path, create))
-    DBUG_RETURN(0);	   
-  
-  /* Otherwise, load options from the .opt file */
-  if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
-  {
-    IO_CACHE cache;
-    init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0));
+    DBUG_RETURN(0);
 
-    while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
+  /* Otherwise, load options from the .opt file */
+  if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+    goto err1;
+
+  IO_CACHE cache;
+  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
+    goto err2;
+
+  while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
+  {
+    char *pos= buf+nbytes-1;
+    /* Remove end space and control characters */
+    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
+      pos--;
+    *pos=0;
+    if ((pos= strchr(buf, '=')))
     {
-      char *pos= buf+nbytes-1;
-      /* Remove end space and control characters */
-      while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
-	pos--;
-      *pos=0;
-      if ((pos= strchr(buf, '=')))
+      if (!strncmp(buf,"default-character-set", (pos-buf)))
       {
-	if (!strncmp(buf,"default-character-set", (pos-buf)))
-	{
-          /*
-             Try character set name, and if it fails 
-             try collation name, probably it's an old
-             4.1.0 db.opt file, which didn't have
-             separate default-character-set and
-             default-collation commands.
-          */
-	  if (!(create->default_table_charset=
-		get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
-              !(create->default_table_charset=
-                get_charset_by_name(pos+1, MYF(0))))
-	  {
-	    sql_print_error("Error while loading database options: '%s':",path);
-	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
-            create->default_table_charset= default_charset_info;
-	  }
-	}
-	else if (!strncmp(buf,"default-collation", (pos-buf)))
-	{
-	  if (!(create->default_table_charset= get_charset_by_name(pos+1,
-								   MYF(0))))
-	  {
-	    sql_print_error("Error while loading database options: '%s':",path);
-	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
-            create->default_table_charset= default_charset_info;
-	  }
-	}
+        /*
+           Try character set name, and if it fails
+           try collation name, probably it's an old
+           4.1.0 db.opt file, which didn't have
+           separate default-character-set and
+           default-collation commands.
+        */
+        if (!(create->default_table_charset=
+        get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
+            !(create->default_table_charset=
+              get_charset_by_name(pos+1, MYF(0))))
+        {
+          sql_print_error("Error while loading database options: '%s':",path);
+          sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+          create->default_table_charset= default_charset_info;
+        }
+      }
+      else if (!strncmp(buf,"default-collation", (pos-buf)))
+      {
+        if (!(create->default_table_charset= get_charset_by_name(pos+1,
+                                                           MYF(0))))
+        {
+          sql_print_error("Error while loading database options: '%s':",path);
+          sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+          create->default_table_charset= default_charset_info;
+        }
       }
     }
-    end_io_cache(&cache);
-    my_close(file,MYF(0));
-    /*
-      Put the loaded value into the hash.
-      Note that another thread could've added the same
-      entry to the hash after we called get_dbopt(),
-      but it's not an error, as put_dbopt() takes this
-      possibility into account.
-    */
-    error= put_dbopt(path, create);
   }
+  /*
+    Put the loaded value into the hash.
+    Note that another thread could've added the same
+    entry to the hash after we called get_dbopt(),
+    but it's not an error, as put_dbopt() takes this
+    possibility into account.
+  */
+  error= put_dbopt(path, create);
+
+  end_io_cache(&cache);
+err2:
+  my_close(file,MYF(0));
+err1:
   DBUG_RETURN(error);
 }
 
