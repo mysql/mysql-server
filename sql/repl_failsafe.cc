@@ -929,7 +929,8 @@ bool load_master_data(THD* thd)
           host was specified; there could have been a problem when replication
           started, which led to relay log's IO_CACHE to not be inited.
         */
-	flush_master_info(active_mi, 0);
+        if (flush_master_info(active_mi, 0))
+          sql_print_error("Failed to flush master info file");
       }
       mysql_free_result(master_status_res);
     }

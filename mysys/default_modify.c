@@ -197,7 +197,7 @@ int modify_defaults_file(const char *file_location, const char *option,
       goto err;
   }
   if (my_fclose(cnf_file, MYF(MY_WME)))
-    goto err;
+    DBUG_RETURN(1);
 
   my_free(file_buffer, MYF(0));
   DBUG_RETURN(0);

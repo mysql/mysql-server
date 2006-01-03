@@ -69,7 +69,7 @@ my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size,
 					(thread_safe ?
 					 sizeof(pthread_mutex_t) : 0),
 					MYF(MY_WME | MY_ZEROFILL))))
-    return 1;
+    DBUG_RETURN(1);
   map->bitmap_size=bitmap_size;
 #ifdef THREAD
   if (thread_safe)
