@@ -189,7 +189,10 @@ int my_error_register(const char **errmsgs, int first, int last)
 
   /* Error numbers must be unique. No overlapping is allowed. */
   if (*search_meh_pp && ((*search_meh_pp)->meh_first <= last))
+  {
+    my_free((gptr)meh_p, MYF(0));
     return 1;
+  }
 
   /* Insert header into the chain. */
   meh_p->meh_next= *search_meh_pp;

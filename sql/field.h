@@ -1336,12 +1336,12 @@ public:
   }
 };
 
-  
+
 class Field_bit_as_char: public Field_bit {
 public:
   uchar create_length;
   Field_bit_as_char(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
-                    uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+                    uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg,
                     struct st_table *table_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }

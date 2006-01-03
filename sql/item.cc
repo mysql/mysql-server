@@ -931,9 +931,9 @@ void Item_splocal::cleanup()
 
 void Item_splocal::print(String *str)
 {
-  str->reserve(m_name.length+8);
-  str->append(m_name.str, m_name.length);
-  str->append('@');
+  VOID(str->reserve(m_name.length+8));
+  VOID(str->append(m_name.str, m_name.length));
+  VOID(str->append('@'));
   str->qs_append(m_offset);
 }
 
@@ -3784,7 +3784,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
     return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, table);
   case MYSQL_TYPE_BIT:
-    return new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+    return new Field_bit_as_char(NULL, max_length, null_ptr, 0,
                                  Field::NONE, name, table);
   default:
     /* This case should never be chosen */

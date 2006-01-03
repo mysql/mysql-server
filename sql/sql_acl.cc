@@ -937,7 +937,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
 
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
-                       (user ? user : "(NULL)"), (db ? db : "(NULL)")));
+                       user, (db ? db : "(NULL)")));
   sctx->user= user;
   sctx->host= host;
   sctx->ip= ip;
@@ -966,7 +966,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
   for (i=0 ; i < acl_users.elements ; i++)
   {
     acl_user= dynamic_element(&acl_users,i,ACL_USER*);
-    if ((!acl_user->user && (!user || !user[0])) ||
+    if ((!acl_user->user && !user[0]) ||
 	(acl_user->user && strcmp(user, acl_user->user) == 0))
     {
       if (compare_hostname(&acl_user->host, host, ip))
@@ -4939,8 +4939,6 @@ static int handle_grant_struct(uint struct_no, bool drop,
     }
     if (! user)
       user= "";
-    if (! host)
-      host= "";
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
                        struct_no, idx, user, host));

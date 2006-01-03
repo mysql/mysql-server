@@ -377,10 +377,8 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
         address of the 'next' pointer referencing this table
         for close_thread_table().
       */
-      for (table_ptr= &(thd->handler_tables);
-           *table_ptr && (*table_ptr != table);
-           table_ptr= &(*table_ptr)->next)
-      {}
+      for (table_ptr= &(thd->handler_tables); *table_ptr != table;
+           table_ptr= &(*table_ptr)->next) /* no-op */ ;
       (*table_ptr)->file->ha_index_or_rnd_end();
       VOID(pthread_mutex_lock(&LOCK_open));
       if (close_thread_table(thd, table_ptr))
@@ -750,7 +748,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
       /* Mark table as closed, ready for re-open. */
       hash_tables->table= NULL;
     }
-  }    
+  }
 
   safe_mutex_assert_owner(&LOCK_open);
   (*table_ptr)->file->ha_index_or_rnd_end();
