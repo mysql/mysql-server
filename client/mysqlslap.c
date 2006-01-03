@@ -281,7 +281,7 @@ int main(int argc, char **argv)
       stats *head_sptr;
       stats *sptr;
 
-      head_sptr= (stats *)my_malloc(sizeof(stats) * *current, MYF(MY_ZEROFILL));
+      head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, MYF(MY_ZEROFILL));
 
       bzero(&conclusion, sizeof(conclusions));
 
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
       else
         client_limit= actual_queries;
 
-      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr+= sizeof(stats))
+      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
       {
         /*
           We might not want to load any data, such as when we are calling
@@ -1192,7 +1192,7 @@ generate_stats(conclusions *con, statement *eng, stats *sptr)
   con->avg_rows= sptr->rows;
   
   /* With no next, we know it is the last element that was malloced */
-  for (ptr= sptr, x= 0; x < iterations; ptr+= sizeof(stats), x++)
+  for (ptr= sptr, x= 0; x < iterations; ptr++, x++)
   {
     con->avg_timing+= ptr->timing;
 
