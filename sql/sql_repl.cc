@@ -1197,7 +1197,12 @@ bool change_master(THD* thd, MASTER_INFO* mi)
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  flush_master_info(mi, 0);
+  if (flush_master_info(mi, 0))
+  {
+    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
+    unlock_slave_threads(mi);
+    DBUG_RETURN(TRUE);
+  }
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
@@ -1307,13 +1312,14 @@ bool mysql_show_binlog_events(THD* thd)
   bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
-  Format_description_log_event *description_event= new
-    Format_description_log_event(3); /* MySQL 4.0 by default */
 
   Log_event::init_show_field_list(&field_list);
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
+
+  Format_description_log_event *description_event= new
+    Format_description_log_event(3); /* MySQL 4.0 by default */
 
   if (mysql_bin_log.is_open())
   {

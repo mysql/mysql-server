@@ -888,7 +888,7 @@ String *Item_decimal_typecast::val_str(String *str)
   my_decimal tmp_buf, *tmp= val_decimal(&tmp_buf);
   if (null_value)
     return NULL;
-  my_decimal2string(E_DEC_FATAL_ERROR, &tmp_buf, 0, 0, 0, str);
+  my_decimal2string(E_DEC_FATAL_ERROR, tmp, 0, 0, 0, str);
   return str;
 }
 
@@ -4709,7 +4709,7 @@ Item_func_sp::sp_result_field(void) const
   {
     char *empty_name= (char *) "";
     TABLE_SHARE *share;
-    dummy_table->s= share= &dummy_table->share_not_to_be_used;      
+    dummy_table->s= share= &dummy_table->share_not_to_be_used;
     dummy_table->alias = empty_name;
     dummy_table->maybe_null = maybe_null;
     dummy_table->in_use= current_thd;
@@ -4742,8 +4742,13 @@ Item_func_sp::execute(Field **flp)
   }
   if (!(f= *flp))
   {
-    *flp= f= sp_result_field();
-    f->move_field((f->pack_length() > sizeof(result_buf)) ? 
+    if (!(*flp= f= sp_result_field()))
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      return 0;
+    }
+
+    f->move_field((f->pack_length() > sizeof(result_buf)) ?
                   sql_alloc(f->pack_length()) : result_buf);
     f->null_ptr= (uchar *)&null_value;
     f->null_bit= 1;
