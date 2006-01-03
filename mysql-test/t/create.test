@@ -41,8 +41,11 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 
 -- error 1049
 create table not_existing_database.test (a int);
---error 1103
 create table `a/a` (a int);
+show create table `a/a`;
+create table t1 like `a/a`;
+drop table `a/a`;
+drop table `t1`;
 --error 1103
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
 --error 1059
@@ -304,8 +307,6 @@ create table non_existing_database.t1 like t1;
 create table t3 like non_existing_table;
 --error 1050
 create temporary table t3 like t1;
---error 1103
-create table t3 like `a/a`;
 drop table t1, t2, t3;
 drop table t3;
 drop database mysqltest;

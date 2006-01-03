@@ -54,10 +54,6 @@ private:
 
 public:
 
-  enum {
-    NO_TABLE = ULONG_MAX
-  };
-
   enum enum_error {
       ERR_NO_ERROR = 0,
       ERR_LIMIT_EXCEEDED,

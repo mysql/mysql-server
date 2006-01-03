@@ -399,7 +399,8 @@ int ha_partition::create(const char *name, TABLE *table_arg,
   DBUG_ENTER("ha_partition::create");
 
   strmov(t_name, name);
-  *fn_ext(t_name)= 0;
+//  *fn_ext(t_name)= 0;
+  DBUG_ASSERT(*fn_rext((char*)name) == '\0');
   if (del_ren_cre_table(t_name, NULL, table_arg, create_info))
   {
     handler::delete_table(t_name);
@@ -677,7 +678,7 @@ bool ha_partition::create_handler_file(const char *name)
     Create and write and close file
     to be used at open, delete_table and rename_table
   */
-  fn_format(file_name, name, "", ".par", MYF(MY_REPLACE_EXT));
+  fn_format(file_name, name, "", ".par", MY_APPEND_EXT);
   if ((file= my_create(file_name, CREATE_MODE, O_RDWR | O_TRUNC,
 		       MYF(MY_WME))) >= 0)
   {
@@ -802,7 +803,7 @@ bool ha_partition::get_from_handler_file(const char *name)
 
   if (m_file_buffer)
     DBUG_RETURN(FALSE);
-  fn_format(buff, name, "", ha_par_ext, MYF(0));
+  fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
 
   /* Following could be done with my_stat to read in whole file */
   if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(0))) < 0)

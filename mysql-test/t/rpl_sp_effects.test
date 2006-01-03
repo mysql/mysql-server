@@ -1,7 +1,4 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
-# Make this statement only until bug 13115 is corrected [jbm]
-# TODO: Remove statement include once bug 13115 is patched.
--- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 
 # ****************************************************************
