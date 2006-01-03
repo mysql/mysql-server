@@ -3961,7 +3961,8 @@ int ha_ndbcluster::create(const char *name,
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  fn_format(name2, name, "", "",2);       // Remove the .frm extension
+  strcpy(name2, name);
+  DBUG_ASSERT(*fn_rext((char*)name2) == 0);
   set_dbname(name2);
   set_tabname(name2);    
 

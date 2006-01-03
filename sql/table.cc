@@ -43,6 +43,37 @@ static byte *get_field_name(Field **buff, uint *length,
 }
 
 
+
+/*
+  Returns pointer to '.frm' extension of the file name.
+
+  SYNOPSIS
+    fn_rext()
+    name       file name
+
+  DESCRIPTION
+    Checks file name part starting with the rightmost '.' character,
+    and returns it if it is equal to '.frm'. 
+
+  TODO
+    It is a good idea to get rid of this function modifying the code
+    to garantee that the functions presently calling fn_rext() always
+    get arguments in the same format: either with '.frm' or without '.frm'.
+
+  RETURN VALUES
+    Pointer to the '.frm' extension. If there is no extension,
+    or extension is not '.frm', pointer at the end of file name.
+*/
+
+char *fn_rext(char *name)
+{
+  char *res= strrchr(name, '.');
+  if (res && !strcmp(res, ".frm"))
+    return res;
+  return name + strlen(name);
+}
+
+
 /*
   Allocate a setup TABLE_SHARE structure
 
@@ -65,9 +96,13 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
   char path[FN_REFLEN], normalized_path[FN_REFLEN];
   uint path_length, normalized_length;
 
-  path_length= (uint) (strxmov(path, mysql_data_home, "/", table_list->db,
-                               "/", table_list->table_name, NullS) - path);
-  normalized_length= unpack_filename(normalized_path, path);
+  path_length= build_table_filename(path, sizeof(path) - 1,
+                                    table_list->db,
+                                    table_list->table_name, "");
+  normalized_length= build_table_filename(normalized_path,
+                                          sizeof(normalized_path) - 1,
+                                          table_list->db,
+                                          table_list->table_name, "");
 
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
@@ -1883,6 +1918,7 @@ void append_unescaped(String *res, const char *pos, uint length)
   res->append('\'');
 }
 
+
 	/* Create a .frm file */
 
 File create_frm(THD *thd, const char *name, const char *db,
@@ -2103,9 +2139,6 @@ bool check_db_name(char *name)
 #else
     last_char_is_space= *name==' ';
 #endif
-    if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
-	*name == FN_EXTCHAR)
-      return 1;
     name++;
   }
   return last_char_is_space || (uint) (name - start) > NAME_LEN;
@@ -2114,8 +2147,7 @@ bool check_db_name(char *name)
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
-  a '/', or a '.' character
-  or ' ' at the end
+  ' ' at the end
   returns 1 on error
 */
 
@@ -2146,8 +2178,6 @@ bool check_table_name(const char *name, uint length)
       }
     }
 #endif
-    if (*name == '/' || *name == '\\' || *name == FN_EXTCHAR)
-      return 1;
     name++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)

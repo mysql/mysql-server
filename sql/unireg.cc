@@ -93,6 +93,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   thd->lex->part_info= NULL;
 #endif
 
+  DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
   formnames.type_names=0;
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
@@ -289,7 +290,7 @@ err3:
   SYNOPSIS
     rea_create_table()
     thd			Thread handler
-    path		Name of file (including database and .frm)
+    path		Name of file (including database, without .frm)
     db			Data base name
     table_name		Table name
     create_info		create info parameters
@@ -309,25 +310,26 @@ int rea_create_table(THD *thd, const char *path,
                      List<create_field> &create_fields,
                      uint keys, KEY *key_info, handler *file)
 {
-  char *ext;
   DBUG_ENTER("rea_create_table");
 
-  if (mysql_create_frm(thd, path, db, table_name, create_info,
+  char frm_name[FN_REFLEN];
+  strxmov(frm_name, path, reg_ext, NullS);
+  if (mysql_create_frm(thd, frm_name, db, table_name, create_info,
                        create_fields, keys, key_info, file))
+
     DBUG_RETURN(1);
+
+  // Make sure mysql_create_frm din't remove extension
+  DBUG_ASSERT(*fn_rext(frm_name));
   if (file->create_handler_files(path))
     goto err_handler;
-  *(ext= fn_ext(path))= 0;                             // Remove .frm
   if (!create_info->frm_only && ha_create_table(thd, path, db, table_name,
                                                 create_info,0))
-  {
-    *ext= FN_EXTCHAR;                           // Add extension back
     goto err_handler;
-  }
   DBUG_RETURN(0);
 
 err_handler:
-  my_delete(path, MYF(0));
+  my_delete(frm_name, MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */
 

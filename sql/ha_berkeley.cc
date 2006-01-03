@@ -699,7 +699,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
     if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction, 0)) ||
 	(error= (file->open(file, transaction,
 			    fn_format(name_buff, name, "", ha_berkeley_ext,
-				      2 | 4),
+				      MY_UNPACK_FILENAME|MY_APPEND_EXT),
 			    "main", DB_BTREE, open_mode, 0))) ||
 	(error= transaction->commit(transaction, 0)))
     {
@@ -2093,7 +2093,8 @@ int ha_berkeley::create(const char *name, register TABLE *form,
   int error;
   DBUG_ENTER("ha_berkeley::create");
 
-  fn_format(name_buff,name,"", ha_berkeley_ext,2 | 4);
+  fn_format(name_buff,name,"", ha_berkeley_ext,
+            MY_UNPACK_FILENAME|MY_APPEND_EXT);
 
   /* Create the main table that will hold the real rows */
   if ((error= create_sub_table(name_buff,"main",DB_BTREE,0)))
@@ -2142,8 +2143,9 @@ int ha_berkeley::delete_table(const char *name)
   if ((error=db_create(&file, db_env, 0)))
     my_errno=error; /* purecov: inspected */
   else
-    error=file->remove(file,fn_format(name_buff,name,"",ha_berkeley_ext,2 | 4),
-		       NULL,0);
+    error=file->remove(file,fn_format(name_buff,name,"",ha_berkeley_ext,
+                                      MY_UNPACK_FILENAME|MY_APPEND_EXT),
+                       NULL,0);
   file=0;					// Safety
   DBUG_RETURN(error);
 }
@@ -2161,9 +2163,11 @@ int ha_berkeley::rename_table(const char * from, const char * to)
   {
     /* On should not do a file->close() after rename returns */
     error= file->rename(file, 
-			fn_format(from_buff, from, "", ha_berkeley_ext, 2 | 4),
+			fn_format(from_buff, from, "", 
+                                  ha_berkeley_ext,
+                                  MY_UNPACK_FILENAME|MY_APPEND_EXT),
 			NULL, fn_format(to_buff, to, "", ha_berkeley_ext,
-					2 | 4), 0);
+                                        MY_UNPACK_FILENAME|MY_APPEND_EXT), 0);
   }
   return error;
 }
@@ -2413,7 +2417,8 @@ int ha_berkeley::check(THD* thd, HA_CHECK_OPT* check_opt)
 			   (hidden_primary_key ? berkeley_cmp_hidden_key :
 			    berkeley_cmp_packed_key));
   tmp_file->app_private= (void*) (table->key_info+table->primary_key);
-  fn_format(name_buff,share->table_name.str,"", ha_berkeley_ext, 2 | 4);
+  fn_format(name_buff,share->table_name.str,"", ha_berkeley_ext,
+            MY_UNPACK_FILENAME|MY_APPEND_EXT);      
   if ((error=tmp_file->verify(tmp_file, name_buff, NullS, (FILE*) 0,
 			      hidden_primary_key ? 0 : DB_NOORDERCHK)))
   {
@@ -2559,7 +2564,8 @@ void ha_berkeley::get_status()
       char name_buff[FN_REFLEN];
       uint open_mode= (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
 		       | DB_THREAD);
-      fn_format(name_buff, share->table_name, "", ha_berkeley_ext, 2 | 4);
+      fn_format(name_buff, share->table_name, "", ha_berkeley_ext,
+                MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if (!db_create(&share->status_block, db_env, 0))
       {
 	if (share->status_block->open(share->status_block, NULL, name_buff,
@@ -2641,7 +2647,8 @@ static void update_status(BDB_SHARE *share, TABLE *table)
       share->status_block->set_flags(share->status_block,0); /* purecov: inspected */
       if (share->status_block->open(share->status_block, NULL,
 				    fn_format(name_buff,share->table_name,
-                                              "", ha_berkeley_ext,2 | 4),
+                                              "", ha_berkeley_ext,
+                                              MY_UNPACK_FILENAME|MY_APPEND_EXT),
 				    "status", DB_BTREE,
 				    DB_THREAD | DB_CREATE, my_umask)) /* purecov: inspected */
 	goto end; /* purecov: inspected */

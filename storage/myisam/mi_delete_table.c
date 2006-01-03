@@ -46,10 +46,10 @@ int mi_delete_table(const char *name)
 #endif
 #endif /* USE_RAID */
 
-  fn_format(from,name,"",MI_NAME_IEXT,4);
+  fn_format(from,name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   if (my_delete_with_symlink(from, MYF(MY_WME)))
     DBUG_RETURN(my_errno);
-  fn_format(from,name,"",MI_NAME_DEXT,4);
+  fn_format(from,name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
 #ifdef USE_RAID
   if (raid_type)
     DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME)) ? my_errno : 0);

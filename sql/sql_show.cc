@@ -413,9 +413,14 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
+    char uname[NAME_LEN*3+1];                   /* Unencoded name */
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
+      if ((file->name[0] == '.' && 
+          ((file->name[1] == '.' && file->name[2] == '\0') ||
+            file->name[1] == '\0')))
+        continue;                               /* . or .. */
 #ifdef USE_SYMDIR
       char *ext;
       char buff[FN_REFLEN];
@@ -432,17 +437,22 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                continue;
        }
 #endif
-        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
-            (wild && wild_compare(file->name,wild,0)))
-          continue;
+      if (!MY_S_ISDIR(file->mystat->st_mode))
+        continue;
+      VOID(filename_to_tablename(file->name, uname, sizeof(uname)));
+      if (wild && wild_compare(uname, wild, 0))
+        continue;
+      file->name= uname;
     }
     else
     {
         // Return only .frm files which aren't temp files.
-      if (my_strcasecmp(system_charset_info, ext=fn_ext(file->name),reg_ext) ||
+      if (my_strcasecmp(system_charset_info, ext=fn_rext(file->name),reg_ext) ||
           is_prefix(file->name,tmp_file_prefix))
         continue;
       *ext=0;
+      VOID(filename_to_tablename(file->name, uname, sizeof(uname)));
+      file->name= uname;
       if (wild)
       {
 	if (lower_case_table_names)
@@ -604,8 +614,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   else
   {
-    (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
+    length= build_table_filename(path, sizeof(path), dbname, "", "");
     found_libchar= 0;
     if (length && path[length-1] == FN_LIBCHAR)
     {
@@ -883,7 +892,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                   HA_CREATE_INFO *create_info_arg)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, uname[NAME_LEN*3+1];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
@@ -914,8 +923,14 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if (table_list->schema_table)
     alias= table_list->schema_table->table_name;
   else
-    alias= (lower_case_table_names == 2 ? table->alias :
-            share->table_name.str);
+  {
+    if (lower_case_table_names == 2)
+      alias= table->alias;
+    else
+    {
+      alias= share->table_name.str;
+    }
+  }
   append_identifier(thd, packet, alias, strlen(alias));
   packet->append(STRING_WITH_LEN(" (\n"));
 
@@ -2312,8 +2327,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       }
       else
       {
-        strxmov(path, mysql_data_home, "/", base_name, NullS);
-        end= path + (len= unpack_dirname(path,path));
+        len= build_table_filename(path, sizeof(path), base_name, "", "");
+        end= path + len;
         len= FN_LEN - len;
         if (mysql_find_files(thd, &files, base_name, 
                              path, idx_field_vals.table_value, 0))
@@ -2460,8 +2475,7 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
-      strxmov(path, mysql_data_home, "/", file_name, NullS);
-      length=unpack_dirname(path,path);		// Convert if not unix
+      length= build_table_filename(path, sizeof(path), file_name, "", "");
       found_libchar= 0;
       if (length && path[length-1] == FN_LIBCHAR)
       {

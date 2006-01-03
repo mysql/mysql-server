@@ -102,29 +102,86 @@ static bool abort_and_upgrade_lock(THD *thd, TABLE *table, const char *db,
   DBUG_RETURN(FALSE);
 }
 
+
+#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
+#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
+
+uint filename_to_tablename(const char *from, char *to, uint to_length)
+{
+  uint errors, res= strconvert(&my_charset_filename, from,
+                               system_charset_info,  to, to_length, &errors);
+  if (errors) // Old 5.0 name
+  {
+    res= strxnmov(to, to_length, MYSQL50_TABLE_NAME_PREFIX,  from, NullS) - to;
+    sql_print_error("Invalid (old?) table or database name '%s'", from);
+    /*
+      TODO: add a stored procedure for fix table and database names,
+      and mention its name in error log.
+    */
+  }
+  return res;
+}
+
+
+uint tablename_to_filename(const char *from, char *to, uint to_length)
+{
+  uint errors;
+  if (from[0] && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+                          MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+    return my_snprintf(to, to_length, "%s", from + 9);
+  return strconvert(system_charset_info, from,
+                    &my_charset_filename, to, to_length, &errors);
+}
+
+
 /*
- Build the path to a file for a table (or the base path that can
- then have various extensions stuck on to it).
+  Creates path to a file: mysql_data_dir/db/table.ext
 
   SYNOPSIS
-   build_table_path()
-   buff                 Buffer to build the path into
-   bufflen              sizeof(buff)
-   db                   Name of database
-   table                Name of table
-   ext                  Filename extension
+   build_table_filename()
+   buff			where to write result
+   bufflen              buff size
+   db                   database name, in system_charset_info
+   table                table name, in system_charset_info
+   ext                  file extension
+
+  NOTES
+
+    Uses database and table name, and extension to create
+    a file name in mysql_data_dir. Database and table
+    names are converted from system_charset_info into "fscs".
+    'ext' is not converted.
 
   RETURN
-    0                   Error
-    #                   Size of path
- */
 
-static uint build_table_path(char *buff, size_t bufflen, const char *db,
+*/
+
+
+uint build_table_filename(char *buff, size_t bufflen, const char *db,
+                          const char *table, const char *ext)
+{
+  uint length;
+  char dbbuff[FN_REFLEN];
+  char tbbuff[FN_REFLEN];
+  VOID(tablename_to_filename(table, tbbuff, sizeof(tbbuff)));
+  VOID(tablename_to_filename(db, dbbuff, sizeof(dbbuff)));
+  strxnmov(buff, bufflen,
+           mysql_data_home, "/", dbbuff, "/", tbbuff, ext, NullS);
+  length= unpack_filename(buff, buff);
+  return length;
+}
+
+
+uint build_tmptable_filename(char *buff, size_t bufflen,
+                             const char *tmpdir,
                              const char *table, const char *ext)
 {
-  strxnmov(buff, bufflen-1, mysql_data_home, "/", db, "/", table, ext,
-           NullS);
-  return unpack_filename(buff,buff);
+  uint length;
+  char tbbuff[FN_REFLEN];
+  VOID(tablename_to_filename(table, tbbuff, sizeof(tbbuff)));
+  strxnmov(buff, bufflen, tmpdir, "/", tbbuff, ext, NullS);
+  length= unpack_filename(buff, buff);
+  return length;
 }
 
 
@@ -276,7 +333,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool dont_log_query)
 {
   TABLE_LIST *table;
-  char	path[FN_REFLEN], *alias;
+  char path[FN_REFLEN], *alias;
+  uint path_length;
   String wrong_tables;
   int error;
   int non_temp_tables_count= 0;
@@ -365,7 +423,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
-      build_table_path(path, sizeof(path), db, alias, reg_ext);
+      path_length= build_table_filename(path, sizeof(path),
+                                        db, alias, reg_ext);
     }
     if (table_type == NULL &&
         (drop_temporary ||
@@ -390,7 +449,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	mysql_frm_type(thd, path, &frm_db_type);
         table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
       }
-      *(end=fn_ext(path))=0;			// Remove extension for delete
+      // Remove extension for delete
+      *(end= path + path_length - reg_ext_length)= '\0';
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
@@ -495,10 +555,11 @@ bool quick_rm_table(handlerton *base,const char *db,
   bool error= 0;
   DBUG_ENTER("quick_rm_table");
 
-  build_table_path(path, sizeof(path), db, table_name, reg_ext);
+  uint path_length= build_table_filename(path, sizeof(path),
+                                         db, table_name, reg_ext);
   if (my_delete(path,MYF(0)))
     error= 1; /* purecov: inspected */
-  *fn_ext(path)= 0;                             // Remove reg_ext
+  path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
   DBUG_RETURN(ha_delete_table(current_thd, base, path, db, table_name, 0) ||
               error);
 }
@@ -1562,8 +1623,8 @@ static void set_table_default_charset(THD *thd,
   {
     HA_CREATE_INFO db_info;
     char path[FN_REFLEN];
-    /* Abuse build_table_path() to build the path to the db.opt file */
-    build_table_path(path, sizeof(path), db, MY_DB_OPT_FILE, "");
+    /* Abuse build_table_filename() to build the path to the db.opt file */
+    build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE);
     load_db_opt(thd, path, &db_info);
     create_info->default_table_charset= db_info.default_table_charset;
   }
@@ -1707,6 +1768,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         uint select_field_count)
 {
   char		path[FN_REFLEN];
+  uint          path_length;
   const char	*alias;
   uint		db_options, key_count;
   KEY		*key_info_buffer;
@@ -1822,15 +1884,18 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    my_snprintf(path, sizeof(path), "%s%s%lx_%lx_%x%s",
-		mysql_tmpdir, tmp_file_prefix, current_pid, thd->thread_id,
-		thd->tmp_table++, reg_ext);
+    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
+    my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
+		tmp_file_prefix, current_pid, thd->thread_id,
+		thd->tmp_table++);
+    path_length= build_tmptable_filename(path, sizeof(path), mysql_tmpdir,
+                                         tmp_table_name, reg_ext);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
   else
-    build_table_path(path, sizeof(path), db, alias, reg_ext);
+    path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext);
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -1894,6 +1959,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     create_info->data_file_name= create_info->index_file_name= 0;
   create_info->table_options=db_options;
 
+  path[path_length - reg_ext_length]= '\0'; // Remove .frm extension
   if (rea_create_table(thd, path, db, table_name, create_info, fields,
                        key_count, key_info_buffer, file))
     goto unlock_and_end;
@@ -1901,7 +1967,6 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
-    *fn_ext(path)= 0;
     if (!(open_temporary_table(thd, path, db, table_name, 1)))
     {
       (void) rm_temporary_table(create_info->db_type, path);
@@ -2105,8 +2170,8 @@ mysql_rename_table(handlerton *base,
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
 
-  build_table_path(from, sizeof(from), old_db, old_name, "");
-  build_table_path(to, sizeof(to), new_db, new_name, "");
+  build_table_filename(from, sizeof(from), old_db, old_name, "");
+  build_table_filename(to, sizeof(to), new_db, new_name, "");
 
   /*
     If lower_case_table_names == 2 (case-preserving but case-insensitive
@@ -2118,12 +2183,12 @@ mysql_rename_table(handlerton *base,
   {
     strmov(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
-    build_table_path(lc_from, sizeof(lc_from), old_db, tmp_name, "");
+    build_table_filename(lc_from, sizeof(lc_from), old_db, tmp_name, "");
     from_base= lc_from;
 
     strmov(tmp_name, new_name);
     my_casedn_str(files_charset_info, tmp_name);
-    build_table_path(lc_to, sizeof(lc_to), new_db, tmp_name, "");
+    build_table_filename(lc_to, sizeof(lc_to), new_db, tmp_name, "");
     to_base= lc_to;
   }
 
@@ -2248,23 +2313,21 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   else
   {
     char* backup_dir= thd->lex->backup_dir;
-    char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+    char src_path[FN_REFLEN], dst_path[FN_REFLEN], uname[FN_REFLEN];
     char* table_name= table->table_name;
     char* db= table->db;
 
-    if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
-					reg_ext))
+    VOID(tablename_to_filename(table->table_name, uname, sizeof(uname)));
+
+    if (fn_format_relative_to_data_home(src_path, uname, backup_dir, reg_ext))
       DBUG_RETURN(-1); // protect buffer overflow
 
-    my_snprintf(dst_path, sizeof(dst_path), "%s%s/%s",
-		mysql_real_data_home, db, table_name);
+    build_table_filename(dst_path, sizeof(dst_path), db, table_name, reg_ext);
 
     if (lock_and_wait_for_table_name(thd,table))
       DBUG_RETURN(-1);
 
-    if (my_copy(src_path,
-		fn_format(dst_path, dst_path,"", reg_ext, 4),
-		MYF(MY_WME)))
+    if (my_copy(src_path, dst_path, MYF(MY_WME)))
     {
       pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
@@ -2937,6 +3000,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 {
   TABLE *tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
   char *src_db;
@@ -2976,8 +3040,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     strxmov(src_path, tmp_table->s->path.str, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
-	    reg_ext, NullS);
+    build_table_filename(src_path, sizeof(src_path),
+                         src_db, src_table, reg_ext);
     /* Resolve symlinks (for windows) */
     unpack_filename(src_path, src_path);
     if (lower_case_table_names)
@@ -3008,18 +3072,18 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
-    my_snprintf(dst_path, sizeof(dst_path), "%s%s%lx_%lx_%x%s",
-		mysql_tmpdir, tmp_file_prefix, current_pid,
-		thd->thread_id, thd->tmp_table++, reg_ext);
+    dst_path_length= my_snprintf(dst_path, sizeof(dst_path),
+                                 "%s%s%lx_%lx_%x%s",
+                                 mysql_tmpdir, tmp_file_prefix, current_pid,
+                                 thd->thread_id, thd->tmp_table++, reg_ext);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, dst_path);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
   }
   else
   {
-    strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
-	    reg_ext, NullS);
-    unpack_filename(dst_path, dst_path);
+    dst_path_length= build_table_filename(dst_path, sizeof(dst_path),
+                                          db, table_name, reg_ext);
     if (!access(dst_path, F_OK))
       goto table_exists;
   }
@@ -3041,7 +3105,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     creation, instead create the table directly (for both normal
     and temporary tables).
   */
-  *fn_ext(dst_path)= 0;                         // Remove .frm
+  dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -3324,10 +3388,10 @@ int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   else
   {
     if (table->file->add_index(table, key_info_buffer, key_count)||
-        build_table_path(path, sizeof(path), table_list->db,
-                         (lower_case_table_names == 2) ?
-                         table_list->alias : table_list->table_name,
-                         reg_ext) == 0 ||
+        build_table_filename(path, sizeof(path), table_list->db,
+                             (lower_case_table_names == 2) ?
+                             table_list->alias : table_list->table_name,
+                             reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /* don't need to free((gptr) key_info_buffer);*/
@@ -3425,10 +3489,10 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
 			    &keys, /*tmp_table*/ 0, &db_options, table->file,
 			    &key_info_buffer, key_count,
 			    /*select_field_count*/ 0)||
-        build_table_path(path, sizeof(path), table_list->db,
-                         (lower_case_table_names == 2) ?
-                         table_list->alias : table_list->table_name,
-                         reg_ext) == 0 ||
+        build_table_filename(path, sizeof(path), table_list->db,
+                             (lower_case_table_names == 2) ?
+                             table_list->alias : table_list->table_name,
+                             reg_ext) == 0 ||
 	mysql_create_frm(thd, path, &create_info,
 			 fields, key_count, key_info_buffer, table->file))
       /*don't need to free((gptr) key_numbers);*/
@@ -4532,7 +4596,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       uint old_lock_type;
       partition_info *part_info= table->part_info;
-      char path[FN_REFLEN+1];
+      char path[FN_REFLEN+1], noext_path[FN_REFLEN+1];
       uint db_options= 0, key_count, syntax_len;
       KEY *key_info_buffer;
       char *part_syntax_buf;
@@ -4555,7 +4619,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       part_info->part_info_string= part_syntax_buf;
       part_info->part_info_len= syntax_len;
-      build_table_path(path, sizeof(path), db, table_name, reg_ext);
+      build_table_filename(path, sizeof(path), db, table_name, reg_ext);
       if (mysql_create_frm(thd, path, db, table_name, create_info,
                            create_list, key_count, key_info_buffer,
                            table->file))
@@ -4563,7 +4627,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         DBUG_RETURN(TRUE);
       }
       thd->lex->part_info= part_info;
-      build_table_path(path, sizeof(path), db, table_name, "");
+      build_table_filename(path, sizeof(path), db, table_name, "");
       if (table->file->drop_partitions(path))
       {
         DBUG_RETURN(TRUE);
@@ -4591,11 +4655,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       part_info->part_info_string= part_syntax_buf;
       part_info->part_info_len= syntax_len;
-      build_table_path(path, sizeof(path), db, table_name, reg_ext);
+      build_table_filename(path, sizeof(path), db, table_name, reg_ext);
+      build_table_filename(noext_path, sizeof(noext_path), db, table_name, "");
       if (mysql_create_frm(thd, path, db, table_name, create_info,
                            create_list, key_count, key_info_buffer,
                            table->file)  ||
-          table->file->create_handler_files(path))
+          table->file->create_handler_files(noext_path))
       {
         DBUG_RETURN(TRUE);
       }
@@ -4688,9 +4753,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       char path[FN_REFLEN];
       /* table is a normal table: Create temporary table in same directory */
-      strxnmov(path, sizeof(path)-1, mysql_data_home, "/",new_db, "/",
-               tmp_name, NullS);
-      unpack_filename(path, path);
+      build_table_filename(path, sizeof(path), new_db, tmp_name, "");
       new_table=open_temporary_table(thd, path, new_db, tmp_name,0);
     }
     if (!new_table)
@@ -4906,7 +4969,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       shutdown.
     */
     char path[FN_REFLEN];
-    build_table_path(path, sizeof(path), new_db, table_name, "");
+    build_table_filename(path, sizeof(path), new_db, table_name, "");
     table=open_temporary_table(thd, path, new_db, tmp_name,0);
     if (table)
     {

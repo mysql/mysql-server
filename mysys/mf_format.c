@@ -54,7 +54,8 @@ my_string fn_format(my_string to, const char *name, const char *dir,
   if (flag & MY_UNPACK_FILENAME)
     (void) unpack_dirname(dev,dev);		/* Replace ~/.. with dir */
 
-  if ((pos= (char*) strchr(name,FN_EXTCHAR)) != NullS)
+  if (!(flag & MY_APPEND_EXT) &&
+      (pos= (char*) strchr(name,FN_EXTCHAR)) != NullS)
   {
     if ((flag & MY_REPLACE_EXT) == 0)		/* If we should keep old ext */
     {

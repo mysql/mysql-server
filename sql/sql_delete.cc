@@ -837,6 +837,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   char path[FN_REFLEN];
   TABLE *table;
   bool error;
+  uint path_length;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -867,9 +868,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     goto end;
   }
 
-  (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
-		 table_list->table_name,reg_ext);
-  fn_format(path, path, "", "", MY_UNPACK_FILENAME);
+  path_length= build_table_filename(path, sizeof(path), table_list->db,
+                                    table_list->table_name, reg_ext);
 
   if (!dont_send_ok)
   {
@@ -889,7 +889,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
-  *fn_ext(path)=0;				// Remove the .frm extension
+  // Remove the .frm extension
+  *(path + path_length - reg_ext_length)= '\0';
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
   query_cache_invalidate3(thd, table_list, 0);

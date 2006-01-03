@@ -1819,9 +1819,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     {
       char path[FN_REFLEN];
       enum legacy_db_type not_used;
-      strxnmov(path, FN_REFLEN-1, mysql_data_home, "/", table_list->db, "/",
-               table_list->table_name, reg_ext, NullS);
-      (void) unpack_filename(path, path);
+      build_table_filename(path, sizeof(path) - 1,
+                           table_list->db, table_list->table_name, reg_ext);
       if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         /*
