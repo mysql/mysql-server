@@ -92,7 +92,9 @@ esac
 mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
- $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib
+ $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib \
+ $BASE/mysql-test/extra \
+ $BASE/mysql-test/extra/binlog_tests $BASE/mysql-test/extra/rpl_tests
 
 if [ $BASE_SYSTEM != "netware" ] ; then
  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
@@ -242,6 +244,8 @@ $CP mysql-test/t/*.test mysql-test/t/*.imtest \
     mysql-test/t/*.slave-mi mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
 $CP mysql-test/r/*.result mysql-test/r/*.require \
     $BASE/mysql-test/r
+$CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
+$CP mysql-test/extra/rpl_tests/*.test $BASE/mysql-test/extra/rpl_tests
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*

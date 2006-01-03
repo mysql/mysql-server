@@ -43,6 +43,6 @@ int main(int argc, char *argv[])
   azclose(&foo);
   azclose(&foo1);
 
-  //unlink("test");
+  /* unlink("test"); */
   return 0;
 }

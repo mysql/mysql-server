@@ -41,7 +41,14 @@ ERROR 42000: Incorrect table definition; there can be only one auto column and i
 create table not_existing_database.test (a int);
 ERROR 42000: Unknown database 'not_existing_database'
 create table `a/a` (a int);
-ERROR 42000: Incorrect table name 'a/a'
+show create table `a/a`;
+Table	Create Table
+a/a	CREATE TABLE `a/a` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t1 like `a/a`;
+drop table `a/a`;
+drop table `t1`;
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
 ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
@@ -360,8 +367,6 @@ create table t3 like non_existing_table;
 ERROR 42S02: Unknown table 'non_existing_table'
 create temporary table t3 like t1;
 ERROR 42S01: Table 't3' already exists
-create table t3 like `a/a`;
-ERROR 42000: Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database mysqltest;

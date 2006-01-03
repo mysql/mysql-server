@@ -539,8 +539,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   }
 
   /* Change extension */
-  if (!fn_format(dst_path, dst_path, "", MI_NAME_DEXT,
-		 MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH))
+  if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
+                                      MI_NAME_DEXT))
   {
     errmsg = "Failed in fn_format() for .MYD file (errno: %d)";
     error = HA_ADMIN_INVALID;
@@ -1361,10 +1361,10 @@ void ha_myisam::info(uint flag)
      if table is symlinked (Ie;  Real name is not same as generated name)
    */
     data_file_name= index_file_name= 0;
-    fn_format(name_buff, file->filename, "", MI_NAME_DEXT, 2);
+    fn_format(name_buff, file->filename, "", MI_NAME_DEXT, MY_APPEND_EXT);
     if (strcmp(name_buff, info.data_file_name))
       data_file_name=info.data_file_name;
-    strmov(fn_ext(name_buff),MI_NAME_IEXT);
+    fn_format(name_buff, file->filename, "", MI_NAME_IEXT, MY_APPEND_EXT);
     if (strcmp(name_buff, info.index_file_name))
       index_file_name=info.index_file_name;
   }
@@ -1647,7 +1647,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_DELAY_KEY_WRITE;
 
   /* TODO: Check that the following fn_format is really needed */
-  error=mi_create(fn_format(buff,name,"","",2+4),
+  error=mi_create(fn_format(buff,name,"","",MY_UNPACK_FILENAME|MY_APPEND_EXT),
 		  share->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,

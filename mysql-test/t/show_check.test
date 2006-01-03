@@ -162,33 +162,28 @@ drop table t1;
 SET @old_sql_mode= @@sql_mode, sql_mode= '';
 SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
 
-######### hook for WL#1324 #
---error 1103
-CREATE TABLE `a/b` (i INT);
-# the above test should WORK when WL#1324 is done,
-# it should be removed and
-# the following part should be uncommented then
-#########################################################
-# begin of part that must be uncommented when WL#1324 is done
-#########################################################
-#CREATE TABLE ```ab``cd``` (i INT);
-#SHOW CREATE TABLE ```ab``cd```;
-#DROP TABLE ```ab``cd```;
+CREATE TABLE ```ab``cd``` (i INT);
+SHOW CREATE TABLE ```ab``cd```;
+DROP TABLE ```ab``cd```;
 
-#CREATE TABLE ```ab````cd``` (i INT);
-#SHOW CREATE TABLE ```ab````cd```;
-#DROP TABLE ```ab````cd```;
-#
-#CREATE TABLE ```a` (i INT);
-#SHOW CREATE TABLE ```a`;
-#DROP TABLE ```a`;
-#
-#SET sql_mode= 'ANSI_QUOTES';
-#
-#CREATE TABLE """a" (i INT);
-#SHOW CREATE TABLE """a";
-#DROP TABLE """a";
-#
+CREATE TABLE ```ab````cd``` (i INT);
+SHOW CREATE TABLE ```ab````cd```;
+DROP TABLE ```ab````cd```;
+
+CREATE TABLE ```a` (i INT);
+SHOW CREATE TABLE ```a`;
+DROP TABLE ```a`;
+
+CREATE TABLE `a.1` (i INT);
+SHOW CREATE TABLE `a.1`;
+DROP TABLE `a.1`;
+
+SET sql_mode= 'ANSI_QUOTES';
+
+CREATE TABLE """a" (i INT);
+SHOW CREATE TABLE """a";
+DROP TABLE """a";
+
 #Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
 #set names latin1;
 #create database `ä`;
@@ -196,9 +191,6 @@ CREATE TABLE `a/b` (i INT);
 #--replace_column 7 # 8 # 9 #
 #show table status from `ä` LIKE 'ä';
 #drop database `ä`;
-#########################################################
-# end of part that must be uncommented when WL#1324 is done
-#########################################################
 
 # to test quotes around keywords.. :
 
