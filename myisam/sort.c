@@ -376,7 +376,10 @@ pthread_handler_t thr_find_all_keys(void *arg)
     {
       if (my_init_dynamic_array(&info->buffpek, sizeof(BUFFPEK),
 				maxbuffer, maxbuffer/2))
+      {
         my_free((gptr) sort_keys,MYF(0));
+        sort_keys= (uchar **) NULL; /* for err: label */
+      }
       else
         break;
     }
