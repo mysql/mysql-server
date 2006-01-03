@@ -767,3 +767,26 @@ create table t1(f1 binary(32), f2 varbinary(64));
 select character_maximum_length, character_octet_length
 from information_schema.columns where table_name='t1';
 drop table t1;
+
+#
+# Bug#15533 crash, information_schema, function, view
+#
+CREATE TABLE t1 (f1 BIGINT, f2 VARCHAR(20), f3 BIGINT);
+INSERT INTO t1 SET f1 = 1, f2 = 'Schoenenbourg', f3 = 1;
+
+CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
+
+delimiter //;
+CREATE FUNCTION func1() RETURNS BIGINT
+BEGIN
+  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+END//
+delimiter ;//
+
+CREATE VIEW v1 AS SELECT 1 FROM t1
+                    WHERE f3 = (SELECT func2 ());
+SELECT func1();
+DROP TABLE t1;
+DROP VIEW v1;
+DROP FUNCTION func1;
+DROP FUNCTION func2;
