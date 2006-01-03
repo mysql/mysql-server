@@ -3761,9 +3761,9 @@ lock_rec_unlock(
 	rec_t*	rec,		/* in: record */
 	ulint	lock_mode)	/* in: LOCK_S or LOCK_X */
 {
-	lock_t* lock;
-	lock_t* release_lock;
-	ulint heap_no;
+	lock_t*	lock;
+	lock_t*	release_lock	= NULL;
+	ulint	heap_no;
 
 	ut_ad(trx && rec);
 
@@ -3787,7 +3787,7 @@ lock_rec_unlock(
 
 	/* If a record lock is found, release the record lock */
 
-	if(UNIV_LIKELY(release_lock != NULL)) {
+	if (UNIV_LIKELY(release_lock != NULL)) {
 		lock_rec_reset_nth_bit(release_lock, heap_no);
 	} else {
 		mutex_exit(&kernel_mutex);
