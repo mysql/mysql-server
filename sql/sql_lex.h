@@ -104,7 +104,7 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 /*
-  This is not #ifdef'ed because we want "EXPLAIN PARTITIONS ..." to produce
+  This is not within #ifdef because we want "EXPLAIN PARTITIONS ..." to produce
   additional "partitions" column even if partitioning is not compiled in.
 */
 #define DESCRIBE_PARTITIONS	4
