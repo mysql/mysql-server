@@ -209,7 +209,7 @@ create table t1 (a int not null, b int not null) partition by LIST (a+b) (
   partition p0 values in (12),
   partition p1 values in (14)
 );
---error 1500
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert into t1 values (10,1);
 
 drop table t1;
