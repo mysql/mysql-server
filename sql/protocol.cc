@@ -29,6 +29,7 @@
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
 static void write_eof_packet(THD *thd, NET *net);
+void net_send_error_packet(THD *thd, uint sql_errno, const char *err);
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
@@ -56,10 +57,6 @@ bool Protocol_prep::net_store_data(const char *from, uint length)
 
 void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
-#ifndef EMBEDDED_LIBRARY 
-  uint length;
-  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
-#endif
   NET *net= &thd->net;
   bool generate_warning= thd->killed != THD::KILL_CONNECTION;
   DBUG_ENTER("net_send_error");
@@ -106,42 +103,8 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno, err);
   }
 
-#ifdef EMBEDDED_LIBRARY
-  net->last_errno= sql_errno;
-  strmake(net->last_error, err, sizeof(net->last_error)-1);
-  strmov(net->sqlstate, mysql_errno_to_sqlstate(sql_errno));
-#else
+  net_send_error_packet(thd, sql_errno, err);
 
-  if (net->vio == 0)
-  {
-    if (thd->bootstrap)
-    {
-      /* In bootstrap it's ok to print on stderr */
-      fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
-    }
-    DBUG_VOID_RETURN;
-  }
-
-  if (net->return_errno)
-  {				// new client code; Add errno before message
-    int2store(buff,sql_errno);
-    pos= buff+2;
-    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
-    {
-      /* The first # is to make the protocol backward compatible */
-      buff[2]= '#';
-      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
-    }
-    length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
-    err=buff;
-  }
-  else
-  {
-    length=(uint) strlen(err);
-    set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
-  }
-  VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
-#endif  /* EMBEDDED_LIBRARY*/
   thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
 
@@ -428,6 +391,47 @@ bool send_old_password_request(THD *thd)
 {
   NET *net= &thd->net;
   return my_net_write(net, eof_buff, 1) || net_flush(net);
+}
+
+
+void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+{
+  NET *net= &thd->net;
+  uint length;
+  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
+
+  DBUG_ENTER("send_error_packet");
+
+  if (net->vio == 0)
+  {
+    if (thd->bootstrap)
+    {
+      /* In bootstrap it's ok to print on stderr */
+      fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
+    }
+    DBUG_VOID_RETURN;
+  }
+
+  if (net->return_errno)
+  {				// new client code; Add errno before message
+    int2store(buff,sql_errno);
+    pos= buff+2;
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      /* The first # is to make the protocol backward compatible */
+      buff[2]= '#';
+      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
+    }
+    length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
+    err=buff;
+  }
+  else
+  {
+    length=(uint) strlen(err);
+    set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
+  }
+  VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
+  DBUG_VOID_RETURN;
 }
 
 #endif /* EMBEDDED_LIBRARY */
