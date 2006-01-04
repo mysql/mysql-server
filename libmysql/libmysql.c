@@ -2722,13 +2722,13 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     /* Send row request to the server */
     int4store(buff, stmt->stmt_id);
     int4store(buff + 4, stmt->prefetch_rows); /* number of rows to fetch */
-    if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
-                             NullS, 0, 1))
+    if ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
+                                            buff, sizeof(buff), NullS, 0, 1))
     {
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       return 1;
     }
-    if (cli_read_binary_rows(stmt))
+    if ((*mysql->methods->read_rows_from_cursor)(stmt))
       return 1;
     stmt->server_status= mysql->server_status;
 
@@ -5101,9 +5101,9 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
   DBUG_ENTER("mysql_autocommit");
   DBUG_PRINT("enter", ("mode : %d", auto_mode));
 
-  if (auto_mode) /* set to true */
-    DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=1", 16));
-  DBUG_RETURN((my_bool) mysql_real_query(mysql, "set autocommit=0", 16));
+  DBUG_RETURN((my_bool) mysql_real_query(mysql, auto_mode ?
+                                         "set autocommit=1":"set autocommit=0",
+                                         16));
 }
 
 

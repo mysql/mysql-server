@@ -1545,7 +1545,8 @@ static MYSQL_METHODS client_methods=
   NULL,
   cli_read_statistics,
   cli_read_query_result,
-  cli_read_change_user_result
+  cli_read_change_user_result,
+  cli_read_binary_rows
 #endif
 };
 
@@ -2339,8 +2340,9 @@ static void mysql_close_free(MYSQL *mysql)
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->info_buffer,MYF(MY_ALLOW_ZERO_PTR));
   /* Clear pointers for better safety */
-  mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
+  mysql->info_buffer=mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
 }
 
 
@@ -2476,8 +2478,7 @@ get_info:
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
-  if (!(fields=(*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,
-					    protocol_41(mysql) ? 7 : 5)))
+  if (!(fields=cli_read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,

@@ -2,6 +2,9 @@
 # test of HANDLER ...
 #
 
+# should work in embedded server after mysqltest is fixed
+-- source include/not_embedded.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
