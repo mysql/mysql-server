@@ -1085,6 +1085,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
+  HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
   /* find a unused table in the open table cache */
@@ -1247,9 +1248,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->handler_tables)
     mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
 
-  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+  for (table= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
+                                  &state);
        table && table->in_use ;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+       table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
+                                 &state))
   {
     if (table->s->version != refresh_version)
     {
@@ -1621,10 +1624,12 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
   {
     char *key= table->s->table_cache_key;
     uint key_length= table->s->key_length;
-    for (TABLE *search=(TABLE*) hash_search(&open_cache,
-					    (byte*) key,key_length) ;
+    HASH_SEARCH_STATE state;
+    for (TABLE *search= (TABLE*) hash_first(&open_cache, (byte*) key,
+                                             key_length, &state);
 	 search ;
-	 search = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+         search= (TABLE*) hash_next(&open_cache, (byte*) key,
+                                    key_length, &state))
     {
       if (search->locked_by_flush ||
 	  search->locked_by_name && wait_for_name_lock ||
@@ -5063,11 +5068,14 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
   {
+    HASH_SEARCH_STATE state;
     result= signalled= 0;
 
-    for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+    for (table= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
+                                    &state);
          table;
-         table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+         table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
+                                   &state))
     {
       THD *in_use;
       table->s->version=0L;		/* Free when thread is ready */
