@@ -36,9 +36,10 @@ typedef struct st_hash_info {
 
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
-static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
+static int hashcmp(const HASH *hash, HASH_LINK *pos, const byte *key,
+                   uint length);
 
-static uint calc_hash(HASH *hash,const byte *key,uint length)
+static uint calc_hash(const HASH *hash, const byte *key, uint length)
 {
   ulong nr1=1, nr2=4;
   hash->charset->coll->hash_sort(hash->charset,(uchar*) key,length,&nr1,&nr2);
@@ -63,7 +64,6 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   hash->key_offset=key_offset;
   hash->key_length=key_length;
   hash->blength=1;
-  hash->current_record= NO_RECORD;		/* For the future */
   hash->get_key=get_key;
   hash->free=free_element;
   hash->flags=flags;
@@ -135,7 +135,6 @@ void my_hash_reset(HASH *hash)
   reset_dynamic(&hash->array);
   /* Set row pointers so that the hash can be reused at once */
   hash->blength= 1;
-  hash->current_record= NO_RECORD;
   DBUG_VOID_RETURN;
 }
 
@@ -147,7 +146,8 @@ void my_hash_reset(HASH *hash)
 */
 
 static inline char*
-hash_key(HASH *hash,const byte *record,uint *length,my_bool first)
+hash_key(const HASH *hash, const byte *record, uint *length,
+         my_bool first)
 {
   if (hash->get_key)
     return (*hash->get_key)(record,length,first);
@@ -163,8 +163,8 @@ static uint hash_mask(uint hashnr,uint buffmax,uint maxlength)
   return (hashnr & ((buffmax >> 1) -1));
 }
 
-static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
-			  uint maxlength)
+static uint hash_rec_mask(const HASH *hash, HASH_LINK *pos,
+                          uint buffmax, uint maxlength)
 {
   uint length;
   byte *key= (byte*) hash_key(hash,pos->data,&length,0);
@@ -186,14 +186,25 @@ unsigned int rec_hashnr(HASH *hash,const byte *record)
 }
 
 
-	/* Search after a record based on a key */
-	/* Sets info->current_ptr to found record */
+gptr hash_search(const HASH *hash, const byte *key, uint length)
+{
+  HASH_SEARCH_STATE state;
+  return hash_first(hash, key, length, &state);
+}
 
-gptr hash_search(HASH *hash,const byte *key,uint length)
+/*
+  Search after a record based on a key
+
+  NOTE
+   Assigns the number of the found record to HASH_SEARCH_STATE state
+*/
+
+gptr hash_first(const HASH *hash, const byte *key, uint length,
+                HASH_SEARCH_STATE *current_record)
 {
   HASH_LINK *pos;
   uint flag,idx;
-  DBUG_ENTER("hash_search");
+  DBUG_ENTER("hash_first");
 
   flag=1;
   if (hash->records)
@@ -206,7 +217,7 @@ gptr hash_search(HASH *hash,const byte *key,uint length)
       if (!hashcmp(hash,pos,key,length))
       {
 	DBUG_PRINT("exit",("found key at %d",idx));
-	hash->current_record= idx;
+	*current_record= idx;
 	DBUG_RETURN (pos->data);
       }
       if (flag)
@@ -218,31 +229,32 @@ gptr hash_search(HASH *hash,const byte *key,uint length)
     }
     while ((idx=pos->next) != NO_RECORD);
   }
-  hash->current_record= NO_RECORD;
+  *current_record= NO_RECORD;
   DBUG_RETURN(0);
 }
 
 	/* Get next record with identical key */
 	/* Can only be called if previous calls was hash_search */
 
-gptr hash_next(HASH *hash,const byte *key,uint length)
+gptr hash_next(const HASH *hash, const byte *key, uint length,
+               HASH_SEARCH_STATE *current_record)
 {
   HASH_LINK *pos;
   uint idx;
 
-  if (hash->current_record != NO_RECORD)
+  if (*current_record != NO_RECORD)
   {
     HASH_LINK *data=dynamic_element(&hash->array,0,HASH_LINK*);
-    for (idx=data[hash->current_record].next; idx != NO_RECORD ; idx=pos->next)
+    for (idx=data[*current_record].next; idx != NO_RECORD ; idx=pos->next)
     {
       pos=data+idx;
       if (!hashcmp(hash,pos,key,length))
       {
-	hash->current_record= idx;
+	*current_record= idx;
 	return pos->data;
       }
     }
-    hash->current_record=NO_RECORD;
+    *current_record= NO_RECORD;
   }
   return 0;
 }
@@ -281,7 +293,8 @@ static void movelink(HASH_LINK *array,uint find,uint next_link,uint newlink)
     != 0 key of record != key
  */
 
-static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
+static int hashcmp(const HASH *hash, HASH_LINK *pos, const byte *key,
+                   uint length)
 {
   uint rec_keylength;
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
@@ -307,7 +320,6 @@ my_bool my_hash_insert(HASH *info,const byte *record)
   if (!(empty=(HASH_LINK*) alloc_dynamic(&info->array)))
     return(TRUE);				/* No more memory */
 
-  info->current_record= NO_RECORD;
   data=dynamic_element(&info->array,0,HASH_LINK*);
   halfbuff= info->blength >> 1;
 
@@ -450,7 +462,6 @@ my_bool hash_delete(HASH *hash,byte *record)
   }
 
   if ( --(hash->records) < hash->blength >> 1) hash->blength>>=1;
-  hash->current_record= NO_RECORD;
   lastpos=data+hash->records;
 
   /* Remove link to record */
@@ -543,7 +554,6 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
     if ((idx=pos->next) == NO_RECORD)
       DBUG_RETURN(1);			/* Not found in links */
   }
-  hash->current_record= NO_RECORD;
   org_link= *pos;
   empty=idx;
 
@@ -593,10 +603,10 @@ byte *hash_element(HASH *hash,uint idx)
   isn't changed
 */
 
-void hash_replace(HASH *hash, uint idx, byte *new_row)
+void hash_replace(HASH *hash, HASH_SEARCH_STATE *current_record, byte *new_row)
 {
-  if (idx != NO_RECORD)				/* Safety */
-    dynamic_element(&hash->array,idx,HASH_LINK*)->data=new_row;
+  if (*current_record != NO_RECORD)            /* Safety */
+    dynamic_element(&hash->array, *current_record, HASH_LINK*)->data= new_row;
 }
 
 
