@@ -1991,7 +1991,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
       INSERT INTO t1 VALUES (1), (foo()), (2);
   */
   if (binlog_row_based)
-    thd->binlog_flush_pending_rows_event(false);
+    binlog_flush_pending_rows_event(false);
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !binlog_row_based)
