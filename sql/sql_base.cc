@@ -1624,7 +1624,8 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
   {
     char *key= table->s->table_cache_key;
     uint key_length= table->s->key_length;
-    for (TABLE *search= (TABLE*) hash_search(&open_cache, (byte*) key,
+    HASH_SEARCH_STATE state;
+    for (TABLE *search= (TABLE*) hash_first(&open_cache, (byte*) key,
                                              key_length, &state);
 	 search ;
          search= (TABLE*) hash_next(&open_cache, (byte*) key,

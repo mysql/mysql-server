@@ -2245,7 +2245,6 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
-  GRANT_TABLE *grant_table,*found=0;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
   for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
