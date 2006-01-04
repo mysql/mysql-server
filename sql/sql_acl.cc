@@ -2244,14 +2244,14 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_NAME *grant_name,*found=0;
+  HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_name=(GRANT_NAME*) hash_search(name_hash,
-					      (byte*) helping,
-					      len) ;
+  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
+                                            len, &state);
        grant_name ;
        grant_name= (GRANT_NAME*) hash_next(name_hash,(byte*) helping,
-					     len))
+                                           len, &state))
   {
     if (exact)
     {
