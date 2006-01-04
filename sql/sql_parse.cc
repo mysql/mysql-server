@@ -6642,17 +6642,14 @@ static void refresh_status(void)
 {
   pthread_mutex_lock(&LOCK_status);
   for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
-  {
-    if (ptr->type == SHOW_LONG)
+    if (ptr->type == SHOW_LONG) // note that SHOW_LONG_NOFLUSH variables are not reset
       *(ulong*) ptr->value= 0;
-    else if (ptr->type == SHOW_LONG_STATUS)
-    {
-      THD *thd= current_thd;
-      /* We must update the global status before cleaning up the thread */
-      add_to_status(&global_status_var, &thd->status_var);
-      bzero((char*) &thd->status_var, sizeof(thd->status_var));
-    }
-  }
+
+  /* We must update the global status before cleaning up the thread */
+  THD *thd= current_thd;
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
   pthread_mutex_unlock(&LOCK_status);
