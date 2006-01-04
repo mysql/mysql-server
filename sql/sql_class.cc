@@ -1976,6 +1976,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
   /*
     For row-based replication and before executing a function/trigger,
     the pending rows event has to be flushed.  The function/trigger
@@ -1992,6 +1993,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   */
   if (binlog_row_based)
     binlog_flush_pending_rows_event(false);
+#endif /* HAVE_ROW_BASED_REPLICATION */
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !binlog_row_based)
