@@ -1101,9 +1101,17 @@ public:
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int close(void)=0;
-  virtual int ha_write_row(byte * buf);
-  virtual int ha_update_row(const byte * old_data, byte * new_data);
-  virtual int ha_delete_row(const byte * buf);
+
+  /*
+    These functions represent the public interface to *users* of the
+    handler class, hence they are *not* virtual. For the inheritance
+    interface, see the (private) functions write_row(), update_row(),
+    and delete_row() below.
+   */
+  int ha_write_row(byte * buf);
+  int ha_update_row(const byte * old_data, byte * new_data);
+  int ha_delete_row(const byte * buf);
+
   /*
     SYNOPSIS
       start_bulk_update()
@@ -1472,28 +1480,27 @@ public:
  { return COMPATIBLE_DATA_NO; }
 
 private:
-
-  /*
-    Row-level primitives for storage engines. 
-    These should be overridden by the storage engine class. To call
-    these methods, use the corresponding 'ha_*' method above.
-  */
   friend int ndb_add_binlog_index(THD *, void *);
 
-  virtual int write_row(byte *buf __attribute__((unused))) 
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  /*
+    Row-level primitives for storage engines.  These should be
+    overridden by the storage engine class. To call these methods, use
+    the corresponding 'ha_*' method above.
+  */
+  virtual int write_row(byte *buf __attribute__((unused)))
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 
   virtual int update_row(const byte *old_data __attribute__((unused)),
                          byte *new_data __attribute__((unused)))
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 
   virtual int delete_row(const byte *buf __attribute__((unused)))
-  { 
-    return HA_ERR_WRONG_COMMAND; 
+  {
+    return HA_ERR_WRONG_COMMAND;
   }
 };
 
