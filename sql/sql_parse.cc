@@ -1713,13 +1713,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
-	in embedded server - just store them to be executed later 
       */
-#ifndef EMBEDDED_LIBRARY
       if (thd->lock || thd->open_tables || thd->derived_tables ||
           thd->prelocked_mode)
         close_thread_tables(thd);
-#endif
       ulong length= (ulong)(packet_end-packet);
 
       log_slow_statement(thd);
@@ -1737,25 +1734,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-#ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
-#else
-      /*
-	'packet' can point inside the query_rest's buffer
-	so we have to do memmove here
-       */
-      if (thd->query_rest.length() > length)
-      {
-	memmove(thd->query_rest.c_ptr(), packet, length);
-	thd->query_rest.length(length);
-      }
-      else
-	thd->query_rest.copy(packet, length, thd->query_rest.charset());
-
-      thd->server_status&= ~ (SERVER_QUERY_NO_INDEX_USED |
-                              SERVER_QUERY_NO_GOOD_INDEX_USED);
-      break;
-#endif /*EMBEDDED_LIBRARY*/
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -4242,10 +4221,8 @@ end_with_restore_list:
             goto error;
         }
 
-#ifndef EMBEDDED_LIBRARY
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
-#endif
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
@@ -4255,9 +4232,7 @@ end_with_restore_list:
               back
             */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-#ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
-#endif
 	    goto error;
 	  }
           /*
@@ -4274,18 +4249,14 @@ end_with_restore_list:
 				 sp->m_db.str, sp->m_name.str, TRUE, 0) ||
           sp_change_security_context(thd, sp, &save_ctx))
 	{
-#ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
-#endif
 	  goto error;
 	}
 	if (save_ctx &&
             check_routine_access(thd, EXECUTE_ACL,
                                  sp->m_db.str, sp->m_name.str, TRUE, 0))
 	{
-#ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
-#endif
 	  sp_restore_security_context(thd, save_ctx);
 	  goto error;
 	}
@@ -4317,9 +4288,7 @@ end_with_restore_list:
 	sp_restore_security_context(thd, save_ctx);
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
-#endif
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)

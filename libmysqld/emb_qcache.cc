@@ -18,6 +18,7 @@
 #ifdef HAVE_QUERY_CACHE
 #include <mysql.h>
 #include "emb_qcache.h"
+#include "embedded_priv.h"
 
 void Querycache_stream::store_char(char c)
 {
@@ -284,22 +285,25 @@ int Querycache_stream::load_column(MEM_ROOT *alloc, char** column)
 
 uint emb_count_querycache_size(THD *thd)
 {
-  uint result;
-  MYSQL *mysql= thd->mysql;
-  MYSQL_FIELD *field= mysql->fields;
-  MYSQL_FIELD *field_end= field + mysql->field_count;
-  MYSQL_ROWS *cur_row=NULL;
-  my_ulonglong n_rows=0;
+  uint result= 0;
+  MYSQL_FIELD *field;
+  MYSQL_FIELD *field_end;
+  MYSQL_ROWS *cur_row;
+  my_ulonglong n_rows;
+  MYSQL_DATA *data= thd->first_data;
+
+  while (data->embedded_info->next)
+    data= data->embedded_info->next;
+  field= data->embedded_info->fields_list;
+  field_end= field + data->fields;
   
   if (!field)
-    return 0;
-  if (thd->data)
-  {
-    *thd->data->prev_ptr= NULL; // this marks the last record
-    cur_row= thd->data->data;
-    n_rows= thd->data->rows;
-  }
-  result= (uint) (4+8 + (42 + 4*n_rows)*mysql->field_count);
+    return result;
+  *data->embedded_info->prev_ptr= NULL; // this marks the last record
+  cur_row= data->data;
+  n_rows= data->rows;
+  /* n_fields + n_rows + (field_info + strlen * n_rows) * n_fields */
+  result+= (uint) (4+8 + (42 + 4*n_rows)*data->fields);
 
   for(; field < field_end; field++)
   {
@@ -313,34 +317,38 @@ uint emb_count_querycache_size(THD *thd)
   for (; cur_row; cur_row=cur_row->next)
   {
     MYSQL_ROW col= cur_row->data;
-    MYSQL_ROW col_end= col + mysql->field_count;
+    MYSQL_ROW col_end= col + data->fields;
     for (; col < col_end; col++)
       if (*col)
-	result+= *(uint *)((*col) - sizeof(uint));
+        result+= *(uint *)((*col) - sizeof(uint));
   }
   return result;
 }
 
 void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
 {
-  MYSQL *mysql= thd->mysql;
-  MYSQL_FIELD *field= mysql->fields;
-  MYSQL_FIELD *field_end= field + mysql->field_count;
-  MYSQL_ROWS *cur_row= NULL;
-  my_ulonglong n_rows= 0;
+  MYSQL_FIELD *field;
+  MYSQL_FIELD *field_end;
+  MYSQL_ROWS *cur_row;
+  my_ulonglong n_rows;
+  MYSQL_DATA *data= thd->first_data;
+
+  DBUG_ENTER("emb_store_querycache_result");
+
+  while (data->embedded_info->next)
+    data= data->embedded_info->next;
+  field= data->embedded_info->fields_list;
+  field_end= field + data->fields;
 
   if (!field)
-    return;
+    DBUG_VOID_RETURN;
 
-  if (thd->data)
-  {
-    *thd->data->prev_ptr= NULL; // this marks the last record
-    cur_row= thd->data->data;
-    n_rows= thd->data->rows;
-  }
+  *data->embedded_info->prev_ptr= NULL; // this marks the last record
+  cur_row= data->data;
+  n_rows= data->rows;
 
-  dst->store_int((uint)mysql->field_count);
-  dst->store_ll((uint)n_rows);
+  dst->store_int((uint)data->fields);
+  dst->store_ll((ulonglong)n_rows);
 
   for(; field < field_end; field++)
   {
@@ -356,14 +364,13 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
     dst->store_str(field->org_table, field->org_table_length);
     dst->store_str(field->db, field->db_length);
     dst->store_str(field->catalog, field->catalog_length);
-
     dst->store_safe_str(field->def, field->def_length);
   }
   
   for (; cur_row; cur_row=cur_row->next)
   {
     MYSQL_ROW col= cur_row->data;
-    MYSQL_ROW col_end= col + mysql->field_count;
+    MYSQL_ROW col_end= col + data->fields;
     for (; col < col_end; col++)
     {
       uint len= *col ? *(uint *)((*col) - sizeof(uint)) : 0;
@@ -371,28 +378,34 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
     }
   }
   DBUG_ASSERT(emb_count_querycache_size(thd) == dst->stored_size);
+  DBUG_VOID_RETURN;
 }
 
 int emb_load_querycache_result(THD *thd, Querycache_stream *src)
 {
-  MYSQL *mysql= thd->mysql;
-  MYSQL_DATA *data;
+  MYSQL_DATA *data= thd->alloc_new_dataset();
   MYSQL_FIELD *field;
   MYSQL_FIELD *field_end;
-  MEM_ROOT *f_alloc= &mysql->field_alloc;
+  MEM_ROOT *f_alloc;
   MYSQL_ROWS *row, *end_row;
   MYSQL_ROWS **prev_row;
   ulonglong rows;
   MYSQL_ROW columns;
+  DBUG_ENTER("emb_load_querycache_result");
 
-  mysql->field_count= src->load_int();
+  if (!data)
+    goto err;
+  init_alloc_root(&data->alloc, 8192,0);
+  f_alloc= &data->alloc;
+
+  data->fields= src->load_int();
   rows= src->load_ll();
 
   if (!(field= (MYSQL_FIELD *)
-	alloc_root(&mysql->field_alloc,mysql->field_count*sizeof(MYSQL_FIELD))))
+        alloc_root(f_alloc,data->fields*sizeof(MYSQL_FIELD))))
     goto err;
-  mysql->fields= field;
-  for(field_end= field+mysql->field_count; field < field_end; field++)
+  data->embedded_info->fields_list= field;
+  for(field_end= field+data->fields; field < field_end; field++)
   {
     field->length= src->load_int();
     field->max_length= (unsigned int)src->load_int();
@@ -402,47 +415,43 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
     field->decimals= (unsigned int)src->load_char();
 
     if (!(field->name= src->load_str(f_alloc, &field->name_length))          ||
-	!(field->table= src->load_str(f_alloc,&field->table_length))         ||
-	!(field->org_name= src->load_str(f_alloc, &field->org_name_length))  ||
-	!(field->org_table= src->load_str(f_alloc, &field->org_table_length))||
-	!(field->db= src->load_str(f_alloc, &field->db_length))              ||
-	!(field->catalog= src->load_str(f_alloc, &field->catalog_length))    ||
-	src->load_safe_str(f_alloc, &field->def, &field->def_length))
+        !(field->table= src->load_str(f_alloc,&field->table_length))         ||
+        !(field->org_name= src->load_str(f_alloc, &field->org_name_length))  ||
+        !(field->org_table= src->load_str(f_alloc, &field->org_table_length))||
+        !(field->db= src->load_str(f_alloc, &field->db_length))              ||
+        !(field->catalog= src->load_str(f_alloc, &field->catalog_length))    ||
+        src->load_safe_str(f_alloc, &field->def, &field->def_length))
       goto err;
   }
   
-  if (!rows)
-    return 0;
-  if (!(data= (MYSQL_DATA*)my_malloc(sizeof(MYSQL_DATA), 
-				     MYF(MY_WME | MY_ZEROFILL))))
-    goto err;
-  thd->data= data;
-  init_alloc_root(&data->alloc, 8192,0);
-  row= (MYSQL_ROWS *)alloc_root(&data->alloc, (uint) (rows * sizeof(MYSQL_ROWS) +
-				rows * (mysql->field_count+1)*sizeof(char*)));
+  row= (MYSQL_ROWS *)alloc_root(&data->alloc,
+                                (uint) (rows * sizeof(MYSQL_ROWS) +
+                                        rows*(data->fields+1)*sizeof(char*)));
   end_row= row + rows;
   columns= (MYSQL_ROW)end_row;
   
   data->rows= rows;
-  data->fields= mysql->field_count;
   data->data= row;
+  if (!rows)
+    goto return_ok;
 
   for (prev_row= &row->next; row < end_row; prev_row= &row->next, row++)
   {
     *prev_row= row;
     row->data= columns;
-    MYSQL_ROW col_end= columns + mysql->field_count;
+    MYSQL_ROW col_end= columns + data->fields;
     for (; columns < col_end; columns++)
       src->load_column(&data->alloc, columns);
 
     *(columns++)= NULL;
   }
   *prev_row= NULL;
-  data->prev_ptr= prev_row;
-
-  return 0;
+  data->embedded_info->prev_ptr= prev_row;
+return_ok:
+  send_eof(thd);
+  DBUG_RETURN(0);
 err:
-  return 1;
+  DBUG_RETURN(1);
 }
 
 #endif /*HAVE_QUERY_CACHE*/

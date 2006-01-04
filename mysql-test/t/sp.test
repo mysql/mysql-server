@@ -1368,11 +1368,11 @@ end|
 call ifac(20)|
 select * from fac|
 drop table fac|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 
 
@@ -1455,7 +1455,7 @@ begin
   end while;
 end|
 show create procedure opp|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
@@ -1473,7 +1473,7 @@ select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 
@@ -1541,13 +1541,13 @@ drop procedure if exists bar|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 alter procedure bar comment "2222222222" sql security definer|
 alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
---replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+--replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
 
@@ -2497,7 +2497,6 @@ begin
   show databases like 'foo';
   show errors;
   show columns from t1;
-  show grants for 'root'@'localhost';
   show keys from t1;
   show open tables like 'foo';
   show privileges;
@@ -2518,20 +2517,6 @@ call bug4902()|
 call bug4902()|
 
 drop procedure bug4902|
-
-# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
---disable_warnings
-drop procedure if exists bug4902_2|
---enable_warnings
-create procedure bug4902_2()
-begin
-  show processlist;
-end|
---replace_column 1 # 6 # 3 localhost
-call bug4902_2()|
---replace_column 1 # 6 # 3 localhost
-call bug4902_2()|
-drop procedure bug4902_2|
 
 #
 # BUG#4904
@@ -2746,44 +2731,6 @@ call bug4941(@x)|
 select @x|
 delete from t1|
 drop procedure bug4941|
-
-
-#
-# BUG#3583: query cache doesn't work for stored procedures
-#
---disable_warnings
-drop procedure if exists bug3583|
---enable_warnings
---disable_warnings
-drop procedure if exists bug3583|
---enable_warnings
-create procedure bug3583()
-begin
-  declare c int;
-
-  select * from t1;
-  select count(*) into c from t1;
-  select c;
-end|
-
-insert into t1 values ("x", 3), ("y", 5)|
-set @x = @@query_cache_size|
-set global query_cache_size = 10*1024*1024|
-
-flush status|
-flush query cache|
-show status like 'Qcache_hits'|
-call bug3583()|
-show status like 'Qcache_hits'|
-call bug3583()|
-call bug3583()|
-show status like 'Qcache_hits'|
-
-set global query_cache_size = @x|
-flush status|
-flush query cache|
-delete from t1|
-drop procedure bug3583|
 
 #
 # BUG#4905: Stored procedure doesn't clear for "Rows affected"
@@ -3092,24 +3039,6 @@ delete from t1|
 insert into t1 values ("answer", 42)|
 select id, bug5240() from t1|
 drop function bug5240|
-
-#
-# BUG#5278: Stored procedure packets out of order if SET PASSWORD.
-#
---disable_warnings
-drop function if exists bug5278|
---enable_warnings
-create function bug5278 () returns char
-begin
-  SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
-  return 'okay';
-end|
-
---error 1133
-select bug5278()|
---error 1133
-select bug5278()|
-drop function bug5278|
 
 #
 # BUG#7992: rolling back temporary Item tree changes in SP
@@ -4733,24 +4662,6 @@ select bug10100f(5)|
 call bug10100t(5)|
 
 #end of the stack checking
-set @@max_sp_recursion_depth=255|
-set @var=1|
-#disable log because error about stack overrun contains numbers which
-#depend on a system
--- disable_result_log
--- error ER_STACK_OVERRUN_NEED_MORE
-call bug10100p(255, @var)|
--- error ER_STACK_OVERRUN_NEED_MORE
-call bug10100pt(1,255)|
--- error ER_STACK_OVERRUN_NEED_MORE
-call bug10100pv(1,255)|
--- error ER_STACK_OVERRUN_NEED_MORE
-call bug10100pd(1,255)|
--- error ER_STACK_OVERRUN_NEED_MORE
-call bug10100pc(1,255)|
--- enable_result_log
-set @@max_sp_recursion_depth=0|
-
 deallocate prepare stmt2|
 
 drop function bug10100f|

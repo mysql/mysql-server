@@ -35,10 +35,13 @@ create trigger t1_ai after insert on t1 for each row call bug14233();
 
 # Unsupported tampering with the mysql.proc definition
 alter table mysql.proc drop type;
+--replace_result $MYSQL_TEST_DIR .
 --error ER_SP_PROC_TABLE_CORRUPT
 call bug14233();
+--replace_result $MYSQL_TEST_DIR .
 --error ER_SP_PROC_TABLE_CORRUPT
 create view v1 as select bug14233_f();
+--replace_result $MYSQL_TEST_DIR .
 --error ER_SP_PROC_TABLE_CORRUPT
 insert into t1 values (0);
 
