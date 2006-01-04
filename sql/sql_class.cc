@@ -958,7 +958,9 @@ bool select_send::send_data(List<Item> &items)
   thd->sent_row_count++;
   if (!thd->vio_ok())
     DBUG_RETURN(0);
-  if (!thd->net.report_error)
+  if (thd->net.report_error)
+    protocol->remove_last_row();
+  else
     DBUG_RETURN(protocol->write());
   DBUG_RETURN(1);
 }
@@ -1990,10 +1992,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   cuted_fields= 0;
   transaction.savepoints= 0;
 
-#ifndef EMBEDDED_LIBRARY
   /* Surpress OK packets in case if we will execute statements */
   net.no_send_ok= TRUE;
-#endif
 }
 
 
