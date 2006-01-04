@@ -2220,15 +2220,15 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 */
 template Rows_log_event*
 THD::binlog_prepare_pending_rows_event<Write_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, size_t, bool);
+(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
 
 template Rows_log_event*
 THD::binlog_prepare_pending_rows_event<Delete_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, size_t, bool);
+(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
 
 template Rows_log_event* 
 THD::binlog_prepare_pending_rows_event<Update_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, size_t, bool);
+(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
 
 static char const* 
 field_type_name(enum_field_types type) 

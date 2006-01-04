@@ -5097,14 +5097,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   m_flags= uint2korr(post_start);
 
-  byte const *const var_start= (const byte *const)(buf + common_header_len + 
-    post_header_len);
+  byte const *const var_start= (const byte *)buf + common_header_len + 
+    post_header_len;
   byte const *const ptr_width= var_start;
   byte const *const ptr_after_width= my_vle_decode(&m_width, ptr_width);
 
   const uint byte_count= (m_width + 7) / 8;
-  const char* const ptr_rows_data= 
-    (const char* const)var_start + byte_count + 1;
+  const byte* const ptr_rows_data= var_start + byte_count + 1;
 
   my_size_t const data_size= event_len - (ptr_rows_data - buf);
   DBUG_PRINT("info",("m_table_id=%lu, m_flags=%d, m_width=%u, data_size=%lu",
@@ -5196,14 +5195,14 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   record are left alone.
  */
 static char const *unpack_row(TABLE *table,
-                              char *record, char const *row,
+                              byte *record, char const *row,
                               MY_BITMAP const *cols)
 {
   DBUG_ASSERT(record && row);
 
   MY_BITMAP *write_set= table->file->write_set;
   my_size_t const n_null_bytes= table->s->null_bytes;
-  my_ptrdiff_t const offset= (byte*)record - (byte*) table->record[0];
+  my_ptrdiff_t const offset= record - (byte*) table->record[0];
 
   memcpy(record, row, n_null_bytes);
   char const *ptr= row + n_null_bytes;
@@ -5688,7 +5687,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   const char *const vpart= buf + common_header_len + post_header_len;
 
   /* Extract the length of the various parts from the buffer */
-  byte const* const ptr_dblen= (byte const* const)vpart + 0;
+  byte const* const ptr_dblen= (byte const*)vpart + 0;
   m_dblen= *(unsigned char*) ptr_dblen;
 
   /* Length of database name + counter + terminating null */
@@ -5700,9 +5699,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   byte const* const ptr_after_colcnt= my_vle_decode(&m_colcnt, ptr_colcnt);
 
   DBUG_PRINT("info",("m_dblen=%d off=%d m_tbllen=%d off=%d m_colcnt=%d off=%d",
-                     m_dblen, ptr_dblen-(const byte* const)vpart, 
-                     m_tbllen, ptr_tbllen-(const byte* const)vpart,
-                     m_colcnt, ptr_colcnt-(const byte* const)vpart));
+                     m_dblen, ptr_dblen-(const byte*)vpart, 
+                     m_tbllen, ptr_tbllen-(const byte*)vpart,
+                     m_colcnt, ptr_colcnt-(const byte*)vpart));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
   m_memory= my_multi_malloc(MYF(MY_WME),
@@ -6013,12 +6012,12 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   byte *const cbuf_end= my_vle_encode(cbuf, sizeof(cbuf), m_colcnt);
   DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
-  return (my_b_safe_write(file, (const byte*)dbuf,      sizeof(dbuf)) ||
+  return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
           my_b_safe_write(file, (const byte*)m_tblnam,  m_tbllen+1) ||
           my_b_safe_write(file, cbuf,      cbuf_end - cbuf) ||
-          my_b_safe_write(file, reinterpret_cast<const byte*>(m_coltype), m_colcnt));
+          my_b_safe_write(file, reinterpret_cast<byte*>(m_coltype), m_colcnt));
  }
 #endif
 
@@ -6323,13 +6322,13 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 **************************************************************************/
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-static int record_compare(TABLE *table, byte const *a, byte const *b)
+static int record_compare(TABLE *table, char const *a, char const *b)
 {
   for (my_size_t i= 0 ; i < table->s->fields ; ++i)
   {
     uint const off= table->field[i]->offset();
-    uint const res= table->field[i]->cmp_binary((const char*)a + off, 
-                                                (const char*)b + off);
+    uint const res= table->field[i]->cmp_binary(a + off, 
+                                                b + off);
     if (res != 0) {
       return res;
     }
@@ -6398,7 +6397,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
     if (table->key_info->flags & HA_NOSAME)
       DBUG_RETURN(0);
 
-    while (record_compare(table, table->record[0], record_buf) != 0)
+    while (record_compare(table, (const char*)table->record[0], (const char*)record_buf) != 0)
     {
       int error;
       if ((error= table->file->index_next(record_buf)))
@@ -6433,7 +6432,8 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
       }
     }
     while (restart_count < 2 &&
-           record_compare(table, table->record[0], record_buf) != 0);
+           record_compare(table, (const char*)table->record[0], 
+                          (const char*)record_buf) != 0);
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -6549,7 +6549,7 @@ char const *Delete_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   DBUG_ASSERT(table->s->fields >= m_width);
 
   DBUG_ASSERT(ptr != NULL);
-  ptr= unpack_row(table, (char*)table->record[0], ptr, &m_cols);
+  ptr= unpack_row(table, table->record[0], ptr, &m_cols);
 
   /*
     If we will access rows using the random access method, m_key will
@@ -6710,10 +6710,10 @@ char const *Update_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   DBUG_ASSERT(table->s->fields >= m_width);
 
   /* record[0] is the before image for the update */
-  ptr= unpack_row(table, (char*)table->record[0], ptr, &m_cols);
+  ptr= unpack_row(table, table->record[0], ptr, &m_cols);
   DBUG_ASSERT(ptr != NULL);
   /* record[1] is the after image for the update */
-  ptr= unpack_row(table, (char*)table->record[1], ptr, &m_cols);
+  ptr= unpack_row(table, table->record[1], ptr, &m_cols);
 
   /*
     If we will access rows using the random access method, m_key will
