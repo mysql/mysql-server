@@ -1,0 +1,8 @@
+-- source include/not_embedded.inc
+
+#
+# BUG #10308: purge log with subselect
+#
+
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+
