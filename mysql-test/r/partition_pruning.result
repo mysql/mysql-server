@@ -274,3 +274,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	X	p1,p2	ALL	a	NULL	NULL	NULL	4	Using where
 1	SIMPLE	Y	p1,p2	ref	a	a	4	test.X.a	2	
 drop table t1;
+create table t1 (a int) partition by hash(a) partitions 20;
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a >  1 and a < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a >= 1 and a < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a >  1 and a <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a >= 1 and a <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
+create table t1 (a int, b int) 
+partition by list(a) subpartition by hash(b) subpartitions 20 
+(
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3)
+);
+insert into t1 values (1,1),(2,2),(3,3);
+explain partitions select * from t1 where b >  1 and b < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_sp2,p1_sp2,p2_sp2,p3_sp2	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1_sp2,p2_sp2	ALL	NULL	NULL	NULL	NULL	3	Using where

@@ -247,5 +247,28 @@ explain partitions
 select * from t1 X, t1 Y where X.a = Y.a and (X.a=1 or X.a=2);
 
 drop table t1;
+
+# Tests for "short ranges"
+create table t1 (a int) partition by hash(a) partitions 20;
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a >  1 and a < 3;
+explain partitions select * from t1 where a >= 1 and a < 3;
+explain partitions select * from t1 where a >  1 and a <= 3;
+explain partitions select * from t1 where a >= 1 and a <= 3;
+drop table t1;
+
+create table t1 (a int, b int) 
+ partition by list(a) subpartition by hash(b) subpartitions 20 
+(
+  partition p0 values in (0),
+  partition p1 values in (1),
+  partition p2 values in (2),
+  partition p3 values in (3)
+);
+insert into t1 values (1,1),(2,2),(3,3);
+
+explain partitions select * from t1 where b >  1 and b < 3;
+explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
+
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.
