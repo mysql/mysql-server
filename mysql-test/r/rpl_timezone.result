@@ -9,7 +9,7 @@ create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
 create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
 select @@time_zone;
 @@time_zone
-Europe/Moscow
+Japan
 select @@time_zone;
 @@time_zone
 Europe/Moscow
@@ -23,10 +23,10 @@ t	n
 2004-06-11 09:39:02	4
 select * from t1;
 t	n
-2005-01-01 00:00:00	1
-2005-06-11 09:39:02	2
-2004-01-01 00:00:00	3
-2004-06-11 09:39:02	4
+2005-01-01 06:00:00	1
+2005-06-11 14:39:02	2
+2004-01-01 06:00:00	3
+2004-06-11 14:39:02	4
 delete from t1;
 set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
@@ -39,22 +39,6 @@ select * from t1;
 t	n
 2004-01-01 00:00:00	5
 2004-06-11 09:39:02	6
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
-/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-use test;
-SET TIMESTAMP=100000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
-SET TIMESTAMP=100000000;
-create table t2 (t char(32), n int not null auto_increment, PRIMARY KEY(n));
-SET TIMESTAMP=100000000;
-delete from t1;
-# End of log file
-ROLLBACK /* added by mysqlbinlog */;
-/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 delete from t1;
 set time_zone='UTC';
 load data infile '../../std_data/rpl_timezone2.dat' into table t1;
