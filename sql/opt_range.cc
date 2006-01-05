@@ -2115,7 +2115,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
        The list of intervals we'll obtain will look like this:
        ((t1.a, t1.b) = (1,'foo')),
        ((t1.a, t1.b) = (2,'bar')), 
-       ((t1,a, t1.b) > (10,'zz'))  (**)
+       ((t1,a, t1.b) > (10,'zz'))
        
     2. for each interval I 
        {
@@ -2574,30 +2574,95 @@ int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar, SEL_IMERGE *imerge)
     This function 
       * recursively walks the SEL_ARG* tree collecting partitioning "intervals"
       * finds the partitions one needs to use to get rows in these intervals
-      * marks these partitions as used
-  
-  NOTES    
-    WHAT IS CONSIDERED TO BE "INTERVALS"
-    A partition pruning "interval" is equivalent to condition in one of the 
-    forms:
-    
-    "partition_field1=const1 AND ... AND partition_fieldN=constN"        (1)
-    "subpartition_field1=const1 AND ... AND subpartition_fieldN=constN"  (2)
-    "(1) AND (2)"                                                        (3)
-    
-    In (1) and (2) all [sub]partitioning fields must be used, and "x=const"
-    includes "x IS NULL". 
-    
-    If partitioning is performed using 
-       
-       PARTITION BY RANGE(unary_monotonic_func(single_partition_field)),
-       
-    then the following is also an interval:
+      * marks these partitions as used.
+    The next session desribes the process in greater detail.
+ 
+  IMPLEMENTATION
+    TYPES OF RESTRICTIONS THAT WE CAN OBTAIN PARTITIONS FOR    
+    We can find out which [sub]partitions to use if we obtain restrictions on 
+    [sub]partitioning fields in the following form:
+    1.  "partition_field1=const1 AND ... AND partition_fieldN=constN"
+    1.1  Same as (1) but for subpartition fields
 
-           "   const1 OP1 single_partition_field OP2 const2"              (4)
-     
-    where OP1 and OP2 are '<' OR '<=', and const_i can be +/- inf.
-    Everything else is not a partition pruning "interval".
+    If partitioning supports interval analysis (i.e. partitioning is a
+    function of a single table field, and partition_info::
+    get_part_iter_for_interval != NULL), then we can also use condition in
+    this form:
+    2.  "const1 <=? partition_field <=? const2"
+    2.1  Same as (2) but for subpartition_field
+
+    INFERRING THE RESTRICTIONS FROM SEL_ARG TREE
+    
+    The below is an example of what SEL_ARG tree may represent:
+    
+    (start)
+     |                           $
+     |   Partitioning keyparts   $  subpartitioning keyparts
+     |                           $
+     |     ...          ...      $
+     |      |            |       $
+     | +---------+  +---------+  $  +-----------+  +-----------+
+     \-| par1=c1 |--| par2=c2 |-----| subpar1=c3|--| subpar2=c5|
+       +---------+  +---------+  $  +-----------+  +-----------+
+            |                    $        |             |
+            |                    $        |        +-----------+ 
+            |                    $        |        | subpar2=c6|
+            |                    $        |        +-----------+ 
+            |                    $        |
+            |                    $  +-----------+  +-----------+
+            |                    $  | subpar1=c4|--| subpar2=c8|
+            |                    $  +-----------+  +-----------+
+            |                    $         
+            |                    $
+       +---------+               $  +------------+  +------------+
+       | par1=c2 |------------------| subpar1=c10|--| subpar2=c12|
+       +---------+               $  +------------+  +------------+
+            |                    $
+           ...                   $
+
+    The up-down connections are connections via SEL_ARG::left and
+    SEL_ARG::right. A horizontal connection to the right is the
+    SEL_ARG::next_key_part connection.
+    
+    find_used_partitions() traverses the entire tree via recursion on
+     * SEL_ARG::next_key_part (from left to right on the picture)
+     * SEL_ARG::left|right (up/down on the pic). Left-right recursion is
+       performed for each depth level.
+    
+    Recursion descent on SEL_ARG::next_key_part is used to accumulate (in
+    ppar->arg_stack) constraints on partitioning and subpartitioning fields.
+    For the example in the above picture, one of stack states is:
+      in find_used_partitions(key_tree = "subpar2=c5") (***)
+      in find_used_partitions(key_tree = "subpar1=c3")
+      in find_used_partitions(key_tree = "par2=c2")   (**)
+      in find_used_partitions(key_tree = "par1=c1")
+      in prune_partitions(...)
+    We apply partitioning limits as soon as possible, e.g. when we reach the
+    depth (**), we find which partition(s) correspond to "par1=c1 AND par2=c2",
+    and save them in ppar->part_iter.
+    When we reach the depth (***), we find which subpartition(s) correspond to
+    "subpar1=c3 AND subpar2=c5", and then mark appropriate subpartitions in
+    appropriate subpartitions as used.
+    
+    It is possible that constraints on some partitioning fields are missing.
+    For the above example, consider this stack state:
+      in find_used_partitions(key_tree = "subpar2=c12") (***)
+      in find_used_partitions(key_tree = "subpar1=c10")
+      in find_used_partitions(key_tree = "par1=c2")
+      in prune_partitions(...)
+    Here we don't have constraints for all partitioning fields. Since we've
+    never set the ppar->part_iter to contain used set of partitions, we use
+    its default "all partitions" value.  We get  subpartition id for 
+    "subpar1=c3 AND subpar2=c5", and mark that subpartition as used in every
+    partition.
+
+    The inverse is also possible: we may get constraints on partitioning
+    fields, but not constraints on subpartitioning fields. In that case,
+    calls to find_used_partitions() with depth below (**) will return -1,
+    and we will mark entire partition as used.
+
+  TODO
+    Replace recursion on SEL_ARG::left and SEL_ARG::right with a loop
 
   RETURN
     1   OK, one or more [sub]partitions are marked as used.

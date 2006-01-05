@@ -690,11 +690,10 @@ public:
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
-    * It is guaranteed that all partitions are set to be unused on query start.
+    * The handler->extra(HA_EXTRA_RESET) call at query start/end sets all
+      partitions to be unused.
     * Before index/rnd_init(), partition pruning code sets the bits for used
       partitions.
-    * The handler->extra(HA_EXTRA_RESET) call at query end sets all partitions
-      to be unused.
   */
   MY_BITMAP used_partitions;
 
