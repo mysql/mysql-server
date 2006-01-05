@@ -5135,7 +5135,6 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   bool result=0, signalled= 0;
   DBUG_ENTER("remove_table_from_cache");
 
-
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
   {

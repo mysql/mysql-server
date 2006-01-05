@@ -4843,7 +4843,6 @@ end_with_restore_list:
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
 
-
   /*
     The return value for ROW_COUNT() is "implementation dependent" if
     the statement is not DELETE, INSERT or UPDATE (or a CALL executing
@@ -4851,13 +4850,10 @@ end_with_restore_list:
    */
   if (lex->sql_command != SQLCOM_CALL && uc_update_queries[lex->sql_command]<2)
     thd->row_count_func= -1;
-  goto cleanup;
+  DBUG_RETURN(res || thd->net.report_error);
 
 error:
-  res= 1;
-
-cleanup:
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(1);
 }
 
 
@@ -5080,7 +5076,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables && tables != first_not_own_table; tables= tables->next_global)
+  for (; tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -7558,7 +7554,7 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
   /* Create and initialize. */
 
-  if (! (definer= (LEX_USER*) thd->alloc(sizeof (LEX_USER))))
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
   definer->user= *user_name;
