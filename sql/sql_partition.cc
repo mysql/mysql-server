@@ -3673,11 +3673,11 @@ typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
 
   DESCRIPTION
     Initialize partition set iterator to walk over the interval in
-    ordered-list-of-partitions (for RANGE partitioning) or 
-    ordered-list-of-list-constants (for LIST partitioning) space.
+    ordered-array-of-partitions (for RANGE partitioning) or 
+    ordered-array-of-list-constants (for LIST partitioning) space.
 
   IMPLEMENTATION
-    This function is applied when partitioning is done by
+    This function is used when partitioning is done by
     <RANGE|LIST>(ascending_func(t.field)), and we can map an interval in
     t.field space into a sub-array of partition_info::range_int_array or
     partition_info::list_array (see get_partition_id_range_for_endpoint,
@@ -3686,7 +3686,7 @@ typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
     The function performs this interval mapping, and sets the iterator to
     traverse the sub-array and return appropriate partitions.
     
-  RETURN 
+  RETURN
     0 - No matching partitions (iterator not initialized)
     1 - Ok, iterator intialized for traversal of matching partitions.
    -1 - All partitions would match (iterator not initialized)
@@ -3760,7 +3760,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
 
 /*
-  Partitioning Interval Analysis: Initialize iterator to walk integer interval
+  Partitioning Interval Analysis: Initialize iterator to walk field interval
 
   SYNOPSIS
     get_part_iter_for_interval_via_walking()
@@ -3776,7 +3776,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   DESCRIPTION
     Initialize partition set iterator to walk over interval in integer field
     space. That is, for "const1 <=? t.field <=? const2" interval, initialize 
-    the iterator to do this: 
+    the iterator to return a set of [sub]partitions obtained with the
+    following procedure:
       get partition id for t.field = const1,   return it
       get partition id for t.field = const1+1, return it
        ...                 t.field = const1+2, ...
@@ -3790,7 +3791,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       "c1 <=? t.field <=? c2", where c1 and c2 are finite. 
     Intervals with +inf/-inf, and [NULL, c1] interval can be processed but
     that is more tricky and I don't have time to do it right now.
-    
+
     Additionally we have these requirements:
     * number of values in the interval must be less then number of
       [sub]partitions, and 
@@ -3799,7 +3800,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     The rationale behind these requirements is that if they are not met
     we're likely to hit most of the partitions and traversing the interval
     will only add overhead. So it's better return "all partitions used" in
-    this case.
+    that case.
 
   RETURN
     0 - No matching partitions, iterator not initialized
@@ -3917,7 +3918,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
       part_iter  Partition set iterator structure
 
   DESCRIPTION
-    This is special implementation of PARTITION_ITERATOR::get_next() for
+    This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in 
     part_info->list_array[i] where i runs over [min_idx, max_idx] interval.
 
@@ -3937,13 +3938,16 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 
 
 /*
-  PARTITION_ITERATOR::get_next implementation: walk over integer interval
+  PARTITION_ITERATOR::get_next implementation: walk over field-space interval
 
   SYNOPSIS
     get_next_partition_via_walking()
       part_iter  Partitioning iterator
 
   DESCRIPTION
+    This implementation of PARTITION_ITERATOR::get_next() returns ids of
+    partitions that contain records with partitioning field value within
+    [start_val, end_val] interval.
 
   RETURN 
     partition id
