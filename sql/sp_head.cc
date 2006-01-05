@@ -24,6 +24,13 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 
+/*
+  Sufficient max length of printed destinations and frame offsets (all uints).
+*/
+#define SP_INSTR_UINT_MAXLEN  8
+#define SP_STMT_PRINT_MAXLEN 40
+
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -867,17 +874,17 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
   SYNOPSIS
     sp_head::recursion_level_error()
+    thd		Thread handle
 
   NOTE
     For functions and triggers we return error about prohibited recursion.
     For stored procedures we return about reaching recursion limit.
 */
 
-void sp_head::recursion_level_error()
+void sp_head::recursion_level_error(THD *thd)
 {
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
-    THD *thd= current_thd;
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
              thd->variables.max_sp_recursion_depth,
              m_name.str);
@@ -928,14 +935,15 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
   m_first_instance->m_first_free_instance= m_next_cached_sp;
-  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
-                      (ulong)m_first_instance, this, m_next_cached_sp,
-                      (m_next_cached_sp ?
-                       m_next_cached_sp->m_recursion_level :
-                       0),
-                      (m_next_cached_sp ?
-                       m_next_cached_sp->m_flags :
-                       0)));
+  if (m_next_cached_sp)
+  {
+    DBUG_PRINT("info",
+               ("first free for 0x%lx ++: 0x%lx->0x%lx  level: %lu  flags %x",
+                (ulong)m_first_instance, (ulong) this,
+                (ulong) m_next_cached_sp,
+                m_next_cached_sp->m_recursion_level,
+                m_next_cached_sp->m_flags));
+  }
   /*
     Check that if there are not any instances after this one then
     pointer to the last instance points on this instance or if there are
@@ -1103,13 +1111,15 @@ sp_head::execute(THD *thd)
   state= EXECUTED;
 
  done:
-  DBUG_PRINT("info", ("err_status=%d killed=%d query_error=%d",
+  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d",
 		      err_status, thd->killed, thd->query_error));
 
   if (thd->killed)
     err_status= TRUE;
-  /* If the DB has changed, the pointer has changed too, but the
-     original thd->db will then have been freed */
+  /*
+    If the DB has changed, the pointer has changed too, but the
+    original thd->db will then have been freed
+  */
   if (dbchanged)
   {
     /*
@@ -1120,10 +1130,11 @@ sp_head::execute(THD *thd)
       err_status|= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
-  DBUG_PRINT("info", ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
-                      (ulong)m_first_instance,
-                      m_first_instance->m_first_free_instance, this,
-                      m_recursion_level, m_flags));
+  DBUG_PRINT("info",
+             ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
+              (ulong) m_first_instance,
+              (ulong) m_first_instance->m_first_free_instance,
+              (ulong) this, m_recursion_level, m_flags));
   /*
     Check that we have one of following:
 
@@ -1133,7 +1144,7 @@ sp_head::execute(THD *thd)
 
     2) There are some free instances which mean that first free instance
     should go just after this one and recursion level of that free instance
-    should be on 1 more then recursion leven of this instance.
+    should be on 1 more then recursion level of this instance.
   */
   DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
                this == m_first_instance->m_last_cached_sp &&
@@ -1741,16 +1752,16 @@ sp_head::set_info(longlong created, longlong modified,
 
 
 void
-sp_head::set_definer(char *definer, uint definerlen)
+
+sp_head::set_definer(const char *definer, uint definerlen)
 {
   char *p= strrchr(definer, '@');
 
   if (!p)
   {
-    m_definer_user.str= strmake_root(mem_root, "", 0);
+    m_definer_user.str= (char*) "";
     m_definer_user.length= 0;
-    
-    m_definer_host.str= strmake_root(mem_root, "", 0);
+    m_definer_host.str= (char*) "";
     m_definer_host.length= 0;
   }
   else
@@ -1845,9 +1856,9 @@ sp_head::show_create_procedure(THD *thd)
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
-
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
 
@@ -2200,12 +2211,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
-/* 
-   Sufficient max length of printed destinations and frame offsets (all uints).
-*/
-#define SP_INSTR_UINT_MAXLEN  8
 
-#define SP_STMT_PRINT_MAXLEN 40
 void
 sp_instr_stmt::print(String *str)
 {
@@ -2227,16 +2233,16 @@ sp_instr_stmt::print(String *str)
   /* Copy the query string and replace '\n' with ' ' in the process */
   for (i= 0 ; i < len ; i++)
   {
-    if (m_query.str[i] == '\n')
-      str->qs_append(' ');
-    else
-      str->qs_append(m_query.str[i]);
+    char c= m_query.str[i];
+    if (c == '\n')
+      c= ' ';
+    str->qs_append(c);
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
   str->qs_append('"');
 }
-#undef SP_STMT_PRINT_MAXLEN
+
 
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
@@ -2602,6 +2608,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+
 void
 sp_instr_hpush_jump::print(String *str)
 {
@@ -2612,8 +2619,7 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(m_dest);
   str->qs_append(' ');
   str->qs_append(m_frame);
-  switch (m_type)
-  {
+  switch (m_type) {
   case SP_HANDLER_NONE:
     str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
     break;
@@ -2627,10 +2633,12 @@ sp_instr_hpush_jump::print(String *str)
     str->qs_append(STRING_WITH_LEN(" UNDO"));
     break;
   default:
-    str->qs_append(STRING_WITH_LEN(" UNKNOWN:")); // This would be a bug as well
+    // This would be a bug as well
+    str->qs_append(STRING_WITH_LEN(" UNKNOWN:"));
     str->qs_append(m_type);
   }
 }
+
 
 uint
 sp_instr_hpush_jump::opt_mark(sp_head *sp)
