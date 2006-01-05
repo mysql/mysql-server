@@ -29,6 +29,7 @@ WRAPLIBS=
 pkglib_LTLIBRARIES =	ha_csv.la
 
 ha_csv_la_LDFLAGS =	-module
+noinst_HEADERS	  =	ha_tina.h
 ha_csv_la_SOURCES =	ha_tina.cc
 
 LDADD =
