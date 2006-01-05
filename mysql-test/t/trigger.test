@@ -928,11 +928,8 @@ drop table t1, t2, t3;
 # operator.
 #
 create table t1 (a int);
---disable_warnings
-drop procedure if exists p2;
---enable_warnings
 DELIMITER //;
-CREATE PROCEDURE `p2`()
+CREATE PROCEDURE `p1`()
 begin
   insert into t1 values (1);
 end//
@@ -942,7 +939,7 @@ begin
   set done= not done;
 end//
 DELIMITER ;//
-CALL p2();
-drop procedure p2;
+CALL p1();
+drop procedure p1;
 drop table t1;
 

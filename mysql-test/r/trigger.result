@@ -767,8 +767,7 @@ deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
 create table t1 (a int);
-drop procedure if exists p2;
-CREATE PROCEDURE `p2`()
+CREATE PROCEDURE `p1`()
 begin
 insert into t1 values (1);
 end//
@@ -777,6 +776,6 @@ begin
 declare done int default 0;
 set done= not done;
 end//
-CALL p2();
-drop procedure p2;
+CALL p1();
+drop procedure p1;
 drop table t1;
