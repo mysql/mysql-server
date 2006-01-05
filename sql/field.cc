@@ -6204,8 +6204,8 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  if (new_field= new Field_varstring(field_length, maybe_null(),
-                                     field_name, new_table, charset()))
+  if ((new_field= new Field_varstring(field_length, maybe_null(),
+                                      field_name, new_table, charset())))
   {
     /*
       delayed_insert::get_local_table() needs a ptr copied from old table.

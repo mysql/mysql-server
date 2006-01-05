@@ -300,7 +300,8 @@ Thd_ndb::~Thd_ndb()
   if (ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -312,8 +313,8 @@ Thd_ndb::~Thd_ndb()
     }
 #endif
     delete ndb;
+    ndb= NULL;
   }
-  ndb= NULL;
   changed_tables.empty();
 }
 
@@ -4883,7 +4884,8 @@ bool ndbcluster_end()
   if (g_ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (g_ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -4895,10 +4897,9 @@ bool ndbcluster_end()
     }
 #endif
     delete g_ndb;
+    g_ndb= NULL;
   }
-  g_ndb= NULL;
-  if (g_ndb_cluster_connection)
-    delete g_ndb_cluster_connection;
+  delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
 
   hash_free(&ndbcluster_open_tables);
@@ -7443,7 +7444,8 @@ ndbcluster_show_status(THD* thd)
   if (have_ndbcluster != SHOW_OPTION_YES) 
   {
     my_message(ER_NOT_SUPPORTED_YET,
-	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
+	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is "
+               "defined",
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -7454,13 +7456,15 @@ ndbcluster_show_status(THD* thd)
   field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
     Ndb* ndb= (get_thd_ndb(thd))->ndb;
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       protocol->prepare_for_resend();

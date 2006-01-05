@@ -2492,7 +2492,11 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 
   /* First field to copy */
-  field=table->field+table->s->fields - values.elements;
+  field= table->field+table->s->fields - values.elements;
+
+  /* Mark all fields that are given values */
+  for (Field **f= field ; *f ; f++)
+    (*f)->query_id= thd->query_id;
 
   /* Don't set timestamp if used */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;

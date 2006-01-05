@@ -2418,6 +2418,9 @@ drop view v1;
 drop table t1;
 create table t1(f1 int, f2 int);
 insert into t1 values (null, 10), (null,2);
+select f1, sum(f2) from t1 group by f1;
+f1	sum(f2)
+NULL	12
 create view v1 as select * from t1;
 select f1, sum(f2) from v1 group by f1;
 f1	sum(f2)
