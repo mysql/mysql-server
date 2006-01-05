@@ -137,8 +137,6 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-uint 	innobase_init_flags 	= 0;
-ulong 	innobase_cache_size 	= 0;
 ulong 	innobase_large_page_size = 0;
 
 /* The default values for the following, type long or longlong, start-up
@@ -186,8 +184,6 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 ulong	innobase_active_counter	= 0;
-
-char*	innobase_home 	= NULL;
 
 static HASH 	innobase_open_tables;
 
@@ -836,7 +832,6 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
                   HA_PRIMARY_KEY_IN_READ_INDEX |
                   HA_CAN_GEOMETRY |
                   HA_TABLE_SCAN_ON_INDEX),
-  last_dup_key((uint) -1),
   start_of_scan(0),
   num_write_row(0)
 {}
