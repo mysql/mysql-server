@@ -1077,6 +1077,22 @@ character_maximum_length	character_octet_length
 32	32
 64	64
 drop table t1;
+CREATE TABLE t1 (f1 BIGINT, f2 VARCHAR(20), f3 BIGINT);
+INSERT INTO t1 SET f1 = 1, f2 = 'Schoenenbourg', f3 = 1;
+CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
+CREATE FUNCTION func1() RETURNS BIGINT
+BEGIN
+RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+END//
+CREATE VIEW v1 AS SELECT 1 FROM t1
+WHERE f3 = (SELECT func2 ());
+SELECT func1();
+func1()
+1
+DROP TABLE t1;
+DROP VIEW v1;
+DROP FUNCTION func1;
+DROP FUNCTION func2;
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	ENABLED	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
