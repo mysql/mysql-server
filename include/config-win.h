@@ -22,6 +22,11 @@ functions */
 #define _WIN32_WINNT     0x0500
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+/* Avoid endless warnings about sprintf() etc. being unsafe. */
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
+
 #include <sys/locking.h>
 #include <windows.h>
 #include <math.h>			/* Because of rint() */
@@ -324,6 +329,11 @@ inline double ulonglong2double(ulonglong value)
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
+
+#if defined(_WIN64) && defined(_M_X64)
+/* Avoid type conflicts with built-in functions. */
+#define HAVE_STRNLEN
+#endif
 
 #ifndef __NT__
 #undef FILE_SHARE_DELETE
