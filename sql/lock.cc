@@ -731,15 +731,16 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
   uint  key_length;
+  HASH_SEARCH_STATE state;
   DBUG_ENTER("lock_table_name");
   DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->table_name));
 
   key_length= create_table_def_key(thd, key, table_list, 0);
 
   /* Only insert the table if we haven't insert it already */
-  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+  for (table=(TABLE*) hash_first(&open_cache, (byte*)key, key_length, &state);
        table ;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length, &state))
   {
     if (table->in_use == thd)
     {
