@@ -3481,7 +3481,7 @@ void set_key_field_ptr(KEY *key_info, const byte *new_buf,
   DBUG_VOID_RETURN;
 }
 
-
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Return comma-separated list of used partitions in the provided given string
 
@@ -3544,7 +3544,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     }
   }
 }
-
+#endif
 
 /****************************************************************************
  * Partition interval analysis support
@@ -3582,7 +3582,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     this criteria, and also sets some auxilary fields that the function
     uses.
 */
-
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void set_up_range_analysis_info(partition_info *part_info)
 {
   enum_monotonicity_info minfo;
@@ -3978,4 +3978,5 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
   part_iter->start_val++;
   return part_iter->part_info->get_subpartition_id(part_iter->part_info);
 }
+#endif
 
