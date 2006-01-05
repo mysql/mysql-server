@@ -6,6 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 drop table if exists t1,v1;
 drop view if exists t1,v1;
+reset master;
 create table t1 (a int);
 insert into t1 values (1);
 create view v1 as select a from t1;

@@ -1,8 +1,0 @@
-# Test for
-# Bug #797: If a query is ignored on slave (replicate-ignore-table) the slave
-# still checks that it has the same error as on the master.
-
-# Requires statement logging
--- source include/have_binlog_format_statement.inc
--- source extra/rpl_tests/rpl_err_ignoredtable.test
-
