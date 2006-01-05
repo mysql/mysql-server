@@ -285,7 +285,7 @@ public:
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
 
-  void set_definer(char *definer, uint definerlen);
+  void set_definer(const char *definer, uint definerlen);
 
   void reset_thd_mem_root(THD *thd);
 
@@ -294,7 +294,7 @@ public:
   void optimize();
   void opt_mark(uint ip);
 
-  void recursion_level_error();
+  void recursion_level_error(THD *thd);
 
   inline sp_instr *
   get_instr(uint i)
