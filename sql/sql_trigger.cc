@@ -51,6 +51,13 @@ static File_option triggers_file_parameters[]=
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
 };
 
+File_option sql_modes_parameters=
+{
+  {(char*) STRING_WITH_LEN("sql_modes") },
+  offsetof(class Table_triggers_list, definition_modes_list),
+  FILE_OPTIONS_ULLLIST
+};
+
 /*
   This must be kept up to date whenever a new option is added to the list
   above, as it specifies the number of required parameters of the trigger in
@@ -435,7 +442,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!is_acl_user(lex->definer->host.str,
-      lex->definer->user.str))
+                   lex->definer->user.str))
   {
     push_warning_printf(thd,
                         MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -1161,7 +1168,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     
     if (is_special_var_used(event, time_type))
     {
-      TABLE_LIST table_list;
+      TABLE_LIST table_list, **save_query_tables_own_last;
       bzero((char *) &table_list, sizeof (table_list));
       table_list.db= (char *) table->s->db.str;
       table_list.db_length= table->s->db.length;
@@ -1169,8 +1176,13 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       table_list.table_name_length= table->s->table_name.length;
       table_list.alias= (char *) table->alias;
       table_list.table= table;
+      save_query_tables_own_last= thd->lex->query_tables_own_last;
+      thd->lex->query_tables_own_last= 0;
 
-      if (check_table_access(thd, SELECT_ACL | UPDATE_ACL, &table_list, 0))
+      err_status= check_table_access(thd, SELECT_ACL | UPDATE_ACL,
+                                     &table_list, 0);
+      thd->lex->query_tables_own_last= save_query_tables_own_last;
+      if (err_status)
       {
         sp_restore_security_context(thd, save_ctx);
         return TRUE;
@@ -1212,32 +1224,29 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     TRUE  Error
 */
 
+#define INVALID_SQL_MODES_LENGTH 13
+
 bool
 Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
                                                             gptr base,
                                                             MEM_ROOT *mem_root,
                                                             char *end)
 {
-#define INVALID_SQL_MODES_LENGTH 13
   DBUG_ENTER("handle_old_incorrect_sql_modes");
   DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+
   if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
       unknown_key[INVALID_SQL_MODES_LENGTH] == '=' &&
       !memcmp(unknown_key, STRING_WITH_LEN("sql_modes")))
   {
+    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
+
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
                         MYSQL_ERROR::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
-    File_option sql_modes_parameters=
-      {
-        {(char *) STRING_WITH_LEN("sql_modes") },
-        offsetof(class Table_triggers_list, definition_modes_list),
-        FILE_OPTIONS_ULLLIST
-      };
-    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
