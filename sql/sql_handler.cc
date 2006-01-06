@@ -227,6 +227,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     /* add to hash */
     if (my_hash_insert(&thd->handler_tables_hash, (byte*) hash_tables))
     {
+      my_free((char*) hash_tables, MYF(0));
       mysql_ha_close(thd, tables);
       goto err;
     }
@@ -369,26 +370,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
                                hash_tables->db, hash_tables->table_name,
                                hash_tables->alias, table));
-    /* Table might have been flushed. */
-    if (table && (table->s->version != refresh_version))
-    {
-      /*
-        We must follow the thd->handler_tables chain, as we need the
-        address of the 'next' pointer referencing this table
-        for close_thread_table().
-      */
-      for (table_ptr= &(thd->handler_tables); *table_ptr != table;
-           table_ptr= &(*table_ptr)->next) /* no-op */ ;
-      (*table_ptr)->file->ha_index_or_rnd_end();
-      VOID(pthread_mutex_lock(&LOCK_open));
-      if (close_thread_table(thd, table_ptr))
-      {
-        /* Tell threads waiting for refresh that something has happened */
-        VOID(pthread_cond_broadcast(&COND_refresh));
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      table= hash_tables->table= NULL;
-    }
     if (!table)
     {
       /*
@@ -433,6 +414,13 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
+  HANDLER_TABLES_HACK(thd);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
+  HANDLER_TABLES_HACK(thd);
+
+  if (!lock)
+    goto err0; // mysql_lock_tables() printed error message already
+
   if (cond && ((!cond->fixed &&
                 cond->fix_fields(thd, &cond)) || cond->check_cols(1)))
     goto err0;
@@ -451,13 +439,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
     goto err0;
 
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-
-  HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
-  HANDLER_TABLES_HACK(thd);
-
-  if (!lock)
-    goto err0; // mysql_lock_tables() printed error message already
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -748,7 +729,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
       /* Mark table as closed, ready for re-open. */
       hash_tables->table= NULL;
     }
-  }
+  }    
 
   safe_mutex_assert_owner(&LOCK_open);
   (*table_ptr)->file->ha_index_or_rnd_end();

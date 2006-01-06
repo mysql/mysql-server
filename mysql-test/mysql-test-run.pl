@@ -804,6 +804,12 @@ sub command_line_setup () {
     }
   }
 
+  # On QNX, /tmp/dir/master.sock and /tmp/dir//master.sock seem to be
+  # considered different, so avoid the extra slash (/) in the socket
+  # paths.
+  my $sockdir = $opt_tmpdir;
+  $sockdir =~ s|/+$||;
+
   # Put this into a hash, will be a C struct
 
   $master->[0]=
@@ -812,7 +818,7 @@ sub command_line_setup () {
    path_myerr    => "$opt_vardir/log/master.err",
    path_mylog    => "$opt_vardir/log/master.log",
    path_mypid    => "$opt_vardir/run/master.pid",
-   path_mysock   => "$opt_tmpdir/master.sock",
+   path_mysock   => "$sockdir/master.sock",
    path_myport   =>  $opt_master_myport,
    start_timeout =>  400, # enough time create innodb tables
 
@@ -825,7 +831,7 @@ sub command_line_setup () {
    path_myerr    => "$opt_vardir/log/master1.err",
    path_mylog    => "$opt_vardir/log/master1.log",
    path_mypid    => "$opt_vardir/run/master1.pid",
-   path_mysock   => "$opt_tmpdir/master1.sock",
+   path_mysock   => "$sockdir/master1.sock",
    path_myport   => $opt_master_myport + 1,
    start_timeout => 400, # enough time create innodb tables
   };
@@ -836,7 +842,7 @@ sub command_line_setup () {
    path_myerr    => "$opt_vardir/log/slave.err",
    path_mylog    => "$opt_vardir/log/slave.log",
    path_mypid    => "$opt_vardir/run/slave.pid",
-   path_mysock   => "$opt_tmpdir/slave.sock",
+   path_mysock   => "$sockdir/slave.sock",
    path_myport   => $opt_slave_myport,
    start_timeout => 400,
   };
@@ -847,7 +853,7 @@ sub command_line_setup () {
    path_myerr    => "$opt_vardir/log/slave1.err",
    path_mylog    => "$opt_vardir/log/slave1.log",
    path_mypid    => "$opt_vardir/run/slave1.pid",
-   path_mysock   => "$opt_tmpdir/slave1.sock",
+   path_mysock   => "$sockdir/slave1.sock",
    path_myport   => $opt_slave_myport + 1,
    start_timeout => 300,
   };
@@ -858,7 +864,7 @@ sub command_line_setup () {
    path_myerr    => "$opt_vardir/log/slave2.err",
    path_mylog    => "$opt_vardir/log/slave2.log",
    path_mypid    => "$opt_vardir/run/slave2.pid",
-   path_mysock   => "$opt_tmpdir/slave2.sock",
+   path_mysock   => "$sockdir/slave2.sock",
    path_myport   => $opt_slave_myport + 2,
    start_timeout => 300,
   };
@@ -868,7 +874,7 @@ sub command_line_setup () {
    path_err =>        "$opt_vardir/log/im.err",
    path_log =>        "$opt_vardir/log/im.log",
    path_pid =>        "$opt_vardir/run/im.pid",
-   path_sock =>       "$opt_tmpdir/im.sock",
+   path_sock =>       "$sockdir/im.sock",
    port =>            $im_port,
    start_timeout =>   $master->[0]->{'start_timeout'},
    admin_login =>     'im_admin',
@@ -883,7 +889,7 @@ sub command_line_setup () {
    server_id    => 1,
    port         => $im_mysqld1_port,
    path_datadir => "$opt_vardir/im_mysqld_1.data",
-   path_sock    => "$opt_tmpdir/mysqld_1.sock",
+   path_sock    => "$sockdir/mysqld_1.sock",
    path_pid     => "$opt_vardir/run/mysqld_1.pid",
   };
 
@@ -892,7 +898,7 @@ sub command_line_setup () {
    server_id    => 2,
    port         => $im_mysqld2_port,
    path_datadir => "$opt_vardir/im_mysqld_2.data",
-   path_sock    => "$opt_tmpdir/mysqld_2.sock",
+   path_sock    => "$sockdir/mysqld_2.sock",
    path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
   };
