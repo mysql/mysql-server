@@ -1189,9 +1189,10 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       save_query_tables_own_last= thd->lex->query_tables_own_last;
       thd->lex->query_tables_own_last= 0;
 
-      res= check_table_access(thd, SELECT_ACL | UPDATE_ACL, &table_list, 0);
+      err_status= check_table_access(thd, SELECT_ACL | UPDATE_ACL,
+                                     &table_list, 0);
       thd->lex->query_tables_own_last= save_query_tables_own_last;
-      if (res)
+      if (err_status)
       {
         sp_restore_security_context(thd, save_ctx);
         return TRUE;
