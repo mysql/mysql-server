@@ -1923,4 +1923,9 @@ d varchar(255) character set utf8,
 e varchar(255) character set utf8,
 key (a,b,c,d,e)) engine=bdb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
+set autocommit=0;
+create table t1 (a int) engine=bdb;
+commit;
+alter table t1 add primary key(a);
+drop table t1;
 End of 5.0 tests
