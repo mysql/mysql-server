@@ -4925,6 +4925,12 @@ int Item_ref::save_in_field(Field *to, bool no_conversions)
 }
 
 
+void Item_ref::save_org_in_field(Field *field)
+{
+  (*ref)->save_org_in_field(field);
+}
+
+
 void Item_ref::make_field(Send_field *field)
 {
   (*ref)->make_field(field);

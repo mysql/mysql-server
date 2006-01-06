@@ -1036,4 +1036,13 @@ create table t1 (a varchar(255) character set utf8,
                  e varchar(255) character set utf8,
                  key (a,b,c,d,e)) engine=bdb;
 
+#
+# Bug #14212: Server crash after COMMIT + ALTER TABLE
+#
+set autocommit=0;
+create table t1 (a int) engine=bdb;
+commit;
+alter table t1 add primary key(a);
+drop table t1;
+
 --echo End of 5.0 tests
