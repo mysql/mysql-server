@@ -46,12 +46,13 @@ show tables;
 use test;
 select * from t1;
 
+system rm  var/master-data/mysqltest1/f1.txt;
 connection master;
-drop table t1;
+DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
 #cleanup
 connection slave;
 stop slave;
-system rm -rf var/master-data/mysqltest1;
+#system rm -rf var/master-data/mysqltest1;
 
