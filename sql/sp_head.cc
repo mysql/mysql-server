@@ -1755,7 +1755,7 @@ void
 
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char *p= strrchr(definer, '@');
+  const char *p= strrchr(definer, '@');
 
   if (!p)
   {
