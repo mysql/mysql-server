@@ -414,6 +414,13 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
+  HANDLER_TABLES_HACK(thd);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
+  HANDLER_TABLES_HACK(thd);
+
+  if (!lock)
+    goto err0; // mysql_lock_tables() printed error message already
+
   if (cond && ((!cond->fixed &&
                 cond->fix_fields(thd, &cond)) || cond->check_cols(1)))
     goto err0;
@@ -426,13 +433,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       goto err0;
     }
   }
-
-  HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0, &not_used);
-  HANDLER_TABLES_HACK(thd);
-
-  if (!lock)
-    goto err0; // mysql_lock_tables() printed error message already
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
                     tables->db, tables->alias, &it, 0))
