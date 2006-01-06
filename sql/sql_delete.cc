@@ -890,7 +890,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   // Remove the .frm extension
-  *(path + path_length - reg_ext_length)= '\0';
+  // AIX 5.2 64-bit compiler bug (BUG#16155): this crashes, replacement works.
+  //   *(path + path_length - reg_ext_length)= '\0';
+  path[path_length - reg_ext_length] = 0;
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
   query_cache_invalidate3(thd, table_list, 0);
