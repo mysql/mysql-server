@@ -31,5 +31,5 @@ use test;
 select * from t1;
 n
 1234
-drop table t1;
+DROP DATABASE mysqltest1;
 stop slave;
