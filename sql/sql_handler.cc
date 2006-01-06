@@ -380,27 +380,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
                                hash_tables->db, hash_tables->real_name,
                                hash_tables->alias, table));
-    /* Table might have been flushed. */
-    if (table && (table->version != refresh_version))
-    {
-      /*
-        We must follow the thd->handler_tables chain, as we need the
-        address of the 'next' pointer referencing this table
-        for close_thread_table().
-      */
-      for (table_ptr= &(thd->handler_tables);
-           *table_ptr && (*table_ptr != table);
-           table_ptr= &(*table_ptr)->next)
-      {}
-      VOID(pthread_mutex_lock(&LOCK_open));
-      if (close_thread_table(thd, table_ptr))
-      {
-        /* Tell threads waiting for refresh that something has happened */
-        VOID(pthread_cond_broadcast(&COND_refresh));
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      table= hash_tables->table= NULL;
-    }
     if (!table)
     {
       /*
@@ -447,10 +426,15 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
+  HANDLER_TABLES_HACK(thd);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
+  HANDLER_TABLES_HACK(thd);
+
+  if (!lock)
+    goto err0; // mysql_lock_tables() printed error message already
+
   if (cond && cond->fix_fields(thd,tables))
     goto err0;
-
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
   if (keyname)
   {
@@ -462,23 +446,17 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
     table->file->index_init(keyno);
   }
+ 
+  byte *key;
+  uint key_len;
+  LINT_INIT(key); 
+  LINT_INIT(key_len); 
 
   if (insert_fields(thd,tables,tables->db,tables->alias,&it))
     goto err0;
 
   select_limit+=offset_limit;
   send_fields(thd,list,1);
-
-  HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
-  HANDLER_TABLES_HACK(thd);
-  
-  byte *key;
-  uint key_len;
-  LINT_INIT(key); 
-  LINT_INIT(key_len); 
-  if (!lock)
-     goto err0; // mysql_lock_tables() printed error message already
 
   table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 

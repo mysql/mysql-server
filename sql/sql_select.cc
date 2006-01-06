@@ -4082,7 +4082,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
+    {
       hidden_null_count=null_count;
+      /*
+        We need to update hidden_field_count as we may have stored group
+        functions with constant arguments
+      */
+      param->hidden_field_count= (uint) (reg_field - table->field);
+    }
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
@@ -4270,7 +4277,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct)
+  if (distinct && field_count != param->hidden_field_count)
   {
     /*
       Create an unique key or an unique constraint over all columns
