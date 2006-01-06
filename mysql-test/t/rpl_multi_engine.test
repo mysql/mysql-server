@@ -94,6 +94,8 @@ show create table t1;
 # cleanup
 connection master;
 DROP TABLE t1;
+# Need to drop mysqltest1 as well so other test will pass.
+DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
 # End of 5.1 test case
