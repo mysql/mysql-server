@@ -2327,7 +2327,8 @@ static uint32 get_part_id_hash(uint no_parts,
                                Item *part_expr)
 {
   DBUG_ENTER("get_part_id_hash");
-  DBUG_RETURN((uint32)(part_expr->val_int() % no_parts));
+  longlong int_hash_id= part_expr->val_int() % no_parts;
+  DBUG_RETURN(int_hash_id < 0 ? -int_hash_id : int_hash_id);
 }
 
 
