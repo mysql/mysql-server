@@ -363,3 +363,4 @@ id	hex(b1)	vc	bc	d	f	total	y	t
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
 DROP TABLE t1;
+DROP DATABASE mysqltest1;

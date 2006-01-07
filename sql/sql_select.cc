@@ -10772,7 +10772,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     item->save_org_in_field(group->field);
     /* Store in the used key if the field was 0 */
     if (item->maybe_null)
-      group->buff[-1]=item->null_value ? 1 : 0;
+      group->buff[-1]= (char) group->field->is_null();
   }
   if (!table->file->index_read(table->record[1],
 			       join->tmp_table_param.group_buff,0,

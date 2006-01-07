@@ -559,8 +559,9 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
 
   /**
    * Set correct operation type and fix change mask
+   * Note ALLOC is set in "orig" tuple
    */
-  if(req_struct->m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
+  if(save_ptr->m_header_bits & Tuple_header::ALLOC)
   {
     if(save == ZDELETE)
     {
@@ -570,6 +571,14 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
       goto end;
     }
     regOperPtr->op_struct.op_type = ZINSERT;
+  }
+  else if (save == ZINSERT)
+  /**
+   * Tuple was not created but last op is INSERT.
+   * This is possible only on DELETE + INSERT
+   */
+  {
+    regOperPtr->op_struct.op_type = ZUPDATE;
   }
 
   ndbrequire(regOperPtr->is_first_operation());
