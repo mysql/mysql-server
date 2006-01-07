@@ -715,7 +715,7 @@ String *Item_nodeset_func_predicate::val_nodeset(String *str)
       ((XPathFilter*)str)->append_element(flt->num, pos++);
   }
   return str;
-};
+}
 
 
 String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)

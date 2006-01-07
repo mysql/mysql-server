@@ -26,30 +26,18 @@
   then reporting the timing of each stage.
 
   MySQL slap runs three stages:
-  1) Create table (single client)
-  2) Insert data (many clients)
-  3) Load test (many clients)
-  4) Cleanup (disconnection, drop table if specified, single client)
+  1) Create schema,table, and optionally any SP or data you want to beign
+     the test with. (single client)
+  2) Load test (many clients)
+  3) Cleanup (disconnection, drop table if specified, single client)
 
   Examples:
 
-  Supply your own create, insert and query SQL statements, with eight
-  clients loading data (eight inserts for each) and 50 clients querying (200
-  selects for each):
+  Supply your own create and query SQL statements, with 50 clients 
+  querying (200 selects for each):
 
-    mysqlslap --create="CREATE TABLE A (a int)" \
-              --data="INSERT INTO A (23)" --concurrency-load=8 --number-rows=8 \
-              --query="SELECT * FROM A" --concurrency=50 --iterations=200 \
-              --concurrency-load=5
-
-  Let the program build create, insert and query SQL statements with a table
-  of two int columns, three varchar columns, with five clients loading data
-  (12 inserts each), five clients querying (20 times each), and drop schema
-  before creating:
-
-    mysqlslap --concurrency=5 --concurrency-load=5 --iterations=20 \
-              --number-int-cols=2 --number-char-cols=3 --number-rows=12 \
-              --auto-generate-sql
+    mysqlslap --create="CREATE TABLE A (a int);INSERT INTO A (23)" \
+              --query="SELECT * FROM A" --concurrency=50 --iterations=200
 
   Let the program build the query SQL statement with a table of two int
   columns, three varchar columns, five clients querying (20 times each),
@@ -58,30 +46,27 @@
 
     mysqlslap --concurrency=5 --iterations=20 \
               --number-int-cols=2 --number-char-cols=3 \
-              --number-of-rows=12 --auto-generate-sql \
-              --skip-data-load --skip-create-schema
+              --auto-generate-sql
 
   Tell the program to load the create, insert and query SQL statements from
   the specified files, where the create.sql file has multiple table creation
-  statements delimited by ';', multiple insert statements delimited by ';',
-  and multiple queries delimited by ';', run all the load statements with
-  five clients (five times each), and run all the queries in the query file
+  statements delimited by ';' and multiple insert statements delimited by ';'.
+  The --query file will have multiple queries delimited by ';', run all the 
+  load statements, and then run all the queries in the query file
   with five clients (five times each):
 
-    mysqlslap --drop-schema --concurrency=5 --concurrency-load=5 \
+    mysqlslap --drop-schema --concurrency=5 \
               --iterations=5 --query=query.sql --create=create.sql \
-              --data=insert.sql --delimiter=";" --number-of-rows=5
-
-  Same as the last test run, with short options
-
-    mysqlslap -D -c 5 -l 5 -i 5 -q query.sql \
-              --create create.sql -d insert.sql -F ";" -n 5
+              --delimiter=";"
 
 TODO:
   Add language for better tests
   String length for files and those put on the command line are not
     setup to handle binary data.
   Report results of each thread into the lock file we use.
+  More stats
+  Break up tests and run them on multiple hosts at once.
+  Allow output to be fed into a database directly.
 
 */
 
@@ -109,8 +94,8 @@ TODO:
 static char **defaults_argv;
 
 static char *host= NULL, *opt_password= NULL, *user= NULL,
-            *user_supplied_query= NULL, *user_supplied_data= NULL,
-            *create_string= NULL, *default_engine= NULL,
+            *user_supplied_query= NULL,
+            *default_engine= NULL,
             *opt_mysql_unix_port= NULL;
 
 const char *delimiter= "\n";
@@ -120,33 +105,28 @@ const char *create_schema_string= "mysqlslap";
 const char *lock_directory;
 char lock_file_str[FN_REFLEN];
 
-static my_bool opt_preserve_enter= FALSE, opt_preserve_exit= FALSE;
+static my_bool opt_preserve;
 
 static my_bool opt_only_print= FALSE;
 
 static my_bool opt_slave;
 
 static my_bool opt_compress= FALSE, tty_password= FALSE,
-               create_string_alloced= FALSE,
-               insert_string_alloced= FALSE, query_string_alloced= FALSE,
-               generated_insert_flag= FALSE, opt_silent= FALSE,
+               opt_silent= FALSE,
                auto_generate_sql= FALSE;
 
 static int verbose, num_int_cols, num_char_cols, delimiter_length;
 static int iterations;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-static uint repeat_data, repeat_query;
-static ulonglong actual_insert_rows= 0;
 static ulonglong actual_queries= 0;
-static uint children_spawned;
-static ulonglong num_of_rows;
 static ulonglong num_of_query;
 const char *concurrency_str= NULL;
+static char *create_string;
 uint *concurrency;
-const char *concurrency_load_str= NULL;
-uint *concurrency_load;
 
 const char *default_dbug_option="d:t:o,/tmp/mysqlslap.trace";
+const char *opt_csv_str;
+File csv_file;
 
 static uint opt_protocol= 0;
 
@@ -163,26 +143,49 @@ struct statement {
   statement *next;
 };
 
+typedef struct stats stats;
+
+struct stats {
+  long int timing;
+  uint users;
+  unsigned long long rows;
+};
+
+typedef struct conclusions conclusions;
+
+struct conclusions {
+  char *engine;
+  long int avg_timing;
+  long int max_timing;
+  long int min_timing;
+  uint users;
+  unsigned long long avg_rows;
+  /* The following are not used yet */
+  unsigned long long max_rows;
+  unsigned long long min_rows;
+};
+
 static statement *create_statements= NULL, 
-                 *insert_statements= NULL, 
                  *engine_statements= NULL, 
                  *query_statements= NULL;
 
 /* Prototypes */
+void print_conclusions(conclusions *con);
+void print_conclusions_csv(conclusions *con);
+void generate_stats(conclusions *con, statement *eng, stats *sptr);
 uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
 uint get_random_string(char *buf);
-static int build_table_string(void);
-static int build_insert_string(void);
-static int build_query_string(void);
+static statement *build_table_string(void);
+static statement *build_insert_string(void);
+static statement *build_query_string(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               statement *engine_stmt);
-static double run_scheduler(statement *stmts,
-              int(*task)(statement *stmt, ulonglong limit, uint repeat), 
-              uint concur, ulonglong limit, uint repeat);
-int run_task(statement *stmt, ulonglong limit, uint repeat);
-int load_data(statement *load_stmt, ulonglong limit);
+static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
+                         ulonglong limit);
+int run_task(statement *stmt, ulonglong limit);
+void statement_cleanup(statement *stmt);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -190,27 +193,15 @@ static const char ALPHANUMERICS[]=
 #define ALPHANUMERICS_SIZE (sizeof(ALPHANUMERICS)-1)
 
 
-
-/* Return the time in ms between two timevals */
-static double timedif (struct timeval end, struct timeval begin)
+static long int timedif(struct timeval a, struct timeval b)
 {
-  double seconds;
-  DBUG_ENTER("timedif");
-
-  seconds= (double)(end.tv_usec - begin.tv_usec)/1000000;
-  DBUG_PRINT("info", ("end.tv_usec %d - begin.tv_usec %d = "
-                      "%d microseconds ( fseconds %f)",
-                      end.tv_usec, begin.tv_usec,
-                      (end.tv_usec - begin.tv_usec),
-                      seconds));
-  seconds += (double)(end.tv_sec - begin.tv_sec);
-  DBUG_PRINT("info", ("end.tv_sec %d - begin.tv_sec %d = "
-                      "%d seconds (fseconds %f)",
-                      end.tv_sec, begin.tv_sec,
-                      (end.tv_sec - begin.tv_sec), seconds));
-
-  DBUG_PRINT("info", ("returning time %f seconds", seconds));
-  DBUG_RETURN(seconds);
+    register int us, s;
+ 
+    us = a.tv_usec - b.tv_usec;
+    us /= 1000;
+    s = a.tv_sec - b.tv_sec;
+    s *= 1000;
+    return s + us;
 }
 
 
@@ -218,10 +209,9 @@ int main(int argc, char **argv)
 {
   MYSQL mysql;
   int client_flag= 0;
-  double load_difference;
-  double query_difference;
-  statement *eptr;
   int x;
+  unsigned long long client_limit;
+  statement *eptr;
 
   DBUG_ENTER("main");
   MY_INIT(argv[0]);
@@ -278,80 +268,57 @@ int main(int argc, char **argv)
     }
   }
 
-  // Main interations loop
-  for (eptr= engine_statements; eptr; eptr= eptr->next)
+  /* Main iterations loop */
+  eptr= engine_statements;
+  do
   {
-    if (!opt_silent)
-      printf("Running for engine %s\n", eptr->string);
+    /* For the final stage we run whatever queries we were asked to run */
+    uint *current;
+    conclusions conclusion;
 
-    for (x= 0; x < iterations; x++)
+    for (current= concurrency; current && *current; current++)
     {
-      /*
-        We might not want to load any data, such as when we are calling
-        a stored_procedure that doesn't use data, or we know we already have
-        data in the table.
-      */
-      if (!opt_preserve_enter)
-        drop_schema(&mysql, create_schema_string);
+      stats *head_sptr;
+      stats *sptr;
 
-      /* 
-        Three stag process:
-        create
-        insert
-        run jobs
-      */
+      head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, MYF(MY_ZEROFILL));
 
-      /* First we create */
-      if (create_statements)
-        create_schema(&mysql, create_schema_string, create_statements, eptr);
+      bzero(&conclusion, sizeof(conclusions));
 
-      /* For the second act we load data */
-      if (insert_statements)
+      if (num_of_query)
+        client_limit=  num_of_query / *current;
+      else
+        client_limit= actual_queries;
+
+      for (x= 0, sptr= head_sptr; x < iterations; x++, sptr++)
       {
-        uint *current;
-        for (current= concurrency_load; current && *current; current++)
-        {
-          load_difference= run_scheduler(insert_statements, run_task, 
-                                         *current, num_of_rows, repeat_data); 
+        /*
+          We might not want to load any data, such as when we are calling
+          a stored_procedure that doesn't use data, or we know we already have
+          data in the table.
+        */
+        if (!opt_preserve)
+          drop_schema(&mysql, create_schema_string);
+        /* First we create */
+        if (create_statements)
+          create_schema(&mysql, create_schema_string, create_statements, eptr);
 
-          if (!opt_silent)
-          {
-            printf("Seconds to load data: %.5f\n", load_difference);
-            printf("Number of clients loading data: %d\n", children_spawned);
-            printf("Number of inserts per client: %llu\n", 
-                   num_of_rows ? (unsigned long long)(num_of_rows / *current) :
-                   (unsigned long long)repeat_data * actual_insert_rows);
-          }
-        }
+        run_scheduler(sptr, query_statements, *current, client_limit); 
       }
 
-      /* For the final stage we run whatever queries we were asked to run */
-      if (query_statements)
-      {
-        uint *current;
-        for (current= concurrency; current && *current; current++)
-        {
-          query_difference= run_scheduler(query_statements, run_task, 
-                                          *current, num_of_query, repeat_query); 
-
-          if (!opt_silent)
-          {
-            printf("Seconds to run all queries: %.5f\n", query_difference);
-            printf("Number of clients running queries: %d\n", children_spawned);
-            printf("Number of queries per client: %llu\n", 
-                   num_of_query ? (unsigned long long)(num_of_query / *current) : 
-                   (unsigned long long)repeat_query * actual_queries);
-          }
-        }
-      }
-
-      if (!opt_preserve_exit)
-        drop_schema(&mysql, create_schema_string);
+      generate_stats(&conclusion, eptr, head_sptr);
 
       if (!opt_silent)
-        printf("\n");
+        print_conclusions(&conclusion);
+      if (opt_csv_str)
+        print_conclusions_csv(&conclusion);
+
+      my_free((byte *)head_sptr, MYF(0));
     }
-  }
+
+    if (!opt_preserve)
+      drop_schema(&mysql, create_schema_string);
+  } while (eptr ? (eptr= eptr->next) : 0);
 
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */
@@ -363,67 +330,12 @@ int main(int argc, char **argv)
   /* now free all the strings we created */
   if (opt_password)
     my_free(opt_password, MYF(0));
-  if (create_string_alloced)
-    my_free(create_string, MYF(0));
-  if (insert_string_alloced)
-    my_free(user_supplied_data, MYF(0));
-  if (query_string_alloced)
-    my_free(user_supplied_query, MYF(0));
 
   my_free((byte *)concurrency, MYF(0));
-  my_free((byte *)concurrency_load, MYF(0));
 
-  if (create_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= create_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
-  
-  if (engine_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= engine_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
-
-  if (insert_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= insert_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
-
-  if (query_statements)
-  {
-    statement *ptr, *nptr;
-    for (ptr= query_statements; ptr;)
-    {
-      nptr= ptr->next;
-      if (ptr->string)
-        my_free(ptr->string, MYF(0)); 
-      my_free((byte *)ptr, MYF(0));
-      ptr= nptr;
-    }
-  }
+  statement_cleanup(create_statements);
+  statement_cleanup(engine_statements);
+  statement_cleanup(query_statements);
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
@@ -445,9 +357,6 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
     (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
-  {"concurrency-load", 'l', "Number of clients to use when loading data.",
-    (gptr*) &concurrency_load_str, (gptr*) &concurrency_load_str, 0,
-    GET_STR, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
     (gptr*) &concurrency_str, (gptr*) &concurrency_str, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -457,10 +366,9 @@ static struct my_option my_long_options[] =
   {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
     (gptr*) &create_schema_string, (gptr*) &create_schema_string, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"data", 'd',
-    "File or string with INSERT to use for populating data.",
-    (gptr*) &user_supplied_data, (gptr*) &user_supplied_data, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"csv", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
+    (gptr*) &opt_csv_str, (gptr*) &opt_csv_str, 0, GET_STR, 
+    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     (gptr*) &default_dbug_option, (gptr*) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -477,24 +385,20 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
     (gptr*) &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"lock-directory", OPT_MYSQL_LOCK_DIRECTORY, "Connect to host.", 
+  {"lock-directory", OPT_MYSQL_LOCK_DIRECTORY, "Directory to use to keep locks.", 
     (gptr*) &lock_directory, (gptr*) &lock_directory, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of INT columns to create table with if specifying --sql-generate-sql.",
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
-    0, 0, 0, 0, 0, 0},
+    1, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
     "Number of VARCHAR columns to create table with if specifying \
       --sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-of-query", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
     (gptr*) &num_of_query, (gptr*) &num_of_query, 0,
-    GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"number-of-rows", OPT_MYSQL_NUMBER_OF_ROWS, 
-    "Limit each client to this number of rows (this is not exact).",
-    (gptr*) &num_of_rows, (gptr*) &num_of_rows, 0,
     GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"only-print", OPT_MYSQL_ONLY_PRINT,
     "This causes mysqlslap to not connect to the databases, but instead print \
@@ -511,13 +415,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"preserve-schema-enter", OPT_MYSQL_PRESERVE_SCHEMA_ENTER,
+  {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run.",
-    (gptr*) &opt_preserve_enter, (gptr*) &opt_preserve_enter, 0, GET_BOOL,
-    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"preserve-schema-exit", OPT_MYSQL_PRESERVE_SCHEMA_EXIT,
-    "Preserve the schema from the mysqlslap run.",
-    (gptr*) &opt_preserve_exit, (gptr*) &opt_preserve_exit, 0, GET_BOOL,
+    (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
     NO_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
     "The protocol of connection (tcp,socket,pipe,memory).",
@@ -525,14 +425,6 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     (gptr*) &user_supplied_query, (gptr*) &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"repeat-data", OPT_MYSQL_REPEAT_DATA, "Number of times to repeat what was specified by \
-    the --data option",
-    (gptr*) &repeat_data, (gptr*) &repeat_data, 0, GET_UINT, 
-    REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"repeat-query", OPT_MYSQL_REPEAT_QUERY, "Number of times to repeat what was specified by the \
-    --query option.", (gptr*) &repeat_query,
-    (gptr*) &repeat_query, 0, GET_UINT, REQUIRED_ARG,
-    1, 0, 0, 0, 0, 0},
   {"silent", 's', "Run program in silent mode - no output.",
     (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -665,11 +557,12 @@ get_random_string(char *buf)
   This function builds a create table query if the user opts to not supply
   a file or string containing a create table statement
 */
-static int
+static statement *
 build_table_string(void)
 {
   char       buf[512];
   int        col_count;
+  statement *ptr;
   DYNAMIC_STRING table_string;
   DBUG_ENTER("build_table_string");
 
@@ -696,12 +589,13 @@ build_table_string(void)
       dynstr_append(&table_string, ",");
   }
   dynstr_append(&table_string, ")");
-  create_string= (char *)my_malloc(table_string.length+1, MYF(MY_WME));
-  create_string_alloced= 1;
-  strmov(create_string, table_string.str);
-  DBUG_PRINT("info", ("create_string %s", create_string));
+  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
+  ptr->string = (char *)my_malloc(table_string.length+1, MYF(MY_WME));
+  ptr->length= table_string.length+1;
+  strmov(ptr->string, table_string.str);
+  DBUG_PRINT("info", ("create_string %s", ptr->string));
   dynstr_free(&table_string);
-  DBUG_RETURN(0);
+  DBUG_RETURN(ptr);
 }
 
 
@@ -711,11 +605,12 @@ build_table_string(void)
   This function builds insert statements when the user opts to not supply
   an insert file or string containing insert data
 */
-static int
+static statement *
 build_insert_string(void)
 {
   char       buf[RAND_STRING_SIZE];
   int        col_count;
+  statement *ptr;
   DYNAMIC_STRING insert_string;
   DBUG_ENTER("build_insert_string");
 
@@ -742,18 +637,13 @@ build_insert_string(void)
   }
   dynstr_append_mem(&insert_string, ")", 1);
 
-  /*
-    since this function can be called if the user wants varying insert
-    statement in the for loop where inserts run, free in advance
-  */
-  if (insert_string_alloced)
-    my_free(user_supplied_data,MYF(0));
-  user_supplied_data= (char *)my_malloc(insert_string.length+1, MYF(MY_WME));
-  insert_string_alloced= 1;
-  strmov(user_supplied_data, insert_string.str);
-  DBUG_PRINT("info", ("generated_insert_data %s", user_supplied_data));
+  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
+  ptr->string= (char *)my_malloc(insert_string.length+1, MYF(MY_WME));
+  ptr->length= insert_string.length+1;
+  strmov(ptr->string, insert_string.str);
+  DBUG_PRINT("info", ("generated_insert_data %s", ptr->string));
   dynstr_free(&insert_string);
-  DBUG_RETURN(insert_string.length+1);
+  DBUG_RETURN(ptr);
 }
 
 
@@ -763,11 +653,12 @@ build_insert_string(void)
   This function builds a query if the user opts to not supply a query
   statement or file containing a query statement
 */
-static int
+static statement *
 build_query_string(void)
 {
   char       buf[512];
   int        col_count;
+  statement *ptr;
   static DYNAMIC_STRING query_string;
   DBUG_ENTER("build_query_string");
 
@@ -793,10 +684,11 @@ build_query_string(void)
 
   }
   dynstr_append_mem(&query_string, " FROM t1", 8);
-  user_supplied_query= (char *)my_malloc(query_string.length+1, MYF(MY_WME));
-  query_string_alloced= 1;
-  strmov(user_supplied_query, query_string.str);
-  DBUG_PRINT("info", ("user_supplied_query %s", user_supplied_query));
+  ptr= (statement *)my_malloc(sizeof(statement), MYF(MY_ZEROFILL));
+  ptr->string= (char *)my_malloc(query_string.length+1, MYF(MY_WME));
+  ptr->length= query_string.length+1;
+  strmov(ptr->string, query_string.str);
+  DBUG_PRINT("info", ("user_supplied_query %s", ptr->string));
   dynstr_free(&query_string);
   DBUG_RETURN(0);
 }
@@ -805,153 +697,122 @@ static int
 get_options(int *argc,char ***argv)
 {
   int ho_error;
+  char *tmp_string;
   MY_STAT sbuf;  /* Stat information for the data file */
 
   DBUG_ENTER("get_options");
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  /*
-    Default policy - if they don't supply either char or int cols, and
-    also no data, then default to 1 of each.
-  */
-  if (num_int_cols == 0 && num_char_cols == 0 && auto_generate_sql &&
-      !user_supplied_data)
-  {
-    num_int_cols= 1;
-    num_char_cols= 1;
-  }
-
   if (!user)
     user= (char *)"root";
 
-  if (auto_generate_sql && (create_string ||
-     user_supplied_data || user_supplied_query))
+  if (auto_generate_sql && (create_string || user_supplied_query))
   {
       fprintf(stderr,
-              "%s: Can't use --auto-generate-sql when create, insert, and query strings are specified!\n",
+              "%s: Can't use --auto-generate-sql when create and query strings are specified!\n",
               my_progname);
       exit(1);
   }
 
-  if (concurrency_str)
-    parse_comma(concurrency_str, &concurrency);
-  else
-  {
-     concurrency= (uint *)my_malloc(sizeof(uint) * 2, MYF(MY_ZEROFILL));
-    concurrency[0]= 1;
-  }
+  parse_comma(concurrency_str ? concurrency_str : "1", &concurrency);
 
   if (lock_directory)
     snprintf(lock_file_str, FN_REFLEN, "%s/%s", lock_directory, MYSLAPLOCK);
   else
     snprintf(lock_file_str, FN_REFLEN, "%s/%s", MYSLAPLOCK_DIR, MYSLAPLOCK);
 
-  if (concurrency_load_str)
-    parse_comma(concurrency_load_str, &concurrency_load);
-  else
+  if (opt_csv_str)
   {
-     concurrency_load= (uint *)my_malloc(sizeof(uint) * 2, MYF(MY_ZEROFILL));
-    concurrency_load[0]= 1;
+    opt_silent= TRUE;
+    
+    if (opt_csv_str[0] == '-')
+    {
+      csv_file= fileno(stdout);
+    }
+    else
+    {
+      if ((csv_file= my_open(opt_csv_str, O_CREAT|O_WRONLY|O_APPEND, MYF(0)))
+          == -1)
+      {
+        fprintf(stderr,"%s: Could not open csv file: %sn\n",
+                my_progname, opt_csv_str);
+        exit(1);
+      }
+    }
   }
 
   if (opt_only_print)
     opt_silent= TRUE;
 
-  if (!create_string && auto_generate_sql)
+  if (auto_generate_sql)
   {
-      build_table_string();
+      create_statements= build_table_string();
+      query_statements= build_insert_string();
+      DBUG_PRINT("info", ("auto-generated insert is %s", query_statements->string));
+      query_statements->next= build_query_string();
+      DBUG_PRINT("info", ("auto-generated is %s", query_statements->next->string));
   }
-  else if (create_string && my_stat(create_string, &sbuf, MYF(0)))
+  else
   {
-    File data_file;
-    if (!MY_S_ISREG(sbuf.st_mode))
+    if (create_string && my_stat(create_string, &sbuf, MYF(0)))
     {
-      fprintf(stderr,"%s: Create file was not a regular file\n",
-              my_progname);
-      exit(1);
+      File data_file;
+      if (!MY_S_ISREG(sbuf.st_mode))
+      {
+        fprintf(stderr,"%s: Create file was not a regular file\n",
+                my_progname);
+        exit(1);
+      }
+      if ((data_file= my_open(create_string, O_RDWR, MYF(0))) == -1)
+      {
+        fprintf(stderr,"%s: Could not open create file\n", my_progname);
+        exit(1);
+      }
+      tmp_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+      my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+      tmp_string[sbuf.st_size]= '\0';
+      my_close(data_file,MYF(0));
+      parse_delimiter(tmp_string, &create_statements, delimiter[0]);
+      my_free(tmp_string, MYF(0));
     }
-    if ((data_file= my_open(create_string, O_RDWR, MYF(0))) == -1)
+    else if (create_string)
     {
-      fprintf(stderr,"%s: Could not open create file\n", my_progname);
-      exit(1);
+        parse_delimiter(create_string, &create_statements, delimiter[0]);
     }
-    create_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-    create_string_alloced= 1;
-    my_read(data_file, create_string, sbuf.st_size, MYF(0));
-    create_string[sbuf.st_size]= '\0';
-    my_close(data_file,MYF(0));
-  }
 
-  if (!default_engine)
-    default_engine= (char *)"MYISAM";
-
-  parse_delimiter(default_engine, &engine_statements, ',');
-
-  if (create_string)
-    parse_delimiter(create_string, &create_statements, delimiter[0]);
-
-  if (!user_supplied_data && auto_generate_sql)
-  {
-    int length;
-    generated_insert_flag= 1;
-    length= build_insert_string();
-    DBUG_PRINT("info", ("user_supplied_data is %s", user_supplied_data));
-  }
-  else if (user_supplied_data && my_stat(user_supplied_data, &sbuf, MYF(0)))
-  {
-    File data_file;
-    if (!MY_S_ISREG(sbuf.st_mode))
+    if (user_supplied_query && my_stat(user_supplied_query, &sbuf, MYF(0)))
     {
-      fprintf(stderr,"%s: User data supplied file was not a regular file\n",
-              my_progname);
-      exit(1);
-    }
-    if ((data_file= my_open(user_supplied_data, O_RDWR, MYF(0))) == -1)
-    {
-      fprintf(stderr,"%s: Could not open data supplied file\n", my_progname);
-      exit(1);
-    }
-    user_supplied_data= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-    insert_string_alloced= 1;
-    my_read(data_file, user_supplied_data, sbuf.st_size, MYF(0));
-    user_supplied_data[sbuf.st_size]= '\0';
-    my_close(data_file,MYF(0));
-  }
-
-  if (user_supplied_data)
-    actual_insert_rows= parse_delimiter(user_supplied_data, 
-                                        &insert_statements,
+      File data_file;
+      if (!MY_S_ISREG(sbuf.st_mode))
+      {
+        fprintf(stderr,"%s: User query supplied file was not a regular file\n",
+                my_progname);
+        exit(1);
+      }
+      if ((data_file= my_open(user_supplied_query, O_RDWR, MYF(0))) == -1)
+      {
+        fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
+        exit(1);
+      }
+      tmp_string= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
+      my_read(data_file, tmp_string, sbuf.st_size, MYF(0));
+      tmp_string[sbuf.st_size]= '\0';
+      my_close(data_file,MYF(0));
+      if (user_supplied_query)
+        actual_queries= parse_delimiter(tmp_string, &query_statements,
                                         delimiter[0]);
-
-  if (!user_supplied_query && auto_generate_sql)
-  {
-    build_query_string();
-  }
-  else if (user_supplied_query && my_stat(user_supplied_query, &sbuf, MYF(0)))
-  {
-    File data_file;
-    if (!MY_S_ISREG(sbuf.st_mode))
+      my_free(tmp_string, MYF(0));
+    } 
+    else if (user_supplied_query)
     {
-      fprintf(stderr,"%s: User query supplied file was not a regular file\n",
-              my_progname);
-      exit(1);
+        actual_queries= parse_delimiter(user_supplied_query, &query_statements,
+                                        delimiter[0]);
     }
-    if ((data_file= my_open(user_supplied_query, O_RDWR, MYF(0))) == -1)
-    {
-      fprintf(stderr,"%s: Could not open query supplied file\n", my_progname);
-      exit(1);
-    }
-    user_supplied_query= (char *)my_malloc(sbuf.st_size+1, MYF(MY_WME));
-    query_string_alloced= 1;
-    my_read(data_file, user_supplied_query, sbuf.st_size, MYF(0));
-    user_supplied_query[sbuf.st_size]= '\0';
-    my_close(data_file,MYF(0));
   }
 
-  if (user_supplied_query)
-    actual_queries= parse_delimiter(user_supplied_query, &query_statements,
-                                    delimiter[0]);
+  if (default_engine)
+    parse_delimiter(default_engine, &engine_statements, ',');
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -998,19 +859,22 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
     }
   }
 
-  snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
-           engine_stmt->string);
-  if (opt_only_print) 
+  if (engine_stmt)
   {
-    printf("%s;\n", query);
-  }
-  else
-  {
-    if (mysql_query(mysql, query))
+    snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
+             engine_stmt->string);
+    if (opt_only_print) 
     {
-      fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
-              mysql_error(mysql));
-      exit(1);
+      printf("%s;\n", query);
+    }
+    else
+    {
+      if (mysql_query(mysql, query))
+      {
+        fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
+                mysql_error(mysql));
+        exit(1);
+      }
     }
   }
 
@@ -1060,22 +924,14 @@ drop_schema(MYSQL *mysql, const char *db)
 }
 
 
-static double 
-run_scheduler(statement *stmts,
-              int(*task)(statement *stmt, ulonglong limit, uint repeat), 
-              uint concur, ulonglong limit, uint repeat)
+static int
+run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
   uint x;
-  ulonglong client_limit= 0;
   File lock_file;
   struct timeval start_time, end_time;
   DBUG_ENTER("run_scheduler");
 
-  if (limit)
-    client_limit=  limit / concur;
-
-  /* reset to 0 */
-  children_spawned= 0;
 
   lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
 
@@ -1086,6 +942,7 @@ run_scheduler(statement *stmts,
               my_progname);
       exit(0);
     }
+
   for (x= 0; x < concur; x++)
   {
     int pid;
@@ -1101,7 +958,7 @@ run_scheduler(statement *stmts,
         fprintf(stderr,
                 "%s: fork returned 0, calling task pid %d gid %d\n",
                 my_progname, pid, getgid());
-      task(stmts, client_limit, repeat);
+      run_task(stmts, limit);
       exit(0);
       break;
     case -1:
@@ -1121,7 +978,6 @@ run_scheduler(statement *stmts,
                 my_progname, pid, getgid());
       break;
     }
-    children_spawned++;
   }
   /* Lets release use some clients! */
   if (!opt_slave)
@@ -1140,17 +996,22 @@ WAIT:
   }
   gettimeofday(&end_time, NULL);
 
-  DBUG_RETURN(timedif(end_time, start_time));
+  sptr->timing= timedif(end_time, start_time);
+  sptr->users= concur;
+  sptr->rows= limit;
+
+  DBUG_RETURN(0);
 }
 
 int
-run_task(statement *qstmt, ulonglong limit, uint repeat)
+run_task(statement *qstmt, ulonglong limit)
 {
-  ulonglong counter= 0, x, queries;
+  ulonglong counter= 0, queries;
   File lock_file;
   MYSQL mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
+  statement *ptr;
 
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", qstmt->string));
@@ -1175,9 +1036,6 @@ run_task(statement *qstmt, ulonglong limit, uint repeat)
   queries= 0; 
 
 limit_not_met:
-  for (x= 0; x < repeat; x++)
-  {
-    statement *ptr;
     for (ptr= qstmt; ptr && ptr->length; ptr= ptr->next)
     {
       if (opt_only_print) 
@@ -1205,7 +1063,6 @@ limit_not_met:
       if (limit && queries == limit)
         DBUG_RETURN(0);
     }
-  }
 
   if (limit && queries < limit)
     goto limit_not_met;
@@ -1215,68 +1072,9 @@ limit_not_met:
 
   if (!opt_only_print) 
     mysql_close(&mysql);
+
   DBUG_RETURN(0);
 }
-
-
-#ifdef TO_BE_DELETED
-
-int
-load_data(statement *load_stmt, ulonglong limit)
-{
-  uint x;
-  uint inserted;
-  MYSQL mysql;
-
-  DBUG_ENTER("load_data");
-  DBUG_PRINT("info", ("task load_data, pid %d", getpid()));
-  mysql_init(&mysql);
-
-  if (!opt_only_print) 
-  {
-    if (!(mysql_real_connect(&mysql, host, user, opt_password,
-                             "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
-                             0)))
-    {
-      fprintf(stderr,"%s: Unable to connect to mysqlslap ERROR: %s\n",
-              my_progname, mysql_error(&mysql));
-      exit(1);
-    }
-  }
-
-  for (x= 0, inserted= 0; x < repeat_data; x++)
-  {
-    statement *ptr;
-    for (ptr= load_stmt; ptr && ptr->length; ptr= ptr->next)
-    {
-      if (opt_only_print) 
-      {
-        printf("%.*s;\n", (uint)ptr->length, ptr->string);
-      }
-      else
-      {
-        if (mysql_real_query(&mysql, ptr->string, ptr->length))
-        {
-          DBUG_PRINT("info", ("iteration %d with INSERT statement %s", ptr->string));
-          fprintf(stderr,"%s: Cannot insert into table using sql:%.*s: ERROR: %s\n",
-                  my_progname, (uint)ptr->length, ptr->string,
-                  mysql_error(&mysql));
-          exit(1);
-        }
-      }
-      inserted++;
-
-      if (limit && inserted == limit)
-        return 0;
-    }
-  }
-
-  if (!opt_only_print) 
-    mysql_close(&mysql);
-  DBUG_RETURN(0);
-}
-
-#endif
 
 
 uint
@@ -1287,7 +1085,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   statement **sptr= stmt;
   statement *tmp;
   uint length= strlen(script);
-  uint count= 0; // We know that there is always one
+  uint count= 0; /* We know that there is always one */
 
   DBUG_PRINT("info", ("Parsing %s\n", script));
 
@@ -1322,7 +1120,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
 uint
 parse_comma(const char *string, uint **range)
 {
-  uint count= 1,x; // We know that there is always one
+  uint count= 1,x; /* We know that there is always one */
   char *retstr;
   char *ptr= (char *)string;
   uint *nptr;
@@ -1330,7 +1128,7 @@ parse_comma(const char *string, uint **range)
   for (;*ptr; ptr++)
     if (*ptr == ',') count++;
   
-  // One extra spot for the NULL
+  /* One extra spot for the NULL */
   nptr= *range= (uint *)my_malloc(sizeof(uint) * (count + 1), MYF(MY_ZEROFILL));
 
   ptr= (char *)string;
@@ -1343,4 +1141,86 @@ parse_comma(const char *string, uint **range)
   nptr[x++]= atoi(ptr);
 
   return count;
+}
+
+void
+print_conclusions(conclusions *con)
+{
+  printf("Benchmark\n");
+  if (con->engine)
+    printf("\tRunning for engine %s\n", con->engine);
+  printf("\tAverage number of seconds to run all queries: %ld.%03ld seconds\n",
+                    con->avg_timing / 1000, con->avg_timing % 1000);
+  printf("\tMinimum number of seconds to run all queries: %ld.%03ld seconds\n",
+                    con->min_timing / 1000, con->min_timing % 1000);
+  printf("\tMaximum number of seconds to run all queries: %ld.%03ld seconds\n",
+                    con->max_timing / 1000, con->max_timing % 1000);
+  printf("\tNumber of clients running queries: %d\n", con->users);
+  printf("\tAverage number of queries per client: %llu\n", con->avg_rows); 
+  printf("\n");
+}
+
+void
+print_conclusions_csv(conclusions *con)
+{
+  char buffer[HUGE_STRING_LENGTH];
+  snprintf(buffer, HUGE_STRING_LENGTH, 
+           "%s,query,%ld.%03ld,%ld.%03ld,%ld.%03ld,%d,%llu\n",
+           con->engine ? con->engine : "", /* Storage engine we ran against */
+           con->avg_timing / 1000, con->avg_timing % 1000, /* Time to load */
+           con->min_timing / 1000, con->min_timing % 1000, /* Min time */
+           con->max_timing / 1000, con->max_timing % 1000, /* Max time */
+           con->users, /* Children used */
+           con->avg_rows  /* Queries run */
+          );
+  my_write(csv_file, buffer, strlen(buffer), MYF(0));
+}
+
+void
+generate_stats(conclusions *con, statement *eng, stats *sptr)
+{
+  stats *ptr;
+  int x;
+
+  con->min_timing= sptr->timing; 
+  con->max_timing= sptr->timing;
+  con->min_rows= sptr->rows;
+  con->max_rows= sptr->rows;
+  
+  /* At the moment we assume uniform */
+  con->users= sptr->users;
+  con->avg_rows= sptr->rows;
+  
+  /* With no next, we know it is the last element that was malloced */
+  for (ptr= sptr, x= 0; x < iterations; ptr++, x++)
+  {
+    con->avg_timing+= ptr->timing;
+
+    if (ptr->timing > con->max_timing)
+      con->max_timing= ptr->timing;
+    if (ptr->timing < con->min_timing)
+      con->min_timing= ptr->timing;
+  }
+  con->avg_timing= con->avg_timing/iterations;
+
+  if (eng && eng->string)
+    con->engine= eng->string;
+  else
+    con->engine= NULL;
+}
+
+void
+statement_cleanup(statement *stmt)
+{
+  statement *ptr, *nptr;
+  if (!stmt)
+    return;
+
+  for (ptr= stmt; ptr; ptr= nptr)
+  {
+    nptr= ptr->next;
+    if (ptr->string)
+      my_free(ptr->string, MYF(0)); 
+    my_free((byte *)ptr, MYF(0));
+  }
 }

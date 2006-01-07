@@ -23,9 +23,9 @@ char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 LEX_STRING plugin_type_names[]=
 {
-  { STRING_WITH_LEN("UDF") },
-  { STRING_WITH_LEN("STORAGE ENGINE") },
-  { STRING_WITH_LEN("FTPARSER") }
+  { (char *)STRING_WITH_LEN("UDF") },
+  { (char *)STRING_WITH_LEN("STORAGE ENGINE") },
+  { (char *)STRING_WITH_LEN("FTPARSER") }
 };
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";

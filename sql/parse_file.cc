@@ -956,6 +956,6 @@ File_parser_dummy_hook::process_unknown_string(char *&unknown_key,
                                                char *end)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
-  DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+  DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));
   DBUG_RETURN(FALSE);
 }

@@ -1490,7 +1490,7 @@ static void network_init(void)
     {
       if (((ret= bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
                       sizeof(IPaddr))) >= 0) ||
-          (socket_errno != EADDRINUSE) ||
+          (socket_errno != SOCKET_EADDRINUSE) ||
           (waited >= mysqld_port_timeout))
         break;
       sql_print_information("Retrying bind on TCP/IP port %u", mysqld_port);
@@ -1702,7 +1702,7 @@ void end_thread(THD *thd, bool put_in_cache)
       wake_thread--;
       thd=thread_cache.get();
       thd->real_id=pthread_self();
-      thd->thread_stack= (char *) &thd;
+      thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
       thd->thr_create_time= time(NULL);
       threads.append(thd);

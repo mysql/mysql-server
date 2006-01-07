@@ -1782,11 +1782,7 @@ public:
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
   int save_in_field(Field *field, bool no_conversions);
-  void save_org_in_field(Field *field)
-  {
-    (*ref)->save_org_in_field(field);
-    null_value= (*ref)->null_value;
-  }
+  void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   Field *get_tmp_table_field()

@@ -17,7 +17,9 @@
 #ifndef _my_bitmap_h_
 #define _my_bitmap_h_
 
+#ifdef THREAD
 #include <my_pthread.h>
+#endif
 
 #define MY_BIT_NONE (~(uint) 0)
 

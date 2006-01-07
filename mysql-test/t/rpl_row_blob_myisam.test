@@ -1,0 +1,6 @@
+#################################
+# Wrapper for rpl_row_blob.test#
+#################################
+let $engine_type=myisam;
+-- source extra/rpl_tests/rpl_row_blob.test
+

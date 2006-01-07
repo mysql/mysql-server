@@ -1,5 +1,4 @@
 # NYI - row-based cannot use CREATE ... SELECT
---source include/have_binlog_format_statement.inc
 
 source include/master-slave.inc;
 --disable_warnings
@@ -10,7 +9,7 @@ reset master;
 --enable_warnings
 
 #
-# Check that createion drop of view is replicated, also check replication of
+# Check that creation drop of view is replicated, also check replication of
 # updating of view
 #
 connection master;
@@ -46,5 +45,8 @@ select * from v1 order by a;
 connection master;
 drop table t1;
 sync_slave_with_master;
---replace_column 2 # 5 #
-show binlog events limit 1,100;
+# Change Author: JBM
+# Change Date: 2005-12-22
+# Change: Commented out binlog events to work with SBR and RBR 
+#--replace_column 2 # 5 #
+# show binlog events limit 1,100;

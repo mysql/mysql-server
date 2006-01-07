@@ -6955,6 +6955,7 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 
 /*
   Create quick select from ref/ref_or_null scan.
+
   SYNOPSIS
     get_quick_select_for_ref()
       thd      Thread handle
@@ -6974,15 +6975,18 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              TABLE_REF *ref, ha_rows records)
 {
-  MEM_ROOT *old_root= thd->mem_root;
-  /* The following call may change thd->mem_root */
-  QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
-  /* save mem_root set by QUICK_RANGE_SELECT constructor */
-  MEM_ROOT *alloc= thd->mem_root;
+  MEM_ROOT *old_root, *alloc;
+  QUICK_RANGE_SELECT *quick;
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
   uint part;
+
+  old_root= thd->mem_root;
+  /* The following call may change thd->mem_root */
+  quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
+  /* save mem_root set by QUICK_RANGE_SELECT constructor */
+  alloc= thd->mem_root;
   /*
     return back default mem_root (thd->mem_root) changed by
     QUICK_RANGE_SELECT constructor
