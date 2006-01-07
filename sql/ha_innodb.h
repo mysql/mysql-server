@@ -212,7 +212,7 @@ class ha_innobase: public handler
 					uint table_changes);
 };
 
-extern struct show_var_st innodb_status_variables[];
+extern SHOW_VAR innodb_status_variables[];
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size, innobase_fast_shutdown;

@@ -1516,8 +1516,163 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Status functions
 *****************************************************************************/
 
+static DYNAMIC_ARRAY all_status_vars;
+static bool status_vars_inited= 0;
+static int show_var_cmp(const void *var1, const void *var2)
+{
+  return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
+}
+
+/*
+  deletes all the SHOW_UNDEF elements from the array and calls
+  delete_dynamic() if it's completely empty.
+*/
+static void shrink_var_array(DYNAMIC_ARRAY *array)
+{
+  int a,b;
+  SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
+
+  for (a= b= 0; b < array->elements; b++)
+    if (all[b].type != SHOW_UNDEF)
+      all[a++]= all[b];
+  if (a)
+  {
+    bzero(all+a, sizeof(SHOW_VAR)); // writing NULL-element to the end
+    array->elements= a;
+  }
+  else // array is completely empty - delete it
+    delete_dynamic(array);
+}
+
+/*
+  Adds an array of SHOW_VAR entries to the output of SHOW STATUS
+
+  SYNOPSIS
+    add_status_vars(SHOW_VAR *list)
+    list - an array of SHOW_VAR entries to add to all_status_vars
+           the last entry must be {0,0,SHOW_UNDEF}
+
+  NOTE
+    The handling of all_status_vars[] is completely internal, it's allocated
+    automatically when something is added to it, and deleted completely when
+    the last entry is removed.
+
+    As a special optimization, if add_status_vars() is called before
+    init_status_vars(), it assumes "startup mode" - neither concurrent access
+    to the array nor SHOW STATUS are possible (thus it skips locks and qsort)
+
+    The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
+*/
+int add_status_vars(SHOW_VAR *list)
+{
+  int res= 0;
+  if (status_vars_inited)
+    pthread_mutex_lock(&LOCK_status);
+  if (!all_status_vars.buffer && // array is not allocated yet - do it now
+      my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
+  {
+    res= 1;
+    goto err;
+  }
+  while (list->name)
+    res|= insert_dynamic(&all_status_vars, (gptr)list++);
+  res|= insert_dynamic(&all_status_vars, (gptr)list); // appending NULL-element
+  all_status_vars.elements--; // but next insert_dynamic should overwite it
+  if (status_vars_inited)
+    sort_dynamic(&all_status_vars, show_var_cmp);
+err:
+  if (status_vars_inited)
+    pthread_mutex_unlock(&LOCK_status);
+  return res;
+}
+
+/*
+  Make all_status_vars[] usable for SHOW STATUS
+
+  NOTE
+    See add_status_vars(). Before init_status_vars() call, add_status_vars()
+    works in a special fast "startup" mode. Thus init_status_vars()
+    should be called as late as possible but before enabling multi-threading.
+*/
+void init_status_vars()
+{
+  status_vars_inited=1;
+  sort_dynamic(&all_status_vars, show_var_cmp);
+}
+
+/*
+  catch-all cleanup function, cleans up everything no matter what
+
+  DESCRIPTION
+    This function is not strictly required if all add_to_status/
+    remove_status_vars are properly paired, but it's a safety measure that
+    deletes everything from the all_status_vars[] even if some
+    remove_status_vars were forgotten
+*/
+void free_status_vars()
+{
+  delete_dynamic(&all_status_vars);
+}
+
+/*
+  Removes an array of SHOW_VAR entries from the output of SHOW STATUS
+
+  SYNOPSIS
+    remove_status_vars(SHOW_VAR *list)
+    list - an array of SHOW_VAR entries to remove to all_status_vars
+           the last entry must be {0,0,SHOW_UNDEF}
+
+  NOTE
+    there's lots of room for optimizing this, especially in non-sorted mode,
+    but nobody cares - it may be called only in case of failed plugin
+    initialization in the mysqld startup.
+
+*/
+void remove_status_vars(SHOW_VAR *list)
+{
+  if (status_vars_inited)
+  {
+    pthread_mutex_lock(&LOCK_status);
+    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
+    int a= 0, b= all_status_vars.elements, c= (a+b)/2, res;
+
+    for (; list->name; list++)
+    {
+      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      {
+        res= show_var_cmp(list, all+c);
+        if (res < 0)
+          b= c;
+        else if (res > 0)
+          a= c;
+        else break;
+      }
+      if (res == 0)
+        all[c].type= SHOW_UNDEF;
+    }
+    shrink_var_array(&all_status_vars);
+    pthread_mutex_unlock(&LOCK_status);
+  }
+  else
+  {
+    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
+    int i;
+    for (; list->name; list++)
+    {
+      for (i= 0; i < all_status_vars.elements; i++)
+      {
+        if (show_var_cmp(list, all+i))
+          continue;
+        all[i].type= SHOW_UNDEF;
+        break;
+      }
+    }
+    shrink_var_array(&all_status_vars);
+  }
+}
+
 static bool show_status_array(THD *thd, const char *wild,
-                              show_var_st *variables,
+                              SHOW_VAR *variables,
                               enum enum_var_type value_type,
                               struct system_status_var *status_var,
                               const char *prefix, TABLE *table)
@@ -1527,13 +1682,15 @@ static bool show_status_array(THD *thd, const char *wild,
   char name_buffer[80];
   int len;
   LEX_STRING null_lex_str;
-  struct show_var_st tmp, *var;
+  SHOW_VAR tmp, *var;
   DBUG_ENTER("show_status_array");
 
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
   prefix_end=strnmov(name_buffer, prefix, sizeof(name_buffer)-1);
+  if (*prefix)
+    *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
 
   for (; variables->name; variables++)
@@ -1541,13 +1698,17 @@ static bool show_status_array(THD *thd, const char *wild,
     strnmov(prefix_end, variables->name, len);
     name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
 
+    /*
+      if var->type is SHOW_FUNC, call the function.
+      Repeat as necessary, if new var is again SHOW_FUNC
+    */
     for (var=variables; var->type == SHOW_FUNC; var= &tmp)
-      ((show_var_func)(var->value))(thd, &tmp, buff);
+      ((mysql_show_var_func)(var->value))(thd, &tmp, buff);
 
     SHOW_TYPE show_type=var->type;
     if (show_type == SHOW_ARRAY)
     {
-      show_status_array(thd, wild, (show_var_st *) var->value,
+      show_status_array(thd, wild, (SHOW_VAR *) var->value,
                         value_type, status_var, name_buffer, table);
     }
     else
@@ -1578,11 +1739,10 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
         case SHOW_LONG_STATUS:
-        case SHOW_LONG_CONST_STATUS:
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_LONG:
-        case SHOW_LONG_CONST:
+        case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG:
@@ -1597,7 +1757,6 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_MY_BOOL:
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
-        case SHOW_INT_CONST:
         case SHOW_INT:
           end= int10_to_str((long) *(uint32*) value, buff, 10);
           break;
@@ -1623,7 +1782,6 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
         case SHOW_KEY_CACHE_LONG:
-        case SHOW_KEY_CACHE_CONST_LONG:
           value= (char*) dflt_key_cache + (ulong)value;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
@@ -1632,9 +1790,10 @@ static bool show_status_array(THD *thd, const char *wild,
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
         case SHOW_UNDEF:
-        case SHOW_SYS:
-          break;					// Return empty string
+          break;                                        // Return empty string
+        case SHOW_SYS:                                  // Cannot happen
         default:
+          DBUG_ASSERT(0);
           break;
         }
         restore_record(table, s->default_values);
@@ -3357,7 +3516,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  res= show_status_array(thd, wild, init_vars, 
+  res= show_status_array(thd, wild, init_vars,
                          lex->option_type, 0, "", tables->table);
   pthread_mutex_unlock(&LOCK_global_system_variables);
   DBUG_RETURN(res);
@@ -3374,8 +3533,10 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   pthread_mutex_lock(&LOCK_status);
   if (lex->option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
-  res= show_status_array(thd, wild, status_vars, OPT_GLOBAL,
-                         (lex->option_type == OPT_GLOBAL ? 
+  res= show_status_array(thd, wild,
+                         (SHOW_VAR *)all_status_vars.buffer,
+                         OPT_GLOBAL,
+                         (lex->option_type == OPT_GLOBAL ?
                           &tmp: &thd->status_var), "",tables->table);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
@@ -4146,7 +4307,7 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_STATUS", 10, MYSQL_TYPE_STRING, 0, 0, "Status"},
-  {"PLUGIN_TYPE", 10, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"PLUGIN_TYPE", 80, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_LIBRARY", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
   {"PLUGIN_LIBRARY_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},

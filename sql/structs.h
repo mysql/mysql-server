@@ -169,32 +169,11 @@ typedef struct st_known_date_time_format {
   const char *time_format;
 } KNOWN_DATE_TIME_FORMAT;
 
-
-enum SHOW_TYPE
-{
-  SHOW_UNDEF,
-  SHOW_LONG, SHOW_LONGLONG, SHOW_INT, SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_DOUBLE_STATUS, SHOW_BOOL, SHOW_MY_BOOL,
-  SHOW_LONG_CONST, SHOW_INT_CONST, SHOW_HAVE, SHOW_SYS, SHOW_HA_ROWS,
-  SHOW_ARRAY, SHOW_FUNC,
-  SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_CONST_LONG, SHOW_KEY_CACHE_LONGLONG,
-  SHOW_LONG_STATUS, SHOW_LONG_CONST_STATUS
-};
-
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 
 extern const char *show_comp_option_name[];
 
-typedef int *(*update_var)(THD *, struct show_var_st *);
-
-typedef struct show_var_st {
-  const char *name;
-  char *value;
-  SHOW_TYPE type;
-} SHOW_VAR;
-
-#define SHOW_VAR_FUNC_BUFF_SIZE 1024
-typedef int (*show_var_func)(THD *, struct show_var_st *, char *);
+typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
 typedef struct	st_lex_user {
   LEX_STRING user, host, password;
