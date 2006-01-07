@@ -769,7 +769,7 @@ private:
   Ndb *get_ndb();
 };
 
-extern struct show_var_st ndb_status_variables[];
+extern SHOW_VAR ndb_status_variables[];
 
 bool ndbcluster_init(void);
 int ndbcluster_end(ha_panic_function flag);
