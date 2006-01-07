@@ -398,14 +398,14 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified)
 {
-  LEX *oldlex= thd->lex, newlex;
-  sp_rcontext *save_spcont= thd->spcont;
+  LEX *old_lex= thd->lex, newlex;
   String defstr;
   char olddb[128];
   bool dbchanged;
   ulong old_sql_mode= thd->variables.sql_mode;
-  ha_rows select_limit= thd->variables.select_limit;
-  int ret= SP_INTERNAL_ERROR;
+  ha_rows old_select_limit= thd->variables.select_limit;
+  sp_rcontext *old_spcont= thd->spcont;
+  int ret;
 
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
@@ -421,7 +421,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 		     returns, strlen(returns),
 		     body, strlen(body),
 		     &chistics))
+  {
+    ret= SP_INTERNAL_ERROR;
     goto end;
+  }
 
   dbchanged= FALSE;
   if ((ret= sp_use_new_db(thd, name->m_db.str, olddb, sizeof(olddb),
@@ -450,10 +453,10 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     (*sphp)->optimize();
   }
 end:
-  thd->spcont= save_spcont;
+  thd->spcont= old_spcont;
   thd->variables.sql_mode= old_sql_mode;
-  thd->variables.select_limit= select_limit;
-  thd->lex= oldlex;
+  thd->variables.select_limit= old_select_limit;
+  thd->lex= old_lex;
   return ret;
 }
 
@@ -927,7 +930,6 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
   ulong depth= (type == TYPE_ENUM_PROCEDURE ?
                 thd->variables.max_sp_recursion_depth :
                 0);
-
   DBUG_ENTER("sp_find_routine");
   DBUG_PRINT("enter", ("name:  %.*s.%.*s, type: %d, cache only %d",
                        name->m_db.length, name->m_db.str,
@@ -937,6 +939,11 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
   if ((sp= sp_cache_lookup(cp, name)))
   {
     ulong level;
+    sp_head *new_sp;
+    const char *returns= "";
+    char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+    String retstr(64);
+
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
     if (sp->m_first_free_instance)
     {
@@ -947,7 +954,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
       DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
       if (sp->m_first_free_instance->m_recursion_level > depth)
       {
-        sp->recursion_level_error();
+        sp->recursion_level_error(thd);
         DBUG_RETURN(0);
       }
       DBUG_RETURN(sp->m_first_free_instance);
@@ -955,37 +962,32 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     level= sp->m_last_cached_sp->m_recursion_level + 1;
     if (level > depth)
     {
-      sp->recursion_level_error();
+      sp->recursion_level_error(thd);
       DBUG_RETURN(0);
     }
+
+    strxmov(definer, sp->m_definer_user.str, "@",
+            sp->m_definer_host.str, NullS);
+    if (type == TYPE_ENUM_FUNCTION)
     {
-      sp_head *new_sp;
-      const char *returns= "";
-      char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
-      String retstr(64);
-      strxmov(definer, sp->m_definer_user.str, "@",
-                       sp->m_definer_host.str, NullS);
-      if (type == TYPE_ENUM_FUNCTION)
-      {
-        sp_returns_type(thd, retstr, sp);
-        returns= retstr.ptr();
-      }
-      if (db_load_routine(thd, type, name, &new_sp,
-                          sp->m_sql_mode, sp->m_params.str, returns,
-                          sp->m_body.str, *sp->m_chistics, definer,
-                          sp->m_created, sp->m_modified) == SP_OK)
-      {
-        sp->m_last_cached_sp->m_next_cached_sp= new_sp;
-        new_sp->m_recursion_level= level;
-        new_sp->m_first_instance= sp;
-        sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
-        DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x",
+      sp_returns_type(thd, retstr, sp);
+      returns= retstr.ptr();
+    }
+    if (db_load_routine(thd, type, name, &new_sp,
+                        sp->m_sql_mode, sp->m_params.str, returns,
+                        sp->m_body.str, *sp->m_chistics, definer,
+                        sp->m_created, sp->m_modified) == SP_OK)
+    {
+      sp->m_last_cached_sp->m_next_cached_sp= new_sp;
+      new_sp->m_recursion_level= level;
+      new_sp->m_first_instance= sp;
+      sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
+      DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x",
                           (ulong)new_sp, new_sp->m_recursion_level,
                           new_sp->m_flags));
-        DBUG_RETURN(new_sp);
-      }
-      DBUG_RETURN(0);
+      DBUG_RETURN(new_sp);
     }
+    DBUG_RETURN(0);
   }
   if (!cache_only)
   {

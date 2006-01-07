@@ -370,7 +370,8 @@ Thd_ndb::~Thd_ndb()
   if (ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -382,8 +383,8 @@ Thd_ndb::~Thd_ndb()
     }
 #endif
     delete ndb;
+    ndb= NULL;
   }
-  ndb= NULL;
   changed_tables.empty();
 }
 
@@ -3359,6 +3360,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
+    if (!thd->transaction.on)
+      m_transaction_on= FALSE;
+    else
+      m_transaction_on= thd->variables.ndb_use_transactions;
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
@@ -3373,7 +3378,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           ERR_RETURN(ndb->getNdbError());
         no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
-        trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        if (m_transaction_on)
+          trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
@@ -3388,7 +3394,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             ERR_RETURN(ndb->getNdbError());
           no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
-          trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          if (m_transaction_on)
+            trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3422,10 +3429,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
     m_autoincrement_prefetch= 
       (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
-    if (!thd->transaction.on)
-      m_transaction_on= FALSE;
-    else
-      m_transaction_on= thd->variables.ndb_use_transactions;
 
     m_active_trans= thd_ndb->all ? thd_ndb->all : thd_ndb->stmt;
     DBUG_ASSERT(m_active_trans);
@@ -5172,7 +5175,8 @@ int ndbcluster_end(ha_panic_function type)
   if (g_ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (g_ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -5184,10 +5188,9 @@ int ndbcluster_end(ha_panic_function type)
     }
 #endif
     delete g_ndb;
+    g_ndb= NULL;
   }
-  g_ndb= NULL;
-  if (g_ndb_cluster_connection)
-    delete g_ndb_cluster_connection;
+  delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
 
   hash_free(&ndbcluster_open_tables);
@@ -8075,7 +8078,8 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
     Ndb* ndb= (get_thd_ndb(thd))->ndb;
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       uint buflen=
