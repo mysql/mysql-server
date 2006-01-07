@@ -624,7 +624,7 @@ sys_var_have_variable sys_have_row_based_replication("have_row_based_replication
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 #ifdef HAVE_REPLICATION
-static int show_slave_skip_errors(THD *thd, show_var_st *var, char *buff)
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type=SHOW_CHAR;
   var->value= buff;
@@ -667,7 +667,7 @@ static int show_slave_skip_errors(THD *thd, show_var_st *var, char *buff)
   Variables shown by SHOW variables in alphabetical order
 */
 
-struct show_var_st init_vars[]= {
+SHOW_VAR init_vars[]= {
   {"auto_increment_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
   {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
