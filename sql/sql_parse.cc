@@ -6641,7 +6641,7 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 static void refresh_status(void)
 {
   pthread_mutex_lock(&LOCK_status);
-  for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
+  for (SHOW_VAR *ptr= status_vars; ptr->name; ptr++)
     if (ptr->type == SHOW_LONG) // note that SHOW_LONG_NOFLUSH variables are not reset
       *(ulong*) ptr->value= 0;
 

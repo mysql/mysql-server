@@ -253,7 +253,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
-struct show_var_st innodb_status_variables[]= {
+SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,     SHOW_LONG},
   {"buffer_pool_pages_dirty",

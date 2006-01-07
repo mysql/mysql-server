@@ -17,7 +17,17 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
+/*
+  the following #define adds server-only members to enum_mysql_show_type,
+  that is defined in plugin.h
+*/
+#define SHOW_FUNC    SHOW_FUNC, SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_LONGLONG, \
+                     SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, SHOW_HAVE,   \
+                     SHOW_HA_ROWS, SHOW_SYS, SHOW_LONG_NOFLUSH
 #include <plugin.h>
+#undef SHOW_FUNC
+typedef enum enum_mysql_show_type SHOW_TYPE;
+typedef struct st_mysql_show_var SHOW_VAR;
 
 #define MYSQL_ANY_PLUGIN         -1
 
@@ -65,7 +75,7 @@ extern my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name);
 
 extern my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 
-typedef my_bool (plugin_foreach_func)(THD *thd, 
+typedef my_bool (plugin_foreach_func)(THD *thd,
                                       st_plugin_int *plugin,
                                       void *arg);
 extern my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
