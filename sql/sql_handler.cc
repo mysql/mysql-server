@@ -454,6 +454,9 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (insert_fields(thd,tables,tables->db,tables->alias,&it))
     goto err0;
 
+  select_limit+=offset_limit;
+  protocol->send_fields(&list,1);
+
   /*
     In ::external_lock InnoDB resets the fields which tell it that
     the handle is used in the HANDLER interface. Tell it again that
