@@ -503,11 +503,11 @@ set names latin1;
 # Bug #15598 Server crashes in specific case during setting new password
 # - Caused by a user with host ''
 #
-insert into mysql.user (host, user) values ('', 'mysqltest_7');
-flush privileges;
+create user mysqltest_7@;
 set password for mysqltest_7@ = password('systpass');
 show grants for mysqltest_7@;
 drop user mysqltest_7@;
+flush privileges; # BUG#16297(flush should be removed when that bug is fixed)
 --error 1141
 show grants for mysqltest_7@;
 
