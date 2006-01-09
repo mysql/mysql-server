@@ -499,4 +499,16 @@ revoke all privileges on ÂÄ.* from root@localhost;
 show grants for root@localhost;
 set names latin1;
 
+#
+# Bug #15598 Server crashes in specific case during setting new password
+# - Caused by a user with host ''
+#
+insert into mysql.user (host, user) values ('', 'mysqltest_7');
+flush privileges;
+set password for mysqltest_7@ = password('systpass');
+show grants for mysqltest_7@;
+drop user mysqltest_7@;
+--error 1141
+show grants for mysqltest_7@;
+
 # End of 4.1 tests
