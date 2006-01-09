@@ -1673,8 +1673,11 @@ public:
   {
     /* 
        Nothing here right now, but the flags support is there in
-       preparation for changes that are coming.
+       preparation for changes that are coming.  Need to add a
+       constant to make it compile under HP-UX: aCC does not like
+       empty enumerations.
     */
+    ENUM_FLAG_COUNT
   };
 
   typedef uint16 flag_set;
