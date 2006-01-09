@@ -75,6 +75,8 @@ gptr my_once_alloc(unsigned int Size, myf MyFlags)
   point= (gptr) ((char*) next+ (next->size-next->left));
   next->left-= Size;
 
+  if (MyFlags & MY_ZEROFILL)
+    bzero(point, Size);
   return(point);
 } /* my_once_alloc */
 

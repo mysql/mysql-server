@@ -18,6 +18,8 @@
 #include <m_ctype.h>
 #include <plugin.h>
 
+long number_of_calls= 0; /* for SHOW STATUS, see below */
+
 /*
   Simple full-text parser plugin that acts as a replacement for the
   built-in full-text parser:
@@ -167,6 +169,8 @@ int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
   char *end, *start, *docend= param->doc + param->length;
 
+  number_of_calls++;
+
   for (end= start= param->doc;; end++)
   {
     if (end == docend)
@@ -198,6 +202,16 @@ static struct st_mysql_ftparser simple_parser_descriptor=
   simple_parser_deinit              /* parser deinit function */
 };
 
+/*
+  Plugin status variables for SHOW STATUS
+*/
+
+struct st_mysql_show_var simple_status[]=
+{
+  {"static",     "just a static text",     SHOW_CHAR},
+  {"called",     (char *)&number_of_calls, SHOW_LONG},
+  {0,0,0}
+};
 
 /*
   Plugin library descriptor
@@ -211,6 +225,8 @@ mysql_declare_plugin
   "MySQL AB",                 /* author                          */
   "Simple Full-Text Parser",  /* description                     */
   simple_parser_plugin_init,  /* init function (when loaded)     */
-  simple_parser_plugin_deinit /* deinit function (when unloaded) */
+  simple_parser_plugin_deinit,/* deinit function (when unloaded) */
+  0x0001,                     /* version                         */
+  &simple_status              /* status variables                */
 }
 mysql_declare_plugin_end;

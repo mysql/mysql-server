@@ -241,13 +241,15 @@ static int binlog_savepoint_set(THD *thd, void *sv)
   DBUG_ENTER("binlog_savepoint_set");
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
-  IO_CACHE *trans_log= &trx_data->trans_log;
-  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
+  DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(&trx_data->trans_log));
 
-  *(my_off_t *)sv= my_b_tell(trans_log);
+  *(my_off_t *)sv= my_b_tell(&trx_data->trans_log);
   /* Write it to the binary log */
-  Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
-  DBUG_RETURN(mysql_bin_log.write(&qinfo));
+  
+  int const error=
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      thd->query, thd->query_length, TRUE, FALSE);
+  DBUG_RETURN(error);
 }
 
 static int binlog_savepoint_rollback(THD *thd, void *sv)
@@ -265,8 +267,10 @@ static int binlog_savepoint_rollback(THD *thd, void *sv)
   */
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
-    DBUG_RETURN(mysql_bin_log.write(&qinfo));
+    int const error=
+      thd->binlog_query(THD::STMT_QUERY_TYPE,
+                        thd->query, thd->query_length, TRUE, FALSE);
+    DBUG_RETURN(error);
   }
   reinit_io_cache(trans_log, WRITE_CACHE, *(my_off_t *)sv, 0, 0);
   DBUG_RETURN(0);
@@ -2556,7 +2560,7 @@ bool MYSQL_LOG::write_table_map(THD *thd, IO_CACHE *file, TABLE* table,
 #endif
 
   Table_map_log_event::flag_set const
-    flags= Table_map_log_event::NO_FLAGS;
+    flags= Table_map_log_event::TM_NO_FLAGS;
 
   Table_map_log_event
     the_event(thd, table, table->s->table_map_id, is_transactional, flags);

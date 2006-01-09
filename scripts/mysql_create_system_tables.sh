@@ -229,7 +229,7 @@ then
   c_t="$c_t   User char(16) binary DEFAULT '' NOT NULL,"
   c_t="$c_t   Table_name char(64) binary DEFAULT '' NOT NULL,"
   c_t="$c_t   Grantor char(77) DEFAULT '' NOT NULL,"
-  c_t="$c_t   Timestamp timestamp(14),"
+  c_t="$c_t   Timestamp timestamp,"
   c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   PRIMARY KEY (Host,Db,User,Table_name),"
@@ -251,7 +251,7 @@ then
   c_c="$c_c   User char(16) binary DEFAULT '' NOT NULL,"
   c_c="$c_c   Table_name char(64) binary DEFAULT '' NOT NULL,"
   c_c="$c_c   Column_name char(64) binary DEFAULT '' NOT NULL,"
-  c_c="$c_c   Timestamp timestamp(14),"
+  c_c="$c_c   Timestamp timestamp,"
   c_c="$c_c   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_c="$c_c   PRIMARY KEY (Host,Db,User,Table_name,Column_name)"
   c_c="$c_c ) engine=MyISAM"
@@ -273,7 +273,7 @@ then
   c_pp="$c_pp   Routine_type enum('FUNCTION','PROCEDURE') NOT NULL,"
   c_pp="$c_pp   Grantor char(77) DEFAULT '' NOT NULL,"
   c_pp="$c_pp   Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
-  c_pp="$c_pp   Timestamp timestamp(14),"
+  c_pp="$c_pp   Timestamp timestamp,"
   c_pp="$c_pp   PRIMARY KEY (Host,Db,User,Routine_name,Routine_type),"
   c_pp="$c_pp   KEY Grantor (Grantor)"
   c_pp="$c_pp ) engine=MyISAM"
@@ -743,7 +743,7 @@ fi
 
 cat << END_OF_DATA
 use mysql;
-set table_type=myisam;
+set storage_engine=myisam;
 $c_d
 $i_d
 

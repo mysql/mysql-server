@@ -39,8 +39,28 @@
 
 #define mysql_declare_plugin                                          \
 int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION; \
+int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin); \
 struct st_mysql_plugin _mysql_plugin_declarations_[]= {
-#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0}}
+#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0}}
+
+/*
+  declarations for SHOW STATUS support in plugins
+*/
+enum enum_mysql_show_type
+{
+  SHOW_UNDEF, SHOW_BOOL, SHOW_MY_BOOL, SHOW_INT, SHOW_LONG,
+  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_ARRAY, SHOW_FUNC
+};
+
+struct st_mysql_show_var {
+  const char *name;
+  char *value;
+  enum enum_mysql_show_type type;
+};
+
+#define SHOW_VAR_FUNC_BUFF_SIZE 1024
+typedef int (*mysql_show_var_func)(void *, struct st_mysql_show_var*, char *);
 
 /*
   Plugin description structure.
@@ -56,6 +76,7 @@ struct st_mysql_plugin
   int (*init)(void);    /* the function to invoke when plugin is loaded */
   int (*deinit)(void);  /* the function to invoke when plugin is unloaded */
   uint version;         /* plugin version (for SHOW PLUGINS)            */
+  struct st_mysql_show_var *status_vars;
 };
 
 /*************************************************************************

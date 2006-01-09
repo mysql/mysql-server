@@ -29,6 +29,8 @@ LEX_STRING plugin_type_names[]=
 };
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
+static const char *sizeof_st_plugin_sym=
+                   "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= 0x0000;
 /* Note that 'int version' must be the first field of every plugin
@@ -90,6 +92,14 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
                               struct st_plugin_dl *));
 }
 
+static inline void free_plugin_mem(struct st_plugin_dl *p)
+{
+  if (p->handle)
+    dlclose(p->handle);
+  my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
+  if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
+    my_free((gptr)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
+}
 
 static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
 {
@@ -121,6 +131,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
     tmp->ref_count++;
     DBUG_RETURN(tmp);
   }
+  bzero(&plugin_dl, sizeof(plugin_dl));
   /* Compile dll path */
   strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS);
   plugin_dl.ref_count= 1;
@@ -136,7 +147,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
   /* Determine interface version */
   if (!(sym= dlsym(plugin_dl.handle, plugin_interface_version_sym)))
   {
-    dlclose(plugin_dl.handle);
+    free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_interface_version_sym);
     if (report & REPORT_TO_LOG)
@@ -148,7 +159,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
   if (plugin_dl.version < min_plugin_interface_version ||
       (plugin_dl.version >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
   {
-    dlclose(plugin_dl.handle);
+    free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, 0,
                "plugin interface version mismatch");
@@ -160,19 +171,76 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
   /* Find plugin declarations */
   if (!(sym= dlsym(plugin_dl.handle, plugin_declarations_sym)))
   {
-    dlclose(plugin_dl.handle);
+    free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), plugin_declarations_sym);
     if (report & REPORT_TO_LOG)
       sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), plugin_declarations_sym);
     DBUG_RETURN(0);
   }
+
+  if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
+  {
+    int i, sizeof_st_plugin;
+    struct st_mysql_plugin *old, *cur;
+    char *ptr= (char *)sym;
+
+    if ((sym= dlsym(plugin_dl.handle, sizeof_st_plugin_sym)))
+      sizeof_st_plugin= *(int *)sym;
+    else
+    {
+#ifdef ERROR_ON_NO_SIZEOF_PLUGIN_SYMBOL
+      free_plugin_mem(&plugin_dl);
+      if (report & REPORT_TO_USER)
+        my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), sizeof_st_plugin_sym);
+      if (report & REPORT_TO_LOG)
+        sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), sizeof_st_plugin_sym);
+      DBUG_RETURN(0);
+#else
+      /*
+        When the following assert starts failing, we'll have to switch
+        to the upper branch of the #ifdef
+      */
+      DBUG_ASSERT(min_plugin_interface_version == 0);
+      sizeof_st_plugin= (int)offsetof(struct st_mysql_plugin, version);
+#endif
+    }
+
+    for (i= 0;
+         ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+         i++)
+      /* no op */;
+
+    cur= (struct st_mysql_plugin*)
+          my_malloc(i*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+    if (!cur)
+    {
+      free_plugin_mem(&plugin_dl);
+      if (report & REPORT_TO_USER)
+        my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+      if (report & REPORT_TO_LOG)
+        sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      DBUG_RETURN(0);
+    }
+    /*
+      All st_plugin fields not initialized in the plugin explicitly, are
+      set to 0. It matches C standard behaviour for struct initializers that
+      have less values than the struct definition.
+    */
+    for (i=0;
+         (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+         i++)
+      memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+
+    sym= cur;
+  }
   plugin_dl.plugins= (struct st_mysql_plugin *)sym;
+
   /* Duplicate and convert dll name */
   plugin_dl.dl.length= dl->length * files_charset_info->mbmaxlen + 1;
   if (! (plugin_dl.dl.str= my_malloc(plugin_dl.dl.length, MYF(0))))
   {
-    dlclose(plugin_dl.handle);
+    free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
       my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
     if (report & REPORT_TO_LOG)
@@ -186,8 +254,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
   /* Add this dll to array */
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
-    dlclose(plugin_dl.handle);
-    my_free(plugin_dl.dl.str, MYF(0));
+    free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
     if (report & REPORT_TO_LOG)
@@ -223,8 +290,7 @@ static void plugin_dl_del(LEX_STRING *dl)
       /* Do not remove this element, unless no other plugin uses this dll. */
       if (! --tmp->ref_count)
       {
-        dlclose(tmp->handle);
-        my_free(tmp->dl.str, MYF(0));
+        free_plugin_mem(tmp);
         bzero(tmp, sizeof(struct st_plugin_dl));
       }
       break;
@@ -247,7 +313,7 @@ static struct st_plugin_int *plugin_find_internal(LEX_STRING *name, int type)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
         hash_search(&plugin_hash[i], (const byte *)name->str, name->length);
-      if (plugin) 
+      if (plugin)
         DBUG_RETURN(plugin);
     }
   }
@@ -309,7 +375,6 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
                               struct st_plugin_int *));
 }
 
-
 static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
 {
   struct st_plugin_int tmp;
@@ -356,21 +421,20 @@ static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-      if (! (tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
+      if (plugin->status_vars)
       {
-        if (report & REPORT_TO_USER)
-          my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_int));
-        if (report & REPORT_TO_LOG)
-          sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_int));
-        goto err;
+        SHOW_VAR array[2]= {
+          {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
+          {0, 0, SHOW_UNDEF}
+        };
+        if (add_status_vars(array)) // add_status_vars makes a copy
+          goto err;
       }
+      if (! (tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
+        goto err;
       if (my_hash_insert(&plugin_hash[plugin->type], (byte*)tmp_plugin_ptr))
       {
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
-        if (report & REPORT_TO_USER)
-          my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_int));
-        if (report & REPORT_TO_LOG)
-          sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_int));
         goto err;
       }
       DBUG_RETURN(FALSE);
@@ -381,6 +445,14 @@ static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
   if (report & REPORT_TO_LOG)
     sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), name->str);
 err:
+  if (plugin->status_vars)
+  {
+    SHOW_VAR array[2]= {
+      {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
+      {0, 0, SHOW_UNDEF}
+    };
+    remove_status_vars(array);
+  }
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);
 }
@@ -393,6 +465,14 @@ static void plugin_del(LEX_STRING *name)
   DBUG_ENTER("plugin_del");
   if ((plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
   {
+    if (plugin->plugin->status_vars)
+    {
+      SHOW_VAR array[2]= {
+        {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
+        {0, 0, SHOW_UNDEF}
+      };
+      remove_status_vars(array);
+    }
     hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
     plugin_dl_del(&plugin->plugin_dl->dl);
     plugin->state= PLUGIN_IS_FREED;
@@ -421,7 +501,7 @@ void plugin_unlock(struct st_plugin_int *plugin)
 static int plugin_initialize(struct st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_initialize");
-  
+
   if (plugin->plugin->init)
   {
     if (plugin->plugin->init())
@@ -433,7 +513,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       goto err;
     }
   }
-  
+
   switch (plugin->plugin->type)
   {
   case MYSQL_STORAGE_ENGINE_PLUGIN:
@@ -532,11 +612,11 @@ int plugin_init(void)
                   get_hash_key, NULL, 0))
       goto err;
   }
-  
+
   initialized= 1;
 
   DBUG_RETURN(0);
-  
+
 err:
   DBUG_RETURN(1);
 }
@@ -578,9 +658,9 @@ void plugin_load(void)
   MEM_ROOT mem;
   THD *new_thd;
   DBUG_ENTER("plugin_load");
-  
+
   DBUG_ASSERT(initialized);
-  
+
   if (!(new_thd= new THD))
   {
     sql_print_error("Can't allocate memory for plugin structures");
@@ -643,13 +723,7 @@ void plugin_free(void)
   {
     struct st_plugin_dl *tmp= dynamic_element(&plugin_dl_array, i,
                                               struct st_plugin_dl *);
-#ifdef HAVE_DLOPEN
-    if (tmp->handle)
-    {
-      dlclose(tmp->handle);
-      my_free(tmp->dl.str, MYF(0));
-    }
-#endif
+    free_plugin_mem(tmp);
   }
   delete_dynamic(&plugin_dl_array);
   if (initialized)
@@ -674,7 +748,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
   tables.table_name= tables.alias= (char *)"plugin";
   if (check_table_access(thd, INSERT_ACL, &tables, 0))
     DBUG_RETURN(TRUE);
-    
+
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
   if (! (table = open_ltable(thd, &tables, TL_WRITE)))
     DBUG_RETURN(TRUE);
@@ -683,7 +757,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
   if (plugin_add(name, dl, REPORT_TO_USER))
     goto err;
   tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN);
-  
+
   if (plugin_initialize(tmp))
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
@@ -702,7 +776,7 @@ my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
     table->file->print_error(error, MYF(0));
     goto deinit;
   }
-  
+
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(FALSE);
 deinit:
@@ -743,7 +817,7 @@ my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
   }
-  
+
   if (plugin->ref_count)
   {
     plugin->state= PLUGIN_IS_DELETED;
@@ -786,13 +860,13 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
   rw_rdlock(&THR_LOCK_plugin);
-  
+
   if (type == MYSQL_ANY_PLUGIN)
   {
     for (idx= 0; idx < plugin_array.elements; idx++)
     {
       plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
-      
+
       /* FREED records may have garbage pointers */
       if ((plugin->state != PLUGIN_IS_FREED) &&
           func(thd, plugin, arg))
