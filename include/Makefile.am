@@ -33,7 +33,7 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			mysql_version.h.in my_handler.h my_time.h decimal.h
 
 # mysql_version.h are generated
-CLEANFILES =            mysql_version.h my_config.h readline
+CLEANFILES =            mysql_version.h my_config.h readline openssl
 
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h $(CLEANFILES)
@@ -41,6 +41,7 @@ DISTCLEANFILES =	sched.h $(CLEANFILES)
 link_sources:
 	-$(RM) -fr readline
 	@readline_h_ln_cmd@
+	@yassl_h_ln_cmd@
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
