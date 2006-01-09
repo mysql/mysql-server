@@ -2560,7 +2560,7 @@ bool MYSQL_LOG::write_table_map(THD *thd, IO_CACHE *file, TABLE* table,
 #endif
 
   Table_map_log_event::flag_set const
-    flags= Table_map_log_event::NO_FLAGS;
+    flags= Table_map_log_event::TM_NO_FLAGS;
 
   Table_map_log_event
     the_event(thd, table, table->s->table_map_id, is_transactional, flags);

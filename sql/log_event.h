@@ -1685,7 +1685,7 @@ public:
   /* Special constants representing sets of flags */
   enum 
   {
-    NO_FLAGS = 0U
+    TM_NO_FLAGS = 0U
   };
 
   void set_flags(flag_set flag) { m_flags |= flag; }
