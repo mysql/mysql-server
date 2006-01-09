@@ -41,6 +41,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   bool          ha_delete_all_rows= 0;
+  ulonglong const saved_options= thd->options;
   DBUG_ENTER("mysql_delete");
 
   if (open_and_lock_tables(thd, table_list))
@@ -205,11 +206,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   will_batch= !table->file->start_bulk_delete();
 
   /*
-    Save the thread options before clearing the OPTION_BIN_LOG,
-    effectively disabling the binary log (unless it was already
-    disabled, of course).
+    We saved the thread options above before clearing the
+    OPTION_BIN_LOG, and will restore below, effectively disabling the
+    binary log (unless it was already disabled, of course).
   */
-  ulonglong const saved_options= thd->options;
   if (ha_delete_all_rows)
     thd->options&= ~static_cast<ulonglong>(OPTION_BIN_LOG);
 
