@@ -1784,7 +1784,7 @@ public:
   /* Special constants representing sets of flags */
   enum 
   {
-      NO_FLAGS = 0U
+      RLE_NO_FLAGS = 0U
   };
 
   virtual ~Rows_log_event();
