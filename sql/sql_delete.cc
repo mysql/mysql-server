@@ -79,6 +79,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       !(table->triggers && table->triggers->has_delete_triggers()))
   {
     ha_rows const maybe_deleted= table->file->records;
+    /*
+      If all rows shall be deleted, we always log this statement-based
+      (see [binlog], below), so we set this flag and test it below.
+    */
     ha_delete_all_rows= 1;
     if (!(error=table->file->delete_all_rows()))
     {
@@ -315,9 +319,9 @@ cleanup:
         thd->clear_error();
 
       /*
-        If 'handler::delete_all_rows()' was called, we replicate
-        statement-based; otherwise, 'ha_delete_row()' was used to
-        delete specific rows which we might log row-based.
+        [binlog]: If 'handler::delete_all_rows()' was called, we
+        replicate statement-based; otherwise, 'ha_delete_row()' was
+        used to delete specific rows which we might log row-based.
       */
       THD::enum_binlog_query_type const
 	query_type(ha_delete_all_rows ?
