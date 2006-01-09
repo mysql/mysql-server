@@ -623,12 +623,51 @@ sys_var_have_variable sys_have_row_based_replication("have_row_based_replication
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
+#ifdef HAVE_REPLICATION
+static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type=SHOW_CHAR;
+  var->value= buff;
+  if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
+  {
+    var->value= "OFF";
+  }
+  else if (bitmap_is_set_all(&slave_error_mask))
+  {
+    var->value= "ALL";
+  }
+  else
+  {
+    /* 10 is enough assuming errors are max 4 digits */
+    int i;
+    var->value= buff;
+    for (i= 1;
+         i < MAX_SLAVE_ERROR &&
+         (buff - var->value) < SHOW_VAR_FUNC_BUFF_SIZE;
+         i++)
+    {
+      if (bitmap_is_set(&slave_error_mask, i))
+      {
+        buff= int10_to_str(i, buff, 10);
+        *buff++= ',';
+      }
+    }
+    if (var->value != buff)
+      buff--;				// Remove last ','
+    if (i < MAX_SLAVE_ERROR)
+      buff= strmov(buff, "...");  // Couldn't show all errors
+    *buff=0;
+  }
+  return 0;
+}
+#endif /* HAVE_REPLICATION */
+
 
 /*
   Variables shown by SHOW variables in alphabetical order
 */
 
-struct show_var_st init_vars[]= {
+SHOW_VAR init_vars[]= {
   {"auto_increment_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
   {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
@@ -695,9 +734,9 @@ struct show_var_st init_vars[]= {
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
   {sys_have_query_cache.name, (char*) &have_query_cache,            SHOW_HAVE},
   {sys_have_raid.name,        (char*) &have_raid,                   SHOW_HAVE},
+  {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {sys_have_rtree_keys.name,  (char*) &have_rtree_keys,             SHOW_HAVE},
   {sys_have_symlink.name,     (char*) &have_symlink,                SHOW_HAVE},
-  {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
@@ -863,7 +902,7 @@ struct show_var_st init_vars[]= {
     (char*) &sys_slave_compressed_protocol,           SHOW_SYS},
   {"slave_load_tmpdir",       (char*) &slave_load_tmpdir,           SHOW_CHAR_PTR},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
-  {"slave_skip_errors",       (char*) &slave_error_mask,            SHOW_SLAVE_SKIP_ERRORS},
+  {"slave_skip_errors",       (char*) &show_slave_skip_errors,      SHOW_FUNC},
   {sys_slave_trans_retries.name,(char*) &sys_slave_trans_retries,   SHOW_SYS},
 #endif
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},

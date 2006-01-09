@@ -663,7 +663,8 @@ end:
 
 static struct my_option my_long_options[] =
 {
-
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -683,13 +684,13 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"database", 'd', "List entries for just this database (local log only).",
+   (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"database", 'd', "List entries for just this database (local log only).",
-   (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
     "This way you could avoid an endless loop. You would also like to use it "
@@ -700,13 +701,14 @@ static struct my_option my_long_options[] =
   {"force-read", 'f', "Force reading unknown binlog events.",
    (gptr*) &force_opt, (gptr*) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"help", '?', "Display this help and exit.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"hexdump", 'H', "Augment output with hexadecimal and ASCII event dump.",
    (gptr*) &opt_hexdump, (gptr*) &opt_hexdump, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", (gptr*) &host, (gptr*) &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
+   (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"offset", 'o', "Skip the first N entries.", (gptr*) &offset, (gptr*) &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
@@ -722,15 +724,15 @@ static struct my_option my_long_options[] =
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
    (gptr*) &remote_opt, (gptr*) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"open_files_limit", OPT_OPEN_FILES_LIMIT,
-   "Used to reserve file descriptors for usage by this program",
-   (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
-   REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-id", OPT_SERVER_ID,
+   "Extract only binlog entries created by the server having the given id.",
+   (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -745,6 +747,13 @@ static struct my_option my_long_options[] =
    "(you should probably use quotes for your shell to set it properly).",
    (gptr*) &start_datetime_str, (gptr*) &start_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"start-position", OPT_START_POSITION,
+   "Start reading the binlog at position N. Applies to the first binlog "
+   "passed on the command line.",
+   (gptr*) &start_position, (gptr*) &start_position, 0, GET_ULL,
+   REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
+   /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
+   (ulonglong)(~(uint32)0), 0, 0, 0},
   {"stop-datetime", OPT_STOP_DATETIME,
    "Stop reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -753,24 +762,12 @@ static struct my_option my_long_options[] =
    "(you should probably use quotes for your shell to set it properly).",
    (gptr*) &stop_datetime_str, (gptr*) &stop_datetime_str,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"start-position", OPT_START_POSITION,
-   "Start reading the binlog at position N. Applies to the first binlog "
-   "passed on the command line.",
-   (gptr*) &start_position, (gptr*) &start_position, 0, GET_ULL,
-   REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
-   /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-   (ulonglong)(~(uint32)0), 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
    (gptr*) &stop_position, (gptr*) &stop_position, 0, GET_ULL,
    REQUIRED_ARG, (ulonglong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
    (ulonglong)(~(my_off_t)0), 0, 0, 0},
-  {"server-id", OPT_SERVER_ID,
-   "Only extract binlog entries created by a certain server id "
-   "passed on the command line.",
-   (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
 requested binlog but rather continue printing until the end of the last \
 binlog of the MySQL server. If you send the output to the same MySQL server, \
@@ -780,11 +777,12 @@ that may lead to an endless loop.",
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
-   (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"open_files_limit", OPT_OPEN_FILES_LIMIT,
+   "Used to reserve file descriptors for usage by this program",
+   (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
+   REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

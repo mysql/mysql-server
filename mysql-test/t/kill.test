@@ -25,11 +25,18 @@ select ((@id := kill_id) - kill_id) from t1;
 kill @id;
 
 connection con1;
---sleep 1
+--sleep 2
 
-# this statement should fail
---error 2006,2013
+--disable_query_log
+--disable_result_log
+# One of the following statements should fail
+--error 0,2006,2013
 select 1;
+--error 0,2006,2013
+select 1;
+--enable_query_log
+--enable_result_log
+
 --enable_reconnect
 # this should work, and we should have a new connection_id()
 select ((@id := kill_id) - kill_id) from t1;

@@ -1538,7 +1538,7 @@ inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 
 inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
-  return (db_type && db_type->create) ? 
+  return (db_type && db_type->create) ?
          (db_type->state == SHOW_OPTION_YES) : FALSE;
 }
 
@@ -1549,7 +1549,6 @@ int ha_initialize_handlerton(handlerton *hton);
 
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);
-int ha_update_statistics();
 void ha_close_connection(THD* thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);

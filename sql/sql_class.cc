@@ -1976,6 +1976,25 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    For row-based replication and before executing a function/trigger,
+    the pending rows event has to be flushed.  The function/trigger
+    might execute statement that require the pending event to be
+    flushed. A simple example:
+
+      CREATE FUNCTION foo() RETURNS INT
+      BEGIN
+        SAVEPOINT x;
+        RETURN 0;
+      END
+
+      INSERT INTO t1 VALUES (1), (foo()), (2);
+  */
+  if (binlog_row_based)
+    binlog_flush_pending_rows_event(false);
+#endif /* HAVE_ROW_BASED_REPLICATION */
+
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !binlog_row_based)
     options&= ~OPTION_BIN_LOG;
@@ -2154,7 +2173,8 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        MY_BITMAP const* cols,
                                        my_size_t colcnt,
                                        my_size_t needed,
-                                       bool is_transactional)
+                                       bool is_transactional,
+				       RowsEventT *hint __attribute__((unused)))
 {
   /* Pre-conditions */
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
@@ -2219,17 +2239,19 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   compiling option.
 */
 template Rows_log_event*
-THD::binlog_prepare_pending_rows_event<Write_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
+THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
+				       my_size_t, my_size_t, bool,
+				       Write_rows_log_event*);
 
 template Rows_log_event*
-THD::binlog_prepare_pending_rows_event<Delete_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
+THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
+				       my_size_t colcnt, my_size_t, bool,
+				       Delete_rows_log_event *);
 
 template Rows_log_event* 
-THD::binlog_prepare_pending_rows_event<Update_rows_log_event>
-(TABLE*, uint32, MY_BITMAP const*, my_size_t colcnt, my_size_t, bool);
-
+THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
+				       my_size_t colcnt, my_size_t, bool,
+				       Update_rows_log_event *);
 static char const* 
 field_type_name(enum_field_types type) 
 {
@@ -2365,9 +2387,10 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
   }
   my_size_t const len= pack_row(table, cols, row_data, record);
 
-  Rows_log_event* const
-    ev= binlog_prepare_pending_rows_event<Write_rows_log_event>
-    (table, server_id, cols, colcnt, len, is_trans);
+  Rows_log_event* const ev=
+    binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
+				      len, is_trans,
+				      static_cast<Write_rows_log_event*>(0));
 
   /* add_row_data copies row_data to internal buffer */
   error= likely(ev != 0) ? ev->add_row_data(row_data,len) : HA_ERR_OUT_OF_MEM ;
@@ -2410,9 +2433,10 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   my_size_t const after_size= pack_row(table, cols, after_row, 
                                        after_record);
   
-  Rows_log_event* const
-    ev= binlog_prepare_pending_rows_event<Update_rows_log_event>
-    (table, server_id, cols, colcnt, before_size + after_size, is_trans);
+  Rows_log_event* const ev=
+    binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
+				      before_size + after_size, is_trans,
+				      static_cast<Update_rows_log_event*>(0));
 
   error= (unlikely(!ev)) || ev->add_row_data(before_row, before_size) ||
     ev->add_row_data(after_row, after_size);
@@ -2443,9 +2467,10 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
     return HA_ERR_OUT_OF_MEM;
   my_size_t const len= pack_row(table, cols, row_data, record);
 
-  Rows_log_event* const
-    ev= binlog_prepare_pending_rows_event<Delete_rows_log_event>
-    (table, server_id, cols, colcnt, len, is_trans);
+  Rows_log_event* const ev=
+    binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
+				      len, is_trans,
+				      static_cast<Delete_rows_log_event*>(0));
 
   error= (unlikely(!ev)) || ev->add_row_data(row_data, len);
 

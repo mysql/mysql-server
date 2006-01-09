@@ -292,7 +292,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_SETUP_TABLES_DONE        (LL(1) << 30) // intern
 /* If not set then the thread will ignore all warnings with level notes. */
 #define OPTION_SQL_NOTES                (LL(1) << 31) // THD, user
-/* 
+/*
   Force the used temporary table to be a MyISAM table (because we will use
   fulltext functions when reading from it.
 */
@@ -322,7 +322,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_DB2			2048
 #define MODE_MAXDB			4096
 #define MODE_NO_KEY_OPTIONS             8192
-#define MODE_NO_TABLE_OPTIONS           16384 
+#define MODE_NO_TABLE_OPTIONS           16384
 #define MODE_NO_FIELD_OPTIONS           32768
 #define MODE_MYSQL323                   65536
 #define MODE_MYSQL40                    (MODE_MYSQL323*2)
@@ -513,13 +513,11 @@ void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
-bool check_one_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables);
+bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_merge_table_access(THD *thd, char *db,
-			      TABLE_LIST *table_list);
+bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -884,6 +882,10 @@ void calc_sum_of_all_status(STATUS_VAR *to);
 void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
                     const LEX_STRING *definer_host);
 
+int add_status_vars(SHOW_VAR *list);
+void remove_status_vars(SHOW_VAR *list);
+void init_status_vars();
+void free_status_vars();
 
 /* information schema */
 extern LEX_STRING information_schema_name;
@@ -1269,7 +1271,7 @@ extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern const String my_null_string;
-extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
+extern SHOW_VAR init_vars[], status_vars[], internal_vars[];
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;

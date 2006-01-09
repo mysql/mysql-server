@@ -33,13 +33,16 @@ typedef void (*hash_free_key)(void *);
 
 typedef struct st_hash {
   uint key_offset,key_length;		/* Length of key if const length */
-  uint records,blength,current_record;
+  uint records, blength;
   uint flags;
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key get_key;
   void (*free)(void *);
   CHARSET_INFO *charset;
 } HASH;
+
+/* A search iterator state */
+typedef uint HASH_SEARCH_STATE;
 
 #define hash_init(A,B,C,D,E,F,G,H) _hash_init(A,B,C,D,E,F,G, H CALLER_INFO)
 my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
@@ -49,12 +52,15 @@ my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
 void hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 byte *hash_element(HASH *hash,uint idx);
-gptr hash_search(HASH *info,const byte *key,uint length);
-gptr hash_next(HASH *info,const byte *key,uint length);
+gptr hash_search(const HASH *info, const byte *key, uint length);
+gptr hash_first(const HASH *info, const byte *key, uint length,
+                HASH_SEARCH_STATE *state);
+gptr hash_next(const HASH *info, const byte *key, uint length,
+               HASH_SEARCH_STATE *state);
 my_bool my_hash_insert(HASH *info,const byte *data);
 my_bool hash_delete(HASH *hash,byte *record);
 my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length);
-void hash_replace(HASH *hash, uint idx, byte *new_row);
+void hash_replace(HASH *hash, HASH_SEARCH_STATE *state, byte *new_row);
 my_bool hash_check(HASH *hash);			/* Only in debug library */
 
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
