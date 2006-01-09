@@ -262,21 +262,22 @@ master-bin.000001	209	Write_rows	1	#
 master-bin.000001	243	Table_map	1	#	test.t1
 master-bin.000001	282	Write_rows	1	#	
 master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	343	Table_map	1	#	test.t1
-master-bin.000001	382	Delete_rows	1	#	
-master-bin.000001	421	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	448	Query	1	#	use `test`; alter table t2 type=MyISAM
-master-bin.000001	537	Table_map	1	#	test.t1
-master-bin.000001	576	Write_rows	1	#	
-master-bin.000001	610	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	637	Table_map	1	#	test.t2
-master-bin.000001	676	Write_rows	1	#	
-master-bin.000001	710	Query	1	#	use `test`; drop table t1,t2
-master-bin.000001	789	Query	1	#	use `test`; create table t0 (n int)
-master-bin.000001	875	Table_map	1	#	test.t0
-master-bin.000001	914	Write_rows	1	#	
-master-bin.000001	948	Table_map	1	#	test.t0
-master-bin.000001	987	Write_rows	1	#	
-master-bin.000001	1021	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	343	Query	1	#	use `test`; delete from t1
+master-bin.000001	420	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	447	Query	1	#	use `test`; delete from t2
+master-bin.000001	524	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	551	Query	1	#	use `test`; alter table t2 type=MyISAM
+master-bin.000001	640	Table_map	1	#	test.t1
+master-bin.000001	679	Write_rows	1	#	
+master-bin.000001	713	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	740	Table_map	1	#	test.t2
+master-bin.000001	779	Write_rows	1	#	
+master-bin.000001	813	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	892	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	978	Table_map	1	#	test.t0
+master-bin.000001	1017	Write_rows	1	#	
+master-bin.000001	1051	Table_map	1	#	test.t0
+master-bin.000001	1090	Write_rows	1	#	
+master-bin.000001	1124	Query	1	#	use `test`; create table t2 (n int) engine=innodb
 do release_lock("lock1");
 drop table t0,t2;
