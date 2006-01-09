@@ -922,7 +922,8 @@ public:
                                       MY_BITMAP const* cols,
                                       my_size_t colcnt,
                                       my_size_t needed,
-                                      bool is_transactional);
+                                      bool is_transactional,
+				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int             binlog_setup_trx_data();
