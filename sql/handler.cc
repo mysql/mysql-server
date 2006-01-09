@@ -2794,13 +2794,18 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
-static bool check_table_binlog_row_based(THD *thd, TABLE *table)
-{
-  return
-    binlog_row_based &&
-    thd && (thd->options & OPTION_BIN_LOG) &&
-    (table->s->tmp_table == NO_TMP_TABLE) &&
-    binlog_filter->db_ok(table->s->db.str);
+/* The Sun compiler cannot instantiate the template below if this is
+   declared static, but it works by putting it into an anonymous
+   namespace. */
+namespace {
+  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+  {
+    return
+      binlog_row_based &&
+      thd && (thd->options & OPTION_BIN_LOG) &&
+      (table->s->tmp_table == NO_TMP_TABLE) &&
+      binlog_filter->db_ok(table->s->db.str);
+  }
 }
 
 template<class RowsEventT> int binlog_log_row(TABLE* table,
