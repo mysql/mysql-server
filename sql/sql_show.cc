@@ -1516,42 +1516,207 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Status functions
 *****************************************************************************/
 
+static DYNAMIC_ARRAY all_status_vars;
+static bool status_vars_inited= 0;
+static int show_var_cmp(const void *var1, const void *var2)
+{
+  return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
+}
+
+/*
+  deletes all the SHOW_UNDEF elements from the array and calls
+  delete_dynamic() if it's completely empty.
+*/
+static void shrink_var_array(DYNAMIC_ARRAY *array)
+{
+  int a,b;
+  SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
+
+  for (a= b= 0; b < array->elements; b++)
+    if (all[b].type != SHOW_UNDEF)
+      all[a++]= all[b];
+  if (a)
+  {
+    bzero(all+a, sizeof(SHOW_VAR)); // writing NULL-element to the end
+    array->elements= a;
+  }
+  else // array is completely empty - delete it
+    delete_dynamic(array);
+}
+
+/*
+  Adds an array of SHOW_VAR entries to the output of SHOW STATUS
+
+  SYNOPSIS
+    add_status_vars(SHOW_VAR *list)
+    list - an array of SHOW_VAR entries to add to all_status_vars
+           the last entry must be {0,0,SHOW_UNDEF}
+
+  NOTE
+    The handling of all_status_vars[] is completely internal, it's allocated
+    automatically when something is added to it, and deleted completely when
+    the last entry is removed.
+
+    As a special optimization, if add_status_vars() is called before
+    init_status_vars(), it assumes "startup mode" - neither concurrent access
+    to the array nor SHOW STATUS are possible (thus it skips locks and qsort)
+
+    The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
+*/
+int add_status_vars(SHOW_VAR *list)
+{
+  int res= 0;
+  if (status_vars_inited)
+    pthread_mutex_lock(&LOCK_status);
+  if (!all_status_vars.buffer && // array is not allocated yet - do it now
+      my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
+  {
+    res= 1;
+    goto err;
+  }
+  while (list->name)
+    res|= insert_dynamic(&all_status_vars, (gptr)list++);
+  res|= insert_dynamic(&all_status_vars, (gptr)list); // appending NULL-element
+  all_status_vars.elements--; // but next insert_dynamic should overwite it
+  if (status_vars_inited)
+    sort_dynamic(&all_status_vars, show_var_cmp);
+err:
+  if (status_vars_inited)
+    pthread_mutex_unlock(&LOCK_status);
+  return res;
+}
+
+/*
+  Make all_status_vars[] usable for SHOW STATUS
+
+  NOTE
+    See add_status_vars(). Before init_status_vars() call, add_status_vars()
+    works in a special fast "startup" mode. Thus init_status_vars()
+    should be called as late as possible but before enabling multi-threading.
+*/
+void init_status_vars()
+{
+  status_vars_inited=1;
+  sort_dynamic(&all_status_vars, show_var_cmp);
+}
+
+/*
+  catch-all cleanup function, cleans up everything no matter what
+
+  DESCRIPTION
+    This function is not strictly required if all add_to_status/
+    remove_status_vars are properly paired, but it's a safety measure that
+    deletes everything from the all_status_vars[] even if some
+    remove_status_vars were forgotten
+*/
+void free_status_vars()
+{
+  delete_dynamic(&all_status_vars);
+}
+
+/*
+  Removes an array of SHOW_VAR entries from the output of SHOW STATUS
+
+  SYNOPSIS
+    remove_status_vars(SHOW_VAR *list)
+    list - an array of SHOW_VAR entries to remove to all_status_vars
+           the last entry must be {0,0,SHOW_UNDEF}
+
+  NOTE
+    there's lots of room for optimizing this, especially in non-sorted mode,
+    but nobody cares - it may be called only in case of failed plugin
+    initialization in the mysqld startup.
+
+*/
+void remove_status_vars(SHOW_VAR *list)
+{
+  if (status_vars_inited)
+  {
+    pthread_mutex_lock(&LOCK_status);
+    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
+    int a= 0, b= all_status_vars.elements, c= (a+b)/2, res;
+
+    for (; list->name; list++)
+    {
+      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      {
+        res= show_var_cmp(list, all+c);
+        if (res < 0)
+          b= c;
+        else if (res > 0)
+          a= c;
+        else break;
+      }
+      if (res == 0)
+        all[c].type= SHOW_UNDEF;
+    }
+    shrink_var_array(&all_status_vars);
+    pthread_mutex_unlock(&LOCK_status);
+  }
+  else
+  {
+    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
+    int i;
+    for (; list->name; list++)
+    {
+      for (i= 0; i < all_status_vars.elements; i++)
+      {
+        if (show_var_cmp(list, all+i))
+          continue;
+        all[i].type= SHOW_UNDEF;
+        break;
+      }
+    }
+    shrink_var_array(&all_status_vars);
+  }
+}
 
 static bool show_status_array(THD *thd, const char *wild,
-                              show_var_st *variables,
+                              SHOW_VAR *variables,
                               enum enum_var_type value_type,
                               struct system_status_var *status_var,
                               const char *prefix, TABLE *table)
 {
-  char buff[1024], *prefix_end;
+  char buff[SHOW_VAR_FUNC_BUFF_SIZE], *prefix_end;
   /* the variable name should not be longer then 80 characters */
   char name_buffer[80];
   int len;
   LEX_STRING null_lex_str;
+  SHOW_VAR tmp, *var;
   DBUG_ENTER("show_status_array");
 
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
   prefix_end=strnmov(name_buffer, prefix, sizeof(name_buffer)-1);
+  if (*prefix)
+    *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
 
   for (; variables->name; variables++)
   {
     strnmov(prefix_end, variables->name, len);
     name_buffer[sizeof(name_buffer)-1]=0;       /* Safety */
-    SHOW_TYPE show_type=variables->type;
-    if (show_type == SHOW_VARS)
+
+    /*
+      if var->type is SHOW_FUNC, call the function.
+      Repeat as necessary, if new var is again SHOW_FUNC
+    */
+    for (var=variables; var->type == SHOW_FUNC; var= &tmp)
+      ((mysql_show_var_func)(var->value))(thd, &tmp, buff);
+
+    SHOW_TYPE show_type=var->type;
+    if (show_type == SHOW_ARRAY)
     {
-      show_status_array(thd, wild, (show_var_st *) variables->value,
-                        value_type, status_var, variables->name, table);
+      show_status_array(thd, wild, (SHOW_VAR *) var->value,
+                        value_type, status_var, name_buffer, table);
     }
     else
     {
       if (!(wild && wild[0] && wild_case_compare(system_charset_info,
                                                  name_buffer, wild)))
       {
-        char *value=variables->value;
+        char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
         long nr;
         if (show_type == SHOW_SYS)
@@ -1562,13 +1727,22 @@ static bool show_status_array(THD *thd, const char *wild,
         }
 
         pos= end= buff;
+        /*
+          note that value may be == buff. All SHOW_xxx code below
+          should still work in this case
+        */
         switch (show_type) {
+        case SHOW_DOUBLE_STATUS:
+        {
+          value= ((char *) status_var + (ulong) value);
+          end= buff + sprintf(buff, "%f", *(double*) value);
+          break;
+        }
         case SHOW_LONG_STATUS:
-        case SHOW_LONG_CONST_STATUS:
           value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_LONG:
-        case SHOW_LONG_CONST:
+        case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG:
@@ -1583,7 +1757,6 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_MY_BOOL:
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
-        case SHOW_INT_CONST:
         case SHOW_INT:
           end= int10_to_str((long) *(uint32*) value, buff, 10);
           break;
@@ -1601,80 +1774,6 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_STARTTIME:
-          nr= (long) (thd->query_start() - start_time);
-          end= int10_to_str(nr, buff, 10);
-          break;
-        case SHOW_QUESTION:
-          end= int10_to_str((long) thd->query_id, buff, 10);
-          break;
-#ifdef HAVE_REPLICATION
-        case SHOW_RPL_STATUS:
-          end= strmov(buff, rpl_status_type[(int)rpl_status]);
-          break;
-        case SHOW_SLAVE_RUNNING:
-        {
-          pthread_mutex_lock(&LOCK_active_mi);
-          end= strmov(buff, (active_mi && active_mi->slave_running &&
-                             active_mi->rli.slave_running) ? "ON" : "OFF");
-          pthread_mutex_unlock(&LOCK_active_mi);
-          break;
-        }
-        case SHOW_SLAVE_RETRIED_TRANS:
-        {
-          /*
-            TODO: in 5.1 with multimaster, have one such counter per line in
-            SHOW SLAVE STATUS, and have the sum over all lines here.
-          */
-          pthread_mutex_lock(&LOCK_active_mi);
-          if (active_mi)
-          {
-            pthread_mutex_lock(&active_mi->rli.data_lock);
-            end= int10_to_str(active_mi->rli.retried_trans, buff, 10);
-            pthread_mutex_unlock(&active_mi->rli.data_lock);
-          }
-          pthread_mutex_unlock(&LOCK_active_mi);
-          break;
-        }
-        case SHOW_SLAVE_SKIP_ERRORS:
-        {
-          MY_BITMAP *bitmap= (MY_BITMAP *)value;
-          if (!use_slave_mask || bitmap_is_clear_all(bitmap))
-          {
-            end= strmov(buff, "OFF");
-          }
-          else if (bitmap_is_set_all(bitmap))
-          {
-            end= strmov(buff, "ALL");
-          }
-          else
-          {
-            /* 10 is enough assuming errors are max 4 digits */
-            int i;
-            for (i= 1;
-                 i < MAX_SLAVE_ERROR && (uint) (end-buff) < sizeof(buff)-10;
-                 i++)
-            {
-              if (bitmap_is_set(bitmap, i))
-              {
-                end= int10_to_str(i, (char*) end, 10);
-                *(char*) end++= ',';
-              }
-            }
-            if (end != buff)
-              end--;				// Remove last ','
-            if (i < MAX_SLAVE_ERROR)
-              end= strmov((char*) end, "...");  // Couldn't show all errors
-          }
-          break;
-        }
-#endif /* HAVE_REPLICATION */
-        case SHOW_OPEN_TABLES:
-          end= int10_to_str((long) cached_open_tables(), buff, 10);
-          break;
-        case SHOW_TABLE_DEFINITIONS:
-          end= int10_to_str((long) cached_table_definitions(), buff, 10);
-          break;
         case SHOW_CHAR_PTR:
         {
           if (!(pos= *(char**) value))
@@ -1682,203 +1781,19 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_DOUBLE_STATUS:
-        {
-          value= ((char *) status_var + (ulong) value);
-          end= buff + sprintf(buff, "%f", *(double*) value);
-          break;
-        }
-#ifdef HAVE_OPENSSL
-          /* First group - functions relying on CTX */
-        case SHOW_SSL_CTX_SESS_ACCEPT:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_accept(ssl_acceptor_fd->
-                                                        ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_accept_good(ssl_acceptor_fd->
-                                                             ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_connect_good(ssl_acceptor_fd->
-                                                              ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_CB_HITS:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_cb_hits(ssl_acceptor_fd->
-                                                         ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_HITS:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_hits(ssl_acceptor_fd->
-                                                      ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_CACHE_FULL:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_cache_full(ssl_acceptor_fd->
-                                                            ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_MISSES:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_misses(ssl_acceptor_fd->
-                                                        ssl_context)),
-                            buff, 10);
-          break;
-        case SHOW_SSL_CTX_SESS_TIMEOUTS:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_SESS_NUMBER:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_SESS_CONNECT:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_GET_VERIFY_MODE:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
-          end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-                                    SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context)),
-                            buff,10);
-          break;
-        case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
-          if (!ssl_acceptor_fd)
-          {
-            pos= "NONE";
-            end= pos+4;
-            break;
-          }
-          switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
-          {
-          case SSL_SESS_CACHE_OFF:
-            pos= "OFF";
-            break;
-          case SSL_SESS_CACHE_CLIENT:
-            pos= "CLIENT";
-            break;
-          case SSL_SESS_CACHE_SERVER:
-            pos= "SERVER";
-            break;
-          case SSL_SESS_CACHE_BOTH:
-            pos= "BOTH";
-            break;
-          case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-            pos= "NO_AUTO_CLEAR";
-            break;
-          case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-            pos= "NO_INTERNAL_LOOKUP";
-            break;
-          default:
-            pos= "Unknown";
-            break;
-          }
-          end= strend(pos);
-          break;
-          /* First group - functions relying on SSL */
-        case SHOW_SSL_GET_VERSION:
-          pos= (thd->net.vio->ssl_arg ?
-                SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
-          end= strend(pos);
-          break;
-        case SHOW_SSL_SESSION_REUSED:
-          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-                                    SSL_session_reused((SSL*) thd->net.vio->
-                                                       ssl_arg) :
-                                    0),
-                            buff, 10);
-          break;
-        case SHOW_SSL_GET_DEFAULT_TIMEOUT:
-          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-                                    SSL_get_default_timeout((SSL*) thd->net.vio->
-                                                            ssl_arg) :
-                                    0),
-                            buff, 10);
-          break;
-        case SHOW_SSL_GET_VERIFY_MODE:
-          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-                                    SSL_get_verify_mode((SSL*) thd->net.vio->
-                                                        ssl_arg):
-                                    0),
-                            buff, 10);
-          break;
-        case SHOW_SSL_GET_VERIFY_DEPTH:
-          end= int10_to_str((long) (thd->net.vio->ssl_arg ?
-                                    SSL_get_verify_depth((SSL*) thd->net.vio->
-                                                         ssl_arg):
-                                    0),
-                            buff, 10);
-          break;
-        case SHOW_SSL_GET_CIPHER:
-          pos= (thd->net.vio->ssl_arg ?
-                SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "" );
-          end= strend(pos);
-          break;
-        case SHOW_SSL_GET_CIPHER_LIST:
-          if (thd->net.vio->ssl_arg)
-          {
-            char *to= buff;
-            for (int i=0 ; i++ ;)
-            {
-              const char *p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i);
-              if (p == NULL)
-                break;
-              to= strmov(to, p);
-              *to++= ':';
-            }
-            if (to != buff)
-              to--;				// Remove last ':'
-            end= to;
-          }
-          break;
-
-#endif /* HAVE_OPENSSL */
         case SHOW_KEY_CACHE_LONG:
-        case SHOW_KEY_CACHE_CONST_LONG:
-          value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
+          value= (char*) dflt_key_cache + (ulong)value;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_KEY_CACHE_LONGLONG:
-	  value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
+          value= (char*) dflt_key_cache + (ulong)value;
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
-        case SHOW_NET_COMPRESSION:
-          end= strmov(buff, thd->net.compress ? "ON" : "OFF");
-          break;
-        case SHOW_UNDEF:				// Show never happen
-        case SHOW_SYS:
-          break;					// Return empty string
+        case SHOW_UNDEF:
+          break;                                        // Return empty string
+        case SHOW_SYS:                                  // Cannot happen
         default:
+          DBUG_ASSERT(0);
           break;
         }
         restore_record(table, s->default_values);
@@ -2238,6 +2153,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   int error= 1;
   enum legacy_db_type not_used;
   Open_tables_state open_tables_state_backup;
+  bool save_view_prepare_mode= lex->view_prepare_mode;
+  lex->view_prepare_mode= TRUE;
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
@@ -2423,6 +2340,7 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->query_tables_last= save_query_tables_last;
+  lex->view_prepare_mode= save_view_prepare_mode;
   *save_query_tables_last= 0;
   lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
@@ -3601,7 +3519,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  res= show_status_array(thd, wild, init_vars, 
+  res= show_status_array(thd, wild, init_vars,
                          lex->option_type, 0, "", tables->table);
   pthread_mutex_unlock(&LOCK_global_system_variables);
   DBUG_RETURN(res);
@@ -3615,12 +3533,13 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
   STATUS_VAR tmp;
-  ha_update_statistics();                    /* Export engines statistics */
   pthread_mutex_lock(&LOCK_status);
   if (lex->option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
-  res= show_status_array(thd, wild, status_vars, OPT_GLOBAL,
-                         (lex->option_type == OPT_GLOBAL ? 
+  res= show_status_array(thd, wild,
+                         (SHOW_VAR *)all_status_vars.buffer,
+                         OPT_GLOBAL,
+                         (lex->option_type == OPT_GLOBAL ?
                           &tmp: &thd->status_var), "",tables->table);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
@@ -4391,7 +4310,7 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"PLUGIN_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_STATUS", 10, MYSQL_TYPE_STRING, 0, 0, "Status"},
-  {"PLUGIN_TYPE", 10, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"PLUGIN_TYPE", 80, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"PLUGIN_TYPE_VERSION", 20, MYSQL_TYPE_STRING, 0, 0, 0},
   {"PLUGIN_LIBRARY", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Library"},
   {"PLUGIN_LIBRARY_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},

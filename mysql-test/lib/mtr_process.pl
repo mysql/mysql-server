@@ -890,7 +890,14 @@ sub mtr_exit ($) {
 #  cluck("Called mtr_exit()");
   mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
-  kill('HUP', -$$);
+  # ToDo: Signalling -$$ will only work if we are the process group
+  # leader (in fact on QNX it will signal our session group leader,
+  # which might be Do-compile or Pushbuild, causing tests to be
+  # aborted). So we only do it if we are the group leader. We might
+  # set ourselves as the group leader at startup (with
+  # POSIX::setpgrp(0,0)), but then care must be needed to always do
+  # proper child process cleanup.
+  kill('HUP', -$$) if $$ == getpgrp();
   sleep 2;
   exit($code);
 }

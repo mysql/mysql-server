@@ -118,13 +118,24 @@ static char *pretty_print_str(char *packet, char *str, int len)
 
 
 /*
-  slave_load_file_stem()
+  Creates a temporary name for load data infile:
+
+  SYNOPSIS
+    slave_load_file_stem()
+    buf		      Store new filename here
+    file_id	      File_id (part of file name)
+    event_server_id   Event_id (part of file name)
+    ext		      Extension for file name
+
+  RETURN
+    Pointer to start of extension
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-static inline char* slave_load_file_stem(char*buf, uint file_id,
-					 int event_server_id)
+static char *slave_load_file_stem(char *buf, uint file_id,
+                                  int event_server_id, const char *ext)
 {
+  char *res;
   fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
@@ -133,7 +144,9 @@ static inline char* slave_load_file_stem(char*buf, uint file_id,
   *buf++ = '-';
   buf = int10_to_str(event_server_id, buf, 10);
   *buf++ = '-';
-  return int10_to_str(file_id, buf, 10);
+  res= int10_to_str(file_id, buf, 10);
+  strmov(res, ext);                             // Add extension last
+  return res;                                   // Pointer to extension
 }
 #endif
 
@@ -928,7 +941,6 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
     /* Pretty-print event common header if header is exactly 19 bytes */
     if (print_event_info->common_header_len == LOG_EVENT_MINIMAL_HEADER_LEN)
     {
-      DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
       fprintf(file, "# Position  Timestamp   Type   Master ID        "
 	      "Size      Master Pos    Flags \n");
       fprintf(file, "# %8.8lx %02x %02x %02x %02x   %02x   "
@@ -954,7 +966,6 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
       if (i % 16 == 15)
       {
-        DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
 	fprintf(file, "# %8.8lx %-48.48s |%16s|\n",
 		(unsigned long) (hexdump_from + (i & 0xfffffff0)),
                 hex_string, char_string);
@@ -968,12 +979,10 @@ void Log_event::print_header(FILE* file, PRINT_EVENT_INFO* print_event_info)
     *c= '\0';
 
     /* Non-full last line */
-    if (hex_string[0]) {
-      DBUG_ASSERT(hexdump_from == (unsigned long) hexdump_from);
+    if (hex_string[0])
       fprintf(file, "# %8.8lx %-48.48s |%s|\n# ",
 	     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
              hex_string, char_string);
-    }
   }
 }
 
@@ -4238,16 +4247,15 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char proc_info[17+FN_REFLEN+10], *fname_buf= proc_info+17;
-  char *p;
+  char proc_info[17+FN_REFLEN+10], *fname_buf;
+  char *ext;
   int fd = -1;
   IO_CACHE file;
   int error = 1;
 
   bzero((char*)&file, sizeof(file));
-  p = slave_load_file_stem(fname_buf, file_id, server_id);
-  strmov(p, ".info");			// strmov takes less code than memcpy
-  strnmov(proc_info, STRING_WITH_LEN("Making temp file ")); // no end 0
+  fname_buf= strmov(proc_info, "Making temp file ");
+  ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   thd->proc_info= proc_info;
   my_delete(fname_buf, MYF(0)); // old copy may exist already
   if ((fd= my_create(fname_buf, CREATE_MODE,
@@ -4262,12 +4270,11 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   }
   
   // a trick to avoid allocating another buffer
-  strmov(p, ".data");
-  fname = fname_buf;
-  fname_len = (uint)(p-fname) + 5;
+  fname= fname_buf;
+  fname_len= (uint) (strmov(ext, ".data") - fname);
   if (write_base(&file))
   {
-    strmov(p, ".info"); // to have it right in the error message
+    strmov(ext, ".info"); // to have it right in the error message
     slave_print_msg(ERROR_LEVEL, rli, my_errno,
                     "Error in Create_file event: could not write to file '%s'",
                     fname_buf);
@@ -4413,13 +4420,12 @@ int Append_block_log_event::get_create_or_append() const
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
   char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
-  char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::exec_event");
 
-  memcpy(p, ".data", 6);
-  strnmov(proc_info, STRING_WITH_LEN("Making temp file ")); // no end 0
+  fname= strmov(proc_info, "Making temp file ");
+  slave_load_file_stem(fname, file_id, server_id, ".data");
   thd->proc_info= proc_info;
   if (get_create_or_append())
   {
@@ -4545,10 +4551,9 @@ void Delete_file_log_event::pack_info(Protocol *protocol)
 int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
   char fname[FN_REFLEN+10];
-  char *p= slave_load_file_stem(fname, file_id, server_id);
-  memcpy(p, ".data", 6);
+  char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   (void) my_delete(fname, MYF(MY_WME));
-  memcpy(p, ".info", 6);
+  strmov(ext, ".info");
   (void) my_delete(fname, MYF(MY_WME));
   return Log_event::exec_event(rli);
 }
@@ -4641,13 +4646,13 @@ void Execute_load_log_event::pack_info(Protocol *protocol)
 int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 {
   char fname[FN_REFLEN+10];
-  char *p= slave_load_file_stem(fname, file_id, server_id);
+  char *ext;
   int fd;
-  int error = 1;
+  int error= 1;
   IO_CACHE file;
-  Load_log_event* lev = 0;
+  Load_log_event *lev= 0;
 
-  memcpy(p, ".info", 6);
+  ext= slave_load_file_stem(fname, file_id, server_id, ".info");
   if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
                     MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
@@ -4708,7 +4713,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     fd= -1;
   }
   (void) my_delete(fname, MYF(MY_WME));
-  memcpy(p, ".data", 6);
+  memcpy(ext, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
   error = 0;
 
@@ -4906,11 +4911,10 @@ Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, query, fn_pos_start);
   p+= fn_pos_start;
   fname= (p= strmake(p, STRING_WITH_LEN(" INFILE \'")));
-  p= slave_load_file_stem(p, file_id, server_id);
-  fname_end= (p= strmake(p, STRING_WITH_LEN(".data")));
+  p= slave_load_file_stem(p, file_id, server_id, ".data");
+  fname_end= p= strend(p);                      // Safer than p=p+5
   *(p++)='\'';
-  switch (dup_handling)
-  {
+  switch (dup_handling) {
   case LOAD_DUP_IGNORE:
     p= strmake(p, STRING_WITH_LEN(" IGNORE"));
     break;

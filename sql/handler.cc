@@ -1181,15 +1181,6 @@ int ha_release_temporary_latches(THD *thd)
   return 0;
 }
 
-
-int ha_update_statistics()
-{
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  innodb_export_status();
-#endif
-  return 0;
-}
-
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
@@ -2084,7 +2075,8 @@ int ha_enable_transaction(THD *thd, bool on)
       is an optimization hint that storage engine is free to ignore.
       So, let's commit an open transaction (if any) now.
     */
-    error= end_trans(thd, COMMIT);
+    if (!(error= ha_commit_stmt(thd)))
+      error= end_trans(thd, COMMIT);
   }
   DBUG_RETURN(error);
 }
@@ -2798,16 +2790,22 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - Row-based replication is on
   - It is not a temporary table
   - The binlog is enabled
-  - The table shall be binlogged (binlog_*_db rules) [Seems disabled /Matz]
+  - The table shall be binlogged (binlog_*_db rules)
 */
 
 #ifdef HAVE_ROW_BASED_REPLICATION
-static bool check_table_binlog_row_based(THD *thd, TABLE *table)
-{
-  return
-    binlog_row_based &&
-    thd && (thd->options & OPTION_BIN_LOG) &&
-    (table->s->tmp_table == NO_TMP_TABLE);
+/* The Sun compiler cannot instantiate the template below if this is
+   declared static, but it works by putting it into an anonymous
+   namespace. */
+namespace {
+  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+  {
+    return
+      binlog_row_based &&
+      thd && (thd->options & OPTION_BIN_LOG) &&
+      (table->s->tmp_table == NO_TMP_TABLE) &&
+      binlog_filter->db_ok(table->s->db.str);
+  }
 }
 
 template<class RowsEventT> int binlog_log_row(TABLE* table,

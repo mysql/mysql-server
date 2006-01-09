@@ -82,6 +82,14 @@ grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
 grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 
+# ToDo: BUG#14931: There is a race between the last grant binlogging, and
+# the binlogging in the new connection made below, causing sporadic test
+# failures due to switched statement order in binlog. To fix this we do
+# SELECT 1 in the first connection before starting the second, ensuring
+# that binlogging is done in the expected order.
+# Please remove this SELECT 1 when BUG#14931 is fixed.
+SELECT 1;
+
 connect (con1,127.0.0.1,zedjzlcsjhd,,mysqltest1,$MASTER_MYPORT,);
 connection con1;
 
