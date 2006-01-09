@@ -253,7 +253,15 @@ public:
       ptr-=row_offset;
       return tmp;
     }
-
+  inline longlong val_int(char *new_ptr)
+  {
+    char *old_ptr= ptr;
+    longlong return_value;
+    ptr= new_ptr;
+    return_value= val_int();
+    ptr= old_ptr;
+    return return_value;
+  }
   inline String *val_str(String *str, char *new_ptr)
   {
     char *old_ptr= ptr;
