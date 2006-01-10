@@ -2096,6 +2096,26 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 }
 
 
+void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id)
+{
+  info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+       HA_STATUS_NO_LOCK);
+  stat_info->records= records;
+  stat_info->mean_rec_length= mean_rec_length;
+  stat_info->data_file_length= data_file_length;
+  stat_info->max_data_file_length= max_data_file_length;
+  stat_info->index_file_length= index_file_length;
+  stat_info->delete_length= delete_length;
+  stat_info->create_time= create_time;
+  stat_info->update_time= update_time;
+  stat_info->check_time= check_time;
+  stat_info->check_sum= 0;
+  if (table_flags() & (ulong) HA_HAS_CHECKSUM)
+  stat_info->check_sum= checksum();
+  return;
+}
+
+
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/

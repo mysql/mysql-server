@@ -522,6 +522,7 @@ class ha_ndbcluster: public handler
 
   bool get_error_message(int error, String *buf);
   void info(uint);
+  void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
