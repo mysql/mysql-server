@@ -1541,7 +1541,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 	acl_user->user && !strcmp(user,acl_user->user))
     {
       if (exact ? !my_strcasecmp(&my_charset_latin1, host,
-                                 acl_user->host.hostname) :
+                                 acl_user->host.hostname ?
+				 acl_user->host.hostname : "") :
           compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
@@ -4649,7 +4650,7 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     if (!(user=acl_user->user))
       user= "";
     if (!(host=acl_user->host.hostname))
-      host= "%";
+      host= "";
     if (!strcmp(user_name->user.str,user) &&
 	!my_strcasecmp(system_charset_info, user_name->host.str, host))
       break;
