@@ -12,8 +12,6 @@
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 rpl_bit_npk     : Bug #13418
-ndb_cache2      : Bug #15004
-ndb_cache_multi2: Bug #15004
 func_group      : Bug #15448
 func_math       : Bug #15448
 group_min_max   : Bug #15448 
