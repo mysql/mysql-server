@@ -782,6 +782,17 @@ public:
   bool update(THD *thd, set_var *var);
 };
 
+
+class sys_var_event_executor :public sys_var_bool_ptr
+{
+  /* We need a derived class only to have a warn_deprecated() */
+public:
+  sys_var_event_executor(const char *name_arg, my_bool *value_arg) :
+    sys_var_bool_ptr(name_arg, value_arg) {};
+  bool update(THD *thd, set_var *var);
+};
+
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
