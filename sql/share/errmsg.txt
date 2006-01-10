@@ -5190,8 +5190,8 @@ ER_SP_CANT_ALTER
 	eng "Failed to ALTER %s %s"
 	ger "ALTER %s %s fehlgeschlagen"
 ER_SP_SUBSELECT_NYI 0A000 
-	eng "Subselect value not supported"
-	ger "Subselect-Wert wird nicht unterstützt"
+	eng "Subquery value not supported"
+	ger "Subquery-Wert wird nicht unterstützt"
 ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG 0A000
         eng "%s is not allowed in stored function or trigger"
 	ger "%s ist in gespeicherten Funktionen und in Triggern nicht erlaubt"
