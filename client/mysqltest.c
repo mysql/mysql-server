@@ -1205,6 +1205,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     {
       if (row[0])
       {
+#ifdef NOT_YET
 	/* Add to <var_name>_<col_name> */
 	uint j;
 	char var_col_name[MAX_VAR_NAME];
@@ -1218,7 +1219,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
         }
 	var_set(var_col_name,  var_col_name + length,
 		row[i], row[i] + lengths[i]);
-
+#endif
         /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
       }

@@ -222,25 +222,6 @@ mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in =hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
-var1
-hi	1	hi there
-hi
-1
-hi there
-var2
-2
-
-
-var2 again
-2
-
-2
-
-var3 two columns with same name
-1	2	3
-2
-2
-3
 mysqltest: At line 1: Missing file name in source
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "./var/tmp/recursive.sql": At line 1: Source directives are nesting too deep
