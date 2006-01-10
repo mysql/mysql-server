@@ -482,7 +482,7 @@ spin_loop:
     {
       /* Succeeded! Free the reserved wait cell */
 
-      sync_array_free_cell(sync_primary_wait_array, index);
+      sync_array_free_cell_protected(sync_primary_wait_array, index);
 
 #ifdef UNIV_SYNC_DEBUG
       mutex_set_debug_info(mutex, file_name, line);
