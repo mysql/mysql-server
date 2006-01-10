@@ -4216,10 +4216,12 @@ static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   if (!(tmp_var->str_val = my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  if (name)
-    strmake(tmp_var->name, name, name_len);
+  memcpy(tmp_var->name, name, name_len);
   if (val)
-    strmake(tmp_var->str_val, val, val_len);
+  {
+    memcpy(tmp_var->str_val, val, val_len);
+    tmp_var->str_val[val_len]= 0;
+  }
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
