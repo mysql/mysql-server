@@ -3,6 +3,7 @@ show tables;
 Tables_in_mysql
 columns_priv
 db
+event
 func
 help_category
 help_keyword
@@ -31,6 +32,7 @@ show tables;
 Tables_in_mysql
 columns_priv
 db
+event
 func
 help_category
 help_keyword
@@ -67,6 +69,7 @@ show tables;
 Tables_in_mysql
 columns_priv
 db
+event
 func
 help_category
 help_keyword

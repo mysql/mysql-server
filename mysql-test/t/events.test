@@ -2,7 +2,7 @@ use test;
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2;
-alter event event2 disable;
+alter event event2 disabled;
 
 drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;

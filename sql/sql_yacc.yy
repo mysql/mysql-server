@@ -1298,8 +1298,12 @@ create:
 	    sp->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
             
-	    /* Restore flag if it was cleared above */
-	    YYTHD->client_capabilities |= $<ulong_num>3;
+	    /* 
+              Restore flag if it was cleared above 
+              Be careful with counting. the block where we save the value
+              is $4.
+            */
+	    YYTHD->client_capabilities |= $<ulong_num>4;
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	| CREATE
