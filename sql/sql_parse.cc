@@ -73,7 +73,7 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
-static void refresh_status(void);
+static void refresh_status(THD *thd);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 
@@ -6538,7 +6538,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
-    refresh_status();
+    refresh_status(thd);
   if (options & REFRESH_THREADS)
     flush_thread_cache();
 #ifdef HAVE_REPLICATION
@@ -6624,20 +6624,18 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 
 /* Clear most status variables */
 
-static void refresh_status(void)
+static void refresh_status(THD *thd)
 {
   pthread_mutex_lock(&LOCK_status);
+
+  /* We must update the global status before cleaning up the thread */
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
   for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
   {
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
-    else if (ptr->type == SHOW_LONG_STATUS)
-    {
-      THD *thd= current_thd;
-      /* We must update the global status before cleaning up the thread */
-      add_to_status(&global_status_var, &thd->status_var);
-      bzero((char*) &thd->status_var, sizeof(thd->status_var));
-    }
   }
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
