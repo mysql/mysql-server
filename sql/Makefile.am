@@ -97,7 +97,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
-                        tztime.cc my_time.c my_decimal.cc\
+			tztime.cc my_time.c my_user.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
 			examples/ha_example.cc ha_archive.cc \
@@ -133,6 +133,8 @@ link_sources: mysql_tzinfo_to_sql.cc
 	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
 	rm -f my_time.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
+	rm -f my_user.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c
 
 mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
 			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
