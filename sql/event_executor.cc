@@ -313,10 +313,8 @@ event_executor_main(void *arg)
     {
       pthread_t th;
 
-      printf("[%10s] exec at [%llu]\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
       et->mark_last_executed();
       et->compute_next_execution_time();
-      printf("[%10s] next at [%llu]\n\n\n", et->name.str,TIME_to_ulonglong_datetime(&et->execute_at));
       et->update_fields(thd);
       DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
 #ifndef DBUG_FAULTY_THR
@@ -461,11 +459,19 @@ event_executor_worker(void *event_void)
                       is_schema_db(event->dbname.str)))
   {
     int ret;
-    DBUG_PRINT("info", ("    EVEX EXECUTING event for event %s.%s [EXPR:%d]", event->dbname.str, event->name.str,(int) event->expression));
-    sql_print_information("    EVEX EXECUTING event for event %s.%s [EXPR:%d]", event->dbname.str, event->name.str,(int) event->expression);
+    DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
+               event->dbname.str, event->name.str,(int) event->expression));
+    sql_print_information("    EVEX EXECUTING event %s.%s [EXPR:%d]",
+               event->dbname.str, event->name.str,(int) event->expression);
+
     ret= event->execute(thd, &worker_mem_root);
-    sql_print_information("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret); 
-    DBUG_PRINT("info", ("    EVEX EXECUTED event for event %s.%s  [EXPR:%d]. RetCode=%d", event->dbname.str, event->name.str,(int) event->expression, ret)); 
+
+    sql_print_information("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
+                          event->dbname.str, event->name.str,
+                          (int) event->expression, ret);
+    DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
+                        event->dbname.str, event->name.str,
+                        (int) event->expression, ret));
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
@@ -554,7 +560,7 @@ evex_load_events_from_db(THD *thd)
     }
     if (et->status != MYSQL_EVENT_ENABLED)
     {
-      DBUG_PRINT("evex_load_events_from_db",("Event %s is disabled", et->name.str));
+      DBUG_PRINT("evex_load_events_from_db",("%s is disabled",et->name.str));
       delete et;
       continue;
     }
@@ -589,8 +595,9 @@ end:
   thd->version--;  // Force close to free memory
 
   close_thread_tables(thd);
-  sql_print_information("Scheduler loaded %d events", count);
-  DBUG_PRINT("info", ("Finishing with status code %d. Loaded %d events", ret, count));
+  sql_print_information("Scheduler loaded %d event%s", count, (count == 1)?"":"s");
+  DBUG_PRINT("info", ("Status code %d. Loaded %d event(s)", ret, count));
+
   DBUG_RETURN(ret);
 }
 

@@ -100,12 +100,16 @@ my_time_compare(TIME *a, TIME *b)
 }
 
 
-inline int
+int
 event_timed_compare(event_timed *a, event_timed *b)
 {
   return my_time_compare(&a->execute_at, &b->execute_at);
 }
 
+
+/*
+  Callback for the prio queue
+*/
 
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b)
@@ -244,14 +248,11 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
                   store(et->name.str, et->name.length, system_charset_info))
     goto trunc_err;
 
-  table->field[EVEX_FIELD_ON_COMPLETION]->set_notnull();
+  // both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()
   table->field[EVEX_FIELD_ON_COMPLETION]->store((longlong)et->on_completion);
 
-  table->field[EVEX_FIELD_STATUS]->set_notnull();
   table->field[EVEX_FIELD_STATUS]->store((longlong)et->status);
-//  et->status_changed= false;
 
-  // ToDo: Andrey. How to use users current charset?
   if (et->body.str)
     if (table->field[field_num= EVEX_FIELD_BODY]->
                      store(et->body.str, et->body.length, system_charset_info))
@@ -260,13 +261,15 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
   if (et->starts.year)
   {
     table->field[EVEX_FIELD_STARTS]->set_notnull();// set NULL flag to OFF
-    table->field[EVEX_FIELD_STARTS]->store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
+    table->field[EVEX_FIELD_STARTS]->
+                          store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
   }	   
 
   if (et->ends.year)
   {
     table->field[EVEX_FIELD_ENDS]->set_notnull();
-    table->field[EVEX_FIELD_ENDS]->store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
+    table->field[EVEX_FIELD_ENDS]->
+                          store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
   }
    
   if (et->expression)
@@ -276,10 +279,10 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
     table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_notnull();
     /*
-       In the enum (C) intervals start from 0 but in mysql enum valid values start
-       from 1. Thus +1 offset is needed!
+      In the enum (C) intervals start from 0 but in mysql enum valid values start
+      from 1. Thus +1 offset is needed!
     */
-    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval + 1);
+    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1);
   }
   else if (et->execute_at.year)
   {
@@ -288,8 +291,7 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     table->field[EVEX_FIELD_EXECUTE_AT]->store_time(&et->execute_at,
                                                     MYSQL_TIMESTAMP_DATETIME);    
     
-	//this will make it NULL because we don't call set_notnull
-    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->store((longlong) 0);  
+    table->field[EVEX_FIELD_TRANSIENT_INTERVAL]->set_null();  
   }
   else
   {
@@ -693,8 +695,16 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
         !sortcmp_lex_string(*db, et->dbname, system_charset_info))
     {
-      et->free_sp();
-      delete et;
+      if (!et->is_running())
+      {
+        et->free_sp();
+        delete et;
+      }
+      else
+      {
+        et->flags|= EVENT_EXEC_NO_MORE;
+        et->dropped= true;
+      }
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
       goto done;

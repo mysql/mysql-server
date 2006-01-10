@@ -113,6 +113,7 @@ public:
 	    free_sp();
   }
   
+  
   void
   init();
 
@@ -163,6 +164,18 @@ public:
 
   int
   compile(THD *thd, MEM_ROOT *mem_root= NULL);
+  
+  my_bool
+  is_running()
+  {
+    my_bool ret;
+    
+    VOID(pthread_mutex_lock(&this->LOCK_running));
+    ret= running;
+    VOID(pthread_mutex_unlock(&this->LOCK_running));
+
+    return ret;  
+  }
   
   void free_sp()
   {
