@@ -214,7 +214,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 {
   int return_val= 0;
   uint temp_len, user_len;
-  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  char temp_user[USER_HOST_BUFF_SIZE];
   struct  user_conn *uc;
 
   DBUG_ASSERT(user != 0);
@@ -743,7 +743,7 @@ static void reset_mqh(LEX_USER *lu, bool get_them= 0)
   {
     USER_CONN *uc;
     uint temp_len=lu->user.length+lu->host.length+2;
-    char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+    char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
