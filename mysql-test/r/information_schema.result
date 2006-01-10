@@ -54,6 +54,7 @@ VIEWS
 USER_PRIVILEGES
 columns_priv
 db
+event
 func
 help_category
 help_keyword
@@ -394,6 +395,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	SHOW VIEW	YES
 'mysqltest_1'@'localhost'	NULL	test	CREATE ROUTINE	YES
 'mysqltest_1'@'localhost'	NULL	test	ALTER ROUTINE	YES
+'mysqltest_1'@'localhost'	NULL	test	EVENT	YES
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	t1	SELECT	NO
@@ -723,7 +725,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-102
+103
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -747,6 +749,10 @@ TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 TRIGGERS	CREATED	datetime
+event	execute_at	datetime
+event	last_executed	datetime
+event	starts	datetime
+event	ends	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS 
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -794,7 +800,7 @@ flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	16
-mysql	18
+mysql	19
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

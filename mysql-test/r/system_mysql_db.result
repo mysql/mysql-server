@@ -3,6 +3,7 @@ show tables;
 Tables_in_db
 columns_priv
 db
+event
 func
 help_category
 help_keyword
@@ -42,6 +43,7 @@ db	CREATE TABLE `db` (
   `Create_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Execute_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Event_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Database privileges'
@@ -101,6 +103,7 @@ user	CREATE TABLE `user` (
   `Create_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Create_user_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Event_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') character set utf8 NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
