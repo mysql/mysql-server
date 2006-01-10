@@ -57,6 +57,7 @@ VIEWS
 USER_PRIVILEGES
 columns_priv
 db
+event
 func
 help_category
 help_keyword
@@ -397,6 +398,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	SHOW VIEW	YES
 'mysqltest_1'@'localhost'	NULL	test	CREATE ROUTINE	YES
 'mysqltest_1'@'localhost'	NULL	test	ALTER ROUTINE	YES
+'mysqltest_1'@'localhost'	NULL	test	EVENT	YES
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	t1	SELECT	NO
@@ -757,6 +759,10 @@ TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 TRIGGERS	CREATED	datetime
+event	execute_at	datetime
+event	last_executed	datetime
+event	starts	datetime
+event	ends	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS 
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B

@@ -317,7 +317,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     */
     if (share->db.length == 5 &&
         !my_strcasecmp(system_charset_info, share->db.str, "mysql") &&
-        !my_strcasecmp(system_charset_info, share->table_name.str, "proc"))
+        (!my_strcasecmp(system_charset_info, share->table_name.str, "proc") ||
+         !my_strcasecmp(system_charset_info, share->table_name.str, "event")))
       share->system_table= 1;
     error_given= 1;
   }

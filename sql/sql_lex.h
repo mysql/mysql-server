@@ -26,6 +26,7 @@ class sp_name;
 class sp_instr;
 class sp_pcontext;
 class partition_info;
+class event_timed;
 
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -95,6 +96,9 @@ enum enum_sql_command {
   SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
   SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
   SQLCOM_SHOW_PLUGINS,
+  SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
+  SQLCOM_SHOW_CREATE_EVENT,
+
   /* This should be the last !!! */
 
   SQLCOM_END
@@ -910,6 +914,10 @@ typedef struct st_lex
   uint     sroutines_list_own_elements;
 
   st_sp_chistics sp_chistics;
+
+  event_timed *et;
+  bool et_compile_phase;
+
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
     field_list was created for view and should be removed before PS/SP
