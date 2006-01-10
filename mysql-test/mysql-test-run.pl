@@ -152,6 +152,7 @@ our $path_client_bindir;
 our $path_language;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
+our $path_mysqltest_log;
 our $path_slave_load_tmpdir;     # What is this?!
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
@@ -194,6 +195,9 @@ our $opt_ssl;
 our $opt_skip_ssl;
 our $opt_ssl_supported;
 our $opt_ps_protocol;
+our $opt_sp_protocol;
+our $opt_cursor_protocol;
+our $opt_view_protocol;
 
 our $opt_current_test;
 our $opt_ddd;
@@ -269,6 +273,7 @@ our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
+our $opt_valgrind_mysqld;
 our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
@@ -510,6 +515,9 @@ sub command_line_setup () {
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
+             'sp-protocol'              => \$opt_sp_protocol,
+             'view-protocol'            => \$opt_view_protocol,
+             'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
@@ -763,6 +771,7 @@ sub command_line_setup () {
   #   "somestring" option is name/path of valgrind executable
 
   # Take executable path from any of them, if any
+  $opt_valgrind_mysqld= $opt_valgrind;
   $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
   $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
 
@@ -912,6 +921,7 @@ sub command_line_setup () {
   }
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
+  $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
 }
 
 
@@ -962,7 +972,19 @@ sub executable_setup () {
     }
     else
     {
-      $exe_mysqltest=  mtr_exe_exists("$path_client_bindir/mysqltest");
+      if ( $opt_valgrind_mysqltest )
+      {
+        # client/mysqltest might be a libtool .sh script, so look for real exe
+        # to avoid valgrinding bash ;)
+        $exe_mysqltest=
+  	  mtr_exe_exists("$path_client_bindir/.libs/lt-mysqltest",
+		         "$path_client_bindir/.libs/mysqltest",
+		         "$path_client_bindir/mysqltest");
+      }
+      else
+      {
+        $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+      }
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
 		       "/usr/bin/false");
@@ -1892,6 +1914,11 @@ sub run_testcase ($) {
       }
       report_failure_and_restart($tinfo);
     }
+    # Save info from this testcase run to mysqltest.log
+    mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
+    my $testcase_log= mtr_fromfile($path_timefile);
+    mtr_tofile($path_mysqltest_log,
+	       $testcase_log);
   }
 
   # ----------------------------------------------------------------------
@@ -2053,7 +2080,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
-  if ( defined $opt_valgrind )
+  if ( defined $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
     mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -2280,7 +2307,7 @@ sub mysqld_start ($$$$) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind )
+  if ( defined $opt_valgrind_mysqld )
   {
     valgrind_arguments($args, \$exe);
   }
@@ -2633,6 +2660,21 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--ps-protocol");
   }
 
+  if ( $opt_sp_protocol )
+  {
+    mtr_add_arg($args, "--sp-protocol");
+  }
+
+  if ( $opt_view_protocol )
+  {
+    mtr_add_arg($args, "--view-protocol");
+  }
+
+  if ( $opt_cursor_protocol )
+  {
+    mtr_add_arg($args, "--cursor-protocol");
+  }
+
   if ( $opt_strace_client )
   {
     $exe=  "strace";            # FIXME there are ktrace, ....
@@ -2741,6 +2783,7 @@ sub valgrind_arguments {
     mtr_add_arg($args, split(' ', $opt_valgrind_options));
   }
 
+
   mtr_add_arg($args, $$exe);
 
   $$exe= $opt_valgrind || "valgrind";
@@ -2764,6 +2807,10 @@ Options to control what engine/variation to run
 
   embedded-server       Use the embedded server, i.e. no mysqld daemons
   ps-protocol           Use the binary protocol between client and server
+  cursor-protocol       Use the cursor protocol between client and server
+                        (implies --ps-protocol)
+  view-protocol         Create a view to execute all non updating queries
+  sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start sterver with support for ssl connections
@@ -2816,9 +2863,8 @@ Options for coverage, profiling etc
 
   gcov                  FIXME
   gprof                 FIXME
-  valgrind[=EXE]        Run the "mysqltest" executable as well as the "mysqld"
-                        server using valgrind, optionally specifying the
-                        executable path/name
+  valgrind[=EXE]        Run the "mysqld" server using valgrind, optionally
+                        specifying the executable path/name
   valgrind-mysqltest[=EXE] In addition, run the "mysqltest" executable with valgrind
   valgrind-all[=EXE]    Adds verbose flag, and --show-reachable to valgrind
   valgrind-options=ARGS Extra options to give valgrind
