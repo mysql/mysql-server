@@ -43,13 +43,18 @@
 /*
   Partition related functions declarations and some static constants;
 */
-static const char *hash_str= "HASH";
-static const char *range_str= "RANGE";
-static const char *list_str= "LIST";
+const LEX_STRING partition_keywords[]=
+{
+  { (char *) STRING_WITH_LEN("HASH") },
+  { (char *) STRING_WITH_LEN("RANGE") },
+  { (char *) STRING_WITH_LEN("LIST") }, 
+  { (char *) STRING_WITH_LEN("KEY") },
+  { (char *) STRING_WITH_LEN("MAXVALUE") },
+  { (char *) STRING_WITH_LEN("LINEAR ") }
+};
 static const char *part_str= "PARTITION";
 static const char *sub_str= "SUB";
 static const char *by_str= "BY";
-static const char *key_str= "KEY";
 static const char *space_str= " ";
 static const char *equal_str= "=";
 static const char *end_paren_str= ")";
@@ -629,9 +634,9 @@ static bool set_up_default_partitions(partition_info *part_info,
   {
     const char *error_string;
     if (part_info->part_type == RANGE_PARTITION)
-      error_string= range_str;
+      error_string= partition_keywords[PKW_RANGE].str;
     else
-      error_string= list_str;
+      error_string= partition_keywords[PKW_LIST].str;
     my_error(ER_PARTITIONS_MUST_BE_DEFINED_ERROR, MYF(0), error_string);
     goto end;
   }
@@ -1771,13 +1776,13 @@ bool fix_partition_func(THD *thd, const char *name, TABLE *table)
     const char *error_str;
     if (part_info->part_type == RANGE_PARTITION)
     {
-      error_str= range_str; 
+      error_str= partition_keywords[PKW_RANGE].str; 
       if (unlikely(check_range_constants(part_info)))
         goto end;
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
-      error_str= list_str; 
+      error_str= partition_keywords[PKW_LIST].str; 
       if (unlikely(check_list_constants(part_info)))
         goto end;
     }
@@ -1879,7 +1884,7 @@ static int add_part_key_word(File fptr, const char *key_string)
 
 static int add_hash(File fptr)
 {
-  return add_part_key_word(fptr, hash_str);
+  return add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
 }
 
 static int add_partition(File fptr)
@@ -1911,7 +1916,7 @@ static int add_key_partition(File fptr, List<char> field_list)
   uint i, no_fields;
   int err;
   List_iterator<char> part_it(field_list);
-  err= add_part_key_word(fptr, key_str);
+  err= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
   no_fields= field_list.elements;
   i= 0;
   do
@@ -1993,7 +1998,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
       err+= add_end_parenthesis(fptr);
     }
     else
-      err+= add_string(fptr, "MAXVALUE");
+      err+= add_string(fptr, partition_keywords[PKW_MAXVALUE].str);
   }
   else if (part_info->part_type == LIST_PARTITION)
   {
@@ -2081,15 +2086,15 @@ char *generate_partition_syntax(partition_info *part_info,
   {
     case RANGE_PARTITION:
       add_default_info= TRUE;
-      err+= add_part_key_word(fptr, range_str);
+      err+= add_part_key_word(fptr, partition_keywords[PKW_RANGE].str);
       break;
     case LIST_PARTITION:
       add_default_info= TRUE;
-      err+= add_part_key_word(fptr, list_str);
+      err+= add_part_key_word(fptr, partition_keywords[PKW_LIST].str);
       break;
     case HASH_PARTITION:
       if (part_info->linear_hash_ind)
-        err+= add_string(fptr, "LINEAR ");
+        err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
         err+= add_key_partition(fptr, part_info->part_field_list);
       else

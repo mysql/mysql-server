@@ -3122,6 +3122,20 @@ void ha_ndbcluster::info(uint flag)
   DBUG_VOID_RETURN;
 }
 
+
+void ha_ndbcluster::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+                                               uint part_id)
+{
+  /* 
+     This functions should be fixed. Suggested fix: to
+     implement ndb function which retrives the statistics
+     about ndb partitions.
+  */
+  bzero((char*) stat_info, sizeof(PARTITION_INFO));
+  return;
+}
+
+
 int ha_ndbcluster::extra(enum ha_extra_function operation)
 {
   DBUG_ENTER("extra");

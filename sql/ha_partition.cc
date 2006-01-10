@@ -2444,6 +2444,29 @@ void ha_partition::info(uint flag)
 }
 
 
+void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+                                              uint part_id)
+{
+  handler *file= m_file[part_id];
+  file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+             HA_STATUS_NO_LOCK);
+
+  stat_info->records= file->records;
+  stat_info->mean_rec_length= file->mean_rec_length;
+  stat_info->data_file_length= file->data_file_length;
+  stat_info->max_data_file_length= file->max_data_file_length;
+  stat_info->index_file_length= file->index_file_length;
+  stat_info->delete_length= file->delete_length;
+  stat_info->create_time= file->create_time;
+  stat_info->update_time= file->update_time;
+  stat_info->check_time= file->check_time;
+  stat_info->check_sum= 0;
+  if (file->table_flags() & (ulong) HA_HAS_CHECKSUM)
+    stat_info->check_sum= file->checksum();
+  return;
+}
+
+
 /*
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.
