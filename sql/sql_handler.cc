@@ -384,27 +384,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' tab %p",
                                hash_tables->db, hash_tables->real_name,
                                hash_tables->alias, table));
-    /* Table might have been flushed. */
-    if (table && (table->version != refresh_version))
-    {
-      /*
-        We must follow the thd->handler_tables chain, as we need the
-        address of the 'next' pointer referencing this table
-        for close_thread_table().
-      */
-      for (table_ptr= &(thd->handler_tables);
-           *table_ptr && (*table_ptr != table);
-           table_ptr= &(*table_ptr)->next)
-      {}
-      VOID(pthread_mutex_lock(&LOCK_open));
-      if (close_thread_table(thd, table_ptr))
-      {
-        /* Tell threads waiting for refresh that something has happened */
-        VOID(pthread_cond_broadcast(&COND_refresh));
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      table= hash_tables->table= NULL;
-    }
     if (!table)
     {
       /*
@@ -451,6 +430,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
+  HANDLER_TABLES_HACK(thd);
+  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
+  HANDLER_TABLES_HACK(thd);
+
+  if (!lock)
+    goto err0; // mysql_lock_tables() printed error message already
+
   if (cond && ((!cond->fixed &&
               cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
     goto err0;
@@ -470,13 +456,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   select_limit+=offset_limit;
   protocol->send_fields(&list,1);
-
-  HANDLER_TABLES_HACK(thd);
-  lock= mysql_lock_tables(thd, &tables->table, 1, 0);
-  HANDLER_TABLES_HACK(thd);
-
-  if (!lock)
-     goto err0; // mysql_lock_tables() printed error message already
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
