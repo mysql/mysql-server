@@ -46,7 +46,7 @@ mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
-mysqldump_SOURCES=              mysqldump.c $(yassl_dummy_link_fix)
+mysqldump_SOURCES=              mysqldump.c my_user.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
@@ -62,7 +62,10 @@ link_sources:
         for f in $(strings_src) ; do \
           rm -f $(srcdir)/$$f; \
           @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
-         done;
+         done; \
+         rm -f $(srcdir)/my_user.c; \
+         @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
+	
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
