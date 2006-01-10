@@ -18,7 +18,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include <values.h>
 #include <zlib.h>
 #include "../storage/archive/azlib.h"
 
