@@ -1,6 +1,6 @@
 #
 # Simple test for archive example
-# Taken from the select test
+# Taken FROM the select test
 #
 -- source include/have_archive.inc
 
@@ -15,9 +15,9 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (9410,9412);
   
-select period from t1;
-select * from t1;
-select t1.* from t1;
+select period FROM t1;
+select * FROM t1;
+select t1.* FROM t1;
 
 #
 # Create test table
@@ -1243,64 +1243,64 @@ INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly',''
 # Search with a key
 #
 
-select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
-select fld3 from t2 where fld3 like "%cultivation" ;
+select t2.fld3 FROM t2 where companynr = 58 and fld3 like "%imaginable%";
+select fld3 FROM t2 where fld3 like "%cultivation" ;
 
 #
 # Search with a key using sorting and limit the same time
 #
 
-select t2.fld3,companynr from t2 where companynr = 57+1 order by fld3;
-select fld3,companynr from t2 where companynr = 58 order by fld3;
+select t2.fld3,companynr FROM t2 where companynr = 57+1 order by fld3;
+select fld3,companynr FROM t2 where companynr = 58 order by fld3;
 
-select fld3 from t2 order by fld3 desc limit 10;
-select fld3 from t2 order by fld3 desc limit 5;
-select fld3 from t2 order by fld3 desc limit 5,5;
+select fld3 FROM t2 order by fld3 desc limit 10;
+select fld3 FROM t2 order by fld3 desc limit 5;
+select fld3 FROM t2 order by fld3 desc limit 5,5;
 
 #
 # Search with a key having a constant with each unique key.
 # The table is read directly with read-next on fld3
 #
 
-select t2.fld3 from t2 where fld3 = 'honeysuckle';
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckl_';
-select t2.fld3 from t2 where fld3 LIKE 'hon_ysuckl_';
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckle%';
-select t2.fld3 from t2 where fld3 LIKE 'h%le';
+select t2.fld3 FROM t2 where fld3 = 'honeysuckle';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckl_';
+select t2.fld3 FROM t2 where fld3 LIKE 'hon_ysuckl_';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckle%';
+select t2.fld3 FROM t2 where fld3 LIKE 'h%le';
 
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckle_';
-select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckle_';
+select t2.fld3 FROM t2 where fld3 LIKE 'don_t_find_me_please%';
 
 #
 # Test sorting with a used key (there is no need for sorting)
 #
 
-select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
-select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
+select t2.fld3 FROM t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
+select fld1,fld3 FROM t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
 
 #
 # Search with a key with LIKE constant
 # If the like starts with a certain letter key will be used.
 #
 
-select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
-select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
-select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
-select fld1,fld3 from t2 where fld1 like "25050%";
-select fld1,fld3 from t2 where fld1 like "25050_";
+select fld1,fld3 FROM t2 where companynr = 37 and fld3 like 'f%';
+select fld3 FROM t2 where fld3 like "L%" and fld3 = "ok";
+select fld3 FROM t2 where (fld3 like "C%" and fld3 = "Chantilly");
+select fld1,fld3 FROM t2 where fld1 like "25050%";
+select fld1,fld3 FROM t2 where fld1 like "25050_";
 
 
 #
 # Test rename of table
 #
-create table t3 engine=archive select * from t2;
-select * from t3 where fld3='bonfire';
-select count(*) from t3;
+create table t3 engine=archive select * FROM t2;
+select * FROM t3 where fld3='bonfire';
+select count(*) FROM t3;
 # Clean up path in error message
 --replace_result $MYSQL_TEST_DIR . /var/master-data/ /
 rename table t3 to t4;
-select * from t4 where fld3='bonfire';
-select count(*) from t4;
+select * FROM t4 where fld3='bonfire';
+select count(*) FROM t4;
 
 # End of 4.1 tests
 
@@ -1351,10 +1351,58 @@ INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily',''
 # Adding test for alter table
 ALTER TABLE t2 DROP COLUMN fld6; 
 SHOW CREATE TABLE t2;
-SELECT * from t2;
+SELECT * FROM t2;
+
+
+# Adding tests for autoincrement
+# First the simple stuff
+
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b char(12),
+PRIMARY KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (32, "foo");
+INSERT INTO t5 VALUES (23, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+--error 1022
+INSERT INTO t5 VALUES (3, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+SELECT * FROM t5;
+
+DROP TABLE t5;
+
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b char(12),
+KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (32, "foo");
+INSERT INTO t5 VALUES (23, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (3, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+SELECT * FROM t5;
+
 # 
 # Cleanup, test is over
 #
 
 
-drop table t1, t2, t4;
+--disable_warnings
+drop table t1, t2, t4, t5;
+--enable_warnings
