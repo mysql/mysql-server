@@ -43,6 +43,7 @@ COLUMNS
 COLUMN_PRIVILEGES
 ENGINES
 KEY_COLUMN_USAGE
+PARTITIONS
 PLUGINS
 ROUTINES
 SCHEMATA
@@ -725,7 +726,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-104
+105
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -733,6 +734,9 @@ information_schema.columns
 where data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
+information_schema	PARTITIONS	PARTITION_EXPRESSION
+information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
+information_schema	PARTITIONS	PARTITION_DESCRIPTION
 information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	SQL_MODE
@@ -744,6 +748,9 @@ information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 table_name	column_name	data_type
+PARTITIONS	CREATE_TIME	datetime
+PARTITIONS	UPDATE_TIME	datetime
+PARTITIONS	CHECK_TIME	datetime
 ROUTINES	CREATED	datetime
 ROUTINES	LAST_ALTERED	datetime
 TABLES	CREATE_TIME	datetime
@@ -786,6 +793,7 @@ TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
+PARTITIONS	TABLE_NAME	select
 STATISTICS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
@@ -796,7 +804,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	18
+information_schema	19
 mysql	18
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row

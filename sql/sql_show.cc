@@ -27,6 +27,9 @@
 #include "authors.h"
 #include <my_dir.h>
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "ha_partition.h"
+#endif
 
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
@@ -3487,6 +3490,275 @@ static int get_schema_key_column_usage_record(THD *thd,
 }
 
 
+static void collect_partition_expr(List<char> &field_list, String *str)
+{
+  List_iterator<char> part_it(field_list);
+  ulong no_fields= field_list.elements;
+  const char *field_str;
+  str->length(0);
+  while ((field_str= part_it++))
+  {
+    str->append(field_str);
+    if (--no_fields != 0)
+      str->append(",");
+  }
+  return;
+}
+
+
+static void store_schema_partitions_record(THD *thd, TABLE *table,
+                                           partition_element *part_elem,
+                                           handler *file, uint part_id)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  PARTITION_INFO stat_info;
+  TIME time;
+  file->get_dynamic_partition_info(&stat_info, part_id);
+  table->field[12]->store((longlong) stat_info.records, TRUE);
+  table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
+  table->field[14]->store((longlong) stat_info.data_file_length, TRUE);
+  if (stat_info.max_data_file_length)
+  {
+    table->field[15]->store((longlong) stat_info.max_data_file_length, TRUE);
+    table->field[15]->set_notnull();
+  }
+  table->field[16]->store((longlong) stat_info.index_file_length, TRUE);
+  table->field[17]->store((longlong) stat_info.delete_length, TRUE);
+  if (stat_info.create_time)
+  {
+    thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                              stat_info.create_time);
+    table->field[18]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[18]->set_notnull();
+  }
+  if (stat_info.update_time)
+  {
+    thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                              stat_info.update_time);
+    table->field[19]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[19]->set_notnull();
+  }
+  if (stat_info.check_time)
+  {
+    thd->variables.time_zone->gmt_sec_to_TIME(&time, stat_info.check_time);
+    table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[20]->set_notnull();
+  }
+  if (file->table_flags() & (ulong) HA_HAS_CHECKSUM)
+  {
+    table->field[21]->store((longlong) stat_info.check_sum, TRUE);
+    table->field[21]->set_notnull();
+  }
+  if (part_elem)
+  {
+    if (part_elem->part_comment)
+      table->field[22]->store(part_elem->part_comment,
+                              strlen(part_elem->part_comment), cs);
+    else
+      table->field[22]->store(STRING_WITH_LEN("default"), cs);
+    if (part_elem->nodegroup_id != UNDEF_NODEGROUP)
+      table->field[23]->store((longlong) part_elem->nodegroup_id, TRUE);
+    else
+      table->field[23]->store(STRING_WITH_LEN("default"), cs);
+    if (part_elem->tablespace_name)
+      table->field[24]->store(part_elem->tablespace_name,
+                              strlen(part_elem->tablespace_name), cs);
+    else
+      table->field[24]->store(STRING_WITH_LEN("default"), cs);
+  }
+  return;
+}
+
+
+static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
+                                        TABLE *table, bool res,
+                                        const char *base_name,
+                                        const char *file_name)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  char buff[61];
+  String tmp_res(buff, sizeof(buff), cs);
+  String tmp_str;
+  TIME time;
+  TABLE *show_table= tables->table;
+  handler *file= show_table->file;
+  partition_info *part_info= show_table->part_info;
+  DBUG_ENTER("get_schema_partitions_record");
+
+  if (res)
+  {
+    if (part_info)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+
+  if (part_info)
+  {
+    partition_element *part_elem;
+    List_iterator<partition_element> part_it(part_info->partitions);
+    uint part_pos= 0, part_id= 0;
+    uint no_parts= part_info->no_parts;
+    handler *part_file;
+
+    restore_record(table, s->default_values);
+    table->field[1]->store(base_name, strlen(base_name), cs);
+    table->field[2]->store(file_name, strlen(file_name), cs);
+
+
+    /* Partition method*/
+    switch (part_info->part_type) {
+    case RANGE_PARTITION:
+      table->field[7]->store(partition_keywords[PKW_RANGE].str,
+                             partition_keywords[PKW_RANGE].length, cs);
+      break;
+    case LIST_PARTITION:
+      table->field[7]->store(partition_keywords[PKW_LIST].str,
+                             partition_keywords[PKW_LIST].length, cs);
+      break;
+    case HASH_PARTITION:
+      tmp_res.length(0);
+      if (part_info->linear_hash_ind)
+        tmp_res.append(partition_keywords[PKW_LINEAR].str,
+                       partition_keywords[PKW_LINEAR].length);
+      if (part_info->list_of_part_fields)
+        tmp_res.append(partition_keywords[PKW_KEY].str,
+                       partition_keywords[PKW_KEY].length);
+      else
+        tmp_res.append(partition_keywords[PKW_HASH].str, 
+                       partition_keywords[PKW_HASH].length);
+      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
+      break;
+    default:
+      DBUG_ASSERT(0);
+      current_thd->fatal_error();
+      DBUG_RETURN(1);
+    }
+    table->field[7]->set_notnull();
+
+    /* Partition expression */
+    if (part_info->part_expr)
+    {
+      table->field[9]->store(part_info->part_func_string,
+                             part_info->part_func_len, cs);
+      table->field[9]->set_notnull();
+    }
+    else if (part_info->list_of_part_fields)
+    {
+      collect_partition_expr(part_info->part_field_list, &tmp_str);
+      table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
+      table->field[9]->set_notnull();
+    }
+
+    if (is_sub_partitioned(part_info))
+    {
+      /* Subpartition method */
+      if (part_info->list_of_subpart_fields)
+        table->field[8]->store(partition_keywords[PKW_KEY].str,
+                               partition_keywords[PKW_KEY].length, cs);
+      else
+        table->field[8]->store(partition_keywords[PKW_HASH].str,
+                               partition_keywords[PKW_HASH].length, cs);
+      table->field[8]->set_notnull();
+
+      /* Subpartition expression */
+      if (part_info->subpart_expr)
+      {
+        table->field[10]->store(part_info->subpart_func_string,
+                                part_info->subpart_func_len, cs);
+        table->field[10]->set_notnull();
+      }
+      else if (part_info->list_of_subpart_fields)
+      {
+        collect_partition_expr(part_info->subpart_field_list, &tmp_str);
+        table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
+        table->field[10]->set_notnull();
+      }
+    }
+
+    while ((part_elem= part_it++))
+    {
+
+
+      table->field[3]->store(part_elem->partition_name,
+                             strlen(part_elem->partition_name), cs);
+      table->field[3]->set_notnull();
+      /* PARTITION_ORDINAL_POSITION */
+      table->field[5]->store((longlong) ++part_pos, TRUE);
+      table->field[5]->set_notnull();
+
+      /* Partition description */
+      if (part_info->part_type == RANGE_PARTITION)
+      {
+        if (part_elem->range_value != LONGLONG_MAX)
+          table->field[11]->store((longlong) part_elem->range_value, FALSE);
+        else
+          table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
+                                 partition_keywords[PKW_MAXVALUE].length, cs);
+        table->field[11]->set_notnull();
+      }
+      else if (part_info->part_type == LIST_PARTITION)
+      {
+        List_iterator<longlong> list_val_it(part_elem->list_val_list);
+        longlong *list_value;
+        uint no_items= part_elem->list_val_list.elements;
+        tmp_str.length(0);
+        tmp_res.length(0);
+        while ((list_value= list_val_it++))
+        {
+          tmp_res.set(*list_value, cs);
+          tmp_str.append(tmp_res);
+          if (--no_items != 0)
+            tmp_str.append(",");
+        };
+        table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
+        table->field[11]->set_notnull();
+      }
+
+      if (part_elem->subpartitions.elements)
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *subpart_elem;
+        uint subpart_pos= 0;
+
+        while ((subpart_elem= sub_it++))
+        {
+          table->field[4]->store(subpart_elem->partition_name,
+                                 strlen(subpart_elem->partition_name), cs);
+          table->field[4]->set_notnull();
+          /* SUBPARTITION_ORDINAL_POSITION */
+          table->field[6]->store((longlong) ++subpart_pos, TRUE);
+          table->field[6]->set_notnull();
+          
+          store_schema_partitions_record(thd, table, subpart_elem,
+                                         file, part_id);
+          part_id++;
+          if(schema_table_store_record(thd, table))
+            DBUG_RETURN(1);
+        }
+      }
+      else
+      {
+        store_schema_partitions_record(thd, table, part_elem,
+                                       file, part_id);
+        part_id++;
+        if(schema_table_store_record(thd, table))
+          DBUG_RETURN(1);
+      }
+    }
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    store_schema_partitions_record(thd, table, 0, file, 0);
+    if(schema_table_store_record(thd, table))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
 int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_open_tables");
@@ -4297,6 +4569,37 @@ ST_FIELD_INFO triggers_fields_info[]=
 };
 
 
+ST_FIELD_INFO partitions_fields_info[]=
+{
+  {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_SCHEMA",NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PARTITION_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SUBPARTITION_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"SUBPARTITION_ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"PARTITION_METHOD", 12, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SUBPARTITION_METHOD", 5, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SUBPARTITION_EXPRESSION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PARTITION_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"DATA_FREE", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"PARTITION_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"NODEGROUP", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 ST_FIELD_INFO variables_fields_info[]=
 {
   {"Variable_name", 80, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
@@ -4340,11 +4643,13 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
-        fill_schema_engines, make_old_format, 0, -1, -1, 0},
+   fill_schema_engines, make_old_format, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1},
+  {"PARTITIONS", partitions_fields_info, create_schema_table,
+   get_all_tables, 0, get_schema_partitions_record, 1, 2, 0},
   {"PLUGINS", plugin_fields_info, create_schema_table,
     fill_plugins, make_old_format, 0, -1, -1, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
