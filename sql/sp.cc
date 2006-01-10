@@ -480,7 +480,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 {
   int ret;
   TABLE *table;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char definer[USER_HOST_BUFF_SIZE];
   char olddb[128];
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
@@ -940,7 +940,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     ulong level;
     sp_head *new_sp;
     const char *returns= "";
-    char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+    char definer[USER_HOST_BUFF_SIZE];
     String retstr(64);
 
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
