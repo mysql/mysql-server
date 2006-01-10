@@ -73,7 +73,7 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
-static void refresh_status(void);
+static void refresh_status(THD *thd);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 
