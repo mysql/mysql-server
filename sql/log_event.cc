@@ -5043,7 +5043,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_table(tbl_arg),
     m_table_id(tid),
     m_width(tbl_arg->s->fields),
-    m_rows_buf(my_malloc(opt_binlog_rows_event_max_size * sizeof(*m_rows_buf), MYF(MY_WME))),
+    m_rows_buf((byte*)my_malloc(opt_binlog_rows_event_max_size * 
+      sizeof(*m_rows_buf), MYF(MY_WME))),
     m_rows_cur(m_rows_buf),
     m_rows_end(m_rows_buf + opt_binlog_rows_event_max_size),
     m_flags(0)
@@ -5100,18 +5101,19 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   m_flags= uint2korr(post_start);
 
-  byte const *const var_start= buf + common_header_len + post_header_len;
+  byte const *const var_start= (const byte *)buf + common_header_len + 
+    post_header_len;
   byte const *const ptr_width= var_start;
   byte const *const ptr_after_width= my_vle_decode(&m_width, ptr_width);
 
   const uint byte_count= (m_width + 7) / 8;
-  const char* const ptr_rows_data= var_start + byte_count + 1;
+  const byte* const ptr_rows_data= var_start + byte_count + 1;
 
   my_size_t const data_size= event_len - (ptr_rows_data - buf);
   DBUG_PRINT("info",("m_table_id=%lu, m_flags=%d, m_width=%u, data_size=%lu",
                      m_table_id, m_flags, m_width, data_size));
 
-  m_rows_buf= my_malloc(data_size, MYF(MY_WME));
+  m_rows_buf= (byte*)my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
     /* if bitmap_init fails, catched in is_valid() */
@@ -5135,7 +5137,7 @@ Rows_log_event::~Rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free(m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr)m_rows_buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 #ifndef MYSQL_CLIENT
@@ -5149,7 +5151,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   */
   DBUG_ENTER("Rows_log_event::do_add_row_data(byte *data, my_size_t length)");
   DBUG_PRINT("enter", ("row_data= %p, length= %lu", row_data, length));
-  DBUG_DUMP("row_data", row_data, min(length, 32));
+  DBUG_DUMP("row_data", (const char*)row_data, min(length, 32));
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(m_rows_buf <  m_rows_end);
@@ -5164,7 +5166,8 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
         old_alloc + block_size * (length / block_size + block_size - 1);
     my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
 
-    byte* const new_buf= my_realloc(m_rows_buf, new_alloc, MYF(MY_WME));
+    byte* const new_buf= 
+      (byte*)my_realloc((gptr)m_rows_buf, new_alloc, MYF(MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
@@ -5196,7 +5199,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
   record are left alone.
  */
 static char const *unpack_row(TABLE *table,
-                              char *record, char const *row,
+                              byte *record, char const *row,
                               MY_BITMAP const *cols)
 {
   DBUG_ASSERT(record && row);
@@ -5230,7 +5233,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
   DBUG_ENTER("Rows_log_event::exec_event(st_relay_log_info*)");
   DBUG_ASSERT(m_table_id != ULONG_MAX);
   int error= 0;
-  char const *row_start= m_rows_buf;
+  char const *row_start= (char const *)m_rows_buf;
   TABLE* table= rli->m_table_map.get_table(m_table_id);
 
   /*
@@ -5368,10 +5371,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     error= do_before_row_operations(table);
-    while (error == 0 && row_start < m_rows_end) {
+    while (error == 0 && row_start < (const char*)m_rows_end) {
       char const *row_end= do_prepare_row(thd, table, row_start);
       DBUG_ASSERT(row_end != NULL); // cannot happen
-      DBUG_ASSERT(row_end <= m_rows_end);
+      DBUG_ASSERT(row_end <= (const char*)m_rows_end);
 
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
@@ -5567,10 +5570,10 @@ bool Rows_log_event::write_data_body(IO_CACHE*file)
   byte sbuf[my_vle_sizeof(m_width)];
   my_ptrdiff_t const data_size= m_rows_cur - m_rows_buf;
 
-  char *const sbuf_end= my_vle_encode(sbuf, sizeof(sbuf), m_width);
-  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - sbuf) <= sizeof(sbuf));
+  char *const sbuf_end= (char *const)my_vle_encode(sbuf, sizeof(sbuf), m_width);
+  DBUG_ASSERT(static_cast<my_size_t>(sbuf_end - (char *const)sbuf) <= sizeof(sbuf));
 
-  return (my_b_safe_write(file, sbuf, sbuf_end - sbuf) ||
+  return (my_b_safe_write(file, sbuf, sbuf_end - (char *const)sbuf) ||
           my_b_safe_write(file, reinterpret_cast<byte*>(m_cols.bitmap),
                           no_bytes_in_map(&m_cols)) ||
           my_b_safe_write(file, m_rows_buf, data_size));
@@ -5688,7 +5691,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   const char *const vpart= buf + common_header_len + post_header_len;
 
   /* Extract the length of the various parts from the buffer */
-  byte const* const ptr_dblen= vpart + 0;
+  byte const* const ptr_dblen= (byte const*)vpart + 0;
   m_dblen= *(unsigned char*) ptr_dblen;
 
   /* Length of database name + counter + terminating null */
@@ -5700,8 +5703,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   byte const* const ptr_after_colcnt= my_vle_decode(&m_colcnt, ptr_colcnt);
 
   DBUG_PRINT("info",("m_dblen=%d off=%d m_tbllen=%d off=%d m_colcnt=%d off=%d",
-                     m_dblen, ptr_dblen-vpart, m_tbllen, ptr_tbllen-vpart,
-                     m_colcnt, ptr_colcnt-vpart));
+                     m_dblen, ptr_dblen-(const byte*)vpart, 
+                     m_tbllen, ptr_tbllen-(const byte*)vpart,
+                     m_colcnt, ptr_colcnt-(const byte*)vpart));
 
   /* Allocate mem for all fields in one go. If fails, catched in is_valid() */
   m_memory= my_multi_malloc(MYF(MY_WME),
@@ -5713,8 +5717,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   if (m_memory)
   {
     /* Copy the different parts into their memory */
-    strncpy(const_cast<char*>(m_dbnam),  ptr_dblen  + 1, m_dblen + 1);
-    strncpy(const_cast<char*>(m_tblnam), ptr_tbllen + 1, m_tbllen + 1);
+    strncpy(const_cast<char*>(m_dbnam), (const char*)ptr_dblen  + 1, m_dblen + 1);
+    strncpy(const_cast<char*>(m_tblnam), (const char*)ptr_tbllen + 1, m_tbllen + 1);
     memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
   }
 
@@ -6015,9 +6019,9 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
           my_b_safe_write(file, m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
-          my_b_safe_write(file, m_tblnam,  m_tbllen+1) ||
+          my_b_safe_write(file, (const byte*)m_tblnam,  m_tbllen+1) ||
           my_b_safe_write(file, cbuf,      cbuf_end - cbuf) ||
-          my_b_safe_write(file, reinterpret_cast<char*>(m_coltype), m_colcnt));
+          my_b_safe_write(file, reinterpret_cast<byte*>(m_coltype), m_colcnt));
  }
 #endif
 
@@ -6145,7 +6149,7 @@ char const *Write_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
   DBUG_ASSERT(ptr);
-  ptr= unpack_row(table, table->record[0], ptr, &m_cols);
+  ptr= unpack_row(table, (char*)table->record[0], ptr, &m_cols);
   return ptr;
 }
 
@@ -6252,8 +6256,9 @@ replace_record(THD *thd, TABLE *table)
           return ENOMEM;
       }
 
-      key_copy(key.get(), table->record[0], table->key_info + keynum, 0);
-      error= table->file->index_read_idx(table->record[1], keynum, key.get(),
+      key_copy((byte*)key.get(), table->record[0], table->key_info + keynum, 0);
+      error= table->file->index_read_idx(table->record[1], keynum, 
+                                         (const byte*)key.get(),
                                          table->key_info[keynum].key_length,
                                          HA_READ_KEY_EXACT);
       if (error)
@@ -6321,12 +6326,13 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 **************************************************************************/
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-static int record_compare(TABLE *table, byte const *a, byte const *b)
+static int record_compare(TABLE *table, char const *a, char const *b)
 {
   for (my_size_t i= 0 ; i < table->s->fields ; ++i)
   {
     uint const off= table->field[i]->offset();
-    uint const res= table->field[i]->cmp_binary(a + off, b + off);
+    uint const res= table->field[i]->cmp_binary(a + off, 
+                                                b + off);
     if (res != 0) {
       return res;
     }
@@ -6395,7 +6401,7 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
     if (table->key_info->flags & HA_NOSAME)
       DBUG_RETURN(0);
 
-    while (record_compare(table, table->record[0], record_buf) != 0)
+    while (record_compare(table, (const char*)table->record[0], (const char*)record_buf) != 0)
     {
       int error;
       if ((error= table->file->index_next(record_buf)))
@@ -6430,7 +6436,8 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
       }
     }
     while (restart_count < 2 &&
-           record_compare(table, table->record[0], record_buf) != 0);
+           record_compare(table, (const char*)table->record[0], 
+                          (const char*)record_buf) != 0);
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -6500,7 +6507,8 @@ int Delete_rows_log_event::do_before_row_operations(TABLE *table)
   }
   else
   {
-    m_memory= m_search_record= my_malloc(table->s->reclength, MYF(MY_WME));
+    m_search_record= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
+    m_memory= (gptr)m_search_record;
     m_key= NULL;
   }
   if (!m_memory)
@@ -6526,7 +6534,9 @@ int Delete_rows_log_event::do_after_row_operations(TABLE *table, int error)
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
-  m_memory= m_search_record= m_key= NULL;
+  m_memory= NULL;
+  m_search_record= NULL;
+  m_key= NULL;
 
   return error;
 }
@@ -6657,7 +6667,8 @@ int Update_rows_log_event::do_before_row_operations(TABLE *table)
   }
   else
   {
-    m_memory= m_search_record= my_malloc(table->s->reclength, MYF(MY_WME));
+    m_search_record= (byte*)my_malloc(table->s->reclength, MYF(MY_WME));
+    m_memory= (gptr)m_search_record;
     m_key= NULL;
   }
   if (!m_memory)
@@ -6684,7 +6695,9 @@ int Update_rows_log_event::do_after_row_operations(TABLE *table, int error)
   /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
   table->file->ha_index_or_rnd_end();
   my_free(m_memory, MYF(MY_ALLOW_ZERO_PTR));
-  m_memory= m_search_record= m_key= NULL;
+  m_memory= NULL;
+  m_search_record= NULL;
+  m_key= NULL;
 
   return error;
 }
