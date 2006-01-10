@@ -4,13 +4,13 @@ Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
 ) ENGINE=archive;
 INSERT INTO t1 VALUES (9410,9412);
-select period from t1;
+select period FROM t1;
 period
 9410
-select * from t1;
+select * FROM t1;
 Period	Varor_period
 9410	9412
-select t1.* from t1;
+select t1.* FROM t1;
 Period	Varor_period
 9410	9412
 CREATE TABLE t2 (
@@ -22,13 +22,13 @@ fld4 char(35) DEFAULT '' NOT NULL,
 fld5 char(35) DEFAULT '' NOT NULL,
 fld6 char(4) DEFAULT '' NOT NULL
 ) ENGINE=archive;
-select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
+select t2.fld3 FROM t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
-select fld3 from t2 where fld3 like "%cultivation" ;
+select fld3 FROM t2 where fld3 like "%cultivation" ;
 fld3
 cultivation
-select t2.fld3,companynr from t2 where companynr = 57+1 order by fld3;
+select t2.fld3,companynr FROM t2 where companynr = 57+1 order by fld3;
 fld3	companynr
 concoct	58
 druggists	58
@@ -53,7 +53,7 @@ synergy	58
 thanking	58
 tying	58
 unlocks	58
-select fld3,companynr from t2 where companynr = 58 order by fld3;
+select fld3,companynr FROM t2 where companynr = 58 order by fld3;
 fld3	companynr
 concoct	58
 druggists	58
@@ -78,7 +78,7 @@ synergy	58
 thanking	58
 tying	58
 unlocks	58
-select fld3 from t2 order by fld3 desc limit 10;
+select fld3 FROM t2 order by fld3 desc limit 10;
 fld3
 youthfulness
 yelped
@@ -90,49 +90,49 @@ Winsett
 Willy
 willed
 wildcats
-select fld3 from t2 order by fld3 desc limit 5;
+select fld3 FROM t2 order by fld3 desc limit 5;
 fld3
 youthfulness
 yelped
 Wotan
 workers
 Witt
-select fld3 from t2 order by fld3 desc limit 5,5;
+select fld3 FROM t2 order by fld3 desc limit 5,5;
 fld3
 witchcraft
 Winsett
 Willy
 willed
 wildcats
-select t2.fld3 from t2 where fld3 = 'honeysuckle';
+select t2.fld3 FROM t2 where fld3 = 'honeysuckle';
 fld3
 honeysuckle
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckl_';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckl_';
 fld3
 honeysuckle
-select t2.fld3 from t2 where fld3 LIKE 'hon_ysuckl_';
+select t2.fld3 FROM t2 where fld3 LIKE 'hon_ysuckl_';
 fld3
 honeysuckle
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckle%';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckle%';
 fld3
 honeysuckle
-select t2.fld3 from t2 where fld3 LIKE 'h%le';
+select t2.fld3 FROM t2 where fld3 LIKE 'h%le';
 fld3
 honeysuckle
-select t2.fld3 from t2 where fld3 LIKE 'honeysuckle_';
+select t2.fld3 FROM t2 where fld3 LIKE 'honeysuckle_';
 fld3
-select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
+select t2.fld3 FROM t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
-select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
+select t2.fld3 FROM t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 fld3
 honeysuckle
 honoring
-select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
+select fld1,fld3 FROM t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
 fld1	fld3
 148504	Colombo
 068305	Colombo
 000000	nondecreasing
-select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
+select fld1,fld3 FROM t2 where companynr = 37 and fld3 like 'f%';
 fld1	fld3
 012001	flanking
 013602	foldout
@@ -165,37 +165,37 @@ fld1	fld3
 232102	forgivably
 238007	filial
 238008	fixedly
-select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
+select fld3 FROM t2 where fld3 like "L%" and fld3 = "ok";
 fld3
-select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
+select fld3 FROM t2 where (fld3 like "C%" and fld3 = "Chantilly");
 fld3
 Chantilly
-select fld1,fld3 from t2 where fld1 like "25050%";
+select fld1,fld3 FROM t2 where fld1 like "25050%";
 fld1	fld3
 250501	poisoning
 250502	Iraqis
 250503	heaving
 250504	population
 250505	bomb
-select fld1,fld3 from t2 where fld1 like "25050_";
+select fld1,fld3 FROM t2 where fld1 like "25050_";
 fld1	fld3
 250501	poisoning
 250502	Iraqis
 250503	heaving
 250504	population
 250505	bomb
-create table t3 engine=archive select * from t2;
-select * from t3 where fld3='bonfire';
+create table t3 engine=archive select * FROM t2;
+select * FROM t3 where fld3='bonfire';
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t3;
+select count(*) FROM t3;
 count(*)
 1199
 rename table t3 to t4;
-select * from t4 where fld3='bonfire';
+select * FROM t4 where fld3='bonfire';
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1191	068504	00	bonfire	corresponds	positively	
-select count(*) from t4;
+select count(*) FROM t4;
 count(*)
 1199
 INSERT INTO t2 VALUES (1,000001,00,'Omaha','teethe','neat','');
@@ -11130,7 +11130,7 @@ t2	CREATE TABLE `t2` (
   `fld4` char(35) NOT NULL default '',
   `fld5` char(35) NOT NULL default ''
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
-SELECT * from t2;
+SELECT * FROM t2;
 auto	fld1	companynr	fld3	fld4	fld5
 1	000001	00	Omaha	teethe	neat
 2	011401	37	breaking	dreaded	Steinberg
@@ -12346,4 +12346,63 @@ auto	fld1	companynr	fld3	fld4	fld5
 3	011402	37	Romans	scholastics	jarring
 4	011403	37	intercepted	audiology	tinily
 4	011403	37	intercepted	audiology	tinily
-drop table t1, t2, t4;
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b char(12),
+PRIMARY KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (32, "foo");
+INSERT INTO t5 VALUES (23, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (3, "foo");
+ERROR 23000: Can't write; duplicate key in table 't5'
+INSERT INTO t5 VALUES (0, "foo");
+SELECT * FROM t5;
+a	b
+1	foo
+2	foo
+3	foo
+4	foo
+5	foo
+32	foo
+23	foo
+33	foo
+34	foo
+35	foo
+DROP TABLE t5;
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b char(12),
+KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (32, "foo");
+INSERT INTO t5 VALUES (23, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (3, "foo");
+INSERT INTO t5 VALUES (0, "foo");
+SELECT * FROM t5;
+a	b
+1	foo
+2	foo
+3	foo
+4	foo
+5	foo
+32	foo
+23	foo
+33	foo
+34	foo
+3	foo
+35	foo
+drop table t1, t2, t4, t5;

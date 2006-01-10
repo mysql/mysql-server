@@ -599,7 +599,6 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     {
       Field *field= key_part->field;
 
-    DBUG_PRINT("info", ("Looking at field  index%s", field->field_name));
       if (!(field->flags & AUTO_INCREMENT_FLAG))
       {
         error= -1;
@@ -720,8 +719,6 @@ int ha_archive::write_row(byte *buf)
     KEY *mkey= &table->s->key_info[0]; // We only support one key right now
     update_auto_increment();
     temp_auto= table->next_number_field->val_int();
-    DBUG_PRINT("info", ("archive would see %d and %d", 
-                        temp_auto, share->auto_increment_value));
 
     /*
       Bad news, this will cause a search for the unique value which is very 
@@ -765,13 +762,15 @@ int ha_archive::write_row(byte *buf)
       /*
         Now we read and check all of the rows.
         if (!memcmp(table->next_number_field->ptr, mfield->ptr, mfield->max_length()))
+        if ((longlong)temp_auto == 
+            mfield->val_int((char*)(read_buf + mfield->offset())))
       */
       Field *mfield= table->next_number_field;
 
       while (!(get_row(&archive, read_buf)))
       {
-        if ((longlong)temp_auto == 
-            mfield->val_int((char*)(read_buf + mfield->offset())))
+        if (!memcmp(read_buf + mfield->offset(), table->next_number_field->ptr,
+                    mfield->max_length()))
         {
           rc= HA_ERR_FOUND_DUPP_KEY;
           goto error;
@@ -780,7 +779,8 @@ int ha_archive::write_row(byte *buf)
     }
     else
     {
-      auto_increment_value= share->auto_increment_value= temp_auto;
+      if (temp_auto > share->auto_increment_value)
+        auto_increment_value= share->auto_increment_value= temp_auto;
     }
   }
 
@@ -802,7 +802,7 @@ error:
 
 ulonglong ha_archive::get_auto_increment()
 {
-  return auto_increment_value= ++share->auto_increment_value;
+  return share->auto_increment_value + 1;
 }
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
