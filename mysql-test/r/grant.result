@@ -615,3 +615,12 @@ show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 set names latin1;
+create user mysqltest_7@;
+set password for mysqltest_7@ = password('systpass');
+show grants for mysqltest_7@;
+Grants for mysqltest_7@
+GRANT USAGE ON *.* TO 'mysqltest_7'@'' IDENTIFIED BY PASSWORD '*2FB071A056F9BB745219D9C876814231DAF46517'
+drop user mysqltest_7@;
+flush privileges;
+show grants for mysqltest_7@;
+ERROR 42000: There is no such grant defined for user 'mysqltest_7' on host ''
