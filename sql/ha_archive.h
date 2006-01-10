@@ -18,6 +18,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <values.h>
 #include <zlib.h>
 #include "../storage/archive/azlib.h"
 
@@ -38,13 +39,14 @@ typedef struct st_archive_share {
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
+  ulonglong auto_increment_value;
 } ARCHIVE_SHARE;
 
 /*
   Version for file format.
   1 - Initial Version
 */
-#define ARCHIVE_VERSION 1
+#define ARCHIVE_VERSION 2
 
 class ha_archive: public handler
 {
@@ -68,13 +70,22 @@ public:
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_AUTO_INCREMENT |
+    return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT |
             HA_FILE_BASED | HA_CAN_INSERT_DELAYED | HA_CAN_GEOMETRY);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {
-    return 0;
+    return HA_ONLY_WHOLE_INDEX;
   }
+  ulonglong get_auto_increment();
+  uint max_supported_keys()          const { return 1; }
+  uint max_supported_key_length()    const { return sizeof(ulonglong); }
+  uint max_supported_key_part_length() const { return sizeof(ulonglong); }
+  int index_init(uint keynr, bool sorted);
+  virtual int index_read(byte * buf, const byte * key,
+			 uint key_len, enum ha_rkey_function find_flag);
+  virtual int index_read_idx(byte * buf, uint index, const byte * key,
+			     uint key_len, enum ha_rkey_function find_flag);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
@@ -84,8 +95,9 @@ public:
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   int get_row(azio_stream *file_to_read, byte *buf);
-  int read_meta_file(File meta_file, ha_rows *rows);
-  int write_meta_file(File meta_file, ha_rows rows, bool dirty);
+  int read_meta_file(File meta_file, ha_rows *rows, ulonglong *auto_increment);
+  int write_meta_file(File meta_file, ha_rows rows, 
+                      ulonglong auto_increment, bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table);
   int free_share(ARCHIVE_SHARE *share);
   bool auto_repair() const { return 1; } // For the moment we just do this
