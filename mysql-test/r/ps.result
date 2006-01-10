@@ -533,13 +533,13 @@ SET @aux= "SELECT COUNT(*)
 prepare my_stmt from @aux;
 execute my_stmt;
 COUNT(*)
-37
+38
 execute my_stmt;
 COUNT(*)
-37
+38
 execute my_stmt;
 COUNT(*)
-37
+38
 deallocate prepare my_stmt;
 drop procedure if exists p1|
 drop table if exists t1|

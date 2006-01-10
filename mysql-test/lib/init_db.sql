@@ -22,6 +22,7 @@ CREATE TABLE db (
   Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db,User),
   KEY User (User)
 ) engine=MyISAM
@@ -29,8 +30,8 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Database privileges';
 
   
-INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');
-INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');
+INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');
+INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');
 
 
 CREATE TABLE host (
@@ -89,6 +90,7 @@ CREATE TABLE user (
   Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   ssl_cipher BLOB NOT NULL,
   x509_issuer BLOB NOT NULL,
@@ -103,9 +105,9 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Users and global privileges';
 
 
-INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 INSERT  INTO user (host,user) VALUES ('localhost','');
 INSERT  INTO user (host,user) VALUES ('@HOSTNAME@%','');
 
@@ -566,3 +568,29 @@ CREATE TABLE proc (
   comment           char(64) collate utf8_bin DEFAULT '' NOT NULL,
   PRIMARY KEY (db,name,type)
 ) character set utf8 comment='Stored Procedures';
+
+
+CREATE TABLE event (
+  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  body longblob NOT NULL,
+  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  execute_at DATETIME default NULL,
+  interval_value int(11) default NULL,
+  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
+                       'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
+                       'DAY_MINUTE','DAY_SECOND',
+                       'HOUR_MINUTE','HOUR_SECOND',
+                       'MINUTE_SECOND','DAY_MICROSECOND',
+                       'HOUR_MICROSECOND','MINUTE_MICROSECOND',
+                       'SECOND_MICROSECOND') default NULL,
+  created TIMESTAMP NOT NULL,
+  modified TIMESTAMP NOT NULL,
+  last_executed DATETIME default NULL,
+  starts DATETIME default NULL,
+  ends DATETIME default NULL,
+  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
+  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  PRIMARY KEY  (db,name)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';

@@ -807,6 +807,18 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 }
 
 
+ /*
+  Works like sec_since_epoch but expects TIME structure as parameter.
+*/
+
+my_time_t
+sec_since_epoch_TIME(TIME *t)
+{
+  return sec_since_epoch(t->year, t->month, t->day,
+                         t->hour, t->minute, t->second);
+}
+
+
 /*
   Converts local time in broken down TIME representation to my_time_t
   representation.

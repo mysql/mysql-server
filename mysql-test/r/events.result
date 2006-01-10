@@ -1,0 +1,21 @@
+use test;
+drop event if exists event1;
+Warnings:
+Note	1305	Event event1 does not exist
+create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
+alter event event1 rename to event2;
+alter event event2 disabled;
+drop event event2;
+create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
+drop event event2;
+create table t_event3 (a int, b float);
+drop event if exists event3;
+Warnings:
+Note	1305	Event event3 does not exist
+create event event3 on schedule every 50 + 10 minute starts date_add("20010101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+set max_allowed_packet=128000000;
+select count(*) from t_event3;
+count(*)
+0
+drop event event3;
+drop table t_event3;

@@ -526,3 +526,42 @@ ALTER TABLE proc  MODIFY db
                          char(77) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
+
+#
+# EVENT table
+#
+
+
+CREATE TABLE event (
+  db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  body longblob NOT NULL,
+  definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  execute_at DATETIME default NULL,
+  interval_value int(11) default NULL,
+  interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',
+                       'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',
+                       'DAY_MINUTE','DAY_SECOND',
+                       'HOUR_MINUTE','HOUR_SECOND',
+                       'MINUTE_SECOND','DAY_MICROSECOND',
+                       'HOUR_MICROSECOND','MINUTE_MICROSECOND',
+                       'SECOND_MICROSECOND') default NULL,
+  created TIMESTAMP NOT NULL,
+  modified TIMESTAMP NOT NULL,
+  last_executed DATETIME default NULL,
+  starts DATETIME default NULL,
+  ends DATETIME default NULL,
+  status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
+  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  PRIMARY KEY  (db,name)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
+
+
+#
+# EVENT privilege
+#
+
+ALTER TABLE mysql.user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
+ALTER TABLE mysql.db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
+
