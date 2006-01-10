@@ -4207,7 +4207,7 @@ static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     val_len = strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
-						 + name_len, MYF(MY_WME))))
+						 + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
   tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
