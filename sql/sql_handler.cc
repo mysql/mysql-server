@@ -437,9 +437,14 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!lock)
     goto err0; // mysql_lock_tables() printed error message already
 
-  if (cond && ((!cond->fixed &&
-              cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1)))
-    goto err0;
+  if (cond)
+  {
+    if (table->query_id != thd->query_id)
+      cond->cleanup();                          // File was reopened
+    if ((!cond->fixed &&
+         cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1))
+      goto err0;
+  }
 
   if (keyname)
   {
