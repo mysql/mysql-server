@@ -22,7 +22,7 @@
 
 target = libmysqlclient_r.la
 target_defs = -DDONT_USE_RAID -DMYSQL_CLIENT @LIB_EXTRA_CCFLAGS@
-LIBS = @LIBS@ @ZLIB_LIBS@ @openssl_libs@ @yassl_libs@
+LIBS = @LIBS@ @ZLIB_LIBS@ @openssl_libs@
 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 		$(openssl_includes) $(yassl_includes) @ZLIB_INCLUDES@
@@ -32,7 +32,7 @@ include $(top_srcdir)/libmysql/Makefile.shared
 libmysql_dir = $(top_srcdir)/libmysql
 
 libmysqlclient_r_la_SOURCES = $(target_sources)
-libmysqlclient_r_la_LIBADD = $(target_libadd)
+libmysqlclient_r_la_LIBADD = $(target_libadd) $(yassl_libs_with_path)
 libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
 
 # This is called from the toplevel makefile
