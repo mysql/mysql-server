@@ -18,6 +18,11 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+enum partition_keywords
+{ 
+  PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR
+};
+
 /*
   PARTITION_SHARE is a structure that will be shared amoung all open handlers
   The partition implements the minimum of what you will probably need.
@@ -408,6 +413,8 @@ public:
     -------------------------------------------------------------------------
   */
   virtual void info(uint);
+  void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+                                  uint part_id);
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);

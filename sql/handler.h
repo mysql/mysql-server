@@ -494,6 +494,19 @@ enum partition_state {
   PART_ADDED= 6
 };
 
+typedef struct {
+  ulonglong data_file_length;
+  ulonglong max_data_file_length;
+  ulonglong index_file_length;
+  ulonglong delete_length;
+  ha_rows records;
+  ulong mean_rec_length;
+  time_t create_time;
+  time_t check_time;
+  time_t update_time;
+  ulonglong check_sum;
+} PARTITION_INFO;
+
 #define UNDEF_NODEGROUP 65535
 class Item;
 
@@ -1229,6 +1242,8 @@ public:
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
   virtual void info(uint)=0; // see my_base.h for full description
+  virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
+                                          uint part_id);
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
