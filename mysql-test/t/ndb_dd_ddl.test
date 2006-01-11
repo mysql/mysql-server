@@ -1,0 +1,257 @@
+#########################################
+# Author: JBM
+# Date: 2006-01-03
+# Purpose: Test the NDB engine reaction to duplicate
+#          Table spaces and log groups. Also to test 
+#          Statement mixed case.
+############################################
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+############## Duplcate Statement Testing #########
+
+--echo **** Begin Duplicate Statement Testing ****
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+--error 1502
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 4M ENGINE NDB;
+
+--error 1507
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 4M ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+--error 1502 # Bug 16158
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+# Currently a bug, bug#16158
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+--error 1507 # Currently a bug, bug#16158
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 12M
+ENGINE=NDB;
+
+CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+tablespace ts1 storage disk
+engine ndb;
+
+--error 1050
+CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+tablespace ts1 storage disk
+engine ndb;
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat' 
+ENGINE=NDB;
+
+--error 1507
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat' 
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat' 
+ENGINE=NDB;
+
+--error 1507
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat' 
+ENGINE=NDB;
+
+DROP TABLESPACE ts1 
+ENGINE=NDB;
+
+--error 1503
+DROP TABLESPACE ts1 
+ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1 
+ENGINE=NDB;
+
+--error 1503
+DROP LOGFILE GROUP lg1 
+ENGINE=NDB;
+--echo **** End Duplicate Statement Testing ****
+############# End Duplicate Statments ############
+--echo
+############ Begin CaSe Testing ##################
+--echo **** Begin Statment CaSe Testing ****
+
+creaTE LOgfilE GrOuP lg1
+adD undoFILE 'undofile.dat'
+initiAL_siZE 16M
+UnDo_BuFfEr_SiZe = 1M
+ENGInE=NDb;
+
+altER LOgFiLE GrOUp lg1
+AdD UnDOfILe 'undofile02.dat'
+INItIAl_SIzE 4M ENgINE nDB;
+
+CrEAtE TABLEspaCE ts1
+ADD DATAfilE 'datafile.dat'
+UsE LoGFiLE GRoUP lg1
+INITiaL_SizE 12M
+ENGiNe NDb;
+
+AlTeR tAbLeSpAcE ts1
+AdD DaTaFiLe 'datafile2.dat'
+InItIaL_SiZe 12M
+EnGiNe=NDB;
+
+CREATE TABLE t1
+(pk1 int not null primary key, b int not null, c int not null)
+TABLEspace ts1 storAGE dISk
+ENGine nDb;
+
+DROP TABLE t1;
+
+AlteR TAblespaCE ts1
+droP DATAfile 'datafile2.dat' 
+ENGINE=NDB;
+
+ALter tablesPACE ts1
+dROp dAtAfIlE 'datafile.dat' 
+ENGine=Ndb;
+
+DrOp TaBleSpAcE ts1 
+engINE=ndB;
+
+DrOp lOgFiLe GrOuP lg1 
+EnGiNe=nDb;
+
+--echo **** End Statment CaSe Testing ****
+############ End CaSe Testing ##################
+--echo
+############ Begin = and no = Testing ##########
+--echo **** Begin = And No = Testing ****
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE=16M
+UNDO_BUFFER_SIZE=1M
+ENGINE=NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE=4M 
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE=12M
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE=12M
+ENGINE=NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat'
+ENGINE=NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE=NDB;
+
+DROP TABLESPACE ts1
+ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+
+--echo
+--echo **** End of = ****
+--echo
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE 1M
+ENGINE NDB;
+
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE 4M
+ENGINE NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile2.dat'
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE NDB;
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile2.dat'
+ENGINE NDB;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+
+DROP TABLESPACE ts1
+ENGINE NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+
+--echo **** End = And No =  ****
+############ End = And No = ##################
+
+# End 5.1 test
+
