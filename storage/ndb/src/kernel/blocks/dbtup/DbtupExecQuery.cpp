@@ -293,6 +293,9 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
   regOperPtr.p->m_undo_buffer_space= 0;
   req_struct->m_tuple_ptr->m_operation_ptr_i= regOperPtr.i;
   if (prevOpPtr.i == RNIL) {
+    set_change_mask_state(regOperPtr.p, USE_SAVED_CHANGE_MASK);
+    regOperPtr.p->saved_change_mask[0] = 0;
+    regOperPtr.p->saved_change_mask[1] = 0;
     return true;
   } else {
     req_struct->prevOpPtr.p= prevOpPtr.p= c_operation_pool.getPtr(prevOpPtr.i);
@@ -303,7 +306,10 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 
       prevOpPtr.p->op_struct.m_load_diskpage_on_commit;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
-    regOperPtr.p->m_mask = prevOpPtr.p->m_mask;
+    // start with prev mask (matters only for UPD o UPD)
+    set_change_mask_state(regOperPtr.p, get_change_mask_state(prevOpPtr.p));
+    regOperPtr.p->saved_change_mask[0] = prevOpPtr.p->saved_change_mask[0];
+    regOperPtr.p->saved_change_mask[1] = prevOpPtr.p->saved_change_mask[1];
 
     prevOpPtr.p->op_struct.m_wait_log_buffer= 0;
     prevOpPtr.p->op_struct.m_load_diskpage_on_commit= 0;
