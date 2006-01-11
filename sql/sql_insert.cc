@@ -1589,22 +1589,10 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
   if (thd->killed || !(row= new delayed_row(duplic, ignore, log_on)))
     goto err;
 
-#if 0
-  if (!query)
-    query_length=0;
-#endif
   if (!(row->record= (char*) my_malloc(table->s->reclength, MYF(MY_WME))))
     goto err;
   memcpy(row->record, table->record[0], table->s->reclength);
   di->set_query(query, query_length);
-#if 0
-  if (query_length)
-  {
-    row->query= row->record+table->s->reclength;
-    memcpy(row->query,query,query_length+1);
-  }
-  row->query_length=		query_length;
-#endif
   row->start_time=		thd->start_time;
   row->query_start_used=	thd->query_start_used;
   row->last_insert_id_used=	thd->last_insert_id_used;
@@ -1931,18 +1919,6 @@ bool delayed_insert::handle_inserts(void)
   bool using_ignore=0,
     using_bin_log= mysql_bin_log.is_open();
 
-#if 0
-  /*
-    The actual text for the query is added to the first row in the
-    list.  Since the row is destroyed, with all it's memory, we need
-    to take a copy of it to be able to log it after all rows have been
-    applied.
-  */
-  uint const query_length= rows.head()->query_length;
-  char *const query= static_cast<char*>(my_alloca(query_length+1));
-  memcpy(query, rows.head()->query, query_length);
-#endif
-
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
@@ -2060,7 +2036,8 @@ bool delayed_insert::handle_inserts(void)
   pthread_mutex_unlock(&mutex);
 
   /* After releasing the mutex, to prevent deadlocks. */
-  thd.binlog_query(THD::ROW_QUERY_TYPE, query, query_length, FALSE, FALSE);
+  if (mysql_bin_log.is_open())
+    thd.binlog_query(THD::ROW_QUERY_TYPE, query, query_length, FALSE, FALSE);
 
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen

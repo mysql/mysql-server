@@ -20,7 +20,7 @@ libkernel_a_SOURCES = \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
 	SuperPool.cpp \
-	ndbd_malloc.cpp
+	ndbd_malloc.cpp ndbd_malloc_impl.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
@@ -43,3 +43,12 @@ libkernel.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libkernel_a_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
+
+EXTRA_PROGRAMS = ndbd_malloc_impl_test
+ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
+ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
+ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysys.a \
+  $(top_builddir)/dbug/libdbug.a \
+  $(top_builddir)/strings/libmystrings.a

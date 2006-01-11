@@ -353,7 +353,9 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::LogfileGroup:{
     FilegroupPtr fg_ptr;
     ndbrequire(c_filegroup_hash.find(fg_ptr, tableId));
-    packFilegroupIntoPages(w, fg_ptr);
+    const Uint32 free_hi= signal->theData[4];
+    const Uint32 free_lo= signal->theData[5];
+    packFilegroupIntoPages(w, fg_ptr, free_hi, free_lo);
     break;
   }
   case DictTabInfo::Datafile:{
@@ -420,7 +422,13 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::NoOfVariable, (Uint32)0);
   w.add(DictTabInfo::KeyLength, tablePtr.p->tupKeyLength);
   
-  w.add(DictTabInfo::TableLoggedFlag, tablePtr.p->storedTable);
+  w.add(DictTabInfo::TableLoggedFlag, 
+	!!(tablePtr.p->m_bits & TableRecord::TR_Logged));
+  w.add(DictTabInfo::RowGCIFlag, 
+	!!(tablePtr.p->m_bits & TableRecord::TR_RowGCI));
+  w.add(DictTabInfo::RowChecksumFlag, 
+	!!(tablePtr.p->m_bits & TableRecord::TR_RowChecksum));
+  
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
@@ -532,7 +540,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
 void
 Dbdict::packFilegroupIntoPages(SimpleProperties::Writer & w,
-			       FilegroupPtr fg_ptr){
+			       FilegroupPtr fg_ptr,
+			       const Uint32 undo_free_hi,
+			       const Uint32 undo_free_lo){
   
   DictFilegroupInfo::Filegroup fg; fg.init();
   ConstRope r(c_rope_pool, fg_ptr.p->m_name);
@@ -553,6 +563,8 @@ Dbdict::packFilegroupIntoPages(SimpleProperties::Writer & w,
     break;
   case DictTabInfo::LogfileGroup:
     fg.LF_UndoBufferSize = fg_ptr.p->m_logfilegroup.m_undo_buffer_size;
+    fg.LF_UndoFreeWordsHi= undo_free_hi;
+    fg.LF_UndoFreeWordsLo= undo_free_lo;
     //fg.LF_UndoGrow = ;
     break;
   default:
@@ -1794,7 +1806,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->minLoadFactor = 70;
   tablePtr.p->noOfPrimkey = 1;
   tablePtr.p->tupKeyLength = 1;
-  tablePtr.p->storedTable = true;
+  tablePtr.p->m_bits = 0;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
   // volatile elements
@@ -2309,7 +2321,7 @@ Dbdict::rebuildIndexes(Signal* signal, Uint32 i){
     req->setParallelism(16);
 
     // from file index state is not defined currently
-    if (indexPtr.p->storedTable) {
+    if (indexPtr.p->m_bits & TableRecord::TR_Logged) {
       // rebuild not needed
       req->addRequestFlag((Uint32)RequestFlag::RF_NOBUILD);
     }
@@ -2978,6 +2990,26 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
       signal->theData[3]= data;
       signal->theData[4]= free_extents;
       sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
+    }
+    else if(refToBlock(conf->senderRef) == LGMAN
+	    && (refToNode(conf->senderRef) == 0
+		|| refToNode(conf->senderRef) == getOwnNodeId()))
+    {
+      jam();
+      FilegroupPtr fg_ptr;
+      ndbrequire(c_filegroup_hash.find(fg_ptr, conf->tableId));
+      const Uint32 free_hi= conf->freeWordsHi;
+      const Uint32 free_lo= conf->freeWordsLo;
+      const Uint32 id= conf->tableId;
+      const Uint32 type= conf->tableType;
+      const Uint32 data= conf->senderData;
+      signal->theData[0]= ZPACK_TABLE_INTO_PAGES;
+      signal->theData[1]= id;
+      signal->theData[2]= type;
+      signal->theData[3]= data;
+      signal->theData[4]= free_hi;
+      signal->theData[5]= free_lo;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 6, JBB);
     }
     else
     {
@@ -5067,7 +5099,7 @@ Dbdict::createTab_dih(Signal* signal,
   req->fragType = tabPtr.p->fragmentType;
   req->kValue = tabPtr.p->kValue;
   req->noOfReplicas = 0;
-  req->storedTable = tabPtr.p->storedTable;
+  req->storedTable = !!(tabPtr.p->m_bits & TableRecord::TR_Logged);
   req->tableType = tabPtr.p->tableType;
   req->schemaVersion = tabPtr.p->tableVersion;
   req->primaryTableId = tabPtr.p->primaryTableId;
@@ -5166,6 +5198,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
   Uint32 fragCount = req->totalFragments;
   Uint32 requestInfo = req->requestInfo;
   Uint32 startGci = req->startGci;
+  Uint32 logPart = req->logPartId;
 
   ndbrequire(node == getOwnNodeId());
 
@@ -5215,11 +5248,12 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     // noOfCharsets passed to TUP in upper half
     req->noOfNewAttr |= (tabPtr.p->noOfCharsets << 16);
     req->checksumIndicator = 1;
-    req->GCPIndicator = 0;
+    req->GCPIndicator = 1;
     req->startGci = startGci;
     req->tableType = tabPtr.p->tableType;
     req->primaryTableId = tabPtr.p->primaryTableId;
     req->tablespace_id= tabPtr.p->m_tablespace_id;
+    req->logPartId = logPart;
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal, 
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -5412,7 +5446,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     
     signal->theData[0] = tabPtr.i;
     signal->theData[1] = tabPtr.p->tableVersion;
-    signal->theData[2] = (Uint32)tabPtr.p->storedTable;     
+    signal->theData[2] = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_Logged);
     signal->theData[3] = reference();
     signal->theData[4] = (Uint32)tabPtr.p->tableType;
     signal->theData[5] = createTabPtr.p->key;
@@ -5816,7 +5850,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   }
   
   tablePtr.p->noOfAttributes = tableDesc.NoOfAttributes;
-  tablePtr.p->storedTable = tableDesc.TableLoggedFlag;
+  tablePtr.p->m_bits |= 
+    (tableDesc.TableLoggedFlag ? TableRecord::TR_Logged : 0);
+  tablePtr.p->m_bits |= 
+    (tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
+  tablePtr.p->m_bits |= 
+    (tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
   tablePtr.p->minLoadFactor = tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)tableDesc.FragmentType;
@@ -5853,7 +5892,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->buildTriggerId = RNIL;
   tablePtr.p->indexLocal = 0;
   
-  handleTabInfo(it, parseP, tableDesc.TablespaceVersion);
+  handleTabInfo(it, parseP, tableDesc);
   
   if(parseP->errorCode != 0)
   {
@@ -5866,7 +5905,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
 void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
 			   ParseDictTabInfoRecord * parseP,
-			   Uint32 tablespaceVersion)
+			   DictTabInfo::Table &tableDesc)
 {
   TableRecordPtr tablePtr = parseP->tablePtr;
   
@@ -6105,7 +6144,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       tabRequire(false, CreateTableRef::NotATablespace);
     }
     
-    if(tablespacePtr.p->m_version != tablespaceVersion)
+    if(tablespacePtr.p->m_version != tableDesc.TablespaceVersion)
     {
       tabRequire(false, CreateTableRef::InvalidTablespaceVersion);
     }
@@ -7061,6 +7100,18 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     sendSignal(TSMAN_REF, GSN_GET_TABINFOREQ, signal,
 	       GetTabInfoReq::SignalLength, JBB);
   }
+  else if(objEntry->m_tableType==DictTabInfo::LogfileGroup)
+  {
+    jam();
+    GetTabInfoReq *req= (GetTabInfoReq*)signal->theData;
+    req->senderData= c_retrieveRecord.retrievePage;
+    req->senderRef= reference();
+    req->requestType= GetTabInfoReq::RequestById;
+    req->tableId= obj_id;
+
+    sendSignal(LGMAN_REF, GSN_GET_TABINFOREQ, signal,
+	       GetTabInfoReq::SignalLength, JBB);
+  }
   else
   {
     jam();
@@ -7209,7 +7260,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 	}
       }
       // store
-      if (! tablePtr.p->storedTable) {
+      if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
 	conf->setTableStore(pos, DictTabInfo::StoreTemporary);
       } else {
 	conf->setTableStore(pos, DictTabInfo::StorePermanent);
@@ -7242,6 +7293,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->tableData[pos] = 0;
       conf->setTableId(pos, iter.curr.p->m_id);
       conf->setTableType(pos, type); // type
+      conf->setTableState(pos, DictTabInfo::StateOnline);  // XXX todo
       pos++;
     }
     if (DictTabInfo::isFile(type)){
@@ -7249,6 +7301,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       conf->tableData[pos] = 0;
       conf->setTableId(pos, iter.curr.p->m_id);
       conf->setTableType(pos, type); // type
+      conf->setTableState(pos, DictTabInfo::StateOnline); // XXX todo
       pos++;
     }
     
@@ -7570,8 +7623,9 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   indexPtr.i = RNIL;            // invalid
   indexPtr.p = &indexRec;
   initialiseTableRecord(indexPtr);
+  indexPtr.p->m_bits = TableRecord::TR_RowChecksum;
   if (req->getIndexType() == DictTabInfo::UniqueHashIndex) {
-    indexPtr.p->storedTable = opPtr.p->m_storedIndex;
+    indexPtr.p->m_bits |= (opPtr.p->m_storedIndex ? TableRecord::TR_Logged:0);
     indexPtr.p->fragmentType = DictTabInfo::DistrKeyUniqueHashIndex;
   } else if (req->getIndexType() == DictTabInfo::OrderedIndex) {
     // first version will not supported logging
@@ -7581,7 +7635,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       opPtr.p->m_errorLine = __LINE__;
       return;
     }
-    indexPtr.p->storedTable = false;
     indexPtr.p->fragmentType = DictTabInfo::DistrKeyOrderedIndex;
   } else {
     jam();
@@ -7665,7 +7718,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   indexPtr.p->noOfNullAttr = 0;
   // write index table
   w.add(DictTabInfo::TableName, opPtr.p->m_indexName);
-  w.add(DictTabInfo::TableLoggedFlag, indexPtr.p->storedTable);
+  w.add(DictTabInfo::TableLoggedFlag, !!(indexPtr.p->m_bits & TableRecord::TR_Logged));
   w.add(DictTabInfo::FragmentTypeVal, indexPtr.p->fragmentType);
   w.add(DictTabInfo::TableTypeVal, indexPtr.p->tableType);
   Rope name(c_rope_pool, tablePtr.p->tableName);
@@ -13817,6 +13870,7 @@ Dbdict::execCREATE_OBJ_REQ(Signal* signal){
   createObjPtr.p->m_obj_type = objType;
   createObjPtr.p->m_obj_version = objVersion;
   createObjPtr.p->m_obj_info_ptr_i = objInfoPtr.i;
+  createObjPtr.p->m_obj_ptr_i = RNIL;
 
   createObjPtr.p->m_callback.m_callbackData = key;
   createObjPtr.p->m_callback.m_callbackFunction= 
@@ -14513,6 +14567,9 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
   SegmentedSectionPtr objInfoPtr;
   getSection(objInfoPtr, ((OpCreateObj*)op)->m_obj_info_ptr_i);
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
+
+  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  FilegroupPtr fg_ptr; fg_ptr.setNull();
   
   SimpleProperties::UnpackStatus status;
   DictFilegroupInfo::Filegroup fg; fg.init();
@@ -14552,15 +14609,12 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
       break;
     }
     
-    Ptr<DictObject> obj_ptr;
     if(!c_obj_pool.seize(obj_ptr)){
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
     
-    FilegroupPtr fg_ptr;
     if(!c_filegroup_pool.seize(fg_ptr)){
-      c_obj_pool.release(obj_ptr);
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
@@ -14569,8 +14623,6 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
 	op->m_errorCode = CreateTableRef::TableNameTooLong;
-	c_obj_pool.release(obj_ptr);
-	c_filegroup_pool.release(fg_ptr);
 	break;
       }
     }
@@ -14618,8 +14670,24 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     
     op->m_obj_ptr_i = fg_ptr.i;
   } while(0);
-  
+
 error:
+  if (op->m_errorCode)
+  {
+    jam();
+    if (!fg_ptr.isNull())
+    {
+      jam();
+      c_filegroup_pool.release(fg_ptr);
+    }
+
+    if (!obj_ptr.isNull())
+    {
+      jam();
+      c_obj_pool.release(obj_ptr);
+    }
+  }
+  
   execute(signal, op->m_callback, 0);
 }
 
@@ -14690,14 +14758,33 @@ Dbdict::execCREATE_FILEGROUP_CONF(Signal* signal){
 
 void
 Dbdict::create_fg_abort_start(Signal* signal, SchemaOp* op){
-  execute(signal, op->m_callback, 0);
-  abort();
+  CreateFilegroupImplReq* req = 
+    (CreateFilegroupImplReq*)signal->getDataPtrSend();
+
+  if (op->m_obj_ptr_i != RNIL)
+  {
+    jam();
+    send_drop_fg(signal, op, DropFilegroupImplReq::Commit);
+    return;
+  }
+  
+  execute(signal, op->m_callback, 0);  
 }
 
 void
 Dbdict::create_fg_abort_complete(Signal* signal, SchemaOp* op){
+  
+  if (op->m_obj_ptr_i != RNIL)
+  {
+    jam();
+    FilegroupPtr fg_ptr;
+    c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
+    
+    release_object(fg_ptr.p->m_obj_ptr_i);
+    c_filegroup_hash.release(fg_ptr);
+  }
+  
   execute(signal, op->m_callback, 0);
-  abort();
 }
 
 void 
@@ -14709,6 +14796,9 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
   getSection(objInfoPtr, ((OpCreateObj*)op)->m_obj_info_ptr_i);
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
   
+  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  FilePtr filePtr; filePtr.setNull();
+
   DictFilegroupInfo::File f; f.init();
   SimpleProperties::UnpackStatus status;
   status = SimpleProperties::unpack(it, &f, 
@@ -14758,16 +14848,13 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     }
     
     // Loop through all filenames...
-    Ptr<DictObject> obj_ptr;
     if(!c_obj_pool.seize(obj_ptr)){
       op->m_errorCode = CreateTableRef::NoMoreTableRecords;
       break;
     }
     
-    FilePtr filePtr;
     if (! c_file_pool.seize(filePtr)){
       op->m_errorCode = CreateFileRef::OutOfFileRecords;
-      c_obj_pool.release(obj_ptr);
       break;
     }
 
@@ -14775,8 +14862,6 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
 	op->m_errorCode = CreateTableRef::TableNameTooLong;
-	c_obj_pool.release(obj_ptr);
-	c_file_pool.release(filePtr);
 	break;
       }
     }
@@ -14813,6 +14898,22 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
 
     op->m_obj_ptr_i = filePtr.i;
   } while(0);
+
+  if (op->m_errorCode)
+  {
+    jam();
+    if (!filePtr.isNull())
+    {
+      jam();
+      c_file_pool.release(filePtr);
+    }
+
+    if (!obj_ptr.isNull())
+    {
+      jam();
+      c_obj_pool.release(obj_ptr);
+    }
+  }
   
   execute(signal, op->m_callback, 0);
 }
@@ -14839,8 +14940,6 @@ Dbdict::create_file_prepare_complete(Signal* signal, SchemaOp* op){
     break;
   case 1:
     req->requestInfo = CreateFileImplReq::Open;
-    if(getNodeState().getNodeRestartInProgress())
-      req->requestInfo = CreateFileImplReq::CreateForce;      
     break;
   case 2:
     req->requestInfo = CreateFileImplReq::CreateForce;
@@ -14946,60 +15045,70 @@ Dbdict::create_file_abort_start(Signal* signal, SchemaOp* op)
 {
   CreateFileImplReq* req = (CreateFileImplReq*)signal->getDataPtrSend();
 
-  FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-
-  FilegroupPtr fg_ptr;
-  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-
-  req->senderData = op->key;
-  req->senderRef = reference();
-  req->requestInfo = CreateFileImplReq::Abort;
-  
-  req->file_id = f_ptr.p->key;
-  req->filegroup_id = f_ptr.p->m_filegroup_id;
-  req->filegroup_version = fg_ptr.p->m_version;
-
-  Uint32 ref= 0;
-  switch(op->m_obj_type){
-  case DictTabInfo::Datafile:
-    ref = TSMAN_REF;
-    break;
-  case DictTabInfo::Undofile:
-    ref = LGMAN_REF;
-    break;
-  default:
-    ndbrequire(false);
+  if (op->m_obj_ptr_i != RNIL)
+  {
+    FilePtr f_ptr;
+    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+    
+    FilegroupPtr fg_ptr;
+    ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
+    
+    req->senderData = op->key;
+    req->senderRef = reference();
+    req->requestInfo = CreateFileImplReq::Abort;
+    
+    req->file_id = f_ptr.p->key;
+    req->filegroup_id = f_ptr.p->m_filegroup_id;
+    req->filegroup_version = fg_ptr.p->m_version;
+    
+    Uint32 ref= 0;
+    switch(op->m_obj_type){
+    case DictTabInfo::Datafile:
+      ref = TSMAN_REF;
+      break;
+    case DictTabInfo::Undofile:
+      ref = LGMAN_REF;
+      break;
+    default:
+      ndbrequire(false);
+    }
+    
+    sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
+	       CreateFileImplReq::AbortLength, JBB);
+    return;
   }
-  
-  sendSignal(ref, GSN_CREATE_FILE_REQ, signal, 
-	     CreateFileImplReq::AbortLength, JBB);
+
+  execute(signal, op->m_callback, 0);
 }
 
 void
 Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
 {
-  FilePtr f_ptr;
-  c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
-
-  FilegroupPtr fg_ptr;
-  ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
-  
-  switch(fg_ptr.p->m_type){
-  case DictTabInfo::Tablespace:
-    decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
-    break;
-  case DictTabInfo::LogfileGroup:
+  if (op->m_obj_ptr_i != RNIL)
   {
-    LocalDLList<File> list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
-    list.remove(f_ptr);
-    break;
+    FilePtr f_ptr;
+    c_file_pool.getPtr(f_ptr, op->m_obj_ptr_i);
+    
+    FilegroupPtr fg_ptr;
+    ndbrequire(c_filegroup_hash.find(fg_ptr, f_ptr.p->m_filegroup_id));
+    
+    switch(fg_ptr.p->m_type){
+    case DictTabInfo::Tablespace:
+      decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
+      break;
+    case DictTabInfo::LogfileGroup:
+    {
+      LocalDLList<File> list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
+      list.remove(f_ptr);
+      break;
+    }
+    default:
+      ndbrequire(false);
+    }
+    
+    release_object(f_ptr.p->m_obj_ptr_i);
+    c_file_pool.release(f_ptr);
   }
-  default:
-    ndbrequire(false);
-  }
-  
-  release_object(f_ptr.p->m_obj_ptr_i);
   
   execute(signal, op->m_callback, 0);
 }
@@ -15036,7 +15145,8 @@ Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
 
   decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
   release_object(f_ptr.p->m_obj_ptr_i);
-  
+  c_file_pool.release(f_ptr);
+
   execute(signal, op->m_callback, 0);
 }
 
@@ -15223,7 +15333,8 @@ Dbdict::drop_fg_commit_complete(Signal* signal, SchemaOp* op)
   c_filegroup_pool.getPtr(fg_ptr, op->m_obj_ptr_i);
   
   release_object(fg_ptr.p->m_obj_ptr_i);
-  
+  c_filegroup_hash.release(fg_ptr);
+
   execute(signal, op->m_callback, 0);
 }
 

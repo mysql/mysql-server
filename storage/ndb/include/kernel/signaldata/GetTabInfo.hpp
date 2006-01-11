@@ -112,10 +112,14 @@ public:
 public:
   Uint32 senderData;
   Uint32 tableId;
-  Uint32 gci; // For table
+  union {
+    Uint32 gci; // For table
+    Uint32 freeWordsHi; // for logfile group m_free_file_words
+  };
   union {
     Uint32 totalLen; // In words
     Uint32 freeExtents;
+    Uint32 freeWordsLo; // for logfile group m_free_file_words
   };
   Uint32 tableType;
   Uint32 senderRef;

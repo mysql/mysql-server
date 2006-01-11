@@ -511,6 +511,7 @@ class ha_ndbcluster: public handler
                               bool eq_range, bool sorted,
                               byte* buf);
   int read_range_next();
+  int alter_tablespace(st_alter_tablespace *info);
 
   /**
    * Multi range stuff

@@ -26,6 +26,7 @@
 #include <DLHashTable.hpp>
 #include <NodeBitmask.hpp>
 #include "diskpage.hpp"
+#include <signaldata/GetTabInfo.hpp>
 
 class Lgman : public SimulatedBlock
 {
@@ -66,6 +67,13 @@ protected:
   
   void execSTART_RECREQ(Signal*);
   void execEND_LCP_CONF(Signal*);
+
+  void execGET_TABINFOREQ(Signal*);
+
+  void sendGET_TABINFOREF(Signal* signal,
+			  GetTabInfoReq * req,
+			  GetTabInfoRef::ErrorCode errorCode);
+
 public:
   struct Log_waiter
   {
