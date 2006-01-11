@@ -42,7 +42,8 @@ public:
    *
    * Note, can currently only be called once
    */
-  bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true);
+  bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true, bool guard = true);
+  bool set(T*, Uint32 cnt, bool align = false);
 
   inline Uint32 getNoOfFree() const {
     return noOfFree;
@@ -202,7 +203,8 @@ ArrayPool<T>::~ArrayPool(){
     theArray = 0;
     alloc_ptr = 0;
 #ifdef ARRAY_GUARD
-    delete []theAllocatedBitmask;
+    if (theAllocatedBitmask)
+      delete []theAllocatedBitmask;
     theAllocatedBitmask = 0;
 #endif
   }
@@ -216,7 +218,8 @@ ArrayPool<T>::~ArrayPool(){
 template <class T>
 inline
 bool
-ArrayPool<T>::setSize(Uint32 noOfElements, bool align, bool exit_on_error){
+ArrayPool<T>::setSize(Uint32 noOfElements, 
+		      bool align, bool exit_on_error, bool guard){
   if(size == 0){
     if(noOfElements == 0)
       return true;
@@ -257,9 +260,12 @@ ArrayPool<T>::setSize(Uint32 noOfElements, bool align, bool exit_on_error){
     firstFree = 0;
 
 #ifdef ARRAY_GUARD
-    bitmaskSz = (noOfElements + 31) >> 5;
-    theAllocatedBitmask = new Uint32[bitmaskSz];
-    BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask);
+    if (guard)
+    {
+      bitmaskSz = (noOfElements + 31) >> 5;
+      theAllocatedBitmask = new Uint32[bitmaskSz];
+      BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask);
+    }
 #endif
     
     return true;
@@ -270,21 +276,56 @@ ArrayPool<T>::setSize(Uint32 noOfElements, bool align, bool exit_on_error){
   ErrorReporter::handleAssert("ArrayPool<T>::setSize called twice", __FILE__, __LINE__);
   return false; // not reached
 }
+
+template <class T>
+inline
+bool
+ArrayPool<T>::set(T* ptr, Uint32 cnt, bool align){
+  if (size == 0)
+  {
+    alloc_ptr = ptr;
+    if(align)
+    {
+      UintPtr p = (UintPtr)alloc_ptr;
+      UintPtr mod = p % sizeof(T);
+      if (mod)
+      {
+	p += sizeof(T) - mod;
+	cnt --;
+      }
+      theArray = (T *)p;
+    }
+    else
+    {
+      theArray = (T *)alloc_ptr;
+    }
+    
+    size = cnt;
+    noOfFree = 0;
+    return true;
+  }
+  ErrorReporter::handleAssert("ArrayPool<T>::set called twice", 
+			      __FILE__, __LINE__);
+  return false; // not reached
+}
   
 template <class T>
 inline
 void
 ArrayPool<T>::getPtr(Ptr<T> & ptr){
   Uint32 i = ptr.i;
-  if(i < size){
+  if(likely (i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
@@ -296,15 +337,18 @@ inline
 void
 ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const {
   Uint32 i = ptr.i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
@@ -316,15 +360,18 @@ inline
 void
 ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i){
   ptr.i = i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
@@ -336,15 +383,18 @@ inline
 void
 ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const {
   ptr.i = i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
@@ -355,18 +405,20 @@ template <class T>
 inline
 T * 
 ArrayPool<T>::getPtr(Uint32 i){
-  if(i < size){
+  if(likely(i < size)){
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return &theArray[i];
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
-    return 0;
-#else
-    return &theArray[i];
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return &theArray[i];
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+      return 0;
+    }
 #endif
+    return &theArray[i];
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
     return 0;
@@ -377,18 +429,20 @@ template <class T>
 inline
 const T * 
 ArrayPool<T>::getConstPtr(Uint32 i) const {
-  if(i < size){
+  if(likely(i < size)){
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return &theArray[i];
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
-    return 0;
-#else
-    return &theArray[i];
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return &theArray[i];
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+      return 0;
+    }
 #endif
+    return &theArray[i];
   } else {
     ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
     return 0;
@@ -400,15 +454,18 @@ inline
 void
 ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError){
   Uint32 i = ptr.i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ptr.i = RNIL;
@@ -420,15 +477,18 @@ inline
 void
 ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const {
   Uint32 i = ptr.i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ptr.i = RNIL;
@@ -440,15 +500,18 @@ inline
 void
 ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError){
   ptr.i = i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ptr.i = RNIL;
@@ -461,15 +524,18 @@ void
 ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i, 
 		     bool CrashOnBoundaryError) const {
   ptr.i = i;
-  if(i < size){
+  if(likely(i < size)){
     ptr.p = &theArray[i];
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return;
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return;
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+    }
 #endif
   } else {
     ptr.i = RNIL;
@@ -480,18 +546,20 @@ template <class T>
 inline
 T * 
 ArrayPool<T>::getPtr(Uint32 i, bool CrashOnBoundaryError){
-  if(i < size){
+  if(likely(i < size)){
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return &theArray[i];
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
-    return 0;
-#else
-    return &theArray[i];
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return &theArray[i];
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
+      return 0;
+    }
 #endif
+    return &theArray[i];
   } else {
     return 0;
   }
@@ -501,18 +569,20 @@ template <class T>
 inline
 const T * 
 ArrayPool<T>::getConstPtr(Uint32 i, bool CrashOnBoundaryError) const {
-  if(i < size){
+  if(likely(i < size)){
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-      return &theArray[i];
-    /**
-     * Getting a non-seized element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::getConstPtr", __FILE__,__LINE__);
-    return 0;
-#else
-    return &theArray[i];
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
+	return &theArray[i];
+      /**
+       * Getting a non-seized element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::getConstPtr", __FILE__,__LINE__);
+      return 0;
+    }
 #endif
+    return &theArray[i];
   } else {
     return 0;
   }
@@ -534,21 +604,23 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
     ptr.i = ff;
     ptr.p = &theArray[ff];
 #ifdef ARRAY_GUARD
-    if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
-      BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
-      noOfFree--;
-      return true;
-    } else {
-      /**
-       * Seizing an already seized element
-       */
-      ErrorReporter::handleAssert("ArrayPool<T>::seize", __FILE__, __LINE__);
-      return false;
+    if (theAllocatedBitmask)
+    {
+      if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
+	BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
+	noOfFree--;
+	return true;
+      } else {
+	/**
+	 * Seizing an already seized element
+	 */
+	ErrorReporter::handleAssert("ArrayPool<T>::seize", __FILE__, __LINE__);
+	return false;
+      }
     }
-#else
+#endif
     noOfFree--;
     return true;
-#endif
   }
   ptr.i = RNIL;
   ptr.p = NULL;
@@ -575,21 +647,23 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
     ptr.i = ff;
     ptr.p = &theArray[ff];
 #ifdef ARRAY_GUARD
-    if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
-      BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
-      noOfFree--;
-      return true;
-    } else {
-      /**
-       * Seizing an already seized element
-       */
-      ErrorReporter::handleAssert("ArrayPool<T>::seizeId", __FILE__, __LINE__);
-      return false;
+    if (theAllocatedBitmask)
+    {
+      if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, ff)){
+	BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, ff);
+	noOfFree--;
+	return true;
+      } else {
+	/**
+	 * Seizing an already seized element
+	 */
+	ErrorReporter::handleAssert("ArrayPool<T>::seizeId", __FILE__, __LINE__);
+	return false;
+      }
     }
-#else
+#endif
     noOfFree--;
     return true;
-#endif
   }
   ptr.i = RNIL;
   ptr.p = NULL;
@@ -636,15 +710,18 @@ ArrayPool<T>::seizeN(Uint32 n){
   
   noOfFree -= n;
 #ifdef ARRAY_GUARD
-  for(Uint32 j = base; j<curr; j++){
-    if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, j)){
-      BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, j);
-    } else {
-      /**
-       * Seizing an already seized element
-       */
-      ErrorReporter::handleAssert("ArrayPool<T>::seize", __FILE__, __LINE__);
-      return RNIL;
+  if (theAllocatedBitmask)
+  {
+    for(Uint32 j = base; j<curr; j++){
+      if(!BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, j)){
+	BitmaskImpl::set(bitmaskSz, theAllocatedBitmask, j);
+      } else {
+	/**
+	 * Seizing an already seized element
+	 */
+	ErrorReporter::handleAssert("ArrayPool<T>::seize", __FILE__, __LINE__);
+	return RNIL;
+      }
     }
   }
 #endif
@@ -669,14 +746,17 @@ ArrayPool<T>::releaseN(Uint32 base, Uint32 n){
   const Uint32 end = base + n;
   for(Uint32 i = base; i<end; i++){
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
-      BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
-    } else {
-      /**
-       * Relesing a already released element
-       */
-    ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
-      return;
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+      } else {
+	/**
+	 * Relesing a already released element
+	 */
+	ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+	return;
+      }
     }
 #endif
     theArray[i].nextPool = i + 1;
@@ -697,19 +777,22 @@ ArrayPool<T>::releaseList(Uint32 n, Uint32 first, Uint32 last){
     noOfFree += n;
 
 #ifdef ARRAY_GUARD
-    Uint32 tmp = first;
-    for(Uint32 i = 0; i<n; i++){
-      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp)){
-	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
-      } else {
-	/**
-	 * Relesing a already released element
-	 */
-	ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
-				    __FILE__, __LINE__);
-	return;
+    if (theAllocatedBitmask)
+    {
+      Uint32 tmp = first;
+      for(Uint32 i = 0; i<n; i++){
+	if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, tmp)){
+	  BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
+	} else {
+	  /**
+	   * Relesing a already released element
+	   */
+	  ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
+				      __FILE__, __LINE__);
+	  return;
+	}
+	tmp = theArray[tmp].nextPool;
       }
-      tmp = theArray[tmp].nextPool;
     }
 #endif
     return;
@@ -725,21 +808,24 @@ inline
 void
 ArrayPool<T>::release(Uint32 _i){
   const Uint32 i = _i;
-  if(i < size){
+  if(likely(i < size)){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
 
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
-      BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
-      noOfFree++;
-      return;
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
     }
-    /**
-     * Relesing a already released element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 #endif
     noOfFree++;
     return;
@@ -755,22 +841,25 @@ inline
 void
 ArrayPool<T>::release(Ptr<T> & ptr){
   Uint32 i = ptr.i;
-  if(i < size){
+  if(likely(i < size)){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
 
 #ifdef ARRAY_GUARD
-    if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
-      BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
-      //assert(noOfFree() == noOfFree2());
-      noOfFree++;
-      return;
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	//assert(noOfFree() == noOfFree2());
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
     }
-    /**
-     * Relesing a already released element
-     */
-    ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 #endif
     noOfFree++;
     return;
@@ -798,7 +887,7 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
   Uint32 i = ptr.i;
-  if(i < this->size){
+  if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
@@ -811,7 +900,7 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
   Uint32 i = ptr.i;
-  if(i < this->size){
+  if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
@@ -823,7 +912,7 @@ template <class T>
 inline
 T * 
 UnsafeArrayPool<T>::getPtrForce(Uint32 i){
-  if(i < this->size){
+  if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
@@ -836,7 +925,7 @@ template <class T>
 inline
 const T * 
 UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
-  if(i < this->size){
+  if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr",
@@ -850,7 +939,7 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
   ptr.i = i;
-  if(i < this->size){
+  if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
     return ;
   } else {
@@ -864,7 +953,7 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
   ptr.i = i;
-  if(i < this->size){
+  if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
     return ;
   } else {

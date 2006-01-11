@@ -1359,8 +1359,8 @@ void
 Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
 {
   File_map::ConstDataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, ptr.p->m_file_no);
+  bool ret = m_file_map.first(it) && m_file_map.next(it, ptr.p->m_file_no);
+  ndbrequire(ret);
   Uint32 fd = * it.data;
 
   ndbrequire(ptr.p->m_page_no > 0);
@@ -1479,11 +1479,6 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   {
     busy_count = true;
     state |= Page_entry::BUSY;
-    /*
-     * Consider commit to be correlated.  Otherwise pk op + commit makes
-     * the page hot.   XXX move to TUP which knows better.
-     */
-    req_flags |= Page_request::CORR_REQ;
   }
   else if ((req_flags & Page_request::OP_MASK) != ZREAD)
   {
@@ -2196,11 +2191,14 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+
   if (signal->theData[0] == 11003)
   {
 #ifdef VM_TRACE
     verify_page_lists();
     dump_page_lists();
+#else
+    ndbout << "Only in VM_TRACE builds" << endl;
 #endif
   }
 }

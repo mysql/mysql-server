@@ -91,6 +91,12 @@ public:
    * @NOTE MUST be seized from correct pool
    */
   void add(Ptr<T> &);
+
+  /**
+   * Add a list to list
+   * @NOTE all elements _must_ be correctly initilized correctly wrt next/prev
+   */
+  void add(Uint32 first, Ptr<T> & last);
   
   /**
    * Remove object from list
@@ -98,6 +104,13 @@ public:
    * @NOTE Does not return it to pool
    */
   void remove(Ptr<T> &);
+
+  /**
+   * Remove object from list
+   *
+   * @NOTE Does not return it to pool
+   */
+  void remove(T*);
   
   /**
    *  Update i & p value according to <b>i</b>
@@ -256,19 +269,42 @@ DLList<T,U>::add(Ptr<T> & p){
 template <class T, class U>
 inline
 void 
+DLList<T,U>::add(Uint32 first, Ptr<T> & lastPtr)
+{
+  Uint32 ff = head.firstItem;
+
+  head.firstItem = first;
+  lastPtr.p->U::nextList = ff;
+  
+  if(ff != RNIL){
+    T * t2 = thePool.getPtr(ff);
+    t2->U::prevList = lastPtr.i;
+  }
+}
+
+template <class T, class U>
+inline
+void 
 DLList<T,U>::remove(Ptr<T> & p){
-  T * t = p.p;
+  remove(p.p);
+}
+
+template <class T, class U>
+inline
+void 
+DLList<T,U>::remove(T * p){
+  T * t = p;
   Uint32 ni = t->U::nextList;
   Uint32 pi = t->U::prevList;
 
   if(ni != RNIL){
-    T * t = thePool.getPtr(ni);
-    t->U::prevList = pi;
+    T * tn = thePool.getPtr(ni);
+    tn->U::prevList = pi;
   }
   
   if(pi != RNIL){
-    T * t = thePool.getPtr(pi);
-    t->U::nextList = ni;
+    T * tp = thePool.getPtr(pi);
+    tp->U::nextList = ni;
   } else {
     head.firstItem = ni;
   }

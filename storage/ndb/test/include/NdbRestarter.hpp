@@ -82,8 +82,7 @@ protected:
   int connect();
   void disconnect();
   int getStatus();
-  
-  Vector<ndb_mgm_node_state> ndbNodes;
+
   Vector<ndb_mgm_node_state> mgmNodes;
   Vector<ndb_mgm_node_state> apiNodes;
   
@@ -92,6 +91,9 @@ protected:
   ndb_mgm_configuration * m_config;
 protected:
   ndb_mgm_configuration * getConfig();
+
+public:  
+  Vector<ndb_mgm_node_state> ndbNodes;
 };
 
 #endif

@@ -2807,17 +2807,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->attrinfo15[2] = Tdata4;
   regCachePtr->attrinfo15[3] = Tdata5;
 
-  if (TOperationType == ZREAD) {
+  if (TOperationType == ZREAD || TOperationType == ZREAD_EX) {
     Uint32 TreadCount = c_counters.creadCount;
     jam();
-    regCachePtr->opLock = 0;
-    c_counters.creadCount = TreadCount + 1;
-  } else if(TOperationType == ZREAD_EX){
-    Uint32 TreadCount = c_counters.creadCount;
-    jam();
-    TOperationType = ZREAD;
-    regTcPtr->operation = ZREAD;
-    regCachePtr->opLock = ZUPDATE;
     c_counters.creadCount = TreadCount + 1;
   } else {
     if(regApiPtr->commitAckMarker == RNIL){
@@ -2851,24 +2843,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     c_counters.cwriteCount = TwriteCount + 1;
     switch (TOperationType) {
     case ZUPDATE:
-      jam();
-      if (TattrLen == 0) {
-        //TCKEY_abort(signal, 5);
-        //return;
-      }//if
-      /*---------------------------------------------------------------------*/
-      // The missing break is intentional since we also want to set the opLock 
-      // variable also for updates
-      /*---------------------------------------------------------------------*/
     case ZINSERT:
     case ZDELETE:
-      jam();      
-      regCachePtr->opLock = TOperationType;
-      break;
     case ZWRITE:
       jam();
-      // A write operation is originally an insert operation.
-      regCachePtr->opLock = ZINSERT;  
       break;
     default:
       TCKEY_abort(signal, 9);
@@ -3039,7 +3017,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
   regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
-  if (Toperation == ZREAD) {
+  if (Toperation == ZREAD || Toperation == ZREAD_EX) {
     if (Tdirty == 1) {
       jam();
       /*-------------------------------------------------------------*/
@@ -3168,6 +3146,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   CacheRecord * const regCachePtr = cachePtr.p;
+  Uint32 version = getNodeInfo(refToNode(TBRef)).m_version;
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8002)) {
     systemErrorLab(signal, __LINE__);
@@ -3207,7 +3186,12 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   Tdata10 = 0;
   LqhKeyReq::setKeyLen(Tdata10, regCachePtr->keylen);
   LqhKeyReq::setLastReplicaNo(Tdata10, regTcPtr->lastReplicaNo);
-  LqhKeyReq::setLockType(Tdata10, regCachePtr->opLock);
+  if (unlikely(version < NDBD_ROWID_VERSION))
+  {
+    Uint32 op = regTcPtr->operation;
+    Uint32 lock = op == ZREAD_EX ? ZUPDATE : op == ZWRITE ? ZINSERT : op;
+    LqhKeyReq::setLockType(Tdata10, lock);
+  }
   /* ---------------------------------------------------------------------- */
   // Indicate Application Reference is present in bit 15
   /* ---------------------------------------------------------------------- */
