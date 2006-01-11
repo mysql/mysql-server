@@ -737,7 +737,7 @@ event_timed::drop(THD *thd)
   if (evex_db_find_event_aux(thd, dbname, name, table))
     DBUG_RETURN(-2);
 
-  if ((ret= table->file->delete_row(table->record[0])))
+  if ((ret= table->file->ha_delete_row(table->record[0])))
     DBUG_RETURN(ret);
     
   close_thread_tables(thd);
@@ -790,7 +790,7 @@ event_timed::update_fields(THD *thd)
     status_changed= false;
   }
     
-  if ((table->file->update_row(table->record[1],table->record[0])))
+  if ((table->file->ha_update_row(table->record[1],table->record[0])))
     ret= EVEX_WRITE_ROW_FAILED;
 
 done:

@@ -413,7 +413,7 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
   if ((ret= evex_fill_row(thd, table, et, false)))
     goto err; 
 
-  if (table->file->write_row(table->record[0]))
+  if (table->file->ha_write_row(table->record[0]))
   {
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
@@ -423,8 +423,8 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
   {
     thd->clear_error();
     /* Such a statement can always go directly to binlog, no trans cache */
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
-    mysql_bin_log.write(&qinfo);
+    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
   }
   
   *rows_affected= 1;
@@ -522,7 +522,7 @@ db_update_event(THD *thd, event_timed *et, sp_name *new_name)
       store(new_name->m_name.str, new_name->m_name.length, system_charset_info);
   }
 
-  if ((ret= table->file->update_row(table->record[1], table->record[0])))
+  if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
   {
     my_error(ER_EVENT_STORE_FAILED, MYF(0), et->name.str, ret);
     goto err;
@@ -853,7 +853,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 
   if (!(ret= evex_db_find_event_aux(thd, et->dbname, et->name, table)))
   {
-    if ((ret= table->file->delete_row(table->record[0])))
+    if ((ret= table->file->ha_delete_row(table->record[0])))
     { 	
       my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
       goto done;
