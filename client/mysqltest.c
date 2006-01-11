@@ -2669,7 +2669,6 @@ int read_line(char *buf, int size)
     The advantage with this approach is to be able to execute commands
     terminated by new line '\n' regardless how many "delimiter" it contain.
 
-    If query starts with @<file_name> this will specify a file to ....
 */
 
 static char read_query_buf[MAX_QUERY];
