@@ -54,8 +54,16 @@ typedef enum ndb_index_type {
   ORDERED_INDEX = 5
 } NDB_INDEX_TYPE;
 
+typedef enum ndb_index_status {
+  UNDEFINED = 0,
+  CREATED = 1,
+  ACTIVE = 2,
+  TO_BE_DROPPED = 3
+} NDB_INDEX_STATUS;
+
 typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
+  NDB_INDEX_STATUS status;  
   void *index;
   void *unique_index;
   unsigned char *unique_index_attrid_map;
@@ -622,17 +630,28 @@ private:
 			  const char *path,
 			  const char *db,
 			  const char *table_name);
-  int intern_drop_table();
-  int create_index(const char *name, KEY *key_info, bool unique);
+  int drop_ndb_table();
+  int create_ndb_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
   int create_unique_index(const char *name, KEY *key_info);
+  int create_index(const char *name, KEY *key_info, 
+                   NDB_INDEX_TYPE idx_type, uint idx_no);
+  int drop_ndb_index(const char *name);
+// Index list management
+  int create_indexes(Ndb *ndb, TABLE *tab);
+  void clear_index(int i);
+  void clear_indexes();
+  int open_indexes(Ndb *ndb, TABLE *tab);
+  int renumber_indexes(Ndb *ndb, TABLE *tab);
+  int drop_indexes(Ndb *ndb, TABLE *tab);
+  int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
+                       KEY *key_info, const char *index_name, uint index_no);
   int initialize_autoincrement(const void *table);
-  enum ILBP {ILBP_CREATE = 0, ILBP_OPEN = 1}; // Index List Build Phase
-  int build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase);
   int get_metadata(const char* path);
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info) const;
   int check_index_fields_not_null(uint index_no);
 
   uint set_up_partition_info(partition_info *part_info,
