@@ -63,8 +63,10 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc sql_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
-	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc event_executor.cc event.cc event_timed.cc \
-        rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc 
+	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
+        event_executor.cc event.cc event_timed.cc \
+        rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc \
+        sql_tablespace.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \

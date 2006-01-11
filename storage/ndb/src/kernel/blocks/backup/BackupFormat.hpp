@@ -115,7 +115,8 @@ struct BackupFormat {
     struct TableDescription {
       Uint32 SectionType;
       Uint32 SectionLength;
-      Uint32 DictTabInfo[1];   // Length = SectionLength - 2
+      Uint32 TableType;
+      Uint32 DictTabInfo[1];   // Length = SectionLength - 3
     };
 
     /**

@@ -68,9 +68,9 @@ struct CreateFilegroupImplRef {
 
   enum ErrorCode {
     NoError = 0,
-    FilegroupAlreadyExists = 1,
-    OutOfFilegroupRecords = 2,
-    OutOfLogBufferMemory = 3
+    FilegroupAlreadyExists = 1502,
+    OutOfFilegroupRecords = 1503,
+    OutOfLogBufferMemory = 1504
   };
   
   Uint32 senderData;
@@ -155,15 +155,15 @@ struct CreateFileImplRef {
 
   enum ErrorCode {
     NoError = 0,
-    InvalidFilegroup = 1,
-    InvalidFilegroupVersion = 2,
-    FileNoAlreadyExists = 3,
-    OutOfFileRecords = 4,
-    FileError = 5,
-    InvalidFileMetadata = 6,
-    OutOfMemory = 7,
-    FileReadError = 8,
-    FilegroupNotOnline = 9
+    InvalidFilegroup = 1505,
+    InvalidFilegroupVersion = 1506,
+    FileNoAlreadyExists = 1507,
+    OutOfFileRecords = 1508,
+    FileError = 1509,
+    InvalidFileMetadata = 1510,
+    OutOfMemory = 1511,
+    FileReadError = 1512,
+    FilegroupNotOnline = 1513
   };
   
   Uint32 senderData;

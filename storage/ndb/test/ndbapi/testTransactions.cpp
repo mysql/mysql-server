@@ -359,6 +359,11 @@ runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   if (utilTrans.clearTable2(GETNDB(step), records, 240) != 0){
     return NDBT_FAILED;
   }
+  
+  NdbRestarter r;
+  int lcp = 7099;
+  r.dumpStateAllNodes(&lcp, 1);
+  
   return NDBT_OK;
 }
 
