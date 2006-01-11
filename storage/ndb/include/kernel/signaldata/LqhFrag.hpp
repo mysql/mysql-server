@@ -33,7 +33,7 @@ class AddFragReq {
   friend bool printADD_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 10 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -49,6 +49,7 @@ private:
   Uint32 nodeId;
   Uint32 totalFragments;
   Uint32 startGci;
+  Uint32 logPartId;
 };
 
 class AddFragRef {
@@ -104,7 +105,7 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 19 );
+  STATIC_CONST( SignalLength = 20 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -137,6 +138,7 @@ private:
   Uint16 noOfKeyAttr;
   Uint8 checksumIndicator;
   Uint8 GCPIndicator;
+  Uint32 logPartId;
 };
 
 class LqhFragConf {

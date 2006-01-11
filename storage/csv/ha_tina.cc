@@ -88,6 +88,7 @@ handlerton tina_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Alter Tablespace */
   HTON_CAN_RECREATE
 };
 

@@ -228,6 +228,15 @@ public:
     /* Global checkpoint identity when table created */
     Uint32 gciTableCreated;
 
+    /* Is the table logged (i.e. data survives system restart) */
+    enum Bits
+    {
+      TR_Logged = 0x1,
+      TR_RowGCI = 0x2,
+      TR_RowChecksum = 0x4
+    };
+    Uint16 m_bits;
+
     /* Number of attibutes in table */
     Uint16 noOfAttributes;
 
@@ -265,9 +274,6 @@ public:
      * maxLoadFactor
      */
     Uint8 minLoadFactor;
-
-    /* Is the table logged (i.e. data survives system restart) */
-    bool storedTable;
 
     /* Convenience routines */
     bool isTable() const;
@@ -508,6 +514,7 @@ public:
     Uint32 m_filegroup_id;
     Uint32 m_type;
     Uint64 m_file_size;
+    Uint64 m_file_free;
     RopeHandle m_path;
     
     Uint32 nextList;
@@ -2001,7 +2008,10 @@ private:
 			     AttributeRecordPtr & attrPtr);
   void packTableIntoPages(Signal* signal);
   void packTableIntoPages(SimpleProperties::Writer &, TableRecordPtr, Signal* =0);
-  void packFilegroupIntoPages(SimpleProperties::Writer &, FilegroupPtr);
+  void packFilegroupIntoPages(SimpleProperties::Writer &,
+			      FilegroupPtr,
+			      const Uint32 undo_free_hi,
+			      const Uint32 undo_free_lo);
   void packFileIntoPages(SimpleProperties::Writer &, FilePtr, const Uint32);
   
   void sendGET_TABINFOREQ(Signal* signal,
@@ -2026,7 +2036,7 @@ private:
 			 ParseDictTabInfoRecord *,
 			 bool checkExist = true);
   void handleTabInfo(SimpleProperties::Reader & it, ParseDictTabInfoRecord *,
-		     Uint32 tablespaceVersion);
+		     DictTabInfo::Table & tableDesc);
   
   void handleAddTableFailure(Signal* signal,
                              Uint32 failureLine,

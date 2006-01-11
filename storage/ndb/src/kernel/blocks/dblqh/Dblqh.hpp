@@ -142,7 +142,7 @@
 /* ------------------------------------------------------------------------- */
 #define ZFD_HEADER_SIZE 3
 #define ZFD_PART_SIZE 48
-#define ZLOG_HEAD_SIZE 6
+#define ZLOG_HEAD_SIZE 8
 #define ZNEXT_LOG_SIZE 2
 #define ZABORT_LOG_SIZE 3
 #define ZCOMMIT_LOG_SIZE 9
@@ -264,15 +264,6 @@
 #define ZSTORED_PROC_SCAN 0
 #define ZSTORED_PROC_COPY 2
 #define ZDELETE_STORED_PROC_ID 3
-//#define ZSCAN_NEXT 1
-//#define ZSCAN_NEXT_COMMIT 2
-//#define ZSCAN_NEXT_ABORT 12
-#define ZCOPY_COMMIT 3
-#define ZCOPY_REPEAT 4
-#define ZCOPY_ABORT 5
-#define ZCOPY_CLOSE 6
-//#define ZSCAN_CLOSE 6
-//#define ZEMPTY_FRAGMENT 0
 #define ZWRITE_LOCK 1
 #define ZSCAN_FRAG_CLOSED 2
 /* ------------------------------------------------------------------------- */
@@ -525,7 +516,7 @@ public:
     Uint32 scan_acc_index;
     Uint32 scan_acc_attr_recs;
     UintR scanApiOpPtr;
-    UintR scanLocalref[2];
+    Local_key m_row_id;
     
     Uint32 m_max_batch_size_rows;
     Uint32 m_max_batch_size_bytes;
@@ -553,7 +544,6 @@ public:
     UintR scanAccPtr;
     UintR scanAiLength;
     UintR scanErrorCounter;
-    UintR scanLocalFragid;
     UintR scanSchemaVersion;
 
     /**
@@ -747,10 +737,16 @@ public:
     FragStatus fragStatus;
 
     /**
-     *       Indicates a local checkpoint is active and thus can generate
-     *       UNDO log records.
+     * 0 = undefined i.e fragStatus != ACTIVE_CREATION
+     * 1 = yes
+     * 2 = no
      */
-    UintR fragActiveStatus;
+    enum ActiveCreat {
+      AC_NORMAL = 0,  // fragStatus != ACTIVE_CREATION
+      AC_IGNORED = 1, // Operation that got ignored during NR
+      AC_NR_COPY = 2  // Operation that got performed during NR
+    };
+    Uint8 m_copy_started_state; 
 
     /**
      *       This flag indicates whether logging is currently activated at 
@@ -889,6 +885,11 @@ public:
      *       fragment in primary table.
      */
     UintR tableFragptr;
+
+    /**
+     * Log part
+     */
+    Uint32 m_log_part_ptr_i;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
@@ -2030,7 +2031,16 @@ public:
     Uint8 seqNoReplica;
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
-    Uint32 m_local_key;
+    Uint8 m_use_rowid;
+    Uint8 m_dealloc;
+    Uint32 m_log_part_ptr_i;
+    Local_key m_row_id;
+
+    struct {
+      Uint32 m_cnt;
+      Uint32 m_page_id[2];
+      Local_key m_disk_ref[2];
+    } m_nr_delete;
   }; /* p2c: size = 280 bytes */
   
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
@@ -2095,10 +2105,6 @@ private:
   void execBUILDINDXCONF(Signal*signal);
   
   void execDUMP_STATE_ORD(Signal* signal);
-  void execACC_COM_BLOCK(Signal* signal);
-  void execACC_COM_UNBLOCK(Signal* signal);
-  void execTUP_COM_BLOCK(Signal* signal);
-  void execTUP_COM_UNBLOCK(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execCHECK_LCP_STOP(Signal* signal);
@@ -2181,6 +2187,7 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
 
   void execLQH_ALLOCREQ(Signal* signal);
+  void execTUP_DEALLOCREQ(Signal* signal);
   void execLQH_WRITELOG_REQ(Signal* signal);
 
   void execTUXFRAGCONF(Signal* signal);
@@ -2234,7 +2241,7 @@ private:
   Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
   void sendScanFragConf(Signal* signal, Uint32 scanCompleted);
   void initCopyrec(Signal* signal);
-  void initCopyTc(Signal* signal);
+  void initCopyTc(Signal* signal, Operation_t);
   void sendCopyActiveConf(Signal* signal,Uint32 tableId);
   void checkLcpCompleted(Signal* signal);
   void checkLcpHoldop(Signal* signal);
@@ -2277,7 +2284,7 @@ private:
   void checkReadExecSr(Signal* signal);
   void checkScanTcCompleted(Signal* signal);
   void checkSrCompleted(Signal* signal);
-  void closeFile(Signal* signal, LogFileRecordPtr logFilePtr);
+  void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
   void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
   void deleteFragrec(Uint32 fragId);
   void deleteTransidHash(Signal* signal);
@@ -2561,10 +2568,26 @@ private:
 
   void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*, Uint32, Uint32);
   void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,Uint32);
-
+  
+  void handle_nr_copy(Signal*, Ptr<TcConnectionrec>);
+  void exec_acckeyreq(Signal*, Ptr<TcConnectionrec>);
+  int compare_key(const TcConnectionrec*, const Uint32 * ptr, Uint32 len);
+  void nr_copy_delete_row(Signal*, Ptr<TcConnectionrec>, Local_key*, Uint32);
+public:
+  struct Nr_op_info
+  {
+    Uint32 m_ptr_i;
+    Uint32 m_tup_frag_ptr_i;
+    Uint32 m_gci;
+    Uint32 m_page_id;
+    Local_key m_disk_ref;
+  };
+  void get_nr_op_info(Nr_op_info*, Uint32 page_id = RNIL);
+  void nr_delete_complete(Signal*, Nr_op_info*);
+  
 public:
   void acckeyconf_load_diskpage_callback(Signal*, Uint32, Uint32);
-
+  
 private:
   void next_scanconf_load_diskpage(Signal* signal, 
 				   ScanRecordPtr scanPtr,
@@ -2823,11 +2846,6 @@ private:
   UintR cLqhTimeOutCount;
   UintR cLqhTimeOutCheckCount;
   UintR cnoOfLogPages;
-  bool  caccCommitBlocked;
-  bool  ctupCommitBlocked;
-  bool  cCommitBlocked;
-  UintR cCounterAccCommitBlocked;
-  UintR cCounterTupCommitBlocked;
 /* ------------------------------------------------------------------------- */
 /*THIS VARIABLE CONTAINS MY OWN PROCESSOR ID.                                */
 /* ------------------------------------------------------------------------- */
@@ -2847,16 +2865,11 @@ private:
   Uint16 cpackedList[MAX_NDB_NODES];
   UintR cnodeData[MAX_NDB_NODES];
   UintR cnodeStatus[MAX_NDB_NODES];
-/* ------------------------------------------------------------------------- */
-/*THIS VARIABLE INDICATES WHETHER A CERTAIN NODE HAS SENT ALL FRAGMENTS THAT */
-/*NEED TO HAVE THE LOG EXECUTED.                                             */
-/* ------------------------------------------------------------------------- */
-  Uint8 cnodeSrState[MAX_NDB_NODES];
-/* ------------------------------------------------------------------------- */
-/*THIS VARIABLE INDICATES WHETHER A CERTAIN NODE HAVE EXECUTED THE LOG       */
-/* ------------------------------------------------------------------------- */
-  Uint8 cnodeExecSrState[MAX_NDB_NODES];
   UintR cnoOfNodes;
+
+  NdbNodeBitmask m_sr_nodes;
+  NdbNodeBitmask m_sr_exec_sr_req;
+  NdbNodeBitmask m_sr_exec_sr_conf;
 
 /* ------------------------------------------------------------------------- */
 /* THIS VARIABLE CONTAINS THE DIRECTORY OF A HASH TABLE OF ALL ACTIVE        */
@@ -2985,6 +2998,10 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   signal->theData[0] = regTcPtr.p->accConnectrec;
   signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
+  
+  if (ERROR_INSERTED(5712))
+    ndbout << " LK: " << *key;
+  regTcPtr.p->m_row_id = *key;
 }
 
 

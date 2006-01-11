@@ -434,3 +434,4 @@ insert into t1 values ('ab');
 select * from t1;
 insert into t1 values ('abc');
 select * from t1;
+drop table t1;

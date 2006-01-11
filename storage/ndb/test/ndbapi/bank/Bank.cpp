@@ -108,6 +108,7 @@ retry_transaction:
       break;
     case NDBT_TEMPORARY:
       g_err << "TEMPORARY_ERRROR retrying" << endl;
+      NdbSleep_MilliSleep(50);
       goto retry_transaction;
       break;
     default:
@@ -1401,84 +1402,103 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
   /**
    * SELECT MAX(time) FROM GL WHERE account_type = @accountType and purged=1
    */
-  NdbConnection* pScanTrans = m_ndb.startTransaction();
-  if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
-    return NDBT_FAILED;
-  }
-      
-  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
-  if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  if( pOp->readTuples() ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
-  if( accountTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* timeRec = pOp->getValue("TIME");
-  if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* purgedRec = pOp->getValue("PURGED");
-  if( purgedRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pScanTrans->execute(NoCommit);
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-    
-  int eof;
-  int rows = 0;
-  eof = pOp->nextResult();
-  oldest = 0;
-    
-  while(eof == 0){
-    rows++;
-    Uint32 a = accountTypeRec->u_32_value();
-    Uint32 p = purgedRec->u_32_value();
-
-    if (a == accountType && p == 1){
-      // One record found
-      Uint64 t = timeRec->u_64_value();
-      if (t > oldest)
-	oldest = t;
+  NdbConnection* pScanTrans = 0;
+  do
+  {
+    pScanTrans = m_ndb.startTransaction();
+    if (pScanTrans == NULL) {
+      ERR(m_ndb.getNdbError());
+      return NDBT_FAILED;
     }
-    eof = pOp->nextResult();
-  }
-  if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
     
+    NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
+    if (pOp == NULL) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    if( pOp->readTuples() ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
+    if( accountTypeRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* timeRec = pOp->getValue("TIME");
+    if( timeRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* purgedRec = pOp->getValue("PURGED");
+    if( purgedRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    check = pScanTrans->execute(NoCommit);
+    if( check == -1 ) {
+      NdbError err = pScanTrans->getNdbError();
+      ERR(err);
+      m_ndb.closeTransaction(pScanTrans);
+      if (err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
+    }
+    
+    int eof;
+    int rows = 0;
+    eof = pOp->nextResult();
+    oldest = 0;
+    
+    while(eof == 0){
+      rows++;
+      Uint32 a = accountTypeRec->u_32_value();
+      Uint32 p = purgedRec->u_32_value();
+      
+      if (a == accountType && p == 1){
+	// One record found
+	Uint64 t = timeRec->u_64_value();
+	if (t > oldest)
+	  oldest = t;
+      }
+      eof = pOp->nextResult();
+    }
+    if (eof == -1) 
+    {
+      NdbError err = pScanTrans->getNdbError();
+      ERR(err);
+      m_ndb.closeTransaction(pScanTrans);
+      
+      if (err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
+    }
+    break;
+  } while(true);
+  
   m_ndb.closeTransaction(pScanTrans);
   
   return NDBT_OK;
@@ -1587,88 +1607,111 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
    *
    */
 
-  int check;  
-  NdbConnection* pScanTrans = m_ndb.startTransaction();
-  if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
-    return NDBT_FAILED;
-  }
-      
-  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");	
-  if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  if( pOp->readTuples() ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
-  if( accountTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* timeRec = pOp->getValue("TIME");
-  if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  NdbRecAttr* transactionIdRec = pOp->getValue("TRANSACTION_ID");
-  if( transactionIdRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pScanTrans->execute(NoCommit);   
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-    
-  int eof;
-  int rows = 0;
+  int loop = 0;
   int found = 0;
-  eof = pOp->nextResult();
-    
-  while(eof == 0){
-    rows++;
-    Uint32 a = accountTypeRec->u_32_value();
-    Uint32 t = timeRec->u_32_value();
-
-    if (a == accountType && t <= oldest){
-      // One record found
-      Uint64 ti = transactionIdRec->u_64_value();
-      g_err << "checkNoTransactionsOlderThan found one record" << endl
-	    << "  t = " << t << endl
-	    << "  a = " << a << endl
-	    << "  ti = " << ti << endl;
-      found++;
+  NdbConnection* pScanTrans = 0;
+  do {
+    int check;  
+    loop++;
+    pScanTrans = m_ndb.startTransaction();
+    if (pScanTrans == NULL) {
+      ERR(m_ndb.getNdbError());
+      return NDBT_FAILED;
     }
-    eof = pOp->nextResult();
-  }
-  if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
     
+    NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");
+    if (pOp == NULL) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    if( pOp->readTuples() ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
+    if( accountTypeRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* timeRec = pOp->getValue("TIME");
+    if( timeRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    NdbRecAttr* transactionIdRec = pOp->getValue("TRANSACTION_ID");
+    if( transactionIdRec ==NULL ) {
+      ERR(pScanTrans->getNdbError());
+      m_ndb.closeTransaction(pScanTrans);
+      return NDBT_FAILED;
+    }
+    
+    check = pScanTrans->execute(NoCommit);   
+    if( check == -1 ) {
+      NdbError err = pScanTrans->getNdbError();
+      ERR(err);
+      m_ndb.closeTransaction(pScanTrans);
+
+      if (err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
+    }
+    
+    int eof;
+    int rows = 0;
+    found = 0;
+    eof = pOp->nextResult();
+    
+    while(eof == 0){
+      rows++;
+      Uint32 a = accountTypeRec->u_32_value();
+      Uint32 t = timeRec->u_32_value();
+      
+      if (a == accountType && t <= oldest){
+	// One record found
+	Uint64 ti = transactionIdRec->u_64_value();
+	g_err << "checkNoTransactionsOlderThan found one record" << endl
+	      << "  t = " << t << endl
+	      << "  a = " << a << endl
+	      << "  ti = " << ti << endl;
+	found++;
+      }
+      eof = pOp->nextResult();
+    }
+    if (eof == -1) {
+      NdbError err = pScanTrans->getNdbError();
+      ERR(err);
+      m_ndb.closeTransaction(pScanTrans);
+      
+      if (err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      
+      return NDBT_FAILED;
+    }
+
+    break;
+  } while(true);
+
   m_ndb.closeTransaction(pScanTrans);
   
   if (found == 0)
@@ -1949,32 +1992,43 @@ int Bank::performIncreaseTime(int maxSleepBetweenDays, int yield)
 int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
 
   int check;
-    
-  NdbConnection* pTrans = m_ndb.startTransaction();
-  if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
-    if(m_ndb.getNdbError().status == NdbError::TemporaryError)
-      return NDBT_TEMPORARY;
-    return NDBT_FAILED;
-  }
-
-  int result;
-  if ((result= prepareReadSystemValueOp(pTrans, sysValId, value)) != NDBT_OK) {
-    ERR(pTrans->getNdbError());
-    m_ndb.closeTransaction(pTrans);
-    return result;
-  }
-
-  check = pTrans->execute(Commit);
-  if( check == -1 ) {
-    ERR(pTrans->getNdbError());
-    if(pTrans->getNdbError().status == NdbError::TemporaryError)
+  NdbConnection* pTrans = 0;
+  while (true)
+  {
+    pTrans = m_ndb.startTransaction();
+    if (pTrans == NULL)
     {
-      m_ndb.closeTransaction(pTrans);
-      return NDBT_TEMPORARY;
+      ERR(m_ndb.getNdbError());
+      if(m_ndb.getNdbError().status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
     }
-    m_ndb.closeTransaction(pTrans);
-    return NDBT_FAILED;
+    
+    int result;
+    if ((result= prepareReadSystemValueOp(pTrans, sysValId, value)) != NDBT_OK)
+    {
+      ERR(pTrans->getNdbError());
+      m_ndb.closeTransaction(pTrans);
+      return result;
+    }
+    
+    check = pTrans->execute(Commit);
+    if( check == -1 ) {
+      NdbError err = pTrans->getNdbError();
+      m_ndb.closeTransaction(pTrans);
+      ERR(err);
+      if(err.status == NdbError::TemporaryError)
+      {
+	NdbSleep_MilliSleep(50);
+	continue;
+      }
+      return NDBT_FAILED;
+    }
+    
+    break;
   }
   
   m_ndb.closeTransaction(pTrans);      

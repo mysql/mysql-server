@@ -48,6 +48,11 @@ public:
   static void set(unsigned size, Uint32 data[]);
 
   /**
+   * set bit from <em>start</em> to <em>last</em>
+   */
+  static void set_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
+
+  /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
   static void assign(unsigned size, Uint32 dst[], const Uint32 src[]);
@@ -61,6 +66,11 @@ public:
    * clear - Clear all bits.
    */
   static void clear(unsigned size, Uint32 data[]);
+
+  /**
+   * clear bit from <em>start</em> to <em>last</em>
+   */
+  static void clear_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
 
   static Uint32 getWord(unsigned size, Uint32 data[], unsigned word_pos);
   static void setWord(unsigned size, Uint32 data[],
@@ -184,6 +194,34 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
   }
 }
 
+inline void
+BitmaskImpl::set_range(unsigned size, Uint32 data[], 
+		       unsigned start, unsigned last)
+{
+  Uint32 *ptr = data + (start >> 5);
+  Uint32 *end =  data + (last >> 5);
+  assert(start <= last);
+  assert(last < (size << 5));
+  
+  Uint32 tmp_word = ~(Uint32)0 << (start & 31);
+
+  if (ptr < end)
+  {
+    * ptr ++ |= tmp_word;
+    
+    for(; ptr < end; )
+    {
+      * ptr ++ = ~(Uint32)0;
+    }
+    
+    tmp_word = ~(Uint32)0;
+  }
+
+  tmp_word &= ~(~(Uint32)0 << (last & 31));
+  
+  * ptr |= tmp_word;
+}
+
 inline void 
 BitmaskImpl::assign(unsigned size, Uint32 dst[], const Uint32 src[])
 {
@@ -205,6 +243,34 @@ BitmaskImpl::clear(unsigned size, Uint32 data[])
   for (unsigned i = 0; i < size; i++) {
     data[i] = 0;
   }
+}
+
+inline void
+BitmaskImpl::clear_range(unsigned size, Uint32 data[], 
+			 unsigned start, unsigned last)
+{
+  Uint32 *ptr = data + (start >> 5);
+  Uint32 *end =  data + (last >> 5);
+  assert(start <= last);
+  assert(last < (size << 5));
+  
+  Uint32 tmp_word = ~(Uint32)0 << (start & 31);
+
+  if (ptr < end)
+  {
+    * ptr ++ &= ~tmp_word;
+    
+    for(; ptr < end; )
+    {
+      * ptr ++ = 0;
+    }
+    
+    tmp_word = ~(Uint32)0;
+  }
+
+  tmp_word &= ~(~(Uint32)0 << (last & 31));
+
+  * ptr &= ~tmp_word;
 }
 
 inline

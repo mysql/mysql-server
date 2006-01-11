@@ -4818,6 +4818,12 @@ end_with_restore_list:
   case SQLCOM_XA_RECOVER:
     res= mysql_xa_recover(thd);
     break;
+  case SQLCOM_ALTER_TABLESPACE:
+    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
+      break;
+    if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
+      send_ok(thd);
+    break;
   case SQLCOM_INSTALL_PLUGIN:
     if (! (res= mysql_install_plugin(thd, &thd->lex->comment,
                                      &thd->lex->ident)))
