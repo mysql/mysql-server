@@ -98,7 +98,8 @@ static int simple_parser_plugin_deinit(void)
     1                    failure (cannot happen)
 */
 
-static int simple_parser_init(MYSQL_FTPARSER_PARAM *param)
+static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
+                              __attribute__((unused)))
 {
   return(0);
 }
@@ -118,7 +119,8 @@ static int simple_parser_init(MYSQL_FTPARSER_PARAM *param)
     1                    failure (cannot happen)
 */
 
-static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param)
+static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
+                                __attribute__((unused)))
 {
   return(0);
 }
@@ -179,7 +181,7 @@ int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
         add_word(param, start, end - start);
       break;
     }
-    else if (isspace(*end))
+    else if (my_isspace(param->cs, *end))
     {
       if (end > start)
         add_word(param, start, end - start);
@@ -208,7 +210,7 @@ static struct st_mysql_ftparser simple_parser_descriptor=
 
 struct st_mysql_show_var simple_status[]=
 {
-  {"static",     "just a static text",     SHOW_CHAR},
+  {"static",     (char *)"just a static text",     SHOW_CHAR},
   {"called",     (char *)&number_of_calls, SHOW_LONG},
   {0,0,0}
 };
@@ -227,6 +229,6 @@ mysql_declare_plugin
   simple_parser_plugin_init,  /* init function (when loaded)     */
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */
-  &simple_status              /* status variables                */
+  simple_status               /* status variables                */
 }
 mysql_declare_plugin_end;
