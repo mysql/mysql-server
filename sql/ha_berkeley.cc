@@ -149,6 +149,7 @@ handlerton berkeley_hton = {
   NULL, /* Start Consistent Snapshot */
   berkeley_flush_logs, /* Flush logs */
   berkeley_show_status, /* Show status */
+  NULL, /* Alter Tablespace */
   HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME
 };
 

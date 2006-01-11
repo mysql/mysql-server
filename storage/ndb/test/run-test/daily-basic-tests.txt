@@ -208,6 +208,10 @@ cmd: testBasic
 args: -n MassiveRollback2 T1 T6 T13 D1 D2
 
 max-time: 500
+cmd: testBasic
+args: -n TupError
+
+max-time: 500
 cmd: testTimeout
 args: T1 
 
@@ -311,11 +315,19 @@ args: -n ScanUpdateAbort16 T6 D1 D2
 
 max-time: 3600
 cmd: testScan
-args: -n ScanReadRestart T1 T6 T13 D1 D2
+args: -n ScanReadRestart T1 T6 T13
 
-max-time: 500
+max-time: 3600
 cmd: testScan
-args: -n ScanUpdateRestart T6 D1 D2 
+args: -n ScanReadRestart D1 D2
+
+max-time: 1200
+cmd: testScan
+args: -n ScanUpdateRestart T6
+
+max-time: 1200
+cmd: testScan
+args: -n ScanUpdateRestart D1 D2 
 
 max-time: 500
 cmd: testScan
@@ -397,9 +409,13 @@ max-time: 500
 cmd: testScan
 args: -n CheckAfterTerror T1 D1 D2 
 
-max-time: 500
+max-time: 1200
 cmd: testScan
-args: -n ScanReadWhileNodeIsDown T1 D1 D2 
+args: -n ScanReadWhileNodeIsDown T1
+
+max-time: 1200
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown D1 D2 
 
 max-time: 500
 cmd: testScan
@@ -412,6 +428,10 @@ args: -l 100 -n Scan-bug8262 T7 D1 D2
 max-time: 500
 cmd: testScan
 args: -n ScanParallelism
+
+max-time: 500
+cmd: testScan
+args: -n ScanVariants
 
 max-time: 500
 cmd: testNodeRestart
@@ -560,7 +580,7 @@ max-time: 1500
 cmd: testRestartGci
 args: T6 
 
-max-time: 600
+max-time: 1500
 cmd: testBlobs
 args:
 
@@ -639,6 +659,18 @@ args: -n SR_UNDO T7
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_UNDO T8 
+
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n Mix -l 300 -r 15 T1
 
 # OLD FLEX
 max-time: 500

@@ -60,6 +60,14 @@ int main(int argc, const char** argv){
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+
+  if (con.wait_until_ready(30,0) < 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  
+
   Ndb MyNdb(&con, "TEST_DB" );
 
   if(MyNdb.init() != 0){
@@ -67,9 +75,6 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  while(MyNdb.waitUntilReady() != 0)
-    ndbout << "Waiting for ndb to become ready..." << endl;
-   
   // Check if table exists in db
   const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   if(pTab == NULL){

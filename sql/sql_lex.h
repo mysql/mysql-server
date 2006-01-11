@@ -25,6 +25,7 @@ class sp_head;
 class sp_name;
 class sp_instr;
 class sp_pcontext;
+class st_alter_tablespace;
 class partition_info;
 
 /*
@@ -92,6 +93,7 @@ enum enum_sql_command {
   SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
   SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
   SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
+  SQLCOM_ALTER_TABLESPACE,
   SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
   SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
   SQLCOM_SHOW_PLUGINS,
@@ -952,6 +954,12 @@ typedef struct st_lex
     during replication ("LOCAL 'filename' REPLACE INTO" part).
   */
   const uchar *fname_start, *fname_end;
+
+  /*
+    Reference to a struct that contains information in various commands
+    to add/create/drop/change table spaces.
+  */
+  st_alter_tablespace *alter_tablespace_info;
   
   bool escape_used;
 

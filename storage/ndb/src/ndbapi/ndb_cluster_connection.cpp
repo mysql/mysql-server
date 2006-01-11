@@ -556,5 +556,17 @@ void Ndb_cluster_connection_impl::connect_thread()
   DBUG_VOID_RETURN;
 }
 
+void
+Ndb_cluster_connection::init_get_next_node(Ndb_cluster_connection_node_iter &iter)
+{
+  m_impl.init_get_next_node(iter);
+}
+
+Uint32
+Ndb_cluster_connection::get_next_node(Ndb_cluster_connection_node_iter &iter)
+{
+  return m_impl.get_next_node(iter);
+}
+
 template class Vector<Ndb_cluster_connection_impl::Node>;
 

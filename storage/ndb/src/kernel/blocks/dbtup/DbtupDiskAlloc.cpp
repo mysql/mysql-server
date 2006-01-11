@@ -20,7 +20,8 @@
 Dbtup::Disk_alloc_info::Disk_alloc_info(const Tablerec* tabPtrP, 
 					Uint32 extent_size)
 {
-  m_curr_extent_info_ptr_i= RNIL; 
+  m_extent_size = extent_size;
+  m_curr_extent_info_ptr_i = RNIL; 
   if (tabPtrP->m_no_of_disk_attributes == 0)
     return;
   
@@ -278,6 +279,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       
       int pages= err;
       ndbout << "allocated " << pages << " pages: " << ext.p->m_key << endl;
+      ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
       ext.p->m_free_space= alloc.m_page_free_bits_map[0] * pages; 
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
@@ -528,8 +530,7 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
   
   if (tabPtr.p->m_attributes[DD].m_no_of_varsize == 0)
   {
-    convertThPage(tabPtr.p->m_offsets[DD].m_fix_header_size, 
-		  (Fix_page*)gpage.p);
+    convertThPage((Fix_page*)gpage.p, tabPtr.p, DD);
   }
   else
   {
@@ -1060,6 +1061,7 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
       
       ext.p->m_key = *key;
       ndbout << "allocated " << pages << " pages: " << ext.p->m_key << endl;
+      ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
       ext.p->m_free_space= alloc.m_page_free_bits_map[0] * pages; 
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
