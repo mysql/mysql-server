@@ -2805,3 +2805,16 @@ EXPLAIN SELECT t2.key_a,foo
     WHERE t2.key_a=2 and key_b=5;
 
 DROP TABLE t1,t2,t3;
+
+#
+# Bug#15347 Wrong result of subselect when records cache and set functions
+#           are involved
+#
+create  table t1 (f1 int);
+insert into t1 values(1),(2);
+create table t2 (f2 int, f3 int, key(f2));
+insert into t2 values(1,1),(2,2);
+create table t3 (f4 int not null);
+insert into t3 values (2),(2),(2);
+select f1,(select count(*) from t2,t3 where f2=f1 and f3=f4) as count from t1;
+drop table t1,t2,t3;
