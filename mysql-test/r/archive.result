@@ -12351,18 +12351,18 @@ CREATE TABLE `t5` (
 b char(12),
 PRIMARY KEY  (`a`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (32, "foo");
 INSERT INTO t5 VALUES (23, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (3, "foo");
 ERROR 23000: Can't write; duplicate key in table 't5'
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 SELECT * FROM t5;
 a	b
 1	foo
@@ -12375,23 +12375,78 @@ a	b
 33	foo
 34	foo
 35	foo
+SELECT * FROM t5 WHERE a=3;
+a	b
+3	foo
+DROP TABLE t5;
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b char(12),
+KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1 AUTO_INCREMENT=5;
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (32, "foo");
+INSERT INTO t5 VALUES (23, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (3, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+SELECT * FROM t5;
+a	b
+5	foo
+6	foo
+7	foo
+8	foo
+9	foo
+32	foo
+23	foo
+33	foo
+34	foo
+3	foo
+35	foo
+OPTIMIZE TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	optimize	status	OK
+SELECT * FROM t5;
+a	b
+5	foo
+6	foo
+7	foo
+8	foo
+9	foo
+32	foo
+23	foo
+33	foo
+34	foo
+3	foo
+35	foo
+SELECT * FROM t5 WHERE a=32;
+a	b
+32	foo
+SELECT * FROM t5 WHERE a=3;
+a	b
+3	foo
 DROP TABLE t5;
 CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
 b char(12),
 KEY  (`a`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (32, "foo");
 INSERT INTO t5 VALUES (23, "foo");
-INSERT INTO t5 VALUES (0, "foo");
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 INSERT INTO t5 VALUES (3, "foo");
-INSERT INTO t5 VALUES (0, "foo");
+INSERT INTO t5 VALUES (NULL, "foo");
 SELECT * FROM t5;
 a	b
 1	foo
