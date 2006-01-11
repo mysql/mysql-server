@@ -49,6 +49,8 @@ DictTabInfo::TableMapping[] = {
   DTIMAPB(Table, FragmentData, FragmentData, 0, MAX_FRAGMENT_DATA_BYTES, FragmentDataLen),
   DTIMAP(Table, TablespaceId, TablespaceId),
   DTIMAP(Table, TablespaceVersion, TablespaceVersion),
+  DTIMAP(Table, RowGCIFlag, RowGCIFlag),
+  DTIMAP(Table, RowChecksumFlag, RowChecksumFlag),
   DTIBREAK(AttributeName)
 };
 
@@ -128,6 +130,9 @@ DictTabInfo::Table::init(){
   memset(FragmentData, 0, sizeof(FragmentData));
   TablespaceId = RNIL;
   TablespaceVersion = ~0;
+
+  RowGCIFlag = ~0;
+  RowChecksumFlag = ~0;
 }
 
 void
@@ -174,7 +179,9 @@ DictFilegroupInfo::Mapping[] = {
   DFGIMAP(Filegroup,  LF_UndoGrowSizeLo, LF_UndoGrow.GrowSizeLo),
   DFGIMAPS(Filegroup, LF_UndoGrowPattern, LF_UndoGrow.GrowPattern, 0,PATH_MAX),
   DFGIMAP(Filegroup,  LF_UndoGrowMaxSize, LF_UndoGrow.GrowMaxSize),
-  
+  DFGIMAP(Filegroup,  LF_UndoFreeWordsHi, LF_UndoFreeWordsHi),
+  DFGIMAP(Filegroup,  LF_UndoFreeWordsLo, LF_UndoFreeWordsLo),
+
   DFGIBREAK(FileName)
 };
 

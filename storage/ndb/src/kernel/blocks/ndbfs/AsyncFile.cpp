@@ -341,11 +341,13 @@ void AsyncFile::openReq(Request* request)
 #endif
   }
   
+#ifndef NDB_NO_O_DIRECT  /* to allow tmpfs */
 #ifdef O_DIRECT
   if (flags & FsOpenReq::OM_DIRECT) 
   {
     new_flags |= O_DIRECT;
   }
+#endif
 #endif
   
   switch(flags & 0x3){

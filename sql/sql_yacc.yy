@@ -119,6 +119,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  END_OF_INPUT
 
 %token  ABORT_SYM
+%token  ACCESSIBLE_SYM
 %token  ACTION
 %token  ADD
 %token  ADDDATE_SYM
@@ -139,6 +140,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ATAN
 %token  AUTHORS_SYM
 %token  AUTO_INC
+%token  AUTOEXTEND_SIZE_SYM
 %token  AVG_ROW_LENGTH
 %token  AVG_SYM
 %token  BACKUP_SYM
@@ -208,6 +210,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CURTIME
 %token  DATABASE
 %token  DATABASES
+%token  DATAFILE_SYM
 %token  DATA_SYM
 %token  DATETIME
 %token  DATE_ADD_INTERVAL
@@ -237,6 +240,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DIRECTORY_SYM
 %token  DISABLE_SYM
 %token  DISCARD
+%token  DISK_SYM
 %token  DISTINCT
 %token  DIV_SYM
 %token  DOUBLE_SYM
@@ -269,6 +273,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXPANSION_SYM
 %token  EXPORT_SET
 %token  EXTENDED_SYM
+%token  EXTENT_SIZE_SYM
 %token  EXTRACT_SYM
 %token  FALSE_SYM
 %token  FAST_SYM
@@ -331,6 +336,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  INDEXES
 %token  INDEX_SYM
 %token  INFILE
+%token  INITIAL_SIZE_SYM
 %token  INNER_SYM
 %token  INNOBASE_SYM
 %token  INOUT_SYM
@@ -377,6 +383,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOCATOR_SYM
 %token  LOCKS_SYM
 %token  LOCK_SYM
+%token  LOGFILE_SYM
 %token  LOGS_SYM
 %token  LOG_SYM
 %token  LONGBLOB
@@ -407,6 +414,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
 %token  MAX_ROWS
+%token  MAX_SIZE_SYM
 %token  MAX_SYM
 %token  MAX_UPDATES_PER_HOUR
 %token  MAX_USER_CONNECTIONS_SYM
@@ -415,6 +423,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MEDIUMINT
 %token  MEDIUMTEXT
 %token  MEDIUM_SYM
+%token  MEMORY_SYM
 %token  MERGE_SYM
 %token  MICROSECOND_SYM
 %token  MIGRATE_SYM
@@ -451,6 +460,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NOT_SYM
 %token  NOW_SYM
 %token  NO_SYM
+%token  NO_WAIT_SYM
 %token  NO_WRITE_TO_BINLOG
 %token  NULL_SYM
 %token  NUM
@@ -506,9 +516,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RAND
 %token  RANGE_SYM
 %token  READS_SYM
+%token  READ_ONLY_SYM
 %token  READ_SYM
+%token  READ_WRITE_SYM
 %token  REAL
 %token  RECOVER_SYM
+%token  REDO_BUFFER_SIZE_SYM
+%token  REDOFILE_SYM
 %token  REDUNDANT_SYM
 %token  REFERENCES
 %token  REGEXP
@@ -630,6 +644,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ULONGLONG_NUM
 %token  UNCOMMITTED_SYM
 %token  UNDEFINED_SYM
+%token  UNDO_BUFFER_SIZE_SYM
+%token  UNDOFILE_SYM
 %token  UNDERSCORE_CHARSET
 %token  UNDO_SYM
 %token  UNICODE_SYM
@@ -660,6 +676,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  VARIANCE_SYM
 %token  VARYING
 %token  VIEW_SYM
+%token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
 %token  WHEN_SYM
@@ -727,7 +744,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	ulong_num raid_types merge_insert_types
 
 %type <ulonglong_number>
-	ulonglong_num
+	ulonglong_num size_number
 
 %type <longlong_number>
         part_bit_expr
@@ -1295,6 +1312,16 @@ create:
 	| CREATE USER clear_privileges grant_list
 	  {
 	    Lex->sql_command = SQLCOM_CREATE_USER;
+          }
+	| CREATE LOGFILE_SYM GROUP logfile_group_info 
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= CREATE_LOGFILE_GROUP;
+          }
+        | CREATE TABLESPACE tablespace_info
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
           }
 	;
 
@@ -2538,6 +2565,382 @@ trg_event:
           | DELETE_SYM
             { Lex->trg_chistics.event= TRG_EVENT_DELETE; }
           ;
+/*
+  This part of the parser contains common code for all TABLESPACE
+  commands.
+  CREATE TABLESPACE name ...
+  ALTER TABLESPACE name CHANGE DATAFILE ...
+  ALTER TABLESPACE name ADD DATAFILE ...
+  ALTER TABLESPACE name access_mode
+  CREATE LOGFILE GROUP name ...
+  ALTER LOGFILE GROUP name ADD UNDOFILE ..
+  ALTER LOGFILE GROUP name ADD REDOFILE ..
+  DROP TABLESPACE name
+  DROP LOGFILE GROUP name
+*/
+change_tablespace_access:
+          tablespace_name
+          ts_access_mode
+          ;
+
+change_tablespace_info:
+          tablespace_name
+          CHANGE ts_datafile
+          change_ts_option_list
+          ;
+
+tablespace_info:
+          tablespace_name
+          ADD ts_datafile
+          opt_logfile_group_name
+          tablespace_option_list
+          ;
+
+opt_logfile_group_name:
+          /* empty */ {}
+          | USE_SYM LOGFILE_SYM GROUP ident
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->logfile_group_name= $4.str;
+          };
+
+alter_tablespace_info:
+          tablespace_name
+          ADD ts_datafile
+          alter_tablespace_option_list 
+	  { 
+	    Lex->alter_tablespace_info->ts_alter_tablespace_type= ALTER_TABLESPACE_ADD_FILE; 
+          }
+          |
+          tablespace_name
+          DROP ts_datafile
+          alter_tablespace_option_list 
+	  { 
+	    Lex->alter_tablespace_info->ts_alter_tablespace_type= ALTER_TABLESPACE_DROP_FILE; 
+          };
+
+logfile_group_info:
+          logfile_group_name
+          add_log_file
+          logfile_group_option_list
+          ;
+
+alter_logfile_group_info:
+          logfile_group_name
+          add_log_file
+          alter_logfile_group_option_list
+          ;
+
+add_log_file:
+          ADD lg_undofile
+          | ADD lg_redofile
+          ;
+
+change_ts_option_list:
+          /* empty */ {}
+          change_ts_options
+          ;
+
+change_ts_options:
+          change_ts_option
+          | change_ts_options change_ts_option
+          | change_ts_options ',' change_ts_option
+          ;
+
+change_ts_option:
+          opt_ts_initial_size
+          | opt_ts_autoextend_size
+          | opt_ts_max_size
+          ;
+
+tablespace_option_list:
+          /* empty */ {}
+          tablespace_options
+          ;
+
+tablespace_options:
+          tablespace_option
+          | tablespace_options tablespace_option
+          | tablespace_options ',' tablespace_option
+          ;
+
+tablespace_option:
+          opt_ts_initial_size
+          | opt_ts_autoextend_size
+          | opt_ts_max_size
+          | opt_ts_extent_size
+          | opt_ts_nodegroup
+          | opt_ts_engine
+          | ts_wait
+          | opt_ts_comment
+          ;
+
+alter_tablespace_option_list:
+          /* empty */ {}
+          alter_tablespace_options
+          ;
+
+alter_tablespace_options:
+          alter_tablespace_option
+          | alter_tablespace_options alter_tablespace_option
+          | alter_tablespace_options ',' alter_tablespace_option
+          ;
+
+alter_tablespace_option:
+          opt_ts_initial_size
+          | opt_ts_autoextend_size
+          | opt_ts_max_size
+          | opt_ts_engine
+          | ts_wait
+          ;
+
+logfile_group_option_list:
+          /* empty */ {}
+          logfile_group_options
+          ;
+
+logfile_group_options:
+          logfile_group_option
+          | logfile_group_options logfile_group_option
+          | logfile_group_options ',' logfile_group_option
+          ;
+
+logfile_group_option:
+          opt_ts_initial_size
+          | opt_ts_undo_buffer_size
+          | opt_ts_redo_buffer_size
+          | opt_ts_nodegroup
+          | opt_ts_engine
+          | ts_wait
+          | opt_ts_comment
+          ;
+
+alter_logfile_group_option_list:
+          /* empty */ {}
+          alter_logfile_group_options
+          ;
+
+alter_logfile_group_options:
+          alter_logfile_group_option
+          | alter_logfile_group_options alter_logfile_group_option
+          | alter_logfile_group_options ',' alter_logfile_group_option
+          ;
+
+alter_logfile_group_option:
+          opt_ts_initial_size
+          | opt_ts_engine
+          | ts_wait
+          ;
+
+
+ts_datafile:
+          DATAFILE_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->data_file_name= $2.str;
+          };
+
+lg_undofile:
+          UNDOFILE_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->undo_file_name= $2.str;
+          };
+
+lg_redofile:
+          REDOFILE_SYM TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->redo_file_name= $2.str;
+          };
+
+tablespace_name:
+          ident
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info= new st_alter_tablespace();
+            lex->alter_tablespace_info->tablespace_name= $1.str;
+            lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          };
+
+logfile_group_name:
+          ident
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info= new st_alter_tablespace();
+            lex->alter_tablespace_info->logfile_group_name= $1.str;
+            lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          };
+
+ts_access_mode:
+          READ_ONLY_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_access_mode= TS_READ_ONLY;
+          }
+          | READ_WRITE_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_access_mode= TS_READ_WRITE;
+          }
+          | NOT_SYM ACCESSIBLE_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_access_mode= TS_NOT_ACCESSIBLE;
+          };
+
+opt_ts_initial_size:
+          INITIAL_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->initial_size= $3;
+          };
+
+opt_ts_autoextend_size:
+          AUTOEXTEND_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->autoextend_size= $3;
+          };
+
+opt_ts_max_size:
+          MAX_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->max_size= $3;
+          };
+
+opt_ts_extent_size:
+          EXTENT_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->extent_size= $3;
+          };
+
+opt_ts_undo_buffer_size:
+          UNDO_BUFFER_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->undo_buffer_size= $3;
+          };
+
+opt_ts_redo_buffer_size:
+          REDO_BUFFER_SIZE_SYM opt_equal size_number
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->redo_buffer_size= $3;
+          };
+
+opt_ts_nodegroup:
+          NODEGROUP_SYM opt_equal ulong_num
+          {
+            LEX *lex= Lex;
+            if (lex->alter_tablespace_info->nodegroup_id != UNDEF_NODEGROUP)
+            {
+              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"NODEGROUP");
+              YYABORT;
+            }
+            lex->alter_tablespace_info->nodegroup_id= $3;
+          };
+
+opt_ts_comment:
+          COMMENT_SYM opt_equal TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            if (lex->alter_tablespace_info->ts_comment != NULL)
+            {
+              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"COMMENT");
+              YYABORT;
+            }
+            lex->alter_tablespace_info->ts_comment= $3.str;
+          };
+
+opt_ts_engine:
+          opt_storage ENGINE_SYM opt_equal storage_engines
+          {
+            LEX *lex= Lex;
+            if (lex->alter_tablespace_info->storage_engine != DB_TYPE_UNKNOWN)
+            {
+              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),
+                       "STORAGE ENGINE");
+              YYABORT;
+            }
+            lex->alter_tablespace_info->storage_engine= $4->db_type;
+          };
+
+opt_ts_wait:
+          /* empty */ 
+          | ts_wait
+          ;
+
+ts_wait:
+          WAIT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->wait_until_completed= TRUE;
+          }
+          | NO_WAIT_SYM
+          {
+            LEX *lex= Lex;
+            if (!(lex->alter_tablespace_info->wait_until_completed))
+            {
+              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"NO_WAIT");
+              YYABORT;
+            }
+            lex->alter_tablespace_info->wait_until_completed= FALSE;
+          };
+
+size_number:
+          ulong_num { $$= $1;}
+          | IDENT
+          {
+            ulonglong number, test_number;
+            uint text_shift_number= 0;
+            longlong prefix_number;
+            char *end_ptr;
+            char *start_ptr= $1.str;
+            uint str_len= strlen(start_ptr);
+            int error;
+            prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
+            if ((start_ptr + str_len - 1) == end_ptr)
+            {
+              switch (end_ptr[0])
+              {
+                case 'g':
+                case 'G':
+                  text_shift_number+=10;
+                case 'm':
+                case 'M':
+                  text_shift_number+=10;
+                case 'k':
+                case 'K':
+                  text_shift_number+=10;
+                  break;
+                default:
+                {
+                  my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
+                  YYABORT;
+                }
+              }
+              if (prefix_number >> 31)
+              {
+                my_error(ER_SIZE_OVERFLOW_ERROR, MYF(0));
+                YYABORT;
+              }
+              number= prefix_number << text_shift_number;
+            }
+            else
+            {
+              my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
+              YYABORT;
+            }
+            $$= number;
+          }
+          ;
+
+/*
+  End tablespace part
+*/
 
 create2:
         '(' create2a {}
@@ -3196,6 +3599,9 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
+        | TABLESPACE ident {Lex->create_info.tablespace= $2.str;}
+        | STORAGE_SYM DISK_SYM {Lex->create_info.store_on_disk= TRUE;}
+        | STORAGE_SYM MEMORY_SYM {Lex->create_info.store_on_disk= FALSE;}
 	| CONNECTION_SYM opt_equal TEXT_STRING_sys { Lex->create_info.connect_string.str= $3.str; Lex->create_info.connect_string.length= $3.length;  Lex->create_info.used_fields|= HA_CREATE_USED_CONNECTION; }
         ;
 
@@ -3954,6 +4360,26 @@ alter:
 	  }
 	  view_list_opt AS view_select view_check_option
 	  {}
+        | ALTER TABLESPACE alter_tablespace_info
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= ALTER_TABLESPACE;
+          }
+        | ALTER LOGFILE_SYM GROUP alter_logfile_group_info 
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= ALTER_LOGFILE_GROUP;
+          }
+        | ALTER TABLESPACE change_tablespace_info
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= CHANGE_FILE_TABLESPACE;
+          }
+        | ALTER TABLESPACE change_tablespace_access 
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= ALTER_ACCESS_MODE_TABLESPACE;
+          }
 	;
 
 ident_or_empty:
@@ -6652,6 +7078,16 @@ drop:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_DROP_TRIGGER;
             lex->spname= $3;
+	  }
+        | DROP TABLESPACE tablespace_name opt_ts_engine opt_ts_wait
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= DROP_TABLESPACE;
+          }
+        | DROP LOGFILE_SYM GROUP logfile_group_name opt_ts_engine opt_ts_wait
+          {
+            LEX *lex= Lex;
+            lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
           }
 	;
 
@@ -8105,6 +8541,12 @@ TEXT_STRING_literal:
 
 ident:
 	IDENT_sys	    { $$=$1; }
+	| READ_ONLY_SYM
+	{
+	  THD *thd= YYTHD;
+	  $$.str= thd->strmake("read_only",9);
+	  $$.length= 9;
+	}
 	| keyword
 	{
 	  THD *thd= YYTHD;
@@ -8227,6 +8669,7 @@ keyword_sp:
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
 	| AUTO_INC		{}
+	| AUTOEXTEND_SIZE_SYM   {}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
 	| BERKELEY_DB_SYM	{}
@@ -8251,6 +8694,7 @@ keyword_sp:
 	| CONSISTENT_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
+	| DATAFILE_SYM          {}
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
@@ -8259,6 +8703,7 @@ keyword_sp:
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
+	| DISK_SYM              {}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
@@ -8270,6 +8715,7 @@ keyword_sp:
 	| EVENTS_SYM		{}
         | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
+	| EXTENT_SIZE_SYM       {}
 	| FAST_SYM		{}
 	| FOUND_SYM		{}
 	| DISABLE_SYM		{}
@@ -8291,6 +8737,7 @@ keyword_sp:
 	| INVOKER_SYM		{}
 	| IMPORT		{}
 	| INDEXES		{}
+	| INITIAL_SIZE_SYM      {}
 	| ISOLATION		{}
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
@@ -8304,6 +8751,7 @@ keyword_sp:
 	| LIST_SYM		{}
 	| LOCAL_SYM		{}
 	| LOCKS_SYM		{}
+	| LOGFILE_SYM           {}
 	| LOGS_SYM		{}
 	| MAX_ROWS		{}
 	| MASTER_SYM		{}
@@ -8323,10 +8771,12 @@ keyword_sp:
 	| MASTER_SSL_KEY_SYM	{}
 	| MAX_CONNECTIONS_PER_HOUR	 {}
 	| MAX_QUERIES_PER_HOUR	{}
+	| MAX_SIZE_SYM          {}
 	| MAX_UPDATES_PER_HOUR	{}
 	| MAX_USER_CONNECTIONS_SYM {}
 	| MAX_VALUE_SYM         {}
 	| MEDIUM_SYM		{}
+	| MEMORY_SYM		{}
 	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
         | MIGRATE_SYM           {}
@@ -8346,7 +8796,8 @@ keyword_sp:
 	| NDBCLUSTER_SYM	{}
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
-	| NODEGROUP_SYM		{}
+	| NO_WAIT_SYM           {}
+	| NODEGROUP_SYM         {}
 	| NONE_SYM		{}
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
@@ -8373,6 +8824,8 @@ keyword_sp:
 	| RAID_STRIPED_SYM	{}
 	| RAID_TYPE		{}
         | RECOVER_SYM           {}
+	| REDO_BUFFER_SIZE_SYM	{}
+	| REDOFILE_SYM  	{}
         | REDUNDANT_SYM         {}
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
@@ -8429,6 +8882,8 @@ keyword_sp:
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNDEFINED_SYM		{}
+	| UNDO_BUFFER_SIZE_SYM	{}
+	| UNDOFILE_SYM  	{}
 	| UNKNOWN_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
@@ -8437,6 +8892,7 @@ keyword_sp:
 	| VIEW_SYM		{}
 	| VALUE_SYM		{}
 	| WARNINGS		{}
+	| WAIT_SYM              {}
 	| WEEK_SYM		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
