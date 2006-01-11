@@ -36,5 +36,6 @@ printFSCLOSEREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   else
     fprintf(output, "Don't remove file");
   fprintf(output, "\n");
-  return true;
+
+  return len == 4;
 }

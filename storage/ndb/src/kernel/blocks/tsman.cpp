@@ -390,7 +390,6 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
 
   if (errorCode)
   {
-    ndbassert(false);
     DropFilegroupImplRef* ref = 
       (DropFilegroupImplRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -1084,7 +1083,9 @@ Tsman::load_extent_page_callback(Signal* signal,
 
   Ptr<Tablespace> ts_ptr;
   m_tablespace_pool.getPtr(ts_ptr, ptr.p->m_tablespace_ptr_i);
-  if (!getNodeState().getSystemRestartInProgress())
+  if (getNodeState().startLevel >= NodeState::SL_STARTED ||
+      (getNodeState().getNodeRestartInProgress() &&
+       getNodeState().starting.restartType == NodeState::ST_INITIAL_NODE_RESTART))
   {
     LocalDLList<Datafile> free(m_file_pool, ts_ptr.p->m_free_files);
     LocalDLList<Datafile> meta(m_file_pool, ts_ptr.p->m_meta_files);
@@ -1615,6 +1616,57 @@ Tsman::update_page_free_bits(Signal* signal,
 }
 
 int
+Tsman::get_page_free_bits(Signal* signal, Local_key *key, unsigned* bits)
+{
+  jamEntry();
+
+  /**
+   * XXX make into subroutine
+   */   
+  Ptr<Datafile> file_ptr;
+  Datafile file_key;
+  file_key.m_file_no = key->m_file_no;
+  ndbrequire(m_file_hash.find(file_ptr, file_key));
+
+  Uint32 size = file_ptr.p->m_extent_size;
+  Uint32 data_off = file_ptr.p->m_online.m_offset_data_pages;
+  Uint32 eh_words = File_formats::Datafile::extent_header_words(size);
+  Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
+  Uint32 SZ= File_formats::Datafile::EXTENT_HEADER_BITMASK_BITS_PER_PAGE;
+  
+  Uint32 extent = (key->m_page_no - data_off) / size + per_page;
+  Uint32 page_no = extent / per_page;
+  Uint32 extent_no = extent % per_page;
+  
+  Page_cache_client::Request preq;
+  preq.m_page.m_page_no = page_no;
+  preq.m_page.m_file_no = key->m_file_no;
+  
+  /**
+   * Handling of unmapped extent header pages is not implemented
+   */
+  int flags = 0;
+  int real_page_id;
+  if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
+  {
+    GlobalPage* ptr_p = m_page_cache_client.m_ptr.p;
+    
+    File_formats::Datafile::Extent_page* page = 
+      (File_formats::Datafile::Extent_page*)ptr_p;
+    File_formats::Datafile::Extent_header* header = 
+      page->get_header(extent_no, size);
+    
+    ndbrequire(header->m_table != RNIL);
+
+    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
+    *bits = header->get_free_bits(page_no_in_extent);
+    return 0;
+  }
+  
+  return AllocExtentReq::UnmappedExtentPageIsNotImplemented;
+}
+
+int
 Tsman::unmap_page(Signal* signal, Local_key *key)
 {
   jamEntry();
@@ -2055,17 +2107,23 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   if(reqType == GetTabInfoReq::RequestByName){
     jam();
     releaseSections(signal);
-    
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong);
+
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::NoFetchByName);
     return;
   }
 
   DLHashTable<Datafile>::Iterator iter;
   ndbrequire(m_file_hash.first(iter));
+
   while(iter.curr.p->m_file_id != tableId && m_file_hash.next(iter))
     ;
-  ndbrequire(iter.curr.p->m_file_id == tableId);
-  
+
+  if(iter.curr.p->m_file_id != tableId)
+  {
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::InvalidTableId);
+    return;
+  }
+
   const Ptr<Datafile> &file_ptr= iter.curr;
 
   jam();
@@ -2073,9 +2131,9 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   Uint32 total_free_extents = file_ptr.p->m_online.m_data_pages;
   total_free_extents /= file_ptr.p->m_extent_size;
   total_free_extents -= file_ptr.p->m_online.m_used_extent_cnt;
-  
+
   GetTabInfoConf *conf = (GetTabInfoConf *)&signal->theData[0];
-  
+
   conf->senderData= senderData;
   conf->tableId= tableId;
   conf->freeExtents= total_free_extents;

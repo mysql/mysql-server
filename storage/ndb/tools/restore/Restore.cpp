@@ -140,27 +140,137 @@ RestoreMetaData::readMetaTableList() {
 bool
 RestoreMetaData::readMetaTableDesc() {
   
-  Uint32 sectionInfo[2];
+  Uint32 sectionInfo[3];
   
   // Read section header 
-  if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
+  Uint32 sz = sizeof(sectionInfo) >> 2;
+  if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION)
+  {
+    sz = 2;
+    sectionInfo[2] = htonl(DictTabInfo::UserTable);
+  }
+  if (buffer_read(&sectionInfo, 4*sz, 1) != 1){
     err << "readMetaTableDesc read header error" << endl;
     return false;
   } // if
   sectionInfo[0] = ntohl(sectionInfo[0]);
   sectionInfo[1] = ntohl(sectionInfo[1]);
+  sectionInfo[2] = ntohl(sectionInfo[2]);
   
   assert(sectionInfo[0] == BackupFormat::TABLE_DESCRIPTION);
   
   // Read dictTabInfo buffer
-  const Uint32 len = (sectionInfo[1] - 2);
+  const Uint32 len = (sectionInfo[1] - sz);
   void *ptr;
   if (buffer_get_ptr(&ptr, 4, len) != len){
     err << "readMetaTableDesc read error" << endl;
     return false;
   } // if
   
-  return parseTableDescriptor((Uint32*)ptr, len);	     
+  int errcode = 0;
+  DictObject obj = { sectionInfo[2], 0 };
+  switch(obj.m_objType){
+  case DictTabInfo::SystemTable:
+  case DictTabInfo::UserTable:
+  case DictTabInfo::UniqueHashIndex:
+  case DictTabInfo::OrderedIndex:
+    return parseTableDescriptor((Uint32*)ptr, len);	     
+    break;
+  case DictTabInfo::Tablespace:
+  {
+    NdbDictionary::Tablespace * dst = new NdbDictionary::Tablespace;
+    errcode = 
+      NdbDictInterface::parseFilegroupInfo(NdbTablespaceImpl::getImpl(* dst), 
+					   (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " " 
+	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    break;
+  }
+  case DictTabInfo::LogfileGroup:
+  {
+    NdbDictionary::LogfileGroup * dst = new NdbDictionary::LogfileGroup;
+    errcode = 
+      NdbDictInterface::parseFilegroupInfo(NdbLogfileGroupImpl::getImpl(* dst),
+					   (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " " 
+	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
+    break;
+  }
+  case DictTabInfo::Datafile:
+  {
+    NdbDictionary::Datafile * dst = new NdbDictionary::Datafile;
+    errcode = 
+      NdbDictInterface::parseFileInfo(NdbDatafileImpl::getImpl(* dst), 
+				      (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " "
+	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
+    break;
+  }
+  case DictTabInfo::Undofile:
+  {
+    NdbDictionary::Undofile * dst = new NdbDictionary::Undofile;
+    errcode = 
+      NdbDictInterface::parseFileInfo(NdbUndofileImpl::getImpl(* dst), 
+				      (Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " " 
+	   << dec << dst->getObjectId() << " " << dst->getPath() << endl;
+    break;
+  }
+  default:
+    err << "Unsupported table type!! " << sectionInfo[2] << endl;
+    return false;
+  }
+  if (errcode)
+  {
+    err << "Unable to parse dict info..." 
+	<< sectionInfo[2] << " " << errcode << endl;
+    return false;
+  }
+
+  /**
+   * DD objects need to be sorted...
+   */
+  for(Uint32 i = 0; i<m_objects.size(); i++)
+  {
+    switch(sectionInfo[2]){
+    case DictTabInfo::Tablespace:
+      if (DictTabInfo::isFile(m_objects[i].m_objType))
+      {
+	m_objects.push(obj, i);
+	goto end;
+      }
+      break;
+    case DictTabInfo::LogfileGroup:
+    {
+      if (DictTabInfo::isFile(m_objects[i].m_objType) ||
+	  m_objects[i].m_objType == DictTabInfo::Tablespace)
+      {
+	m_objects.push(obj, i);
+	goto end;
+      }
+      break;
+    }
+    default:
+      m_objects.push_back(obj);
+      goto end;
+    }
+  }
+  m_objects.push_back(obj);
+  
+end:
+  return true;
 }
 
 bool
@@ -217,7 +327,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 {
   NdbTableImpl* tableImpl = 0;
   int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false);
-
+  
   if (ret != 0) {
     err << "parseTableInfo " << " failed" << endl;
     return false;
@@ -960,4 +1070,4 @@ operator<<(NdbOut& ndbout, const TableS & table){
 template class Vector<TableS*>;
 template class Vector<AttributeS*>;
 template class Vector<AttributeDesc*>;
-
+template class Vector<DictObject>;
