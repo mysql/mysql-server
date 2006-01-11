@@ -543,7 +543,7 @@ echo $novar1;
 # Test to assign let from query
 # let $<var_name>=`<query>`;
 # ----------------------------------------------------------------------------
-
+--disable_parsing
 echo var1;
 let $var1= `select "hi" as "Col", 1 as "Column1", "hi there" as Col3`;
 echo $var1;
@@ -574,7 +574,7 @@ echo $var3_var3;
 #echo failing query in let;
 #--error 1
 #--exec echo "let $var2= `failing query;`" | $MYSQL_TEST 2>&1
-
+--enable_parsing
 # ----------------------------------------------------------------------------
 # Test source command
 # ----------------------------------------------------------------------------

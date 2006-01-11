@@ -165,7 +165,6 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static int parsing_disabled= 0;
-static uint start_lineno, *lineno;
 const char *manager_user="root",*manager_host=0;
 char *manager_pass=0;
 int manager_port=MYSQL_MANAGER_PORT;
@@ -180,13 +179,14 @@ typedef struct
 {
   FILE* file;
   const char *file_name;
+  uint lineno; /* Current line in file */
 } test_file;
 
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
+uint start_lineno; /* Start line of query */
 
-static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
 static char delimiter[MAX_DELIMITER]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
@@ -662,7 +662,7 @@ static void verbose_msg(const char *fmt, ...)
   va_start(args, fmt);
 
   fprintf(stderr, "mysqltest: ");
-  if (start_lineno > 0)
+  if (start_lineno != 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
@@ -900,7 +900,7 @@ int open_file(const char *name)
     die("Could not open file %s", buff);
   }
   cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
-  *++lineno=1;
+  cur_file->lineno=1;
   DBUG_RETURN(0);
 }
 
@@ -1205,6 +1205,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     {
       if (row[0])
       {
+#ifdef NOT_YET
 	/* Add to <var_name>_<col_name> */
 	uint j;
 	char var_col_name[MAX_VAR_NAME];
@@ -1218,7 +1219,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
         }
 	var_set(var_col_name,  var_col_name + length,
 		row[i], row[i] + lengths[i]);
-
+#endif
         /* Add column to tab separated string */
 	dynstr_append_mem(&result, row[i], lengths[i]);
       }
@@ -2496,7 +2497,7 @@ int read_line(char *buf, int size)
   DBUG_ENTER("read_line");
   LINT_INIT(quote);
 
-  start_lineno= *lineno;
+  start_lineno= cur_file->lineno;
   for (; p < buf_end ;)
   {
     no_save= 0;
@@ -2511,28 +2512,25 @@ int read_line(char *buf, int size)
       }
       my_free((gptr)cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
       cur_file->file_name= 0;
-      lineno--;
-      start_lineno= *lineno;
       if (cur_file == file_stack)
       {
         /* We're back at the first file, check if
            all { have matching }
          */
         if (cur_block != block_stack)
-        {
-          start_lineno= *(lineno+1);
           die("Missing end of block");
-        }
+
         DBUG_PRINT("info", ("end of file"));
 	DBUG_RETURN(1);
       }
       cur_file--;
+      start_lineno= cur_file->lineno;
       continue;
     }
 
     /* Line counting is independent of state */
     if (c == '\n')
-      (*lineno)++;
+      cur_file->lineno++;
 
     switch(state) {
     case R_NORMAL:
@@ -2561,14 +2559,15 @@ int read_line(char *buf, int size)
       break;
     case R_LINE_START:
       /* Only accept start of comment if this is the first line in query */
-      if ((*lineno == start_lineno) && (c == '#' || c == '-' || parsing_disabled))
+      if ((cur_file->lineno == start_lineno) &&
+	  (c == '#' || c == '-' || parsing_disabled))
       {
 	state = R_COMMENT;
       }
       else if (my_isspace(charset_info, c))
       {
 	if (c == '\n')
-	  start_lineno= *lineno;		/* Query hasn't started yet */
+	  start_lineno= cur_file->lineno; /* Query hasn't started yet */
 	no_save= 1;
       }
       else if (c == '}')
@@ -2670,7 +2669,6 @@ int read_line(char *buf, int size)
     The advantage with this approach is to be able to execute commands
     terminated by new line '\n' regardless how many "delimiter" it contain.
 
-    If query starts with @<file_name> this will specify a file to ....
 */
 
 static char read_query_buf[MAX_QUERY];
@@ -2894,6 +2892,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
             my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
 	die("Could not open %s: errno = %d", buff, errno);
       cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
+      cur_file->lineno= 1;
       break;
     }
   case 'm':
@@ -4281,24 +4280,29 @@ int main(int argc, char **argv)
 
   save_file[0]=0;
   TMPDIR[0]=0;
+
+  /* Init cons */
   memset(cons, 0, sizeof(cons));
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
   cur_con = cons;
 
+  /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
-  memset(&master_pos, 0, sizeof(master_pos));
   file_stack_end= file_stack + MAX_INCLUDE_DEPTH - 1;
   cur_file= file_stack;
-  lineno   = lineno_stack;
-  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
-		     INIT_Q_LINES);
 
+  /* Init block stack */
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end= block_stack + BLOCK_STACK_DEPTH - 1;
   cur_block= block_stack;
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
+
+  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
+		     INIT_Q_LINES);
+
+  memset(&master_pos, 0, sizeof(master_pos));
 
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
@@ -4312,8 +4316,8 @@ int main(int argc, char **argv)
   {
     cur_file->file= stdin;
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
+    cur_file->lineno= 1;
   }
-  *lineno=1;
 #ifndef EMBEDDED_LIBRARY
   if (manager_host)
     init_manager();
@@ -4607,6 +4611,8 @@ int main(int argc, char **argv)
 
     parser.current_line += current_line_inc;
   }
+
+  start_lineno= 0;
 
   /*
     The whole test has been executed _sucessfully_
