@@ -58,6 +58,9 @@ class ha_archive: public handler
   ha_rows scan_rows;         /* Number of rows left in scan */
   bool delayed_insert;       /* If the insert is delayed */
   bool bulk_insert;          /* If we are performing a bulk insert */
+  const byte *current_key;
+  uint current_key_len;
+  uint current_k_offset;
 
 public:
   ha_archive(TABLE_SHARE *table_arg);
@@ -85,6 +88,7 @@ public:
 			 uint key_len, enum ha_rkey_function find_flag);
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
 			     uint key_len, enum ha_rkey_function find_flag);
+  int index_next(byte * buf);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
@@ -104,6 +108,7 @@ public:
   int write_data_header(azio_stream *file_to_write);
   void position(const byte *record);
   void info(uint);
+  void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
