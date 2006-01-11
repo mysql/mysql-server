@@ -38,6 +38,11 @@ NdbEventOperation::State NdbEventOperation::getState()
   return m_impl.getState();
 }
 
+void NdbEventOperation::separateEvents(bool flag)
+{
+  m_impl.m_separateEvents = flag;
+}
+
 NdbRecAttr *
 NdbEventOperation::getValue(const char *colName, char *aValue)
 {
