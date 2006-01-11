@@ -264,7 +264,7 @@ event_executor_main(void *arg)
       et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
       if (et->status == MYSQL_EVENT_DISABLED)
       {
-        DBUG_PRINT("evex_load_events_from_db",("Now it is disabled-exec no more"));
+        DBUG_PRINT("evex main thread",("Now it is disabled-exec no more"));
         if (et->dropped)
           et->drop(thd);
         delete et;
@@ -274,10 +274,13 @@ event_executor_main(void *arg)
         continue;    
       }
         
+      DBUG_PRINT("evex main thread",("computing time to sleep till next exec"));
       time(&now);
       my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
       t2sleep= evex_time_diff(&et->execute_at, &time_now);
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+
+      DBUG_PRINT("evex main thread",("unlocked LOCK_event_arrays"));
       if (t2sleep > 0)
       {
         /*
@@ -287,7 +290,10 @@ event_executor_main(void *arg)
         while (t2sleep-- && !thd->killed && event_executor_running_global_var &&
                evex_queue_num_elements(EVEX_EQ_NAME) &&
                (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
+        {
+          DBUG_PRINT("evex main thread",("will sleep a bit more"));
           my_sleep(1000000);
+        }
       }
       if (!event_executor_running_global_var)
       {
@@ -302,25 +308,26 @@ event_executor_main(void *arg)
     if (!evex_queue_num_elements(EVEX_EQ_NAME))
     {
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+      DBUG_PRINT("evex main thread",("empty queue"));
       continue;
     }
     et= evex_queue_first_element(&EVEX_EQ_NAME, event_timed*);
+    DBUG_PRINT("evex main thread",("got event from the queue"));
       
-    /*
-      if this is the first event which is after time_now then no
-      more need to iterate over more elements since the array is sorted.
-    */ 
     if (et->execute_at.year > 1969 &&
         my_time_compare(&time_now, &et->execute_at) == -1)
     {
+      DBUG_PRINT("evex main thread",("still not the time for execution"));
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));
       continue;
     } 
       
+    DBUG_PRINT("evex main thread",("it's right time"));
     if (et->status == MYSQL_EVENT_ENABLED)
     {
       pthread_t th;
 
+      DBUG_PRINT("evex main thread",("mark_last_executed"));
       et->mark_last_executed();
       et->compute_next_execution_time();
       et->update_fields(thd);
@@ -343,6 +350,7 @@ event_executor_main(void *arg)
       else
         evex_queue_first_updated(&EVEX_EQ_NAME);
     }
+    DBUG_PRINT("evex main thread",("unlocking"));
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
   }// while
 
