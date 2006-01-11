@@ -9853,6 +9853,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   int error;
   READ_RECORD *info;
 
+  join_tab->table->null_row= 0;
   if (!join_tab->cache.records)
     return NESTED_LOOP_OK;                      /* Nothing to do */
   if (skip_last)
