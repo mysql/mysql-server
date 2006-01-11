@@ -1404,6 +1404,93 @@ create:
             lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
           }
 	;
+
+
+ev_schedule_time: EVERY_SYM expr interval
+	  {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_interval(YYTHD , $2, $3)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE, MYF(0));
+                YYABORT;
+                break;
+              }
+            }
+          }
+          ev_starts
+          ev_ends
+        | AT_SYM expr
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_execute_at(YYTHD, $2)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;  
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
+                YYABORT;
+                break;             
+              }
+            }
+          }
+      ;
+    
+ev_status: /* empty */ {$<ulong_num>$= 0;}
+        | ENABLED_SYM
+          {
+            LEX *lex=Lex;
+            if (!lex->et_compile_phase)
+              lex->et->status= MYSQL_EVENT_ENABLED;
+            $<ulong_num>$= 1;	   
+          }
+        | DISABLED_SYM
+          {
+            LEX *lex=Lex;
+            
+            if (!lex->et_compile_phase)
+              lex->et->status= MYSQL_EVENT_DISABLED;
+            $<ulong_num>$= 1;
+          }
+      ;
+
+ev_starts: /* empty */
+        | STARTS_SYM expr
+          {
+            LEX *lex= Lex;
+            if (!lex->et_compile_phase)
+              lex->et->init_starts(YYTHD, $2);
+          }
+      ;
+
+ev_ends: /* empty */
+        | ENDS_SYM expr
+          {
+            LEX *lex= Lex;
+            if (!lex->et_compile_phase)
+            {
+              switch (lex->et->init_ends(YYTHD, $2)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+                break;
+              case EVEX_BAD_PARAMS:
+                my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
+                YYABORT;
+                break;
+              }
+            }
+          }
+      ;
+
 ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
         | ON COMPLETION_SYM PRESERVE_SYM
           {
@@ -1420,6 +1507,7 @@ ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
             $<ulong_num>$= 1;
           }
       ;
+
 ev_comment: /* empty */ {$<ulong_num>$= 0;}
         | COMMENT_SYM TEXT_STRING_sys
           {
@@ -1501,6 +1589,7 @@ ev_sql_stmt_inner:
         | sp_proc_stmt_fetch
         | sp_proc_stmt_close
       ;
+
 
 clear_privileges:
         /* Nothing */
@@ -4603,7 +4692,6 @@ alter:
                 Recursive events are not possible because recursive SPs
                 are not also possible. lex->sp_head is not stacked.
               */
-              // ToDo Andrey : Change the error message
               my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
               YYABORT;
             }
@@ -4672,6 +4760,7 @@ alter:
           }
 	;
 
+
 ev_on_schedule: /* empty */ { $<ulong_num>$= 0;}
         | ON SCHEDULE_SYM ev_schedule_time
           {
@@ -4688,6 +4777,13 @@ ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
             $<ulong_num>$= 1;
           }
       ;
+ 
+ev_opt_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
+        | DO_SYM ev_sql_stmt
+          {
+            $<ulong_num>$= 1;
+          }
+        ;
 
 
 ident_or_empty:
@@ -8106,8 +8202,8 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
-          };
-       ;
+          }
+      ;
 
 show_engine_param:
 	STATUS_SYM

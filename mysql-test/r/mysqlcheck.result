@@ -1,5 +1,6 @@
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.event                                        OK
 mysql.func                                         OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -18,6 +19,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.event                                        OK
 mysql.func                                         OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
