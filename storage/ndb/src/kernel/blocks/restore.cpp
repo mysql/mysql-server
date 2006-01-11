@@ -817,7 +817,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     c.m_flags |= (tmp.AttributeStorageType == NDB_STORAGETYPE_DISK ?
 		  Column::COL_DISK : 0);
 
-    if(lcp && c.m_flags & Column::COL_DISK)
+    if(lcp && (c.m_flags & Column::COL_DISK))
     {
       /**
        * Restore does not currently handle disk attributes
@@ -829,7 +829,6 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
 
     if(!tmp.AttributeNullableFlag && !varsize)
     {
-      c.m_nulloffset = 0;
       if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
       {
 	parse_error(signal, file_ptr, __LINE__, i);
@@ -838,53 +837,55 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     }
     else if (true) // null mask dropped in 5.1
     {
-      c.m_nulloffset = (tmp.AttributeNullableFlag != 0);
-      if (varsize)
-        c.m_flags |= Column::COL_VAR;
+      c.m_flags |= (varsize ? Column::COL_VAR : 0);
+      c.m_flags |= (tmp.AttributeNullableFlag ? Column::COL_NULL : 0);
       if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
       {
 	parse_error(signal, file_ptr, __LINE__, i);
 	return;
       }
     } 
-    else
+  }
+
+  if(lcp)
+  {
+    if (disk)
     {
-      c.m_nulloffset = 1 + null_offset++;
-      c.m_flags |= Column::COL_VAR;
-      if(!variable.append(_align, sizeof(Column)/sizeof(Uint32)))
+      c.m_id = AttributeHeader::DISK_REF;
+      c.m_size = 2;
+      c.m_flags = 0;
+      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
       {
-	parse_error(signal, file_ptr, __LINE__, i);
+	parse_error(signal, file_ptr, __LINE__, 0);
+	return;
+      }
+    }
+
+    {
+      c.m_id = AttributeHeader::ROWID;
+      c.m_size = 2;
+      c.m_flags = 0;
+      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
+      {
+	parse_error(signal, file_ptr, __LINE__, 0);
+	return;
+      }
+    }
+
+    if (tmpTab.RowGCIFlag)
+    {
+      c.m_id = AttributeHeader::ROW_GCI;
+      c.m_size = 2;
+      c.m_flags = 0;
+      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
+      {
+	parse_error(signal, file_ptr, __LINE__, 0);
 	return;
       }
     }
   }
-
-  if(lcp && disk)
-  {
-    c.m_id = AttributeHeader::DISK_REF;
-    c.m_size = 2;
-    c.m_nulloffset = 0;
-    c.m_flags = 0;
-    if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
-    {
-      parse_error(signal, file_ptr, __LINE__, 0);
-      return;
-    }
-  }
   
   file_ptr.p->m_table_version = tmpTab.TableVersion;
-  file_ptr.p->m_null_bitmask_size = (null_offset + 31)/32;
-#if 0
-  List::Iterator cols;  
-  for(variable.first(cols); !cols.isNull(); variable.next(cols))
-  {
-    if(!columns.append(cols.data, 1))
-    {
-      parse_error(signal, file_ptr, __LINE__, 0);
-    }
-  }
-  return ;
-#endif
 }
 
 void
@@ -927,11 +928,8 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   Uint32 * const key_start = signal->getDataPtrSend()+24;
   Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
 
-  Uint32 nulls= file_ptr.p->m_null_bitmask_size;
-  const Uint32 *null_mask= data+1;
-  data += (1+nulls);
+  data += 1;
   const Uint32* const dataStart = data;
-  //if (file_ptr.p->m_table_id >= 2) { for (uint ii = 0; ii+1<len; ii++) ndbout << hex << dataStart[ii]; ndbout << endl; }
 
   Uint32 *keyData = key_start;
   Uint32 *attrData = attr_start;
@@ -939,19 +937,36 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
     Column c;
     Uint32 _align[1];
   };
-  bool disk= false;
+  bool disk = false;
+  bool rowid = false;
+  bool gci = false;
 
-  //if (file_ptr.p->m_table_id >= 2) { ndbout << "*** "; columns.first(it); while (!it.isNull()) { _align[0] = *it.data; columns.next(it); _align[1] = *it.data; columns.next(it); ndbout << c << " "; } ndbout << endl; }
-
-  Uint32 column_no = 0;
+  Uint64 gci_val;
+  Local_key rowid_val;
   columns.first(it);
   while(!it.isNull())
   {
     _align[0] = *it.data; ndbrequire(columns.next(it));
     _align[1] = *it.data; columns.next(it);
     
-    if (! (c.m_flags & Column::COL_VAR) &&
-        ! c.m_nulloffset)
+    if (c.m_id == AttributeHeader::ROWID)
+    {
+      rowid_val.m_page_no = data[0];
+      rowid_val.m_page_idx = data[1];
+      data += 2;
+      rowid = true;
+      continue;
+    }
+
+    if (c.m_id == AttributeHeader::ROW_GCI)
+    {
+      memcpy(&gci_val, data, 8);
+      data += 2;
+      gci = true;
+      continue;
+    }
+    
+    if (! (c.m_flags & (Column::COL_VAR | Column::COL_NULL)))
     {
       ndbrequire(data < dataStart + len);
 
@@ -965,10 +980,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
       memcpy(attrData, data, 4*c.m_size);
       attrData += c.m_size;
       data += c.m_size;
-      //if (file_ptr.p->m_table_id >= 2) ndbout << "1: " << c.m_id << " " << c.m_size << " col=" << column_no << endl;
     }
-
-    column_no++;
 
     if(c.m_flags & Column::COL_DISK)
       disk= true;
@@ -985,10 +997,9 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
     _align[1] = *it.data;
 
     Uint32 sz32 = (sz + 3) >> 2;
-
+    ndbassert(c.m_flags & (Column::COL_VAR | Column::COL_NULL));
     if(c.m_flags & Column::COL_KEY)
     {
-      assert(! c.m_nulloffset && c.m_flags & Column::COL_VAR);
       memcpy(keyData, data, 4 * sz32);
       keyData += sz32;
     }
@@ -998,13 +1009,12 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 
     attrData += sz32;
     data += sz32;
-    //if (file_ptr.p->m_table_id >= 2) ndbout << "2: " << c.m_id << " " << sz << endl;
   }
 
   ndbrequire(data == dataStart + len - 1);
 
   ndbrequire(disk == false); // Not supported...
-
+  ndbrequire(rowid == true);
   Uint32 keyLen = keyData - key_start;
   Uint32 attrLen = attrData - attr_start;
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
@@ -1029,7 +1039,6 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   tmp= 0;
   LqhKeyReq::setKeyLen(tmp, keyLen);
   LqhKeyReq::setLastReplicaNo(tmp, 0);
-  LqhKeyReq::setLockType(tmp, ZINSERT);
   /* ---------------------------------------------------------------------- */
   // Indicate Application Reference is present in bit 15
   /* ---------------------------------------------------------------------- */
@@ -1040,7 +1049,8 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   LqhKeyReq::setSameClientAndTcFlag(tmp, 0);
   LqhKeyReq::setAIInLqhKeyReq(tmp, 0);
   LqhKeyReq::setNoDiskFlag(tmp, disk ? 0 : 1);
-  //LqhKeyReq::setExecuteDirectFlag(tmp, 1);
+  LqhKeyReq::setRowidFlag(tmp, 1);
+  LqhKeyReq::setGCIFlag(tmp, gci);
   req->clientConnectPtr = file_ptr.i;
   req->hashValue = hashValue;
   req->requestInfo = tmp;
@@ -1053,10 +1063,15 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   req->transId2 = 0;
   req->scanInfo = 0;
   memcpy(req->variableData, key_start, 16);
-
+  Uint32 pos = keyLen > 4 ? 4 : keyLen;
+  req->variableData[pos++] = rowid_val.m_page_no;
+  req->variableData[pos++] = rowid_val.m_page_idx;
+  if (gci)
+    req->variableData[pos++] = (Uint32)gci_val;
   file_ptr.p->m_outstanding_operations++;
-  EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 11+(keyLen > 4 ? 4 : keyLen));
-
+  EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
+		 LqhKeyReq::FixedSignalLength+pos);
+  
   if(keyLen > 4)
   {
     c_lqh->receive_keyinfo(signal,
@@ -1105,10 +1120,13 @@ Restore::reorder_key(const KeyDescriptor* desc,
       memcpy(dst, var, 4 * sz);
       var += sz;
       break;
+    default:
+      ndbrequire(false);
+      sz = 0;
     }
     dst += sz;
   }
-  assert((dst - Tmp) == len);
+  ndbassert((dst - Tmp) == len);
   memcpy(data, Tmp, 4*len);
 }
 
@@ -1201,9 +1219,9 @@ operator << (NdbOut& ndbout, const Restore::Column& col)
 {
   ndbout << "[ Col: id: " << col.m_id 
 	 << " size: " << col.m_size 
-	 << " nulloffset: " << col.m_nulloffset
 	 << " key: " << (Uint32)(col.m_flags & Restore::Column::COL_KEY)
 	 << " variable: " << (Uint32)(col.m_flags & Restore::Column::COL_VAR)
+	 << " null: " << (Uint32)(col.m_flags & Restore::Column::COL_NULL)
 	 << " disk: " << (Uint32)(col.m_flags & Restore::Column::COL_DISK) 
 	 << "]";
 

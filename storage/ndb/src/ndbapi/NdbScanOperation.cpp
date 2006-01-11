@@ -161,6 +161,16 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
 
   m_keyInfo = lockExcl ? 1 : 0;
+  bool tupScan = (scan_flags & SF_TupScan);
+
+#if 1 // XXX temp for testing
+  { char* p = getenv("NDB_USE_TUPSCAN");
+    if (p != 0) {
+      unsigned n = atoi(p); // 0-10
+      if (::time(0) % 10 < n) tupScan = true;
+    }
+  }
+#endif
 
   bool rangeScan = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
@@ -176,11 +186,8 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     theStatus = GetValue;
     theOperationType  = OpenRangeScanRequest;
     rangeScan = true;
-  }
-
-  bool tupScan = (scan_flags & SF_TupScan);
-  if (tupScan && rangeScan)
     tupScan = false;
+  }
   
   theParallelism = parallel;
 

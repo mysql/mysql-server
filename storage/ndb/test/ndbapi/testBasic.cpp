@@ -1034,6 +1034,100 @@ runMassiveRollback2(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+/**
+ * TUP errors
+ */
+struct TupError 
+{
+  enum Bits {
+    TE_VARSIZE  = 0x1,
+    TE_MULTI_OP = 0x2,
+    TE_DISK     = 0x4,
+    TE_REPLICA  = 0x8
+  };
+  int op;
+  int error;
+  int bits;
+};
+
+static
+TupError 
+f_tup_errors[] = 
+{
+  { NdbOperation::InsertRequest, 4014, 0 },       // Out of undo buffer
+  { NdbOperation::InsertRequest, 4015, TupError::TE_DISK }, // Out of log space
+  { NdbOperation::InsertRequest, 4016, 0 },       // AI Inconsistency
+  { NdbOperation::InsertRequest, 4017, 0 },       // Out of memory
+  { NdbOperation::InsertRequest, 4018, 0 },       // Null check error
+  { NdbOperation::InsertRequest, 4019, TupError::TE_REPLICA }, //Alloc rowid error
+  { NdbOperation::InsertRequest, 4020, TupError::TE_MULTI_OP }, // Size change error
+  { NdbOperation::InsertRequest, 4021, TupError::TE_DISK },    // Out of disk space
+  { -1, 0, 0 }
+};
+
+int
+runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
+
+  NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  
+  const NdbDictionary::Table * tab = ctx->getTab();
+  Uint32 i;
+  int bits = TupError::TE_MULTI_OP;
+  for(i = 0; i<tab->getNoOfColumns(); i++)
+  {
+    if (tab->getColumn(i)->getArrayType() != NdbDictionary::Column::ArrayTypeFixed)
+      bits |= TupError::TE_VARSIZE;
+    if (tab->getColumn(i)->getStorageType()!= NdbDictionary::Column::StorageTypeMemory)
+      bits |= TupError::TE_DISK;
+  }
+
+  if (restarter.getNumDbNodes() >= 2)
+  {
+    bits |= TupError::TE_REPLICA;
+  }
+
+  /**
+   * Insert
+   */
+  for(i = 0; f_tup_errors[i].op != -1; i++)
+  {
+    if (f_tup_errors[i].op != NdbOperation::InsertRequest)
+    {
+      g_info << "Skipping " << f_tup_errors[i].error 
+	     << " -  not insert" << endl;
+      continue;
+    }
+
+    if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
+    {
+      g_info << "Skipping " << f_tup_errors[i].error 
+	     << " - req bits: " << hex << f_tup_errors[i].bits
+	     << " bits: " << hex << bits << endl;
+      continue;
+    }
+    
+    g_info << "Testing error insert: " << f_tup_errors[i].error << endl;
+    restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+    if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
+    {
+      
+    }
+    else
+    {
+      hugoTrans.loadTable(pNdb, 5);
+    }
+    restarter.insertErrorInAllNodes(0);
+    if (hugoTrans.clearTable(pNdb, 5) != 0)
+    {
+      return NDBT_FAILED;
+    }      
+  }
+  
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -1276,6 +1370,10 @@ TESTCASE("Fill",
   INITIALIZER(runFillTable);
   INITIALIZER(runPkRead);
   FINALIZER(runClearTable2);
+}
+TESTCASE("TupError", 
+	 "Verify what happens when we fill the db" ){
+  INITIALIZER(runTupErrors);
 }
 NDBT_TESTSUITE_END(testBasic);
 

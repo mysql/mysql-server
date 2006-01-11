@@ -32,6 +32,8 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
   ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
   ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
+  ndbout << "Row Checksum: " << tab.getRowChecksumIndicator() << endl;
+  ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
 
 
   //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;

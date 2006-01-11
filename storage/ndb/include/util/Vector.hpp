@@ -31,6 +31,8 @@ public:
   unsigned size() const { return m_size; };
   
   void push_back(const T &);
+  void push(const T&, unsigned pos);
+  T& set(T&, unsigned pos, T& fill_obj);
   T& back();
   
   void erase(unsigned index);
@@ -102,6 +104,31 @@ Vector<T>::push_back(const T & t){
   }
   m_items[m_size] = t;
   m_size++;
+}
+
+template<class T>
+void
+Vector<T>::push(const T & t, unsigned pos)
+{
+  push_back(t);
+  if (pos < m_size - 1)
+  {
+    for(unsigned i = m_size - 1; i > pos; i--)
+    {
+      m_items[i] = m_items[i-1];
+    }
+    m_items[pos] = t;
+  }
+}
+
+template<class T>
+T&
+Vector<T>::set(T & t, unsigned pos, T& fill_obj)
+{
+  fill(pos, fill_obj);
+  T& ret = m_items[pos];
+  m_items[pos] = t;
+  return ret;
 }
 
 template<class T>

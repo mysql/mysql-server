@@ -121,10 +121,10 @@ void Dbtup::initializePage()
     cfreepageList[i] = RNIL;
   }//for
   PagePtr pagePtr;
-  for (pagePtr.i = 0; pagePtr.i < cnoOfPage; pagePtr.i++) {
+  for (pagePtr.i = 0; pagePtr.i < c_page_pool.getSize(); pagePtr.i++) {
     ljam();
     refresh_watch_dog();
-    ptrAss(pagePtr, cpage);
+    c_page_pool.getPtr(pagePtr);
     pagePtr.p->physical_page_id= RNIL;
     pagePtr.p->next_page = pagePtr.i + 1;
     pagePtr.p->first_cluster_page = RNIL;
@@ -133,24 +133,20 @@ void Dbtup::initializePage()
     pagePtr.p->prev_page = RNIL;
     pagePtr.p->page_state = ZFREE_COMMON;
   }//for
-  pagePtr.i = cnoOfPage - 1;
-  ptrAss(pagePtr, cpage);
   pagePtr.p->next_page = RNIL;
   
+  /**
+   * Page 0 cant be part of buddy as 
+   *   it will scan left right when searching for bigger blocks,
+   *   if 0 is part of arrat, it can search to -1...which is not good
+   */
   pagePtr.i = 0;
-  ptrAss(pagePtr, cpage);
+  c_page_pool.getPtr(pagePtr);
   pagePtr.p->page_state = ~ZFREE_COMMON;
 
-  for(size_t j = 0; j<MAX_PARALLELL_TUP_SRREQ; j++){
-    pagePtr.i = 1+j;
-    ptrAss(pagePtr, cpage);
-    pagePtr.p->page_state = ~ZFREE_COMMON;
-  }
-  
-  Uint32 tmp = 1 + MAX_PARALLELL_TUP_SRREQ;
-  returnCommonArea(tmp, cnoOfPage - tmp);
+  Uint32 tmp = 1;
+  returnCommonArea(tmp, c_page_pool.getSize() - tmp);
   cnoOfAllocatedPages = tmp; // Is updated by returnCommonArea
-  c_sr_free_page_0 = ~0;
 }//Dbtup::initializePage()
 
 void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
@@ -234,7 +230,7 @@ void Dbtup::findFreeLeftNeighbours(Uint32& allocPageRef,
   while (allocPageRef > 0) {
     ljam();
     pageLastPtr.i = allocPageRef - 1;
-    ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+    c_page_pool.getPtr(pageLastPtr);
     if (pageLastPtr.p->page_state != ZFREE_COMMON) {
       ljam();
       return;
@@ -272,10 +268,10 @@ void Dbtup::findFreeRightNeighbours(Uint32& allocPageRef,
     ljam();
     return;
   }//if
-  while ((allocPageRef + noPagesAllocated) < cnoOfPage) {
+  while ((allocPageRef + noPagesAllocated) < c_page_pool.getSize()) {
     ljam();
     pageFirstPtr.i = allocPageRef + noPagesAllocated;
-    ptrCheckGuard(pageFirstPtr, cnoOfPage, cpage);
+    c_page_pool.getPtr(pageFirstPtr);
     if (pageFirstPtr.p->page_state != ZFREE_COMMON) {
       ljam();
       return;
@@ -307,8 +303,7 @@ void Dbtup::insertCommonArea(Uint32 insPageRef, Uint32 insList)
   cnoOfAllocatedPages -= (1 << insList);
   PagePtr pageLastPtr, pageInsPtr;
 
-  pageInsPtr.i = insPageRef;
-  ptrCheckGuard(pageInsPtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(pageInsPtr, insPageRef);
   ndbrequire(insList < 16);
   pageLastPtr.i = (pageInsPtr.i + (1 << insList)) - 1;
 
@@ -316,8 +311,8 @@ void Dbtup::insertCommonArea(Uint32 insPageRef, Uint32 insList)
   pageInsPtr.p->prev_cluster_page = RNIL;
   pageInsPtr.p->last_cluster_page = pageLastPtr.i;
   cfreepageList[insList] = pageInsPtr.i;
-  
-  ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+
+  c_page_pool.getPtr(pageLastPtr);
   pageLastPtr.p->first_cluster_page = pageInsPtr.i;
   pageLastPtr.p->next_page = RNIL;
 }//Dbtup::insertCommonArea()
@@ -327,8 +322,7 @@ void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list)
   cnoOfAllocatedPages += (1 << list);  
   PagePtr pagePrevPtr, pageNextPtr, pageLastPtr, pageSearchPtr, remPagePtr;
 
-  remPagePtr.i = remPageRef;
-  ptrCheckGuard(remPagePtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(remPagePtr, remPageRef);
   ndbrequire(list < 16);
   if (cfreepageList[list] == remPagePtr.i) {
     ljam();
@@ -336,14 +330,14 @@ void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list)
     pageNextPtr.i = cfreepageList[list];
     if (pageNextPtr.i != RNIL) {
       ljam();
-      ptrCheckGuard(pageNextPtr, cnoOfPage, cpage);
+      c_page_pool.getPtr(pageNextPtr);
       pageNextPtr.p->prev_cluster_page = RNIL;
     }//if
   } else {
     pageSearchPtr.i = cfreepageList[list];
     while (true) {
       ljam();
-      ptrCheckGuard(pageSearchPtr, cnoOfPage, cpage);
+      c_page_pool.getPtr(pageSearchPtr);
       pagePrevPtr = pageSearchPtr;
       pageSearchPtr.i = pageSearchPtr.p->next_cluster_page;
       if (pageSearchPtr.i == remPagePtr.i) {
@@ -355,7 +349,7 @@ void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list)
     pagePrevPtr.p->next_cluster_page = pageNextPtr.i;
     if (pageNextPtr.i != RNIL) {
       ljam();
-      ptrCheckGuard(pageNextPtr, cnoOfPage, cpage);
+      c_page_pool.getPtr(pageNextPtr);
       pageNextPtr.p->prev_cluster_page = pagePrevPtr.i;
     }//if
   }//if
@@ -364,6 +358,6 @@ void Dbtup::removeCommonArea(Uint32 remPageRef, Uint32 list)
   remPagePtr.p->prev_cluster_page= RNIL;
 
   pageLastPtr.i = (remPagePtr.i + (1 << list)) - 1;
-  ptrCheckGuard(pageLastPtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(pageLastPtr);
   pageLastPtr.p->first_cluster_page= RNIL;
 }//Dbtup::removeCommonArea()

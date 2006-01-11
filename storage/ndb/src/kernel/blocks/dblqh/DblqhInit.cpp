@@ -221,10 +221,6 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_DROP_TRIG_REF, &Dblqh::execDROP_TRIG_REF);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
-  addRecSignal(GSN_ACC_COM_BLOCK, &Dblqh::execACC_COM_BLOCK);
-  addRecSignal(GSN_ACC_COM_UNBLOCK, &Dblqh::execACC_COM_UNBLOCK);
-  addRecSignal(GSN_TUP_COM_BLOCK, &Dblqh::execTUP_COM_BLOCK);
-  addRecSignal(GSN_TUP_COM_UNBLOCK, &Dblqh::execTUP_COM_UNBLOCK);
   addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
   addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
   addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED);
@@ -301,6 +297,7 @@ Dblqh::Dblqh(const class Configuration & conf):
 
   addRecSignal(GSN_LQH_ALLOCREQ, &Dblqh::execLQH_ALLOCREQ);
   addRecSignal(GSN_LQH_WRITELOG_REQ, &Dblqh::execLQH_WRITELOG_REQ);
+  addRecSignal(GSN_TUP_DEALLOCREQ, &Dblqh::execTUP_DEALLOCREQ);
 
   // TUX
   addRecSignal(GSN_TUXFRAGCONF, &Dblqh::execTUXFRAGCONF);

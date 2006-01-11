@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_config.h>
 #include "Backup.hpp"
 
 #include <ndb_version.h>
@@ -2514,15 +2515,22 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     Uint32 tableId = ListTablesConf::getTableId(conf->tableData[i]);
     Uint32 tableType = ListTablesConf::getTableType(conf->tableData[i]);
     Uint32 state= ListTablesConf::getTableState(conf->tableData[i]);
-    if (!DictTabInfo::isTable(tableType) && !DictTabInfo::isIndex(tableType)){
+
+    if (! (DictTabInfo::isTable(tableType) ||
+	   DictTabInfo::isIndex(tableType) ||
+	   DictTabInfo::isFilegroup(tableType) ||
+	   DictTabInfo::isFile(tableType)))
+    {
       jam();
       continue;
-    }//if
+    }
+    
     if (state != DictTabInfo::StateOnline)
     {
       jam();
       continue;
-    }//if
+    }
+    
     TablePtr tabPtr;
     ptr.p->tables.seize(tabPtr);
     if(tabPtr.i == RNIL) {
@@ -2832,6 +2840,8 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   //const Uint32 senderRef = info->senderRef;
   const Uint32 len = conf->totalLen;
   const Uint32 senderData = conf->senderData;
+  const Uint32 tableType = conf->tableType;
+  const Uint32 tableId = conf->tableId;
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, senderData);
@@ -2839,6 +2849,9 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   SegmentedSectionPtr dictTabInfoPtr;
   signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == len);
+
+  TablePtr tabPtr ;
+  ndbrequire(findTable(ptr, tabPtr, tableId));
 
   /**
    * No of pages needed
@@ -2860,7 +2873,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
   FsBuffer & buf = filePtr.p->operation.dataBuffer;
   { // Write into ctl file
-    Uint32* dst, dstLen = len + 2;
+    Uint32* dst, dstLen = len + 3;
     if(!buf.getWritePtr(&dst, dstLen)) {
       jam();
       ndbrequire(false);
@@ -2875,12 +2888,31 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
       BackupFormat::CtlFile::TableDescription * desc = 
         (BackupFormat::CtlFile::TableDescription*)dst;
       desc->SectionType = htonl(BackupFormat::TABLE_DESCRIPTION);
-      desc->SectionLength = htonl(len + 2);
-      dst += 2;
-
+      desc->SectionLength = htonl(len + 3);
+      desc->TableType = htonl(tableType);
+      dst += 3;
+      
       copy(dst, dictTabInfoPtr);
       buf.updateWritePtr(dstLen);
     }//if
+  }
+
+  if(ptr.p->checkError()) {
+    jam();
+    releaseSections(signal);
+    defineBackupRef(signal, ptr);
+    return;
+  }//if
+
+  if (!DictTabInfo::isTable(tabPtr.p->tableType))
+  {
+    jam();
+    releaseSections(signal);
+
+    TablePtr tmp = tabPtr;
+    ptr.p->tables.next(tabPtr);
+    ptr.p->tables.release(tmp);
+    goto next;
   }
   
   ndbrequire(ptr.p->pages.getSize() >= noPages);
@@ -2889,35 +2921,29 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   copy(&pagePtr.p->data[0], dictTabInfoPtr);
   releaseSections(signal);
   
-  if(ptr.p->checkError()) {
-    jam();
-    defineBackupRef(signal, ptr);
-    return;
-  }//if
-
-  TablePtr tabPtr = parseTableDescription(signal, ptr, len);
-  if(tabPtr.i == RNIL) {
-    jam();
-    defineBackupRef(signal, ptr);
-    return;
-  }//if
-
-  TablePtr tmp = tabPtr;
-  ptr.p->tables.next(tabPtr);
-  if(DictTabInfo::isIndex(tmp.p->tableType))
+  if (!parseTableDescription(signal, ptr, tabPtr, len))
   {
     jam();
-    ptr.p->tables.release(tmp);
+    defineBackupRef(signal, ptr);
+    return;
   }
-  else if(!ptr.p->is_lcp())
+  
+  if(!ptr.p->is_lcp())
   {
     jam();
-    signal->theData[0] = tmp.p->tableId;
+    signal->theData[0] = tabPtr.p->tableId;
     signal->theData[1] = 1; // lock
     EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
   }
   
-  if(tabPtr.i == RNIL) {
+  ptr.p->tables.next(tabPtr);
+  
+next:
+  if(tabPtr.i == RNIL) 
+  {
+    /**
+     * Done with all tables...
+     */
     jam();
     
     ptr.p->pages.release();
@@ -2936,6 +2962,9 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     return;
   }//if
 
+  /**
+   * Fetch next table...
+   */
   signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
   signal->theData[1] = ptr.i;
   signal->theData[2] = tabPtr.i;
@@ -2943,8 +2972,11 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   return;
 }
 
-Backup::TablePtr
-Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
+bool
+Backup::parseTableDescription(Signal* signal, 
+			      BackupRecordPtr ptr, 
+			      TablePtr tabPtr, 
+			      Uint32 len)
 {
 
   Page32Ptr pagePtr;
@@ -2961,18 +2993,15 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
 				  DictTabInfo::TableMappingSize, 
 				  true, true);
   ndbrequire(stat == SimpleProperties::Break);
-  
-  TablePtr tabPtr;
-  ndbrequire(findTable(ptr, tabPtr, tmpTab.TableId));
-  if(DictTabInfo::isIndex(tabPtr.p->tableType)){
-    jam();
-    return tabPtr;
-  }
 
+  bool lcp = ptr.p->is_lcp();
+
+  ndbrequire(tabPtr.p->tableId == tmpTab.TableId);
+  ndbrequire(lcp || (tabPtr.p->tableType == tmpTab.TableType));
+  
   /**
    * LCP should not save disk attributes but only mem attributes
    */
-  bool lcp = ptr.p->is_lcp();
   
   /**
    * Initialize table object
@@ -3017,8 +3046,7 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
     {
       jam();
       ptr.p->setErrorCode(DefineBackupRef::FailedToAllocateAttributeRecord);
-      tabPtr.i = RNIL;
-      return tabPtr;
+      return false;
     }
     
     attrPtr.p->data.m_flags = 0;
@@ -3045,26 +3073,58 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
     }
   }//for
 
-  if(lcp && disk)
+
+  if(lcp)
   {
-    /**
-     * Remove all disk attributes, but add DISK_REF (8 bytes)
-     */
-    tabPtr.p->noOfAttributes -= (disk - 1);
-    
-    AttributePtr attrPtr;
-    ndbrequire(tabPtr.p->attributes.seize(attrPtr));
-    
-    Uint32 sz32 = 2;
-    attrPtr.p->data.m_flags = 0;
-    attrPtr.p->data.attrId = AttributeHeader::DISK_REF;
-    attrPtr.p->data.m_flags = Attribute::COL_FIXED;
-    attrPtr.p->data.sz32 = sz32;
-    
-    attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-    tabPtr.p->sz_FixedAttributes += sz32;
+    if (disk)
+    {
+      /**
+       * Remove all disk attributes, but add DISK_REF (8 bytes)
+       */
+      tabPtr.p->noOfAttributes -= (disk - 1);
+      
+      AttributePtr attrPtr;
+      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
+      
+      Uint32 sz32 = 2;
+      attrPtr.p->data.attrId = AttributeHeader::DISK_REF;
+      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
+      attrPtr.p->data.sz32 = 2;
+      
+      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
+      tabPtr.p->sz_FixedAttributes += sz32;
+    }
+   
+    {
+      AttributePtr attrPtr;
+      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
+      
+      Uint32 sz32 = 2;
+      attrPtr.p->data.attrId = AttributeHeader::ROWID;
+      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
+      attrPtr.p->data.sz32 = 2;
+      
+      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
+      tabPtr.p->sz_FixedAttributes += sz32;
+      tabPtr.p->noOfAttributes ++;
+    }
+
+    if (tmpTab.RowGCIFlag)
+    {
+      AttributePtr attrPtr;
+      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
+      
+      Uint32 sz32 = 2;
+      attrPtr.p->data.attrId = AttributeHeader::ROW_GCI;
+      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
+      attrPtr.p->data.sz32 = 2;
+      
+      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
+      tabPtr.p->sz_FixedAttributes += sz32;
+      tabPtr.p->noOfAttributes ++;
+    }
   }
-  return tabPtr;
+  return true;
 }
 
 void

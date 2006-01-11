@@ -607,7 +607,7 @@ public:
 
   NodeId getMasterNodeId() const { return c_masterNodeId; }
   bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId) const;
-  TablePtr parseTableDescription(Signal*, BackupRecordPtr ptr, Uint32 len);
+  bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, Uint32);
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
   void sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode);

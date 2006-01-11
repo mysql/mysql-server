@@ -238,6 +238,8 @@ public:
     Uint32 storedReplicas;       /* "ALIVE" STORED REPLICAS */
     Uint32 nextFragmentChunk;
     
+    Uint32 m_log_part_id;
+    
     Uint8 distributionKey;
     Uint8 fragReplicas;
     Uint8 noOldStoredReplicas;  /* NUMBER OF "DEAD" STORED REPLICAS */
@@ -545,7 +547,9 @@ public:
       TO_END_COPY = 19,
       TO_END_COPY_ONGOING = 20,
       TO_WAIT_ENDING = 21,
-      ENDING = 22
+      ENDING = 22,
+      
+      STARTING_LOCAL_FRAGMENTS = 24
     };
     enum ToSlaveStatus {
       TO_SLAVE_IDLE = 0,
@@ -974,7 +978,9 @@ private:
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 
   void findReplica(ReplicaRecordPtr& regReplicaPtr,
-                   Fragmentstore* fragPtrP, Uint32 nodeId);
+                   Fragmentstore* fragPtrP, 
+		   Uint32 nodeId,
+		   bool oldStoredReplicas = false);
 //------------------------------------
 // Node failure handling methods
 //------------------------------------
@@ -1132,6 +1138,10 @@ private:
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
   bool checkNodeAlive(Uint32 nodeId);
 
+  void nr_start_fragments(Signal*, TakeOverRecordPtr);
+  void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
+  void nr_run_redo(Signal*, TakeOverRecordPtr);
+  
   // Initialisation
   void initData();
   void initRecords();
@@ -1158,7 +1168,8 @@ private:
 
   Uint32 c_nextNodeGroup;
   NodeGroupRecord *nodeGroupRecord;
-
+  Uint32 c_nextLogPart;
+  
   NodeRecord *nodeRecord;
 
   PageRecord *pageRecord;

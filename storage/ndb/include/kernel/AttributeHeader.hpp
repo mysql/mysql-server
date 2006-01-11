@@ -43,6 +43,8 @@ public:
 
   STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
   STATIC_CONST( DISK_REF     = 0xFFF7 );
+  STATIC_CONST( ROWID        = 0xFFF6 );
+  STATIC_CONST( ROW_GCI      = 0xFFF5 );
 
   // NOTE: in 5.1 ctors and init take size in bytes
 
