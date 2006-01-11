@@ -4280,24 +4280,29 @@ int main(int argc, char **argv)
 
   save_file[0]=0;
   TMPDIR[0]=0;
+
+  /* Init cons */
   memset(cons, 0, sizeof(cons));
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
   cur_con = cons;
 
+  /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
-  memset(&master_pos, 0, sizeof(master_pos));
   file_stack_end= file_stack + MAX_INCLUDE_DEPTH - 1;
   cur_file= file_stack;
 
-  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
-		     INIT_Q_LINES);
-
+  /* Init block stack */
   memset(block_stack, 0, sizeof(block_stack));
   block_stack_end= block_stack + BLOCK_STACK_DEPTH - 1;
   cur_block= block_stack;
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
+
+  my_init_dynamic_array(&q_lines, sizeof(struct st_query*), INIT_Q_LINES,
+		     INIT_Q_LINES);
+
+  memset(&master_pos, 0, sizeof(master_pos));
 
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
