@@ -149,7 +149,7 @@ hello
 mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: End of line junk detected: "6"
 mysqltest: At line 1: Missing delimiter
-mysqltest: End of line junk detected: "sleep 7
+mysqltest: At line 1: End of line junk detected: "sleep 7
 # Another comment
 "
 mysqltest: At line 1: Extra delimiter ";" found
