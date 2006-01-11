@@ -741,6 +741,35 @@ then
   c_p="$c_p comment='Stored Procedures';"
 fi
 
+
+if test ! -f $mdata/event.frm
+then
+  c_ev="$c_ev CREATE TABLE event ("
+  c_ev="$c_ev   db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   name char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   body longblob NOT NULL,"
+  c_ev="$c_ev   definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   execute_at DATETIME default NULL,"
+  c_ev="$c_ev   interval_value int(11) default NULL,"
+  c_ev="$c_ev   interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK',"
+  c_ev="$c_ev                        'SECOND','MICROSECOND', 'YEAR_MONTH','DAY_HOUR',"
+  c_ev="$c_ev                        'DAY_MINUTE','DAY_SECOND',"
+  c_ev="$c_ev                        'HOUR_MINUTE','HOUR_SECOND',"
+  c_ev="$c_ev                        'MINUTE_SECOND','DAY_MICROSECOND',"
+  c_ev="$c_ev                        'HOUR_MICROSECOND','MINUTE_MICROSECOND',"
+  c_ev="$c_ev                        'SECOND_MICROSECOND') default NULL,"
+  c_ev="$c_ev   created TIMESTAMP NOT NULL,"
+  c_ev="$c_ev   modified TIMESTAMP NOT NULL,"
+  c_ev="$c_ev   last_executed DATETIME default NULL,"
+  c_ev="$c_ev   starts DATETIME default NULL,"
+  c_ev="$c_ev   ends DATETIME default NULL,"
+  c_ev="$c_ev   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',"
+  c_ev="$c_ev   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',"
+  c_ev="$c_ev   comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   PRIMARY KEY  (db,name)"
+  c_ev="$c_ev ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';"
+fi
+
 cat << END_OF_DATA
 use mysql;
 set storage_engine=myisam;
@@ -780,6 +809,8 @@ $i_tzls
 
 $c_p
 $c_pp
+
+$c_ev
 
 END_OF_DATA
 
