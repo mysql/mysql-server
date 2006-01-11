@@ -22,3 +22,4 @@ type_time       : Bug#15805
 #ps_7ndb         : Bug#15923 Core dump in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
 mysqlslap       : Bug#16167
+events          : Affects flush test case. A table lock not released somewhere

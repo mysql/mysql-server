@@ -38,9 +38,6 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select count(*) from mysql.event;
 count(*)
 1
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
 select release_lock("test_lock1");
 release_lock("test_lock1")
 1
@@ -56,11 +53,6 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
-2	event_scheduler		NULL	Connect	1	Sleeping	NULL
-3	root		events_test	Connect	1	User lock	select get_lock("test_lock2", 20)
 select release_lock("test_lock2");
 release_lock("test_lock2")
 1
@@ -73,29 +65,16 @@ create event закачка21 on schedule every 10 hour do select get_lock("test
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
-2	event_scheduler		NULL	Connect	1	Sleeping	NULL
-4	root		events_test	Connect	1	User lock	select get_lock("test_lock2_1", 20)
 set global event_scheduler=0;
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
-2	event_scheduler		NULL	Connect	3	Sleeping	NULL
-4	root		events_test	Connect	3	User lock	select get_lock("test_lock2_1", 20)
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
 1
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
 drop event закачка21;
 set global event_scheduler=1;
 select get_lock("test_lock3", 20);
@@ -105,11 +84,6 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
-5	event_scheduler		NULL	Connect	2	Sleeping	NULL
-6	root		events_test	Connect	2	User lock	select get_lock("test_lock3", 20)
 drop event закачка;
 select release_lock("test_lock3");
 release_lock("test_lock3")
@@ -118,7 +92,4 @@ set global event_scheduler=0;
 select sleep(2);
 sleep(2)
 0
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	events_test	Query	0	NULL	show processlist
 drop database events_test;
