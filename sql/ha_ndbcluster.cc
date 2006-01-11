@@ -1076,7 +1076,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   m_table= (void *)tab; 
   m_table_info= NULL; // Set in external lock
   
-  DBUG_RETURN(build_index_list(ndb, table, ILBP_OPEN));
+  DBUG_RETURN(open_indexes(ndb, table));
 }
 
 static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
@@ -1113,105 +1113,222 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   DBUG_RETURN(0);
 }
 
-int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
+/*
+  Create all the indexes for a table.
+  If any index should fail to be created,
+  the error is returned immediately
+*/
+int ha_ndbcluster::create_indexes(Ndb *ndb, TABLE *tab)
 {
   uint i;
   int error= 0;
   const char *index_name;
-  char unique_index_name[FN_LEN];
-  static const char* unique_suffix= "$unique";
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
   NDBDICT *dict= ndb->getDictionary();
-  DBUG_ENTER("ha_ndbcluster::build_index_list");
+  DBUG_ENTER("ha_ndbcluster::create_indexes");
   
-  // Save information about all known indexes
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    m_index[i].type= idx_type;
-    if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
+    error= create_index(index_name, key_info, idx_type, i);
+    if (error)
     {
-      strxnmov(unique_index_name, FN_LEN-1, index_name, unique_suffix, NullS);
-      DBUG_PRINT("info", ("Created unique index name \'%s\' for index %d",
-                          unique_index_name, i));
+      DBUG_PRINT("error", ("Failed to create index %u", i));
+      break;
     }
-    // Create secondary indexes if in create phase
-    if (phase == ILBP_CREATE)
+    m_index[i].status= CREATED;
+  }
+
+  DBUG_RETURN(error);
+}
+
+void ha_ndbcluster::clear_index(int i)
+{
+  m_index[i].type= UNDEFINED_INDEX;
+  m_index[i].status= UNDEFINED;
+  m_index[i].unique_index= NULL;
+  m_index[i].index= NULL;
+  m_index[i].unique_index_attrid_map= NULL;
+  m_index[i].index_stat=NULL;
+  m_index[i].index_stat_cache_entries=0;
+  m_index[i].index_stat_update_freq=0;
+  m_index[i].index_stat_query_count=0;
+}
+
+void ha_ndbcluster::clear_indexes()
+{
+  for (int i= 0; i < MAX_KEY; i++) clear_index(i);
+}
+
+/*
+  Associate a direct reference to an index handle
+  with an index (for faster access)
+ */
+int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
+                                    const char *index_name, uint index_no)
+{
+  int error= 0;
+  NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
+  m_index[index_no].type= idx_type;
+  DBUG_ENTER("ha_ndbcluster::get_index_handle");
+
+  if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
+  {
+    DBUG_PRINT("info", ("Get handle to index %s", index_name));
+    const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
+    if (!index) ERR_RETURN(dict->getNdbError());
+    m_index[index_no].index= (void *) index;
+    // ordered index - add stats
+    NDB_INDEX_DATA& d=m_index[index_no];
+    delete d.index_stat;
+    d.index_stat=NULL;
+    if (thd->variables.ndb_index_stat_enable)
     {
-      DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));      
-      switch (idx_type){
-        
-      case PRIMARY_KEY_INDEX:
-        // Do nothing, already created
-        break;
-      case PRIMARY_KEY_ORDERED_INDEX:
-        error= create_ordered_index(index_name, key_info);
-        break;
-      case UNIQUE_ORDERED_INDEX:
-        if (!(error= create_ordered_index(index_name, key_info)))
-          error= create_unique_index(unique_index_name, key_info);
-        break;
-      case UNIQUE_INDEX:
-        if (!(error= check_index_fields_not_null(i)))
-          error= create_unique_index(unique_index_name, key_info);
-        break;
-      case ORDERED_INDEX:
-        error= create_ordered_index(index_name, key_info);
-        break;
-      default:
-        DBUG_ASSERT(FALSE);
-        break;
-      }
-      if (error)
-      {
-        DBUG_PRINT("error", ("Failed to create index %u", i));
-        intern_drop_table();
-        break;
-      }
-    }
-    // Add handles to index objects
-    if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
+      d.index_stat=new NdbIndexStat(index);
+      d.index_stat_cache_entries=thd->variables.ndb_index_stat_cache_entries;
+      d.index_stat_update_freq=thd->variables.ndb_index_stat_update_freq;
+      d.index_stat_query_count=0;
+      d.index_stat->alloc_cache(d.index_stat_cache_entries);
+      DBUG_PRINT("info", ("index %s stat=on cache_entries=%u update_freq=%u",
+                          index->getName(),
+                          d.index_stat_cache_entries,
+                          d.index_stat_update_freq));
+    } else
     {
-      DBUG_PRINT("info", ("Get handle to index %s", index_name));
-      const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
-      if (!index) DBUG_RETURN(1);
-      m_index[i].index= (void *) index;
-      // ordered index - add stats
-      NDB_INDEX_DATA& d=m_index[i];
-      delete d.index_stat;
-      d.index_stat=NULL;
-      THD *thd=current_thd;
-      if (thd->variables.ndb_index_stat_enable)
-      {
-        d.index_stat=new NdbIndexStat(index);
-        d.index_stat_cache_entries=thd->variables.ndb_index_stat_cache_entries;
-        d.index_stat_update_freq=thd->variables.ndb_index_stat_update_freq;
-        d.index_stat_query_count=0;
-        d.index_stat->alloc_cache(d.index_stat_cache_entries);
-        DBUG_PRINT("info", ("index %s stat=on cache_entries=%u update_freq=%u",
-                            index->getName(),
-                            d.index_stat_cache_entries,
-                            d.index_stat_update_freq));
-      } else
-      {
-        DBUG_PRINT("info", ("index %s stat=off", index->getName()));
-      }
+      DBUG_PRINT("info", ("index %s stat=off", index->getName()));
     }
-    if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
-    {
-      DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
-      const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
-      if (!index) DBUG_RETURN(1);
-      m_index[i].unique_index= (void *) index;
-      error= fix_unique_index_attr_order(m_index[i], index, key_info);
-    }
+  }
+  if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
+  {
+    char unique_index_name[FN_LEN];
+    static const char* unique_suffix= "$unique";
+    strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
+    DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
+    const NDBINDEX *index= dict->getIndex(unique_index_name, m_tabname);
+    if (!index) ERR_RETURN(dict->getNdbError());
+    m_index[index_no].unique_index= (void *) index;
+    error= fix_unique_index_attr_order(m_index[index_no], index, key_info);
+  }
+  if (!error)
+    m_index[index_no].status= ACTIVE;
+  
+  DBUG_RETURN(error);
+}
+
+/*
+  Associate index handles for each index of a table
+*/
+int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
+{
+  uint i;
+  int error= 0;
+  THD *thd=current_thd;
+  NDBDICT *dict= ndb->getDictionary();
+  const char *index_name;
+  KEY* key_info= tab->key_info;
+  const char **key_name= tab->s->keynames.type_names;
+  DBUG_ENTER("ha_ndbcluster::open_indexes");
+  
+  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+  {
+    if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
+      break;
   }
   
   DBUG_RETURN(error);
 }
 
+/*
+  Renumber indexes in index list by shifting out
+  indexes that are to be dropped
+ */
+int ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
+{
+  uint i;
+  int error= 0;
+  const char *index_name;
+  KEY* key_info= tab->key_info;
+  const char **key_name= tab->s->keynames.type_names;
+  NDBDICT *dict= ndb->getDictionary();
+  DBUG_ENTER("ha_ndbcluster::renumber_indexes");
+  
+  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+  {
+    index_name= *key_name;
+    NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
+    m_index[i].type= idx_type;
+    if (m_index[i].status == TO_BE_DROPPED) 
+    {
+      DBUG_PRINT("info", ("Shifting index %s(%i) out of the list", 
+                          index_name, i));
+      NDB_INDEX_DATA tmp;
+      uint j= i + 1;
+      // Shift index out of list
+      while(j != MAX_KEY && m_index[j].status != UNDEFINED)
+      {
+        tmp=  m_index[j - 1];
+        m_index[j - 1]= m_index[j];
+        m_index[j]= tmp;
+        j++;
+      }
+    }
+  }
+
+  DBUG_RETURN(error);
+}
+
+/*
+  Drop all indexes that are marked for deletion
+*/
+int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
+{
+  uint i;
+  int error= 0;
+  const char *index_name;
+  KEY* key_info= tab->key_info;
+  const char **key_name= tab->s->keynames.type_names;
+  NDBDICT *dict= ndb->getDictionary();
+  DBUG_ENTER("ha_ndbcluster::drop_indexes");
+  
+  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+  {
+    index_name= *key_name;
+    NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
+    m_index[i].type= idx_type;
+    if (m_index[i].status == TO_BE_DROPPED)
+    {
+      NdbDictionary::Index *index= 
+        (NdbDictionary::Index *) m_index[i].index;
+      NdbDictionary::Index *unique_index= 
+        (NdbDictionary::Index *) m_index[i].unique_index;
+      
+      if (index)
+      {
+        index_name= index->getName();
+        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));  
+        // Drop ordered index from ndb
+        error= drop_ndb_index(index_name);
+      }
+      if (!error)
+        m_index[i].index= NULL;
+      if (!error && unique_index)
+      {
+        index_name= index->getName();
+        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));
+        // Drop unique index from ndb
+        error= drop_ndb_index(index_name);
+      }
+      if (error)
+        DBUG_RETURN(error);
+      clear_index(i);
+      continue;
+    }
+  }
+  
+  DBUG_RETURN(error);
+}
 
 /*
   Decode the type of an index from information 
@@ -1219,12 +1336,18 @@ int ha_ndbcluster::build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase)
 */
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 {
-  bool is_hash_index=  (table_share->key_info[inx].algorithm ==
+  return get_index_type_from_key(inx, table_share->key_info);
+}
+
+NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
+                                                      KEY *key_info) const
+{
+  bool is_hash_index=  (key_info[inx].algorithm == 
                         HA_KEY_ALG_HASH);
   if (inx == table_share->primary_key)
     return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
-
-  return ((table_share->key_info[inx].flags & HA_NOSAME) ? 
+  
+  return ((key_info[inx].flags & HA_NOSAME) ? 
           (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX) :
           ORDERED_INDEX);
 } 
@@ -3483,7 +3606,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
-        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+        if (!(my_errno= open_indexes(ndb, table)))
           DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
@@ -4128,20 +4251,69 @@ int ha_ndbcluster::create(const char *name,
                       m_dbname, m_tabname));
 
   // Create secondary indexes
-  my_errno= build_index_list(ndb, form, ILBP_CREATE);
+  my_errno= create_indexes(ndb, form);
 
   if (!my_errno)
     my_errno= write_ndb_file();
+  else
+  {
+    /*
+      Failed to create an index,
+      drop the table (and all it's indexes)
+    */
+    drop_ndb_table();
+  }
 
   DBUG_RETURN(my_errno);
 }
 
+int ha_ndbcluster::create_index(const char *name, KEY *key_info, 
+                                NDB_INDEX_TYPE idx_type, uint idx_no)
+{
+  int error= 0;
+  char unique_name[FN_LEN];
+  static const char* unique_suffix= "$unique";
+  DBUG_ENTER("ha_ndbcluster::create_ordered_index");
+  DBUG_PRINT("info", ("Creating index %u: %s", idx_no, name));  
+
+  if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
+  {
+    strxnmov(unique_name, FN_LEN, name, unique_suffix, NullS);
+    DBUG_PRINT("info", ("Created unique index name \'%s\' for index %d",
+                        unique_name, idx_no));
+  }
+    
+  switch (idx_type){
+  case PRIMARY_KEY_INDEX:
+    // Do nothing, already created
+    break;
+  case PRIMARY_KEY_ORDERED_INDEX:
+    error= create_ordered_index(name, key_info);
+    break;
+  case UNIQUE_ORDERED_INDEX:
+    if (!(error= create_ordered_index(name, key_info)))
+      error= create_unique_index(unique_name, key_info);
+    break;
+  case UNIQUE_INDEX:
+    if (!(error= check_index_fields_not_null(idx_no)))
+      error= create_unique_index(unique_name, key_info);
+    break;
+  case ORDERED_INDEX:
+    error= create_ordered_index(name, key_info);
+    break;
+  default:
+    DBUG_ASSERT(FALSE);
+    break;
+  }
+  
+  DBUG_RETURN(error);
+}
 
 int ha_ndbcluster::create_ordered_index(const char *name, 
                                         KEY *key_info)
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
-  DBUG_RETURN(create_index(name, key_info, FALSE));
+  DBUG_RETURN(create_ndb_index(name, key_info, FALSE));
 }
 
 int ha_ndbcluster::create_unique_index(const char *name, 
@@ -4149,7 +4321,7 @@ int ha_ndbcluster::create_unique_index(const char *name,
 {
 
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
-  DBUG_RETURN(create_index(name, key_info, TRUE));
+  DBUG_RETURN(create_ndb_index(name, key_info, TRUE));
 }
 
 
@@ -4157,9 +4329,9 @@ int ha_ndbcluster::create_unique_index(const char *name,
   Create an index in NDB Cluster
  */
 
-int ha_ndbcluster::create_index(const char *name, 
-                                KEY *key_info,
-                                bool unique)
+int ha_ndbcluster::create_ndb_index(const char *name, 
+                                     KEY *key_info,
+                                     bool unique)
 {
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
@@ -4195,6 +4367,14 @@ int ha_ndbcluster::create_index(const char *name,
   DBUG_RETURN(0);  
 }
 
+int ha_ndbcluster::drop_ndb_index(const char *name)
+{
+  DBUG_ENTER("ha_ndbcluster::drop_index");
+  DBUG_PRINT("enter", ("name: %s ", name));
+  Ndb *ndb= get_ndb();
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  DBUG_RETURN(dict->dropIndex(name, m_tabname));
+} 
 
 /*
   Rename a table in NDB Cluster
@@ -4292,7 +4472,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   int res;
   if (h)
   {
-    res= h->intern_drop_table();
+    res= h->drop_ndb_table();
   }
   else
   {
@@ -4329,7 +4509,7 @@ int ha_ndbcluster::delete_table(const char *name)
   Drop table in NDB Cluster
  */
 
-int ha_ndbcluster::intern_drop_table()
+int ha_ndbcluster::drop_ndb_table()
 {
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
@@ -4439,17 +4619,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   records= ~(ha_rows)0; // uninitialized
   block_size= 1024;
 
-  for (i= 0; i < MAX_KEY; i++)
-  {
-    m_index[i].type= UNDEFINED_INDEX;
-    m_index[i].unique_index= NULL;
-    m_index[i].index= NULL;
-    m_index[i].unique_index_attrid_map= NULL;
-    m_index[i].index_stat=NULL;
-    m_index[i].index_stat_cache_entries=0;
-    m_index[i].index_stat_update_freq=0;
-    m_index[i].index_stat_query_count=0;
-  }
+  clear_indexes();
 
   DBUG_VOID_RETURN;
 }
