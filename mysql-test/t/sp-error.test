@@ -1556,6 +1556,7 @@ drop procedure bug13012_1|
 drop function bug13012_2|
 delimiter ;|
 
+#
 # BUG#11555 "Stored procedures: current SP tables locking make 
 # impossible view security". We should not expose names of tables
 # which are implicitly used by view (via stored routines/triggers).
@@ -1616,7 +1617,33 @@ drop function bug11555_1;
 drop table t1;
 drop view v1;
 
+#
+# BUG#15658: Server crashes after creating function as empty string
+#
+--disable_warnings
+drop procedure if exists ` bug15658`;
+--enable_warnings
 
+--error ER_SP_WRONG_NAME
+create procedure ``() select 1;
+--error ER_SP_WRONG_NAME
+create procedure ` `() select 1;
+--error ER_SP_WRONG_NAME
+create procedure `bug15658 `() select 1;
+--error ER_WRONG_DB_NAME
+create procedure ``.bug15658() select 1;
+--error ER_WRONG_DB_NAME
+create procedure `x `.bug15658() select 1;
+
+# This should work
+create procedure ` bug15658`() select 1;
+call ` bug15658`();
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show procedure status;
+drop procedure ` bug15658`;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
