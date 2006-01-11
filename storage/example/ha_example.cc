@@ -103,6 +103,7 @@ handlerton example_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Alter tablespace */
   HTON_CAN_RECREATE
 };
 
