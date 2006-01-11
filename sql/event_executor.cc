@@ -234,11 +234,16 @@ event_executor_main(void *arg)
     event_timed *et;
     
     cnt++;
-    DBUG_PRINT("info", ("EVEX External Loop %d", cnt));
+    DBUG_PRINT("info", ("EVEX External Loop %d thd->k", cnt));
 
     thd->proc_info = "Sleeping";
-    if (!evex_queue_num_elements(EVEX_EQ_NAME) ||
-        !event_executor_running_global_var)
+    if (!event_executor_running_global_var)
+    {
+      sql_print_information("Scheduler asked to stop.");
+      break;
+    }
+
+    if (!evex_queue_num_elements(EVEX_EQ_NAME))
     {
       my_sleep(1000000);// sleep 1s
       continue;
@@ -279,13 +284,16 @@ event_executor_main(void *arg)
           We sleep t2sleep seconds but we check every second whether this thread
           has been killed, or there is a new candidate
         */
-        while (t2sleep-- && !thd->killed &&
+        while (t2sleep-- && !thd->killed && event_executor_running_global_var &&
                evex_queue_num_elements(EVEX_EQ_NAME) &&
                (evex_queue_first_element(&EVEX_EQ_NAME, event_timed*) == et))
           my_sleep(1000000);
       }
       if (!event_executor_running_global_var)
-        continue;
+      {
+        sql_print_information("Scheduler asked to stop.");
+        break;
+      }
     }
 
 
@@ -345,7 +353,7 @@ err:
   evex_main_thread_id= 0;
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
-  sql_print_information("Event scheduler stopping");
+  sql_print_information("Event scheduler stopping. Waiting for worker threads to finish.");
 
   /*
     TODO: A better will be with a conditional variable
@@ -392,7 +400,7 @@ err_no_thd:
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
   free_root(&evex_mem_root, MYF(0));
-  sql_print_information("Event scheduler stopped");
+  sql_print_information("Event scheduler stopped.");
 
 #ifndef DBUG_FAULTY_THR
   my_thread_end();
@@ -605,14 +613,18 @@ end:
 bool sys_var_event_executor::update(THD *thd, set_var *var)
 {
   // here start the thread if not running.
+  DBUG_ENTER("sys_var_event_executor::update");
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   *value= var->save_result.ulong_value;
+
+  DBUG_PRINT("new_value", ("%d", *value));
   if ((my_bool) *value && !evex_is_running)
   {
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
     init_events();
   } else 
     VOID(pthread_mutex_unlock(&LOCK_evex_running));
-  return 0;
+
+  DBUG_RETURN(0);
 }
 

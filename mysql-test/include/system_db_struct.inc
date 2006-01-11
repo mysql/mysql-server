@@ -12,3 +12,4 @@ show create table tables_priv;
 show create table columns_priv;
 show create table procs_priv;
 show create table proc;
+show create table event;

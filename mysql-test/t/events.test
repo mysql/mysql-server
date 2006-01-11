@@ -1,4 +1,5 @@
-use test;
+create database if not exists events_test;
+use events_test;
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2;
@@ -15,3 +16,79 @@ set max_allowed_packet=128000000;
 select count(*) from t_event3;
 drop event event3;
 drop table t_event3;
+
+set names utf8;
+create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
+drop event задачка;
+
+# event_scheduler is a global var
+--error 1229
+set event_scheduler=0;
+# event_scheduler could be only either 0 or 1
+--error 1231
+set global event_scheduler=2;
+
+set global event_scheduler=0;
+select count(*) from mysql.event;
+select get_lock("test_lock1", 20);
+create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
+select count(*) from mysql.event;
+show processlist;
+select release_lock("test_lock1");
+drop event закачка;
+select count(*) from mysql.event;
+
+set global event_scheduler=1;
+select get_lock("test_lock2", 20);
+create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
+select sleep(2);
+show processlist;
+select release_lock("test_lock2");
+drop event закачка;
+
+#
+# 1. get a lock
+# 2. create an event
+# 3. sleep so it has time to start
+# 4. should appear in processlist
+# 5. kill the scheduler, it will wait for the child to stop
+# 6. both processes should be there on show processlist
+# 7. release the lock and sleep, both scheduler and child should end
+set global event_scheduler=1;
+select get_lock("test_lock2_1", 20);
+create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
+select sleep(2);
+show processlist;
+set global event_scheduler=0;
+select sleep(2);
+show processlist;
+select release_lock("test_lock2_1");
+select sleep(2);
+show processlist;
+drop event закачка21;
+
+set global event_scheduler=1;
+select get_lock("test_lock3", 20);
+create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
+select sleep(2);
+show processlist;
+drop event закачка;
+select release_lock("test_lock3");
+
+#
+# test with very often occuring event
+# (disabled for now, locks)
+#select get_lock("test_lock4", 20);
+#create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);
+#select sleep(3);
+#show processlist;
+#drop event закачка4;
+#select release_lock("test_lock4");
+
+set global event_scheduler=0;
+select sleep(2);
+show processlist;
+#the following locks for some reason and is a bug, commented for now
+#select count(*) from mysql.event;
+
+drop database events_test;

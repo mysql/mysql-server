@@ -184,5 +184,25 @@ proc	CREATE TABLE `proc` (
   `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
   PRIMARY KEY  (`db`,`name`,`type`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures'
+show create table event;
+Table	Create Table
+event	CREATE TABLE `event` (
+  `db` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  `name` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  `body` longblob NOT NULL,
+  `definer` char(77) character set utf8 collate utf8_bin NOT NULL default '',
+  `execute_at` datetime default NULL,
+  `interval_value` int(11) default NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL,
+  `created` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL default '0000-00-00 00:00:00',
+  `last_executed` datetime default NULL,
+  `starts` datetime default NULL,
+  `ends` datetime default NULL,
+  `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
+  `comment` varchar(64) character set utf8 collate utf8_bin NOT NULL default '',
+  PRIMARY KEY  (`db`,`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 show tables;
 Tables_in_test
