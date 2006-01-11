@@ -1661,3 +1661,12 @@ zlib/*.vcproj
 client/mysqlslap
 storage/archive/archive_test
 item_xmlfunc.cc
+storage/ndb/test/ndbapi/DbAsyncGenerator
+storage/ndb/test/ndbapi/DbCreate
+storage/ndb/test/ndbapi/ndbapi_slow_select
+storage/ndb/test/ndbapi/testBitfield
+storage/ndb/test/ndbapi/testLcp
+storage/ndb/test/ndbapi/testPartitioning
+storage/ndb/test/ndbapi/testReadPerf
+storage/ndb/test/ndbapi/test_event_merge
+storage/ndb/test/tools/listen_event

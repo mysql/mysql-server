@@ -30,7 +30,8 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   */
   hton= ha_resolve_by_legacy_type(thd, ts_info->storage_engine);
 
-  if (hton->alter_tablespace && (error= hton->alter_tablespace(thd, ts_info)))
+  if (hton->state == SHOW_OPTION_YES &&
+      hton->alter_tablespace && (error= hton->alter_tablespace(thd, ts_info)))
   {
     if (error == HA_ADMIN_NOT_IMPLEMENTED)
     {
@@ -45,6 +46,11 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       my_error(error, MYF(0));
     }
     DBUG_RETURN(error);
+  }
+  if (mysql_bin_log.is_open())
+  {
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, TRUE);
   }
   DBUG_RETURN(FALSE);
 }
