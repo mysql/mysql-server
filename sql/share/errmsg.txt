@@ -5747,3 +5747,35 @@ ER_BINLOG_ROW_WRONG_TABLE_DEF
 	eng "Table definition on master and slave does not match"
 ER_BINLOG_ROW_RBR_TO_SBR
 	eng "Slave running with --log-slave-updates must use row-based binary logging to be able to replicate row-based binary log events"
+ER_EVENT_ALREADY_EXISTS
+        eng "Event '%-.64s' already exists"
+ER_EVENT_STORE_FAILED
+        eng "Failed to store event %s. Error code %d from storage engine."
+ER_EVENT_DOES_NOT_EXIST
+        eng "Unknown event '%-.64s'"
+ER_EVENT_CANT_ALTER
+        eng "Failed to alter event '%-.64s'"
+ER_EVENT_DROP_FAILED
+        eng "Failed to drop %s"
+ER_EVENT_INTERVAL_NOT_POSITIVE
+        eng "INTERVAL must be positive"
+ER_EVENT_ENDS_BEFORE_STARTS
+        eng "ENDS must be after STARTS"
+ER_EVENT_EXEC_TIME_IN_THE_PAST
+        eng "Activation (AT) time is in the past"
+ER_EVENT_OPEN_TABLE_FAILED
+        eng "Failed to open mysql.event"
+ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
+        eng "No datetime expression provided"
+ER_EVENT_COL_COUNT_DOESNT_MATCH
+        eng "Column count of %s.%s is wrong. Table probably corrupted"
+ER_EVENT_CANNOT_LOAD_FROM_TABLE
+        eng "Cannot load from mysql.event. Table probably corrupted"
+ER_EVENT_CANNOT_DELETE
+        eng "Failed to delete the event from mysql.event"
+ER_EVENT_COMPILE_ERROR
+        eng "Error during compilation of event's body"
+ER_EVENT_SAME_NAME
+        eng "Same old and new event name"
+ER_EVENT_DATA_TOO_LONG
+        eng "Data for column '%s' too long"
