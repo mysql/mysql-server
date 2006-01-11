@@ -49,15 +49,15 @@ ENGINE=NDB;
 # Create a table using this tablespace
 ########################################
 
-CREATE TABLE test.t1
+CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB;
 
-INSERT INTO test.t1 VALUES (0, 0, 0);
-SELECT * FROM test.t1;
+INSERT INTO t1 VALUES (0, 0, 0);
+SELECT * FROM t1;
 
-INSERT INTO test.t1 VALUES 
+INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
 (11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
@@ -159,7 +159,7 @@ INSERT INTO test.t1 VALUES
 (491,491,491),(492,492,492),(493,493,493),(494,494,494),(495,495,495),
 (496,496,496),(497,497,497),(498,498,498),(499,499,499),(500, 500, 500);
 
-SELECT COUNT(*) FROM test.t1;
+SELECT COUNT(*) FROM t1;
 
 ####################################
 # Test error cases with size numbers
@@ -194,99 +194,99 @@ ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 
-DROP TABLE test.t1;
+DROP TABLE t1;
 
 ############################
 # Test update of mm/dd part
 ############################
 
-CREATE TABLE test.t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
-INSERT INTO test.t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
+INSERT INTO t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
-UPDATE test.t1 SET b = '2' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET c = '2' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET b = '3' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
+UPDATE t1 SET b = '2' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET c = '2' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = '3' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
 COMMIT;
-SELECT * FROM test.t1 ORDER BY 1;
+SELECT * FROM t1 ORDER BY 1;
 BEGIN;
-UPDATE test.t1 SET c = '3' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET b = '4' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET c = '4' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
+UPDATE t1 SET c = '3' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = '4' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET c = '4' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
 COMMIT;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '5' WHERE a = 1;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '6' WHERE b = '5';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '7'WHERE c = '4';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '5' WHERE a = 1;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '6' WHERE b = '7';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '7' WHERE c = '6';
-SELECT * FROM test.t1 ORDER BY 1;
-DROP TABLE test.t1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '5' WHERE a = 1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '6' WHERE b = '5';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '7'WHERE c = '4';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '5' WHERE a = 1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '6' WHERE b = '7';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '7' WHERE c = '6';
+SELECT * FROM t1 ORDER BY 1;
+DROP TABLE t1;
 
 #####
 
-CREATE TABLE test.t1 (a INT PRIMARY KEY, b VARCHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE NDB;
-INSERT INTO test.t1 VALUE (1,'1','1'), (2,'2','2'), (3,'3','3');
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE NDB;
+INSERT INTO t1 VALUE (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
-UPDATE test.t1 SET b = '2' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET c = '2' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET b = '3' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
+UPDATE t1 SET b = '2' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET c = '2' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = '3' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
 COMMIT;
-SELECT * FROM test.t1 ORDER BY 1;
+SELECT * FROM t1 ORDER BY 1;
 BEGIN;
-UPDATE test.t1 SET c = '3' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET b = '4' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
-UPDATE test.t1 SET c = '4' WHERE a = 1;
-SELECT b FROM test.t1 WHERE a = 1;
-SELECT * FROM test.t1 WHERE a = 1;
+UPDATE t1 SET c = '3' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = '4' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET c = '4' WHERE a = 1;
+SELECT b FROM t1 WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
 COMMIT;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '5' WHERE a = 1;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '6' WHERE b = '5';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET b = '7' WHERE c = '4';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '5' WHERE a = 1;
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '6' WHERE b = '7';
-SELECT * FROM test.t1 ORDER BY 1;
-UPDATE test.t1 SET c = '7' WHERE c = '6';
-SELECT * FROM test.t1 ORDER BY 1;
-DROP TABLE test.t1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '5' WHERE a = 1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '6' WHERE b = '5';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET b = '7' WHERE c = '4';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '5' WHERE a = 1;
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '6' WHERE b = '7';
+SELECT * FROM t1 ORDER BY 1;
+UPDATE t1 SET c = '7' WHERE c = '6';
+SELECT * FROM t1 ORDER BY 1;
+DROP TABLE t1;
 
 ########################
 # Test for blobs...
 ########################
 
-CREATE TABLE test.t1 (
+CREATE TABLE t1 (
   a INT NOT NULL PRIMARY KEY,
   b TEXT NOT NULL
 ) TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
@@ -308,22 +308,22 @@ set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 
-INSERT INTO test.t1 VALUES(1,@b1);
-INSERT INTO test.t1 VALUES(2,@b2);
-SELECT a,length(b),substr(b,1+2*900,2) FROM test.t1 WHERE a=1;
-SELECT a,length(b),substr(b,1+2*9000,2) FROM test.t1 WHERE a=2;
-UPDATE test.t1 SET b=@b2 WHERE a=1;
-UPDATE test.t1 SET b=@b1 WHERE a=2;
-SELECT a,length(b),substr(b,1+2*9000,2) FROM test.t1 WHERE a=1;
-SELECT a,length(b),substr(b,1+2*900,2) FROM test.t1 WHERE a=2;
-UPDATE test.t1 SET b=concat(b,b) WHERE a=1;
-UPDATE test.t1 SET b=concat(b,b) WHERE a=2;
-SELECT a,length(b),substr(b,1+4*9000,2) FROM test.t1 WHERE a=1;
-SELECT a,length(b),substr(b,1+4*900,2) FROM test.t1 WHERE a=2;
-DELETE FROM test.t1 WHERE a=1;
-DELETE FROM test.t1 WHERE a=2;
-SELECT COUNT(*) FROM test.t1;
-DROP TABLE test.t1;
+INSERT INTO t1 VALUES(1,@b1);
+INSERT INTO t1 VALUES(2,@b2);
+SELECT a,length(b),substr(b,1+2*900,2) FROM t1 WHERE a=1;
+SELECT a,length(b),substr(b,1+2*9000,2) FROM t1 WHERE a=2;
+UPDATE t1 SET b=@b2 WHERE a=1;
+UPDATE t1 SET b=@b1 WHERE a=2;
+SELECT a,length(b),substr(b,1+2*9000,2) FROM t1 WHERE a=1;
+SELECT a,length(b),substr(b,1+2*900,2) FROM t1 WHERE a=2;
+UPDATE t1 SET b=concat(b,b) WHERE a=1;
+UPDATE t1 SET b=concat(b,b) WHERE a=2;
+SELECT a,length(b),substr(b,1+4*9000,2) FROM t1 WHERE a=1;
+SELECT a,length(b),substr(b,1+4*900,2) FROM t1 WHERE a=2;
+DELETE FROM t1 WHERE a=1;
+DELETE FROM t1 WHERE a=2;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
 
 ###################
 # Test Cleanup
