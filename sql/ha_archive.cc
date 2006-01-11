@@ -581,6 +581,10 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   int error;
   DBUG_ENTER("ha_archive::create");
 
+  auto_increment_value= (create_info->auto_increment_value ?
+                   create_info->auto_increment_value -1 :
+                   (ulonglong) 0);
+
   if ((create_file= my_create(fn_format(name_buff,name,"",ARM,
                                         MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
                               O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
@@ -607,7 +611,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     }
   }
 
-  write_meta_file(create_file, 0, 0, FALSE);
+  write_meta_file(create_file, 0, auto_increment_value, FALSE);
   my_close(create_file,MYF(0));
 
   /* 
@@ -834,7 +838,9 @@ int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
   int rc= 0;
   bool found= 0;
   KEY *mkey= &table->s->key_info[index];
-  uint k_offset= mkey->key_part->offset;
+  current_k_offset= mkey->key_part->offset;
+  current_key= key;
+  current_key_len= key_len;
 
 
   DBUG_ENTER("ha_archive::index_read_idx");
@@ -858,7 +864,7 @@ int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
 
   while (!(get_row(&archive, buf)))
   {
-    if (!memcmp(key, buf+k_offset, key_len))
+    if (!memcmp(current_key, buf + current_k_offset, current_key_len))
     {
       found= 1;
       break;
@@ -870,6 +876,25 @@ int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
 
 error:
   DBUG_RETURN(rc ? rc : HA_ERR_END_OF_FILE);
+}
+
+
+int ha_archive::index_next(byte * buf) 
+{ 
+  bool found= 0;
+
+  DBUG_ENTER("ha_archive::index_next");
+
+  while (!(get_row(&archive, buf)))
+  {
+    if (!memcmp(current_key, buf+current_k_offset, current_key_len))
+    {
+      found= 1;
+      break;
+    }
+  }
+
+  DBUG_RETURN(found ? 0 : HA_ERR_END_OF_FILE); 
 }
 
 /*
@@ -1208,6 +1233,15 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
   *to++= &lock;
 
   return to;
+}
+
+void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
+{
+  ha_archive::info(HA_STATUS_AUTO | HA_STATUS_CONST);
+  if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
+  {
+    create_info->auto_increment_value=auto_increment_value;
+  }
 }
 
 
