@@ -892,11 +892,7 @@ public:
      */
     Uint8  opExec;     
 
-    /** 
-     * LOCK TYPE OF OPERATION IF READ OPERATION
-     * 0 = READ LOCK, 1 = WRITE LOCK                    
-     */
-    Uint8  opLock;     
+    Uint8  unused;
 
     /** 
      * IS THE OPERATION A SIMPLE TRANSACTION            

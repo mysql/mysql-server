@@ -69,7 +69,8 @@ private:
     ZSEND_END_TO                 = 41,
 
     WAIT_DROP_TAB_WRITING_TO_FILE = 42,
-    CHECK_WAIT_DROP_TAB_FAILED_LQH = 43
+    CHECK_WAIT_DROP_TAB_FAILED_LQH = 43,
+    ZTO_START_FRAGMENTS = 44
   };
 };
 

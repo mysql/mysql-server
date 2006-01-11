@@ -128,7 +128,7 @@ bool PrepareOperationRecord::check() {
   if (m_operationType == 3 && m_attributeLength != 0)
     return false;
 
-  if (m_logRecordSize != (m_attributeLength + m_keyLength + 6))
+  if (m_logRecordSize != (m_attributeLength + m_keyLength + 8))
     return false;
 
   return true;
@@ -165,6 +165,8 @@ NdbOut& operator<<(NdbOut& no, const PrepareOperationRecord& por) {
   default:
     printOut("operationType:", por.m_operationType);
   }
+  printOut("page_no: ", por.m_page_no);
+  printOut("page_idx: ", por.m_page_idx);
   printOut("attributeLength:", por.m_attributeLength);
   printOut("keyLength:", por.m_keyLength);
 

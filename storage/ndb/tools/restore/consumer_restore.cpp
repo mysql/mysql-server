@@ -152,6 +152,141 @@ BackupRestore::finalize_table(const TableS & table){
   return ret;
 }
 
+#include <signaldata/DictTabInfo.hpp>
+
+bool
+BackupRestore::object(Uint32 type, const void * ptr)
+{
+  if (!m_restore_meta)
+    return true;
+  
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  switch(type){
+  case DictTabInfo::Tablespace:
+  {
+    NdbDictionary::Tablespace old(*(NdbDictionary::Tablespace*)ptr);
+
+    Uint32 id = old.getObjectId();
+
+    if (!m_no_restore_disk)
+    {
+      NdbDictionary::LogfileGroup * lg = m_logfilegroups[old.getDefaultLogfileGroupId()];
+      old.setDefaultLogfileGroup(* lg);
+      int ret = dict->createTablespace(old);
+      if (ret)
+      {
+	NdbError errobj= dict->getNdbError();
+	err << "Failed to create tablespace \"" << old.getName() << "\": "
+	    << errobj << endl;
+	return false;
+      }
+      debug << "Created tablespace: " << old.getName() << endl;
+    }
+    
+    NdbDictionary::Tablespace curr = dict->getTablespace(old.getName());
+    NdbError errobj = dict->getNdbError();
+    if(errobj.classification == ndberror_cl_none)
+    {
+      NdbDictionary::Tablespace* currptr = new NdbDictionary::Tablespace(curr);
+      NdbDictionary::Tablespace * null = 0;
+      m_tablespaces.set(currptr, id, null);
+      debug << "Retreived tablspace: " << currptr->getName() 
+	    << " oldid: " << id << " newid: " << currptr->getObjectId() 
+	    << " " << (void*)currptr << endl;
+      return true;
+    }
+    
+    err << "Failed to retrieve tablespace \"" << old.getName() << "\": "
+	<< errobj << endl;
+    
+    return false;
+    break;
+  }
+  case DictTabInfo::LogfileGroup:
+  {
+    NdbDictionary::LogfileGroup old(*(NdbDictionary::LogfileGroup*)ptr);
+    
+    Uint32 id = old.getObjectId();
+    
+    if (!m_no_restore_disk)
+    {
+      int ret = dict->createLogfileGroup(old);
+      if (ret)
+      {
+	NdbError errobj= dict->getNdbError();
+	err << "Failed to create logfile group \"" << old.getName() << "\": "
+	    << errobj << endl;
+	return false;
+      }
+      debug << "Created logfile group: " << old.getName() << endl;
+    }
+    
+    NdbDictionary::LogfileGroup curr = dict->getLogfileGroup(old.getName());
+    NdbError errobj = dict->getNdbError();
+    if(errobj.classification == ndberror_cl_none)
+    {
+      NdbDictionary::LogfileGroup* currptr = 
+	new NdbDictionary::LogfileGroup(curr);
+      NdbDictionary::LogfileGroup * null = 0;
+      m_logfilegroups.set(currptr, id, null);
+      debug << "Retreived logfile group: " << currptr->getName() 
+	    << " oldid: " << id << " newid: " << currptr->getObjectId() 
+	    << " " << (void*)currptr << endl;
+      return true;
+    }
+    
+    err << "Failed to retrieve logfile group \"" << old.getName() << "\": "
+	<< errobj << endl;
+    
+    return false;
+    break;
+  }
+  case DictTabInfo::Datafile:
+  {
+    if (!m_no_restore_disk)
+    {
+      NdbDictionary::Datafile old(*(NdbDictionary::Datafile*)ptr);
+      NdbDictionary::Tablespace * ts = m_tablespaces[old.getTablespaceId()];
+      debug << "Connecting datafile " << old.getPath() 
+	    << " to tablespace: oldid: " << old.getTablespaceId() 
+	    << " newid: " << ts->getObjectId() << endl;
+      old.setTablespace(* ts);
+      if (dict->createDatafile(old))
+      {
+	err << "Failed to create datafile \"" << old.getPath() << "\": "
+	    << dict->getNdbError() << endl;
+	return false;
+      }
+    }
+    return true;
+    break;
+  }
+  case DictTabInfo::Undofile:
+  {
+    if (!m_no_restore_disk)
+    {
+      NdbDictionary::Undofile old(*(NdbDictionary::Undofile*)ptr);
+      NdbDictionary::LogfileGroup * lg = 
+	m_logfilegroups[old.getLogfileGroupId()];
+      debug << "Connecting undofile " << old.getPath() 
+	    << " to logfile group: oldid: " << old.getLogfileGroupId() 
+	    << " newid: " << lg->getObjectId() 
+	    << " " << (void*)lg << endl;
+      old.setLogfileGroup(* lg);
+      if (dict->createUndofile(old))
+      {
+	err << "Failed to create undofile \"" << old.getPath() << "\": "
+	    << dict->getNdbError() << endl;
+	return false;
+      }
+    }
+    return true;
+    break;
+  }
+  }
+  return true;
+}
+
 bool
 BackupRestore::table(const TableS & table){
   if (!m_restore && !m_restore_meta)
@@ -186,7 +321,15 @@ BackupRestore::table(const TableS & table){
     NdbDictionary::Table copy(*table.m_dictTable);
 
     copy.setName(split[2].c_str());
-
+    if (copy.getTablespaceId() != RNIL)
+    {
+      Uint32 id = copy.getTablespaceId();
+      debug << "Connecting " << name << " to tablespace oldid: " << id << flush;
+      NdbDictionary::Tablespace* ts = m_tablespaces[copy.getTablespaceId()];
+      debug << " newid: " << ts->getObjectId() << endl;
+      copy.setTablespace(* ts);
+    }
+    
     if (dict->createTable(copy) == -1) 
     {
       err << "Create table " << table.getTableName() << " failed: "
@@ -713,3 +856,5 @@ BackupRestore::tuple(const TupleS & tup)
 
 template class Vector<NdbDictionary::Table*>;
 template class Vector<const NdbDictionary::Table*>;
+template class Vector<NdbDictionary::Tablespace*>;
+template class Vector<NdbDictionary::LogfileGroup*>;

@@ -38,7 +38,7 @@ void Dbtup::execDEBUG_SIG(Signal* signal)
   PagePtr regPagePtr;
   ljamEntry();
   regPagePtr.i = signal->theData[0];
-  ptrCheckGuard(regPagePtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(regPagePtr);
 }//Dbtup::execDEBUG_SIG()
 
 #ifdef TEST_MR
@@ -72,7 +72,7 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(Page);
   signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = cnoOfPage;
+  signal->theData[4] = c_page_pool.getSize();
   signal->theData[5] = DBTUP;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }
@@ -168,7 +168,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = cnoOfPage - cnoOfAllocatedPages;
+      const Uint32 free = c_page_pool.getSize() - cnoOfAllocatedPages;
       
       Uint32 alloc = 0;
       if(free <= 1){
@@ -213,7 +213,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	for(Uint32 i = 0; i<chunk.pageCount; i++){
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
-	  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+	  c_page_pool.getPtr(pagePtr);
 	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
@@ -281,8 +281,7 @@ void Dbtup::printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit)
   FragrecordPtr tmpFragP;
   TablerecPtr tmpTableP;
 
-  tmpPageP.i = pageid;
-  ptrCheckGuard(tmpPageP, cnoOfPage, cpage);
+  c_page_pool.getPtr(tmpPageP, pageid);
 
   tmpFragP.i = fragid;
   ptrCheckGuard(tmpFragP, cnoOfFragrec, fragrecord);
@@ -334,7 +333,7 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
   out << "[Th " << hex << &th;
   out << " [op " << hex << th.data[i++] << "]";
   out << " [version " << hex << (Uint16)th.data[i++] << "]";
-  if (tab.checksumIndicator)
+  if (tab.m_bits & Dbtup::Tablerec::TR_Checksum)
     out << " [checksum " << hex << th.data[i++] << "]";
   out << " [nullbits";
   for (unsigned j = 0; j < tab.m_offsets[Dbtup::MM].m_null_words; j++)
@@ -381,7 +380,7 @@ NdbOut&
 operator<<(NdbOut& out, const Dbtup::Tablerec& tab)
 {
   out << "[ total_rec_size: " << tab.total_rec_size
-      << " checksum: " << tab.checksumIndicator 
+      << " checksum: " << !!(tab.m_bits & Dbtup::Tablerec::TR_Checksum)
       << " attr: " << tab.m_no_of_attributes
       << " disk: " << tab.m_no_of_disk_attributes 
       << " mm: " << tab.m_offsets[Dbtup::MM]

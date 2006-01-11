@@ -320,9 +320,21 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::RECORDS_IN_RANGE;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 4;
+  } else if(!strcmp(name, "NDB$ROWID")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROWID;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 2;
+  } else if(!strcmp(name, "NDB$ROW_GCI")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_GCI;
+    col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
+    col->m_impl.m_nullable = true;
   } else {
     abort();
   }
+  col->m_impl.m_storageType = NDB_STORAGETYPE_MEMORY;
   return col;
 }
 
@@ -378,6 +390,8 @@ NdbTableImpl::init(){
   m_noOfBlobs= 0;
   m_replicaCount= 0;
   m_tablespace_id = ~0;
+  m_row_gci = true;
+  m_row_checksum = true;
 }
 
 bool
@@ -891,6 +905,8 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       delete NdbDictionary::Column::RANGE_NO;
       delete NdbDictionary::Column::DISK_REF;
       delete NdbDictionary::Column::RECORDS_IN_RANGE;
+      delete NdbDictionary::Column::ROWID;
+      delete NdbDictionary::Column::ROW_GCI;
       NdbDictionary::Column::FRAGMENT= 0;
       NdbDictionary::Column::FRAGMENT_MEMORY= 0;
       NdbDictionary::Column::ROW_COUNT= 0;
@@ -899,6 +915,8 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       NdbDictionary::Column::RANGE_NO= 0;
       NdbDictionary::Column::DISK_REF= 0;
       NdbDictionary::Column::RECORDS_IN_RANGE= 0;
+      NdbDictionary::Column::ROWID= 0;
+      NdbDictionary::Column::ROW_GCI= 0;
     }
     m_globalHash->unlock();
   } else {
@@ -975,6 +993,10 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_pseudo("NDB$DISK_REF");
       NdbDictionary::Column::RECORDS_IN_RANGE= 
 	NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
+      NdbDictionary::Column::ROWID= 
+	NdbColumnImpl::create_pseudo("NDB$ROWID");
+      NdbDictionary::Column::ROW_GCI= 
+	NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
     }
     m_globalHash->unlock();
     return true;
@@ -1507,6 +1529,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 		   (Uint32)NdbDictionary::Object::FragUndefined);
   
   impl->m_logging = tableDesc.TableLoggedFlag;
+  impl->m_row_gci = tableDesc.RowGCIFlag;
+  impl->m_row_checksum = tableDesc.RowChecksumFlag;
   impl->m_kvalue = tableDesc.TableKValue;
   impl->m_minLoadFactor = tableDesc.MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc.MaxLoadFactor;
@@ -1840,6 +1864,9 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab.FragmentDataLen = impl.m_ng.length();
   memcpy(tmpTab.FragmentData, impl.m_ng.get_data(), impl.m_ng.length());
 
+  tmpTab.TableLoggedFlag = impl.m_logging;
+  tmpTab.RowGCIFlag = impl.m_row_gci;
+  tmpTab.RowChecksumFlag = impl.m_row_checksum;
   tmpTab.TableLoggedFlag = impl.m_logging;
   tmpTab.TableKValue = impl.m_kvalue;
   tmpTab.MinLoadFactor = impl.m_minLoadFactor;
@@ -3404,6 +3431,24 @@ NdbTablespaceImpl::NdbTablespaceImpl(NdbDictionary::Tablespace & f) :
 NdbTablespaceImpl::~NdbTablespaceImpl(){
 }
 
+void
+NdbTablespaceImpl::assign(const NdbTablespaceImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+  m_type = org.m_type;
+
+  m_name.assign(org.m_name);
+  m_grow_spec = org.m_grow_spec;
+  m_extent_size = org.m_extent_size;
+  m_undo_free_words = org.m_undo_free_words;
+  m_logfile_group_id = org.m_logfile_group_id;
+  m_logfile_group_version = org.m_logfile_group_version;
+  m_logfile_group_name.assign(org.m_logfile_group_name);
+  m_undo_free_words = org.m_undo_free_words;
+}
+
 NdbLogfileGroupImpl::NdbLogfileGroupImpl() : 
   NdbDictionary::LogfileGroup(* this), 
   NdbFilegroupImpl(NdbDictionary::Object::LogfileGroup), m_facade(this)
@@ -3417,6 +3462,24 @@ NdbLogfileGroupImpl::NdbLogfileGroupImpl(NdbDictionary::LogfileGroup & f) :
 }
 
 NdbLogfileGroupImpl::~NdbLogfileGroupImpl(){
+}
+
+void
+NdbLogfileGroupImpl::assign(const NdbLogfileGroupImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+  m_type = org.m_type;
+
+  m_name.assign(org.m_name);
+  m_grow_spec = org.m_grow_spec;
+  m_extent_size = org.m_extent_size;
+  m_undo_free_words = org.m_undo_free_words;
+  m_logfile_group_id = org.m_logfile_group_id;
+  m_logfile_group_version = org.m_logfile_group_version;
+  m_logfile_group_name.assign(org.m_logfile_group_name);
+  m_undo_free_words = org.m_undo_free_words;
 }
 
 NdbFileImpl::NdbFileImpl(NdbDictionary::Object::Type t)
@@ -3443,6 +3506,22 @@ NdbDatafileImpl::NdbDatafileImpl(NdbDictionary::Datafile & f) :
 NdbDatafileImpl::~NdbDatafileImpl(){
 }
 
+void
+NdbDatafileImpl::assign(const NdbDatafileImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+  m_type = org.m_type;
+
+  m_size = org.m_size;
+  m_free = org.m_free;
+  m_filegroup_id = org.m_filegroup_id;
+  m_filegroup_version = org.m_filegroup_version;
+  m_path.assign(org.m_path);
+  m_filegroup_name.assign(org.m_filegroup_name);
+}
+
 NdbUndofileImpl::NdbUndofileImpl() : 
   NdbDictionary::Undofile(* this), 
   NdbFileImpl(NdbDictionary::Object::Undofile), m_facade(this)
@@ -3456,6 +3535,22 @@ NdbUndofileImpl::NdbUndofileImpl(NdbDictionary::Undofile & f) :
 }
 
 NdbUndofileImpl::~NdbUndofileImpl(){
+}
+
+void
+NdbUndofileImpl::assign(const NdbUndofileImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+  m_type = org.m_type;
+
+  m_size = org.m_size;
+  m_free = org.m_free;
+  m_filegroup_id = org.m_filegroup_id;
+  m_filegroup_version = org.m_filegroup_version;
+  m_path.assign(org.m_path);
+  m_filegroup_name.assign(org.m_filegroup_name);
 }
 
 int 
@@ -3776,10 +3871,10 @@ int
 NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
 				NdbDictionary::Object::Type type,
 				const char * name){
-  DBUG_ENTER("NdbDictInterface::get_filegroup"); 
+  DBUG_ENTER("NdbDictInterface::get_filegroup");
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
-  
+
   size_t strLen = strlen(name) + 1;
 
   req->senderRef = m_reference;
@@ -3794,7 +3889,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   LinearSectionPtr ptr[1];
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = (strLen + 3)/4;
-  
+
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
@@ -3804,11 +3899,11 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
     DBUG_RETURN(-1);
   }
-  
-  m_error.code = parseFilegroupInfo(dst, 
-				    (Uint32*)m_buffer.get_data(), 
+
+  m_error.code = parseFilegroupInfo(dst,
+				    (Uint32*)m_buffer.get_data(),
 				    m_buffer.length() / 4);
-  
+
   if(m_error.code)
   {
     DBUG_PRINT("info", ("get_filegroup failed parseFilegroupInfo %d",
@@ -3816,6 +3911,15 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
     DBUG_RETURN(m_error.code);
   }
 
+  if(dst.m_type == NdbDictionary::Object::Tablespace)
+  {
+    NdbDictionary::LogfileGroup tmp;
+    get_filegroup(NdbLogfileGroupImpl::getImpl(tmp),
+		  NdbDictionary::Object::LogfileGroup,
+		  dst.m_logfile_group_id);
+    dst.m_logfile_group_name.assign(tmp.getName());
+  }
+  
   if(dst.m_type == type)
   {
     DBUG_RETURN(0);
@@ -3852,7 +3956,56 @@ NdbDictInterface::parseFilegroupInfo(NdbFilegroupImpl &dst,
   dst.m_undo_buffer_size = fg.LF_UndoBufferSize;
   dst.m_logfile_group_id = fg.TS_LogfileGroupId;
   dst.m_logfile_group_version = fg.TS_LogfileGroupVersion;
+  dst.m_undo_free_words= ((Uint64)fg.LF_UndoFreeWordsHi << 32)
+    | (fg.LF_UndoFreeWordsLo);
+
   return 0;
+}
+
+int
+NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
+				NdbDictionary::Object::Type type,
+				Uint32 id){
+  DBUG_ENTER("NdbDictInterface::get_filegroup");
+  NdbApiSignal tSignal(m_reference);
+  GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  req->requestType =
+    GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
+  req->tableId = id;
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
+  tSignal.theLength = GetTabInfoReq::SignalLength;
+
+  int r = dictSignal(&tSignal, NULL, 1,
+		     -1, // any node
+		     WAIT_GET_TAB_INFO_REQ,
+		     WAITFOR_RESPONSE_TIMEOUT, 100);
+  if (r)
+  {
+    DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
+    DBUG_RETURN(-1);
+  }
+
+  m_error.code = parseFilegroupInfo(dst,
+				    (Uint32*)m_buffer.get_data(),
+				    m_buffer.length() / 4);
+
+  if(m_error.code)
+  {
+    DBUG_PRINT("info", ("get_filegroup failed parseFilegroupInfo %d",
+                         m_error.code));
+    DBUG_RETURN(m_error.code);
+  }
+
+  if(dst.m_type == type)
+  {
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("info", ("get_filegroup failed no such filegroup"));
+  DBUG_RETURN(m_error.code = GetTabInfoRef::TableNotDefined);
 }
 
 int
@@ -3900,6 +4053,26 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
     DBUG_RETURN(m_error.code);
   }
 
+  if(dst.m_type == NdbDictionary::Object::Undofile)
+  {
+    NdbDictionary::LogfileGroup tmp;
+    get_filegroup(NdbLogfileGroupImpl::getImpl(tmp),
+		  NdbDictionary::Object::LogfileGroup,
+		  dst.m_filegroup_id);
+    dst.m_filegroup_name.assign(tmp.getName());
+  }
+  else if(dst.m_type == NdbDictionary::Object::Datafile)
+  {
+    NdbDictionary::Tablespace tmp;
+    get_filegroup(NdbTablespaceImpl::getImpl(tmp),
+		  NdbDictionary::Object::Tablespace,
+		  dst.m_filegroup_id);
+    dst.m_filegroup_name.assign(tmp.getName());
+    dst.m_free *= tmp.getExtentSize();
+  }
+  else
+    dst.m_filegroup_name.assign("Not Yet Implemented");
+  
   if(dst.m_type == type)
   {
     DBUG_RETURN(0);
@@ -3929,12 +4102,11 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   dst.m_id= f.FileNo;
 
   dst.m_size= ((Uint64)f.FileSizeHi << 32) | (f.FileSizeLo);
-  dst.m_free= f.FileFreeExtents;
   dst.m_path.assign(f.FileName);
-  //dst.m_filegroup_name
+
   dst.m_filegroup_id= f.FilegroupId;
   dst.m_filegroup_version= f.FilegroupVersion;
-
+  dst.m_free=  f.FileFreeExtents;
   return 0;
 }
 
@@ -3945,3 +4117,13 @@ template class Vector<Vector<Uint32> >;
 template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
 
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::RANGE_NO = 0;
+const NdbDictionary::Column * NdbDictionary::Column::DISK_REF = 0;
+const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROWID = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;

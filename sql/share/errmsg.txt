@@ -5727,6 +5727,20 @@ ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
 ER_NO_PARTITION_FOR_GIVEN_VALUE
 	eng "Table has no partition for value %ld"
+ER_TABLESPACE_OPTION_ONLY_ONCE
+        eng "It is not allowed to specify %s more than once"
+ER_CREATE_TABLESPACE_FAILED
+        eng "Failed to create %s"
+ER_DROP_TABLESPACE_FAILED
+        eng "Failed to drop %s"
+ER_TABLESPACE_AUTO_EXTEND_ERROR
+        eng "The handler doesn't support autoextend of tablespaces"
+ER_WRONG_SIZE_NUMBER
+        eng "A size parameter was incorrectly specified, either number or on the form 10M"
+ER_SIZE_OVERFLOW_ERROR
+        eng "The size number was correct but we don't allow the digit part to be more than 2 billion"
+ER_ALTER_TABLESPACE_FAILED
+        eng "Failed to alter: %s"
 ER_BINLOG_ROW_LOGGING_FAILED
 	eng "Writing one row to the row-based binary log failed"
 ER_BINLOG_ROW_WRONG_TABLE_DEF
