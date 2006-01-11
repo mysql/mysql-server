@@ -196,6 +196,7 @@ private:
   void create_file_ref(Signal*, Ptr<Tablespace>, Ptr<Datafile>, 
 		       Uint32,Uint32,Uint32);
   int update_page_free_bits(Signal*, Local_key*, unsigned bits, Uint64 lsn);
+  int get_page_free_bits(Signal*, Local_key*, unsigned* bits);
   int unmap_page(Signal*, Local_key*);
   int restart_undo_page_free_bits(Signal*, Local_key*, unsigned, Uint64);
 
@@ -265,6 +266,11 @@ public:
    * Update page free bits
    */
   int update_page_free_bits(Local_key*, unsigned bits, Uint64 lsn);
+
+  /**
+   * Get page free bits
+   */
+  int get_page_free_bits(Local_key*, unsigned* bits);
 
   /**
    * Update unlogged page free bit
@@ -350,6 +356,13 @@ Tablespace_client::update_page_free_bits(Local_key *key,
 					 unsigned bits, Uint64 lsn)
 {
   return m_tsman->update_page_free_bits(m_signal, key, bits, lsn);
+}
+
+inline
+int
+Tablespace_client::get_page_free_bits(Local_key *key, unsigned* bits)
+{
+  return m_tsman->get_page_free_bits(m_signal, key, bits);
 }
 
 inline

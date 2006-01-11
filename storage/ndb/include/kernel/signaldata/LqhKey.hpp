@@ -127,6 +127,18 @@ private:
   static void setApplicationAddressFlag(UintR & requestInfo, UintR val);
   static void setMarkerFlag(UintR & requestInfo, UintR val);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
+
+  static UintR getRowidFlag(const UintR & requestInfo);
+  static void setRowidFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * When doing DIRTY WRITES
+   */
+  static UintR getGCIFlag(const UintR & requestInfo);
+  static void setGCIFlag(UintR & requestInfo, UintR val);
+
+  static UintR getNrCopyFlag(const UintR & requestInfo);
+  static void setNrCopyFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -134,7 +146,9 @@ private:
  *
  * k = Key len                - 10 Bits (0-9) max 1023
  * l = Last Replica No        - 2  Bits -> Max 3 (10-11)
- * t = Lock type              - 3  Bits -> Max 7 (12-14)
+
+ IF version < NDBD_ROWID_VERSION
+   * t = Lock type            - 3  Bits -> Max 7 (12-14)
  * p = Application Addr. Ind  - 1  Bit (15)
  * d = Dirty indicator        - 1  Bit (16)
  * i = Interpreted indicator  - 1  Bit (17)
@@ -146,11 +160,14 @@ private:
  * u = Read Len Return Ind    - 1  Bit (28)
  * m = Commit ack marker      - 1  Bit (29)
  * x = No disk usage          - 1  Bit (30)
- * - = Unused                 - 2  Bit (31)
- *
- *           1111111111222222222233
- * 01234567890123456789012345678901
- * kkkkkkkkkklltttpdisooorraaacumx-
+ * z = Use rowid for insert   - 1  Bit (31)
+ * g = gci flag               - 1  Bit (12)
+ * n = NR copy                - 1  Bit (13)
+
+ *             1111111111222222222233
+ *   01234567890123456789012345678901
+ *   kkkkkkkkkklltttpdisooorraaacumxz
+ *   kkkkkkkkkkllgn pdisooorraaacumxz
  */
 
 #define RI_KEYLEN_SHIFT      (0)
@@ -173,6 +190,9 @@ private:
 #define RI_RETURN_AI_SHIFT   (28)
 #define RI_MARKER_SHIFT      (29)
 #define RI_NODISK_SHIFT      (30)
+#define RI_ROWID_SHIFT       (31)
+#define RI_GCI_SHIFT         (12)
+#define RI_NR_COPY_SHIFT     (13)
 
 /**
  * Scan Info
@@ -480,6 +500,45 @@ inline
 UintR 
 LqhKeyReq::getNoDiskFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NODISK_SHIFT) & 1;
+}
+
+inline
+void
+LqhKeyReq::setRowidFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setRowidFlag");
+  requestInfo |= (val << RI_ROWID_SHIFT);
+}
+
+inline
+UintR 
+LqhKeyReq::getRowidFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_ROWID_SHIFT) & 1;
+}
+
+inline
+void
+LqhKeyReq::setGCIFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setGciFlag");
+  requestInfo |= (val << RI_GCI_SHIFT);
+}
+
+inline
+UintR 
+LqhKeyReq::getGCIFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_GCI_SHIFT) & 1;
+}
+
+inline
+void
+LqhKeyReq::setNrCopyFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
+  requestInfo |= (val << RI_NR_COPY_SHIFT);
+}
+
+inline
+UintR 
+LqhKeyReq::getNrCopyFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NR_COPY_SHIFT) & 1;
 }
 
 class LqhKeyConf {

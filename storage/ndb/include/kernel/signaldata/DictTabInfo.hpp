@@ -122,6 +122,10 @@ public:
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
     TablespaceId       = 131,
     TablespaceVersion  = 132,
+
+    RowGCIFlag         = 150,
+    RowChecksumFlag    = 151,
+    
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -299,6 +303,9 @@ public:
     Uint32 FragmentCount;
     Uint32 FragmentDataLen;
     Uint16 FragmentData[(MAX_FRAGMENT_DATA_BYTES+1)/2];
+    
+    Uint32 RowGCIFlag;
+    Uint32 RowChecksumFlag;
     
     void init();
   };
@@ -609,7 +616,9 @@ struct DictFilegroupInfo {
     LF_UndoGrowSizeHi  = 2001,
     LF_UndoGrowSizeLo  = 2002,
     LF_UndoGrowPattern = 2003,
-    LF_UndoGrowMaxSize = 2004
+    LF_UndoGrowMaxSize = 2004,
+    LF_UndoFreeWordsHi = 2006,
+    LF_UndoFreeWordsLo = 2007
   };
 
   // FragmentType constants
@@ -645,6 +654,8 @@ struct DictFilegroupInfo {
       GrowSpec LF_UndoGrow;
     };
     //GrowSpec LF_RedoGrow;
+    Uint32 LF_UndoFreeWordsHi;
+    Uint32 LF_UndoFreeWordsLo;
     void init();
   };
   static const Uint32 MappingSize;

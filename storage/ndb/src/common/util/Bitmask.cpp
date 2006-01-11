@@ -16,8 +16,6 @@ void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
   }
 }
 
-#ifndef __TEST_BITMASK__
-
 void
 BitmaskImpl::getFieldImpl(const Uint32 src[],
 			  unsigned shiftL, unsigned len, Uint32 dst[])
@@ -78,7 +76,7 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
     * dst |= ((* src) & ((1 << (len - shiftR)) - 1)) << shiftR ;
   }
 }
-#else
+#ifdef __TEST_BITMASK__
 
 #define DEBUG 0
 #include <Vector.hpp>
@@ -340,6 +338,74 @@ do_test(int bitmask_size)
       BitmaskImpl::setField(sz32, test_mask.getBase(), pos, sz, 
 			    a.data.getBase());
       alloc_list.push_back(a);
+    }
+  }
+
+  for(Uint32 i = 0; i<1000; i++)
+  {
+    Uint32 sz32 = 10+rand() % 100;
+    Uint32 zero = 0;
+    Vector<Uint32> map;
+    map.fill(sz32, zero);
+    
+    Uint32 sz = 32 * sz32;
+    Uint32 start = (rand() % sz);
+    Uint32 stop = start + ((rand() % (sz - start)) & 0xFFFFFFFF);
+
+    Vector<Uint32> check;
+    check.fill(sz32, zero);
+    
+    for(Uint32 j = 0; j<sz; j++)
+    {
+      bool expect = (j >= start && j<stop);
+      if(expect)
+	BitmaskImpl::set(sz32, check.getBase(), j);
+    }
+    
+    BitmaskImpl::set(sz32, map.getBase(), start, stop);
+    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
+    {
+      ndbout_c(" FAIL sz: %d [ %d %d ]", sz, start, stop);
+      printf("check: ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", check[j]);
+      printf("\n");
+      
+      printf("map  : ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", map[j]);
+      printf("\n");
+      abort();
+    }
+
+    map.clear();
+    check.clear();
+
+    Uint32 one = ~(Uint32)0;
+    map.fill(sz32, one);
+    check.fill(sz32, one);
+
+    for(Uint32 j = 0; j<sz; j++)
+    {
+      bool expect = (j >= start && j<stop);
+      if(expect)
+	BitmaskImpl::clear(sz32, check.getBase(), j);
+    }
+
+    BitmaskImpl::clear(sz32, map.getBase(), start, stop);    
+    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
+    {
+      ndbout_c(" FAIL sz: %d [ %d %d ]", sz, start, stop);
+      printf("check: ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", check[j]);
+      printf("\n");
+      
+      printf("map  : ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", map[j]);
+      printf("\n");
+      abort();
     }
   }
 #endif
