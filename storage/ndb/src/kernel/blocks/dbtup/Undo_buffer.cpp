@@ -50,39 +50,34 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
     m_tup->allocConsPages(1, count, m_first_free);
     if(count == 0)
       return 0;
-    page= (UndoPage*)(m_tup->cpage+m_first_free);
+    page= (UndoPage*)m_tup->c_page_pool.getPtr(m_first_free);
     page->m_state= ~ZFREE_COMMON;
     page->m_words_used= 0;
     page->m_ref_count= 0;
   }
   
-  if(m_first_free < m_tup->cnoOfPage)
+  page= (UndoPage*)m_tup->c_page_pool.getPtr(m_first_free);
+  
+  Uint32 pos= page->m_words_used;
+  if(words + pos > UndoPage::DATA_WORDS)
   {
-    page= (UndoPage*)(m_tup->cpage+m_first_free);
-
-    Uint32 pos= page->m_words_used;
-    if(words + pos > UndoPage::DATA_WORDS)
-    {
-      m_first_free= RNIL;
-      return alloc_copy_tuple(dst, words);
-    }
-    
-    dst->m_page_no = m_first_free;
-    dst->m_page_idx = pos;
-    
-    page->m_ref_count++;
-    page->m_words_used = pos + words;
-    return page->m_data + pos;
+    m_first_free= RNIL;
+    return alloc_copy_tuple(dst, words);
   }
-  assert(false);
-  return 0;
+  
+  dst->m_page_no = m_first_free;
+  dst->m_page_idx = pos;
+  
+  page->m_ref_count++;
+  page->m_words_used = pos + words;
+  return page->m_data + pos;
 }
 
 void
 Undo_buffer::shrink_copy_tuple(Local_key* key, Uint32 words)
 {
   assert(key->m_page_no == m_first_free);
-  UndoPage* page= (UndoPage*)(m_tup->cpage+key->m_page_no); 
+  UndoPage* page= (UndoPage*)m_tup->c_page_pool.getPtr(key->m_page_no); 
   assert(page->m_words_used >= words);
   page->m_words_used -= words;
 }
@@ -90,7 +85,7 @@ Undo_buffer::shrink_copy_tuple(Local_key* key, Uint32 words)
 void
 Undo_buffer::free_copy_tuple(Local_key* key)
 {
-  UndoPage* page= (UndoPage*)(m_tup->cpage+key->m_page_no);
+  UndoPage* page= (UndoPage*)m_tup->c_page_pool.getPtr(key->m_page_no);
   Uint32 cnt= page->m_ref_count;
   assert(cnt);
 
@@ -115,6 +110,6 @@ Undo_buffer::free_copy_tuple(Local_key* key)
 Uint32 *
 Undo_buffer::get_ptr(Local_key* key)
 {
-  return ((UndoPage*)(m_tup->cpage+key->m_page_no))->m_data+key->m_page_idx;
+  return ((UndoPage*)(m_tup->c_page_pool.getPtr(key->m_page_no)))->m_data+key->m_page_idx;
 }
   

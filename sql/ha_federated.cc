@@ -394,6 +394,7 @@ handlerton federated_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Alter Tablespace */
   HTON_ALTER_NOT_SUPPORTED
 };
 

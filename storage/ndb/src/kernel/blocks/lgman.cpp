@@ -26,6 +26,7 @@
 #include <signaldata/LCP.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/LgmanContinueB.hpp>
+#include <signaldata/GetTabInfo.hpp>
 #include "ndbfs/Ndbfs.hpp"
 #include "dbtup/Dbtup.hpp"
 
@@ -86,7 +87,9 @@ Lgman::Lgman(const Configuration & conf) :
   addRecSignal(GSN_START_RECREQ, &Lgman::execSTART_RECREQ);
   
   addRecSignal(GSN_END_LCP_CONF, &Lgman::execEND_LCP_CONF);
-  
+
+  addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
+
   m_last_lsn = 0;
   m_logfile_group_pool.setSize(10);
   m_logfile_group_hash.setSize(10);
@@ -701,6 +704,7 @@ Lgman::create_file_commit(Signal* signal,
     ptr.p->m_state = Undofile::FS_SORTING;
   }
   
+  ptr.p->m_online.m_lsn = 0;
   ptr.p->m_online.m_outstanding = 0;
   
   Uint64 add= ptr.p->m_file_size - 1;
@@ -1648,7 +1652,7 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
   
-  if(!ptr.isNull())
+  if(!ptr.isNull() && ptr.p->m_last_lsn)
   {
     Uint32 undo[3];
     undo[0] = lcp_id;
@@ -1686,24 +1690,26 @@ Lgman::execLCP_FRAG_ORD(Signal* signal)
   
   while(!ptr.isNull())
   {
-    /**
-     * First LCP_FRAGORD for each LCP, sets tail pos
-     */
-    if(m_latest_lcp != lcp_id)
+    if (ptr.p->m_last_lsn)
     {
-      ptr.p->m_tail_pos[0] = ptr.p->m_tail_pos[1];
-      ptr.p->m_tail_pos[1] = ptr.p->m_tail_pos[2];
-      ptr.p->m_tail_pos[2] = ptr.p->m_file_pos[HEAD];
+      /**
+       * First LCP_FRAGORD for each LCP, sets tail pos
+       */
+      if(m_latest_lcp != lcp_id)
+      {
+	ptr.p->m_tail_pos[0] = ptr.p->m_tail_pos[1];
+	ptr.p->m_tail_pos[1] = ptr.p->m_tail_pos[2];
+	ptr.p->m_tail_pos[2] = ptr.p->m_file_pos[HEAD];
+      }
+      
+      if(0)
+	ndbout_c
+	  ("execLCP_FRAG_ORD (%d %d) (%d %d) (%d %d) free pages: %d", 
+	   ptr.p->m_tail_pos[0].m_ptr_i, ptr.p->m_tail_pos[0].m_idx,
+	   ptr.p->m_tail_pos[1].m_ptr_i, ptr.p->m_tail_pos[1].m_idx,
+	   ptr.p->m_tail_pos[2].m_ptr_i, ptr.p->m_tail_pos[2].m_idx,
+	   (ptr.p->m_free_file_words / File_formats::UNDO_PAGE_WORDS));
     }
-    
-    if(0)
-      ndbout_c
-	("execLCP_FRAG_ORD (%d %d) (%d %d) (%d %d) free pages: %d", 
-	 ptr.p->m_tail_pos[0].m_ptr_i, ptr.p->m_tail_pos[0].m_idx,
-	 ptr.p->m_tail_pos[1].m_ptr_i, ptr.p->m_tail_pos[1].m_idx,
-	 ptr.p->m_tail_pos[2].m_ptr_i, ptr.p->m_tail_pos[2].m_idx,
-	 (ptr.p->m_free_file_words / File_formats::UNDO_PAGE_WORDS));
-    
     m_logfile_group_list.next(ptr);
   }
   
@@ -1761,47 +1767,50 @@ Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
 void
 Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
 {
-  Buffer_idx tmp= ptr.p->m_tail_pos[0];
-  Buffer_idx tail= ptr.p->m_file_pos[TAIL];
-
-  Ptr<Undofile> filePtr;
-  m_file_pool.getPtr(filePtr, tail.m_ptr_i);
-  
   bool done= true;
-  if(!(tmp == tail))
+  if (likely(ptr.p->m_last_lsn))
   {
-    Uint32 free;
-    if(tmp.m_ptr_i == tail.m_ptr_i && tail.m_idx < tmp.m_idx)
+    Buffer_idx tmp= ptr.p->m_tail_pos[0];
+    Buffer_idx tail= ptr.p->m_file_pos[TAIL];
+    
+    Ptr<Undofile> filePtr;
+    m_file_pool.getPtr(filePtr, tail.m_ptr_i);
+    
+    if(!(tmp == tail))
     {
-      free= tmp.m_idx - tail.m_idx; 
-      ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
-      ptr.p->m_file_pos[TAIL] = tmp;
-    }
-    else
-    {
-      free= filePtr.p->m_file_size - tail.m_idx - 1;
-      ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
-      
-      Ptr<Undofile> next = filePtr;
-      LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
-      while(files.next(next) && (next.p->m_state & Undofile::FS_EMPTY))
-	ndbassert(next.i != filePtr.i);
-      if(next.isNull())
+      Uint32 free;
+      if(tmp.m_ptr_i == tail.m_ptr_i && tail.m_idx < tmp.m_idx)
       {
-	jam();
-	files.first(next);
-	while((next.p->m_state & Undofile::FS_EMPTY) && files.next(next))
-	  ndbassert(next.i != filePtr.i);
+	free= tmp.m_idx - tail.m_idx; 
+	ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
+	ptr.p->m_file_pos[TAIL] = tmp;
       }
-      
-      tmp.m_idx= 0;
-      tmp.m_ptr_i= next.i;
-      ptr.p->m_file_pos[TAIL] = tmp;
-      done= false;      
-    }
-  } 
-
-  validate_logfile_group(ptr, "cut log");
+      else
+      {
+	free= filePtr.p->m_file_size - tail.m_idx - 1;
+	ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
+	
+	Ptr<Undofile> next = filePtr;
+	LocalDLFifoList<Undofile> files(m_file_pool, ptr.p->m_files);
+	while(files.next(next) && (next.p->m_state & Undofile::FS_EMPTY))
+	  ndbassert(next.i != filePtr.i);
+	if(next.isNull())
+	{
+	  jam();
+	  files.first(next);
+	  while((next.p->m_state & Undofile::FS_EMPTY) && files.next(next))
+	    ndbassert(next.i != filePtr.i);
+	}
+	
+	tmp.m_idx= 0;
+	tmp.m_ptr_i= next.i;
+	ptr.p->m_file_pos[TAIL] = tmp;
+	done= false;      
+      }
+    } 
+    
+    validate_logfile_group(ptr, "cut log");
+  }
   
   if (done)
   {
@@ -2946,3 +2955,71 @@ Lgman::validate_logfile_group(Ptr<Logfile_group> ptr, const char * heading)
   }
 }
 #endif
+
+void Lgman::execGET_TABINFOREQ(Signal* signal)
+{
+  jamEntry();
+
+  if(!assembleFragments(signal))
+  {
+    return;
+  }
+
+  GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
+
+  const Uint32 reqType = req->requestType & (~GetTabInfoReq::LongSignalConf);
+  BlockReference retRef= req->senderRef;
+  Uint32 senderData= req->senderData;
+  Uint32 tableId= req->tableId;
+
+  if(reqType == GetTabInfoReq::RequestByName){
+    jam();
+    if(signal->getNoOfSections())
+      releaseSections(signal);
+
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::NoFetchByName);
+    return;
+  }
+
+  Logfile_group key;
+  key.m_logfile_group_id= tableId;
+  Ptr<Logfile_group> ptr;
+  m_logfile_group_hash.find(ptr, key);
+
+  if(ptr.p->m_logfile_group_id != tableId)
+  {
+    jam();
+    if(signal->getNoOfSections())
+      releaseSections(signal);
+
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::InvalidTableId);
+    return;
+  }
+
+
+  GetTabInfoConf *conf = (GetTabInfoConf *)&signal->theData[0];
+
+  conf->senderData= senderData;
+  conf->tableId= tableId;
+  conf->freeWordsHi= ptr.p->m_free_file_words >> 32;
+  conf->freeWordsLo= ptr.p->m_free_file_words & 0xFFFFFFFF;
+  conf->tableType= DictTabInfo::LogfileGroup;
+  conf->senderRef= reference();
+  sendSignal(retRef, GSN_GET_TABINFO_CONF, signal,
+	     GetTabInfoConf::SignalLength, JBB);
+}
+
+void Lgman::sendGET_TABINFOREF(Signal* signal,
+			       GetTabInfoReq * req,
+			       GetTabInfoRef::ErrorCode errorCode)
+{
+  jamEntry();
+  GetTabInfoRef * const ref = (GetTabInfoRef *)&signal->theData[0];
+  /**
+   * The format of GetTabInfo Req/Ref is the same
+   */
+  BlockReference retRef = req->senderRef;
+  ref->errorCode = errorCode;
+
+  sendSignal(retRef, GSN_GET_TABINFOREF, signal, signal->length(), JBB);
+}

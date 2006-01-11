@@ -1150,7 +1150,7 @@ int runBug_WritePartialIgnoreError(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   C2(hugoOps.startTransaction(pNdb) == 0);
   C2(hugoOps.pkWritePartialRecord(pNdb, 0, 1) == 0);
-  C2(hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 0);
+  C2(hugoOps.execute_Commit(pNdb, AO_IgnoreError) == 839);
   C2(hugoOps.closeTransaction(pNdb) == 0);
 
   return result;

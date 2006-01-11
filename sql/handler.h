@@ -315,6 +315,82 @@ typedef struct xid_t XID;
 #define MAX_XID_LIST_SIZE  (1024*128)
 #endif
 
+/*
+  These structures are used to pass information from a set of SQL commands
+  on add/drop/change tablespace definitions to the proper hton.
+*/
+#define UNDEF_NODEGROUP 65535
+enum ts_command_type
+{
+  TS_CMD_NOT_DEFINED = -1,
+  CREATE_TABLESPACE = 0,
+  ALTER_TABLESPACE = 1,
+  CREATE_LOGFILE_GROUP = 2,
+  ALTER_LOGFILE_GROUP = 3,
+  DROP_TABLESPACE = 4,
+  DROP_LOGFILE_GROUP = 5,
+  CHANGE_FILE_TABLESPACE = 6,
+  ALTER_ACCESS_MODE_TABLESPACE = 7
+};
+
+enum ts_alter_tablespace_type
+{
+  TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED = -1,
+  ALTER_TABLESPACE_ADD_FILE = 1,
+  ALTER_TABLESPACE_DROP_FILE = 2
+};
+
+enum tablespace_access_mode
+{
+  TS_NOT_DEFINED= -1,
+  TS_READ_ONLY = 0,
+  TS_READ_WRITE = 1,
+  TS_NOT_ACCESSIBLE = 2
+};
+
+class st_alter_tablespace : public Sql_alloc
+{
+  public:
+  const char *tablespace_name;
+  const char *logfile_group_name;
+  enum ts_command_type ts_cmd_type;
+  enum ts_alter_tablespace_type ts_alter_tablespace_type;
+  const char *data_file_name;
+  const char *undo_file_name;
+  const char *redo_file_name;
+  ulonglong extent_size;
+  ulonglong undo_buffer_size;
+  ulonglong redo_buffer_size;
+  ulonglong initial_size;
+  ulonglong autoextend_size;
+  ulonglong max_size;
+  uint nodegroup_id;
+  enum legacy_db_type storage_engine;
+  bool wait_until_completed;
+  const char *ts_comment;
+  enum tablespace_access_mode ts_access_mode;
+  st_alter_tablespace()
+  {
+    tablespace_name= NULL;
+    logfile_group_name= "DEFAULT_LG"; //Default log file group
+    ts_cmd_type= TS_CMD_NOT_DEFINED;
+    data_file_name= NULL;
+    undo_file_name= NULL;
+    redo_file_name= NULL;
+    extent_size= 1024*1024;        //Default 1 MByte
+    undo_buffer_size= 8*1024*1024; //Default 8 MByte
+    redo_buffer_size= 8*1024*1024; //Default 8 MByte
+    initial_size= 128*1024*1024;   //Default 128 MByte
+    autoextend_size= 0;            //No autoextension as default
+    max_size= 0;                   //Max size == initial size => no extension
+    storage_engine= DB_TYPE_UNKNOWN;
+    nodegroup_id= UNDEF_NODEGROUP;
+    wait_until_completed= TRUE;
+    ts_comment= NULL;
+    ts_access_mode= TS_NOT_DEFINED;
+  }
+};
+
 /* The handler for a table type.  Will be included in the TABLE structure */
 
 struct st_table;
@@ -434,6 +510,7 @@ typedef struct
    int (*start_consistent_snapshot)(THD *thd);
    bool (*flush_logs)();
    bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+   int (*alter_tablespace)(THD *thd, st_alter_tablespace *ts_info);
    uint32 flags;                                /* global handler flags */
 } handlerton;
 
@@ -732,7 +809,7 @@ typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
-  const char *comment,*password;
+  const char *comment,*password, *tablespace;
   const char *data_file_name, *index_file_name;
   const char *alias;
   ulonglong max_rows,min_rows;
@@ -752,6 +829,7 @@ typedef struct st_ha_create_information
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
+  bool store_on_disk;                   /* 1 if table stored on disk */
 } HA_CREATE_INFO;
 
 
@@ -829,7 +907,6 @@ typedef struct st_handler_buffer
   const byte *buffer_end;     /* End of buffer */
   byte *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
-
 
 class handler :public Sql_alloc
 {
