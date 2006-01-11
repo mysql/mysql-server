@@ -570,10 +570,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_EVENT_SUBSCRIBE_REQ         458
 #define GSN_EVENT_SUBSCRIBE_CONF        459
 #define GSN_EVENT_SUBSCRIBE_REF         460
-#define GSN_ACC_COM_BLOCK               461
-#define GSN_ACC_COM_UNBLOCK             462
-#define GSN_TUP_COM_BLOCK               463
-#define GSN_TUP_COM_UNBLOCK             464
+/* 461 unused */
+/* 462 unused */
+/* 463 unused */
+/* 464 unused */
 
 #define GSN_DUMP_STATE_ORD              465
 

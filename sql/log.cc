@@ -88,6 +88,7 @@ handlerton binlog_hton = {
   NULL,                         /* Start Consistent Snapshot */
   NULL,                         /* Flush logs */
   NULL,                         /* Show status */
+  NULL,                         /* Alter Tablespace */
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
 };
 

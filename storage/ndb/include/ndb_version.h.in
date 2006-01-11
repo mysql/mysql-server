@@ -57,6 +57,10 @@ char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
  */
 /*#define NDB_VERSION_ID 0*/
 
+/**
+ * From which version do we support rowid
+ */ 
+#define NDBD_ROWID_VERSION (MAKE_VERSION(5,1,6))
 #define NDBD_INCL_NODECONF_VERSION_4 MAKE_VERSION(4,1,17)
 #define NDBD_INCL_NODECONF_VERSION_5 MAKE_VERSION(5,0,18)
 

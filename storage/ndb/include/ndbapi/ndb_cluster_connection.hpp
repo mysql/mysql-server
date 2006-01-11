@@ -18,6 +18,19 @@
 #ifndef CLUSTER_CONNECTION_HPP
 #define CLUSTER_CONNECTION_HPP
 
+class Ndb_cluster_connection_node_iter
+{
+  friend class Ndb_cluster_connection_impl;
+public:
+  Ndb_cluster_connection_node_iter() : scan_state(~0),
+				       init_pos(0),
+				       cur_pos(0) {};
+private:
+  unsigned char scan_state;
+  unsigned char init_pos;
+  unsigned char cur_pos;
+};
+
 /**
  * @class Ndb_cluster_connection
  * @brief Represents a connection to a cluster of storage nodes.
@@ -88,6 +101,9 @@ public:
 
   unsigned no_db_nodes();
   unsigned node_id();
+
+  void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
+  unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);
 #endif
 
 private:

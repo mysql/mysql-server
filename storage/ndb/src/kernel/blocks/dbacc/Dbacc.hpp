@@ -102,12 +102,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZDEFAULT_LIST 3
 #define ZWORDS_IN_PAGE 2048
 #define ZADDFRAG 0
-#define ZCOPY_NEXT 1
-#define ZCOPY_NEXT_COMMIT 2
-#define ZCOPY_COMMIT 3
-#define ZCOPY_REPEAT 4
-#define ZCOPY_ABORT 5
-#define ZCOPY_CLOSE 6
 #define ZDIRARRAY 68
 #define ZDIRRANGESIZE 65
 //#define ZEMPTY_FRAGMENT 0
@@ -740,7 +734,7 @@ private:
   void releaseRightlist(Signal* signal);
   void checkoverfreelist(Signal* signal);
   void abortOperation(Signal* signal);
-  void accAbortReqLab(Signal* signal, bool sendConf);
+  void accAbortReqLab(Signal* signal);
   void commitOperation(Signal* signal);
   void copyOpInfo(Signal* signal);
   Uint32 executeNextOperation(Signal* signal);

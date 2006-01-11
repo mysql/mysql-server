@@ -37,8 +37,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
 {
   ljamEntry();
   PagePtr pagePtr;
-  pagePtr.i= pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(pagePtr, pageId);
   Uint32 fragPageId= pagePtr.p->frag_page_id;
   tupAddr= (fragPageId << MAX_TUPLES_BITS) | pageIndex;
 }
@@ -115,8 +114,7 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
   PagePtr pagePtr;
-  pagePtr.i= pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+  c_page_pool.getPtr(pagePtr, pageId);
   Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(
                             tableDescriptor[attrDescIndex + 1].tabDescr);
@@ -219,62 +217,88 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
   
   KeyReqStruct req_struct;
-  setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
-  if(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
+ 
+  PagePtr page_ptr;
+  Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtr.p);
+  req_struct.m_page_ptr = page_ptr;
+  req_struct.m_tuple_ptr = (Tuple_header*)ptr;
+  
+  int ret = 0;
+  if (! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
-    Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
-    Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
-    ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-    req_struct.m_tuple_ptr= (Tuple_header*)
-      c_undo_buffer.get_ptr(&opPtrP->m_copy_tuple_location);
-  }
-  prepare_read(&req_struct, tablePtr.p, false);
+    req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
+    req_struct.check_offset[DD]= tablePtr.p->get_check_offset(DD);
+    
+    Uint32 num_attr= tablePtr.p->m_no_of_attributes;
+    Uint32 descr_start= tablePtr.p->tabDescriptor;
+    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+    req_struct.attr_descr= tab_descr; 
 
-  const Uint32* attrIds= &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
-  const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
-  // read pk attributes from original tuple
-
-  // save globals
-  TablerecPtr tabptr_old= tabptr;
-  FragrecordPtr fragptr_old= fragptr;
-  OperationrecPtr operPtr_old= operPtr;
-
-  // new globals
-  tabptr= tablePtr;
-  fragptr= fragPtr;
-  operPtr.i= RNIL;
-  operPtr.p= NULL;
-
-  // do it
-  int ret = readAttributes(&req_struct,
-                           attrIds,
-                           numAttrs,
-                           dataOut,
-                           ZNIL,
-                           xfrmFlag);
-  // restore globals
-  tabptr= tabptr_old;
-  fragptr= fragptr_old;
-  operPtr= operPtr_old;
-  // done
-  if (ret != -1) {
-    // remove headers
-    Uint32 n= 0;
-    Uint32 i= 0;
-    while (n < numAttrs) {
-      const AttributeHeader ah(dataOut[i]);
-      Uint32 size= ah.getDataSize();
-      ndbrequire(size != 0);
-      for (Uint32 j= 0; j < size; j++) {
-        dataOut[i + j - n]= dataOut[i + j + 1];
-      }
-      n+= 1;
-      i+= 1 + size;
+    if(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
+    {
+      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
+      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
+      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
+      req_struct.m_tuple_ptr= (Tuple_header*)
+	c_undo_buffer.get_ptr(&opPtrP->m_copy_tuple_location);
     }
-    ndbrequire((int)i == ret);
-    ret -= numAttrs;
-  } else {
-    ret= terrorCode ? (-(int)terrorCode) : -1;
+    prepare_read(&req_struct, tablePtr.p, false);
+    
+    const Uint32* attrIds= &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
+    const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
+    // read pk attributes from original tuple
+    
+    // save globals
+    TablerecPtr tabptr_old= tabptr;
+    FragrecordPtr fragptr_old= fragptr;
+    OperationrecPtr operPtr_old= operPtr;
+    
+    // new globals
+    tabptr= tablePtr;
+    fragptr= fragPtr;
+    operPtr.i= RNIL;
+    operPtr.p= NULL;
+    
+    // do it
+    ret = readAttributes(&req_struct,
+			 attrIds,
+			 numAttrs,
+			 dataOut,
+			 ZNIL,
+			 xfrmFlag);
+    // restore globals
+    tabptr= tabptr_old;
+    fragptr= fragptr_old;
+    operPtr= operPtr_old;
+    // done
+    if (ret != -1) {
+      // remove headers
+      Uint32 n= 0;
+      Uint32 i= 0;
+      while (n < numAttrs) {
+	const AttributeHeader ah(dataOut[i]);
+	Uint32 size= ah.getDataSize();
+	ndbrequire(size != 0);
+	for (Uint32 j= 0; j < size; j++) {
+	  dataOut[i + j - n]= dataOut[i + j + 1];
+	}
+	n+= 1;
+	i+= 1 + size;
+      }
+      ndbrequire((int)i == ret);
+      ret -= numAttrs;
+    } else {
+      ret= terrorCode ? (-(int)terrorCode) : -1;
+    }
+  }
+  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
+  {
+    dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtr.p);
+  }
+  else
+  {
+    dataOut[ret] = 0;
   }
   return ret;
 }
@@ -454,7 +478,9 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   tablePtr.i= buildReq->getTableId();
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  const Uint32 firstTupleNo = ! buildPtr.p->m_build_vs ? 0 : 1;
+  const Uint32 firstTupleNo = 0;
+  const Uint32 tupheadsize = tablePtr.p->m_offsets[MM].m_fix_header_size +
+    (buildPtr.p->m_build_vs ? Tuple_header::HeaderSize + 1: 0);
 
 #ifdef TIME_MEASUREMENT
   MicroSecondTimer start;
@@ -491,8 +517,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       break;
     }
     Uint32 realPageId= getRealpid(fragPtr.p, buildPtr.p->m_pageId);
-    pagePtr.i= realPageId;
-    ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+    c_page_pool.getPtr(pagePtr, realPageId);
     Uint32 pageState= pagePtr.p->page_state;
     // skip empty page
     if (pageState == ZEMPTY_MM) {
@@ -504,43 +529,19 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     // get tuple
     Uint32 pageIndex = ~0;
     const Tuple_header* tuple_ptr = 0;
-    if (! buildPtr.p->m_build_vs) {
-      Uint32 tupheadsize= tablePtr.p->m_offsets[MM].m_fix_header_size;
-      pageIndex = buildPtr.p->m_tupleNo * tupheadsize;
-      if (pageIndex + tupheadsize > Fix_page::DATA_WORDS) {
-        ljam();
-        buildPtr.p->m_pageId++;
-        buildPtr.p->m_tupleNo= firstTupleNo;
-        break;
-      }
-      tuple_ptr = (Tuple_header*)&pagePtr.p->m_data[pageIndex];
-      // skip over free tuple
-      if (tuple_ptr->m_header_bits & Tuple_header::FREE) {
-        ljam();
-        buildPtr.p->m_tupleNo++;
-        break;
-      }
-    } else {
-      pageIndex = buildPtr.p->m_tupleNo;
-      Var_page* page_ptr = (Var_page*)pagePtr.p;
-      if (pageIndex >= page_ptr->high_index) {
-        ljam();
-        buildPtr.p->m_pageId++;
-        buildPtr.p->m_tupleNo= firstTupleNo;
-        break;
-      }
-      Uint32 len= page_ptr->get_entry_len(pageIndex);
-      if (len == 0) {
-        ljam();
-        buildPtr.p->m_tupleNo++;
-        break;
-      }
-      if (len & Var_page::CHAIN) {
-	ljam();
-        buildPtr.p->m_tupleNo++;
-	break;
-      }
-      tuple_ptr = (Tuple_header*)page_ptr->get_ptr(pageIndex);
+    pageIndex = buildPtr.p->m_tupleNo * tupheadsize;
+    if (pageIndex + tupheadsize > Fix_page::DATA_WORDS) {
+      ljam();
+      buildPtr.p->m_pageId++;
+      buildPtr.p->m_tupleNo= firstTupleNo;
+      break;
+    }
+    tuple_ptr = (Tuple_header*)&pagePtr.p->m_data[pageIndex];
+    // skip over free tuple
+    if (tuple_ptr->m_header_bits & Tuple_header::FREE) {
+      ljam();
+      buildPtr.p->m_tupleNo++;
+      break;
     }
     Uint32 tupVersion= tuple_ptr->get_tuple_version();
     OperationrecPtr pageOperPtr;

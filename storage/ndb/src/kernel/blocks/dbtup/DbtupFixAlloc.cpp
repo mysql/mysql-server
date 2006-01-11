@@ -73,7 +73,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /*       FAILED. TRY ALLOCATING FROM NORMAL PAGE.                   */
 /* ---------------------------------------------------------------- */
   PagePtr pagePtr;
-  pagePtr.i= regFragPtr->thFreeFirst;
+  pagePtr.i = regFragPtr->thFreeFirst.firstItem;
   if (pagePtr.i == RNIL) {
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
@@ -85,14 +85,16 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 // We found empty pages on the fragment. Allocate an empty page and
 // convert it into a tuple header page and put it in thFreeFirst-list.
 /* ---------------------------------------------------------------- */
-      ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+      c_page_pool.getPtr(pagePtr);
+
+      ndbassert(pagePtr.p->page_state == ZEMPTY_MM);
       
-      convertThPage(regTabPtr->m_offsets[MM].m_fix_header_size, 
-		    (Fix_page*)pagePtr.p);
+      convertThPage((Fix_page*)pagePtr.p, regTabPtr, MM);
       
-      pagePtr.p->next_page = regFragPtr->thFreeFirst;
       pagePtr.p->page_state = ZTH_MM_FREE;
-      regFragPtr->thFreeFirst = pagePtr.i;
+      
+      LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+      free_pages.add(pagePtr);
     } else {
       ljam();
 /* ---------------------------------------------------------------- */
@@ -106,7 +108,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /*       THIS SHOULD BE THE COMMON PATH THROUGH THE CODE, FREE      */
 /*       COPY PAGE EXISTED.                                         */
 /* ---------------------------------------------------------------- */
-    ptrCheckGuard(pagePtr, cnoOfPage, cpage);
+    c_page_pool.getPtr(pagePtr);
   }
 
   Uint32 page_offset= alloc_tuple_from_page(regFragPtr, (Fix_page*)pagePtr.p);
@@ -117,10 +119,11 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
   return pagePtr.p->m_data + page_offset;
 }
 
-void Dbtup::convertThPage(Uint32 Tupheadsize,
-                          Fix_page*  const regPagePtr) 
+void Dbtup::convertThPage(Fix_page* regPagePtr,
+			  Tablerec* regTabPtr,
+			  Uint32 mm) 
 {
-  Uint32 nextTuple = Tupheadsize;
+  Uint32 nextTuple = regTabPtr->m_offsets[mm].m_fix_header_size;
   Uint32 endOfList;
   /*
   ASSUMES AT LEAST ONE TUPLE HEADER FITS AND THEREFORE NO HANDLING
@@ -132,10 +135,19 @@ void Dbtup::convertThPage(Uint32 Tupheadsize,
 #ifdef VM_TRACE
   memset(regPagePtr->m_data, 0xF1, 4*Fix_page::DATA_WORDS);
 #endif
+  Uint32 gci_pos = 2;
+  Uint32 gci_val = 0xF1F1F1F1;
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  {
+    Tuple_header* ptr = 0;
+    gci_pos = ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr;
+    gci_val = 0;
+  }
   while (pos + nextTuple <= Fix_page::DATA_WORDS)
   {
     regPagePtr->m_data[pos] = (prev << 16) | (pos + nextTuple);
-    regPagePtr->m_data[pos + 1] = Tuple_header::FREE;
+    regPagePtr->m_data[pos + 1] = Fix_page::FREE_RECORD;
+    regPagePtr->m_data[pos + gci_pos] = gci_val;
     prev = pos;
     pos += nextTuple;
     cnt ++;
@@ -151,6 +163,7 @@ Uint32
 Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
 			     Fix_page* const regPagePtr)
 {
+  ndbassert(regPagePtr->free_space);
   Uint32 idx= regPagePtr->alloc_record();
   if(regPagePtr->free_space == 0)
   {
@@ -164,8 +177,8 @@ Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
 /*       ARE MAINTAINED EVEN AFTER A SYSTEM CRASH.                  */
 /* ---------------------------------------------------------------- */
     ndbrequire(regPagePtr->page_state == ZTH_MM_FREE);
-    regFragPtr->thFreeFirst = regPagePtr->next_page;
-    regPagePtr->next_page = RNIL;
+    LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    free_pages.remove((Page*)regPagePtr);
     regPagePtr->page_state = ZTH_MM_FULL;
   }
   
@@ -183,10 +196,92 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
   if(free == 1)
   {
     ljam();
+    PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
+    LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
     regPagePtr->page_state = ZTH_MM_FREE;
-    regPagePtr->next_page= regFragPtr->thFreeFirst;
-    regFragPtr->thFreeFirst = key->m_page_no;
+    free_pages.add(pagePtr);
   } 
 }//Dbtup::freeTh()
 
+
+int
+Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP, 
+		  PagePtr * ret, Uint32 page_no)
+{
+  Uint32 pages = fragPtrP->noOfPages;
+  
+  if (page_no >= pages)
+  {
+    Uint32 start = pages;
+    while(page_no >= pages)
+      pages += (pages >> 3) + (pages >> 4) + 2;
+    allocFragPages(fragPtrP, pages - start);
+    if (page_no >= (pages = fragPtrP->noOfPages))
+    {
+      terrorCode = ZMEM_NOMEM_ERROR;
+      return 1;
+    }
+  }
+  
+  PagePtr pagePtr;
+  c_page_pool.getPtr(pagePtr, getRealpid(fragPtrP, page_no));
+  
+  LocalDLList<Page> alloc_pages(c_page_pool, fragPtrP->emptyPrimPage);
+  LocalDLList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  if (pagePtr.p->page_state == ZEMPTY_MM)
+  {
+    convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
+    pagePtr.p->page_state = ZTH_MM_FREE;
+    alloc_pages.remove(pagePtr);
+    free_pages.add(pagePtr);
+  }
+  
+  *ret = pagePtr;
+  return 0;
+}
+
+Uint32*
+Dbtup::alloc_fix_rowid(Fragrecord* const regFragPtr,
+		       Tablerec* const regTabPtr,
+		       Local_key* key,
+		       Uint32 * out_frag_page_id) 
+{
+  Uint32 page_no = key->m_page_no;
+  Uint32 idx= key->m_page_idx;
+  
+  PagePtr pagePtr;
+  if (alloc_page(regTabPtr, regFragPtr, &pagePtr, page_no))
+  {
+    terrorCode = ZMEM_NOMEM_ERROR;
+    return 0;
+  }
+
+  Uint32 state = pagePtr.p->page_state;
+  LocalDLList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
+  switch(state){
+  case ZTH_MM_FREE:
+    if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
+    {
+      terrorCode = ZROWID_ALLOCATED;
+      return 0;
+    }
+    
+    if(pagePtr.p->free_space == 0)
+    {
+      jam();
+      pagePtr.p->page_state = ZTH_MM_FULL;
+      free_pages.remove(pagePtr);
+    }
+    
+    *out_frag_page_id= page_no;
+    key->m_page_no = pagePtr.i;
+    key->m_page_idx = idx;
+    return pagePtr.p->m_data + idx;
+  case ZTH_MM_FULL:
+    terrorCode = ZROWID_ALLOCATED;
+    return 0;
+  case ZEMPTY_MM:
+    ndbrequire(false);
+  }
+}

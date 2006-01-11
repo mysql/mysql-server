@@ -23,6 +23,7 @@ class BackupConsumer {
 public:
   virtual ~BackupConsumer() { }
   virtual bool init() { return true;}
+  virtual bool object(Uint32 tableType, const void*) { return true;}
   virtual bool table(const TableS &){return true;}
   virtual bool endOfTables() { return true; }
   virtual void tuple(const TupleS &){}

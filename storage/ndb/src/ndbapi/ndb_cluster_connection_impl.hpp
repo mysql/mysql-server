@@ -26,15 +26,6 @@ class ConfigRetriever;
 class NdbThread;
 class ndb_mgm_configuration;
 
-struct Ndb_cluster_connection_node_iter {
-  Ndb_cluster_connection_node_iter() : scan_state(~0),
-				       init_pos(0),
-				       cur_pos(0) {};
-  Uint8 scan_state;
-  Uint8 init_pos;
-  Uint8 cur_pos;
-};
-
 extern "C" {
   void* run_ndb_cluster_connection_connect_thread(void*);
 }

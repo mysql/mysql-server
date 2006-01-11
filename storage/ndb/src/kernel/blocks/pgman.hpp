@@ -518,6 +518,7 @@ public:
     ,DIRTY_REQ = Pgman::Page_request::DIRTY_REQ
     ,NO_HOOK = Pgman::Page_request::NO_HOOK
     ,UNLOCK_PAGE = Pgman::Page_request::UNLOCK_PAGE
+    ,CORR_REQ = Pgman::Page_request::CORR_REQ
   };
   
   /**

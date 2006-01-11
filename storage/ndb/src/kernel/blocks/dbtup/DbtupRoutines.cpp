@@ -1178,6 +1178,18 @@ Dbtup::read_pseudo(Uint32 attrId,
     outBuffer[2] = signal->theData[2];
     outBuffer[3] = signal->theData[3];
     return 4;
+  case AttributeHeader::ROWID:
+    outBuffer[0] = req_struct->frag_page_id;
+    outBuffer[1] = operPtr.p->m_tuple_location.m_page_idx;
+    return 2;
+  case AttributeHeader::ROW_GCI:
+    if (tabptr.p->m_bits & Tablerec::TR_RowGCI)
+    {
+      Uint64 tmp = * req_struct->m_tuple_ptr->get_mm_gci(tabptr.p);
+      memcpy(outBuffer, &tmp, sizeof(tmp));
+      return 2;
+    }
+    return 0;
   default:
     return 0;
   }
