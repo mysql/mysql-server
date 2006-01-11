@@ -21,8 +21,8 @@
 
 void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags);
 int desc_logfilegroup(Ndb *myndb, char* name);
-int desc_undofile(Ndb *myndb, char* name);
-int desc_datafile(Ndb *myndb, char* name);
+int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
+int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_tablespace(Ndb *myndb,char* name);
 int desc_table(Ndb *myndb,char* name);
 
@@ -91,9 +91,9 @@ int main(int argc, char** argv){
       ;
     else if(desc_logfilegroup(&MyNdb,argv[i]))
       ;
-    else if(desc_datafile(&MyNdb, argv[i]))
+    else if(desc_datafile(con, &MyNdb, argv[i]))
       ;
-    else if(desc_undofile(&MyNdb, argv[i]))
+    else if(desc_undofile(con, &MyNdb, argv[i]))
       ;
     else
       ndbout << "No such object: " << argv[i] << endl << endl;
@@ -123,6 +123,7 @@ int desc_logfilegroup(Ndb *myndb, char* name)
   ndbout << "Name: " << lfg.getName() << endl;
   ndbout << "UndoBuffer size: " << lfg.getUndoBufferSize() << endl;
   ndbout << "Version: " << lfg.getObjectVersion() << endl;
+  ndbout << "Free Words: " << lfg.getUndoFreeWords() << endl;
 
   desc_AutoGrowSpecification(lfg.getAutoGrowSpecification());
 
@@ -149,62 +150,74 @@ int desc_tablespace(Ndb *myndb, char* name)
   return 1;
 }
 
-int desc_undofile(Ndb *myndb, char* name)
+int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 {
+  unsigned id;
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
+  Ndb_cluster_connection_node_iter iter;
+
   assert(dict);
-  NdbDictionary::Undofile uf= dict->getUndofile(0, name);
-  NdbError err= dict->getNdbError();
-  if(err.classification!=ndberror_cl_none)
-    return 0;
 
-  ndbout << "Type: Undofile" << endl;
-  ndbout << "Name: " << name << endl;
-  ndbout << "Path: " << uf.getPath() << endl;
-  ndbout << "Size: " << uf.getSize() << endl;
-  ndbout << "Free: " << uf.getFree() << endl;
+  con.init_get_next_node(iter);
 
-  ndbout << "Logfile Group: " << uf.getLogfileGroup() << endl;
+  while(id= con.get_next_node(iter))
+  {
+    NdbDictionary::Undofile uf= dict->getUndofile(0, name);
+    NdbError err= dict->getNdbError();
+    if(err.classification!=ndberror_cl_none)
+      return 0;
 
-  /** FIXME: are these needed, the functions aren't there
-      but the prototypes are...
+    ndbout << "Type: Undofile" << endl;
+    ndbout << "Name: " << name << endl;
+    ndbout << "Node: " << id << endl;
+    ndbout << "Path: " << uf.getPath() << endl;
+    ndbout << "Size: " << uf.getSize() << endl;
 
-      ndbout << "Node: " << uf.getNode() << endl;
+    ndbout << "Logfile Group: " << uf.getLogfileGroup() << endl;
 
-      ndbout << "Number: " << uf.getFileNo() << endl;
-  */
+    /** FIXME: are these needed, the functions aren't there
+	but the prototypes are...
 
-  ndbout << endl;
+	ndbout << "Number: " << uf.getFileNo() << endl;
+    */
+
+    ndbout << endl;
+  }
 
   return 1;
 }
 
-int desc_datafile(Ndb *myndb, char* name)
+int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 {
+  unsigned id;
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
   assert(dict);
-  NdbDictionary::Datafile df= dict->getDatafile(0, name);
-  NdbError err= dict->getNdbError();
-  if(err.classification!=ndberror_cl_none)
-    return 0;
+  Ndb_cluster_connection_node_iter iter;
 
-  ndbout << "Type: Datafile" << endl;
-  ndbout << "Name: " << name << endl;
-  ndbout << "Path: " << df.getPath() << endl;
-  ndbout << "Size: " << df.getSize() << endl;
-  ndbout << "Free: " << df.getFree() << endl;
+  con.init_get_next_node(iter);
 
-  ndbout << "Tablespace: " << df.getTablespace() << endl;
+  while(id= con.get_next_node(iter))
+  {
+    NdbDictionary::Datafile df= dict->getDatafile(id, name);
+    NdbError err= dict->getNdbError();
+    if(err.classification!=ndberror_cl_none)
+      return 0;
 
-  /** FIXME: are these needed, the functions aren't there
-      but the prototypes are...
+    ndbout << "Type: Datafile" << endl;
+    ndbout << "Name: " << name << endl;
+    ndbout << "Node: " << id << endl;
+    ndbout << "Path: " << df.getPath() << endl;
+    ndbout << "Size: " << df.getSize() << endl;
+    ndbout << "Free: " << df.getFree() << endl;
 
-      ndbout << "Node: " << uf.getNode() << endl;
+    ndbout << "Tablespace: " << df.getTablespace() << endl;
 
-      ndbout << "Number: " << uf.getFileNo() << endl;
-  */
+    /** We probably don't need to display this ever...
+	ndbout << "Number: " << uf.getFileNo() << endl;
+    */
 
-  ndbout << endl;
+    ndbout << endl;
+  }
 
   return 1;
 }

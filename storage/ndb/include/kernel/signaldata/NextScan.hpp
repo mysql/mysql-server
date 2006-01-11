@@ -33,14 +33,6 @@ public:
     ZSCAN_CLOSE = 6,
     ZSCAN_NEXT_ABORT = 12
   };
-  enum CopyFlag {
-    todo_ZCOPY_NEXT = 1,
-    todo_ZCOPY_NEXT_COMMIT = 2,
-    todo_ZCOPY_COMMIT = 3,
-    todo_ZCOPY_REPEAT = 4,
-    todo_ZCOPY_ABORT = 5,
-    todo_ZCOPY_CLOSE = 6
-  };
   STATIC_CONST( SignalLength = 3 );
 private:
   Uint32 accPtr;                // scan record in ACC/TUX
@@ -62,8 +54,7 @@ private:
   Uint32 fragId;
   Uint32 localKey[2];
   Uint32 localKeyLength;
-  Uint32 keyLength;
-  Uint32 key[4];
+  Uint32 gci;
 };
 
 #endif

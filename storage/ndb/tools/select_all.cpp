@@ -45,6 +45,9 @@ static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
 
 static int _tup = 0;
 static int _dumpDisk = 0;
+static int use_rowid = 0;
+static int nodata = 0;
+static int use_gci = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -76,8 +79,17 @@ static struct my_option my_long_options[] =
   { "disk", 256, "Dump disk ref",
     (gptr*) &_dumpDisk, (gptr*) &_dumpDisk, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "rowid", 256, "Dump rowid",
+    (gptr*) &use_rowid, (gptr*) &use_rowid, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "gci", 256, "Dump gci",
+    (gptr*) &use_gci, (gptr*) &use_gci, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "tupscan", 't', "Scan in tup order",
     (gptr*) &_tup, (gptr*) &_tup, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "nodata", 256, "Dont print data",
+    (gptr*) &nodata, (gptr*) &nodata, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -222,12 +234,14 @@ int scanReadRecords(Ndb* pNdb,
     }
 
     int rs;
+    unsigned scan_flags = 0;
+    if (_tup) scan_flags |= NdbScanOperation::SF_TupScan;
     switch(_lock + (3 * order)){
     case 1:
-      rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_Read, scan_flags, parallel);
       break;
     case 2:
-      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, scan_flags, parallel);
       break;
     case 3:
       rs = pIOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel, 
@@ -241,8 +255,7 @@ int scanReadRecords(Ndb* pNdb,
       break;
     case 0:
     default:
-      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 
-			   _tup ? NdbScanOperation::SF_TupScan : 0, parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, scan_flags, parallel);
       break;
     }
     if( rs != 0 ){
@@ -308,19 +321,32 @@ int scanReadRecords(Ndb* pNdb,
       const NdbDictionary::Column* col = pTab->getColumn(a);
       if(col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
 	disk= true;
-      
-      if((row->attributeStore(a) = pOp->getValue(col)) == 0)
-      {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return -1;
-      }
+
+      if (!nodata)
+	if((row->attributeStore(a) = pOp->getValue(col)) == 0)
+	{
+	  ERR(pTrans->getNdbError());
+	  pNdb->closeTransaction(pTrans);
+	  return -1;
+	}
     }
     
     NdbRecAttr * disk_ref= 0;
     if(_dumpDisk && disk)
       disk_ref = pOp->getValue(NdbDictionary::Column::DISK_REF);
 
+    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0;
+    if (use_rowid)
+    {
+      frag = pOp->getValue(NdbDictionary::Column::FRAGMENT);
+      rowid = pOp->getValue(NdbDictionary::Column::ROWID);
+    }
+
+    if (use_gci)
+    {
+      gci = pOp->getValue(NdbDictionary::Column::ROW_GCI);
+    }
+    
     check = pTrans->execute(NdbTransaction::NoCommit);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -336,12 +362,18 @@ int scanReadRecords(Ndb* pNdb,
       return -1;
     }
 
-    if (headers)
+    if (rowid)
+      ndbout << "ROWID\t";
+    
+    if (gci)
+      ndbout << "\tGCI";
+    
+    if (headers && !nodata)
       row->header(ndbout);
     
     if (disk_ref)
       ndbout << "\tDISK_REF";
-    
+
     ndbout << endl;
     
     int eof;
@@ -350,12 +382,28 @@ int scanReadRecords(Ndb* pNdb,
     
     while(eof == 0){
       rows++;
-      
-      if (useHexFormat) {
-	ndbout.setHexFormat(1) << (*row);
-      } else {
-	ndbout << (*row);
+
+      if (useHexFormat)
+	ndbout.setHexFormat(1);
+
+      if (rowid)
+      {
+	ndbout << "[ fragment: " << frag->u_32_value()
+	       << " m_page: " << rowid->u_32_value() 
+	       << " m_page_idx: " << *(Uint32*)(rowid->aRef() + 4) << " ]";
+	ndbout << "\t";
       }
+      
+      if (gci)
+      {
+	if (gci->isNULL())
+	  ndbout << "NULL\t";
+	else
+	  ndbout << gci->u_64_value() << "\t";
+      }
+
+      if (!nodata)
+	ndbout << (*row);
       
       if(disk_ref)
       {
@@ -365,7 +413,8 @@ int scanReadRecords(Ndb* pNdb,
 	       << " m_page_idx: " << *(Uint16*)(disk_ref->aRef() + 4) << " ]";
       }
       
-      ndbout << endl;
+      if (rowid || disk_ref || gci || !nodata)
+	ndbout << endl;
       eof = pOp->nextResult();
     }
     if (eof == -1) {

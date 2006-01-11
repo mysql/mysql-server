@@ -466,6 +466,11 @@ NdbDictionary::Table::getObjectVersion() const {
   return m_impl.m_version;
 }
 
+int 
+NdbDictionary::Table::getObjectId() const {
+  return m_impl.m_id;
+}
+
 bool
 NdbDictionary::Table::equal(const NdbDictionary::Table & col) const {
   return m_impl.equal(col.m_impl);
@@ -497,6 +502,12 @@ NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {
   return pNdb->getDictionary()->createTable(* this);
 }
 
+Uint32
+NdbDictionary::Table::getTablespaceId() const 
+{
+  return m_impl.m_tablespace_id;
+}
+
 void 
 NdbDictionary::Table::setTablespace(const char * name){
   m_impl.m_tablespace_id = ~0;
@@ -510,6 +521,27 @@ NdbDictionary::Table::setTablespace(const NdbDictionary::Tablespace & ts){
   m_impl.m_tablespace_version = ts.getObjectVersion();
   m_impl.m_tablespace_name.assign(ts.getName());
 }
+
+void
+NdbDictionary::Table::setRowChecksumIndicator(bool val){
+  m_impl.m_row_checksum = val;
+}
+
+bool 
+NdbDictionary::Table::getRowChecksumIndicator() const {
+  return m_impl.m_row_checksum;
+}
+
+void
+NdbDictionary::Table::setRowGCIIndicator(bool val){
+  m_impl.m_row_gci = val;
+}
+
+bool 
+NdbDictionary::Table::getRowGCIIndicator() const {
+  return m_impl.m_row_gci;
+}
+
 
 /*****************************************************************
  * Index facade
@@ -644,6 +676,12 @@ NdbDictionary::Index::getObjectVersion() const {
   return m_impl.m_version;
 }
 
+int 
+NdbDictionary::Index::getObjectId() const {
+  return m_impl.m_id;
+}
+
+
 /*****************************************************************
  * Event facade
  */
@@ -765,6 +803,11 @@ NdbDictionary::Event::getObjectVersion() const
   return m_impl.m_version;
 }
 
+int 
+NdbDictionary::Event::getObjectId() const {
+  return m_impl.m_id;
+}
+
 void NdbDictionary::Event::print()
 {
   m_impl.print();
@@ -781,6 +824,12 @@ NdbDictionary::Tablespace::Tablespace()
 NdbDictionary::Tablespace::Tablespace(NdbTablespaceImpl & impl)
   : m_impl(impl) 
 {
+}
+
+NdbDictionary::Tablespace::Tablespace(const NdbDictionary::Tablespace & org)
+  : Object(org), m_impl(* new NdbTablespaceImpl(* this))
+{
+  m_impl.assign(org.m_impl);
 }
 
 NdbDictionary::Tablespace::~Tablespace(){
@@ -840,6 +889,11 @@ NdbDictionary::Tablespace::getDefaultLogfileGroup() const {
   return m_impl.m_logfile_group_name.c_str();
 }
 
+Uint32
+NdbDictionary::Tablespace::getDefaultLogfileGroupId() const {
+  return m_impl.m_logfile_group_id;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Tablespace::getObjectStatus() const {
   return m_impl.m_status;
@@ -848,6 +902,11 @@ NdbDictionary::Tablespace::getObjectStatus() const {
 int 
 NdbDictionary::Tablespace::getObjectVersion() const {
   return m_impl.m_version;
+}
+
+int 
+NdbDictionary::Tablespace::getObjectId() const {
+  return m_impl.m_id;
 }
 
 /*****************************************************************
@@ -861,6 +920,12 @@ NdbDictionary::LogfileGroup::LogfileGroup()
 NdbDictionary::LogfileGroup::LogfileGroup(NdbLogfileGroupImpl & impl)
   : m_impl(impl) 
 {
+}
+
+NdbDictionary::LogfileGroup::LogfileGroup(const NdbDictionary::LogfileGroup & org)
+  : Object(org), m_impl(* new NdbLogfileGroupImpl(* this)) 
+{
+  m_impl.assign(org.m_impl);
 }
 
 NdbDictionary::LogfileGroup::~LogfileGroup(){
@@ -900,6 +965,10 @@ NdbDictionary::LogfileGroup::getAutoGrowSpecification() const {
   return m_impl.m_grow_spec;
 }
 
+Uint64 NdbDictionary::LogfileGroup::getUndoFreeWords() const {
+  return m_impl.m_undo_free_words;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::LogfileGroup::getObjectStatus() const {
   return m_impl.m_status;
@@ -908,6 +977,11 @@ NdbDictionary::LogfileGroup::getObjectStatus() const {
 int 
 NdbDictionary::LogfileGroup::getObjectVersion() const {
   return m_impl.m_version;
+}
+
+int 
+NdbDictionary::LogfileGroup::getObjectId() const {
+  return m_impl.m_id;
 }
 
 /*****************************************************************
@@ -921,6 +995,12 @@ NdbDictionary::Datafile::Datafile()
 NdbDictionary::Datafile::Datafile(NdbDatafileImpl & impl)
   : m_impl(impl) 
 {
+}
+
+NdbDictionary::Datafile::Datafile(const NdbDictionary::Datafile & org)
+  : Object(org), m_impl(* new NdbDatafileImpl(* this)) 
+{
+  m_impl.assign(org.m_impl);
 }
 
 NdbDictionary::Datafile::~Datafile(){
@@ -974,6 +1054,11 @@ NdbDictionary::Datafile::getTablespace() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
+Uint32
+NdbDictionary::Datafile::getTablespaceId() const {
+  return m_impl.m_filegroup_id;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Datafile::getObjectStatus() const {
   return m_impl.m_status;
@@ -982,6 +1067,11 @@ NdbDictionary::Datafile::getObjectStatus() const {
 int 
 NdbDictionary::Datafile::getObjectVersion() const {
   return m_impl.m_version;
+}
+
+int 
+NdbDictionary::Datafile::getObjectId() const {
+  return m_impl.m_id;
 }
 
 /*****************************************************************
@@ -995,6 +1085,12 @@ NdbDictionary::Undofile::Undofile()
 NdbDictionary::Undofile::Undofile(NdbUndofileImpl & impl)
   : m_impl(impl) 
 {
+}
+
+NdbDictionary::Undofile::Undofile(const NdbDictionary::Undofile & org)
+  : Object(org), m_impl(* new NdbUndofileImpl(* this))
+{
+  m_impl.assign(org.m_impl);
 }
 
 NdbDictionary::Undofile::~Undofile(){
@@ -1024,11 +1120,6 @@ NdbDictionary::Undofile::getSize() const {
   return m_impl.m_size;
 }
 
-Uint64
-NdbDictionary::Undofile::getFree() const {
-  return m_impl.m_free;
-}
-
 void 
 NdbDictionary::Undofile::setLogfileGroup(const char * logfileGroup){
   m_impl.m_filegroup_id = ~0;
@@ -1049,6 +1140,11 @@ NdbDictionary::Undofile::getLogfileGroup() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
+Uint32
+NdbDictionary::Undofile::getLogfileGroupId() const {
+  return m_impl.m_filegroup_id;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Undofile::getObjectStatus() const {
   return m_impl.m_status;
@@ -1057,6 +1153,11 @@ NdbDictionary::Undofile::getObjectStatus() const {
 int 
 NdbDictionary::Undofile::getObjectVersion() const {
   return m_impl.m_version;
+}
+
+int 
+NdbDictionary::Undofile::getObjectId() const {
+  return m_impl.m_id;
 }
 
 /*****************************************************************
@@ -1503,11 +1604,3 @@ NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path){
   return tmp;
 }
 
-const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
-const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
-const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
-const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
-const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
-const NdbDictionary::Column * NdbDictionary::Column::RANGE_NO = 0;
-const NdbDictionary::Column * NdbDictionary::Column::DISK_REF = 0;
-const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;

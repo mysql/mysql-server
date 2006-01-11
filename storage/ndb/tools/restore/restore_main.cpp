@@ -50,6 +50,7 @@ static int _print_data = 0;
 static int _print_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
+static int _no_restore_disk = 0;
   
 static struct my_option my_long_options[] =
 {
@@ -70,6 +71,10 @@ static struct my_option my_long_options[] =
   { "restore_meta", 'm',
     "Restore meta data into NDB Cluster using NDBAPI",
     (gptr*) &_restore_meta, (gptr*) &_restore_meta,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-restore-disk-objects", 'd',
+    "Dont restore disk objects (tablespace/logfilegroups etc)",
+    (gptr*) &_no_restore_disk, (gptr*) &_no_restore_disk,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p',
     "No of parallel transactions during restore of data."
@@ -187,6 +192,11 @@ readArguments(int *pargc, char*** pargv)
     restore->m_restore_meta = true;
   }
 
+  if (_no_restore_disk)
+  {
+    restore->m_no_restore_disk = true;
+  }
+  
   {
     BackupConsumer * c = printer;
     g_consumers.push_back(c);
@@ -303,6 +313,19 @@ main(int argc, char** argv)
 
   }
 
+  for(i = 0; i<metaData.getNoOfObjects(); i++)
+  {
+    for(Uint32 j= 0; j < g_consumers.size(); j++)
+      if (!g_consumers[j]->object(metaData.getObjType(i),
+				  metaData.getObjPtr(i)))
+      {
+	ndbout_c("Restore: Failed to restore table: %s. "
+		 "Exiting...", 
+		 metaData[i]->getTableName());
+	exitHandler(NDBT_FAILED);
+      } 
+  }
+  
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
     if (checkSysTable(metaData[i]->getTableName()))

@@ -580,7 +580,12 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   {
     regOperPtr->op_struct.op_type = ZUPDATE;
   }
-
+  
+  /**
+   * Set disk page
+   */
+  req_struct->m_disk_page_ptr.i = m_pgman.m_ptr.i;
+  
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
@@ -817,8 +822,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 //--------------------------------------------------------------------
 // Read Primary Key Values
 //--------------------------------------------------------------------
-  if (regTabPtr->need_expand(false)) // no disk 
-    prepare_read(req_struct, regTabPtr, false); // setup varsize
+  if (regTabPtr->need_expand()) 
+    prepare_read(req_struct, regTabPtr, true);
   
   int ret = readAttributes(req_struct,
 			   &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
@@ -902,8 +907,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
       req_struct->m_tuple_ptr= (Tuple_header*)ptr;
     }
 
-    if (regTabPtr->need_expand(false)) // no disk 
-      prepare_read(req_struct, regTabPtr, false); // setup varsize
+    if (regTabPtr->need_expand()) // no disk 
+      prepare_read(req_struct, regTabPtr, true);
     
     int ret = readAttributes(req_struct,
 			     &readBuffer[0],
@@ -1168,7 +1173,7 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
   req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
-  removeTuxEntries(signal, regOperPtr, regTabPtr);
+  removeTuxEntries(signal, regTabPtr);
 }
 
 void
@@ -1200,12 +1205,11 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
   req->pageIndex = regOperPtr->m_tuple_location.m_page_idx;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
-  removeTuxEntries(signal, regOperPtr, regTabPtr);
+  removeTuxEntries(signal, regTabPtr);
 }
 
 void
 Dbtup::removeTuxEntries(Signal* signal,
-                        Operationrec* regOperPtr,
                         Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();

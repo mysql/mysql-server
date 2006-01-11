@@ -120,6 +120,19 @@ public:
     head.firstItem = p.i;
   }
 
+  /**
+   * Add a list to list
+   * @NOTE all elements _must_ be correctly initilized correctly wrt next/prev
+   */
+  void add(Uint32 first, Ptr<T> & last);
+
+  /**
+   * Remove object from list
+   *
+   * @NOTE Does not return it to pool
+   */
+  bool remove_front(Ptr<T> &);
+
   Uint32 noOfElements() const {
     Uint32 c = 0;
     Uint32 i = head.firstItem;
@@ -244,6 +257,28 @@ inline
 void 
 SLList<T,U>::remove(){
   head.firstItem = RNIL;
+}  
+
+template <class T, class U>
+inline
+bool
+SLList<T,U>::remove_front(Ptr<T> & p){
+  p.i = head.firstItem;
+  if (p.i != RNIL)
+  {
+    p.p = thePool.getPtr(p.i);
+    head.firstItem = p.p->U::nextList;
+    return true;
+  }
+  return false;
+}  
+
+template <class T, class U>
+inline
+void
+SLList<T,U>::add(Uint32 first, Ptr<T> & last){
+  last.p->U::nextList = head.firstItem;
+  head.firstItem = first;
 }  
 
 template <class T, class U>

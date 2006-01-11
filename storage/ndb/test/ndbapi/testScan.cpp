@@ -1125,6 +1125,88 @@ runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+  
+  HugoCalculator calc(* pTab);
+  NDBT_ResultRow tmpRow(* pTab);
+
+  for(int lm = 0; lm <= NdbOperation::LM_CommittedRead; lm++)
+  {
+    for(int flags = 0; flags < 4; flags++)
+    {
+      for (int par = 0; par < 16; par += 1 + (rand() % 3))
+      {
+	bool disk = flags & 1;
+	bool tups = flags & 2;
+	g_info << "lm: " << lm 
+	       << " disk: " << disk 
+	       << " tup scan: " << tups 
+	       << " par: " << par 
+	       << endl;
+	
+	NdbConnection* pCon = pNdb->startTransaction();
+	NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+	if (pOp == NULL) {
+	  ERR(pCon->getNdbError());
+	  return NDBT_FAILED;
+	}
+	
+	if( pOp->readTuples((NdbOperation::LockMode)lm,
+			    tups ? NdbScanOperation::SF_TupScan : 0,
+			    par) != 0) 
+	{
+	  ERR(pCon->getNdbError());
+	  return NDBT_FAILED;
+	}
+	
+	int check = pOp->interpret_exit_ok();
+	if( check == -1 ) {
+	  ERR(pCon->getNdbError());
+	  return NDBT_FAILED;
+	}
+	
+	// Define attributes to read  
+	bool found_disk = false;
+	for(int a = 0; a<pTab->getNoOfColumns(); a++){
+	  if (pTab->getColumn(a)->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+	  {
+	    found_disk = true;
+	    if (!disk)
+	      continue;
+	  }
+	  
+	  if((pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
+	    ERR(pCon->getNdbError());
+	    return NDBT_FAILED;
+	  }
+	} 
+	
+	if (! (disk && !found_disk))
+	{
+	  check = pCon->execute(NoCommit);
+	  if( check == -1 ) {
+	    ERR(pCon->getNdbError());
+	    return NDBT_FAILED;
+	  }
+	  
+	  int res;
+	  int row = 0;
+	  while((res = pOp->nextResult()) == 0);
+	}
+	pCon->close();
+      }
+    }
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1159,17 +1241,6 @@ TESTCASE("ScanReadCommitted240",
   INITIALIZER(runLoadTable);
   TC_PROPERTY("Parallelism", 240);
   TC_PROPERTY("TupScan", (Uint32)0);
-  STEP(runScanReadCommitted);
-  FINALIZER(runClearTable);
-}
-TESTCASE("ScanTupReadCommitted240", 
-	 "Verify scan requirement: It should be possible to scan read committed with "\
-	 "parallelism, test with parallelism 240(240 would automatically be "\
-	 "downgraded to the maximum parallelism value for the current config). "\
-         "Scans TUP pages directly without using ACC."){
-  INITIALIZER(runLoadTable);
-  TC_PROPERTY("Parallelism", 240);
-  TC_PROPERTY("TupScan", 1);
   STEP(runScanReadCommitted);
   FINALIZER(runClearTable);
 }
@@ -1601,6 +1672,12 @@ TESTCASE("ScanParallelism",
 	 "Test scan with different parallelism"){
   INITIALIZER(runLoadTable);
   STEP(runScanParallelism);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanVariants", 
+	 "Test different scan variants"){
+  INITIALIZER(runLoadTable);
+  STEP(runScanVariants);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
