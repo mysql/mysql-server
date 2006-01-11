@@ -56,9 +56,8 @@ typedef enum ndb_index_type {
 
 typedef enum ndb_index_status {
   UNDEFINED = 0,
-  CREATED = 1,
-  ACTIVE = 2,
-  TO_BE_DROPPED = 3
+  ACTIVE = 1,
+  TO_BE_DROPPED = 2
 } NDB_INDEX_STATUS;
 
 typedef struct ndb_index_data {
