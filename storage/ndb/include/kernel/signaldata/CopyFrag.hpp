@@ -30,7 +30,7 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 
 private:
   Uint32 userPtr;
@@ -40,6 +40,7 @@ private:
   Uint32 nodeId;
   Uint32 schemaVersion;
   Uint32 distributionKey;
+  Uint32 gci;
 };
 
 class CopyFragConf {

@@ -21,6 +21,7 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
+#include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/FsConf.hpp>
@@ -1072,7 +1073,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 
   initOpRec(signal);
   // normalize key if any char attr
-  if (! operationRecPtr.p->isAccLockReq && fragrecptr.p->hasCharAttr)
+  if (operationRecPtr.p->tupkeylen && fragrecptr.p->hasCharAttr)
     xfrmKeyData(signal);
 
   /*---------------------------------------------------------------*/
@@ -1778,12 +1779,13 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 void Dbacc::execACC_ABORTREQ(Signal* signal) 
 {
   jamEntry();
-  accAbortReqLab(signal, true);
+  accAbortReqLab(signal);
 }//Dbacc::execACC_ABORTREQ()
 
-void Dbacc::accAbortReqLab(Signal* signal, bool sendConf)
+void Dbacc::accAbortReqLab(Signal* signal)
 {
   operationRecPtr.i = signal->theData[0];
+  bool sendConf = signal->theData[1];
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
   tresult = 0;	/*                ZFALSE           */
   if ((operationRecPtr.p->transactionstate == ACTIVE) ||
@@ -1847,6 +1849,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       operationRecPtr.p->userblockref = req->userRef;
       operationRecPtr.p->operation = ZUNDEFINED_OP;
       operationRecPtr.p->transactionstate = IDLE;
+      operationRecPtr.p->scanRecPtr = RNIL;
       // do read with lock via ACCKEYREQ
       Uint32 lockMode = (lockOp == AccLockReq::LockShared) ? 0 : 1;
       Uint32 opCode = ZSCAN_OP;
@@ -1854,7 +1857,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       signal->theData[1] = fragrecptr.i;
       signal->theData[2] = opCode | (lockMode << 4) | (1u << 31);
       signal->theData[3] = req->hashValue;
-      signal->theData[4] = 1;   // fake primKeyLen
+      signal->theData[4] = 0;   // search local key
       signal->theData[5] = req->transId1;
       signal->theData[6] = req->transId2;
       // enter local key in place of PK
@@ -1896,7 +1899,8 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     jam();
     // do abort via ACC_ABORTREQ (immediate)
     signal->theData[0] = req->accOpPtr;
-    accAbortReqLab(signal, false);
+    signal->theData[1] = false; // Dont send abort
+    accAbortReqLab(signal);
     releaseOpRec(signal);
     req->returnCode = AccLockReq::Success;
     *sig = *req;
@@ -1906,7 +1910,8 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     jam();
     // do abort via ACC_ABORTREQ (with conf signal)
     signal->theData[0] = req->accOpPtr;
-    accAbortReqLab(signal, true);
+    signal->theData[1] = true; // send abort
+    accAbortReqLab(signal);
     releaseOpRec(signal);
     req->returnCode = AccLockReq::Success;
     *sig = *req;
@@ -2575,7 +2580,8 @@ Dbacc::readTablePk(Uint32 localkey1)
   memset(ckeys, 0x1f, (fragrecptr.p->keyLength * MAX_XFRM_MULTIPLY) << 2);
 #endif
   int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, ckeys, true);
-  ndbrequire(ret > 0);
+  jamEntry();
+  ndbrequire(ret >= 0);
   return ret;
 }
 
@@ -2632,7 +2638,7 @@ void Dbacc::getElement(Signal* signal)
    * - table key for ACCKEYREQ, stored in TUP
    * - local key (1 word) for ACC_LOCKREQ and UNDO, stored in ACC
    */
-  const bool searchLocalKey = operationRecPtr.p->isAccLockReq;
+  const bool searchLocalKey = operationRecPtr.p->tupkeylen == 0;
 
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + fragrecptr.p->localkeylen);
   tgeNextptrtype = ZLEFT;
@@ -2775,16 +2781,18 @@ void Dbacc::commitdelete(Signal* signal)
   jam();
   Uint32 localKey = operationRecPtr.p->localdata[0];
   Uint32 userptr= operationRecPtr.p->userptr;
-
+  Uint32 scanInd = operationRecPtr.p->operation == ZSCAN_OP 
+    || operationRecPtr.p->isAccLockReq;
+ 
   signal->theData[0] = fragrecptr.p->myfid;
   signal->theData[1] = fragrecptr.p->myTableId;
-  signal->theData[2] = operationRecPtr.p->localdata[0];
   Uint32 pageId = localKey >> MAX_TUPLES_BITS;
   Uint32 pageIndex = localKey & ((1 << MAX_TUPLES_BITS) - 1);
   signal->theData[2] = pageId;
   signal->theData[3] = pageIndex;
   signal->theData[4] = userptr;
-  EXECUTE_DIRECT(DBTUP, GSN_TUP_DEALLOCREQ, signal, 5);
+  signal->theData[5] = scanInd;
+  EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
   jamEntry();
   
   getdirindex(signal);
@@ -5382,12 +5390,12 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
 
   scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
   switch (tscanNextFlag) {
-  case ZCOPY_NEXT:
+  case NextScanReq::ZSCAN_NEXT:
     jam();
     /*empty*/;
     break;
-  case ZCOPY_NEXT_COMMIT:
-  case ZCOPY_COMMIT:
+  case NextScanReq::ZSCAN_NEXT_COMMIT:
+  case NextScanReq::ZSCAN_COMMIT:
     jam();
     /* --------------------------------------------------------------------- */
     /* COMMIT ACTIVE OPERATION. 
@@ -5402,7 +5410,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     takeOutActiveScanOp(signal);
     releaseOpRec(signal);
     scanPtr.p->scanOpsAllocated--;
-    if (tscanNextFlag == ZCOPY_COMMIT) {
+    if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
       signal->theData[0] = scanPtr.p->scanUserptr;
       Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
@@ -5410,7 +5418,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
       return;
     }//if
     break;
-  case ZCOPY_CLOSE:
+  case NextScanReq::ZSCAN_CLOSE:
     jam();
     fragrecptr.i = scanPtr.p->activeLocalFrag;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -5995,6 +6003,7 @@ void Dbacc::initScanOpRec(Signal* signal)
 
   scanPtr.p->scanOpsAllocated++;
 
+  operationRecPtr.p->userptr = RNIL;
   operationRecPtr.p->scanRecPtr = scanPtr.i;
   operationRecPtr.p->operation = ZSCAN_OP;
   operationRecPtr.p->transactionstate = ACTIVE;

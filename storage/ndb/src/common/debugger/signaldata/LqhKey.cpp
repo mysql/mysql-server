@@ -51,6 +51,12 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "CommitAckMarker ");
   if(LqhKeyReq::getNoDiskFlag(reqInfo))
     fprintf(output, "NoDisk ");
+  if(LqhKeyReq::getRowidFlag(reqInfo))
+    fprintf(output, "Rowid ");
+  if(LqhKeyReq::getNrCopyFlag(reqInfo))
+    fprintf(output, "NrCopy ");
+  if(LqhKeyReq::getGCIFlag(reqInfo))
+    fprintf(output, "GCI ");
   
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   
@@ -118,6 +124,20 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     for(UintR i = 0; i<keyLen && i<4; i++, nextPos++)
       fprintf(output, "H\'%.8x ", sig->variableData[nextPos]);
     fprintf(output, "\n");
+  }
+
+  if (LqhKeyReq::getRowidFlag(reqInfo))
+  {
+    fprintf(output, " Rowid: [ page: %d idx: %d ]\n",
+	    sig->variableData[nextPos + 0],
+	    sig->variableData[nextPos + 1]);
+    nextPos += 2;
+  }
+
+  if (LqhKeyReq::getGCIFlag(reqInfo))
+  {
+    fprintf(output, " GCI: %u", sig->variableData[nextPos + 0]);
+    nextPos++;
   }
   
   if(!LqhKeyReq::getInterpretedFlag(reqInfo)){

@@ -132,44 +132,47 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
       disk_page_abort_prealloc(signal, regFragPtr.p, &key, key.m_page_idx);
     }
     
-    Uint32 bits= copy->m_header_bits;
+    Uint32 bits= tuple_ptr->m_header_bits;
+    Uint32 copy_bits= copy->m_header_bits;
     if(! (bits & Tuple_header::ALLOC))
     {
-      if(bits & Tuple_header::MM_GROWN)
+      if(copy_bits & Tuple_header::MM_GROWN)
       {
 	ndbout_c("abort grow");
-	Var_page *pageP= (Var_page*)page.p;
-	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx, sz;
+	Ptr<Page> vpage;
+	Uint32 idx= regOperPtr.p->m_tuple_location.m_page_idx;
 	Uint32 mm_vars= regTabPtr.p->m_attributes[MM].m_no_of_varsize;
 	Uint32 *var_part;
-	if(! (tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW))
-	{
-	  var_part= tuple_ptr->get_var_part_ptr(regTabPtr.p);
-	sz= Tuple_header::HeaderSize + 
-	  regTabPtr.p->m_offsets[MM].m_fix_header_size;
-	}
-	else
-	{
-	  Ptr<Var_page> vpage;
-	  Uint32 ref= * tuple_ptr->get_var_part_ptr(regTabPtr.p);
-	  Local_key tmp; 
-	  tmp.assref(ref); 
-	  
-	  sz= 0;
+
+	ndbassert(tuple_ptr->m_header_bits & Tuple_header::CHAINED_ROW);
+	
+	Uint32 ref= * tuple_ptr->get_var_part_ptr(regTabPtr.p);
+	Local_key tmp; 
+	tmp.assref(ref); 
+	
 	idx= tmp.m_page_idx;
 	var_part= get_ptr(&vpage, *(Var_part_ref*)&ref);
-	pageP= vpage.p;
-	}
+	Var_page* pageP = (Var_page*)vpage.p;
 	Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
-	sz += ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
+	Uint32 sz = ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
 	ndbassert(sz <= len);
 	pageP->shrink_entry(idx, sz);
-	update_free_page_list(regFragPtr.p, pageP);
+	update_free_page_list(regFragPtr.p, vpage);
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {
 	ndbout_c("abort shrink");
       }
+    }
+    else if (regOperPtr.p->is_first_operation() && 
+	     regOperPtr.p->is_last_operation())
+    {
+      /**
+       * Aborting last operation that performed ALLOC
+       */
+      ndbout_c("clearing ALLOC");
+      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
+      tuple_ptr->m_header_bits |= Tuple_header::FREE;
     }
   }
   
@@ -338,9 +341,15 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
     c_lgman->free_log_space(fragPtr.p->m_logfile_group_id, 
 			    regOperPtr->m_undo_buffer_space);
   }
-    
-  PagePtr tmp;
-  Uint32 *ptr= get_ptr(&tmp, &regOperPtr->m_tuple_location, tabPtr.p);
+
+  Uint32 *ptr = 0;
+  if (!regOperPtr->m_tuple_location.isNull())
+  {
+    PagePtr tmp;
+    ptr= get_ptr(&tmp, &regOperPtr->m_tuple_location, tabPtr.p);
+  }
+
+
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
   initOpConnection(regOperPtr);
   send_TUPKEYREF(signal, regOperPtr);

@@ -55,14 +55,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize)
     {
       ljam();
-      
-      if(ptr->m_header_bits & Tuple_header::CHAINED_ROW)
-      {
-	free_var_part(regFragPtr.p, regTabPtr.p,
-		      *(Var_part_ref*)ptr->get_var_part_ptr(regTabPtr.p),
-		      Var_page::CHAIN);
-      }
-      free_var_part(regFragPtr.p, regTabPtr.p, &tmp, (Var_page*)pagePtr.p, 0);
+      free_var_rec(regFragPtr.p, regTabPtr.p, &tmp, pagePtr);
     } else {
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
@@ -156,15 +149,19 @@ Dbtup::dealloc_tuple(Signal* signal,
 		     Fragrecord* regFragPtr, 
 		     Tablerec* regTabPtr)
 {
+  ptr->m_header_bits |= Tuple_header::FREE;
   if (ptr->m_header_bits & Tuple_header::DISK_PART)
   {
     Local_key disk;
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
-    Ptr<GlobalPage> disk_page;
-    m_global_page_pool.getPtr(disk_page, 
-			      regOperPtr->m_commit_disk_callback_page);
     disk_page_free(signal, regTabPtr, regFragPtr, 
-		   &disk, *(PagePtr*)&disk_page, gci);
+		   &disk, *(PagePtr*)&m_pgman.m_ptr, gci);
+  }
+
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  {
+    jam();
+    * ptr->get_mm_gci(regTabPtr) = gci;
   }
 }
 
@@ -181,7 +178,7 @@ void
 Dbtup::commit_operation(Signal* signal,
 			Uint32 gci,
 			Tuple_header* tuple_ptr, 
-			Page* page,
+			PagePtr pagePtr,
 			Operationrec* regOperPtr, 
 			Fragrecord* regFragPtr, 
 			Tablerec* regTabPtr)
@@ -197,76 +194,39 @@ Dbtup::commit_operation(Signal* signal,
   
   Uint32 copy_bits= copy->m_header_bits;
 
-  Uint32 fix_size= regTabPtr->m_offsets[MM].m_fix_header_size;
+  Uint32 fixsize= regTabPtr->m_offsets[MM].m_fix_header_size;
   Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
   if(mm_vars == 0)
   {
-    memcpy(tuple_ptr, copy, 4*fix_size);
-    //ndbout_c("commit: memcpy %p %p %d", tuple_ptr, copy, 4*fix_size);
-    disk_ptr= (Tuple_header*)(((Uint32*)copy)+fix_size);
+    memcpy(tuple_ptr, copy, 4*fixsize);
+    disk_ptr= (Tuple_header*)(((Uint32*)copy)+fixsize);
   }
-  else if(bits & Tuple_header::CHAINED_ROW)
+  else
   {
     Uint32 *ref= tuple_ptr->get_var_part_ptr(regTabPtr);
-    memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fix_size));
-
+    memcpy(tuple_ptr, copy, 4*(Tuple_header::HeaderSize+fixsize));
+    
     Local_key tmp; tmp.assref(*ref);
-    if(0) printf("%p %d %d (%d bytes) - ref: %x ", tuple_ptr,
-	   regOperPtr->m_tuple_location.m_page_no,
-	   regOperPtr->m_tuple_location.m_page_idx,
-	   4*(Tuple_header::HeaderSize+fix_size),
-	   *ref);
-    Ptr<Var_page> vpagePtr;
+    
+    PagePtr vpagePtr;
     Uint32 *dst= get_ptr(&vpagePtr, *(Var_part_ref*)ref);
+    Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
     Uint32 *src= copy->get_var_part_ptr(regTabPtr);
     Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)src)[mm_vars]);
-    ndbassert(4*vpagePtr.p->get_entry_len(tmp.m_page_idx) >= sz);
+    ndbassert(4*vpagePtrP->get_entry_len(tmp.m_page_idx) >= sz);
     memcpy(dst, src, sz);
-    if(0) printf("ptr: %p %d ref: %x - chain commit", dst, sz, *ref);
+
     copy_bits |= Tuple_header::CHAINED_ROW;
     
-    if(0)
+    if(copy_bits & Tuple_header::MM_SHRINK)
     {
-      for(Uint32 i = 0; i<((sz+3)>>2); i++)
-	printf(" %.8x", src[i]);
-      printf("\n");
-    }
+      vpagePtrP->shrink_entry(tmp.m_page_idx, (sz + 3) >> 2);
+      update_free_page_list(regFragPtr, vpagePtr);
+    } 
     
-    if(copy_bits & Tuple_header::MM_SHRINK)
-    {
-      if(0) printf(" - shrink %d -> %d - ", 
-	     vpagePtr.p->get_entry_len(tmp.m_page_idx), (sz + 3) >> 2);
-      vpagePtr.p->shrink_entry(tmp.m_page_idx, (sz + 3) >> 2);
-      if(0)ndbout_c("%p->shrink_entry(%d, %d)", vpagePtr.p, tmp.m_page_idx, 
-	       (sz + 3) >> 2);
-      update_free_page_list(regFragPtr, vpagePtr.p);
-    } 
-    if(0) ndbout_c("");
     disk_ptr = (Tuple_header*)
-      (((Uint32*)copy)+Tuple_header::HeaderSize+fix_size+((sz + 3) >> 2));
+      (((Uint32*)copy)+Tuple_header::HeaderSize+fixsize+((sz + 3) >> 2));
   } 
-  else 
-  {
-    Uint32 *var_part= copy->get_var_part_ptr(regTabPtr);
-    Uint32 sz= Tuple_header::HeaderSize + fix_size +
-      ((((mm_vars + 1) << 1) + (((Uint16*)var_part)[mm_vars]) + 3)>> 2);
-    ndbassert(((Var_page*)page)->
-	      get_entry_len(regOperPtr->m_tuple_location.m_page_idx) >= sz);
-    memcpy(tuple_ptr, copy, 4*sz);      
-    if(0) ndbout_c("%p %d %d (%d bytes)", tuple_ptr,
-	     regOperPtr->m_tuple_location.m_page_no,
-	     regOperPtr->m_tuple_location.m_page_idx,
-	     4*sz);
-    if(copy_bits & Tuple_header::MM_SHRINK)
-    {
-      ((Var_page*)page)->shrink_entry(regOperPtr->m_tuple_location.m_page_idx, 
-				      sz);
-      if(0)ndbout_c("%p->shrink_entry(%d, %d)", 
-	       page, regOperPtr->m_tuple_location.m_page_idx, sz);
-      update_free_page_list(regFragPtr, (Var_page*)page);
-    } 
-    disk_ptr = (Tuple_header*)(((Uint32*)copy)+sz);
-  }
   
   if (regTabPtr->m_no_of_disk_attributes &&
       (copy_bits & Tuple_header::DISK_INLINE))
@@ -276,13 +236,13 @@ Dbtup::commit_operation(Signal* signal,
     Uint32 logfile_group_id= regFragPtr->m_logfile_group_id;
     Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
 
-    PagePtr pagePtr = *(PagePtr*)&m_pgman.m_ptr;
-    ndbassert(pagePtr.p->m_page_no == key.m_page_no);
-    ndbassert(pagePtr.p->m_file_no == key.m_file_no);
+    PagePtr diskPagePtr = *(PagePtr*)&m_pgman.m_ptr;
+    ndbassert(diskPagePtr.p->m_page_no == key.m_page_no);
+    ndbassert(diskPagePtr.p->m_file_no == key.m_file_no);
     Uint32 sz, *dst;
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
-      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, pagePtr, gci);
+      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci);
 
       if(lcpScan_ptr_i != RNIL)
       {
@@ -301,17 +261,18 @@ Dbtup::commit_operation(Signal* signal,
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
     {
       sz= regTabPtr->m_offsets[DD].m_fix_header_size;
-      dst= ((Fix_page*)pagePtr.p)->get_ptr(key.m_page_idx, sz);
+      dst= ((Fix_page*)diskPagePtr.p)->get_ptr(key.m_page_idx, sz);
     }
     else
     {
-      dst= ((Var_page*)pagePtr.p)->get_ptr(key.m_page_idx);
-      sz= ((Var_page*)pagePtr.p)->get_entry_len(key.m_page_idx);
+      dst= ((Var_page*)diskPagePtr.p)->get_ptr(key.m_page_idx);
+      sz= ((Var_page*)diskPagePtr.p)->get_entry_len(key.m_page_idx);
     }
     
     if(! (copy_bits & Tuple_header::DISK_ALLOC))
     {
-      disk_page_undo_update(pagePtr.p, &key, dst, sz, gci, logfile_group_id);
+      disk_page_undo_update(diskPagePtr.p, 
+			    &key, dst, sz, gci, logfile_group_id);
     }
     
     memcpy(dst, disk_ptr, 4*sz);
@@ -320,10 +281,10 @@ Dbtup::commit_operation(Signal* signal,
     ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
     copy_bits |= Tuple_header::DISK_PART;
   }
-
+  
   
   Uint32 clear= 
-    Tuple_header::ALLOC |
+    Tuple_header::ALLOC | Tuple_header::FREE |
     Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
     Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN;
   copy_bits &= ~(Uint32)clear;
@@ -331,7 +292,13 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits;
   tuple_ptr->m_operation_ptr_i= save;
   
-  if (regTabPtr->checksumIndicator) {
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  {
+    jam();
+    * tuple_ptr->get_mm_gci(regTabPtr) = gci;
+  }
+  
+  if (regTabPtr->m_bits & Tablerec::TR_Checksum) {
     jam();
     setChecksum(tuple_ptr, regTabPtr);
   }
@@ -505,8 +472,13 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     req.m_callback.m_callbackFunction = 
       safe_cast(&Dbtup::disk_page_commit_callback);
 
+    /*
+     * Consider commit to be correlated.  Otherwise pk op + commit makes
+     * the page hot.   XXX move to TUP which knows better.
+     */
     int flags= regOperPtr.p->op_struct.op_type |
-      Page_cache_client::COMMIT_REQ | Page_cache_client::STRICT_ORDER;
+      Page_cache_client::COMMIT_REQ | Page_cache_client::STRICT_ORDER |
+      Page_cache_client::CORR_REQ;
     int res= m_pgman.get_page(signal, req, flags);
     switch(res){
     case 0:
@@ -548,9 +520,10 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   
   if(!tuple_ptr)
   {
-    req_struct.m_tuple_ptr= tuple_ptr = (Tuple_header*)
+    tuple_ptr = (Tuple_header*)
       get_ptr(&page, &regOperPtr.p->m_tuple_location,regTabPtr.p);
   }
+  req_struct.m_tuple_ptr = tuple_ptr;
   
   if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
@@ -587,7 +560,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
-      commit_operation(signal, gci, tuple_ptr, page.p,
+      commit_operation(signal, gci, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
       removeActiveOpList(regOperPtr.p, tuple_ptr);
     }

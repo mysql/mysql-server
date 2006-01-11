@@ -36,7 +36,7 @@ class TupKeyReq {
   friend bool printTUPKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 16 );
+  STATIC_CONST( SignalLength = 18 );
 
 private:
 
@@ -59,6 +59,8 @@ private:
   Uint32 tcOpIndex;
   Uint32 savePointId;
   Uint32 disk_page;
+  Uint32 m_row_id_page_no;
+  Uint32 m_row_id_page_idx;
 };
 
 class TupKeyConf {
@@ -78,7 +80,7 @@ class TupKeyConf {
   friend bool printTUPKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 );
 
 private:
 
@@ -90,6 +92,7 @@ private:
   Uint32 writeLength;
   Uint32 noFiredTriggers;
   Uint32 lastRow;
+  Uint32 rowid;
 };
 
 class TupKeyRef {

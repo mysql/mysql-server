@@ -35,6 +35,7 @@ report=yes
 clone=5.0-ndb
 RUN="daily-basic daily-devel"
 conf=autotest.conf
+LOCK=$HOME/.autotest-lock
 
 ############################
 # Read command line entries#
@@ -105,7 +106,6 @@ fi
 # Setup the clone source location  #
 ####################################
 
-LOCK=$HOME/.autotest-lock
 src_clone=$src_clone_base-$clone
 
 #######################################
@@ -386,7 +386,8 @@ do
                        awk '{for(i=1;i<='$count';i++)print $i;}'`
 	    echo $run_hosts >> /tmp/filter_hosts.$$	
 	
-	    choose $conf $run_hosts > d.tmp
+	    choose $conf $run_hosts > d.tmp.$$
+            sed -e s,CHOOSE_dir,"$install_dir",g < d.tmp.$$ > d.tmp
 	    $mkconfig d.tmp
 	fi
 	

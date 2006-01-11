@@ -61,6 +61,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   //Uint32 noOfNewAttr= (signal->theData[10] & 0xFFFF);
   /* DICT sends number of character sets in upper half */
   Uint32 noOfCharsets= (signal->theData[10] >> 16);
+  Uint32 gcpIndicator = signal->theData[13];
   Uint32 tablespace= signal->theData[14];
 
   Uint32 checksumIndicator= signal->theData[11];
@@ -133,12 +134,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     return;
   }
 
-  regFragPtr.p->emptyPrimPage= RNIL;
-  regFragPtr.p->thFreeFirst= RNIL;
-  regFragPtr.p->free_var_page_array[0]= RNIL;
-  regFragPtr.p->free_var_page_array[1]= RNIL;
-  regFragPtr.p->free_var_page_array[2]= RNIL;
-  regFragPtr.p->free_var_page_array[3]= RNIL;
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
   regFragPtr.p->m_tablespace_id= tablespace;
@@ -181,7 +176,9 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 //-----------------------------------------------------------------------------
     fragOperPtr.p->definingFragment= true;
     regTabPtr.p->tableStatus= DEFINING;
-    regTabPtr.p->checksumIndicator= (checksumIndicator != 0 ? true : false);
+    regTabPtr.p->m_bits = 0;
+    regTabPtr.p->m_bits |= (checksumIndicator ? Tablerec::TR_Checksum : 0);
+    regTabPtr.p->m_bits |= (gcpIndicator ? Tablerec::TR_RowGCI : 0);
     
     regTabPtr.p->m_offsets[MM].m_disk_ref_offset= 0;
     regTabPtr.p->m_offsets[MM].m_null_words= 0;
@@ -443,11 +440,17 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
    * Fix offsets
    */
   Uint32 pos[2] = { 0, 0 };
-  if(regTabPtr.p->checksumIndicator)
+  if (regTabPtr.p->m_bits & Tablerec::TR_Checksum)
   {
     pos[0]= 1; 
   }
 
+  if (regTabPtr.p->m_bits & Tablerec::TR_RowGCI)
+  {
+    pos[MM]++;
+    pos[DD]++;
+  }
+  
   regTabPtr.p->m_no_of_disk_attributes= 
     regTabPtr.p->m_attributes[DD].m_no_of_fixsize +
     regTabPtr.p->m_attributes[DD].m_no_of_varsize;

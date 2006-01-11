@@ -92,6 +92,8 @@ protected:
   Uint32 m_operationType; // 0 READ, 1 UPDATE, 2 INSERT, 3 DELETE
   Uint32 m_attributeLength;
   Uint32 m_keyLength;
+  Uint32 m_page_no;
+  Uint32 m_page_idx;
   Uint32 *m_keyInfo; // In this order
   Uint32 *m_attrInfo;// In this order
 };
