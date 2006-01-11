@@ -1138,7 +1138,6 @@ int ha_ndbcluster::create_indexes(Ndb *ndb, TABLE *tab)
       DBUG_PRINT("error", ("Failed to create index %u", i));
       break;
     }
-    m_index[i].status= CREATED;
   }
 
   DBUG_RETURN(error);
