@@ -4,26 +4,28 @@ ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
-alter logfile group lg1
-add undofile 'undofile02.dat'
-initial_size 4M engine=ndb;
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
-alter tablespace ts1
-add datafile 'datafile02.dat'
-initial_size 4M engine=ndb;
-CREATE TABLE t1
-(pk1 int not null primary key, b int not null, c int not null)
-tablespace ts1 storage disk
-engine ndb;
-INSERT INTO t1 VALUES (0, 0, 0);
-SELECT * FROM t1;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB;
+CREATE TABLE test.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+INSERT INTO test.t1 VALUES (0, 0, 0);
+SELECT * FROM test.t1;
 pk1	b	c
 0	0	0
-INSERT INTO t1 VALUES 
+INSERT INTO test.t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
 (11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
@@ -124,231 +126,231 @@ INSERT INTO t1 VALUES
 (486,486,486),(487,487,487),(488,488,488),(489,489,489),(490,490,490),
 (491,491,491),(492,492,492),(493,493,493),(494,494,494),(495,495,495),
 (496,496,496),(497,497,497),(498,498,498),(499,499,499),(500, 500, 500);
-SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 501
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10y
-engine = ndb;
+ENGINE = NDB;
 ERROR HY000: A size parameter was incorrectly specified, either number or on the form 10M
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10MB
-engine=ndb;
+ENGINE = NDB;
 ERROR HY000: A size parameter was incorrectly specified, either number or on the form 10M
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10 MB
-engine=ndb;
+ENGINE = NDB;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MB
-engine=ndb' at line 3
+ENGINE = NDB' at line 3
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10 M
-engine=ndb;
+ENGINE = NDB;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'M
-engine=ndb' at line 3
+ENGINE = NDB' at line 3
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 1000000000000K
-engine=ndb;
+ENGINE = NDB;
 ERROR HY000: The size number was correct but we don't allow the digit part to be more than 2 billion
-DROP TABLE t1;
-create table t1 (a int primary key, b char(4) not null, c char(4) not null, key(b)) tablespace ts1 storage disk engine ndb;
-insert into t1 values (1,'1','1'), (2,'2','2'), (3,'3','3');
-begin;
-update t1 set b = '2' where a = 1;
-select b from t1 where a = 1;
+DROP TABLE test.t1;
+CREATE TABLE test.t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
+INSERT INTO test.t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
+BEGIN;
+UPDATE test.t1 SET b = '2' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 2
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	2	1
-update t1 set c = '2' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET c = '2' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 2
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	2	2
-update t1 set b = '3' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET b = '3' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 3
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	3	2
-commit;
-select * from t1 order by 1;
+COMMIT;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	3	2
 2	2	2
 3	3	3
-begin;
-update t1 set c = '3' where a = 1;
-select b from t1 where a = 1;
+BEGIN;
+UPDATE test.t1 SET c = '3' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 3
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	3	3
-update t1 set b = '4' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET b = '4' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 4
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	4	3
-update t1 set c = '4' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET c = '4' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 4
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	4	4
-commit;
-select * from t1 order by 1;
+COMMIT;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	4	4
 2	2	2
 3	3	3
-update t1 set b = '5' where a = 1;
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '5' WHERE a = 1;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	5	4
 2	2	2
 3	3	3
-update t1 set b = '6'  where b = '5';
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '6' WHERE b = '5';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	6	4
 2	2	2
 3	3	3
-update t1 set b = '7'  where c = '4';
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '7'WHERE c = '4';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	4
 2	2	2
 3	3	3
-update t1 set c = '5' where a = 1;
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '5' WHERE a = 1;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	5
 2	2	2
 3	3	3
-update t1 set c = '6'  where b = '7';
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '6' WHERE b = '7';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	6
 2	2	2
 3	3	3
-update t1 set c = '7'  where c = '6';
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '7' WHERE c = '6';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	7
 2	2	2
 3	3	3
-drop table t1;
-create table t1 (a int primary key, b varchar(4) not null, c char(4) not null, key(b)) tablespace ts1 storage disk engine ndb;
-insert into t1 values (1,'1','1'), (2,'2','2'), (3,'3','3');
-begin;
-update t1 set b = '2' where a = 1;
-select b from t1 where a = 1;
+DROP TABLE test.t1;
+CREATE TABLE test.t1 (a INT PRIMARY KEY, b VARCHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE NDB;
+INSERT INTO test.t1 VALUE (1,'1','1'), (2,'2','2'), (3,'3','3');
+BEGIN;
+UPDATE test.t1 SET b = '2' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 2
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	2	1
-update t1 set c = '2' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET c = '2' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 2
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	2	2
-update t1 set b = '3' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET b = '3' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 3
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	3	2
-commit;
-select * from t1 order by 1;
+COMMIT;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	3	2
 2	2	2
 3	3	3
-begin;
-update t1 set c = '3' where a = 1;
-select b from t1 where a = 1;
+BEGIN;
+UPDATE test.t1 SET c = '3' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 3
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	3	3
-update t1 set b = '4' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET b = '4' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 4
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	4	3
-update t1 set c = '4' where a = 1;
-select b from t1 where a = 1;
+UPDATE test.t1 SET c = '4' WHERE a = 1;
+SELECT b FROM test.t1 WHERE a = 1;
 b
 4
-select * from t1 where a = 1;
+SELECT * FROM test.t1 WHERE a = 1;
 a	b	c
 1	4	4
-commit;
-select * from t1 order by 1;
+COMMIT;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	4	4
 2	2	2
 3	3	3
-update t1 set b = '5' where a = 1;
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '5' WHERE a = 1;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	5	4
 2	2	2
 3	3	3
-update t1 set b = '6'  where b = '5';
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '6' WHERE b = '5';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	6	4
 2	2	2
 3	3	3
-update t1 set b = '7'  where c = '4';
-select * from t1 order by 1;
+UPDATE test.t1 SET b = '7' WHERE c = '4';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	4
 2	2	2
 3	3	3
-update t1 set c = '5' where a = 1;
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '5' WHERE a = 1;
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	5
 2	2	2
 3	3	3
-update t1 set c = '6'  where b = '7';
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '6' WHERE b = '7';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	6
 2	2	2
 3	3	3
-update t1 set c = '7'  where c = '6';
-select * from t1 order by 1;
+UPDATE test.t1 SET c = '7' WHERE c = '6';
+SELECT * FROM test.t1 ORDER BY 1;
 a	b	c
 1	7	7
 2	2	2
 3	3	3
-drop table t1;
-create table t1 (
-a int not null primary key,
-b text not null
-) tablespace ts1 storage disk engine=ndbcluster;
+DROP TABLE test.t1;
+CREATE TABLE test.t1 (
+a INT NOT NULL PRIMARY KEY,
+b TEXT NOT NULL
+) TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
 set @x0 = '01234567012345670123456701234567';
 set @x0 = concat(@x0,@x0,@x0,@x0,@x0,@x0,@x0,@x0);
 set @b1 = 'b1';
@@ -361,37 +363,43 @@ set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
-insert into t1 values(1,@b1);
-insert into t1 values(2,@b2);
-select a,length(b),substr(b,1+2*900,2) from t1 where a=1;
+INSERT INTO test.t1 VALUES(1,@b1);
+INSERT INTO test.t1 VALUES(2,@b2);
+SELECT a,length(b),substr(b,1+2*900,2) FROM test.t1 WHERE a=1;
 a	length(b)	substr(b,1+2*900,2)
 1	2256	b1
-select a,length(b),substr(b,1+2*9000,2) from t1 where a=2;
+SELECT a,length(b),substr(b,1+2*9000,2) FROM test.t1 WHERE a=2;
 a	length(b)	substr(b,1+2*9000,2)
 2	20000	b2
-update t1 set b=@b2 where a=1;
-update t1 set b=@b1 where a=2;
-select a,length(b),substr(b,1+2*9000,2) from t1 where a=1;
+UPDATE test.t1 SET b=@b2 WHERE a=1;
+UPDATE test.t1 SET b=@b1 WHERE a=2;
+SELECT a,length(b),substr(b,1+2*9000,2) FROM test.t1 WHERE a=1;
 a	length(b)	substr(b,1+2*9000,2)
 1	20000	b2
-select a,length(b),substr(b,1+2*900,2) from t1 where a=2;
+SELECT a,length(b),substr(b,1+2*900,2) FROM test.t1 WHERE a=2;
 a	length(b)	substr(b,1+2*900,2)
 2	2256	b1
-update t1 set b=concat(b,b) where a=1;
-update t1 set b=concat(b,b) where a=2;
-select a,length(b),substr(b,1+4*9000,2) from t1 where a=1;
+UPDATE test.t1 SET b=concat(b,b) WHERE a=1;
+UPDATE test.t1 SET b=concat(b,b) WHERE a=2;
+SELECT a,length(b),substr(b,1+4*9000,2) FROM test.t1 WHERE a=1;
 a	length(b)	substr(b,1+4*9000,2)
 1	40000	b2
-select a,length(b),substr(b,1+4*900,2) from t1 where a=2;
+SELECT a,length(b),substr(b,1+4*900,2) FROM test.t1 WHERE a=2;
 a	length(b)	substr(b,1+4*900,2)
 2	4512	b1
-delete from t1 where a=1;
-delete from t1 where a=2;
-select count(*) from t1;
-count(*)
+DELETE FROM test.t1 WHERE a=1;
+DELETE FROM test.t1 WHERE a=2;
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
 0
-drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine = ndb;
-alter tablespace ts1 drop datafile 'datafile02.dat' engine = ndb;
-drop tablespace ts1 engine = ndb;
-drop logfile group lg1 engine = ndb;
+DROP TABLE test.t1;
+ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile.dat' 
+ENGINE = NDB;
+ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile02.dat' 
+ENGINE = NDB;
+DROP TABLESPACE ts1 
+ENGINE = NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
