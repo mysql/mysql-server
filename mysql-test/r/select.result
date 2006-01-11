@@ -3345,3 +3345,5 @@ select * from t1 left join t2 on f1=t2.f2 where t1.f2='a';
 f1	f2	f2
 NULL	a	NULL
 drop table t1,t2;
+select * from (select * left join t on f1=f2) tt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on f1=f2) tt' at line 1
