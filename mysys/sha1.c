@@ -69,7 +69,7 @@ static void SHA1ProcessMessageBlock(SHA1_CONTEXT*);
   Initialize SHA1Context
 
   SYNOPSIS
-    sha1_reset()
+    mysql_sha1_reset()
     context [in/out]		The context to reset.
 
  DESCRIPTION
@@ -92,7 +92,7 @@ const uint32 sha_const_key[5]=
 };
 
 
-int sha1_reset(SHA1_CONTEXT *context)
+int mysql_sha1_reset(SHA1_CONTEXT *context)
 {
 #ifndef DBUG_OFF
   if (!context)
@@ -119,7 +119,7 @@ int sha1_reset(SHA1_CONTEXT *context)
    Return the 160-bit message digest into the array provided by the caller
 
   SYNOPSIS
-    sha1_result()
+    mysql_sha1_result()
     context [in/out]		The context to use to calculate the SHA-1 hash.
     Message_Digest: [out]	Where the digest is returned.
 
@@ -132,8 +132,8 @@ int sha1_reset(SHA1_CONTEXT *context)
    != SHA_SUCCESS	sha Error Code.
 */
 
-int sha1_result(SHA1_CONTEXT *context,
-		uint8 Message_Digest[SHA1_HASH_SIZE])
+int mysql_sha1_result(SHA1_CONTEXT *context,
+                      uint8 Message_Digest[SHA1_HASH_SIZE])
 {
   int i;
 
@@ -165,7 +165,7 @@ int sha1_result(SHA1_CONTEXT *context,
   Accepts an array of octets as the next portion of the message.
 
   SYNOPSIS
-   sha1_input()
+   mysql_sha1_input()
    context [in/out]	The SHA context to update
    message_array	An array of characters representing the next portion
 			of the message.
@@ -176,8 +176,8 @@ int sha1_result(SHA1_CONTEXT *context,
    != SHA_SUCCESS	sha Error Code.
 */
 
-int sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
-	       unsigned length)
+int mysql_sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
+                     unsigned length)
 {
   if (!length)
     return SHA_SUCCESS;

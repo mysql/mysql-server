@@ -392,15 +392,15 @@ make_scrambled_password(char *to, const char *password)
   SHA1_CONTEXT sha1_context;
   uint8 hash_stage2[SHA1_HASH_SIZE];
 
-  sha1_reset(&sha1_context);
+  mysql_sha1_reset(&sha1_context);
   /* stage 1: hash password */
-  sha1_input(&sha1_context, (uint8 *) password, strlen(password));
-  sha1_result(&sha1_context, (uint8 *) to);
+  mysql_sha1_input(&sha1_context, (uint8 *) password, strlen(password));
+  mysql_sha1_result(&sha1_context, (uint8 *) to);
   /* stage 2: hash stage1 output */
-  sha1_reset(&sha1_context);
-  sha1_input(&sha1_context, (uint8 *) to, SHA1_HASH_SIZE);
+  mysql_sha1_reset(&sha1_context);
+  mysql_sha1_input(&sha1_context, (uint8 *) to, SHA1_HASH_SIZE);
   /* separate buffer is used to pass 'to' in octet2hex */
-  sha1_result(&sha1_context, hash_stage2);
+  mysql_sha1_result(&sha1_context, hash_stage2);
   /* convert hash_stage2 to hex string */
   *to++= PVERSION41_CHAR;
   octet2hex(to, hash_stage2, SHA1_HASH_SIZE);
@@ -431,20 +431,20 @@ scramble(char *to, const char *message, const char *password)
   uint8 hash_stage1[SHA1_HASH_SIZE];
   uint8 hash_stage2[SHA1_HASH_SIZE];
 
-  sha1_reset(&sha1_context);
+  mysql_sha1_reset(&sha1_context);
   /* stage 1: hash password */
-  sha1_input(&sha1_context, (uint8 *) password, strlen(password));
-  sha1_result(&sha1_context, hash_stage1);
+  mysql_sha1_input(&sha1_context, (uint8 *) password, strlen(password));
+  mysql_sha1_result(&sha1_context, hash_stage1);
   /* stage 2: hash stage 1; note that hash_stage2 is stored in the database */
-  sha1_reset(&sha1_context);
-  sha1_input(&sha1_context, hash_stage1, SHA1_HASH_SIZE);
-  sha1_result(&sha1_context, hash_stage2);
+  mysql_sha1_reset(&sha1_context);
+  mysql_sha1_input(&sha1_context, hash_stage1, SHA1_HASH_SIZE);
+  mysql_sha1_result(&sha1_context, hash_stage2);
   /* create crypt string as sha1(message, hash_stage2) */;
-  sha1_reset(&sha1_context);
-  sha1_input(&sha1_context, (const uint8 *) message, SCRAMBLE_LENGTH);
-  sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
+  mysql_sha1_reset(&sha1_context);
+  mysql_sha1_input(&sha1_context, (const uint8 *) message, SCRAMBLE_LENGTH);
+  mysql_sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
   /* xor allows 'from' and 'to' overlap: lets take advantage of it */
-  sha1_result(&sha1_context, (uint8 *) to);
+  mysql_sha1_result(&sha1_context, (uint8 *) to);
   my_crypt(to, (const uchar *) to, hash_stage1, SCRAMBLE_LENGTH);
 }
 
@@ -477,17 +477,17 @@ check_scramble(const char *scramble, const char *message,
   uint8 buf[SHA1_HASH_SIZE];
   uint8 hash_stage2_reassured[SHA1_HASH_SIZE];
 
-  sha1_reset(&sha1_context);
+  mysql_sha1_reset(&sha1_context);
   /* create key to encrypt scramble */
-  sha1_input(&sha1_context, (const uint8 *) message, SCRAMBLE_LENGTH);
-  sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
-  sha1_result(&sha1_context, buf);
+  mysql_sha1_input(&sha1_context, (const uint8 *) message, SCRAMBLE_LENGTH);
+  mysql_sha1_input(&sha1_context, hash_stage2, SHA1_HASH_SIZE);
+  mysql_sha1_result(&sha1_context, buf);
   /* encrypt scramble */
     my_crypt((char *) buf, buf, (const uchar *) scramble, SCRAMBLE_LENGTH);
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
-  sha1_reset(&sha1_context);
-  sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
-  sha1_result(&sha1_context, hash_stage2_reassured);
+  mysql_sha1_reset(&sha1_context);
+  mysql_sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
+  mysql_sha1_result(&sha1_context, hash_stage2_reassured);
   return memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE);
 }
 
