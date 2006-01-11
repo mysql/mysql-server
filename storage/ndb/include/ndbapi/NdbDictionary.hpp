@@ -93,7 +93,9 @@ public:
      * Get version of object
      */
     virtual int getObjectVersion() const = 0;
-
+    
+    virtual int getObjectId() const = 0;
+    
     /**
      * Object type
      */
@@ -501,6 +503,8 @@ public:
     static const Column * RANGE_NO;
     static const Column * DISK_REF;
     static const Column * RECORDS_IN_RANGE;
+    static const Column * ROWID;
+    static const Column * ROW_GCI;
     
     int getSizeInBytes() const;
 #endif
@@ -751,6 +755,7 @@ public:
     void setTablespace(const char * name);
     void setTablespace(const class Tablespace &);
     const char * getTablespace() const;
+    Uint32 getTablespaceId() const;
 
     /**
      * Get table object type
@@ -766,6 +771,11 @@ public:
      * Get object version
      */
     virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
 
     /**
      * Set frm file to store with this table
@@ -784,6 +794,15 @@ public:
 
     /** @} *******************************************************************/
 
+    /**
+     * 
+     */
+    void setRowGCIIndicator(bool value);
+    bool getRowGCIIndicator() const;
+
+    void setRowChecksumIndicator(bool value);
+    bool getRowChecksumIndicator() const;
+ 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const char *getMysqlName() const;
 
@@ -886,6 +905,11 @@ public:
      * Get object version
      */
     virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
 
     /** @} *******************************************************************/
 
@@ -1157,6 +1181,11 @@ public:
      */
     virtual int getObjectVersion() const;
 
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void print();
 #endif
@@ -1183,6 +1212,7 @@ public:
   class LogfileGroup : public Object {
   public:
     LogfileGroup();
+    LogfileGroup(const LogfileGroup&);
     virtual ~LogfileGroup();
 
     void setName(const char * name);
@@ -1194,6 +1224,8 @@ public:
     void setAutoGrowSpecification(const AutoGrowSpecification&);
     const AutoGrowSpecification& getAutoGrowSpecification() const;
 
+    Uint64 getUndoFreeWords() const;
+
     /**
      * Get object status
      */
@@ -1203,6 +1235,11 @@ public:
      * Get object version
      */
     virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
 
   private:
     friend class NdbDictionaryImpl;
@@ -1217,6 +1254,7 @@ public:
   class Tablespace : public Object {
   public:
     Tablespace();
+    Tablespace(const Tablespace&);
     virtual ~Tablespace();
 
     void setName(const char * name);
@@ -1230,7 +1268,9 @@ public:
 
     void setDefaultLogfileGroup(const char * name);
     void setDefaultLogfileGroup(const class LogfileGroup&);
+
     const char * getDefaultLogfileGroup() const;
+    Uint32 getDefaultLogfileGroupId() const;
     
     /**
      * Get object status
@@ -1242,6 +1282,11 @@ public:
      */
     virtual int getObjectVersion() const;
 
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
   private:
     friend class NdbTablespaceImpl;
     class NdbTablespaceImpl & m_impl;
@@ -1251,6 +1296,7 @@ public:
   class Datafile : public Object {
   public:
     Datafile();
+    Datafile(const Datafile&);
     virtual ~Datafile();
 
     void setPath(const char * name);
@@ -1263,6 +1309,7 @@ public:
     void setTablespace(const char * name);
     void setTablespace(const class Tablespace &);
     const char * getTablespace() const;
+    Uint32 getTablespaceId() const;
 
     void setNode(Uint32 nodeId);
     Uint32 getNode() const;
@@ -1278,6 +1325,11 @@ public:
      * Get object version
      */
     virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
 
   private:
     friend class NdbDatafileImpl;
@@ -1288,6 +1340,7 @@ public:
   class Undofile : public Object {
   public:
     Undofile();
+    Undofile(const Undofile&);
     virtual ~Undofile();
 
     void setPath(const char * path);
@@ -1295,11 +1348,11 @@ public:
   
     void setSize(Uint64);
     Uint64 getSize() const;
-    Uint64 getFree() const;
 
     void setLogfileGroup(const char * name);
     void setLogfileGroup(const class LogfileGroup &);
     const char * getLogfileGroup() const;
+    Uint32 getLogfileGroupId() const;
 
     void setNode(Uint32 nodeId);
     Uint32 getNode() const;
@@ -1315,6 +1368,11 @@ public:
      * Get object version
      */
     virtual int getObjectVersion() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
 
   private:
     friend class NdbUndofileImpl;

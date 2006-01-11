@@ -60,14 +60,15 @@ public:
   {
     Uint16 m_id;
     Uint16 m_size;
-    Uint16 m_nulloffset; // 0 = not nullable
+    Uint16 m_unused;
     Uint16 m_flags; 
 
     enum Flags 
     { 
       COL_KEY  = 0x1,
       COL_VAR  = 0x2,
-      COL_DISK = 0x4
+      COL_DISK = 0x4,
+      COL_NULL = 0x8
     };
   };
 private:
@@ -98,7 +99,6 @@ private:
     Uint32 m_table_version;
     Uint32 m_fragment_id;
     List::Head m_columns;
-    Uint32 m_null_bitmask_size;
     
     Uint32 m_current_page_ptr_i;
     Uint32 m_current_page_pos; 

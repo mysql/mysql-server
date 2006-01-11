@@ -91,20 +91,20 @@
 
 Uint32 Dbtup::getEmptyPage(Fragrecord* const regFragPtr)
 {
-  Uint32 pageId = regFragPtr->emptyPrimPage;
+  Uint32 pageId = regFragPtr->emptyPrimPage.firstItem;
   if (pageId == RNIL) {
     ljam();
     allocMoreFragPages(regFragPtr);
-    pageId = regFragPtr->emptyPrimPage;
+    pageId = regFragPtr->emptyPrimPage.firstItem;
     if (pageId == RNIL) {
       ljam();
       return RNIL;
     }//if
   }//if
   PagePtr pagePtr;
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cnoOfPage, cpage);
-  regFragPtr->emptyPrimPage = pagePtr.p->next_page;
+  LocalDLList<Page> alloc_pages(c_page_pool, regFragPtr->emptyPrimPage);    
+  alloc_pages.getPtr(pagePtr, pageId);
+  alloc_pages.remove(pagePtr);
   return pageId;
 }//Dbtup::getEmptyPage()
 
@@ -284,6 +284,22 @@ void Dbtup::releaseFragPages(Fragrecord* const regFragPtr)
       ljam();
       ndbrequire(regPRPtr.i == regFragPtr->rootPageRange);
       initFragRange(regFragPtr);
+      for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
+      {
+	LocalDLList<Page> tmp(c_page_pool, regFragPtr->free_var_page_array[i]);
+	tmp.remove();
+      }
+
+      {
+	LocalDLList<Page> tmp(c_page_pool, regFragPtr->emptyPrimPage);
+	tmp.remove();
+      }
+
+      {
+	LocalDLList<Page> tmp(c_page_pool, regFragPtr->thFreeFirst);
+	tmp.remove();
+      }
+      
       return;
     } else {
       if (regPRPtr.p->type[indexPos] == ZNON_LEAF) {
@@ -327,7 +343,6 @@ void Dbtup::initializePageRange()
 
 void Dbtup::initFragRange(Fragrecord* const regFragPtr)
 {
-  regFragPtr->emptyPrimPage = RNIL;
   regFragPtr->rootPageRange = RNIL;
   regFragPtr->currentPageRange = RNIL;
   regFragPtr->noOfPages = 0;
@@ -365,19 +380,32 @@ Uint32 Dbtup::allocFragPages(Fragrecord* const regFragPtr, Uint32 tafpNoAllocReq
 /*       THOSE PAGES TO EMPTY_MM AND LINK THEM INTO THE EMPTY       */
 /*       PAGE LIST OF THE FRAGMENT.                                 */
 /* ---------------------------------------------------------------- */
+    Uint32 prev = RNIL;
     for (loopPagePtr.i = retPageRef; loopPagePtr.i < loopLimit; loopPagePtr.i++) {
       ljam();
-      ptrCheckGuard(loopPagePtr, cnoOfPage, cpage);
+      c_page_pool.getPtr(loopPagePtr);
       loopPagePtr.p->page_state = ZEMPTY_MM;
       loopPagePtr.p->frag_page_id = startRange +
 	(loopPagePtr.i - retPageRef);
       loopPagePtr.p->physical_page_id = loopPagePtr.i;
-      loopPagePtr.p->next_page = loopPagePtr.i + 1;
+      loopPagePtr.p->nextList = loopPagePtr.i + 1;
+      loopPagePtr.p->prevList = prev;
+      prev = loopPagePtr.i;
     }//for
-    loopPagePtr.i = (retPageRef + noOfPagesAllocated) - 1;
-    ptrCheckGuard(loopPagePtr, cnoOfPage, cpage);
-    loopPagePtr.p->next_page = regFragPtr->emptyPrimPage;
-    regFragPtr->emptyPrimPage = retPageRef;
+    loopPagePtr.i--;
+    ndbassert(loopPagePtr.p == c_page_pool.getPtr(loopPagePtr.i));
+    loopPagePtr.p->nextList = RNIL;
+    
+    LocalDLList<Page> alloc(c_page_pool, regFragPtr->emptyPrimPage);
+    if (noOfPagesAllocated > 1)
+    {
+      alloc.add(retPageRef, loopPagePtr);
+    }
+    else
+    {
+      alloc.add(loopPagePtr);
+    }
+
 /* ---------------------------------------------------------------- */
 /*       WAS ENOUGH PAGES ALLOCATED OR ARE MORE NEEDED.             */
 /* ---------------------------------------------------------------- */

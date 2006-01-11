@@ -46,7 +46,10 @@ private:
   Uint32 requestInfo;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 savePointId;
+  union {
+    Uint32 savePointId;
+    Uint32 gci;
+  };
 
   /**
    * Previously there where also a scan type
@@ -58,6 +61,12 @@ private:
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
   static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
+
+  static Uint32 getNoDiskScanFlag(const Uint32 & requestInfo);
+  static void setNoDiskScanFlag(Uint32 & requestInfo, Uint32 nodisk);
+
+  static Uint32 getNRScanFlag(const Uint32 & requestInfo);
+  static void setNRScanFlag(Uint32 & requestInfo, Uint32 nr);
 };
 
 /**
@@ -66,15 +75,19 @@ private:
  * l = Lock Mode             - 1  Bit 2
  * h = Read Committed        - 1  Bit 5
  * z = Descending (TUX)      - 1  Bit 6
+ * d = No disk scan          - 1  Bit 7
+ * n = Node recovery scan    - 1  Bit 8
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *   l  hz   
+ *   l  hzdn   
  */
 #define AS_LOCK_MODE_SHIFT       (2)
 #define AS_LOCK_MODE_MASK        (1)
 #define AS_READ_COMMITTED_SHIFT  (5)
 #define AS_DESCENDING_SHIFT      (6)
+#define AS_NO_DISK_SCAN          (7)
+#define AS_NR_SCAN               (8)
 
 inline 
 Uint32
@@ -113,6 +126,32 @@ void
 AccScanReq::setDescendingFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "AccScanReq::setDescendingFlag");
   requestInfo |= (val << AS_DESCENDING_SHIFT);
+}
+
+inline
+Uint32
+AccScanReq::getNoDiskScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_NO_DISK_SCAN) & 1;
+}
+
+inline
+void
+AccScanReq::setNoDiskScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setNoDiskScanFlag");
+  requestInfo |= (val << AS_NO_DISK_SCAN);
+}
+
+inline
+Uint32
+AccScanReq::getNRScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_NR_SCAN) & 1;
+}
+
+inline
+void
+AccScanReq::setNRScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setNoDiskScanFlag");
+  requestInfo |= (val << AS_NR_SCAN);
 }
 
 class AccScanConf {

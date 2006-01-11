@@ -154,6 +154,8 @@ public:
   Vector<Uint16> m_fragments;
 
   bool m_logging;
+  bool m_row_gci;
+  bool m_row_checksum;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
@@ -292,6 +294,7 @@ struct NdbFilegroupImpl : public NdbDictObjectImpl {
   BaseString m_logfile_group_name;
   Uint32 m_logfile_group_id;
   Uint32 m_logfile_group_version;
+  Uint64 m_undo_free_words;
 };
 
 class NdbTablespaceImpl : public NdbDictionary::Tablespace, 
@@ -300,6 +303,8 @@ public:
   NdbTablespaceImpl();
   NdbTablespaceImpl(NdbDictionary::Tablespace &);
   ~NdbTablespaceImpl();
+
+  void assign(const NdbTablespaceImpl&);
 
   static NdbTablespaceImpl & getImpl(NdbDictionary::Tablespace & t);
   static const NdbTablespaceImpl & getImpl(const NdbDictionary::Tablespace &);
@@ -312,6 +317,8 @@ public:
   NdbLogfileGroupImpl();
   NdbLogfileGroupImpl(NdbDictionary::LogfileGroup &);
   ~NdbLogfileGroupImpl();
+
+  void assign(const NdbLogfileGroupImpl&);
 
   static NdbLogfileGroupImpl & getImpl(NdbDictionary::LogfileGroup & t);
   static const NdbLogfileGroupImpl& getImpl(const 
@@ -336,6 +343,8 @@ public:
   NdbDatafileImpl(NdbDictionary::Datafile &);
   ~NdbDatafileImpl();
 
+  void assign(const NdbDatafileImpl&);
+
   static NdbDatafileImpl & getImpl(NdbDictionary::Datafile & t);
   static const NdbDatafileImpl & getImpl(const NdbDictionary::Datafile & t);
   NdbDictionary::Datafile * m_facade;
@@ -346,6 +355,8 @@ public:
   NdbUndofileImpl();
   NdbUndofileImpl(NdbDictionary::Undofile &);
   ~NdbUndofileImpl();
+
+  void assign(const NdbUndofileImpl&);
 
   static NdbUndofileImpl & getImpl(NdbDictionary::Undofile & t);
   static const NdbUndofileImpl & getImpl(const NdbDictionary::Undofile & t);
@@ -402,10 +413,10 @@ public:
 			    const Uint32 * data, Uint32 len,
 			    bool fullyQualifiedNames);
 
-  static int parseFileInfo(NdbFileImpl &dst, 
+  static int parseFileInfo(NdbFileImpl &dst,
 			   const Uint32 * data, Uint32 len);
-  
-  static int parseFilegroupInfo(NdbFilegroupImpl &dst, 
+
+  static int parseFilegroupInfo(NdbFilegroupImpl &dst,
 				const Uint32 * data, Uint32 len);
   
   int create_file(const NdbFileImpl &, const NdbFilegroupImpl&, bool overwrite = false);
@@ -413,7 +424,7 @@ public:
   int create_filegroup(const NdbFilegroupImpl &);
   int drop_filegroup(const NdbFilegroupImpl &);
   
-  int get_filegroup(NdbFilegroupImpl&, NdbDictionary::Object::Type, int);
+  int get_filegroup(NdbFilegroupImpl&, NdbDictionary::Object::Type, Uint32);
   int get_filegroup(NdbFilegroupImpl&,NdbDictionary::Object::Type,const char*);
   int get_file(NdbFileImpl&, NdbDictionary::Object::Type, int, int);
   int get_file(NdbFileImpl&, NdbDictionary::Object::Type, int, const char *);

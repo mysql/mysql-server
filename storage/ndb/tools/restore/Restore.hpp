@@ -267,6 +267,11 @@ public:
   bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
 };
 
+struct DictObject {
+  Uint32 m_objType;
+  void * m_objPtr;
+};
+
 class RestoreMetaData : public BackupFile {
 
   Vector<TableS *> allTables;
@@ -281,6 +286,8 @@ class RestoreMetaData : public BackupFile {
   
   bool parseTableDescriptor(const Uint32 * data, Uint32 len);
 
+  Vector<DictObject> m_objects;
+  
 public:
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
   virtual ~RestoreMetaData();
@@ -292,6 +299,10 @@ public:
   const TableS * operator[](int i) const { return allTables[i];}
   TableS * getTable(Uint32 tableId) const;
 
+  Uint32 getNoOfObjects() const { return m_objects.size();}
+  Uint32 getObjType(Uint32 i) const { return m_objects[i].m_objType; }
+  void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
+  
   Uint32 getStopGCP() const;
 }; // RestoreMetaData
 

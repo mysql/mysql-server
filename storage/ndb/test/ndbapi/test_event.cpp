@@ -343,6 +343,16 @@ int runCreateShadowTable(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+int runDropShadowTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table *table= ctx->getTab();
+  char buf[1024];
+  sprintf(buf, "%s_SHADOW", table->getName());
+  
+  GETNDB(step)->getDictionary()->dropTable(buf);
+  return NDBT_OK;
+}
+
 int runCreateDropEventOperation(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
@@ -1443,6 +1453,7 @@ TESTCASE("EventOperationApplier",
   STEP(runEventMixedLoad);
   FINALIZER(runDropEvent);
   FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
 }
 TESTCASE("EventOperationApplier_NR", 
 	 "Verify that if we apply the data we get from event "
@@ -1455,6 +1466,7 @@ TESTCASE("EventOperationApplier_NR",
   STEP(runRestarter);
   FINALIZER(runDropEvent);
   FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
 }
 TESTCASE("Multi", 
 	 "Verify that we can work with all tables in parallell"

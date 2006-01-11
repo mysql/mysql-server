@@ -78,6 +78,8 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     must be hash based so that the kernel can handle it on its own.
   */
   bt.m_primaryTableId = t->m_id;
+  bt.m_tablespace_id = t->m_tablespace_id;
+  bt.m_tablespace_version = t->m_tablespace_version;
   bt.m_ng.clear();
   switch (t->getFragmentType())
   {

@@ -122,36 +122,30 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
   result = NDBT_FAILED; \
   continue; } 
 
-int runSR(NDBT_Context* ctx, NDBT_Step* step)
+int
+restart_cluster(NDBT_Context* ctx, NDBT_Step* step, NdbRestarter& restarter)
 {
-  int result = NDBT_OK;
-  int runtime = ctx->getNumLoops();
-  int sleeptime = ctx->getNumRecords();
-  NdbRestarter restarter;
   bool abort = true;
   int timeout = 180;
+  int result = NDBT_OK;
 
-  Uint32 now;
-  const Uint32 stop = time(0)+ runtime;
-  while(!ctx->isTestStopped() && ((now= time(0)) < stop) && result == NDBT_OK)
+  do 
   {
-    ndbout << " -- Sleep " << sleeptime << "s " << endl;
-    NdbSleep_SecSleep(sleeptime);
     ndbout << " -- Shutting down " << endl;
     ctx->setProperty("SR", 1);
     CHECK(restarter.restartAll(false, true, abort) == 0);
     ctx->setProperty("SR", 2);
     CHECK(restarter.waitClusterNoStart(timeout) == 0);
-
+    
     Uint32 cnt = ctx->getProperty("ThreadCount");
     Uint32 curr= ctx->getProperty("ThreadStopped");
-    while(curr != cnt)
+    while(curr != cnt && !ctx->isTestStopped())
     {
       ndbout_c("%d %d", curr, cnt);
       NdbSleep_MilliSleep(100);
       curr= ctx->getProperty("ThreadStopped");
     }
-
+    
     ctx->setProperty("ThreadStopped", (Uint32)0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
@@ -166,18 +160,166 @@ int runSR(NDBT_Context* ctx, NDBT_Step* step)
 	ndbout << "bank.performSumAccounts FAILED" << endl;
 	return NDBT_FAILED;
       }
-
+      
       if (bank.performValidateAllGLs() != 0)
       {
 	ndbout << "bank.performValidateAllGLs FAILED" << endl;
 	return NDBT_FAILED;
       }
     }
-
+    
     ndbout << " -- Validating complete " << endl;
-    ctx->setProperty("SR", (Uint32)0);
-    ctx->broadcast();
+  } while(0);
+  ctx->setProperty("SR", (Uint32)0);
+  ctx->broadcast();
+  return result;
+}
+
+ndb_mgm_node_state*
+select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
+{
+  Uint32 i, j;
+  Vector<ndb_mgm_node_state*> alive_nodes;
+  for(i = 0; i<nodes.size(); i++)
+  {
+    ndb_mgm_node_state* node = &nodes[i];
+    if (node->node_status == NDB_MGM_NODE_STATUS_STARTED)
+      alive_nodes.push_back(node);
   }
+
+  Vector<ndb_mgm_node_state*> victims;
+  // Remove those with one in node group
+  for(i = 0; i<alive_nodes.size(); i++)
+  {
+    int group = alive_nodes[i]->node_group;
+    for(j = 0; j<alive_nodes.size(); j++) 
+    {
+      if (i != j && alive_nodes[j]->node_group == group)
+      {
+	victims.push_back(alive_nodes[i]);
+	break;
+      }
+    }
+  }
+
+  if (victims.size())
+  {
+    int victim = rand() % victims.size();
+    return victims[victim];
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+ndb_mgm_node_state*
+select_node_to_start(Vector<ndb_mgm_node_state>& nodes)
+{
+  Uint32 i, j;
+  Vector<ndb_mgm_node_state*> victims;
+  for(i = 0; i<nodes.size(); i++)
+  {
+    ndb_mgm_node_state* node = &nodes[i];
+    if (node->node_status == NDB_MGM_NODE_STATUS_NOT_STARTED)
+      victims.push_back(node);
+  }
+
+  if (victims.size())
+  {
+    int victim = rand() % victims.size();
+    return victims[victim];
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+enum Action {
+  AA_RestartCluster = 0x1,
+  AA_RestartNode    = 0x2,
+  AA_StopNode       = 0x4,
+  AA_StartNode      = 0x8,
+  AA_COUNT = 4
+};
+
+int
+runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int runtime = ctx->getNumLoops();
+  int sleeptime = ctx->getNumRecords();
+  NdbRestarter restarter;
+  int timeout = 180;
+  Uint32 type = ctx->getProperty("Type", ~(Uint32)0);
+  
+  restarter.waitClusterStarted();
+  Vector<ndb_mgm_node_state> nodes;
+  nodes = restarter.ndbNodes;
+#if 0
+  for (Uint32 i = 0; i<restarter.ndbNodes.size(); i++)
+    nodes.push_back(restarter.ndbNodes[i]);
+#endif  
+
+  
+  Uint32 now;
+  const Uint32 stop = time(0)+ runtime;
+  while(!ctx->isTestStopped() && ((now= time(0)) < stop) && result == NDBT_OK)
+  {
+    ndbout << " -- Sleep " << sleeptime << "s " << endl;
+    int cnt = sleeptime;
+    while (cnt-- && !ctx->isTestStopped())
+      NdbSleep_SecSleep(1);
+    if (ctx->isTestStopped())
+      return NDBT_FAILED;
+    
+    ndb_mgm_node_state* node = 0;
+    int action;
+loop:
+    while(((action = (1 << (rand() % AA_COUNT))) & type) == 0);
+    switch(action){
+    case AA_RestartCluster:
+      if (restart_cluster(ctx, step, restarter))
+	return NDBT_FAILED;
+      for (Uint32 i = 0; i<nodes.size(); i++)
+	nodes[i].node_status = NDB_MGM_NODE_STATUS_STARTED;
+      break;
+    case AA_RestartNode:
+    case AA_StopNode:
+    {
+      if ((node = select_node_to_stop(nodes)) == 0)
+	goto loop;
+      
+      if (action == AA_RestartNode)
+      {
+	g_err << "Restarting " << node->node_id << endl;
+	if (restarter.restartOneDbNode(node->node_id, false, false, true))
+	  return NDBT_FAILED;
+      }
+      if (action == AA_StopNode)
+      {
+	g_err << "Stopping " << node->node_id << endl;
+	if (restarter.restartOneDbNode(node->node_id, false, true, true))
+	  return NDBT_FAILED;
+	node->node_status = NDB_MGM_NODE_STATUS_NOT_STARTED;
+      }
+      break;
+    }
+    case AA_StartNode:
+      if ((node = select_node_to_start(nodes)) == 0)
+	goto loop;
+      g_err << "Starting " << node->node_id << endl;
+      if (restarter.startNodes(&node->node_id, 1))
+	return NDBT_FAILED;
+      if (restarter.waitNodesStarted(&node->node_id, 1))
+	return NDBT_FAILED;
+      
+      node->node_status = NDB_MGM_NODE_STATUS_STARTED;      
+      break;
+    }
+  }
+  
   ctx->stopTest();
   return NDBT_OK;
 }
@@ -191,13 +333,14 @@ int runDropBank(NDBT_Context* ctx, NDBT_Step* step){
 
 
 NDBT_TESTSUITE(testSRBank);
-TESTCASE("Graceful", 
+TESTCASE("SR", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
 	 "1.  Create bank\n"
 	 "2.  Start bank and let it run\n"
 	 "3.  Restart ndb and verify consistency\n"
 	 "4.  Drop bank\n")
 {
+  TC_PROPERTY("Type", AA_RestartCluster);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
   STEP(runBankTransactions);
@@ -211,15 +354,16 @@ TESTCASE("Graceful",
   STEP(runBankTransactions);
   STEP(runBankTransactions);
   STEP(runBankGL);
-  STEP(runSR);
+  STEP(runMixRestart);
 }
-TESTCASE("Abort", 
+TESTCASE("NR", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
 	 "1.  Create bank\n"
 	 "2.  Start bank and let it run\n"
 	 "3.  Restart ndb and verify consistency\n"
 	 "4.  Drop bank\n")
 {
+  TC_PROPERTY("Type", AA_RestartNode | AA_StopNode | AA_StartNode);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
   STEP(runBankTransactions);
@@ -233,7 +377,31 @@ TESTCASE("Abort",
   STEP(runBankTransactions);
   STEP(runBankTransactions);
   STEP(runBankGL);
-  STEP(runSR);
+  STEP(runMixRestart);
+  FINALIZER(runDropBank);
+}
+TESTCASE("Mix", 
+	 " Test that a consistent bank is restored after graceful shutdown\n"
+	 "1.  Create bank\n"
+	 "2.  Start bank and let it run\n"
+	 "3.  Restart ndb and verify consistency\n"
+	 "4.  Drop bank\n")
+{
+  TC_PROPERTY("Type", ~0);
+  INITIALIZER(runCreateBank);
+  STEP(runBankTimer);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankTransactions);
+  STEP(runBankGL);
+  STEP(runMixRestart);
   FINALIZER(runDropBank);
 }
 NDBT_TESTSUITE_END(testSRBank);
@@ -243,4 +411,4 @@ int main(int argc, const char** argv){
   return testSRBank.execute(argc, argv);
 }
 
-
+template class Vector<ndb_mgm_node_state*>;

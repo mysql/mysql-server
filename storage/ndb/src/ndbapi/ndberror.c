@@ -172,6 +172,7 @@ ErrorBundle ErrorCodes[] = {
   { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
+  { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1220, DMEC, TR, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 1222, DMEC, TR, "Out of transaction markers in LQH" },
@@ -391,6 +392,20 @@ ErrorBundle ErrorCodes[] = {
   { 1229, DMEC, SE, "Too long frm data supplied" },
   { 1231, DMEC, SE, "Invalid table or index to scan" },
   { 1232, DMEC, SE, "Invalid table or index to scan" },
+
+  { 1502, DMEC, IE, "Filegroup already exists" },
+  { 1503, DMEC, SE, "Out of filegroup records" },
+  { 1504, DMEC, SE, "Out of logbuffer memory" },
+  { 1505, DMEC, IE, "Invalid filegroup" },
+  { 1506, DMEC, IE, "Invalid filegroup version" },
+  { 1507, DMEC, IE, "File no already inuse" },
+  { 1508, DMEC, SE, "Out of file records" },
+  { 1509, DMEC, SE, "File system error, check if path,permissions etc" },
+  { 1510, DMEC, IE, "File meta data error" },
+  { 1511, DMEC, IE, "Out of memory" },
+  { 1512, DMEC, SE, "File read error" },
+  { 1513, DMEC, IE, "Filegroup not online" },
+  
 
   /**
    * FunctionNotImplemented
