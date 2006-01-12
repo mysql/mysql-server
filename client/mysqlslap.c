@@ -982,6 +982,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   }
   else
   {
+    fflush(NULL);
     for (x= 0; x < concur; x++)
     {
       int pid;
@@ -1026,10 +1027,19 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 
   gettimeofday(&start_time, NULL);
 
-  my_close(lock_file, MYF(0));
-
+  /*
+    We look to grab a write lock at this point. Once we get it we know that
+    all clients have completed their work.
+  */
   if (opt_use_threads)
   {
+    if (my_lock(lock_file, F_WRLCK, 0, F_TO_EOF, MYF(0)))
+    {
+      fprintf(stderr,"%s: Could not get lockfile\n",
+              my_progname);
+      exit(0);
+    }
+    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
   }
   else
   {
@@ -1042,6 +1052,8 @@ WAIT:
     }
   }
   gettimeofday(&end_time, NULL);
+
+  my_close(lock_file, MYF(0));
 
   sptr->timing= timedif(end_time, start_time);
   sptr->users= concur;

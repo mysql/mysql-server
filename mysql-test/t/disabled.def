@@ -19,6 +19,5 @@ innodb_concurrent : Results are not deterministic, Elliot will fix (BUG#3300)
 subselect       : Bug#15706
 type_time       : Bug#15805
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
-mysqlslap       : Bug#16167
 events          : Affects flush test case. A table lock not released somewhere
 rpl_sp          : Bug #16456
