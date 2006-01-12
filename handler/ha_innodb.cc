@@ -2934,7 +2934,6 @@ ha_innobase::store_key_val_for_row(
 				continue;
 			}
 			cs = field->charset();
-			true_len = key_len;
 
 			lenlen = (ulint)
 				(((Field_varstring*)field)->length_bytes);
@@ -2944,13 +2943,15 @@ ha_innobase::store_key_val_for_row(
 				+ (ulint)get_field_offset(table, field)),
 				lenlen);
 
+			true_len = len;
+
 			/* For multi byte character sets we need to calculate
 			the true length of the key */
 
-			if (key_len > 0 && cs->mbmaxlen > 1) {
+			if (len > 0 && cs->mbmaxlen > 1) {
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
-						(const char *) data + key_len,
+						(const char *) data + len,
 						key_len / cs->mbmaxlen, 
 						&error);
 			}
@@ -2958,17 +2959,17 @@ ha_innobase::store_key_val_for_row(
 			/* In a column prefix index, we may need to truncate
 			the stored value: */
 
-			if (len > true_len) {
-				len = true_len;
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* The length in a key value is always stored in 2
 			bytes */
 
-			row_mysql_store_true_var_len((byte*)buff, len, 2);
+			row_mysql_store_true_var_len((byte*)buff, true_len, 2);
 			buff += 2;
 
-			memcpy(buff, data, len);
+			memcpy(buff, data, true_len);
 
 			/* Note that we always reserve the maximum possible
 			length of the true VARCHAR in the key value, though
@@ -3002,12 +3003,13 @@ ha_innobase::store_key_val_for_row(
 			}
 		    
 			cs = field->charset();
-			true_len = key_len;
 
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
 				+ (ulint)get_field_offset(table, field)),
 					(ulint) field->pack_length());
+
+			true_len = blob_len;
 
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
@@ -3015,11 +3017,11 @@ ha_innobase::store_key_val_for_row(
 			/* For multi byte character sets we need to calculate
 			the true length of the key */
 			
-			if (key_len > 0 && cs->mbmaxlen > 1) {
+			if (blob_len > 0 && cs->mbmaxlen > 1) {
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) blob_data,
 						(const char *) blob_data 
-							+ key_len,
+							+ blob_len,
 						key_len / cs->mbmaxlen,
 						&error);
 			}
@@ -3028,18 +3030,18 @@ ha_innobase::store_key_val_for_row(
 			indexes, and we may need to truncate the data to be
 			stored in the key value: */
 
-			if (blob_len > true_len) {
-				blob_len = true_len;
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
 			storage of the number is little-endian */
 
 			innobase_write_to_2_little_endian(
-					(byte*)buff, (ulint)blob_len);
+					(byte*)buff, true_len);
 			buff += 2;
 
-			memcpy(buff, blob_data, blob_len);
+			memcpy(buff, blob_data, true_len);
 
 			/* Note that we always reserve the maximum possible
 			length of the BLOB prefix in the key value. */
@@ -3071,7 +3073,7 @@ ha_innobase::store_key_val_for_row(
 			true_len = key_len;
 
 			/* Character set for the field is defined only
-			fields which type is string and real field
+			to fields whose type is string and real field
 			type is not enum or set. For these fields check
 			if character set is multi byte. */
 
