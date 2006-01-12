@@ -252,51 +252,39 @@ void finish_defaults()
 ******************************************************************************/
 void read_defaults(arg_list_t *pal)
 {
-  arg_list_t al;
-  char defaults_file[PATH_MAX];
   char mydefaults[PATH_MAX];
+  char mydefaults_command[3*PATH_MAX];
   char line[PATH_MAX];
   FILE *fp;
   
-	// defaults output file
-	snprintf(defaults_file, PATH_MAX, "%s/bin/defaults.out", basedir);
-	remove(defaults_file);
-
-	// mysqladmin file
+	// my_print_defaults file
   snprintf(mydefaults, PATH_MAX, "%s/bin/my_print_defaults", basedir);
 	
-  // args
-  init_args(&al);
-  add_arg(&al, mydefaults);
-  if (default_option[0]) add_arg(&al, default_option);
-  add_arg(&al, "mysqld");
-  add_arg(&al, "server");
-  add_arg(&al, "mysqld_safe");
-  add_arg(&al, "safe_mysqld");
-
-	spawn(mydefaults, &al, TRUE, NULL, defaults_file, NULL);
-
-  free_args(&al);
-
+  // args to my_print_defaults
+  if (default_option[0]) 
+  {
+    snprintf(mydefaults_command, 3*PATH_MAX, "%s %s mysqld server mysqld_safe safe_mysqld", mydefaults, default_option);
+  }
+  else
+  {
+    snprintf(mydefaults_command, 3*PATH_MAX, "%s mysqld server mysqld_safe safe_mysqld", mydefaults);
+  }
 	// gather defaults
-	if((fp = fopen(defaults_file, "r")) != NULL)
+	if((fp = popen(mydefaults_command, "r")) != NULL)
 	{
 	  while(fgets(line, PATH_MAX, fp))
 	  {
       char *p;
       
       // remove end-of-line character
-      if ((p = strrchr(line, '\n')) != NULL) *p = '\0';
+      if ((p = strrchr(line, '\n')) != NULL) 
+        *p = '\0';
       
       // add the option as an argument
 	    add_arg(pal, line);
 	  }
-	  
-	  fclose(fp);
+	  pclose(fp);
 	}
-	
-	// remove file
-	remove(defaults_file);
 }
 
 /******************************************************************************

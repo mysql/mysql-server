@@ -2402,6 +2402,11 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
   }
 #endif
+#ifdef __NETWARE__
+  /* Increasing stacksize of threads on NetWare */
+
+  pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
+#endif
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
