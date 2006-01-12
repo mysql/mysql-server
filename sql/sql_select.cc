@@ -4487,7 +4487,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
 	    ! s->table->used_keys.is_clear_all() && best_key) &&
-	  !(s->table->force_index && best_key & !s->quick))
+	  !(s->table->force_index && best_key && !s->quick))
       {						// Check full join
         ha_rows rnd_records= s->found_records;
         /*
