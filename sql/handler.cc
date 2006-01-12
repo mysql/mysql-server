@@ -1851,7 +1851,12 @@ void handler::print_error(int error, myf errflag)
 	str.length(max_length-4);
 	str.append(STRING_WITH_LEN("..."));
       }
+#ifdef XXX_TO_BE_DONE_BY_A_FOLLOWUP_OF_WL1563
+      my_printf_error(ER_DUP_ENTRY, "Duplicate entry '%s' for key '%s'",
+                      MYF(0), str.c_ptr(), table->key_info[key_nr].name);
+#else
       my_error(ER_DUP_ENTRY, MYF(0), str.c_ptr(), key_nr+1);
+#endif
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -1936,6 +1941,15 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_RBR_LOGGING_FAILED:
     textno= ER_BINLOG_ROW_LOGGING_FAILED;
     break;
+  case HA_ERR_DROP_INDEX_FK:
+  {
+    const char *ptr= "???";
+    uint key_nr= get_dup_key(error);
+    if ((int) key_nr >= 0)
+      ptr= table->key_info[key_nr].name;
+    my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
+    DBUG_VOID_RETURN;
+  }
   default:
     {
       /* The error was "unknown" to this function.
@@ -1984,7 +1998,7 @@ uint handler::get_dup_key(int error)
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE ||
-      error == HA_ERR_NULL_IN_SPATIAL)
+      error == HA_ERR_NULL_IN_SPATIAL || error == HA_ERR_DROP_INDEX_FK)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
