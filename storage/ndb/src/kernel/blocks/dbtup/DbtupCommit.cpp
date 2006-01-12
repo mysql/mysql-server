@@ -584,22 +584,22 @@ void
 Dbtup::set_change_mask_info(KeyReqStruct * const req_struct,
                             Operationrec * const regOperPtr)
 {
-  ChangeMaskState change_mask= get_change_mask_state(regOperPtr);
-  if (change_mask == USE_SAVED_CHANGE_MASK) {
+  ChangeMaskState state = get_change_mask_state(regOperPtr);
+  if (state == USE_SAVED_CHANGE_MASK) {
     ljam();
     req_struct->changeMask.setWord(0, regOperPtr->saved_change_mask[0]);
     req_struct->changeMask.setWord(1, regOperPtr->saved_change_mask[1]);
-    //get saved state
-  } else if (change_mask == RECALCULATE_CHANGE_MASK) {
+  } else if (state == RECALCULATE_CHANGE_MASK) {
     ljam();
-    //Recompute change mask, for now set all bits
+    // Recompute change mask, for now set all bits
     req_struct->changeMask.set();
-  } else if (change_mask == SET_ALL_MASK) {
+  } else if (state == SET_ALL_MASK) {
     ljam();
     req_struct->changeMask.set();
   } else {
     ljam();
-    ndbrequire(change_mask == DELETE_CHANGES);
+    ndbrequire(state == DELETE_CHANGES);
+    req_struct->changeMask.set();
   }
 }
 

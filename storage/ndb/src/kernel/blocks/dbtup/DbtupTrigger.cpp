@@ -447,6 +447,37 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                                   Operationrec* const regOperPtr,
                                   Tablerec* const regTablePtr)
 {
+  Uint32 save_type = regOperPtr->op_struct.op_type;
+  Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
+
+  switch (save_type) {
+  case ZUPDATE:
+  case ZINSERT:
+    req_struct->m_tuple_ptr = (Tuple_header*)
+      c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
+    break;
+  }
+
+  /**
+   * Set correct operation type and fix change mask
+   * Note ALLOC is set in "orig" tuple
+   */
+  if (save_ptr->m_header_bits & Tuple_header::ALLOC) {
+    if (save_type == ZDELETE) {
+      // insert + delete = nothing
+      ljam();
+      return;
+      goto end;
+    }
+    regOperPtr->op_struct.op_type = ZINSERT;
+  }
+  else if (save_type == ZINSERT) {
+    /**
+     * Tuple was not created but last op is INSERT.
+     * This is possible only on DELETE + INSERT
+     */
+    regOperPtr->op_struct.op_type = ZUPDATE;
+  }
   
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
@@ -454,7 +485,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     if (regTablePtr->subscriptionInsertTriggers.isEmpty()) {
       // Table has no active triggers monitoring inserts at commit
       ljam();
-      return;
+      goto end;
     }
 
     // If any fired immediate insert trigger then fetch after tuple
@@ -467,7 +498,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     if (regTablePtr->subscriptionDeleteTriggers.isEmpty()) {
       // Table has no active triggers monitoring deletes at commit
       ljam();
-      return;
+      goto end;
     }
 
     // Execute any after delete triggers by sending 
@@ -481,7 +512,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     if (regTablePtr->subscriptionUpdateTriggers.isEmpty()) {
       // Table has no active triggers monitoring updates at commit
       ljam();
-      return;
+      goto end;
     }
 
     // If any fired immediate update trigger then fetch after tuple
@@ -494,6 +525,10 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     ndbrequire(false);
     break;
   }
+
+end:
+  regOperPtr->op_struct.op_type = save_type;
+  req_struct->m_tuple_ptr = save_ptr;
 }
 
 void 
@@ -546,40 +581,6 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
 {
   
   TriggerPtr trigPtr;  
-  Uint32 save= regOperPtr->op_struct.op_type;
-  Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
-
-  switch(save){
-  case ZUPDATE:
-  case ZINSERT:
-    req_struct->m_tuple_ptr = (Tuple_header*)
-      c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
-    break;
-  }
-
-  /**
-   * Set correct operation type and fix change mask
-   * Note ALLOC is set in "orig" tuple
-   */
-  if(save_ptr->m_header_bits & Tuple_header::ALLOC)
-  {
-    if(save == ZDELETE)
-    {
-      // insert + delete = nothing
-      ljam();
-      return;
-      goto end;
-    }
-    regOperPtr->op_struct.op_type = ZINSERT;
-  }
-  else if (save == ZINSERT)
-  /**
-   * Tuple was not created but last op is INSERT.
-   * This is possible only on DELETE + INSERT
-   */
-  {
-    regOperPtr->op_struct.op_type = ZUPDATE;
-  }
   
   /**
    * Set disk page
@@ -601,10 +602,6 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
     }
     triggerList.next(trigPtr);
   }
-
-end:
-  regOperPtr->op_struct.op_type = save;
-  req_struct->m_tuple_ptr = save_ptr;
 }
 
 void Dbtup::executeTriggers(KeyReqStruct *req_struct,
@@ -627,7 +624,6 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
                            TupTriggerData* const trigPtr,
                            Operationrec* const regOperPtr)
 {
-
   /**
    * The block below does not work together with GREP.
    * I have 2 db nodes (2 replicas) -> one node group.
@@ -833,7 +829,6 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			   false);
   ndbrequire(ret != -1);
   noPrimKey= ret;
-
   Uint32 numAttrsToRead;
   if ((regOperPtr->op_struct.op_type == ZUPDATE) &&
       (trigPtr->sendOnlyChangedAttributes)) {
