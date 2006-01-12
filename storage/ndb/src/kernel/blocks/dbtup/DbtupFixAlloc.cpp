@@ -242,8 +242,8 @@ Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP,
 }
 
 Uint32*
-Dbtup::alloc_fix_rowid(Fragrecord* const regFragPtr,
-		       Tablerec* const regTabPtr,
+Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
+		       Tablerec* regTabPtr,
 		       Local_key* key,
 		       Uint32 * out_frag_page_id) 
 {
