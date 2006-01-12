@@ -918,6 +918,11 @@ drop function if exists f5|
 drop function if exists f6|
 drop function if exists f7|
 drop function if exists f8|
+drop function if exists f9|
+drop function if exists f10|
+drop function if exists f11|
+drop function if exists f12_1|
+drop function if exists f12_2|
 drop view if exists v0|
 drop view if exists v1|
 drop view if exists v2|
@@ -1087,6 +1092,62 @@ ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables|
+create function f9() returns int
+begin
+declare a, b int;
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+set a:= (select count(*) from t3);
+set b:= (select count(*) from t3 t3_alias);
+return a + b;
+end|
+select f9()|
+f9()
+6
+Warnings:
+Note	1051	Unknown table 't3'
+select f9() from t1 limit 1|
+f9()
+6
+create function f10() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 select id from t4;
+return (select count(*) from t3);
+end|
+select f10()|
+ERROR 42S02: Table 'test.t4' doesn't exist
+create table t4 as select 1 as id|
+select f10()|
+f10()
+1
+create function f11() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+return (select count(*) from t3 as a, t3 as b);
+end|
+select f11()|
+ERROR HY000: Can't reopen table: 'a'
+select f11() from t1|
+ERROR HY000: Can't reopen table: 'a'
+create function f12_1() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+return f12_2();
+end|
+create function f12_2() returns int
+return (select count(*) from t3)|
+drop temporary table t3|
+select f12_1()|
+ERROR 42S02: Table 'test.t3' doesn't exist
+select f12_1() from t1 limit 1|
+ERROR 42S02: Table 'test.t3' doesn't exist
 drop function f0|
 drop function f1|
 drop function f2|
@@ -1096,11 +1157,17 @@ drop function f5|
 drop function f6|
 drop function f7|
 drop function f8|
+drop function f9|
+drop function f10|
+drop function f11|
+drop function f12_1|
+drop function f12_2|
 drop view v0|
 drop view v1|
 drop view v2|
 delete from t1 |
 delete from t2 |
+drop table t4|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|
