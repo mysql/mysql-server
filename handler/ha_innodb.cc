@@ -1000,6 +1000,10 @@ innobase_query_caching_of_table_permitted(
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
+
+		mutex_enter(&kernel_mutex);
+		trx_print(stderr, trx, 1024);
+		mutex_exit(&kernel_mutex);
 	}
 
 	innobase_release_stat_resources(trx);
