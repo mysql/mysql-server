@@ -1,7 +1,7 @@
 TARGET = ndbapi_event
 SRCS = ndbapi_event.cpp
 OBJS = ndbapi_event.o
-CXX = g++
+CXX = g++ -g
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 CXXFLAGS = 
 DEBUG = 
@@ -17,7 +17,7 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
-	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
+	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi -I$(TOP_SRCDIR)/include $(SRCS)
 
 clean:
 	rm -f *.o $(TARGET)
