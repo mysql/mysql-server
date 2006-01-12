@@ -206,6 +206,11 @@ enum ha_base_keytype {
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 #define HA_GENERATED_KEY	8192	/* Automaticly generated key */
 
+        /* The combination of the above can be used for key type comparison. */
+#define HA_KEYFLAG_MASK (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | \
+                         HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
+                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+
 	/* Automatic bits in key-flag */
 
 #define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
@@ -349,8 +354,9 @@ enum ha_base_keytype {
 #define HA_ERR_NO_PARTITION_FOUND 160  /* There's no partition in table for
                                           given value */
 #define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
+#define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr. */
 
-#define HA_ERR_LAST               161  /* Copy last error no */
+#define HA_ERR_LAST               162  /* Copy last error no */
 
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

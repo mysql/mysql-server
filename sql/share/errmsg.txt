@@ -5779,3 +5779,6 @@ ER_EVENT_SAME_NAME
         eng "Same old and new event name"
 ER_EVENT_DATA_TOO_LONG
         eng "Data for column '%s' too long"
+ER_DROP_INDEX_FK
+        eng "Cannot drop index '%-.64s': needed in a foreign key constraint"
+        ger "Kann Index '%-.64s' nicht löschen: wird für einen einen Fremdschlüssel benötigt"
