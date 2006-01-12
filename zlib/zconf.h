@@ -8,6 +8,10 @@
 #ifndef ZCONF_H
 #define ZCONF_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 /*
  * If you *really* need a unique prefix for all types and library functions,
  * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
