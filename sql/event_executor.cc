@@ -183,13 +183,20 @@ event_executor_main(void *arg)
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
+
+  if (sizeof(my_time_t) != sizeof(time_t))
+  {
+    sql_print_error("sizeof(my_time_t) != sizeof(time_t) ."
+                    "The scheduler will not work correctly. Stopping.");
+    goto err_no_thd;
+  }
   
   //TODO Andrey: Check for NULL
   if (!(thd = new THD)) // note that contructor of THD uses DBUG_ !
   {
     sql_print_error("Cannot create THD for event_executor_main");
     goto err_no_thd;
-  }    
+  }
   thd->thread_stack = (char*)&thd; // remember where our stack is
   
   pthread_detach_this_thread();
@@ -275,7 +282,7 @@ event_executor_main(void *arg)
       }
         
       DBUG_PRINT("evex main thread",("computing time to sleep till next exec"));
-      time(&now);
+      time((time_t *)&now);
       my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
       t2sleep= evex_time_diff(&et->execute_at, &time_now);
       VOID(pthread_mutex_unlock(&LOCK_event_arrays));

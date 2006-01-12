@@ -537,7 +537,7 @@ event_timed::compute_next_execution_time()
     }
     goto ret;
   }
-  time(&now);
+  time((time_t *)&now);
   my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
 /*
   sql_print_information("[%s.%s]", dbname.str, name.str);
@@ -703,7 +703,7 @@ event_timed::mark_last_executed()
   TIME time_now;
   my_time_t now;
 
-  time(&now);
+  time((time_t *)&now);
   my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
 
   last_executed= time_now; // was execute_at
