@@ -1388,10 +1388,20 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 
 
 /****************************************************************************
-** Reopen an table because the definition has changed. The date file for the
-** table is already closed.
-** Returns 0 if ok.
-** If table can't be reopened, the entry is unchanged.
+  Reopen an table because the definition has changed. The date file for the
+  table is already closed.
+
+  SYNOPSIS
+    reopen_table()
+    table		Table to be opened
+    locked		1 if we have already a lock on LOCK_open
+
+  NOTES
+    table->query_id will be 0 if table was reopened
+
+  RETURN
+    0  ok
+    1  error ('table' is unchanged if table couldn't be reopened)
 ****************************************************************************/
 
 bool reopen_table(TABLE *table,bool locked)
@@ -1464,8 +1474,10 @@ bool reopen_table(TABLE *table,bool locked)
     (*field)->table_name= &table->alias;
   }
   for (key=0 ; key < table->s->keys ; key++)
+  {
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
       table->key_info[key].key_part[part].field->table= table;
+  }
   if (table->triggers)
     table->triggers->set_table(table);
 
