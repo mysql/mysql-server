@@ -15107,7 +15107,7 @@ Dbdict::create_file_abort_complete(Signal* signal, SchemaOp* op)
     }
     
     release_object(f_ptr.p->m_obj_ptr_i);
-    c_file_pool.release(f_ptr);
+    c_file_hash.release(f_ptr);
   }
   
   execute(signal, op->m_callback, 0);
@@ -15145,7 +15145,7 @@ Dbdict::drop_file_commit_complete(Signal* signal, SchemaOp* op)
 
   decrease_ref_count(fg_ptr.p->m_obj_ptr_i);
   release_object(f_ptr.p->m_obj_ptr_i);
-  c_file_pool.release(f_ptr);
+  c_file_hash.release(f_ptr);
 
   execute(signal, op->m_callback, 0);
 }
@@ -15310,6 +15310,7 @@ Dbdict::drop_fg_commit_start(Signal* signal, SchemaOp* op)
       tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
       computeChecksum(xsf, objId / NDB_SF_PAGE_ENTRIES);
       release_object(filePtr.p->m_obj_ptr_i);
+      c_file_hash.remove(filePtr);
     }
     list.release();
   }
