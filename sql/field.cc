@@ -8981,11 +8981,11 @@ uint32 Field_blob::max_length()
   switch (packlength)
   {
   case 1:
-    return 255;
+    return 255 * field_charset->mbmaxlen;
   case 2:
-    return 65535;
+    return 65535 * field_charset->mbmaxlen;
   case 3:
-    return 16777215;
+    return 16777215 * field_charset->mbmaxlen;
   case 4:
     return (uint32) 4294967295U;
   default:
