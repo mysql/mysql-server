@@ -1167,3 +1167,11 @@ set @a:=null;
 execute my_stmt using @a;
 a	b
 drop table if exists t1;
+CREATE TABLE t1 (t TINYTEXT CHARACTER SET utf8);
+INSERT INTO t1 VALUES(REPEAT('a', 100));
+CREATE TEMPORARY TABLE t2 SELECT COALESCE(t) AS bug FROM t1;
+SELECT LENGTH(bug) FROM t2;
+LENGTH(bug)
+100
+DROP TABLE t2;
+DROP TABLE t1;
