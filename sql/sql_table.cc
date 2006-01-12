@@ -126,8 +126,8 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
 uint tablename_to_filename(const char *from, char *to, uint to_length)
 {
   uint errors;
-  if (from[0] && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
-                          MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+  if (from[0] == '#' && !strncmp(from, MYSQL50_TABLE_NAME_PREFIX,
+                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
     return my_snprintf(to, to_length, "%s", from + 9);
   return strconvert(system_charset_info, from,
                     &my_charset_filename, to, to_length, &errors);
