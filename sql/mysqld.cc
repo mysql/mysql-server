@@ -3322,6 +3322,11 @@ int main(int argc, char **argv)
     }
   }
 #endif
+#ifdef __NETWARE__
+  /* Increasing stacksize of threads on NetWare */
+  
+  pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
+#endif
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
