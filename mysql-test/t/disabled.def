@@ -22,3 +22,4 @@ rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
 mysqlslap       : Bug#16167
 events          : Affects flush test case. A table lock not released somewhere
 rpl_sp          : Bug #16456
+ndb_dd_disk2memory : Bug #16466
