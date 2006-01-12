@@ -89,7 +89,7 @@
 //
 // The full page range struct
 
-Uint32 Dbtup::getEmptyPage(Fragrecord* const regFragPtr)
+Uint32 Dbtup::getEmptyPage(Fragrecord* regFragPtr)
 {
   Uint32 pageId = regFragPtr->emptyPrimPage.firstItem;
   if (pageId == RNIL) {
@@ -108,7 +108,7 @@ Uint32 Dbtup::getEmptyPage(Fragrecord* const regFragPtr)
   return pageId;
 }//Dbtup::getEmptyPage()
 
-Uint32 Dbtup::getRealpid(Fragrecord*  const regFragPtr, Uint32 logicalPageId) 
+Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
   PageRangePtr grpPageRangePtr;
   Uint32 loopLimit;
@@ -241,7 +241,7 @@ bool Dbtup::insertPageRangeTab(Fragrecord*  const regFragPtr,
 }//Dbtup::insertPageRangeTab()
 
 
-void Dbtup::releaseFragPages(Fragrecord* const regFragPtr) 
+void Dbtup::releaseFragPages(Fragrecord* regFragPtr) 
 {
   if (regFragPtr->rootPageRange == RNIL) {
     ljam();
@@ -349,7 +349,7 @@ void Dbtup::initFragRange(Fragrecord* const regFragPtr)
   regFragPtr->nextStartRange = 0;
 }//initFragRange()
 
-Uint32 Dbtup::allocFragPages(Fragrecord* const regFragPtr, Uint32 tafpNoAllocRequested) 
+Uint32 Dbtup::allocFragPages(Fragrecord* regFragPtr, Uint32 tafpNoAllocRequested) 
 {
   Uint32 tafpPagesAllocated = 0;
   while (true) {
