@@ -4093,8 +4093,14 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
   Bucket* bucket= c_buckets+buck;
   Page_pos pos= bucket->m_buffer_head;
 
-  Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(pos.m_page_id);
-  Uint32* ptr= page->m_data + pos.m_page_pos;
+  Buffer_page* page = 0;
+  Uint32 *ptr = 0;
+  
+  if (likely(pos.m_page_id != RNIL))
+  {
+    page= (Buffer_page*)m_tup->c_page_pool.getPtr(pos.m_page_id);
+    ptr= page->m_data + pos.m_page_pos;
+  }
 
   const bool same_gci = (gci == pos.m_last_gci) && (!ERROR_INSERTED(13022));
   
