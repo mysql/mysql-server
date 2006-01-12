@@ -87,6 +87,7 @@ TODO:
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <ctype.h>
+#include <my_pthread.h>
 
 #define MYSLAPLOCK "/myslaplock.lck"
 #define MYSLAPLOCK_DIR "/tmp"
@@ -132,6 +133,7 @@ static uint opt_protocol= 0;
 
 static int get_options(int *argc,char ***argv);
 static uint opt_mysql_port= 0;
+static uint opt_use_threads;
 
 static const char *load_default_groups[]= { "mysqlslap","client",0 };
 
@@ -149,6 +151,13 @@ struct stats {
   long int timing;
   uint users;
   unsigned long long rows;
+};
+
+typedef struct thread_context thread_context;
+
+struct thread_context {
+  statement *stmt;
+  ulonglong limit;
 };
 
 typedef struct conclusions conclusions;
@@ -184,7 +193,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
               statement *engine_stmt);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-int run_task(statement *stmt, ulonglong limit);
+int run_task(thread_context *con);
 void statement_cleanup(statement *stmt);
 
 static const char ALPHANUMERICS[]=
@@ -440,6 +449,10 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
     (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"use-threads", OPT_USE_THREADS,
+    "Use pthread calls instead of fork() calls (default on Windows)",
+      (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
+      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
@@ -930,8 +943,11 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   uint x;
   File lock_file;
   struct timeval start_time, end_time;
+  thread_context con;
   DBUG_ENTER("run_scheduler");
 
+  con.stmt= stmts;
+  con.limit= limit;
 
   lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
 
@@ -943,42 +959,67 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       exit(0);
     }
 
-  for (x= 0; x < concur; x++)
+  if (opt_use_threads)
   {
-    int pid;
-    DBUG_PRINT("info", ("x %d concurrency %d", x, concurrency));
-    pid= fork();
-    switch(pid)
+    pthread_t mainthread;            /* Thread descriptor */
+    pthread_attr_t attr;          /* Thread attributes */
+
+    for (x= 0; x < concur; x++)
     {
-    case 0:
-      /* child */
-      DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
-                          stmts->string, pid, getgid()));
-      if (verbose >= 2)
-        fprintf(stderr,
-                "%s: fork returned 0, calling task pid %d gid %d\n",
-                my_progname, pid, getgid());
-      run_task(stmts, limit);
-      exit(0);
-      break;
-    case -1:
-      /* error */
-      DBUG_PRINT("info",
-                 ("fork returned -1, failing pid %d gid %d", pid, getgid()));
-      fprintf(stderr,
-              "%s: Failed on fork: -1, max procs per parent exceeded.\n",
-              my_progname);
-      /*exit(1);*/
-      goto WAIT;
-    default:
-      /* parent, forked */
-      DBUG_PRINT("info", ("default, break: pid %d gid %d", pid, getgid()));
-      if (verbose >= 2)
-        fprintf(stderr,"%s: fork returned %d, gid %d\n",
-                my_progname, pid, getgid());
-      break;
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr,
+                                   PTHREAD_CREATE_DETACHED);
+
+      /* now create the thread */
+      if (pthread_create(&mainthread, &attr, (void *)run_task, 
+                         (void *)&con) != 0)
+      {
+        fprintf(stderr,"%s: Could not create thread\n",
+                my_progname);
+        exit(0);
+      }
     }
   }
+  else
+  {
+    for (x= 0; x < concur; x++)
+    {
+      int pid;
+      DBUG_PRINT("info", ("x %d concurrency %d", x, concurrency));
+      pid= fork();
+      switch(pid)
+      {
+      case 0:
+        /* child */
+        DBUG_PRINT("info", ("fork returned 0, calling task(\"%s\"), pid %d gid %d",
+                            stmts->string, pid, getgid()));
+        if (verbose >= 2)
+          fprintf(stderr,
+                  "%s: fork returned 0, calling task pid %d gid %d\n",
+                  my_progname, pid, getgid());
+        run_task(&con);
+        exit(0);
+        break;
+      case -1:
+        /* error */
+        DBUG_PRINT("info",
+                   ("fork returned -1, failing pid %d gid %d", pid, getgid()));
+        fprintf(stderr,
+                "%s: Failed on fork: -1, max procs per parent exceeded.\n",
+                my_progname);
+        /*exit(1);*/
+        goto WAIT;
+      default:
+        /* parent, forked */
+        DBUG_PRINT("info", ("default, break: pid %d gid %d", pid, getgid()));
+        if (verbose >= 2)
+          fprintf(stderr,"%s: fork returned %d, gid %d\n",
+                  my_progname, pid, getgid());
+        break;
+      }
+    }
+  }
+
   /* Lets release use some clients! */
   if (!opt_slave)
     my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
@@ -987,12 +1028,18 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 
   my_close(lock_file, MYF(0));
 
-WAIT:
-  while (x--)
+  if (opt_use_threads)
   {
-    int status, pid;
-    pid= wait(&status);
-    DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
+  }
+  else
+  {
+WAIT:
+    while (x--)
+    {
+      int status, pid;
+      pid= wait(&status);
+      DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
+    }
   }
   gettimeofday(&end_time, NULL);
 
@@ -1004,7 +1051,7 @@ WAIT:
 }
 
 int
-run_task(statement *qstmt, ulonglong limit)
+run_task(thread_context *con)
 {
   ulonglong counter= 0, queries;
   File lock_file;
@@ -1014,7 +1061,7 @@ run_task(statement *qstmt, ulonglong limit)
   statement *ptr;
 
   DBUG_ENTER("run_task");
-  DBUG_PRINT("info", ("task script \"%s\"", qstmt->string));
+  DBUG_PRINT("info", ("task script \"%s\"", con->stmt->string));
 
   mysql_init(&mysql);
 
@@ -1036,7 +1083,7 @@ run_task(statement *qstmt, ulonglong limit)
   queries= 0; 
 
 limit_not_met:
-    for (ptr= qstmt; ptr && ptr->length; ptr= ptr->next)
+    for (ptr= con->stmt; ptr && ptr->length; ptr= ptr->next)
     {
       if (opt_only_print) 
       {
@@ -1060,11 +1107,11 @@ limit_not_met:
       }
       queries++;
 
-      if (limit && queries == limit)
+      if (con->limit && queries == con->limit)
         DBUG_RETURN(0);
     }
 
-  if (limit && queries < limit)
+  if (con->limit && queries < con->limit)
     goto limit_not_met;
 
   my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
