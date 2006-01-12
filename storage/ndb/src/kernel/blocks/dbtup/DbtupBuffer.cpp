@@ -132,7 +132,7 @@ void Dbtup::updatePackedList(Signal* signal, Uint16 hostId)
 void Dbtup::sendReadAttrinfo(Signal* signal,
                              KeyReqStruct *req_struct,
                              Uint32 ToutBufIndex,
-                             const Operationrec * const regOperPtr)
+                             const Operationrec *regOperPtr)
 {
   if(ToutBufIndex == 0)
     return;
