@@ -1051,7 +1051,8 @@ public:
       _TE_CREATE=6,
       _TE_GCP_COMPLETE=7,
       _TE_CLUSTER_FAILURE=8,
-      _TE_STOP=9
+      _TE_STOP=9,
+      _TE_NUL=10 // internal (INS o DEL within same GCI)
     };
 #endif
     /**
