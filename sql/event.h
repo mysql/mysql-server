@@ -136,7 +136,7 @@ public:
   init_ends(THD *thd, Item *ends);
   
   void
-  event_timed::init_body(THD *thd);
+  init_body(THD *thd);
 
   void
   init_comment(THD *thd, LEX_STRING *set_comment);
