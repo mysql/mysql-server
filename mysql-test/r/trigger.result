@@ -613,7 +613,7 @@ select @a;
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost
-t1_af	INSERT	t1	 set @a=10	AFTER	#		root@localhost
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost
 drop table t1;
 set sql_mode="traditional";
 create table t1 (a date);
@@ -634,7 +634,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#		root@localhost
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row flush tables;
