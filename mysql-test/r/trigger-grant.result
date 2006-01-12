@@ -185,10 +185,8 @@ INSERT INTO t1 VALUES(6);
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	
-SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost
-trg2	INSERT	t1	
-SET @new_sum = 0	AFTER	NULL		mysqltest_nonexs@localhost
+trg1	INSERT	t1	SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost
+trg2	INSERT	t1	SET @new_sum = 0	AFTER	NULL		mysqltest_nonexs@localhost
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 CREATE TRIGGER trg1 BEFORE INSERT ON t1
@@ -219,16 +217,11 @@ Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'trg1'. The trigge
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
-NULL	mysqltest_db1	trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL	
-SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		
-NULL	mysqltest_db1	trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	
-SET @a = 2	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@
-NULL	mysqltest_db1	trg3	UPDATE	NULL	mysqltest_db1	t1	0	NULL	
-SET @a = 3	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abc@def@@
-NULL	mysqltest_db1	trg4	UPDATE	NULL	mysqltest_db1	t1	0	NULL	
-SET @a = 4	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@hostname
-NULL	mysqltest_db1	trg5	DELETE	NULL	mysqltest_db1	t1	0	NULL	
-SET @a = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abcdef@@@hostname
+NULL	mysqltest_db1	trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL	SET @a = 1	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		
+NULL	mysqltest_db1	trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	SET @a = 2	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@
+NULL	mysqltest_db1	trg3	UPDATE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 3	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abc@def@@
+NULL	mysqltest_db1	trg4	UPDATE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 4	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		@hostname
+NULL	mysqltest_db1	trg5	DELETE	NULL	mysqltest_db1	t1	0	NULL	SET @a = 5	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		@abcdef@@@hostname
 
 ---> connection: default
 DROP USER mysqltest_dfn@localhost;
