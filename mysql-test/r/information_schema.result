@@ -14,6 +14,7 @@ NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
+cluster_replication
 mysql
 test
 show databases like 't%';
@@ -22,6 +23,7 @@ test
 show databases;
 Database
 information_schema
+cluster_replication
 mysql
 test
 show databases where `database` = 't%';
@@ -55,6 +57,7 @@ TABLE_PRIVILEGES
 TRIGGERS
 VIEWS
 USER_PRIVILEGES
+binlog_index
 columns_priv
 db
 event
@@ -331,6 +334,7 @@ create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 information_schema
+cluster_replication
 mysql
 test
 explain select * from v0;
@@ -728,7 +732,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-106
+107
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -810,6 +814,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
+cluster_replication	1
 information_schema	19
 mysql	19
 create table t1 (i int, j int);

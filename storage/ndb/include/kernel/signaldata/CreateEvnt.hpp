@@ -98,32 +98,11 @@ public:
     NoError = 0,
     Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701
-  };
-#if 0
-  enum ErrorCode {
-    NoError = 0,
-    Undefined = 1,
-    UndefinedTCError = 2,
-    NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702,
-    SeizeError = 703,
-    EventNotFound = 4710,
-    EventNameTooLong = 4241,
-    TooManyEvents = 4242,
-    BadRequestType = 4247,
-    InvalidName = 4248,
-    InvalidPrimaryTable = 4249,
-    InvalidEventType = 4250,
-    NotUnique = 4251,
-    AllocationError = 4252,
-    CreateEventTableFailed = 4253,
-    InvalidAttributeOrder = 4255,
-    Temporary = 0x1 << 16
+    NotMaster = 702
   };
-#endif
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength2 = SignalLength+1 );
 
   union {             // user block reference
     Uint32 senderRef;
@@ -139,16 +118,8 @@ public:
   };
   Uint32 m_errorLine;
   Uint32 m_errorNode;
-#if 0
-  bool isTemporary() const
-  { return (errorCode &  Temporary) > 0; }
-
-  void setTemporary()
-  { errorCode |=  Temporary; }
-
-  ErrorCode setTemporary(ErrorCode ec)
-  { return (ErrorCode) (errorCode = ((Uint32) ec | (Uint32)Temporary)); }
-#endif
+  // with SignalLength2
+  Uint32 m_masterNodeId;
   Uint32 getUserRef() const {
     return m_userRef;
   }
@@ -179,6 +150,12 @@ public:
   void setErrorNode(Uint32 val) {
     m_errorNode = val;
   }
+  Uint32 getMasterNode() const {
+    return m_masterNodeId;
+  }
+  void setMasterNode(Uint32 val) {
+    m_masterNodeId = val;
+  }
 };
 
 /**
@@ -199,6 +176,11 @@ struct CreateEvntReq {
     //    RT_DICT_ABORT = 0xF << 4,
     //    RT_TC = 5 << 8
   };
+  enum EventFlags {
+    EF_REPORT_ALL = 0x1 << 16,
+    EF_REPORT_SUBSCRIBE = 0x2 << 16,
+    EF_ALL = 0xFFFF << 16
+  };
   STATIC_CONST( SignalLengthGet = 3 );
   STATIC_CONST( SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS );
   STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS );
@@ -217,10 +199,9 @@ struct CreateEvntReq {
   Uint32 m_tableId;             // table to event
   Uint32 m_tableVersion;        // table version
   AttributeMask::Data m_attrListBitmask;
-  Uint32 m_eventType;           // from DictTabInfo::TableType
+  Uint32 m_eventType;           // EventFlags (16 bits) + from DictTabInfo::TableType (16 bits)
   Uint32 m_eventId;             // event table id set by DICT/SUMA
   Uint32 m_eventKey;            // event table key set by DICT/SUMA
-
   Uint32 getUserRef() const {
     return m_userRef;
   }
@@ -268,10 +249,10 @@ struct CreateEvntReq {
     AttributeMask::assign(m_attrListBitmask.data, val);
   }
   Uint32 getEventType() const {
-    return m_eventType;
+    return m_eventType & ~EF_ALL;
   }
   void setEventType(Uint32 val) {
-    m_eventType = (Uint32)val;
+    m_eventType = (m_eventType & EF_ALL) | (~EF_ALL & (Uint32)val);
   }
   Uint32 getEventId() const {
     return m_eventId;
@@ -284,6 +265,27 @@ struct CreateEvntReq {
   }
   void setEventKey(Uint32 val) {
     m_eventKey = val;
+  }
+  void clearFlags() {
+    m_eventType&= ~EF_ALL;
+  }
+  Uint32 getReportFlags() const {
+    return  m_eventType & EF_ALL;
+  }
+  void setReportFlags(Uint32 val) {
+    m_eventType = (val & EF_ALL) | (m_eventType & ~EF_ALL);
+  }
+  Uint32 getReportAll() const {
+    return  m_eventType & EF_REPORT_ALL ;
+  }
+  void setReportAll() {
+    m_eventType|= EF_REPORT_ALL;
+  }
+  Uint32 getReportSubscribe() const {
+    return  m_eventType & EF_REPORT_SUBSCRIBE ;
+  }
+  void setReportSubscribe() {
+    m_eventType|= EF_REPORT_SUBSCRIBE;
   }
 };
 
@@ -377,42 +379,14 @@ struct CreateEvntRef {
   friend bool printCREATE_EVNT_REF(FILE*, const Uint32*, Uint32, Uint16);
 
   STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLength2 = SignalLength + 1 );
   enum ErrorCode {
     NoError = 0,
     Undefined = 1,
-    NF_FakeErrorREF = 11,
-    Busy = 701
-  };
-#if 0
-  enum ErrorCode {
-    NoError = 0,
-    Undefined = 1,
-    UndefinedTCError = 2,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702,
-    SeizeError = 703,
-    TooManyEvents = 4707,
-    EventNameTooLong = 4708,
-    EventNameExists = 746,
-    EventNotFound = 4731,
-    AttributeNullable = 4246,
-    BadRequestType = 4247,
-    InvalidName = 4248,
-    InvalidPrimaryTable = 4249,
-    InvalidEventType = 4250,
-    NotUnique = 4251,
-    AllocationError = 4252,
-    CreateEventTableFailed = 4711,
-    InvalidAttributeOrder = 4255,
-    Temporary = 0x1 << 16
+    NotMaster = 702
   };
-  bool isTemporary() const;
-  void setTemporary();
-  ErrorCode setTemporary(ErrorCode ec);
-  static ErrorCode makeTemporary(ErrorCode ec);
-#endif
-
   union {
     Uint32 m_userRef;             // user block reference
     Uint32 senderRef;             // user block reference
@@ -431,15 +405,8 @@ struct CreateEvntRef {
   Uint32 errorCode;
   Uint32 m_errorLine;
   Uint32 m_errorNode;
-
-#if 0
-  CreateEvntConf* getConf() {
-    return &m_conf;
-  }
-  const CreateEvntConf* getConf() const {
-    return &m_conf;
-  }
-#endif
+  // with SignalLength2
+  Uint32 m_masterNodeId;
   Uint32 getUserRef() const {
     return m_userRef;
   }
@@ -508,17 +475,11 @@ struct CreateEvntRef {
   void setErrorNode(Uint32 val) {
     m_errorNode = val;
   }
+  Uint32 getMasterNode() const {
+    return m_masterNodeId;
+  }
+  void setMasterNode(Uint32 val) {
+    m_masterNodeId = val;
+  }
 };
-#if 0
-inline bool CreateEvntRef::isTemporary() const
-{ return (errorCode &  CreateEvntRef::Temporary) > 0; }
-inline void CreateEvntRef::setTemporary()
-{ errorCode |=  CreateEvntRef::Temporary; }
-inline CreateEvntRef::ErrorCode CreateEvntRef::setTemporary(ErrorCode ec)
-{ return (CreateEvntRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)CreateEvntRef::Temporary)); }
-inline CreateEvntRef::ErrorCode CreateEvntRef::makeTemporary(ErrorCode ec)
-{ return (CreateEvntRef::ErrorCode) 
-    ( (Uint32) ec | (Uint32)CreateEvntRef::Temporary ); }
-#endif
 #endif

@@ -38,6 +38,7 @@
 #include <signaldata/TcContinueB.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/AbortAll.hpp>
+#include <signaldata/DihFragCount.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/ScanTab.hpp>
 #include <signaldata/PrepDropTab.hpp>
@@ -8886,9 +8887,11 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
      * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED. 
      * WE MUST FIRST GET THE NUMBER OF  FRAGMENTS IN THE TABLE.
      ***************************************************/
-    signal->theData[0] = tcConnectptr.p->dihConnectptr;
-    signal->theData[1] = scanptr.p->scanTableref;
-    sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 2, JBB);
+    DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
+    req->m_connectionData = tcConnectptr.p->dihConnectptr;
+    req->m_tableRef = scanptr.p->scanTableref;
+    sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 
+               DihFragCountReq::SignalLength, JBB);
   }
   else 
   {
@@ -8899,17 +8902,18 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
     UintR TerrorIndicator = signal->theData[0];
     jamEntry();
     if (TerrorIndicator != 0) {
-      signal->theData[0] = tcConnectptr.i;
-      //signal->theData[1] Contains error
+      DihFragCountRef * const ref = (DihFragCountRef*)signal->getDataPtr();
+      ref->m_connectionData = tcConnectptr.i;
+      ref->m_error = signal->theData[1];
       execDI_FCOUNTREF(signal);
       return;
     }
     
     UintR Tdata1 = signal->theData[1];
     scanptr.p->scanNextFragId = Tdata1;
-
-    signal->theData[0] = tcConnectptr.i;
-    signal->theData[1] = 1; // Frag count
+    DihFragCountConf * const conf = (DihFragCountConf*)signal->getDataPtr();
+    conf->m_connectionData = tcConnectptr.i;
+    conf->m_fragmentCount = 1; // Frag count
     execDI_FCOUNTCONF(signal);
   }
   return;
@@ -8927,8 +8931,9 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
 void Dbtc::execDI_FCOUNTCONF(Signal* signal) 
 {
   jamEntry();
-  tcConnectptr.i = signal->theData[0];
-  Uint32 tfragCount = signal->theData[1];
+  DihFragCountConf * const conf = (DihFragCountConf*)signal->getDataPtr();
+  tcConnectptr.i = conf->m_connectionData;
+  Uint32 tfragCount = conf->m_fragmentCount;
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -9011,9 +9016,10 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
 void Dbtc::execDI_FCOUNTREF(Signal* signal) 
 {
   jamEntry();
-  tcConnectptr.i = signal->theData[0];
+  DihFragCountRef * const ref = (DihFragCountRef*)signal->getDataPtr();
+  tcConnectptr.i = ref->m_connectionData;
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  const Uint32 errCode = signal->theData[1];
+  const Uint32 errCode = ref->m_error;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   ScanRecordPtr scanptr;

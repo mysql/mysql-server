@@ -23,6 +23,7 @@ ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 mysqltest_bob
 mysqltest_prometheus
@@ -31,6 +32,7 @@ test
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos
@@ -45,6 +47,7 @@ CREATE TABLE t2 (a INT);
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 mysqltest_bob
 mysqltest_prometheus
@@ -53,6 +56,7 @@ test
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos

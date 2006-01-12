@@ -251,6 +251,8 @@ public:
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
   void setDurability(NdbDictionary::Event::EventDurability d);
   NdbDictionary::Event::EventDurability  getDurability() const;
+  void setReport(NdbDictionary::Event::EventReport r);
+  NdbDictionary::Event::EventReport  getReport() const;
   void addEventColumn(const NdbColumnImpl &c);
   int getNoOfEventColumns() const;
 
@@ -268,7 +270,7 @@ public:
   BaseString m_name;
   Uint32 mi_type;
   NdbDictionary::Event::EventDurability m_dur;
-
+  NdbDictionary::Event::EventReport m_rep;
 
   NdbTableImpl *m_tableImpl;
   BaseString m_tableName;

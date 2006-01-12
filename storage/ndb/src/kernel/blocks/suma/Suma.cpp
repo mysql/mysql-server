@@ -43,11 +43,13 @@
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
+#include <signaldata/DihFragCount.hpp>
 
 #include <ndbapi/NdbDictionary.hpp>
 
 #include <DebuggerNames.hpp>
 #include <../dbtup/Dbtup.hpp>
+#include <../dbdih/Dbdih.hpp>
 
 //#define HANDOVER_DEBUG
 //#define NODEFAIL_DEBUG
@@ -1023,6 +1025,10 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   const Uint32 flags   = req.subscriptionType & SubCreateReq::GetFlags;
   const bool addTableFlag = (flags & SubCreateReq::AddTableFlag) != 0;
   const bool restartFlag  = (flags & SubCreateReq::RestartFlag)  != 0;
+  const Uint32 reportAll = (flags & SubCreateReq::ReportAll) ?
+    Subscription::REPORT_ALL : 0;
+  const Uint32 reportSubscribe = (flags & SubCreateReq::ReportSubscribe) ?
+    Subscription::REPORT_SUBSCRIBE : 0;
   const Uint32 tableId = req.tableId;
 
   Subscription key;
@@ -1071,11 +1077,13 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_subscriptionId   = subId;
     subPtr.p->m_subscriptionKey  = subKey;
     subPtr.p->m_subscriptionType = type;
+    subPtr.p->m_options          = reportSubscribe | reportAll;
     subPtr.p->m_tableId          = tableId;
     subPtr.p->m_table_ptrI       = RNIL;
     subPtr.p->m_state            = Subscription::DEFINED;
     subPtr.p->n_subscribers      = 0;
 
+    fprintf(stderr, "table %d options %x\n", subPtr.p->m_tableId, subPtr.p->m_options);
     DBUG_PRINT("info",("Added: key.m_subscriptionId: %u, key.m_subscriptionKey: %u",
 		       key.m_subscriptionId, key.m_subscriptionKey));
 
@@ -1167,6 +1175,8 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   TablePtr tabPtr;
   initTable(signal,subPtr.p->m_tableId,tabPtr,syncPtr);
   tabPtr.p->n_subscribers++;
+  if (subPtr.p->m_options & Subscription::REPORT_ALL)
+    tabPtr.p->m_reportAll = true;
   DBUG_PRINT("info",("Suma::Table[%u]::n_subscribers: %u",
 		     tabPtr.p->m_tableId, tabPtr.p->n_subscribers));
   DBUG_VOID_RETURN;
@@ -1532,10 +1542,12 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
    * We need to gather fragment info
    */
   jam();
-  signal->theData[0] = RNIL;
-  signal->theData[1] = tableId;
-  signal->theData[2] = tabPtr.i;
-  sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 3, JBB);
+  DihFragCountReq* req = (DihFragCountReq*)signal->getDataPtrSend();
+  req->m_connectionData = RNIL;
+  req->m_tableRef = tableId;
+  req->m_senderData = tabPtr.i;
+  sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
+             DihFragCountReq::SignalLength, JBB);
 }
 
 bool
@@ -1681,20 +1693,52 @@ ToDo handle this
 }
 
 void 
+Suma::execDI_FCOUNTREF(Signal* signal)
+{
+  jamEntry();
+  DBUG_ENTER("Suma::execDI_FCOUNTREF");
+  DihFragCountRef * const ref = (DihFragCountRef*)signal->getDataPtr();
+  switch ((DihFragCountRef::ErrorCode) ref->m_error)
+  {
+  case DihFragCountRef::ErroneousTableState:
+    jam();
+    if (ref->m_tableStatus == Dbdih::TabRecord::TS_CREATING)
+    {
+      const Uint32 tableId = ref->m_senderData;
+      const Uint32 tabPtr_i = ref->m_tableRef;      
+      DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
+
+      req->m_connectionData = RNIL;
+      req->m_tableRef = tabPtr_i;
+      req->m_senderData = tableId;
+      sendSignalWithDelay(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
+                          DihFragCountReq::SignalLength, 
+                          DihFragCountReq::RetryInterval);
+      DBUG_VOID_RETURN;
+    }
+    ndbrequire(false);
+  default:
+    ndbrequire(false);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+void 
 Suma::execDI_FCOUNTCONF(Signal* signal)
 {
   jamEntry();
   DBUG_ENTER("Suma::execDI_FCOUNTCONF");
   ndbassert(signal->getNoOfSections() == 0);
-
-  const Uint32 userPtr = signal->theData[0];
-  const Uint32 fragCount = signal->theData[1];
-  const Uint32 tableId = signal->theData[2];
+  DihFragCountConf * const conf = (DihFragCountConf*)signal->getDataPtr();
+  const Uint32 userPtr = conf->m_connectionData;
+  const Uint32 fragCount = conf->m_fragmentCount;
+  const Uint32 tableId = conf->m_tableRef;
 
   ndbrequire(userPtr == RNIL && signal->length() == 5);
 
   TablePtr tabPtr;
-  tabPtr.i= signal->theData[3];
+  tabPtr.i= conf->m_senderData;
   ndbrequire((tabPtr.p= c_tablePool.getPtr(tabPtr.i)) != 0);
   ndbrequire(tabPtr.p->m_tableId == tableId);
 
@@ -2156,6 +2200,8 @@ Suma::execSUB_START_REQ(Signal* signal){
     jam();
     initTable(signal,subPtr.p->m_tableId,tabPtr,subbPtr);
     tabPtr.p->n_subscribers++;
+    if (subPtr.p->m_options & Subscription::REPORT_ALL)
+      tabPtr.p->m_reportAll = true;
     DBUG_PRINT("info",("Suma::Table[%u]::n_subscribers: %u",
 		       tabPtr.p->m_tableId, tabPtr.p->n_subscribers));
     DBUG_VOID_RETURN;
@@ -2198,6 +2244,10 @@ Suma::sendSubStartComplete(Signal* signal,
 		     subPtr.p->m_subscriptionId,subPtr.p->m_subscriptionKey));
   sendSignal(subPtr.p->m_senderRef, GSN_SUB_START_CONF, signal,
 	     SubStartConf::SignalLength, JBB);
+
+  reportAllSubscribers(signal, NdbDictionary::Event::_TE_SUBSCRIBE,
+                       subPtr, subbPtr);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2470,7 +2520,58 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
   DBUG_PRINT("info",("c_subscriberPool  size: %d free: %d",
 		     c_subscriberPool.getSize(),
 		     c_subscriberPool.getNoOfFree()));
+
+  reportAllSubscribers(signal, NdbDictionary::Event::_TE_UNSUBSCRIBE,
+                       subPtr, subbPtr);
+
   DBUG_VOID_RETURN;
+}
+
+// report new started subscriber to all other subscribers
+void
+Suma::reportAllSubscribers(Signal *signal,
+                           NdbDictionary::Event::_TableEvent table_event,
+                           SubscriptionPtr subPtr,
+                           SubscriberPtr subbPtr)
+{
+  if (!(subPtr.p->m_options & Subscription::REPORT_SUBSCRIBE))
+  {
+    return;
+  }
+  if (subPtr.p->n_subscribers == 0)
+  {
+    ndbrequire(table_event != NdbDictionary::Event::_TE_SUBSCRIBE);
+    return;
+  }
+ 
+  SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
+  data->gci            = m_last_complete_gci + 1;
+  data->tableId        = subPtr.p->m_tableId;
+  data->operation      = table_event;
+  data->logType        = 0;
+  data->ndbd_nodeid    = refToNode(reference());
+  
+  TablePtr tabPtr;
+  c_tables.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+  LocalDLList<Subscriber> subbs(c_subscriberPool, tabPtr.p->c_subscribers);
+  SubscriberPtr i_subbPtr;
+  for(subbs.first(i_subbPtr); !i_subbPtr.isNull(); subbs.next(i_subbPtr))
+  {
+    if (i_subbPtr.p->m_subPtrI == subPtr.i)
+    {
+      data->req_nodeid = refToNode(subbPtr.p->m_senderRef);
+      data->senderData = i_subbPtr.p->m_senderData;
+      sendSignal(i_subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+                 SubTableData::SignalLength, JBB);
+      if (i_subbPtr.i != subbPtr.i)
+      {
+        data->req_nodeid = refToNode(i_subbPtr.p->m_senderRef);
+        data->senderData = subbPtr.p->m_senderData;
+        sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+                   SubTableData::SignalLength, JBB);
+      }
+    }
+  }
 }
 
 void
@@ -2526,6 +2627,7 @@ Suma::Table::setupTrigger(Signal* signal,
       req->setTriggerEvent((TriggerEvent::Value)j);
       req->setTableId(m_tableId);
       req->setAttributeMask(attrMask);
+      req->setReportAllMonitoredAttributes(m_reportAll);
       suma.sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, 
 		      signal, CreateTrigReq::SignalLength, JBB);
       ret= 1;

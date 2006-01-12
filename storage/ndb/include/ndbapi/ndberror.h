@@ -50,7 +50,8 @@ typedef enum
   ndberror_cl_unknown_error_code = 14,
   ndberror_cl_node_shutdown = 15,
   ndberror_cl_configuration = 16,
-  ndberror_cl_schema_object_already_exists = 17 
+  ndberror_cl_schema_object_already_exists = 17,
+  ndberror_cl_internal_temporary = 18
 } ndberror_classification_enum;
 
 

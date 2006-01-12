@@ -39,7 +39,7 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
-MASTER_INFO *active_mi;
+MASTER_INFO *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -2885,6 +2885,47 @@ bool st_relay_log_info::cached_charset_compare(char *charset)
   return 0;
 }
 
+/*
+  Check if the current error is of temporary nature of not.
+  Some errors are temporary in nature, such as
+  ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT.  Ndb also signals
+  that the error is temporary by pushing a warning with the error code
+  ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
+*/
+static int has_temporary_error(THD *thd)
+{
+  if (thd->is_fatal_error)
+    return 0;
+
+  /*
+    Temporary error codes:
+    currently, InnoDB deadlock detected by InnoDB or lock
+    wait timeout (innodb_lock_wait_timeout exceeded
+  */
+  if (thd->net.last_errno == ER_LOCK_DEADLOCK ||
+      thd->net.last_errno == ER_LOCK_WAIT_TIMEOUT)
+    return 1;
+
+#ifdef HAVE_NDB_BINLOG
+  /*
+    currently temporary error set in ndbcluster
+  */
+  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  MYSQL_ERROR *err;
+  while ((err= it++))
+  {
+    DBUG_PRINT("info", ("has warning %d %s", err->code, err->msg))
+    switch (err->code)
+    {
+    case ER_GET_TEMPORARY_ERRMSG:
+      return 1;
+    default:
+      break;
+    }
+  }
+#endif
+  return 0;
+}
 
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
@@ -3004,6 +3045,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       ev->when = time(NULL);
     ev->thd = thd; // because up to this point, ev->thd == 0
     exec_res = ev->exec_event(rli);
+    DBUG_PRINT("info", ("exec_event result = %d", exec_res));
     DBUG_ASSERT(rli->sql_thd==thd);
     /*
        Format_description_log_event should not be deleted because it will be
@@ -3017,17 +3059,13 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     }
     if (slave_trans_retries)
     {
-      if (exec_res &&
-          (thd->net.last_errno == ER_LOCK_DEADLOCK ||
-           thd->net.last_errno == ER_LOCK_WAIT_TIMEOUT) &&
-          !thd->is_fatal_error)
+      if (exec_res && has_temporary_error(thd))
       {
         const char *errmsg;
         /*
           We were in a transaction which has been rolled back because of a
-          deadlock (currently, InnoDB deadlock detected by InnoDB) or lock
-          wait timeout (innodb_lock_wait_timeout exceeded); let's seek back to
-          BEGIN log event and retry it all again.
+          temporary error;
+          let's seek back to BEGIN log event and retry it all again.
           We have to not only seek but also
           a) init_master_info(), to seek back to hot relay log's start for later
           (for when we will come back to this hot log after re-processing the
@@ -3539,10 +3577,39 @@ Slave SQL thread aborted. Can't execute init_slave query");
     {
       // do not scare the user if SQL thread was simply killed or stopped
       if (!sql_slave_killed(thd,rli))
+      {
+        /*
+          retrieve as much info as possible from the thd and, error codes and warnings
+          and print this to the error log as to allow the user to locate the error
+        */
+        if (thd->net.last_errno != 0)
+        {
+          if (rli->last_slave_errno == 0)
+          {
+            slave_print_msg(ERROR_LEVEL, rli, thd->net.last_errno,
+                            thd->net.last_error ?
+                            thd->net.last_error : "<no message>");
+          }
+          else if (rli->last_slave_errno != thd->net.last_errno)
+          {
+            sql_print_error("Slave (additional info): %s Error_code: %d",
+                            thd->net.last_error ?
+                            thd->net.last_error : "<no message>",
+                            thd->net.last_errno);
+          }
+        }
+
+        /* Print any warnings issued */
+        List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+        MYSQL_ERROR *err;
+        while ((err= it++))
+          sql_print_warning("Slave: %s Error_code: %d",err->msg, err->code);
+
         sql_print_error("\
 Error running query, slave SQL thread aborted. Fix the problem, and restart \
 the slave SQL thread with \"SLAVE START\". We stopped at log \
 '%s' position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
+      }
       goto err;
     }
   }
