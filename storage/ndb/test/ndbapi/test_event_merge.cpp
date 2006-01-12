@@ -473,9 +473,9 @@ struct Op { // single or composite
   Kind kind;
   Type type;
   Op* next_op; // within one commit
-  Op* next_com; // next commit chain or next event
+  Op* next_com; // next commit chain
   Op* next_gci; // groups commit chains (unless --separate-events)
-  Op* next_ev;
+  Op* next_ev; // next event
   Op* next_free; // free list
   bool free; // on free list
   uint num_op;
@@ -564,6 +564,8 @@ static NdbRecAttr* g_ev_ra[2][g_maxcol]; // 0-post 1-pre
 static NdbBlob* g_ev_bh[2][g_maxcol]; // 0-post 1-pre
 static Op* g_rec_ev;
 static uint g_ev_pos[g_maxpk];
+static uint g_num_gci = 0;
+static uint g_num_ev = 0;
 
 static Op*
 getop(Op::Kind a_kind)
@@ -651,6 +653,7 @@ resetmem()
     }
   }
   assert(g_usedops == 0);
+  g_num_gci = g_num_ev = 0;
 }
 
 struct Comp {
@@ -877,9 +880,8 @@ createeventop()
   chkdb((g_evt_op = g_ndb->createEventOperation(g_evt->getName(), bsz)) != 0);
 #else
   chkdb((g_evt_op = g_ndb->createEventOperation(g_evt->getName())) != 0);
-#ifdef version51rbr
+  // available in gci merge changeset
   g_evt_op->separateEvents(g_opts.separate_events); // not yet inherited
-#endif
 #endif
   uint i;
   for (i = 0; i < ncol(); i++) {
@@ -1203,8 +1205,9 @@ makeops()
     // copy to gci level
     copyop(com_op, gci_op);
     tot_op->num_com += 1;
+    g_num_gci += 1;
   }
-  ll1("makeops: used ops = " << g_usedops);
+  ll1("makeops: used ops = " << g_usedops << " com ops = " << g_num_gci);
 }
 
 static int
@@ -1341,12 +1344,13 @@ mergeops()
         gci_op2 = gci_op2->next_gci;
         freeop(tmp_op);
         mergecnt++;
+        assert(g_num_gci != 0);
+        g_num_gci--;
       }
       gci_op = gci_op->next_gci = gci_op2;
     }
   }
-  ll1("mergeops: used ops = " << g_usedops);
-  ll1("mergeops: merged " << mergecnt << " gci entries");
+  ll1("mergeops: used ops = " << g_usedops << " gci ops = " << g_num_gci);
   return 0;
 }
 
@@ -1504,27 +1508,37 @@ matchevents()
 static int
 matchops()
 {
+  ll1("matchops");
+  uint nomatch = 0;
   Uint32 pk1;
   for (pk1 = 0; pk1 < g_opts.maxpk; pk1++) {
     Op* tot_op = g_pk_op[pk1];
     if (tot_op == 0)
       continue;
-    Op* com_op = tot_op->next_com;
-    while (com_op != 0) {
-      if (com_op->type != Op::NUL && ! com_op->match) {
+    Op* gci_op = tot_op->next_gci;
+    while (gci_op != 0) {
+      if (gci_op->type == Op::NUL) {
+        ll2("GCI: " << *gci_op << " [skip NUL]");
+      } else if (gci_op->match) {
+        ll2("GCI: " << *gci_op << " [match OK]");
+      } else {
+        ll0("GCI: " << *gci_op);
+        Op* com_op = gci_op->next_com;
+        assert(com_op != 0);
         ll0("COM: " << *com_op);
         Op* op = com_op->next_op;
         assert(op != 0);
         while (op != 0) {
-          ll0("---: " << *op);
+          ll0("OP : " << *op);
           op = op->next_op;
         }
         ll0("no matching event");
-        return -1;
+        nomatch++;
       }
-      com_op = com_op->next_com;
+      gci_op = gci_op->next_gci;
     }
   }
+  chkrc(nomatch == 0);
   return 0;
 }
 
@@ -1619,9 +1633,10 @@ runevents()
       Op* ev = getop(Op::EV);
       copyop(g_rec_ev, ev);
       last_ev->next_ev = ev;
+      g_num_ev++;
     }
   }
-  ll1("runevents: used ops = " << g_usedops);
+  ll1("runevents: used ops = " << g_usedops << " events = " << g_num_ev);
   return 0;
 }
 
@@ -1666,6 +1681,7 @@ runtest()
       chkrc(mergeops() == 0);
     cmppostpre();
     chkrc(runevents() == 0);
+    ll0("counts: gci = " << g_num_gci << " ev = " << g_num_ev);
     chkrc(matchevents() == 0);
     chkrc(matchops() == 0);
     chkrc(dropeventop() == 0);
