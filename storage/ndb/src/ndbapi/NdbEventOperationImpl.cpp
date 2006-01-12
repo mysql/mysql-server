@@ -104,7 +104,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 
   m_state= EO_CREATED;
 
-  m_separateEvents = false;
+  m_separateEvents = true;
 
   m_has_error= 0;
 
@@ -1733,7 +1733,7 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
-    dptr += bytesize;
+    dptr += ((bytesize + 3) / 4) * 4;
   }
   return nr1;
 }
@@ -1757,7 +1757,7 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
     AttributeHeader ah2(*hptr2++);
     // sizes can differ on update of varchar endspace
     Uint32 bytesize1 = ah1.getByteSize();
-    Uint32 bytesize2 = ah1.getByteSize();
+    Uint32 bytesize2 = ah2.getByteSize();
     assert(dptr1 + bytesize1 <= (uchar*)(ptr1[1].p + ptr1[1].sz));
     assert(dptr2 + bytesize2 <= (uchar*)(ptr2[1].p + ptr2[1].sz));
 
@@ -1776,8 +1776,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
     int res = (cs->coll->strnncollsp)(cs, dptr1 + lb1, len1, dptr2 + lb2, len2, false);
     if (res != 0)
       return false;
-    dptr1 += bytesize1;
-    dptr2 += bytesize2;
+    dptr1 += ((bytesize1 + 3) / 4) * 4;
+    dptr2 += ((bytesize2 + 3) / 4) * 4;
   }
   return true;
 }
