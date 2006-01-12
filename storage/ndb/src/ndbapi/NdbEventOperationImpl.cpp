@@ -1523,6 +1523,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
         else
           break;
       }
+      ptr[2].sz = k;
     }
   }
 
