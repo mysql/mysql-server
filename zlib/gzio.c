@@ -7,9 +7,9 @@
 
 /* @(#) $Id$ */
 
-#include <stdio.h>
-
 #include "zutil.h"
+
+#include <stdio.h>
 
 #ifdef NO_DEFLATE       /* for compatibility with old definition */
 #  define NO_GZCOMPRESS
