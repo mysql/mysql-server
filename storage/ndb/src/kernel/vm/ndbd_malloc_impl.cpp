@@ -83,6 +83,8 @@ Ndbd_mem_manager::init(Uint32 pages)
     
     release(start+1, end - 1 - start);    
   }
+
+  return 0;
 }
 
 void

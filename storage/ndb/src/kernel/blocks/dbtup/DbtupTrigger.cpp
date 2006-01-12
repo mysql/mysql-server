@@ -356,8 +356,8 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
 /* ---------------------------------------------------------------- */
 void
 Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
-                                         Operationrec* const regOperPtr, 
-                                         Tablerec* const regTablePtr)
+                                         Operationrec *regOperPtr, 
+                                         Tablerec *regTablePtr)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -374,8 +374,8 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
 
 void
 Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
-                                         Operationrec* const regOperPtr, 
-                                         Tablerec* const regTablePtr)
+                                         Operationrec* regOperPtr, 
+                                         Tablerec* regTablePtr)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -399,8 +399,8 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
 
 void
 Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
-                                         Operationrec* const regOperPtr, 
-                                         Tablerec* const regTablePtr)
+                                         Operationrec* regOperPtr, 
+                                         Tablerec* regTablePtr)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -444,8 +444,8 @@ void Dbtup::checkDeferredTriggers(Signal* signal,
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
-                                  Operationrec* const regOperPtr,
-                                  Tablerec* const regTablePtr)
+                                  Operationrec* regOperPtr,
+                                  Tablerec* regTablePtr)
 {
   Uint32 save_type = regOperPtr->op_struct.op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
@@ -1049,9 +1049,9 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
 
 int
 Dbtup::executeTuxInsertTriggers(Signal* signal,
-                                Operationrec* const regOperPtr,
-                                Fragrecord* const regFragPtr,
-                                Tablerec* const regTabPtr)
+                                Operationrec* regOperPtr,
+                                Fragrecord* regFragPtr,
+                                Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   // fill in constant part
@@ -1066,9 +1066,9 @@ Dbtup::executeTuxInsertTriggers(Signal* signal,
 
 int
 Dbtup::executeTuxUpdateTriggers(Signal* signal,
-                                Operationrec* const regOperPtr,
-                                Fragrecord* const regFragPtr,
-                                Tablerec* const regTabPtr)
+                                Operationrec* regOperPtr,
+                                Fragrecord* regFragPtr,
+                                Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   // fill in constant part
@@ -1139,8 +1139,8 @@ Dbtup::executeTuxDeleteTriggers(Signal* signal,
 void
 Dbtup::executeTuxCommitTriggers(Signal* signal,
                                 Operationrec* regOperPtr,
-                                Fragrecord* const regFragPtr,
-                                Tablerec* const regTabPtr)
+                                Fragrecord* regFragPtr,
+                                Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   Uint32 tupVersion;
@@ -1174,8 +1174,8 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
 void
 Dbtup::executeTuxAbortTriggers(Signal* signal,
                                Operationrec* regOperPtr,
-                               Fragrecord* const regFragPtr,
-                               Tablerec* const regTabPtr)
+                               Fragrecord* regFragPtr,
+                               Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   // get version
