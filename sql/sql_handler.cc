@@ -423,7 +423,13 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   if (cond && ((!cond->fixed &&
                 cond->fix_fields(thd, &cond)) || cond->check_cols(1)))
-    goto err0;
+  {
+    if (table->query_id != thd->query_id)
+      cond->cleanup();                          // File was reopened
+    if ((!cond->fixed &&
+	 cond->fix_fields(thd, tables, &cond)) || cond->check_cols(1))
+      goto err0;
+  }
 
   if (keyname)
   {
