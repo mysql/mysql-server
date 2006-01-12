@@ -760,6 +760,18 @@ NdbDictionary::Event::getDurability() const
 }
 
 void
+NdbDictionary::Event::setReport(EventReport r)
+{
+  m_impl.setReport(r);
+}
+
+NdbDictionary::Event::EventReport
+NdbDictionary::Event::getReport() const
+{
+  return m_impl.getReport();
+}
+
+void
 NdbDictionary::Event::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
   (* col) = NdbColumnImpl::getImpl(c);

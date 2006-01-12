@@ -538,6 +538,7 @@ enum enum_mysql_completiontype {
   COMMIT_RELEASE=-1,   COMMIT=0,    COMMIT_AND_CHAIN=6
 };
 
+bool begin_trans(THD *thd);
 int end_trans(THD *thd, enum enum_mysql_completiontype completion);
 
 Item *negate_expression(THD *thd, Item *expr);
@@ -640,6 +641,7 @@ bool table_cache_init(void);
 void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
+void assign_new_table_id(TABLE *table);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
 void kill_mysql(void);
@@ -1041,7 +1043,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 
-bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
+bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables, bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);

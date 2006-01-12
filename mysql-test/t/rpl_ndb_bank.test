@@ -1,0 +1,207 @@
+#
+# Currently this test only runs in the source tree with the 
+# ndb/test programs compiled.
+# invoke with:  ./mysql-test-run --ndb-extra-test --do-test=rpl_ndb_bank
+#
+# 1. start a "bank" application running on the master cluster
+# 2. perform online sync of slave
+# 3. periodically check consistency of slave
+# 4. stop the bank application
+# 5. check that the slave and master BANK databases are the same
+#
+ 
+# kill any trailing processes
+--system killall lt-bankTransactionMaker lt-bankTimer lt-bankMakeGL || true
+
+--source include/have_ndb.inc
+--source include/have_ndb_extra.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--disable_warnings
+# initialize master
+--connection master
+CREATE DATABASE IF NOT EXISTS BANK;
+DROP DATABASE BANK;
+CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
+--enable_warnings
+
+#
+# These tables should correspond to the table definitions in
+# storage/ndb/test/src/NDBT_Tables.cpp
+#
+--connection master
+USE BANK;
+CREATE TABLE GL ( TIME BIGINT UNSIGNED NOT NULL,
+                  ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                  BALANCE INT UNSIGNED NOT NULL,
+                  DEPOSIT_COUNT INT UNSIGNED NOT NULL,
+                  DEPOSIT_SUM INT UNSIGNED NOT NULL,
+                  WITHDRAWAL_COUNT INT UNSIGNED NOT NULL,
+                  WITHDRAWAL_SUM INT UNSIGNED NOT NULL,
+                  PURGED INT UNSIGNED NOT NULL,
+                  PRIMARY KEY USING HASH (TIME,ACCOUNT_TYPE))
+   ENGINE = NDB;
+
+CREATE TABLE ACCOUNT ( ACCOUNT_ID INT UNSIGNED NOT NULL,
+                       OWNER INT UNSIGNED NOT NULL,
+                       BALANCE INT UNSIGNED NOT NULL,
+                       ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                       PRIMARY KEY USING HASH (ACCOUNT_ID))
+   ENGINE = NDB;
+
+CREATE TABLE TRANSACTION ( TRANSACTION_ID BIGINT UNSIGNED NOT NULL,
+                           ACCOUNT INT UNSIGNED NOT NULL,
+                           ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                           OTHER_ACCOUNT INT UNSIGNED NOT NULL,
+                           TRANSACTION_TYPE INT UNSIGNED NOT NULL,
+                           TIME BIGINT UNSIGNED NOT NULL,
+                           AMOUNT INT UNSIGNED NOT NULL,
+                           PRIMARY KEY USING HASH (TRANSACTION_ID,ACCOUNT))
+   ENGINE = NDB;
+
+CREATE TABLE SYSTEM_VALUES ( SYSTEM_VALUES_ID INT UNSIGNED NOT NULL,
+                             VALUE BIGINT UNSIGNED NOT NULL,
+                             PRIMARY KEY USING HASH (SYSTEM_VALUES_ID))
+   ENGINE = NDB;
+
+CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
+                            DESCRIPTION CHAR(64) NOT NULL,
+                            PRIMARY KEY USING HASH (ACCOUNT_TYPE_ID))
+   ENGINE = NDB;
+
+#
+# create "BANK" application
+#
+--exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankCreator >> $NDB_TOOLS_OUTPUT
+
+#
+# start main loop
+# repeat backup-restore-check
+#
+
+# set this high if testing to run many syncs in loop
+--let $2=1
+while ($2)
+{
+
+#
+# start "BANK" application
+#
+--exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankTimer -w 5 >> $NDB_TOOLS_OUTPUT &
+--exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankMakeGL >> $NDB_TOOLS_OUTPUT &
+--exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/bank/bankTransactionMaker >> $NDB_TOOLS_OUTPUT &
+
+#
+# let the "BANK" run for a while
+#
+--sleep 5
+
+--disable_warnings
+# initialize slave for sync
+--connection slave
+STOP SLAVE;
+RESET SLAVE;
+# to make sure we drop any ndbcluster tables
+CREATE DATABASE IF NOT EXISTS BANK;
+DROP DATABASE BANK;
+# create database
+CREATE DATABASE BANK;
+--enable_warnings
+
+#
+# Time to sync the slave:
+# start by taking a backup on master
+--connection master
+RESET MASTER;
+--exec $NDB_MGM --no-defaults --ndb-connectstring=localhost:$NDBCLUSTER_PORT -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+# there is no neat way to find the backupid, this is a hack to find it...
+--exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring=localhost:$NDBCLUSTER_PORT -d sys -D , SYSTAB_0 | grep 520093696 > var/tmp.dat
+CREATE TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+DELETE FROM cluster_replication.backup_info;
+LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
+--replace_column 1 <the_backup_id>
+SELECT @the_backup_id:=backup_id FROM cluster_replication.backup_info;
+let the_backup_id=`select @the_backup_id`;
+
+# restore on slave, first check that nothing is there
+--connection slave
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT_SLAVE" -p 8 -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT_SLAVE" -p 8 -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+#
+# now setup replication to continue from last epoch
+# 1. get apply_status epoch from slave
+# 2. get corresponding _next_ binlog postition from master
+# 3. change master on slave
+# 4. start the replication
+
+# 1.
+--connection slave
+--replace_column 1 <the_epoch>
+SELECT @the_epoch:=MAX(epoch) FROM cluster_replication.apply_status;
+--let $the_epoch= `select @the_epoch`
+
+# 2.
+--connection master
+--replace_result $the_epoch <the_epoch>
+--replace_column 1 <the_pos>
+eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+   FROM cluster_replication.binlog_index WHERE epoch > $the_epoch ORDER BY epoch ASC LIMIT 1;
+--let $the_pos= `SELECT @the_pos`
+--let $the_file= `SELECT @the_file`
+
+# 3.
+--connection slave
+--replace_result $the_pos <the_pos>
+eval CHANGE MASTER TO
+  master_log_file = '$the_file',
+  master_log_pos = $the_pos;
+
+# 4.
+--connection slave
+START SLAVE;
+
+
+#
+# Now loop and check consistency every 2 seconds on slave
+#
+--connection slave
+--let $1=10
+while ($1)
+{
+  --sleep 2
+  --replace_result $MASTER_MYPORT MASTER_PORT
+  --replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+  SHOW SLAVE STATUS;
+  STOP SLAVE;
+  --exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT_SLAVE ../storage/ndb/test/ndbapi/bank/bankValidateAllGLs >> $NDB_TOOLS_OUTPUT
+  START SLAVE;
+  --dec $1
+}
+
+#
+# Stop transactions
+#
+--exec killall lt-bankTransactionMaker lt-bankTimer lt-bankMakeGL
+
+#
+# Check that the databases are the same on slave and master
+# 1. dump database BANK on both master and slave
+# 2. compare, there should be no difference
+#
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > ./var/tmp/master_BANK.sql
+--connection master
+use test;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+--sync_slave_with_master
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info BANK ACCOUNT_TYPE ACCOUNT GL TRANSACTION > ./var/tmp/slave_BANK.sql
+--connection master
+drop table t1;
+
+--exec diff ./var/tmp/master_BANK.sql ./var/tmp/slave_BANK.sql
+
+  --dec $2
+}
