@@ -110,8 +110,29 @@
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
 /* bits in alter_table_flags */
-#define HA_ONLINE_ADD_EMPTY_PARTITION 1
-#define HA_ONLINE_DROP_PARTITION 2
+#define HA_ONLINE_ADD_EMPTY_PARTITION           0x00000001
+#define HA_ONLINE_DROP_PARTITION                0x00000002
+/*
+  These bits are set if different kinds of indexes can be created
+  off-line without re-create of the table (but with a table lock).
+*/
+#define HA_ONLINE_ADD_INDEX_NO_WRITES           0x00000004 /*add index w/lock*/
+#define HA_ONLINE_DROP_INDEX_NO_WRITES          0x00000008 /*drop index w/lock*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    0x00000010 /*add unique w/lock*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   0x00000020 /*drop uniq. w/lock*/
+#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        0x00000040 /*add prim. w/lock*/
+#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       0x00000080 /*drop prim. w/lock*/
+/*
+  These are set if different kinds of indexes can be created on-line
+  (without a table lock). If a handler is capable of one or more of
+  these, it should also set the corresponding *_NO_WRITES bit(s).
+*/
+#define HA_ONLINE_ADD_INDEX                     0x00000100 /*add index online*/
+#define HA_ONLINE_DROP_INDEX                    0x00000200 /*drop index online*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX              0x00000400 /*add unique online*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX             0x00000800 /*drop uniq. online*/
+#define HA_ONLINE_ADD_PK_INDEX                  0x00001000 /*add prim. online*/
+#define HA_ONLINE_DROP_PK_INDEX                 0x00002000 /*drop prim. online*/
 
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
@@ -133,16 +154,6 @@
   (yes, the sum is deliberately inaccurate)
 */
 #define MAX_HA 15
-
-/*
-  Bits in index_ddl_flags(KEY *wanted_index)
-  for what ddl you can do with index
-  If none is set, the wanted type of index is not supported
-  by the handler at all. See WorkLog 1563.
-*/
-#define HA_DDL_SUPPORT   1 /* Supported by handler */
-#define HA_DDL_WITH_LOCK 2 /* Can create/drop with locked table */
-#define HA_DDL_ONLINE    4 /* Can create/drop without lock */
 
 /*
   Parameters for open() (in register form->filestat)
@@ -1442,11 +1453,13 @@ public:
   virtual void set_part_info(partition_info *part_info) { return; }
 #endif
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
-  virtual ulong index_ddl_flags(KEY *wanted_index) const
-  { return (HA_DDL_SUPPORT); }
+
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
-  virtual int drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys)
+  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
+                                 uint num_of_keys)
+  { return (HA_ERR_WRONG_COMMAND); }
+  virtual int final_drop_index(TABLE *table_arg)
   { return (HA_ERR_WRONG_COMMAND); }
 
   uint max_record_length() const
