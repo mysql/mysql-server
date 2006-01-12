@@ -519,9 +519,6 @@ echo $novar1;
 --exec echo "let $=hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let hi=hi;" | $MYSQL_TEST  2>&1
-
---error 1
 --exec echo "let $1 hi;" | $MYSQL_TEST  2>&1
 
 --error 1

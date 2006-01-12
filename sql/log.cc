@@ -988,6 +988,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   enum_log_type save_log_type;
   DBUG_ENTER("reset_logs");
 
+  ha_reset_logs(thd);
   /*
     We need to get both locks to be sure that no one is trying to
     write to the index log file.
@@ -1237,6 +1238,9 @@ int MYSQL_LOG::purge_logs(const char *to_log,
     DBUG_PRINT("info",("purging %s",log_info.log_file_name));
     if (!my_delete(log_info.log_file_name, MYF(0)) && decrease_log_space)
       *decrease_log_space-= file_size;
+
+    ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+
     if (find_next_log(&log_info, 0) || exit_loop)
       break;
   }
@@ -1297,6 +1301,9 @@ int MYSQL_LOG::purge_logs_before_date(time_t purge_time)
 	stat_area.st_mtime >= purge_time)
       break;
     my_delete(log_info.log_file_name, MYF(0));
+
+    ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+
     if (find_next_log(&log_info, 0))
       break;
   }

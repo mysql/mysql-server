@@ -140,6 +140,7 @@ our $glob_scriptname=             undef;
 our $glob_timers=                 undef;
 our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
+our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
 our @glob_test_mode;
 
@@ -233,6 +234,8 @@ our $instance_manager;
 
 our $opt_ndbcluster_port;
 our $opt_ndbconnectstring;
+our $opt_ndbcluster_port_slave;
+our $opt_ndbconnectstring_slave;
 
 our $opt_no_manager;            # Does nothing now, we never use manager
 our $opt_manager_port;          # Does nothing now, we never use manager
@@ -300,12 +303,16 @@ our $opt_udiff;
 
 our $opt_skip_ndbcluster;
 our $opt_with_ndbcluster;
+our $opt_skip_ndbcluster_slave;
+our $opt_with_ndbcluster_slave;
+our $opt_ndb_extra_test;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
 our $path_ndb_backup_dir;
 our $file_ndb_testrun_log;
 our $flag_ndb_status_ok= 1;
+our $flag_ndb_slave_status_ok= 1;
 
 ######################################################################
 #
@@ -322,9 +329,13 @@ sub kill_running_server ();
 sub kill_and_cleanup ();
 sub check_ssl_support ();
 sub check_ndbcluster_support ();
+sub rm_ndbcluster_tables ($);
 sub ndbcluster_install ();
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
+sub ndbcluster_install_slave ();
+sub ndbcluster_start_slave ();
+sub ndbcluster_stop_slave ();
 sub run_benchmarks ($);
 sub run_tests ();
 sub mysql_install_db ();
@@ -493,6 +504,7 @@ sub command_line_setup () {
   my $opt_master_myport= 9306;
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
+  $opt_ndbcluster_port_slave=  9358;
   my $im_port=           9310;
   my $im_mysqld1_port=   9312;
   my $im_mysqld2_port=   9314;
@@ -529,6 +541,10 @@ sub command_line_setup () {
              'force'                    => \$opt_force,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
+             'with-ndbcluster-slave'    => \$opt_with_ndbcluster_slave,
+             'skip-ndbcluster-slave|skip-ndb-slave'
+                                        => \$opt_skip_ndbcluster_slave,
+             'ndb-extra-test'           => \$opt_ndb_extra_test,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
@@ -539,6 +555,7 @@ sub command_line_setup () {
              'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
              'ndbcluster_port=i'        => \$opt_ndbcluster_port,
+             'ndbcluster_port_slave=i'  => \$opt_ndbcluster_port_slave,
              'manager-port=i'           => \$opt_manager_port, # Currently not used
              'im-port=i'                => \$im_port, # Instance Manager port.
              'im-mysqld1-port=i'        => \$im_mysqld1_port, # Port of mysqld, controlled by IM
@@ -553,6 +570,7 @@ sub command_line_setup () {
              # Run test on running server
              'extern'                   => \$opt_extern,
              'ndbconnectstring=s'       => \$opt_ndbconnectstring,
+             'ndbconnectstring-slave=s' => \$opt_ndbconnectstring_slave,
 
              # Debugging
              'gdb'                      => \$opt_gdb,
@@ -759,9 +777,25 @@ sub command_line_setup () {
     $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
   }
 
+  if ( $opt_ndbconnectstring_slave )
+  {
+    $glob_use_running_ndbcluster_slave= 1;
+    $opt_with_ndbcluster_slave= 1;
+  }
+  else
+  {
+    $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
+  }
+
   if ( $opt_skip_ndbcluster )
   {
     $opt_with_ndbcluster= 0;
+    $opt_skip_ndbcluster_slave= 1;
+  }
+
+  if ( $opt_skip_ndbcluster_slave )
+  {
+    $opt_with_ndbcluster_slave= 0;
   }
 
   # The ":s" in the argument spec, means we have three different cases
@@ -855,6 +889,8 @@ sub command_line_setup () {
    path_mysock   => "$sockdir/slave.sock",
    path_myport   => $opt_slave_myport,
    start_timeout => 400,
+
+   ndbcluster    =>  1, # ndbcluster not started
   };
 
   $slave->[1]=
@@ -1188,6 +1224,8 @@ sub kill_running_server () {
 
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
+    ndbcluster_stop_slave();
+    $slave->[0]->{'ndbcluster'}= 1;
   }
 }
 
@@ -1358,6 +1396,15 @@ sub ndbcluster_start () {
   return 0;
 }
 
+sub rm_ndbcluster_tables ($) {
+  my $dir=       shift;
+  foreach my $bin ( glob("$dir/cluster_replication/apply_status*"),
+                    glob("$dir/cluster_replication/schema*") )
+  {
+    unlink($bin);
+  }
+}
+
 sub ndbcluster_stop () {
 
   if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
@@ -1370,6 +1417,71 @@ sub ndbcluster_stop () {
            "--data-dir=$opt_vardir",
            "--stop"],
           "", "/dev/null", "", "");
+
+  rm_ndbcluster_tables ($master->[0]->{'path_myddir'});
+  rm_ndbcluster_tables ($master->[1]->{'path_myddir'});
+  return;
+}
+
+sub ndbcluster_install_slave () {
+
+  if ( ! $opt_with_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
+  {
+    return 0;
+  }
+  mtr_report("Install ndbcluster slave");
+  if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+		["--port=$opt_ndbcluster_port_slave",
+		 "--data-dir=$opt_vardir",
+		 "--small",
+		 "--ndbd-nodes=1",
+		 "--initial"],
+		"", "", "", "") )
+  {
+    mtr_error("Error ndbcluster_install_slave");
+    return 1;
+  }
+
+  ndbcluster_stop_slave();
+  $slave->[0]->{'ndbcluster'}= 1;
+
+  return 0;
+}
+
+sub ndbcluster_start_slave () {
+
+  if ( ! $opt_with_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
+  {
+    return 0;
+  }
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+	       ["--port=$opt_ndbcluster_port_slave",
+		"--data-dir=$opt_vardir",
+		"--ndbd-nodes=1"],
+	       "", "/dev/null", "", "") )
+  {
+    mtr_error("Error ndbcluster_start_slave");
+    return 1;
+  }
+
+  return 0;
+}
+
+sub ndbcluster_stop_slave () {
+
+  if ( ! $opt_with_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
+  {
+    return;
+  }
+  # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
+          ["--port=$opt_ndbcluster_port_slave",
+           "--data-dir=$opt_vardir",
+           "--stop"],
+          "", "/dev/null", "", "");
+
+  rm_ndbcluster_tables ($slave->[0]->{'path_myddir'});
 
   return;
 }
@@ -1523,6 +1635,13 @@ sub mysql_install_db () {
     # failed to install, disable usage but flag that its no ok
     $opt_with_ndbcluster= 0;
     $flag_ndb_status_ok= 0;
+  }
+
+  if ( ndbcluster_install_slave() )
+  {
+    # failed to install, disable usage but flag that its no ok
+    $opt_with_ndbcluster_slave= 0;
+    $flag_ndb_slave_status_ok= 0;
   }
 
   return 0;
@@ -1848,6 +1967,18 @@ sub run_testcase ($) {
       {
         if ( ! $slave->[$idx]->{'pid'} )
         {
+          if ( $idx == 0)
+	  {
+	    if ( $slave->[0]->{'ndbcluster'} )
+	    {
+	      $slave->[0]->{'ndbcluster'}= ndbcluster_start_slave();
+	      if ( $slave->[0]->{'ndbcluster'} )
+	      {
+		report_failure_and_restart($tinfo);
+		return;
+	      }
+	    }
+	  }
           $slave->[$idx]->{'pid'}=
             mysqld_start('slave',$idx,
                          $tinfo->{'slave_opt'}, $tinfo->{'slave_mi'});
@@ -2115,6 +2246,12 @@ sub mysqld_arguments ($$$$$) {
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
+    if ( $opt_with_ndbcluster )
+    {
+      mtr_add_arg($args, "%s--ndbcluster", $prefix);
+      mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
+                  $opt_ndbconnectstring);
+    }
   }
 
   if ( $type eq 'slave' )
@@ -2171,6 +2308,17 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--server-id=%d", $prefix, $slave_server_id);
       mtr_add_arg($args, "%s--rpl-recovery-rank=%d", $prefix, $slave_rpl_rank);
     }
+    
+    if ( $opt_skip_ndbcluster_slave )
+    {
+      mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
+    }
+    if ( $idx == 0 and $opt_with_ndbcluster_slave )
+    {
+      mtr_add_arg($args, "%s--ndbcluster", $prefix);
+      mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
+                  $opt_ndbconnectstring_slave);
+    }
   } # end slave
 
   if ( $opt_debug )
@@ -2185,13 +2333,6 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/slave%s.trace",
                   $prefix, $opt_vardir, $sidx);
     }
-  }
-
-  if ( $opt_with_ndbcluster )
-  {
-    mtr_add_arg($args, "%s--ndbcluster", $prefix);
-    mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-                $opt_ndbconnectstring);
   }
 
   # FIXME always set nowdays??? SMALL_SERVER
@@ -2408,6 +2549,12 @@ sub stop_slaves () {
     }
   }
 
+  if ( ! $slave->[0]->{'ndbcluster'} )
+  {
+    ndbcluster_stop_slave();
+    $slave->[0]->{'ndbcluster'}= 1;
+  }
+
   mtr_stop_mysqld_servers(\@args);
 }
 
@@ -2617,6 +2764,8 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
 
   $ENV{'NDB_STATUS_OK'}=            $flag_ndb_status_ok;
+  $ENV{'NDB_SLAVE_STATUS_OK'}=      $flag_ndb_slave_status_ok;
+  $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_backup_dir;
   $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;

@@ -414,7 +414,10 @@ public:
 
     /** Monitor all, the trigger monitors changes of all attributes in table */
     bool monitorAllAttributes;
-    
+
+    /** Monitor all, the trigger monitors changes of all attributes in table */
+    bool reportAllMonitoredAttributes;
+        
     /**
      * Attribute mask, defines what attributes are to be monitored.
      * Can be seen as a compact representation of SQL column name list.
@@ -1580,16 +1583,15 @@ private:
     RequestTracker m_reqTracker;
     // state info
     CreateEvntReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
     // error info
     Uint32 m_errorCode;
     Uint32 m_errorLine;
-    Uint32 m_errorNode;
+    Uint32 m_errorNode; /* also used to store master node id
+                           in case of NotMaster */
     // ctor
     OpCreateEvent() {
       memset(&m_request, 0, sizeof(m_request));
       m_requestType = CreateEvntReq::RT_UNDEFINED;
-      m_requestFlag = 0;
       m_errorCode = CreateEvntRef::NoError;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -1600,7 +1602,6 @@ private:
       m_errorLine = 0;
       m_errorNode = 0;
       m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
     }
     bool hasError() {
       return m_errorCode != CreateEvntRef::NoError;

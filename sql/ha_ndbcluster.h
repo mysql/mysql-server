@@ -42,8 +42,10 @@ class NdbEventOperation;
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 extern ulong ndb_cache_check_time;
+#ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
+#endif
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -86,7 +88,25 @@ typedef struct st_ndbcluster_share {
   ulonglong commit_count;
   char *db;
   char *table_name;
+#ifdef HAVE_NDB_BINLOG
+  uint32 flags;
+  NDB_SHARE_STATE state;
+  NdbEventOperation *op;
+  NdbEventOperation *op_old; // for rename table
+  char *old_names; // for rename table
+  TABLE_SHARE *table_share;
+  TABLE *table;
+  NdbValue *ndb_value[2];
+  MY_BITMAP *subscriber_bitmap;
+  MY_BITMAP slock_bitmap;
+  uint32 slock[256/32]; // 256 bits for lock status of table
+#endif
 } NDB_SHARE;
+
+#ifdef HAVE_NDB_BINLOG
+/* NDB_SHARE.flags */
+#define NSF_HIDDEN_PK 1 /* table has hidden primary key */
+#endif
 
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
@@ -461,6 +481,11 @@ class Ndb_cond_traverse_context
   Place holder for ha_ndbcluster thread specific data
 */
 
+enum THD_NDB_OPTIONS
+{
+  TNO_NO_LOG_SCHEMA_OP= 1 << 0
+};
+
 class Thd_ndb 
 {
  public:
@@ -472,6 +497,7 @@ class Thd_ndb
   NdbTransaction *all;
   NdbTransaction *stmt;
   int error;
+  uint32 options;
   List<NDB_SHARE> changed_tables;
 };
 
@@ -553,6 +579,9 @@ class ha_ndbcluster: public handler
 
   bool low_byte_first() const;
   bool has_transactions();
+
+  virtual bool is_injective() const { return true; }
+
   const char* index_type(uint key_number);
 
   double scan_time();
@@ -773,18 +802,10 @@ private:
 
 extern SHOW_VAR ndb_status_variables[];
 
-bool ndbcluster_init(void);
-int ndbcluster_end(ha_panic_function flag);
-
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
                           const char *wild, bool dir, List<char> *files);
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
-void ndbcluster_drop_database(char* path);
-
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
-
-bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
-

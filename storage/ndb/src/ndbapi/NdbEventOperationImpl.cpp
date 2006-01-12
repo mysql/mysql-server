@@ -270,6 +270,7 @@ NdbEventOperationImpl::execute()
   m_state= EO_ERROR;
   mi_type= 0;
   m_magic_number= 0;
+  m_error.code= myDict->getNdbError().code;
   m_ndb->theEventBuffer->remove_op();
   m_ndb->theEventBuffer->add_drop_unlock();
   DBUG_RETURN(r);
@@ -672,7 +673,7 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 
   NdbMutex_Lock(m_mutex);
   NdbEventOperationImpl *ev_op= move_data();
-  if (unlikely(ev_op == 0))
+  if (unlikely(ev_op == 0 && aMillisecondNumber))
   {
     NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
     ev_op= move_data();
@@ -1012,6 +1013,33 @@ NdbEventBuffer::complete_outof_order_gcis()
   }
   
   ndbout_c("complete_outof_order_gcis: m_latestGCI: %lld", m_latestGCI);
+}
+
+void
+NdbEventBuffer::report_node_failure(Uint32 node_id)
+{
+  DBUG_ENTER("NdbEventBuffer::report_node_failure");
+  SubTableData data;
+  LinearSectionPtr ptr[3];
+  bzero(&data, sizeof(data));
+  bzero(ptr, sizeof(ptr));
+
+  data.tableId = ~0;
+  data.operation = NdbDictionary::Event::_TE_NODE_FAILURE;
+  data.req_nodeid = (Uint8)node_id;
+  data.ndbd_nodeid = (Uint8)node_id;
+  data.logType = SubTableData::LOG;
+  /**
+   * Insert this event for each operation
+   */
+  NdbEventOperation* op= 0;
+  while((op = m_ndb->getEventOperation(op)))
+  {
+    NdbEventOperationImpl* impl= &op->m_impl;
+    data.senderData = impl->m_oid;
+    insertDataL(impl, &data, ptr); 
+  }
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1648,7 +1676,7 @@ NdbEventBuffer::reportStatus()
     m_min_free_thresh= m_free_thresh;
     m_max_free_thresh= 100;
     goto send_report;
- }
+  }
   if (latest_gci-apply_gci >=  m_gci_slip_thresh)
   {
     goto send_report;

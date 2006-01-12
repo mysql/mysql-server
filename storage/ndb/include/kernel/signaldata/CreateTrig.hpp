@@ -146,6 +146,12 @@ public:
   void setMonitorAllAttributes(bool val) {
     BitmaskImpl::setField(1, &m_triggerInfo, 25, 1, val);
   }
+  bool getReportAllMonitoredAttributes() const {
+    return BitmaskImpl::getField(1, &m_triggerInfo, 26, 1);
+  }
+  void setReportAllMonitoredAttributes(bool val) {
+    BitmaskImpl::setField(1, &m_triggerInfo, 26, 1, val);
+  }
   Uint32 getOnline() const {
     return m_online;
   }
