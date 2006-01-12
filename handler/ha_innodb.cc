@@ -1004,6 +1004,7 @@ innobase_query_caching_of_table_permitted(
 		mutex_enter(&kernel_mutex);
 		trx_print(stderr, trx, 1024);
 		mutex_exit(&kernel_mutex);
+		ut_error;
 	}
 
 	innobase_release_stat_resources(trx);
@@ -6354,14 +6355,17 @@ ha_innobase::external_lock(
 		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
 		an InnoDB table lock if it is released immediately at the end
 		of LOCK TABLES, and InnoDB's table locks in that case cause
-		VERY easily deadlocks. We do not set InnoDB table locks when
-		MySQL sets them at the start of a stored procedure call
-		(MySQL does have thd->in_lock_tables TRUE there). */
+		VERY easily deadlocks. 
+
+		We do not set InnoDB table locks if user has not explicitly
+		requested a table lock. Note that thd->in_lock_tables
+		can  be TRUE on some cases e.g. at the start of a stored
+		procedure call (SQLCOM_CALL). */
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
 			if (thd->in_lock_tables &&
-			    thd->lex->sql_command != SQLCOM_CALL &&
+			    thd->lex->sql_command == SQLCOM_LOCK_TABLES &&
 			    thd->variables.innodb_table_locks &&
 			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
 
@@ -6844,7 +6848,7 @@ ha_innobase::store_lock(
 
 	} else if (lock_type != TL_IGNORE) {
 
-	        /* We set possible LOCK_X value in external_lock, not yet
+		/* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
@@ -6853,7 +6857,7 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
-                /* Starting from 5.0.7, we weaken also the table locks
+		/* Starting from 5.0.7, we weaken also the table locks
 		set at the start of a MySQL stored procedure call, just like
 		we weaken the locks set at the start of an SQL statement.
 		MySQL does set thd->in_lock_tables TRUE there, but in reality
@@ -6876,26 +6880,36 @@ ha_innobase::store_lock(
 			lock_type = TL_READ_NO_INSERT;
 		}
 
-    		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
-		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
+		/* If we are not doing a LOCK TABLE, DISCARD/IMPORT
+		TABLESPACE or TRUNCATE TABLE then allow multiple 
+		writers. Note that ALTER TABLE uses a TL_WRITE_ALLOW_READ
+		< TL_WRITE_CONCURRENT_INSERT.
 
-    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-	 	    lock_type <= TL_WRITE)
+		We especially allow multiple writers if MySQL is at the 
+		start of a stored procedure call (SQLCOM_CALL) 
+		(MySQL does have thd->in_lock_tables TRUE there). */
+
+    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT 
+		    && lock_type <= TL_WRITE)
 		    && (!thd->in_lock_tables
-		        || thd->lex->sql_command == SQLCOM_CALL)
+			|| thd->lex->sql_command == SQLCOM_CALL)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
 		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
-                    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
-      			lock_type = TL_WRITE_ALLOW_WRITE;
+			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
 
 		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
 		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
 		would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
 		to t2. Convert the lock to a normal read lock to allow
-		concurrent inserts to t2. */
+		concurrent inserts to t2. 
+
+		We especially allow concurrent inserts if MySQL is at the 
+		start of a stored procedure call (SQLCOM_CALL) 
+		(MySQL does have thd->in_lock_tables TRUE there). */
       		
 		if (lock_type == TL_READ_NO_INSERT
 		    && (!thd->in_lock_tables
@@ -6904,10 +6918,10 @@ ha_innobase::store_lock(
 			lock_type = TL_READ;
 		}
 		
- 		lock.type = lock_type;
-  	}
+		lock.type = lock_type;
+	}
 
-  	*to++= &lock;
+	*to++= &lock;
 
 	return(to);
 }
