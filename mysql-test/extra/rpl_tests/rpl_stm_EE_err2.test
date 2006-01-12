@@ -1,0 +1,30 @@
+###################################
+# Author: JBM
+# Date: 2006-01-11
+# Purpose: Second test case from
+#          rpl_EE_err.test split out
+#          from orginal to make the
+#          first work with both RBR and SBR
+###################################
+#REQUIREMENT: An INSERT with a faked duplicate entry error on
+#master should be replicated to slave and force the slave to stop
+#(since the slave can't cause a faked error to re-occur).
+###################################
+
+-- source include/master-slave.inc
+
+connection master;
+eval create table t1 (a int, unique(a)) engine=$engine_type;
+set sql_log_bin=0;
+insert into t1 values(2);
+set sql_log_bin=1;
+save_master_pos;
+--error 1062
+insert into t1 values(1),(2);
+drop table t1;
+save_master_pos;
+connection slave;
+wait_for_slave_to_stop;
+
+# End of 4.1 tests
+
