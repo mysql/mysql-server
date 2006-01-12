@@ -18,8 +18,7 @@ group_min_max   : Bug #15448
 innodb_concurrent : Results are not deterministic, Elliot will fix (BUG#3300)
 subselect       : Bug#15706
 type_time       : Bug#15805
-#rpl000002       : Bug#15920 Temporary tables are not binlogged in SBR
-#ps_7ndb         : Bug#15923 Core dump in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
 mysqlslap       : Bug#16167
 events          : Affects flush test case. A table lock not released somewhere
+rpl_sp          : Bug #16456
