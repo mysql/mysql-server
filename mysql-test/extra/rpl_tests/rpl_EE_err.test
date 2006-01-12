@@ -2,17 +2,20 @@
 # statements that are not replicated.  The test below could be changed
 # to rely on the replication of error codes for statements that are not
 # replicated row-based.
-
-# This test does not work the same for row based as the insert in the second part is not replicated as a call but rather as a table map and row right. Have added a slave stop so the test will complete, other wise it just continues to loop waiting for a slave stop that never comes. 8/22/2005 JBM
-
--- source include/have_binlog_format_row.inc
-
+#
 # See if an EE_ error in one event of the master's binlog stops replication
 # (it should not: in this configuration the EE_ error is probably not 
 # critical). Example: you do a DROP TABLE on a table which has no MYI file
 # check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986).
-
+####################################
+# Change Author: JBM
+# Change Date: 2006-01-11
+# Change: Split test per lars review
+####################################
+#"REQUIREMENT: A master DROP TABLE on a table with non-existing MYI
+# file must be correctly replicated to the slave"
+####################################
 -- source include/master-slave.inc
 
 eval create table t1 (a int) engine=$engine_type;
@@ -23,18 +26,4 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
-# Now a real error.
-
-connection master;
-eval create table t1 (a int, unique(a)) engine=$engine_type;
-set sql_log_bin=0;
-insert into t1 values(2);
-set sql_log_bin=1;
-save_master_pos;
---error 1062
-insert into t1 values(1),(2);
-drop table t1;
-save_master_pos;
-connection slave;
-stop slave;
-wait_for_slave_to_stop;
+# End of 4.1 tests
