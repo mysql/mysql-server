@@ -3131,7 +3131,14 @@ sp_restore_security_context(THD *thd, Security_context *backup)
 
 typedef struct st_sp_table
 {
-  LEX_STRING qname;     /* Multi-set key: db_name\0table_name\0alias\0 */
+  /*
+    Multi-set key:
+      db_name\0table_name\0alias\0 - for normal tables
+      db_name\0table_name\0        - for temporary tables
+    Note that in both cases we don't take last '\0' into account when
+    we count length of key.
+  */
+  LEX_STRING qname;
   uint db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
@@ -3201,10 +3208,14 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       tname[tlen]= '\0';
 
       /*
-        It is safe to store pointer to table list elements in hash,
-        since they are supposed to have the same lifetime.
+        We ignore alias when we check if table was already marked as temporary
+        (and therefore should not be prelocked). Otherwise we will erroneously
+        treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)))
+      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)) ||
+          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname,
+                                        tlen - alen - 1)) &&
+           tab->temp))
       {
         if (tab->lock_type < table->lock_type)
           tab->lock_type= table->lock_type; // Use the table with the highest lock type
@@ -3216,14 +3227,18 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       {
 	if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
 	  return FALSE;
-	tab->qname.length= tlen;
-	tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
-	if (!tab->qname.str)
-	  return FALSE;
 	if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
 	    lex_for_tmp_check->query_tables == table &&
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+        {
 	  tab->temp= TRUE;
+          tab->qname.length= tlen - alen - 1;
+        }
+        else
+          tab->qname.length= tlen;
+        tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
+        if (!tab->qname.str)
+          return FALSE;
         tab->table_name_length= table->table_name_length;
         tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;
