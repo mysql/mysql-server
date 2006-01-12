@@ -184,6 +184,13 @@ uint build_tmptable_filename(char *buff, size_t bufflen,
   return length;
 }
 
+/*
+  Return values for compare_tables().
+  If you make compare_tables() non-static, move them to a header file.
+*/
+#define ALTER_TABLE_DATA_CHANGED  1
+#define ALTER_TABLE_INDEX_CHANGED 2
+
 
 
 /*
@@ -853,10 +860,16 @@ int prepare_create_field(create_field *sql_field,
 
   SYNOPSIS
     mysql_prepare_table()
-    thd			Thread object
-    create_info		Create information (like MAX_ROWS)
-    fields		List of fields to create
-    keys		List of keys to create
+      thd                       Thread object.
+      create_info               Create information (like MAX_ROWS).
+      fields                    List of fields to create.
+      keys                      List of keys to create.
+      tmp_table                 If a temporary table is to be created.
+      db_options          INOUT Table options (like HA_OPTION_PACK_RECORD).
+      file                      The handler for the new table.
+      key_info_buffer     OUT   An array of KEY structs for the indexes.
+      key_count           OUT   The number of elements in the array.
+      select_field_count        The number of fields coming from a select table.
 
   DESCRIPTION
     Prepares the table and key structures for table creation.
@@ -1171,6 +1184,8 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 
   while ((key=key_iterator++))
   {
+    DBUG_PRINT("info", ("key name: '%s'  type: %d", key->name ? key->name :
+                        "(none)" , key->type));
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
@@ -1231,7 +1246,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       key_parts+=key->columns.elements;
     else
       (*key_count)--;
-    if (key->name && !tmp_table &&
+    if (key->name && !tmp_table && (key->type != Key::PRIMARY) &&
 	!my_strcasecmp(system_charset_info,key->name,primary_key_name))
     {
       my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name);
@@ -1245,7 +1260,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
 
-  (*key_info_buffer) = key_info= (KEY*) sql_calloc(sizeof(KEY)* *key_count);
+  (*key_info_buffer)= key_info= (KEY*) sql_calloc(sizeof(KEY) * (*key_count));
   key_part_info=(KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
   if (!*key_info_buffer || ! key_part_info)
     DBUG_RETURN(-1);				// Out of memory
@@ -3303,219 +3318,20 @@ err:
 }
 
 
-#ifdef NOT_USED
-/*
-  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-  the proper arguments.  This isn't very fast but it should work for most
-  cases.
-  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
-*/
-
-int mysql_create_indexes(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
-{
-  List<create_field> fields;
-  List<Alter_drop>   drop;
-  List<Alter_column> alter;
-  HA_CREATE_INFO     create_info;
-  int		     rc;
-  uint		     idx;
-  uint		     db_options;
-  uint		     key_count;
-  TABLE		     *table;
-  Field		     **f_ptr;
-  KEY		     *key_info_buffer;
-  char		     path[FN_REFLEN+1];
-  DBUG_ENTER("mysql_create_index");
-
-  /*
-    Try to use online generation of index.
-    This requires that all indexes can be created online.
-    Otherwise, the old alter table procedure is executed.
-
-    Open the table to have access to the correct table handler.
-  */
-  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
-    DBUG_RETURN(-1);
-
-  /*
-    The add_index method takes an array of KEY structs for the new indexes.
-    Preparing a new table structure generates this array.
-    It needs a list with all fields of the table, which does not need to
-    be correct in every respect. The field names are important.
-  */
-  for (f_ptr= table->field; *f_ptr; f_ptr++)
-  {
-    create_field *c_fld= new create_field(*f_ptr, *f_ptr);
-    c_fld->unireg_check= Field::NONE; /*avoid multiple auto_increments*/
-    fields.push_back(c_fld);
-  }
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= (handlerton*) &default_hton;
-  create_info.default_table_charset= thd->variables.collation_database;
-  db_options= 0;
-  if (mysql_prepare_table(thd, &create_info, &fields,
-			  &keys, /*tmp_table*/ 0, &db_options, table->file,
-			  &key_info_buffer, key_count,
-			  /*select_field_count*/ 0))
-    DBUG_RETURN(-1);
-
-  /*
-    Check if all keys can be generated with the add_index method.
-    If anyone cannot, then take the old way.
-  */
-  for (idx=0; idx< key_count; idx++)
-  {
-    DBUG_PRINT("info", ("creating index %s", key_info_buffer[idx].name));
-    if (!(table->file->index_ddl_flags(key_info_buffer+idx)&
-	  (HA_DDL_ONLINE| HA_DDL_WITH_LOCK)))
-      break ;
-  }
-  if ((idx < key_count)|| !key_count)
-  {
-    /* Re-initialize the create_info, which was changed by prepare table. */
-    bzero((char*) &create_info,sizeof(create_info));
-    create_info.db_type= (handlerton*) &default_hton;
-    create_info.default_table_charset= thd->variables.collation_database;
-    /* Cleanup the fields list. We do not want to create existing fields. */
-    fields.delete_elements();
-    if (real_alter_table(thd, table_list->db, table_list->table_name,
-			 &create_info, table_list, table,
-			 fields, keys, drop, alter, 0, (ORDER*)0,
-			 ALTER_ADD_INDEX, DUP_ERROR))
-      /* Don't need to free((gptr) key_info_buffer);*/
-      DBUG_RETURN(-1);
-  }
-  else
-  {
-    if (table->file->add_index(table, key_info_buffer, key_count)||
-        build_table_filename(path, sizeof(path), table_list->db,
-                             (lower_case_table_names == 2) ?
-                             table_list->alias : table_list->table_name,
-                             reg_ext) == 0 ||
-	mysql_create_frm(thd, path, &create_info,
-			 fields, key_count, key_info_buffer, table->file))
-      /* don't need to free((gptr) key_info_buffer);*/
-      DBUG_RETURN(-1);
-  }
-  /* don't need to free((gptr) key_info_buffer);*/
-  DBUG_RETURN(0);
-}
-
-
-int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
-		       List<Alter_drop> &drop)
-{
-  List<create_field> fields;
-  List<Key>	     keys;
-  List<Alter_column> alter;
-  HA_CREATE_INFO     create_info;
-  uint		     idx;
-  uint		     db_options;
-  uint		     key_count;
-  uint		     *key_numbers;
-  TABLE		     *table;
-  Field		     **f_ptr;
-  KEY		     *key_info;
-  KEY		     *key_info_buffer;
-  char		     path[FN_REFLEN];
-  DBUG_ENTER("mysql_drop_index");
-
-  /*
-    Try to use online generation of index.
-    This requires that all indexes can be created online.
-    Otherwise, the old alter table procedure is executed.
-
-    Open the table to have access to the correct table handler.
-  */
-  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
-    DBUG_RETURN(-1);
-
-  /*
-    The drop_index method takes an array of key numbers.
-    It cannot get more entries than keys in the table.
-  */
-  key_numbers= (uint*) thd->alloc(sizeof(uint*)*table->keys);
-  key_count= 0;
-
-  /*
-    Get the number of each key and check if it can be created online.
-  */
-  List_iterator<Alter_drop> drop_it(drop);
-  Alter_drop *drop_key;
-  while ((drop_key= drop_it++))
-  {
-    /* Find the key in the table. */
-    key_info=table->key_info;
-    for (idx=0; idx< table->keys; idx++, key_info++)
-    {
-      if (!my_strcasecmp(system_charset_info, key_info->name, drop_key->name))
-	break;
-    }
-    if (idx>= table->keys)
-    {
-      my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_key->name);
-      /*don't need to free((gptr) key_numbers);*/
-      DBUG_RETURN(-1);
-    }
-    /*
-      Check if the key can be generated with the add_index method.
-      If anyone cannot, then take the old way.
-    */
-    DBUG_PRINT("info", ("dropping index %s", table->key_info[idx].name));
-    if (!(table->file->index_ddl_flags(table->key_info+idx)&
-	  (HA_DDL_ONLINE| HA_DDL_WITH_LOCK)))
-      break ;
-    key_numbers[key_count++]= idx;
-  }
-
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type= (handlerton*) &default_hton;
-  create_info.default_table_charset= thd->variables.collation_database;
-
-  if ((drop_key)|| (drop.elements<= 0))
-  {
-    if (real_alter_table(thd, table_list->db, table_list->table_name,
-			 &create_info, table_list, table,
-			 fields, keys, drop, alter, 0, (ORDER*)0,
-			 ALTER_DROP_INDEX, DUP_ERROR))
-      /*don't need to free((gptr) key_numbers);*/
-      DBUG_RETURN(-1);
-  }
-  else
-  {
-    db_options= 0;
-    if (table->file->drop_index(table, key_numbers, key_count)||
-	mysql_prepare_table(thd, &create_info, &fields,
-			    &keys, /*tmp_table*/ 0, &db_options, table->file,
-			    &key_info_buffer, key_count,
-			    /*select_field_count*/ 0)||
-        build_table_filename(path, sizeof(path), table_list->db,
-                             (lower_case_table_names == 2) ?
-                             table_list->alias : table_list->table_name,
-                             reg_ext) == 0 ||
-	mysql_create_frm(thd, path, &create_info,
-			 fields, key_count, key_info_buffer, table->file))
-      /*don't need to free((gptr) key_numbers);*/
-      DBUG_RETURN(-1);
-  }
-
-  /*don't need to free((gptr) key_numbers);*/
-  DBUG_RETURN(0);
-}
-#endif /* NOT_USED */
-
-
-
-#define ALTER_TABLE_DATA_CHANGED  1
-#define ALTER_TABLE_INDEX_CHANGED 2
-
 /*
   SYNOPSIS
-    compare tables()
-    table       original table
-    create_list fields in new table
-    key_list    keys in new table
-    create_info create options in new table
+    compare_tables()
+      table                     The original table.
+      create_list               The fields for the new table.
+      key_info_buffer           An array of KEY structs for the new indexes.
+      key_count                 The number of elements in the array.
+      create_info               Create options for the new table.
+      alter_info                Alter options.
+      order_num                 Number of order list elements.
+      index_drop_buffer   OUT   An array of offsets into table->key_info.
+      index_drop_count    OUT   The number of elements in the array.
+      index_add_buffer    OUT   An array of offsets into key_info_buffer.
+      index_add_count     OUT   The number of elements in the array.
 
   DESCRIPTION
     'table' (first argument) contains information of the original
@@ -3527,20 +3343,29 @@ int mysql_drop_indexes(THD *thd, TABLE_LIST *table_list,
     and whether we need to make a copy of the table, or just change
     the .frm file.
 
+    If there are no data changes, but index changes, 'index_drop_buffer'
+    and/or 'index_add_buffer' are populated with offsets into
+    table->key_info or key_info_buffer respectively for the indexes
+    that need to be dropped and/or (re-)created.
+
   RETURN VALUES
-    0 No copy needed
-    1 Data changes, copy needed
-    2 Index changes, copy needed   
+    0                           No copy needed
+    ALTER_TABLE_DATA_CHANGED    Data changes, copy needed
+    ALTER_TABLE_INDEX_CHANGED   Index changes, copy might be needed
 */
 
-uint compare_tables(TABLE *table, List<create_field> *create_list,
-		    List<Key> *key_list, HA_CREATE_INFO *create_info,
-		    ALTER_INFO *alter_info, uint order_num)
+static uint compare_tables(TABLE *table, List<create_field> *create_list,
+                           KEY *key_info_buffer, uint key_count,
+                           HA_CREATE_INFO *create_info,
+                           ALTER_INFO *alter_info, uint order_num,
+                           uint *index_drop_buffer, uint *index_drop_count,
+                           uint *index_add_buffer, uint *index_add_count)
 {
   Field **f_ptr, *field;
   uint changes= 0, tmp;
   List_iterator_fast<create_field> new_field_it(*create_list);
   create_field *new_field;
+  DBUG_ENTER("compare_tables");
 
   /*
     Some very basic checks. If number of fields changes, or the
@@ -3568,7 +3393,7 @@ uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (alter_info->flags & ALTER_RECREATE) ||
       order_num)
-    return ALTER_TABLE_DATA_CHANGED;
+    DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
   /*
     Go through fields and check if the original ones are compatible
@@ -3580,11 +3405,11 @@ uint compare_tables(TABLE *table, List<create_field> *create_list,
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
-    
+
     /* Check that NULL behavior is same for old and new fields */
     if ((new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
-      return ALTER_TABLE_DATA_CHANGED;
+      DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
     /* Don't pack rows in old tables if the user has requested this. */
     if (create_info->row_type == ROW_TYPE_DYNAMIC ||
@@ -3595,73 +3420,106 @@ uint compare_tables(TABLE *table, List<create_field> *create_list,
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(new_field)))
-      return ALTER_TABLE_DATA_CHANGED;
+      DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
     changes|= tmp;
   }
   /* Check if changes are compatible with current handler without a copy */
   if (table->file->check_if_incompatible_data(create_info, changes))
-    return ALTER_TABLE_DATA_CHANGED;
+    DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
   /*
     Go through keys and check if the original ones are compatible
     with new table.
   */
-  KEY *table_key_info= table->key_info;
-  List_iterator_fast<Key> key_it(*key_list);
-  Key *key= key_it++;
+  KEY *table_key;
+  KEY *table_key_end= table->key_info + table->s->keys;
+  KEY *new_key;
+  KEY *new_key_end= key_info_buffer + key_count;
 
-  /* Check if the number of key elements has changed */
-  if  (table->s->keys != key_list->elements)
-    return ALTER_TABLE_INDEX_CHANGED;
-
-  for (uint i= 0; i < table->s->keys; i++, table_key_info++, key= key_it++)
+  DBUG_PRINT("info", ("index count old: %d  new: %d",
+                      table->s->keys, key_count));
+  /*
+    Step through all keys of the old table and search matching new keys.
+  */
+  *index_drop_count= 0;
+  *index_add_count= 0;
+  for (table_key= table->key_info; table_key < table_key_end; table_key++)
   {
-    /*
-      Check that the key types are compatible between old and new tables.
-    */
-    if (table_key_info->algorithm != key->algorithm ||
-	((key->type == Key::PRIMARY || key->type == Key::UNIQUE) &&
-	 !(table_key_info->flags & HA_NOSAME)) ||
-	(!(key->type == Key::PRIMARY || key->type == Key::UNIQUE) &&
-	 (table_key_info->flags & HA_NOSAME)) ||
-	((key->type == Key::SPATIAL) &&
-	 !(table_key_info->flags & HA_SPATIAL)) ||
-	(!(key->type == Key::SPATIAL) &&
-	 (table_key_info->flags & HA_SPATIAL)) ||
-	((key->type == Key::FULLTEXT) &&
-	 !(table_key_info->flags & HA_FULLTEXT)) ||
-	(!(key->type == Key::FULLTEXT) &&
-	 (table_key_info->flags & HA_FULLTEXT)))
-      return ALTER_TABLE_INDEX_CHANGED;
-    
-    if  (table_key_info->key_parts != key->columns.elements)
-      return ALTER_TABLE_INDEX_CHANGED;
+    KEY_PART_INFO *table_part;
+    KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
+    KEY_PART_INFO *new_part;
+
+    /* Search a new key with the same name. */
+    for (new_key= key_info_buffer; new_key < new_key_end; new_key++)
+    {
+      if (! strcmp(table_key->name, new_key->name))
+        break;
+    }
+    if (new_key >= new_key_end)
+    {
+      /* Key not found. Add the offset of the key to the drop buffer. */
+      index_drop_buffer[(*index_drop_count)++]= table_key - table->key_info;
+      DBUG_PRINT("info", ("index dropped: '%s'", table_key->name));
+      continue;
+    }
+
+    /* Check that the key types are compatible between old and new tables. */
+    if ((table_key->algorithm != new_key->algorithm) ||
+	((table_key->flags & HA_KEYFLAG_MASK) !=
+         (new_key->flags & HA_KEYFLAG_MASK)) ||
+        (table_key->key_parts != new_key->key_parts))
+      goto index_changed;
 
     /*
       Check that the key parts remain compatible between the old and
       new tables.
     */
-    KEY_PART_INFO *table_key_part= table_key_info->key_part;
-    List_iterator_fast<key_part_spec> key_part_it(key->columns);
-    key_part_spec *key_part= key_part_it++;
-    for (uint j= 0; j < table_key_info->key_parts; j++,
-	   table_key_part++, key_part= key_part_it++)
+    for (table_part= table_key->key_part, new_part= new_key->key_part;
+         table_part < table_part_end;
+         table_part++, new_part++)
     {
       /*
 	Key definition has changed if we are using a different field or
-	if the used key length is different
-	(If key_part->length == 0 it means we are using the whole field)
+	if the used key part length is different. We know that the fields
+        did not change. Comparing field numbers is sufficient.
       */
-      if (strcmp(key_part->field_name, table_key_part->field->field_name) ||
-	  (key_part->length && key_part->length != table_key_part->length) ||
-	  (key_part->length == 0 && table_key_part->length !=
-	   table_key_part->field->pack_length()))
-	return ALTER_TABLE_INDEX_CHANGED;	
+      if ((table_part->length != new_part->length) ||
+          (table_part->fieldnr - 1 != new_part->fieldnr))
+	goto index_changed;
+    }
+    continue;
+
+  index_changed:
+    /* Key modified. Add the offset of the key to both buffers. */
+    index_drop_buffer[(*index_drop_count)++]= table_key - table->key_info;
+    index_add_buffer[(*index_add_count)++]= new_key - key_info_buffer;
+    DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
+  }
+  /*end of for (; table_key < table_key_end;) */
+
+  /*
+    Step through all keys of the new table and find matching old keys.
+  */
+  for (new_key= key_info_buffer; new_key < new_key_end; new_key++)
+  {
+    /* Search an old key with the same name. */
+    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    {
+      if (! strcmp(table_key->name, new_key->name))
+        break;
+    }
+    if (table_key >= table_key_end)
+    {
+      /* Key not found. Add the offset of the key to the add buffer. */
+      index_add_buffer[(*index_add_count)++]= new_key - key_info_buffer;
+      DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
+  if (*index_drop_count || *index_add_count)
+    DBUG_RETURN(ALTER_TABLE_INDEX_CHANGED);
 
-  return 0; // Tables are compatible
+  DBUG_RETURN(0); // Tables are compatible
 }
 
 
@@ -3682,6 +3540,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
+  char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
@@ -3693,17 +3552,28 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   bool partition_changed= FALSE;
   handlerton *default_engine_type;
 #endif
+  List<create_field> prepared_create_list;
+  List<Key>          prepared_key_list;
+  bool need_lock_for_indexes= TRUE;
+  uint db_options= 0;
+  uint key_count;
+  KEY  *key_info_buffer;
+  uint index_drop_count;
+  uint *index_drop_buffer;
+  uint index_add_count;
+  uint *index_add_buffer;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
   table_name=table_list->table_name;
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
-
   db=table_list->db;
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
+  build_table_filename(reg_path, sizeof(reg_path), db, table_name, reg_ext);
+
   used_fields=create_info->used_fields;
-  
+
   mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
@@ -4556,22 +4426,186 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   set_table_default_charset(thd, create_info, db);
 
+  {
+    /*
+      For some purposes we need prepared table structures and translated
+      key descriptions with proper default key name assignment.
+
+      Unfortunately, mysql_prepare_table() modifies the field and key
+      lists. mysql_create_table() needs the unmodified lists. Hence, we
+      need to copy the lists and all their elements. The lists contain
+      pointers to the elements only.
+
+      We cannot copy conditionally because the partition code always
+      needs prepared lists and compare_tables() needs them and is almost
+      always called.
+    */
+
+    /* Copy fields. */
+    List_iterator<create_field> prep_field_it(create_list);
+    create_field *prep_field;
+    while ((prep_field= prep_field_it++))
+      prepared_create_list.push_back(new create_field(*prep_field));
+
+    /* Copy keys and key parts. */
+    List_iterator<Key> prep_key_it(key_list);
+    Key *prep_key;
+    while ((prep_key= prep_key_it++))
+    {
+      List<key_part_spec> prep_columns;
+      List_iterator<key_part_spec> prep_col_it(prep_key->columns);
+      key_part_spec *prep_col;
+
+      while ((prep_col= prep_col_it++))
+        prep_columns.push_back(new key_part_spec(*prep_col));
+      prepared_key_list.push_back(new Key(prep_key->type, prep_key->name,
+                                          prep_key->algorithm,
+                                          prep_key->generated, prep_columns,
+                                          prep_key->parser_name));
+    }
+
+    /* Create the prepared information. */
+    if (mysql_prepare_table(thd, create_info, &prepared_create_list,
+                            &prepared_key_list,
+                            (table->s->tmp_table != NO_TMP_TABLE), &db_options,
+                            table->file, &key_info_buffer, &key_count, 0))
+      goto err;
+  }
+
+  if (thd->variables.old_alter_table
+      || (table->s->db_type != create_info->db_type)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (thd->variables.old_alter_table || partition_changed)
-#else
-  if (thd->variables.old_alter_table)
+      || partition_changed
 #endif
+     )
     need_copy_table= 1;
   else
-    need_copy_table= compare_tables(table, &create_list, &key_list,
-				    create_info, alter_info, order_num);
+  {
+    /* Try to optimize ALTER TABLE. Allocate result buffers. */
+    if (! (index_drop_buffer=
+           (uint*) thd->alloc(sizeof(uint) * table->s->keys)) ||
+        ! (index_add_buffer=
+           (uint*) thd->alloc(sizeof(uint) * prepared_key_list.elements)))
+      goto err;
+    /* Check how much the tables differ. */
+    need_copy_table= compare_tables(table, &prepared_create_list,
+                                    key_info_buffer, key_count,
+                                    create_info, alter_info, order_num,
+                                    index_drop_buffer, &index_drop_count,
+                                    index_add_buffer, &index_add_count);
+  }
+
+  /*
+    If there are index changes only, try to do them online. "Index
+    changes only" means also that the handler for the table does not
+    change. The table is open and locked. The handler can be accessed.
+  */
+  if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
+  {
+    int   pk_changed= 0;
+    ulong alter_flags= table->file->alter_table_flags();
+    ulong needed_online_flags= 0;
+    ulong needed_fast_flags= 0;
+    KEY   *key;
+    uint  *idx_p;
+    uint  *idx_end_p;
+    DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
+
+    /* Check dropped indexes. */
+    for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
+         idx_p < idx_end_p;
+         idx_p++)
+    {
+      key= table->key_info + *idx_p;
+      DBUG_PRINT("info", ("index dropped: '%s'", key->name));
+      if (key->flags & HA_NOSAME)
+      {
+        /* Unique key. Check for "PRIMARY". */
+        if (! my_strcasecmp(system_charset_info,
+                            key->name, primary_key_name))
+        {
+          /* Primary key. */
+          needed_online_flags|=  HA_ONLINE_DROP_PK_INDEX;
+          needed_fast_flags|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
+          pk_changed++;
+        }
+        else
+        {
+          /* Non-primary unique key. */
+          needed_online_flags|=  HA_ONLINE_DROP_UNIQUE_INDEX;
+          needed_fast_flags|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+        }
+      }
+      else
+      {
+        /* Non-unique key. */
+        needed_online_flags|=  HA_ONLINE_DROP_INDEX;
+        needed_fast_flags|= HA_ONLINE_DROP_INDEX_NO_WRITES;
+      }
+    }
+
+    /* Check added indexes. */
+    for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
+         idx_p < idx_end_p;
+         idx_p++)
+    {
+      key= key_info_buffer + *idx_p;
+      DBUG_PRINT("info", ("index added: '%s'", key->name));
+      if (key->flags & HA_NOSAME)
+      {
+        /* Unique key. Check for "PRIMARY". */
+        if (! my_strcasecmp(system_charset_info,
+                            key->name, primary_key_name))
+        {
+          /* Primary key. */
+          needed_online_flags|=  HA_ONLINE_ADD_PK_INDEX;
+          needed_fast_flags|= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+          pk_changed++;
+        }
+        else
+        {
+          /* Non-primary unique key. */
+          needed_online_flags|=  HA_ONLINE_ADD_UNIQUE_INDEX;
+          needed_fast_flags|= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+        }
+      }
+      else
+      {
+        /* Non-unique key. */
+        needed_online_flags|=  HA_ONLINE_ADD_INDEX;
+        needed_fast_flags|= HA_ONLINE_ADD_INDEX_NO_WRITES;
+      }
+    }
+
+    /*
+      Online or fast add/drop index is possible only if
+      the primary key is not added and dropped in the same statement.
+      Otherwise we have to recreate the table.
+      need_copy_table is no-zero at this place.
+    */
+    if ( pk_changed < 2 )
+    {
+      if ((alter_flags & needed_online_flags) == needed_online_flags)
+      {
+        /* All required online flags are present. */
+        need_copy_table= 0;
+        need_lock_for_indexes= FALSE;
+      }
+      else if ((alter_flags & needed_fast_flags) == needed_fast_flags)
+      {
+        /* All required fast flags are present. */
+        need_copy_table= 0;
+      }
+    }
+    DBUG_PRINT("info", ("need_copy_table: %u  need_lock: %d",
+                        need_copy_table, need_lock_for_indexes));
+  }
 
   /*
     better have a negative test here, instead of positive, like
     alter_info->flags & ALTER_ADD_COLUMN|ALTER_ADD_INDEX|...
     so that ALTER TABLE won't break when somebody will add new flag
   */
-
   if (!need_copy_table)
     create_info->frm_only= 1;
 
@@ -4597,8 +4631,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       uint old_lock_type;
       partition_info *part_info= table->part_info;
       char path[FN_REFLEN+1], noext_path[FN_REFLEN+1];
-      uint db_options= 0, key_count, syntax_len;
-      KEY *key_info_buffer;
+      uint syntax_len;
       char *part_syntax_buf;
 
       VOID(pthread_mutex_lock(&LOCK_open));
@@ -4607,10 +4640,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         DBUG_RETURN(TRUE);
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
-      mysql_prepare_table(thd, create_info, &create_list,
-                          &key_list, /*tmp_table*/ 0, &db_options,
-                          table->file, &key_info_buffer, &key_count,
-                          /*select_field_count*/ 0);
       if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                        &syntax_len,
                                                        TRUE,TRUE)))
@@ -4621,7 +4650,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       part_info->part_info_len= syntax_len;
       build_table_filename(path, sizeof(path), db, table_name, reg_ext);
       if (mysql_create_frm(thd, path, db, table_name, create_info,
-                           create_list, key_count, key_info_buffer,
+                           prepared_create_list, key_count, key_info_buffer,
                            table->file))
       {
         DBUG_RETURN(TRUE);
@@ -4658,7 +4687,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       build_table_filename(path, sizeof(path), db, table_name, reg_ext);
       build_table_filename(noext_path, sizeof(noext_path), db, table_name, "");
       if (mysql_create_frm(thd, path, db, table_name, create_info,
-                           create_list, key_count, key_info_buffer,
+                           prepared_create_list, key_count, key_info_buffer,
                            table->file)  ||
           table->file->create_handler_files(noext_path))
       {
@@ -4705,7 +4734,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       Copy data.
       Remove old table and symlinks.
   */
-
   if (!strcmp(db, new_db))		// Ignore symlink if db changed
   {
     if (create_info->index_file_name)
@@ -4728,15 +4756,19 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else
     create_info->data_file_name=create_info->index_file_name=0;
 
-  /* We don't log the statement, it will be logged later. */
-  {
-    tmp_disable_binlog(thd);
-    error= mysql_create_table(thd, new_db, tmp_name,
-                              create_info,create_list,key_list,1,0);
-    reenable_binlog(thd);
-    if (error)
-      DBUG_RETURN(error);
-  }
+  /*
+    Create a table with a temporary name.
+    With create_info->frm_only == 1 this creates a .frm file only.
+    We don't log the statement, it will be logged later.
+  */
+  tmp_disable_binlog(thd);
+  error= mysql_create_table(thd, new_db, tmp_name,
+                            create_info,create_list,key_list,1,0);
+  reenable_binlog(thd);
+  if (error)
+    DBUG_RETURN(error);
+
+  /* Open the table if we need to copy the data. */
   if (need_copy_table)
   {
     if (table->s->tmp_table)
@@ -4763,7 +4795,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-  /* We don't want update TIMESTAMP fields during ALTER TABLE. */
+  /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
@@ -4771,6 +4803,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   copied=deleted=0;
   if (new_table && !(new_table->file->table_flags() & HA_NO_COPY_ON_ALTER))
   {
+    /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     error=copy_data_between_tables(table,new_table,create_list,
@@ -4779,6 +4812,165 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
+  /* If we did not need to copy, we might still need to add/drop indexes. */
+  if (! new_table)
+  {
+    uint          *key_numbers;
+    uint          *keyno_p;
+    KEY           *key_info;
+    KEY           *key;
+    uint          *idx_p;
+    uint          *idx_end_p;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *part_end;
+    DBUG_PRINT("info", ("No new_table, checking add/drop index"));
+
+    if (index_add_count)
+    {
+#ifdef XXX_TO_BE_DONE_LATER_BY_WL3020_AND_WL1892
+      if (! need_lock_for_indexes)
+      {
+        /* Downgrade the write lock. */
+        mysql_lock_downgrade_write(thd, table, TL_WRITE_ALLOW_WRITE);
+      }
+
+      /* Create a new .frm file for crash recovery. */
+      /* TODO: Must set INDEX_TO_BE_ADDED flags in the frm file. */
+      VOID(pthread_mutex_lock(&LOCK_open));
+      error= (mysql_create_frm(thd, reg_path, db, table_name,
+                               create_info, prepared_create_list, key_count,
+                               key_info_buffer, table->file) ||
+              table->file->create_handler_files(reg_path));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      if (error)
+        goto err;
+#endif
+
+      /* The add_index() method takes an array of KEY structs. */
+      key_info= (KEY*) thd->alloc(sizeof(KEY) * index_add_count);
+      key= key_info;
+      for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
+           idx_p < idx_end_p;
+           idx_p++, key++)
+      {
+        /* Copy the KEY struct. */
+        *key= key_info_buffer[*idx_p];
+        /* Fix the key parts. */
+        part_end= key->key_part + key->key_parts;
+        for (key_part= key->key_part; key_part < part_end; key_part++)
+          key_part->field= table->field[key_part->fieldnr];
+      }
+      /* Add the indexes. */
+      if ((error= table->file->add_index(table, key_info, index_add_count)))
+      {
+        /*
+          Exchange the key_info for the error message. If we exchange
+          key number by key name in the message later, we need correct info.
+        */
+        KEY *save_key_info= table->key_info;
+        table->key_info= key_info;
+        table->file->print_error(error, MYF(0));
+        table->key_info= save_key_info;
+        goto err;
+      }
+    }
+    /*end of if (index_add_count)*/
+
+    if (index_drop_count)
+    {
+#ifdef XXX_TO_BE_DONE_LATER_BY_WL3020_AND_WL1892
+      /* Create a new .frm file for crash recovery. */
+      /* TODO: Must set INDEX_IS_ADDED in the frm file. */
+      /* TODO: Must set INDEX_TO_BE_DROPPED in the frm file. */
+      VOID(pthread_mutex_lock(&LOCK_open));
+      error= (mysql_create_frm(thd, reg_path, db, table_name,
+                               create_info, prepared_create_list, key_count,
+                               key_info_buffer, table->file) ||
+              table->file->create_handler_files(reg_path));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      if (error)
+        goto err;
+
+      if (! need_lock_for_indexes)
+      {
+        LOCK_PARAM_TYPE lpt;
+
+        lpt.thd= thd;
+        lpt.table= table;
+        lpt.db= db;
+        lpt.table_name= table_name;
+        lpt.create_info= create_info;
+        lpt.create_list= &create_list;
+        lpt.key_count= key_count;
+        lpt.key_info_buffer= key_info_buffer;
+        abort_and_upgrade_lock(lpt);
+      }
+#endif
+
+      /* The prepare_drop_index() method takes an array of key numbers. */
+      key_numbers= (uint*) thd->alloc(sizeof(uint) * index_drop_count);
+      keyno_p= key_numbers;
+      /* Get the number of each key. */
+      for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
+           idx_p < idx_end_p;
+           idx_p++, keyno_p++)
+        *keyno_p= *idx_p;
+      /*
+        Tell the handler to prepare for drop indexes.
+        This re-numbers the indexes to get rid of gaps.
+      */
+      if ((error= table->file->prepare_drop_index(table, key_numbers,
+                                                  index_drop_count)))
+      {
+        table->file->print_error(error, MYF(0));
+        goto err;
+      }
+
+#ifdef XXX_TO_BE_DONE_LATER_BY_WL3020
+      if (! need_lock_for_indexes)
+      {
+        /* Downgrade the lock again. */
+        if (table->reginfo.lock_type == TL_WRITE_ALLOW_READ)
+        {
+          LOCK_PARAM_TYPE lpt;
+
+          lpt.thd= thd;
+          lpt.table= table;
+          lpt.db= db;
+          lpt.table_name= table_name;
+          lpt.create_info= create_info;
+          lpt.create_list= &create_list;
+          lpt.key_count= key_count;
+          lpt.key_info_buffer= key_info_buffer;
+          close_open_tables_and_downgrade(lpt);
+        }
+      }
+#endif
+
+      /* Tell the handler to finally drop the indexes. */
+      if ((error= table->file->final_drop_index(table)))
+      {
+        table->file->print_error(error, MYF(0));
+        goto err;
+      }
+    }
+    /*end of if (index_drop_count)*/
+
+    if (index_add_count || index_drop_count)
+    {
+      /*
+        The final .frm file is already created as a temporary file
+        and will be renamed to the original table name later.
+      */
+
+      /* Need to commit before a table is unlocked (NDB requirement). */
+      DBUG_PRINT("info", ("Committing after add/drop index"));
+      if (ha_commit_stmt(thd) || ha_commit(thd))
+        goto err;
+    }
+  }
+  /*end of if (! new_table) for add/drop index*/
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
@@ -4789,7 +4981,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	The following function call will free the new_table pointer,
 	in close_temporary_table(), so we can safely directly jump to err
       */
-      close_temporary_table(thd, new_table, 1, 1);
+      if (new_table)
+        close_temporary_table(thd, new_table, 1, 1);
+      else
+        VOID(quick_rm_table(new_db_type,new_db,tmp_name));
       goto err;
     }
     /* Close lock if this is a transactional table */
@@ -4803,8 +4998,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Should pass the 'new_name' as we store table name in the cache */
     if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
-      close_temporary_table(thd, new_table, 1, 1);
-      my_free((gptr) new_table,MYF(0));
+      if (new_table)
+      {
+        close_temporary_table(thd, new_table, 1, 1);
+        my_free((gptr) new_table,MYF(0));
+      }
+      else
+        VOID(quick_rm_table(new_db_type,new_db,tmp_name));
       goto err;
     }
     /* We don't replicate alter table statement on temporary tables */
@@ -4899,6 +5099,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
+#ifdef XXX_TO_BE_DONE_LATER_BY_WL1892
+  if (! need_copy_table)
+  {
+    if (! table)
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      if (! (table= open_ltable(thd, table_list, TL_WRITE_ALLOW_READ)))
+        goto err;
+      VOID(pthread_mutex_lock(&LOCK_open));
+    }
+    /* Tell the handler that a new frm file is in place. */
+    if (table->file->create_handler_files(reg_path))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto err;
+    }
+  }
+#endif
   if (thd->lock || new_name != table_name)	// True if WIN32
   {
     /*
@@ -4940,23 +5158,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-  /* The ALTER TABLE is always in its own transaction */
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  VOID(pthread_cond_broadcast(&COND_refresh));
+  /*
+    The ALTER TABLE is always in its own transaction.
+    Commit must not be called while LOCK_open is locked. It could call
+    wait_if_global_read_lock(), which could create a deadlock if called
+    with LOCK_open.
+  */
   error = ha_commit_stmt(thd);
   if (ha_commit(thd))
     error=1;
   if (error)
-  {
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    VOID(pthread_cond_broadcast(&COND_refresh));
     goto err;
-  }
   thd->proc_info="end";
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() && binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
-  VOID(pthread_cond_broadcast(&COND_refresh));
-  VOID(pthread_mutex_unlock(&LOCK_open));
   /*
     TODO RONM: This problem needs to handled for Berkeley DB partitions
     as well

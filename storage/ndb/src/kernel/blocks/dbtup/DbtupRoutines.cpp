@@ -28,7 +28,7 @@
 #define ljamEntry() { jamEntryLine(3000 + __LINE__); }
 
 void
-Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
+Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
 {
   Uint32 startDescriptor= regTabPtr->tabDescriptor;
   ndbrequire((startDescriptor + (regTabPtr->m_no_of_attributes << ZAD_LOG_SIZE)) 
