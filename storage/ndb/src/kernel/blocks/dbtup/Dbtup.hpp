@@ -34,6 +34,15 @@
 #include <../pgman.hpp>
 #include <../tsman.hpp>
 
+#ifdef VM_TRACE
+inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
+  static int i=0; static char buf[5][200];
+  bm.getText(buf[i%5]); return buf[i++%5]; }
+inline const char* dbgmask(const Uint32 bm[2]) {
+  static int i=0; static char buf[5][200];
+  sprintf(buf[i%5],"%08x%08x",bm[1],bm[0]); return buf[i++%5]; }
+#endif
+
 #define ZWORDS_ON_PAGE 8192          /* NUMBER OF WORDS ON A PAGE.      */
 #define ZATTRBUF_SIZE 32             /* SIZE OF ATTRIBUTE RECORD BUFFER */
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
@@ -693,10 +702,7 @@ struct Operationrec {
   /*
    * We use 64 bits to save change mask for the most common cases.
    */
-  union {
-    Uint32 saved_change_mask[2];
-    Uint64 m_mask;
-  };
+  Uint32 saved_change_mask[2];
 
   /*
    * State variables on connection.
@@ -1291,6 +1297,7 @@ struct KeyReqStruct {
   Uint32 trans_id1;
   Uint32 trans_id2;
   Uint32 TC_index;
+  // next 2 apply only to attrids >= 64 (zero otherwise)
   Uint32 max_attr_id_updated;
   Uint32 no_changed_attrs;
   BlockReference TC_ref;
@@ -2749,11 +2756,12 @@ void
 Dbtup::update_change_mask_info(KeyReqStruct * req_struct,
                                Operationrec * regOperPtr)
 {
-  //Save change mask
   if (req_struct->max_attr_id_updated == 0) {
-    set_change_mask_state(regOperPtr, USE_SAVED_CHANGE_MASK);
-    memcpy(regOperPtr->saved_change_mask, &req_struct->changeMask,
-	   sizeof(regOperPtr->saved_change_mask));
+    if (get_change_mask_state(regOperPtr) == USE_SAVED_CHANGE_MASK) {
+      // add new changes
+      regOperPtr->saved_change_mask[0] |= req_struct->changeMask.getWord(0);
+      regOperPtr->saved_change_mask[1] |= req_struct->changeMask.getWord(1);
+    }
   } else {
     if (req_struct->no_changed_attrs < 16) {
       set_change_mask_state(regOperPtr, RECALCULATE_CHANGE_MASK);

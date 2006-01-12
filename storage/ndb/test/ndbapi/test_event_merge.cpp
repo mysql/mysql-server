@@ -54,6 +54,8 @@
  * Option --no-multiops allows 1 operation per commit.  This avoids TUP
  * and blob multi-operation bugs.
  *
+ * There are other -no-* options, each added to isolate a specific bug.
+ *
  * There are 5 ways (ignoring NUL operand) to compose 2 ops:
  *                      5.0 bugs        5.1 bugs
  * INS o DEL = NUL
@@ -70,7 +72,9 @@ struct Opts {
   uint maxops;
   uint maxpk;
   my_bool no_blobs;
+  my_bool no_implicit_nulls;
   my_bool no_multiops;
+  my_bool no_nulls;
   my_bool one_blob;
   const char* opstring;
   uint seed;
@@ -1033,13 +1037,13 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type t)
   } else if (i == getcol("seq").no) {
     d.seq = g_seq++;
     d.ind[i] = 0;
-  } else if (t == Op::INS && c.nullable && urandom(10, 100)) {
+  } else if (t == Op::INS && ! g_opts.no_implicit_nulls && c.nullable && urandom(10, 100)) {
     d.noop |= (1 << i);
     d.ind[i] = 1; // implicit NULL value is known
   } else if (t == Op::UPD && urandom(10, 100)) {
     d.noop |= (1 << i);
     d.ind[i] = -1; // fixed up in caller
-  } else if (c.nullable && urandom(10, 100)) {
+  } else if (! g_opts.no_nulls && c.nullable && urandom(10, 100)) {
     d.ind[i] = 1;
   } else {
     switch (c.type) {
@@ -1695,23 +1699,29 @@ my_long_options[] =
   { "no-blobs", 1006, "Omit blob attributes (5.0: true)",
     (gptr*)&g_opts.no_blobs, (gptr*)&g_opts.no_blobs, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-multiops", 1007, "Allow only 1 operation per commit",
+  { "no-implicit-nulls", 1007, "Insert must include NULL values explicitly",
+    (gptr*)&g_opts.no_implicit_nulls, (gptr*)&g_opts.no_implicit_nulls, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-multiops", 1008, "Allow only 1 operation per commit",
     (gptr*)&g_opts.no_multiops, (gptr*)&g_opts.no_multiops, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "one-blob", 1008, "Only one blob attribute (defautt 2)",
+  { "no-nulls", 1009, "Create no NULL values",
+    (gptr*)&g_opts.no_nulls, (gptr*)&g_opts.no_nulls, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "one-blob", 1010, "Only one blob attribute (defautt 2)",
     (gptr*)&g_opts.one_blob, (gptr*)&g_opts.one_blob, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "opstring", 1009, "Operations to run e.g. idiucdc (c is commit) or"
+  { "opstring", 1011, "Operations to run e.g. idiucdc (c is commit) or"
                       " iuuc:uudc (the : separates loops)",
     (gptr*)&g_opts.opstring, (gptr*)&g_opts.opstring, 0,
     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "seed", 1010, "Random seed (0=loop number, default -1=random)",
+  { "seed", 1012, "Random seed (0=loop number, default -1=random)",
     (gptr*)&g_opts.seed, (gptr*)&g_opts.seed, 0,
     GET_INT, REQUIRED_ARG, -1, 0, 0, 0, 0, 0 },
-  { "separate-events", 1011, "Do not combine events per GCI (5.0: true)",
+  { "separate-events", 1013, "Do not combine events per GCI (5.0: true)",
     (gptr*)&g_opts.separate_events, (gptr*)&g_opts.separate_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "use-table", 1012, "Use existing table 'tem1'",
+  { "use-table", 1014, "Use existing table 'tem1'",
     (gptr*)&g_opts.use_table, (gptr*)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
@@ -1758,6 +1768,9 @@ checkopts()
       if (s == g_opstringpart[i] || s[-1] != 'c')
         return -1;
     }
+  }
+  if (g_opts.no_nulls) {
+    g_opts.no_implicit_nulls = true;
   }
   return 0;
 }
