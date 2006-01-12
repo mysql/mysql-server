@@ -1,7 +1,21 @@
--- source include/have_binlog_format_statement.inc
-
+################################
+# Change Author: JBM
+# Change Date: 2006-01-12
+# Change: Added back have stm binlog
+# and added requirments comments
+################################
 # test case to make slave thread get ahead by 22 bytes
+################################
+#REQUIREMENT: If there is a faked slave duplicate key insert 
+#error and the slave is restarted, the replication should 
+#proceed in a correct way.
+################################
+#REQUIREMENT: If there is a faked slave non-existing record 
+#delete error and the slave is restarted, then the replication 
+#should proceed in a correct way.
+#################################
 
+-- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 
 # first, cause a duplicate key problem on the slave
