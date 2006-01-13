@@ -66,11 +66,13 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
         event_executor.cc event.cc event_timed.cc \
         rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc \
-        sql_tablespace.cc
+        sql_tablespace.cc \
+        rpl_injector.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
+			ha_ndbcluster_binlog.cc \
 			ha_partition.cc
 libmysqld_a_DEPENDENCIES= @mysql_se_objs@
 libmysqld_a_SOURCES=
@@ -100,6 +102,9 @@ ha_berkeley.o:  ha_berkeley.cc
 		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster.o:ha_ndbcluster.cc
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # Until we can remove dependency on ha_ndbcluster.h

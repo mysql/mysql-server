@@ -42,6 +42,7 @@ NDB_STD_OPTS_VARS;
 /**
  * print and restore flags
  */
+static bool ga_restore_epoch = false;
 static bool ga_restore = false;
 static bool ga_print = false;
 static int _print = 0;
@@ -76,6 +77,12 @@ static struct my_option my_long_options[] =
     "Dont restore disk objects (tablespace/logfilegroups etc)",
     (gptr*) &_no_restore_disk, (gptr*) &_no_restore_disk,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "restore_epoch", 'e', 
+    "Restore epoch info into the status table. Convenient on a MySQL Cluster "
+    "replication slave, for starting replication. The row in "
+    NDB_REP_DB "." NDB_APPLY_TABLE " with id 0 will be updated/inserted.", 
+    (gptr*) &ga_restore_epoch, (gptr*) &ga_restore_epoch,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p',
     "No of parallel transactions during restore of data."
     "(parallelism can be 1 to 1024)", 
@@ -93,6 +100,9 @@ static struct my_option my_long_options[] =
   { "print_log", 259, "Print log to stdout",
     (gptr*) &_print_log, (gptr*) &_print_log,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "backup_path", 260, "Path to backup files",
+    (gptr*) &ga_backupPath, (gptr*) &ga_backupPath, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "dont_ignore_systab_0", 'f',
     "Experimental. Do not ignore system table during restore.", 
     (gptr*) &ga_dont_ignore_systab_0, (gptr*) &ga_dont_ignore_systab_0, 0,
@@ -197,6 +207,11 @@ readArguments(int *pargc, char*** pargv)
     restore->m_no_restore_disk = true;
   }
   
+  if (ga_restore_epoch)
+  {
+    restore->m_restore_epoch = true;
+  }
+
   {
     BackupConsumer * c = printer;
     g_consumers.push_back(c);
@@ -229,7 +244,9 @@ checkSysTable(const char *tableName)
     (strcmp(tableName, "SYSTAB_0") != 0 &&
      strcmp(tableName, "NDB$EVENTS_0") != 0 &&
      strcmp(tableName, "sys/def/SYSTAB_0") != 0 &&
-     strcmp(tableName, "sys/def/NDB$EVENTS_0") != 0);
+     strcmp(tableName, "sys/def/NDB$EVENTS_0") != 0 &&
+     strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) != 0 &&
+     strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE) != 0);
 }
 
 static void
@@ -444,6 +461,16 @@ main(int argc, char** argv)
       }
     }
   }
+  if (ga_restore_epoch)
+  {
+    for (i= 0; i < g_consumers.size(); i++)
+      if (!g_consumers[i]->update_apply_status(metaData))
+      {
+	ndbout_c("Restore: Failed to restore epoch");
+	return -1;
+      }
+  }
+
   clearConsumers();
   return NDBT_ProgramExit(NDBT_OK);
 } // main

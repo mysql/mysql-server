@@ -1036,6 +1036,9 @@ public:
       TE_GCP_COMPLETE=1<<7, ///< GCP is complete
       TE_CLUSTER_FAILURE=1<<8, ///< Cluster is unavailable
       TE_STOP        =1<<9, ///< Stop of event operation
+      TE_NODE_FAILURE=1<<10, ///< Node failed
+      TE_SUBSCRIBE   =1<<11, ///< Node subscribes
+      TE_UNSUBSCRIBE =1<<12, ///< Node unsubscribes
       TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when 
                             ///< events are received)
     };
@@ -1052,7 +1055,10 @@ public:
       _TE_GCP_COMPLETE=7,
       _TE_CLUSTER_FAILURE=8,
       _TE_STOP=9,
-      _TE_NUL=10 // internal (INS o DEL within same GCI)
+      _TE_NODE_FAILURE=10,
+      _TE_SUBSCRIBE=11,
+      _TE_UNSUBSCRIBE=12,
+      _TE_NUL=13 // internal (INS o DEL within same GCI)
     };
 #endif
     /**
@@ -1078,6 +1084,15 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 3
 #endif
+    };
+
+    /**
+     * Specifies reporting options for table events
+     */
+    enum EventReport {
+      ER_UPDATED = 0,
+      ER_ALL = 1,
+      ER_SUBSCRIBE = 2
     };
 
     /**
@@ -1135,6 +1150,14 @@ public:
      * Get durability of the event
      */
     EventDurability getDurability() const;
+    /**
+     * Set report option of the event
+     */
+    void setReport(EventReport);
+    /**
+     * Get report option of the event
+     */
+    EventReport getReport() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
 #endif

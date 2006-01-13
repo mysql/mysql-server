@@ -39,7 +39,9 @@ struct SubCreateReq {
     RemoveFlags  = 0xff,
     GetFlags     = 0xff << 16,
     AddTableFlag = 0x1 << 16,
-    RestartFlag  = 0x2 << 16
+    RestartFlag  = 0x2 << 16,
+    ReportAll    = 0x4 << 16,
+    ReportSubscribe= 0x8 << 16
   };
   
   Uint32 senderRef;
@@ -115,7 +117,8 @@ struct SubStartRef {
   enum ErrorCode {
     Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701
+    Busy = 701,
+    NotMaster = 702
   };
 
   STATIC_CONST( SignalLength = 7 );
@@ -130,7 +133,10 @@ struct SubStartRef {
   // do not change the order here!
   Uint32 errorCode;
   // with SignalLength2
-  Uint32 subscriberRef;
+  union {
+    Uint32 subscriberRef;
+    Uint32 m_masterNodeId;
+  };
 };
 
 struct SubStartConf {
@@ -181,10 +187,12 @@ struct SubStopRef {
   enum ErrorCode {
     Undefined = 1,
     NF_FakeErrorREF = 11,
-    Busy = 701
+    Busy = 701,
+    NotMaster = 702
   };
 
   STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength2 = SignalLength+1 );
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -194,6 +202,8 @@ struct SubStopRef {
   Uint32 subscriberData;
   Uint32 subscriberRef;
   Uint32 errorCode;
+  // with SignalLength2
+  Uint32 m_masterNodeId;
 };
 
 struct SubStopConf {
@@ -304,7 +314,7 @@ struct SubTableData {
   Uint32 tableId;
   Uint8  operation;
   Uint8  req_nodeid;
-  Uint8  not_used2;
+  Uint8  ndbd_nodeid;
   Uint8  not_used3;
   Uint32 logType;
 };

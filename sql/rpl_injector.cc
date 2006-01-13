@@ -1,0 +1,153 @@
+/*
+   Copyright (C) 2005 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#include "mysql_priv.h" 
+#include "rpl_injector.h"
+#ifdef HAVE_ROW_BASED_REPLICATION
+
+/*
+  injector::transaction - member definitions
+*/
+
+/* inline since it's called below */
+inline
+injector::transaction::transaction(MYSQL_LOG *log, THD *thd)
+  : m_thd(thd)
+{
+  /* 
+     Default initialization of m_start_pos (which initializes it to garbage).
+     We need to fill it in using the code below.
+  */
+  LOG_INFO log_info;
+  log->get_current_log(&log_info);
+  /* !!! binlog_pos does not follow RAII !!! */
+  m_start_pos.m_file_name= my_strdup(log_info.log_file_name, MYF(0));
+  m_start_pos.m_file_pos= log_info.pos;
+
+  begin_trans(m_thd);
+}
+
+injector::transaction::~transaction()
+{
+  /* Needed since my_free expects a 'char*' (instead of 'void*'). */
+  char* const the_memory= const_cast<char*>(m_start_pos.m_file_name);
+
+  /*
+    We set the first character to null just to give all the copies of the
+    start position a (minimal) chance of seening that the memory is lost.
+    All assuming the my_free does not step over the memory, of course.
+  */
+  *the_memory= '\0';
+
+  my_free(the_memory, MYF(0));
+}
+
+int injector::transaction::commit()
+{
+   DBUG_ENTER("injector::transaction::commit()");
+   m_thd->binlog_flush_pending_rows_event(true);
+   end_trans(m_thd, COMMIT);
+   DBUG_RETURN(0);
+}
+
+
+int injector::transaction::write_row (server_id_type sid, table tbl, 
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type record)
+{
+   DBUG_ENTER("injector::transaction::write_row(...)");
+   m_thd->set_server_id(sid);
+   m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
+                           cols, colcnt, record);
+   DBUG_RETURN(0);
+}
+
+
+int injector::transaction::delete_row(server_id_type sid, table tbl,
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type record)
+{
+   DBUG_ENTER("injector::transaction::delete_row(...)");
+   m_thd->set_server_id(sid);
+   m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
+                            cols, colcnt, record);
+   DBUG_RETURN(0);
+}
+
+
+int injector::transaction::update_row(server_id_type sid, table tbl, 
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type before, record_type after)
+{
+   DBUG_ENTER("injector::transaction::update_row(...)");
+   m_thd->set_server_id(sid);
+   m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
+		            cols, colcnt, before, after);
+   DBUG_RETURN(0);
+}
+
+
+injector::transaction::binlog_pos injector::transaction::start_pos() const
+{
+   return m_start_pos;			
+}
+
+
+/*
+  injector - member definitions
+*/
+
+/* This constructor is called below */
+inline injector::injector()
+{
+}
+
+static injector *s_injector= 0;
+injector *injector::instance()
+{
+  if (s_injector == 0)
+    s_injector= new injector;
+  /* "There can be only one [instance]" */
+  return s_injector;
+}
+
+
+
+injector::transaction injector::new_trans(THD *thd)
+{
+   DBUG_ENTER("injector::new_trans(THD*)");
+   /*
+     Currently, there is no alternative to using 'mysql_bin_log' since that
+     is hardcoded into the way the handler is using the binary log.
+   */
+   DBUG_RETURN(transaction(&mysql_bin_log, thd));
+}
+
+void injector::new_trans(THD *thd, injector::transaction *ptr)
+{
+   DBUG_ENTER("injector::new_trans(THD *, transaction *)");
+   /*
+     Currently, there is no alternative to using 'mysql_bin_log' since that
+     is hardcoded into the way the handler is using the binary log. 
+   */
+   transaction trans(&mysql_bin_log, thd);
+   ptr->swap(trans);
+
+   DBUG_VOID_RETURN;
+}
+
+#endif

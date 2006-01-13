@@ -1,0 +1,146 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+
+
+#
+# Bug #11087
+#
+# connect to the master and create tabe t1 in gotoslave database
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL,
+		    PRIMARY KEY  (`nid`)) 
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+select * from t1 order by nid;
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+delete from t1;
+INSERT INTO t1 VALUES(1,"XYZ2","ABC2");
+# Make sure all rows are on the master
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+# Bug #11087 would have row with nid 2 missing
+select * from t1 order by nid;
+
+--connection master
+DROP table t1;
+
+#
+# Test replication of table with no primary key 
+#
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL)
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1"),(2,"AAA","BBB"),(3,"CCC","DDD");
+select * from t1 order by nid;
+
+--sync_slave_with_master
+# connect to slave and ensure data it there.
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+delete from t1 where nid = 2;
+INSERT INTO t1 VALUES(4,"EEE","FFF");
+# Make sure all rows are on the master
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+UPDATE t1 set nid=nid+1;
+UPDATE t1 set nom="CCP" where nid = 4;
+select * from t1 order by nid;
+
+# make sure all rows are on the slave.
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+--connection master
+DROP table t1;
+
+##################################################################
+#
+# Check that retries are made on the slave on some temporary errors
+#
+
+#
+# 1. Deadlock
+#
+--connection master
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+ 	            `nom` char(4) default NULL,
+  		    `prenom` char(4) default NULL,
+		    PRIMARY KEY USING HASH (`nid`)) 
+    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+
+# cause a lock on that row on the slave
+--sync_slave_with_master
+--connection slave
+BEGIN;
+UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
+
+# set number of retries low so we fail the retries
+set GLOBAL slave_transaction_retries=1;
+
+# now do a change to this row on the master
+# will deadlock on the slave because of lock above
+--connection master
+UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
+
+# wait for deadlock to be detected
+# sleep longer than dead lock detection timeout in config
+# we do this 2 times, once with few retries to verify that we 
+# get a failure with the set sleep, and once with the _same_
+# sleep, but with more retries to get it to succeed
+--sleep 5
+
+# replication should have stopped, since max retries where not enough
+# verify with show slave status
+--connection slave
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master>
+SHOW SLAVE STATUS;
+
+# now set max retries high enough to succeed, and start slave again
+set GLOBAL slave_transaction_retries=10;
+START SLAVE;
+
+# wait for deadlock to be detected and retried
+# should be the same sleep as above for test to be valid
+--sleep 5
+
+# commit transaction to release lock on row and let replication succeed
+select * from t1 order by nid;
+COMMIT;
+
+# verify that the row succeded to be applied on the slave
+--connection master
+--sync_slave_with_master
+--connection slave
+select * from t1 order by nid;
+
+# cleanup
+--connection master
+DROP TABLE t1;

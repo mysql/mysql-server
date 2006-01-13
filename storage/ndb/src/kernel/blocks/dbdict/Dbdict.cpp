@@ -456,6 +456,11 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
       Uint32 count = 2 + data[0] * data[1];
       w.add(DictTabInfo::FragmentDataLen, 2*count);
       w.add(DictTabInfo::FragmentData, data, 2*count);
+      ndbrequire(count > 0);
+    }
+    else
+    {
+      ndbrequire(false);
     }
   }
   
@@ -2006,9 +2011,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_opCreateTable.setSize(8);
   c_opDropTable.setSize(8);
   c_opCreateIndex.setSize(8);
-  c_opCreateEvent.setSize(8);
-  c_opSubEvent.setSize(8);
-  c_opDropEvent.setSize(8);
+  c_opCreateEvent.setSize(2);
+  c_opSubEvent.setSize(2);
+  c_opDropEvent.setSize(2);
   c_opSignalUtil.setSize(8);
   c_opDropIndex.setSize(8);
   c_opAlterIndex.setSize(8);
@@ -7078,6 +7083,20 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
     return;
   }//if
+
+  if (DictTabInfo::isTable(objEntry->m_tableType) || 
+      DictTabInfo::isIndex(objEntry->m_tableType))
+  {
+    jam();
+    TableRecordPtr tabPtr;
+    c_tableRecordPool.getPtr(tabPtr, obj_id);
+    if (tabPtr.p->tabState != TableRecord::DEFINED)
+    {
+      jam();
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      return;
+    }
+  }
   
   c_retrieveRecord.busyState = true;
   c_retrieveRecord.blockRef = req->senderRef;
@@ -8655,6 +8674,23 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
   const CreateEvntReq::RequestType requestType = req->getRequestType();
   const Uint32                     requestFlag = req->getRequestFlag();
 
+  if (refToBlock(signal->senderBlockRef()) != DBDICT &&
+      getOwnNodeId() != c_masterNodeId)
+  {
+    jam();
+    releaseSections(signal);
+    
+    CreateEvntRef * ref = (CreateEvntRef *)signal->getDataPtrSend();
+    ref->setUserRef(reference());
+    ref->setErrorCode(CreateEvntRef::NotMaster);
+    ref->setErrorLine(__LINE__);
+    ref->setErrorNode(reference());
+    ref->setMasterNode(c_masterNodeId);
+    sendSignal(signal->senderBlockRef(), GSN_CREATE_EVNT_REF, signal,
+	       CreateEvntRef::SignalLength2, JBB);
+    return;
+  }
+
   OpCreateEventPtr evntRecPtr;
   // Seize a Create Event record
   if (!c_opCreateEvent.seize(evntRecPtr)) {
@@ -8946,7 +8982,8 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
       break;
     case CreateEvntReq::RT_USER_CREATE:
       {
-	evntRecPtr.p->m_eventRec.EVENT_TYPE = evntRecPtr.p->m_request.getEventType();
+	evntRecPtr.p->m_eventRec.EVENT_TYPE =
+          evntRecPtr.p->m_request.getEventType() | evntRecPtr.p->m_request.getReportFlags();
 	evntRecPtr.p->m_eventRec.TABLEID  = evntRecPtr.p->m_request.getTableId();
 	evntRecPtr.p->m_eventRec.TABLEVERSION=evntRecPtr.p->m_request.getTableVersion();
 	AttributeMask m = evntRecPtr.p->m_request.getAttrListBitmask();
@@ -9161,6 +9198,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       parseReadEventSys(signal, evntRecPtr.p->m_eventRec);
 
       evntRec->m_request.setEventType(evntRecPtr.p->m_eventRec.EVENT_TYPE);
+      evntRec->m_request.setReportFlags(evntRecPtr.p->m_eventRec.EVENT_TYPE);
       evntRec->m_request.setTableId(evntRecPtr.p->m_eventRec.TABLEID);
       evntRec->m_request.setTableVersion(evntRecPtr.p->m_eventRec.TABLEVERSION);
       evntRec->m_request.setAttrListBitmask(*(AttributeMask*)
@@ -9392,6 +9430,7 @@ void Dbdict::execCREATE_EVNT_CONF(Signal* signal)
 
 void
 Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPtr){
+  DBUG_ENTER("Dbdict::createEvent_RT_DICT_AFTER_GET");
   jam();
   evntRecPtr.p->m_request.setUserRef(signal->senderBlockRef());
   
@@ -9412,6 +9451,10 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
   sumaReq->subscriptionId   = evntRecPtr.p->m_request.getEventId();
   sumaReq->subscriptionKey  = evntRecPtr.p->m_request.getEventKey();
   sumaReq->subscriptionType = SubCreateReq::TableEvent;
+  if (evntRecPtr.p->m_request.getReportAll())
+    sumaReq->subscriptionType|= SubCreateReq::ReportAll;
+  if (evntRecPtr.p->m_request.getReportSubscribe())
+    sumaReq->subscriptionType|= SubCreateReq::ReportSubscribe;
   sumaReq->tableId          = evntRecPtr.p->m_request.getTableId();
     
 #ifdef EVENT_PH2_DEBUG
@@ -9420,6 +9463,7 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
 
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, signal,
 	     SubCreateReq::SignalLength, JBB);
+  DBUG_VOID_RETURN;
 }
 
 void Dbdict::execSUB_CREATE_REF(Signal* signal)
@@ -9582,6 +9626,20 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
+  if (refToBlock(origSenderRef) != DBDICT &&
+      getOwnNodeId() != c_masterNodeId)
+  {
+    /*
+     * Coordinator but not master
+     */
+    SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->errorCode = SubStartRef::NotMaster;
+    ref->m_masterNodeId = c_masterNodeId;
+    sendSignal(origSenderRef, GSN_SUB_START_REF, signal,
+	       SubStartRef::SignalLength2, JBB);
+    return;
+  }
   OpSubEventPtr subbPtr;
   if (!c_opSubEvent.seize(subbPtr)) {
     SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
@@ -9761,6 +9819,9 @@ void Dbdict::completeSubStartReq(Signal* signal,
 #ifdef EVENT_DEBUG
     ndbout_c("SUB_START_REF");
 #endif
+    SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->errorCode = subbPtr.p->m_errorCode;
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
 	       signal, SubStartRef::SignalLength, JBB);
     if (subbPtr.p->m_reqTracker.hasConf()) {
@@ -9789,6 +9850,20 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
+  if (refToBlock(origSenderRef) != DBDICT &&
+      getOwnNodeId() != c_masterNodeId)
+  {
+    /*
+     * Coordinator but not master
+     */
+    SubStopRef * ref = (SubStopRef *)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->errorCode = SubStopRef::NotMaster;
+    ref->m_masterNodeId = c_masterNodeId;
+    sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
+	       SubStopRef::SignalLength2, JBB);
+    return;
+  }
   OpSubEventPtr subbPtr;
   if (!c_opSubEvent.seize(subbPtr)) {
     SubStopRef * ref = (SubStopRef *)signal->getDataPtrSend();
@@ -9981,6 +10056,23 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
   DropEvntReq *req = (DropEvntReq*)signal->getDataPtr();
   const Uint32 senderRef = signal->senderBlockRef();
   OpDropEventPtr evntRecPtr;
+
+  if (refToBlock(senderRef) != DBDICT &&
+      getOwnNodeId() != c_masterNodeId)
+  {
+    jam();
+    releaseSections(signal);
+
+    DropEvntRef * ref = (DropEvntRef *)signal->getDataPtrSend();
+    ref->setUserRef(reference());
+    ref->setErrorCode(DropEvntRef::NotMaster);
+    ref->setErrorLine(__LINE__);
+    ref->setErrorNode(reference());
+    ref->setMasterNode(c_masterNodeId);
+    sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
+	       DropEvntRef::SignalLength2, JBB);
+    return;
+  }
 
   // Seize a Create Event record
   if (!c_opDropEvent.seize(evntRecPtr)) {
@@ -10825,6 +10917,7 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr)
   if (indexPtr.p->isHashIndex()) {
     req->setTriggerType(TriggerType::SECONDARY_INDEX);
     req->setMonitorReplicas(false);
+    req->setReportAllMonitoredAttributes(true);
     // insert
     if (opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL)
       req->setTriggerId(indexPtr.p->insertTriggerId);
@@ -10867,6 +10960,7 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, OpAlterIndexPtr opPtr)
     req->setTriggerType(TriggerType::ORDERED_INDEX);
     req->setTriggerActionTime(TriggerActionTime::TA_CUSTOM);
     req->setMonitorReplicas(true);
+    req->setReportAllMonitoredAttributes(true);
     // one trigger for 5 events (insert, update, delete, commit, abort)
     if (opPtr.p->m_requestFlag & RequestFlag::RF_LOCAL)
       req->setTriggerId(indexPtr.p->customTriggerId);
@@ -11383,6 +11477,7 @@ Dbdict::buildIndex_toCreateConstr(Signal* signal, OpBuildIndexPtr opPtr)
   req->setTriggerEvent(TriggerEvent::TE_UPDATE);
   req->setMonitorReplicas(false);
   req->setMonitorAllAttributes(false);
+  req->setReportAllMonitoredAttributes(true);
   req->setOnline(true);         // alter online after create
   req->setReceiverRef(0);       // no receiver, REF-ed by TUP
   req->getAttributeMask().clear();
@@ -11942,6 +12037,7 @@ Dbdict::createTrigger_slaveCreate(Signal* signal, OpCreateTriggerPtr opPtr)
   triggerPtr.p->triggerEvent = req->getTriggerEvent();
   triggerPtr.p->monitorReplicas = req->getMonitorReplicas();
   triggerPtr.p->monitorAllAttributes = req->getMonitorAllAttributes();
+  triggerPtr.p->reportAllMonitoredAttributes = req->getReportAllMonitoredAttributes();
   triggerPtr.p->attributeMask = req->getAttributeMask();
   triggerPtr.p->triggerState = TriggerRecord::TS_OFFLINE;
   // add to hash table
@@ -12774,6 +12870,7 @@ Dbdict::alterTrigger_toCreateLocal(Signal* signal, OpAlterTriggerPtr opPtr)
   req->setTriggerEvent(triggerPtr.p->triggerEvent);
   req->setMonitorReplicas(triggerPtr.p->monitorReplicas);
   req->setMonitorAllAttributes(triggerPtr.p->monitorAllAttributes);
+  req->setReportAllMonitoredAttributes(triggerPtr.p->reportAllMonitoredAttributes);
   req->setOnline(true);
   req->setReceiverRef(opPtr.p->m_request.getReceiverRef());
   BlockReference blockRef = 0;

@@ -417,6 +417,11 @@ my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
+ulong ndb_extra_logging;
+#ifdef HAVE_NDB_BINLOG
+ulong ndb_report_thresh_binlog_epoch_slip;
+ulong ndb_report_thresh_binlog_mem_usage;
+#endif
 
 extern SHOW_VAR ndb_status_variables[];
 extern const char *ndb_distribution_names[];
@@ -1134,6 +1139,11 @@ void clean_up(bool print_message)
 
   mysql_log.cleanup();
   mysql_slow_log.cleanup();
+  /*
+    make sure that handlers finish up
+    what they have that is dependent on the binlog
+  */
+  ha_binlog_end(current_thd);
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -3106,11 +3116,12 @@ with --log-bin instead.");
   }
   if (opt_binlog_format_id == BF_UNSPECIFIED)
   {
-    /*
-      We use statement-based by default, but could change this to be row-based
-      if this is a cluster build (i.e. have_ndbcluster is true)...
-    */
-    opt_binlog_format_id= BF_STMT;
+#ifdef HAVE_NDB_BINLOG
+    if (have_ndbcluster == SHOW_OPTION_YES)
+      opt_binlog_format_id= BF_ROW;
+    else
+#endif
+      opt_binlog_format_id= BF_STMT;
   }
 #ifdef HAVE_ROW_BASED_REPLICATION
   if (opt_binlog_format_id == BF_ROW) 
@@ -4646,6 +4657,9 @@ enum options_mysqld
   OPT_NDB_DISTRIBUTION,
   OPT_NDB_INDEX_STAT_ENABLE,
   OPT_NDB_INDEX_STAT_CACHE_ENTRIES, OPT_NDB_INDEX_STAT_UPDATE_FREQ,
+  OPT_NDB_EXTRA_LOGGING,
+  OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
+  OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4848,7 +4862,11 @@ Disable with --skip-bdb (will save memory).",
    "Tell the master the form of binary logging to use: either 'row' for "
    "row-based binary logging (which automatically turns on "
    "innodb_locks_unsafe_for_binlog as it is safe in this case), or "
-   "'statement' for statement-based logging. ",
+   "'statement' for statement-based logging. "
+#ifdef HAVE_NDB_BINLOG
+   "If ndbcluster is enabled, the default will be set to 'row'."
+#endif
+   ,
 #else
    "Tell the master the form of binary logging to use: this release build "
    "supports only statement-based binary logging, so only 'statement' is "
@@ -5302,6 +5320,29 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &global_system_variables.ndb_force_send,
    (gptr*) &global_system_variables.ndb_force_send,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-extra-logging", OPT_NDB_EXTRA_LOGGING,
+   "Turn on more logging in the error log.",
+   (gptr*) &ndb_extra_logging,
+   (gptr*) &ndb_extra_logging,
+   0, GET_INT, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_NDB_BINLOG
+  {"ndb-report-thresh-binlog-epoch-slip", OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
+   "Threshold on number of epochs to be behind before reporting binlog status. "
+   "E.g. 3 means that if the difference between what epoch has been received "
+   "from the storage nodes and what has been applied to the binlog is 3 or more, "
+   "a status message will be sent to the cluster log.",
+   (gptr*) &ndb_report_thresh_binlog_epoch_slip,
+   (gptr*) &ndb_report_thresh_binlog_epoch_slip,
+   0, GET_ULONG, REQUIRED_ARG, 3, 0, 256, 0, 0, 0},
+  {"ndb-report-thresh-binlog-mem-usage", OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
+   "Threshold on percentage of free memory before reporting binlog status. E.g. "
+   "10 means that if amount of available memory for receiving binlog data from "
+   "the storage nodes goes below 10%, "
+   "a status message will be sent to the cluster log.",
+   (gptr*) &ndb_report_thresh_binlog_mem_usage,
+   (gptr*) &ndb_report_thresh_binlog_mem_usage,
+   0, GET_ULONG, REQUIRED_ARG, 10, 0, 100, 0, 0, 0},
+#endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
    "select count(*), disable for faster queries.",
@@ -7500,6 +7541,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     opt_ndb_distribution_id= (enum ndb_distribution)(id-1);
     break;
+  case OPT_NDB_EXTRA_LOGGING:
+    if (!argument)
+      ndb_extra_logging++;
+    else if (argument == disabled_my_option)
+      ndb_extra_logging= 0L;
+    else
+      ndb_extra_logging= atoi(argument);
+    break;
 #endif
   case OPT_INNODB:
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
@@ -8056,6 +8105,7 @@ ulong srv_commit_concurrency;
 
 #ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
 ulong ndb_cache_check_time;
+ulong ndb_extra_logging;
 #endif
 
 /*****************************************************************************

@@ -101,6 +101,11 @@ extern ulong srv_commit_concurrency;
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 extern ulong ndb_cache_check_time;
+extern ulong ndb_extra_logging;
+#ifdef HAVE_NDB_BINLOG
+extern ulong ndb_report_thresh_binlog_epoch_slip;
+extern ulong ndb_report_thresh_binlog_mem_usage;
+#endif
 
 
 
@@ -481,6 +486,14 @@ sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
 				  &SV::ndb_autoincrement_prefetch_sz);
 sys_var_thd_bool
 sys_ndb_force_send("ndb_force_send", &SV::ndb_force_send);
+#ifdef HAVE_NDB_BINLOG
+sys_var_long_ptr
+sys_ndb_report_thresh_binlog_epoch_slip("ndb_report_thresh_binlog_epoch_slip",
+                                        &ndb_report_thresh_binlog_epoch_slip);
+sys_var_long_ptr
+sys_ndb_report_thresh_binlog_mem_usage("ndb_report_thresh_binlog_mem_usage",
+                                       &ndb_report_thresh_binlog_mem_usage);
+#endif
 sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
@@ -496,6 +509,8 @@ sys_ndb_index_stat_cache_entries("ndb_index_stat_cache_entries",
 sys_var_thd_ulong
 sys_ndb_index_stat_update_freq("ndb_index_stat_update_freq",
                                &SV::ndb_index_stat_update_freq);
+sys_var_long_ptr
+sys_ndb_extra_logging("ndb_extra_logging", &ndb_extra_logging);
 
 /* Time/date/datetime formats */
 
@@ -847,10 +862,17 @@ SHOW_VAR init_vars[]= {
   {sys_ndb_autoincrement_prefetch_sz.name,
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
   {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
+  {sys_ndb_extra_logging.name,(char*) &sys_ndb_extra_logging,       SHOW_SYS},
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_index_stat_cache_entries.name, (char*) &sys_ndb_index_stat_cache_entries, SHOW_SYS},
   {sys_ndb_index_stat_enable.name, (char*) &sys_ndb_index_stat_enable, SHOW_SYS},
   {sys_ndb_index_stat_update_freq.name, (char*) &sys_ndb_index_stat_update_freq, SHOW_SYS},
+#ifdef HAVE_NDB_BINLOG
+  {sys_ndb_report_thresh_binlog_epoch_slip.name,
+   (char*) &sys_ndb_report_thresh_binlog_epoch_slip,                SHOW_SYS},
+  {sys_ndb_report_thresh_binlog_mem_usage.name,
+   (char*) &sys_ndb_report_thresh_binlog_mem_usage,                 SHOW_SYS},
+#endif
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},

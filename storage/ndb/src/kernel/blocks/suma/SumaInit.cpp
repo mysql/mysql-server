@@ -92,6 +92,7 @@ Suma::Suma(const Configuration & conf) :
    * Dih interface
    */
   addRecSignal(GSN_DI_FCOUNTCONF, &Suma::execDI_FCOUNTCONF);
+  addRecSignal(GSN_DI_FCOUNTREF, &Suma::execDI_FCOUNTREF);
   addRecSignal(GSN_DIGETPRIMCONF, &Suma::execDIGETPRIMCONF);
 
   /**

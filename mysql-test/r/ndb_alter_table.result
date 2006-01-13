@@ -170,35 +170,6 @@ c
 4
 5
 drop table t1;
-create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
-engine=ndb;
-insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
-create index c on t1(c);
-select * from t1 where b = 'two';
-a	b	c
-2	two	two
-alter table t1 drop index c;
-select * from t1 where b = 'two';
-ERROR HY000: Can't lock file (errno: 159)
-select * from t1 where b = 'two';
-a	b	c
-2	two	two
-drop table t1;
-create table t3 (a int primary key) engine=ndbcluster;
-begin;
-insert into t3 values (1);
-alter table t3 rename t4;
-delete from t3;
-insert into t3 values (1);
-commit;
-select * from t3;
-ERROR HY000: Can't lock file (errno: 155)
-select * from t4;
-a
-1
-drop table t4;
-show tables;
-Tables_in_test
 create table t1 (
 ai bigint auto_increment,
 c001 int(11) not null,

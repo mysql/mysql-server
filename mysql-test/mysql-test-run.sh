@@ -222,11 +222,14 @@ export UMASK UMASK_DIR
 
 MASTER_RUNNING=0
 MASTER1_RUNNING=0
+MASTER_MYHOST=127.0.0.1
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
+SLAVE_MYHOST=127.0.0.1
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
 NDBCLUSTER_PORT=9350
+NDBCLUSTER_PORT_SLAVE=9358
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
@@ -262,7 +265,11 @@ EXTRA_MYSQLSHOW_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
+USE_NDBCLUSTER_SLAVE=@USE_NDBCLUSTER@
 USE_RUNNING_NDBCLUSTER=""
+USE_RUNNING_NDBCLUSTER_SLAVE=""
+NDB_EXTRA_TEST=0
+NDBCLUSTER_EXTRA_OPTS=""
 USE_PURIFY=""
 PURIFY_LOGS=""
 DO_GCOV=""
@@ -288,6 +295,7 @@ TEST_MODE=""
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+SLAVE_MYSQLDBINLOG=1
 
 DO_STRESS=""
 STRESS_SUITE="main"
@@ -325,9 +333,18 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER=1 ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
+    --with-ndbcluster-slave)
+      USE_NDBCLUSTER_SLAVE="--ndbcluster" ;;
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
+    --ndb-connectstring-slave=*)
+      USE_NDBCLUSTER_SLAVE="--ndbcluster" ;
+      USE_RUNNING_NDBCLUSTER_SLAVE=`$ECHO "$1" | $SED -e "s;--ndb-connectstring-slave=;;"` ;;
+    --ndb-extra-test)
+      NDBCLUSTER_EXTRA_OPTS=" "
+      NDB_EXTRA_TEST=1 ;
+      ;;
     --ndb_mgm-extra-opts=*)
       NDB_MGM_EXTRA_OPTS=`$ECHO "$1" | $SED -e "s;--ndb_mgm-extra-opts=;;"` ;;
     --ndb_mgmd-extra-opts=*)
@@ -344,6 +361,8 @@ while test $# -gt 0; do
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
     --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
     --ndbcluster_port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster_port=;;"` ;;
+    --ndbcluster-port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster-port=;;"` ;;
+    --ndbcluster-port-slave=*) NDBCLUSTER_PORT_SLAVE=`$ECHO "$1" | $SED -e "s;--ndbcluster-port-slave=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
      --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem \
@@ -500,6 +519,10 @@ while test $# -gt 0; do
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
       VALGRIND="$VALGRIND $TMP"
       ;;
+    --skip-ndbcluster-slave | --skip-ndb-slave)
+      USE_NDBCLUSTER_SLAVE=""
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-ndbcluster"
+      ;;
     --valgrind-mysqltest | --valgrind-mysqltest-all)
       find_valgrind;
       VALGRIND_MYSQLTEST=$FIND_VALGRIND
@@ -510,9 +533,11 @@ while test $# -gt 0; do
       ;;
     --skip-ndbcluster | --skip-ndb)
       USE_NDBCLUSTER=""
+      USE_NDBCLUSTER_SLAVE=""
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-ndbcluster"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-ndbcluster"
       ;;
+    --skip-slave-binlog) SLAVE_MYSQLDBINLOG=0 ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
@@ -582,9 +607,13 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
+export MASTER_MYHOST MASTER_MYPORT SLAVE_MYHOST SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
 
 NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --data-dir=$MYSQL_TEST_DIR/var --ndb_mgm-extra-opts=$NDB_MGM_EXTRA_OPTS --ndb_mgmd-extra-opts=$NDB_MGMD_EXTRA_OPTS --ndbd-extra-opts=$NDBD_EXTRA_OPTS"
+NDBCLUSTER_OPTS_SLAVE="--port=$NDBCLUSTER_PORT_SLAVE --data-dir=$MYSQL_TEST_DIR/var"
+if [ -n "$USE_NDBCLUSTER_SLAVE" ] ; then
+  USE_NDBCLUSTER_SLAVE="$USE_NDBCLUSTER_SLAVE --ndb-connectstring=localhost:$NDBCLUSTER_PORT_SLAVE"
+fi
 NDB_BACKUP_DIR=$MYSQL_TEST_DIR/var/ndbcluster-$NDBCLUSTER_PORT
 NDB_TOOLS_OUTPUT=$MYSQL_TEST_DIR/var/log/ndb_tools.log
 
@@ -727,7 +756,6 @@ else
  fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_CHECK="$CLIENT_BINDIR/mysqlcheck"
- MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_SLAP="$CLIENT_BINDIR/mysqlslap"
  MYSQL_SHOW="$CLIENT_BINDIR/mysqlshow"
  MYSQL_IMPORT="$CLIENT_BINDIR/mysqlimport"
@@ -766,6 +794,13 @@ else
  else
    MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
    MYSQL_CLIENT_TEST="$CLIENT_BINDIR/mysql_client_test"
+ fi
+ if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
+   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
+ elif  [ -f "$BASEDIR/client/mysqldump" ] ; then
+   MYSQL_DUMP="$BASEDIR/client/mysqldump"
+ else
+   MYSQL_DUMP="$BASEDIR/bin/mysqldump"
  fi
 fi
 
@@ -829,6 +864,9 @@ export NDB_TOOLS_OUTPUT
 export PURIFYOPTIONS
 NDB_STATUS_OK=1
 export NDB_STATUS_OK
+NDB_SLAVE_STATUS_OK=1
+export NDB_SLAVE_STATUS_OK
+export NDB_EXTRA_TEST NDBCLUSTER_PORT NDBCLUSTER_PORT_SLAVE
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
@@ -1207,24 +1245,30 @@ EOF
 
 start_ndbcluster()
 {
-  if [ ! -z "$USE_NDBCLUSTER" ]
+  if [ ! -n "$USE_NDBCLUSTER" ] ;
+  then
+    USING_NDBCLUSTER=0
+    USE_NDBCLUSTER_OPT=
+  fi
+  
+  if [ x$USING_NDBCLUSTER = x1 -a -z "$USE_NDBCLUSTER_OPT" ]
   then
   rm -f $NDB_TOOLS_OUTPUT
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
-    echo "Starting ndbcluster"
-    if [ "$DO_BENCH" = 1 ]
+    if [ "$DO_BENCH" != 1 -a -z "$NDBCLUSTER_EXTRA_OPTS" ]
     then
-      NDBCLUSTER_EXTRA_OPTS=""
-    else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STATUS_OK=0
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=2 --initial"
+    echo "Starting master ndbcluster " $OPTS
+    ./ndb/ndbcluster $OPTS || NDB_STATUS_OK=0
     if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
         exit 1
       fi
-      USE_NDBCLUSTER=
+      USING_NDBCLUSTER=0
+      USE_NDBCLUSTER_OPT=
       return
     fi
 
@@ -1233,19 +1277,30 @@ start_ndbcluster()
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
     echo "Using ndbcluster at $NDB_CONNECTSTRING"
   fi
-  USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\""
+  USE_NDBCLUSTER_OPT="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\""
   export NDB_CONNECTSTRING
   fi
 }
 
+rm_ndbcluster_tables()
+{
+  $RM -f $1/cluster_replication/apply_status*
+  $RM -f $1/cluster_replication/schema*
+}
+
 stop_ndbcluster()
 {
- if [ ! -z "$USE_NDBCLUSTER" ]
+ if [ -n "$USE_NDBCLUSTER_OPT" ]
  then
+ USE_NDBCLUSTER_OPT=
  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
  then
    # Kill any running ndbcluster stuff
+   $ECHO "Stopping master cluster"
    ./ndb/ndbcluster $NDBCLUSTER_OPTS --stop
+   # remove ndb table the hard way as not to upset later tests
+   rm_ndbcluster_tables $MASTER_MYDDIR
+   rm_ndbcluster_tables $MASTER_MYDDIR"1"
  fi
  fi
 }
@@ -1300,7 +1355,7 @@ start_master()
           --local-infile \
           --exit-info=256 \
           --core \
-          $USE_NDBCLUSTER \
+          $USE_NDBCLUSTER_OPT \
           --datadir=$MASTER_MYDDIR$1 \
           --pid-file=$MASTER_MYPID$1 \
           --socket=$MASTER_MYSOCK$1 \
@@ -1330,7 +1385,7 @@ start_master()
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --core \
-          $USE_NDBCLUSTER \
+          $USE_NDBCLUSTER_OPT \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:128M:autoextend \
@@ -1397,6 +1452,7 @@ start_slave()
   [ x$SKIP_SLAVE = x1 ] && return
   eval "this_slave_running=\$SLAVE$1_RUNNING"
   [ x$this_slave_running = 1 ] && return
+
   # When testing fail-safe replication, we will have more than one slave
   # in this case, we start secondary slaves with an argument
   slave_ident="slave$1"
@@ -1420,6 +1476,36 @@ start_slave()
    slave_pid=$SLAVE_MYPID
    slave_sock="$SLAVE_MYSOCK"
  fi
+
+  #
+  if [ x$USING_NDBCLUSTER = x1 -a -n "$USE_NDBCLUSTER_SLAVE" ] ; then
+    if [ $slave_server_id -eq 2 ] ; then
+      savedir=`pwd`
+      cd $MYSQL_TEST_DIR
+      if [ "$DO_BENCH" != 1 -a -z "$NDBCLUSTER_EXTRA_OPTS" ]
+       then
+         NDBCLUSTER_EXTRA_OPTS="--small"
+      fi
+
+      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=2"
+      echo "Starting slave ndbcluster " $OPTS
+      ./ndb/ndbcluster $OPTS \
+                      || NDB_SLAVE_STATUS_OK=0
+      #                > /dev/null 2>&1 || NDB_SLAVE_STATUS_OK=0
+      cd $savedir
+      if [ x$NDB_SLAVE_STATUS_OK != x1 ] ; then
+        if [ x$FORCE != x1 ] ; then
+          exit 1
+        fi
+        USE_NDBCLUSTER_SLAVE_OPT=
+        USE_NDBCLUSTER_SLAVE=
+      fi
+      USE_NDBCLUSTER_SLAVE_OPT=$USE_NDBCLUSTER_SLAVE
+    fi
+  else
+    USE_NDBCLUSTER_SLAVE_OPT=
+  fi
+
   # Remove stale binary logs and old master.info files
   # except for too tests which need them
   if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ]
@@ -1445,12 +1531,16 @@ start_slave()
    master_info=$SLAVE_MASTER_INFO
  fi
 
+  if [ x$SLAVE_MYSQLDBINLOG = x1 ]
+  then
+    EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin --log-slave-updates"
+  fi
+
   $RM -f $slave_datadir/log.*
   slave_args="--no-defaults $master_info \
   	    --exit-info=256 \
-          --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin \
+          $SLAVE_MYSQLDBINLOG_OPT \
           --relay-log=$MYSQL_TEST_DIR/var/log/$slave_ident-relay-bin \
-          --log-slave-updates \
           --log=$slave_log \
           --basedir=$MY_BASEDIR \
           --datadir=$slave_datadir \
@@ -1472,7 +1562,8 @@ start_slave()
           --log-bin-trust-function-creators \
           --loose-binlog-show-xid=0 \
            $SMALL_SERVER \
-           $EXTRA_SLAVE_MYSQLD_OPT $EXTRA_SLAVE_OPT"
+           $EXTRA_SLAVE_MYSQLD_OPT $EXTRA_SLAVE_OPT \
+           $USE_NDBCLUSTER_SLAVE_OPT"
   CUR_MYERR=$slave_err
   CUR_MYSOCK=$slave_sock
 
@@ -1520,7 +1611,6 @@ mysql_start ()
 #  start_master
 #  start_slave
   cd $MYSQL_TEST_DIR
-  start_ndbcluster
   return 1
 }
 
@@ -1554,6 +1644,14 @@ stop_slave ()
       sleep $SLEEP_TIME_AFTER_RESTART
     fi
     eval "SLAVE$1_RUNNING=0"
+    if [ -n "$USE_NDBCLUSTER_SLAVE_OPT" ] ; then
+      savedir=`pwd`
+      cd $MYSQL_TEST_DIR
+        $ECHO "Stopping slave cluster"
+      ./ndb/ndbcluster $NDBCLUSTER_OPTS_SLAVE --stop
+      rm_ndbcluster_tables $SLAVE_MYDDIR
+      cd $savedir
+    fi
   fi
 }
 
@@ -1642,6 +1740,7 @@ run_testcase ()
  result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0 \& \( $tname : federated \) = 0`
+ NDBCLUSTER_TEST=`$EXPR \( $tname : '.*ndb.*' \) != 0`
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1731,9 +1830,19 @@ run_testcase ()
      esac
      stop_master
      stop_master 1
+
+     # only stop the cluster if this test will not use cluster
+     if [ x$NDBCLUSTER_TEST != x1 ] ;
+     then
+       stop_ndbcluster
+     fi
+
      report_current_test $tname
+     USING_NDBCLUSTER=$NDBCLUSTER_TEST
+     # start_ndbcluster knows if cluster is already started
+     start_ndbcluster
      start_master
-     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
+     if [ x$USING_NDBCLUSTER = x1 -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
        start_master 1
      fi
      TZ=$MY_TZ; export TZ
@@ -1742,14 +1851,25 @@ run_testcase ()
      # or there is no master running (FIXME strange.....)
      # or there is a master init script
      if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || \
-	[ -f $master_init_script ]
+	[ -f $master_init_script ] || \
+        [ -n "$USE_NDBCLUSTER" -a x$NDBCLUSTER_TEST != x$USING_NDBCLUSTER ]
      then
        EXTRA_MASTER_OPT=""
        stop_master
        stop_master 1
+
+       # only stop the cluster if this test will not use cluster
+       if [ x$NDBCLUSTER_TEST != x1 ] ;
+       then
+         stop_ndbcluster
+       fi
+
        report_current_test $tname
+       USING_NDBCLUSTER=$NDBCLUSTER_TEST
+       # start_ndbcluster knows if cluster is already started
+       start_ndbcluster
        start_master
-       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
+       if [ x$USING_NDBCLUSTER = x1  -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
          start_master 1
        fi
      else
@@ -1782,6 +1902,18 @@ run_testcase ()
 	 do_slave_restart=1
        fi
      fi
+
+     USING_NDBCLUSTER=$NDBCLUSTER_TEST
+     if [ -n "$USE_NDBCLUSTER_SLAVE_OPT" ] ; then
+       if [ x$USING_NDBCLUSTER != x1 ] ; then
+         do_slave_restart=1
+       fi
+     else
+       if [ x$USING_NDBCLUSTER = x1 ] ; then
+         do_slave_restart=1
+       fi
+     fi
+
 
      if [ x$do_slave_restart = x1 ] ; then
        stop_slave
@@ -2041,6 +2173,8 @@ then
     fi
   fi
 
+  # just to force stopping anything from previous runs
+  USE_NDBCLUSTER_OPT=$USE_NDBCLUSTER
   stop_ndbcluster
 
   # Remove files that can cause problems
@@ -2058,7 +2192,8 @@ then
 
   if [ -n "$1" -a `expr "X$*" : '.*ndb'` -eq 0 ]
   then
-    USE_NDBCLUSTER=""
+    USING_NDBCLUSTER=0
+    USE_NDBCLUSTER_OPT=
   fi
 
   start_manager
@@ -2090,7 +2225,7 @@ then
     EXTRA_BENCH_ARGS="--small-test --small-tables"
   fi
 
-  if [ ! -z "$USE_NDBCLUSTER" ]
+  if [ x$USING_NDBCLUSTER = x1 ]
   then
     EXTRA_BENCH_ARGS="--create-options=TYPE=ndb $EXTRA_BENCH_ARGS"
   fi 

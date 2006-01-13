@@ -79,7 +79,7 @@ const char *command_name[]={
   "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
   "Prepare", "Execute", "Long Data", "Close stmt",
-  "Reset stmt", "Set option", "Fetch",
+  "Reset stmt", "Set option", "Fetch", "Daemon",
   "Error"					// Last command number
 };
 
@@ -149,7 +149,7 @@ static bool end_active_trans(THD *thd)
   DBUG_RETURN(error);
 }
 
-static bool begin_trans(THD *thd)
+bool begin_trans(THD *thd)
 {
   int error=0;
   if (unlikely(thd->in_sub_stmt))
@@ -6682,6 +6682,8 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
+    if (tmp->command == COM_DAEMON)
+      continue;
     if (tmp->thread_id == id)
     {
       pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete

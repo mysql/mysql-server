@@ -266,6 +266,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
     ljam();
     tptr.p->sendBeforeValues = false;
   }
+  /*
   tptr.p->sendOnlyChangedAttributes = false;
   if (((tptr.p->triggerType == TriggerType::SUBSCRIPTION) ||
       (tptr.p->triggerType == TriggerType::SUBSCRIPTION_BEFORE)) &&
@@ -273,7 +274,8 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
     ljam();
     tptr.p->sendOnlyChangedAttributes = true;
   }
-
+  */
+  tptr.p->sendOnlyChangedAttributes = !req->getReportAllMonitoredAttributes();
   // Set monitor all
   tptr.p->monitorAllAttributes = req->getMonitorAllAttributes();
   tptr.p->monitorReplicas = req->getMonitorReplicas();
