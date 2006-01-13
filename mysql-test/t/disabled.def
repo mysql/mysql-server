@@ -20,8 +20,6 @@ subselect       : Bug#15706
 ps_7ndb         : dbug assert in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
 events          : Affects flush test case. A table lock not released somewhere
-ndb_autodiscover : TBF with CR
-ndb_autodiscover2 : TBF with CR
 ndb_binlog_basic   : Results are not deterministic, Tomas will fix
 rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
