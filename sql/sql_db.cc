@@ -401,6 +401,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
+  char	 tmp_query[FN_REFLEN+16];
   long result= 1;
   int error= 0;
   MY_STAT stat_info;
@@ -486,15 +487,20 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
     if (!thd->query)				// Only in replication
     {
-      query= 	     path;
-      query_length= (uint) (strxmov(path,"create database `", db, "`", NullS) -
-			    path);
+      query= 	     tmp_query;
+      query_length= (uint) (strxmov(tmp_query,"create database `",
+                                    db, "`", NullS) - tmp_query);
     }
     else
     {
       query= 	    thd->query;
       query_length= thd->query_length;
     }
+
+    ha_binlog_log_query(thd, LOGCOM_CREATE_DB,
+                        query, query_length,
+                        db, "");
+
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, query, query_length, 0, 
@@ -568,6 +574,10 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 		     thd->variables.collation_server;
     thd->variables.collation_database= thd->db_charset;
   }
+
+  ha_binlog_log_query(thd, LOGCOM_ALTER_DB,
+                      thd->query, thd->query_length,
+                      db, "");
 
   if (mysql_bin_log.is_open())
   {

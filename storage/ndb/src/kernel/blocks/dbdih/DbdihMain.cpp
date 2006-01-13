@@ -67,6 +67,7 @@
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
+#include <signaldata/DihFragCount.hpp>
 #include <DebuggerNames.hpp>
 
 #include <EventLogger.hpp>
@@ -7342,39 +7343,66 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 
 void Dbdih::execDI_FCOUNTREQ(Signal* signal) 
 {
+  DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtr();
   ConnectRecordPtr connectPtr;
   TabRecordPtr tabPtr;
+  const BlockReference senderRef = signal->senderBlockRef();
+  const Uint32 senderData = req->m_senderData;
   jamEntry();
-  connectPtr.i = signal->theData[0];
-  tabPtr.i = signal->theData[1];
+  connectPtr.i = req->m_connectionData;
+  tabPtr.i = req->m_tableRef;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
+  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+  {
+    DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
+    //connectPtr.i == RNIL -> question without connect record
+    if(connectPtr.i == RNIL)
+      ref->m_connectionData = RNIL;
+    else
+      ref->m_connectionData = connectPtr.p->userpointer;
+    ref->m_tableRef = tabPtr.i;
+    ref->m_senderData = senderData;
+    ref->m_error = DihFragCountRef::ErroneousTableState;
+    ref->m_tableStatus = tabPtr.p->tabStatus;
+    sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
+               DihFragCountRef::SignalLength, JBB);
+    return;
+  }
 
   if(connectPtr.i != RNIL){
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
     if (connectPtr.p->connectState == ConnectRecord::INUSE) {
       jam();
-      signal->theData[0] = connectPtr.p->userpointer;
-      signal->theData[1] = tabPtr.p->totalfragments;
-      sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTCONF, signal,2, JBB);
+      DihFragCountConf* conf = (DihFragCountConf*)signal->getDataPtrSend();
+      conf->m_connectionData = connectPtr.p->userpointer;
+      conf->m_tableRef = tabPtr.i;
+      conf->m_senderData = senderData;
+      conf->m_fragmentCount = tabPtr.p->totalfragments;
+      conf->m_noOfBackups = tabPtr.p->noOfBackups;
+      sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTCONF, signal,
+                 DihFragCountConf::SignalLength, JBB);
       return;
     }//if
-    signal->theData[0] = connectPtr.p->userpointer;
-    signal->theData[1] = ZERRONOUSSTATE;
-    sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTREF, signal, 2, JBB);
+    DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
+    ref->m_connectionData = connectPtr.p->userpointer;
+    ref->m_tableRef = tabPtr.i;
+    ref->m_senderData = senderData;
+    ref->m_error = DihFragCountRef::ErroneousTableState;
+    ref->m_tableStatus = tabPtr.p->tabStatus;
+    sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTREF, signal, 
+               DihFragCountRef::SignalLength, JBB);
     return;
   }//if
-
+  DihFragCountConf* conf = (DihFragCountConf*)signal->getDataPtrSend();
   //connectPtr.i == RNIL -> question without connect record
-  const Uint32 senderData = signal->theData[2];
-  const BlockReference senderRef = signal->senderBlockRef();
-  signal->theData[0] = RNIL;
-  signal->theData[1] = tabPtr.p->totalfragments;
-  signal->theData[2] = tabPtr.i;
-  signal->theData[3] = senderData;
-  signal->theData[4] = tabPtr.p->noOfBackups;
-  sendSignal(senderRef, GSN_DI_FCOUNTCONF, signal, 5, JBB);
+  conf->m_connectionData = RNIL;
+  conf->m_tableRef = tabPtr.i;
+  conf->m_senderData = senderData;
+  conf->m_fragmentCount = tabPtr.p->totalfragments;
+  conf->m_noOfBackups = tabPtr.p->noOfBackups;
+  sendSignal(senderRef, GSN_DI_FCOUNTCONF, signal, 
+             DihFragCountConf::SignalLength, JBB);
 }//Dbdih::execDI_FCOUNTREQ()
 
 void Dbdih::execDIGETPRIMREQ(Signal* signal) 

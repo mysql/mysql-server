@@ -59,6 +59,8 @@ typedef struct ErrorBundle {
 
 #define OE ndberror_cl_schema_object_already_exists
 
+#define IT ndberror_cl_internal_temporary
+
 /* default mysql error code for unmapped codes */
 #define DMEC -1
 
@@ -208,6 +210,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * OverloadError
    */
+  { 701,  DMEC, OL, "System busy with other schema operation" },
   { 410,  DMEC, OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 677,  DMEC, OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  DMEC, OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
@@ -215,6 +218,10 @@ ErrorBundle ErrorCodes[] = {
   { 4006, DMEC, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
+  /*
+   * Internal Temporary
+   */
+  { 702,  DMEC, IT, "Request to non-master" },
   
   /**
    * Internal errors
@@ -240,7 +247,6 @@ ErrorBundle ErrorCodes[] = {
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
   { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
-  { 702,  DMEC, IE, "Request to non-master" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
   { 809,  DMEC, IE, "809" },
   { 812,  DMEC, IE, "812" },
@@ -335,7 +341,6 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
-  { 701,  DMEC, SE, "System busy with other schema operation" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },
   { 705,  DMEC, SE, "Table name too long" },
@@ -629,6 +634,7 @@ ErrorStatusClassification StatusClassificationMapping[] = {
   { ST_T, OL, "Overload error"},
   { ST_T, TO, "Timeout expired"},
   { ST_T, NS, "Node shutdown"},
+  { ST_T, IT, "Internal temporary"},
   
   { ST_U , UR, "Unknown result error"},
   { ST_U , UE, "Unknown error code"},

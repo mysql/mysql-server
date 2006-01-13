@@ -79,6 +79,20 @@ static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
 
 inline int ignored_error_code(int err_code)
 {
+#ifdef HAVE_NDB_BINLOG
+  /*
+    The following error codes are hard-coded and will always be ignored.
+  */
+  switch (err_code)
+  {
+  case ER_DB_CREATE_EXISTS:
+  case ER_DB_DROP_EXISTS:
+    return 1;
+  default:
+    /* Nothing to do */
+    break;
+  }
+#endif
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
           (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
@@ -5276,7 +5290,8 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       {
         slave_print_msg(ERROR_LEVEL, rli, error,
                         "Error in %s event: error during table %s.%s lock",
-                        get_type_str(), table->s->db, table->s->table_name);
+                        get_type_str(), table->s->db.str, 
+                        table->s->table_name.str);
         DBUG_RETURN(error);
       }
       /*
@@ -5412,7 +5427,12 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
 
   if (error)
   {                     /* error has occured during the transaction */
-    /*
+    slave_print_msg(ERROR_LEVEL, rli, error,
+                    "Error in %s event: error during transaction execution "
+                    "on table %s.%s",
+                    get_type_str(), table->s->db.str, 
+                    table->s->table_name.str);
+     /*
       If one day we honour --skip-slave-errors in row-based replication, and
       the error should be skipped, then we would clear mappings, rollback,
       close tables, but the slave SQL thread would not stop and then may
@@ -5485,7 +5505,8 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       slave_print_msg(ERROR_LEVEL, rli, error,
                       "Error in %s event: commit of row events failed, "
                       "table `%s`.`%s`",
-                      get_type_str(), table->s->db, table->s->table_name);
+                      get_type_str(), table->s->db.str, 
+                      table->s->table_name.str);
     DBUG_RETURN(error);
   }
 
@@ -5585,8 +5606,8 @@ void Rows_log_event::pack_info(Protocol *protocol)
 {
     char buf[256];
     char const *const flagstr= get_flags(STMT_END_F) ? "STMT_END_F" : "";
-    char const *const dbnam= m_table->s->db;
-    char const *const tblnam= m_table->s->table_name;
+    char const *const dbnam= m_table->s->db.str;
+    char const *const tblnam= m_table->s->table_name.str;
     my_size_t bytes= snprintf(buf, sizeof(buf),
                               "%s.%s - %s", dbnam, tblnam, flagstr);
     protocol->store(buf, bytes, &my_charset_bin);
@@ -6105,7 +6126,8 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
   */
   thd->lex->sql_command= SQLCOM_REPLACE;
 
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);   // needed for ndbcluster
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);  // Needed for ndbcluster
+  table->file->extra(HA_EXTRA_IGNORE_NO_KEY);   // Needed for ndbcluster
   /*
     TODO: the cluster team (Tomas?) says that it's better if the engine knows
     how many rows are going to be inserted, then it can allocate needed memory
@@ -6372,6 +6394,9 @@ static int find_and_fetch_row(TABLE *table, byte *key, byte *record_buf)
   }
 
   DBUG_ASSERT(record_buf);
+
+  /* We need to retrieve all fields */
+  table->file->ha_set_all_bits_in_read_set();
 
   if (table->s->keys > 0)
   {

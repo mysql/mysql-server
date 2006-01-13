@@ -460,10 +460,13 @@ NdbTableImpl::assign(const NdbTableImpl& org)
 {
   m_internalName.assign(org.m_internalName);
   updateMysqlName();
-  m_externalName.assign(org.m_externalName);
-  m_newExternalName.assign(org.m_newExternalName);
+  // If the name has been explicitly set, use that name
+  // otherwise use the fetched name
+  if (!org.m_newExternalName.empty())
+    m_externalName.assign(org.m_newExternalName);
+  else
+    m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
-  m_newFrm.assign(org.m_newFrm.get_data(), org.m_newFrm.length());
   m_ng.assign(org.m_ng.get_data(), org.m_ng.length());
   m_fragmentType = org.m_fragmentType;
   m_fragmentCount = org.m_fragmentCount;
@@ -795,6 +798,7 @@ void NdbEventImpl::init()
   mi_type= 0;
   m_dur= NdbDictionary::Event::ED_UNDEFINED;
   m_tableImpl= NULL;
+  m_rep= NdbDictionary::Event::ER_UPDATED;
 }
 
 NdbEventImpl::~NdbEventImpl()
@@ -848,6 +852,18 @@ NdbDictionary::Event::EventDurability
 NdbEventImpl::getDurability() const
 {
   return m_dur;
+}
+
+void
+NdbEventImpl::setReport(NdbDictionary::Event::EventReport r)
+{
+  m_rep = r;
+}
+
+NdbDictionary::Event::EventReport
+NdbEventImpl::getReport() const
+{
+  return m_rep;
 }
 
 int NdbEventImpl::getNoOfEventColumns() const
@@ -1257,13 +1273,13 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     
     if(m_error.code && errcodes)
     {
-      for(int j = 0; errcodes[j] ; j++){
+      int j;
+      for(j = 0; errcodes[j] ; j++){
 	if(m_error.code == errcodes[j]){
-	  m_error.code = 0;
 	  break;
 	}
       }
-      if(!m_error.code) // Accepted error code
+      if(errcodes[j]) // Accepted error code
 	continue;
     }
     break;
@@ -1644,6 +1660,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   
   * ret = impl;
 
+  DBUG_ASSERT(impl->m_fragmentCount > 0);
   DBUG_RETURN(0);
 }
 
@@ -1654,6 +1671,9 @@ int
 NdbDictionaryImpl::createTable(NdbTableImpl &t)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
+  // If the a new name has not been set, used the copied name
+  if (t.m_newExternalName.empty())
+    t.m_newExternalName.assign(t.m_externalName);
   if (m_receiver.createTable(m_ndb, t) != 0)
   {
     DBUG_RETURN(-1);
@@ -2748,6 +2768,11 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     req->setTableVersion(evnt.m_tableVersion);
     req->setAttrListBitmask(evnt.m_attrListBitmask);
     req->setEventType(evnt.mi_type);
+    req->clearFlags();
+    if (evnt.m_rep & NdbDictionary::Event::ER_ALL)
+      req->setReportAll();
+    if (evnt.m_rep & NdbDictionary::Event::ER_SUBSCRIBE)
+      req->setReportSubscribe();
   }
 
   UtilBufferWriter w(m_buffer);
@@ -2772,12 +2797,11 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
-  int errCodes[] = { CreateEvntRef::Busy, 0 };
   int ret = dictSignal(&tSignal,ptr, 1,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,
 		       WAITFOR_RESPONSE_TIMEOUT, 100,
-		       errCodes, 0);
+		       0, -1);
 
   if (ret) {
     DBUG_RETURN(ret);
@@ -2842,12 +2866,11 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
 		     "subscriberData=%d",req->subscriptionId,
 		     req->subscriptionKey,req->subscriberData));
 
-  int errCodes[] = { SubStartRef::Busy, 0 };
   DBUG_RETURN(dictSignal(&tSignal,NULL,0,
 			 0 /*use masternode id*/,
 			 WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
 			 -1, 100,
-			 errCodes, 0));
+			 0, -1));
 }
 
 int
@@ -2881,12 +2904,11 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
 		     "subscriberData=%d",req->subscriptionId,
 		     req->subscriptionKey,req->subscriberData));
 
-  int errCodes[] = { SubStopRef::Busy, 0 };
   DBUG_RETURN(dictSignal(&tSignal,NULL,0,
 			 0 /*use masternode id*/,
 			 WAIT_CREATE_INDX_REQ /*WAIT_SUB_STOP__REQ*/,
 			 -1, 100,
-			 errCodes, 0));
+			 0, -1));
 }
 
 NdbEventImpl * 
@@ -3024,6 +3046,8 @@ NdbDictInterface::execCREATE_EVNT_REF(NdbApiSignal * signal,
   m_error.code= ref->getErrorCode();
   DBUG_PRINT("error",("error=%d,line=%d,node=%d",ref->getErrorCode(),
 		      ref->getErrorLine(),ref->getErrorNode()));
+  if (m_error.code == CreateEvntRef::NotMaster)
+    m_masterNodeId = ref->getMasterNode();
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -3061,6 +3085,8 @@ NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 
   DBUG_PRINT("error",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d,error=%d",
 		      subscriptionId,subscriptionKey,subscriberData,m_error.code));
+  if (m_error.code == SubStopRef::NotMaster)
+    m_masterNodeId = subStopRef->m_masterNodeId;
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -3109,6 +3135,8 @@ NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
   const SubStartRef * const subStartRef=
     CAST_CONSTPTR(SubStartRef, signal->getDataPtr());
   m_error.code= subStartRef->errorCode;
+  if (m_error.code == SubStartRef::NotMaster)
+    m_masterNodeId = subStartRef->m_masterNodeId;
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -3149,12 +3177,11 @@ NdbDictInterface::dropEvent(const NdbEventImpl &evnt)
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
-  //TODO
   return dictSignal(&tSignal,ptr, 1,
 		    0 /*use masternode id*/,
 		    WAIT_CREATE_INDX_REQ,
 		    -1, 100,
-		    0, 0);
+		    0, -1);
 }
 
 void
@@ -3177,7 +3204,8 @@ NdbDictInterface::execDROP_EVNT_REF(NdbApiSignal * signal,
 
   DBUG_PRINT("info",("ErrorCode=%u Errorline=%u ErrorNode=%u",
 	     ref->getErrorCode(), ref->getErrorLine(), ref->getErrorNode()));
-
+  if (m_error.code == DropEvntRef::NotMaster)
+    m_masterNodeId = ref->getMasterNode();
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
