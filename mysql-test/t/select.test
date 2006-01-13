@@ -2807,6 +2807,20 @@ EXPLAIN SELECT t2.key_a,foo
 DROP TABLE t1,t2,t3;
 
 #
+# Bug #15633 Evaluation of Item_equal for non-const table caused wrong
+#            select result
+#
+create table t1 (f1 int unique);
+create table t2 (f2 int unique);
+create table t3 (f3 int unique);
+insert into t1 values(1),(2);
+insert into t2 values(1),(2);
+insert into t3 values(1),(NULL);
+select * from t3 where f3 is null;
+select t2.f2 from t1 left join t2 on f1=f2 join t3 on f1=f3 where f1=1;
+drop table t1,t2,t3;
+
+#
 # Bug#15268 Unchecked null value caused server crash
 #
 create table t1(f1 char, f2 char not null);
