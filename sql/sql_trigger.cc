@@ -317,7 +317,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING file, trigname_file;
   LEX_STRING *trg_def, *name;
   ulonglong *trg_sql_mode;
-  char trg_definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
   Item_trigger_field *trg_field;
   struct st_trigname trigname;
