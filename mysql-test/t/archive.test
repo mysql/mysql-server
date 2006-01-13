@@ -1409,22 +1409,52 @@ DROP TABLE t5;
 
 CREATE TABLE `t5` (
 `a` int(11) NOT NULL auto_increment,
-b char(12),
+b blob(12),
 KEY  (`a`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
 
 INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (32, "foo");
-INSERT INTO t5 VALUES (23, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
-INSERT INTO t5 VALUES (3, "foo");
-INSERT INTO t5 VALUES (NULL, "foo");
+INSERT INTO t5 VALUES (NULL, "We the people");
+INSERT INTO t5 VALUES (NULL, "in order to form a more pefect union");
+INSERT INTO t5 VALUES (NULL, "establish justice");
+INSERT INTO t5 VALUES (NULL, "foo grok ");
+INSERT INTO t5 VALUES (32, "ensure domestic tranquility");
+INSERT INTO t5 VALUES (23, "provide for the common defense");
+INSERT INTO t5 VALUES (NULL, "fo fooo");
+INSERT INTO t5 VALUES (NULL, "foo just naother bit of text");
+INSERT INTO t5 VALUES (3, "foo this is mine to think about");
+INSERT INTO t5 VALUES (NULL, "promote the general welfare");
 SELECT * FROM t5;
+SELECT b FROM t5;
+SELECT b FROM t5 WHERE a =3;
+SELECT b FROM t5 WHERE a IN (32, 23, 5);
+
+
+#More blob tests
+
+DROP TABLE t5;
+
+CREATE TABLE `t5` (
+`a` int(11) NOT NULL auto_increment,
+b blob(12),
+c blob(12),
+KEY  (`a`)
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+
+INSERT INTO t5 VALUES (NULL, "foo", "grok this!");
+INSERT INTO t5 VALUES (NULL, "We the people", NULL);
+INSERT INTO t5 VALUES (NULL, "in order to form a more peefect union", "secure the blessing of liberty");
+INSERT INTO t5 VALUES (NULL, "establish justice", "to ourselves and");
+INSERT INTO t5 VALUES (32, "ensure domestic tranquility", NULL);
+INSERT INTO t5 VALUES (23, "provide for the common defense", "posterity");
+INSERT INTO t5 VALUES (NULL, "promote the general welfare", "do ordain");
+SELECT * FROM t5;
+SELECT b FROM t5;
+SELECT b FROM t5 WHERE a =3;
+SELECT b FROM t5 WHERE a IN (32, 23, 5);
+SELECT c FROM t5;
+SELECT c FROM t5 WHERE a =3;
+SELECT c FROM t5 WHERE a IN (32, 23, 5);
 
 # 
 # Cleanup, test is over
