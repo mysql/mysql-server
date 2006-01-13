@@ -60,8 +60,8 @@ typedef struct SHA1_CONTEXT
 
 C_MODE_START
 
-int sha1_reset( SHA1_CONTEXT* );
-int sha1_input( SHA1_CONTEXT*, const uint8 *, unsigned int );
-int sha1_result( SHA1_CONTEXT* , uint8 Message_Digest[SHA1_HASH_SIZE] );
+int mysql_sha1_reset(SHA1_CONTEXT*);
+int mysql_sha1_input(SHA1_CONTEXT*, const uint8 *, unsigned int);
+int mysql_sha1_result(SHA1_CONTEXT* , uint8 Message_Digest[SHA1_HASH_SIZE]);
 
 C_MODE_END

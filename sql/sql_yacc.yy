@@ -10692,6 +10692,8 @@ trigger_tail:
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
 	  lex->sphead->m_body_begin= lex->ptr;
+          while (my_isspace(system_charset_info, lex->sphead->m_body_begin[0]))
+            ++lex->sphead->m_body_begin;
 	}
 	sp_proc_stmt
 	{
