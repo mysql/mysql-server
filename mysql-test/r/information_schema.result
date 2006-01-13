@@ -838,40 +838,34 @@ end if;
 end|
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	
-begin
+trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
 end	BEFORE	NULL		root@localhost
-trg2	UPDATE	t1	
-begin
+trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
 end	BEFORE	NULL		root@localhost
-trg3	UPDATE	t1	
-begin
+trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
 end	AFTER	NULL		root@localhost
 select * from information_schema.triggers;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
-NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
-NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
-NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;

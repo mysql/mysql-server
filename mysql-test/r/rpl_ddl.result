@@ -1466,12 +1466,12 @@ flush logs;
 -------- switch to master -------
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	 SET @a:=1	BEFORE	NULL		root@localhost
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost
 
 -------- switch to slave -------
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	 SET @a:=1	BEFORE	NULL		root@localhost
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost
 
 ######## DROP TRIGGER trg1  ########
 
