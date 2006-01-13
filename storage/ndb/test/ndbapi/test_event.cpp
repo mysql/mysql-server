@@ -169,7 +169,6 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
     g_err << function << "Event operation creation failed\n";
     return NDBT_FAILED;
   }
-  pOp->separateEvents(true);
 
   g_info << function << "get values\n";
   NdbRecAttr* recAttr[1024];
@@ -381,7 +380,6 @@ int runCreateDropEventOperation(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "Event operation creation failed\n";
       return NDBT_FAILED;
     }
-    pOp->separateEvents(true);
 
     g_info << "dropping event operation" << endl;
     int res = pNdb->dropEventOperation(pOp);
@@ -552,7 +550,6 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Event operation creation failed on %s" << buf << endl;
     DBUG_RETURN(NDBT_FAILED);
   }
-  pOp->separateEvents(true);
 
   int i;
   int n_columns= table->getNoOfColumns();
@@ -1198,7 +1195,6 @@ static int createEventOperations(Ndb * ndb)
     {
       DBUG_RETURN(NDBT_FAILED);
     }
-    pOp->separateEvents(true);
 
     int n_columns= pTabs[i]->getNoOfColumns();
     for (int j = 0; j < n_columns; j++)
