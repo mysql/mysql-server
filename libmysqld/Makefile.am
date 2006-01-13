@@ -67,7 +67,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
         event_executor.cc event.cc event_timed.cc \
         rpl_filter.cc sql_partition.cc handlerton.cc sql_plugin.cc \
         sql_tablespace.cc \
-        rpl_injector.cc
+        rpl_injector.cc my_user.c
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 EXTRA_libmysqld_a_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
