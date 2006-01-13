@@ -114,8 +114,16 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     char buffer[10];
     /* Write a very simple .gz header:
   */
-    snprintf(buffer, 10, "%c%c%c%c%c%c%c%c%c%c", gz_magic[0], gz_magic[1],
-            Z_DEFLATED, 0 /*flags*/, 0,0,0,0 /*time*/, 0 /*xflags*/, 0x03);
+    buffer[0] = gz_magic[0];
+    buffer[1] = gz_magic[1];
+    buffer[2] = Z_DEFLATED;
+    buffer[3] = 0 /*flags*/;
+    buffer[4] = 0;
+    buffer[5] = 0;
+    buffer[6] = 0;
+    buffer[7] = 0 /*time*/;
+    buffer[8] = 0 /*xflags*/;
+    buffer[9] = 0x03;
     s->start = 10L;
     my_write(s->file, buffer, s->start, MYF(0));
     /* We use 10L instead of ftell(s->file) to because ftell causes an
