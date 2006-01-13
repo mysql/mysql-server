@@ -287,7 +287,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(thd, ref_pointer_array, all_fields);
+      having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
   }
 
   // Is it subselect
@@ -5292,7 +5292,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
+    {
       hidden_null_count=null_count;
+      /*
+        We need to update hidden_field_count as we may have stored group
+        functions with constant arguments
+      */
+      param->hidden_field_count= (uint) (reg_field - table->field);
+    }
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
@@ -5488,7 +5495,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct)
+  if (distinct && field_count != param->hidden_field_count)
   {
     /*
       Create an unique key or an unique constraint over all columns

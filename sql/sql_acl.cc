@@ -1371,7 +1371,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 	acl_user->user && !strcmp(user,acl_user->user))
     {
       if (exact ? !my_strcasecmp(&my_charset_latin1, host,
-                                 acl_user->host.hostname) :
+                                 acl_user->host.hostname ?
+				 acl_user->host.hostname : "") :
           compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
@@ -1988,14 +1989,15 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_TABLE *grant_table,*found=0;
+  HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_table=(GRANT_TABLE*) hash_search(&column_priv_hash,
-					      (byte*) helping,
-					      len) ;
+  for (grant_table=(GRANT_TABLE*) hash_first(&column_priv_hash,
+                                             (byte*) helping,
+                                             len, &state) ;
        grant_table ;
        grant_table= (GRANT_TABLE*) hash_next(&column_priv_hash,(byte*) helping,
-					     len))
+                                             len, &state))
   {
     if (exact)
     {
@@ -3604,7 +3606,7 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     if (!(user=acl_user->user))
       user= "";
     if (!(host=acl_user->host.hostname))
-      host= "%";
+      host= "";
     if (!strcmp(user_name->user.str,user) &&
 	!my_strcasecmp(system_charset_info, user_name->host.str, host))
       break;
