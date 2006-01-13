@@ -8105,6 +8105,7 @@ ulong srv_commit_concurrency;
 
 #ifndef WITH_NDBCLUSTER_STORAGE_ENGINE
 ulong ndb_cache_check_time;
+ulong ndb_extra_logging;
 #endif
 
 /*****************************************************************************
