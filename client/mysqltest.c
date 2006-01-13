@@ -273,6 +273,7 @@ typedef struct
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
+  char *env_s;
 } VAR;
 
 #if defined(__NETWARE__) || defined(__WIN__)
@@ -885,16 +886,18 @@ int var_set(const char *var_name, const char *var_name_end,
 
   if (env_var)
   {
-    char buf[1024];
-    memcpy(buf, v->name, v->name_len);
-    buf[v->name_len]= 0;
+    char buf[1024], *old_env_s= v->env_s;
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    setenv(buf, v->str_val, 1);
+    strxmov(buf, v->name, "=", v->str_val, NullS);
+    if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
+      die("Out of memory");
+    putenv(v->env_s);
+    my_free((gptr)old_env_s, MYF(MY_ALLOW_ZERO_PTR));
   }
   DBUG_RETURN(result);
 }
@@ -4335,6 +4338,7 @@ static VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->alloced_len = val_alloc_len;
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
+  tmp_var->env_s = 0;
   return tmp_var;
 }
 
