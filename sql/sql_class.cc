@@ -2326,7 +2326,7 @@ my_size_t THD::max_row_length_blob(TABLE *table, const byte *data) const
   for (uint *ptr= beg ; ptr != end ; ++ptr)
   {
     Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length(data + blob->offset()) + 2;
+    length+= blob->get_length((const char *)data + blob->offset()) + 2;
   }
 
   return length;
@@ -2345,7 +2345,7 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
   for (int i= 0 ; field ; i++, p_field++, field= *p_field)
   {
     if (bitmap_is_set(cols,i))
-      ptr= (byte*)field->pack(ptr, field->ptr + offset);
+      ptr= (byte*)field->pack((char *)ptr, field->ptr + offset);
   }
 
   /*
@@ -2378,12 +2378,12 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     if (!table->s->blob_fields)
     {
       /* multiply max_len by 2 so it can be used for update_row as well */
-      table->write_row_record= alloc_root(&table->mem_root, 2*max_len);
+      table->write_row_record= (byte *)alloc_root(&table->mem_root, 2*max_len);
       if (!table->write_row_record)
         return HA_ERR_OUT_OF_MEM;
       row_data= table->write_row_record;
     }
-    else if (unlikely(!(row_data= my_malloc(max_len, MYF(MY_WME)))))
+    else if (unlikely(!(row_data= (byte *)my_malloc(max_len, MYF(MY_WME)))))
       return HA_ERR_OUT_OF_MEM;
   }
   my_size_t const len= pack_row(table, cols, row_data, record);
@@ -2397,7 +2397,7 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
   error= likely(ev != 0) ? ev->add_row_data(row_data,len) : HA_ERR_OUT_OF_MEM ;
 
   if (table->write_row_record == 0)
-    my_free(row_data, MYF(MY_WME));
+    my_free((gptr)row_data, MYF(MY_WME));
 
   return error;
 }
