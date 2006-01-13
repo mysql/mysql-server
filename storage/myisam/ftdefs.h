@@ -25,7 +25,7 @@
 #include <plugin.h>
 
 #define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
-#define misc_word_char(X)	((X)=='\'')
+#define misc_word_char(X)	0
 #define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
 
 #define FT_MAX_WORD_LEN_FOR_SORT 31
