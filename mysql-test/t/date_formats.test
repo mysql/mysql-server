@@ -268,4 +268,11 @@ insert into t1 (f1) values ("2005-01-01");
 insert into t1 (f1) values ("2005-02-01");
 select date_format(f1, "%m") as d1, date_format(f1, "%M") as d2 from t1 order by date_format(f1, "%M");
 drop table t1;
+
+#
+# Bug #15828
+#
+select str_to_date( 1, NULL );
+select str_to_date( NULL, 1 );
+
 # End of 4.1 tests
