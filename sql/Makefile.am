@@ -58,6 +58,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h rpl_filter.h \
+			rpl_injector.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
                         tztime.h my_decimal.h\
@@ -89,6 +90,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
+			rpl_injector.cc \
                         sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
@@ -104,6 +106,8 @@ EXTRA_mysqld_SOURCES =	ha_innodb.cc ha_berkeley.cc ha_archive.cc \
 			ha_innodb.h  ha_berkeley.h  ha_archive.h \
 			ha_blackhole.cc ha_federated.cc ha_ndbcluster.cc \
 			ha_blackhole.h  ha_federated.h  ha_ndbcluster.h \
+			ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h \
+			ha_ndbcluster_tables.h \
 			ha_partition.cc ha_partition.h
 mysqld_DEPENDENCIES =	@mysql_se_objs@
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
@@ -158,6 +162,9 @@ ha_berkeley.o:	ha_berkeley.cc ha_berkeley.h
 		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
+
+ha_ndbcluster_binlog.o:ha_ndbcluster_binlog.cc ha_ndbcluster_binlog.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 #Until we can get rid of dependencies on ha_ndbcluster.h

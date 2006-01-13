@@ -19,6 +19,9 @@
 
 #include "Restore.hpp"
 
+#include "../../../../sql/ha_ndbcluster_tables.h"
+extern const char *Ndb_apply_table;
+
 class BackupConsumer {
 public:
   virtual ~BackupConsumer() { }
@@ -32,6 +35,7 @@ public:
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
   virtual bool finalize_table(const TableS &){return true;}
+  virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
 };
 
 #endif

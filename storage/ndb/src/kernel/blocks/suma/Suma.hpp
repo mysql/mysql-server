@@ -33,6 +33,7 @@
 
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <ndbapi/NdbDictionary.hpp>
 
 class Suma : public SimulatedBlock {
   BLOCK_DEFINES(Suma);
@@ -147,6 +148,50 @@ public:
   /**
    * Subscriptions
    */
+
+  struct Subscription {
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+    Uint32 m_subscriptionId;
+    Uint32 m_subscriptionKey;
+    Uint32 m_subscriptionType;
+    Uint16 m_options;
+
+    enum Options {
+      REPORT_ALL       = 0x1,
+      REPORT_SUBSCRIBE = 0x2
+    };
+
+    enum State {
+      UNDEFINED,
+      LOCKED,
+      DEFINED,
+      DROPPED
+    };
+    State m_state;
+    Uint32 n_subscribers;
+
+    Uint32 nextHash;
+    union { Uint32 prevHash; Uint32 nextPool; };
+
+    Uint32 hashValue() const {
+      return m_subscriptionId + m_subscriptionKey;
+    }
+
+    bool equal(const Subscription & s) const {
+      return 
+	m_subscriptionId == s.m_subscriptionId && 
+	m_subscriptionKey == s.m_subscriptionKey;
+    }
+    /**
+     * The following holds the tables included 
+     * in the subscription.
+     */
+    Uint32 m_tableId;
+    Uint32 m_table_ptrI;
+  };
+  typedef Ptr<Subscription> SubscriptionPtr;
+
   class Table;
   friend class Table;
   typedef Ptr<Table> TablePtr;
@@ -229,6 +274,7 @@ public:
     SubscriberPtr m_drop_subbPtr;
 
     Uint32 n_subscribers;
+    bool m_reportAll;
 
     bool parseTable(SegmentedSectionPtr ptr, Suma &suma);
     /**
@@ -283,43 +329,6 @@ public:
     }
   };
 
-  struct Subscription {
-    Uint32 m_senderRef;
-    Uint32 m_senderData;
-    Uint32 m_subscriptionId;
-    Uint32 m_subscriptionKey;
-    Uint32 m_subscriptionType;
-
-    enum State {
-      UNDEFINED,
-      LOCKED,
-      DEFINED,
-      DROPPED
-    };
-    State m_state;
-    Uint32 n_subscribers;
-
-    Uint32 nextHash;
-    union { Uint32 prevHash; Uint32 nextPool; };
-
-    Uint32 hashValue() const {
-      return m_subscriptionId + m_subscriptionKey;
-    }
-
-    bool equal(const Subscription & s) const {
-      return 
-	m_subscriptionId == s.m_subscriptionId && 
-	m_subscriptionKey == s.m_subscriptionKey;
-    }
-    /**
-     * The following holds the tables included 
-     * in the subscription.
-     */
-    Uint32 m_tableId;
-    Uint32 m_table_ptrI;
-  };
-  typedef Ptr<Subscription> SubscriptionPtr;
-    
   /**
    * 
    */
@@ -367,6 +376,11 @@ public:
   void sendSubStopReq(Signal* signal, bool unlock= false);
 
   void completeSubRemove(SubscriptionPtr subPtr);
+
+  void reportAllSubscribers(Signal *signal,
+                            NdbDictionary::Event::_TableEvent table_event,
+                            SubscriptionPtr subPtr,
+                            SubscriberPtr subbPtr);
 
   Uint32 getFirstGCI(Signal* signal);
 

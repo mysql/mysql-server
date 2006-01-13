@@ -1383,6 +1383,7 @@ public:
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
 #define SYSTEM_THREAD_SLAVE_SQL 4
+#define SYSTEM_THREAD_NDBCLUSTER_BINLOG 8
 
 /*
   Used to hold information about file and file structure in exchainge 

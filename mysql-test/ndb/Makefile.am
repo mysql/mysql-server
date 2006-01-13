@@ -6,7 +6,7 @@ test_SCRIPTS = ndbcluster
 
 noinst_HEADERS = ndbcluster.sh
 
-dist_test_DATA = ndb_config_2_node.ini
+dist_test_DATA = ndb_config_2_node.ini ndb_config_1_node.ini
 
 SUFFIXES = .sh
 

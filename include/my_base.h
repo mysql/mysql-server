@@ -154,7 +154,14 @@ enum ha_extra_function {
     to overwrite entire row.
   */
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS,
-  HA_EXTRA_MMAP
+  HA_EXTRA_MMAP,
+  /* 
+    Ignore if the a tuple is not found, continue processing the
+    transaction and ignore that 'row'.  Needed for idempotency
+    handling on the slave
+  */
+  HA_EXTRA_IGNORE_NO_KEY,
+  HA_EXTRA_NO_IGNORE_NO_KEY
 };
 
 	/* The following is parameter to ha_panic() */

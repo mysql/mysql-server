@@ -1310,7 +1310,12 @@ void Ndb::setReportThreshEventGCISlip(unsigned thresh)
 
 void Ndb::setReportThreshEventFreeMem(unsigned thresh)
 {
-  theEventBuffer->m_free_thresh= thresh;
+  if (theEventBuffer->m_free_thresh != thresh)
+  {
+    theEventBuffer->m_free_thresh= thresh;
+    theEventBuffer->m_min_free_thresh= thresh;
+    theEventBuffer->m_max_free_thresh= 100;
+  }
 }
 
 #ifdef VM_TRACE

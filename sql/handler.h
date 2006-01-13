@@ -216,6 +216,24 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT };
 
+enum enum_binlog_func {
+  BFN_RESET_LOGS=        1,
+  BFN_RESET_SLAVE=       2,
+  BFN_BINLOG_WAIT=       3,
+  BFN_BINLOG_END=        4,
+  BFN_BINLOG_PURGE_FILE= 5
+};
+
+enum enum_binlog_command {
+  LOGCOM_CREATE_TABLE,
+  LOGCOM_ALTER_TABLE,
+  LOGCOM_RENAME_TABLE,
+  LOGCOM_DROP_TABLE,
+  LOGCOM_CREATE_DB,
+  LOGCOM_ALTER_DB,
+  LOGCOM_DROP_DB
+};
+
 /* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
@@ -431,7 +449,8 @@ typedef struct
     handlerton structure version
    */
   const int interface_version;
-#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x0000
+/* last version change: 0x0001 in 5.1.6 */
+#define MYSQL_HANDLERTON_INTERFACE_VERSION 0x0001
 
 
   /*
@@ -523,6 +542,15 @@ typedef struct
    bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    int (*alter_tablespace)(THD *thd, st_alter_tablespace *ts_info);
    uint32 flags;                                /* global handler flags */
+   /* 
+      Handlerton functions are not set in the different storage
+      engines static initialization.  They are initialized at handler init.
+      Thus, leave them last in the struct.
+   */
+   int (*binlog_func)(THD *thd, enum_binlog_func fn, void *arg);
+   void (*binlog_log_query)(THD *thd, enum_binlog_command binlog_command,
+                            const char *query, uint query_length,
+                            const char *db, const char *table_name);
 } handlerton;
 
 extern const handlerton default_hton;
@@ -1206,6 +1234,12 @@ public:
   virtual int ha_update_row(const byte * old_data, byte * new_data);
   virtual int ha_delete_row(const byte * buf);
   /*
+    If the handler does it's own injection of the rows, this member function
+    should return 'true'.
+  */
+  virtual bool is_injective() const { return false; }
+  
+  /*
     SYNOPSIS
       start_bulk_update()
     RETURN
@@ -1718,3 +1752,21 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 int ha_repl_report_sent_binlog(THD *thd, char *log_file_name,
                                my_off_t end_offset);
 int ha_repl_report_replication_stop(THD *thd);
+
+#ifdef HAVE_NDB_BINLOG
+int ha_reset_logs(THD *thd);
+int ha_binlog_index_purge_file(THD *thd, const char *file);
+void ha_reset_slave(THD *thd);
+void ha_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
+                         const char *query, uint query_length,
+                         const char *db, const char *table_name);
+void ha_binlog_wait(THD *thd);
+int ha_binlog_end(THD *thd);
+#else
+#define ha_reset_logs(a) 0
+#define ha_binlog_index_purge_file(a,b) 0
+#define ha_reset_slave(a)
+#define ha_binlog_log_query(a,b,c,d,e,f);
+#define ha_binlog_wait(a)
+#define ha_binlog_end(a) 0
+#endif
