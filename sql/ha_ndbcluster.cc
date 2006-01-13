@@ -6199,7 +6199,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_PRINT("error", ("get_share: %s does not exist", key));
       if (!have_lock)
         pthread_mutex_unlock(&ndbcluster_mutex);
-      return 0;
+      DBUG_RETURN(0);
     }
     if ((share= (NDB_SHARE*) my_malloc(sizeof(*share),
                                        MYF(MY_WME | MY_ZEROFILL))))
@@ -6221,7 +6221,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
         *root_ptr= old_root;
         if (!have_lock)
           pthread_mutex_unlock(&ndbcluster_mutex);
-        return 0;
+        DBUG_RETURN(0);
       }
       thr_lock_init(&share->lock);
       pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -6242,7 +6242,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       if (!have_lock)
         pthread_mutex_unlock(&ndbcluster_mutex);
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(*share));
-      return 0;
+      DBUG_RETURN(0);
     }
   }
   share->use_count++;
@@ -6258,7 +6258,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
               share->use_count, share->commit_count));
   if (!have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
-  return share;
+  DBUG_RETURN(share);
 }
 
 void ndbcluster_real_free_share(NDB_SHARE **share)
