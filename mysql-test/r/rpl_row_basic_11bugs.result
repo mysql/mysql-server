@@ -9,6 +9,7 @@ CREATE DATABASE test_ignore;
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 test
 test_ignore
@@ -33,6 +34,7 @@ master-bin.000001	235	Write_rows	1	282
 SHOW DATABASES;
 Database
 information_schema
+cluster_replication
 mysql
 test
 USE test;

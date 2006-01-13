@@ -210,6 +210,7 @@ public:
   int hasError() const;
 
   int getReqNodeId() const;
+  int getNdbdNodeId() const;
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

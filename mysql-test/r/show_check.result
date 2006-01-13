@@ -53,6 +53,7 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 show databases;
 Database
 information_schema
+cluster_replication
 mysql
 test
 show databases like "test%";

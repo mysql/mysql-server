@@ -16,6 +16,8 @@
 
 #include "consumer.hpp"
 
+const char *Ndb_apply_table=  NDB_APPLY_TABLE;
+
 #ifdef USE_MYSQL
 int
 BackupConsumer::create_table_string(const TableS & table,

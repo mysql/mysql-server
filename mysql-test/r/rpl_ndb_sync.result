@@ -1,0 +1,95 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+STOP SLAVE;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+CREATE TABLE t1 (c1 BIT(1) NOT NULL, c2 BIT(1) NOT NULL, c3 CHAR(15), PRIMARY KEY(c3)) ENGINE = NDB ;
+INSERT INTO t1 VALUES (1,1,"row1"),(0,1,"row2"),(1,0,"row3"),(0,0,"row4");
+CREATE TABLE t2 (c1 CHAR(15), c2 BIT(1) NOT NULL, c3 BIT(1) NOT NULL, PRIMARY KEY(c1)) ENGINE = NDB ;
+INSERT INTO t2 VALUES ("ABC",1,1),("BCDEF",0,1),("CD",1,0),("DEFGHIJKL",0,0);
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	1	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+CREATE TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT);
+DELETE FROM cluster_replication.backup_info;
+LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
+SELECT @the_backup_id:=backup_id FROM cluster_replication.backup_info;
+@the_backup_id:=backup_id
+<the_backup_id>
+UPDATE t1 SET c2=0 WHERE c3="row2";
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	0	row2
+1	0	row3
+0	0	row4
+SHOW TABLES;
+Tables_in_ndbsynctest
+DROP DATABASE ndbsynctest;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+SHOW TABLES;
+Tables_in_ndbsynctest
+t1
+t2
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	1	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+SELECT @the_epoch:=MAX(epoch) FROM cluster_replication.apply_status;
+@the_epoch:=MAX(epoch)
+<the_epoch>
+SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+FROM cluster_replication.binlog_index WHERE epoch > <the_epoch> ORDER BY epoch ASC LIMIT 1;
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+<the_pos>	master-bin.000001
+CHANGE MASTER TO
+master_log_file = 'master-bin.000001',
+master_log_pos = <the_pos> ;
+START SLAVE;
+SHOW SLAVE STATUS;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	Yes				<Replicate_Ignore_Table>			0		0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	0	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+DROP DATABASE ndbsynctest;
+STOP SLAVE;
+reset master;
+select * from cluster_replication.binlog_index;
+Position	File	epoch	inserts	updates	deletes	schemaops
+reset slave;
+select * from cluster_replication.apply_status;
+server_id	epoch

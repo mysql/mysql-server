@@ -32,7 +32,7 @@ BackupRestore::init()
 {
   release();
 
-  if (!m_restore && !m_restore_meta)
+  if (!m_restore && !m_restore_meta && !m_restore_epoch)
     return true;
 
   m_cluster_connection = new Ndb_cluster_connection(g_connect_string);
@@ -288,6 +288,61 @@ BackupRestore::object(Uint32 type, const void * ptr)
 }
 
 bool
+BackupRestore::update_apply_status(const RestoreMetaData &metaData)
+{
+  if (!m_restore_epoch)
+    return true;
+
+  bool result= false;
+
+  m_ndb->setDatabaseName(NDB_REP_DB);
+  m_ndb->setSchemaName("def");
+
+  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
+  const NdbDictionary::Table *ndbtab= dict->getTable(Ndb_apply_table);
+  if (!ndbtab)
+  {
+    err << Ndb_apply_table << ": "
+	<< dict->getNdbError() << endl;
+    return false;
+  }
+  Uint32 server_id= 0;
+  Uint64 epoch= metaData.getStopGCP();
+  NdbTransaction * trans= m_ndb->startTransaction();
+  if (!trans)
+  {
+    err << Ndb_apply_table << ": "
+	<< m_ndb->getNdbError() << endl;
+    return false;
+  }
+  NdbOperation * op= trans->getNdbOperation(ndbtab);
+  if (!op)
+  {
+    err << Ndb_apply_table << ": "
+	<< trans->getNdbError() << endl;
+    goto err;
+  }
+  if (op->writeTuple() ||
+      op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
+      op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
+  {
+    err << Ndb_apply_table << ": "
+	<< op->getNdbError() << endl;
+    goto err;
+  }
+  if (trans->execute(NdbTransaction::Commit))
+  {
+    err << Ndb_apply_table << ": "
+	<< trans->getNdbError() << endl;
+    goto err;
+  }
+  result= true;
+err:
+  m_ndb->closeTransaction(trans);
+  return result;
+}
+
+bool
 BackupRestore::table(const TableS & table){
   if (!m_restore && !m_restore_meta)
     return true;
@@ -344,7 +399,43 @@ BackupRestore::table(const TableS & table){
     err << "Unable to find table: " << split[2].c_str() << endl;
     return false;
   }
-  if(m_restore_meta){
+  if(m_restore_meta)
+  {
+    if (tab->getFrmData())
+    {
+      // a MySQL Server table is restored, thus an event should be created
+      BaseString event_name("REPL$");
+      event_name.append(split[0].c_str());
+      event_name.append("/");
+      event_name.append(split[2].c_str());
+
+      NdbDictionary::Event my_event(event_name.c_str());
+      my_event.setTable(*tab);
+      my_event.addTableEvent(NdbDictionary::Event::TE_ALL);
+
+      // add all columns to the event
+      for(int a= 0; a < tab->getNoOfColumns(); a++)
+      {
+	my_event.addEventColumn(a);
+      }
+
+      while ( dict->createEvent(my_event) ) // Add event to database
+      {
+	if (dict->getNdbError().classification == NdbError::SchemaObjectExists)
+	{
+	  info << "Event for table " << table.getTableName()
+	       << " already exists, removing.\n";
+	  if (!dict->dropEvent(my_event.getName()))
+	    continue;
+	}
+	err << "Create table event for " << table.getTableName() << " failed: "
+	    << dict->getNdbError() << endl;
+	dict->dropTable(split[2].c_str());
+	return false;
+      }
+      info << "Successfully restored table event " << event_name << endl ;
+    }
+
     m_ndb->setAutoIncrementValue(tab, ~(Uint64)0, false);
   }
   const NdbDictionary::Table* null = 0;

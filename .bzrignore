@@ -1670,3 +1670,8 @@ storage/ndb/test/ndbapi/testPartitioning
 storage/ndb/test/ndbapi/testReadPerf
 storage/ndb/test/ndbapi/test_event_merge
 storage/ndb/test/tools/listen_event
+libmysqld/ha_ndbcluster_binlog.cc
+libmysqld/rpl_injector.cc
+libmysqld/event.cc
+libmysqld/event_executor.cc
+libmysqld/event_timed.cc

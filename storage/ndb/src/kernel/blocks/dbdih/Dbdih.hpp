@@ -67,12 +67,6 @@
 // Error Codes for Add Table
 // --------------------------------------
 #define ZREPLERROR1 306
-#define ZNOTIMPLEMENTED 307
-#define ZTABLEINSTALLED 310
-// --------------------------------------
-// Error Codes for Scan Table
-// --------------------------------------
-#define ZERRONOUSSTATE 308
 
 // --------------------------------------
 // Crash Codes
