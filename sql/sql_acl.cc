@@ -1543,7 +1543,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 	acl_user->user && !strcmp(user,acl_user->user))
     {
       if (exact ? !my_strcasecmp(&my_charset_latin1, host,
-                                 acl_user->host.hostname) :
+                                 acl_user->host.hostname ?
+				 acl_user->host.hostname : "") :
           compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
@@ -2244,14 +2245,14 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_NAME *grant_name,*found=0;
+  HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_name=(GRANT_NAME*) hash_search(name_hash,
-					      (byte*) helping,
-					      len) ;
+  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
+                                            len, &state);
        grant_name ;
        grant_name= (GRANT_NAME*) hash_next(name_hash,(byte*) helping,
-					     len))
+                                           len, &state))
   {
     if (exact)
     {
@@ -2489,7 +2490,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       ulong rights, ulong col_rights,
 			       bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
@@ -2607,7 +2608,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      const char *db, const char *routine_name,
 			      bool is_proc, ulong rights, bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
@@ -3553,7 +3554,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table && table != first_not_own_table && i < number;
+       table != first_not_own_table && i < number;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
@@ -4638,7 +4639,7 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     if (!(user=acl_user->user))
       user= "";
     if (!(host=acl_user->host.hostname))
-      host= "%";
+      host= "";
     if (!strcmp(user_name->user.str,user) &&
 	!my_strcasecmp(system_charset_info, user_name->host.str, host))
       break;

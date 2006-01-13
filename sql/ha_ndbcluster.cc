@@ -300,7 +300,8 @@ Thd_ndb::~Thd_ndb()
   if (ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -312,8 +313,8 @@ Thd_ndb::~Thd_ndb()
     }
 #endif
     delete ndb;
+    ndb= NULL;
   }
-  ndb= NULL;
   changed_tables.empty();
 }
 
@@ -3255,6 +3256,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
+    if (!thd->transaction.on)
+      m_transaction_on= FALSE;
+    else
+      m_transaction_on= thd->variables.ndb_use_transactions;
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
@@ -3269,7 +3274,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           ERR_RETURN(ndb->getNdbError());
         no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
-        trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        if (m_transaction_on)
+          trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
@@ -3284,7 +3290,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             ERR_RETURN(ndb->getNdbError());
           no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
-          trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          if (m_transaction_on)
+            trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3318,10 +3325,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_ha_not_exact_count= !thd->variables.ndb_use_exact_count;
     m_autoincrement_prefetch= 
       (ha_rows) thd->variables.ndb_autoincrement_prefetch_sz;
-    if (!thd->transaction.on)
-      m_transaction_on= FALSE;
-    else
-      m_transaction_on= thd->variables.ndb_use_transactions;
 
     m_active_trans= thd_ndb->all ? thd_ndb->all : thd_ndb->stmt;
     DBUG_ASSERT(m_active_trans);
@@ -4903,7 +4906,8 @@ bool ndbcluster_end()
   if (g_ndb)
   {
 #ifndef DBUG_OFF
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (g_ndb->get_free_list_usage(&tmp))
     {
       uint leaked= (uint) tmp.m_created - tmp.m_free;
@@ -4915,10 +4919,9 @@ bool ndbcluster_end()
     }
 #endif
     delete g_ndb;
+    g_ndb= NULL;
   }
-  g_ndb= NULL;
-  if (g_ndb_cluster_connection)
-    delete g_ndb_cluster_connection;
+  delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
 
   hash_free(&ndbcluster_open_tables);
@@ -7463,7 +7466,8 @@ ndbcluster_show_status(THD* thd)
   if (have_ndbcluster != SHOW_OPTION_YES) 
   {
     my_message(ER_NOT_SUPPORTED_YET,
-	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is defined",
+	       "Cannot call SHOW NDBCLUSTER STATUS because skip-ndbcluster is "
+               "defined",
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -7474,13 +7478,15 @@ ndbcluster_show_status(THD* thd)
   field_list.push_back(new Item_return_int("free", 10,MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("sizeof", 10,MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
     Ndb* ndb= (get_thd_ndb(thd))->ndb;
-    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    Ndb::Free_list_usage tmp;
+    tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
       protocol->prepare_for_resend();

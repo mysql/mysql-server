@@ -6212,8 +6212,8 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  if (new_field= new Field_varstring(field_length, maybe_null(),
-                                     field_name, new_table, charset()))
+  if ((new_field= new Field_varstring(field_length, maybe_null(),
+                                      field_name, new_table, charset())))
   {
     /*
       delayed_insert::get_local_table() needs a ptr copied from old table.
@@ -8981,11 +8981,11 @@ uint32 Field_blob::max_length()
   switch (packlength)
   {
   case 1:
-    return 255;
+    return 255 * field_charset->mbmaxlen;
   case 2:
-    return 65535;
+    return 65535 * field_charset->mbmaxlen;
   case 3:
-    return 16777215;
+    return 16777215 * field_charset->mbmaxlen;
   case 4:
     return (uint32) 4294967295U;
   default:

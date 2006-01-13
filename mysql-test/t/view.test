@@ -2275,6 +2275,7 @@ drop table t1;
 #
 create table t1(f1 int, f2 int);
 insert into t1 values (null, 10), (null,2);
+select f1, sum(f2) from t1 group by f1;
 create view v1 as select * from t1;
 select f1, sum(f2) from v1 group by f1;
 drop view v1;
@@ -2338,3 +2339,27 @@ order by v2.receipt_id;
 
 drop view v2, v1;
 drop table t1;
+
+#
+# Bug#16016: MIN/MAX optimization for views
+#
+
+CREATE TABLE t1 (a int PRIMARY KEY, b int);
+INSERT INTO t1 VALUES (2,20), (3,10), (1,10), (0,30), (5,10);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT MAX(a) FROM t1;
+SELECT MAX(a) FROM v1;
+
+EXPLAIN SELECT MAX(a) FROM t1;
+EXPLAIN SELECT MAX(a) FROM v1;
+
+SELECT MIN(a) FROM t1;
+SELECT MIN(a) FROM v1;
+
+EXPLAIN SELECT MIN(a) FROM t1;
+EXPLAIN SELECT MIN(a) FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;

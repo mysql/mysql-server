@@ -30,7 +30,9 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
         ;;
     esac
     AC_SUBST([yassl_taocrypt_extra_cxxflags])
-
+    # Link extra/yassl/include/openssl subdir to include/
+    yassl_h_ln_cmd="\$(LN) -s \$(top_srcdir)/extra/yassl/include/openssl openssl"
+    AC_SUBST(yassl_h_ln_cmd)
   else
     yassl_dir=""
     AC_MSG_RESULT(no)
