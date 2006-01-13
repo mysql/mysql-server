@@ -5109,7 +5109,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   const uint byte_count= (m_width + 7) / 8;
   const byte* const ptr_rows_data= var_start + byte_count + 1;
 
-  my_size_t const data_size= event_len - (ptr_rows_data - buf);
+  my_size_t const data_size= event_len - (ptr_rows_data - (const byte *)buf);
   DBUG_PRINT("info",("m_table_id=%lu, m_flags=%d, m_width=%u, data_size=%lu",
                      m_table_id, m_flags, m_width, data_size));
 
@@ -6017,7 +6017,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(static_cast<my_size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
 
   return (my_b_safe_write(file, dbuf,      sizeof(dbuf)) ||
-          my_b_safe_write(file, m_dbnam,   m_dblen+1) ||
+          my_b_safe_write(file, (const byte *)m_dbnam,   m_dblen+1) ||
           my_b_safe_write(file, tbuf,      sizeof(tbuf)) ||
           my_b_safe_write(file, (const byte*)m_tblnam,  m_tbllen+1) ||
           my_b_safe_write(file, cbuf,      cbuf_end - cbuf) ||
@@ -6035,7 +6035,7 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
 void Table_map_log_event::pack_info(Protocol *protocol)
 {
     char buf[256];
-    my_size_t bytes= snprintf(buf, sizeof(buf), "%s.%s", m_dbnam, m_tblnam);
+    my_size_t bytes= my_snprintf(buf, sizeof(buf), "%s.%s", m_dbnam, m_tblnam);
     protocol->store(buf, bytes, &my_charset_bin);
 }
 
@@ -6149,7 +6149,7 @@ char const *Write_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
   DBUG_ASSERT(ptr);
-  ptr= unpack_row(table, (char*)table->record[0], ptr, &m_cols);
+  ptr= unpack_row(table, (byte*)table->record[0], ptr, &m_cols);
   return ptr;
 }
 
