@@ -1,0 +1,33 @@
+-- source include/have_gb2312.inc
+
+#
+# Tests with the gb2312 character set
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @test_character_set= 'gb2312';
+SET @test_collation= 'gb2312_chinese_ci';
+-- source include/ctype_common.inc
+
+SET NAMES gb2312;
+SET collation_connection='gb2312_chinese_ci';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
+SET collation_connection='gb2312_bin';
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
+
+#
+# Bug#15377 Valid multibyte sequences are truncated on INSERT
+#
+SET NAMES gb2312;
+CREATE TABLE t1 (a text) character set gb2312;
+INSERT INTO t1 VALUES (0xA2A1),(0xD7FE);
+SELECT hex(a) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+# End of 4.1 tests
