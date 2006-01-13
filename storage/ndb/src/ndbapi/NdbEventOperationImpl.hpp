@@ -206,7 +206,7 @@ public:
   Uint32 m_eventId;
   Uint32 m_oid;
 
-  bool m_separateEvents;
+  bool m_mergeEvents;
   
   EventBufData *m_data_item;
 

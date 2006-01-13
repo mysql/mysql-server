@@ -850,7 +850,7 @@ createevent()
     evt.addEventColumn(c.name);
   }
 #ifdef version51rbr
-  evt.separateEvents(g_opts.separate_events);
+  evt.mergeEvents(! g_opts.separate_events);
 #endif
   if (g_dic->getEvent(evt.getName()) != 0)
     chkdb(g_dic->dropEvent(evt.getName()) == 0);
@@ -881,7 +881,7 @@ createeventop()
 #else
   chkdb((g_evt_op = g_ndb->createEventOperation(g_evt->getName())) != 0);
   // available in gci merge changeset
-  g_evt_op->separateEvents(g_opts.separate_events); // not yet inherited
+  g_evt_op->mergeEvents(! g_opts.separate_events); // not yet inherited
 #endif
   uint i;
   for (i = 0; i < ncol(); i++) {
