@@ -73,7 +73,7 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
-static void refresh_status(void);
+static void refresh_status(THD *thd);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 
@@ -214,7 +214,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
 {
   int return_val= 0;
   uint temp_len, user_len;
-  char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+  char temp_user[USER_HOST_BUFF_SIZE];
   struct  user_conn *uc;
 
   DBUG_ASSERT(user != 0);
@@ -743,7 +743,7 @@ static void reset_mqh(LEX_USER *lu, bool get_them= 0)
   {
     USER_CONN *uc;
     uint temp_len=lu->user.length+lu->host.length+2;
-    char temp_user[USERNAME_LENGTH+HOSTNAME_LENGTH+2];
+    char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
@@ -1185,6 +1185,7 @@ end_thread:
       or this thread has been schedule to handle the next query
     */
     thd= current_thd;
+    thd->thread_stack= (char*) &thd;
   } while (!(test_flags & TEST_NO_THREADS));
   /* The following is only executed if we are not using --one-thread */
   return(0);					/* purecov: deadcode */
@@ -4848,7 +4849,6 @@ end_with_restore_list:
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
 
-
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
     statement is not DELETE, INSERT or UPDATE, but -1 is what JDBC and ODBC
@@ -4860,13 +4860,10 @@ end_with_restore_list:
   if (lex->sql_command != SQLCOM_CALL && lex->sql_command != SQLCOM_EXECUTE &&
       uc_update_queries[lex->sql_command]<2)
     thd->row_count_func= -1;
-  goto cleanup;
+  DBUG_RETURN(res || thd->net.report_error);
 
 error:
-  res= 1;
-
-cleanup:
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(1);
 }
 
 
@@ -5089,7 +5086,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables && tables != first_not_own_table; tables= tables->next_global)
+  for (; tables != first_not_own_table; tables= tables->next_global)
   {
     if (tables->schema_table && 
         (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
@@ -6541,7 +6538,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
   if (thd && (options & REFRESH_STATUS))
-    refresh_status();
+    refresh_status(thd);
   if (options & REFRESH_THREADS)
     flush_thread_cache();
 #ifdef HAVE_REPLICATION
@@ -6627,20 +6624,18 @@ void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 
 /* Clear most status variables */
 
-static void refresh_status(void)
+static void refresh_status(THD *thd)
 {
   pthread_mutex_lock(&LOCK_status);
+
+  /* We must update the global status before cleaning up the thread */
+  add_to_status(&global_status_var, &thd->status_var);
+  bzero((char*) &thd->status_var, sizeof(thd->status_var));
+
   for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
   {
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
-    else if (ptr->type == SHOW_LONG_STATUS)
-    {
-      THD *thd= current_thd;
-      /* We must update the global status before cleaning up the thread */
-      add_to_status(&global_status_var, &thd->status_var);
-      bzero((char*) &thd->status_var, sizeof(thd->status_var));
-    }
   }
   /* Reset the counters of all key caches (default and named). */
   process_key_caches(reset_key_cache_counters);
@@ -7252,7 +7247,7 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
   /* Create and initialize. */
 
-  if (! (definer= (LEX_USER*) thd->alloc(sizeof (LEX_USER))))
+  if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
   definer->user= *user_name;

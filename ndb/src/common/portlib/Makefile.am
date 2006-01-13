@@ -1,5 +1,3 @@
-noinst_HEADERS = gcc.cpp
-
 noinst_LTLIBRARIES = libportlib.la
 
 libportlib_la_SOURCES = \

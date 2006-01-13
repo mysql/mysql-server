@@ -22,6 +22,11 @@ functions */
 #define _WIN32_WINNT     0x0500
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+/* Avoid endless warnings about sprintf() etc. being unsafe. */
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
+
 #include <sys/locking.h>
 #include <windows.h>
 #include <math.h>			/* Because of rint() */
@@ -103,11 +108,17 @@ functions */
 #undef _REENTRANT			/* Crashes something for win32 */
 #undef SAFE_MUTEX			/* Can't be used on windows */
 
-#define LONGLONG_MIN	((__int64) 0x8000000000000000)
-#define LONGLONG_MAX	((__int64) 0x7FFFFFFFFFFFFFFF)
-#define ULONGLONG_MAX	((unsigned __int64) 0xFFFFFFFFFFFFFFFF)
-#define LL(A)		((__int64) A)
-#define ULL(A)		((unsigned __int64) A)
+#if defined(_MSC_VER) && _MSC_VER >= 1310
+#define LL(A)           A##ll
+#define ULL(A)          A##ull
+#else
+#define LL(A)           ((__int64) A)
+#define ULL(A)          ((unsigned __int64) A)
+#endif
+
+#define LONGLONG_MIN	LL(0x8000000000000000)
+#define LONGLONG_MAX	LL(0x7FFFFFFFFFFFFFFF)
+#define ULONGLONG_MAX	ULL(0xFFFFFFFFFFFFFFFF)
 
 /* Type information */
 
@@ -328,6 +339,7 @@ inline double ulonglong2double(ulonglong value)
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
 #define HAVE_VIO_READ_BUFF
+#define HAVE_STRNLEN
 
 #ifndef __NT__
 #undef FILE_SHARE_DELETE
