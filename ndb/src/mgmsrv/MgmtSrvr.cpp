@@ -1868,6 +1868,16 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	m_connect_address[id_found].s_addr= 0;
     }
     m_reserved_nodes.set(id_found);
+    if (theFacade && id_found != theFacade->ownId())
+    {
+      /**
+       * Make sure we're ready to accept connections from this node
+       */
+      theFacade->lock_mutex();
+      theFacade->doConnect(id_found);
+      theFacade->unlock_mutex();
+    }
+    
     char tmp_str[128];
     m_reserved_nodes.getText(tmp_str);
     g_eventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, m_reserved_nodes %s.",
