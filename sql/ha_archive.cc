@@ -170,6 +170,7 @@ handlerton archive_hton = {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Alter interface */
   HTON_NO_FLAGS
 };
 
@@ -973,7 +974,10 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
-    total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
+  {
+    if (ha_get_bit_in_read_set(((Field_blob*) table->field[*ptr])->fieldnr))
+      total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
+  }
 
   /* Adjust our row buffer if we need be */
   buffer.alloc(total_blob_length);
@@ -987,11 +991,18 @@ int ha_archive::get_row(azio_stream *file_to_read, byte *buf)
     size_t size= ((Field_blob*) table->field[*ptr])->get_length();
     if (size)
     {
-      read= azread(file_to_read, last, size);
-      if ((size_t) read != size)
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
-      last += size;
+      if (ha_get_bit_in_read_set(((Field_blob*) table->field[*ptr])->fieldnr))
+      {
+        read= azread(file_to_read, last, size);
+        if ((size_t) read != size)
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
+        ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
+        last += size;
+      }
+      else
+      {
+        (void)azseek(file_to_read, size, SEEK_CUR);
+      }
     }
   }
   DBUG_RETURN(0);
