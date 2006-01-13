@@ -33,6 +33,8 @@
 #include <../util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 
+#include "ha_ndbcluster_binlog.h"
+
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
@@ -50,13 +52,9 @@ static const int parallelism= 0;
 // createable against NDB from this handler
 static const int max_transactions= 3; // should really be 2 but there is a transaction to much allocated when loch table is used
 
-static const char *ha_ndb_ext=".ndb";
-static const char share_prefix[]= "./";
-
-static int ndbcluster_close_connection(THD *thd);
-static int ndbcluster_commit(THD *thd, bool all);
-static int ndbcluster_rollback(THD *thd, bool all);
-static handler* ndbcluster_create_handler(TABLE_SHARE *table);
+static bool ndbcluster_init(void);
+static int ndbcluster_end(ha_panic_function flag);
+static bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
 static int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info);
 
 handlerton ndbcluster_hton = {
@@ -66,29 +64,7 @@ handlerton ndbcluster_hton = {
   "Clustered, fault-tolerant, memory-based tables", 
   DB_TYPE_NDBCLUSTER,
   ndbcluster_init,
-  0, /* slot */
-  0, /* savepoint size */
-  ndbcluster_close_connection,
-  NULL, /* savepoint_set */
-  NULL, /* savepoint_rollback */
-  NULL, /* savepoint_release */
-  ndbcluster_commit,
-  ndbcluster_rollback,
-  NULL, /* prepare */
-  NULL, /* recover */
-  NULL, /* commit_by_xid */
-  NULL, /* rollback_by_xid */
-  NULL, /* create_cursor_read_view */
-  NULL, /* set_cursor_read_view */
-  NULL, /* close_cursor_read_view */
-  ndbcluster_create_handler, /* Create a new handler */
-  ndbcluster_drop_database, /* Drop a database */
-  ndbcluster_end, /* Panic call */
-  NULL, /* Start Consistent Snapshot */
-  NULL, /* Flush logs */
-  ndbcluster_show_status, /* Show status */
-  ndbcluster_alter_tablespace,
-  HTON_NO_FLAGS
+  ~(uint)0, /* slot */
 };
 
 static handler *ndbcluster_create_handler(TABLE_SHARE *table)
@@ -121,33 +97,24 @@ static handler *ndbcluster_create_handler(TABLE_SHARE *table)
   break;                                 \
 }
 
-// Typedefs for long names
-typedef NdbDictionary::Object NDBOBJ;
-typedef NdbDictionary::Column NDBCOL;
-typedef NdbDictionary::Table NDBTAB;
-typedef NdbDictionary::Index  NDBINDEX;
-typedef NdbDictionary::Dictionary  NDBDICT;
-typedef NdbDictionary::Event  NDBEVENT;
-
 static int ndbcluster_inited= 0;
-static int ndbcluster_util_inited= 0;
+int ndbcluster_util_inited= 0;
 
 static Ndb* g_ndb= NULL;
-static Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
+Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
+unsigned char g_node_id_map[max_ndb_nodes];
 
 // Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
 
 // Table lock handling
-static HASH ndbcluster_open_tables;
+HASH ndbcluster_open_tables;
 
 static byte *ndbcluster_get_key(NDB_SHARE *share,uint *length,
                                 my_bool not_used __attribute__((unused)));
-static NDB_SHARE *get_share(const char *key,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE);
-static void free_share(NDB_SHARE **share, bool have_lock= FALSE);
-static void real_free_share(NDB_SHARE **share);
+#ifdef HAVE_NDB_BINLOG
+static int rename_share(NDB_SHARE *share, const char *new_key);
+#endif
 static void ndb_set_fragmentation(NDBTAB &tab, TABLE *table, uint pk_len);
 
 static int packfrm(const void *data, uint len, const void **pack_data, uint *pack_len);
@@ -157,35 +124,9 @@ static int unpackfrm(const void **data, uint *len,
 static int ndb_get_table_statistics(Ndb*, const char *, 
                                     struct Ndb_statistics *);
 
-#ifndef DBUG_OFF
-void print_records(TABLE *table, const char *record)
-{
-  if (_db_on_)
-  {
-    for (uint j= 0; j < table->s->fields; j++)
-    {
-      char buf[40];
-      int pos= 0;
-      Field *field= table->field[j];
-      const byte* field_ptr= field->ptr - table->record[0] + record;
-      int pack_len= field->pack_length();
-      int n= pack_len < 10 ? pack_len : 10;
-      
-      for (int i= 0; i < n && pos < 20; i++)
-      {
-	pos+= sprintf(&buf[pos]," %x", (int) (unsigned char) field_ptr[i]);
-      }
-      buf[pos]= 0;
-      DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
-    }
-  }
-}
-#else
-#define print_records(a,b)
-#endif
 
 // Util thread variables
-static pthread_t ndb_util_thread;
+pthread_t ndb_util_thread;
 pthread_mutex_t LOCK_ndb_util_thread;
 pthread_cond_t COND_ndb_util_thread;
 pthread_handler_t ndb_util_thread_func(void *arg);
@@ -214,7 +155,7 @@ static long ndb_cluster_node_id= 0;
 static const char * ndb_connected_host= 0;
 static long ndb_connected_port= 0;
 static long ndb_number_of_replicas= 0;
-static long ndb_number_of_storage_nodes= 0;
+long ndb_number_of_storage_nodes= 0;
 
 static int update_status_variables(Ndb_cluster_connection *c)
 {
@@ -234,9 +175,6 @@ SHOW_VAR ndb_status_variables[]= {
   {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
-
-/* instantiated in storage/ndb/src/ndbapi/Ndbif.cpp */
-extern Uint64 g_latest_trans_gci;
 
 /*
   Error handling functions
@@ -365,6 +303,7 @@ Thd_ndb::Thd_ndb()
   all= NULL;
   stmt= NULL;
   error= 0;
+  options= 0;
 }
 
 Thd_ndb::~Thd_ndb()
@@ -389,14 +328,6 @@ Thd_ndb::~Thd_ndb()
   }
   changed_tables.empty();
 }
-
-inline
-Thd_ndb *
-get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton.slot]; }
-
-inline
-void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton.slot]= thd_ndb; }
 
 inline
 Ndb *ha_ndbcluster::get_ndb()
@@ -2517,8 +2448,8 @@ int ha_ndbcluster::delete_row(const byte *record)
     set to null.
 */
 
-static void ndb_unpack_record(TABLE *table, NdbValue *value,
-                              MY_BITMAP *defined, byte *buf)
+void ndb_unpack_record(TABLE *table, NdbValue *value,
+                       MY_BITMAP *defined, byte *buf)
 {
   Field **p_field= table->field, *field= *p_field;
   uint row_offset= (uint) (buf - table->record[0]);
@@ -2756,6 +2687,7 @@ int ha_ndbcluster::index_read_idx(byte *buf, uint index_no,
   statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   DBUG_ENTER("ha_ndbcluster::index_read_idx");
   DBUG_PRINT("enter", ("index_no: %u, key_len: %u", index_no, key_len));  
+  close_scan();
   index_init(index_no, 0);  
   DBUG_RETURN(index_read(buf, key, key_len, find_flag));
 }
@@ -3166,6 +3098,16 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
     m_use_write= FALSE;
     m_ignore_dup_key= FALSE;
+    break;
+  case HA_EXTRA_IGNORE_NO_KEY:
+    DBUG_PRINT("info", ("HA_EXTRA_IGNORE_NO_KEY"));
+    DBUG_PRINT("info", ("Turning on AO_IgnoreError at Commit/NoCommit"));
+    m_ignore_no_key= TRUE;
+    break;
+  case HA_EXTRA_NO_IGNORE_NO_KEY:
+    DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_NO_KEY"));
+    DBUG_PRINT("info", ("Turning on AO_IgnoreError at Commit/NoCommit"));
+    m_ignore_no_key= FALSE;
     break;
   default:
     break;
@@ -3597,7 +3539,7 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
   Commit a transaction started in NDB
  */
 
-int ndbcluster_commit(THD *thd, bool all)
+static int ndbcluster_commit(THD *thd, bool all)
 {
   int res= 0;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -3648,7 +3590,7 @@ int ndbcluster_commit(THD *thd, bool all)
   Rollback a transaction started in NDB
  */
 
-int ndbcluster_rollback(THD *thd, bool all)
+static int ndbcluster_rollback(THD *thd, bool all)
 {
   int res= 0;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -3989,12 +3931,16 @@ int ha_ndbcluster::create(const char *name,
   if (create_from_engine)
   {
     /*
-      Table alreay exists in NDB and frm file has been created by 
+      Table already exists in NDB and frm file has been created by 
       caller.
       Do Ndb specific stuff, such as create a .ndb file
     */
     if ((my_errno= write_ndb_file()))
       DBUG_RETURN(my_errno);
+#ifdef HAVE_NDB_BINLOG
+    if (ndb_binlog_thread_running > 0)
+      ndbcluster_create_binlog_setup(get_ndb(), name2, m_dbname, m_tabname, 0);
+#endif /* HAVE_NDB_BINLOG */
     DBUG_RETURN(my_errno);
   }
 
@@ -4133,6 +4079,74 @@ int ha_ndbcluster::create(const char *name,
   if (!my_errno)
     my_errno= write_ndb_file();
 
+#ifdef HAVE_NDB_BINLOG
+  if (!my_errno)
+  {
+    NDB_SHARE *share= 0;
+    pthread_mutex_lock(&ndbcluster_mutex);
+    /*
+      First make sure we get a "fresh" share here, not an old trailing one...
+    */
+    {
+      const char *key= name2;
+      uint length= (uint) strlen(key);
+      if ((share= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
+                                           (byte*) key, length)))
+        handle_trailing_share(share);
+    }
+    /*
+      get a new share
+    */
+    if (!(share= get_share(name2, form, true, true)))
+    {
+      sql_print_error("NDB: allocating table share for %s failed", name2);
+      /* my_errno is set */
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+
+    while (!IS_TMP_PREFIX(m_tabname))
+    {
+      const NDBTAB *t= dict->getTable(m_tabname);
+      String event_name(INJECTOR_EVENT_LEN);
+      ndb_rep_event_name(&event_name,m_dbname,m_tabname);
+
+      /*
+        Always create an event for the table, as other mysql servers
+        expect it to be there.
+      */
+      if (ndbcluster_create_event(ndb, t, event_name.c_ptr(), share) < 0)
+      {
+        /* this is only a serious error if the binlog is on */
+	if (share && ndb_binlog_thread_running > 0)
+	{
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                              ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                              "Creating event for logging table failed. "
+                              "See error log for details.");
+	}
+        break;
+      }
+      if (ndb_extra_logging)
+        sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
+                              event_name.c_ptr());
+
+      if (share && ndb_binlog_thread_running > 0 &&
+          ndbcluster_create_event_ops(share, t, event_name.c_ptr()) < 0)
+      {
+        sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
+                        " Event: %s", name2);
+        /* a warning has been issued to the client */
+      }
+      ndbcluster_log_schema_op(current_thd, share,
+                               current_thd->query, current_thd->query_length,
+                               share->db, share->table_name,
+                               0, 0,
+                               SOT_CREATE_TABLE);
+      break;
+    }
+  }
+#endif /* HAVE_NDB_BINLOG */
+
   DBUG_RETURN(my_errno);
 }
 
@@ -4227,6 +4241,15 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!(orig_tab= dict->getTable(m_tabname)))
       ERR_RETURN(dict->getNdbError());
   }
+#ifdef HAVE_NDB_BINLOG
+  NDB_SHARE *share= 0;
+  if (ndb_binlog_thread_running > 0 &&
+      (share= get_share(from, 0, false)))
+  {
+    int r= rename_share(share, to);
+    DBUG_ASSERT(r == 0);
+  }
+#endif
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
@@ -4234,6 +4257,14 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
   if ((result= alter_table_name(new_tabname)))
   {
+#ifdef HAVE_NDB_BINLOG
+    if (share)
+    {
+      int r= rename_share(share, from);
+      DBUG_ASSERT(r == 0);
+      free_share(&share);
+    }
+#endif
     DBUG_RETURN(result);
   }
   
@@ -4241,8 +4272,75 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if ((result= handler::rename_table(from, to)))
   {
     // ToDo in 4.1 should rollback alter table...
+#ifdef HAVE_NDB_BINLOG
+    if (share)
+      free_share(&share);
+#endif
     DBUG_RETURN(result);
   }
+
+#ifdef HAVE_NDB_BINLOG
+  int is_old_table_tmpfile= 1;
+  if (share && share->op)
+    dict->forceGCPWait();
+
+  /* handle old table */
+  if (!IS_TMP_PREFIX(m_tabname))
+  {
+    is_old_table_tmpfile= 0;
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, from + sizeof(share_prefix) - 1, 0);
+    ndbcluster_handle_drop_table(ndb, event_name.c_ptr(), share);
+  }
+
+  if (!result && !IS_TMP_PREFIX(new_tabname))
+  {
+    /* always create an event for the table */
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0);
+    const NDBTAB *ndbtab= dict->getTable(new_tabname);
+
+    if (ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share) >= 0)
+    {
+      if (ndb_extra_logging)
+        sql_print_information("NDB Binlog: RENAME Event: %s",
+                              event_name.c_ptr());
+      if (share)
+      {
+        if (ndbcluster_create_event_ops(share, ndbtab,
+                                        event_name.c_ptr()) < 0)
+        {
+          sql_print_error("NDB Binlog: FAILED create event operations "
+                          "during RENAME. Event %s", event_name.c_ptr());
+          /* a warning has been issued to the client */
+        }
+      }
+    }
+    else
+    {
+      sql_print_error("NDB Binlog: FAILED create event during RENAME. "
+                      "Event: %s", event_name.c_ptr());
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          "Creating event for logging table failed. "
+                          "See error log for details.");
+    }
+    if (is_old_table_tmpfile)
+      ndbcluster_log_schema_op(current_thd, share,
+                               current_thd->query, current_thd->query_length,
+                               m_dbname, new_tabname,
+                               0, 0,
+                               SOT_ALTER_TABLE);
+    else
+      ndbcluster_log_schema_op(current_thd, share,
+                               current_thd->query, current_thd->query_length,
+                               m_dbname, new_tabname,
+                               0, 0,
+                               SOT_RENAME_TABLE);
+  }
+  if (share)
+    free_share(&share);
+#endif
 
   DBUG_RETURN(result);
 }
@@ -4286,6 +4384,9 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
 {
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
+#ifdef HAVE_NDB_BINLOG
+  NDB_SHARE *share= get_share(path, 0, false);
+#endif
 
   /* Drop the table from NDB */
   
@@ -4302,9 +4403,75 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
 
   if (res)
   {
+#ifdef HAVE_NDB_BINLOG
+    /* the drop table failed for some reason, drop the share anyways */
+    if (share)
+    {
+      pthread_mutex_lock(&ndbcluster_mutex);
+      if (share->state != NSS_DROPPED)
+      {
+        /*
+          The share kept by the server has not been freed, free it
+        */
+        share->state= NSS_DROPPED;
+        free_share(&share, TRUE);
+      }
+      /* free the share taken above */
+      free_share(&share, TRUE);
+      pthread_mutex_unlock(&ndbcluster_mutex);
+    }
+#endif
     DBUG_RETURN(res);
   }
 
+#ifdef HAVE_NDB_BINLOG
+  /* stop the logging of the dropped table, and cleanup */
+
+  /*
+    drop table is successful even if table does not exist in ndb
+    and in case table was actually not dropped, there is no need
+    to force a gcp, and setting the event_name to null will indicate
+    that there is no event to be dropped
+  */
+  int table_dropped= dict->getNdbError().code != 709;
+
+  if (!IS_TMP_PREFIX(table_name) && share)
+  {
+    ndbcluster_log_schema_op(current_thd, share,
+                             current_thd->query, current_thd->query_length,
+                             share->db, share->table_name,
+                             0, 0,
+                             SOT_DROP_TABLE);
+  }
+  else if (table_dropped && share && share->op) /* ndbcluster_log_schema_op
+                                                   will do a force GCP */
+    dict->forceGCPWait();
+
+  if (!IS_TMP_PREFIX(table_name))
+  {
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, path + sizeof(share_prefix) - 1, 0);
+    ndbcluster_handle_drop_table(ndb,
+                                 table_dropped ? event_name.c_ptr() : 0,
+                                 share);
+  }
+
+  if (share)
+  {
+    pthread_mutex_lock(&ndbcluster_mutex);
+    if (share->state != NSS_DROPPED)
+    {
+      /*
+        The share kept by the server has not been freed, free it
+      */
+      share->state= NSS_DROPPED;
+      free_share(&share, TRUE);
+    }
+    /* free the share taken above */
+    free_share(&share, TRUE);
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+#endif
   DBUG_RETURN(0);
 }
 
@@ -4393,7 +4560,8 @@ ulonglong ha_ndbcluster::get_auto_increment()
                 HA_NO_PREFIX_CHAR_KEYS | \
                 HA_NEED_READ_RANGE_BUFFER | \
                 HA_CAN_GEOMETRY | \
-                HA_CAN_BIT_FIELD
+                HA_CAN_BIT_FIELD | \
+                HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS
 
 ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
   handler(&ndbcluster_hton, table_arg),
@@ -4518,7 +4686,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     DBUG_PRINT("info", (" ref_length: %d", ref_length));
   }
   // Init table lock structure 
-  if (!(m_share=get_share(name)))
+  if (!(m_share=get_share(name, table)))
     DBUG_RETURN(1);
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
   
@@ -4629,7 +4797,7 @@ int ha_ndbcluster::check_ndb_connection(THD* thd)
 }
 
 
-int ndbcluster_close_connection(THD *thd)
+static int ndbcluster_close_connection(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ENTER("ndbcluster_close_connection");
@@ -4792,14 +4960,21 @@ int ndbcluster_drop_database_impl(const char *path)
   DBUG_RETURN(ret);      
 }
 
-void ndbcluster_drop_database(char *path)
+static void ndbcluster_drop_database(char *path)
 {
   ndbcluster_drop_database_impl(path);
+#ifdef HAVE_NDB_BINLOG
+  char db[FN_REFLEN];
+  ha_ndbcluster::set_dbname(path, db);
+  ndbcluster_log_schema_op(current_thd, 0,
+                           current_thd->query, current_thd->query_length,
+                           db, "", 0, 0, SOT_DROP_DB);
+#endif
 }
 /*
   find all tables in ndb and discover those needed
 */
-static int ndbcluster_find_all_files(THD *thd)
+int ndbcluster_find_all_files(THD *thd)
 {
   DBUG_ENTER("ndbcluster_find_all_files");
   Ndb* ndb;
@@ -4820,6 +4995,11 @@ static int ndbcluster_find_all_files(THD *thd)
     for (uint i= 0 ; i < list.count ; i++)
     {
       NDBDICT::List::Element& elmt= list.elements[i];
+      if (IS_TMP_PREFIX(elmt.name))
+      {
+        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
+        continue;
+      }
       DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
       if (!(elmt.state == NDBOBJ::StateBuilding ||
             elmt.state == NDBOBJ::StateOnline))
@@ -4834,10 +5014,11 @@ static int ndbcluster_find_all_files(THD *thd)
 
       if (!(ndbtab= dict->getTable(elmt.name)))
       {
-        sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
-                        elmt.database, elmt.name,
-                        dict->getNdbError().code,
-                        dict->getNdbError().message);
+        if (elmt.state == NDBOBJ::StateOnline)
+          sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
+                          elmt.database, elmt.name,
+                          dict->getNdbError().code,
+                          dict->getNdbError().message);
         unhandled++;
         continue;
       }
@@ -4876,6 +5057,31 @@ static int ndbcluster_find_all_files(THD *thd)
         }
         pthread_mutex_unlock(&LOCK_open);
       }
+#ifdef HAVE_NDB_BINLOG
+      else if (ndb_binlog_thread_running > 0)
+      {
+        /* set up replication for this table */
+        NDB_SHARE *share;
+        pthread_mutex_lock(&ndbcluster_mutex);
+        if (((share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
+                                            (byte*) key, strlen(key)))
+              && share->op == 0 && share->op_old == 0)
+            || share == 0)
+        {
+          /*
+            there is no binlog creation setup for this table
+            attempt to do it
+          */
+          pthread_mutex_unlock(&ndbcluster_mutex);
+          pthread_mutex_lock(&LOCK_open);
+          ndbcluster_create_binlog_setup(ndb, key, elmt.database, elmt.name,
+                                         share);
+          pthread_mutex_unlock(&LOCK_open);
+        }
+        else
+          pthread_mutex_unlock(&ndbcluster_mutex);
+      }
+#endif
     }
   }
   while (unhandled && retries--);
@@ -4925,6 +5131,11 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   for (i= 0 ; i < list.count ; i++)
   {
     NDBDICT::List::Element& elmt= list.elements[i];
+    if (IS_TMP_PREFIX(elmt.name))
+    {
+      DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
+      continue;
+    }
     DBUG_PRINT("info", ("Found %s/%s in NDB", elmt.database, elmt.name));
 
     // Add only tables that belongs to db
@@ -4982,6 +5193,39 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       delete_list.push_back(thd->strdup(file_name));
     }
   }
+
+#ifdef HAVE_NDB_BINLOG
+  /* setup logging to binlog for all discovered tables */
+  if (ndb_binlog_thread_running > 0)
+  {
+    char *end;
+    char *end1=
+      strxnmov(name, sizeof(name), mysql_data_home, "/", db, "/", NullS);
+    NDB_SHARE *share;
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (i= 0; i < ok_tables.records; i++)
+    {
+      file_name= (char*)hash_element(&ok_tables, i);
+      end= strxnmov(end1, sizeof(name) - (end1 - name), file_name, NullS);
+      if ((share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
+                                          (byte*)name, end - name))
+          && share->op == 0 && share->op_old == 0)
+      {
+        /*
+          there is no binlog creation setup for this table
+          attempt to do it
+	*/
+        
+        pthread_mutex_unlock(&ndbcluster_mutex);
+        pthread_mutex_lock(&LOCK_open);
+        ndbcluster_create_binlog_setup(ndb, name, db, file_name, share);
+        pthread_mutex_unlock(&LOCK_open);
+        pthread_mutex_lock(&ndbcluster_mutex);
+      }
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+  }
+#endif
 
   // Check for new files to discover
   DBUG_PRINT("info", ("Checking for new files to discover"));       
@@ -5055,17 +5299,40 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
 static int connect_callback()
 {
   update_status_variables(g_ndb_cluster_connection);
+
+  uint node_id, i= 0;
+  Ndb_cluster_connection_node_iter node_iter;
+  memset((void *)g_node_id_map, 0xFFFF, sizeof(g_node_id_map));
+  while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
+    g_node_id_map[node_id]= i++;
+
   pthread_cond_signal(&COND_ndb_util_thread);
   return 0;
 }
 
-bool ndbcluster_init()
+static bool ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
 
   if (have_ndbcluster != SHOW_OPTION_YES)
     goto ndbcluster_init_error;
+
+  {
+    handlerton &h= ndbcluster_hton;
+    h.close_connection= ndbcluster_close_connection;
+    h.commit=           ndbcluster_commit;
+    h.rollback=         ndbcluster_rollback;
+    h.create=           ndbcluster_create_handler; /* Create a new handler */
+    h.drop_database=    ndbcluster_drop_database;  /* Drop a database */
+    h.panic=            ndbcluster_end;            /* Panic call */
+    h.show_status=      ndbcluster_show_status;    /* Show status */
+    h.alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
+#ifdef HAVE_NDB_BINLOG
+    ndbcluster_binlog_init_handlerton();
+#endif
+    h.flags=            HTON_NO_FLAGS;
+  }
 
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
@@ -5130,6 +5397,22 @@ bool ndbcluster_init()
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
+#ifdef HAVE_NDB_BINLOG
+  /* start the ndb injector thread */
+  if (opt_bin_log)
+  {
+    if (binlog_row_based)
+    {
+      if (ndbcluster_binlog_start())
+        goto ndbcluster_init_error;
+    }
+    else
+    {
+      sql_print_error("NDB: only row based binary logging is supported");
+    }
+  }
+#endif /* HAVE_NDB_BINLOG */
+  
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_util_thread, NULL);
 
@@ -5160,25 +5443,12 @@ ndbcluster_init_error:
   DBUG_RETURN(TRUE);
 }
 
-
-/*
-  End use of the NDB Cluster table handler
-  - free all global variables allocated by 
-    ndbcluster_init()
-*/
-
-int ndbcluster_end(ha_panic_function type)
+static int ndbcluster_end(ha_panic_function type)
 {
   DBUG_ENTER("ndbcluster_end");
 
   if (!ndbcluster_inited)
     DBUG_RETURN(0);
-
-  // Kill ndb utility thread
-  (void) pthread_mutex_lock(&LOCK_ndb_util_thread);  
-  DBUG_PRINT("exit",("killing ndb util thread: %lx", ndb_util_thread));
-  (void) pthread_cond_signal(&COND_ndb_util_thread);
-  (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   if (g_ndb)
   {
@@ -5206,7 +5476,6 @@ int ndbcluster_end(ha_panic_function type)
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_thread);
   ndbcluster_inited= 0;
-  ndbcluster_util_inited= 0;
   DBUG_RETURN(0);
 }
 
@@ -5673,60 +5942,6 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 }
 
 
-#ifndef DBUG_OFF
-static void dbug_print_table(const char *info, TABLE *table)
-{
-  if (table == 0)
-  {
-    DBUG_PRINT("info",("%s: (null)", info));
-    return;
-  }
-  DBUG_PRINT("info",
-             ("%s: %s.%s s->fields: %d  "
-              "reclength: %d  rec_buff_length: %d  record[0]: %lx  "
-              "record[1]: %lx",
-              info,
-              table->s->db,
-              table->s->table_name,
-              table->s->fields,
-              table->s->reclength,
-              table->s->rec_buff_length,
-              table->record[0],
-              table->record[1]));
-
-  for (unsigned int i= 0; i < table->s->fields; i++) 
-  {
-    Field *f= table->field[i];
-    DBUG_PRINT("info",
-               ("[%d] \"%s\"(0x%lx:%s%s%s%s%s%s) type: %d  pack_length: %d  "
-                "ptr: 0x%lx[+%d]  null_bit: %u  null_ptr: 0x%lx[+%d]",
-                i,
-                f->field_name,
-                f->flags,
-                (f->flags & PRI_KEY_FLAG)  ? "pri"       : "attr",
-                (f->flags & NOT_NULL_FLAG) ? ""          : ",nullable",
-                (f->flags & UNSIGNED_FLAG) ? ",unsigned" : ",signed",
-                (f->flags & ZEROFILL_FLAG) ? ",zerofill" : "",
-                (f->flags & BLOB_FLAG)     ? ",blob"     : "",
-                (f->flags & BINARY_FLAG)   ? ",binary"   : "",
-                f->real_type(),
-                f->pack_length(),
-                f->ptr, f->ptr - table->record[0],
-                f->null_bit,
-                f->null_ptr, (byte*) f->null_ptr - table->record[0]));
-    if (f->type() == MYSQL_TYPE_BIT)
-    {
-      Field_bit *g= (Field_bit*) f;
-      DBUG_PRINT("MYSQL_TYPE_BIT",("field_length: %d  bit_ptr: 0x%lx[+%d] "
-                                   "bit_ofs: %u  bit_len: %u",
-                                   g->field_length, g->bit_ptr,
-                                   (byte*) g->bit_ptr-table->record[0],
-                                   g->bit_ofs, g->bit_len));
-    }
-  }
-}
-#endif
-
 /*
   Handling the shared NDB_SHARE structure that is needed to
   provide table locking.
@@ -5756,6 +5971,12 @@ static void dbug_print_open_tables()
                ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
                 share->db, share->table_name,
                 share->use_count, share->commit_count));
+#ifdef HAVE_NDB_BINLOG
+    if (share->table)
+      DBUG_PRINT("share",
+                 ("table->s->db.table_name: %s.%s",
+                  share->table->s->db.str, share->table->s->table_name.str));
+#endif
   }
   DBUG_VOID_RETURN;
 }
@@ -5763,11 +5984,170 @@ static void dbug_print_open_tables()
 #define dbug_print_open_tables()
 #endif
 
+#ifdef HAVE_NDB_BINLOG
+/*
+  For some reason a share is still around, try to salvage the situation
+  by closing all cached tables. If the share still exists, there is an
+  error somewhere but only report this to the error log.  Keep this
+  "trailing share" but rename it since there are still references to it
+  to avoid segmentation faults.  There is a risk that the memory for
+  this trailing share leaks.
+  
+  Must be called with previous pthread_mutex_lock(&ndbcluster_mutex)
+*/
+int handle_trailing_share(NDB_SHARE *share)
+{
+  static ulong trailing_share_id= 0;
+  DBUG_ENTER("handle_trailing_share");
+
+  ++share->use_count;
+  pthread_mutex_unlock(&ndbcluster_mutex);
+
+  close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
+
+  pthread_mutex_lock(&ndbcluster_mutex);
+  if (!--share->use_count)
+  {
+    DBUG_PRINT("info", ("NDB_SHARE: close_cashed_tables %s freed share.",
+               share->key)); 
+    real_free_share(&share);
+    DBUG_RETURN(0);
+  }
+
+  /*
+    share still exists, if share has not been dropped by server
+    release that share
+  */
+  if (share->state != NSS_DROPPED && !--share->use_count)
+  {
+    DBUG_PRINT("info", ("NDB_SHARE: %s already exists, "
+                        "use_count=%d  state != NSS_DROPPED.",
+                        share->key, share->use_count)); 
+    real_free_share(&share);
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("error", ("NDB_SHARE: %s already exists  use_count=%d.",
+                       share->key, share->use_count));
+
+  sql_print_error("NDB_SHARE: %s already exists  use_count=%d."
+                  " Moving away for safety, but possible memleak.",
+                  share->key, share->use_count);
+  dbug_print_open_tables();
+
+  /*
+    This is probably an error.  We can however save the situation
+    at the cost of a possible mem leak, by "renaming" the share
+    - First remove from hash
+  */
+  hash_delete(&ndbcluster_open_tables, (byte*) share);
+
+  /*
+    now give it a new name, just a running number
+    if space is not enough allocate some more
+  */
+  {
+    const uint min_key_length= 10;
+    if (share->key_length < min_key_length)
+    {
+      share->key= alloc_root(&share->mem_root, min_key_length + 1);
+      share->key_length= min_key_length;
+    }
+    share->key_length=
+      my_snprintf(share->key, min_key_length + 1, "#leak%d",
+                  trailing_share_id++);
+  }
+  /* Keep it for possible the future trailing free */
+  my_hash_insert(&ndbcluster_open_tables, (byte*) share);
+
+  DBUG_RETURN(0);
+}
+
+/*
+  Rename share is used during rename table.
+*/
+static int rename_share(NDB_SHARE *share, const char *new_key)
+{
+  NDB_SHARE *tmp;
+  pthread_mutex_lock(&ndbcluster_mutex);
+  uint new_length= (uint) strlen(new_key);
+  DBUG_PRINT("rename_share", ("old_key: %s  old__length: %d",
+                              share->key, share->key_length));
+  if ((tmp= (NDB_SHARE*) hash_search(&ndbcluster_open_tables,
+                                     (byte*) new_key, new_length)))
+    handle_trailing_share(tmp);
+
+  /* remove the share from hash */
+  hash_delete(&ndbcluster_open_tables, (byte*) share);
+  dbug_print_open_tables();
+
+  /* save old stuff if insert should fail */
+  uint old_length= share->key_length;
+  char *old_key= share->key;
+
+  /*
+    now allocate and set the new key, db etc
+    enough space for key, db, and table_name
+  */
+  share->key= alloc_root(&share->mem_root, 2 * (new_length + 1));
+  strmov(share->key, new_key);
+  share->key_length= new_length;
+
+  if (my_hash_insert(&ndbcluster_open_tables, (byte*) share))
+  {
+    // ToDo free the allocated stuff above?
+    DBUG_PRINT("error", ("rename_share: my_hash_insert %s failed",
+                         share->key));
+    share->key= old_key;
+    share->key_length= old_length;
+    if (my_hash_insert(&ndbcluster_open_tables, (byte*) share))
+    {
+      sql_print_error("rename_share: failed to recover %s", share->key);
+      DBUG_PRINT("error", ("rename_share: my_hash_insert %s failed",
+                           share->key));
+    }
+    dbug_print_open_tables();
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    return -1;
+  }
+  dbug_print_open_tables();
+
+  share->db= share->key + new_length + 1;
+  ha_ndbcluster::set_dbname(new_key, share->db);
+  share->table_name= share->db + strlen(share->db) + 1;
+  ha_ndbcluster::set_tabname(new_key, share->table_name);
+
+  DBUG_PRINT("rename_share",
+             ("0x%lx key: %s  key_length: %d",
+              share, share->key, share->key_length));
+  DBUG_PRINT("rename_share",
+             ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
+              share->db, share->table_name,
+              share->use_count, share->commit_count));
+  DBUG_PRINT("rename_share",
+             ("table->s->db.table_name: %s.%s",
+              share->table->s->db.str, share->table->s->table_name.str));
+
+  if (share->op == 0)
+  {
+    share->table->s->db.str= share->db;
+    share->table->s->db.length= strlen(share->db);
+    share->table->s->table_name.str= share->table_name;
+    share->table->s->table_name.length= strlen(share->table_name);
+  }
+  /* else rename will be handled when the ALTER event comes */
+  share->old_names= old_key;
+  // ToDo free old_names after ALTER EVENT
+
+  pthread_mutex_unlock(&ndbcluster_mutex);
+  return 0;
+}
+#endif
+
 /*
   Increase refcount on existing share.
   Always returns share and cannot fail.
 */
-static NDB_SHARE *get_share(NDB_SHARE *share)
+NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 {
   pthread_mutex_lock(&ndbcluster_mutex);
   share->use_count++;
@@ -5799,9 +6179,13 @@ static NDB_SHARE *get_share(NDB_SHARE *share)
 
   have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
 */
-static NDB_SHARE *get_share(const char *key, bool create_if_not_exists,
-                            bool have_lock)
+NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
+                                bool create_if_not_exists,
+                                bool have_lock)
 {
+  DBUG_ENTER("get_share");
+  DBUG_PRINT("info", ("get_share: key %s", key));
+  THD *thd= current_thd;
   NDB_SHARE *share;
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -5847,6 +6231,9 @@ static NDB_SHARE *get_share(const char *key, bool create_if_not_exists,
       ha_ndbcluster::set_dbname(key, share->db);
       share->table_name= share->db + strlen(share->db) + 1;
       ha_ndbcluster::set_tabname(key, share->table_name);
+#ifdef HAVE_NDB_BINLOG
+      ndbcluster_binlog_init_share(share, table);
+#endif
       *root_ptr= old_root;
     }
     else
@@ -5874,7 +6261,7 @@ static NDB_SHARE *get_share(const char *key, bool create_if_not_exists,
   return share;
 }
 
-static void real_free_share(NDB_SHARE **share)
+void ndbcluster_real_free_share(NDB_SHARE **share)
 {
   DBUG_PRINT("real_free_share",
              ("0x%lx key: %s  key_length: %d",
@@ -5889,6 +6276,26 @@ static void real_free_share(NDB_SHARE **share)
   pthread_mutex_destroy(&(*share)->mutex);
   free_root(&(*share)->mem_root, MYF(0));
 
+#ifdef HAVE_NDB_BINLOG
+  if ((*share)->table)
+  {
+    closefrm((*share)->table, 0);
+#if 0 // todo ?
+    free_root(&(*share)->table->mem_root, MYF(0));
+#endif
+
+#ifndef DBUG_OFF
+    bzero((gptr)(*share)->table_share, sizeof(*(*share)->table_share));
+    bzero((gptr)(*share)->table, sizeof(*(*share)->table));
+#endif
+    my_free((gptr) (*share)->table_share, MYF(0));
+    my_free((gptr) (*share)->table, MYF(0));
+#ifndef DBUG_OFF
+    (*share)->table_share= 0;
+    (*share)->table= 0;
+#endif
+  }
+#endif
   my_free((gptr) *share, MYF(0));
   *share= 0;
 
@@ -5901,7 +6308,7 @@ static void real_free_share(NDB_SHARE **share)
 
   have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
 */
-static void free_share(NDB_SHARE **share, bool have_lock)
+void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
 {
   if (!have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -5925,7 +6332,6 @@ static void free_share(NDB_SHARE **share, bool have_lock)
   if (!have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
 }
-
 
 
 /*
@@ -6601,7 +7007,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     Wait for cluster to start
   */
   pthread_mutex_lock(&LOCK_ndb_util_thread);
-  while (!ndb_cluster_node_id)
+  while (!ndb_cluster_node_id && (ndbcluster_hton.slot != ~(uint)0))
   {
     /* ndb not connected yet */
     set_timespec(abstime, 1);
@@ -6616,12 +7022,34 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   }
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
+  {
+    Thd_ndb *thd_ndb;
+    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+    {
+      sql_print_error("Could not allocate Thd_ndb object");
+      goto ndb_util_thread_end;
+    }
+    set_thd_ndb(thd, thd_ndb);
+    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+  }
+
+#ifdef HAVE_NDB_BINLOG
+  /* create tables needed by the replication */
+  ndbcluster_setup_binlog_table_shares(thd);
+#else
   /*
     Get all table definitions from the storage node
   */
   ndbcluster_find_all_files(thd);
+#endif
 
   ndbcluster_util_inited= 1;
+
+#ifdef HAVE_NDB_BINLOG
+  /* If running, signal injector thread that all is setup */
+  if (ndb_binlog_thread_running > 0)
+    pthread_cond_signal(&injector_cond);
+#endif
 
   set_timespec(abstime, 0);
   for (;!abort_loop;)
@@ -6639,6 +7067,15 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     if (abort_loop)
       break; /* Shutting down server */
 
+#ifdef HAVE_NDB_BINLOG
+    /*
+      Check that the apply_status_share and schema_share has been created.
+      If not try to create it
+    */
+    if (!apply_status_share || !schema_share)
+      ndbcluster_setup_binlog_table_shares(thd);
+#endif
+
     if (ndb_cache_check_time == 0)
     {
       /* Wake up in 1 second to check if value has changed */
@@ -6652,6 +7089,12 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     for (uint i= 0; i < ndbcluster_open_tables.records; i++)
     {
       share= (NDB_SHARE *)hash_element(&ndbcluster_open_tables, i);
+#ifdef HAVE_NDB_BINLOG
+      if ((share->use_count - (int) (share->op != 0) - (int) (share->op != 0))
+          <= 0)
+        continue; // injector thread is the only user, skip statistics
+      share->util_lock= current_thd; // Mark that util thread has lock
+#endif /* HAVE_NDB_BINLOG */
       share->use_count++; /* Make sure the table can't be closed */
       DBUG_PRINT("ndb_util_thread",
                  ("Found open table[%d]: %s, use_count: %d",
@@ -6666,6 +7109,17 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     List_iterator_fast<NDB_SHARE> it(util_open_tables);
     while ((share= it++))
     {
+#ifdef HAVE_NDB_BINLOG
+      if ((share->use_count - (int) (share->op != 0) - (int) (share->op != 0))
+          <= 1)
+      {
+        /*
+          Util thread and injector thread is the only user, skip statistics
+	*/
+        free_share(&share);
+        continue;
+      }
+#endif /* HAVE_NDB_BINLOG */
       DBUG_PRINT("ndb_util_thread",
                  ("Fetching commit count for: %s",
                   share->key));
@@ -6727,6 +7181,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     }
   }
 ndb_util_thread_end:
+  sql_print_information("Stopping Cluster Utility thread");
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
@@ -8072,6 +8527,7 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
                        enum ha_stat_type stat_type)
 {
   char buf[IO_SIZE];
+  uint buflen;
   DBUG_ENTER("ndbcluster_show_status");
   
   if (have_ndbcluster != SHOW_OPTION_YES) 
@@ -8082,7 +8538,23 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
   {
     DBUG_RETURN(FALSE);
   }
-  
+
+  update_status_variables(g_ndb_cluster_connection);
+  buflen=
+    my_snprintf(buf, sizeof(buf),
+                "cluster_node_id=%u, "
+                "connected_host=%s, "
+                "connected_port=%u, "
+                "number_of_storage_nodes=%u",
+                ndb_cluster_node_id,
+                ndb_connected_host,
+                ndb_connected_port,
+                ndb_number_of_storage_nodes);
+  if (stat_print(thd, ndbcluster_hton.name, strlen(ndbcluster_hton.name),
+                 "connection", strlen("connection"),
+                 buf, buflen))
+    DBUG_RETURN(TRUE);
+
   if (get_thd_ndb(thd) && get_thd_ndb(thd)->ndb)
   {
     Ndb* ndb= (get_thd_ndb(thd))->ndb;
@@ -8090,7 +8562,7 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
     tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
-      uint buflen=
+      buflen=
         my_snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
@@ -8099,10 +8571,13 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
         DBUG_RETURN(TRUE);
     }
   }
-  send_eof(thd);
-  
+#ifdef HAVE_NDB_BINLOG
+  ndbcluster_show_status_binlog(thd, stat_print, stat_type);
+#endif
+
   DBUG_RETURN(FALSE);
 }
+
 
 /*
   Create a table in NDB Cluster

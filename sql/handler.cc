@@ -2425,6 +2425,132 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(error);
 }
 
+#ifdef HAVE_NDB_BINLOG
+/*
+  TODO: change this into a dynamic struct
+  List<handlerton> does not work as
+  1. binlog_end is called when MEM_ROOT is gone
+  2. cannot work with thd MEM_ROOT as memory should be freed
+*/
+#define MAX_HTON_LIST_ST 63
+struct hton_list_st
+{
+  handlerton *hton[MAX_HTON_LIST_ST];
+  uint sz;
+};
+
+struct binlog_func_st
+{
+  enum_binlog_func fn;
+  void *arg;
+};
+
+/*
+  Listing handlertons first to avoid recursive calls and deadlock
+*/
+static my_bool binlog_func_list(THD *thd, st_plugin_int *plugin, void *arg)
+{
+  hton_list_st *hton_list= (hton_list_st *)arg;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->binlog_func)
+  {
+    uint sz= hton_list->sz;
+    if (sz == MAX_HTON_LIST_ST-1)
+    {
+      /* list full */
+      return FALSE;
+    }
+    hton_list->hton[sz]= hton;
+    hton_list->sz= sz+1;
+  }
+  return FALSE;
+}
+
+static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
+{
+  handlerton *hton;
+  hton_list_st hton_list;
+  hton_list.sz= 0;
+  plugin_foreach(thd, binlog_func_list,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &hton_list);
+
+  uint i= 0, sz= hton_list.sz;
+  while(i < sz)
+    hton_list.hton[i++]->binlog_func(thd, bfn->fn, bfn->arg);
+  return FALSE;
+}
+
+int ha_reset_logs(THD *thd)
+{
+  binlog_func_st bfn= {BFN_RESET_LOGS, 0};
+  binlog_func_foreach(thd, &bfn);
+  return 0;
+}
+
+void ha_reset_slave(THD* thd)
+{
+  binlog_func_st bfn= {BFN_RESET_SLAVE, 0};
+  binlog_func_foreach(thd, &bfn);
+}
+
+void ha_binlog_wait(THD* thd)
+{
+  binlog_func_st bfn= {BFN_BINLOG_WAIT, 0};
+  binlog_func_foreach(thd, &bfn);
+}
+
+int ha_binlog_end(THD* thd)
+{
+  binlog_func_st bfn= {BFN_BINLOG_END, 0};
+  binlog_func_foreach(thd, &bfn);
+  return 0;
+}
+
+int ha_binlog_index_purge_file(THD *thd, const char *file)
+{
+  binlog_func_st bfn= {BFN_BINLOG_PURGE_FILE, (void *)file};
+  binlog_func_foreach(thd, &bfn);
+}
+
+struct binlog_log_query_st
+{
+  enum_binlog_command binlog_command;
+  const char *query;
+  uint query_length;
+  const char *db;
+  const char *table_name;
+};
+
+static my_bool binlog_log_query_handlerton(THD *thd,
+                                           st_plugin_int *plugin,
+                                           void *args)
+{
+  struct binlog_log_query_st *b= (struct binlog_log_query_st*)args;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if (hton->state == SHOW_OPTION_YES && hton->binlog_log_query)
+    hton->binlog_log_query(thd,
+                           b->binlog_command,
+                           b->query,
+                           b->query_length,
+                           b->db,
+                           b->table_name);
+  return FALSE;
+}
+
+void ha_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
+                         const char *query, uint query_length,
+                         const char *db, const char *table_name)
+{
+  struct binlog_log_query_st b;
+  b.binlog_command= binlog_command;
+  b.query= query;
+  b.query_length= query_length;
+  b.db= db;
+  b.table_name= table_name;
+  plugin_foreach(thd, binlog_log_query_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &b);
+}
+#endif
 
 /*
   Read the first row of a multi-range set.
@@ -2846,6 +2972,8 @@ template<class RowsEventT> int binlog_log_row(TABLE* table,
                                               const byte *before_record,
                                               const byte *after_record)
 {
+  if (table->file->is_injective())
+    return 0;
   bool error= 0;
   THD *const thd= current_thd;
 

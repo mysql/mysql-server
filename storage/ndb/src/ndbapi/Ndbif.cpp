@@ -253,12 +253,17 @@ Ndb::report_node_failure(Uint32 node_id)
 void
 Ndb::report_node_failure_completed(Uint32 node_id)
 {
-  if (theEventBuffer && 
-      !TransporterFacade::instance()->theClusterMgr->isClusterAlive())
+  if (theEventBuffer)
   {
-    // cluster is unavailable, 
+    // node failed
     // eventOperations in the ndb object should be notified
-    theEventBuffer->completeClusterFailed();
+    theEventBuffer->report_node_failure(node_id);
+    if(!TransporterFacade::instance()->theClusterMgr->isClusterAlive())
+    {
+      // cluster is unavailable, 
+      // eventOperations in the ndb object should be notified
+      theEventBuffer->completeClusterFailed();
+    }
   }
   
   abortTransactionsAfterNodeFailure(node_id);

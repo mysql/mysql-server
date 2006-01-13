@@ -162,6 +162,11 @@ int NdbEventOperation::getReqNodeId() const
   return m_impl.m_data_item->sdata->req_nodeid;
 }
 
+int NdbEventOperation::getNdbdNodeId() const
+{
+  return m_impl.m_data_item->sdata->ndbd_nodeid;
+}
+
 /*
  * Private members
  */
