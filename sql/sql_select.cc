@@ -2919,6 +2919,56 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 
 /*
+  Add to KEY_FIELD array all 'ref' access candidates within nested join
+
+  SYNPOSIS
+    add_key_fields_for_nj()
+      nested_join_table  IN     Nested join pseudo-table to process
+      end                INOUT  End of the key field array
+      and_level          INOUT  And-level
+
+  DESCRIPTION
+    This function populates KEY_FIELD array with entries generated from the 
+    ON condition of the given nested join, and does the same for nested joins 
+    contained within this nested join.
+
+  NOTES
+    We can add accesses to the tables that are direct children of this nested 
+    join (1), and are not inner tables w.r.t their neighbours (2).
+    
+    Example for #1 (outer brackets pair denotes nested join this function is 
+    invoked for):
+     ... LEFT JOIN (t1 LEFT JOIN (t2 ... ) ) ON cond
+    Example for #2:
+     ... LEFT JOIN (t1 LEFT JOIN t2 ) ON cond
+    In examples 1-2 for condition cond, we can add 'ref' access candidates to 
+    t1 only.
+    Example #3:
+     ... LEFT JOIN (t1, t2 LEFT JOIN t3 ON inner_cond) ON cond
+    Here we can add 'ref' access candidates for t1 and t2, but not for t3.
+*/
+
+static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
+                                  KEY_FIELD **end, uint *and_level)
+{
+  List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
+  table_map tables= 0;
+  TABLE_LIST *table;
+  DBUG_ASSERT(nested_join_table->nested_join);
+
+  while ((table= li++))
+  {
+    if (table->nested_join)
+      add_key_fields_for_nj(table, end, and_level);
+    else
+      if (!table->on_expr)
+        tables |= table->table->map;
+  }
+  add_key_fields(end, and_level, nested_join_table->on_expr, tables);
+}
+
+
+/*
   Update keyuse array with all possible keys we can use to fetch rows
   
   SYNOPSIS
@@ -2982,23 +3032,21 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       into account as well.
     */ 
     if (*join_tab[i].on_expr_ref)
-    {
       add_key_fields(&end,&and_level,*join_tab[i].on_expr_ref,
 		     join_tab[i].table->map);
-    }
-    else 
+  }
+
+  /* Process ON conditions for the nested joins */
+  {
+    List_iterator<TABLE_LIST> li(*join_tab->join->join_list);
+    TABLE_LIST *table;
+    while ((table= li++))
     {
-      TABLE_LIST *tab= join_tab[i].table->pos_in_table_list;
-      TABLE_LIST *embedding= tab->embedding;
-      if (embedding)
-      {
-        NESTED_JOIN *nested_join= embedding->nested_join;
-        if (nested_join->join_list.head() == tab)
-          add_key_fields(&end, &and_level, embedding->on_expr,
-                         nested_join->used_tables);
-      }
+      if (table->nested_join)
+	add_key_fields_for_nj(table, &end, &and_level);
     }
   }
+
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
     add_key_part(keyuse,field);
