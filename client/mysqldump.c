@@ -41,6 +41,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <my_user.h>
 #include <m_string.h>
 #include <m_ctype.h>
 #include <hash.h>
@@ -1850,9 +1851,37 @@ static void dump_triggers_for_table (char *table, char *db)
 DELIMITER ;;\n");
   while ((row= mysql_fetch_row(result)))
   {
-    fprintf(sql_file, "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n\
-/*!50003 CREATE TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
-            row[6], /* sql_mode */
+    fprintf(sql_file,
+            "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
+            "/*!50003 CREATE */ ",
+            row[6] /* sql_mode */);
+
+    if (mysql_num_fields(result) > 7)
+    {
+      /*
+        mysqldump can be run against the server, that does not support definer
+        in triggers (there is no DEFINER column in SHOW TRIGGERS output). So,
+        we should check if we have this column before accessing it.
+      */
+
+      uint       user_name_len;
+      char       user_name_str[USERNAME_LENGTH + 1];
+      char       quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
+      uint       host_name_len;
+      char       host_name_str[HOSTNAME_LENGTH + 1];
+      char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
+    
+      parse_user(row[7], strlen(row[7]), user_name_str, &user_name_len,
+                 host_name_str, &host_name_len);
+
+      fprintf(sql_file,
+              "/*!50017 DEFINER=%s@%s */ ",
+              quote_name(user_name_str, quoted_user_name_str, FALSE),
+              quote_name(host_name_str, quoted_host_name_str, FALSE));
+    }
+
+    fprintf(sql_file,
+            "/*!50003 TRIGGER %s %s %s ON %s FOR EACH ROW%s%s */;;\n\n",
             quote_name(row[0], name_buff, 0), /* Trigger */
             row[4], /* Timing */
             row[1], /* Event */

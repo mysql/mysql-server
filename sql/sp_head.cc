@@ -31,6 +31,8 @@
 #define SP_STMT_PRINT_MAXLEN 40
 
 
+#include <my_user.h>
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -1767,29 +1769,21 @@ sp_head::set_info(longlong created, longlong modified,
 
 
 void
-
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  const char *p= strrchr(definer, '@');
+  uint user_name_len;
+  char user_name_str[USERNAME_LENGTH + 1];
+  uint host_name_len;
+  char host_name_str[HOSTNAME_LENGTH + 1];
 
-  if (!p)
-  {
-    m_definer_user.str= (char*) "";
-    m_definer_user.length= 0;
-    m_definer_host.str= (char*) "";
-    m_definer_host.length= 0;
-  }
-  else
-  {
-    const uint user_name_len= p - definer;
-    const uint host_name_len= definerlen - user_name_len - 1;
+  parse_user(definer, definerlen, user_name_str, &user_name_len,
+             host_name_str, &host_name_len);
 
-    m_definer_user.str= strmake_root(mem_root, definer, user_name_len);
-    m_definer_user.length= user_name_len;
+  m_definer_user.str= strmake_root(mem_root, user_name_str, user_name_len);
+  m_definer_user.length= user_name_len;
 
-    m_definer_host.str= strmake_root(mem_root, p + 1, host_name_len);
-    m_definer_host.length= host_name_len;
-  }
+  m_definer_host.str= strmake_root(mem_root, host_name_str, host_name_len);
+  m_definer_host.length= host_name_len;
 }
 
 

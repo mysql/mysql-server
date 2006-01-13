@@ -2497,7 +2497,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       ulong rights, ulong col_rights,
 			       bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
@@ -2615,7 +2615,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      const char *db, const char *routine_name,
 			      bool is_proc, ulong rights, bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;

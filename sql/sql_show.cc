@@ -3038,7 +3038,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   TABLE *table= tables->table;
   bool full_access;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char definer[USER_HOST_BUFF_SIZE];
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
@@ -3180,7 +3180,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
-  char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  char definer[USER_HOST_BUFF_SIZE];
   uint definer_len;
 
   if (tables->view)
@@ -3364,7 +3364,7 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
         ulong sql_mode;
-        char definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+        char definer_holder[USER_HOST_BUFF_SIZE];
         LEX_STRING definer_buffer;
         definer_buffer.str= definer_holder;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
