@@ -181,6 +181,25 @@ static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
 
+struct st_regex
+{
+  char* pattern;
+  char* replace;
+  int icase;
+};
+
+struct st_replace_regex
+{
+  DYNAMIC_ARRAY regex_arr;
+  char* buf;
+  char* even_buf;
+  uint even_buf_len;
+  char* odd_buf;
+  uint odd_buf_len;
+};
+
+struct st_replace_regex *glob_replace_regex= 0;
+
 static uint lineno_stack[MAX_INCLUDE_DEPTH];
 static char TMPDIR[FN_REFLEN];
 static char delimiter[MAX_DELIMITER]= DEFAULT_DELIMITER;
@@ -217,6 +236,9 @@ static void ps_init_re(void);
 static int ps_match_re(char *);
 static char *ps_eprint(int);
 static void ps_free_reg(void);
+
+static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace, 
+ char *string, int icase);
 
 static const char *embedded_server_groups[]=
 {
@@ -326,6 +348,7 @@ Q_EXIT,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 Q_IF,
 Q_DISABLE_PARSING, Q_ENABLE_PARSING,
+Q_REPLACE_REGEX,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -419,6 +442,7 @@ const char *command_names[]=
   "if",
   "disable_parsing",
   "enable_parsing",
+  "replace_regex",
   0
 };
 
@@ -460,6 +484,7 @@ struct st_replace *init_replace(my_string *from, my_string *to, uint count,
 uint replace_strings(struct st_replace *rep, my_string *start,
 		     uint *max_length, const char *from);
 void free_replace();
+static void free_replace_regex();
 static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
@@ -1772,6 +1797,165 @@ static char *get_string(char **to_ptr, char **from_ptr,
   DBUG_RETURN(start);
 }
 
+#define PARSE_REGEX_ARG \
+  while (p < expr_end) \
+  {\
+    char c= *p;\
+    if (c == '/')\
+    {\
+      if (last_c == '\\')\
+      {\
+        buf_p[-1]= '/';\
+      }\
+      else\
+      {\
+        *buf_p++ = 0;\
+        break;\
+      }  \
+    }  \
+    else\
+      *buf_p++ = c;\
+       \
+    last_c= c;\
+    p++;\
+  }  \
+
+static struct st_replace_regex* init_replace_regex(char* expr)
+{
+  struct st_replace_regex* res;
+  char* buf,*expr_end;
+  char* p;
+  char* buf_p;
+  uint expr_len= strlen(expr);
+  char last_c = 0;
+  struct st_regex reg;
+     
+  if (!(res=(struct st_replace_regex*)my_malloc(
+              sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME))))
+    return 0;
+  my_init_dynamic_array(&res->regex_arr,sizeof(struct st_regex),128,128);
+    
+  buf= (char*)res + sizeof(*res);
+  expr_end= expr + expr_len;
+  p= expr;
+  buf_p= buf;  
+   
+  /* for each regexp substitution statement */
+  while (p < expr_end)
+  {
+    bzero(&reg,sizeof(reg));
+    /* find the start of the statement */
+    while (p < expr_end)
+    {
+      if (*p == '/')
+        break;
+      p++;  
+    }  
+    
+    if (p == expr_end || ++p == expr_end)
+    {
+      if (res->regex_arr.elements)
+        break;
+      else  
+        goto err;
+    }
+    /* we found the start */  
+    reg.pattern= buf_p;
+    
+    PARSE_REGEX_ARG
+    
+    if (p == expr_end || ++p == expr_end)
+      goto err;
+  
+    /* buf_p now points to the replacement pattern terminated with \0 */  
+    reg.replace= buf_p;  
+    
+    PARSE_REGEX_ARG
+    
+    if (p == expr_end)
+      goto err;
+    
+    /* skip the ending '/' in the statement */    
+    p++;
+    
+    if (p < expr_end && *p == 'i')
+      reg.icase= 1;    
+    
+    /* done parsing the statement, now place it in regex_arr */
+    if (insert_dynamic(&res->regex_arr,(gptr) &reg))
+      die("Out of memory");
+  }  
+  res->odd_buf_len= res->even_buf_len= 8192;
+  res->even_buf= (char*)my_malloc(res->even_buf_len,MYF(MY_WME+MY_FAE));  
+  res->odd_buf= (char*)my_malloc(res->odd_buf_len,MYF(MY_WME+MY_FAE));  
+  res->buf= res->even_buf;
+        
+  return res;  
+  
+err:
+  my_free((gptr)res,0);
+  return 0;    
+}
+
+/* 
+  TODO:  at some point figure out if there is a way to do everything
+         in one pass 
+ */
+
+static int multi_reg_replace(struct st_replace_regex* r,char* val)
+{
+  uint i;
+  char* in_buf, *out_buf;
+  int* buf_len_p;
+  
+  in_buf= val;
+  out_buf= r->even_buf;
+  buf_len_p= &r->even_buf_len;
+  r->buf= 0;
+  
+  for (i= 0; i < r->regex_arr.elements; i++)
+  {
+    struct st_regex re;
+    char* save_out_buf= out_buf;
+    
+    get_dynamic(&r->regex_arr,(gptr)&re,i);
+    
+    if (!reg_replace(&out_buf,buf_len_p,re.pattern,re.replace,
+       in_buf,re.icase))
+    {
+      //printf("out_buf=%s\n", out_buf);
+      /* the buffer has been reallocated, make adjustements */
+      if (save_out_buf != out_buf)
+      {
+        if (save_out_buf == r->even_buf)
+          r->even_buf= out_buf;
+        else
+          r->odd_buf= out_buf;  
+      }
+        
+      r->buf= out_buf;
+      if (in_buf == val)
+        in_buf= r->odd_buf;
+        
+      swap_variables(char*,in_buf,out_buf);
+      
+      buf_len_p= (out_buf == r->even_buf) ? &r->even_buf_len :
+          &r->odd_buf_len;
+    }   
+  }
+  
+  return (r->buf == 0);
+}
+
+static void get_replace_regex(struct st_query *q)
+{
+  char *expr= q->first_argument;
+  free_replace_regex();
+  if (!(glob_replace_regex=init_replace_regex(expr)))
+    die("Could not init replace_regex");
+  q->last_argument= q->end;  
+}
+
 
 /*
   Get arguments for replace. The syntax is:
@@ -1823,6 +2007,18 @@ static void get_replace(struct st_query *q)
   q->last_argument= q->end;
   DBUG_VOID_RETURN;
 }
+
+static void free_replace_regex()
+{
+  if (glob_replace_regex)
+  {
+    my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((char*) glob_replace_regex,MYF(0));
+    glob_replace_regex=0;
+  }
+}
+
 
 void free_replace()
 {
@@ -2138,6 +2334,7 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
 
 err:
   free_replace();
+  free_replace_regex();
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
   return error;
@@ -2986,6 +3183,178 @@ void reject_dump(const char *record_file, char *buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
+static void check_regerr(my_regex_t* r, int err)
+{
+  char err_buf[1024];
+
+  if (err)
+  {
+    my_regerror(err,r,err_buf,sizeof(err_buf));
+    fprintf(stderr, "Regex error: %s\n", err_buf);
+    exit(1);
+  }  
+}
+
+#define SECURE_REG_BUF   if (buf_len < need_buf_len)\
+  {\
+    int off= res_p - buf;\
+    buf= (char*)my_realloc(buf,need_buf_len,MYF(MY_WME+MY_FAE));\
+    res_p= buf + off;\
+    buf_len= need_buf_len;\
+  }\
+
+static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace, 
+ char *string, int icase)
+{
+  my_regex_t r;
+  my_regmatch_t* subs;
+  char* buf_end, *replace_end;
+  char* buf= *buf_p;
+  int len;
+  int buf_len,need_buf_len;
+  int cflags= REG_EXTENDED;
+  int err_code;
+  char* res_p,*str_p,*str_end;
+  
+  buf_len= *buf_len_p;  
+  len= strlen(string);
+  str_end= string + len;
+  need_buf_len= len * 2 + 1;
+  res_p= buf;
+
+  SECURE_REG_BUF    
+  
+  buf_end = buf + buf_len;
+  
+  if (icase)
+    cflags |= REG_ICASE;
+    
+  if ((err_code=my_regcomp(&r,pattern,cflags,&my_charset_latin1)))
+  {
+    check_regerr(&r,err_code);
+    return 1;
+  }  
+  
+  subs= (my_regmatch_t*)my_malloc(sizeof(my_regmatch_t) * (r.re_nsub+1),
+     MYF(MY_WME+MY_FAE));
+  
+  *res_p= 0;
+  str_p= string;
+  replace_end= replace + strlen(replace);
+  
+  while (!err_code)
+  {
+    err_code= my_regexec(&r,str_p,r.re_nsub+1,subs, 
+      (str_p == string) ? REG_NOTBOL : 0);
+    
+    if (err_code && err_code != REG_NOMATCH)
+    {
+      check_regerr(&r,err_code);
+      my_regfree(&r);
+      return 1;
+    }
+    
+    if (!err_code)
+    {
+      char* expr_p= replace;
+      int c;
+      
+      need_buf_len= (res_p - buf) + subs[0].rm_so;
+      
+      while (expr_p < replace_end)
+      {
+        int back_ref_num= -1;
+        c= *expr_p;
+               
+        if (c == '\\' && expr_p + 1 < replace_end)
+        {
+          back_ref_num= expr_p[1] - '0';
+        }
+        
+        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
+        {
+          int start_off,end_off;
+          if ((start_off=subs[back_ref_num].rm_so) > -1 && 
+                   (end_off=subs[back_ref_num].rm_eo) > -1)
+          {
+             need_buf_len += (end_off - start_off);    
+          }  
+          expr_p += 2;
+        }
+        else
+        {
+          expr_p++;
+          need_buf_len++;
+        }
+      }
+      need_buf_len++;
+      SECURE_REG_BUF
+      
+      if (subs[0].rm_so)
+      {
+        memcpy(res_p,str_p,subs[0].rm_so);
+        res_p += subs[0].rm_so;
+      }
+        
+      expr_p= replace;
+      
+      while (expr_p < replace_end)
+      {
+        int back_ref_num= -1;
+        c= *expr_p;
+        
+        if (c == '\\' && expr_p + 1 < replace_end)
+        {
+          back_ref_num= expr_p[1] - '0';
+        }
+        
+        if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
+        {
+          int start_off,end_off;
+          if ((start_off=subs[back_ref_num].rm_so) > -1 && 
+                   (end_off=subs[back_ref_num].rm_eo) > -1)
+          {
+             int block_len= end_off - start_off;
+             memcpy(res_p,str_p + start_off, block_len);
+             res_p += block_len; 
+          }  
+          expr_p += 2;
+        }
+        else
+        {
+          *res_p++ = *expr_p++;
+        }
+      } 
+      
+      if (subs[0].rm_so == subs[0].rm_eo)
+      {
+        if (str_p + subs[0].rm_so >= str_end)
+          break;
+        str_p += subs[0].rm_eo ;
+        *res_p++ = *str_p++; 
+      }    
+      else
+      {
+        str_p += subs[0].rm_eo;
+      }  
+    }
+    else /* no match this time */
+    {
+      int left_in_str= str_end-str_p;
+      need_buf_len= (res_p-buf) + left_in_str;
+      SECURE_REG_BUF
+      memcpy(res_p,str_p,left_in_str);
+      res_p += left_in_str;
+      str_p= str_end;
+    }
+  }      
+  my_regfree(&r);   
+  *res_p= 0;
+  *buf_p= buf;
+  *buf_len_p= buf_len; 
+  return 0;
+}
+
 
 /* Append the string to ds, with optional replace */
 
@@ -2999,6 +3368,16 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
       die("Out of memory in replace");
     val=out_buff;
   }
+  
+  if (glob_replace_regex)
+  {
+    if (!multi_reg_replace(glob_replace_regex,(char*)val))        
+    {   
+      val= glob_replace_regex->buf;   
+      len= strlen(val);
+    }  
+  }
+  
   dynstr_append_mem(ds, val, len);
 }
 
@@ -3261,6 +3640,7 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 
 end:
   free_replace();
+  free_replace_regex();
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -3717,6 +4097,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
 
 end:
   free_replace();
+  free_replace_regex();
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -4261,6 +4642,10 @@ int main(int argc, char **argv)
       case Q_REPLACE:
 	get_replace(q);
 	break;
+      case Q_REPLACE_REGEX:
+        get_replace_regex(q);
+        break;
+
       case Q_REPLACE_COLUMN:
 	get_replace_column(q);
 	break;
