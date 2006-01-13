@@ -94,11 +94,9 @@ public:
    */
   State getState();
   /**
-   * By default events on same NdbEventOperation within same GCI
-   * are merged into a single event.  This can be changed with
-   * separateEvents(true).
+   * See NdbDictionary::Event.  Default is false.
    */
-  void separateEvents(bool flag);
+  void mergeEvents(bool flag);
 
   /**
    * Activates the NdbEventOperation to start receiving events. The

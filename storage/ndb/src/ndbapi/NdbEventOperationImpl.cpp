@@ -104,7 +104,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 
   m_state= EO_CREATED;
 
-  m_separateEvents = true;
+  m_mergeEvents = false;
 
   m_has_error= 0;
 
@@ -1168,7 +1168,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
 
     bool use_hash =
-      ! op->m_separateEvents &&
+      op->m_mergeEvents &&
       sdata->operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
 
     // find position in bucket hash table

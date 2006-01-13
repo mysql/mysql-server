@@ -38,9 +38,9 @@ NdbEventOperation::State NdbEventOperation::getState()
   return m_impl.getState();
 }
 
-void NdbEventOperation::separateEvents(bool flag)
+void NdbEventOperation::mergeEvents(bool flag)
 {
-  m_impl.m_separateEvents = flag;
+  m_impl.m_mergeEvents = flag;
 }
 
 NdbRecAttr *
