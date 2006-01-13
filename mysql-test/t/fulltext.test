@@ -355,6 +355,12 @@ SET myisam_repair_threads=@@global.myisam_repair_threads;
 INSERT INTO t1 VALUES('testword\'\'');
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword' IN BOOLEAN MODE);
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword\'\'' IN BOOLEAN MODE);
+
+#
+# BUG#14194: Problem with fulltext boolean search and apostrophe
+#
+INSERT INTO t1 VALUES('test\'s');
+SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 DROP TABLE t1;
 
 # End of 4.1 tests
