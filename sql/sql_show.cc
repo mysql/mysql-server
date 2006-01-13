@@ -2045,6 +2045,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   int error= 1;
   db_type not_used;
   Open_tables_state open_tables_state_backup;
+  bool save_view_prepare_mode= lex->view_prepare_mode;
+  lex->view_prepare_mode= TRUE;
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
@@ -2230,6 +2232,7 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->query_tables_last= save_query_tables_last;
+  lex->view_prepare_mode= save_view_prepare_mode;
   *save_query_tables_last= 0;
   lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
@@ -2620,12 +2623,15 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
+      uint32 octet_max_length= field->max_length();
+      if (octet_max_length != (uint32) 4294967295U)
+        octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
-        (longlong) field->max_length() / field->charset()->mbminlen :
-        (longlong) field->max_length() / field->charset()->mbmaxlen;
+        (longlong) octet_max_length / field->charset()->mbminlen :
+        (longlong) octet_max_length / field->charset()->mbmaxlen;
       table->field[8]->store(char_max_len, TRUE);
       table->field[8]->set_notnull();
-      table->field[9]->store((longlong) field->max_length(), TRUE);
+      table->field[9]->store((longlong) octet_max_length, TRUE);
       table->field[9]->set_notnull();
     }
 
@@ -2884,7 +2890,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   TABLE *table= tables->table;
   bool full_access;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char definer[USER_HOST_BUFF_SIZE];
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
@@ -3026,7 +3032,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
-  char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  char definer[USER_HOST_BUFF_SIZE];
   uint definer_len;
 
   if (tables->view)
@@ -3210,7 +3216,7 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
         ulong sql_mode;
-        char definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+        char definer_holder[USER_HOST_BUFF_SIZE];
         LEX_STRING definer_buffer;
         definer_buffer.str= definer_holder;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,
