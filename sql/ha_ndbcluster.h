@@ -564,6 +564,14 @@ class ha_ndbcluster: public handler
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
+  ulong alter_table_flags(void) const
+  { 
+    return (HA_ONLINE_ADD_INDEX | HA_ONLINE_DROP_INDEX |
+            HA_ONLINE_ADD_UNIQUE_INDEX | HA_ONLINE_DROP_UNIQUE_INDEX);
+  }
+  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+  int final_drop_index(TABLE *table_arg);
   ulong partition_flags(void) const
   {
     return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |

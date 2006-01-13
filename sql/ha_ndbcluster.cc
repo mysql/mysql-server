@@ -4380,6 +4380,40 @@ int ha_ndbcluster::create_ndb_index(const char *name,
   DBUG_RETURN(0);  
 }
 
+/*
+  Add an index on-line to a table
+*/
+int ha_ndbcluster::add_index(TABLE *table_arg, 
+                             KEY *key_info, uint num_of_keys)
+{
+  DBUG_ENTER("ha_ndbcluster::add_index");
+  DBUG_PRINT("info", ("ha_ndbcluster::add_index to table %s", 
+                      table_arg->s->table_name));
+  int error= 0;
+  uint idx;
+
+  for (idx= 0; idx < num_of_keys; idx++)
+  {
+    KEY *key= key_info + idx;
+    KEY_PART_INFO *key_part= key->key_part;
+    KEY_PART_INFO *end= key_part + key->key_parts;
+    NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key);
+    DBUG_PRINT("info", ("Adding index: '%s'", key_info[idx].name));
+    // Add fields to key_part struct
+    for (; key_part != end; key_part++)
+      key_part->field= table->field[key_part->fieldnr];
+    // Check index type
+    // Create index in ndb
+    if((error= create_index(key_info[idx].name, key, idx_type, idx)))
+      break;
+  }
+
+  DBUG_RETURN(error);  
+}
+
+/*
+  Drop an index in ndb
+ */
 int ha_ndbcluster::drop_ndb_index(const char *name)
 {
   DBUG_ENTER("ha_ndbcluster::drop_index");
@@ -4388,6 +4422,45 @@ int ha_ndbcluster::drop_ndb_index(const char *name)
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   DBUG_RETURN(dict->dropIndex(name, m_tabname));
 } 
+
+/*
+  Mark one or several indexes for deletion. and
+  renumber the remaining indexes
+*/
+int ha_ndbcluster::prepare_drop_index(TABLE *table_arg, 
+                                      uint *key_num, uint num_of_keys)
+{
+  DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
+  // Mark indexes for deletion
+  uint idx;
+  for (idx= 0; idx < num_of_keys; idx++)
+  {
+    DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
+    m_index[*key_num++].status= TO_BE_DROPPED;
+  }
+  // Renumber indexes
+  THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  DBUG_RETURN(renumber_indexes(ndb, table_arg));
+}
+ 
+/*
+  Really drop all indexes marked for deletion
+*/
+int ha_ndbcluster::final_drop_index(TABLE *table_arg)
+{
+  DBUG_ENTER("ha_ndbcluster::final_drop_index");
+  DBUG_PRINT("info", ("ha_ndbcluster::final_drop_index"));
+  int error= 0;
+  // Really drop indexes
+  THD *thd= current_thd;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  error= drop_indexes(ndb, table_arg);
+
+  DBUG_RETURN(error);  
+}
 
 /*
   Rename a table in NDB Cluster
