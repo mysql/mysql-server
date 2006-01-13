@@ -25,6 +25,7 @@
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 
+#include <signaldata/DihFragCount.hpp>
 #include <signaldata/ScanFrag.hpp>
 
 #include <signaldata/GetTabInfo.hpp>
@@ -1302,6 +1303,7 @@ Backup::sendCreateTrig(Signal* signal,
   
   for (int i=0; i < 3; i++) {
     req->setTriggerEvent(triggerEventValues[i]);
+    req->setReportAllMonitoredAttributes(false);
     BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
 	     ptr.p->backupId, tabPtr.p->tableId);
     w.reset();
@@ -2955,10 +2957,12 @@ next:
     }
     
     ndbrequire(ptr.p->tables.first(tabPtr));
-    signal->theData[0] = RNIL;
-    signal->theData[1] = tabPtr.p->tableId;
-    signal->theData[2] = ptr.i;
-    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 3, JBB);
+    DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
+    req->m_connectionData = RNIL;
+    req->m_tableRef = tabPtr.p->tableId;
+    req->m_senderData = ptr.i;
+    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
+               DihFragCountReq::SignalLength, JBB);
     return;
   }//if
 
@@ -3131,11 +3135,11 @@ void
 Backup::execDI_FCOUNTCONF(Signal* signal)
 {
   jamEntry();
-  
-  const Uint32 userPtr = signal->theData[0];
-  const Uint32 fragCount = signal->theData[1];
-  const Uint32 tableId = signal->theData[2];
-  const Uint32 senderData = signal->theData[3];
+  DihFragCountConf * const conf = (DihFragCountConf*)signal->getDataPtr();
+  const Uint32 userPtr = conf->m_connectionData;
+  const Uint32 fragCount = conf->m_fragmentCount;
+  const Uint32 tableId = conf->m_tableRef;
+  const Uint32 senderData = conf->m_senderData;
 
   ndbrequire(userPtr == RNIL && signal->length() == 5);
   
@@ -3162,10 +3166,12 @@ Backup::execDI_FCOUNTCONF(Signal* signal)
    */
   if(ptr.p->tables.next(tabPtr)) {
     jam();
-    signal->theData[0] = RNIL;
-    signal->theData[1] = tabPtr.p->tableId;
-    signal->theData[2] = ptr.i;
-    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 3, JBB);    
+    DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
+    req->m_connectionData = RNIL;
+    req->m_tableRef = tabPtr.p->tableId;
+    req->m_senderData = ptr.i;
+    sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
+               DihFragCountReq::SignalLength, JBB);
     return;
   }//if
   

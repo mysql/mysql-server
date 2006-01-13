@@ -17,6 +17,7 @@
 
 #ifndef CLUSTER_CONNECTION_HPP
 #define CLUSTER_CONNECTION_HPP
+#include <ndb_types.h>
 
 class Ndb_cluster_connection_node_iter
 {

@@ -1,0 +1,90 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+`nom` char(4) default NULL,
+`prenom` char(4) default NULL,
+PRIMARY KEY  (`nid`)) 
+ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+delete from t1;
+INSERT INTO t1 VALUES(1,"XYZ2","ABC2");
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ2	ABC2
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ2	ABC2
+DROP table t1;
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+`nom` char(4) default NULL,
+`prenom` char(4) default NULL)
+ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1"),(2,"AAA","BBB"),(3,"CCC","DDD");
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+2	AAA	BBB
+3	CCC	DDD
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+2	AAA	BBB
+3	CCC	DDD
+delete from t1 where nid = 2;
+INSERT INTO t1 VALUES(4,"EEE","FFF");
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+3	CCC	DDD
+4	EEE	FFF
+select * from t1 order by nid;
+nid	nom	prenom
+1	XYZ1	ABC1
+3	CCC	DDD
+4	EEE	FFF
+UPDATE t1 set nid=nid+1;
+UPDATE t1 set nom="CCP" where nid = 4;
+select * from t1 order by nid;
+nid	nom	prenom
+2	XYZ1	ABC1
+4	CCP	DDD
+5	EEE	FFF
+select * from t1 order by nid;
+nid	nom	prenom
+2	XYZ1	ABC1
+4	CCP	DDD
+5	EEE	FFF
+DROP table t1;
+CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
+`nom` char(4) default NULL,
+`prenom` char(4) default NULL,
+PRIMARY KEY USING HASH (`nid`)) 
+ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
+BEGIN;
+UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
+set GLOBAL slave_transaction_retries=1;
+UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
+SHOW SLAVE STATUS;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+<Slave_IO_State>	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	<Read_Master_Log_Pos>	<Relay_Log_File>	<Relay_Log_Pos>	master-bin.000001	Yes	No				<Replicate_Ignore_Table>			146	Error in Write_rows event: error during transaction execution on table test.t1	0	<Exec_Master_Log_Pos>	<Relay_Log_Space>	None		0	No						<Seconds_Behind_Master>
+set GLOBAL slave_transaction_retries=10;
+START SLAVE;
+select * from t1 order by nid;
+nid	nom	prenom
+1	LOCK	ABC1
+COMMIT;
+select * from t1 order by nid;
+nid	nom	prenom
+1	DEAD	ABC1
+DROP TABLE t1;

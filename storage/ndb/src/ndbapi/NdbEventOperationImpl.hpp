@@ -254,7 +254,7 @@ public:
   void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
   void complete_outof_order_gcis();
   
-  void reportClusterFailed(NdbEventOperationImpl *op);
+  void report_node_failure(Uint32 node_id);
   void completeClusterFailed();
 
   // used by user thread 

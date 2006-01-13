@@ -142,23 +142,19 @@ INSERT INTO t1 VALUES (1,2,0),(18,19,4),(20,21,0);
 select c from t1 order by c;
 drop table t1;
 
---disable_ps_protocol
-create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
-engine=ndb;
-insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
-create index c on t1(c); 
-connection server2;
-select * from t1 where b = 'two';
-connection server1;
-alter table t1 drop index c;
-connection server2;
-# This should fail since index information is not automatically refreshed
---error 1015
-select * from t1 where b = 'two';
-select * from t1 where b = 'two';
-connection server1;
-drop table t1;
---enable_ps_protocol
+## Test moved to ndb_alter_table_row|stmt respectively as behaviour differs
+#create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
+#engine=ndb;
+#insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
+#create index c on t1(c); 
+#connection server2;
+#select * from t1 where c = 'two';
+#connection server1;
+#alter table t1 drop index c;
+#connection server2;
+#select * from t1 where c = 'two';
+#connection server1;
+#drop table t1;
 
 #--disable_warnings
 #DROP TABLE IF EXISTS t2;
@@ -183,29 +179,32 @@ drop table t1;
 #select count(*) from t2;
 #drop table t2;
 
-connection server1;
-create table t3 (a int primary key) engine=ndbcluster;
+## Test moved to ndb_alter_table_row|stmt respectively as behaviour differs
+#connection server1;
+#create table t3 (a int primary key) engine=ndbcluster;
 
-connection server2;
-begin;
-insert into t3 values (1);
+#connection server2;
+#begin;
+#insert into t3 values (1);
 
-connection server1;
-alter table t3 rename t4;
+#connection server1;
+#alter table t3 rename t4;
 
-connection server2;
-# This should work as transaction is ongoing...
-delete from t3;
-insert into t3 values (1);
-commit; 
+#connection server2;
+## with rbr the below will not work as the "alter" event
+## explicitly invalidates the dictionary cache.
+### This should work as transaction is ongoing...
+##delete from t3;
+##insert into t3 values (1);
+#commit; 
 
-# This should fail as its a new transaction
---error 1015
-select * from t3;
-select * from t4;
-drop table t4;
-show tables;
-connection server1;
+## This should fail as its a new transaction
+#--error 1146
+#select * from t3;
+#select * from t4;
+#drop table t4;
+#show tables;
+#connection server1;
 
 create table t1 (
 ai bigint auto_increment,

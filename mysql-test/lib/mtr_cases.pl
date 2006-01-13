@@ -252,6 +252,16 @@ sub collect_one_test_case($$$$$$$) {
     $tinfo->{'slave_restart'}= 1;
   }
 
+  if ( ( $::opt_with_ndbcluster or $::glob_use_running_ndbcluster ) and
+       defined mtr_match_substring($tname,"ndb") )
+  {
+    $tinfo->{'ndb_test'}= 1;
+  }
+  else
+  {
+    $tinfo->{'ndb_test'}= 0;
+  }
+
   # FIXME what about embedded_server + ndbcluster, skip ?!
 
   my $master_opt_file= "$testdir/$tname-master.opt";

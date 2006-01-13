@@ -40,6 +40,7 @@ public:
     m_restore = false;
     m_restore_meta = false;
     m_no_restore_disk = false;
+    m_restore_epoch = false;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -63,12 +64,14 @@ public:
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
   virtual bool finalize_table(const TableS &);
+  virtual bool update_apply_status(const RestoreMetaData &metaData);
   void connectToMysql();
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   bool m_restore;
   bool m_restore_meta;
   bool m_no_restore_disk;
+  bool m_restore_epoch;
   Uint32 m_logCount;
   Uint32 m_dataCount;
 

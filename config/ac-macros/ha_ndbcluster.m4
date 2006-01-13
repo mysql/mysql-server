@@ -87,6 +87,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
                            [Extra CFLAGS for ndb compile]),
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
+  AC_ARG_WITH([ndb-binlog],
+              [
+  --without-ndb-binlog       Disable ndb binlog],
+              [ndb_binlog="$withval"],
+              [ndb_binlog="default"])
 
   case "$ndb_ccflags" in
     "yes")
@@ -185,6 +190,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
   ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
+  mysql_se_objs="$mysql_se_objs ha_ndbcluster_binlog.o"
 
   MYSQL_CHECK_NDB_OPTIONS
   NDBCLUSTER_WORKAROUNDS
@@ -219,6 +225,25 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_port="1186"
   fi
   
+  have_ndb_binlog="no"
+  if test X"$ndb_binlog" = Xdefault ||
+     test X"$ndb_binlog" = Xyes
+  then
+    if test X"$have_row_based" = Xyes
+    then
+      have_ndb_binlog="yes"
+    fi
+  fi
+
+  if test X"$have_ndb_binlog" = Xyes
+  then
+    AC_DEFINE([HAVE_NDB_BINLOG], [1],
+              [Including Ndb Cluster Binlog])
+    AC_MSG_RESULT([Including Ndb Cluster Binlog])
+  else
+    AC_MSG_RESULT([Not including Ndb Cluster Binlog])
+  fi
+
   ndb_transporter_opt_objs=""
   if test "$ac_cv_func_shmget" = "yes" &&
      test "$ac_cv_func_shmat" = "yes" &&

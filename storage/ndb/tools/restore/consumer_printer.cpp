@@ -53,3 +53,11 @@ BackupPrinter::endOfLogEntrys()
 	   << " to stdout." << endl;
   }
 }
+bool
+BackupPrinter::update_apply_status(const RestoreMetaData &metaData)
+{
+  if (m_print)
+  {
+  }
+  return true;
+}

@@ -803,13 +803,14 @@ void free_io_cache(TABLE *table)
 */
 
 bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
-			 TABLE_LIST *tables)
+			 TABLE_LIST *tables, bool have_lock)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
   DBUG_ASSERT(thd || (!if_wait_for_refresh && !tables));
 
-  VOID(pthread_mutex_lock(&LOCK_open));
+  if (!have_lock)
+    VOID(pthread_mutex_lock(&LOCK_open));
   if (!tables)
   {
     refresh_version++;				// Force close of open tables
@@ -888,7 +889,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     for (TABLE *table=thd->open_tables; table ; table= table->next)
       table->s->version= refresh_version;
   }
-  VOID(pthread_mutex_unlock(&LOCK_open));
+  if (!have_lock)
+    VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)
   {
     pthread_mutex_lock(&thd->mysys_var->mutex);
@@ -2383,7 +2385,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 
     table->s->table_map_id is not ULONG_MAX.
  */
-static void assign_new_table_id(TABLE *table)
+void assign_new_table_id(TABLE *table)
 {
   static ulong last_table_id= ULONG_MAX;
 

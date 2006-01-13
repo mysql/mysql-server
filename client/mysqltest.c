@@ -852,10 +852,15 @@ static VAR *var_obtain(const char *name, int len)
   return v;
 }
 
+/*
+  - if variable starts with a $ it is regarded as a local test varable
+  - if not it is treated as a environment variable, and the corresponding
+  environment variable will be updated
+*/
 int var_set(const char *var_name, const char *var_name_end,
             const char *var_val, const char *var_val_end)
 {
-  int digit;
+  int digit, result, env_var= 0;
   VAR* v;
   DBUG_ENTER("var_set");
   DBUG_PRINT("enter", ("var_name: '%.*s' = '%.*s' (length: %d)",
@@ -863,11 +868,11 @@ int var_set(const char *var_name, const char *var_name_end,
                        (int) (var_val_end - var_val), var_val,
                        (int) (var_val_end - var_val)));
 
-  if (*var_name++ != '$')
-  {
-    var_name--;
-    die("Variable name in %s does not start with '$'", var_name);
-  }
+  if (*var_name != '$')
+    env_var= 1;
+  else
+    var_name++;
+
   digit = *var_name - '0';
   if (!(digit < 10 && digit >= 0))
   {
@@ -875,7 +880,23 @@ int var_set(const char *var_name, const char *var_name_end,
   }
   else
     v = var_reg + digit;
-  DBUG_RETURN(eval_expr(v, var_val, (const char**)&var_val_end));
+
+  result= eval_expr(v, var_val, (const char**) &var_val_end);
+
+  if (env_var)
+  {
+    char buf[1024];
+    memcpy(buf, v->name, v->name_len);
+    buf[v->name_len]= 0;
+    if (v->int_dirty)
+    {
+      sprintf(v->str_val, "%d", v->int_val);
+      v->int_dirty= 0;
+      v->str_val_len= strlen(v->str_val);
+    }
+    setenv(buf, v->str_val, 1);
+  }
+  DBUG_RETURN(result);
 }
 
 
@@ -1483,6 +1504,10 @@ int do_sync_with_master(struct st_query *query)
   return do_sync_with_master2(offset);
 }
 
+/*
+  when ndb binlog is on, this call will wait until last updated epoch
+  (locally in the mysqld) has been received into the binlog
+*/
 int do_save_master_pos()
 {
   MYSQL_RES* res;
@@ -1494,6 +1519,89 @@ int do_save_master_pos()
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
 
+#ifdef HAVE_NDB_BINLOG
+  /*
+     Wait for ndb binlog to be up-to-date with all changes
+     done on the local mysql server
+  */
+  {
+    ulong have_ndbcluster;
+    if (mysql_query(mysql, query= "show variables like 'have_ndbcluster'"))
+      die("At line %u: failed in %s: %d: %s", start_lineno, query,
+          mysql_errno(mysql), mysql_error(mysql));
+    if (!(res= mysql_store_result(mysql)))
+      die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
+          query);
+    if (!(row= mysql_fetch_row(res)))
+      die("line %u: empty result in %s", start_lineno, query);
+
+    have_ndbcluster= strcmp("YES", row[1]) == 0;
+    mysql_free_result(res);
+
+    if (have_ndbcluster)
+    {
+      ulonglong epoch, tmp_epoch= 0;
+      int count= 0;
+
+      do
+      {
+        const char binlog[]= "binlog";
+        const char latest_trans_epoch[]=
+          "latest_trans_epoch=";
+        const char latest_applied_binlog_epoch[]=
+          "latest_applied_binlog_epoch=";
+        if (count)
+          sleep(1);
+        if (mysql_query(mysql, query= "show engine ndb status"))
+          die("At line %u: failed in '%s': %d: %s", start_lineno, query,
+              mysql_errno(mysql), mysql_error(mysql));
+        if (!(res= mysql_store_result(mysql)))
+          die("line %u: mysql_store_result() retuned NULL for '%s'",
+              start_lineno, query);
+        while ((row= mysql_fetch_row(res)))
+        {
+          if (strcmp(row[1], binlog) == 0)
+          {
+            const char *status= row[2];
+            /* latest_trans_epoch */
+            if (count == 0)
+            {
+              while (*status && strncmp(status, latest_trans_epoch,
+                                        sizeof(latest_trans_epoch)-1))
+                status++;
+              if (*status)
+              {
+                status+= sizeof(latest_trans_epoch)-1;
+                epoch= strtoull(status, (char**) 0, 10);
+              }
+              else
+                die("line %u: result does not contain '%s' in '%s'",
+                    start_lineno, latest_trans_epoch, query);
+            }
+            /* latest_applied_binlog_epoch */
+            while (*status && strncmp(status, latest_applied_binlog_epoch,
+                                      sizeof(latest_applied_binlog_epoch)-1))
+              status++;
+            if (*status)
+            {
+              status+= sizeof(latest_applied_binlog_epoch)-1;
+              tmp_epoch= strtoull(status, (char**) 0, 10);
+            }
+            else
+              die("line %u: result does not contain '%s' in '%s'",
+                  start_lineno, latest_applied_binlog_epoch, query);
+            break;
+          }
+        }
+        mysql_free_result(res);
+        if (!row)
+          die("line %u: result does not contain '%s' in '%s'",
+              start_lineno, binlog, query);
+        count++;
+      } while (tmp_epoch < epoch && count <= 3);
+    }
+  }
+#endif
   if (mysql_query(mysql, query= "show master status"))
     die("failed in show master status: %d: %s",
 	mysql_errno(mysql), mysql_error(mysql));
@@ -1544,7 +1652,8 @@ int do_let(struct st_query *query)
   while (*p && (*p != '=') && !my_isspace(charset_info,*p))
     p++;
   var_name_end= p;
-  if (var_name+1 == var_name_end)
+  if (var_name == var_name_end ||
+      (var_name+1 == var_name_end && *var_name == '$'))
     die("Missing variable name in let");
   while (my_isspace(charset_info,*p))
     p++;
