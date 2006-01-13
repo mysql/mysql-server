@@ -144,6 +144,9 @@ our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
 our @glob_test_mode;
 
+our $using_ndbcluster_master= 0;
+our $using_ndbcluster_slave= 0;
+
 our $glob_basedir;
 
 # The total result
@@ -331,10 +334,10 @@ sub check_ssl_support ();
 sub check_ndbcluster_support ();
 sub rm_ndbcluster_tables ($);
 sub ndbcluster_install ();
-sub ndbcluster_start ();
+sub ndbcluster_start ($);
 sub ndbcluster_stop ();
 sub ndbcluster_install_slave ();
-sub ndbcluster_start_slave ();
+sub ndbcluster_start_slave ($);
 sub ndbcluster_stop_slave ();
 sub run_benchmarks ($);
 sub run_tests ();
@@ -344,8 +347,8 @@ sub run_testcase ($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($$);
 sub do_before_start_slave ($$);
-sub mysqld_start ($$$$);
-sub mysqld_arguments ($$$$$);
+sub mysqld_start ($$$$$);
+sub mysqld_arguments ($$$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
@@ -402,11 +405,11 @@ sub main () {
 
   if ( $opt_start_dirty )
   {
-    if ( ndbcluster_start() )
+    if ( ndbcluster_start($opt_with_ndbcluster) )
     {
       mtr_error("Can't start ndbcluster");
     }
-    if ( mysqld_start('master',0,[],[]) )
+    if ( mysqld_start('master',0,[],[],$using_ndbcluster_master) )
     {
       mtr_report("Servers started, exiting");
     }
@@ -765,37 +768,6 @@ sub command_line_setup () {
     {
       mtr_error("Can't use --extern with --ddd");
     }
-  }
-
-  if ( $opt_ndbconnectstring )
-  {
-    $glob_use_running_ndbcluster= 1;
-    $opt_with_ndbcluster= 1;
-  }
-  else
-  {
-    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
-  }
-
-  if ( $opt_ndbconnectstring_slave )
-  {
-    $glob_use_running_ndbcluster_slave= 1;
-    $opt_with_ndbcluster_slave= 1;
-  }
-  else
-  {
-    $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
-  }
-
-  if ( $opt_skip_ndbcluster )
-  {
-    $opt_with_ndbcluster= 0;
-    $opt_skip_ndbcluster_slave= 1;
-  }
-
-  if ( $opt_skip_ndbcluster_slave )
-  {
-    $opt_with_ndbcluster_slave= 0;
   }
 
   # The ":s" in the argument spec, means we have three different cases
@@ -1323,13 +1295,9 @@ sub check_ndbcluster_support () {
   if ($opt_skip_ndbcluster)
   {
     mtr_report("Skipping ndbcluster");
+    $opt_skip_ndbcluster_slave= 1;
     $opt_with_ndbcluster= 0;
-    return;
-  }
-
-  if ($opt_with_ndbcluster)
-  {
-    mtr_report("Using ndbcluster");
+    $opt_with_ndbcluster_slave= 0;
     return;
   }
 
@@ -1342,11 +1310,41 @@ sub check_ndbcluster_support () {
 	       "", "/dev/null", "/dev/null", "") != 0 )
   {
     mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
+    $opt_skip_ndbcluster= 1;
+    $opt_skip_ndbcluster_slave= 1;
     $opt_with_ndbcluster= 0;
+    $opt_with_ndbcluster_slave= 0;
     return;
   }
+
   mtr_report("Using ndbcluster, mysqld supports it");
   $opt_with_ndbcluster= 1;
+  if ( $opt_ndbconnectstring )
+  {
+    $glob_use_running_ndbcluster= 1;
+  }
+  else
+  {
+    $opt_ndbconnectstring= "host=localhost:$opt_ndbcluster_port";
+  }
+
+  if ( $opt_skip_ndbcluster_slave )
+  {
+    $opt_with_ndbcluster_slave= 0;
+  }
+  else
+  {
+    $opt_with_ndbcluster_slave= 1;
+    if ( $opt_ndbconnectstring_slave )
+    {
+      $glob_use_running_ndbcluster_slave= 1;
+    }
+    else
+    {
+      $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
+    }
+  }
+
   return;
 }
 
@@ -1358,11 +1356,12 @@ sub ndbcluster_install () {
   {
     return 0;
   }
-  mtr_report("Install ndbcluster");
+  mtr_report("Installing ndbcluster master");
   my $ndbcluster_opts=  $opt_bench ? "" : "--small";
   if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 		["--port=$opt_ndbcluster_port",
 		 "--data-dir=$opt_vardir",
+		 "--verbose=2",
 		 $ndbcluster_opts,
 		 "--initial"],
 		"", "", "", "") )
@@ -1371,28 +1370,44 @@ sub ndbcluster_install () {
     return 1;
   }
 
+  $using_ndbcluster_master= 1;
   ndbcluster_stop();
   $master->[0]->{'ndbcluster'}= 1;
 
   return 0;
 }
 
-sub ndbcluster_start () {
+sub ndbcluster_start ($) {
+  my $use_ndbcluster= shift;
 
-  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  if ( ! $use_ndbcluster )
+  {
+    $using_ndbcluster_master= 0;
+    return 0;
+  }
+  if ( $glob_use_running_ndbcluster )
+  {
+    $using_ndbcluster_master= 1;
+    return 0;
+  }
+  if ( $using_ndbcluster_master )
   {
     return 0;
   }
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  #mtr_report("Starting ndbcluster master");
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
-		"--data-dir=$opt_vardir"],
+		"--data-dir=$opt_vardir",
+		"--verbose=2"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start");
+    $using_ndbcluster_master= 0;
     return 1;
   }
 
+  $using_ndbcluster_master= 1;
   return 0;
 }
 
@@ -1407,19 +1422,23 @@ sub rm_ndbcluster_tables ($) {
 
 sub ndbcluster_stop () {
 
-  if ( ! $opt_with_ndbcluster or $glob_use_running_ndbcluster )
+  if ( ! $using_ndbcluster_master or $glob_use_running_ndbcluster )
   {
+    $using_ndbcluster_master= 0;
     return;
   }
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  #mtr_report("Stopping ndbcluster master");
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--port=$opt_ndbcluster_port",
            "--data-dir=$opt_vardir",
+	   "--verbose=2",
            "--stop"],
           "", "/dev/null", "", "");
 
   rm_ndbcluster_tables ($master->[0]->{'path_myddir'});
   rm_ndbcluster_tables ($master->[1]->{'path_myddir'});
+  $using_ndbcluster_master= 0;
   return;
 }
 
@@ -1429,10 +1448,11 @@ sub ndbcluster_install_slave () {
   {
     return 0;
   }
-  mtr_report("Install ndbcluster slave");
+  mtr_report("Installing ndbcluster slave");
   if (  mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 		["--port=$opt_ndbcluster_port_slave",
 		 "--data-dir=$opt_vardir",
+		 "--verbose=2",
 		 "--small",
 		 "--ndbd-nodes=1",
 		 "--initial"],
@@ -1442,47 +1462,64 @@ sub ndbcluster_install_slave () {
     return 1;
   }
 
+  $using_ndbcluster_slave= 1;
   ndbcluster_stop_slave();
   $slave->[0]->{'ndbcluster'}= 1;
 
   return 0;
 }
 
-sub ndbcluster_start_slave () {
+sub ndbcluster_start_slave ($) {
+  my $use_ndbcluster= shift;
 
-  if ( ! $opt_with_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
+  if ( ! $use_ndbcluster )
   {
+    $using_ndbcluster_slave= 0;
     return 0;
   }
+  if ( $glob_use_running_ndbcluster_slave )
+  {
+    $using_ndbcluster_slave= 1;
+    return 0;
+  }
+
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  #mtr_report("Starting ndbcluster slave");
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port_slave",
 		"--data-dir=$opt_vardir",
+		"--verbose=2",
 		"--ndbd-nodes=1"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start_slave");
+    $using_ndbcluster_slave= 0;
     return 1;
   }
 
+  $using_ndbcluster_slave= 1;
   return 0;
 }
 
 sub ndbcluster_stop_slave () {
 
-  if ( ! $opt_with_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
+  if ( ! $using_ndbcluster_slave or $glob_use_running_ndbcluster_slave )
   {
+    $using_ndbcluster_slave= 0;
     return;
   }
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
+  #mtr_report("Stopping ndbcluster slave");
   mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
           ["--port=$opt_ndbcluster_port_slave",
            "--data-dir=$opt_vardir",
+	   "--verbose=2",
            "--stop"],
           "", "/dev/null", "", "");
 
   rm_ndbcluster_tables ($slave->[0]->{'path_myddir'});
 
+  $using_ndbcluster_slave= 0;
   return;
 }
 
@@ -1500,7 +1537,8 @@ sub run_benchmarks ($) {
 
   if ( ! $glob_use_embedded_server and ! $opt_local_master )
   {
-    $master->[0]->{'pid'}= mysqld_start('master',0,[],[]);
+    $master->[0]->{'pid'}= mysqld_start('master',0,[],[],
+					$using_ndbcluster_master);
     if ( ! $master->[0]->{'pid'} )
     {
       mtr_error("Can't start the mysqld server");
@@ -1822,6 +1860,8 @@ sub run_testcase ($) {
 
   my $tname= $tinfo->{'name'};
 
+  my $ndbcluster_opt;
+
   mtr_tonewfile($opt_current_test,"$tname\n"); # Always tell where we are
 
   # output current test to ndbcluster log file to enable diagnostics
@@ -1855,7 +1895,8 @@ sub run_testcase ($) {
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
     if ( $tinfo->{'master_restart'} or
-         $master->[0]->{'running_master_is_special'} )
+         $master->[0]->{'running_master_is_special'} or
+         ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
     {
       stop_masters();
       $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
@@ -1906,7 +1947,7 @@ sub run_testcase ($) {
     {
       if ( $master->[0]->{'ndbcluster'} )
       {
-	$master->[0]->{'ndbcluster'}= ndbcluster_start();
+	$master->[0]->{'ndbcluster'}= ndbcluster_start($tinfo->{'ndb_test'});
         if ( $master->[0]->{'ndbcluster'} )
         {
           report_failure_and_restart($tinfo);
@@ -1918,17 +1959,19 @@ sub run_testcase ($) {
         # FIXME not correct location for do_before_start_master()
         do_before_start_master($tname,$tinfo->{'master_sh'});
         $master->[0]->{'pid'}=
-          mysqld_start('master',0,$tinfo->{'master_opt'},[]);
+          mysqld_start('master',0,$tinfo->{'master_opt'},[],
+		       $using_ndbcluster_master);
         if ( ! $master->[0]->{'pid'} )
         {
           report_failure_and_restart($tinfo);
           return;
         }
       }
-      if ( $opt_with_ndbcluster and ! $master->[1]->{'pid'} )
+      if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
         $master->[1]->{'pid'}=
-          mysqld_start('master',1,$tinfo->{'master_opt'},[]);
+          mysqld_start('master',1,$tinfo->{'master_opt'},[],
+		       $using_ndbcluster_master);
         if ( ! $master->[1]->{'pid'} )
         {
           report_failure_and_restart($tinfo);
@@ -1967,21 +2010,25 @@ sub run_testcase ($) {
       {
         if ( ! $slave->[$idx]->{'pid'} )
         {
+	  $ndbcluster_opt= 0;
           if ( $idx == 0)
 	  {
 	    if ( $slave->[0]->{'ndbcluster'} )
 	    {
-	      $slave->[0]->{'ndbcluster'}= ndbcluster_start_slave();
+	      $slave->[0]->{'ndbcluster'}=
+		ndbcluster_start_slave($tinfo->{'ndb_test'});
 	      if ( $slave->[0]->{'ndbcluster'} )
 	      {
 		report_failure_and_restart($tinfo);
 		return;
 	      }
 	    }
+	    $ndbcluster_opt= $using_ndbcluster_slave;
 	  }
           $slave->[$idx]->{'pid'}=
             mysqld_start('slave',$idx,
-                         $tinfo->{'slave_opt'}, $tinfo->{'slave_mi'});
+                         $tinfo->{'slave_opt'}, $tinfo->{'slave_mi'},
+			 $ndbcluster_opt);
           if ( ! $slave->[$idx]->{'pid'} )
           {
             report_failure_and_restart($tinfo);
@@ -2178,12 +2225,13 @@ sub do_before_start_slave ($$) {
   }
 }
 
-sub mysqld_arguments ($$$$$) {
+sub mysqld_arguments ($$$$$$) {
   my $args=              shift;
   my $type=              shift;        # master/slave/bootstrap
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
+  my $using_ndbcluster=  shift;
 
   my $sidx= "";                 # Index as string, 0 is empty string
   if ( $idx > 0 )
@@ -2246,7 +2294,7 @@ sub mysqld_arguments ($$$$$) {
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
-    if ( $opt_with_ndbcluster )
+    if ( $using_ndbcluster )
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
@@ -2313,7 +2361,7 @@ sub mysqld_arguments ($$$$$) {
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
-    if ( $idx == 0 and $opt_with_ndbcluster_slave )
+    if ( $idx == 0 and $using_ndbcluster_slave )
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
@@ -2423,11 +2471,12 @@ sub mysqld_arguments ($$$$$) {
 #
 ##############################################################################
 
-sub mysqld_start ($$$$) {
+sub mysqld_start ($$$$$) {
   my $type=              shift;        # master/slave/bootstrap
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
+  my $using_ndbcluster=  shift;
 
   my $args;                             # Arg vector
   my $exe;
@@ -2453,7 +2502,8 @@ sub mysqld_start ($$$$) {
     valgrind_arguments($args, \$exe);
   }
 
-  mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info);
+  mysqld_arguments($args,$type,$idx,$extra_opt,$slave_master_info,
+		   $using_ndbcluster);
 
   if ( $type eq 'master' )
   {
@@ -2885,7 +2935,7 @@ sub run_mysqltest ($) {
 
   if ( $glob_use_embedded_server )
   {
-    mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[]);
+    mysqld_arguments($args,'master',0,$tinfo->{'master_opt'},[],0);
   }
 
   # ----------------------------------------------------------------------
