@@ -216,3 +216,9 @@ show warnings;
 Level	Code	Message
 Error	1296	Got error 743 'Unsupported character set in table or index' from NDB
 Error	1005	Can't create table 'test.t1' (errno: 140)
+create table t1 (
+pk1 int primary key,
+b bit(32) not null
+) engine=ndbcluster;
+insert into t1 values (1,1);
+drop table t1;
