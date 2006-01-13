@@ -100,7 +100,7 @@ int myCreateEvent(Ndb* myNdb,
 int main(int argc, char** argv)
 {
   ndb_init();
-  bool sep = argc > 1 && strcmp(argv[1], "-s") == 0;
+  bool merge_events = argc > 1 && strcmp(argv[1], "-m") == 0;
 
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
@@ -157,7 +157,7 @@ int main(int argc, char** argv)
     printf("create EventOperation\n");
     if ((op = myNdb->createEventOperation(eventName)) == NULL)
       APIERROR(myNdb->getNdbError());
-    op->separateEvents(sep);
+    op->mergeEvents(merge_events);
 
     printf("get values\n");
     NdbRecAttr* recAttr[noEventColumnName];
