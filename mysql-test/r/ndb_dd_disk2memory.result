@@ -1,0 +1,308 @@
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+**** Test Setup Section ****
+CREATE LOGFILE GROUP log_group1
+ADD UNDOFILE './log_group1/undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE table_space1
+ADD DATAFILE './table_space1/datafile.dat'
+USE LOGFILE GROUP log_group1
+INITIAL_SIZE 12M
+ENGINE NDB;
+CREATE TABLE test.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+CREATE TABLE test.t2
+(pk2 INT NOT NULL PRIMARY KEY, b2 INT NOT NULL, c2 INT NOT NULL)
+ENGINE=NDB;
+
+**** Data load for first test ****
+INSERT INTO test.t1 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45),
+(46,46,46),(47,47,47),(48,48,48),(49,49,49),(50,50,50),
+(51,51,51),(52,52,52),(53,53,53),(54,54,54),(55,55,55),
+(56,56,56),(57,57,57),(58,58,58),(59,59,59),(60,60,60),
+(61,61,61),(62,62,62),(63,63,63),(64,64,64),(65,65,65),
+(66,66,66),(67,67,67),(68,68,68),(69,69,69),(70,70,70),
+(71,71,71),(72,72,72),(73,73,73),(74,74,74),(75,75,75);
+INSERT INTO test.t2 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45),
+(46,46,46),(47,47,47),(48,48,48),(49,49,49),(50,50,50),
+(51,51,51),(52,52,52),(53,53,53),(54,54,54),(55,55,55),
+(56,56,56),(57,57,57),(58,58,58),(59,59,59),(60,60,60),
+(61,61,61),(62,62,62),(63,63,63),(64,64,64),(65,65,65),
+(66,66,66),(67,67,67),(68,68,68),(69,69,69),(70,70,70),
+(71,71,71),(72,72,72),(73,73,73),(74,74,74),(75,75,75);
+
+*** Test 1 Section Begins ***
+SELECT COUNT(*) FROM test.t2 LEFT JOIN test.t1 ON pk2=pk1 WHERE b2 IN (4);
+COUNT(*)
+1
+SELECT * FROM test.t2 LEFT JOIN test.t1 ON pk2=pk1 WHERE b2 IN (4);
+pk2	b2	c2	pk1	b	c
+4	4	4	4	4	4
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 WHERE b IN (4);
+COUNT(*)
+1
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2 WHERE pk1 IN (75);
+COUNT(*)
+1
+SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
+b	c
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+40	40
+41	41
+42	42
+43	43
+44	44
+45	45
+46	46
+47	47
+48	48
+49	49
+50	50
+51	51
+52	52
+53	53
+54	54
+55	55
+56	56
+57	57
+58	58
+59	59
+60	60
+61	61
+62	62
+63	63
+64	64
+65	65
+66	66
+67	67
+68	68
+69	69
+70	70
+71	71
+72	72
+73	73
+74	74
+75	75
+
+*** Setup for test 2 ****
+DELETE FROM test.t1;
+INSERT INTO test.t1 VALUES
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
+(11,11,11),(12,12,12),(13,13,13),(14,14,14),(15,15,15),
+(16,16,16),(17,17,17),(18,18,18),(19,19,19),(20,20,20),
+(21,21,21),(22,22,22),(23,23,23),(24,24,24),(25,25,25),
+(26,26,26),(27,27,27),(28,28,28),(29,29,29),(30,30,30),
+(31,31,31),(32,32,32),(33,33,33),(34,34,34),(35,35,35),
+(36,36,36),(37,37,37),(38,38,38),(39,39,39),(40,40,40),
+(41,41,41),(42,42,42),(43,43,43),(44,44,44),(45,45,45);
+
+**** Test Section 2 ****
+SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
+b	c
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+21	21
+22	22
+23	23
+24	24
+25	25
+26	26
+27	27
+28	28
+29	29
+30	30
+31	31
+32	32
+33	33
+34	34
+35	35
+36	36
+37	37
+38	38
+39	39
+40	40
+41	41
+42	42
+43	43
+44	44
+45	45
+SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2;
+COUNT(*)
+45
+SELECT COUNT(*) FROM test.t1 RIGHT JOIN test.t2 ON b=b2;
+COUNT(*)
+75
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk2` int(11) NOT NULL,
+  `b2` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY  (`pk2`)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY  (`pk1`)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+SHOW CREATE TABLE test.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk2` int(11) NOT NULL,
+  `b2` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY  (`pk2`)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+ALTER TABLE test.t1 ENGINE=NDBCLUSTER;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY  (`pk1`)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+*** Setup for Test Section 3 ***
+CREATE TABLE test.t1 (
+usr_id INT unsigned NOT NULL,
+uniq_id INT unsigned NOT NULL AUTO_INCREMENT,
+start_num INT unsigned NOT NULL DEFAULT 1,
+increment INT unsigned NOT NULL DEFAULT 1,
+PRIMARY KEY (uniq_id),
+INDEX usr_uniq_idx (usr_id, uniq_id),
+INDEX uniq_usr_idx (uniq_id, usr_id))
+TABLESPACE table_space1 STORAGE DISK
+ENGINE=NDB;
+CREATE TABLE test.t2 (
+id INT unsigned NOT NULL DEFAULT 0,
+usr2_id INT unsigned NOT NULL DEFAULT 0,
+max INT unsigned NOT NULL DEFAULT 0,
+c_amount INT unsigned NOT NULL DEFAULT 0,
+d_max INT unsigned NOT NULL DEFAULT 0,
+d_num INT unsigned NOT NULL DEFAULT 0,
+orig_time INT unsigned NOT NULL DEFAULT 0,
+c_time INT unsigned NOT NULL DEFAULT 0,
+active ENUM ("no","yes") NOT NULL,
+PRIMARY KEY (id,usr2_id),
+INDEX id_idx (id),
+INDEX usr2_idx (usr2_id))
+ENGINE=NDB;
+INSERT INTO test.t1 VALUES (3,NULL,0,50),(3,NULL,0,200),(3,NULL,0,25),(3,NULL,0,84676),(3,NULL,0,235),(3,NULL,0,10),(3,NULL,0,3098),(3,NULL,0,2947),(3,NULL,0,8987),(3,NULL,0,8347654),(3,NULL,0,20398),(3,NULL,0,8976),(3,NULL,0,500),(3,NULL,0,198);
+
+**** Test Section 3 ****
+SELECT test.t1.usr_id,test.t1.uniq_id,test.t1.increment,
+test.t2.usr2_id,test.t2.c_amount,test.t2.max
+FROM test.t1
+LEFT JOIN test.t2 ON test.t2.id = test.t1.uniq_id
+WHERE test.t1.uniq_id = 4
+ORDER BY test.t2.c_amount;
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	NULL	NULL	NULL
+INSERT INTO test.t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
+INSERT INTO test.t2 VALUES (4,3,3000,6000,0,0,746584,837484,'yes');
+INSERT INTO test.t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
+SELECT test.t1.usr_id,test.t1.uniq_id,test.t1.increment,
+test.t2.usr2_id,test.t2.c_amount,test.t2.max
+FROM test.t1
+LEFT JOIN test.t2 ON test.t2.id = test.t1.uniq_id
+WHERE test.t1.uniq_id = 4
+ORDER BY test.t2.c_amount;
+usr_id	uniq_id	increment	usr2_id	c_amount	max
+3	4	84676	3	6000	3000
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+ALTER TABLESPACE table_space1
+DROP DATAFILE './table_space1/datafile.dat'
+ENGINE = NDB;
+DROP TABLESPACE table_space1
+ENGINE = NDB;
+DROP LOGFILE GROUP log_group1
+ENGINE =NDB;
