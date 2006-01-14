@@ -2751,7 +2751,6 @@ void Item_func_str_to_date::fix_length_and_dec()
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
   if (!args[1]->null_value && (const_item= args[1]->const_item()))
-  //if ((const_item= args[1]->const_item()) && !args[1]->null_value)
   {
     format= args[1]->val_str(&format_str);
     cached_format_type= get_date_time_result_type(format->ptr(),
