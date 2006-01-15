@@ -84,8 +84,6 @@ Pgman::Pgman(const Configuration & conf) :
   m_cleanup_ptr.i = RNIL;
 
   // should be a factor larger than number of pool pages
-  m_page_entry_pool.setSize(2000);
-  m_page_request_pool.setSize(10000);
   m_data_buffer_pool.setSize(1);
   m_page_hashlist.setSize(512);
   
@@ -115,6 +113,18 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  Uint64 page_buffer = 64*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
+  
+  if (page_buffer > 0)
+  {
+    page_buffer /= GLOBAL_PAGE_SIZE; // in pages
+    m_page_entry_pool.setSize(2*page_buffer);
+    m_page_request_pool.setSize(10000);
+    m_param.m_max_pages = page_buffer;
+    m_param.m_max_hot_pages = (page_buffer * 9) / 10;
+  }
+  
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;

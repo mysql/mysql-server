@@ -93,7 +93,6 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   
   subscriberPool.setSize(5);
-  m_global_page_pool.setSize(1024+256, true);
   
   const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
@@ -322,6 +321,17 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     theConfiguration.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  Uint64 page_buffer = 64*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
+  
+  page_buffer /= GLOBAL_PAGE_SIZE; // in pages
+  if (page_buffer > 0)
+  {
+    page_buffer += LGMAN_LOG_BUFFER;
+  }
+  page_buffer += LCP_RESTORE_BUFFER;
+  m_global_page_pool.setSize(page_buffer + 64, true);
+  
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
