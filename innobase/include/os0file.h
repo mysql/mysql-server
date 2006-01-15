@@ -86,9 +86,10 @@ log. */
 #define	OS_FILE_NOT_FOUND		71
 #define	OS_FILE_DISK_FULL		72
 #define	OS_FILE_ALREADY_EXISTS		73
-#define OS_FILE_AIO_RESOURCES_RESERVED	74	/* wait for OS aio resources
+#define	OS_FILE_PATH_ERROR		74
+#define	OS_FILE_AIO_RESOURCES_RESERVED	75	/* wait for OS aio resources
 						to become available again */
-#define	OS_FILE_ERROR_NOT_SPECIFIED	75
+#define	OS_FILE_ERROR_NOT_SPECIFIED	76
 
 /* Types for aio operations */
 #define OS_FILE_READ	10
