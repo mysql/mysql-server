@@ -2016,6 +2016,22 @@ get_innobase_type_from_mysql_type(
 }
 
 /***********************************************************************
+Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
+storage format. */
+inline
+void
+innobase_write_to_2_little_endian(
+/*==============================*/
+	byte*	buf,	/* in: where to store */
+	ulint	val)	/* in: value to write, must be < 64k */
+{
+	ut_a(val < 256 * 256);
+
+	buf[0] = (byte)(val & 0xFF);
+	buf[1] = (byte)(val / 256);
+}
+
+/***********************************************************************
 Stores a key value for a row to a buffer. */
 
 uint
@@ -2034,8 +2050,6 @@ ha_innobase::store_key_val_for_row(
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
-	ulint		blob_len;
-	byte*		blob_data;
 	ibool		is_null;
 
   	DBUG_ENTER("store_key_val_for_row");
@@ -2084,13 +2098,25 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
+			CHARSET_INFO*	cs;
+			ulint		key_len;
+			ulint		len;
+			ulint		true_len;
+			int		error=0;
+			ulint		blob_len;
+			byte*		blob_data;
+
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
+			key_len = key_part->length;
+
 		        if (is_null) {
-				 buff += key_part->length + 2;
+				 buff += key_len + 2;
 				 
 				 continue;
 			}
+
+			cs = field->charset();
 		    
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
@@ -2099,29 +2125,108 @@ ha_innobase::store_key_val_for_row(
 
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
-			if (blob_len > key_part->length) {
-			        blob_len = key_part->length;
+
+			true_len = blob_len;
+
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
+			
+			if (key_len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) blob_data,
+						(const char *) blob_data 
+							+ blob_len,
+						key_len / cs->mbmaxlen,
+						&error);
+			}
+
+			/* All indexes on BLOB and TEXT are column prefix
+			indexes, and we may need to truncate the data to be
+			stored in the key value: */
+
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
 			storage of the number is little-endian */
 
-			ut_a(blob_len < 256);
-			*((byte*)buff) = (byte)blob_len;
+			innobase_write_to_2_little_endian(
+					(byte*)buff, true_len);
 			buff += 2;
 
-			memcpy(buff, blob_data, blob_len);
+			memcpy(buff, blob_data, true_len);
 
-			buff += key_part->length;
+			/* Note that we always reserve the maximum possible
+			length of the BLOB prefix in the key value. */
+
+			buff += key_len;
 		} else {
+			/* Here we handle all other data types except the
+			true VARCHAR, BLOB and TEXT. Note that the column
+			value we store may be also in a column prefix
+			index. */
+
+			CHARSET_INFO*		cs;
+			ulint			true_len;
+			ulint			key_len;
+			const mysql_byte*	src_start;
+			int			error=0;
+			enum_field_types	real_type;
+
+			key_len = key_part->length;
+
 		        if (is_null) {
-				 buff += key_part->length;
+				 buff += key_len;
 				 
 				 continue;
 			}
-			memcpy(buff, record + key_part->offset,
-							key_part->length);
-			buff += key_part->length;
+
+			src_start = record + key_part->offset;
+			real_type = field->real_type();
+			true_len = key_len;
+
+			/* Character set for the field is defined only
+			to fields whose type is string and real field
+			type is not enum or set. For these fields check
+			if character set is multi byte. */
+
+			if (real_type != FIELD_TYPE_ENUM 
+				&& real_type != FIELD_TYPE_SET
+				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
+					|| mysql_type == MYSQL_TYPE_STRING)) {
+
+				cs = field->charset();
+
+				/* For multi byte character sets we need to 
+				calculate the true length of the key */
+
+				if (key_len > 0 && cs->mbmaxlen > 1) {
+
+					true_len = (ulint) 
+						cs->cset->well_formed_len(cs,
+							(const char *)src_start,
+							(const char *)src_start 
+								+ key_len,
+							key_len / cs->mbmaxlen,
+							&error);
+				}
+			}
+
+			memcpy(buff, src_start, true_len);
+			buff += true_len;
+
+			/* Pad the unused space with spaces. Note that no 
+			padding is ever needed for UCS-2 because in MySQL, 
+			all UCS2 characters are 2 bytes, as MySQL does not 
+			support surrogate pairs, which are needed to represent
+			characters in the range U+10000 to U+10FFFF. */
+
+			if (true_len < key_len) {
+				ulint pad_len = key_len - true_len;
+				memset(buff, ' ', pad_len);
+				buff += pad_len;
+			}
 		}
   	}
 
