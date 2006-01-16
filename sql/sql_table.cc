@@ -678,6 +678,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           if (!(sql_field->flags & NOT_NULL_FLAG))
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
+          sql_field->interval=          dup_field->interval;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
