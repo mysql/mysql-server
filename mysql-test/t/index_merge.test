@@ -327,3 +327,33 @@ set join_buffer_size= @save_join_buffer_size;
 
 drop table t0, t1, t2, t3, t4;
 
+# BUG#16166
+CREATE TABLE t1 (
+  cola char(3) not null, colb char(3) not null,  filler char(200),
+  key(cola), key(colb)
+);
+INSERT INTO t1 VALUES ('foo','bar', 'ZZ'),('fuz','baz', 'ZZ');
+
+--disable_query_log
+let $1=9;
+while ($1)
+{
+  eval INSERT INTO t1 SELECT * from t1 WHERE cola = 'foo';
+  dec $1;
+}
+
+let $1=13;
+while ($1)
+{
+  eval INSERT INTO t1 SELECT * from t1 WHERE cola <> 'foo';
+  dec $1;
+}
+
+--enable_query_log
+
+OPTIMIZE TABLE t1;
+select count(*) from t1;
+explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
+drop table t1;
+
