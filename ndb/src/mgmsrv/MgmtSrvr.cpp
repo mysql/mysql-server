@@ -60,6 +60,9 @@
 
 #include <SignalSender.hpp>
 
+extern bool g_StopServer;
+extern bool g_RestartServer;
+
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
 #define DEBUG(x) do ndbout << x << endl; while(0)
@@ -373,7 +376,8 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   _ownReference(0),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  m_event_listner(this)
+  m_event_listner(this),
+  m_local_mgm_handle(0)
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
@@ -541,6 +545,8 @@ MgmtSrvr::check_start()
 bool 
 MgmtSrvr::start(BaseString &error_string)
 {
+  int mgm_connect_result;
+
   DBUG_ENTER("MgmtSrvr::start");
   if (_props == NULL) {
     if (!check_start()) {
@@ -576,6 +582,13 @@ MgmtSrvr::start(BaseString &error_string)
     theFacade->stop_instance();
     theFacade = 0;
     DBUG_RETURN(false);
+  }
+
+  if((mgm_connect_result= connect_to_self()) < 0)
+  {
+    ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
+             mgm_connect_result);
+    ndbout_c("This is probably a bug.");
   }
 
   TransporterRegistry *reg = theFacade->get_registry();
@@ -835,9 +848,81 @@ MgmtSrvr::sendVersionReq(int v_nodeId, Uint32 &version, const char **address)
   return 0;
 }
 
+int MgmtSrvr::sendStopMgmd(NodeId nodeId,
+			   bool abort,
+			   bool stop,
+			   bool restart,
+			   bool nostart,
+			   bool initialStart)
+{
+  const char* hostname;
+  Uint32 port;
+  BaseString connect_string;
+
+  {
+    Guard g(m_configMutex);
+    {
+      ndb_mgm_configuration_iterator
+        iter(* _config->m_configValues, CFG_SECTION_NODE);
+
+      if(iter.first())                       return SEND_OR_RECEIVE_FAILED;
+      if(iter.find(CFG_NODE_ID, nodeId))     return SEND_OR_RECEIVE_FAILED;
+      if(iter.get(CFG_NODE_HOST, &hostname)) return SEND_OR_RECEIVE_FAILED;
+    }
+    {
+      ndb_mgm_configuration_iterator
+        iter(* _config->m_configValues, CFG_SECTION_NODE);
+
+      if(iter.first())                   return SEND_OR_RECEIVE_FAILED;
+      if(iter.find(CFG_NODE_ID, nodeId)) return SEND_OR_RECEIVE_FAILED;
+      if(iter.get(CFG_MGM_PORT, &port))  return SEND_OR_RECEIVE_FAILED;
+    }
+    if( strlen(hostname) == 0 )
+      return SEND_OR_RECEIVE_FAILED;
+  }
+  connect_string.assfmt("%s:%u",hostname,port);
+
+  DBUG_PRINT("info",("connect string: %s",connect_string.c_str()));
+
+  NdbMgmHandle h= ndb_mgm_create_handle();
+  if ( h && connect_string.length() > 0 )
+  {
+    ndb_mgm_set_connectstring(h,connect_string.c_str());
+    if(ndb_mgm_connect(h,1,0,0))
+    {
+      DBUG_PRINT("info",("failed ndb_mgm_connect"));
+      return SEND_OR_RECEIVE_FAILED;
+    }
+    if(!restart)
+    {
+      if(ndb_mgm_stop(h, 1, (const int*)&nodeId) < 0)
+      {
+        return SEND_OR_RECEIVE_FAILED;
+      }
+    }
+    else
+    {
+      int nodes[1];
+      nodes[0]= (int)nodeId;
+      if(ndb_mgm_restart2(h, 1, nodes, initialStart, nostart, abort) < 0)
+      {
+        return SEND_OR_RECEIVE_FAILED;
+      }
+    }
+  }
+  ndb_mgm_destroy_handle(&h);
+
+  return 0;
+}
+
 /*
  * Common method for handeling all STOP_REQ signalling that
  * is used by Stopping, Restarting and Single user commands
+ *
+ * In the event that we need to stop a mgmd, we create a mgm
+ * client connection to that mgmd and stop it that way.
+ * This allows us to stop mgm servers when there isn't any real
+ * distributed communication up.
  */
 
 int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
@@ -849,6 +934,8 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 			   bool nostart,
 			   bool initialStart)
 {
+  int error = 0;
+
   stoppedNodes.clear();
 
   SignalSender ss(theFacade);
@@ -887,18 +974,34 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
   NodeBitmask nodes;
   if (nodeId)
   {
+    if(nodeId==getOwnNodeId())
+    {
+      if(restart)
+        g_RestartServer= true;
+      g_StopServer= true;
+      return 0;
+    }
+    if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
     {
       int r;
-      if((r = okToSendTo(nodeId, true)) != 0)
-	return r;
-    }
-    {
+      if((r= okToSendTo(nodeId, true)) != 0)
+        return r;
       if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
 	return SEND_OR_RECEIVE_FAILED;
     }
+    else if(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
+    {
+      error= sendStopMgmd(nodeId, abort, stop, restart, nostart, initialStart);
+      if(error==0)
+        stoppedNodes.set(nodeId);
+      return error;
+    }
+    else
+      return WRONG_PROCESS_TYPE;
     nodes.set(nodeId);
   }
   else
+  {
     while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
     {
       if(okToSendTo(nodeId, true) == 0)
@@ -908,9 +1011,17 @@ int MgmtSrvr::sendSTOP_REQ(NodeId nodeId,
 	  nodes.set(nodeId);
       }
     }
+    nodeId= 0;
+    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM))
+    {
+      if(nodeId==getOwnNodeId())
+        continue;
+      if(sendStopMgmd(nodeId, abort, stop, restart, nostart, initialStart)==0)
+        stoppedNodes.set(nodeId);
+    }
+  }
 
   // now wait for the replies
-  int error = 0;
   while (!nodes.isclear())
   {
     SimpleSignal *signal = ss.waitFor();
@@ -2446,9 +2557,23 @@ void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
   }
 }
 
-int MgmtSrvr::set_connect_string(const char *str)
+int MgmtSrvr::connect_to_self(void)
 {
-  return ndb_mgm_set_connectstring(m_config_retriever->get_mgmHandle(),str);
+  int r= 0;
+  m_local_mgm_handle= ndb_mgm_create_handle();
+  snprintf(m_local_mgm_connect_string,sizeof(m_local_mgm_connect_string),
+           "localhost:%u",getPort());
+  ndb_mgm_set_connectstring(m_local_mgm_handle, m_local_mgm_connect_string);
+
+  if((r= ndb_mgm_connect(m_local_mgm_handle, 0, 0, 0)) < 0)
+  {
+    ndb_mgm_destroy_handle(&m_local_mgm_handle);
+    return r;
+  }
+  // TransporterRegistry now owns this NdbMgmHandle and will destroy it.
+  theFacade->get_registry()->set_mgm_handle(m_local_mgm_handle);
+
+  return 0;
 }
 
 

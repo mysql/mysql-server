@@ -2321,4 +2321,23 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   DBUG_RETURN(0);
 }
 
+extern "C"
+int ndb_mgm_end_session(NdbMgmHandle handle)
+{
+  DBUG_ENTER("ndb_mgm_end_session");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  SocketOutputStream s_output(handle->socket);
+  s_output.println("end session");
+  s_output.println("");
+
+  SocketInputStream in(handle->socket, handle->read_timeout);
+  char buf[32];
+
+  in.gets(buf, sizeof(buf));
+
+  DBUG_RETURN(0);
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;
