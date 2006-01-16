@@ -165,7 +165,7 @@ typedef struct st_my_ftb_param
 } MY_FTB_PARAM;
 
 
-static int ftb_query_add_word(void *param, byte *word, uint word_len,
+static int ftb_query_add_word(void *param, char *word, int word_len,
                               MYSQL_FTPARSER_BOOLEAN_INFO *info)
 {
   MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
@@ -264,13 +264,13 @@ static int ftb_query_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ftb_parse_query_internal(void *param, byte *query, uint len)
+static int ftb_parse_query_internal(void *param, char *query, int len)
 {
   MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
-  byte **start= &query;
-  byte *end= query + len;
+  char **start= &query;
+  char *end= query + len;
   FT_WORD w;
 
   info.prev= ' ';
@@ -571,7 +571,7 @@ typedef struct st_my_ftb_phrase_param
 } MY_FTB_PHRASE_PARAM;
 
 
-static int ftb_phrase_add_word(void *param, byte *word, uint word_len,
+static int ftb_phrase_add_word(void *param, char *word, int word_len,
     MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
@@ -601,11 +601,11 @@ static int ftb_phrase_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ftb_check_phrase_internal(void *param, byte *document, uint len)
+static int ftb_check_phrase_internal(void *param, char *document, int len)
 {
   FT_WORD word;
   MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
-  const byte *docend= document + len;
+  const char *docend= document + len;
   while (ft_simple_get_word(phrase_param->cs, &document, docend, &word, FALSE))
   {
     ftb_phrase_add_word(param, word.pos, word.len, 0);
@@ -812,7 +812,7 @@ typedef struct st_my_ftb_find_param
 } MY_FTB_FIND_PARAM;
 
 
-static int ftb_find_relevance_add_word(void *param, byte *word, uint len,
+static int ftb_find_relevance_add_word(void *param, char *word, int len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_FIND_PARAM *ftb_param= (MY_FTB_FIND_PARAM *)param;
@@ -845,10 +845,10 @@ static int ftb_find_relevance_add_word(void *param, byte *word, uint len,
 }
 
 
-static int ftb_find_relevance_parse(void *param, byte *doc, uint len)
+static int ftb_find_relevance_parse(void *param, char *doc, int len)
 {
   FT_INFO *ftb= ((MY_FTB_FIND_PARAM *)param)->ftb;
-  byte *end= doc + len;
+  char *end= doc + len;
   FT_WORD w;
   while (ft_simple_get_word(ftb->charset, &doc, end, &w, TRUE))
     ftb_find_relevance_add_word(param, w.pos, w.len, 0);
