@@ -2734,12 +2734,15 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
         field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
+      uint32 octet_max_length= field->max_length();
+      if (octet_max_length != (uint32) 4294967295U)
+        octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
-        (longlong) field->max_length() / field->charset()->mbminlen :
-        (longlong) field->max_length() / field->charset()->mbmaxlen;
+        (longlong) octet_max_length / field->charset()->mbminlen :
+        (longlong) octet_max_length / field->charset()->mbmaxlen;
       table->field[8]->store(char_max_len, TRUE);
       table->field[8]->set_notnull();
-      table->field[9]->store((longlong) field->max_length(), TRUE);
+      table->field[9]->store((longlong) octet_max_length, TRUE);
       table->field[9]->set_notnull();
     }
 

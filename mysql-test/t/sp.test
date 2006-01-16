@@ -1157,6 +1157,11 @@ drop function if exists f5|
 drop function if exists f6|
 drop function if exists f7|
 drop function if exists f8|
+drop function if exists f9|
+drop function if exists f10|
+drop function if exists f11|
+drop function if exists f12_1|
+drop function if exists f12_2|
 drop view if exists v0|
 drop view if exists v1|
 drop view if exists v2|
@@ -1233,8 +1238,6 @@ create function f7() returns int
   return (select sum(data) from t1 where data <= f1())|
 select f6()|
 select id, f6() from t1|
-
-# TODO Test temporary table handling
 
 #
 # Let us test how new locking work with views
@@ -1316,6 +1319,73 @@ select * from v1, t1|
 select f4()|
 unlock tables|
 
+# Tests for handling of temporary tables in functions.
+#
+# Unlike for permanent tables we should be able to create, use
+# and drop such tables in functions.
+# 
+# Simplest function using temporary table. It is also test case for bug 
+# #12198 "Temporary table aliasing does not work inside stored functions"
+create function f9() returns int
+begin
+  declare a, b int;
+  drop temporary table if exists t3;
+  create temporary table t3 (id int);
+  insert into t3 values (1), (2), (3);
+  set a:= (select count(*) from t3);
+  set b:= (select count(*) from t3 t3_alias);
+  return a + b;
+end|
+# This will emit warning as t3 was not existing before.
+select f9()|
+select f9() from t1 limit 1|
+
+# Function which uses both temporary and permanent tables.
+create function f10() returns int
+begin
+  drop temporary table if exists t3;
+  create temporary table t3 (id int);
+  insert into t3 select id from t4;
+  return (select count(*) from t3);
+end|
+# Check that we don't ignore completely tables used in function
+--error ER_NO_SUCH_TABLE
+select f10()|
+create table t4 as select 1 as id|
+select f10()|
+
+# Practical cases which we don't handle well (yet)
+#
+# Function which does not work because of well-known and documented
+# limitation of MySQL. We can't use the several instances of the
+# same temporary table in statement.
+create function f11() returns int
+begin
+  drop temporary table if exists t3;
+  create temporary table t3 (id int);
+  insert into t3 values (1), (2), (3);
+  return (select count(*) from t3 as a, t3 as b);
+end|
+--error ER_CANT_REOPEN_TABLE
+select f11()|
+--error ER_CANT_REOPEN_TABLE
+select f11() from t1|
+# We don't handle temporary tables used by nested functions well
+create function f12_1() returns int
+begin
+  drop temporary table if exists t3;
+  create temporary table t3 (id int);
+  insert into t3 values (1), (2), (3);
+  return f12_2();
+end|
+create function f12_2() returns int
+  return (select count(*) from t3)|
+# We need clean start to get error
+drop temporary table t3|
+--error ER_NO_SUCH_TABLE
+select f12_1()|
+--error ER_NO_SUCH_TABLE
+select f12_1() from t1 limit 1|
 
 # Cleanup
 drop function f0|
@@ -1327,11 +1397,17 @@ drop function f5|
 drop function f6|
 drop function f7|
 drop function f8|
+drop function f9|
+drop function f10|
+drop function f11|
+drop function f12_1|
+drop function f12_2|
 drop view v0|
 drop view v1|
 drop view v2|
 delete from t1 |
 delete from t2 |
+drop table t4|
 
 # End of non-bug tests
 

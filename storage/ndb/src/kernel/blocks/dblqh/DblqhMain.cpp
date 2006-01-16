@@ -771,10 +771,14 @@ void Dblqh::execREAD_NODESCONF(Signal* signal)
     jam();
     if (NodeBitmask::get(readNodes->allNodes, i)) {
       jam();
-      m_sr_nodes.set(i);
       cnodeData[ind]    = i;
       cnodeStatus[ind]  = NodeBitmask::get(readNodes->inactiveNodes, i);
       //readNodes->getVersionId(i, readNodes->theVersionIds) not used
+      if (!NodeBitmask::get(readNodes->inactiveNodes, i))
+      {
+	jam();
+	m_sr_nodes.set(i);
+      }
       ind++;
     }//if
   }//for
