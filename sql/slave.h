@@ -500,7 +500,7 @@ typedef struct st_table_rule_ent
 
 int init_slave();
 void init_slave_skip_errors(const char* arg);
-bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache);
+int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache);
 bool flush_relay_log_info(RELAY_LOG_INFO* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,

@@ -1266,12 +1266,13 @@ at offset %lu ; this could be a log format error or read error",
       }
       else if (buf[4] == ROTATE_EVENT)
       {
+        Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!Log_event::read_log_event(file, *description_event))
+        if (!(ev= Log_event::read_log_event(file, *description_event)))
           /* EOF can't be hit here normally, so it's a real error */
-          die("Could not read a Rotate_log_event event \
-at offset %lu ; this could be a log format error or read error",
-              tmp_pos);
+          die("Could not read a Rotate_log_event event at offset %lu ;"
+              " this could be a log format error or read error", tmp_pos);
+        delete ev;
       }
       else
         break;

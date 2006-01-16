@@ -38,8 +38,8 @@
 int unique_write_to_file(gptr key, element_count count, Unique *unique)
 {
   /*
-    Use unique->size (size of element stored in the tree) and not 
-    unique->tree.size_of_element. The latter is different from unique->size 
+    Use unique->size (size of element stored in the tree) and not
+    unique->tree.size_of_element. The latter is different from unique->size
     when tree implementation chooses to store pointer to key in TREE_ELEMENT
     (instead of storing the element itself there)
   */
@@ -63,27 +63,27 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 	    comp_func_fixed_arg);
   /* If the following fail's the next add will also fail */
   my_init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
-  /* 
+  /*
     If you change the following, change it in get_max_elements function, too.
   */
   max_elements= max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+size);
-  open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
-		   MYF(MY_WME));
+  VOID(open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
+		   MYF(MY_WME)));
 }
 
 
 /*
   Calculate log2(n!)
-  
+
   NOTES
     Stirling's approximate formula is used:
-          
-      n! ~= sqrt(2*M_PI*n) * (n/M_E)^n 
-   
+
+      n! ~= sqrt(2*M_PI*n) * (n/M_E)^n
+
     Derivation of formula used for calculations is as follows:
 
     log2(n!) = log(n!)/log(2) = log(sqrt(2*M_PI*n)*(n/M_E)^n) / log(2) =
-    
+
       = (log(2*M_PI*n)/2 + n*log(n/M_E)) / log(2).
 */
 
@@ -94,7 +94,7 @@ inline double log2_n_fact(double x)
 
 
 /*
-  Calculate cost of merge_buffers function call for given sequence of 
+  Calculate cost of merge_buffers function call for given sequence of
   input stream lengths and store the number of rows in result stream in *last.
 
   SYNOPSIS
@@ -103,21 +103,21 @@ inline double log2_n_fact(double x)
       elem_size   Size of element stored in buffer
       first       Pointer to first merged element size
       last        Pointer to last merged element size
-  
+
   RETURN
     Cost of merge_buffers operation in disk seeks.
-  
+
   NOTES
     It is assumed that no rows are eliminated during merge.
-    The cost is calculated as 
-    
+    The cost is calculated as
+
       cost(read_and_write) + cost(merge_comparisons).
-      
-    All bytes in the sequences is read and written back during merge so cost 
+
+    All bytes in the sequences is read and written back during merge so cost
     of disk io is 2*elem_size*total_buf_elems/IO_SIZE (2 is for read + write)
-     
+
     For comparisons cost calculations we assume that all merged sequences have
-    the same length, so each of total_buf_size elements will be added to a sort 
+    the same length, so each of total_buf_size elements will be added to a sort
     heap with (n_buffers-1) elements. This gives the comparison cost:
 
       total_buf_elems* log2(n_buffers) / TIME_FOR_COMPARE_ROWID;
@@ -125,16 +125,16 @@ inline double log2_n_fact(double x)
 
 static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
                                      uint *first, uint *last)
-{  
+{
   uint total_buf_elems= 0;
   for (uint *pbuf= first; pbuf <= last; pbuf++)
     total_buf_elems+= *pbuf;
   *last= total_buf_elems;
-  
+
   int n_buffers= last - first + 1;
 
   /* Using log2(n)=log(n)/log(2) formula */
-  return 2*((double)total_buf_elems*elem_size) / IO_SIZE + 
+  return 2*((double)total_buf_elems*elem_size) / IO_SIZE +
      total_buf_elems*log((double) n_buffers) / (TIME_FOR_COMPARE_ROWID * M_LN2);
 }
 
@@ -142,13 +142,13 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
 /*
   Calculate cost of merging buffers into one in Unique::get, i.e. calculate
   how long (in terms of disk seeks) the two calls
-    merge_many_buffs(...); 
-    merge_buffers(...); 
+    merge_many_buffs(...);
+    merge_buffers(...);
   will take.
 
   SYNOPSIS
     get_merge_many_buffs_cost()
-      buffer        buffer space for temporary data, at least 
+      buffer        buffer space for temporary data, at least
                     Unique::get_cost_calc_buff_size bytes
       maxbuffer     # of full buffers
       max_n_elems   # of elements in first maxbuffer buffers
@@ -156,12 +156,12 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
       elem_size     size of buffer element
 
   NOTES
-    maxbuffer+1 buffers are merged, where first maxbuffer buffers contain 
+    maxbuffer+1 buffers are merged, where first maxbuffer buffers contain
     max_n_elems elements each and last buffer contains last_n_elems elements.
 
     The current implementation does a dumb simulation of merge_many_buffs
     function actions.
-  
+
   RETURN
     Cost of merge in disk seeks.
 */
@@ -173,17 +173,17 @@ static double get_merge_many_buffs_cost(uint *buffer,
   register int i;
   double total_cost= 0.0;
   uint *buff_elems= buffer; /* #s of elements in each of merged sequences */
-   
-  /* 
+
+  /*
     Set initial state: first maxbuffer sequences contain max_n_elems elements
     each, last sequence contains last_n_elems elements.
   */
   for (i = 0; i < (int)maxbuffer; i++)
-    buff_elems[i]= max_n_elems;  
+    buff_elems[i]= max_n_elems;
   buff_elems[maxbuffer]= last_n_elems;
 
-  /* 
-    Do it exactly as merge_many_buff function does, calling 
+  /*
+    Do it exactly as merge_many_buff function does, calling
     get_merge_buffers_cost to get cost of merge_buffers.
   */
   if (maxbuffer >= MERGEBUFF2)
@@ -194,17 +194,17 @@ static double get_merge_many_buffs_cost(uint *buffer,
       for (i = 0; i <= (int) maxbuffer - MERGEBUFF*3/2; i += MERGEBUFF)
       {
         total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                           buff_elems + i, 
+                                           buff_elems + i,
                                            buff_elems + i + MERGEBUFF-1);
 	lastbuff++;
       }
       total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
-                                         buff_elems + i, 
+                                         buff_elems + i,
                                          buff_elems + maxbuffer);
       maxbuffer= lastbuff;
     }
   }
-  
+
   /* Simulate final merge_buff call. */
   total_cost += get_merge_buffers_cost(buff_elems, elem_size,
                                        buff_elems, buff_elems + maxbuffer);
@@ -213,7 +213,7 @@ static double get_merge_many_buffs_cost(uint *buffer,
 
 
 /*
-  Calculate cost of using Unique for processing nkeys elements of size 
+  Calculate cost of using Unique for processing nkeys elements of size
   key_size using max_in_memory_size memory.
 
   SYNOPSIS
@@ -223,12 +223,12 @@ static double get_merge_many_buffs_cost(uint *buffer,
       nkeys     #of elements in Unique
       key_size  size of each elements in bytes
       max_in_memory_size amount of memory Unique will be allowed to use
-  
+
   RETURN
     Cost in disk seeks.
-  
+
   NOTES
-    cost(using_unqiue) = 
+    cost(using_unqiue) =
       cost(create_trees) +  (see #1)
       cost(merge) +         (see #2)
       cost(read_result)     (see #3)
@@ -237,42 +237,42 @@ static double get_merge_many_buffs_cost(uint *buffer,
       For each Unique::put operation there will be 2*log2(n+1) elements
       comparisons, where n runs from 1 tree_size (we assume that all added
       elements are different). Together this gives:
-    
+
       n_compares = 2*(log2(2) + log2(3) + ... + log2(N+1)) = 2*log2((N+1)!)
-  
+
       then cost(tree_creation) = n_compares*ROWID_COMPARE_COST;
 
       Total cost of creating trees:
       (n_trees - 1)*max_size_tree_cost + non_max_size_tree_cost.
 
       Approximate value of log2(N!) is calculated by log2_n_fact function.
-    
+
     2. Cost of merging.
       If only one tree is created by Unique no merging will be necessary.
       Otherwise, we model execution of merge_many_buff function and count
-      #of merges. (The reason behind this is that number of buffers is small, 
-      while size of buffers is big and we don't want to loose precision with 
+      #of merges. (The reason behind this is that number of buffers is small,
+      while size of buffers is big and we don't want to loose precision with
       O(x)-style formula)
-  
+
     3. If only one tree is created by Unique no disk io will happen.
-      Otherwise, ceil(key_len*n_keys) disk seeks are necessary. We assume 
+      Otherwise, ceil(key_len*n_keys) disk seeks are necessary. We assume
       these will be random seeks.
 */
 
-double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size, 
+double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
                             ulong max_in_memory_size)
 {
   ulong max_elements_in_tree;
   ulong last_tree_elems;
   int   n_full_trees; /* number of trees in unique - 1 */
   double result;
-  
-  max_elements_in_tree= 
+
+  max_elements_in_tree=
     max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size);
 
   n_full_trees=    nkeys / max_elements_in_tree;
   last_tree_elems= nkeys % max_elements_in_tree;
-  
+
   /* Calculate cost of creating trees */
   result= 2*log2_n_fact(last_tree_elems + 1.0);
   if (n_full_trees)
@@ -285,13 +285,13 @@ double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
 
   if (!n_full_trees)
     return result;
-  
-  /* 
+
+  /*
     There is more then one tree and merging is necessary.
     First, add cost of writing all trees to disk, assuming that all disk
     writes are sequential.
   */
-  result += DISK_SEEK_BASE_COST * n_full_trees * 
+  result += DISK_SEEK_BASE_COST * n_full_trees *
               ceil(((double) key_size)*max_elements_in_tree / IO_SIZE);
   result += DISK_SEEK_BASE_COST * ceil(((double) key_size)*last_tree_elems / IO_SIZE);
 
@@ -303,8 +303,8 @@ double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
     return merge_cost;
 
   result += merge_cost;
-  /* 
-    Add cost of reading the resulting sequence, assuming there were no 
+  /*
+    Add cost of reading the resulting sequence, assuming there were no
     duplicate elements.
   */
   result += ceil((double)key_size*nkeys/IO_SIZE);
@@ -320,7 +320,7 @@ Unique::~Unique()
 }
 
 
-    /* Write tree to disk; clear tree */    
+    /* Write tree to disk; clear tree */
 bool Unique::flush()
 {
   BUFFPEK file_ptr;
@@ -359,7 +359,7 @@ Unique::reset()
   }
   elements= 0;
 }
-        
+
 /*
   The comparison function, passed to queue_init() in merge_walk() must
   use comparison function of Uniques::tree, but compare members of struct
@@ -386,7 +386,7 @@ C_MODE_END
 
 /*
   DESCRIPTION
-    Function is very similar to merge_buffers, but instead of writing sorted 
+    Function is very similar to merge_buffers, but instead of writing sorted
     unique keys to the output file, it invokes walk_action for each key.
     This saves I/O if you need to pass through all unique keys only once.
   SYNOPSIS
@@ -601,7 +601,7 @@ bool Unique::get(TABLE *table)
   bool error=1;
 
       /* Open cached file if it isn't open */
-  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE), 
+  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                 MYF(MY_ZEROFILL));
 
   if (!outfile || ! my_b_inited(outfile) &&
@@ -618,7 +618,7 @@ bool Unique::get(TABLE *table)
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
   sort_param.not_killable=1;
 
-  if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) * 
+  if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) *
 				       sort_param.sort_length,
 				       MYF(0))))
     return 1;
@@ -633,7 +633,7 @@ bool Unique::get(TABLE *table)
     goto err;
   if (merge_buffers(&sort_param, &file, outfile, sort_buffer, file_ptr,
 		    file_ptr, file_ptr+maxbuffer,0))
-    goto err;                                                                 
+    goto err;
   error=0;
 err:
   x_free((gptr) sort_buffer);
