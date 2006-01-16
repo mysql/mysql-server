@@ -1436,8 +1436,9 @@ trx_register_new_rec_lock() to store the information which new record locks
 really were set. This function removes a newly set lock under prebuilt->pcur,
 and also under prebuilt->clust_pcur. Currently, this is only used and tested
 in the case of an UPDATE or a DELETE statement, where the row lock is of the
-LOCK_X type.
-Thus, this implements a 'mini-rollback' that releases the latest record
+LOCK_X or LOCK_S type. 
+
+Thus, this implements a 'mini-rollback' that releases the latest record 
 locks we set. */
 
 int
@@ -1474,7 +1475,14 @@ row_unlock_for_mysql(
 
 	index = btr_pcur_get_btr_cur(pcur)->index;
 
-	if (index != NULL && trx_new_rec_locks_contain(trx, index)) {
+	if (UNIV_UNLIKELY(index == NULL)) {
+		fprintf(stderr,
+"InnoDB: Error: Index is not set for persistent cursor.\n");
+		ut_print_buf(stderr, (const byte*)pcur, sizeof(btr_pcur_t));
+		ut_error;
+	}
+
+	if (trx_new_rec_locks_contain(trx, index)) {
 
 		mtr_start(&mtr);
 			
@@ -1486,11 +1494,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 
@@ -1520,11 +1524,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(clust_pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 	}
