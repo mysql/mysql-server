@@ -75,3 +75,12 @@ partition by key (a)
 (partition x1);
 
 drop table t1;
+
+#
+# Bug# 15968 - crash when INSERT with f1 = -1 into partition by hash(f1)
+#
+CREATE TABLE t1 (f1 INTEGER, f2 char(20)) ENGINE = 'MYISAM' PARTITION BY HASH(f1) PARTITIONS 2;
+INSERT INTO t1 SET f1 = 0 - 1, f2 = '#######';
+select * from t1;
+drop table t1;
+
