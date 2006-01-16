@@ -266,7 +266,8 @@ int ha_myisam::dump(THD* thd, int fd)
 
   if (fd < 0)
   {
-    my_net_write(net, "", 0);
+    if (my_net_write(net, "", 0))
+      error = errno ? errno : EPIPE;
     net_flush(net);
   }
 
@@ -365,12 +366,14 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     {
       uint old_testflag=param.testflag;
       param.testflag|=T_MEDIUM;
-      init_io_cache(&param.read_cache, file->dfile,
-		    my_default_record_cache_size, READ_CACHE,
-		    share->pack.header_length, 1, MYF(MY_WME));
-      error |= chk_data_link(&param, file, param.testflag & T_EXTEND);
-      end_io_cache(&(param.read_cache));
-      param.testflag=old_testflag;
+      if (!(error= init_io_cache(&param.read_cache, file->dfile,
+                                 my_default_record_cache_size, READ_CACHE,
+                                 share->pack.header_length, 1, MYF(MY_WME))))
+      {
+        error= chk_data_link(&param, file, param.testflag & T_EXTEND);
+        end_io_cache(&(param.read_cache));
+      }
+      param.testflag= old_testflag;
     }
   }
   if (!error)
