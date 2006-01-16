@@ -267,6 +267,7 @@ EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
 USE_NDBCLUSTER_SLAVE=@USE_NDBCLUSTER@
+USE_NDBCLUSTER_ALL=0
 USE_RUNNING_NDBCLUSTER=""
 USE_RUNNING_NDBCLUSTER_SLAVE=""
 NDB_EXTRA_TEST=0
@@ -336,6 +337,10 @@ while test $# -gt 0; do
       USE_NDBCLUSTER="--ndbcluster" ;;
     --with-ndbcluster-slave)
       USE_NDBCLUSTER_SLAVE="--ndbcluster" ;;
+    --with-ndbcluster-all)
+      USE_NDBCLUSTER="--ndbcluster"
+      USE_NDBCLUSTER_SLAVE="--ndbcluster"
+      USE_NDBCLUSTER_ALL=1 ;;
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
@@ -1742,6 +1747,9 @@ run_testcase ()
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0 \& \( $tname : federated \) = 0`
  NDBCLUSTER_TEST=`$EXPR \( $tname : '.*ndb.*' \) != 0`
+ if [ "x$USE_NDBCLUSTER_ALL" = "x1" ] ; then
+   NDBCLUSTER_TEST=1
+ fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
