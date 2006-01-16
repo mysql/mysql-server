@@ -31,7 +31,7 @@
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
 
-#define PAGES (4*32)
+#define PAGES LCP_RESTORE_BUFFER
 
 Restore::Restore(const Configuration & conf) :
   SimulatedBlock(RESTORE, conf),

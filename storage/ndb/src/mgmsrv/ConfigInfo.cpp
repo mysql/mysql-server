@@ -761,6 +761,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)},
 
   {
+    CFG_DB_DISK_PAGE_BUFFER_MEMORY,
+    "DiskPageBufferMemory",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN_PRINT" node allocated for disk page buffer cache",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "64M",
+    "4M",
+    "1024G" },
+  
+  {
     CFG_DB_START_PARTIAL_TIMEOUT,
     "StartPartialTimeout",
     DB_TOKEN,

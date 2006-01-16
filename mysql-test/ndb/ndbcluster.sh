@@ -58,6 +58,7 @@ ndb_no_attr=2048
 ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
+ndb_pbmem=32M
 
 VERBOSE=100
 NDB_MGM_EXTRA_OPTS=
@@ -90,6 +91,7 @@ while test $# -gt 0; do
      ndb_con_op=5000
      ndb_dmem=10M
      ndb_imem=1M
+     ndb_pbmem=4M
      ;;
     --diskless)
      ndb_diskless=1
@@ -206,6 +208,7 @@ if [ $initial_ndb ] ; then
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
+    -e s,"CHOOSE_DiskPageBufferMemory","$ndb_pbmem",g \
     < "$config_ini" \
     > "$fs_ndb/config.ini"
 fi

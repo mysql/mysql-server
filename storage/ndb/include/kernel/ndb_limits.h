@@ -141,4 +141,16 @@
  */
 #define NDB_SECTION_SEGMENT_SZ 60
 
+/*
+ * Restore Buffer in pages
+ *   4M
+ */
+#define LCP_RESTORE_BUFFER (4*32)
+
+/*
+ * Log buffer pages
+ *   8M
+ */
+#define LGMAN_LOG_BUFFER (8*32)
+
 #endif
