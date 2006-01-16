@@ -6710,13 +6710,13 @@ join_table:
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
+            YYERROR_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
           }
           expr
 	  {
-            YYERROR_UNLESS($1 && $5);
             add_join_on($5,$8);
             Lex->pop_context();
             $5->outer_join|=JOIN_TYPE_LEFT;
@@ -6741,6 +6741,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
+            YYERROR_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -6748,7 +6749,6 @@ join_table:
           expr
           {
 	    LEX *lex= Lex;
-            YYERROR_UNLESS($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
             add_join_on($$, $8);
