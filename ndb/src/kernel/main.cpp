@@ -307,8 +307,11 @@ int main(int argc, char** argv)
     /**
      * We no longer need the mgm connection in this process
      * (as we are the angel, not ndb)
+     *
+     * We don't want to purge any allocated resources (nodeid), so
+     * we set that option to false
      */
-    theConfig->closeConfiguration();
+    theConfig->closeConfiguration(false);
 
     int status = 0, error_exit = 0, signum = 0;
     while(waitpid(child, &status, 0) != child);

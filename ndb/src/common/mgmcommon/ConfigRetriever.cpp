@@ -52,6 +52,7 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
   m_version = version;
   m_node_type = node_type;
   _ownNodeId= 0;
+  m_end_session= true;
 
   m_handle= ndb_mgm_create_handle();
 
@@ -73,6 +74,8 @@ ConfigRetriever::~ConfigRetriever()
 {
   DBUG_ENTER("ConfigRetriever::~ConfigRetriever");
   if (m_handle) {
+    if(m_end_session)
+      ndb_mgm_end_session(m_handle);
     ndb_mgm_disconnect(m_handle);
     ndb_mgm_destroy_handle(&m_handle);
   }
