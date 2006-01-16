@@ -1218,7 +1218,7 @@ innobase_init(void)
 				"innobase_buffer_pool_size can't be over 4GB"
 				" on 32-bit systems");
 
-			DBUG_RETURN(0);
+			goto error;
 		}
 
 		if (innobase_log_file_size > UINT_MAX32) {
@@ -1226,7 +1226,7 @@ innobase_init(void)
 				"innobase_log_file_size can't be over 4GB"
 				" on 32-bit systems");
 
-			DBUG_RETURN(0);
+			goto error;
 		}
 	}
 
