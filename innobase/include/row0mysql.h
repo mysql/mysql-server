@@ -250,8 +250,9 @@ trx_register_new_rec_lock() to store the information which new record locks
 really were set. This function removes a newly set lock under prebuilt->pcur,
 and also under prebuilt->clust_pcur. Currently, this is only used and tested
 in the case of an UPDATE or a DELETE statement, where the row lock is of the
-LOCK_X type.
-Thus, this implements a 'mini-rollback' that releases the latest record
+LOCK_X or LOCK_S type. 
+
+Thus, this implements a 'mini-rollback' that releases the latest record 
 locks we set. */
 
 int
