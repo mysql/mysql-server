@@ -3262,6 +3262,10 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   case INSERT_ID_EVENT:
     msg="INSERT_ID";
     break;
+  case INVALID_INT_EVENT:
+  default: // cannot happen
+    msg="INVALID_INT";
+    break;
   }
   fprintf(file, "%s=%s;\n", msg, llstr(val,llbuff));
   fflush(file);

@@ -663,7 +663,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
    it's a keyword
   */
 
-  packet->reserve(length*2 + 2);
+  VOID(packet->reserve(length*2 + 2));
   quote_char= (char) q;
   packet->append(&quote_char, 1, system_charset_info);
 
@@ -950,13 +950,13 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       if (key_part->field)
         append_identifier(thd,packet,key_part->field->field_name,
 			  strlen(key_part->field->field_name));
-      if (!key_part->field ||
+      if (key_part->field &&
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & HA_FULLTEXT)))
       {
         buff[0] = '(';
-        char* end=int10_to_str((long) key_part->length / 
+        char* end=int10_to_str((long) key_part->length /
 			       key_part->field->charset()->mbmaxlen,
 			       buff + 1,10);
         *end++ = ')';
@@ -1732,7 +1732,8 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 {
   MEM_ROOT *mem= thd->mem_root;
   if (allocate_lex_string)
-    lex_str= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
+    if (!(lex_str= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING))))
+      return 0;
   lex_str->str= strmake_root(mem, str, length);
   lex_str->length= length;
   return lex_str;
@@ -2949,7 +2950,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
       /*
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
         rather than in SHOW KEYS
-      */ 
+      */
       if (!tables->view)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      thd->net.last_errno, thd->net.last_error);
@@ -2962,7 +2963,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
-    show_table->file->info(HA_STATUS_VARIABLE | 
+    show_table->file->info(HA_STATUS_VARIABLE |
                            HA_STATUS_NO_LOCK |
                            HA_STATUS_TIME);
     for (uint i=0 ; i < show_table->s->keys ; i++,key_info++)
@@ -2974,7 +2975,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
         restore_record(table, s->default_values);
         table->field[1]->store(base_name, strlen(base_name), cs);
         table->field[2]->store(file_name, strlen(file_name), cs);
-        table->field[3]->store((longlong) ((key_info->flags & 
+        table->field[3]->store((longlong) ((key_info->flags &
                                             HA_NOSAME) ? 0 : 1), TRUE);
         table->field[4]->store(base_name, strlen(base_name), cs);
         table->field[5]->store(key_info->name, strlen(key_info->name), cs);
@@ -2997,12 +2998,12 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
           table->field[9]->store((longlong) records, TRUE);
           table->field[9]->set_notnull();
         }
-        if (!(key_info->flags & HA_FULLTEXT) && 
-            (!key_part->field ||
-             key_part->length != 
+        if (!(key_info->flags & HA_FULLTEXT) &&
+            (key_part->field &&
+             key_part->length !=
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
-          table->field[10]->store((longlong) key_part->length / 
+          table->field[10]->store((longlong) key_part->length /
                                   key_part->field->charset()->mbmaxlen);
           table->field[10]->set_notnull();
         }

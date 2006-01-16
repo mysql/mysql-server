@@ -669,7 +669,8 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
 
   DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
 
-  bitmap_init(&used_fields, used_fields_buff, used_fields_buff_size * 8, 0);
+  VOID(bitmap_init(&used_fields, used_fields_buff, used_fields_buff_size * 8,
+                   0));
   bitmap_clear_all(&used_fields);
 
   view->contain_auto_increment= 0;
