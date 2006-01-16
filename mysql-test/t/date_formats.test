@@ -274,5 +274,5 @@ drop table t1;
 #
 select str_to_date( 1, NULL );
 select str_to_date( NULL, 1 );
-
+select str_to_date( 1, IF(1=1,NULL,NULL) );
 # End of 4.1 tests
