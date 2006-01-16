@@ -64,3 +64,9 @@ primary key(a,b))
 partition by key (a)
 (partition x1);
 drop table t1;
+CREATE TABLE t1 (f1 INTEGER, f2 char(20)) ENGINE = 'MYISAM' PARTITION BY HASH(f1) PARTITIONS 2;
+INSERT INTO t1 SET f1 = 0 - 1, f2 = '#######';
+select * from t1;
+f1	f2
+-1	#######
+drop table t1;
