@@ -5230,7 +5230,9 @@ end|
 call bug14498_1()|
 call bug14498_2()|
 call bug14498_3()|
-# QQ We can't call this at the moment, due to a known bug (BUG#14643)
+# We couldn't call this before, due to a known bug (BUG#14643)
+# QQ We still can't since the new set_case_expr instruction breaks
+#    the semantics of case; it won't crash, but will get the wrong result.
 #call bug14498_4()|
 call bug14498_5()|
 
