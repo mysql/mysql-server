@@ -938,11 +938,14 @@ sub executable_setup () {
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
                                            "$glob_basedir/bin");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+      $exe_my_print_defaults=
+	mtr_exe_exists("$path_client_bindir/my_print_defaults");
     }
     else
     {
@@ -953,6 +956,8 @@ sub executable_setup () {
 
       $exe_im= mtr_exe_exists(
         "$glob_basedir/server-tools/instance-manager/mysqlmanager");
+      $exe_my_print_defaults=
+	mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
     }
 
     if ( $glob_use_embedded_server )
@@ -991,8 +996,6 @@ sub executable_setup () {
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
-    $exe_my_print_defaults=
-      mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
   }
