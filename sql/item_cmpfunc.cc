@@ -3765,6 +3765,7 @@ void Item_equal::update_used_tables()
 
 longlong Item_equal::val_int()
 {
+  Item_field *item_field;
   if (cond_false)
     return 0;
   List_iterator_fast<Item_field> it(fields);
@@ -3772,10 +3773,14 @@ longlong Item_equal::val_int()
   if ((null_value= item->null_value))
     return 0;
   eval_item->store_value(item);
-  while ((item= it++))
+  while ((item_field= it++))
   {
-    if ((null_value= item->null_value) || eval_item->cmp(item))
-      return 0;
+    /* Skip fields of non-const tables. They haven't been read yet */
+    if (item_field->field->table->const_table)
+    {
+      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+        return 0;
+    }
   }
   return 1;
 }
