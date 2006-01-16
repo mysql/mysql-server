@@ -57,7 +57,7 @@ make
 cp extra/comp_err extra/comp_err.linux
 cp libmysql/conf_to_src libmysql/conf_to_src.linux
 #cp libmysql_r/conf_to_src libmysql_r/conf_to_src.linux
-cp sql/gen_lex_hash sql/gen_lex_hash.linux
+cp sql/.libs/gen_lex_hash sql/gen_lex_hash.linux
 cp strings/conf_to_src strings/conf_to_src.linux
 
 # Delete mysql_version.h
