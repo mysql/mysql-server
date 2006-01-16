@@ -542,6 +542,7 @@ static char *parse_default_language(char *str)
     fprintf(stderr,
 	    "Unexpected EOL: No short language name after the keyword\n");
     DBUG_RETURN(0);
+  }
 
   /* reading the short language tag */
   if (!(slang= get_word(&str)))
@@ -877,7 +878,7 @@ static void usage(void)
   print_version();
   printf("This software comes with ABSOLUTELY NO WARRANTY. "
          "This is free software,\n"
-	 "and you are welcome to modify and redistribute it under the GPL license.\n"
+         "and you are welcome to modify and redistribute it under the GPL license.\n"
          "Usage:\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
