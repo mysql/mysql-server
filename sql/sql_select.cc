@@ -3508,13 +3508,32 @@ best_access_path(JOIN      *join,
     parts of the row from any of the used index.
     This is because table scans uses index and we would not win
     anything by using a table scan.
+
+    A word for word translation of the below if-statement in psergey's
+    understanding: we check if we should use table scan if:
+    (1) The found 'ref' access produces more records than a table scan
+        (or index scan, or quick select), or 'ref' is more expensive than
+        any of them.
+    (2) This doesn't hold: the best way to perform table scan is to to perform
+        'range' access using index IDX, and the best way to perform 'ref' 
+        access is to use the same index IDX, with the same or more key parts.
+        (note: it is not clear how this rule is/should be extended to 
+        index_merge quick selects)
+    (3) See above note about InnoDB.
+    (4) NOT ("FORCE INDEX(...)" is used for table and there is 'ref' access
+             path, but there is no quick select)
+        If the condition in the above brackets holds, then the only possible
+        "table scan" access method is ALL/index (there is no quick select).
+        Since we have a 'ref' access path, and FORCE INDEX instructs us to
+        choose it over ALL/index, there is no need to consider a full table
+        scan.
   */
-  if ((records >= s->found_records || best > s->read_time) &&
-      !(s->quick && best_key && s->quick->index == best_key->key &&
-        best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
-      !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-        ! s->table->used_keys.is_clear_all() && best_key) &&
-      !(s->table->force_index && best_key))
+  if ((records >= s->found_records || best > s->read_time) &&            // (1)
+      !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
+        best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&// (2)
+      !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&      // (3)
+        ! s->table->used_keys.is_clear_all() && best_key) &&             // (3)
+      !(s->table->force_index && best_key && !s->quick))                 // (4)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*
@@ -4497,13 +4516,15 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	parts of the row from any of the used index.
 	This is because table scans uses index and we would not win
 	anything by using a table scan.
+        (see comment in best_access_path() for more details on the below
+         condition)
       */
       if ((records >= s->found_records || best > s->read_time) &&
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
 	    ! s->table->used_keys.is_clear_all() && best_key) &&
-	  !(s->table->force_index && best_key))
+	  !(s->table->force_index && best_key && !s->quick))
       {						// Check full join
         ha_rows rnd_records= s->found_records;
         /*
@@ -8651,6 +8672,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         have null
       */
       hidden_null_count=null_count;
+      /*
+	We need to update hidden_field_count as we may have stored group
+	functions with constant arguments
+      */
+      param->hidden_field_count= (uint) (reg_field - table->field);
       null_count= 0;
     }
   }
@@ -8872,7 +8898,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct)
+  if (distinct && field_count != param->hidden_field_count)
   {
     /*
       Create an unique key or an unique constraint over all columns
@@ -9938,6 +9964,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   int error;
   READ_RECORD *info;
 
+  join_tab->table->null_row= 0;
   if (!join_tab->cache.records)
     return NESTED_LOOP_OK;                      /* Nothing to do */
   if (skip_last)

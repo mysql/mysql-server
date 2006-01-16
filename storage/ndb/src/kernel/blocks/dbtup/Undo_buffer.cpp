@@ -25,12 +25,13 @@
 struct UndoPage
 {
   File_formats::Page_header m_page_header;
+  Uint32 _tupdata1;
   Uint32 m_state; // Used by buddy alg
   Uint32 m_words_used;
   Uint32 m_ref_count;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-3-(sizeof(File_formats::Page_header)>>2)];
+  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-4-(sizeof(File_formats::Page_header)>>2)];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-3-(sizeof(File_formats::Page_header)>>2) );
+  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-4-(sizeof(File_formats::Page_header)>>2) );
 };
 
 Undo_buffer::Undo_buffer(Dbtup* tup)

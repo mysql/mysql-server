@@ -363,4 +363,12 @@ INSERT INTO t1 VALUES('test\'s');
 SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 DROP TABLE t1;
 
+#
+# BUG#13835: max key length is 1000 bytes when trying to create
+#            a fulltext index
+#
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 # End of 4.1 tests

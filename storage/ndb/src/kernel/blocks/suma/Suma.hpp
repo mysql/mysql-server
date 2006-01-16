@@ -557,7 +557,11 @@ private:
   
   struct Buffer_page 
   {
-    STATIC_CONST( DATA_WORDS = 8192 - 5);
+    STATIC_CONST( DATA_WORDS = 8192 - 9);
+    Uint32 _tupdata1;
+    Uint32 _tupdata2;
+    Uint32 _tupdata3;
+    Uint32 _tupdata4;
     Uint32 m_page_state;     // Used by TUP buddy algorithm
     Uint32 m_page_chunk_ptr_i;
     Uint32 m_next_page;      
