@@ -732,7 +732,13 @@ public:
      * @see NdbDictionary::Table::getLogging.
      */
     void setLogging(bool); 
-   
+  
+    /**
+     * Set/Get Linear Hash Flag
+     */ 
+    void setLinearFlag(Uint32 flag);
+    bool getLinearFlag() const;
+
     /**
      * Set fragment count
      */
@@ -799,13 +805,13 @@ public:
      * number of partitions).
      */
     void setMaxRows(Uint64 maxRows);
-    Uint64 getMaxRows();
+    Uint64 getMaxRows() const;
 
     /**
      * Set/Get indicator if default number of partitions is used in table.
      */
     void setDefaultNoPartitionsFlag(Uint32 indicator);
-    Uint32 getDefaultNoPartitionsFlag();
+    Uint32 getDefaultNoPartitionsFlag() const;
    
     /**
      * Get object id
@@ -830,7 +836,7 @@ public:
      */
     void setTablespaceNames(const void* data, Uint32 len);
     const void *getTablespaceNames();
-    Uint32 getTablespaceNamesLen();
+    Uint32 getTablespaceNamesLen() const;
 
     /**
      * Set tablespace information per fragment
