@@ -13,7 +13,7 @@ Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
   `fid` int(11) default NULL,
   `g` point default NULL
-) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	YES		NULL	
@@ -471,7 +471,7 @@ Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
   `fid` int(11) default NULL,
   `g` point default NULL
-) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	YES		NULL	

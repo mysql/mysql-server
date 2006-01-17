@@ -76,11 +76,16 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     BLOB tables use the same fragmentation as the original table
     but may change the fragment type if it is UserDefined since it
     must be hash based so that the kernel can handle it on its own.
+    It also uses the same tablespaces and it never uses any range or
+    list arrays.
   */
   bt.m_primaryTableId = t->m_id;
+  bt.m_fd.clear();
+  bt.m_ts.clear();
+  bt.m_range.clear();
+  bt.setFragmentCount(t->getFragmentCount());
   bt.m_tablespace_id = t->m_tablespace_id;
   bt.m_tablespace_version = t->m_tablespace_version;
-  bt.m_ng.clear();
   switch (t->getFragmentType())
   {
     case NdbDictionary::Object::FragAllSmall:

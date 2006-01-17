@@ -80,3 +80,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY  USING HASH (`a`,`b`,`c`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
 DROP TABLE t1;
+CREATE TABLE t1 (a int not null primary key)
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+drop table t1;
+CREATE TABLE t1 (a int not null primary key);
+ALTER TABLE t1
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+drop table t1;
