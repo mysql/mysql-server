@@ -80,10 +80,12 @@ typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
 typedef enum {
   NSS_INITIAL= 0,
-  NSS_DROPPED
+  NSS_DROPPED,
+  NSS_ALTERED 
 } NDB_SHARE_STATE;
 
 typedef struct st_ndbcluster_share {
+  NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
   THR_LOCK lock;
   pthread_mutex_t mutex;
@@ -97,7 +99,6 @@ typedef struct st_ndbcluster_share {
   char *table_name;
 #ifdef HAVE_NDB_BINLOG
   uint32 flags;
-  NDB_SHARE_STATE state;
   NdbEventOperation *op;
   NdbEventOperation *op_old; // for rename table
   char *old_names; // for rename table
@@ -579,6 +580,7 @@ class ha_ndbcluster: public handler
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
+  int create_handler_files(const char *file);
   int get_default_no_partitions(ulonglong max_rows);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
@@ -669,6 +671,7 @@ private:
   int create_index(const char *name, KEY *key_info, 
                    NDB_INDEX_TYPE idx_type, uint idx_no);
   int drop_ndb_index(const char *name);
+  int table_changed(const void *pack_frm_data, uint pack_frm_len);
 // Index list management
   int create_indexes(Ndb *ndb, TABLE *tab);
   void clear_index(int i);
