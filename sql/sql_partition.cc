@@ -1269,6 +1269,11 @@ static void check_fields_in_PF(Field **ptr, bool *all_fields,
 
   *all_fields= TRUE;
   *some_fields= FALSE;
+  if ((!ptr) || !(*ptr))
+  {
+    *all_fields= FALSE;
+    DBUG_VOID_RETURN;
+  }
   do
   {
   /* Check if the field of the PF is part of the current key investigated */
