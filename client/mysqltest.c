@@ -2143,19 +2143,8 @@ int connect_n_handle_errors(struct st_query *q, MYSQL* con, const char* host,
     *create_conn= 0;
     goto err;
   }
-  else
-  {
-    handle_no_error(q);
 
-    /*
-      Fail if there was no error but we expected it.
-      We also don't want to have connection in this case.
-    */
-    mysql_close(con);
-    *create_conn= 0;
-    error= 1;
-    goto err;
-  }
+  handle_no_error(q);
 
   /*
    TODO: change this to 0 in future versions, but the 'kill' test relies on

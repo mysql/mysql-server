@@ -5175,8 +5175,8 @@ ER_SP_WRONG_NO_OF_FETCH_ARGS
 	eng "Incorrect number of FETCH variables"
 	ger "Falsche Anzahl von FETCH-Variablen"
 ER_SP_FETCH_NO_DATA 02000 
-	eng "No data to FETCH"
-	ger "Keine Daten mit FETCH abzuholen"
+	eng "No data - zero rows fetched, selected, or processed"
+	ger "Keine Daten - null Zeilen geholt (fetch), ausgewählt oder verarbeitet"
 ER_SP_DUP_PARAM 42000 
 	eng "Duplicate parameter: %s"
 	ger "Doppelter Parameter: %s"
