@@ -562,3 +562,7 @@ desc t1;
 Field	Type	Null	Key	Default	Extra
 mycol	int(10)	NO		0	
 drop table t1;
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;
