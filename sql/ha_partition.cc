@@ -1543,6 +1543,7 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
 {
   uint reorg_part= 0;
   int result= 0;
+  longlong func_value;
   DBUG_ENTER("ha_partition::copy_partitions");
 
   while (reorg_part < m_reorged_parts)
@@ -1568,7 +1569,8 @@ int ha_partition::copy_partitions(ulonglong *copied, ulonglong *deleted)
         break;
       }
       /* Found record to insert into new handler */
-      if (m_part_info->get_partition_id(m_part_info, &new_part))
+      if (m_part_info->get_partition_id(m_part_info, &new_part,
+                                        &func_value))
       {
         /*
            This record is in the original table but will not be in the new
@@ -2593,6 +2595,7 @@ int ha_partition::write_row(byte * buf)
 {
   uint32 part_id;
   int error;
+  longlong func_value;
 #ifdef NOT_NEEDED
   byte *rec0= m_rec0;
 #endif
@@ -2602,12 +2605,14 @@ int ha_partition::write_row(byte * buf)
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
 #endif
-    error= m_part_info->get_partition_id(m_part_info, &part_id);
+    error= m_part_info->get_partition_id(m_part_info, &part_id,
+                                         &func_value);
 #ifdef NOT_NEEDED
   else
   {
     set_field_ptr(m_part_field_array, buf, rec0);
-    error= m_part_info->get_partition_id(m_part_info, &part_id);
+    error= m_part_info->get_partition_id(m_part_info, &part_id,
+                                         &func_value);
     set_field_ptr(m_part_field_array, rec0, buf);
   }
 #endif
@@ -2654,10 +2659,12 @@ int ha_partition::update_row(const byte *old_data, byte *new_data)
 {
   uint32 new_part_id, old_part_id;
   int error;
+  longlong func_value;
   DBUG_ENTER("ha_partition::update_row");
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
-                                  m_part_info, &old_part_id, &new_part_id)))
+                                   m_part_info, &old_part_id, &new_part_id,
+                                   &func_value)))
   {
     DBUG_RETURN(error);
   }

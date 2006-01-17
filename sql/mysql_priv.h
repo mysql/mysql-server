@@ -1086,10 +1086,6 @@ typedef struct st_lock_param_type
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);
-int packfrm(const void *data, uint len, 
-            const void **pack_data, uint *pack_len);
-int unpackfrm(const void **unpack_data, uint *unpack_len,
-              const void *pack_data);
 #define WFRM_INITIAL_WRITE 1
 #define WFRM_CREATE_HANDLER_FILES 2
 #define WFRM_PACK_FRM 4

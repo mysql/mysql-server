@@ -19,12 +19,15 @@
 
 #include "consumer.hpp"
 
+bool map_nodegroups(Uint16 *ng_array, Uint32 no_parts);
+
 struct restore_callback_t {
   class BackupRestore *restore;
   class TupleS tup;
   class NdbTransaction *connection;
   int    retries;
   int error_code;
+  Uint32 fragId;
   restore_callback_t *next;
 };
 
@@ -32,10 +35,14 @@ struct restore_callback_t {
 class BackupRestore : public BackupConsumer 
 {
 public:
-  BackupRestore(Uint32 parallelism=1) 
+  BackupRestore(NODE_GROUP_MAP *ng_map,
+                uint ng_map_len,
+                Uint32 parallelism=1)
   {
     m_ndb = 0;
     m_cluster_connection = 0;
+    m_nodegroup_map = ng_map;
+    m_nodegroup_map_len = ng_map_len;
     m_logCount = m_dataCount = 0;
     m_restore = false;
     m_restore_meta = false;
@@ -54,7 +61,7 @@ public:
   virtual bool object(Uint32 type, const void* ptr);
   virtual bool table(const TableS &);
   virtual bool endOfTables();
-  virtual void tuple(const TupleS &);
+  virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
   virtual void cback(int result, restore_callback_t *cb);
@@ -66,6 +73,15 @@ public:
   virtual bool finalize_table(const TableS &);
   virtual bool update_apply_status(const RestoreMetaData &metaData);
   void connectToMysql();
+  bool map_in_frm(char *new_data, const char *data,
+                  uint data_len, uint *new_data_len);
+  bool search_replace(char *search_str, char **new_data,
+                      const char **data, const char *end_data,
+                      uint *new_data_len);
+  bool map_nodegroups(Uint16 *ng_array, Uint32 no_parts);
+  Uint32 map_ng(Uint32 ng);
+  bool translate_frm(NdbDictionary::Table *table);
+   
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   bool m_restore;

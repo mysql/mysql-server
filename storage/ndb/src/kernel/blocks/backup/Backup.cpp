@@ -4082,6 +4082,7 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
 
   const Uint32 gci = trg->getGCI();
   const Uint32 trI = trg->getTriggerId();
+  const Uint32 fragId = trg->fragId;
 
   TriggerPtr trigPtr;
   c_triggerPool.getPtr(trigPtr, trI);
@@ -4095,6 +4096,7 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
 
   ndbrequire(trigPtr.p->logEntry != 0);
   Uint32 len = trigPtr.p->logEntry->Length;
+  trigPtr.p->logEntry->FragId = htonl(fragId);
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
@@ -4104,7 +4106,7 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     
     trigPtr.p->logEntry->TriggerEvent = htonl(trigPtr.p->event | 0x10000);
     trigPtr.p->logEntry->Data[len] = htonl(gci);
-    len ++;
+    len++;
     ptr.p->currGCP = gci;
   }//if
   

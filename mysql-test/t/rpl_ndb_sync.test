@@ -25,8 +25,8 @@ SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
 
 # take a backup on master
---exec $NDB_MGM --no-defaults --ndb-connectstring=localhost:$NDBCLUSTER_PORT -e "start backup" >> $NDB_TOOLS_OUTPUT
---exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults --ndb-connectstring=localhost:$NDBCLUSTER_PORT -d sys -D , SYSTAB_0 | grep 520093696 > var/tmp.dat
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > var/tmp.dat
 CREATE TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT);
 DELETE FROM cluster_replication.backup_info;
 LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
