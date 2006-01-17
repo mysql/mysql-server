@@ -910,7 +910,13 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "source var/tmp/con.sql;" | $MYSQL_TEST 2>&1
 
-
+# connect when "disable_abort_on_error" caused "connection not found"
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--disable_abort_on_error
+connect (con1,localhost,root,,);
+connection default;
+connection con1;
+--enable_abort_on_error
 
 # ----------------------------------------------------------------------------
 # Test mysqltest arguments
