@@ -5942,21 +5942,19 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   if (table)
   {
-    int tmp;
+    int tmp, new_errno= 0;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
       DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
     if ((tmp=table->file->ha_index_or_rnd_end()))
     {
       DBUG_PRINT("error",("ha_index_or_rnd_end() failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
-    if (error == -1)
-      table->file->print_error(my_errno,MYF(0));
+    if (new_errno)
+      table->file->print_error(new_errno,MYF(0));
   }
 #ifndef DBUG_OFF
   if (error)
