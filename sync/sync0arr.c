@@ -908,7 +908,11 @@ sync_array_signal_object(
 /**************************************************************************
 If the wakeup algorithm does not work perfectly at semaphore relases,
 this function will do the waking (see the comment in mutex_exit). This
-function should be called about every 1 second in the server. */
+function should be called about every 1 second in the server.
+
+Note that there's a race condition between this thread and mutex_exit
+changing the lock_word and calling signal_object, so sometimes this finds
+threads to wake up even when nothing has gone wrong. */
 
 void
 sync_arr_wake_threads_if_sema_free(void)
@@ -938,11 +942,6 @@ sync_arr_wake_threads_if_sema_free(void)
                         count++;
 
                         if (sync_arr_cell_can_wake_up(cell)) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-    "  InnoDB: warning: sync_arr_wake_threads_if_sema_free()\n"
-    "InnoDB: found a thread to wake up.\n");
-				
                         	sync_cell_event_set(cell);
 
 				ut_a(arr->n_reserved > 0);
