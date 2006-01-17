@@ -12,8 +12,8 @@ TARGETDIR=../storage/innobase
 rm -fr "$TARGETDIR"
 mkdir "$TARGETDIR"
 
-# copy the build script
-cp compile-innodb-debug ../BUILD
+# copy the build scripts
+cp compile-innodb* ../BUILD
 
 # create the directories
 for dir in */
