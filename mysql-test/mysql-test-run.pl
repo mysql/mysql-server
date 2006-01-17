@@ -1118,6 +1118,9 @@ sub environment_setup () {
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
+  $ENV{'NDBCLUSTER_PORT_SLAVE'}=$opt_ndbcluster_port_slave;
+
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
@@ -1142,7 +1145,8 @@ sub environment_setup () {
   print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
-  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
+  print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
   print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
   print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
 }
