@@ -2733,7 +2733,7 @@ my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    *(unsigned long *) value= stmt->update_max_length;
+    *(my_bool*) value= stmt->update_max_length;
     break;
   default:
     return TRUE;
