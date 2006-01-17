@@ -113,6 +113,7 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */
+#define NSF_NO_BINLOG 4 /* table should not be binlogged */
 #endif
 
 typedef enum ndb_item_type {
