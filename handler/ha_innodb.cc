@@ -1001,9 +1001,9 @@ innobase_query_caching_of_table_permitted(
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
 
-		mutex_enter(&kernel_mutex);
+		mutex_enter_noninline(&kernel_mutex);
 		trx_print(stderr, trx, 1024);
-		mutex_exit(&kernel_mutex);
+		mutex_exit_noninline(&kernel_mutex);
 		ut_error;
 	}
 
