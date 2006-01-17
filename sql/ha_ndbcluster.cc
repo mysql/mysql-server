@@ -1688,7 +1688,9 @@ int ha_ndbcluster::peek_row(const byte *record)
   {
     uint32 part_id;
     int error;
-    if ((error= m_part_info->get_partition_id(m_part_info, &part_id)))
+    longlong func_value;
+    if ((error= m_part_info->get_partition_id(m_part_info, &part_id,
+                                              &func_value)))
     {
       DBUG_RETURN(error);
     }
@@ -2146,10 +2148,10 @@ int ha_ndbcluster::write_row(byte *record)
   NdbOperation *op;
   int res;
   THD *thd= current_thd;
+  longlong func_value= 0;
+  DBUG_ENTER("ha_ndbcluster::write_row");
+
   m_write_op= TRUE;
-
-  DBUG_ENTER("write_row");
-
   if (!m_use_write && m_ignore_dup_key && table_share->primary_key != MAX_KEY)
   {
     int peek_res= peek_row(record);
@@ -2179,7 +2181,8 @@ int ha_ndbcluster::write_row(byte *record)
   {
     uint32 part_id;
     int error;
-    if ((error= m_part_info->get_partition_id(m_part_info, &part_id)))
+    if ((error= m_part_info->get_partition_id(m_part_info, &part_id,
+                                              &func_value)))
     {
       DBUG_RETURN(error);
     }
@@ -2233,6 +2236,22 @@ int ha_ndbcluster::write_row(byte *record)
       m_skip_auto_increment= TRUE;
       ERR_RETURN(op->getNdbError());
     }
+  }
+
+  if (m_use_partition_function)
+  {
+    /*
+      We need to set the value of the partition function value in
+      NDB since the NDB kernel doesn't have easy access to the function
+      to calculate the value.
+    */
+    if (func_value >= INT_MAX32)
+      func_value= INT_MAX32;
+    uint32 part_func_value= (uint32)func_value;
+    uint no_fields= table_share->fields;
+    if (table_share->primary_key == MAX_KEY)
+      no_fields++;
+    op->setValue(no_fields, part_func_value);
   }
 
   m_rows_changed++;
@@ -2346,6 +2365,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   uint i;
   uint32 old_part_id= 0, new_part_id= 0;
   int error;
+  longlong func_value;
   DBUG_ENTER("update_row");
   m_write_op= TRUE;
   
@@ -2358,7 +2378,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 
   if (m_use_partition_function &&
       (error= get_parts_for_update(old_data, new_data, table->record[0],
-                                   m_part_info, &old_part_id, &new_part_id)))
+                                   m_part_info, &old_part_id, &new_part_id,
+                                   &func_value)))
   {
     DBUG_RETURN(error);
   }
@@ -2474,6 +2495,16 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       ERR_RETURN(op->getNdbError());
   }
 
+  if (m_use_partition_function)
+  {
+    if (func_value >= INT_MAX32)
+      func_value= INT_MAX32;
+    uint32 part_func_value= (uint32)func_value;
+    uint no_fields= table_share->fields;
+    if (table_share->primary_key == MAX_KEY)
+      no_fields++;
+    op->setValue(no_fields, part_func_value);
+  }
   // Execute update operation
   if (!cursor && execute_no_commit(this,trans) != 0) {
     no_uncommitted_rows_execute_failure();
@@ -4143,7 +4174,7 @@ int ha_ndbcluster::create(const char *name,
     tab.addColumn(col);
     pk_length += 2;
   }
-  
+ 
   // Make sure that blob tables don't have to big part size
   for (i= 0; i < form->s->fields; i++) 
   {
@@ -8871,11 +8902,16 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
   for (i= 0; i < part_info->no_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
-    if (range_val < INT_MIN32 || range_val > INT_MAX32)
+    if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
-      my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-      error= 1;
-      goto error;
+      if ((i != part_info->no_parts - 1) ||
+          (range_val != LONGLONG_MAX))
+      {
+        my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
+        error= 1;
+        goto error;
+      }
+      range_val= INT_MAX32;
     }
     range_data[i]= (int32)range_val;
   }
@@ -8966,18 +9002,37 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       col->setPartitionKey(TRUE);
     }
   }
-  else if (part_info->part_type == RANGE_PARTITION)
+  else 
   {
-    if ((error= set_range_data((void*)tab, part_info)))
+    /*
+      Create a shadow field for those tables that have user defined
+      partitioning. This field stores the value of the partition
+      function such that NDB can handle reorganisations of the data
+      even when the MySQL Server isn't available to assist with
+      calculation of the partition function value.
+    */
+    NDBCOL col;
+    DBUG_PRINT("info", ("Generating partition func value field"));
+    col.setName("$PART_FUNC_VALUE");
+    col.setType(NdbDictionary::Column::Int);
+    col.setLength(1);
+    col.setNullable(FALSE);
+    col.setPrimaryKey(FALSE);
+    col.setAutoIncrement(FALSE);
+    tab->addColumn(col);
+    if (part_info->part_type == RANGE_PARTITION)
     {
-      DBUG_RETURN(error);
+      if ((error= set_range_data((void*)tab, part_info)))
+      {
+        DBUG_RETURN(error);
+      }
     }
-  }
-  else if (part_info->part_type == LIST_PARTITION)
-  {
-    if ((error= set_list_data((void*)tab, part_info)))
+    else if (part_info->part_type == LIST_PARTITION)
     {
-      DBUG_RETURN(error);
+      if ((error= set_list_data((void*)tab, part_info)))
+      {
+        DBUG_RETURN(error);
+      }
     }
   }
   tab->setFragmentType(ftype);
@@ -9012,6 +9067,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     first= FALSE;
   } while (++i < part_info->no_parts);
   tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
+  tab->setLinearFlag(part_info->linear_hash_ind);
   tab->setMaxRows(table->s->max_rows);
   tab->setTablespaceNames(ts_names, fd_index*sizeof(char*));
   tab->setFragmentCount(fd_index);
