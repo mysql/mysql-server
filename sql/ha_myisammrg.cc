@@ -64,6 +64,8 @@ handlerton myisammrg_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Partition flags */
+  NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   HTON_CAN_RECREATE
 };

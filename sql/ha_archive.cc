@@ -170,6 +170,8 @@ handlerton archive_hton = {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Partition flags */
+  NULL,    /* Alter table flags */
   NULL,    /* Alter interface */
   HTON_NO_FLAGS
 };

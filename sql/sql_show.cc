@@ -1243,8 +1243,8 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     char *part_syntax;
     if (table->part_info &&
         ((part_syntax= generate_partition_syntax(table->part_info,
-                                                 &part_syntax_len,
-                                                 FALSE,FALSE))))
+                                                  &part_syntax_len,
+                                                  FALSE,FALSE))))
     {
        packet->append(part_syntax, part_syntax_len);
        my_free(part_syntax, MYF(0));
