@@ -27,21 +27,6 @@ INCLUDES += \
               -Iblocks
 
 LDADD +=  \
-              blocks/cmvmi/libcmvmi.a \
-              blocks/dbacc/libdbacc.a \
-              blocks/dbdict/libdbdict.a \
-              blocks/dbdih/libdbdih.a \
-              blocks/dblqh/libdblqh.a \
-              blocks/dbtc/libdbtc.a \
-              blocks/dbtup/libdbtup.a \
-              blocks/ndbfs/libndbfs.a \
-              blocks/ndbcntr/libndbcntr.a \
-              blocks/qmgr/libqmgr.a \
-              blocks/trix/libtrix.a \
-              blocks/backup/libbackup.a \
-              blocks/dbutil/libdbutil.a \
-              blocks/suma/libsuma.a \
-              blocks/dbtux/libdbtux.a \
               blocks/libblocks.a \
               vm/libkernel.a	\
               error/liberror.a \
