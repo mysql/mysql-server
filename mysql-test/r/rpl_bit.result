@@ -65,36 +65,36 @@ oSupp	sSuppD	GSuppDf	VNotSupp	x034
 5	5	3	2	1
 5	5	3	2	1
 5	5	3	2	1
-SELECT hex(bit1) from test.t1;
+SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
 hex(bit1)
+0
+0
+0
+0
+0
+2A
 3F
 3F
-0
-2A
-0
-0
-0
-0
-SELECT hex(bit2) from test.t1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
 hex(bit2)
-3E
 0
+1
+1
+1
+1
 2A
+3E
 3F
-1
-1
-1
-1
-SELECT hex(bit3) from test.t1;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 hex(bit3)
-35
-24
-15
 0
 1
 1
 1
 1
+15
+24
+35
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 oSupp	sSuppD	GSuppDf	VNotSupp	x034
 5	5	3	2	1
@@ -105,34 +105,34 @@ oSupp	sSuppD	GSuppDf	VNotSupp	x034
 5	5	3	2	1
 5	5	3	2	1
 5	5	3	2	1
-SELECT hex(bit1) from test.t1;
+SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
 hex(bit1)
+0
+0
+0
+0
+0
+2A
 3F
 3F
-0
-2A
-0
-0
-0
-0
-SELECT hex(bit2) from test.t1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
 hex(bit2)
-3E
 0
+1
+1
+1
+1
 2A
+3E
 3F
-1
-1
-1
-1
-SELECT hex(bit3) from test.t1;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 hex(bit3)
-35
-24
-15
 0
 1
 1
 1
 1
+15
+24
+35
 DROP TABLE IF EXISTS test.t1;

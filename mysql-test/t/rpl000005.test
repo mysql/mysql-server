@@ -1,3 +1,8 @@
+####################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: Added order by in select
+####################
 source include/master-slave.inc;
 
 #
@@ -10,11 +15,11 @@ INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;
 INSERT into t1 SET name='Caleb', age=1;
 ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
-select * from t1;
+SELECT * FROM t1 ORDER BY id;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from t1;
+SELECT * FROM t1 ORDER BY id;
 connection master;
 drop table t1;
 save_master_pos;

@@ -24,59 +24,59 @@ insert into t1 values (@a),(@a);
 select * from t1 where n = '<nonexistant>';
 n
 insert into t1 values (@a),(@a),(@a*5);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
-12345678901234
+NULL
+NULL
+NULL
+NULL
+NULL
+
+-1
+-12.5
 -12345678901234
 0
--1
-12.5
--12.5
-This is a test
-
-abc'def
-abc\def
-abc'def
-NULL
-NULL
 0
 1
+12.5
+12345678901234
 2
 5
+5
+5
 abc
+abc'def
+abc'def
 abcn1
 abcn1n2
-5
-5
-NULL
-NULL
-NULL
-select * from t1;
+abc\def
+This is a test
+SELECT * FROM t1 ORDER BY n;
 n
-12345678901234
+NULL
+NULL
+NULL
+NULL
+NULL
+
+-1
+-12.5
 -12345678901234
 0
--1
-12.5
--12.5
-This is a test
-
-abc'def
-abc\def
-abc'def
-NULL
-NULL
 0
 1
+12.5
+12345678901234
 2
 5
+5
+5
 abc
+abc'def
+abc'def
 abcn1
 abcn1n2
-5
-5
-NULL
-NULL
-NULL
+abc\def
+This is a test
 drop table t1;
 stop slave;

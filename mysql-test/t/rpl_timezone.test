@@ -1,5 +1,10 @@
+#######################################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: Added order by
+#######################################
 # Test of replication of time zones.
-
+######################################
 # There is currently some bug possibly in prepared statements (this
 # test fails with --ps-protocol): sys_var_thd_time_zone::value_ptr()
 # is called only at prepare time, not at execution time. So,
@@ -32,10 +37,10 @@ select @@time_zone;
 #select @@time_zone;
 insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 #set time_zone='UTC';
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 
 # Let us check also that setting of time_zone back to default also works
 # well
@@ -43,10 +48,10 @@ connection master;
 delete from t1;
 set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 set time_zone='Europe/Moscow';
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 connection master;
 # Change Author: JBM
 # Change Date: 2005-12-22
@@ -60,10 +65,10 @@ connection master;
 delete from t1;
 set time_zone='UTC';
 load data infile '../../std_data/rpl_timezone2.dat' into table t1;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
 set time_zone='UTC';
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 set time_zone='Europe/Moscow';
 
 # Put back values of before the LOAD
@@ -79,9 +84,9 @@ insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 #
 set time_zone='MET';
 insert into t2 (select * from t1);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 
 #
 # Now let us check how well we replicate various CURRENT_* functions
@@ -91,7 +96,7 @@ delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
 sync_slave_with_master;
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 
 #
 # At last let us check replication of FROM_UNIXTIME/UNIX_TIMESTAMP functions.
@@ -100,10 +105,10 @@ connection master;
 delete from t2;
 insert into t2 values (from_unixtime(1000000000),NULL),
                       (unix_timestamp('2001-09-09 03:46:40'),NULL);
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 sync_slave_with_master;
 # We should get same result on slave as on master
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 
 #
 # Let us check that we are allowing to set global time_zone with
@@ -119,9 +124,9 @@ delete from t2;
 set time_zone='UTC';
 insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
 insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 sync_slave_with_master;
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 
 # Clean up
 connection master;

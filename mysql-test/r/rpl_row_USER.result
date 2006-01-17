@@ -19,13 +19,13 @@ INSERT INTO mysqltest1.t1 VALUES(3,USER());
 INSERT INTO mysqltest1.t1 VALUES(4,CURRENT_USER());
 end|
 CALL mysqltest1.p1();
-SELECT * FROM mysqltest1.t1;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	users
 1	tester@localhost
 2	@localhost
 3	tester@localhost
 4	@localhost
-SELECT * FROM mysqltest1.t1;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	users
 1	tester@localhost
 2	@localhost
