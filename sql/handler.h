@@ -695,7 +695,8 @@ typedef struct {
 class partition_info;
 
 typedef int (*get_part_id_func)(partition_info *part_info,
-                                 uint32 *part_id);
+                                 uint32 *part_id,
+                                 longlong *func_value);
 typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
 
 class partition_info :public Sql_alloc {
@@ -957,7 +958,8 @@ bool set_up_defaults_for_partitioning(partition_info *part_info,
 handler *get_ha_partition(partition_info *part_info);
 int get_parts_for_update(const byte *old_data, byte *new_data,
                          const byte *rec0, partition_info *part_info,
-                         uint32 *old_part_id, uint32 *new_part_id);
+                         uint32 *old_part_id, uint32 *new_part_id,
+                         longlong *func_value);
 int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,

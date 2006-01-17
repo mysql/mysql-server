@@ -63,33 +63,47 @@ static const char *comma_str= ",";
 static char buff[22];
 
 int get_partition_id_list(partition_info *part_info,
-                           uint32 *part_id);
+                           uint32 *part_id,
+                           longlong *func_value);
 int get_partition_id_range(partition_info *part_info,
-                            uint32 *part_id);
+                            uint32 *part_id,
+                            longlong *func_value);
 int get_partition_id_hash_nosub(partition_info *part_info,
-                                 uint32 *part_id);
+                                 uint32 *part_id,
+                                 longlong *func_value);
 int get_partition_id_key_nosub(partition_info *part_info,
-                                uint32 *part_id);
+                                uint32 *part_id,
+                                longlong *func_value);
 int get_partition_id_linear_hash_nosub(partition_info *part_info,
-                                        uint32 *part_id);
+                                        uint32 *part_id,
+                                        longlong *func_value);
 int get_partition_id_linear_key_nosub(partition_info *part_info,
-                                       uint32 *part_id);
+                                       uint32 *part_id,
+                                       longlong *func_value);
 int get_partition_id_range_sub_hash(partition_info *part_info,
-                                     uint32 *part_id);
+                                     uint32 *part_id,
+                                     longlong *func_value);
 int get_partition_id_range_sub_key(partition_info *part_info,
-                                    uint32 *part_id);
+                                    uint32 *part_id,
+                                    longlong *func_value);
 int get_partition_id_range_sub_linear_hash(partition_info *part_info,
-                                            uint32 *part_id);
+                                            uint32 *part_id,
+                                            longlong *func_value);
 int get_partition_id_range_sub_linear_key(partition_info *part_info,
-                                           uint32 *part_id);
+                                           uint32 *part_id,
+                                           longlong *func_value);
 int get_partition_id_list_sub_hash(partition_info *part_info,
-                                    uint32 *part_id);
+                                    uint32 *part_id,
+                                    longlong *func_value);
 int get_partition_id_list_sub_key(partition_info *part_info,
-                                   uint32 *part_id);
+                                   uint32 *part_id,
+                                   longlong *func_value);
 int get_partition_id_list_sub_linear_hash(partition_info *part_info,
-                                           uint32 *part_id);
+                                           uint32 *part_id,
+                                           longlong *func_value);
 int get_partition_id_list_sub_linear_key(partition_info *part_info,
-                                          uint32 *part_id);
+                                          uint32 *part_id,
+                                          longlong *func_value);
 uint32 get_partition_id_hash_sub(partition_info *part_info); 
 uint32 get_partition_id_key_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_hash_sub(partition_info *part_info); 
@@ -327,15 +341,18 @@ bool check_reorganise_list(partition_info *new_part_info,
 
 int get_parts_for_update(const byte *old_data, byte *new_data,
                          const byte *rec0, partition_info *part_info,
-                         uint32 *old_part_id, uint32 *new_part_id)
+                         uint32 *old_part_id, uint32 *new_part_id,
+                         longlong *new_func_value)
 {
   Field **part_field_array= part_info->full_part_field_array;
   int error;
+  longlong old_func_value;
   DBUG_ENTER("get_parts_for_update");
 
   DBUG_ASSERT(new_data == rec0);
   set_field_ptr(part_field_array, old_data, rec0);
-  error= part_info->get_partition_id(part_info, old_part_id);
+  error= part_info->get_partition_id(part_info, old_part_id,
+                                     &old_func_value);
   set_field_ptr(part_field_array, rec0, old_data);
   if (unlikely(error))                             // Should never happen
   {
@@ -346,7 +363,9 @@ int get_parts_for_update(const byte *old_data, byte *new_data,
   if (new_data == rec0)
 #endif
   {
-    if (unlikely(error= part_info->get_partition_id(part_info,new_part_id)))
+    if (unlikely(error= part_info->get_partition_id(part_info,
+                                                    new_part_id,
+                                                    new_func_value)))
     {
       DBUG_RETURN(error);
     }
@@ -360,7 +379,8 @@ int get_parts_for_update(const byte *old_data, byte *new_data,
       condition is false in one test situation before pushing the code.
     */
     set_field_ptr(part_field_array, new_data, rec0);
-    error= part_info->get_partition_id(part_info, new_part_id);
+    error= part_info->get_partition_id(part_info, new_part_id,
+                                       new_func_value);
     set_field_ptr(part_field_array, rec0, new_data);
     if (unlikely(error))
     {
@@ -397,11 +417,13 @@ int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id)
 {
   int error;
+  longlong func_value;
   DBUG_ENTER("get_part_for_delete");
 
   if (likely(buf == rec0))
   {
-    if (unlikely((error= part_info->get_partition_id(part_info, part_id))))
+    if (unlikely((error= part_info->get_partition_id(part_info, part_id,
+                                                     &func_value))))
     {
       DBUG_RETURN(error);
     }
@@ -411,7 +433,7 @@ int get_part_for_delete(const byte *buf, const byte *rec0,
   {
     Field **part_field_array= part_info->full_part_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    error= part_info->get_partition_id(part_info, part_id);
+    error= part_info->get_partition_id(part_info, part_id, &func_value);
     set_field_ptr(part_field_array, rec0, buf);
     if (unlikely(error))
     {
@@ -1897,7 +1919,7 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
   if (part_id >= no_parts)
   {
     uint new_mask= ((mask + 1) >> 1) - 1;
-    part_id= hash_value & new_mask;
+    part_id= (uint32)(hash_value & new_mask);
   }
   return part_id;
 }
@@ -2663,6 +2685,7 @@ static uint32 get_part_id_for_sub(uint32 loc_part_id, uint32 sub_part_id,
     get_part_id_hash()
     no_parts                 Number of hash partitions
     part_expr                Item tree of hash function
+    out:func_value      Value of hash function
 
   RETURN VALUE
     Calculated partition id
@@ -2670,10 +2693,12 @@ static uint32 get_part_id_for_sub(uint32 loc_part_id, uint32 sub_part_id,
 
 inline
 static uint32 get_part_id_hash(uint no_parts,
-                               Item *part_expr)
+                               Item *part_expr,
+                               longlong *func_value)
 {
   DBUG_ENTER("get_part_id_hash");
-  longlong int_hash_id= part_expr->val_int() % no_parts;
+  *func_value= part_expr->val_int();
+  longlong int_hash_id= *func_value % no_parts;
   DBUG_RETURN(int_hash_id < 0 ? -int_hash_id : int_hash_id);
 }
 
@@ -2687,6 +2712,7 @@ static uint32 get_part_id_hash(uint no_parts,
                         desired information is given
     no_parts            Number of hash partitions
     part_expr           Item tree of hash function
+    out:func_value      Value of hash function
 
   RETURN VALUE
     Calculated partition id
@@ -2695,11 +2721,13 @@ static uint32 get_part_id_hash(uint no_parts,
 inline
 static uint32 get_part_id_linear_hash(partition_info *part_info,
                                       uint no_parts,
-                                      Item *part_expr)
+                                      Item *part_expr,
+                                      longlong *func_value)
 {
   DBUG_ENTER("get_part_id_linear_hash");
 
-  DBUG_RETURN(get_part_id_from_linear_hash(part_expr->val_int(),
+  *func_value= part_expr->val_int();
+  DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            no_parts));
 }
@@ -2719,11 +2747,12 @@ static uint32 get_part_id_linear_hash(partition_info *part_info,
 
 inline
 static uint32 get_part_id_key(Field **field_array,
-                              uint no_parts)
+                              uint no_parts,
+                              longlong *func_value)
 {
   DBUG_ENTER("get_part_id_key");
-
-  DBUG_RETURN(calculate_key_value(field_array) % no_parts);
+  *func_value= calculate_key_value(field_array);
+  DBUG_RETURN(*func_value % no_parts);
 }
 
 
@@ -2744,11 +2773,13 @@ static uint32 get_part_id_key(Field **field_array,
 inline
 static uint32 get_part_id_linear_key(partition_info *part_info,
                                      Field **field_array,
-                                     uint no_parts)
+                                     uint no_parts,
+                                     longlong *func_value)
 {
   DBUG_ENTER("get_partition_id_linear_key");
 
-  DBUG_RETURN(get_part_id_from_linear_hash(calculate_key_value(field_array),
+  *func_value= calculate_key_value(field_array);
+  DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            no_parts));
 }
@@ -2825,7 +2856,8 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 
 
 int get_partition_id_list(partition_info *part_info,
-                          uint32 *part_id)
+                           uint32 *part_id,
+                           longlong *func_value)
 {
   LIST_PART_ENTRY *list_array= part_info->list_array;
   int list_index;
@@ -2835,6 +2867,7 @@ int get_partition_id_list(partition_info *part_info,
   longlong part_func_value= part_info->part_expr->val_int();
   DBUG_ENTER("get_partition_id_list");
 
+  *func_value= part_func_value;
   while (max_list_index >= min_list_index)
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -2933,7 +2966,8 @@ notfound:
 
 
 int get_partition_id_range(partition_info *part_info,
-                            uint32 *part_id)
+                            uint32 *part_id,
+                            longlong *func_value)
 {
   longlong *range_array= part_info->range_int_array;
   uint max_partition= part_info->no_parts - 1;
@@ -2956,6 +2990,7 @@ int get_partition_id_range(partition_info *part_info,
     if (loc_part_id != max_partition)
       loc_part_id++;
   *part_id= (uint32)loc_part_id;
+  *func_value= part_func_value;
   if (loc_part_id == max_partition)
     if (range_array[loc_part_id] != LONGLONG_MAX)
       if (part_func_value >= range_array[loc_part_id])
@@ -3047,192 +3082,229 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 
 
 int get_partition_id_hash_nosub(partition_info *part_info,
-                                 uint32 *part_id)
+                                 uint32 *part_id,
+                                 longlong *func_value)
 {
-  *part_id= get_part_id_hash(part_info->no_parts, part_info->part_expr);
+  *part_id= get_part_id_hash(part_info->no_parts, part_info->part_expr,
+                             func_value);
   return 0;
 }
 
 
 int get_partition_id_linear_hash_nosub(partition_info *part_info,
-                                        uint32 *part_id)
+                                        uint32 *part_id,
+                                        longlong *func_value)
 {
   *part_id= get_part_id_linear_hash(part_info, part_info->no_parts,
-                                    part_info->part_expr);
+                                    part_info->part_expr, func_value);
   return 0;
 }
 
 
 int get_partition_id_key_nosub(partition_info *part_info,
-                                uint32 *part_id)
+                                uint32 *part_id,
+                                longlong *func_value)
 {
-  *part_id= get_part_id_key(part_info->part_field_array, part_info->no_parts);
+  *part_id= get_part_id_key(part_info->part_field_array,
+                            part_info->no_parts, func_value);
   return 0;
 }
 
 
 int get_partition_id_linear_key_nosub(partition_info *part_info,
-                                       uint32 *part_id)
+                                       uint32 *part_id,
+                                       longlong *func_value)
 {
   *part_id= get_part_id_linear_key(part_info,
                                    part_info->part_field_array,
-                                   part_info->no_parts);
+                                   part_info->no_parts, func_value);
   return 0;
 }
 
 
 int get_partition_id_range_sub_hash(partition_info *part_info,
-                                     uint32 *part_id)
+                                     uint32 *part_id,
+                                     longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_hash");
 
-  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
+                                              func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
-  sub_part_id= get_part_id_hash(no_subparts, part_info->subpart_expr);
+  sub_part_id= get_part_id_hash(no_subparts, part_info->subpart_expr,
+                                &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_range_sub_linear_hash(partition_info *part_info,
-                                            uint32 *part_id)
+                                            uint32 *part_id,
+                                            longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_linear_hash");
 
-  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
+                                              func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
   sub_part_id= get_part_id_linear_hash(part_info, no_subparts,
-                                       part_info->subpart_expr);
+                                       part_info->subpart_expr,
+                                       &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_range_sub_key(partition_info *part_info,
-                                    uint32 *part_id)
+                                    uint32 *part_id,
+                                    longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_key");
 
-  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
+                                              func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
-  sub_part_id= get_part_id_key(part_info->subpart_field_array, no_subparts);
+  sub_part_id= get_part_id_key(part_info->subpart_field_array,
+                               no_subparts, &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_range_sub_linear_key(partition_info *part_info,
-                                           uint32 *part_id)
+                                           uint32 *part_id,
+                                           longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_linear_key");
 
-  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_range(part_info, &loc_part_id,
+                                              func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
   sub_part_id= get_part_id_linear_key(part_info,
                                       part_info->subpart_field_array,
-                                      no_subparts);
+                                      no_subparts, &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_list_sub_hash(partition_info *part_info,
-                                    uint32 *part_id)
+                                    uint32 *part_id,
+                                    longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_list_sub_hash");
 
-  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
+                                             func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
-  sub_part_id= get_part_id_hash(no_subparts, part_info->subpart_expr);
+  sub_part_id= get_part_id_hash(no_subparts, part_info->subpart_expr,
+                                &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_list_sub_linear_hash(partition_info *part_info,
-                                           uint32 *part_id)
+                                           uint32 *part_id,
+                                           longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_list_sub_linear_hash");
 
-  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
+                                             func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
-  sub_part_id= get_part_id_hash(no_subparts, part_info->subpart_expr);
+  sub_part_id= get_part_id_linear_hash(part_info, no_subparts,
+                                       part_info->subpart_expr,
+                                       &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_list_sub_key(partition_info *part_info,
-                                   uint32 *part_id)
+                                   uint32 *part_id,
+                                   longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_range_sub_key");
 
-  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
+                                             func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
-  sub_part_id= get_part_id_key(part_info->subpart_field_array, no_subparts);
+  sub_part_id= get_part_id_key(part_info->subpart_field_array,
+                               no_subparts, &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
 
 
 int get_partition_id_list_sub_linear_key(partition_info *part_info,
-                                          uint32 *part_id)
+                                          uint32 *part_id,
+                                          longlong *func_value)
 {
   uint32 loc_part_id, sub_part_id;
   uint no_subparts;
+  longlong local_func_value;
   int error;
   DBUG_ENTER("get_partition_id_list_sub_linear_key");
 
-  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id))))
+  if (unlikely((error= get_partition_id_list(part_info, &loc_part_id,
+                                             func_value))))
   {
     DBUG_RETURN(error);
   }
   no_subparts= part_info->no_subparts;
   sub_part_id= get_part_id_linear_key(part_info,
                                       part_info->subpart_field_array,
-                                      no_subparts);
+                                      no_subparts, &local_func_value);
   *part_id= get_part_id_for_sub(loc_part_id, sub_part_id, no_subparts);
   DBUG_RETURN(0);
 }
@@ -3264,29 +3336,34 @@ int get_partition_id_list_sub_linear_key(partition_info *part_info,
 
 uint32 get_partition_id_hash_sub(partition_info *part_info)
 {
-  return get_part_id_hash(part_info->no_subparts, part_info->subpart_expr);
+  longlong func_value;
+  return get_part_id_hash(part_info->no_subparts, part_info->subpart_expr,
+                          &func_value);
 }
 
 
 uint32 get_partition_id_linear_hash_sub(partition_info *part_info)
 {
+  longlong func_value;
   return get_part_id_linear_hash(part_info, part_info->no_subparts,
-                                 part_info->subpart_expr);
+                                 part_info->subpart_expr, &func_value);
 }
 
 
 uint32 get_partition_id_key_sub(partition_info *part_info)
 {
+  longlong func_value;
   return get_part_id_key(part_info->subpart_field_array,
-                         part_info->no_subparts);
+                         part_info->no_subparts, &func_value);
 }
 
 
 uint32 get_partition_id_linear_key_sub(partition_info *part_info)
 {
+  longlong func_value;
   return get_part_id_linear_key(part_info,
                                 part_info->subpart_field_array,
-                                part_info->no_subparts);
+                                part_info->no_subparts, &func_value);
 }
 
 
@@ -3433,16 +3510,19 @@ bool get_part_id_from_key(const TABLE *table, byte *buf, KEY *key_info,
   bool result;
   byte *rec0= table->record[0];
   partition_info *part_info= table->part_info;
+  longlong func_value;
   DBUG_ENTER("get_part_id_from_key");
 
   key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
-    result= part_info->get_part_partition_id(part_info, part_id);
+    result= part_info->get_part_partition_id(part_info, part_id,
+                                             &func_value);
   else
   {
     Field **part_field_array= part_info->part_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    result= part_info->get_part_partition_id(part_info, part_id);
+    result= part_info->get_part_partition_id(part_info, part_id,
+                                             &func_value);
     set_field_ptr(part_field_array, rec0, buf);
   }
   DBUG_RETURN(result);
@@ -3477,16 +3557,19 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
   bool result;
   partition_info *part_info= table->part_info;
   byte *rec0= table->record[0];
+  longlong func_value;
   DBUG_ENTER("get_full_part_id_from_key");
 
   key_restore(buf, (byte*)key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf))
-    result= part_info->get_partition_id(part_info, &part_spec->start_part);
+    result= part_info->get_partition_id(part_info, &part_spec->start_part,
+                                        &func_value);
   else
   {
     Field **part_field_array= part_info->full_part_field_array;
     set_field_ptr(part_field_array, buf, rec0);
-    result= part_info->get_partition_id(part_info, &part_spec->start_part);
+    result= part_info->get_partition_id(part_info, &part_spec->start_part,
+                                        &func_value);
     set_field_ptr(part_field_array, rec0, buf);
   }
   part_spec->end_part= part_spec->start_part;
@@ -3932,6 +4015,47 @@ static int fast_end_partition(THD *thd, ulonglong copied,
 
 
 /*
+  Check engine mix that it is correct
+  SYNOPSIS
+    check_engine_condition()
+    p_elem                   Partition element
+    default_engine           Have user specified engine on table level
+    inout::engine_type       Current engine used
+    inout::first             Is it first partition
+  RETURN VALUE
+    TRUE                     Failed check
+    FALSE                    Ok
+  DESCRIPTION
+    (specified partition handler ) specified table handler
+    (NDB, NDB) NDB           OK
+    (MYISAM, MYISAM) -       OK
+    (MYISAM, -)      -       NOT OK
+    (MYISAM, -)    MYISAM    OK
+    (- , MYISAM)   -         NOT OK
+    (- , -)        MYISAM    OK
+    (-,-)          -         OK
+    (NDB, MYISAM) *          NOT OK
+*/
+
+static bool check_engine_condition(partition_element *p_elem,
+                                   bool default_engine,
+                                   handlerton **engine_type,
+                                   bool *first)
+{
+  if (*first && default_engine)
+    *engine_type= p_elem->engine_type;
+  *first= FALSE;
+  if ((!default_engine &&
+      (p_elem->engine_type != *engine_type &&
+       !p_elem->engine_type)) ||
+      (default_engine &&
+       p_elem->engine_type != *engine_type))
+    return TRUE;
+  else
+    return FALSE;
+}
+
+/*
   We need to check if engine used by all partitions can handle
   partitioning natively.
 
@@ -3959,8 +4083,10 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   bool first= TRUE;
   bool default_engine;
   handlerton *engine_type= create_info->db_type;
+  handlerton *old_engine_type= engine_type;
   uint i= 0;
   handler *file;
+  uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
   default_engine= (create_info->used_fields | HA_CREATE_USED_ENGINE) ?
@@ -3968,27 +4094,48 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
   DBUG_PRINT("info", ("engine_type = %u, default = %u",
                        ha_legacy_type(engine_type),
                        default_engine));
-  do
+  if (no_parts)
   {
-    partition_element *part_elem= part_it++;
-    if (first && default_engine && part_elem->engine_type)
-      engine_type= part_elem->engine_type;
-    first= FALSE;
-
-    if (part_elem->engine_type != engine_type)
+    do
     {
-      /*
-        Mixed engines not yet supported but when supported it will need
-        the partition handler
-      */
-      *ret_val= FALSE;
-      DBUG_RETURN(FALSE);
-    }
-  } while (++i < part_info->no_parts);
+      partition_element *part_elem= part_it++;
+      if (is_sub_partitioned(part_info) &&
+          part_elem->subpartitions.elements)
+      {
+        uint no_subparts= part_elem->subpartitions.elements;
+        uint j= 0;
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        do
+        {
+          partition_element *sub_elem= sub_it++;
+          if (check_engine_condition(sub_elem, default_engine,
+                                     &engine_type, &first))
+            goto error;
+        } while (++j < no_subparts);
+        /*
+          In case of subpartitioning and defaults we allow that only
+          subparts have specified engines, as long as the parts haven't
+          specified the wrong engine it's ok.
+        */
+        if (check_engine_condition(part_elem, FALSE,
+                                   &engine_type, &first))
+          goto error;
+      }
+      else if (check_engine_condition(part_elem, default_engine,
+                                      &engine_type, &first))
+        goto error;
+    } while (++i < no_parts);
+  }
+
   /*
     All engines are of the same type. Check if this engine supports
     native partitioning.
   */
+
+  if (!engine_type)
+    engine_type= old_engine_type;
+  DBUG_PRINT("info", ("engine_type = %s",
+              ha_resolve_storage_engine_name(engine_type)));
   if (engine_type->partition_flags &&
       (engine_type->partition_flags() & HA_CAN_PARTITION))
   {
@@ -3997,6 +4144,13 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
     *ret_val= TRUE;
   }
   DBUG_RETURN(FALSE);
+error:
+  /*
+    Mixed engines not yet supported but when supported it will need
+    the partition handler
+  */
+  *ret_val= FALSE;
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -4799,7 +4953,7 @@ the generated partition syntax in a correct manner.
       }
       else
       {
-        bool is_native_partitioned;
+        bool is_native_partitioned= FALSE;
         partition_info *part_info= thd->lex->part_info;
         part_info->default_engine_type= create_info->db_type;
         if (check_native_partitioned(create_info, &is_native_partitioned,
@@ -4809,11 +4963,7 @@ the generated partition syntax in a correct manner.
         }
         if (!is_native_partitioned)
         {
-          if (create_info->db_type == (handlerton*)&default_hton)
-          {
-            thd->lex->part_info->default_engine_type=
-                             ha_checktype(thd, DB_TYPE_DEFAULT, FALSE, FALSE);
-          }
+          DBUG_ASSERT(create_info->db_type != &default_hton);
           create_info->db_type= &partition_hton;
         }
       }
@@ -5252,132 +5402,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  written_bin_log));
 }
 #endif
-
-/*
-  Internal representation of the frm blob
-*/
-
-struct frm_blob_struct 
-{
-  struct frm_blob_header 
-  {
-    uint ver;      /* Version of header                         */
-    uint orglen;   /* Original length of compressed data        */
-    uint complen;  /* Compressed length of data, 0=uncompressed */
-  } head;
-  char data[1];  
-};
-
-
-/*
-  packfrm is a method used to compress the frm file for storage in a
-  handler. This method was developed for the NDB handler and has been moved
-  here to serve also other uses.
-
-  SYNOPSIS
-    packfrm()
-    data                    Data reference to frm file data
-    len                     Length of frm file data
-    out:pack_data           Reference to the pointer to the packed frm data
-    out:pack_len            Length of packed frm file data
-
-  RETURN VALUES
-    0                       Success
-    >0                      Failure
-*/
-
-int packfrm(const void *data, uint len, 
-            const void **pack_data, uint *pack_len)
-{
-  int error;
-  ulong org_len, comp_len;
-  uint blob_len;
-  frm_blob_struct *blob;
-  DBUG_ENTER("packfrm");
-  DBUG_PRINT("enter", ("data: %x, len: %d", data, len));
-  
-  error= 1;
-  org_len= len;
-  if (my_compress((byte*)data, &org_len, &comp_len))
-    goto err;
-  
-  DBUG_PRINT("info", ("org_len: %d, comp_len: %d", org_len, comp_len));
-  DBUG_DUMP("compressed", (char*)data, org_len);
-  
-  error= 2;
-  blob_len= sizeof(frm_blob_struct::frm_blob_header)+org_len;
-  if (!(blob= (frm_blob_struct*) my_malloc(blob_len,MYF(MY_WME))))
-    goto err;
-  
-  // Store compressed blob in machine independent format
-  int4store((char*)(&blob->head.ver), 1);
-  int4store((char*)(&blob->head.orglen), comp_len);
-  int4store((char*)(&blob->head.complen), org_len);
-  
-  // Copy frm data into blob, already in machine independent format
-  memcpy(blob->data, data, org_len);  
-  
-  *pack_data= blob;
-  *pack_len= blob_len;
-  error= 0;
-  
-  DBUG_PRINT("exit", ("pack_data: %x, pack_len: %d", *pack_data, *pack_len));
-err:
-  DBUG_RETURN(error);
-  
-}
-
-/*
-  unpackfrm is a method used to decompress the frm file received from a
-  handler. This method was developed for the NDB handler and has been moved
-  here to serve also other uses for other clustered storage engines.
-
-  SYNOPSIS
-    unpackfrm()
-    pack_data               Data reference to packed frm file data
-    out:unpack_data         Reference to the pointer to the unpacked frm data
-    out:unpack_len          Length of unpacked frm file data
-
-  RETURN VALUES¨
-    0                       Success
-    >0                      Failure
-*/
-
-int unpackfrm(const void **unpack_data, uint *unpack_len,
-              const void *pack_data)
-{
-   const frm_blob_struct *blob= (frm_blob_struct*)pack_data;
-   byte *data;
-   ulong complen, orglen, ver;
-   DBUG_ENTER("unpackfrm");
-   DBUG_PRINT("enter", ("pack_data: %x", pack_data));
-
-   complen=     uint4korr((char*)&blob->head.complen);
-   orglen=      uint4korr((char*)&blob->head.orglen);
-   ver=         uint4korr((char*)&blob->head.ver);
- 
-   DBUG_PRINT("blob",("ver: %d complen: %d orglen: %d",
-                     ver,complen,orglen));
-   DBUG_DUMP("blob->data", (char*) blob->data, complen);
- 
-   if (ver != 1)
-     DBUG_RETURN(1);
-   if (!(data= my_malloc(max(orglen, complen), MYF(MY_WME))))
-     DBUG_RETURN(2);
-   memcpy(data, blob->data, complen);
- 
-   if (my_uncompress(data, &complen, &orglen))
-   {
-     my_free((char*)data, MYF(0));
-     DBUG_RETURN(3);
-   }
-
-   *unpack_data= data;
-   *unpack_len= complen;
-
-   DBUG_PRINT("exit", ("frmdata: %x, len: %d", *unpack_data, *unpack_len));
-   DBUG_RETURN(0);
-}
 
 
 /*

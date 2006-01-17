@@ -392,6 +392,7 @@ NdbTableImpl::init(){
   m_fragmentType= NdbDictionary::Object::FragAllSmall;
   m_hashValueMask= 0;
   m_hashpointerValue= 0;
+  m_linear_flag= true;
   m_primaryTable.clear();
   m_max_rows = 0;
   m_default_no_part_flag = 1;
@@ -486,6 +487,13 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     }
   }
   
+  if(m_linear_flag != obj.m_linear_flag)
+  {
+    DBUG_PRINT("info",("m_linear_flag %d != %d",m_linear_flag,
+                        obj.m_linear_flag));
+    DBUG_RETURN(false);
+  }
+
   if(m_max_rows != obj.m_max_rows)
   {
     DBUG_PRINT("info",("m_max_rows %d != %d",(int32)m_max_rows,
@@ -633,6 +641,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
 
   m_fragments = org.m_fragments;
 
+  m_linear_flag = org.m_linear_flag;
   m_max_rows = org.m_max_rows;
   m_default_no_part_flag = org.m_default_no_part_flag;
   m_logging = org.m_logging;
@@ -1833,6 +1842,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   max_rows += tableDesc->MaxRowsLow;
   impl->m_max_rows = max_rows;
   impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
+  impl->m_linear_flag = tableDesc->LinearHashFlag;
   impl->m_logging = tableDesc->TableLoggedFlag;
   impl->m_row_gci = tableDesc->RowGCIFlag;
   impl->m_row_checksum = tableDesc->RowChecksumFlag;
@@ -2266,6 +2276,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   tmpTab->MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
   tmpTab->MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
   tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
+  tmpTab->LinearHashFlag = impl.m_linear_flag;
 
   if (impl.m_ts_name.length())
   {

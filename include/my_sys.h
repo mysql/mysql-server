@@ -806,6 +806,9 @@ extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(byte *, ulong *, ulong *);
 extern my_bool my_uncompress(byte *, ulong *, ulong *);
 extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
+extern int packfrm(const void *, uint, const void **, uint *);
+extern int unpackfrm(const void **, uint *, const void *);
+
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
 extern uint my_count_bits(ulonglong v);
