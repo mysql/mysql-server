@@ -522,7 +522,7 @@ delete from t1|
 create table t3 ( s char(16), d int)|
 call into_test4()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t3|
 s	d
 into4	NULL
@@ -1787,10 +1787,10 @@ end|
 call bug1863(10)|
 Warnings:
 Note	1051	Unknown table 'temp_t1'
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug1863(10)|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -2084,10 +2084,10 @@ end|
 call bug4579_1()|
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -2566,7 +2566,7 @@ call bug7743("OneWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug7743("anotherword")|
 var
 2
@@ -2574,7 +2574,7 @@ call bug7743("AnotherWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug7743|
 drop table t4|
 delete from t3|
@@ -4496,7 +4496,7 @@ After NOT FOUND condtition is triggered
 xid	xdone
 1	0
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug15231_3()|
 Result
 Missed it (correct)
