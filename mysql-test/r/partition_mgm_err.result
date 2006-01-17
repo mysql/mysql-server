@@ -1,3 +1,4 @@
+drop table if exists t1;
 CREATE TABLE t1 (a int, b int)
 PARTITION BY RANGE (a)
 (PARTITION x0 VALUES LESS THAN (2),
@@ -10,48 +11,52 @@ PARTITION x6 VALUES LESS THAN (14),
 PARTITION x7 VALUES LESS THAN (16),
 PARTITION x8 VALUES LESS THAN (18),
 PARTITION x9 VALUES LESS THAN (20));
-ALTER TABLE t1 REORGANISE PARTITION x0,x1 INTO
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1 INTO
 (PARTITION x01 VALUES LESS THAN (2),
 PARTITION x11 VALUES LESS THAN (5));
-ERROR HY000: The new partitions cover a bigger range then the reorganised partitions do
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
 ALTER TABLE t1 DROP PARTITION x0, x1, x2, x3, x3;
-ERROR HY000: Error in list of partitions to change
+ERROR HY000: Error in list of partitions to DROP
 ALTER TABLE t1 DROP PARTITION x0, x1, x2, x10;
-ERROR HY000: Error in list of partitions to change
+ERROR HY000: Error in list of partitions to DROP
 ALTER TABLE t1 DROP PARTITION x10, x1, x2, x1;
-ERROR HY000: Error in list of partitions to change
+ERROR HY000: Error in list of partitions to DROP
 ALTER TABLE t1 DROP PARTITION x10, x1, x2, x3;
-ERROR HY000: Error in list of partitions to change
-ALTER TABLE t1 REORGANISE PARTITION x0,x1,x2,x3,x4,x5,x6,x7,x8,x9,x10 INTO
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2,x3,x4,x5,x6,x7,x8,x9,x10 INTO
 (PARTITION x11 VALUES LESS THAN (22));
 ERROR HY000: More partitions to reorganise than there are partitions
-ALTER TABLE t1 REORGANISE PARTITION x0,x1,x2 INTO
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2 INTO
 (PARTITION x3 VALUES LESS THAN (6));
-ERROR HY000: All partitions must have unique names in the table
-ALTER TABLE t1 REORGANISE PARTITION x0, x2 INTO
+ERROR HY000: Duplicate partition name x3
+ALTER TABLE t1 REORGANIZE PARTITION x0, x2 INTO
 (PARTITION x11 VALUES LESS THAN (2));
 ERROR HY000: When reorganising a set of partitions they must be in consecutive order
-ALTER TABLE t1 REORGANISE PARTITION x0, x1, x1 INTO
+ALTER TABLE t1 REORGANIZE PARTITION x0, x1, x1 INTO
 (PARTITION x11 VALUES LESS THAN (4));
-ERROR HY000: Error in list of partitions to change
-ALTER TABLE t1 REORGANISE PARTITION x0,x1 INTO
+ERROR HY000: Error in list of partitions to REORGANIZE
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1 INTO
 (PARTITION x01 VALUES LESS THAN (5));
-ERROR HY000: The new partitions cover a bigger range then the reorganised partitions do
-ALTER TABLE t1 REORGANISE PARTITION x0,x1 INTO
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1 INTO
 (PARTITION x01 VALUES LESS THAN (4),
 PARTITION x11 VALUES LESS THAN (2));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1 INTO
+(PARTITION x01 VALUES LESS THAN (6),
+PARTITION x11 VALUES LESS THAN (4));
 ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY KEY (a)
 PARTITIONS 2;
 ALTER TABLE t1 ADD PARTITION (PARTITION p1);
-ERROR HY000: All partitions must have unique names in the table
+ERROR HY000: Duplicate partition name p1
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY KEY (a)
 (PARTITION x0, PARTITION x1, PARTITION x2, PARTITION x3, PARTITION x3);
-ERROR HY000: All partitions must have unique names in the table
+ERROR HY000: Duplicate partition name x3
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE (a)
 SUBPARTITION BY KEY (a)
@@ -100,7 +105,7 @@ PARTITION x1 VALUES LESS THAN (8));
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 ERROR HY000: For RANGE partitions each partition must be defined
 ALTER TABLE t1 DROP PARTITION x2;
-ERROR HY000: Error in list of partitions to change
+ERROR HY000: Error in list of partitions to DROP
 ALTER TABLE t1 COALESCE PARTITION 1;
 ERROR HY000: COALESCE PARTITION can only be used on HASH/KEY partitions
 ALTER TABLE t1 DROP PARTITION x1;

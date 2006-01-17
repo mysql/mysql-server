@@ -49,6 +49,7 @@ private:
   Uint32 nodeId;
   Uint32 totalFragments;
   Uint32 startGci;
+  Uint32 tablespaceId;
   Uint32 logPartId;
 };
 

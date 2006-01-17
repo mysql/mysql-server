@@ -89,9 +89,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   partition_info *part_info= thd->lex->part_info;
 #endif
   DBUG_ENTER("mysql_create_frm");
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  thd->lex->part_info= NULL;
-#endif
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
   formnames.type_names=0;
@@ -134,10 +131,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
   /* Partition */
-  create_info->extra_size+= 5;
+  create_info->extra_size+= 9;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
+  {
     create_info->extra_size+= part_info->part_info_len;
+    create_info->extra_size+= part_info->part_state_len;
+  }
 #endif
 
   for (i= 0; i < keys; i++)
@@ -171,7 +171,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
+  {
     fileinfo[61]= (uchar) ha_legacy_type(part_info->default_engine_type);
+    DBUG_PRINT("info", ("part_db_type = %d", fileinfo[61]));
+  }
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
@@ -206,12 +209,18 @@ bool mysql_create_frm(THD *thd, const char *file_name,
         my_write(file, (const byte*)part_info->part_info_string,
                  part_info->part_info_len + 1, MYF_RW))
       goto err;
+    DBUG_PRINT("info", ("Part state len = %d", part_info->part_state_len));
+    int4store(buff, part_info->part_state_len);
+    if (my_write(file, (const byte*)buff, 4, MYF_RW) ||
+        my_write(file, (const byte*)part_info->part_state,
+                 part_info->part_state_len, MYF_RW))
+      goto err;
   }
   else
 #endif
   {
-    bzero(buff, 5);
-    if (my_write(file, (byte*) buff, 5, MYF_RW))
+    bzero(buff, 9);
+    if (my_write(file, (byte*) buff, 9, MYF_RW))
       goto err;
   }
   for (i= 0; i < keys; i++)

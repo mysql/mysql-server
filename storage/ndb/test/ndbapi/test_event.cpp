@@ -334,7 +334,7 @@ int runCreateShadowTable(NDBT_Context* ctx, NDBT_Step* step)
   table_shadow.setName(buf);
   // TODO should be removed
   // This should work wo/ next line
-  table_shadow.setNodeGroupIds(0, 0);
+  //table_shadow.setNodeGroupIds(0, 0);
   GETNDB(step)->getDictionary()->createTable(table_shadow);
   if (GETNDB(step)->getDictionary()->getTable(buf))
     return NDBT_OK;

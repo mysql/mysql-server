@@ -235,6 +235,8 @@ handlerton innobase_hton = {
   innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
   innobase_flush_logs,		/* Flush logs */
   innobase_show_status,		/* Show status */
+  NULL,                         /* Partition flags */
+  NULL,                         /* Alter table flags */
   HTON_NO_FLAGS
 };
 

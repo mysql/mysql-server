@@ -413,6 +413,30 @@ NdbDictionary::Table::getNoOfPrimaryKeys() const {
   return m_impl.m_noOfKeys;
 }
 
+void
+NdbDictionary::Table::setMaxRows(Uint64 maxRows)
+{
+  m_impl.m_max_rows = maxRows;
+}
+
+Uint64
+NdbDictionary::Table::getMaxRows()
+{
+  return m_impl.m_max_rows;
+}
+
+void
+NdbDictionary::Table::setDefaultNoPartitionsFlag(Uint32 flag)
+{
+  m_impl.m_default_no_part_flag = flag;;
+}
+
+Uint32
+NdbDictionary::Table::getDefaultNoPartitionsFlag()
+{
+  return m_impl.m_default_no_part_flag;
+}
+
 const char*
 NdbDictionary::Table::getPrimaryKey(int no) const {
   int count = 0;
@@ -436,24 +460,86 @@ NdbDictionary::Table::getFrmLength() const {
 }
 
 void
+NdbDictionary::Table::setTablespaceNames(const void *data, Uint32 len)
+{
+  m_impl.setTablespaceNames(data, len);
+}
+
+const void*
+NdbDictionary::Table::getTablespaceNames()
+{
+  return m_impl.getTablespaceNames();
+}
+
+Uint32
+NdbDictionary::Table::getTablespaceNamesLen()
+{
+  return m_impl.getTablespaceNamesLen();
+}
+
+void
+NdbDictionary::Table::setFragmentCount(Uint32 count)
+{
+  m_impl.setFragmentCount(count);
+}
+
+Uint32
+NdbDictionary::Table::getFragmentCount() const
+{
+  return m_impl.getFragmentCount();
+}
+
+void
 NdbDictionary::Table::setFrm(const void* data, Uint32 len){
   m_impl.setFrm(data, len);
 }
 
 const void* 
-NdbDictionary::Table::getNodeGroupIds() const {
-  return m_impl.m_ng.get_data();
+NdbDictionary::Table::getFragmentData() const {
+  return m_impl.getFragmentData();
 }
 
 Uint32
-NdbDictionary::Table::getNodeGroupIdsLength() const {
-  return m_impl.m_ng.length();
+NdbDictionary::Table::getFragmentDataLen() const {
+  return m_impl.getFragmentDataLen();
 }
 
 void
-NdbDictionary::Table::setNodeGroupIds(const void* data, Uint32 noWords)
+NdbDictionary::Table::setFragmentData(const void* data, Uint32 len)
 {
-  m_impl.m_ng.assign(data, 2*noWords);
+  m_impl.setFragmentData(data, len);
+}
+
+const void* 
+NdbDictionary::Table::getTablespaceData() const {
+  return m_impl.getTablespaceData();
+}
+
+Uint32
+NdbDictionary::Table::getTablespaceDataLen() const {
+  return m_impl.getTablespaceDataLen();
+}
+
+void
+NdbDictionary::Table::setTablespaceData(const void* data, Uint32 len)
+{
+  m_impl.setTablespaceData(data, len);
+}
+
+const void* 
+NdbDictionary::Table::getRangeListData() const {
+  return m_impl.getRangeListData();
+}
+
+Uint32
+NdbDictionary::Table::getRangeListDataLen() const {
+  return m_impl.getRangeListDataLen();
+}
+
+void
+NdbDictionary::Table::setRangeListData(const void* data, Uint32 len)
+{
+  m_impl.setRangeListData(data, len);
 }
 
 NdbDictionary::Object::Status
@@ -1523,7 +1609,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " AT=MEDIUM_VAR";
     break;
   default:
-    out << " AT=" << col.getArrayType() << "?";
+    out << " AT=" << (int)col.getArrayType() << "?";
     break;
   }
 
@@ -1535,7 +1621,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " ST=DISK";
     break;
   default:
-    out << " ST=" << col.getStorageType() << "?";
+    out << " ST=" << (int)col.getStorageType() << "?";
     break;
   }
 
