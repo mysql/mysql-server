@@ -4387,4 +4387,88 @@ id	county
 2	NULL
 drop table t3|
 drop procedure bug15441|
+drop procedure if exists bug14498_1|
+drop procedure if exists bug14498_2|
+drop procedure if exists bug14498_3|
+drop procedure if exists bug14498_4|
+drop procedure if exists bug14498_5|
+create procedure bug14498_1()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+if v then
+select 'yes' as 'v';
+else
+select 'no' as 'v';
+end if;
+select 'done' as 'End';
+end|
+create procedure bug14498_2()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+while v do
+select 'yes' as 'v';
+end while;
+select 'done' as 'End';
+end|
+create procedure bug14498_3()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+repeat
+select 'maybe' as 'v';
+until v end repeat;
+select 'done' as 'End';
+end|
+create procedure bug14498_4()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case v
+when 1 then
+select '1' as 'v';
+when 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+create procedure bug14498_5()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case
+when v = 1 then
+select '1' as 'v';
+when v = 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+call bug14498_1()|
+Handler
+error
+End
+done
+call bug14498_2()|
+Handler
+error
+End
+done
+call bug14498_3()|
+v
+maybe
+Handler
+error
+End
+done
+call bug14498_5()|
+Handler
+error
+End
+done
+drop procedure bug14498_1|
+drop procedure bug14498_2|
+drop procedure bug14498_3|
+drop procedure bug14498_4|
+drop procedure bug14498_5|
 drop table t1,t2;

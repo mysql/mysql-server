@@ -3824,7 +3824,7 @@ drop procedure if exists bug7088_2|
 
 --disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
-  l‚bel: begin end|
+  l√¢bel: begin end|
 call bug6063()|
 # QQ Known bug: this will not show the label correctly.
 show create procedure bug6063|
@@ -5153,6 +5153,94 @@ end|
 call bug15441('Yale')|
 drop table t3|
 drop procedure bug15441|
+
+#
+# BUG#14498: Stored procedures: hang if undefined variable and exception
+#
+--disable_warnings
+drop procedure if exists bug14498_1|
+drop procedure if exists bug14498_2|
+drop procedure if exists bug14498_3|
+drop procedure if exists bug14498_4|
+drop procedure if exists bug14498_5|
+--enable_warnings
+
+create procedure bug14498_1()
+begin
+  declare continue handler for sqlexception select 'error' as 'Handler';
+
+  if v then
+    select 'yes' as 'v';
+  else
+    select 'no' as 'v';
+  end if;
+  select 'done' as 'End';
+end|
+
+create procedure bug14498_2()
+begin
+  declare continue handler for sqlexception select 'error' as 'Handler';
+
+  while v do
+    select 'yes' as 'v';
+  end while;
+  select 'done' as 'End';
+end|
+
+create procedure bug14498_3()
+begin
+  declare continue handler for sqlexception select 'error' as 'Handler';
+
+  repeat
+    select 'maybe' as 'v';
+  until v end repeat;
+  select 'done' as 'End';
+end|
+
+create procedure bug14498_4()
+begin
+  declare continue handler for sqlexception select 'error' as 'Handler';
+
+  case v
+  when 1 then
+    select '1' as 'v';
+  when 2 then
+    select '2' as 'v';
+  else
+    select '?' as 'v';
+  end case;
+  select 'done' as 'End';
+end|
+
+create procedure bug14498_5()
+begin
+  declare continue handler for sqlexception select 'error' as 'Handler';
+
+  case
+  when v = 1 then
+    select '1' as 'v';
+  when v = 2 then
+    select '2' as 'v';
+  else
+    select '?' as 'v';
+  end case;
+  select 'done' as 'End';
+end|
+
+call bug14498_1()|
+call bug14498_2()|
+call bug14498_3()|
+# We couldn't call this before, due to a known bug (BUG#14643)
+# QQ We still can't since the new set_case_expr instruction breaks
+#    the semantics of case; it won't crash, but will get the wrong result.
+#call bug14498_4()|
+call bug14498_5()|
+
+drop procedure bug14498_1|
+drop procedure bug14498_2|
+drop procedure bug14498_3|
+drop procedure bug14498_4|
+drop procedure bug14498_5|
 
 #
 # BUG#NNNN: New bug synopsis
