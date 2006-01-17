@@ -55,7 +55,7 @@ ndb_drop_index_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_show_tables_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_select_all_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_select_count_LDFLAGS = @ndb_bin_am_ldflags@
-ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@ @ZLIB_LIBS@
+ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_config_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
