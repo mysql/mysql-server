@@ -122,6 +122,15 @@ public:
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
     TablespaceId       = 131,
     TablespaceVersion  = 132,
+    TablespaceDataLen  = 133,
+    TablespaceData     = 134,
+    RangeListDataLen   = 135,
+    RangeListData      = 136,
+    ReplicaDataLen     = 137,
+    ReplicaData        = 138,
+    MaxRowsLow         = 139,
+    MaxRowsHigh        = 140,
+    DefaultNoPartFlag  = 141,
 
     RowGCIFlag         = 150,
     RowChecksumFlag    = 151,
@@ -298,11 +307,25 @@ public:
     Uint32 CustomTriggerId;
     Uint32 TablespaceId;
     Uint32 TablespaceVersion;
+    Uint32 MaxRowsLow;
+    Uint32 MaxRowsHigh;
+    Uint32 DefaultNoPartFlag;
+    /*
+      TODO RONM:
+      We need to replace FRM, Fragment Data, Tablespace Data and in
+      very particular RangeListData with dynamic arrays
+    */
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
+    Uint32 ReplicaDataLen;
+    Uint16 ReplicaData[MAX_FRAGMENT_DATA_BYTES];
     Uint32 FragmentDataLen;
-    Uint16 FragmentData[(MAX_FRAGMENT_DATA_BYTES+1)/2];
+    Uint16 FragmentData[3*MAX_NDB_PARTITIONS];
+    Uint32 TablespaceDataLen;
+    Uint32 TablespaceData[2*MAX_NDB_PARTITIONS];
+    Uint32 RangeListDataLen;
+    char   RangeListData[4*2*MAX_NDB_PARTITIONS*2];
     
     Uint32 RowGCIFlag;
     Uint32 RowChecksumFlag;
