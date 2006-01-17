@@ -420,7 +420,7 @@ NdbDictionary::Table::setMaxRows(Uint64 maxRows)
 }
 
 Uint64
-NdbDictionary::Table::getMaxRows()
+NdbDictionary::Table::getMaxRows() const
 {
   return m_impl.m_max_rows;
 }
@@ -432,7 +432,7 @@ NdbDictionary::Table::setDefaultNoPartitionsFlag(Uint32 flag)
 }
 
 Uint32
-NdbDictionary::Table::getDefaultNoPartitionsFlag()
+NdbDictionary::Table::getDefaultNoPartitionsFlag() const
 {
   return m_impl.m_default_no_part_flag;
 }
@@ -472,9 +472,21 @@ NdbDictionary::Table::getTablespaceNames()
 }
 
 Uint32
-NdbDictionary::Table::getTablespaceNamesLen()
+NdbDictionary::Table::getTablespaceNamesLen() const
 {
   return m_impl.getTablespaceNamesLen();
+}
+
+void
+NdbDictionary::Table::setLinearFlag(Uint32 flag)
+{
+  m_impl.m_linear_flag = flag;
+}
+
+bool
+NdbDictionary::Table::getLinearFlag() const
+{
+  return m_impl.m_linear_flag;
 }
 
 void

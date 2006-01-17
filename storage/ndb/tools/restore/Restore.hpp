@@ -225,6 +225,8 @@ public:
   TableS& operator=(TableS& org) ; 
 }; // TableS;
 
+class RestoreLogIterator;
+
 class BackupFile {
 protected:
   FILE * m_file;
@@ -320,7 +322,7 @@ public:
   ~RestoreDataIterator() {};
   
   // Read data file fragment header
-  bool readFragmentHeader(int & res);
+  bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
 
   const TupleS *getNextTuple(int & res);
@@ -333,8 +335,9 @@ public:
     LE_DELETE,
     LE_UPDATE
   };
+  Uint32 m_frag_id;
   EntryType m_type;
-  TableS * m_table;  
+  TableS * m_table;
   Vector<AttributeS*> m_values;
   Vector<AttributeS*> m_values_e;
   AttributeS *add_attr() {
@@ -378,7 +381,7 @@ public:
   RestoreLogIterator(const RestoreMetaData &);
   virtual ~RestoreLogIterator() {};
 
-  const LogEntry * getNextLogEntry(int & res);
+  const LogEntry * getNextLogEntry(int & res, bool *alloc_flag);
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

@@ -2698,8 +2698,10 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         DBUG_EXECUTE("info", dbug_print_onepoint_range(ppar->arg_stack,
                                                        ppar->part_fields););
         uint32 part_id;
+        longlong func_value;
         /* then find in which partition the {const1, ...,constN} tuple goes */
-        if (ppar->get_top_partition_id_func(ppar->part_info, &part_id))
+        if (ppar->get_top_partition_id_func(ppar->part_info, &part_id,
+                                            &func_value))
         {
           res= 0; /* No satisfying partitions */
           goto pop_and_go_right;
