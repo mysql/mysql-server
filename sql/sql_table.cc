@@ -3562,6 +3562,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_drop_buffer;
   uint index_add_count;
   uint *index_add_buffer;
+  bool committed= 0;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -4968,6 +4969,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_PRINT("info", ("Committing after add/drop index"));
       if (ha_commit_stmt(thd) || ha_commit(thd))
         goto err;
+      committed= 1;
     }
   }
   /*end of if (! new_table) for add/drop index*/
@@ -5099,7 +5101,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
-#ifdef XXX_TO_BE_DONE_LATER_BY_WL1892
   if (! need_copy_table)
   {
     if (! table)
@@ -5116,7 +5117,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-#endif
   if (thd->lock || new_name != table_name)	// True if WIN32
   {
     /*
@@ -5166,11 +5166,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     wait_if_global_read_lock(), which could create a deadlock if called
     with LOCK_open.
   */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
-    error=1;
-  if (error)
-    goto err;
+  if (!committed)
+  {
+    error = ha_commit_stmt(thd);
+    if (ha_commit(thd))
+      error=1;
+    if (error)
+      goto err;
+  }
   thd->proc_info="end";
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() && binlog_row_based &&
