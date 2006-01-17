@@ -203,6 +203,8 @@ public:
    */
   struct TableRecord {
     TableRecord(){}
+    Uint32 maxRowsLow;
+    Uint32 maxRowsHigh;
     /* Table id (array index in DICT and other blocks) */
     Uint32 tableId;
     Uint32 m_obj_ptr_i;
@@ -267,6 +269,11 @@ public:
      * likelihood of overflow buckets.
      */
     Uint8 maxLoadFactor;
+
+    /*
+      Flag to indicate default number of partitions
+    */
+    bool defaultNoPartFlag;
 
     /*
      * Used when shrinking to decide when to merge buckets.  Hysteresis
@@ -353,10 +360,9 @@ public:
     
     /**  frm data for this table */
     RopeHandle frmData;
-    /**  Node Group and Tablespace id for this table */
-    /** TODO Could preferrably be made dynamic size */
-    Uint32 ngLen;
-    Uint16 ngData[MAX_NDB_PARTITIONS];
+    RopeHandle tsData;
+    RopeHandle ngData;
+    RopeHandle rangeData;
 
     Uint32 fragmentCount;
     Uint32 m_tablespace_id;
@@ -364,6 +370,15 @@ public:
 
   typedef Ptr<TableRecord> TableRecordPtr;
   ArrayPool<TableRecord> c_tableRecordPool;
+
+  /**  Node Group and Tablespace id+version + range or list data.
+    *  This is only stored temporarily in DBDICT during an ongoing
+    *  change.
+    *  TODO RONM: Look into improvements of this
+    */
+  Uint32 c_fragDataLen;
+  Uint16 c_fragData[MAX_NDB_PARTITIONS];
+  Uint32 c_tsIdData[2*MAX_NDB_PARTITIONS];
 
   /**
    * Triggers.  This is volatile data not saved on disk.  Setting a
@@ -503,6 +518,8 @@ public:
   };
 
   CArray<SchemaPageRecord> c_schemaPageRecordArray;
+
+  DictTabInfo::Table c_tableDesc;
 
   /**
    * A page for create index table signal.

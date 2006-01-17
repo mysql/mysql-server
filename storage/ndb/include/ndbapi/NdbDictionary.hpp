@@ -669,10 +669,22 @@ public:
     Uint32 getFrmLength() const;
 
     /**
-     * Get Node Group and Tablespace id's for fragments in table
+     * Get Fragment Data (id, state and node group)
      */
-    const void *getNodeGroupIds() const;
-    Uint32 getNodeGroupIdsLength() const;
+    const void *getFragmentData() const;
+    Uint32 getFragmentDataLen() const;
+
+    /**
+     * Get Range or List Array (value, partition)
+     */
+    const void *getRangeListData() const;
+    Uint32 getRangeListDataLen() const;
+
+    /**
+     * Get Tablespace Data (id, version)
+     */
+    const void *getTablespaceData() const;
+    Uint32 getTablespaceDataLen() const;
 
     /** @} *******************************************************************/
 
@@ -721,6 +733,16 @@ public:
      */
     void setLogging(bool); 
    
+    /**
+     * Set fragment count
+     */
+    void setFragmentCount(Uint32);
+
+    /**
+     * Get fragment count
+     */
+    Uint32 getFragmentCount() const;
+
     /**
      * Set fragmentation type
      */
@@ -773,6 +795,19 @@ public:
     virtual int getObjectVersion() const;
 
     /**
+     * Set/Get Maximum number of rows in table (only used to calculate
+     * number of partitions).
+     */
+    void setMaxRows(Uint64 maxRows);
+    Uint64 getMaxRows();
+
+    /**
+     * Set/Get indicator if default number of partitions is used in table.
+     */
+    void setDefaultNoPartitionsFlag(Uint32 indicator);
+    Uint32 getDefaultNoPartitionsFlag();
+   
+    /**
      * Get object id
      */
     virtual int getObjectId() const;
@@ -783,9 +818,34 @@ public:
     void setFrm(const void* data, Uint32 len);
 
     /**
-     * Set node group for fragments
+     * Set array of fragment information containing
+     * Fragment Identity
+     * Node group identity
+     * Fragment State
      */
-    void setNodeGroupIds(const void *data, Uint32 len);
+    void setFragmentData(const void* data, Uint32 len);
+
+    /**
+     * Set/Get tablespace names per fragment
+     */
+    void setTablespaceNames(const void* data, Uint32 len);
+    const void *getTablespaceNames();
+    Uint32 getTablespaceNamesLen();
+
+    /**
+     * Set tablespace information per fragment
+     * Contains a tablespace id and a tablespace version
+     */
+    void setTablespaceData(const void* data, Uint32 len);
+
+    /**
+     * Set array of information mapping range values and list values
+     * to fragments. This is essentially a sorted map consisting of
+     * pairs of value, fragment identity. For range partitions there is
+     * one pair per fragment. For list partitions it could be any number
+     * of pairs, at least as many as there are fragments.
+     */
+    void setRangeListData(const void* data, Uint32 len);
 
     /**
      * Set table object type

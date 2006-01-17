@@ -44,10 +44,20 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, CustomTriggerId, CustomTriggerId),
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
-  DTIMAP(Table, FragmentCount, FragmentCount),
-  DTIMAP2(Table, FragmentDataLen, FragmentDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
-  DTIMAPB(Table, FragmentData, FragmentData, 0, MAX_FRAGMENT_DATA_BYTES, FragmentDataLen),
+  DTIMAP2(Table, FragmentCount, FragmentCount, 0, MAX_NDB_PARTITIONS),
+  DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, 2*MAX_FRAGMENT_DATA_BYTES),
+  DTIMAPB(Table, ReplicaData, ReplicaData, 0, 2*MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
+  DTIMAP2(Table, FragmentDataLen, FragmentDataLen, 0, 6*MAX_NDB_PARTITIONS),
+  DTIMAPB(Table, FragmentData, FragmentData, 0, 6*MAX_NDB_PARTITIONS, FragmentDataLen),
+  DTIMAP2(Table, TablespaceDataLen, TablespaceDataLen, 0, 8*MAX_NDB_PARTITIONS),
+  DTIMAPB(Table, TablespaceData, TablespaceData, 0, 8*MAX_NDB_PARTITIONS, TablespaceDataLen),
+  DTIMAP2(Table, RangeListDataLen, RangeListDataLen, 0, 8*MAX_NDB_PARTITIONS),
+  DTIMAPB(Table, RangeListData, RangeListData, 0, 8*MAX_NDB_PARTITIONS, RangeListDataLen),
   DTIMAP(Table, TablespaceId, TablespaceId),
+  DTIMAP(Table, TablespaceVersion, TablespaceVersion),
+  DTIMAP(Table, MaxRowsLow, MaxRowsLow),
+  DTIMAP(Table, MaxRowsHigh, MaxRowsHigh),
+  DTIMAP(Table, DefaultNoPartFlag, DefaultNoPartFlag),
   DTIMAP(Table, TablespaceVersion, TablespaceVersion),
   DTIMAP(Table, RowGCIFlag, RowGCIFlag),
   DTIMAP(Table, RowChecksumFlag, RowChecksumFlag),
@@ -124,12 +134,21 @@ DictTabInfo::Table::init(){
   DeleteTriggerId = RNIL;
   CustomTriggerId = RNIL;
   FrmLen = 0;
-  memset(FrmData, 0, sizeof(FrmData));
-  FragmentCount = 0;
   FragmentDataLen = 0;
+  ReplicaDataLen = 0;
+  RangeListDataLen = 0;
+  TablespaceDataLen = 0;
+  memset(FrmData, 0, sizeof(FrmData));
   memset(FragmentData, 0, sizeof(FragmentData));
+  memset(ReplicaData, 0, sizeof(ReplicaData));
+  memset(RangeListData, 0, sizeof(RangeListData));
+  memset(TablespaceData, 0, sizeof(TablespaceData));
+  FragmentCount = 0;
   TablespaceId = RNIL;
   TablespaceVersion = ~0;
+  MaxRowsLow = 0;
+  MaxRowsHigh = 0;
+  DefaultNoPartFlag = 1;
 
   RowGCIFlag = ~0;
   RowChecksumFlag = ~0;

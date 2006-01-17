@@ -63,7 +63,7 @@ const handlerton default_hton =
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL,
   create_default,
-  NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   HTON_NO_FLAGS
 };
 
@@ -2160,7 +2160,8 @@ int ha_create_table(THD *thd, const char *path,
   
   init_tmp_table_share(&share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
-      open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table))
+      open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
+                            TRUE))
     goto err;
 
   if (update_create_info)
@@ -2237,7 +2238,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table))
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
   {
     free_table_share(&share);
     DBUG_RETURN(3);

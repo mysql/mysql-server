@@ -561,22 +561,13 @@ class ha_ndbcluster: public handler
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
   int start_stmt(THD *thd, thr_lock_type lock_type);
+  void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;
   ulong table_flags(void) const;
-  ulong alter_table_flags(void) const
-  { 
-    return (HA_ONLINE_ADD_INDEX | HA_ONLINE_DROP_INDEX |
-            HA_ONLINE_ADD_UNIQUE_INDEX | HA_ONLINE_DROP_UNIQUE_INDEX);
-  }
   int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
   int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
   int final_drop_index(TABLE *table_arg);
-  ulong partition_flags(void) const
-  {
-    return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
-            HA_CAN_PARTITION_UNIQUE);
-  }
   void set_part_info(partition_info *part_info);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   uint max_supported_record_length() const;
@@ -588,6 +579,9 @@ class ha_ndbcluster: public handler
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
   int get_default_no_partitions(ulonglong max_rows);
+  bool get_no_parts(const char *name, uint *no_parts);
+  void set_auto_partitions(partition_info *part_info);
+
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
@@ -657,7 +651,7 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
-  static void invalidate_dictionary_cache(TABLE *table, Ndb *ndb,
+  static void invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
 					  const char *tabname, bool global);
 
 private:
@@ -694,6 +688,8 @@ private:
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
                              void *tab);
+  int set_range_data(void *tab, partition_info* part_info);
+  int set_list_data(void *tab, partition_info* part_info);
   int complemented_pk_read(const byte *old_data, byte *new_data,
                            uint32 old_part_id);
   int pk_read(const byte *key, uint key_len, byte *buf, uint32 part_id);
@@ -743,7 +739,7 @@ private:
 
   char *update_table_comment(const char * comment);
 
-  int write_ndb_file();
+  int write_ndb_file(const char *name);
 
   int check_ndb_connection(THD* thd= current_thd);
 

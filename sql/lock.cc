@@ -351,9 +351,25 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
   }
 }
 
+/* Downgrade all locks on a table to new WRITE level from WRITE_ONLY */
+
+void mysql_lock_downgrade_write(THD *thd, TABLE *table,
+                                thr_lock_type new_lock_type)
+{
+  MYSQL_LOCK *locked;
+  TABLE *write_lock_used;
+  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  {
+    for (uint i=0; i < locked->lock_count; i++)
+      thr_downgrade_write_lock(locked->locks[i], new_lock_type);
+    my_free((gptr) locked,MYF(0));
+  }
+}
+
+
 /* abort all other threads waiting to get lock in table */
 
-void mysql_lock_abort(THD *thd, TABLE *table)
+void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
 {
   MYSQL_LOCK *locked;
   TABLE *write_lock_used;
@@ -362,7 +378,7 @@ void mysql_lock_abort(THD *thd, TABLE *table)
   if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
   {
     for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock);
+      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
     my_free((gptr) locked,MYF(0));
   }
   DBUG_VOID_RETURN;

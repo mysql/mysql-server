@@ -63,6 +63,10 @@ private:
 /*
   n = Changed name
   f = Changed frm
+  d = Changed fragment data
+  r = Changed range or list array
+  t = Changed tablespace name array
+  s = Changed tablespace id array
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -70,6 +74,10 @@ private:
 */
 #define NAME_SHIFT        (0)
 #define FRM_SHIFT         (1)
+#define FRAG_DATA_SHIFT   (2)
+#define RANGE_LIST_SHIFT  (3)
+#define TS_NAME_SHIFT     (4)
+#define TS_SHIFT          (5)
 
  /**
    * Getters and setters
@@ -78,7 +86,27 @@ private:
   static void setNameFlag(UintR &  changeMask, Uint32 nameFlg);
   static Uint8 getFrmFlag(const UintR & changeMask);
   static void setFrmFlag(UintR &  changeMask, Uint32 frmFlg);
+  static Uint8 getFragDataFlag(const UintR & changeMask);
+  static void setFragDataFlag(UintR &  changeMask, Uint32 fragFlg);
+  static Uint8 getRangeListFlag(const UintR & changeMask);
+  static void setRangeListFlag(UintR &  changeMask, Uint32 rangeFlg);
+  static Uint8 getTsNameFlag(const UintR & changeMask);
+  static void setTsNameFlag(UintR &  changeMask, Uint32 tsNameFlg);
+  static Uint8 getTsFlag(const UintR & changeMask);
+  static void setTsFlag(UintR &  changeMask, Uint32 tsFlg);
 };
+
+inline
+Uint8
+AlterTableReq::getTsFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> TS_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setTsFlag(UintR & changeMask, Uint32 tsFlg){
+  changeMask |= (tsFlg << TS_SHIFT);
+}
 
 inline
 Uint8
@@ -102,6 +130,42 @@ inline
 void
 AlterTableReq::setFrmFlag(UintR & changeMask, Uint32 frmFlg){
   changeMask |= (frmFlg << FRM_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getFragDataFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> FRAG_DATA_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setFragDataFlag(UintR & changeMask, Uint32 fragDataFlg){
+  changeMask |= (fragDataFlg << FRAG_DATA_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getRangeListFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> RANGE_LIST_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setRangeListFlag(UintR & changeMask, Uint32 rangeFlg){
+  changeMask |= (rangeFlg << RANGE_LIST_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getTsNameFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> TS_NAME_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setTsNameFlag(UintR & changeMask, Uint32 tsNameFlg){
+  changeMask |= (tsNameFlg << TS_NAME_SHIFT);
 }
 
 
