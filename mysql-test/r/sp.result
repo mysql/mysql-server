@@ -3624,8 +3624,6 @@ drop procedure if exists bug7049_1|
 drop procedure if exists bug7049_2|
 drop procedure if exists bug7049_3|
 drop procedure if exists bug7049_4|
-drop procedure if exists bug7049_5|
-drop procedure if exists bug7049_6|
 drop function if exists bug7049_1|
 drop function if exists bug7049_2|
 create table t3 ( x int unique )|
@@ -3648,18 +3646,6 @@ begin
 declare exit handler for sqlexception
 select 'Caught it' as 'Result';
 call bug7049_3();
-select 'Missed it' as 'Result';
-end|
-create procedure bug7049_5()
-begin
-declare x decimal(2,1);
-set x = 'zap';
-end|
-create procedure bug7049_6()
-begin
-declare exit handler for sqlwarning
-select 'Caught it' as 'Result';
-call bug7049_5();
 select 'Missed it' as 'Result';
 end|
 create function bug7049_1()
@@ -3691,9 +3677,6 @@ Caught it
 select * from t3|
 x
 42
-call bug7049_6()|
-Result
-Caught it
 select bug7049_2()|
 bug7049_2()
 1
@@ -3702,8 +3685,6 @@ drop procedure bug7049_1|
 drop procedure bug7049_2|
 drop procedure bug7049_3|
 drop procedure bug7049_4|
-drop procedure bug7049_5|
-drop procedure bug7049_6|
 drop function bug7049_1|
 drop function bug7049_2|
 drop function if exists bug13941|
@@ -4387,4 +4368,143 @@ id	county
 2	NULL
 drop table t3|
 drop procedure bug15441|
+drop procedure if exists bug14498_1|
+drop procedure if exists bug14498_2|
+drop procedure if exists bug14498_3|
+drop procedure if exists bug14498_4|
+drop procedure if exists bug14498_5|
+create procedure bug14498_1()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+if v then
+select 'yes' as 'v';
+else
+select 'no' as 'v';
+end if;
+select 'done' as 'End';
+end|
+create procedure bug14498_2()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+while v do
+select 'yes' as 'v';
+end while;
+select 'done' as 'End';
+end|
+create procedure bug14498_3()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+repeat
+select 'maybe' as 'v';
+until v end repeat;
+select 'done' as 'End';
+end|
+create procedure bug14498_4()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case v
+when 1 then
+select '1' as 'v';
+when 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+create procedure bug14498_5()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case
+when v = 1 then
+select '1' as 'v';
+when v = 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+call bug14498_1()|
+Handler
+error
+End
+done
+call bug14498_2()|
+Handler
+error
+End
+done
+call bug14498_3()|
+v
+maybe
+Handler
+error
+End
+done
+call bug14498_5()|
+Handler
+error
+End
+done
+drop procedure bug14498_1|
+drop procedure bug14498_2|
+drop procedure bug14498_3|
+drop procedure bug14498_4|
+drop procedure bug14498_5|
+drop table if exists t3|
+drop procedure if exists bug15231_1|
+drop procedure if exists bug15231_2|
+drop procedure if exists bug15231_3|
+drop procedure if exists bug15231_4|
+create table t3 (id int not null)|
+create procedure bug15231_1()
+begin
+declare xid integer;
+declare xdone integer default 0;
+declare continue handler for not found set xdone = 1;
+set xid=null;
+call bug15231_2(xid);
+select xid, xdone;
+end|
+create procedure bug15231_2(inout ioid integer)
+begin
+select "Before NOT FOUND condition is triggered" as '1';
+select id into ioid from t3 where id=ioid;
+select "After NOT FOUND condtition is triggered" as '2';
+if ioid is null then
+set ioid=1;
+end if;
+end|
+create procedure bug15231_3()
+begin
+declare exit handler for sqlwarning
+select 'Caught it (wrong)' as 'Result';
+call bug15231_4();
+end|
+create procedure bug15231_4()
+begin
+declare x decimal(2,1);
+set x = 'zap';
+select 'Missed it (correct)' as 'Result';
+end|
+call bug15231_1()|
+1
+Before NOT FOUND condition is triggered
+2
+After NOT FOUND condtition is triggered
+xid	xdone
+1	0
+Warnings:
+Warning	1329	No data to FETCH
+call bug15231_3()|
+Result
+Missed it (correct)
+Warnings:
+Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
+drop table if exists t3|
+drop procedure if exists bug15231_1|
+drop procedure if exists bug15231_2|
+drop procedure if exists bug15231_3|
+drop procedure if exists bug15231_4|
 drop table t1,t2;
