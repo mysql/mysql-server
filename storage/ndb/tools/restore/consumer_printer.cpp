@@ -28,7 +28,7 @@ BackupPrinter::table(const TableS & tab)
 }
 
 void
-BackupPrinter::tuple(const TupleS & tup)
+BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
 {
   m_dataCount++;
   if (m_print || m_print_data)

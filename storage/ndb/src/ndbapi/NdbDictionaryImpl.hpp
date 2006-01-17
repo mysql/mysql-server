@@ -177,6 +177,7 @@ public:
 
   Uint64 m_max_rows;
   Uint32 m_default_no_part_flag;
+  bool m_linear_flag;
   bool m_logging;
   bool m_row_gci;
   bool m_row_checksum;
