@@ -23,8 +23,12 @@ class BackupPrinter : public BackupConsumer
 {
   NdbOut & m_ndbout;
 public:
-  BackupPrinter(NdbOut & out = ndbout) : m_ndbout(out) 
+  BackupPrinter(NODE_GROUP_MAP *ng_map,
+                uint ng_map_len,
+                NdbOut & out = ndbout) : m_ndbout(out) 
   {
+    m_nodegroup_map = ng_map;
+    m_nodegroup_map_len= ng_map_len;
     m_print = false;
     m_print_log = false;
     m_print_data = false;
@@ -37,7 +41,7 @@ public:
 #ifdef USE_MYSQL
   virtual bool table(const TableS &, MYSQL* mysqlp);
 #endif
-  virtual void tuple(const TupleS &);
+  virtual void tuple(const TupleS &, Uint32 fragId);
   virtual void logEntry(const LogEntry &);
   virtual void endOfTuples() {};
   virtual void endOfLogEntrys();

@@ -408,6 +408,7 @@ extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;
 #endif
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
