@@ -348,12 +348,12 @@ select * from v1;
 f2()
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from v2;
 f2()
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from v3;
 ERROR HY000: View 'mysqltest.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select * from v4;
@@ -394,12 +394,12 @@ select * from v3;
 f2()
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from v4;
 f2()
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from v5;
 ERROR HY000: View 'mysqltest.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1, v2, v3, v4, v5;
