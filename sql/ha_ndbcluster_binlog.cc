@@ -1714,7 +1714,16 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
 {
   DBUG_ENTER("ndbcluster_create_event");
   if (!share)
+  {
+    DBUG_PRINT("info", ("share == NULL"));
     DBUG_RETURN(0);
+  }
+  if (share->flags & NSF_NO_BINLOG)
+  {
+    DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x %d", share->flags, share->flags & NSF_NO_BINLOG));
+    DBUG_RETURN(0);
+  }
+
   NDBDICT *dict= ndb->getDictionary();
   NDBEVENT my_event(event_name);
   my_event.setTable(*ndbtab);
@@ -1831,6 +1840,12 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
 
   DBUG_ASSERT(share != 0);
 
+  if (share->flags & NSF_NO_BINLOG)
+  {
+    DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x", share->flags));
+    DBUG_RETURN(0);
+  }
+
   if (share->op)
   {
     assert(share->op->getCustomData() == (void *) share);
@@ -1854,6 +1869,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     {
       sql_print_error("NDB Binlog: logging of blob table %s "
                       "is not supported", share->key);
+      share->flags|= NSF_NO_BINLOG;
       DBUG_RETURN(0);
     }
   }
