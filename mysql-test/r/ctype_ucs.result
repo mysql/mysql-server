@@ -684,3 +684,22 @@ select f1 from t1 where f1 like 'a%';
 f1
 a
 drop table t1;
+create table t1 (utext varchar(20) character set ucs2);
+insert into t1 values ("lily");
+insert into t1 values ("river");
+prepare stmt from 'select utext from t1 where utext like ?';
+set @param1='%%';
+execute stmt using @param1;
+utext
+lily
+river
+execute stmt using @param1;
+utext
+lily
+river
+select utext from t1 where utext like '%%';
+utext
+lily
+river
+drop table t1;
+deallocate prepare stmt;
