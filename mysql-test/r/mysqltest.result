@@ -362,6 +362,7 @@ OK
 mysqltest: In included file "./var/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
 mysqltest: In included file "./var/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "./var/tmp/con.sql": At line 2: Connection test_con1 already exists
+connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
