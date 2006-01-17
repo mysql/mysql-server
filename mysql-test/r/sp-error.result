@@ -535,7 +535,7 @@ fetch c into v;
 end|
 delete from t1|
 call bug7299()|
-ERROR 02000: No data to FETCH
+ERROR 02000: No data - zero rows fetched, selected, or processed
 drop procedure bug7299|
 create procedure bug9073()
 begin
