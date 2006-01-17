@@ -987,27 +987,24 @@ int ha_ndbcluster::get_metadata(const char *path)
       DBUG_RETURN(1);
     }
     
-    if (cmp_frm(tab, pack_data, pack_length))
+    if (m_share->state != NSS_ALTERED && cmp_frm(tab, pack_data, pack_length))
     {
-      if (m_share->state != NSS_ALTERED)
+      if (!invalidating_ndb_table)
       {
-        if (!invalidating_ndb_table)
-        {
-          DBUG_PRINT("info", ("Invalidating table"));
-          invalidate_dictionary_cache(TRUE);
-          invalidating_ndb_table= TRUE;
-        }
-        else
-        {
-          DBUG_PRINT("error", 
-                     ("metadata, pack_length: %d  getFrmLength: %d  memcmp: %d",
-                      pack_length, tab->getFrmLength(),
-                      memcmp(pack_data, tab->getFrmData(), pack_length)));
-          DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
-          DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
-          error= HA_ERR_TABLE_DEF_CHANGED;
-          invalidating_ndb_table= FALSE;
-        }
+        DBUG_PRINT("info", ("Invalidating table"));
+        invalidate_dictionary_cache(TRUE);
+        invalidating_ndb_table= TRUE;
+      }
+      else
+      {
+        DBUG_PRINT("error", 
+                   ("metadata, pack_length: %d  getFrmLength: %d  memcmp: %d",
+                    pack_length, tab->getFrmLength(),
+                    memcmp(pack_data, tab->getFrmData(), pack_length)));
+        DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
+        DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
+        error= HA_ERR_TABLE_DEF_CHANGED;
+        invalidating_ndb_table= FALSE;
       }
     }
     else
@@ -5410,6 +5407,8 @@ int ndbcluster_find_all_files(THD *thd)
           sql_print_information("NDB: mismatch in frm for %s.%s, discovering...",
                                 elmt.database, elmt.name);
         }
+        if (share)
+          free_share(&share);
       }
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
