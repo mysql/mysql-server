@@ -276,6 +276,11 @@ public:
     bool defaultNoPartFlag;
 
     /*
+      Flag to indicate using linear hash function
+    */
+    bool linearHashFlag;
+
+    /*
      * Used when shrinking to decide when to merge buckets.  Hysteresis
      * is thus possible. Should be smaller but not much smaller than
      * maxLoadFactor

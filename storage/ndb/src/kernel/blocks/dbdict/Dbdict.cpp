@@ -440,6 +440,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MaxRowsLow, tablePtr.p->maxRowsLow);
   w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
   w.add(DictTabInfo::DefaultNoPartFlag, tablePtr.p->defaultNoPartFlag);
+  w.add(DictTabInfo::LinearHashFlag, tablePtr.p->linearHashFlag);
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
 
   if(signal)
@@ -1832,6 +1833,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->maxRowsLow = 0;
   tablePtr.p->maxRowsHigh = 0;
   tablePtr.p->defaultNoPartFlag = true;
+  tablePtr.p->linearHashFlag = true;
   tablePtr.p->m_bits = 0;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
@@ -5901,6 +5903,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow; 
   tablePtr.p->maxRowsHigh = c_tableDesc.MaxRowsHigh; 
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
+  tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
