@@ -22,7 +22,7 @@
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
 extern const char *Ndb_apply_table;
-jk
+
 class BackupConsumer {
 public:
   virtual ~BackupConsumer() { }
