@@ -5307,7 +5307,7 @@ int ndbcluster_find_all_files(THD *thd)
         pthread_mutex_lock(&ndbcluster_mutex);
         if (((share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
                                             (byte*) key, strlen(key)))
-              && share->op == 0 && share->op_old == 0)
+              && share->op == 0 && share->op_old == 0 && ! (share->flags & NSF_NO_BINLOG))
             || share == 0)
         {
           /*
@@ -5451,7 +5451,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       end= strxnmov(end1, sizeof(name) - (end1 - name), file_name, NullS);
       if ((share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
                                           (byte*)name, end - name))
-          && share->op == 0 && share->op_old == 0)
+          && share->op == 0 && share->op_old == 0 && ! (share->flags & NSF_NO_BINLOG))
       {
         /*
           there is no binlog creation setup for this table
@@ -5464,6 +5464,8 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
         pthread_mutex_unlock(&LOCK_open);
         pthread_mutex_lock(&ndbcluster_mutex);
       }
+      /* Table existed in the mysqld so there should be a share */
+      DBUG_ASSERT(share != NULL);
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
@@ -6275,6 +6277,11 @@ int handle_trailing_share(NDB_SHARE *share)
                   " Moving away for safety, but possible memleak.",
                   share->key, share->use_count);
   dbug_print_open_tables();
+
+  /*
+    Ndb share has not been released as it should
+  */
+  DBUG_ASSERT(FALSE);
 
   /*
     This is probably an error.  We can however save the situation
