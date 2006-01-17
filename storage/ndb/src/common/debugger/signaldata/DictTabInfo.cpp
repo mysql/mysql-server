@@ -58,6 +58,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, MaxRowsLow, MaxRowsLow),
   DTIMAP(Table, MaxRowsHigh, MaxRowsHigh),
   DTIMAP(Table, DefaultNoPartFlag, DefaultNoPartFlag),
+  DTIMAP(Table, LinearHashFlag, LinearHashFlag),
   DTIMAP(Table, TablespaceVersion, TablespaceVersion),
   DTIMAP(Table, RowGCIFlag, RowGCIFlag),
   DTIMAP(Table, RowChecksumFlag, RowChecksumFlag),
@@ -149,6 +150,7 @@ DictTabInfo::Table::init(){
   MaxRowsLow = 0;
   MaxRowsHigh = 0;
   DefaultNoPartFlag = 1;
+  LinearHashFlag = 1;
 
   RowGCIFlag = ~0;
   RowChecksumFlag = ~0;
