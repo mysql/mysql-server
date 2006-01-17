@@ -4346,6 +4346,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
     DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb", 
                         m_tabname));
     error= table_changed(pack_data, pack_length);
+    m_share->state= NSS_INITIAL;
   }
   my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
