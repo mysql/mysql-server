@@ -27,6 +27,7 @@
  */
 #define MAX_NDB_NODES 49
 #define MAX_NODES     64
+#define UNDEF_NODEGROUP 0xFFFF
 
 /**
  * MAX_API_NODES = MAX_NODES - No of NDB Nodes in use
