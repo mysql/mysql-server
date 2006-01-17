@@ -260,7 +260,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
       break;
     }
     if ((error= open_table_from_share(thd, table_share, "", 0, 
-                                      (uint) READ_ALL, 0, table)))
+                                      (uint) READ_ALL, 0, table, FALSE)))
     {
       sql_print_error("Unable to open table for %s, error=%d(%d)",
                       share->key, error, my_errno);
@@ -1219,7 +1219,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       pOp->getReqNodeId() != g_ndb_cluster_connection->node_id())
   {
     ndb->setDatabaseName(share->table->s->db.str);
-    ha_ndbcluster::invalidate_dictionary_cache(share->table,
+    ha_ndbcluster::invalidate_dictionary_cache(share->table->s,
                                                ndb,
                                                share->table->s->table_name.str,
                                                TRUE);

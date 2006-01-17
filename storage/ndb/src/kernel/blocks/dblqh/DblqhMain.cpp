@@ -5785,6 +5785,9 @@ void Dblqh::execCOMPLETE(Signal* signal)
     errorReport(signal, 1);
     return;
   }//if
+  if (ERROR_INSERTED(5042)) {
+    ndbrequire(false);
+  }
   if (ERROR_INSERTED(5013)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 2000, 3);

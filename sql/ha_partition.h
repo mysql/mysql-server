@@ -49,10 +49,15 @@ private:
     partition_no_index_scan= 3
   };
   /* Data for the partition handler */
+  int  m_mode;                          // Open mode
+  uint m_open_test_lock;                // Open test_if_locked
   char *m_file_buffer;                  // Buffer with names
   char *m_name_buffer_ptr;		// Pointer to first partition name
   handlerton **m_engine_array;          // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
+  handler **m_new_file;                 // Array of references to new handlers
+  handler **m_reorged_file;             // Reorganised partitions
+  handler **m_added_file;               // Added parts kept for errors
   partition_info *m_part_info;          // local reference to partition
   byte *m_start_key_ref;                // Reference of start key in current
                                         // index scan info
@@ -60,7 +65,7 @@ private:
   byte *m_ordered_rec_buffer;           // Row and key buffer for ord. idx scan
   KEY *m_curr_key_info;                 // Current index
   byte *m_rec0;                         // table->record[0]
-  QUEUE queue;                          // Prio queue used by sorted read
+  QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
     is necessary to keep information about what the underlying handler
@@ -71,6 +76,7 @@ private:
   u_long m_table_flags;
   u_long m_low_byte_first;
 
+  uint m_reorged_parts;                  // Number of reorganised parts
   uint m_tot_parts;                      // Total number of partitions;
   uint m_no_locks;                        // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write
@@ -172,21 +178,38 @@ public:
   */
   virtual int delete_table(const char *from);
   virtual int rename_table(const char *from, const char *to);
-  virtual int create(const char *name, TABLE * form,
-		     HA_CREATE_INFO * create_info);
+  virtual int create(const char *name, TABLE *form,
+		     HA_CREATE_INFO *create_info);
   virtual int create_handler_files(const char *name);
-  virtual void update_create_info(HA_CREATE_INFO * create_info);
+  virtual void update_create_info(HA_CREATE_INFO *create_info);
   virtual char *update_table_comment(const char *comment);
+  virtual int change_partitions(HA_CREATE_INFO *create_info,
+                                const char *path,
+                                ulonglong *copied,
+                                ulonglong *deleted,
+                                const void *pack_frm_data,
+                                uint pack_frm_len);
   virtual int drop_partitions(const char *path);
+  virtual int rename_partitions(const char *path);
+  bool get_no_parts(const char *name, uint *no_parts)
+  {
+    DBUG_ENTER("ha_partition::get_no_parts");
+    *no_parts= m_tot_parts;
+    DBUG_RETURN(0);
+  }
 private:
+  int copy_partitions(ulonglong *copied, ulonglong *deleted);
+  void cleanup_new_partition(uint part_count);
+  int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
+                            handler *file, const char *part_name);
   /*
     delete_table, rename_table and create uses very similar logic which
     is packed into this routine.
   */
     uint del_ren_cre_table(const char *from,
 			   const char *to= NULL,
-			   TABLE * table_arg= NULL,
-			   HA_CREATE_INFO * create_info= NULL);
+			   TABLE *table_arg= NULL,
+			   HA_CREATE_INFO *create_info= NULL);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -647,30 +670,8 @@ public:
     index scan module.
     (NDB)
   */
-  virtual ulong alter_table_flags(void) const
-  {
-    //return HA_ONLINE_ADD_EMPTY_PARTITION + HA_ONLINE_DROP_PARTITION;
-    return HA_ONLINE_DROP_PARTITION;
-  }
   virtual ulong table_flags() const
   { return m_table_flags; }
-  /*
-    HA_CAN_PARTITION:
-    Used by storage engines that can handle partitioning without this
-    partition handler
-    (Partition, NDB)
-
-    HA_CAN_UPDATE_PARTITION_KEY:
-    Set if the handler can update fields that are part of the partition
-    function.
-
-    HA_CAN_PARTITION_UNIQUE:
-    Set if the handler can handle unique indexes where the fields of the
-    unique key are not part of the fields of the partition function. Thus
-    a unique key can be set on all fields.
-  */
-  virtual ulong partition_flags() const
-  { return HA_CAN_PARTITION; }
 
   /*
     This is a bitmap of flags that says how the storage engine
@@ -834,6 +835,8 @@ public:
     description of how the CREATE TABLE part to define FOREIGN KEY's is done.
     free_foreign_key_create_info is used to free the memory area that provided
     this description.
+    can_switch_engines checks if it is ok to switch to a new engine based on
+    the foreign key info in the table.
     -------------------------------------------------------------------------
 
     virtual char* get_foreign_key_create_info()
@@ -843,7 +846,7 @@ public:
     List<FOREIGN_KEY_INFO> *f_key_list)
     virtual uint referenced_by_foreign_key()
   */
-
+    virtual bool can_switch_engines();
   /*
     -------------------------------------------------------------------------
     MODULE fulltext index
@@ -892,16 +895,35 @@ public:
     -------------------------------------------------------------------------
     MODULE admin MyISAM
     -------------------------------------------------------------------------
+
+    -------------------------------------------------------------------------
+      OPTIMIZE TABLE, CHECK TABLE, ANALYZE TABLE and REPAIR TABLE are
+      mapped to a routine that handles looping over a given set of
+      partitions and those routines send a flag indicating to execute on
+      all partitions.
+    -------------------------------------------------------------------------
+  */
+    virtual int optimize(THD* thd, HA_CHECK_OPT *check_opt);
+    virtual int analyze(THD* thd, HA_CHECK_OPT *check_opt);
+    virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
+    virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
+    virtual int optimize_partitions(THD *thd);
+    virtual int analyze_partitions(THD *thd);
+    virtual int check_partitions(THD *thd);
+    virtual int repair_partitions(THD *thd);
+
+    private:
+    int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
+                              uint flags, bool all_parts);
+    public:
+  /*
+    -------------------------------------------------------------------------
     Admin commands not supported currently (almost purely MyISAM routines)
     This means that the following methods are not implemented:
     -------------------------------------------------------------------------
 
-    virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int backup(TD* thd, HA_CHECK_OPT *check_opt);
     virtual int restore(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int optimize(THD* thd, HA_CHECK_OPT *check_opt);
-    virtual int analyze(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int preload_keys(THD *thd, HA_CHECK_OPT *check_opt);
     virtual bool check_and_repair(THD *thd);

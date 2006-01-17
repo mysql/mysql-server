@@ -5601,13 +5601,13 @@ ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.64s"
         ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.64s überschritten"
 ER_SP_PROC_TABLE_CORRUPT
-	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
+	eng "Failed to load routine %-.64s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
 ER_PARTITION_REQUIRES_VALUES_ERROR
-        eng "%s PARTITIONING requires definition of VALUES %s for each partition"
-        swe "%s PARTITIONering kräver definition av VALUES %s för varje partition"
+        eng "%-.64s PARTITIONING requires definition of VALUES %-.64s for each partition"
+        swe "%-.64s PARTITIONering kräver definition av VALUES %-.64s för varje partition"
 ER_PARTITION_WRONG_VALUES_ERROR
-        eng "Only %s PARTITIONING can use VALUES %s in partition definition"
-        swe "Endast %s partitionering kan använda VALUES %s i definition av partitionen" 
+        eng "Only %-.64s PARTITIONING can use VALUES %-.64s in partition definition"
+        swe "Endast %-.64s partitionering kan använda VALUES %-.64s i definition av partitionen" 
 ER_PARTITION_MAXVALUE_ERROR
         eng "MAXVALUE can only be used in last partition definition"
         swe "MAXVALUE kan bara användas i definitionen av den sista partitionen"
@@ -5636,11 +5636,11 @@ ER_INCONSISTENT_PARTITION_INFO_ERROR
         eng "The partition info in the frm file is not consistent with what can be written into the frm file"
         swe "Partitioneringsinformationen i frm-filen är inte konsistent med vad som kan skrivas i frm-filen"
 ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
-        eng "The %s function returns the wrong type"
-        swe "%s-funktionen returnerar felaktig typ"
+        eng "The %-.64s function returns the wrong type"
+        swe "%-.64s-funktionen returnerar felaktig typ"
 ER_PARTITIONS_MUST_BE_DEFINED_ERROR
-        eng "For %s partitions each partition must be defined"
-        swe "För %s partitionering så måste varje partition definieras"
+        eng "For %-.64s partitions each partition must be defined"
+        swe "För %-.64s partitionering så måste varje partition definieras"
 ER_RANGE_NOT_INCREASING_ERROR
         eng "VALUES LESS THAN value must be strictly increasing for each partition"
         swe "Värden i VALUES LESS THAN måste vara strikt växande för varje partition"
@@ -5657,8 +5657,8 @@ ER_MIX_HANDLER_ERROR
         eng "The mix of handlers in the partitions is not allowed in this version of MySQL"
         swe "Denna mix av lagringsmotorer är inte tillåten i denna version av MySQL"
 ER_PARTITION_NOT_DEFINED_ERROR
-        eng "For the partitioned engine it is necessary to define all %s"
-        swe "För partitioneringsmotorn så är det nödvändigt att definiera alla %s"
+        eng "For the partitioned engine it is necessary to define all %-.64s"
+        swe "För partitioneringsmotorn så är det nödvändigt att definiera alla %-.64s"
 ER_TOO_MANY_PARTITIONS_ERROR
         eng "Too many partitions were defined"
         swe "För många partitioner definierades"
@@ -5671,30 +5671,36 @@ ER_CANT_CREATE_HANDLER_FILE
 ER_BLOB_FIELD_IN_PART_FUNC_ERROR
         eng "A BLOB field is not allowed in partition function"
         swe "Ett BLOB-fält är inte tillåtet i partitioneringsfunktioner"
-ER_CHAR_SET_IN_PART_FIELD_ERROR
-        eng "VARCHAR only allowed if binary collation for partition functions"
-        swe "VARCHAR endast tillåten med binär collation för partitioneringsfunktion"
 ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
-        eng "A %s need to include all fields in the partition function"
-        swe "En %s behöver inkludera alla fält i partitioneringsfunktionen för denna lagringsmotor"
+        eng "A %-.64s need to include all fields in the partition function"
+        swe "En %-.64s behöver inkludera alla fält i partitioneringsfunktionen för denna lagringsmotor"
 ER_NO_PARTS_ERROR
-        eng "Number of %s = 0 is not an allowed value"
-        swe "Antal %s = 0 är inte ett tillåten värde"
+        eng "Number of %-.64s = 0 is not an allowed value"
+        swe "Antal %-.64s = 0 är inte ett tillåten värde"
 ER_PARTITION_MGMT_ON_NONPARTITIONED
         eng "Partition management on a not partitioned table is not possible"
         swe "Partitioneringskommando på en opartitionerad tabell är inte möjligt"
+ER_FOREIGN_KEY_ON_PARTITIONED
+        eng "Foreign key condition is not yet supported in conjunction with partitioning"
+        swe "Foreign key villkor är inte ännu implementerad i kombination med partitionering"
 ER_DROP_PARTITION_NON_EXISTENT
-        eng "Error in list of partitions to change"
-        swe "Fel i listan av partitioner att förändra"
+        eng "Error in list of partitions to %-.64s"
+        swe "Fel i listan av partitioner att %-.64s"
 ER_DROP_LAST_PARTITION
         eng "Cannot remove all partitions, use DROP TABLE instead"
         swe "Det är inte tillåtet att ta bort alla partitioner, använd DROP TABLE istället"
 ER_COALESCE_ONLY_ON_HASH_PARTITION
         eng "COALESCE PARTITION can only be used on HASH/KEY partitions"
         swe "COALESCE PARTITION kan bara användas på HASH/KEY partitioner"
+ER_REORG_HASH_ONLY_ON_SAME_NO
+        eng "REORGANISE PARTITION can only be used to reorganise partitions not to change their numbers"
+        swe "REORGANISE PARTITION kan bara användas för att omorganisera partitioner, inte för att ändra deras antal"
+ER_REORG_NO_PARAM_ERROR
+        eng "REORGANISE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs"
+        swe "REORGANISE PARTITION utan parametrar kan bara användas på auto-partitionerade tabeller som använder HASH partitionering"
 ER_ONLY_ON_RANGE_LIST_PARTITION
-        eng "%s PARTITION can only be used on RANGE/LIST partitions"
-        swe "%s PARTITION kan bara användas på RANGE/LIST-partitioner"
+        eng "%-.64s PARTITION can only be used on RANGE/LIST partitions"
+        swe "%-.64s PARTITION kan bara användas på RANGE/LIST-partitioner"
 ER_ADD_PARTITION_SUBPART_ERROR
         eng "Trying to Add partition(s) with wrong number of subpartitions"
         swe "ADD PARTITION med fel antal subpartitioner"
@@ -5708,19 +5714,25 @@ ER_REORG_PARTITION_NOT_EXIST
         eng "More partitions to reorganise than there are partitions"
         swe "Fler partitioner att reorganisera än det finns partitioner"
 ER_SAME_NAME_PARTITION
-        eng "All partitions must have unique names in the table"
-        swe "Alla partitioner i tabellen måste ha unika namn"
+        eng "Duplicate partition name %-.64s"
+        swe "Duplicerat partitionsnamn %-.64s"
+ER_NO_BINLOG_ERROR
+        eng "It is not allowed to shut off binlog on this command"
+        swe "Det är inte tillåtet att stänga av binlog på detta kommando"
 ER_CONSECUTIVE_REORG_PARTITIONS
         eng "When reorganising a set of partitions they must be in consecutive order"
         swe "När ett antal partitioner omorganiseras måste de vara i konsekutiv ordning"
 ER_REORG_OUTSIDE_RANGE
-        eng "The new partitions cover a bigger range then the reorganised partitions do"
-        swe "De nya partitionerna täcker ett större intervall än de omorganiserade partitionerna"
-ER_DROP_PARTITION_FAILURE
-        eng "Drop partition not supported in this version for this handler"
-ER_DROP_PARTITION_WHEN_FK_DEFINED
-        eng "Cannot drop a partition when a foreign key constraint is defined on the table"
-        swe "Kan inte ta bort en partition när en främmande nyckel är definierad på tabellen"
+        eng "Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range"
+        swe "Reorganisering av rangepartitioner kan inte ändra den totala intervallet utom för den sista partitionen där intervallet kan utökas"
+ER_PARTITION_FUNCTION_FAILURE
+        eng "Partition function not supported in this version for this handler"
+ER_PART_STATE_ERROR
+        eng "Partition state cannot be defined from CREATE/ALTER TABLE"
+        swe "Partition state kan inte definieras från CREATE/ALTER TABLE"
+ER_LIMITED_PART_RANGE
+        eng "The %-.64s handler only supports 32 bit integers in VALUES"
+        swe "%-.64s stödjer endast 32 bitar i integers i VALUES"
 ER_PLUGIN_IS_NOT_LOADED
 	eng "Plugin '%-.64s' is not loaded"
 ER_WRONG_VALUE

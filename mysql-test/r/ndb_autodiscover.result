@@ -110,7 +110,7 @@ t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(255) default NULL,
   PRIMARY KEY  (`id`)
-) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY () 
 select * from t3;
 id	name
 1	Explorer
