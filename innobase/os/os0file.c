@@ -303,6 +303,8 @@ os_file_get_last_error(
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == EEXIST) {
 		return(OS_FILE_ALREADY_EXISTS);
+	} else if (err == EXDEV || err == ENOTDIR || err == EISDIR) {
+		return(OS_FILE_PATH_ERROR);
 	} else {
 		return(100 + err);
 	}
@@ -352,7 +354,8 @@ os_file_handle_error(
 
 		return(TRUE);
 
-	} else if (err == OS_FILE_ALREADY_EXISTS) {
+	} else if (err == OS_FILE_ALREADY_EXISTS
+			|| err == OS_FILE_PATH_ERROR) {
 
 		return(FALSE);
 	} else {
@@ -456,7 +459,8 @@ os_file_handle_error_no_exit(
 
 		return(TRUE);
 
-	} else if (err == OS_FILE_ALREADY_EXISTS) {
+	} else if (err == OS_FILE_ALREADY_EXISTS
+			|| err == OS_FILE_PATH_ERROR) {
 
 		return(FALSE);
 	} else {

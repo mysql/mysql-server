@@ -2524,6 +2524,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   return 0;
 }
 
+void Item_func_like::cleanup()
+{
+  canDoTurboBM= FALSE;
+  Item_bool_func2::cleanup();
+}
+
 #ifdef USE_REGEX
 
 bool
