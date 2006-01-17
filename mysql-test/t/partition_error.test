@@ -4,6 +4,10 @@
 #
 -- source include/have_partition.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 #
 # Partition by key stand-alone error
 #
@@ -726,6 +730,14 @@ partition by list (a)
 partitions 2
 (partition x1 values in 4,
  partition x2 values in (5));
+
+#
+# Bug #13439: Crash when LESS THAN (non-literal)
+#
+--error 1054
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (x1));
 
 #
 # No partition for the given value
