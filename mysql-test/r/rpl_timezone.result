@@ -15,13 +15,13 @@ select @@time_zone;
 Europe/Moscow
 insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 2005-01-01 00:00:00	1
 2005-06-11 09:39:02	2
 2004-01-01 00:00:00	3
 2004-06-11 09:39:02	4
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 2005-01-01 06:00:00	1
 2005-06-11 14:39:02	2
@@ -30,12 +30,12 @@ t	n
 delete from t1;
 set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 2004-01-01 00:00:00	5
 2004-06-11 09:39:02	6
 set time_zone='Europe/Moscow';
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 2004-01-01 00:00:00	5
 2004-06-11 09:39:02	6
@@ -47,12 +47,12 @@ Warning	1265	Data truncated for column 't' at row 1
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1265	Data truncated for column 't' at row 2
 Warning	1261	Row 2 doesn't contain data for all columns
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 0000-00-00 00:00:00	7
 0000-00-00 00:00:00	8
 set time_zone='UTC';
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 0000-00-00 00:00:00	7
 0000-00-00 00:00:00	8
@@ -62,18 +62,18 @@ delete from t1;
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 set time_zone='MET';
 insert into t2 (select * from t1);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 t	n
 2003-12-31 22:00:00	9
 2004-06-11 07:39:02	10
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 22:00:00	9
 2004-06-11 07:39:02	10
 delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 23:46:40	11
 2001-09-09	12
@@ -81,11 +81,11 @@ t	n
 delete from t2;
 insert into t2 values (from_unixtime(1000000000),NULL),
 (unix_timestamp('2001-09-09 03:46:40'),NULL);
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 03:46:40	14
 1000000000	15
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2001-09-09 03:46:40	14
 1000000000	15
@@ -94,11 +94,11 @@ delete from t2;
 set time_zone='UTC';
 insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
 insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 23:00:00	16
 2005-01-01 08:00:00	17
-select * from t2;
+SELECT * FROM t2 ORDER BY n;
 t	n
 2003-12-31 23:00:00	16
 2005-01-01 08:00:00	17

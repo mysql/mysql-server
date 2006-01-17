@@ -4,6 +4,10 @@
 #############################################################################
 # Test: To test the replication of the bit field                            #
 #############################################################################
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
 
 -- source include/master-slave.inc
 
@@ -71,17 +75,17 @@ UNLOCK TABLES;
 
 
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
-SELECT hex(bit1) from test.t1;
-SELECT hex(bit2) from test.t1;
-SELECT hex(bit3) from test.t1;
+SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 save_master_pos;
 
 connection slave;
 sync_with_master;
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
-SELECT hex(bit1) from test.t1;
-SELECT hex(bit2) from test.t1;
-SELECT hex(bit3) from test.t1;
+SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
+SELECT hex(bit2) from test.t1 ORDER BY bit2;
+SELECT hex(bit3) from test.t1 ORDER BY bit3;
 
 connection master;
 DROP TABLE IF EXISTS test.t1;

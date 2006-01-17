@@ -4,6 +4,10 @@
 #############################################################################
 # TEST: To test the LOAD_FILE() in rbr                                      #
 #############################################################################
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
 
 # Includes
 -- source include/master-slave.inc
@@ -30,18 +34,14 @@ end|
 delimiter ;|
 
 CALL test.p1();
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY blob_column;
 save_master_pos;
 sync_slave_with_master;
 connection slave;
-SHOW CREATE TABLE test.t1;
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY blob_column;
 
-connection master;
 # Lets cleanup
-#show binlog events;
-
+connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
-
 # End of 5.0 test case
