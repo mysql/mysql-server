@@ -12,12 +12,12 @@ INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;
 INSERT into t1 SET name='Caleb', age=1;
 ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
-select * from t1;
+SELECT * FROM t1 ORDER BY id;
 name	age	id
 Andy	31	00000001
 Jacob	2	00000002
 Caleb	1	00000003
-select * from t1;
+SELECT * FROM t1 ORDER BY id;
 name	age	id
 Andy	31	00000001
 Jacob	2	00000002

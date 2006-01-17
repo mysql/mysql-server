@@ -21,12 +21,12 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 drop table if exists t1;
 create table t1 (n int, PRIMARY KEY(n));
 insert into t1 values (10),(45),(90);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 10
 45
 90
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 10
 45

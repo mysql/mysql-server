@@ -1,6 +1,13 @@
+###################################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: Added order by
+###################################
 #
 # Test of replicating user variables
 #
+###################################
+
 -- source include/master-slave.inc
 # Disable PS as the log positions differs
 --disable_ps_protocol
@@ -44,9 +51,9 @@ insert into t1 values (@a),(@a);
 select * from t1 where n = '<nonexistant>';
 connection master1; # see if variable is reset in binlog when thread changes
 insert into t1 values (@a),(@a),(@a*5);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 sync_slave_with_master;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 connection master;
 drop table t1;
 sync_slave_with_master;

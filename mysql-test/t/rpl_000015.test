@@ -1,3 +1,9 @@
+#####################
+# Change Author: JBM
+# Change Date: 2006-01-17
+# Change: added order by in select
+##################### 
+
 connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
 connection master;
@@ -34,8 +40,8 @@ create table t1 (n int, PRIMARY KEY(n));
 insert into t1 values (10),(45),(90);
 sync_slave_with_master;
 connection slave;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 connection master;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 drop table t1;
 sync_slave_with_master;

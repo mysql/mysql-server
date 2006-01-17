@@ -15,7 +15,7 @@ INSERT INTO test.t1  VALUES(2,'test');
 UPDATE test.t1 SET blob_column=LOAD_FILE('../../std_data/words2.dat') WHERE a=2;
 end|
 CALL test.p1();
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY blob_column;
 a	blob_column
 1	abase
 abased
@@ -119,14 +119,7 @@ Abernathy
 aberrant
 aberration
 
-SHOW CREATE TABLE test.t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
-  `blob_column` longblob,
-  PRIMARY KEY  (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY blob_column;
 a	blob_column
 1	abase
 abased

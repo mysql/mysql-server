@@ -1,3 +1,9 @@
+##########
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
 #
 # Testing of setting slave to wrong log position with master_log_pos
 #
@@ -46,7 +52,7 @@ stop slave;
 change master to master_log_pos=102;
 start slave;
 sync_with_master;
-select * from t1;
+select * from t1 ORDER BY n;
 connection master;
 drop table t1;
 sync_slave_with_master;

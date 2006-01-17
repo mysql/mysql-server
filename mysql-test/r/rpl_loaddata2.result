@@ -6,27 +6,27 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY word;
 word
 Aarhus
-Aaron
-Ababa
-aback
-abaft
-abandon
-abandoned
-abandoning
-abandonment
-abandons
 Aarhus
 Aaron
+Aaron
+Ababa
 Ababa
 aback
+aback
+abaft
 abaft
 abandon
+abandon
+abandoned
 abandoned
 abandoning
+abandoning
 abandonment
+abandonment
+abandons
 abandons
 abase
 abased
@@ -78,27 +78,27 @@ Aberdeen
 Abernathy
 aberrant
 aberration
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY word;
 word
 Aarhus
-Aaron
-Ababa
-aback
-abaft
-abandon
-abandoned
-abandoning
-abandonment
-abandons
 Aarhus
 Aaron
+Aaron
+Ababa
 Ababa
 aback
+aback
+abaft
 abaft
 abandon
+abandon
+abandoned
 abandoned
 abandoning
+abandoning
 abandonment
+abandonment
+abandons
 abandons
 abase
 abased

@@ -2,7 +2,13 @@
 
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY word;
 sync_slave_with_master;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY word;
+
+##########
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
 

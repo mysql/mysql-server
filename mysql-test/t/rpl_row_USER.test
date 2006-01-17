@@ -4,6 +4,10 @@
 #############################################################################
 # TEST: To test the UUID() in rbr                                           #
 #############################################################################
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
 
 # Includes
 -- source include/have_binlog_format_row.inc
@@ -37,9 +41,9 @@ delimiter ;|
 
 CALL mysqltest1.p1();
 connection master;
-SELECT * FROM mysqltest1.t1;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
 sync_slave_with_master;
-SELECT * FROM mysqltest1.t1;
+SELECT * FROM mysqltest1.t1 ORDER BY a;
 
 connection master;
 # Lets cleanup
