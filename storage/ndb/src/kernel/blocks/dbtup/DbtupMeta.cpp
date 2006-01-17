@@ -534,6 +534,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   CreateFilegroupImplReq rep;
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
+    ljam();
     Tablespace_client tsman(0, c_tsman, 0, 0, 
 			    regFragPtr.p->m_tablespace_id);
     ndbrequire(tsman.get_tablespace_info(&rep) == 0);
@@ -545,11 +546,14 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   
   if (regTabPtr.p->m_no_of_disk_attributes)
   {
+    ljam();
     if(!(getNodeState().getSystemRestartInProgress() && 
 	 getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
       Callback cb;
+      ljam();
+
       cb.m_callbackData= fragOperPtr.i;
       cb.m_callbackFunction = 
 	safe_cast(&Dbtup::undo_createtable_callback);
@@ -562,6 +566,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       int res= lgman.get_log_buffer(signal, sz, &cb);
       switch(res){
       case 0:
+        ljam();
 	signal->theData[0] = 1;
 	return;
       case -1:

@@ -2218,7 +2218,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
       {
 	if (abort_locks)
 	{
-	  mysql_lock_abort(thd,table);		// Close waiting threads
+	  mysql_lock_abort(thd,table, TRUE);	// Close waiting threads
 	  mysql_lock_remove(thd, thd->locked_tables,table);
 	  table->locked_by_flush=1;		// Will be reopened with locks
 	}
@@ -2361,7 +2361,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     if (!strcmp(table->s->table_name.str, table_name) &&
 	!strcmp(table->s->db.str, db))
     {
-      mysql_lock_abort(thd,table);
+      mysql_lock_abort(thd,table, TRUE);
       break;
     }
   }
@@ -2473,7 +2473,7 @@ retry:
                                                HA_TRY_READ_ONLY),
                                        (READ_KEYINFO | COMPUTE_TYPES |
                                         EXTRA_RECORD),
-                                       thd->open_options, entry)))
+                                       thd->open_options, entry, FALSE)))
   {
     if (error == 7)                             // Table def changed
     {
@@ -2537,7 +2537,7 @@ retry:
                                        HA_TRY_READ_ONLY),
                                READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                                ha_open_options | HA_OPEN_FOR_REPAIR,
-                               entry) || ! entry->file ||
+                               entry, FALSE) || ! entry->file ||
  	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
      {
        /* Give right error message */
@@ -3366,7 +3366,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
                                     HA_GET_INDEX),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
-                            tmp_table))
+                            tmp_table, FALSE))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -6069,3 +6069,155 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 {
   return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }
+
+
+/*
+  SYNOPSIS
+    abort_and_upgrade_lock()
+    lpt                           Parameter passing struct
+    All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
+  RETURN VALUES
+    TRUE                          Failure
+    FALSE                         Success
+  DESCRIPTION
+    Remember old lock level (for possible downgrade later on), abort all
+    waiting threads and ensure that all keeping locks currently are
+    completed such that we own the lock exclusively and no other interaction
+    is ongoing.
+
+    thd                           Thread object
+    table                         Table object
+    db                            Database name
+    table_name                    Table name
+    old_lock_level                Old lock level
+*/
+
+bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
+  int error= FALSE;
+  DBUG_ENTER("abort_and_upgrade_locks");
+
+  lpt->old_lock_type= lpt->table->reginfo.lock_type;
+  VOID(pthread_mutex_lock(&LOCK_open));
+  mysql_lock_abort(lpt->thd, lpt->table, TRUE);
+  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
+  if (lpt->thd->killed)
+  {
+    lpt->thd->no_warnings_for_error= 0;
+    error= TRUE;
+  }
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  DBUG_RETURN(error);
+}
+
+
+/*
+  SYNOPSIS
+    close_open_tables_and_downgrade()
+  RESULT VALUES
+    NONE
+  DESCRIPTION
+    We need to ensure that any thread that has managed to open the table
+    but not yet encountered our lock on the table is also thrown out to
+    ensure that no threads see our frm changes premature to the final
+    version. The intermediate versions are only meant for use after a
+    crash and later REPAIR TABLE.
+    We also downgrade locks after the upgrade to WRITE_ONLY
+*/
+
+void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  VOID(pthread_mutex_lock(&LOCK_open));
+  remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
+                          RTFC_WAIT_OTHER_THREAD_FLAG);
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  mysql_lock_downgrade_write(lpt->thd, lpt->table, lpt->old_lock_type);
+}
+
+
+/*
+  SYNOPSIS
+    mysql_wait_completed_table()
+    lpt                            Parameter passing struct
+    my_table                       My table object
+    All parameters passed through the ALTER_PARTITION_PARAM object
+  RETURN VALUES
+    TRUE                          Failure
+    FALSE                         Success
+  DESCRIPTION
+    We have changed the frm file and now we want to wait for all users of
+    the old frm to complete before proceeding to ensure that no one
+    remains that uses the old frm definition.
+    Start by ensuring that all users of the table will be removed from cache
+    once they are done. Then abort all that have stumbled on locks and
+    haven't been started yet.
+
+    thd                           Thread object
+    table                         Table object
+    db                            Database name
+    table_name                    Table name
+*/
+
+void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table)
+{
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length;
+  TABLE *table;
+  DBUG_ENTER("mysql_wait_completed_table");
+
+  key_length=(uint) (strmov(strmov(key,lpt->db)+1,lpt->table_name)-key)+1;
+  VOID(pthread_mutex_lock(&LOCK_open));
+  HASH_SEARCH_STATE state;
+  for (table= (TABLE*) hash_first(&open_cache,(byte*) key,key_length,
+                                  &state) ;
+       table;
+       table= (TABLE*) hash_next(&open_cache,(byte*) key,key_length,
+                                 &state))
+  {
+    THD *in_use= table->in_use;
+    table->s->version= 0L;
+    if (!in_use)
+    {
+      relink_unused(table);
+    }
+    else
+    {
+      /* Kill delayed insert threads */
+      if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+          ! in_use->killed)
+      {
+        in_use->killed= THD::KILL_CONNECTION;
+        pthread_mutex_lock(&in_use->mysys_var->mutex);
+        if (in_use->mysys_var->current_cond)
+        {
+          pthread_mutex_lock(in_use->mysys_var->current_mutex);
+          pthread_cond_broadcast(in_use->mysys_var->current_cond);
+          pthread_mutex_unlock(in_use->mysys_var->current_mutex);
+        }
+        pthread_mutex_unlock(&in_use->mysys_var->mutex);
+      }
+      /*
+        Now we must abort all tables locks used by this thread
+        as the thread may be waiting to get a lock for another table
+      */
+      for (TABLE *thd_table= in_use->open_tables;
+           thd_table ;
+           thd_table= thd_table->next)
+      {
+        if (thd_table->db_stat)		// If table is open
+          mysql_lock_abort_for_thread(lpt->thd, thd_table);
+      }
+    }
+  }
+  /*
+    We start by removing all unused objects from the cache and marking
+    those in use for removal after completion. Now we also need to abort
+    all that are locked and are not progressing due to being locked
+    by our lock. We don't upgrade our lock here.
+  */
+  mysql_lock_abort(lpt->thd, my_table, FALSE);
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  DBUG_VOID_RETURN;
+}
+
