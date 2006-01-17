@@ -120,9 +120,24 @@ public:
   void init();
   void setName(const char * name);
   const char * getName() const;
+  void setFragmentCount(Uint32 count);
+  Uint32 getFragmentCount() const;
   void setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
+  void setFragmentData(const void* data, Uint32 len);
+  const void * getFragmentData() const;
+  Uint32 getFragmentDataLen() const;
+  void setTablespaceNames(const void* data, Uint32 len);
+  Uint32 getTablespaceNamesLen() const;
+  const void * getTablespaceNames() const;
+  void setTablespaceData(const void* data, Uint32 len);
+  const void * getTablespaceData() const;
+  Uint32 getTablespaceDataLen() const;
+  void setRangeListData(const void* data, Uint32 len);
+  const void * getRangeListData() const;
+  Uint32 getRangeListDataLen() const;
+
   const char * getMysqlName() const;
   void updateMysqlName();
 
@@ -133,8 +148,15 @@ public:
   BaseString m_mysqlName;
   BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
-  UtilBuffer m_newFrm; // Used for alter table
-  UtilBuffer m_ng;
+  UtilBuffer m_newFrm;       // Used for alter table
+  UtilBuffer m_ts_name;      //Tablespace Names
+  UtilBuffer m_new_ts_name;  //Tablespace Names
+  UtilBuffer m_ts;           //TablespaceData
+  UtilBuffer m_new_ts;       //TablespaceData
+  UtilBuffer m_fd;           //FragmentData
+  UtilBuffer m_new_fd;       //FragmentData
+  UtilBuffer m_range;        //Range Or List Array
+  UtilBuffer m_new_range;    //Range Or List Array
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**
@@ -153,6 +175,8 @@ public:
   Uint32 m_hashpointerValue;
   Vector<Uint16> m_fragments;
 
+  Uint64 m_max_rows;
+  Uint32 m_default_no_part_flag;
   bool m_logging;
   bool m_row_gci;
   bool m_row_checksum;
@@ -162,7 +186,6 @@ public:
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
 
-  NdbDictionaryImpl * m_dictionary;
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);
   NdbColumnImpl * getColumn(const char * name);

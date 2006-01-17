@@ -32,6 +32,7 @@ class DiAddTabReq {
 public:
   STATIC_CONST( SignalLength = 9 );
   SECTION( FRAGMENTATION = 0 );
+  SECTION( TS_RANGE = 0 );
   
 private:
   Uint32 connectPtr;

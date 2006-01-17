@@ -8,6 +8,7 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+
 #
 # Partition by key no partition defined => OK
 #
@@ -97,6 +98,9 @@ partitions 3
  partition x2 tablespace ts2,
  partition x3 tablespace ts3);
 
+CREATE TABLE t2 LIKE t1;
+
+drop table t2;
 drop table t1;
 
 #
@@ -163,6 +167,141 @@ UNLOCK TABLES;
 drop table t1;
 
 #
+# Bug #13644 DROP PARTITION NULL's DATE column
+#
+CREATE TABLE t1 (a int, name VARCHAR(50), purchased DATE)
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (3),
+ PARTITION p1 VALUES LESS THAN (7),
+ PARTITION p2 VALUES LESS THAN (9),
+ PARTITION p3 VALUES LESS THAN (11));
+INSERT INTO t1 VALUES
+(1, 'desk organiser', '2003-10-15'),
+(2, 'CD player', '1993-11-05'),
+(3, 'TV set', '1996-03-10'),
+(4, 'bookcase', '1982-01-10'),
+(5, 'exercise bike', '2004-05-09'),
+(6, 'sofa', '1987-06-05'),
+(7, 'popcorn maker', '2001-11-22'),
+(8, 'acquarium', '1992-08-04'),
+(9, 'study desk', '1984-09-16'),
+(10, 'lava lamp', '1998-12-25');
+
+SELECT * from t1 ORDER BY a;
+ALTER TABLE t1 DROP PARTITION p0;
+SELECT * from t1 ORDER BY a;
+
+drop table t1;
+
+#
+# Bug #13442; Truncate Partitioned table doesn't work
+#
+
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (1,2,3), PARTITION p1 VALUES IN (4,5,6));
+
+insert into t1 values (1),(2),(3),(4),(5),(6);
+select * from t1;
+truncate t1;
+select * from t1;
+truncate t1;
+select * from t1;
+drop table t1;
+
+#
+# Bug #13445 Partition by KEY method crashes server
+#
+CREATE TABLE t1 (a int, b int, primary key(a,b))
+PARTITION BY KEY(b,a) PARTITIONS 4;
+
+insert into t1 values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+select * from t1 where a = 4;
+
+drop table t1;
+
+#
+# Bug #13438: Engine clause in PARTITION clause causes crash
+#
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+PARTITIONS 1
+(PARTITION x1 VALUES IN (1) ENGINE=MEMORY);
+
+show create table t1;
+drop table t1;
+
+#
+# Bug #13440: REPLACE causes crash in partitioned table
+#
+CREATE TABLE t1 (a int, unique(a))
+PARTITION BY LIST (a)
+(PARTITION x1 VALUES IN (10), PARTITION x2 VALUES IN (20));
+
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE 
+REPLACE t1 SET a = 4;
+drop table t1;
+
+#
+# Bug #14365: Crash if value too small in list partitioned table
+#
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+(PARTITION x1 VALUES IN (2), PARTITION x2 VALUES IN (3));
+
+insert into t1 values (2), (3);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (4);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (1);
+drop table t1;
+
+#
+# Bug 14327: PARTITIONS clause gets lost in SHOW CREATE TABLE
+#
+CREATE TABLE t1 (a int)
+PARTITION BY HASH(a)
+PARTITIONS 5;
+
+SHOW CREATE TABLE t1;
+
+drop table t1;
+
+#
+# Bug #13446: Update to value outside of list values doesn't give error
+#
+CREATE TABLE t1 (a int)
+PARTITION BY RANGE (a)
+(PARTITION x1 VALUES LESS THAN (2));
+
+insert into t1 values (1);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+update t1 set a = 5;
+
+drop table t1;
+
+#
+# Bug #13441: Analyze on partitioned table didn't work
+#
+CREATE TABLE t1 (a int)
+PARTITION BY LIST (a)
+(PARTITION x1 VALUES IN (10), PARTITION x2 VALUES IN (20));
+
+analyze table t1;
+
+drop table t1;
+
+#
+# BUG 14524
+#
+CREATE TABLE `t1` (
+  `id` int(11) default NULL
+) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+SELECT * FROM t1;
+
+drop table t1;
+
+#
 # BUG 14524
 #
 CREATE TABLE `t1` (
@@ -180,9 +319,9 @@ create table t1
 partition by range (a)
   ( partition p0 values less than(10),
     partition p1 values less than (20),
-    partition p2 values less than maxvalue);
+    partition p2 values less than (25));
 
-alter table t1 reorganise partition p2 into (partition p2 values less than (30));
+alter table t1 reorganize partition p2 into (partition p2 values less than (30));
 show create table t1;
 drop table t1;
 
@@ -199,7 +338,8 @@ PARTITION BY RANGE (a)
  PARTITION x8 VALUES LESS THAN (18),
  PARTITION x9 VALUES LESS THAN (20));
 
-ALTER TABLE t1 REORGANISE PARTITION x0,x1,x2 INTO
+ALTER TABLE t1 REORGANIZE PARTITION x0,x1,x2 INTO
 (PARTITION x1 VALUES LESS THAN (6));
 show create table t1;
 drop table t1;
+
