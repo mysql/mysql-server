@@ -6398,7 +6398,6 @@ void Dbdih::execDIRELEASEREQ(Signal* signal)
   ***************************************
   */
 
-#define UNDEF_NODEGROUP 65535
 static inline void inc_node_or_group(Uint32 &node, Uint32 max_node)
 {
   Uint32 next = node + 1;

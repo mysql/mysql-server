@@ -131,6 +131,7 @@ public:
     MaxRowsLow         = 139,
     MaxRowsHigh        = 140,
     DefaultNoPartFlag  = 141,
+    LinearHashFlag     = 142,
 
     RowGCIFlag         = 150,
     RowChecksumFlag    = 151,
@@ -310,6 +311,7 @@ public:
     Uint32 MaxRowsLow;
     Uint32 MaxRowsHigh;
     Uint32 DefaultNoPartFlag;
+    Uint32 LinearHashFlag;
     /*
       TODO RONM:
       We need to replace FRM, Fragment Data, Tablespace Data and in

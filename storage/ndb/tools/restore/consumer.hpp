@@ -18,10 +18,11 @@
 #define CONSUMER_HPP
 
 #include "Restore.hpp"
+#include "ndb_nodegroup_map.h"
 
 #include "../../../../sql/ha_ndbcluster_tables.h"
 extern const char *Ndb_apply_table;
-
+jk
 class BackupConsumer {
 public:
   virtual ~BackupConsumer() { }
@@ -29,13 +30,15 @@ public:
   virtual bool object(Uint32 tableType, const void*) { return true;}
   virtual bool table(const TableS &){return true;}
   virtual bool endOfTables() { return true; }
-  virtual void tuple(const TupleS &){}
+  virtual void tuple(const TupleS &, Uint32 fragId){}
   virtual void tuple_free(){}
   virtual void endOfTuples(){}
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
   virtual bool finalize_table(const TableS &){return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
+  NODE_GROUP_MAP *m_nodegroup_map;
+  uint            m_nodegroup_map_len;
 };
 
 #endif
