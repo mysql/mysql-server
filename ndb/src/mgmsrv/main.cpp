@@ -132,6 +132,7 @@ static MgmGlobals *glob= 0;
  * Global variables
  */
 bool g_StopServer;
+bool g_RestartServer;
 extern EventLogger g_eventLogger;
 
 extern int global_mgmt_server_check;
@@ -191,7 +192,19 @@ static void usage()
  */
 int main(int argc, char** argv)
 {
+  int mgm_connect_result;
+
   NDB_INIT(argv[0]);
+
+  int ho_error;
+#ifndef DBUG_OFF
+  opt_debug= "d:t:O,/tmp/ndb_mgmd.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
+			       ndb_std_get_one_option)))
+    exit(ho_error);
+
+start:
   glob= new MgmGlobals;
 
   /**
@@ -207,14 +220,6 @@ int main(int argc, char** argv)
   
   const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
-
-  int ho_error;
-#ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_mgmd.trace";
-#endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
-			       ndb_std_get_one_option)))
-    exit(ho_error);
 
   if (opt_interactive ||
       opt_non_interactive ||
@@ -293,34 +298,12 @@ int main(int argc, char** argv)
     goto error_end;
   }
 
-  /* Construct a fake connectstring to connect back to ourselves */
-  char connect_str[20];
-  if(!opt_connect_str) {
-    snprintf(connect_str,20,"localhost:%u",glob->mgmObject->getPort());
-    opt_connect_str= connect_str;
-  }
-  glob->mgmObject->set_connect_string(opt_connect_str);
-
   if(!glob->mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
     goto error_end;
   }
 
-  /* 
-   * Connect back to ourselves so we can use mgmapi to fetch
-   * config info
-   */
-  int mgm_connect_result;
-  mgm_connect_result = glob->mgmObject->get_config_retriever()->
-    do_connect(0,0,0);
-
-  if(mgm_connect_result<0) {
-    ndbout_c("Unable to connect to our own ndb_mgmd (Error %d)",
-	     mgm_connect_result);
-    ndbout_c("This is probably a bug.");
-  }
-  
   if (opt_daemon) {
     // Become a daemon
     char *lockfile= NdbConfig_PidFileName(glob->localNodeId);
@@ -361,6 +344,7 @@ int main(int argc, char** argv)
   g_eventLogger.info(msg);
   
   g_StopServer = false;
+  g_RestartServer= false;
   glob->socketServer->startServer();
 
 #if ! defined NDB_OSE && ! defined NDB_SOFTOSE
@@ -378,14 +362,19 @@ int main(int argc, char** argv)
     while(g_StopServer != true)
       NdbSleep_MilliSleep(500);
   }
-  
-  g_eventLogger.info("Shutting down server...");
+
+  if(g_RestartServer)
+    g_eventLogger.info("Restarting server...");
+  else
+    g_eventLogger.info("Shutting down server...");
   glob->socketServer->stopServer();
-  glob->mgmObject->get_config_retriever()->disconnect();
+  // We disconnect from the ConfigRetreiver mgmd when we delete glob below
   glob->socketServer->stopSessions(true);
   g_eventLogger.info("Shutdown complete");
  the_end:
   delete glob;
+  if(g_RestartServer)
+    goto start;
   ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   return 0;
  error_end:
