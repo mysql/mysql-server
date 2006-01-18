@@ -60,7 +60,7 @@ handlerton example_hton = { "EXAMPLE", SHOW_OPTION_NO,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
   HTON_NO_FLAGS };
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
 #include "ha_archive.h"
 extern handlerton archive_hton;
 #else
@@ -300,39 +300,56 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
   case DB_TYPE_HASH:
     return new (alloc) ha_hash(table);
 #endif
+  case DB_TYPE_MRG_MYISAM:
   case DB_TYPE_MRG_ISAM:
     return new (alloc) ha_myisammrg(table);
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return new (alloc) ha_berkeley(table);
+    if (have_berkeley_db == SHOW_OPTION_YES)
+      return new (alloc) ha_berkeley(table);
+    return NULL;
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return new (alloc) ha_innobase(table);
+    if (have_innodb == SHOW_OPTION_YES)
+      return new (alloc) ha_innobase(table);
+    return NULL;
 #endif
 #ifdef HAVE_EXAMPLE_DB
   case DB_TYPE_EXAMPLE_DB:
-    return new (alloc) ha_example(table);
+    if (have_example_db == SHOW_OPTION_YES)
+      return new (alloc) ha_example(table);
+    return NULL;
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
   case DB_TYPE_ARCHIVE_DB:
-    return new (alloc) ha_archive(table);
+    if (have_archive_db == SHOW_OPTION_YES)
+      return new (alloc) ha_archive(table);
+    return NULL;
 #endif
 #ifdef HAVE_BLACKHOLE_DB
   case DB_TYPE_BLACKHOLE_DB:
-    return new (alloc) ha_blackhole(table);
+    if (have_blackhole_db == SHOW_OPTION_YES)
+      return new (alloc) ha_blackhole(table);
+    return NULL;
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
-    return new (alloc) ha_federated(table);
+    if (have_federated_db == SHOW_OPTION_YES)
+      return new (alloc) ha_federated(table);
+    return NULL;
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:
-    return new (alloc) ha_tina(table);
+    if (have_csv_db == SHOW_OPTION_YES)
+      return new (alloc) ha_tina(table);
+    return NULL;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:
-    return new (alloc) ha_ndbcluster(table);
+    if (have_ndbcluster == SHOW_OPTION_YES)
+      return new (alloc) ha_ndbcluster(table);
+    return NULL;
 #endif
   case DB_TYPE_HEAP:
     return new (alloc) ha_heap(table);
@@ -346,8 +363,6 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
   /* Fall back to MyISAM */
   case DB_TYPE_MYISAM:
     return new (alloc) ha_myisam(table);
-  case DB_TYPE_MRG_MYISAM:
-    return new (alloc) ha_myisammrg(table);
   }
 }
 
@@ -513,7 +528,7 @@ int ha_panic(enum ha_panic_function flag)
   if (have_federated_db == SHOW_OPTION_YES)
     error|= federated_db_end();
 #endif
-#if defined(HAVE_ARCHIVE_DB) && !defined(__NETWARE__)
+#if defined(HAVE_ARCHIVE_DB)
   if (have_archive_db == SHOW_OPTION_YES)
     error|= archive_db_end();
 #endif
@@ -1911,7 +1926,8 @@ int ha_enable_transaction(THD *thd, bool on)
       is an optimization hint that storage engine is free to ignore.
       So, let's commit an open transaction (if any) now.
     */
-    error= end_trans(thd, COMMIT);
+    if (!(error= ha_commit_stmt(thd)))
+      error= end_trans(thd, COMMIT);
   }
   DBUG_RETURN(error);
 }

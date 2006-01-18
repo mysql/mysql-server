@@ -180,14 +180,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           indexes to find the key.
         */
         Item *expr=item_sum->args[0];
-        if (expr->type() == Item::FIELD_ITEM)
+        if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
           byte key_buff[MAX_KEY_LENGTH];
           TABLE_REF ref;
           uint range_fl, prefix_len;
 
           ref.key_buff= key_buff;
-          Item_field *item_field= ((Item_field*) expr);
+          Item_field *item_field= (Item_field*) (expr->real_item());
           TABLE *table= item_field->field->table;
 
           /* 
@@ -267,14 +267,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           indexes to find the key.
         */
         Item *expr=item_sum->args[0];
-        if (expr->type() == Item::FIELD_ITEM)
+        if (expr->real_item()->type() == Item::FIELD_ITEM)
         {
           byte key_buff[MAX_KEY_LENGTH];
           TABLE_REF ref;
-	      uint range_fl, prefix_len;
+          uint range_fl, prefix_len;
 
           ref.key_buff= key_buff;
-	      Item_field *item_field= ((Item_field*) expr);
+          Item_field *item_field= (Item_field*) (expr->real_item());
           TABLE *table= item_field->field->table;
 
           /* 

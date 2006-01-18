@@ -74,7 +74,7 @@ static int do_test()
   bzero((char*) key1,sizeof(key1[0])*1000);
 
   printf("- Creating hash\n");
-  if (hash_init(&hash,recant/2,0,6,0,free_record,0))
+  if (hash_init(&hash, default_charset_info, recant/2, 0, 6, 0, free_record, 0))
     goto err;
   printf("- Writing records:\n");
 
@@ -172,15 +172,16 @@ static int do_test()
       break;
   if (key1[j] > 1)
   {
+    HASH_SEARCH_STATE state;
     printf("- Testing identical read\n");
     sprintf(key,"%6d",j);
     pos=1;
-    if (!(recpos=hash_search(&hash,key,0)))
+    if (!(recpos= hash_first(&hash, key, 0, &state)))
     {
       printf("can't find key1: \"%s\"\n",key);
       goto err;
     }
-    while (hash_next(&hash,key,0) && pos < (ulong) (key1[j]+10))
+    while (hash_next(&hash, key, 0, &state) && pos < (ulong) (key1[j]+10))
       pos++;
     if (pos != (ulong) key1[j])
     {
@@ -189,7 +190,7 @@ static int do_test()
     }
   }
   printf("- Creating output heap-file 2\n");
-  if (hash_init(&hash2,hash.records,0,0,hash2_key,free_record,0))
+  if (hash_init(&hash2, default_charset_info, hash.records, 0, 0, hash2_key, free_record,0))
     goto err;
 
   printf("- Copying and removing records\n");

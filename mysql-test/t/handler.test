@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t3,t4,t5;
 --enable_warnings
 
 create table t1 (a int, b char(10), key a(a), key b(a,b));

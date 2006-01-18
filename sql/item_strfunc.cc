@@ -153,11 +153,13 @@ String *Item_func_sha::val_str(String *str)
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
     /* Temporary buffer to store 160bit digest */
     uint8 digest[SHA1_HASH_SIZE];
-    sha1_reset(&context);  /* We do not have to check for error here */
+    mysql_sha1_reset(&context);  /* We do not have to check for error here */
     /* No need to check error as the only case would be too long message */
-    sha1_input(&context,(const unsigned char *) sptr->ptr(), sptr->length());
+    mysql_sha1_input(&context,
+                     (const unsigned char *) sptr->ptr(), sptr->length());
     /* Ensure that memory is free and we got result */
-    if (!( str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest))))
+    if (!( str->alloc(SHA1_HASH_SIZE*2) ||
+           (mysql_sha1_result(&context,digest))))
     {
       sprintf((char *) str->ptr(),
       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\

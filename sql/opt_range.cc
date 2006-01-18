@@ -652,7 +652,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,
                         int *error)
-                        
 {
   SQL_SELECT *select;
   DBUG_ENTER("make_select");
@@ -5738,6 +5737,7 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 
 /*
   Create quick select from ref/ref_or_null scan.
+
   SYNOPSIS
     get_quick_select_for_ref()
       thd      Thread handle
@@ -5757,15 +5757,18 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              TABLE_REF *ref, ha_rows records)
 {
-  MEM_ROOT *old_root= thd->mem_root;
-  /* The following call may change thd->mem_root */
-  QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
-  /* save mem_root set by QUICK_RANGE_SELECT constructor */
-  MEM_ROOT *alloc= thd->mem_root;
+  MEM_ROOT *old_root, *alloc;
+  QUICK_RANGE_SELECT *quick;
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
   uint part;
+
+  old_root= thd->mem_root;
+  /* The following call may change thd->mem_root */
+  quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
+  /* save mem_root set by QUICK_RANGE_SELECT constructor */
+  alloc= thd->mem_root;
   /*
     return back default mem_root (thd->mem_root) changed by
     QUICK_RANGE_SELECT constructor
@@ -5775,10 +5778,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (!quick)
     return 0;			/* no ranges found */
   if (quick->init())
-  {
-    delete quick;
     goto err;
-  }
   quick->records= records;
 
   if (cp_buffer_from_ref(thd,ref) && thd->is_fatal_error ||
@@ -7112,7 +7112,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   ha_rows cur_records;
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
-  uint cur_param_idx;
+  uint cur_param_idx=MAX_KEY;
   key_map cur_used_key_parts;
   uint pk= param->table->s->primary_key;
 
@@ -7328,6 +7328,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     */
     if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
+      DBUG_ASSERT(tree != 0 || cur_param_idx == MAX_KEY);
       index_info= cur_index_info;
       index= cur_index;
       best_read_cost= cur_read_cost;

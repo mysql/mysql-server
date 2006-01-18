@@ -2017,7 +2017,8 @@ static void write_ignored_events_info_to_relay_log(THD *thd, MASTER_INFO *mi)
                         " to the relay log, "
                         "SHOW SLAVE STATUS may be inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      flush_master_info(mi, 1);
+      if (flush_master_info(mi, 1))
+        sql_print_error("Failed to flush master info file");
       delete ev;
     }
     else
@@ -2555,7 +2556,7 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
 
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
-  
+
     if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
       DBUG_RETURN(TRUE);
   }
@@ -2563,8 +2564,13 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
   DBUG_RETURN(FALSE);
 }
 
-
-bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
+/*
+  RETURN
+     2 - flush relay log failed
+     1 - flush master info failed
+     0 - all ok
+*/
+int flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
@@ -2583,8 +2589,9 @@ bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
     When we come to this place in code, relay log may or not be initialized;
     the caller is responsible for setting 'flush_relay_log_cache' accordingly.
   */
-  if (flush_relay_log_cache)
-    flush_io_cache(mi->rli.relay_log.get_log_file());
+  if (flush_relay_log_cache &&
+      flush_io_cache(mi->rli.relay_log.get_log_file()))
+    DBUG_RETURN(2);
 
   /*
     We flushed the relay log BEFORE the master.info file, because if we crash
@@ -2596,13 +2603,13 @@ bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
   */
 
   /*
-     In certain cases this code may create master.info files that seems 
-     corrupted, because of extra lines filled with garbage in the end 
-     file (this happens if new contents take less space than previous 
-     contents of file). But because of number of lines in the first line 
+     In certain cases this code may create master.info files that seems
+     corrupted, because of extra lines filled with garbage in the end
+     file (this happens if new contents take less space than previous
+     contents of file). But because of number of lines in the first line
      of file we don't care about this garbage.
   */
-  
+
   my_b_seek(file, 0L);
   my_b_printf(file, "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n",
 	      LINES_IN_MASTER_INFO_WITH_SSL,
@@ -2611,8 +2618,7 @@ bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
 	      mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key);
-  flush_io_cache(file);
-  DBUG_RETURN(0);
+  DBUG_RETURN(-flush_io_cache(file));
 }
 
 
@@ -3644,7 +3650,11 @@ reconnect done to recover from failed read");
 	sql_print_error("Slave I/O thread could not queue event from master");
 	goto err;
       }
-      flush_master_info(mi, 1); /* sure that we can flush the relay log */
+      if (flush_master_info(mi, 1))
+      {
+        sql_print_error("Failed to flush master info file");
+        goto err;
+      }
       /*
         See if the relay logs take too much space.
         We don't lock mi->rli.log_space_lock here; this dirty read saves time

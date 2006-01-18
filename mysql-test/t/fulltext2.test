@@ -179,7 +179,37 @@ update t1 set a='aaaxxx' where a = 'aaayyy';
 select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
 select count(*) from t1 where match a against ('aaayyy' in boolean mode);
 select count(*) from t1 where match a against ('aaazzz' in boolean mode);
-
 drop table t1;
+
+#
+# BUG#11336
+#
+# for uca collation isalnum and strnncollsp don't agree on whether
+# 0xC2A0 is a space (strnncollsp is right, isalnum is wrong).
+#
+# they still don't, the bug was fixed by avoiding strnncollsp
+#
+
+set names utf8;
+create table t1(a text,fulltext(a)) collate=utf8_swedish_ci;
+insert into t1 values('test test '),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test');
+delete from t1 limit 1;
+drop table t1;
+set names latin1;
 
 # End of 4.1 tests

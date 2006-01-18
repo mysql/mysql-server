@@ -352,4 +352,30 @@ INSERT INTO t2 (b) VALUES (1) ON DUPLICATE KEY UPDATE b=3;
 SELECT b FROM t2;
 DROP TABLE t1, t2;
 
+
+#
+# BUG#5390 - problems with merge tables
+# Problem #1: INSERT...SELECT
+#
+#drop table if exists t1, t2, t3;
+create table t1(a int);
+create table t2(a int);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int) engine=merge union=(t1, t2) insert_method=first;
+select * from t3;
+#
+insert t2 select * from t2;
+select * from t2;
+#
+insert t3 select * from t1;
+select * from t3;
+#
+insert t1 select * from t3;
+select * from t1;
+select * from t2;
+select * from t3;
+check table t1, t2;
+drop table t1, t2, t3;
+
 # End of 4.1 tests

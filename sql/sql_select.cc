@@ -365,7 +365,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(thd, ref_pointer_array, all_fields);
+      having->split_sum_func2(thd, ref_pointer_array, all_fields,
+                              &having, TRUE);
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
   if (select_lex->inner_sum_func_list)
@@ -2918,6 +2919,56 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 
 /*
+  Add to KEY_FIELD array all 'ref' access candidates within nested join
+
+  SYNPOSIS
+    add_key_fields_for_nj()
+      nested_join_table  IN     Nested join pseudo-table to process
+      end                INOUT  End of the key field array
+      and_level          INOUT  And-level
+
+  DESCRIPTION
+    This function populates KEY_FIELD array with entries generated from the 
+    ON condition of the given nested join, and does the same for nested joins 
+    contained within this nested join.
+
+  NOTES
+    We can add accesses to the tables that are direct children of this nested 
+    join (1), and are not inner tables w.r.t their neighbours (2).
+    
+    Example for #1 (outer brackets pair denotes nested join this function is 
+    invoked for):
+     ... LEFT JOIN (t1 LEFT JOIN (t2 ... ) ) ON cond
+    Example for #2:
+     ... LEFT JOIN (t1 LEFT JOIN t2 ) ON cond
+    In examples 1-2 for condition cond, we can add 'ref' access candidates to 
+    t1 only.
+    Example #3:
+     ... LEFT JOIN (t1, t2 LEFT JOIN t3 ON inner_cond) ON cond
+    Here we can add 'ref' access candidates for t1 and t2, but not for t3.
+*/
+
+static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
+                                  KEY_FIELD **end, uint *and_level)
+{
+  List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
+  table_map tables= 0;
+  TABLE_LIST *table;
+  DBUG_ASSERT(nested_join_table->nested_join);
+
+  while ((table= li++))
+  {
+    if (table->nested_join)
+      add_key_fields_for_nj(table, end, and_level);
+    else
+      if (!table->on_expr)
+        tables |= table->table->map;
+  }
+  add_key_fields(end, and_level, nested_join_table->on_expr, tables);
+}
+
+
+/*
   Update keyuse array with all possible keys we can use to fetch rows
   
   SYNOPSIS
@@ -2981,23 +3032,21 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       into account as well.
     */ 
     if (*join_tab[i].on_expr_ref)
-    {
       add_key_fields(&end,&and_level,*join_tab[i].on_expr_ref,
 		     join_tab[i].table->map);
-    }
-    else 
+  }
+
+  /* Process ON conditions for the nested joins */
+  {
+    List_iterator<TABLE_LIST> li(*join_tab->join->join_list);
+    TABLE_LIST *table;
+    while ((table= li++))
     {
-      TABLE_LIST *tab= join_tab[i].table->pos_in_table_list;
-      TABLE_LIST *embedding= tab->embedding;
-      if (embedding)
-      {
-        NESTED_JOIN *nested_join= embedding->nested_join;
-        if (nested_join->join_list.head() == tab)
-          add_key_fields(&end, &and_level, embedding->on_expr,
-                         nested_join->used_tables);
-      }
+      if (table->nested_join)
+	add_key_fields_for_nj(table, &end, &and_level);
     }
   }
+
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
     add_key_part(keyuse,field);
@@ -3470,13 +3519,32 @@ best_access_path(JOIN      *join,
     parts of the row from any of the used index.
     This is because table scans uses index and we would not win
     anything by using a table scan.
+
+    A word for word translation of the below if-statement in psergey's
+    understanding: we check if we should use table scan if:
+    (1) The found 'ref' access produces more records than a table scan
+        (or index scan, or quick select), or 'ref' is more expensive than
+        any of them.
+    (2) This doesn't hold: the best way to perform table scan is to to perform
+        'range' access using index IDX, and the best way to perform 'ref' 
+        access is to use the same index IDX, with the same or more key parts.
+        (note: it is not clear how this rule is/should be extended to 
+        index_merge quick selects)
+    (3) See above note about InnoDB.
+    (4) NOT ("FORCE INDEX(...)" is used for table and there is 'ref' access
+             path, but there is no quick select)
+        If the condition in the above brackets holds, then the only possible
+        "table scan" access method is ALL/index (there is no quick select).
+        Since we have a 'ref' access path, and FORCE INDEX instructs us to
+        choose it over ALL/index, there is no need to consider a full table
+        scan.
   */
-  if ((records >= s->found_records || best > s->read_time) &&
-      !(s->quick && best_key && s->quick->index == best_key->key &&
-        best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
-      !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-        ! s->table->used_keys.is_clear_all() && best_key) &&
-      !(s->table->force_index && best_key))
+  if ((records >= s->found_records || best > s->read_time) &&            // (1)
+      !(s->quick && best_key && s->quick->index == best_key->key &&      // (2)
+        best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&// (2)
+      !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&      // (3)
+        ! s->table->used_keys.is_clear_all() && best_key) &&             // (3)
+      !(s->table->force_index && best_key && !s->quick))                 // (4)
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*
@@ -4459,13 +4527,15 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	parts of the row from any of the used index.
 	This is because table scans uses index and we would not win
 	anything by using a table scan.
+        (see comment in best_access_path() for more details on the below
+         condition)
       */
       if ((records >= s->found_records || best > s->read_time) &&
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
 	    ! s->table->used_keys.is_clear_all() && best_key) &&
-	  !(s->table->force_index && best_key))
+	  !(s->table->force_index && best_key && !s->quick))
       {						// Check full join
         ha_rows rnd_records= s->found_records;
         /*
@@ -8189,7 +8259,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         uint convert_blob_length)
 {
   Item::Type orig_type= type;
-  Item *orig_item;
+  Item *orig_item= 0;
 
   if (type != Item::FIELD_ITEM &&
       item->real_item()->type() == Item::FIELD_ITEM &&
@@ -8240,10 +8310,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     }
     else
       result= create_tmp_field_from_field(thd, (*from_field= field->field),
-                                       item->name, table,
-                                       modify_item ? field :
-                                       NULL,
-                                       convert_blob_length);
+                                          orig_item ? orig_item->name :
+                                          item->name,
+                                          table,
+                                          modify_item ? field :
+                                          NULL,
+                                          convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
     return result;
@@ -8590,6 +8662,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         have null
       */
       hidden_null_count=null_count;
+      /*
+	We need to update hidden_field_count as we may have stored group
+	functions with constant arguments
+      */
+      param->hidden_field_count= (uint) (reg_field - table->field);
       null_count= 0;
     }
   }
@@ -8809,7 +8886,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct)
+  if (distinct && field_count != param->hidden_field_count)
   {
     /*
       Create an unique key or an unique constraint over all columns
@@ -9867,6 +9944,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   int error;
   READ_RECORD *info;
 
+  join_tab->table->null_row= 0;
   if (!join_tab->cache.records)
     return NESTED_LOOP_OK;                      /* Nothing to do */
   if (skip_last)
@@ -10698,7 +10776,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     item->save_org_in_field(group->field);
     /* Store in the used key if the field was 0 */
     if (item->maybe_null)
-      group->buff[-1]=item->null_value ? 1 : 0;
+      group->buff[-1]= (char) group->field->is_null();
   }
   if (!table->file->index_read(table->record[1],
 			       join->tmp_table_param.group_buff,0,

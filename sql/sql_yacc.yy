@@ -1982,14 +1982,21 @@ sp_proc_stmt:
 	    }
 	    sp->restore_lex(YYTHD);
 	  }
-	| IF sp_if END IF {}
+        | IF
+          { Lex->sphead->new_cont_backpatch(NULL); }
+          sp_if END IF
+          { Lex->sphead->do_cont_backpatch(); }
 	| CASE_SYM WHEN_SYM
 	  {
 	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
+            Lex->sphead->new_cont_backpatch(NULL);
 	  }
-	  sp_case END CASE_SYM {}
+          sp_case END CASE_SYM { Lex->sphead->do_cont_backpatch(); }
         | CASE_SYM
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            Lex->sphead->reset_lex(YYTHD);
+            Lex->sphead->new_cont_backpatch(NULL);
+          }
           expr WHEN_SYM
 	  {
 	    LEX *lex= Lex;
@@ -2013,6 +2020,7 @@ sp_proc_stmt:
 	  sp_case END CASE_SYM
 	  {
 	    Lex->spcont->pop_case_expr_id();
+            Lex->sphead->do_cont_backpatch();
 	  }
 	| sp_labeled_control
 	  {}
@@ -2281,6 +2289,7 @@ sp_if:
                                                                $2, lex);
 
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2339,6 +2348,7 @@ sp_case:
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2468,6 +2478,7 @@ sp_unlabeled_control:
 
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
+            sp->new_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2479,6 +2490,7 @@ sp_unlabeled_control:
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
 
 	    lex->sphead->add_instr(i);
+            lex->sphead->do_cont_backpatch();
 	  }
         | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
           { Lex->sphead->reset_lex(YYTHD); }
@@ -2492,6 +2504,8 @@ sp_unlabeled_control:
                                                                lex);
             lex->sphead->add_instr(i);
             lex->sphead->restore_lex(YYTHD);
+            /* We can shortcut the cont_backpatch here */
+            i->m_cont_dest= ip+1;
 	  }
 	;
 
@@ -5248,13 +5262,13 @@ join_table:
 	| table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
           {
+            YYERROR_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
           }
           expr
 	  {
-            YYERROR_UNLESS($1 && $5);
             add_join_on($5,$8);
             Lex->pop_context();
             $5->outer_join|=JOIN_TYPE_LEFT;
@@ -5279,6 +5293,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           {
+            YYERROR_UNLESS($1 && $5);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
@@ -5286,7 +5301,6 @@ join_table:
           expr
           {
 	    LEX *lex= Lex;
-            YYERROR_UNLESS($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
             add_join_on($$, $8);
@@ -9103,6 +9117,8 @@ trigger_tail:
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
 	  lex->sphead->m_body_begin= lex->ptr;
+          while (my_isspace(system_charset_info, lex->sphead->m_body_begin[0]))
+            ++lex->sphead->m_body_begin;
 	}
 	sp_proc_stmt
 	{

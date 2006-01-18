@@ -255,7 +255,10 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
   log_info("starting instance %s", instance_name_buff);
 
   if (start_process(old_instance_options, &process_info))
+  {
+    instance_map->unlock();
     return;                                     /* error is logged */
+  }
 
   /* allow users to delete instances */
   instance_map->unlock();
