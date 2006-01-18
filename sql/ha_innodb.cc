@@ -167,7 +167,6 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-uint	innobase_flush_log_at_trx_commit	= 1;
 ulong	innobase_fast_shutdown			= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool innobase_use_doublewrite    = TRUE;
@@ -339,7 +338,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
@@ -356,7 +355,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
@@ -1341,7 +1340,6 @@ innobase_init(void)
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
-	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
         /* We set srv_pool_size here in units of 1 kB. InnoDB internally
         changes the value so that it becomes the number of database pages. */
@@ -1816,7 +1814,7 @@ innobase_commit_complete(
 
                 trx->active_trans = 0;
 
-                if (srv_flush_log_at_trx_commit == 0) {
+                if (UNIV_UNLIKELY(srv_flush_log_at_trx_commit == 0)) {
 
                         return(0);
                 }

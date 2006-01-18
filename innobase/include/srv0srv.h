@@ -77,7 +77,7 @@ extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
 extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
-extern ulint	srv_flush_log_at_trx_commit;
+extern ulong	srv_flush_log_at_trx_commit;
 
 extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
 					character set */
@@ -195,7 +195,6 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 #define kernel_mutex (*kernel_mutex_temp)
 
 #define SRV_MAX_N_IO_THREADS	100
-#define SRV_CONCURRENCY_THRESHOLD	20
 				
 /* Array of English strings describing the current state of an
 i/o handler thread */
