@@ -5009,8 +5009,11 @@ void ha_partition::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error = %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
+  {
+    char buf[100];
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->val_int());
+             llstr(m_part_info->part_expr->val_int(), buf));
+  }
   else
     m_file[0]->print_error(error, errflag);
   DBUG_VOID_RETURN;
