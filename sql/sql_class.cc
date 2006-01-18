@@ -658,6 +658,9 @@ void THD::update_charset()
   charset_is_collation_connection= 
     !String::needs_conversion(0,charset(),variables.collation_connection,
                               &not_used);
+  charset_is_character_set_filesystem= 
+    !String::needs_conversion(0, charset(),
+                              variables.character_set_filesystem, &not_used);
 }
 
 
