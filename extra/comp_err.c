@@ -876,9 +876,10 @@ static void usage(void)
 {
   DBUG_ENTER("usage");
   print_version();
-  printf("This software comes with ABSOLUTELY NO WARRANTY. This is free "
-	 "software,\nand you are welcome to modify and redistribute it under "
-	 "the GPL license\nUsage:\n");
+  printf("This software comes with ABSOLUTELY NO WARRANTY. "
+         "This is free software,\n"
+         "and you are welcome to modify and redistribute it under the GPL license.\n"
+         "Usage:\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   DBUG_VOID_RETURN;
