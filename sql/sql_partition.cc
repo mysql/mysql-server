@@ -5878,7 +5878,8 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
     }
     else
     {
-      if (!part_info->get_partition_id(part_info, &part_id))
+      longlong dummy;
+      if (!part_info->get_partition_id(part_info, &part_id, &dummy))
       {
         init_single_partition_iterator(part_id, part_iter);
         return 1; /* Ok, iterator initialized */
@@ -5991,8 +5992,9 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
   {
     field->store(part_iter->start_val, FALSE);
     part_iter->start_val++;
+    longlong dummy;
     if (!part_iter->part_info->get_partition_id(part_iter->part_info, 
-                                                &part_id))
+                                                &part_id, &dummy))
       return part_id;
   }
   return NOT_A_PARTITION_ID;
