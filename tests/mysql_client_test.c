@@ -14624,6 +14624,24 @@ static void test_bug15510()
   myquery(rc);
 }
 
+/* Bug #16144: mysql_stmt_attr_get type error */
+
+static void test_bug16144()
+{
+  const my_bool flag_orig= (my_bool) 0xde;
+  my_bool flag= flag_orig;
+  MYSQL_STMT *stmt;
+  myheader("test_bug16144");
+
+  /* Check that attr_get returns correct data on little and big endian CPUs */
+  stmt= mysql_stmt_init(mysql);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (const void*) &flag);
+  mysql_stmt_attr_get(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &flag);
+  DIE_UNLESS(flag == flag_orig);
+
+  mysql_stmt_close(stmt);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -14884,6 +14902,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13524", test_bug13524 },
   { "test_bug14845", test_bug14845 },
   { "test_bug15510", test_bug15510},
+  { "test_bug16144", test_bug16144 },
   { 0, 0 }
 };
 
