@@ -565,9 +565,23 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       else
       {
         /* With conversion */
+        uint max_char_len;
         int2store(pos, thd_charset->number);
-        uint char_len= field.length / item->collation.collation->mbmaxlen;
-        int4store(pos+2, char_len * thd_charset->mbmaxlen);
+        /*
+          For TEXT/BLOB columns, field_length describes the maximum data
+          length in bytes. There is no limit to the number of characters
+          that a TEXT column can store, as long as the data fits into
+          the designated space.
+          For the rest of textual columns, field_length is evaluated as
+          char_count * mbmaxlen, where character count is taken from the
+          definition of the column. In other words, the maximum number
+          of characters here is limited by the column definition.
+        */
+        max_char_len= (field.type >= (int) MYSQL_TYPE_TINY_BLOB &&
+                      field.type <= (int) MYSQL_TYPE_BLOB) ?
+                      field.length / item->collation.collation->mbminlen :
+                      field.length / item->collation.collation->mbmaxlen;
+        int4store(pos+2, max_char_len * thd_charset->mbmaxlen);
       }
       pos[6]= field.type;
       int2store(pos+7,field.flags);
