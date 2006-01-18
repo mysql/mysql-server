@@ -730,7 +730,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM label_ident
+        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
 
 %type <lex_str_ptr>
 	opt_table_alias opt_fulltext_parser
@@ -7524,7 +7524,7 @@ select_var_ident:
            ;
 
 into:
-        INTO OUTFILE TEXT_STRING_sys
+        INTO OUTFILE TEXT_STRING_filesystem
 	{
           LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -7533,7 +7533,7 @@ into:
             YYABORT;
 	}
 	opt_field_term opt_line_term
-	| INTO DUMPFILE TEXT_STRING_sys
+	| INTO DUMPFILE TEXT_STRING_filesystem
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
@@ -8596,7 +8596,7 @@ load:   LOAD DATA_SYM
         };
 
 load_data:
-	load_data_lock opt_local INFILE TEXT_STRING_sys
+	load_data_lock opt_local INFILE TEXT_STRING_filesystem
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
@@ -9123,6 +9123,18 @@ TEXT_STRING_literal:
 	}
 	;
 
+
+TEXT_STRING_filesystem:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (thd->charset_is_character_set_filesystem)
+	    $$= $1;
+	  else
+	    thd->convert_string(&$$, thd->variables.character_set_filesystem,
+				$1.str, $1.length, thd->charset());
+	}
+	;
 
 ident:
 	IDENT_sys	    { $$=$1; }
