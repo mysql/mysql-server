@@ -5738,7 +5738,7 @@ ER_PLUGIN_IS_NOT_LOADED
 ER_WRONG_VALUE
 	eng "Incorrect %-.32s value: '%-.128s'"
 ER_NO_PARTITION_FOR_GIVEN_VALUE
-	eng "Table has no partition for value %ld"
+	eng "Table has no partition for value %-.64s"
 ER_TABLESPACE_OPTION_ONLY_ONCE
         eng "It is not allowed to specify %s more than once"
 ER_CREATE_TABLESPACE_FAILED
