@@ -43,10 +43,11 @@ public:
   enum ErrorCode {
     GCPStopDetected = 3,
     CopyFragRefError = 5,
-    TestStopOnError = 6
+    TestStopOnError = 6,
+    CopySubscriptionRef = 7,
+    CopySubscriberRef = 8
   };
   
-private:
   Uint32 errorRef;
   Uint32 errorCode;
   Uint32 data1;
