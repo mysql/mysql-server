@@ -1229,6 +1229,7 @@ create:
 	    lex->key_list.empty();
 	    lex->col_list.empty();
 	    lex->change=NullS;
+	    lex->name=0;
 	  }
 	   '(' key_list ')' opt_fulltext_parser
 	  {
