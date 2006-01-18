@@ -5504,9 +5504,11 @@ log and this option does nothing anymore.",
    (gptr*) &srv_n_spin_wait_rounds,
    0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
-   "Helps in performance tuning in heavily concurrent environments.",
+   "Helps in performance tuning in heavily concurrent environments. "
+   "Sets the maximum number of threads allowed inside InnoDB. Value 0"
+   " will disable the thread throttling.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 20, 1, 1000, 0, 1, 0},
+   0, GET_LONG, REQUIRED_ARG, 0, 0, 1000, 0, 1, 0},
   {"innodb_commit_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_commit_concurrency, (gptr*) &srv_commit_concurrency,

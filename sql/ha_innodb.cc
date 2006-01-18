@@ -338,7 +338,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
@@ -355,7 +355,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
