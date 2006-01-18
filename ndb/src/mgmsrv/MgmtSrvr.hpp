@@ -471,7 +471,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  int set_connect_string(const char *str);
+  int connect_to_self(void);
 
   void transporter_connect(NDB_SOCKET_TYPE sockfd);
 
@@ -486,6 +486,13 @@ private:
   //**************************************************************************
 
   int send(SignalSender &ss, SimpleSignal &ssig, Uint32 node, Uint32 node_type);
+
+  int sendStopMgmd(NodeId nodeId,
+                   bool abort,
+                   bool stop,
+                   bool restart,
+                   bool nostart,
+                   bool initialStart);
 
   int sendSTOP_REQ(NodeId nodeId,
 		   NodeBitmask &stoppedNodes,
@@ -629,6 +636,8 @@ private:
   // signal arrives.
   // We wait in receiveOptimisedResponse and signal in handleReceivedSignal.
 
+  NdbMgmHandle m_local_mgm_handle;
+  char m_local_mgm_connect_string[20];
   class TransporterFacade * theFacade;
 
   int  sendVersionReq( int processId, Uint32 &version, const char **address);
