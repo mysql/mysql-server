@@ -52,7 +52,6 @@ execute stmt1;
 
 ##### parameter used for keyword like SELECT (must fail)
 set @arg00='SELECT' ;
-# mysqltest gives no output for the next statement, Why ??
 --error 1064
 @arg00 a from t1 where a=1;
 --error 1064

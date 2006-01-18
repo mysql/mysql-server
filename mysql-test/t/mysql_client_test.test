@@ -10,3 +10,5 @@
 --exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M
 
 # End of 4.1 tests
+echo ok;
+

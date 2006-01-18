@@ -250,10 +250,10 @@ NdbEventOperationImpl::execute()
   int hasSubscriber;
   int r= m_bufferHandle->prepareAddSubscribeEvent(this,
 						  hasSubscriber /*return value*/);
-  m_error.code= 4709;
 
   if (r < 0)
   {
+    m_error.code= 4709;
     DBUG_RETURN(-1);
   }
 

@@ -522,7 +522,7 @@ delete from t1|
 create table t3 ( s char(16), d int)|
 call into_test4()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t3|
 s	d
 into4	NULL
@@ -918,6 +918,11 @@ drop function if exists f5|
 drop function if exists f6|
 drop function if exists f7|
 drop function if exists f8|
+drop function if exists f9|
+drop function if exists f10|
+drop function if exists f11|
+drop function if exists f12_1|
+drop function if exists f12_2|
 drop view if exists v0|
 drop view if exists v1|
 drop view if exists v2|
@@ -1097,6 +1102,62 @@ ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables|
+create function f9() returns int
+begin
+declare a, b int;
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+set a:= (select count(*) from t3);
+set b:= (select count(*) from t3 t3_alias);
+return a + b;
+end|
+select f9()|
+f9()
+6
+Warnings:
+Note	1051	Unknown table 't3'
+select f9() from t1 limit 1|
+f9()
+6
+create function f10() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 select id from t4;
+return (select count(*) from t3);
+end|
+select f10()|
+ERROR 42S02: Table 'test.t4' doesn't exist
+create table t4 as select 1 as id|
+select f10()|
+f10()
+1
+create function f11() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+return (select count(*) from t3 as a, t3 as b);
+end|
+select f11()|
+ERROR HY000: Can't reopen table: 'a'
+select f11() from t1|
+ERROR HY000: Can't reopen table: 'a'
+create function f12_1() returns int
+begin
+drop temporary table if exists t3;
+create temporary table t3 (id int);
+insert into t3 values (1), (2), (3);
+return f12_2();
+end|
+create function f12_2() returns int
+return (select count(*) from t3)|
+drop temporary table t3|
+select f12_1()|
+ERROR 42S02: Table 'test.t3' doesn't exist
+select f12_1() from t1 limit 1|
+ERROR 42S02: Table 'test.t3' doesn't exist
 drop function f0|
 drop function f1|
 drop function f2|
@@ -1106,11 +1167,17 @@ drop function f5|
 drop function f6|
 drop function f7|
 drop function f8|
+drop function f9|
+drop function f10|
+drop function f11|
+drop function f12_1|
+drop function f12_2|
 drop view v0|
 drop view v1|
 drop view v2|
 delete from t1 |
 delete from t2 |
+drop table t4|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|
@@ -1720,10 +1787,10 @@ end|
 call bug1863(10)|
 Warnings:
 Note	1051	Unknown table 'temp_t1'
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug1863(10)|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -2017,10 +2084,10 @@ end|
 call bug4579_1()|
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -2499,7 +2566,7 @@ call bug7743("OneWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug7743("anotherword")|
 var
 2
@@ -2507,7 +2574,7 @@ call bug7743("AnotherWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug7743|
 drop table t4|
 delete from t3|
@@ -3557,8 +3624,6 @@ drop procedure if exists bug7049_1|
 drop procedure if exists bug7049_2|
 drop procedure if exists bug7049_3|
 drop procedure if exists bug7049_4|
-drop procedure if exists bug7049_5|
-drop procedure if exists bug7049_6|
 drop function if exists bug7049_1|
 drop function if exists bug7049_2|
 create table t3 ( x int unique )|
@@ -3581,18 +3646,6 @@ begin
 declare exit handler for sqlexception
 select 'Caught it' as 'Result';
 call bug7049_3();
-select 'Missed it' as 'Result';
-end|
-create procedure bug7049_5()
-begin
-declare x decimal(2,1);
-set x = 'zap';
-end|
-create procedure bug7049_6()
-begin
-declare exit handler for sqlwarning
-select 'Caught it' as 'Result';
-call bug7049_5();
 select 'Missed it' as 'Result';
 end|
 create function bug7049_1()
@@ -3624,9 +3677,6 @@ Caught it
 select * from t3|
 x
 42
-call bug7049_6()|
-Result
-Caught it
 select bug7049_2()|
 bug7049_2()
 1
@@ -3635,8 +3685,6 @@ drop procedure bug7049_1|
 drop procedure bug7049_2|
 drop procedure bug7049_3|
 drop procedure bug7049_4|
-drop procedure bug7049_5|
-drop procedure bug7049_6|
 drop function bug7049_1|
 drop function bug7049_2|
 drop function if exists bug13941|
@@ -4320,4 +4368,143 @@ id	county
 2	NULL
 drop table t3|
 drop procedure bug15441|
+drop procedure if exists bug14498_1|
+drop procedure if exists bug14498_2|
+drop procedure if exists bug14498_3|
+drop procedure if exists bug14498_4|
+drop procedure if exists bug14498_5|
+create procedure bug14498_1()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+if v then
+select 'yes' as 'v';
+else
+select 'no' as 'v';
+end if;
+select 'done' as 'End';
+end|
+create procedure bug14498_2()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+while v do
+select 'yes' as 'v';
+end while;
+select 'done' as 'End';
+end|
+create procedure bug14498_3()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+repeat
+select 'maybe' as 'v';
+until v end repeat;
+select 'done' as 'End';
+end|
+create procedure bug14498_4()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case v
+when 1 then
+select '1' as 'v';
+when 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+create procedure bug14498_5()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case
+when v = 1 then
+select '1' as 'v';
+when v = 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+call bug14498_1()|
+Handler
+error
+End
+done
+call bug14498_2()|
+Handler
+error
+End
+done
+call bug14498_3()|
+v
+maybe
+Handler
+error
+End
+done
+call bug14498_5()|
+Handler
+error
+End
+done
+drop procedure bug14498_1|
+drop procedure bug14498_2|
+drop procedure bug14498_3|
+drop procedure bug14498_4|
+drop procedure bug14498_5|
+drop table if exists t3|
+drop procedure if exists bug15231_1|
+drop procedure if exists bug15231_2|
+drop procedure if exists bug15231_3|
+drop procedure if exists bug15231_4|
+create table t3 (id int not null)|
+create procedure bug15231_1()
+begin
+declare xid integer;
+declare xdone integer default 0;
+declare continue handler for not found set xdone = 1;
+set xid=null;
+call bug15231_2(xid);
+select xid, xdone;
+end|
+create procedure bug15231_2(inout ioid integer)
+begin
+select "Before NOT FOUND condition is triggered" as '1';
+select id into ioid from t3 where id=ioid;
+select "After NOT FOUND condtition is triggered" as '2';
+if ioid is null then
+set ioid=1;
+end if;
+end|
+create procedure bug15231_3()
+begin
+declare exit handler for sqlwarning
+select 'Caught it (wrong)' as 'Result';
+call bug15231_4();
+end|
+create procedure bug15231_4()
+begin
+declare x decimal(2,1);
+set x = 'zap';
+select 'Missed it (correct)' as 'Result';
+end|
+call bug15231_1()|
+1
+Before NOT FOUND condition is triggered
+2
+After NOT FOUND condtition is triggered
+xid	xdone
+1	0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call bug15231_3()|
+Result
+Missed it (correct)
+Warnings:
+Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
+drop table if exists t3|
+drop procedure if exists bug15231_1|
+drop procedure if exists bug15231_2|
+drop procedure if exists bug15231_3|
+drop procedure if exists bug15231_4|
 drop table t1,t2;

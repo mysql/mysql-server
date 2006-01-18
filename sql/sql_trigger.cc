@@ -21,7 +21,7 @@
 #include "parse_file.h"
 
 static const LEX_STRING triggers_file_type=
-  {STRING_WITH_LEN("TRIGGERS")};
+  {(char *) STRING_WITH_LEN("TRIGGERS")};
 
 const char * const triggers_file_ext= ".TRG";
 
@@ -34,21 +34,28 @@ const char * const triggers_file_ext= ".TRG";
 static File_option triggers_file_parameters[]=
 {
   {
-    {STRING_WITH_LEN("triggers") },
+    {(char *) STRING_WITH_LEN("triggers") },
     offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
-    {STRING_WITH_LEN("sql_modes") },
+    {(char *) STRING_WITH_LEN("sql_modes") },
     offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
-    {STRING_WITH_LEN("definers") },
+    {(char *) STRING_WITH_LEN("definers") },
     offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
+};
+
+File_option sql_modes_parameters=
+{
+  {(char*) STRING_WITH_LEN("sql_modes") },
+  offsetof(class Table_triggers_list, definition_modes_list),
+  FILE_OPTIONS_ULLLIST
 };
 
 /*
@@ -71,18 +78,14 @@ struct st_trigname
 };
 
 static const LEX_STRING trigname_file_type=
-  {STRING_WITH_LEN("TRIGGERNAME")};
+  {(char *) STRING_WITH_LEN("TRIGGERNAME")};
 
 const char * const trigname_file_ext= ".TRN";
 
 static File_option trigname_file_parameters[]=
 {
   {
-    /*
-      FIXME: Length specified for "trigger_table" key is erroneous, problem
-      caused by this are reported as BUG#14090 and should be fixed ASAP.
-    */
-    {STRING_WITH_LEN("trigger_table")},
+    {(char *) STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
    FILE_OPTIONS_ESTRING
   },
@@ -154,6 +157,17 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     QQ: This function could be merged in mysql_alter_table() function
     But do we want this ?
   */
+
+  /*
+    Note that once we will have check for TRIGGER privilege in place we won't
+    need second part of condition below, since check_access() function also
+    checks that db is specified.
+  */
+  if (!thd->lex->spname->m_db.length || create && !tables->db_length)
+  {
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (!create &&
       !(tables= add_table_for_trigger(thd, thd->lex->spname)))
@@ -285,6 +299,9 @@ end:
                      definer. The caller is responsible to provide memory for
                      storing LEX_STRING object.
 
+  NOTE
+    Assumes that trigger name is fully qualified.
+
   RETURN VALUE
     False - success
     True  - error
@@ -300,16 +317,14 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING dir, file, trigname_file;
   LEX_STRING *trg_def, *name;
   ulonglong *trg_sql_mode;
-  char trg_definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
   Item_trigger_field *trg_field;
   struct st_trigname trigname;
 
 
   /* Trigger must be in the same schema as target table. */
-  if (my_strcasecmp(table_alias_charset, table->s->db,
-                    lex->spname->m_db.str ? lex->spname->m_db.str :
-                                            thd->db))
+  if (my_strcasecmp(table_alias_charset, table->s->db, lex->spname->m_db.str))
   {
     my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
     return 1;
@@ -428,7 +443,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!is_acl_user(lex->definer->host.str,
-      lex->definer->user.str))
+                   lex->definer->user.str))
   {
     push_warning_printf(thd,
                         MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -771,7 +786,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                                                     sizeof(LEX_STRING))))
           DBUG_RETURN(1); // EOM
 
-        trg_definer->str= "";
+        trg_definer->str= (char*) "";
         trg_definer->length= 0;
 
         while (it++)
@@ -1010,7 +1025,6 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
 
 static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 {
-  const char *db= !trig->m_db.str ? thd->db : trig->m_db.str;
   LEX *lex= thd->lex;
   char path_buff[FN_REFLEN];
   LEX_STRING path;
@@ -1018,7 +1032,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   struct st_trigname trigname;
   DBUG_ENTER("add_table_for_trigger");
 
-  strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", db, "/",
+  strxnmov(path_buff, FN_REFLEN, mysql_data_home, "/", trig->m_db.str, "/",
            trig->m_name.str, trigname_file_ext, NullS);
   path.length= unpack_filename(path_buff, path_buff);
   path.str= path_buff;
@@ -1047,7 +1061,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
   /* We need to reset statement table list to be PS/SP friendly. */
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
-  DBUG_RETURN(sp_add_to_query_tables(thd, lex, db,
+  DBUG_RETURN(sp_add_to_query_tables(thd, lex, trig->m_db.str,
                                      trigname.trigger_table.str, TL_WRITE));
 }
 
@@ -1164,7 +1178,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     
     if (is_special_var_used(event, time_type))
     {
-      TABLE_LIST table_list;
+      TABLE_LIST table_list, **save_query_tables_own_last;
       bzero((char *) &table_list, sizeof (table_list));
       table_list.db= (char *) table->s->db;
       table_list.db_length= strlen(table_list.db);
@@ -1172,8 +1186,13 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       table_list.table_name_length= strlen(table_list.table_name);
       table_list.alias= (char *) table->alias;
       table_list.table= table;
+      save_query_tables_own_last= thd->lex->query_tables_own_last;
+      thd->lex->query_tables_own_last= 0;
 
-      if (check_table_access(thd, SELECT_ACL | UPDATE_ACL, &table_list, 0))
+      err_status= check_table_access(thd, SELECT_ACL | UPDATE_ACL,
+                                     &table_list, 0);
+      thd->lex->query_tables_own_last= save_query_tables_own_last;
+      if (err_status)
       {
         sp_restore_security_context(thd, save_ctx);
         return TRUE;
@@ -1215,32 +1234,29 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     TRUE  Error
 */
 
+#define INVALID_SQL_MODES_LENGTH 13
+
 bool
 Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
                                                             gptr base,
                                                             MEM_ROOT *mem_root,
                                                             char *end)
 {
-#define INVALID_SQL_MODES_LENGTH 13
   DBUG_ENTER("handle_old_incorrect_sql_modes");
   DBUG_PRINT("info", ("unknown key:%60s", unknown_key));
+
   if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
       unknown_key[INVALID_SQL_MODES_LENGTH] == '=' &&
       !memcmp(unknown_key, STRING_WITH_LEN("sql_modes")))
   {
+    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
+
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
                         MYSQL_ERROR::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
-    File_option sql_modes_parameters=
-      {
-        {STRING_WITH_LEN("sql_modes") },
-        offsetof(class Table_triggers_list, definition_modes_list),
-        FILE_OPTIONS_ULLLIST
-      };
-    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {

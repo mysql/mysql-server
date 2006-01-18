@@ -2423,6 +2423,9 @@ drop view v1;
 drop table t1;
 create table t1(f1 int, f2 int);
 insert into t1 values (null, 10), (null,2);
+select f1, sum(f2) from t1 group by f1;
+f1	sum(f2)
+NULL	12
 create view v1 as select * from t1;
 select f1, sum(f2) from v1 group by f1;
 f1	sum(f2)
@@ -2456,3 +2459,48 @@ f1()
 42
 drop view v2,v1;
 drop function f1;
+create table t1 (id numeric, warehouse_id numeric);
+create view v1 as select id from t1;
+create view v2 as
+select t1.warehouse_id, v1.id as receipt_id
+from t1, v1 where t1.id = v1.id;
+insert into t1 (id, warehouse_id) values(3, 2);
+insert into t1 (id, warehouse_id) values(4, 2);
+insert into t1 (id, warehouse_id) values(5, 1);
+select v2.receipt_id as alias1, v2.receipt_id as alias2 from v2
+order by v2.receipt_id;
+alias1	alias2
+3	3
+4	4
+5	5
+drop view v2, v1;
+drop table t1;
+CREATE TABLE t1 (a int PRIMARY KEY, b int);
+INSERT INTO t1 VALUES (2,20), (3,10), (1,10), (0,30), (5,10);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT MAX(a) FROM t1;
+MAX(a)
+5
+SELECT MAX(a) FROM v1;
+MAX(a)
+5
+EXPLAIN SELECT MAX(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+EXPLAIN SELECT MAX(a) FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a) FROM t1;
+MIN(a)
+0
+SELECT MIN(a) FROM v1;
+MIN(a)
+0
+EXPLAIN SELECT MIN(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+EXPLAIN SELECT MIN(a) FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP VIEW v1;
+DROP TABLE t1;

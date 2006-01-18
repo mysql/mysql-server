@@ -676,8 +676,8 @@ history_load(History *h, const char *fname)
 		(void) strunvis(ptr, line);
 		line[sz] = c;
 		if (HENTER(h, &ev, ptr) == -1) {
-			h_free((ptr_t)ptr);
-			return -1;
+                  i = -1;
+                  goto oomem;
 		}
 	}
 oomem:

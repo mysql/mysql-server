@@ -816,40 +816,34 @@ end if;
 end|
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-trg1	INSERT	t1	
-begin
+trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
 end	BEFORE	NULL		root@localhost
-trg2	UPDATE	t1	
-begin
+trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
 end	BEFORE	NULL		root@localhost
-trg3	UPDATE	t1	
-begin
+trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
 end	AFTER	NULL		root@localhost
 select * from information_schema.triggers;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER
-NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg1	INSERT	NULL	test	t1	0	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
-NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg2	UPDATE	NULL	test	t1	0	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
 end	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost
-NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	
-begin
+NULL	test	trg3	UPDATE	NULL	test	t1	0	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
@@ -1056,3 +1050,37 @@ where table_name="v1";
 table_type
 VIEW
 drop view v1;
+create temporary table t1(f1 int, index(f1));
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES	MUL	NULL	
+describe t1;
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES	MUL	NULL	
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	f1	1	f1	A	NULL	NULL	NULL	YES	BTREE	
+drop table t1;
+create table t1(f1 binary(32), f2 varbinary(64));
+select character_maximum_length, character_octet_length
+from information_schema.columns where table_name='t1';
+character_maximum_length	character_octet_length
+32	32
+64	64
+drop table t1;
+CREATE TABLE t1 (f1 BIGINT, f2 VARCHAR(20), f3 BIGINT);
+INSERT INTO t1 SET f1 = 1, f2 = 'Schoenenbourg', f3 = 1;
+CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
+CREATE FUNCTION func1() RETURNS BIGINT
+BEGIN
+RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+END//
+CREATE VIEW v1 AS SELECT 1 FROM t1
+WHERE f3 = (SELECT func2 ());
+SELECT func1();
+func1()
+1
+DROP TABLE t1;
+DROP VIEW v1;
+DROP FUNCTION func1;
+DROP FUNCTION func2;

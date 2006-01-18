@@ -450,7 +450,7 @@ void mysql_print_status()
 
   calc_sum_of_all_status(&tmp);
   printf("\nStatus information:\n\n");
-  my_getwd(current_dir, sizeof(current_dir),MYF(0));
+  VOID(my_getwd(current_dir, sizeof(current_dir),MYF(0)));
   printf("Current dir: %s\n", current_dir);
   printf("Running threads: %d  Stack size: %ld\n", thread_count,
 	 (long) thread_stack);

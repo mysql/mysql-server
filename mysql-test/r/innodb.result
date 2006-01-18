@@ -2718,6 +2718,32 @@ insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+update t1 set filler = 'boo' where a = 1;
+update t2 set filler ='email' where a = 4;
+select a,hex(b),hex(c),filler from t1 order by filler;
+a	hex(b)	hex(c)	filler
+1	61626364656667	61626364656667	boo
+4	D0B1	D0B1	eight
+4	5B	5B	five
+4	E880BD	E880BD	four
+4	E880BDD0B1E880BD	E880BDD0B1E880BD	seven
+4	E880BDE880BD	E880BDE880BD	six
+3	71727374757677	71727374757677	three
+2	696A6B696C6D6E	696A6B696C6D6E	two
+select a,hex(b),hex(c),filler from t2 order by filler;
+a	hex(b)	hex(c)	filler
+4	05630563	05630563	email
+4	0563	0563	email
+4	05612020	05612020	email
+4	01FC	01FC	email
+4	0120	0120	email
+4	00640065	00640065	email
+4	00E400E50068	00E400E50068	email
+4	0000E400	0000E400	email
+4	0000563001FC0563	0000563001FC0563	email
+1	0061006200630064006500660067	0061006200630064006500660067	one
+3	0071007200730074007500760077	0071007200730074007500760077	three
+2	0069006A006B0069006C006D006E	0069006A006B0069006C006D006E	two
 drop table t1;
 drop table t2;
 create table t1 (
@@ -2746,6 +2772,32 @@ insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+update t1 set filler = 'boo' where a = 1;
+update t2 set filler ='email' where a = 4;
+select a,hex(b),hex(c),filler from t1 order by filler;
+a	hex(b)	hex(c)	filler
+1	61626364656667	61626364656667	boo
+4	D0B1	D0B1	eight
+4	5B	5B	five
+4	E880BD	E880BD	four
+4	E880BDD0B1E880BD	E880BDD0B1E880BD	seven
+4	E880BDE880BD	E880BDE880BD	six
+3	71727374757677	71727374757677	three
+2	696A6B696C6D6E	696A6B696C6D6E	two
+select a,hex(b),hex(c),filler from t2 order by filler;
+a	hex(b)	hex(c)	filler
+4	05630563	05630563	email
+4	0563	0563	email
+4	05612020	05612020	email
+4	01FC	01FC	email
+4	0120	0120	email
+4	00640065	00640065	email
+4	00E400E50068	00E400E50068	email
+4	0000E400	0000E400	email
+4	0000563001FC0563	0000563001FC0563	email
+1	0061006200630064006500660067	0061006200630064006500660067	one
+3	0071007200730074007500760077	0071007200730074007500760077	three
+2	0069006A006B0069006C006D006E	0069006A006B0069006C006D006E	two
 drop table t1;
 drop table t2;
 create table t1 (
@@ -2774,6 +2826,32 @@ insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
 insert into t2 values (4,_ucs2 0x05630563,_ucs2 0x05630563,'eleven');
 insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+update t1 set filler = 'boo' where a = 1;
+update t2 set filler ='email' where a = 4;
+select a,hex(b),hex(c),filler from t1 order by filler;
+a	hex(b)	hex(c)	filler
+1	61626364656667	61626364656667	boo
+4	D0B1	D0B1	eight
+4	5B	5B	five
+4	E880BD	E880BD	four
+4	E880BDD0B1E880BD	E880BDD0B1E880BD	seven
+4	E880BDE880BD	E880BDE880BD	six
+3	71727374757677	71727374757677	three
+2	696A6B696C6D6E	696A6B696C6D6E	two
+select a,hex(b),hex(c),filler from t2 order by filler;
+a	hex(b)	hex(c)	filler
+4	0120	0120	email
+4	01FC	01FC	email
+4	0563	0563	email
+4	0000563001FC0563	0000563001FC0563	email
+4	0000E400	0000E400	email
+4	00640065	00640065	email
+4	00E400E50068	00E400E50068	email
+4	05612020	05612020	email
+4	05630563	05630563	email
+1	0061006200630064006500660067	0061006200630064006500660067	one
+3	0071007200730074007500760077	0071007200730074007500760077	three
+2	0069006A006B0069006C006D006E	0069006A006B0069006C006D006E	two
 drop table t1;
 drop table t2;
 create table t1 (
@@ -2798,6 +2876,28 @@ insert into t2 values (4,_ucs2 0x01fc,_ucs2 0x01fc,'seven');
 insert into t2 values (4,_ucs2 0x0120,_ucs2 0x0120,'eight');
 insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
+update t1 set filler = 'boo' where a = 1;
+update t2 set filler ='email' where a = 4;
+select a,hex(b),hex(c),filler from t1 order by filler;
+a	hex(b)	hex(c)	filler
+1	61626364656667	61626364656667	boo
+4	D0B1	D0B1	eight
+4	5B	5B	five
+4	E880BD	E880BD	four
+3	71727374757677	71727374757677	three
+2	696A6B696C6D6E	696A6B696C6D6E	two
+select a,hex(b),hex(c),filler from t2 order by filler;
+a	hex(b)	hex(c)	filler
+4	0000E400	0000E400	email
+4	00640065	00640065	email
+4	00E400E50068	00E400E50068	email
+4	0120	0120	email
+4	01FC	01FC	email
+4	05612020	05612020	email
+4	0563	0563	email
+1	61626364656667	61626364656667	one
+3	71727374757677	71727374757677	three
+2	696A6B696C6D6E	696A6B696C6D6E	two
 drop table t1;
 drop table t2;
 commit;
@@ -2833,19 +2933,6 @@ rename table t3 to t1;
 ERROR HY000: Error on rename of './test/t3' to './test/t1' (errno: 150)
 set foreign_key_checks=1;
 drop table t2,t3;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-key (a,b,c,d)) engine=innodb;
-drop table t1;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(255) character set utf8,
-key (a,b,c,d,e)) engine=innodb;
-ERROR 42000: Specified key was too long; max key length is 3072 bytes
 create table t1(a int primary key) row_format=redundant engine=innodb;
 create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
 create table t3(a int primary key) row_format=compact engine=innodb;
@@ -2875,4 +2962,221 @@ truncate t4;
 truncate t1;
 truncate t3;
 drop table t4,t3,t2,t1;
-End of 5.0 tests
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+key (a,b,c,d)) engine=innodb;
+drop table t1;
+create table t1 (a varchar(255) character set utf8,
+b varchar(255) character set utf8,
+c varchar(255) character set utf8,
+d varchar(255) character set utf8,
+e varchar(255) character set utf8,
+key (a,b,c,d,e)) engine=innodb;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
+create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
+create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
+create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
+insert into t1 values (0x41),(0x4120),(0x4100);
+insert into t2 values (0x41),(0x4120),(0x4100);
+ERROR 23000: Duplicate entry 'A' for key 1
+insert into t2 values (0x41),(0x4120);
+insert into t3 values (0x41),(0x4120),(0x4100);
+ERROR 23000: Duplicate entry 'A ' for key 1
+insert into t3 values (0x41),(0x4100);
+insert into t4 values (0x41),(0x4120),(0x4100);
+ERROR 23000: Duplicate entry 'A' for key 1
+insert into t4 values (0x41),(0x4100);
+select hex(s1) from t1;
+hex(s1)
+41
+4100
+4120
+select hex(s1) from t2;
+hex(s1)
+4100
+4120
+select hex(s1) from t3;
+hex(s1)
+4100
+41
+select hex(s1) from t4;
+hex(s1)
+4100
+41
+drop table t1,t2,t3,t4;
+create table t1 (a int primary key,s1 varbinary(3) not null unique) engine=innodb;
+create table t2 (s1 binary(2) not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+insert into t1 values(1,0x4100),(2,0x41),(3,0x4120),(4,0x42);
+insert into t2 values(0x42);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+insert into t2 values(0x41);
+select hex(s1) from t2;
+hex(s1)
+4100
+update t1 set s1=0x123456 where a=2;
+select hex(s1) from t2;
+hex(s1)
+4100
+update t1 set s1=0x12 where a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+update t1 set s1=0x12345678 where a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+update t1 set s1=0x123457 where a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+update t1 set s1=0x1220 where a=1;
+select hex(s1) from t2;
+hex(s1)
+1220
+update t1 set s1=0x1200 where a=1;
+select hex(s1) from t2;
+hex(s1)
+1200
+update t1 set s1=0x4200 where a=1;
+select hex(s1) from t2;
+hex(s1)
+4200
+delete from t1 where a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+delete from t1 where a=2;
+update t2 set s1=0x4120;
+delete from t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+delete from t1 where a!=3;
+select a,hex(s1) from t1;
+a	hex(s1)
+3	4120
+select hex(s1) from t2;
+hex(s1)
+4120
+drop table t2,t1;
+create table t1 (a int primary key,s1 varchar(2) binary not null unique) engine=innodb;
+create table t2 (s1 char(2) binary not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+insert into t1 values(1,0x4100),(2,0x41);
+insert into t2 values(0x41);
+select hex(s1) from t2;
+hex(s1)
+41
+update t1 set s1=0x1234 where a=1;
+select hex(s1) from t2;
+hex(s1)
+41
+update t1 set s1=0x12 where a=2;
+select hex(s1) from t2;
+hex(s1)
+12
+delete from t1 where a=1;
+delete from t1 where a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test/t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
+select a,hex(s1) from t1;
+a	hex(s1)
+2	12
+select hex(s1) from t2;
+hex(s1)
+12
+drop table t2,t1;
+CREATE TABLE t1 (
+ind enum('0','1','2') NOT NULL default '0',
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t2 (
+ind enum('0','1','2') NOT NULL default '0',
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2;
+INSERT INTO t1 VALUES ('1', ''),('2', '');
+INSERT INTO t2 VALUES ('1', ''),('2', '');
+SELECT hex(ind),hex(string1) FROM t1 ORDER BY string1;
+hex(ind)	hex(string1)
+31	
+32	
+SELECT hex(ind),hex(string1) FROM t2 ORDER BY string1;
+hex(ind)	hex(string1)
+0031	
+0032	
+drop table t1,t2;
+CREATE TABLE t1 (
+ind set('0','1','2') NOT NULL default '0',
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t2 (
+ind set('0','1','2') NOT NULL default '0',
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2;
+INSERT INTO t1 VALUES ('1', ''),('2', '');
+INSERT INTO t2 VALUES ('1', ''),('2', '');
+SELECT hex(ind),hex(string1) FROM t1 ORDER BY string1;
+hex(ind)	hex(string1)
+31	
+32	
+SELECT hex(ind),hex(string1) FROM t2 ORDER BY string1;
+hex(ind)	hex(string1)
+0031	
+0032	
+drop table t1,t2;
+CREATE TABLE t1 (
+ind bit not null,
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t2 (
+ind bit not null,
+string1 varchar(250) NOT NULL,
+PRIMARY KEY  (ind)
+) ENGINE=InnoDB DEFAULT CHARSET=ucs2;
+insert into t1 values(0,''),(1,'');
+insert into t2 values(0,''),(1,'');
+select hex(ind),hex(string1) from t1 order by string1;
+hex(ind)	hex(string1)
+0	
+1	
+select hex(ind),hex(string1) from t2 order by string1;
+hex(ind)	hex(string1)
+0	
+1	
+drop table t1,t2;
+create table t2 (
+a int, b char(10), filler char(10), primary key(a, b(2)) 
+) character set utf8 engine = innodb;
+insert into t2 values (1,'abcdefg','one');
+insert into t2 values (2,'ijkilmn','two');
+insert into t2 values (3, 'qrstuvw','three');
+update t2 set a=5, filler='booo' where a=1;
+drop table t2;
+create table t2 (
+a int, b char(10), filler char(10), primary key(a, b(2)) 
+) character set ucs2 engine = innodb;
+insert into t2 values (1,'abcdefg','one');
+insert into t2 values (2,'ijkilmn','two');
+insert into t2 values (3, 'qrstuvw','three');
+update t2 set a=5, filler='booo' where a=1;
+drop table t2;
+create table t1(a int not null, b char(110),primary key(a,b(100))) engine=innodb default charset=utf8;
+insert into t1 values(1,'abcdefg'),(2,'defghijk');
+insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
+insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
+select a,hex(b) from t1 order by b;
+a	hex(b)
+1	61626364656667
+2	6465666768696A6B
+6	D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1
+7	D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2
+update t1 set b = 'three' where a = 6;
+drop table t1;
+create table t1(a int not null, b text(110),primary key(a,b(100))) engine=innodb default charset=utf8;
+insert into t1 values(1,'abcdefg'),(2,'defghijk');
+insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
+insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
+select a,hex(b) from t1 order by b;
+a	hex(b)
+1	61626364656667
+2	6465666768696A6B
+6	D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1
+7	D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2
+update t1 set b = 'three' where a = 6;
+drop table t1;

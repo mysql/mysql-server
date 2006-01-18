@@ -613,7 +613,7 @@ select @a;
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost
-t1_af	INSERT	t1	 set @a=10	AFTER	#		root@localhost
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost
 drop table t1;
 set sql_mode="traditional";
 create table t1 (a date);
@@ -634,7 +634,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
-t1_bi	INSERT	t1	 set new.a = '2004-01-00'	BEFORE	#		root@localhost
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -767,8 +767,7 @@ deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
 create table t1 (a int);
-drop procedure if exists p2;
-CREATE PROCEDURE `p2`()
+CREATE PROCEDURE `p1`()
 begin
 insert into t1 values (1);
 end//
@@ -777,6 +776,12 @@ begin
 declare done int default 0;
 set done= not done;
 end//
-CALL p2();
-drop procedure p2;
+CALL p1();
+drop procedure p1;
 drop table t1;
+create trigger t1_bi before insert on test.t1 for each row set @a:=0;
+ERROR 3D000: No database selected
+create trigger test.t1_bi before insert on t1 for each row set @a:=0;
+ERROR 3D000: No database selected
+drop trigger t1_bi;
+ERROR 3D000: No database selected

@@ -949,7 +949,7 @@ void Item_splocal::print(String *str)
 *****************************************************************************/
 
 Item_case_expr::Item_case_expr(int case_expr_id)
-  :Item_sp_variable(STRING_WITH_LEN("case_expr")),
+  :Item_sp_variable((char *) STRING_WITH_LEN("case_expr")),
    m_case_expr_id(case_expr_id)
 {
 }
@@ -985,7 +985,7 @@ Item_case_expr::this_item_addr(THD *thd, Item **)
 
 void Item_case_expr::print(String *str)
 {
-  str->append(STRING_WITH_LEN("case_expr@"));
+  VOID(str->append(STRING_WITH_LEN("case_expr@")));
   str->qs_append(m_case_expr_id);
 }
 
@@ -3843,7 +3843,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
     return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
 			  name, table);
   case MYSQL_TYPE_BIT:
-    return new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+    return new Field_bit_as_char(NULL, max_length, null_ptr, 0,
                                  Field::NONE, name, table);
   default:
     /* This case should never be chosen */
@@ -4887,6 +4887,12 @@ int Item_ref::save_in_field(Field *to, bool no_conversions)
   res= (*ref)->save_in_field(to, no_conversions);
   null_value= (*ref)->null_value;
   return res;
+}
+
+
+void Item_ref::save_org_in_field(Field *field)
+{
+  (*ref)->save_org_in_field(field);
 }
 
 

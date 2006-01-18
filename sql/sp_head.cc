@@ -24,6 +24,15 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 
+/*
+  Sufficient max length of printed destinations and frame offsets (all uints).
+*/
+#define SP_INSTR_UINT_MAXLEN  8
+#define SP_STMT_PRINT_MAXLEN 40
+
+
+#include <my_user.h>
+
 Item_result
 sp_map_result_type(enum enum_field_types type)
 {
@@ -421,7 +430,8 @@ sp_head::operator delete(void *ptr, size_t size)
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
    m_flags(0), m_recursion_level(0), m_next_cached_sp(0),
-   m_first_instance(this), m_first_free_instance(this), m_last_cached_sp(this)
+   m_first_instance(this), m_first_free_instance(this), m_last_cached_sp(this),
+   m_cont_level(0)
 {
   m_return_field_def.charset = NULL;
 
@@ -430,6 +440,7 @@ sp_head::sp_head()
   DBUG_ENTER("sp_head::sp_head");
 
   m_backpatch.empty();
+  m_cont_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
@@ -867,17 +878,17 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
   SYNOPSIS
     sp_head::recursion_level_error()
+    thd		Thread handle
 
   NOTE
     For functions and triggers we return error about prohibited recursion.
     For stored procedures we return about reaching recursion limit.
 */
 
-void sp_head::recursion_level_error()
+void sp_head::recursion_level_error(THD *thd)
 {
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
-    THD *thd= current_thd;
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
              thd->variables.max_sp_recursion_depth,
              m_name.str);
@@ -928,14 +939,15 @@ sp_head::execute(THD *thd)
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
   m_first_instance->m_first_free_instance= m_next_cached_sp;
-  DBUG_PRINT("info", ("first free for 0x%lx ++: 0x%lx->0x%lx, level: %lu, flags %x",
-                      (ulong)m_first_instance, this, m_next_cached_sp,
-                      (m_next_cached_sp ?
-                       m_next_cached_sp->m_recursion_level :
-                       0),
-                      (m_next_cached_sp ?
-                       m_next_cached_sp->m_flags :
-                       0)));
+  if (m_next_cached_sp)
+  {
+    DBUG_PRINT("info",
+               ("first free for 0x%lx ++: 0x%lx->0x%lx  level: %lu  flags %x",
+                (ulong)m_first_instance, (ulong) this,
+                (ulong) m_next_cached_sp,
+                m_next_cached_sp->m_recursion_level,
+                m_next_cached_sp->m_flags));
+  }
   /*
     Check that if there are not any instances after this one then
     pointer to the last instance points on this instance or if there are
@@ -1103,13 +1115,15 @@ sp_head::execute(THD *thd)
   state= EXECUTED;
 
  done:
-  DBUG_PRINT("info", ("err_status=%d killed=%d query_error=%d",
+  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d",
 		      err_status, thd->killed, thd->query_error));
 
   if (thd->killed)
     err_status= TRUE;
-  /* If the DB has changed, the pointer has changed too, but the
-     original thd->db will then have been freed */
+  /*
+    If the DB has changed, the pointer has changed too, but the
+    original thd->db will then have been freed
+  */
   if (dbchanged)
   {
     /*
@@ -1120,10 +1134,11 @@ sp_head::execute(THD *thd)
       err_status|= mysql_change_db(thd, olddb, 1);
   }
   m_flags&= ~IS_INVOKED;
-  DBUG_PRINT("info", ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
-                      (ulong)m_first_instance,
-                      m_first_instance->m_first_free_instance, this,
-                      m_recursion_level, m_flags));
+  DBUG_PRINT("info",
+             ("first free for 0x%lx --: 0x%lx->0x%lx, level: %lu, flags %x",
+              (ulong) m_first_instance,
+              (ulong) m_first_instance->m_first_free_instance,
+              (ulong) this, m_recursion_level, m_flags));
   /*
     Check that we have one of following:
 
@@ -1133,7 +1148,7 @@ sp_head::execute(THD *thd)
 
     2) There are some free instances which mean that first free instance
     should go just after this one and recursion level of that free instance
-    should be on 1 more then recursion leven of this instance.
+    should be on 1 more then recursion level of this instance.
   */
   DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
                this == m_first_instance->m_last_cached_sp &&
@@ -1723,6 +1738,39 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 
 
 void
+sp_head::new_cont_backpatch(sp_instr_jump_if_not *i)
+{
+  m_cont_level+= 1;
+  if (i)
+  {
+    /* Use the cont. destination slot to store the level */
+    i->m_cont_dest= m_cont_level;
+    (void)m_cont_backpatch.push_front(i);
+  }
+}
+
+void
+sp_head::add_cont_backpatch(sp_instr_jump_if_not *i)
+{
+  i->m_cont_dest= m_cont_level;
+  (void)m_cont_backpatch.push_front(i);
+}
+
+void
+sp_head::do_cont_backpatch()
+{
+  uint dest= instructions();
+  uint lev= m_cont_level--;
+  sp_instr_jump_if_not *i;
+
+  while ((i= m_cont_backpatch.head()) && i->m_cont_dest == lev)
+  {
+    i->m_cont_dest= dest;
+    (void)m_cont_backpatch.pop();
+  }
+}
+
+void
 sp_head::set_info(longlong created, longlong modified,
 		  st_sp_chistics *chistics, ulong sql_mode)
 {
@@ -1741,29 +1789,21 @@ sp_head::set_info(longlong created, longlong modified,
 
 
 void
-sp_head::set_definer(char *definer, uint definerlen)
+sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char *p= strrchr(definer, '@');
+  uint user_name_len;
+  char user_name_str[USERNAME_LENGTH + 1];
+  uint host_name_len;
+  char host_name_str[HOSTNAME_LENGTH + 1];
 
-  if (!p)
-  {
-    m_definer_user.str= strmake_root(mem_root, "", 0);
-    m_definer_user.length= 0;
-    
-    m_definer_host.str= strmake_root(mem_root, "", 0);
-    m_definer_host.length= 0;
-  }
-  else
-  {
-    const uint user_name_len= p - definer;
-    const uint host_name_len= definerlen - user_name_len - 1;
+  parse_user(definer, definerlen, user_name_str, &user_name_len,
+             host_name_str, &host_name_len);
 
-    m_definer_user.str= strmake_root(mem_root, definer, user_name_len);
-    m_definer_user.length= user_name_len;
+  m_definer_user.str= strmake_root(mem_root, user_name_str, user_name_len);
+  m_definer_user.length= user_name_len;
 
-    m_definer_host.str= strmake_root(mem_root, p + 1, host_name_len);
-    m_definer_host.length= host_name_len;
-  }
+  m_definer_host.str= strmake_root(mem_root, host_name_str, host_name_len);
+  m_definer_host.length= host_name_len;
 }
 
 
@@ -1845,9 +1885,9 @@ sp_head::show_create_procedure(THD *thd)
   byte *sql_mode_str;
   ulong sql_mode_len;
   bool full_access;
-
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+
   LINT_INIT(sql_mode_str);
   LINT_INIT(sql_mode_len);
 
@@ -1944,7 +1984,10 @@ sp_head::show_create_function(THD *thd)
 
 
 /*
-  TODO: what does this do??
+  Do some minimal optimization of the code:
+    1) Mark used instructions
+       1.1) While doing this, shortcut jumps to jump instructions
+    2) Compact the code, removing unused instructions
 */
 
 void sp_head::optimize()
@@ -1967,7 +2010,7 @@ void sp_head::optimize()
     else
     {
       if (src != dst)
-      {
+      {                         // Move the instruction and update prev. jumps
 	sp_instr *ibp;
 	List_iterator_fast<sp_instr> li(bp);
 
@@ -1975,8 +2018,7 @@ void sp_head::optimize()
 	while ((ibp= li++))
 	{
 	  sp_instr_jump *ji= static_cast<sp_instr_jump *>(ibp);
-	  if (ji->m_dest == src)
-	    ji->m_dest= dst;
+          ji->set_destination(src, dst);
 	}
       }
       i->opt_move(dst, &bp);
@@ -2200,12 +2242,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
-/* 
-   Sufficient max length of printed destinations and frame offsets (all uints).
-*/
-#define SP_INSTR_UINT_MAXLEN  8
 
-#define SP_STMT_PRINT_MAXLEN 40
 void
 sp_instr_stmt::print(String *str)
 {
@@ -2227,16 +2264,16 @@ sp_instr_stmt::print(String *str)
   /* Copy the query string and replace '\n' with ' ' in the process */
   for (i= 0 ; i < len ; i++)
   {
-    if (m_query.str[i] == '\n')
-      str->qs_append(' ');
-    else
-      str->qs_append(m_query.str[i]);
+    char c= m_query.str[i];
+    if (c == '\n')
+      c= ' ';
+    str->qs_append(c);
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
   str->qs_append('"');
 }
-#undef SP_STMT_PRINT_MAXLEN
+
 
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
@@ -2415,67 +2452,6 @@ sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
 
 
 /*
-  sp_instr_jump_if class functions
-*/
-
-int
-sp_instr_jump_if::execute(THD *thd, uint *nextp)
-{
-  DBUG_ENTER("sp_instr_jump_if::execute");
-  DBUG_PRINT("info", ("destination: %u", m_dest));
-  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
-}
-
-int
-sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
-{
-  Item *it;
-  int res;
-
-  it= sp_prepare_func_item(thd, &m_expr);
-  if (!it)
-    res= -1;
-  else
-  {
-    res= 0;
-    if (it->val_bool())
-      *nextp = m_dest;
-    else
-      *nextp = m_ip+1;
-  }
-
-  return res;
-}
-
-void
-sp_instr_jump_if::print(String *str)
-{
-  /* jump_if dest ... */
-  if (str->reserve(SP_INSTR_UINT_MAXLEN+8+32)) // Add some for the expr. too
-    return;
-  str->qs_append(STRING_WITH_LEN("jump_if "));
-  str->qs_append(m_dest);
-  str->qs_append(' ');
-  m_expr->print(str);
-}
-
-uint
-sp_instr_jump_if::opt_mark(sp_head *sp)
-{
-  sp_instr *i;
-
-  marked= 1;
-  if ((i= sp->get_instr(m_dest)))
-  {
-    m_dest= i->opt_shortcut_jump(sp, this);
-    m_optdest= sp->get_instr(m_dest);
-  }
-  sp->opt_mark(m_dest);
-  return m_ip+1;
-}
-
-
-/*
   sp_instr_jump_if_not class functions
 */
 
@@ -2496,7 +2472,10 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 
   it= sp_prepare_func_item(thd, &m_expr);
   if (! it)
+  {
     res= -1;
+    *nextp = m_cont_dest;
+  }
   else
   {
     res= 0;
@@ -2514,11 +2493,13 @@ void
 sp_instr_jump_if_not::print(String *str)
 {
   /* jump_if_not dest ... */
-  if (str->reserve(SP_INSTR_UINT_MAXLEN+12+32)) // Add some for the expr. too
+  if (str->reserve(2*SP_INSTR_UINT_MAXLEN+14+32)) // Add some for the expr. too
     return;
   str->qs_append(STRING_WITH_LEN("jump_if_not "));
   str->qs_append(m_dest);
-  str->qs_append(' ');
+  str->append('(');
+  str->qs_append(m_cont_dest);
+  str->append(") ");
   m_expr->print(str);
 }
 
@@ -2535,7 +2516,33 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
     m_optdest= sp->get_instr(m_dest);
   }
   sp->opt_mark(m_dest);
+  if ((i= sp->get_instr(m_cont_dest)))
+  {
+    m_cont_dest= i->opt_shortcut_jump(sp, this);
+    m_cont_optdest= sp->get_instr(m_cont_dest);
+  }
+  sp->opt_mark(m_cont_dest);
   return m_ip+1;
+}
+
+void
+sp_instr_jump_if_not::opt_move(uint dst, List<sp_instr> *bp)
+{
+  /*
+    cont. destinations may point backwards after shortcutting jumps
+    during the mark phase. If it's still pointing forwards, only
+    push this for backpatching if sp_instr_jump::opt_move() will not
+    do it (i.e. if the m_dest points backwards).
+   */
+  if (m_cont_dest > m_ip)
+  {                             // Forward
+    if (m_dest < m_ip)
+      bp->push_back(this);
+  }
+  else if (m_cont_optdest)
+    m_cont_dest= m_cont_optdest->m_ip; // Backward
+  /* This will take care of m_dest and m_ip */
+  sp_instr_jump::opt_move(dst, bp);
 }
 
 
@@ -2602,6 +2609,7 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
   DBUG_RETURN(0);
 }
 
+
 void
 sp_instr_hpush_jump::print(String *str)
 {
@@ -2612,8 +2620,7 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(m_dest);
   str->qs_append(' ');
   str->qs_append(m_frame);
-  switch (m_type)
-  {
+  switch (m_type) {
   case SP_HANDLER_NONE:
     str->qs_append(STRING_WITH_LEN(" NONE")); // This would be a bug
     break;
@@ -2627,10 +2634,12 @@ sp_instr_hpush_jump::print(String *str)
     str->qs_append(STRING_WITH_LEN(" UNDO"));
     break;
   default:
-    str->qs_append(STRING_WITH_LEN(" UNKNOWN:")); // This would be a bug as well
+    // This would be a bug as well
+    str->qs_append(STRING_WITH_LEN(" UNKNOWN:"));
     str->qs_append(m_type);
   }
 }
+
 
 uint
 sp_instr_hpush_jump::opt_mark(sp_head *sp)
@@ -3129,7 +3138,14 @@ sp_restore_security_context(THD *thd, Security_context *backup)
 
 typedef struct st_sp_table
 {
-  LEX_STRING qname;     /* Multi-set key: db_name\0table_name\0alias\0 */
+  /*
+    Multi-set key:
+      db_name\0table_name\0alias\0 - for normal tables
+      db_name\0table_name\0        - for temporary tables
+    Note that in both cases we don't take last '\0' into account when
+    we count length of key.
+  */
+  LEX_STRING qname;
   uint db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
@@ -3199,10 +3215,14 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       tname[tlen]= '\0';
 
       /*
-        It is safe to store pointer to table list elements in hash,
-        since they are supposed to have the same lifetime.
+        We ignore alias when we check if table was already marked as temporary
+        (and therefore should not be prelocked). Otherwise we will erroneously
+        treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)))
+      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)) ||
+          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname,
+                                        tlen - alen - 1)) &&
+           tab->temp))
       {
         if (tab->lock_type < table->lock_type)
           tab->lock_type= table->lock_type; // Use the table with the highest lock type
@@ -3214,14 +3234,18 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
       {
 	if (!(tab= (SP_TABLE *)thd->calloc(sizeof(SP_TABLE))))
 	  return FALSE;
-	tab->qname.length= tlen;
-	tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
-	if (!tab->qname.str)
-	  return FALSE;
 	if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
 	    lex_for_tmp_check->query_tables == table &&
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+        {
 	  tab->temp= TRUE;
+          tab->qname.length= tlen - alen - 1;
+        }
+        else
+          tab->qname.length= tlen;
+        tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
+        if (!tab->qname.str)
+          return FALSE;
         tab->table_name_length= table->table_name_length;
         tab->db_length= table->db_length;
         tab->lock_type= table->lock_type;

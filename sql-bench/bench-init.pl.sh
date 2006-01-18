@@ -447,7 +447,7 @@ All benchmarks takes the following options:
 --create-options=#
   Extra argument to all create statements.  If you for example want to
   create all MySQL tables as BDB tables use:
-  --create-options=TYPE=BDB
+  --create-options=ENGINE=BDB
 
 --database (Default $opt_database)
   In which database the test tables are created.
