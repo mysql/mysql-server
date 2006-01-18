@@ -993,6 +993,22 @@ extern "C" {
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype);
 
+  /**
+   * End Session
+   *
+   * This function tells the mgm server to free all resources associated with
+   * this connection. It will also close it.
+   *
+   * This differs from just disconnecting as we now synchronously clean up,
+   * so that a quickly restarting server that needs the same node id can
+   * get it when it restarts.
+   *
+   * @param  handle NDB management handle
+   * @return 0 on success
+   *
+   * @note you still have to destroy the NdbMgmHandle.
+   */
+  int ndb_mgm_end_session(NdbMgmHandle handle);
 
   /**
    * Get the node id of the mgm server we're connected to
