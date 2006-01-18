@@ -2835,6 +2835,7 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
     CHARSET_INFO *tmp_cs= cs[0];
     if (tmp_cs && (tmp_cs->state & MY_CS_PRIMARY) && 
         (tmp_cs->state & MY_CS_AVAILABLE) &&
+        !(tmp_cs->state & MY_CS_HIDDEN) &&
         !(wild && wild[0] &&
 	  wild_case_compare(scs, tmp_cs->csname,wild)))
     {
@@ -2904,6 +2905,7 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
     if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
+         (tmp_cs->state & MY_CS_HIDDEN) ||
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
     for (cl= all_charsets; cl < all_charsets+255 ;cl ++)
