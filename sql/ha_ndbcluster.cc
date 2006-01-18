@@ -9161,6 +9161,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 					       uint table_changes)
 {
+  return COMPATIBLE_DATA_NO; // Disable fast add/drop index  
   if (table_changes != IS_EQUAL_YES)
     return COMPATIBLE_DATA_NO;
   
