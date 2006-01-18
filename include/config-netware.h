@@ -72,9 +72,10 @@ extern "C" {
   #undef HAVE_CRYPT
 #endif /* HAVE_OPENSSL */
 
-/* Configure can't detect this because it uses AC_TRY_RUN */
+/* Netware has an ancient zlib */
 #undef HAVE_COMPRESS
 #define HAVE_COMPRESS
+#undef HAVE_ARCHIVE_DB
 
 /* include the old function apis */
 #define USE_OLD_FUNCTIONS 1
@@ -93,6 +94,9 @@ extern "C" {
 
 /* On NetWare, stack grows towards lower address*/
 #define STACK_DIRECTION -1
+
+/* On NetWare, we need to set stack size for threads, otherwise default 16K is used */
+#define NW_THD_STACKSIZE 65536
 
 /* On NetWare, to fix the problem with the deletion of open files */
 #define CANT_DELETE_OPEN_FILES 1

@@ -886,6 +886,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           if (!(sql_field->flags & NOT_NULL_FLAG))
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
+          sql_field->interval=          dup_field->interval;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -1296,7 +1297,7 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name);
 	  DBUG_RETURN(-1);
       }
-      if (length > file->max_key_part_length())
+      if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
       {
 	length=file->max_key_part_length();
 	if (key->type == Key::MULTIPLE)

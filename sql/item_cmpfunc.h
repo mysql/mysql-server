@@ -1001,6 +1001,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
+  void cleanup();
 };
 
 #ifdef USE_REGEX
@@ -1150,6 +1151,11 @@ public:
   are deleted in the end of execution. All changes made to these
   objects need not be registered in the list of changes of the parse
   tree and do not harm PS/SP re-execution.
+
+  Item equal objects are employed only at the optimize phase. Usually they are
+  not supposed to be evaluated.  Yet in some cases we call the method val_int()
+  for them. We have to take care of restricting the predicate such an
+  object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
 
 class Item_equal: public Item_bool_func

@@ -259,7 +259,7 @@ static COMMANDS commands[] = {
   { "quit",   'q', com_quit,   0, "Quit mysql." },
   { "rehash", '#', com_rehash, 0, "Rebuild completion hash." },
   { "source", '.', com_source, 1,
-    "Execute a SQL script file. Takes a file name as an argument."},
+    "Execute an SQL script file. Takes a file name as an argument."},
   { "status", 's', com_status, 0, "Get status information from the server."},
 #ifdef USE_POPEN
   { "system", '!', com_shell,  1, "Execute a system shell command."},

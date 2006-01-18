@@ -41,6 +41,7 @@ sp_get_flags_for_command(LEX *lex);
 
 struct sp_label;
 class sp_instr;
+class sp_instr_jump_if_not;
 struct sp_cond_type;
 struct sp_pvar;
 
@@ -266,6 +267,18 @@ public:
   int
   check_backpatch(THD *thd);
 
+  // Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
+  void
+  new_cont_backpatch(sp_instr_jump_if_not *i);
+
+  // Add an instruction to the current level
+  void
+  add_cont_backpatch(sp_instr_jump_if_not *i);
+
+  // Backpatch (and pop) the current level to the current position.
+  void
+  do_cont_backpatch();
+
   char *name(uint *lenp = 0) const
   {
     if (lenp)
@@ -285,7 +298,7 @@ public:
   void set_info(longlong created, longlong modified,
 		st_sp_chistics *chistics, ulong sql_mode);
 
-  void set_definer(char *definer, uint definerlen);
+  void set_definer(const char *definer, uint definerlen);
 
   void reset_thd_mem_root(THD *thd);
 
@@ -294,7 +307,7 @@ public:
   void optimize();
   void opt_mark(uint ip);
 
-  void recursion_level_error();
+  void recursion_level_error(THD *thd);
 
   inline sp_instr *
   get_instr(uint i)
@@ -356,6 +369,18 @@ private:
     sp_instr *instr;
   } bp_t;
   List<bp_t> m_backpatch;	// Instructions needing backpatching
+  /*
+    We need a special list for backpatching of conditional jump's continue
+    destination (in the case of a continue handler catching an error in
+    the test), since it would otherwise interfere with the normal backpatch
+    mechanism - jump_if_not instructions have two different destination
+    which are to be patched differently.
+    Since these occur in a more restricted way (always the same "level" in
+    the code), we don't need the label.
+   */
+  List<sp_instr_jump_if_not> m_cont_backpatch;
+  uint m_cont_level;            // The current cont. backpatch level
+
   /*
     Multi-set representing optimized list of tables to be locked by this
     routine. Does not include tables which are used by invoked routines.
@@ -669,50 +694,17 @@ public:
       m_dest= dest;
   }
 
+  virtual void set_destination(uint old_dest, uint new_dest)
+  {
+    if (m_dest == old_dest)
+      m_dest= new_dest;
+  }
+
 protected:
 
   sp_instr *m_optdest;		// Used during optimization
 
 }; // class sp_instr_jump : public sp_instr
-
-
-class sp_instr_jump_if : public sp_instr_jump
-{
-  sp_instr_jump_if(const sp_instr_jump_if &); /* Prevent use of these */
-  void operator=(sp_instr_jump_if &);
-
-public:
-
-  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i, LEX *lex)
-    : sp_instr_jump(ip, ctx), m_expr(i), m_lex_keeper(lex, TRUE)
-  {}
-
-  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i, uint dest, LEX *lex)
-    : sp_instr_jump(ip, ctx, dest), m_expr(i), m_lex_keeper(lex, TRUE)
-  {}
-
-  virtual ~sp_instr_jump_if()
-  {}
-
-  virtual int execute(THD *thd, uint *nextp);
-
-  virtual int exec_core(THD *thd, uint *nextp);
-
-  virtual void print(String *str);
-
-  virtual uint opt_mark(sp_head *sp);
-
-  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
-  {
-    return m_ip;
-  }
-
-private:
-
-  Item *m_expr;			// The condition
-  sp_lex_keeper m_lex_keeper;
-
-}; // class sp_instr_jump_if : public sp_instr_jump
 
 
 class sp_instr_jump_if_not : public sp_instr_jump
@@ -722,12 +714,16 @@ class sp_instr_jump_if_not : public sp_instr_jump
 
 public:
 
+  uint m_cont_dest;             // Where continue handlers will go
+
   sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, LEX *lex)
-    : sp_instr_jump(ip, ctx), m_expr(i), m_lex_keeper(lex, TRUE)
+    : sp_instr_jump(ip, ctx), m_cont_dest(0), m_expr(i),
+      m_lex_keeper(lex, TRUE), m_cont_optdest(0)
   {}
 
   sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, uint dest, LEX *lex)
-    : sp_instr_jump(ip, ctx, dest), m_expr(i), m_lex_keeper(lex, TRUE)
+    : sp_instr_jump(ip, ctx, dest), m_cont_dest(0), m_expr(i),
+      m_lex_keeper(lex, TRUE), m_cont_optdest(0)
   {}
 
   virtual ~sp_instr_jump_if_not()
@@ -746,10 +742,20 @@ public:
     return m_ip;
   }
 
+  virtual void opt_move(uint dst, List<sp_instr> *ibp);
+
+  virtual void set_destination(uint old_dest, uint new_dest)
+  {
+    sp_instr_jump::set_destination(old_dest, new_dest);
+    if (m_cont_dest == old_dest)
+      m_cont_dest= new_dest;
+  }
+
 private:
 
   Item *m_expr;			// The condition
   sp_lex_keeper m_lex_keeper;
+  sp_instr *m_cont_optdest;     // Used during optimization
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump
 

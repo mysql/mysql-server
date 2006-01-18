@@ -259,21 +259,6 @@ select * from t1;
 0	1	2
 0	0	1
 drop table t1;
-create table t1 select 1,2,3;
-create table if not exists t1 select 1,2;
-Warnings:
-Note	1050	Table 't1' already exists
-create table if not exists t1 select 1,2,3,4;
-ERROR 21S01: Column count doesn't match value count at row 1
-create table if not exists t1 select 1;
-Warnings:
-Note	1050	Table 't1' already exists
-select * from t1;
-1	2	3
-1	2	3
-0	1	2
-0	0	1
-drop table t1;
 create table t1 (a int not null, b int, primary key (a));
 insert into t1 values (1,1);
 create table if not exists t1 select 2;
@@ -287,7 +272,6 @@ a	b
 create table if not exists t1 select 3 as 'a',4 as 'b';
 Warnings:
 Note	1050	Table 't1' already exists
-Warning	1364	Field 'a' doesn't have a default value
 create table if not exists t1 select 3 as 'a',3 as 'b';
 ERROR 23000: Duplicate entry '3' for key 1
 select * from t1;
@@ -614,6 +598,11 @@ DESC t2;
 Field	Type	Null	Key	Default	Extra
 f2	varchar(171)	YES		NULL	
 DROP TABLE t1,t2;
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+f1
+a
+DROP TABLE t12913;
 create database mysqltest;
 use mysqltest;
 drop database mysqltest;
@@ -645,8 +634,6 @@ create table t1 (
 a varchar(112) charset utf8 collate utf8_bin not null,
 primary key (a)
 ) select 'test' as a ;
-Warnings:
-Warning	1364	Field 'a' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -662,9 +649,6 @@ create table t1 (
 a varchar(12) charset utf8 collate utf8_bin not null, 
 b int not null, primary key (a)
 ) select a, 1 as b from t2 ;
-Warnings:
-Warning	1364	Field 'a' doesn't have a default value
-Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -674,12 +658,37 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as c from t2 ;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) NOT NULL,
+  `a` varchar(12) character set utf8 collate utf8_bin NOT NULL,
+  `c` bigint(1) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int null, primary key (a)
+) select a, 1 as c from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) default NULL,
+  `a` varchar(12) character set utf8 collate utf8_bin NOT NULL,
+  `c` bigint(1) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
-Warnings:
-Warning	1364	Field 'a' doesn't have a default value
-Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -692,8 +701,6 @@ create table t1 (
 a varchar(12) charset utf8 collate utf8_bin,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
-Warnings:
-Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -712,8 +719,6 @@ a1 varchar(12) charset utf8 collate utf8_bin not null,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
-Warnings:
-Warning	1364	Field 'a1' doesn't have a default value
 drop table t2;
 create table t2 ( 
 a1 varchar(12) charset utf8 collate utf8_bin,
@@ -729,8 +734,6 @@ a1 varchar(12) charset utf8 collate utf8_bin not null,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
-Warnings:
-Warning	1364	Field 'a1' doesn't have a default value
 drop table t2;
 create table t2 ( a int default 3, b int default 3)
 select a1,a2 from t1;

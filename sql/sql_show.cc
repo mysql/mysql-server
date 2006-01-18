@@ -663,7 +663,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
    it's a keyword
   */
 
-  packet->reserve(length*2 + 2);
+  VOID(packet->reserve(length*2 + 2));
   quote_char= (char) q;
   packet->append(&quote_char, 1, system_charset_info);
 
@@ -950,13 +950,13 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       if (key_part->field)
         append_identifier(thd,packet,key_part->field->field_name,
 			  strlen(key_part->field->field_name));
-      if (!key_part->field ||
+      if (key_part->field &&
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & HA_FULLTEXT)))
       {
         buff[0] = '(';
-        char* end=int10_to_str((long) key_part->length / 
+        char* end=int10_to_str((long) key_part->length /
 			       key_part->field->charset()->mbmaxlen,
 			       buff + 1,10);
         *end++ = ')';
@@ -1732,7 +1732,8 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 {
   MEM_ROOT *mem= thd->mem_root;
   if (allocate_lex_string)
-    lex_str= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
+    if (!(lex_str= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING))))
+      return 0;
   lex_str->str= strmake_root(mem, str, length);
   lex_str->length= length;
   return lex_str;
@@ -2045,6 +2046,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   int error= 1;
   db_type not_used;
   Open_tables_state open_tables_state_backup;
+  bool save_view_prepare_mode= lex->view_prepare_mode;
+  lex->view_prepare_mode= TRUE;
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
@@ -2069,6 +2072,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     bool res;
 
     lex->all_selects_list= lsel;
+    /*
+      Restore thd->temporary_tables to be able to process
+      temporary tables(only for 'show index' & 'show columns').
+      This should be changed when processing of temporary tables for
+      I_S tables will be done.
+    */
+    thd->temporary_tables= open_tables_state_backup.temporary_tables;
     res= open_normal_and_derived_tables(thd, show_table_list,
                                         MYSQL_LOCK_IGNORE_FLUSH);
     /*
@@ -2088,6 +2098,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                                              show_table_list->view_db.str :
                                              show_table_list->db),
                                             show_table_list->alias));
+    thd->temporary_tables= 0;
     close_thread_tables(thd);
     show_table_list->table= 0;
     goto err;
@@ -2222,6 +2233,7 @@ err:
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
   lex->query_tables_last= save_query_tables_last;
+  lex->view_prepare_mode= save_view_prepare_mode;
   *save_query_tables_last= 0;
   lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
@@ -2608,14 +2620,19 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
     is_blob= (field->type() == FIELD_TYPE_BLOB);
-    if (field->has_charset() || is_blob)
+    if (field->has_charset() || is_blob ||
+        field->real_type() == MYSQL_TYPE_VARCHAR ||  // For varbinary type
+        field->real_type() == MYSQL_TYPE_STRING)     // For binary type
     {
+      uint32 octet_max_length= field->max_length();
+      if (octet_max_length != (uint32) 4294967295U)
+        octet_max_length /= field->charset()->mbmaxlen;
       longlong char_max_len= is_blob ? 
-        (longlong) field->max_length() / field->charset()->mbminlen :
-        (longlong) field->max_length() / field->charset()->mbmaxlen;
+        (longlong) octet_max_length / field->charset()->mbminlen :
+        (longlong) octet_max_length / field->charset()->mbmaxlen;
       table->field[8]->store(char_max_len, TRUE);
       table->field[8]->set_notnull();
-      table->field[9]->store((longlong) field->max_length(), TRUE);
+      table->field[9]->store((longlong) octet_max_length, TRUE);
       table->field[9]->set_notnull();
     }
 
@@ -2874,7 +2891,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   int res= 0;
   TABLE *table= tables->table;
   bool full_access;
-  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char definer[USER_HOST_BUFF_SIZE];
   Open_tables_state open_tables_state_backup;
   DBUG_ENTER("fill_schema_proc");
 
@@ -2933,7 +2950,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
       /*
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
         rather than in SHOW KEYS
-      */ 
+      */
       if (!tables->view)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      thd->net.last_errno, thd->net.last_error);
@@ -2946,7 +2963,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
-    show_table->file->info(HA_STATUS_VARIABLE | 
+    show_table->file->info(HA_STATUS_VARIABLE |
                            HA_STATUS_NO_LOCK |
                            HA_STATUS_TIME);
     for (uint i=0 ; i < show_table->s->keys ; i++,key_info++)
@@ -2958,7 +2975,7 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
         restore_record(table, s->default_values);
         table->field[1]->store(base_name, strlen(base_name), cs);
         table->field[2]->store(file_name, strlen(file_name), cs);
-        table->field[3]->store((longlong) ((key_info->flags & 
+        table->field[3]->store((longlong) ((key_info->flags &
                                             HA_NOSAME) ? 0 : 1), TRUE);
         table->field[4]->store(base_name, strlen(base_name), cs);
         table->field[5]->store(key_info->name, strlen(key_info->name), cs);
@@ -2981,12 +2998,12 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
           table->field[9]->store((longlong) records, TRUE);
           table->field[9]->set_notnull();
         }
-        if (!(key_info->flags & HA_FULLTEXT) && 
-            (!key_part->field ||
-             key_part->length != 
+        if (!(key_info->flags & HA_FULLTEXT) &&
+            (key_part->field &&
+             key_part->length !=
              show_table->field[key_part->fieldnr-1]->key_length()))
         {
-          table->field[10]->store((longlong) key_part->length / 
+          table->field[10]->store((longlong) key_part->length /
                                   key_part->field->charset()->mbmaxlen);
           table->field[10]->set_notnull();
         }
@@ -3016,7 +3033,7 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_views_record");
-  char definer[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+  char definer[USER_HOST_BUFF_SIZE];
   uint definer_len;
 
   if (tables->view)
@@ -3200,7 +3217,7 @@ static int get_schema_triggers_record(THD *thd, struct st_table_list *tables,
         LEX_STRING trigger_name;
         LEX_STRING trigger_stmt;
         ulong sql_mode;
-        char definer_holder[HOSTNAME_LENGTH + USERNAME_LENGTH + 2];
+        char definer_holder[USER_HOST_BUFF_SIZE];
         LEX_STRING definer_buffer;
         definer_buffer.str= definer_holder;
         if (triggers->get_trigger_info(thd, (enum trg_event_type) event,

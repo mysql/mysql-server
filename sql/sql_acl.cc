@@ -68,6 +68,7 @@ static ulong get_access(TABLE *form,uint fieldnr, uint *next_field=0);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
 static void init_check_host(void);
+static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
 static bool update_user_table(THD *thd, TABLE *table,
@@ -937,7 +938,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
 
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
-                       (user ? user : "(NULL)"), (db ? db : "(NULL)")));
+                       user, (db ? db : "(NULL)")));
   sctx->user= user;
   sctx->host= host;
   sctx->ip= ip;
@@ -966,7 +967,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
   for (i=0 ; i < acl_users.elements ; i++)
   {
     acl_user= dynamic_element(&acl_users,i,ACL_USER*);
-    if ((!acl_user->user && (!user || !user[0])) ||
+    if ((!acl_user->user && !user[0]) ||
 	(acl_user->user && strcmp(user, acl_user->user) == 0))
     {
       if (compare_hostname(&acl_user->host, host, ip))
@@ -1095,10 +1096,8 @@ static void acl_insert_user(const char *user, const char *host,
   qsort((gptr) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
 	sizeof(ACL_USER),(qsort_cmp) acl_compare);
 
-  /* We must free acl_check_hosts as its memory is mapped to acl_user */
-  delete_dynamic(&acl_wild_hosts);
-  hash_free(&acl_check_hosts);
-  init_check_host();
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
 }
 
 
@@ -1283,7 +1282,7 @@ static void init_check_host(void)
 	if (j == acl_wild_hosts.elements)	// If new
 	  (void) push_dynamic(&acl_wild_hosts,(char*) &acl_user->host);
       }
-      else if (!hash_search(&acl_check_hosts,(byte*) &acl_user->host,
+      else if (!hash_search(&acl_check_hosts,(byte*) acl_user->host.hostname,
 			    (uint) strlen(acl_user->host.hostname)))
       {
 	if (my_hash_insert(&acl_check_hosts,(byte*) acl_user))
@@ -1297,6 +1296,22 @@ static void init_check_host(void)
   freeze_size(&acl_wild_hosts);
   freeze_size(&acl_check_hosts.array);
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Rebuild lists used for checking of allowed hosts
+
+  We need to rebuild 'acl_check_hosts' and 'acl_wild_hosts' after adding,
+  dropping or renaming user, since they contain pointers to elements of
+  'acl_user' array, which are invalidated by drop operation, and use
+  ACL_USER::host::hostname as a key, which is changed by rename.
+*/
+void rebuild_check_host(void)
+{
+  delete_dynamic(&acl_wild_hosts);
+  hash_free(&acl_check_hosts);
+  init_check_host();
 }
 
 
@@ -1528,7 +1543,8 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 	acl_user->user && !strcmp(user,acl_user->user))
     {
       if (exact ? !my_strcasecmp(&my_charset_latin1, host,
-                                 acl_user->host.hostname) :
+                                 acl_user->host.hostname ?
+				 acl_user->host.hostname : "") :
           compare_hostname(&acl_user->host,host,host))
       {
 	DBUG_RETURN(acl_user);
@@ -2229,14 +2245,14 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_NAME *grant_name,*found=0;
+  HASH_SEARCH_STATE state;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_name=(GRANT_NAME*) hash_search(name_hash,
-					      (byte*) helping,
-					      len) ;
+  for (grant_name= (GRANT_NAME*) hash_first(name_hash, (byte*) helping,
+                                            len, &state);
        grant_name ;
        grant_name= (GRANT_NAME*) hash_next(name_hash,(byte*) helping,
-					     len))
+                                           len, &state))
   {
     if (exact)
     {
@@ -2474,7 +2490,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       ulong rights, ulong col_rights,
 			       bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
@@ -2592,7 +2608,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      const char *db, const char *routine_name,
 			      bool is_proc, ulong rights, bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
@@ -3538,7 +3554,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table && table != first_not_own_table && i < number;
+       table != first_not_own_table && i < number;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
@@ -4623,7 +4639,7 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
     if (!(user=acl_user->user))
       user= "";
     if (!(host=acl_user->host.hostname))
-      host= "%";
+      host= "";
     if (!strcmp(user_name->user.str,user) &&
 	!my_strcasecmp(system_charset_info, user_name->host.str, host))
       break;
@@ -4939,8 +4955,6 @@ static int handle_grant_struct(uint struct_no, bool drop,
     }
     if (! user)
       user= "";
-    if (! host)
-      host= "";
 #ifdef EXTRA_DEBUG
     DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
                        struct_no, idx, user, host));
@@ -5241,6 +5255,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
   }
 
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5265,7 +5282,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
-  int result= 0;
+  int result;
   String wrong_users;
   LEX_USER *user_from;
   LEX_USER *user_to;
@@ -5296,6 +5313,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
     }
   }
+
+  /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
+  rebuild_check_host();
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);

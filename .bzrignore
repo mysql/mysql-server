@@ -1269,3 +1269,6 @@ vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
 libmysqld/ha_blackhole.cc
+client/my_user.c
+libmysqld/my_user.c
+sql/my_user.c

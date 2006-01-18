@@ -412,3 +412,13 @@ create table t1 (mycol int(10) not null);
 alter table t1 alter column mycol set default 0;
 desc t1;
 drop table t1;
+
+#
+# Bug#6073 "ALTER table minor glich": ALTER TABLE complains that an index
+# without # prefix is not allowed for TEXT columns, while index
+# is defined with prefix.
+# 
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;

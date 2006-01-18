@@ -348,7 +348,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   }
   {
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
     {
       update_non_unique_table_error(table_list, "DELETE", duplicate);
       DBUG_RETURN(TRUE);
@@ -438,7 +438,7 @@ bool mysql_multi_delete_prepare(THD *thd)
     */
     {
       TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(target_tbl->correspondent_table,
+      if ((duplicate= unique_table(thd, target_tbl->correspondent_table,
                                    lex->query_tables)))
       {
         update_non_unique_table_error(target_tbl->correspondent_table,

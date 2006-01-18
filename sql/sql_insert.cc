@@ -669,7 +669,8 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
 
   DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
 
-  bitmap_init(&used_fields, used_fields_buff, used_fields_buff_size * 8, 0);
+  VOID(bitmap_init(&used_fields, used_fields_buff, used_fields_buff_size * 8,
+                   0));
   bitmap_clear_all(&used_fields);
 
   view->contain_auto_increment= 0;
@@ -873,7 +874,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     Item *fake_conds= 0;
     TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(table_list, table_list->next_global)))
+    if ((duplicate= unique_table(thd, table_list, table_list->next_global)))
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
@@ -2174,7 +2175,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     query
   */
   if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(table_list, table_list->next_global))
+      unique_table(thd, table_list, table_list->next_global))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
@@ -2434,7 +2435,11 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
 
   /* First field to copy */
-  field=table->field+table->s->fields - values.elements;
+  field= table->field+table->s->fields - values.elements;
+
+  /* Mark all fields that are given values */
+  for (Field **f= field ; *f ; f++)
+    (*f)->query_id= thd->query_id;
 
   /* Don't set timestamp if used */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;

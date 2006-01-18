@@ -2518,7 +2518,6 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
-  pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
   sync_binlog_period= (ulong) var->save_result.ulonglong_value;
   return 0;
 }

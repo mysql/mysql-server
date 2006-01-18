@@ -5175,8 +5175,8 @@ ER_SP_WRONG_NO_OF_FETCH_ARGS
 	eng "Incorrect number of FETCH variables"
 	ger "Falsche Anzahl von FETCH-Variablen"
 ER_SP_FETCH_NO_DATA 02000 
-	eng "No data to FETCH"
-	ger "Keine Daten mit FETCH abzuholen"
+	eng "No data - zero rows fetched, selected, or processed"
+	ger "Keine Daten - null Zeilen geholt (fetch), ausgewählt oder verarbeitet"
 ER_SP_DUP_PARAM 42000 
 	eng "Duplicate parameter: %s"
 	ger "Doppelter Parameter: %s"
@@ -5375,7 +5375,7 @@ ER_WSAS_FAILED
 	eng "WSAStartup Failed"
 	ger "WSAStartup fehlgeschlagen"
 ER_DIFF_GROUPS_PROC  
-	eng "Can't handle procedures with differents groups yet"
+	eng "Can't handle procedures with different groups yet"
 	ger "Kann Prozeduren mit unterschiedlichen Gruppen noch nicht verarbeiten"
 ER_NO_GROUP_FOR_PROC  
 	eng "Select must have a group with this procedure"
