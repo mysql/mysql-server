@@ -6470,24 +6470,24 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 {
   var->type= SHOW_CHAR;
   if (!ssl_acceptor_fd)
-    var->value= "NONE";
+    var->value= const_cast<char*>("NONE");
   else
     switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
     {
     case SSL_SESS_CACHE_OFF:
-      var->value= "OFF"; break;
+      var->value= const_cast<char*>("OFF"); break;
     case SSL_SESS_CACHE_CLIENT:
-      var->value= "CLIENT"; break;
+      var->value= const_cast<char*>("CLIENT"); break;
     case SSL_SESS_CACHE_SERVER:
-      var->value= "SERVER"; break;
+      var->value= const_cast<char*>("SERVER"); break;
     case SSL_SESS_CACHE_BOTH:
-      var->value= "BOTH"; break;
+      var->value= const_cast<char*>("BOTH"); break;
     case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-      var->value= "NO_AUTO_CLEAR"; break;
+      var->value= const_cast<char*>("NO_AUTO_CLEAR"); break;
     case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-      var->value= "NO_INTERNAL_LOOKUP"; break;
+      var->value= const_cast<char*>("NO_INTERNAL_LOOKUP"); break;
     default:
-      var->value= "Unknown"; break;
+      var->value= const_cast<char*>("Unknown"); break;
     }
   return 0;
 }
@@ -6508,6 +6508,7 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
   *((long *)buff)= (long)thd->net.vio->ssl_arg ?
                          SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
                          0;
+  return 0;
 }
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
