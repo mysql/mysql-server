@@ -1316,7 +1316,7 @@ show variables like "innodb_sync_spin_loops";
 
 # Test for innodb_thread_concurrency variable
 show variables like "innodb_thread_concurrency";
-set global innodb_thread_concurrency=1000;
+set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=0;
 show variables like "innodb_thread_concurrency";
