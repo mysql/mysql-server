@@ -897,7 +897,7 @@ void free_status_vars();
 
 /* information schema */
 extern LEX_STRING information_schema_name;
-const extern LEX_STRING partition_keywords[];
+extern const LEX_STRING partition_keywords[];
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
                             bool allocate_lex_string);

@@ -26,3 +26,6 @@ rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
+ndb_alter_table_row : dbug assert in RBR mode when executing test suite
+ndb_condition_pushdown: Bug #16596: Crash in mysql_unpack_partition
+ndb_index_ordered : Bug #16596: Crash in mysql_unpack_partition
