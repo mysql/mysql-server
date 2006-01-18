@@ -54,9 +54,9 @@ struct sync_cell_struct {
 	enum { SC_FREE, SC_RESERVED, SC_WAKING_UP } state;
 	
         void*           wait_object;    /* pointer to the object the
-					thread is waiting for; like state,
-					this can change from non-NULL to
-					NULL without any mutex protection */
+					thread is waiting for; this is not
+					reseted to NULL when a cell is
+					freed. */
 
 	mutex_t*	old_wait_mutex;	/* the latest wait mutex in cell */
 	rw_lock_t*	old_wait_rw_lock;/* the latest wait rw-lock in cell */
@@ -413,7 +413,6 @@ sync_array_free_cell(
 	ut_a(cell->wait_object != NULL);
 
 	cell->state = SC_FREE;
-	cell->wait_object = NULL;
 }
 
 /**********************************************************************
@@ -443,7 +442,6 @@ sync_array_free_cell_protected(
 	}
 
 	cell->state = SC_FREE;
-	cell->wait_object = NULL;
 
 	sync_array_exit(arr);
 }
