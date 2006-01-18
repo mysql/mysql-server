@@ -1417,7 +1417,7 @@ ev_schedule_time: EVERY_SYM expr interval
                 YYABORT;
                 break;
               case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE, MYF(0));
+                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
                 YYABORT;
                 break;
               }

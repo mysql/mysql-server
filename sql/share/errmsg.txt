@@ -5757,8 +5757,8 @@ ER_EVENT_CANT_ALTER
         eng "Failed to alter event '%-.64s'"
 ER_EVENT_DROP_FAILED
         eng "Failed to drop %s"
-ER_EVENT_INTERVAL_NOT_POSITIVE
-        eng "INTERVAL must be positive"
+ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+        eng "INTERVAL is either not positive or too big"
 ER_EVENT_ENDS_BEFORE_STARTS
         eng "ENDS must be after STARTS"
 ER_EVENT_EXEC_TIME_IN_THE_PAST

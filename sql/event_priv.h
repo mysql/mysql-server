@@ -46,6 +46,7 @@ enum evex_table_field
 
 #define EVEX_DB_FIELD_LEN 64
 #define EVEX_NAME_FIELD_LEN 64
+#define EVEX_MAX_INTERVAL_VALUE 2147483647L
 
 int
 my_time_compare(TIME *a, TIME *b);
