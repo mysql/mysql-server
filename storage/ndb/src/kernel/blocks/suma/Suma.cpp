@@ -1392,6 +1392,8 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     DBUG_PRINT("info",("Suma::Table[%u,i=%u]::n_subscribers: %u",
 		       tabPtr.p->m_tableId, tabPtr.i, tabPtr.p->n_subscribers));
 
+    tabPtr.p->m_reportAll = false;
+
     tabPtr.p->m_error         = 0;
     tabPtr.p->m_schemaVersion = RNIL;
     tabPtr.p->m_state = Table::DEFINING;

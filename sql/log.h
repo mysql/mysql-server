@@ -132,6 +132,21 @@ typedef struct st_log_info
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
+/*
+  Currently we have only 3 kinds of logging functions: old-fashioned
+  logs, stdout and csv logging routines.
+*/
+#define MAX_LOG_HANDLERS_NUM 3
+
+enum enum_printer
+{
+  NONE,
+  LEGACY,
+  CSV,
+  LEGACY_AND_CSV
+};
+
+
 class Log_event;
 class Rows_log_event;
 
@@ -276,10 +291,18 @@ public:
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
   void new_file(bool need_lock);
-  bool write(THD *thd, enum enum_server_command command,
-	     const char *format,...);
-  bool write(THD *thd, const char *query, uint query_length,
-	     time_t query_start=0);
+  /* log a command to the old-fashioned general log */
+  bool write(time_t event_time, const char *user_host,
+             uint user_host_len, int thread_id,
+             const char *command_type, uint command_type_len,
+             const char *sql_text, uint sql_text_len);
+
+  /* log a query to the old-fashioned slow query log */
+  bool write(THD *thd, time_t current_time, time_t query_start_arg,
+             const char *user_host, uint user_host_len,
+             longlong query_time, longlong lock_time, bool is_command,
+             const char *sql_text, uint sql_text_len);
+
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
 
@@ -328,5 +351,152 @@ public:
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
 };
+
+class Log_event_handler
+{
+public:
+  virtual bool init()= 0;
+  virtual void cleanup()= 0;
+
+  virtual bool log_slow(THD *thd, time_t current_time,
+                        time_t query_start_arg, const char *user_host,
+                        uint user_host_len, longlong query_time,
+                        longlong lock_time, bool is_command,
+                        const char *sql_text, uint sql_text_len)= 0;
+  virtual bool log_error(enum loglevel level, const char *format,
+                         va_list args)= 0;
+  virtual bool log_general(time_t event_time, const char *user_host,
+                           uint user_host_len, int thread_id,
+                           const char *command_type, uint command_type_len,
+                           const char *sql_text, uint sql_text_len)= 0;
+  virtual ~Log_event_handler() {}
+};
+
+
+class Log_to_csv_event_handler: public Log_event_handler
+{
+  /*
+    We create artificial THD for each of the logs. This is to avoid
+    locking issues: we don't want locks on the log tables reside in the
+    THD's of the query. The reason is the locking order and duration.
+  */
+  THD *general_log_thd, *slow_log_thd;
+  friend class LOGGER;
+  TABLE_LIST general_log, slow_log;
+
+private:
+  bool open_log_table(uint log_type);
+
+public:
+  Log_to_csv_event_handler();
+  ~Log_to_csv_event_handler();
+  virtual bool init();
+  virtual void cleanup();
+
+  virtual bool log_slow(THD *thd, time_t current_time,
+                        time_t query_start_arg, const char *user_host,
+                        uint user_host_len, longlong query_time,
+                        longlong lock_time, bool is_command,
+                        const char *sql_text, uint sql_text_len);
+  virtual bool log_error(enum loglevel level, const char *format,
+                         va_list args);
+  virtual bool log_general(time_t event_time, const char *user_host,
+                           uint user_host_len, int thread_id,
+                           const char *command_type, uint command_type_len,
+                           const char *sql_text, uint sql_text_len);
+  bool flush(THD *thd, TABLE_LIST *close_slow_Log,
+             TABLE_LIST* close_general_log);
+  void close_log_table(uint log_type, bool lock_in_use);
+  bool reopen_log_table(uint log_type);
+};
+
+
+class Log_to_file_event_handler: public Log_event_handler
+{
+  MYSQL_LOG mysql_log, mysql_slow_log;
+  bool is_initialized;
+public:
+  Log_to_file_event_handler(): is_initialized(FALSE)
+  {}
+  virtual bool init();
+  virtual void cleanup();
+
+  virtual bool log_slow(THD *thd, time_t current_time,
+                        time_t query_start_arg, const char *user_host,
+                        uint user_host_len, longlong query_time,
+                        longlong lock_time, bool is_command,
+                        const char *sql_text, uint sql_text_len);
+  virtual bool log_error(enum loglevel level, const char *format,
+                         va_list args);
+  virtual bool log_general(time_t event_time, const char *user_host,
+                           uint user_host_len, int thread_id,
+                           const char *command_type, uint command_type_len,
+                           const char *sql_text, uint sql_text_len);
+  void flush();
+  void init_pthread_objects();
+};
+
+
+/* Class which manages slow, general and error log event handlers */
+class LOGGER
+{
+  pthread_mutex_t LOCK_logger;
+  /* flag to check whether logger mutex is initialized */
+  uint inited;
+
+  /* available log handlers */
+  Log_to_csv_event_handler *table_log_handler;
+  Log_to_file_event_handler *file_log_handler;
+
+  /* NULL-terminated arrays of log handlers */
+  Log_event_handler *error_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
+  Log_event_handler *slow_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
+  Log_event_handler *general_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
+
+public:
+
+  bool is_log_tables_initialized;
+
+  LOGGER() : inited(0), table_log_handler(NULL),
+             file_log_handler(NULL), is_log_tables_initialized(FALSE)
+  {}
+  void lock() { (void) pthread_mutex_lock(&LOCK_logger); }
+  void unlock() { (void) pthread_mutex_unlock(&LOCK_logger); }
+  /*
+    We want to initialize all log mutexes as soon as possible,
+    but we cannot do it in constructor, as safe_mutex relies on
+    initialization, performed by MY_INIT(). This why this is done in
+    this function.
+  */
+  void init_base();
+  void init_log_tables();
+  bool flush_logs(THD *thd);
+  THD *get_general_log_thd()
+  {
+    return (THD *) table_log_handler->general_log_thd;
+  }
+  THD *get_slow_log_thd()
+  {
+    return (THD *) table_log_handler->slow_log_thd;
+  }
+  void cleanup();
+  bool error_log_print(enum loglevel level, const char *format,
+                      va_list args);
+  bool slow_log_print(THD *thd, const char *query, uint query_length,
+                      time_t query_start_arg);
+  bool general_log_print(THD *thd,enum enum_server_command command,
+                         const char *format, va_list args);
+
+  void close_log_table(uint log_type, bool lock_in_use);
+  bool reopen_log_table(uint log_type);
+
+  /* we use this function to setup all enabled log event handlers */
+  int set_handlers(enum enum_printer error_log_printer,
+                   enum enum_printer slow_log_printer,
+                   enum enum_printer general_log_printer);
+  void init_error_log(enum enum_printer error_log_printer);
+  void init_slow_log(enum enum_printer slow_log_printer);
+  void init_general_log(enum enum_printer general_log_printer);
+ };
 
 #endif /* LOG_H */
