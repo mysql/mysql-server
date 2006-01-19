@@ -1293,7 +1293,7 @@ sp_name:
 	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    if (sp_name_check($3))
+	    if (check_routine_name($3))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
 	      YYABORT;
@@ -1303,7 +1303,7 @@ sp_name:
 	  }
 	| ident
 	  {
-	    if (sp_name_check($1))
+	    if (check_routine_name($1))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      YYABORT;
