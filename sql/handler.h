@@ -620,6 +620,8 @@ typedef struct {
   uint32 end_part;
   bool use_bit_array;
 } part_id_range;
+
+
 /**
  * An enum and a struct to handle partitioning and subpartitioning.
  */
@@ -699,7 +701,109 @@ typedef int (*get_part_id_func)(partition_info *part_info,
                                  longlong *func_value);
 typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
 
-class partition_info :public Sql_alloc {
+
+struct st_partition_iter;
+#define NOT_A_PARTITION_ID ((uint32)-1)
+
+/*
+  A "Get next" function for partition iterator.
+  SYNOPSIS
+    partition_iter_func()
+      part_iter  Partition iterator, you call only "iter.get_next(&iter)"
+
+  RETURN 
+    NOT_A_PARTITION_ID if there are no more partitions.
+    [sub]partition_id  of the next partition
+*/
+
+typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
+
+
+/*
+  Partition set iterator. Used to enumerate a set of [sub]partitions
+  obtained in partition interval analysis (see get_partitions_in_range_iter).
+
+  For the user, the only meaningful field is get_next, which may be used as
+  follows:
+             part_iterator.get_next(&part_iterator);
+  
+  Initialization is done by any of the following calls:
+    - get_partitions_in_range_iter-type function call
+    - init_single_partition_iterator()
+    - init_all_partitions_iterator()
+  Cleanup is not needed.
+*/
+
+typedef struct st_partition_iter
+{
+  partition_iter_func get_next;
+
+  union {
+    struct {
+      uint32 start_part_num;
+      uint32 end_part_num;
+    };
+    struct {
+      longlong start_val;
+      longlong end_val;
+    };
+    bool null_returned;
+  };
+  partition_info *part_info;
+} PARTITION_ITERATOR;
+
+
+/*
+  Get an iterator for set of partitions that match given field-space interval
+
+  SYNOPSIS
+    get_partitions_in_range_iter()
+      part_info   Partitioning info
+      is_subpart  
+      min_val     Left edge,  field value in opt_range_key format.
+      max_val     Right edge, field value in opt_range_key format. 
+      flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
+                  NO_MAX_RANGE.
+      part_iter   Iterator structure to be initialized
+
+  DESCRIPTION
+    Functions with this signature are used to perform "Partitioning Interval
+    Analysis". This analysis is applicable for any type of [sub]partitioning 
+    by some function of a single fieldX. The idea is as follows:
+    Given an interval "const1 <=? fieldX <=? const2", find a set of partitions
+    that may contain records with value of fieldX within the given interval.
+
+    The min_val, max_val and flags parameters specify the interval.
+    The set of partitions is returned by initializing an iterator in *part_iter
+
+  NOTES
+    There are currently two functions of this type:
+     - get_part_iter_for_interval_via_walking
+     - get_part_iter_for_interval_via_mapping
+
+  RETURN 
+    0 - No matching partitions, iterator not initialized
+    1 - Some partitions would match, iterator intialized for traversing them
+   -1 - All partitions would match, iterator not initialized
+*/
+
+typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
+                                            bool is_subpart,
+                                            byte *min_val, byte *max_val,
+                                            uint flags,
+                                            PARTITION_ITERATOR *part_iter);
+
+
+/* Initialize the iterator to return a single partition with given part_id */
+inline void init_single_partition_iterator(uint32 part_id,
+                                           PARTITION_ITERATOR *part_iter);
+
+/* Initialize the iterator to enumerate all partitions */
+inline void init_all_partitions_iterator(partition_info *part_info,
+                                         PARTITION_ITERATOR *part_iter);
+
+class partition_info : public Sql_alloc
+{
 public:
   /*
    * Here comes a set of definitions needed for partitioned table handlers.
@@ -728,10 +832,10 @@ public:
     same in all subpartitions
   */
   get_subpart_id_func get_subpartition_id;
-  
-  /* NULL-terminated list of fields used in partitioned expression */
+ 
+  /* NULL-terminated array of fields used in partitioned expression */
   Field **part_field_array;
-  /* NULL-terminated list of fields used in subpartitioned expression */
+  /* NULL-terminated array of fields used in subpartitioned expression */
   Field **subpart_field_array;
 
   /* 
@@ -748,11 +852,10 @@ public:
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
-    * It is guaranteed that all partitions are set to be unused on query start.
+    * The handler->extra(HA_EXTRA_RESET) call at query start/end sets all
+      partitions to be unused.
     * Before index/rnd_init(), partition pruning code sets the bits for used
       partitions.
-    * The handler->extra(HA_EXTRA_RESET) call at query end sets all partitions
-      to be unused.
   */
   MY_BITMAP used_partitions;
 
@@ -760,6 +863,39 @@ public:
     longlong *range_int_array;
     LIST_PART_ENTRY *list_array;
   };
+  
+  /********************************************
+   * INTERVAL ANALYSIS
+   ********************************************/
+  /*
+    Partitioning interval analysis function for partitioning, or NULL if 
+    interval analysis is not supported for this kind of partitioning.
+  */
+  get_partitions_in_range_iter get_part_iter_for_interval;
+  /*
+    Partitioning interval analysis function for subpartitioning, or NULL if
+    interval analysis is not supported for this kind of partitioning.
+  */
+  get_partitions_in_range_iter get_subpart_iter_for_interval;
+  
+  /*
+    Valid iff
+    get_part_iter_for_interval=get_part_iter_for_interval_via_walking:
+      controls how we'll process "field < C" and "field > C" intervals.
+      If the partitioning function F is strictly increasing, then for any x, y
+      "x < y" => "F(x) < F(y)" (*), i.e. when we get interval "field < C" 
+      we can perform partition pruning on the equivalent "F(field) < F(C)".
+
+      If the partitioning function not strictly increasing (it is simply
+      increasing), then instead of (*) we get "x < y" => "F(x) <= F(y)"
+      i.e. for interval "field < C" we can perform partition pruning for
+      "F(field) <= F(C)".
+  */
+  bool range_analysis_include_bounds;
+  /********************************************
+   * INTERVAL ANALYSIS ENDS 
+   ********************************************/
+  
   char* part_info_string;
 
   char *part_func_string;
@@ -863,6 +999,25 @@ public:
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
+
+inline void init_single_partition_iterator(uint32 part_id,
+                                           PARTITION_ITERATOR *part_iter)
+{
+  part_iter->start_part_num= part_id;
+  part_iter->end_part_num= part_id+1;
+  part_iter->get_next= get_next_partition_id_range;
+}
+
+inline 
+void init_all_partitions_iterator(partition_info *part_info,
+                                  PARTITION_ITERATOR *part_iter)
+{
+  part_iter->start_part_num= 0;
+  part_iter->end_part_num= part_info->no_parts;
+  part_iter->get_next= get_next_partition_id_range;
+}
+
 /*
   Answers the question if subpartitioning is used for a certain table
   SYNOPSIS
