@@ -147,7 +147,7 @@ foreach(@{$tables})
 	{
 	    my $fixed= 1+$size;
 	    my @dynamic=$dbh->selectrow_array("select avg(length(`"
-					      .$name.
+					      .$name
 					      ."`)) from `".$table.'`');
 	    $dynamic[0]=0 if !$dynamic[0];
 	    @realsize= ($fixed,$fixed,ceil($dynamic[0]));
