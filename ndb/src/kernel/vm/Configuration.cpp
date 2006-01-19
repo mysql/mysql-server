@@ -172,7 +172,8 @@ Configuration::~Configuration(){
 }
 
 void
-Configuration::closeConfiguration(){
+Configuration::closeConfiguration(bool end_session){
+  m_config_retriever->end_session(end_session);
   if (m_config_retriever) {
     delete m_config_retriever;
   }
