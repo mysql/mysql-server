@@ -1626,7 +1626,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     else
     {
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-      my_error(ER_FILE_NOT_FOUND, errortype, buff, db_errno);
+      my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
+               errortype, buff, db_errno);
     }
     break;
   case 2:
