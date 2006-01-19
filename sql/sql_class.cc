@@ -167,6 +167,25 @@ Open_tables_state::Open_tables_state(ulong version_arg)
   reset_open_tables_state();
 }
 
+my_bool thd_in_lock_tables(const THD *thd)
+{
+  return thd->in_lock_tables;
+}
+
+
+my_bool thd_tablespace_op(const THD *thd)
+{
+  return thd->tablespace_op;
+}
+
+
+const char *thd_proc_info(THD *thd, const char *info)
+{
+  const char *old_info= thd->proc_info;
+  thd->proc_info= info;
+  return old_info;
+}
+
 
 /*
   Pass nominal parameters to Statement constructor only to ensure that

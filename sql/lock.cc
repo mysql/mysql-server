@@ -617,8 +617,11 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       Check if we can lock the table. For some tables we cannot do that
       beacause of handler-specific locking issues.
     */
-    if (!table_ptr[i]->file->check_if_locking_is_allowed(thd, table_ptr[i],
-                                                        count))
+    if (!table_ptr[i]-> file->
+          check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
+                                      table_ptr[i], count,
+                                      (thd == logger.get_general_log_thd()) ||
+                                           (thd == logger.get_slow_log_thd())))
       return 0;
   }
 
