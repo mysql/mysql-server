@@ -55,6 +55,18 @@ NdbEventOperation::getPreValue(const char *colName, char *aValue)
   return m_impl.getValue(colName, aValue, 1);
 }
 
+NdbBlob *
+NdbEventOperation::getBlobHandle(const char *colName)
+{
+  return m_impl.getBlobHandle(colName, 0);
+}
+
+NdbBlob *
+NdbEventOperation::getPreBlobHandle(const char *colName)
+{
+  return m_impl.getBlobHandle(colName, 1);
+}
+
 int
 NdbEventOperation::execute()
 {

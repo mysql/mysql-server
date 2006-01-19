@@ -23,6 +23,7 @@
 #include <NdbBlob.hpp>
 #include "NdbBlobImpl.hpp"
 #include <NdbScanOperation.hpp>
+#include <NdbEventOperationImpl.hpp>
 
 /*
  * Reading index table directly (as a table) is faster but there are
@@ -147,6 +148,61 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   DBUG_VOID_RETURN;
 }
 
+int
+NdbBlob::getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName)
+{
+  NdbEventImpl* e = anNdb->theDictionary->m_impl.getEvent(eventName);
+  if (e == NULL)
+    return -1;
+  NdbColumnImpl* c = e->m_tableImpl->getColumn(columnName);
+  if (c == NULL)
+    return -1;
+  getBlobEventName(bename, e, c);
+  return 0;
+}
+
+void
+NdbBlob::getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c)
+{
+  // XXX events should have object id
+  snprintf(bename, MAX_TAB_NAME_SIZE, "NDB$BLOBEVENT_%s_%d", e->m_name.c_str(), (int)c->m_column_no);
+}
+
+void
+NdbBlob::getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c)
+{
+  DBUG_ENTER("NdbBlob::getBlobEvent");
+  // blob table
+  assert(c->m_blobTable != NULL);
+  const NdbTableImpl& bt = *c->m_blobTable;
+  // blob event name
+  char bename[NdbBlobImpl::BlobTableNameSize];
+  getBlobEventName(bename, e, c);
+  be.setName(bename);
+  be.setTable(bt);
+  // simple assigments
+  be.mi_type = e->mi_type;
+  be.m_dur = e->m_dur;
+  be.m_mergeEvents = e->m_mergeEvents;
+  // report unchanged data
+  // not really needed now since UPD is DEL o INS and we subscribe to all
+  be.setReport(NdbDictionary::Event::ER_ALL);
+  // columns PK - DIST - PART - DATA
+  { const NdbColumnImpl* bc = bt.getColumn((Uint32)0);
+    be.addColumn(*bc);
+  }
+  { const NdbColumnImpl* bc = bt.getColumn((Uint32)1);
+    be.addColumn(*bc);
+  }
+  { const NdbColumnImpl* bc = bt.getColumn((Uint32)2);
+    be.addColumn(*bc);
+  }
+  { const NdbColumnImpl* bc = bt.getColumn((Uint32)3);
+    be.addColumn(*bc);
+  }
+  DBUG_VOID_RETURN;
+}
+
 // initialization
 
 NdbBlob::NdbBlob(Ndb*)
@@ -158,9 +214,16 @@ void
 NdbBlob::init()
 {
   theState = Idle;
+  theEventBlobVersion = -1;
   theNdb = NULL;
   theNdbCon = NULL;
   theNdbOp = NULL;
+  theEventOp = NULL;
+  theBlobEventOp = NULL;
+  theBlobEventPkRecAttr = NULL;
+  theBlobEventDistRecAttr = NULL;
+  theBlobEventPartRecAttr = NULL;
+  theBlobEventDataRecAttr = NULL;
   theTable = NULL;
   theAccessTable = NULL;
   theBlobTable = NULL;
@@ -439,7 +502,7 @@ NdbBlob::getHeadFromRecAttr()
   DBUG_ENTER("NdbBlob::getHeadFromRecAttr");
   assert(theHeadInlineRecAttr != NULL);
   theNullFlag = theHeadInlineRecAttr->isNULL();
-  assert(theNullFlag != -1);
+  assert(theEventBlobVersion >= 0 || theNullFlag != -1);
   theLength = ! theNullFlag ? theHead->length : 0;
   DBUG_VOID_RETURN;
 }
@@ -542,6 +605,18 @@ NdbBlob::setActiveHook(ActiveHook activeHook, void* arg)
 }
 
 // misc operations
+
+int
+NdbBlob::getDefined(int& isNull)
+{
+  DBUG_ENTER("NdbBlob::getDefined");
+  if (theState == Prepared && theSetFlag) {
+    isNull = (theSetBuf == NULL);
+    DBUG_RETURN(0);
+  }
+  isNull = theNullFlag;
+  DBUG_RETURN(0);
+}
 
 int
 NdbBlob::getNull(bool& isNull)
@@ -887,6 +962,18 @@ NdbBlob::readParts(char* buf, Uint32 part, Uint32 count)
 {
   DBUG_ENTER("NdbBlob::readParts");
   DBUG_PRINT("info", ("part=%u count=%u", part, count));
+  int ret;
+  if (theEventBlobVersion == -1)
+    ret = readTableParts(buf, part, count);
+  else
+    ret = readEventParts(buf, part, count);
+  DBUG_RETURN(ret);
+}
+
+int
+NdbBlob::readTableParts(char* buf, Uint32 part, Uint32 count)
+{
+  DBUG_ENTER("NdbBlob::readTableParts");
   Uint32 n = 0;
   while (n < count) {
     NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
@@ -902,6 +989,18 @@ NdbBlob::readParts(char* buf, Uint32 part, Uint32 count)
     n++;
     thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
     theNdbCon->thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::readEventParts(char* buf, Uint32 part, Uint32 count)
+{
+  DBUG_ENTER("NdbBlob::readEventParts");
+  int ret = theEventOp->readBlobParts(buf, this, part, count);
+  if (ret != 0) {
+    setErrorCode(theEventOp);
+    DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
 }
@@ -1094,48 +1193,12 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   theTable = anOp->m_currentTable;
   theAccessTable = anOp->m_accessTable;
   theColumn = aColumn;
-  NdbDictionary::Column::Type partType = NdbDictionary::Column::Undefined;
-  switch (theColumn->getType()) {
-  case NdbDictionary::Column::Blob:
-    partType = NdbDictionary::Column::Binary;
-    theFillChar = 0x0;
-    break;
-  case NdbDictionary::Column::Text:
-    partType = NdbDictionary::Column::Char;
-    theFillChar = 0x20;
-    break;
-  default:
-    setErrorCode(NdbBlobImpl::ErrUsage);
+  // prepare blob column and table
+  if (prepareColumn() == -1)
     DBUG_RETURN(-1);
-  }
-  // sizes
-  theInlineSize = theColumn->getInlineSize();
-  thePartSize = theColumn->getPartSize();
-  theStripeSize = theColumn->getStripeSize();
-  // sanity check
-  assert((NDB_BLOB_HEAD_SIZE << 2) == sizeof(Head));
-  assert(theColumn->m_attrSize * theColumn->m_arraySize == sizeof(Head) + theInlineSize);
-  if (thePartSize > 0) {
-    const NdbDictionary::Table* bt = NULL;
-    const NdbDictionary::Column* bc = NULL;
-    if (theStripeSize == 0 ||
-        (bt = theColumn->getBlobTable()) == NULL ||
-        (bc = bt->getColumn("DATA")) == NULL ||
-        bc->getType() != partType ||
-        bc->getLength() != (int)thePartSize) {
-      setErrorCode(NdbBlobImpl::ErrTable);
-      DBUG_RETURN(-1);
-    }
-    theBlobTable = &NdbTableImpl::getImpl(*bt);
-  }
-  // buffers
-  theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
+  // extra buffers
   theAccessKeyBuf.alloc(theAccessTable->m_keyLenInWords << 2);
-  theHeadInlineBuf.alloc(sizeof(Head) + theInlineSize);
   theHeadInlineCopyBuf.alloc(sizeof(Head) + theInlineSize);
-  thePartBuf.alloc(thePartSize);
-  theHead = (Head*)theHeadInlineBuf.data;
-  theInlineData = theHeadInlineBuf.data + sizeof(Head);
   // handle different operation types
   bool supportedOp = false;
   if (isKeyOp()) {
@@ -1186,6 +1249,99 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
     DBUG_RETURN(-1);
   }
   setState(Prepared);
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version)
+{
+  DBUG_ENTER("NdbBlob::atPrepare [event]");
+  DBUG_PRINT("info", ("this=%p op=%p", this, anOp));
+  assert(theState == Idle);
+  assert(version == 0 || version == 1);
+  theEventBlobVersion = version;
+  // ndb api stuff
+  theNdb = anOp->m_ndb;
+  theEventOp = anOp;
+  theBlobEventOp = aBlobOp;
+  theTable = anOp->m_eventImpl->m_tableImpl;
+  theColumn = aColumn;
+  // prepare blob column and table
+  if (prepareColumn() == -1)
+    DBUG_RETURN(-1);
+  // extra buffers
+  theBlobEventDataBuf.alloc(thePartSize);
+  // prepare receive of head+inline
+  theHeadInlineRecAttr = theEventOp->getValue(aColumn, theHeadInlineBuf.data, version);
+  if (theHeadInlineRecAttr == NULL) {
+    setErrorCode(theEventOp);
+    DBUG_RETURN(-1);
+  }
+  // prepare receive of blob part
+  if ((theBlobEventPkRecAttr =
+         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)0),
+                                  theKeyBuf.data, version)) == NULL ||
+      (theBlobEventDistRecAttr =
+         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)1),
+                                  (char*)0, version)) == NULL ||
+      (theBlobEventPartRecAttr =
+         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)2),
+                                  (char*)&thePartNumber, version)) == NULL ||
+      (theBlobEventDataRecAttr =
+         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)3),
+                                  theBlobEventDataBuf.data, version)) == NULL) {
+    setErrorCode(theBlobEventOp);
+    DBUG_RETURN(-1);
+  }
+  setState(Prepared);
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::prepareColumn()
+{
+  DBUG_ENTER("prepareColumn");
+  NdbDictionary::Column::Type partType = NdbDictionary::Column::Undefined;
+  switch (theColumn->getType()) {
+  case NdbDictionary::Column::Blob:
+    partType = NdbDictionary::Column::Binary;
+    theFillChar = 0x0;
+    break;
+  case NdbDictionary::Column::Text:
+    partType = NdbDictionary::Column::Char;
+    theFillChar = 0x20;
+    break;
+  default:
+    setErrorCode(NdbBlobImpl::ErrUsage);
+    DBUG_RETURN(-1);
+  }
+  // sizes
+  theInlineSize = theColumn->getInlineSize();
+  thePartSize = theColumn->getPartSize();
+  theStripeSize = theColumn->getStripeSize();
+  // sanity check
+  assert((NDB_BLOB_HEAD_SIZE << 2) == sizeof(Head));
+  assert(theColumn->m_attrSize * theColumn->m_arraySize == sizeof(Head) + theInlineSize);
+  if (thePartSize > 0) {
+    const NdbDictionary::Table* bt = NULL;
+    const NdbDictionary::Column* bc = NULL;
+    if (theStripeSize == 0 ||
+        (bt = theColumn->getBlobTable()) == NULL ||
+        (bc = bt->getColumn("DATA")) == NULL ||
+        bc->getType() != partType ||
+        bc->getLength() != (int)thePartSize) {
+      setErrorCode(NdbBlobImpl::ErrTable);
+      DBUG_RETURN(-1);
+    }
+    // blob table
+    theBlobTable = &NdbTableImpl::getImpl(*bt);
+  }
+  // these buffers are always used
+  theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
+  theHeadInlineBuf.alloc(sizeof(Head) + theInlineSize);
+  theHead = (Head*)theHeadInlineBuf.data;
+  theInlineData = theHeadInlineBuf.data + sizeof(Head);
+  thePartBuf.alloc(thePartSize);
   DBUG_RETURN(0);
 }
 
@@ -1537,6 +1693,26 @@ NdbBlob::atNextResult()
   DBUG_RETURN(0);
 }
 
+/*
+ * After next event on main table.
+ */
+int
+NdbBlob::atNextEvent()
+{
+  DBUG_ENTER("NdbBlob::atNextEvent");
+  DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d", this, theEventOp, theBlobEventOp, theEventBlobVersion));
+  if (theState == Invalid)
+    DBUG_RETURN(-1);
+  assert(theEventBlobVersion >= 0);
+  getHeadFromRecAttr();
+  if (theNullFlag == -1) // value not defined
+    DBUG_RETURN(0);
+  if (setPos(0) == -1)
+    DBUG_RETURN(-1);
+  setState(Active);
+  DBUG_RETURN(0);
+}
+
 // misc
 
 const NdbDictionary::Column*
@@ -1583,6 +1759,17 @@ NdbBlob::setErrorCode(NdbTransaction* aCon, bool invalidFlag)
   if (theNdbCon != NULL && (code = theNdbCon->theError.code) != 0)
     ;
   else if ((code = theNdb->theError.code) != 0)
+    ;
+  else
+    code = NdbBlobImpl::ErrUnknown;
+  setErrorCode(code, invalidFlag);
+}
+
+void
+NdbBlob::setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag)
+{
+  int code = 0;
+  if ((code = anOp->m_error.code) != 0)
     ;
   else
     code = NdbBlobImpl::ErrUnknown;
