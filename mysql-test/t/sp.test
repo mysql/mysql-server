@@ -1419,9 +1419,9 @@ drop table t4|
 # fac
 
 --disable_warnings
-drop table if exists fac|
+drop table if exists t3|
 --enable_warnings
-create table fac (n int unsigned not null primary key, f bigint unsigned)|
+create table t3 (n int unsigned not null primary key, f bigint unsigned)|
 
 --disable_warnings
 drop procedure if exists ifac|
@@ -1435,15 +1435,15 @@ begin
   end if;
   while i <= n do
     begin
-      insert into test.fac values (i, fac(i));
+      insert into test.t3 values (i, fac(i));
       set i = i + 1;
     end;
   end while;
 end|
 
 call ifac(20)|
-select * from fac|
-drop table fac|
+select * from t3|
+drop table t3|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 drop procedure ifac|
@@ -1455,15 +1455,15 @@ show function status like '%f%'|
 # primes
 
 --disable_warnings
-drop table if exists primes|
+drop table if exists t3|
 --enable_warnings
 
-create table primes (
+create table t3 (
   i int unsigned not null primary key,
   p bigint unsigned not null
 )|
 
-insert into primes values
+insert into t3 values
  ( 0,   3), ( 1,   5), ( 2,   7), ( 3,  11), ( 4,  13),
  ( 5,  17), ( 6,  19), ( 7,  23), ( 8,  29), ( 9,  31),
  (10,  37), (11,  41), (12,  43), (13,  47), (14,  53),
@@ -1492,7 +1492,7 @@ begin
       begin
         declare p bigint unsigned;
 
-        select t.p into p from test.primes t where t.i = s;
+        select t.p into p from test.t3 t where t.i = s;
         if b+p > r then
           set pp = 1;
           leave again;
@@ -1523,7 +1523,7 @@ begin
 
       call opp(p, pp);
       if pp then
-        insert into test.primes values (i, p);
+        insert into test.t3 values (i, p);
         set i = i+1;
       end if;
       set p = p+2;
@@ -1545,8 +1545,8 @@ call ip(200)|
 #    45    211
 #   100    557
 #   199   1229
-select * from primes where i=45 or i=100 or i=199|
-drop table primes|
+select * from t3 where i=45 or i=100 or i=199|
+drop table t3|
 drop procedure opp|
 drop procedure ip|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
@@ -1556,9 +1556,9 @@ show procedure status like '%p%'|
 # Fibonacci, for recursion test. (Yet Another Numerical series :)
 #
 --disable_warnings
-drop table if exists fib|
+drop table if exists t3|
 --enable_warnings
-create table fib ( f bigint unsigned not null )|
+create table t3 ( f bigint unsigned not null )|
 
 # We deliberately do it the awkward way, fetching the last two
 # values from the table, in order to exercise various statements
@@ -1571,13 +1571,13 @@ begin
   if n > 1 then
     begin
       declare x, y bigint unsigned;
-      declare c cursor for select f from fib order by f desc limit 2;
+      declare c cursor for select f from t3 order by f desc limit 2;
 
       open c;
       fetch c into y;
       fetch c into x;
       close c;
-      insert into fib values (x+y);
+      insert into t3 values (x+y);
       call fib(n-1);
     end;
   end if;
@@ -1588,22 +1588,23 @@ set @@max_sp_recursion_depth= 20|
 
 # Minimum test: recursion of 3 levels
 
-insert into fib values (0), (1)|
+insert into t3 values (0), (1)|
 
 call fib(3)|
 
-select * from fib order by f asc|
+select * from t3 order by f asc|
 
-delete from fib|
+delete from t3|
 
-# Original test: 20 levels (may run into memory limits!)
+# The original test, 20 levels, ran into memory limits on some machines
+# and builds. Try 10 instead...
 
-insert into fib values (0), (1)|
+insert into t3 values (0), (1)|
 
 call fib(20)|
 
-select * from fib order by f asc|
-drop table fib|
+select * from t3 order by f asc|
+drop table t3|
 drop procedure fib|
 set @@max_sp_recursion_depth= 0|
 
