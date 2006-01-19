@@ -1000,26 +1000,21 @@ CommandInterpreter::executeShutdown(char* parameters)
   int result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 0, 0);
   if (result < 0) {
-    ndbout << "Shutdown off NDB Cluster storage node(s) failed." << endl;
+    ndbout << "Shutdown of NDB Cluster node(s) failed." << endl;
     printError();
     return result;
   }
 
-  ndbout << result << " NDB Cluster storage node(s) have shutdown." << endl;
+  ndbout << result << " NDB Cluster node(s) have shutdown." << endl;
 
   int mgm_id= 0;
-  for(int i=0; i < state->no_of_nodes; i++) {
-    if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM &&
-       state->node_states[i].version != 0){
-      if (mgm_id == 0)
-	mgm_id= state->node_states[i].node_id;
-      else {
-	ndbout << "Unable to locate management server, "
-	       << "shutdown manually with <id> STOP"
-	       << endl;
-	return 1;
-      }
-    }
+  mgm_id= ndb_mgm_get_mgmd_nodeid(m_mgmsrv);
+  if (mgm_id == 0)
+  {
+    ndbout << "Unable to locate management server, "
+           << "shutdown manually with <id> STOP"
+           << endl;
+    return 1;
   }
 
   result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
