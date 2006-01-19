@@ -4354,8 +4354,8 @@ replication resumed in log '%s' at position %s", mi->user,
     else
     {
       change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
-      mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
-		      mi->user, mi->host, mi->port);
+      general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
+                        mi->user, mi->host, mi->port);
     }
 #ifdef SIGNAL_WITH_VIO_CLOSE
     thd->set_active_vio(mysql->net.vio);

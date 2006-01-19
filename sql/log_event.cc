@@ -1795,7 +1795,7 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
 
     /* If the query was not ignored, it is printed to the general log */
     if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
-      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+      general_log_print(thd, COM_QUERY, "%s", thd->query);
 
 compare_errors:
 
@@ -3513,7 +3513,8 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 int Xid_log_event::exec_event(struct st_relay_log_info* rli)
 {
   /* For a slave Xid_log_event is COMMIT */
-  mysql_log.write(thd,COM_QUERY,"COMMIT /* implicit, from Xid_log_event */");
+  general_log_print(thd, COM_QUERY,
+                    "COMMIT /* implicit, from Xid_log_event */");
   return end_trans(thd, COMMIT) || Log_event::exec_event(rli);
 }
 #endif /* !MYSQL_CLIENT */

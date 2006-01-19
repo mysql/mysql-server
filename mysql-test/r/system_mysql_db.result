@@ -5,6 +5,7 @@ columns_priv
 db
 event
 func
+general_log
 help_category
 help_keyword
 help_relation
@@ -13,6 +14,7 @@ host
 plugin
 proc
 procs_priv
+slow_log
 tables_priv
 time_zone
 time_zone_leap_second
@@ -184,6 +186,31 @@ proc	CREATE TABLE `proc` (
   `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
   PRIMARY KEY  (`db`,`name`,`type`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures'
+show create table general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `user_host` mediumtext,
+  `thread_id` int(11) default NULL,
+  `server_id` int(11) default NULL,
+  `command_type` varchar(64) default NULL,
+  `argument` mediumtext
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+show create table slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `query_time` time NOT NULL,
+  `lock_time` time NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) default NULL,
+  `last_insert_id` int(11) default NULL,
+  `insert_id` int(11) default NULL,
+  `server_id` int(11) default NULL,
+  `sql_text` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show create table event;
 Table	Create Table
 event	CREATE TABLE `event` (
