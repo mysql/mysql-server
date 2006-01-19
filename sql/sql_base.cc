@@ -835,7 +835,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      if (remove_table_from_cache(thd, table->db, table->table_name,
+      if ((!table->table || !table->table->s->log_table) &&
+          remove_table_from_cache(thd, table->db, table->table_name,
                                   RTFC_OWNED_BY_THD_FLAG))
 	found=1;
     }
@@ -869,7 +870,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       for (uint idx=0 ; idx < open_cache.records ; idx++)
       {
 	TABLE *table=(TABLE*) hash_element(&open_cache,idx);
-	if ((table->s->version) < refresh_version && table->db_stat)
+	if (!table->s->log_table &&
+            ((table->s->version) < refresh_version && table->db_stat))
 	{
 	  found=1;
 	  pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -1852,7 +1854,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (!thd->open_tables)
     thd->version=refresh_version;
   else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
+           ! (flags & MYSQL_LOCK_IGNORE_FLUSH) && !table->s->log_table)
   {
     /* Someone did a refresh while thread was opening tables */
     if (refresh)
@@ -1873,7 +1875,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     if (table->s->version != refresh_version)
     {
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
+      /*
+        Don't close tables if we are working with a log table or were
+        asked not to close the table explicitly
+      */
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH || table->s->log_table)
       {
         /* Force close at once after usage */
         thd->version= table->s->version;
@@ -2236,6 +2242,10 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
   Wait until all threads has closed the tables in the list
   We have also to wait if there is thread that has a lock on this table even
   if the table is closed
+  NOTE: log tables are handled differently by the logging routines.
+        E.g. general_log is always opened and locked by the logger
+        and the table handler used by the logger, will be skipped by
+        this check.
 */
 
 bool table_is_used(TABLE *table, bool wait_for_name_lock)
@@ -2254,9 +2264,10 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
          search= (TABLE*) hash_next(&open_cache, (byte*) key,
                                     key_length, &state))
     {
-      DBUG_PRINT("info", ("share: 0x%lx  locked_by_flush: %d  "
-                          "locked_by_name: %d  db_stat: %u  version: %u",
-                          (ulong) search->s,
+      DBUG_PRINT("info", ("share: 0x%lx  locked_by_logger: %d "
+                          "locked_by_flush: %d  locked_by_name: %d "
+                          "db_stat: %u  version: %u",
+                          (ulong) search->s, search->locked_by_logger,
                           search->locked_by_flush, search->locked_by_name,
                           search->db_stat,
                           search->s->version));
@@ -2267,12 +2278,15 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
         - There is an name lock on it (Table is to be deleted or altered)
         - If we are in flush table and we didn't execute the flush
         - If the table engine is open and it's an old version
-          (We must wait until all engines are shut down to use the table)
+        (We must wait until all engines are shut down to use the table)
+        However we fo not wait if we encountered a table, locked by the logger.
+        Log tables are managed separately by logging routines.
       */
-      if (search->locked_by_name && wait_for_name_lock ||
-          search->locked_by_flush ||
-          (search->db_stat && search->s->version < refresh_version))
-	return 1;
+      if (!search->locked_by_logger &&
+          (search->locked_by_name && wait_for_name_lock ||
+           search->locked_by_flush ||
+           (search->db_stat && search->s->version < refresh_version)))
+        return 1;
     }
   } while ((table=table->next));
   DBUG_RETURN(0);
@@ -5867,6 +5881,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
                                    &state))
     {
       THD *in_use;
+
       table->s->version=0L;		/* Free when thread is ready */
       if (!(in_use=table->in_use))
       {

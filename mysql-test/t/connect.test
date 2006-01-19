@@ -5,6 +5,10 @@
 # This test makes no sense with the embedded server
 --source include/not_embedded.inc
 
+# check that CSV engine was compiled in, as the test relies on the presence
+# of the log tables (which are CSV-based). By connect mysql; show tables;
+--source include/have_csv.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
