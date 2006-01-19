@@ -391,7 +391,8 @@ ErrorBundle ErrorCodes[] = {
   { 1229, DMEC, SE, "Too long frm data supplied" },
   { 1231, DMEC, SE, "Invalid table or index to scan" },
   { 1232, DMEC, SE, "Invalid table or index to scan" },
-
+  { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
+  
   /**
    * FunctionNotImplemented
    */
