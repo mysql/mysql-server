@@ -23,16 +23,19 @@
 # with this program; if not, write to the Free Software Foundation, Inc., 59
 # Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+# For 5.0 and up, this is needed because of "libndbclient".
+%define _unpackaged_files_terminate_build 0
+
 #
 # Change this to match the version of the shared libs you want to include
 #
 %define version50 @MYSQL_NO_DASH_VERSION@
-%define version41 4.1.9
-%define version40 4.0.23
+%define version41 4.1.16
+%define version40 4.0.26
 %define version3 3.23.58
 
 Name:         MySQL-shared-compat
-Packager:     Lenz Grimmer <build@mysql.com>
+Packager:     MySQL Product Engineering team <build@mysql.com>
 Vendor:       MySQL AB
 License:      GPL
 Group:        Applications/Databases
@@ -47,7 +50,7 @@ Summary:      MySQL shared client libraries for MySQL %{version}, %{version41}, 
 # We simply use the "MySQL-shared" subpackages as input sources instead of
 # rebuilding all from source
 Source0:      MySQL-shared-%{version50}-0.%{_arch}.rpm
-Source1:      MySQL-shared-%{version41}-0.%{_arch}.rpm
+Source1:      MySQL-shared-%{version41}-1.%{_arch}.rpm
 Source2:      MySQL-shared-%{version40}-0.%{_arch}.rpm
 Source3:      MySQL-shared-%{version3}-1.%{_arch}.rpm
 # No need to include the RPMs once more - they can be downloaded seperately
