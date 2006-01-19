@@ -26,5 +26,6 @@ rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
-ndb_condition_pushdown: Bug #16596: Crash in mysql_unpack_partition
-ndb_index_ordered : Bug #16596: Crash in mysql_unpack_partition
+ndb_restore     : Needs fixing
+system_mysql_db : Needs fixing
+system_mysql_db_fix : Needs fixing
