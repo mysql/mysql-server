@@ -85,6 +85,8 @@
 
 #define CFG_DB_MAX_OPEN_FILES         159
 
+#define CFG_DB_STRING_MEMORY          161
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 

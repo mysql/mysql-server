@@ -2016,8 +2016,30 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_schemaOp.setSize(8);
   //c_opDropObj.setSize(8);
   c_Trans.setSize(8);
-  c_rope_pool.setSize(100000/28);
 
+  Uint32 rps = 0;
+  rps += tablerecSize * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
+  rps += attributesize * (MAX_ATTR_NAME_SIZE + MAX_ATTR_DEFAULT_VALUE_SIZE);
+  rps += c_maxNoOfTriggers * MAX_TAB_NAME_SIZE;
+  rps += (10 + 10) * MAX_TAB_NAME_SIZE;
+
+  Uint32 sm = 5;
+  ndb_mgm_get_int_parameter(p, CFG_DB_STRING_MEMORY, &sm);
+  if (sm == 0)
+    sm = 5;
+  
+  Uint32 sb = 0;
+  if (sm < 100)
+  {
+    sb = (rps * sm) / 100;
+  }
+  else
+  {
+    sb = sm;
+  }
+  
+  c_rope_pool.setSize(sb/28 + 100);
+  
   // Initialize BAT for interface to file system
   NewVARIABLE* bat = allocateBat(2);
   bat[0].WA = &c_schemaPageRecordArray.getPtr(0)->word[0];
@@ -5795,7 +5817,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
-    ndbrequire(name.assign(tableDesc.TableName, tableNameLength, name_hash));
+    tabRequire(name.assign(tableDesc.TableName, tableNameLength, name_hash),
+	       CreateTableRef::OutOfStringBuffer);
   }
 
   Ptr<DictObject> obj_ptr;
@@ -5827,7 +5850,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
-    ndbrequire(frm.assign(tableDesc.FrmData, tableDesc.FrmLen));
+    tabRequire(frm.assign(tableDesc.FrmData, tableDesc.FrmLen),
+	       CreateTableRef::OutOfStringBuffer);
   }
   
   tablePtr.p->ngLen = tableDesc.FragmentDataLen;
@@ -5942,7 +5966,13 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
      */
     {
       Rope name(c_rope_pool, attrPtr.p->attributeName);
-      name.assign(attrDesc.AttributeName, len, name_hash);
+      if (!name.assign(attrDesc.AttributeName, len, name_hash))
+      {
+	jam();
+	parseP->errorCode = CreateTableRef::OutOfStringBuffer;
+	parseP->errorLine = __LINE__;
+	return;
+      }
     }
     attrPtr.p->attributeId = i;
     //attrPtr.p->attributeId = attrDesc.AttributeId;
@@ -14568,7 +14598,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	c_obj_pool.release(obj_ptr);
 	c_filegroup_pool.release(fg_ptr);
 	break;
@@ -14774,7 +14804,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	c_obj_pool.release(obj_ptr);
 	c_file_pool.release(filePtr);
 	break;
