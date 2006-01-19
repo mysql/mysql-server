@@ -1,4 +1,4 @@
-drop table if exists t1, t2;
+drop table if exists t1, t2, t3;
 drop procedure if exists bug8850|
 create table t1 (a int) engine=innodb|
 create procedure bug8850()
