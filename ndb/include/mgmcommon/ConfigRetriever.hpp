@@ -78,6 +78,7 @@ public:
   const char *get_connectstring(char *buf, int buf_sz) const;
   NdbMgmHandle get_mgmHandle() { return m_handle; };
   NdbMgmHandle* get_mgmHandlePtr() { return &m_handle; };
+  void end_session(bool end) { m_end_session= end; };
 
   Uint32 get_configuration_nodeid() const;
 private:
@@ -92,6 +93,8 @@ private:
   void setError(ErrorType, const char * errorMsg);
   
   Uint32      _ownNodeId;
+  bool m_end_session;
+
   /*
   Uint32      m_mgmd_port;
   const char *m_mgmd_host;
