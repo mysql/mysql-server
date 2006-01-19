@@ -386,6 +386,23 @@ sp_name_current_db_new(THD *thd, LEX_STRING name)
   return qname;
 }
 
+/*
+ * Check that the name 'ident' is ok. It's assumed to be an 'ident'
+ * from the parser, so we only have to check length and trailing spaces.
+ * The former is a standard requirement (and 'show status' assumes a
+ * non-empty name), the latter is a mysql:ism as trailing spaces are
+ * removed by get_field().
+ *
+ * RETURN
+ *  TRUE  - bad name
+ *  FALSE - name is ok
+ */
+
+bool
+sp_name_check(LEX_STRING ident)
+{
+  return (!ident.str || !ident.str[0] || ident.str[ident.length-1] == ' ');
+}
 
 /* ------------------------------------------------------------------ */
 
