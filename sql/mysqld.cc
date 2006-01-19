@@ -331,6 +331,9 @@ static my_bool opt_sync_bdb_logs;
 
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
+#ifdef WITH_CSV_STORAGE_ENGINE
+bool opt_old_log_format, opt_both_log_formats;
+#endif
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
@@ -603,6 +606,7 @@ char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 my_bool master_ssl;
 char *master_ssl_key, *master_ssl_cert;
 char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
+char *opt_logname, *opt_slow_logname;
 
 /* Static variables */
 
@@ -610,8 +614,8 @@ static bool kill_in_progress, segfaulted;
 static my_bool opt_do_pstack, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
-static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
-static char *opt_slow_logname, *opt_tc_heuristic_recover;
+static char *opt_update_logname, *opt_binlog_index_name;
+static char *opt_tc_heuristic_recover;
 static char *mysql_home_ptr, *pidfile_name_ptr;
 static char **defaults_argv;
 static char *opt_bin_logname;
@@ -1138,8 +1142,7 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
-  mysql_log.cleanup();
-  mysql_slow_log.cleanup();
+  logger.cleanup();
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -2389,6 +2392,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #ifdef EXTRA_DEBUG
       sql_print_information("Got signal %d to shutdown mysqld",sig);
 #endif
+      /* switch to the old log message processing */
+      logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
+                          opt_log ? LEGACY:NONE);
       DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
       if (!abort_loop)
       {
@@ -2416,6 +2422,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
+      /* reenable logs after the options were reloaded */
+      logger.set_handlers(LEGACY, opt_slow_log ? CSV:NONE,
+                          opt_log ? CSV:NONE);
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:
@@ -2680,8 +2689,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
     global MYSQL_LOGs in their constructors, because then they would be inited
     before MY_INIT(). So we do it here.
   */
-  mysql_log.init_pthread_objects();
-  mysql_slow_log.init_pthread_objects();
   mysql_bin_log.init_pthread_objects();
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
@@ -3047,9 +3054,48 @@ static int init_server_components()
 #ifdef HAVE_REPLICATION
   init_slave_list();
 #endif
-  /* Setup log files */
-  if (opt_log)
-    mysql_log.open_query_log(opt_logname);
+  /* Setup logs */
+
+  /* enable old-fashioned error log */
+  if (opt_error_log)
+  {
+    if (!log_error_file_ptr[0])
+      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
+    else
+      fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
+                MY_UNPACK_FILENAME | MY_SAFE_PATH);
+    if (!log_error_file[0])
+      opt_error_log= 1;				// Too long file name
+    else
+    {
+#ifndef EMBEDDED_LIBRARY
+      if (freopen(log_error_file, "a+", stdout))
+#endif
+        freopen(log_error_file, "a+", stderr);
+    }
+  }
+
+#ifdef WITH_CSV_STORAGE_ENGINE
+  logger.init_log_tables();
+
+  if (opt_old_log_format || (have_csv_db != SHOW_OPTION_YES))
+    logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
+                        opt_log ? LEGACY:NONE);
+  else
+    if (opt_both_log_formats)
+      logger.set_handlers(LEGACY,
+                          opt_slow_log ? LEGACY_AND_CSV:NONE,
+                          opt_log ? LEGACY_AND_CSV:NONE);
+    else
+      /* the default is CSV log tables */
+      logger.set_handlers(LEGACY, opt_slow_log ? CSV:NONE,
+                          opt_log ? CSV:NONE);
+#else
+  logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
+                      opt_log ? LEGACY:NONE);
+#endif
+
   if (opt_update_log)
   {
     /*
@@ -3146,9 +3192,6 @@ with --log-bin instead.");
               array_elements(binlog_format_names)-1);
   opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 
-  if (opt_slow_log)
-    mysql_slow_log.open_slow_log(opt_slow_logname);
-
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
   {
@@ -3159,25 +3202,6 @@ server.");
     unireg_abort(1);
   }
 #endif
-
-  if (opt_error_log)
-  {
-    if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
-                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
-    else
-      fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
-		MY_UNPACK_FILENAME | MY_SAFE_PATH);
-    if (!log_error_file[0])
-      opt_error_log= 1;				// Too long file name
-    else
-    {
-#ifndef EMBEDDED_LIBRARY
-      if (freopen(log_error_file, "a+", stdout))
-#endif
-	stderror_file= freopen(log_error_file, "a+", stderr);
-    }
-  }
 
   if (opt_bin_log)
   {
@@ -3432,6 +3456,12 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
 
+  /*
+    Perform basic logger initialization logger. Should be called after
+    MY_INIT, as it initializes mutexes. Log tables are inited later.
+  */
+  logger.init_base();
+
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
@@ -3577,6 +3607,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();				// Creates pidfile
+
   if (acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
@@ -3701,7 +3732,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up_mutexes();
   shutdown_events();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
- 
+
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -4639,7 +4670,7 @@ enum options_mysqld
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
-  OPT_ABORT_SLAVE_EVENT_COUNT,
+  OPT_ABORT_SLAVE_EVENT_COUNT, OPT_OLD_LOG_FORMAT, OPT_BOTH_LOG_FORMATS,
   OPT_INNODB_DATA_HOME_DIR,
   OPT_INNODB_DATA_FILE_PATH,
   OPT_INNODB_LOG_GROUP_HOME_DIR,
@@ -5195,6 +5226,16 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
     "Log slow queries to this log file. Defaults logging to hostname-slow.log file. Must be enabled to activate other slow log options.",
    (gptr*) &opt_slow_logname, (gptr*) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+#ifdef WITH_CSV_STORAGE_ENGINE
+  {"old-log-format", OPT_OLD_LOG_FORMAT,
+   "Enable old log file format. (No SELECT * FROM logs)",
+   (gptr*) &opt_old_log_format, 0, 0, GET_BOOL, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"both-log-formats", OPT_BOTH_LOG_FORMATS,
+   "Enable old log file format along with log tables",
+   (gptr*) &opt_both_log_formats, 0, 0, GET_BOOL, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+#endif
   {"log-tc", OPT_LOG_TC,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled)",
@@ -6886,6 +6927,10 @@ static void mysql_init_variables(void)
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   opt_log= opt_update_log= opt_slow_log= 0;
+#ifdef WITH_CSV_STORAGE_ENGINE
+  opt_old_log_format= 0;
+  opt_both_log_formats= 0;
+#endif
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
@@ -7294,8 +7339,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    opt_slow_log=1;
+    opt_slow_log= 1;
     break;
+#ifdef WITH_CSV_STORAGE_ENGINE
+  case (int) OPT_OLD_LOG_FORMAT:
+    opt_old_log_format= 1;
+    break;
+  case (int) OPT_BOTH_LOG_FORMATS:
+    opt_both_log_formats= 1;
+    break;
+#endif
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;

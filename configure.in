@@ -2437,7 +2437,8 @@ MYSQL_STORAGE_ENGINE(archive,,,,,,storage/archive,,
  \$(top_builddir)/storage/archive/libarchive.a, [
   AC_CONFIG_FILES(storage/archive/Makefile)
 ])
-MYSQL_STORAGE_ENGINE(csv,,,,,no,storage/csv,,,[
+MYSQL_STORAGE_ENGINE(csv,,,"yes",,tina_hton,storage/csv,
+  ../storage/csv/ha_tina.o,,[
   AC_CONFIG_FILES(storage/csv/Makefile)
 ])
 MYSQL_STORAGE_ENGINE(blackhole)
