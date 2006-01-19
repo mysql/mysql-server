@@ -213,7 +213,6 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
   if (ng == UNDEF_NODEGROUP ||
       ng_map[ng].map_array[0] == UNDEF_NODEGROUP)
   {
-    ndbout << "No mapping done" << endl;
     return ng;
   }
   else
@@ -226,13 +225,11 @@ Uint32 BackupRestore::map_ng(Uint32 ng)
     assert(curr_inx < MAX_MAPS_PER_NODE_GROUP);
     assert(new_curr_inx < MAX_MAPS_PER_NODE_GROUP);
 
-    ndbout << "curr_inx = " << curr_inx << endl;
     if (new_curr_inx >= MAX_MAPS_PER_NODE_GROUP)
       new_curr_inx = 0;
     else if (ng_map[ng].map_array[new_curr_inx] == UNDEF_NODEGROUP)
       new_curr_inx = 0;
     new_ng = ng_map[ng].map_array[curr_inx];
-    ndbout << "new_ng = " << new_ng << endl;
     ng_map[ng].curr_index = new_curr_inx;
     return new_ng;
   }
@@ -249,7 +246,6 @@ bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
   for (i = 0; i < no_parts; i++)
   {
     Uint32 ng;
-    ndbout << "map_nodegroups loop " << i << ", " << ng_array[i] << endl;
     ng = map_ng((Uint32)ng_array[i]);
     if (ng != ng_array[i])
       mapped = TRUE;
@@ -279,7 +275,6 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
   char start_delimiter = 0;
   DBUG_ENTER("search_replace");
 
-  ndbout << "search_replace" << endl;
   do
   {
     char c = **data;
@@ -635,7 +630,6 @@ BackupRestore::table(const TableS & table){
 
   const char * name = table.getTableName();
  
-  ndbout << "Starting to handle table " << name << endl;
   /**
    * Ignore blob tables
    */
@@ -675,7 +669,6 @@ BackupRestore::table(const TableS & table){
     
     if (copy.getDefaultNoPartitionsFlag())
     {
-      ndbout << "Default number of partitions" << endl;
       /*
         Table was defined with default number of partitions. We can restore
         it with whatever is the default in this cluster.
@@ -688,7 +681,6 @@ BackupRestore::table(const TableS & table){
     }
     else
     {
-      ndbout << "Not default number of partitions" << endl;
       /*
         Table was defined with specific number of partitions. It should be
         restored with the same number of partitions. It will either be
@@ -697,11 +689,8 @@ BackupRestore::table(const TableS & table){
       */
       Uint16 *ng_array = (Uint16*)copy.getFragmentData();
       Uint16 no_parts = copy.getFragmentCount();
-      ndbout << "Map node groups, no_parts = " << no_parts << endl;
-      ndbout << "ng_array = " << hex << (Uint32)ng_array << endl;
       if (map_nodegroups(ng_array, no_parts))
       {
-        ndbout << "Node groups were mapped" << endl;
         if (translate_frm(&copy))
         {
           err << "Create table " << table.getTableName() << " failed: ";
@@ -709,7 +698,6 @@ BackupRestore::table(const TableS & table){
           return false;
         }
       }
-      ndbout << "Set fragment Data " << endl;
       copy.setFragmentData((const void *)ng_array, no_parts << 1);
     }
 
