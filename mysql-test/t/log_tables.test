@@ -1,0 +1,146 @@
+#
+# Basic log tables test
+#
+
+# check that CSV engine was compiled in
+--source include/have_csv.inc
+
+use mysql;
+
+#
+# Check that log tables work and we can do basic selects. This also
+# tests truncate, which works in a special mode with the log tables
+#
+
+truncate table general_log;
+--replace_column 1 TIMESTAMP
+select * from general_log;
+truncate table slow_log;
+--replace_column 1 TIMESTAMP
+select * from slow_log;
+
+#
+# We want to check that a record newly written to a log table shows up for
+# the query: since log tables use concurrent insert machinery and log tables
+# are always locked by artificial THD, this feature requires additional
+# check in ha_tina::write_row. This simple test should prove that the
+# log table flag in the table handler is triggered and working.
+#
+
+truncate table general_log;
+--replace_column 1 TIMESTAMP
+select * from general_log where argument like '%general_log%';
+
+
+#
+# Check some basic queries interfering with the log tables.
+# In our test we'll use a tbale with verbose comments to the short
+# command type names, used in the tables
+#
+
+create table join_test (verbose_comment varchar (80), command_type varchar(64));
+
+insert into join_test values ("User performed a usual SQL query", "Query");
+insert into join_test values ("New DB connection was registered", "Connect");
+insert into join_test values ("Get the table info", "Field List");
+
+select verbose_comment, user_host, argument
+  from  mysql.general_log join join_test
+    on (mysql.general_log.command_type = join_test.command_type);
+
+drop table join_test;
+
+#
+# check that flush of the log table work fine
+#
+
+flush logs;
+
+#
+# check locking of the log tables
+#
+
+--error 1532
+lock tables mysql.general_log WRITE;
+
+--error 1532
+lock tables mysql.slow_log WRITE;
+
+#
+# This attemts to get TL_READ_NO_INSERT lock, which is incompatible with
+# TL_WRITE_CONCURRENT_INSERT. This should fail. We issue this error as log
+# tables are always opened and locked by the logger.
+#
+
+--error 1533
+lock tables mysql.general_log READ;
+
+--error 1533
+lock tables mysql.slow_log READ;
+
+#
+# This call should result in TL_READ lock on the log table. This is ok and
+# should pass.
+#
+
+lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
+
+unlock tables;
+
+#
+# check that FLUSH LOGS waits for all readers of the log table to vanish
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+
+lock tables mysql.general_log READ LOCAL;
+
+connection con2;
+
+# this should wait for log tables to unlock
+send flush logs;
+
+connection con1;
+
+unlock tables;
+
+# this connection should be alive by the time
+connection con2;
+
+reap;
+
+select "Mark that we woke up from flush logs in the test"
+       as "test passed";
+
+#
+# perform the same check for TRUNCATE: it should also wait for readers
+# to disappear
+#
+
+connection con1;
+
+lock tables mysql.general_log READ LOCAL;
+
+connection con2;
+
+# this should wait for log tables to unlock
+send truncate mysql.general_log;
+
+connection con1;
+
+unlock tables;
+
+# this connection should be alive by the time
+connection con2;
+
+reap;
+
+select "Mark that we woke up from TRUNCATE in the test"
+       as "test passed";
+
+disconnect con2;
+disconnect con1;
+

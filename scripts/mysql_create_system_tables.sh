@@ -42,6 +42,7 @@ i_ht=""
 c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls="" c_pl=""
 i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls="" i_pl=""
 c_p="" c_pp=""
+c_gl="" c_sl=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -353,6 +354,7 @@ then
   c_hr="$c_hr CHARACTER SET utf8"
   c_hr="$c_hr   comment='keyword-topic relation';"
 fi
+
 
 if test ! -f $mdata/time_zone_name.frm
 then
@@ -744,6 +746,27 @@ then
 fi
 
 
+if test ! -f $mdata/general_log.frm
+then
+  if test "$1" = "verbose" ; then
+   echo "Preparing general_log table" 1>&2;
+  fi
+    c_gl="$c_gl CREATE PROCEDURE create_general_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE general_log (event_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT, thread_id INTEGER, server_id INTEGER, command_type VARCHAR(64), argument MEDIUMTEXT) engine=CSV CHARACTER SET utf8 comment='General log'; END IF; END;
+CALL create_general_log_table();
+DROP PROCEDURE create_general_log_table;"
+fi
+
+
+if test ! -f $mdata/slow_log.frm
+then
+  if test "$1" = "verbose" ; then
+   echo "Preparing slow_log table" 1>&2;
+  fi
+    c_sl="$c_sl CREATE PROCEDURE create_slow_log_table() BEGIN DECLARE is_csv_enabled int DEFAULT 0; SELECT @@have_csv = 'YES' INTO is_csv_enabled; IF (is_csv_enabled) THEN CREATE TABLE slow_log (start_time TIMESTAMP NOT NULL, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512), last_insert_id INTEGER, insert_id INTEGER, server_id INTEGER, sql_text MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment='Slow log'; END IF; END;
+CALL create_slow_log_table();
+DROP PROCEDURE create_slow_log_table;"
+fi
+
 if test ! -f $mdata/event.frm
 then
   c_ev="$c_ev CREATE TABLE event ("
@@ -812,6 +835,8 @@ $i_tzls
 $c_p
 $c_pp
 
+$c_gl
+$c_sl
 $c_ev
 CREATE DATABASE IF NOT EXISTS cluster_replication;
 CREATE TABLE IF NOT EXISTS cluster_replication.binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;

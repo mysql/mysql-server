@@ -13,3 +13,5 @@ show create table columns_priv;
 show create table procs_priv;
 show create table proc;
 show create table event;
+show create table general_log;
+show create table slow_log;
