@@ -916,7 +916,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     req_struct->m_tuple_ptr= save;
     ndbrequire(ret != -1);
     noBeforeWords = ret;
-    if ((noAfterWords == noBeforeWords) &&
+    if (trigPtr->m_receiverBlock != SUMA &&
+        (noAfterWords == noBeforeWords) &&
         (memcmp(afterBuffer, beforeBuffer, noAfterWords << 2) == 0)) {
 //--------------------------------------------------------------------
 // Although a trigger was fired it was not necessary since the old

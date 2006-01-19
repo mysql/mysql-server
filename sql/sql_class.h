@@ -258,6 +258,7 @@ struct system_variables
   my_bool old_passwords;
 
   /* Only charset part of these variables is sensible */
+  CHARSET_INFO  *character_set_filesystem;
   CHARSET_INFO  *character_set_client;
   CHARSET_INFO  *character_set_results;
 
@@ -1126,6 +1127,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
+  bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */

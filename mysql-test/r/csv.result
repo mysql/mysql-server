@@ -4976,6 +4976,23 @@ c1
 4
 5
 DROP TABLE bug14672;
+CREATE TABLE test_concurrent_insert ( val integer ) ENGINE = CSV;
+LOCK TABLES test_concurrent_insert READ LOCAL;
+INSERT INTO test_concurrent_insert VALUES (1);
+SELECT * FROM test_concurrent_insert;
+val
+1
+SELECT * FROM test_concurrent_insert;
+val
+UNLOCK TABLES;
+LOCK TABLES test_concurrent_insert WRITE;
+INSERT INTO test_concurrent_insert VALUES (2);
+SELECT * FROM test_concurrent_insert;
+val
+1
+2
+UNLOCK TABLES;
+DROP TABLE test_concurrent_insert;
 create table t1 (a int) engine=csv;
 insert t1 values (1);
 delete from t1;

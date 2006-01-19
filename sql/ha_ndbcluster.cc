@@ -987,7 +987,7 @@ int ha_ndbcluster::get_metadata(const char *path)
       DBUG_RETURN(1);
     }
     
-    if (cmp_frm(tab, pack_data, pack_length))
+    if (m_share->state != NSS_ALTERED && cmp_frm(tab, pack_data, pack_length))
     {
       if (!invalidating_ndb_table)
       {
@@ -1056,6 +1056,36 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
     }
     DBUG_ASSERT(data.unique_index_attrid_map[i] != 255);
   }
+  DBUG_RETURN(0);
+}
+
+int ha_ndbcluster::table_changed(const void *pack_frm_data, uint pack_frm_len)
+{
+  Ndb *ndb;
+  NDBDICT *dict;
+  const NDBTAB *orig_tab;
+  NdbDictionary::Table new_tab;
+  int result;
+  DBUG_ENTER("ha_ndbcluster::table_changed");
+  DBUG_PRINT("info", ("Modifying frm for table %s", m_tabname));
+  if (check_ndb_connection())
+    DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
+                                                                             
+  ndb= get_ndb();
+  dict= ndb->getDictionary();
+  if (!(orig_tab= dict->getTable(m_tabname)))
+    ERR_RETURN(dict->getNdbError());
+  // Check if thread has stale local cache
+  if (orig_tab->getObjectStatus() == NdbDictionary::Object::Invalid)
+  {
+    dict->removeCachedTable(m_tabname);
+    if (!(orig_tab= dict->getTable(m_tabname)))
+      ERR_RETURN(dict->getNdbError());
+  }
+  new_tab= *orig_tab;
+  new_tab.setFrm(pack_frm_data, pack_frm_len);
+  if (dict->alterTable(new_tab) != 0)
+    ERR_RETURN(dict->getNdbError());
   DBUG_RETURN(0);
 }
 
@@ -4316,6 +4346,47 @@ int ha_ndbcluster::create(const char *name,
   DBUG_RETURN(my_errno);
 }
 
+int ha_ndbcluster::create_handler_files(const char *file) 
+{ 
+  const char *name;
+  Ndb* ndb;
+  const NDBTAB *tab;
+  const void *data, *pack_data;
+  uint length, pack_length;
+  int error= 0;
+
+  DBUG_ENTER("create_handler_files");
+
+  if (!(ndb= get_ndb()))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+  NDBDICT *dict= ndb->getDictionary();
+  if (!(tab= dict->getTable(m_tabname)))
+    DBUG_RETURN(0); // Must be a create, ignore since frm is saved in create
+
+  name= table->s->normalized_path.str;
+  DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, name));
+  if (readfrm(name, &data, &length) ||
+      packfrm(data, length, &pack_data, &pack_length))
+  {
+    DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
+    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    DBUG_RETURN(1);
+  }
+  if (cmp_frm(tab, pack_data, pack_length))
+  {  
+    DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb", 
+                        m_tabname));
+    error= table_changed(pack_data, pack_length);
+    m_share->state= NSS_INITIAL;
+  }
+  my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+
+  DBUG_RETURN(error);
+}
+
 int ha_ndbcluster::create_index(const char *name, KEY *key_info, 
                                 NDB_INDEX_TYPE idx_type, uint idx_no)
 {
@@ -4443,7 +4514,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     if((error= create_index(key_info[idx].name, key, idx_type, idx)))
       break;
   }
-
+  m_share->state= NSS_ALTERED;
   DBUG_RETURN(error);  
 }
 
@@ -4478,6 +4549,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
+  m_share->state= NSS_ALTERED;
   DBUG_RETURN(renumber_indexes(ndb, table_arg));
 }
  
@@ -4488,14 +4560,11 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
 {
   DBUG_ENTER("ha_ndbcluster::final_drop_index");
   DBUG_PRINT("info", ("ha_ndbcluster::final_drop_index"));
-  int error= 0;
   // Really drop indexes
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
-  error= drop_indexes(ndb, table_arg);
-
-  DBUG_RETURN(error);  
+  DBUG_RETURN(drop_indexes(ndb, table_arg));
 }
 
 /*
@@ -5331,9 +5400,15 @@ int ndbcluster_find_all_files(THD *thd)
       }
       else if (cmp_frm(ndbtab, pack_data, pack_length))
       {
-        discover= 1;
-        sql_print_information("NDB: mismatch in frm for %s.%s, discovering...",
-                              elmt.database, elmt.name);
+        NDB_SHARE *share= get_share(key, 0, false);
+        if (!share || share->state != NSS_ALTERED)
+        {
+          discover= 1;
+          sql_print_information("NDB: mismatch in frm for %s.%s, discovering...",
+                                elmt.database, elmt.name);
+        }
+        if (share)
+          free_share(&share);
       }
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
@@ -6529,7 +6604,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       MEM_ROOT *old_root= *root_ptr;
       init_sql_alloc(&share->mem_root, 1024, 0);
       *root_ptr= &share->mem_root; // remember to reset before return
-
+      share->state= NSS_INITIAL;
       /* enough space for key, db, and table_name */
       share->key= alloc_root(*root_ptr, 2 * (length + 1));
       share->key_length= length;
@@ -9086,13 +9161,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 					       uint table_changes)
 {
-  /*
-    TODO: Remove the dummy return below, when cluster gets
-    signal from alter table when only .frm is changed. Cluster
-    needs it to manage the copies.
-  */
-  return COMPATIBLE_DATA_NO;
-
+  return COMPATIBLE_DATA_NO; // Disable fast add/drop index  
   if (table_changes != IS_EQUAL_YES)
     return COMPATIBLE_DATA_NO;
   
