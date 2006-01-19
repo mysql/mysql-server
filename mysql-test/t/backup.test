@@ -1,3 +1,6 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+
 #
 # This test is a bit tricky as we can't use backup table to overwrite an old
 # table
