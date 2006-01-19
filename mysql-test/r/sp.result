@@ -2075,7 +2075,6 @@ show create database test;
 show databases like 'foo';
 show errors;
 show columns from t1;
-show grants for 'root'@'localhost';
 show keys from t1;
 show open tables like 'foo';
 show privileges;
@@ -2102,8 +2101,6 @@ Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO			
-Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -2156,8 +2153,6 @@ Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO			
-Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 Database	Table	In_use	Name_locked
 Privilege	Context	Comment
@@ -2193,18 +2188,6 @@ Tables_in_test (foo)
 Variable_name	Value
 Level	Code	Message
 drop procedure bug4902|
-drop procedure if exists bug4902_2|
-create procedure bug4902_2()
-begin
-show processlist;
-end|
-call bug4902_2()|
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	show processlist
-call bug4902_2()|
-Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	show processlist
-drop procedure bug4902_2|
 drop procedure if exists bug4904|
 create procedure bug4904()
 begin
@@ -2347,52 +2330,6 @@ select @x|
 NULL
 delete from t1|
 drop procedure bug4941|
-drop procedure if exists bug3583|
-drop procedure if exists bug3583|
-create procedure bug3583()
-begin
-declare c int;
-select * from t1;
-select count(*) into c from t1;
-select c;
-end|
-insert into t1 values ("x", 3), ("y", 5)|
-set @x = @@query_cache_size|
-set global query_cache_size = 10*1024*1024|
-flush status|
-flush query cache|
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	2
-set global query_cache_size = @x|
-flush status|
-flush query cache|
-delete from t1|
-drop procedure bug3583|
 drop procedure if exists bug4905|
 create table t3 (s1 int,primary key (s1))|
 drop procedure if exists bug4905|
@@ -2608,17 +2545,6 @@ select id, bug5240() from t1|
 id	bug5240()
 answer	42
 drop function bug5240|
-drop function if exists bug5278|
-create function bug5278 () returns char
-begin
-SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
-return 'okay';
-end|
-select bug5278()|
-ERROR 42000: Can't find any matching row in the user table
-select bug5278()|
-ERROR 42000: Can't find any matching row in the user table
-drop function bug5278|
 drop procedure if exists p1|
 create table t3(id int)|
 insert into t3 values(1)|
@@ -3983,14 +3909,6 @@ select bug10100f(5)|
 ERROR HY000: Recursive stored functions and triggers are not allowed.
 call bug10100t(5)|
 ERROR HY000: Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine bug10100p
-set @@max_sp_recursion_depth=255|
-set @var=1|
-call bug10100p(255, @var)|
-call bug10100pt(1,255)|
-call bug10100pv(1,255)|
-call bug10100pd(1,255)|
-call bug10100pc(1,255)|
-set @@max_sp_recursion_depth=0|
 deallocate prepare stmt2|
 drop function bug10100f|
 drop procedure bug10100p|

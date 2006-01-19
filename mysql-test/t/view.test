@@ -2080,17 +2080,6 @@ drop view v1, v2;
 drop table t1, t2;
 
 #
-# DEFINER information check
-#
--- error ER_MALFORMED_DEFINER
-create definer=some_user@`` sql security invoker view v1 as select 1;
---disable_warnings
-create definer=some_user@localhost sql security invoker view v1 as select 1;
---enable_warnings
-show create view v1;
-drop view v1;
-
-#
 # Bug #6808 - Views: CREATE VIEW v ... FROM t AS v fails
 #
 
