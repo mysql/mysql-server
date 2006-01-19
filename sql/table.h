@@ -198,6 +198,11 @@ typedef struct st_table_share
     locking of this table for writing. FALSE - otherwise.
   */
   bool system_table;
+  /*
+    This flag is set for the log tables. Used during FLUSH instances to skip
+    log tables, while closing tables (since logs must be always available)
+  */
+  bool log_table;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   const uchar *partition_info;
   uint  partition_info_len;
@@ -286,6 +291,7 @@ struct st_table {
   my_bool distinct,const_table,no_rows;
   my_bool key_read, no_keyread;
   my_bool locked_by_flush;
+  my_bool locked_by_logger;
   my_bool locked_by_name;
   my_bool fulltext_searched;
   my_bool no_cache;

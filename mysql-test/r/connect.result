@@ -5,6 +5,7 @@ columns_priv
 db
 event
 func
+general_log
 help_category
 help_keyword
 help_relation
@@ -13,6 +14,7 @@ host
 plugin
 proc
 procs_priv
+slow_log
 tables_priv
 time_zone
 time_zone_leap_second
@@ -34,6 +36,7 @@ columns_priv
 db
 event
 func
+general_log
 help_category
 help_keyword
 help_relation
@@ -42,6 +45,7 @@ host
 plugin
 proc
 procs_priv
+slow_log
 tables_priv
 time_zone
 time_zone_leap_second
@@ -71,6 +75,7 @@ columns_priv
 db
 event
 func
+general_log
 help_category
 help_keyword
 help_relation
@@ -79,6 +84,7 @@ host
 plugin
 proc
 procs_priv
+slow_log
 tables_priv
 time_zone
 time_zone_leap_second
