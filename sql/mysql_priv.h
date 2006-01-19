@@ -897,7 +897,7 @@ void free_status_vars();
 
 /* information schema */
 extern LEX_STRING information_schema_name;
-const extern LEX_STRING partition_keywords[];
+extern const LEX_STRING partition_keywords[];
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
                             bool allocate_lex_string);
@@ -1171,12 +1171,23 @@ int key_rec_cmp(void *key_info, byte *a, byte *b);
 bool init_errmessage(void);
 void sql_perror(const char *message);
 
-void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
+int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
 void sql_print_error(const char *format, ...);
 void sql_print_warning(const char *format, ...);
 void sql_print_information(const char *format, ...);
 
+/* type of the log table */
+#define LOG_SLOW 1
+#define LOG_GENERAL 2
 
+int error_log_print(enum loglevel level, const char *format,
+                    va_list args);
+
+bool slow_log_print(THD *thd, const char *query, uint query_length,
+                    time_t query_start_arg);
+
+bool general_log_print(THD *thd, enum enum_server_command command,
+                       const char *format,...);
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
@@ -1217,7 +1228,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
-extern const char *command_name[];
+extern LEX_STRING command_name[];
 extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
@@ -1279,6 +1290,7 @@ extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
+extern bool opt_old_log_format;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
@@ -1300,7 +1312,9 @@ extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 
-extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
+extern MYSQL_LOG mysql_bin_log;
+extern LOGGER logger;
+extern TABLE_LIST general_log, slow_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;

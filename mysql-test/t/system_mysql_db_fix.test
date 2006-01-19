@@ -1,6 +1,10 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
+# check that CSV engine was compiled in, as the test relies on the presence
+# of the log tables (which are CSV-based)
+--source include/have_csv.inc
+
 #
 # This is the test for mysql_fix_privilege_tables
 #
@@ -85,7 +89,10 @@ INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','
 
 -- disable_query_log
 
-DROP TABLE db, host, user, func, plugin, tables_priv, columns_priv, procs_priv, help_category, help_keyword, help_relation, help_topic, proc, time_zone, time_zone_leap_second, time_zone_name, time_zone_transition, time_zone_transition_type, event;
+DROP TABLE db, host, user, func, plugin, tables_priv, columns_priv,
+procs_priv, help_category, help_keyword, help_relation, help_topic, proc,
+time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
+time_zone_transition_type, general_log, slow_log, event;
 
 -- enable_query_log
 

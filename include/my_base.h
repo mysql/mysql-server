@@ -155,13 +155,18 @@ enum ha_extra_function {
   */
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS,
   HA_EXTRA_MMAP,
-  /* 
+  /*
     Ignore if the a tuple is not found, continue processing the
     transaction and ignore that 'row'.  Needed for idempotency
     handling on the slave
   */
   HA_EXTRA_IGNORE_NO_KEY,
-  HA_EXTRA_NO_IGNORE_NO_KEY
+  HA_EXTRA_NO_IGNORE_NO_KEY,
+  /*
+    Mark the table as a log table. For some handlers (e.g. CSV) this results
+    in a special locking for the table.
+  */
+  HA_EXTRA_MARK_AS_LOG_TABLE
 };
 
 	/* The following is parameter to ha_panic() */

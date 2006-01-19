@@ -62,6 +62,7 @@ columns_priv
 db
 event
 func
+general_log
 help_category
 help_keyword
 help_relation
@@ -70,6 +71,7 @@ host
 plugin
 proc
 procs_priv
+slow_log
 tables_priv
 time_zone
 time_zone_leap_second
@@ -732,7 +734,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-107
+109
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -816,7 +818,7 @@ SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHE
 table_schema	count(*)
 cluster_replication	1
 information_schema	19
-mysql	19
+mysql	21
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
