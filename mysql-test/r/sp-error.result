@@ -1128,3 +1128,22 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 drop function bug11555_1;
 drop table t1;
 drop view v1;
+drop procedure if exists ` bug15658`;
+create procedure ``() select 1;
+ERROR 42000: Incorrect routine name ''
+create procedure ` `() select 1;
+ERROR 42000: Incorrect routine name ' '
+create procedure `bug15658 `() select 1;
+ERROR 42000: Incorrect routine name 'bug15658 '
+create procedure ``.bug15658() select 1;
+ERROR 42000: Incorrect database name ''
+create procedure `x `.bug15658() select 1;
+ERROR 42000: Incorrect database name 'x '
+create procedure ` bug15658`() select 1;
+call ` bug15658`();
+1
+1
+show procedure status;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+drop procedure ` bug15658`;

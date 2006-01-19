@@ -5605,3 +5605,5 @@ ER_SP_RECURSION_LIMIT
         ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.64s überschritten"
 ER_SP_PROC_TABLE_CORRUPT
 	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
+ER_SP_WRONG_NAME 42000
+	eng "Incorrect routine name '%-.64s'"
