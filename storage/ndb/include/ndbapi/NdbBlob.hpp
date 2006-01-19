@@ -28,6 +28,7 @@ class NdbOperation;
 class NdbRecAttr;
 class NdbTableImpl;
 class NdbColumnImpl;
+class NdbEventOperationImpl;
 
 /**
  * @class NdbBlob
@@ -70,6 +71,10 @@ class NdbColumnImpl;
  * Use NdbTransaction::executePendingBlobOps to flush your reads and
  * writes.  It avoids execute penalty if nothing is pending.  It is not
  * needed after execute (obviously) or after next scan result.
+ *
+ * NdbBlob also supports reading post or pre blob data from events.  The
+ * handle can be read after next event on main table has been retrieved.
+ * The data is available immediately.  See NdbEventOperation.
  *
  * NdbBlob methods return -1 on error and 0 on success, and use output
  * parameters when necessary.
@@ -146,6 +151,12 @@ public:
    */
   int setActiveHook(ActiveHook* activeHook, void* arg);
   /**
+   * Check if blob value is defined (NULL or not).  Used as first call
+   * on event based blob.  The argument is set to -1 for not defined.
+   * Unlike getNull() this does not cause error on the handle.
+   */
+  int getDefined(int& isNull);
+  /**
    * Check if blob is null.
    */
   int getNull(bool& isNull);
@@ -192,6 +203,11 @@ public:
    */
   static int getBlobTableName(char* btname, Ndb* anNdb, const char* tableName, const char* columnName);
   /**
+   * Get blob event name.  The blob event is created if the main event
+   * monitors the blob column.  The name includes main event name.
+   */
+  static int getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName);
+  /**
    * Return error object.  The error may be blob specific (below) or may
    * be copied from a failed implicit operation.
    */
@@ -217,17 +233,29 @@ private:
   friend class NdbScanOperation;
   friend class NdbDictionaryImpl;
   friend class NdbResultSet; // atNextResult
+  friend class NdbEventBuffer;
+  friend class NdbEventOperationImpl;
 #endif
   // state
   State theState;
   void setState(State newState);
+  // quick and dirty support for events (consider subclassing)
+  int theEventBlobVersion; // -1=normal blob 0=post event 1=pre event
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
   static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
+  static void getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c);
+  static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
   // ndb api stuff
   Ndb* theNdb;
   NdbTransaction* theNdbCon;
   NdbOperation* theNdbOp;
+  NdbEventOperationImpl* theEventOp;
+  NdbEventOperationImpl* theBlobEventOp;
+  NdbRecAttr* theBlobEventPkRecAttr;
+  NdbRecAttr* theBlobEventDistRecAttr;
+  NdbRecAttr* theBlobEventPartRecAttr;
+  NdbRecAttr* theBlobEventDataRecAttr;
   const NdbTableImpl* theTable;
   const NdbTableImpl* theAccessTable;
   const NdbTableImpl* theBlobTable;
@@ -263,6 +291,8 @@ private:
   Buf theHeadInlineBuf;
   Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
+  Buf theBlobEventDataBuf;
+  Uint32 thePartNumber;         // for event
   Head* theHead;
   char* theInlineData;
   NdbRecAttr* theHeadInlineRecAttr;
@@ -306,6 +336,8 @@ private:
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
   int readParts(char* buf, Uint32 part, Uint32 count);
+  int readTableParts(char* buf, Uint32 part, Uint32 count);
+  int readEventParts(char* buf, Uint32 part, Uint32 count);
   int insertParts(const char* buf, Uint32 part, Uint32 count);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
@@ -317,19 +349,23 @@ private:
   int invokeActiveHook();
   // blob handle maintenance
   int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
+  int atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version);
+  int prepareColumn();
   int preExecute(NdbTransaction::ExecType anExecType, bool& batch);
   int postExecute(NdbTransaction::ExecType anExecType);
   int preCommit();
   int atNextResult();
+  int atNextEvent();
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = true);
   void setErrorCode(NdbOperation* anOp, bool invalidFlag = true);
   void setErrorCode(NdbTransaction* aCon, bool invalidFlag = true);
+  void setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag = true);
 #ifdef VM_TRACE
   int getOperationType() const;
   friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
 #endif
-
+  // list stuff
   void next(NdbBlob* obj) { theNext= obj;}
   NdbBlob* next() { return theNext;}
   friend struct Ndb_free_list_t<NdbBlob>;
