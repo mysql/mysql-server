@@ -3867,7 +3867,9 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
 
   DBUG_PRINT("info", ("Successful parse"));
   part_info= lex.part_info;
-  DBUG_PRINT("info", ("default engine = %d", ha_legacy_type(part_info->default_engine_type)));
+  DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
+             ha_legacy_type(part_info->default_engine_type),
+             ha_legacy_type(default_db_type)));
   if (is_create_table_ind)
   {
     if (old_lex->name)
@@ -3877,10 +3879,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         old_lex->name contains the t2 and the table we are opening has 
         name t1.
       */
-      Table_ident *ti= (Table_ident*)old_lex->name;
-      const char *db_name= ti->db.str ? ti->db.str : thd->db;
-      const char *table_name= ti->table.str;
-      handler *file;
       if (partition_default_handling(table, part_info))
       {
         DBUG_RETURN(TRUE);
@@ -3892,7 +3890,9 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   table->part_info= part_info;
   table->file->set_part_info(part_info);
   if (part_info->default_engine_type == NULL)
+  {
     part_info->default_engine_type= default_db_type;
+  }
   else
   {
     DBUG_ASSERT(part_info->default_engine_type == default_db_type);
