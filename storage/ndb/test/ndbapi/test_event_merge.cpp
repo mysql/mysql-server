@@ -21,14 +21,7 @@
 #include <my_sys.h>
 #include <ndb_version.h>
 
-#if NDB_VERSION_D < MAKE_VERSION(5, 1, 0)
-#define version50
-#else
-#undef version50
-#endif
-
-// until rbr in 5.1
-#undef version51rbr
+// version >= 5.1 required
 
 #if !defined(min) || !defined(max)
 #define min(x, y) ((x) < (y) ? (x) : (y))
@@ -57,11 +50,11 @@
  * There are other -no-* options, each added to isolate a specific bug.
  *
  * There are 5 ways (ignoring NUL operand) to compose 2 ops:
- *                      5.0 bugs        5.1 bugs
+ *
  * INS o DEL = NUL
- * INS o UPD = INS                      type=INS
- * DEL o INS = UPD      type=INS        type=INS
- * UPD o DEL = DEL      no event
+ * INS o UPD = INS
+ * DEL o INS = UPD
+ * UPD o DEL = DEL
  * UPD o UPD = UPD
  */
 
@@ -73,17 +66,19 @@ struct Opts {
   uint maxpk;
   my_bool no_blobs;
   my_bool no_implicit_nulls;
+  my_bool no_missing_update;
   my_bool no_multiops;
   my_bool no_nulls;
   my_bool one_blob;
   const char* opstring;
   uint seed;
   my_bool separate_events;
+  uint tweak; // whatever's useful
   my_bool use_table;
 };
 
 static Opts g_opts;
-static const uint g_maxpk = 100;
+static const uint g_maxpk = 1000;
 static const uint g_maxopstringpart = 100;
 static const char* g_opstringpart[g_maxopstringpart];
 static uint g_opstringparts = 0;
@@ -712,6 +707,20 @@ checkop(const Op* op, Uint32& pk1)
     if (! c.nullable) {
       chkrc(ind0 <= 0 && ind1 <= 0);
     }
+    if (c.isblob()) {
+      // blob values must be from allowed chars
+      int j;
+      for (j = 0; j < 2; j++) {
+        const Data& d = op->data[j];
+        if (d.ind[i] == 0) {
+          const Data::Txt& t = *d.ptr[i].txt;
+          int k;
+          for (k = 0; k < t.len; k++) {
+            chkrc(strchr(g_charval, t.val[k]) != 0);
+          }
+        }
+      }
+    }
   }
   return 0;
 }
@@ -849,9 +858,8 @@ createevent()
     const Col& c = g_col[i];
     evt.addEventColumn(c.name);
   }
-#ifdef version51rbr
+  evt.setReport(NdbDictionary::Event::ER_UPDATED);
   evt.mergeEvents(! g_opts.separate_events);
-#endif
   if (g_dic->getEvent(evt.getName()) != 0)
     chkdb(g_dic->dropEvent(evt.getName()) == 0);
   chkdb(g_dic->createEvent(evt) == 0);
@@ -875,14 +883,8 @@ static int
 createeventop()
 {
   ll1("createeventop");
-#ifdef version50
-  uint bsz = 10 * g_opts.maxops;
-  chkdb((g_evt_op = g_ndb->createEventOperation(g_evt->getName(), bsz)) != 0);
-#else
   chkdb((g_evt_op = g_ndb->createEventOperation(g_evt->getName())) != 0);
-  // available in gci merge changeset
   g_evt_op->mergeEvents(! g_opts.separate_events); // not yet inherited
-#endif
   uint i;
   for (i = 0; i < ncol(); i++) {
     const Col& c = g_col[i];
@@ -891,10 +893,8 @@ createeventop()
       chkdb((g_ev_ra[0][i] = g_evt_op->getValue(c.name, (char*)d[0].ptr[i].v)) != 0);
       chkdb((g_ev_ra[1][i] = g_evt_op->getPreValue(c.name, (char*)d[1].ptr[i].v)) != 0);
     } else {
-#ifdef version51rbr
       chkdb((g_ev_bh[0][i] = g_evt_op->getBlobHandle(c.name)) != 0);
       chkdb((g_ev_bh[1][i] = g_evt_op->getPreBlobHandle(c.name)) != 0);
-#endif
     }
   }
   return 0;
@@ -909,10 +909,10 @@ dropeventop()
   return 0;
 }
 
+// wait for event to be installed and for GCIs to pass
 static int
-waitgci() // wait for event to be installed and for at least 1 GCI to pass
+waitgci(uint ngci)
 {
-  const uint ngci = 3;
   ll1("waitgci " << ngci);
   Uint32 gci[2];
   uint i = 0;
@@ -976,7 +976,6 @@ scantab()
       if (! c.isblob()) {
         ind = ra[i]->isNULL();
       } else {
-#ifdef version51rbr
         int ret;
         ret = bh[i]->getDefined(ind);
         assert(ret == 0);
@@ -992,8 +991,10 @@ scantab()
           Uint32 len = t.len;
           ret = bh[i]->readData(t.val, len);
           assert(ret == 0 && len == t.len);
+          // to see the data, have to execute...
+          chkdb(g_con->execute(NoCommit) == 0);
+          assert(memchr(t.val, 'X', t.len) == 0);
         }
-#endif
       }
       assert(ind >= 0);
       d0.ind[i] = ind;
@@ -1042,7 +1043,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type t)
   } else if (t == Op::INS && ! g_opts.no_implicit_nulls && c.nullable && urandom(10, 100)) {
     d.noop |= (1 << i);
     d.ind[i] = 1; // implicit NULL value is known
-  } else if (t == Op::UPD && urandom(10, 100)) {
+  } else if (t == Op::UPD && ! g_opts.no_missing_update && urandom(10, 100)) {
     d.noop |= (1 << i);
     d.ind[i] = -1; // fixed up in caller
   } else if (! g_opts.no_nulls && c.nullable && urandom(10, 100)) {
@@ -1060,6 +1061,8 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type t)
       {
         char* p = d.ptr[i].ch;
         uint u = urandom(g_charlen);
+        if (u == 0)
+          u = urandom(g_charlen); // 2x bias for non-empty
         uint j;
         for (j = 0; j < g_charlen; j++) {
           uint v = urandom(strlen(g_charval));
@@ -1070,10 +1073,19 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type t)
     case NdbDictionary::Column::Text:
       {
         Data::Txt& t = *d.ptr[i].txt;
+        delete [] t.val;
+        t.val = 0;
+        if (g_opts.tweak & 1) {
+          uint u = 256 + 2000;
+          uint v = (g_opts.tweak & 2) ? 0 : urandom(strlen(g_charval));
+          t.val = new char [u];
+          t.len = u;
+          memset(t.val, g_charval[v], u);
+          break;
+        }
         uint u = urandom(g_maxblobsize);
         u = urandom(u); // 4x bias for smaller blobs
         u = urandom(u);
-        delete [] t.val;
         t.val = new char [u];
         t.len = u;
         uint j = 0;
@@ -1134,9 +1146,15 @@ makeops()
 {
   ll1("makeops");
   Uint32 pk1 = 0;
-  while (g_usedops < g_opts.maxops && pk1 < g_opts.maxpk) {
-    if (g_opts.opstring == 0)
+  while (1) {
+    if (g_opts.opstring == 0) {
+      if (g_usedops >= g_opts.maxops) // use up ops
+        break;
       pk1 = urandom(g_opts.maxpk);
+    } else {
+      if (pk1 >= g_opts.maxpk) // use up pks
+        break;
+    }
     ll2("makeops: pk1=" << pk1);
     // total op on the pk so far
     // optype either NUL=initial/deleted or INS=created
@@ -1465,7 +1483,7 @@ matchevent(Op* ev)
           }
           if (tmpok) {
             ok = gci_op->match = true;
-            ll2("===: match");
+            ll2("match");
           }
         }
         pos++;
@@ -1555,7 +1573,6 @@ geteventdata()
         NdbRecAttr* ra = g_ev_ra[j][i];
         ind = ra->isNULL();
       } else {
-#ifdef version51rbr
         NdbBlob* bh = g_ev_bh[j][i];
         ret = bh->getDefined(ind);
         assert(ret == 0);
@@ -1572,7 +1589,6 @@ geteventdata()
           ret = bh->readData(t.val, len);
           assert(ret == 0 && len == t.len);
         }
-#endif
       }
       d[j].ind[i] = ind;
     }
@@ -1585,38 +1601,22 @@ runevents()
   ll1("runevents");
   uint mspoll = 1000;
   uint npoll = 6; // strangely long delay
+  ll1("poll " << npoll);
   while (npoll != 0) {
     npoll--;
     int ret;
-    ll1("poll");
     ret = g_ndb->pollEvents(mspoll);
     if (ret <= 0)
       continue;
     while (1) {
       g_rec_ev->init(Op::EV);
-#ifdef version50
-      int overrun = g_opts.maxops;
-      chkdb((ret = g_evt_op->next(&overrun)) >= 0);
-      chkrc(overrun == 0);
-      if (ret == 0)
-        break;
-#else
       NdbEventOperation* tmp_op = g_ndb->nextEvent();
       if (tmp_op == 0)
         break;
       reqrc(g_evt_op == tmp_op);
-#endif
       chkrc(seteventtype(g_rec_ev, g_evt_op->getEventType()) == 0);
       geteventdata();
       g_rec_ev->gci = g_evt_op->getGCI();
-#ifdef version50
-      // fix to match 5.1
-      if (g_rec_ev->type == Op::UPD) {
-        Uint32 pk1 = g_rec_ev->data[0].pk1;
-        makedata(getcol("pk1"), g_rec_ev->data[1], pk1, Op::UPD);
-        makedata(getcol("pk2"), g_rec_ev->data[1], pk1, Op::UPD);
-      }
-#endif
       // get indicators and blob value
       ll2("runevents: EVT: " << *g_rec_ev);
       // check basic sanity
@@ -1667,7 +1667,7 @@ runtest()
   chkrc(createtable() == 0);
   chkrc(createevent() == 0);
   for (g_loop = 0; g_opts.loop == 0 || g_loop < g_opts.loop; g_loop++) {
-    ll0("loop " << g_loop);
+    ll0("=== loop " << g_loop << " ===");
     setseed(g_loop);
     resetmem();
     chkrc(scantab() == 0); // alternative: save tot_op for loop > 0
@@ -1675,7 +1675,7 @@ runtest()
     g_rec_ev = getop(Op::EV);
     chkrc(createeventop() == 0);
     chkdb(g_evt_op->execute() == 0);
-    chkrc(waitgci() == 0);
+    chkrc(waitgci(3) == 0);
     chkrc(runops() == 0);
     if (! g_opts.separate_events)
       chkrc(mergeops() == 0);
@@ -1685,6 +1685,8 @@ runtest()
     chkrc(matchevents() == 0);
     chkrc(matchops() == 0);
     chkrc(dropeventop() == 0);
+    // time erases everything..
+    chkrc(waitgci(1) == 0);
   }
   chkrc(dropevent() == 0);
   chkrc(droptable() == 0);
@@ -1703,41 +1705,48 @@ my_long_options[] =
   { "loglevel", 1002, "Logging level in this program (default 0)",
     (gptr*)&g_opts.loglevel, (gptr*)&g_opts.loglevel, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "loop", 1003, "Number of test loops (default 2, 0=forever)",
+  { "loop", 1003, "Number of test loops (default 3, 0=forever)",
     (gptr*)&g_opts.loop, (gptr*)&g_opts.loop, 0,
-    GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
+    GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "maxops", 1004, "Approx number of PK operations (default 1000)",
     (gptr*)&g_opts.maxops, (gptr*)&g_opts.maxops, 0,
     GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
   { "maxpk", 1005, "Number of different PK values (default 10)",
     (gptr*)&g_opts.maxpk, (gptr*)&g_opts.maxpk, 0,
-    GET_UINT, REQUIRED_ARG, 10, 1, g_maxpk, 0, 0, 0 },
+    GET_UINT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
   { "no-blobs", 1006, "Omit blob attributes (5.0: true)",
     (gptr*)&g_opts.no_blobs, (gptr*)&g_opts.no_blobs, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-implicit-nulls", 1007, "Insert must include NULL values explicitly",
+  { "no-implicit-nulls", 1007, "Insert must include all attrs"
+                               " i.e. no implicit NULLs",
     (gptr*)&g_opts.no_implicit_nulls, (gptr*)&g_opts.no_implicit_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-multiops", 1008, "Allow only 1 operation per commit",
+  { "no-missing-update", 1008, "Update must include all non-PK attrs",
+    (gptr*)&g_opts.no_missing_update, (gptr*)&g_opts.no_missing_update, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-multiops", 1009, "Allow only 1 operation per commit",
     (gptr*)&g_opts.no_multiops, (gptr*)&g_opts.no_multiops, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-nulls", 1009, "Create no NULL values",
+  { "no-nulls", 1010, "Create no NULL values",
     (gptr*)&g_opts.no_nulls, (gptr*)&g_opts.no_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "one-blob", 1010, "Only one blob attribute (defautt 2)",
+  { "one-blob", 1011, "Only one blob attribute (default 2)",
     (gptr*)&g_opts.one_blob, (gptr*)&g_opts.one_blob, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "opstring", 1011, "Operations to run e.g. idiucdc (c is commit) or"
+  { "opstring", 1012, "Operations to run e.g. idiucdc (c is commit) or"
                       " iuuc:uudc (the : separates loops)",
     (gptr*)&g_opts.opstring, (gptr*)&g_opts.opstring, 0,
     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "seed", 1012, "Random seed (0=loop number, default -1=random)",
+  { "seed", 1013, "Random seed (0=loop number, default -1=random)",
     (gptr*)&g_opts.seed, (gptr*)&g_opts.seed, 0,
     GET_INT, REQUIRED_ARG, -1, 0, 0, 0, 0, 0 },
-  { "separate-events", 1013, "Do not combine events per GCI (5.0: true)",
+  { "separate-events", 1014, "Do not combine events per GCI (5.0: true)",
     (gptr*)&g_opts.separate_events, (gptr*)&g_opts.separate_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "use-table", 1014, "Use existing table 'tem1'",
+  { "tweak", 1015, "Whatever the source says",
+    (gptr*)&g_opts.tweak, (gptr*)&g_opts.tweak, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "use-table", 1016, "Use existing table 'tem1'",
     (gptr*)&g_opts.use_table, (gptr*)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
@@ -1754,9 +1763,10 @@ usage()
 static int
 checkopts()
 {
-#ifdef version50
-  g_opts.separate_events = true;
-#endif
+  if (g_opts.maxpk > g_maxpk) {
+    ll0("setting maxpk to " << g_maxpk);
+    g_opts.maxpk = g_maxpk;
+  }
   if (g_opts.separate_events) {
     g_opts.no_blobs = true;
   }
