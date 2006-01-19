@@ -277,7 +277,6 @@ public:
   NdbDictionary::Event::EventDurability  getDurability() const;
   void setReport(NdbDictionary::Event::EventReport r);
   NdbDictionary::Event::EventReport  getReport() const;
-  void addEventColumn(const NdbColumnImpl &c);
   int getNoOfEventColumns() const;
 
   void print() {
@@ -295,6 +294,7 @@ public:
   Uint32 mi_type;
   NdbDictionary::Event::EventDurability m_dur;
   NdbDictionary::Event::EventReport m_rep;
+  bool m_mergeEvents;
 
   NdbTableImpl *m_tableImpl;
   BaseString m_tableName;
@@ -547,7 +547,10 @@ public:
 			       NdbTableImpl * table);
 
   int createEvent(NdbEventImpl &);
+  int createBlobEvents(NdbEventImpl &);
   int dropEvent(const char * eventName);
+  int dropEvent(const NdbEventImpl &);
+  int dropBlobEvents(const NdbEventImpl &);
 
   int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
