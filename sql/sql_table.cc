@@ -2928,7 +2928,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /* Close all instances of the table to allow repair to rename files */
-    if (lock_type == TL_WRITE && table->table->s->version)
+    if (lock_type == TL_WRITE && table->table->s->version &&
+        !table->table->s->log_table)
     {
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
@@ -3098,9 +3099,10 @@ send_result_message:
     }
     if (table->table)
     {
+      /* in the below check we do not refresh the log tables */
       if (fatal_error)
         table->table->s->version=0;               // Force close of table
-      else if (open_for_modify)
+      else if (open_for_modify && !table->table->s->log_table)
       {
         pthread_mutex_lock(&LOCK_open);
         remove_table_from_cache(thd, table->table->s->db.str,
