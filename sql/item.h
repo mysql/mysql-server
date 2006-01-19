@@ -381,13 +381,20 @@ public:
     put values of field_i into table record buffer;
     return item->val_int(); 
   }
+
+  NOTE
+  At the moment function monotonicity is not well defined (and so may be
+  incorrect) for Item trees with parameters/return types that are different
+  from INT_RESULT, may be NULL, or are unsigned.
+  It will be possible to address this issue once the related partitioning bugs
+  (BUG#16002, BUG#15447, BUG#13436) are fixed.
 */
 
 typedef enum monotonicity_info 
 {
    NON_MONOTONIC,              /* none of the below holds */
-   MONOTONIC_INCREASING,       /* F() is unary and "x < y" => "F(x) <  F(y)" */
-   MONOTONIC_STRICT_INCREASING /* F() is unary and "x < y" => "F(x) <= F(y)" */
+   MONOTONIC_INCREASING,       /* F() is unary and (x < y) => (F(x) <= F(y)) */
+   MONOTONIC_STRICT_INCREASING /* F() is unary and (x < y) => (F(x) <  F(y)) */
 } enum_monotonicity_info;
 
 /*************************************************************************/
