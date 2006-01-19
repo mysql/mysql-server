@@ -27,3 +27,5 @@ rpl_sp          : Bug #16456
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
 ndb_restore     : Needs fixing
+system_mysql_db : Needs fixing
+system_mysql_db_fix : Needs fixing
