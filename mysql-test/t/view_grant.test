@@ -706,3 +706,12 @@ drop database mysqltest;
 disconnect user1;
 disconnect root;
 connection default;
+
+#
+# DEFINER information check
+#
+-- error ER_MALFORMED_DEFINER
+create definer=some_user@`` sql security invoker view v1 as select 1;
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+show create view v1;
+drop view v1;
