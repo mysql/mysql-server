@@ -21,6 +21,7 @@
 #include <signaldata/SumaImpl.hpp>
 #include <transporter/TransporterDefinitions.hpp>
 #include <NdbRecAttr.hpp>
+#include <AttributeHeader.hpp>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 
@@ -35,9 +36,28 @@ struct EventBufData
   LinearSectionPtr ptr[3];
   unsigned sz;
   NdbEventOperationImpl *m_event_op;
-  EventBufData *m_next; // Next wrt to global order
+
+  /*
+   * Blobs are stored in blob list (m_next_blob) where each entry
+   * is list of parts (m_next) in part number order.
+   *
+   * TODO order by part no and link for fast read and free_list
+   */
+
+  EventBufData *m_next; // Next wrt to global order or Next blob part
+  EventBufData *m_next_blob; // First part in next blob
+
   EventBufData *m_next_hash; // Next in per-GCI hash
   Uint32 m_pkhash; // PK hash (without op) for fast compare
+
+  // Get blob part number from blob data
+  Uint32 get_blob_part_no() {
+    assert(ptr[0].sz > 2);
+    Uint32 pos = AttributeHeader(ptr[0].p[0]).getDataSize() +
+                AttributeHeader(ptr[0].p[1]).getDataSize();
+    Uint32 no = ptr[1].p[pos];
+    return no;
+  }
 };
 
 class EventBufData_list
@@ -69,7 +89,6 @@ inline
 EventBufData_list::~EventBufData_list()
 {
 }
-
 
 inline
 int EventBufData_list::is_empty()
@@ -173,9 +192,13 @@ public:
   NdbEventOperation::State getState();
 
   int execute();
+  int execute_nolock();
   int stop();
   NdbRecAttr *getValue(const char *colName, char *aValue, int n);
   NdbRecAttr *getValue(const NdbColumnImpl *, char *aValue, int n);
+  NdbBlob *getBlobHandle(const char *colName, int n);
+  NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
+  int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
   int receive_event();
   Uint64 getGCI();
   Uint64 getLatestGCI();
@@ -198,6 +221,13 @@ public:
   NdbRecAttr *theCurrentPkAttrs[2];
   NdbRecAttr *theFirstDataAttrs[2];
   NdbRecAttr *theCurrentDataAttrs[2];
+
+  NdbBlob* theBlobList;
+  union {
+  NdbEventOperationImpl* theBlobOpList;
+  NdbEventOperationImpl* theNextBlobOp;
+  };
+  NdbEventOperationImpl* theMainOp; // blob op pointer to main op
 
   NdbEventOperation::State m_state; /* note connection to mi_type */
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
@@ -275,6 +305,11 @@ public:
   int merge_data(const SubTableData * const sdata,
                  LinearSectionPtr ptr[3],
                  EventBufData* data);
+  int get_main_data(Gci_container* bucket,
+                    EventBufData_hash::Pos& hpos,
+                    EventBufData* blob_data);
+  void add_blob_data(EventBufData* main_data,
+                     EventBufData* blob_data);
 
   void free_list(EventBufData_list &list);
 
