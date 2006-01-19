@@ -89,7 +89,7 @@ while test $# -gt 0; do
     --small)
      ndb_no_ord=32
      ndb_con_op=5000
-     ndb_dmem=10M
+     ndb_dmem=20M
      ndb_imem=1M
      ndb_pbmem=4M
      ;;
