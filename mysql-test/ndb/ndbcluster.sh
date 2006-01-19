@@ -135,7 +135,7 @@ if [ ! -x "$exec_waiter" ]; then
 fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults $NDB_MGM_EXTRA_OPTS"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $NDB_MGMD_EXTRA_OPTS"
+exec_mgmtsrvr="$exec_mgmtsrvr $NDB_MGMD_EXTRA_OPTS"
 exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS"
 exec_waiter="$exec_waiter --no-defaults"
 
