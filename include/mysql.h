@@ -130,14 +130,14 @@ typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 
 #include "my_alloc.h"
 
+typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   my_ulonglong rows;
   unsigned int fields;
   MYSQL_ROWS *data;
   MEM_ROOT alloc;
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
-  MYSQL_ROWS **prev_ptr;
-#endif
+  /* extra info for embedded library */
+  struct embedded_query_result *embedded_info;
 } MYSQL_DATA;
 
 enum mysql_option 
@@ -287,6 +287,8 @@ typedef struct st_mysql
     from mysql_stmt_close if close had to cancel result set of this object.
   */
   my_bool *unbuffered_fetch_owner;
+  /* needed for embedded server - no net buffer to store the 'info' */
+  char *info_buffer;
 } MYSQL;
 
 typedef struct st_mysql_res {
@@ -755,6 +757,7 @@ typedef struct st_mysql_methods
   const char *(*read_statistics)(MYSQL *mysql);
   my_bool (*next_result)(MYSQL *mysql);
   int (*read_change_user_result)(MYSQL *mysql, char *buff, const char *passwd);
+  int (*read_rows_from_cursor)(MYSQL_STMT *stmt);
 #endif
 } MYSQL_METHODS;
 

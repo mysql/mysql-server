@@ -801,13 +801,16 @@ public:
 
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
-  struct st_mysql_data *data;
   unsigned long	 client_stmt_id;
   unsigned long  client_param_count;
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
-  String query_rest;
+  struct st_mysql_data *cur_data;
+  struct st_mysql_data *first_data;
+  struct st_mysql_data **data_tail;
+  void clear_data_list();
+  struct st_mysql_data *alloc_new_dataset();
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -1443,6 +1446,11 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+#ifdef EMBEDDED_LIBRARY
+  virtual void begin_dataset() {}
+#else
+  void begin_dataset() {}
+#endif
 };
 
 
