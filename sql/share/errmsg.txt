@@ -5794,3 +5794,7 @@ ER_EVENT_DATA_TOO_LONG
 ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.64s': needed in a foreign key constraint"
         ger "Kann Index '%-.64s' nicht löschen: wird für einen einen Fremdschlüssel benötigt"
+ER_CANT_WRITE_LOCK_LOG_TABLE
+        eng "You can't write-lock a log table. Only read access is possible."
+ER_CANT_READ_LOCK_LOG_TABLE
+        eng "You can't use usual read lock with log tables. Try READ LOCAL instead."
