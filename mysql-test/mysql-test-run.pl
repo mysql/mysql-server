@@ -909,6 +909,7 @@ sub command_line_setup () {
    path_datadir => "$opt_vardir/im_mysqld_1.data",
    path_sock    => "$sockdir/mysqld_1.sock",
    path_pid     => "$opt_vardir/run/mysqld_1.pid",
+   old_log_format => 1
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -919,6 +920,7 @@ sub command_line_setup () {
    path_sock    => "$sockdir/mysqld_2.sock",
    path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
+   old_log_format => 1
   };
 
   if ( $opt_extern )
@@ -1825,6 +1827,7 @@ EOF
 ;
 
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
+    print OUT "old-log-format\n" if $instance->{'old_log_format'};
     print OUT "\n";
   }
 

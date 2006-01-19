@@ -1158,8 +1158,8 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
                sctx->priv_user,
                sctx->priv_host,
                dbname);
-      mysql_log.write(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, dbname);
+      general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
+                        sctx->priv_user, sctx->priv_host, dbname);
       my_free(dbname,MYF(0));
       DBUG_RETURN(1);
     }
