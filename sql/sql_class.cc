@@ -763,7 +763,10 @@ int THD::send_explain_fields(select_result *result)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (lex->describe & DESCRIBE_PARTITIONS)
   {
-    field_list.push_back(item= new Item_empty_string("partitions", 10, cs));
+    /* Maximum length of string that make_used_partitions_str() can produce */
+    item= new Item_empty_string("partitions", MAX_PARTITIONS * (1 + FN_LEN),
+                                cs);
+    field_list.push_back(item);
     item->maybe_null= 1;
   }
 #endif
