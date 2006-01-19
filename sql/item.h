@@ -1932,7 +1932,7 @@ public:
   virtual Item *real_item() { return ref; }
 };
 
-
+#ifdef MYSQL_SERVER
 #include "gstream.h"
 #include "spatial.h"
 #include "item_sum.h"
@@ -1945,6 +1945,7 @@ public:
 #include "item_uniq.h"
 #include "item_subselect.h"
 #include "item_xmlfunc.h"
+#endif
 
 class Item_copy_string :public Item
 {
