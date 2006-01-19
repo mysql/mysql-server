@@ -8,6 +8,9 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 --enable_warnings
 
+--exec $NDB_TOOLS_DIR/ndb_show_tables
+--exec $NDB_MGM --no-defaults -e "all dump 1000" >> $NDB_TOOLS_OUTPUT
+
 CREATE TABLE `t1_c` (
   `capgoaledatta` smallint(5) unsigned NOT NULL auto_increment,
   `goaledatta` char(2) NOT NULL default '',
@@ -348,8 +351,7 @@ select count(*)
         select * from t9_c) a;
 
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
---error 134
---exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 1 -m -r --ndb-nodegroup_map '(0,1)' --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 1 -m -r --ndb-nodegroup_map '(0,1)' $NDB_BACKUP_DIR/BACKUP/BACKUP-2 2>&1 | grep Translate || true
 
 #
 # Cleanup
