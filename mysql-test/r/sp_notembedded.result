@@ -1,0 +1,35 @@
+drop procedure if exists bug4902|
+create procedure bug4902()
+begin
+show grants for 'root'@'localhost';
+end|
+call bug4902()|
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+call bug4902()|
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+drop procedure bug4902|
+drop procedure if exists bug4902_2|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+drop procedure bug4902_2|
+drop function if exists bug5278|
+create function bug5278 () returns char
+begin
+SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
+return 'okay';
+end|
+select bug5278()|
+ERROR 42000: Can't find any matching row in the user table
+select bug5278()|
+ERROR 42000: Can't find any matching row in the user table
+drop function bug5278|
