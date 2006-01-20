@@ -477,6 +477,11 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+/* below functions are required for plugins as THD class is opaque */
+my_bool thd_in_lock_tables(const THD *thd);
+my_bool thd_tablespace_op(const THD *thd);
+const char *thd_proc_info(THD *thd, const char *info);
+
 /*
   External variables
 */
@@ -507,7 +512,9 @@ enum enum_var_type
 class sys_var;
 #include "item.h"
 extern my_decimal decimal_zero;
+#ifdef MYSQL_SERVER
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
+#endif
 /* sql_parse.cc */
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -545,6 +552,7 @@ Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
 #include "sql_acl.h"
 #include "tztime.h"
+#ifdef MYSQL_SERVER
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
@@ -841,6 +849,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
 
+#endif /* MYSQL_SERVER */
+
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
@@ -858,6 +868,7 @@ extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
 #endif /* HAVE_OPENSSL */
 
+#ifdef MYSQL_SERVER
 /* sql_do.cc */
 bool mysql_do(THD *thd, List<Item> &values);
 
@@ -1169,6 +1180,7 @@ int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 int key_rec_cmp(void *key_info, byte *a, byte *b);
 
 bool init_errmessage(void);
+#endif /* MYSQL_SERVER */
 void sql_perror(const char *message);
 
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
@@ -1191,6 +1203,7 @@ bool general_log_print(THD *thd, enum enum_server_command command,
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
+#ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 
@@ -1739,4 +1752,5 @@ inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
 
+#endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

@@ -315,6 +315,7 @@ static const char *sql_mode_str= "OFF";
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
+static char *character_set_filesystem_name;
 static char *my_bind_addr_str;
 static char *default_collation_name;
 static char mysql_data_home_buff[2];
@@ -565,6 +566,7 @@ MY_BITMAP temp_pool;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
+CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_row_based_replication;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
@@ -2806,6 +2808,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
+  if (!(character_set_filesystem= 
+        get_charset_by_csname(character_set_filesystem_name,
+                              MY_CS_PRIMARY, MYF(MY_WME))))
+    return 1;
+  global_system_variables.character_set_filesystem= character_set_filesystem;
+
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -4792,6 +4800,7 @@ enum options_mysqld
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
+  OPT_CHARACTER_SET_FILESYSTEM,
   OPT_INIT_CONNECT,
   OPT_INIT_SLAVE,
   OPT_SECURE_AUTH,
@@ -4945,6 +4954,11 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &opt_character_set_client_handshake,
    (gptr*) &opt_character_set_client_handshake,
     0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"character-set-filesystem", OPT_CHARACTER_SET_FILESYSTEM,
+   "Set the filesystem character set.",
+   (gptr*) &character_set_filesystem_name,
+   (gptr*) &character_set_filesystem_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"character-set-server", 'C', "Set the default character set.",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -6969,6 +6983,7 @@ static void mysql_init_variables(void)
   files_charset_info= &my_charset_utf8_general_ci;
   national_charset_info= &my_charset_utf8_general_ci;
   table_alias_charset= &my_charset_bin;
+  character_set_filesystem= &my_charset_bin;
 
   opt_date_time_formats[0]= opt_date_time_formats[1]= opt_date_time_formats[2]= 0;
 
@@ -7022,6 +7037,7 @@ static void mysql_init_variables(void)
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
   default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
   sys_charset_system.value= (char*) system_charset_info->csname;
+  character_set_filesystem_name= (char*) "binary";
 
 
   /* Set default values for some option variables */

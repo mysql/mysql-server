@@ -193,6 +193,7 @@ sys_var_character_set_database	sys_character_set_database("character_set_databas
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
+sys_var_character_set_filesystem  sys_character_set_filesystem("character_set_filesystem");
 sys_var_thd_ulong	sys_completion_type("completion_type",
 					 &SV::completion_type,
 					 check_completion_type,
@@ -706,6 +707,7 @@ SHOW_VAR init_vars[]= {
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
+  {sys_character_set_filesystem.name,(char*) &sys_character_set_filesystem, SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_character_set_server.name, (char*) &sys_character_set_server,SHOW_SYS},
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
@@ -2016,6 +2018,32 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
  {
    thd->variables.character_set_client= (global_system_variables.
 					 character_set_client);
+   thd->update_charset();
+ }
+}
+
+
+CHARSET_INFO **
+sys_var_character_set_filesystem::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_filesystem;
+  else
+    return &thd->variables.character_set_filesystem;
+}
+
+
+extern CHARSET_INFO *character_set_filesystem;
+
+void
+sys_var_character_set_filesystem::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_filesystem= character_set_filesystem;
+ else
+ {
+   thd->variables.character_set_filesystem= (global_system_variables.
+					     character_set_filesystem);
    thd->update_charset();
  }
 }
