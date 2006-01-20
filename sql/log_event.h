@@ -419,9 +419,7 @@ struct sql_ex_info
 #define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
 OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
 
-/* Visual studio 2003 does not accept the constant expression
-   ((1L << 14) | (1L << 26) | (1L << 27)), use 0x0c0040 instead. */
-#if OPTIONS_WRITTEN_TO_BIN_LOG != 0x0c004000
+#if OPTIONS_WRITTEN_TO_BIN_LOG != ((1L << 14) | (1L << 26) | (1L << 27))
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
 
