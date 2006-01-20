@@ -105,21 +105,27 @@ sp_get_item_value(Item *item, String *str)
 
   case STRING_RESULT:
     {
-      char buf_holder[STRING_BUFFER_USUAL_SIZE];
-      String buf(buf_holder, sizeof(buf_holder), &my_charset_latin1);
       String *result= item->val_str(str);
       
       if (!result)
         return NULL;
       
-      buf.append('_');
-      buf.append(result->charset()->csname);
-      buf.append('\'');
-      buf.append(*result);
-      buf.append('\'');
-      str->copy(buf);
+      {
+        char buf_holder[STRING_BUFFER_USUAL_SIZE];
+        String buf(buf_holder, sizeof(buf_holder), result->charset());
 
-      return str;
+        /* We must reset length of the buffer, because of String specificity. */
+        buf.length(0);
+
+        buf.append('_');
+        buf.append(result->charset()->csname);
+        buf.append('\'');
+        buf.append(*result);
+        buf.append('\'');
+        str->copy(buf);
+
+        return str;
+      }
     }
 
   case ROW_RESULT:
@@ -3085,9 +3091,16 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_set_case_expr::print(String *str)
 {
-  str->append(STRING_WITH_LEN("set_case_expr "));
+  const char CASE_EXPR_TAG[]= "set_case_expr ";
+  const int CASE_EXPR_TAG_LEN= sizeof(CASE_EXPR_TAG) - 1;
+  const int INT_STRING_MAX_LEN= 10;
+
+  /* We must call reserve(), because qs_append() doesn't care about memory. */
+  str->reserve(CASE_EXPR_TAG_LEN + INT_STRING_MAX_LEN + 2);
+
+  str->qs_append(CASE_EXPR_TAG, CASE_EXPR_TAG_LEN);
   str->qs_append(m_case_expr_id);
-  str->append(' ');
+  str->qs_append(' ');
   m_case_expr->print(str);
 }
 
