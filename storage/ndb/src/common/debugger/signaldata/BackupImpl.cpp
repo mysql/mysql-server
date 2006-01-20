@@ -48,16 +48,8 @@ printDEFINE_BACKUP_CONF(FILE * out, const Uint32 * data, Uint32 l, Uint16 bno){
 bool 
 printSTART_BACKUP_REQ(FILE * out, const Uint32 * data, Uint32 l, Uint16 bno){
   StartBackupReq* sig = (StartBackupReq*)data;
-  fprintf(out, " backupPtr: %d backupId: %d signalNo: %d of %d\n",
-	  sig->backupPtr, sig->backupId,
-	  sig->signalNo + 1, sig->noOfSignals);
-  for(Uint32 i = 0; i<sig->noOfTableTriggers; i++)
-    fprintf(out, 
-	    "   Table: %d Triggers = [ insert: %d update: %d delete: %d ]\n",
-	    sig->tableTriggers[i].tableId,
-	    sig->tableTriggers[i].triggerIds[TriggerEvent::TE_INSERT],
-	    sig->tableTriggers[i].triggerIds[TriggerEvent::TE_UPDATE],
-	    sig->tableTriggers[i].triggerIds[TriggerEvent::TE_DELETE]);
+  fprintf(out, " backupPtr: %d backupId: %d\n",
+	  sig->backupPtr, sig->backupId);
   return true;
 }
 
