@@ -517,6 +517,7 @@ sub command_line_setup () {
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
     $opt_slave_myport=    $opt_master_myport + 16;
     $opt_ndbcluster_port= $opt_master_myport + 24;
+    $opt_ndbcluster_port_slave= $opt_master_myport + 32;
     $im_port=             $opt_master_myport + 10;
     $im_mysqld1_port=     $opt_master_myport + 12;
     $im_mysqld2_port=     $opt_master_myport + 14;
