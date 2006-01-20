@@ -1360,9 +1360,9 @@ create:
               lex->et->init_name(YYTHD, $4);
           }
           ON SCHEDULE_SYM ev_schedule_time
-          ev_on_completion
-          ev_status
-          ev_comment
+          opt_ev_on_completion
+          opt_ev_status
+          opt_ev_comment
           DO_SYM ev_sql_stmt
           {
             /*
@@ -1444,7 +1444,7 @@ ev_schedule_time: EVERY_SYM expr interval
           }
       ;
     
-ev_status: /* empty */ {$<ulong_num>$= 0;}
+opt_ev_status: /* empty */ {$<ulong_num>$= 0;}
         | ENABLED_SYM
           {
             LEX *lex=Lex;
@@ -1491,8 +1491,12 @@ ev_ends: /* empty */
           }
       ;
 
-ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
-        | ON COMPLETION_SYM PRESERVE_SYM
+opt_ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
+        | ev_on_completion
+      ;
+
+ev_on_completion: 
+          ON COMPLETION_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
@@ -1508,7 +1512,7 @@ ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
           }
       ;
 
-ev_comment: /* empty */ {$<ulong_num>$= 0;}
+opt_ev_comment: /* empty */ {$<ulong_num>$= 0;}
         | COMMENT_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
@@ -4711,12 +4715,11 @@ alter:
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    
           }
-          ev_on_schedule
-          ev_rename_to
-          ev_on_completion
-          ev_status
-          ev_comment
-          ev_opt_sql_stmt
+          ev_alter_on_schedule_completion
+          opt_ev_rename_to
+          opt_ev_status
+          opt_ev_comment
+          opt_ev_sql_stmt
           {
             /*
               $1 - ALTER
@@ -4731,7 +4734,7 @@ alter:
               can overwrite it
             */
             if (!($<ulong_num>5 || $<ulong_num>6 || $<ulong_num>7 ||
-                  $<ulong_num>8 || $<ulong_num>9 || $<ulong_num>10))
+                  $<ulong_num>8 || $<ulong_num>9))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
@@ -4760,15 +4763,13 @@ alter:
           }
 	;
 
+ev_alter_on_schedule_completion: /* empty */ { $<ulong_num>$= 0;}
+        | ON SCHEDULE_SYM ev_schedule_time { $<ulong_num>$= 1; }
+        | ev_on_completion { $<ulong_num>$= 1; }
+        | ON SCHEDULE_SYM ev_schedule_time ev_on_completion { $<ulong_num>$= 1; }
+      ;
 
-ev_on_schedule: /* empty */ { $<ulong_num>$= 0;}
-        | ON SCHEDULE_SYM ev_schedule_time
-          {
-            $<ulong_num>$= 1;
-          }
-        ;
-
-ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
+opt_ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
         | RENAME TO_SYM sp_name
           {
             LEX *lex=Lex;
@@ -4778,7 +4779,7 @@ ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
           }
       ;
  
-ev_opt_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
+opt_ev_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
         | DO_SYM ev_sql_stmt
           {
             $<ulong_num>$= 1;
