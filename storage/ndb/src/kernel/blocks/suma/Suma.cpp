@@ -44,6 +44,7 @@
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihFragCount.hpp>
+#include <signaldata/SystemError.hpp>
 
 #include <ndbapi/NdbDictionary.hpp>
 
@@ -690,7 +691,7 @@ Suma::execNODE_FAILREP(Signal* signal){
   
   if(failed.get(Restart.nodeId))
   {
-    Restart.nodeId = 0;
+    Restart.resetRestart(signal);
   }
 
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
@@ -3758,7 +3759,33 @@ Suma::execSUB_CREATE_REF(Signal* signal) {
   jamEntry();
   DBUG_ENTER("Suma::execSUB_CREATE_REF");
   ndbassert(signal->getNoOfSections() == 0);
-  ndbrequire(false);
+  SubCreateRef *const ref= (SubCreateRef *)signal->getDataPtr();
+  Uint32 error= ref->errorCode;
+  if (error != 1415)
+  {
+    /*
+     * This will happen if an api node connects during while other node
+     * is restarting, and in this case the subscription will already
+     * have been created.
+     * ToDo: more complete handling of api nodes joining during
+     * node restart
+     */
+    Uint32 senderRef = signal->getSendersBlockRef();
+    BlockReference cntrRef = calcNdbCntrBlockRef(refToNode(senderRef));
+    // for some reason we did not manage to create a subscription
+    // on the starting node
+    SystemError * const sysErr = (SystemError*)&signal->theData[0];
+    sysErr->errorCode = SystemError::CopySubscriptionRef;
+    sysErr->errorRef = reference();
+    sysErr->data1 = error;
+    sysErr->data2 = 0;
+    sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
+               SystemError::SignalLength, JBB);
+    Restart.resetRestart(signal);
+    DBUG_VOID_RETURN;
+  }
+  // SubCreateConf has same signaldata as SubCreateRef
+  Restart.runSUB_CREATE_CONF(signal);
   DBUG_VOID_RETURN;
 }
 
@@ -3787,7 +3814,22 @@ Suma::execSUB_START_REF(Signal* signal) {
   jamEntry();
   DBUG_ENTER("Suma::execSUB_START_REF");
   ndbassert(signal->getNoOfSections() == 0);
-  ndbrequire(false);
+  SubStartRef *const ref= (SubStartRef *)signal->getDataPtr();
+  Uint32 error= ref->errorCode;
+  {
+    Uint32 senderRef = signal->getSendersBlockRef();
+    BlockReference cntrRef = calcNdbCntrBlockRef(refToNode(senderRef));
+    // for some reason we did not manage to start a subscriber
+    // on the starting node
+    SystemError * const sysErr = (SystemError*)&signal->theData[0];
+    sysErr->errorCode = SystemError::CopySubscriberRef;
+    sysErr->errorRef = reference();
+    sysErr->data1 = error;
+    sysErr->data2 = 0;
+    sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
+               SystemError::SignalLength, JBB);
+    Restart.resetRestart(signal);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -4082,6 +4124,15 @@ Suma::Restart::completeRestartingNode(Signal* signal, Uint32 sumaRef)
   //SumaStartMeConf *conf= (SumaStartMeConf*)signal->getDataPtrSend();
   suma.sendSignal(sumaRef, GSN_SUMA_START_ME_CONF, signal,
 		  SumaStartMeConf::SignalLength, JBB);
+  resetRestart(signal);
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::Restart::resetRestart(Signal* signal)
+{
+  jam();
+  DBUG_ENTER("Suma::Restart::resetRestart");
   nodeId = 0;
   DBUG_VOID_RETURN;
 }

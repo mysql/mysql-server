@@ -489,6 +489,7 @@ public:
     void completeSubscriber(Signal* signal, Uint32 sumaRef);
 
     void completeRestartingNode(Signal* signal, Uint32 sumaRef);
+    void resetRestart(Signal* signal);
   } Restart;
 
 private:
