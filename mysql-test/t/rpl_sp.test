@@ -401,6 +401,42 @@ sync_slave_with_master;
 connection slave;
 select * from t1;
 
+#
+# Bug#16621 "INSERTs in Stored Procedures causes data corruption in the Binary
+# Log for 5.0.18"
+#
+
+# Prepare environment.
+
+connection master;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Test case.
+
+CREATE TABLE t1(col VARCHAR(10));
+
+CREATE PROCEDURE p1(arg VARCHAR(10))
+  INSERT INTO t1 VALUES(arg);
+
+CALL p1('test');
+
+SELECT * FROM t1;
+
+sync_slave_with_master;
+connection slave;
+
+SELECT * FROM t1;
+
+# Cleanup.
+
+connection master;
+
+DROP PROCEDURE p1;
+
 # cleanup
 connection master;
 drop table t1;
