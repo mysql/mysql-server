@@ -237,8 +237,9 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
     DBUG_RETURN(EVEX_GET_FIELD_FAILED);
   }
   
-  DBUG_PRINT("info", ("dbname.len=%d",et->dbname.length));  
-  DBUG_PRINT("info", ("name.len=%d",et->name.length));  
+  DBUG_PRINT("info", ("dbname.len=[%s]",et->dbname.str));  
+  DBUG_PRINT("info", ("name.len=[%s]",et->name.str));  
+  DBUG_PRINT("info", ("body=[%s]",et->body.str));  
 
   if (table->field[field_num= EVEX_FIELD_DB]->
                   store(et->dbname.str, et->dbname.length, system_charset_info))
@@ -674,7 +675,8 @@ done:
 
 
 static int
-evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
+evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
+                       bool is_drop)
 {
   uint i;
 
@@ -697,14 +699,18 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock)
     {
       if (!et->is_running())
       {
+        DBUG_PRINT("evex_remove_from_cache", ("not running - free and delete"));
         et->free_sp();
         delete et;
       }
       else
       {
+        DBUG_PRINT("evex_remove_from_cache",
+               ("running.defer mem free. is_drop=%d", is_drop));
         et->flags|= EVENT_EXEC_NO_MORE;
-        et->dropped= true;
+        et->dropped= is_drop;
       }
+      DBUG_PRINT("evex_remove_from_cache", ("delete from queue"));
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
       goto done;
@@ -805,7 +811,7 @@ evex_update_event(THD *thd, event_timed *et, sp_name *new_name,
     UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_evex_running, done);
 
   VOID(pthread_mutex_lock(&LOCK_event_arrays));
-  evex_remove_from_cache(&et->dbname, &et->name, false);
+  evex_remove_from_cache(&et->dbname, &et->name, false, false);
   if (et->status == MYSQL_EVENT_ENABLED)
   {
     if (new_name)
@@ -874,7 +880,7 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 
   VOID(pthread_mutex_lock(&LOCK_evex_running));
   if (evex_is_running)
-    ret= evex_remove_from_cache(&et->dbname, &et->name, true);
+    ret= evex_remove_from_cache(&et->dbname, &et->name, true, true);
   VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
 done:
