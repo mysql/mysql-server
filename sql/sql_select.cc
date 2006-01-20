@@ -9046,7 +9046,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
 
     ++field;
   }
-  *field= NULL;                                 /* mark the end of the list */
+  *field= NULL;                             /* mark the end of the list */
   s->blob_field[blob_count]= 0;             /* mark the end of the list */
   s->blob_fields= blob_count;
 
