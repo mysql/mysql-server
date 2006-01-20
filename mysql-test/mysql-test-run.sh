@@ -298,6 +298,7 @@ TEST_MODE=""
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+MASTER_MYSQLDBINLOG=1
 SLAVE_MYSQLDBINLOG=1
 
 DO_STRESS=""
@@ -548,6 +549,7 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-ndbcluster"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-ndbcluster"
       ;;
+    --skip-master-binlog) MASTER_MYSQLDBINLOG=0 ;;
     --skip-slave-binlog) SLAVE_MYSQLDBINLOG=0 ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
@@ -1356,9 +1358,13 @@ start_master()
   then
       CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
   fi
+  if [ x$MASTER_MYSQLDBINLOG = x1 ]
+  then
+    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1"
+  fi
   if [ -z "$DO_BENCH" -a -z "$DO_STRESS"  ]
   then
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+    master_args="--no-defaults \
   	    --server-id=$id  \
           --basedir=$MY_BASEDIR \
           --port=$this_master_myport \
@@ -1384,7 +1390,7 @@ start_master()
            $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+    master_args="--no-defaults \
           --server-id=$id --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
           --port=$this_master_myport \
