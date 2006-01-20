@@ -114,3 +114,27 @@ select * from t1;
 drop table t1, t2;
 
 # End of 5.0 tests
+
+
+#
+# Bug#12448 LOAD DATA / SELECT INTO OUTFILE
+# doesn't work with multibyte path name
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1);
+SET NAMES latin1;
+SET character_set_filesystem=filename;
+select @@character_set_filesystem;
+SELECT * INTO OUTFILE 't-1' FROM t1;
+DELETE FROM t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1;
+SET character_set_filesystem=latin1;
+select @@character_set_filesystem;
+LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+--exec rm $MYSQL_TEST_DIR/var/master-data/test/t@002d1
+SET character_set_filesystem=default;
+select @@character_set_filesystem;
