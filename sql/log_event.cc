@@ -6172,7 +6172,7 @@ char const *Write_rows_log_event::do_prepare_row(THD *thd, TABLE *table,
   */
   DBUG_ASSERT(table->s->fields >= m_width);
   DBUG_ASSERT(ptr);
-  ptr= unpack_row(table, (char*)table->record[0], ptr, &m_cols);
+  ptr= unpack_row(table, (byte*)table->record[0], ptr, &m_cols);
   return ptr;
 }
 
