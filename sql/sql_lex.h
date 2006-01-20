@@ -29,6 +29,7 @@ class st_alter_tablespace;
 class partition_info;
 class event_timed;
 
+#ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
   YYSTYPE before including this file
@@ -42,6 +43,7 @@ class event_timed;
 #include "lex_symbol.h"
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
+#endif
 #endif
 
 /*
@@ -114,6 +116,8 @@ enum enum_sql_command {
   additional "partitions" column even if partitioning is not compiled in.
 */
 #define DESCRIBE_PARTITIONS	4
+
+#ifdef MYSQL_SERVER
 
 enum enum_sp_suid_behaviour
 {
@@ -1109,3 +1113,5 @@ extern int yylex(void *arg, void *yythd);
 extern pthread_key(LEX*,THR_LEX);
 
 #define current_lex (current_thd->lex)
+
+#endif

@@ -171,6 +171,7 @@ public:
 
 class delayed_insert;
 class select_result;
+class Time_zone;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
@@ -344,6 +345,8 @@ typedef struct system_status_var
 #define last_system_status_var com_stmt_close
 
 
+#ifdef MYSQL_SERVER
+
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
@@ -353,7 +356,6 @@ void free_tmp_table(THD *thd, TABLE *entry);
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
-
 
 class Query_arena
 {
@@ -1905,3 +1907,5 @@ public:
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
+
+#endif /* MYSQL_SERVER */
