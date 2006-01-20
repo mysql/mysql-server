@@ -98,9 +98,6 @@ TODO:
 #define srandom  srand
 #define random   rand
 #define snprintf _snprintf
-#define USE_THREADS_DEFAULT TRUE
-#else
-#define USE_THREADS_DEFAULT FALSE
 #endif
 
 #ifdef HAVE_SMEM 
@@ -248,7 +245,10 @@ int main(int argc, char **argv)
   unsigned long long client_limit;
   statement *eptr;
 
-  //DBUG_ENTER("main");
+#ifdef __WIN__
+  opt_use_threads= 1;
+#endif
+
   MY_INIT(argv[0]);
 
   /* Seed the random number generator if we will be using it. */
@@ -478,7 +478,7 @@ static struct my_option my_long_options[] =
   {"use-threads", OPT_USE_THREADS,
     "Use pthread calls instead of fork() calls (default on Windows)",
       (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
-      GET_NO_ARG, NO_ARG, USE_THREADS_DEFAULT, 0, 0, 0, 0, 0},
+      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
