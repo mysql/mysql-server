@@ -549,6 +549,15 @@ public:
   virtual CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type)= 0;
 };
 
+class sys_var_character_set_filesystem :public sys_var_character_set
+{
+public:
+  sys_var_character_set_filesystem(const char *name_arg) :
+    sys_var_character_set(name_arg) {}
+  void set_default(THD *thd, enum_var_type type);
+  CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
+};
+
 class sys_var_character_set_client :public sys_var_character_set
 {
 public:

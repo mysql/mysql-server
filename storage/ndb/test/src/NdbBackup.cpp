@@ -199,7 +199,6 @@ int
 NFDuringBackupM_codes[] = {
   10003,
   10004,
-  10005,
   10007,
   10008,
   10009,
@@ -349,6 +348,7 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
 
 int
 FailS_codes[] = {
+  10025,
   10027,
   10033
 };

@@ -527,6 +527,42 @@ ALTER TABLE proc  MODIFY db
                   MODIFY comment
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
 
+--
+-- Create missing log tables (5.1)
+--
+
+delimiter //
+CREATE PROCEDURE create_log_tables()
+BEGIN
+  DECLARE is_csv_enabled int DEFAULT 0;
+  SELECT @@have_csv = 'YES' INTO is_csv_enabled;
+  IF (is_csv_enabled) THEN
+    CREATE TABLE IF NOT EXISTS general_log (
+      event_time TIMESTAMP NOT NULL,
+      user_host    MEDIUMTEXT,
+      thread_id INTEGER,
+      server_id INTEGER,
+      command_type VARCHAR(64),
+      argument     MEDIUMTEXT
+    ) engine=CSV CHARACTER SET utf8 comment='General log';
+    CREATE TABLE IF NOT EXISTS slow_log (
+      start_time TIMESTAMP NOT NULL,
+      user_host MEDIUMTEXT NOT NULL,
+      query_time   TIME NOT NULL,
+      lock_time    TIME NOT NULL,
+      rows_sent    INTEGER NOT NULL,
+      rows_examined INTEGER NOT NULL,
+      db VARCHAR(512),
+      last_insert_id INTEGER,
+      insert_id INTEGER,
+      server_id INTEGER,
+      sql_text MEDIUMTEXT NOT NULL
+    ) engine=CSV CHARACTER SET utf8 comment='Slow log';
+  END IF;
+END//
+delimiter ;
+CALL create_log_tables();
+DROP PROCEDURE create_log_tables;
 #
 # EVENT table
 #
