@@ -104,7 +104,10 @@ public:
   */
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
-  virtual bool check_if_locking_is_allowed(THD *thd, TABLE *table, uint count);
+  virtual bool check_if_locking_is_allowed(uint sql_command,
+                                           ulong type, TABLE *table,
+                                           uint count,
+                                           bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
