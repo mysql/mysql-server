@@ -1357,7 +1357,7 @@ f
 2
 delete from t3|
 insert into t3 values (0), (1)|
-call fib(20)|
+call fib(10)|
 select * from t3 order by f asc|
 f
 0
@@ -1371,16 +1371,6 @@ f
 21
 34
 55
-89
-144
-233
-377
-610
-987
-1597
-2584
-4181
-6765
 drop table t3|
 drop procedure fib|
 set @@max_sp_recursion_depth= 0|

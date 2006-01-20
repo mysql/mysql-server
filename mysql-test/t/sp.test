@@ -1601,7 +1601,7 @@ delete from t3|
 
 insert into t3 values (0), (1)|
 
-call fib(20)|
+call fib(10)|
 
 select * from t3 order by f asc|
 drop table t3|
