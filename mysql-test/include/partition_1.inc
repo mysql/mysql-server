@@ -1,3 +1,5 @@
+-- source include/have_partition.inc
+
 # include/partition_1.inc
 #
 # Partitionong tests
