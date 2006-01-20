@@ -411,7 +411,8 @@ ErrorBundle ErrorCodes[] = {
   { 1512, DMEC, SE, "File read error" },
   { 1513, DMEC, IE, "Filegroup not online" },
   
-
+  { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
+  
   /**
    * FunctionNotImplemented
    */
