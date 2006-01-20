@@ -96,8 +96,6 @@ protected:
   void execGET_TABINFO_CONF(Signal* signal);
   void execCREATE_TRIG_REF(Signal* signal);
   void execCREATE_TRIG_CONF(Signal* signal);
-  void execALTER_TRIG_REF(Signal* signal);
-  void execALTER_TRIG_CONF(Signal* signal);
   void execDROP_TRIG_REF(Signal* signal);
   void execDROP_TRIG_CONF(Signal* signal);
 
@@ -426,6 +424,7 @@ public:
     Uint32 clientRef;
     Uint32 clientData;
     Uint32 flags;
+    Uint32 signalNo;
     Uint32 backupId;
     Uint32 backupKey[2];
     Uint32 masterRef;
@@ -451,7 +450,18 @@ public:
     Uint32 backupDataLen;  // Used for (un)packing backup request
     Array<Page32> pages;   // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
-    
+
+    struct SlaveData {
+      SignalCounter trigSendCounter;
+      Uint32 gsn;
+      struct {
+	Uint32 tableId;
+      } createTrig;
+      struct {
+	Uint32 tableId;
+      } dropTrig;
+    } slaveData;
+
     struct MasterData {
       MasterData(Backup & b) 
 	{
@@ -462,15 +472,6 @@ public:
       Uint32 gsn;
       SignalCounter sendCounter;
       Uint32 errorCode;
-      struct {
-	Uint32 tableId;
-      } createTrig;
-      struct {
-	Uint32 tableId;
-      } dropTrig;
-      struct {
-	Uint32 tableId;
-      } alterTrig;
       union {
 	struct {
 	  Uint32 startBackup;
@@ -563,7 +564,7 @@ public:
   void defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId);
   void createTrigReply(Signal* signal, BackupRecordPtr ptr);
   void alterTrigReply(Signal* signal, BackupRecordPtr ptr);
-  void startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32, Uint32);
+  void startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32);
   void stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId);
   
   void defineBackupRef(Signal*, BackupRecordPtr, Uint32 errCode = 0);
