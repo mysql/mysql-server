@@ -5,10 +5,30 @@
 #          Table spaces and log groups. Also to test 
 #          Statement mixed case.
 ############################################
+# Change Author:JBM
+# Change Date 2006-01-19
+# Change: Adding to test cases feedback from OB
+# 1) The 'duplicate' tests.
+#    a) The test is using the default (test) database and is not
+#       attempting to create databases (only logs, table spaces and
+#       tables). Is this intentional?
+#    b) What about a duplication of table name when one exists on disk and
+#       you are trying to create it again in memory?
+#
+#2) 'CaSE SensiTiVE' tests
+#    a) Suggest you include a test case where the case difference is in
+#       the file name. I know this is not an issue for *nix systems but
+#       will be when we expand to Windows and Mac. Better put it in now.
+############################################
+
+
+
 -- source include/have_ndb.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
 --enable_warnings
 
 ############## Duplcate Statement Testing #########
@@ -62,18 +82,24 @@ ADD DATAFILE 'datafile2.dat'
 INITIAL_SIZE 12M
 ENGINE=NDB;
 
-CREATE TABLE t1
-(pk1 int not null primary key, b int not null, c int not null)
-tablespace ts1 storage disk
-engine ndb;
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
 
 --error ER_TABLE_EXISTS_ERROR
-CREATE TABLE t1
-(pk1 int not null primary key, b int not null, c int not null)
-tablespace ts1 storage disk
-engine ndb;
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
 
-DROP TABLE t1;
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE mysqltest.t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
+ENGINE=NDB;
+
+
+DROP TABLE mysqltest.t1;
 
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile2.dat' 
@@ -106,6 +132,9 @@ ENGINE=NDB;
 --error ER_DROP_TABLESPACE_FAILED
 DROP LOGFILE GROUP lg1 
 ENGINE=NDB;
+
+DROP DATABASE IF EXISTS mysqltest;
+
 --echo **** End Duplicate Statement Testing ****
 ############# End Duplicate Statments ############
 --echo
@@ -119,7 +148,7 @@ UnDo_BuFfEr_SiZe = 1M
 ENGInE=NDb;
 
 altER LOgFiLE GrOUp lg1
-AdD UnDOfILe 'undofile02.dat'
+AdD UnDOfILe 'uNdOfiLe02.daT'
 INItIAl_SIzE 4M ENgINE nDB;
 
 CrEAtE TABLEspaCE ts1
@@ -129,7 +158,7 @@ INITiaL_SizE 12M
 ENGiNe NDb;
 
 AlTeR tAbLeSpAcE ts1
-AdD DaTaFiLe 'datafile2.dat'
+AdD DaTaFiLe 'dAtAfiLe2.daT'
 InItIaL_SiZe 12M
 EnGiNe=NDB;
 
@@ -141,7 +170,7 @@ ENGine nDb;
 DROP TABLE t1;
 
 AlteR TAblespaCE ts1
-droP DATAfile 'datafile2.dat' 
+droP DATAfile 'dAtAfiLe2.daT' 
 ENGINE=NDB;
 
 ALter tablesPACE ts1
