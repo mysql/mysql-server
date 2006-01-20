@@ -203,6 +203,20 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
 	     killingNode, data1);
     break;
 
+  case SystemError::CopySubscriptionRef:
+    BaseString::snprintf(buf, sizeof(buf), 
+	     "Node %d killed this node because "
+	     "it could not copy a subscription during node restart. "
+	     "Copy subscription error code: %u.",
+	     killingNode, data1);
+    break;
+  case SystemError::CopySubscriberRef:
+    BaseString::snprintf(buf, sizeof(buf), 
+	     "Node %d killed this node because "
+	     "it could not start a subscriber during node restart. "
+	     "Copy subscription error code: %u.",
+	     killingNode, data1);
+    break;
   default:
     BaseString::snprintf(buf, sizeof(buf), "System error %d, "
 	     " this node was killed by node %d", 
