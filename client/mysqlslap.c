@@ -85,12 +85,24 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
+#ifndef __WIN__
 #include <sys/wait.h>
+#endif
 #include <ctype.h>
 #include <my_pthread.h>
 
 #define MYSLAPLOCK "/myslaplock.lck"
 #define MYSLAPLOCK_DIR "/tmp"
+
+#ifdef __WIN__
+#define srandom  srand
+#define random   rand
+#define snprintf _snprintf
+#endif
+
+#ifdef HAVE_SMEM 
+static char *shared_memory_base_name=0;
+#endif
 
 static char **defaults_argv;
 
@@ -213,6 +225,17 @@ static long int timedif(struct timeval a, struct timeval b)
     return s + us;
 }
 
+#ifdef __WIN__
+static int gettimeofday(struct timeval *tp, void *tzp)
+{
+  unsigned int ticks;
+  ticks= GetTickCount();
+  tp->tv_usec= ticks*1000;
+  tp->tv_sec= ticks/1000;
+
+  return 0;
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -222,7 +245,10 @@ int main(int argc, char **argv)
   unsigned long long client_limit;
   statement *eptr;
 
-  DBUG_ENTER("main");
+#ifdef __WIN__
+  opt_use_threads= 1;
+#endif
+
   MY_INIT(argv[0]);
 
   /* Seed the random number generator if we will be using it. */
@@ -353,7 +379,7 @@ int main(int argc, char **argv)
   free_defaults(defaults_argv);
   my_end(0);
 
-  DBUG_RETURN(0); /* No compiler warnings */
+  return 0;
 }
 
 
@@ -937,7 +963,6 @@ drop_schema(MYSQL *mysql, const char *db)
   DBUG_RETURN(0);
 }
 
-
 static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
@@ -981,6 +1006,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
+#ifndef __WIN__
   else
   {
     fflush(NULL);
@@ -1021,6 +1047,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
+#endif
 
   /* Lets release use some clients! */
   if (!opt_slave)
@@ -1042,6 +1069,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     }
     my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
   }
+#ifndef __WIN__
   else
   {
 WAIT:
@@ -1052,6 +1080,7 @@ WAIT:
       DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
     }
   }
+#endif
   gettimeofday(&end_time, NULL);
 
   my_close(lock_file, MYF(0));
