@@ -501,12 +501,6 @@ const TriggerEvent::Value triggerEventValues[] = {
   TriggerEvent::TE_DELETE
 };
 
-const char* triggerNameFormat[] = {
-  "NDB$BACKUP_%d_%d_INSERT",
-  "NDB$BACKUP_%d_%d_UPDATE",
-  "NDB$BACKUP_%d_%d_DELETE"
-};
-
 const Backup::State 
 Backup::validSlaveTransitions[] = {
   INITIAL,  DEFINING,
@@ -776,7 +770,6 @@ Backup::checkNodeFail(Signal* signal,
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
-      ref->signalNo = ptr.p->masterData.startBackup.signalNo;
       gsn= GSN_START_BACKUP_REF;
       len= StartBackupRef::SignalLength;
       pos= &ref->nodeId - signal->getDataPtr();
@@ -928,9 +921,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->backupKey[1] = 0;
   ptr.p->backupDataLen = 0;
   ptr.p->masterData.errorCode = 0;
-  ptr.p->masterData.dropTrig.tableId = RNIL;
-  ptr.p->masterData.alterTrig.tableId = RNIL;
-  
+
   UtilSequenceReq * utilReq = (UtilSequenceReq*)signal->getDataPtrSend();
     
   ptr.p->masterData.gsn = GSN_UTIL_SEQUENCE_REQ;
@@ -1241,13 +1232,18 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   signal->theData[2] = ptr.p->backupId;
   ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
-  
+
   /**
-   * Prepare Trig
+   * We've received GSN_DEFINE_BACKUP_CONF from all participants.
+   *
+   * Our next step is to send START_BACKUP_REQ to all participants,
+   * who will then send CREATE_TRIG_REQ for all tables to their local
+   * DBTUP.
    */
   TablePtr tabPtr;
-  ndbrequire(ptr.p->tables.first(tabPtr));
-  sendCreateTrig(signal, ptr, tabPtr);
+  ptr.p->tables.first(tabPtr);
+
+  sendStartBackup(signal, ptr, tabPtr);
 }
 
 /*****************************************************************************
@@ -1275,43 +1271,72 @@ Backup::sendCreateTrig(Signal* signal,
 			   BackupRecordPtr ptr, TablePtr tabPtr)
 {
   CreateTrigReq * req =(CreateTrigReq *)signal->getDataPtrSend();
-  
-  ptr.p->masterData.gsn = GSN_CREATE_TRIG_REQ;
-  ptr.p->masterData.sendCounter = 3;
-  ptr.p->masterData.createTrig.tableId = tabPtr.p->tableId;
+
+  /*
+   * First, setup the structures
+   */
+  for(Uint32 j=0; j<3; j++) {
+    jam();
+
+    TriggerPtr trigPtr;
+    if(!ptr.p->triggers.seize(trigPtr)) {
+      jam();
+      ptr.p->m_gsn = GSN_START_BACKUP_REF;
+      StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
+      ref->backupPtr = ptr.i;
+      ref->backupId = ptr.p->backupId;
+      ref->errorCode = StartBackupRef::FailedToAllocateTriggerRecord;
+      ref->nodeId = getOwnNodeId();
+      sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
+		 StartBackupRef::SignalLength, JBB);
+      return;
+    } // if
+
+    const Uint32 triggerId= trigPtr.i;
+    tabPtr.p->triggerIds[j] = triggerId;
+    tabPtr.p->triggerAllocated[j] = true;
+    trigPtr.p->backupPtr = ptr.i;
+    trigPtr.p->tableId = tabPtr.p->tableId;
+    trigPtr.p->tab_ptr_i = tabPtr.i;
+    trigPtr.p->logEntry = 0;
+    trigPtr.p->event = j;
+    trigPtr.p->maxRecordSize = 2048;
+    trigPtr.p->operation =
+      &ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
+    trigPtr.p->operation->noOfBytes = 0;
+    trigPtr.p->operation->noOfRecords = 0;
+    trigPtr.p->errorCode = 0;
+  } // for
+
+  /*
+   * now ask DBTUP to create
+   */
+  ptr.p->slaveData.gsn = GSN_CREATE_TRIG_REQ;
+  ptr.p->slaveData.trigSendCounter = 3;
+  ptr.p->slaveData.createTrig.tableId = tabPtr.p->tableId;
 
   req->setUserRef(reference());
+  req->setReceiverRef(reference());
   req->setConnectionPtr(ptr.i);
   req->setRequestType(CreateTrigReq::RT_USER);
-  
+
   Bitmask<MAXNROFATTRIBUTESINWORDS> attrMask;
   createAttributeMask(tabPtr, attrMask);
   req->setAttributeMask(attrMask);
   req->setTableId(tabPtr.p->tableId);
   req->setIndexId(RNIL);        // not used
-  req->setTriggerId(RNIL);      // to be created
   req->setTriggerType(TriggerType::SUBSCRIPTION);
   req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
   req->setMonitorReplicas(true);
   req->setMonitorAllAttributes(false);
-  req->setOnline(false);        // leave trigger offline
+  req->setOnline(true);
 
-  char triggerName[MAX_TAB_NAME_SIZE];
-  Uint32 nameBuffer[2 + ((MAX_TAB_NAME_SIZE + 3) >> 2)];  // SP string
-  LinearWriter w(nameBuffer, sizeof(nameBuffer) >> 2);
-  LinearSectionPtr lsPtr[3];
-  
   for (int i=0; i < 3; i++) {
+    req->setTriggerId(tabPtr.p->triggerIds[i]);
     req->setTriggerEvent(triggerEventValues[i]);
-    req->setReportAllMonitoredAttributes(false);
-    BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
-	     ptr.p->backupId, tabPtr.p->tableId);
-    w.reset();
-    w.add(CreateTrigReq::TriggerNameKey, triggerName);
-    lsPtr[0].p = nameBuffer;
-    lsPtr[0].sz = w.getWordsUsed();
-    sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REQ, 
-	       signal, CreateTrigReq::SignalLength, JBB, lsPtr, 1);
+
+    sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ,
+	       signal, CreateTrigReq::SignalLength, JBB);
   }
 }
 
@@ -1331,25 +1356,25 @@ Backup::execCREATE_TRIG_CONF(Signal* signal)
 
   /**
    * Verify that I'm waiting for this conf
+   *
+   * ptr.p->masterRef != reference()
+   * as slaves and masters have triggers now.
    */
-  ndbrequire(ptr.p->masterRef == reference());
-  ndbrequire(ptr.p->masterData.gsn == GSN_CREATE_TRIG_REQ);
-  ndbrequire(ptr.p->masterData.sendCounter.done() == false);
-  ndbrequire(ptr.p->masterData.createTrig.tableId == tableId);
-  
+  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
+  ndbrequire(ptr.p->slaveData.createTrig.tableId == tableId);
+
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, tableId));
   ndbrequire(type < 3); // if some decides to change the enums
 
-  ndbrequire(tabPtr.p->triggerIds[type] == ILLEGAL_TRIGGER_ID);
-  tabPtr.p->triggerIds[type] = triggerId;
-  
   createTrigReply(signal, ptr);
 }
 
 void
 Backup::execCREATE_TRIG_REF(Signal* signal)
 {
+  jamEntry();
   CreateTrigRef* ref = (CreateTrigRef*)signal->getDataPtr();
 
   const Uint32 ptrI = ref->getConnectionPtr();
@@ -1360,14 +1385,16 @@ Backup::execCREATE_TRIG_REF(Signal* signal)
 
   /**
    * Verify that I'm waiting for this ref
+   *
+   * ptr.p->masterRef != reference()
+   * as slaves and masters have triggers now
    */
-  ndbrequire(ptr.p->masterRef == reference());
-  ndbrequire(ptr.p->masterData.gsn == GSN_CREATE_TRIG_REQ);
-  ndbrequire(ptr.p->masterData.sendCounter.done() == false);
-  ndbrequire(ptr.p->masterData.createTrig.tableId == tableId);
+  ndbrequire(ptr.p->slaveData.gsn == GSN_CREATE_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
+  ndbrequire(ptr.p->slaveData.createTrig.tableId == tableId);
 
   ptr.p->setErrorCode(ref->getErrorCode());
-  
+
   createTrigReply(signal, ptr);
 }
 
@@ -1379,26 +1406,33 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
   /**
    * Check finished with table
    */
-  ptr.p->masterData.sendCounter--;
-  if(ptr.p->masterData.sendCounter.done() == false){
+  ptr.p->slaveData.trigSendCounter--;
+  if(ptr.p->slaveData.trigSendCounter.done() == false){
     jam();
     return;
   }//if
 
-  if (ERROR_INSERTED(10025)) 
+  if (ERROR_INSERTED(10025))
   {
     ptr.p->errorCode = 325;
   }
 
   if(ptr.p->checkError()) {
     jam();
-    masterAbort(signal, ptr);
+    ptr.p->m_gsn = GSN_START_BACKUP_REF;
+    StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
+    ref->backupPtr = ptr.i;
+    ref->backupId = ptr.p->backupId;
+    ref->errorCode = ptr.p->errorCode;
+    ref->nodeId = getOwnNodeId();
+    sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
+               StartBackupRef::SignalLength, JBB);
     return;
   }//if
 
   TablePtr tabPtr;
-  ndbrequire(findTable(ptr, tabPtr, ptr.p->masterData.createTrig.tableId));
-  
+  ndbrequire(findTable(ptr, tabPtr, ptr.p->slaveData.createTrig.tableId));
+
   /**
    * Next table
    */
@@ -1410,14 +1444,16 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
   }//if
 
   /**
-   * Finished with all tables, send StartBackupReq
+   * We've finished creating triggers.
+   *
+   * send conf and wait
    */
-  ptr.p->tables.first(tabPtr);
-  ptr.p->masterData.startBackup.signalNo = 0;
-  ptr.p->masterData.startBackup.noOfSignals = 
-    (ptr.p->tables.noOfElements() + StartBackupReq::MaxTableTriggers - 1) / 
-    StartBackupReq::MaxTableTriggers;
-  sendStartBackup(signal, ptr, tabPtr);
+  ptr.p->m_gsn = GSN_START_BACKUP_CONF;
+  StartBackupConf* conf = (StartBackupConf*)signal->getDataPtrSend();
+  conf->backupPtr = ptr.i;
+  conf->backupId = ptr.p->backupId;
+  sendSignal(ptr.p->masterRef, GSN_START_BACKUP_CONF, signal,
+	     StartBackupConf::SignalLength, JBB);
 }
 
 /*****************************************************************************
@@ -1430,33 +1466,23 @@ Backup::sendStartBackup(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
 {
 
   ptr.p->masterData.startBackup.tablePtr = tabPtr.i;
-  
+
   StartBackupReq* req = (StartBackupReq*)signal->getDataPtrSend();
   req->backupId = ptr.p->backupId;
   req->backupPtr = ptr.i;
-  req->signalNo = ptr.p->masterData.startBackup.signalNo;
-  req->noOfSignals = ptr.p->masterData.startBackup.noOfSignals;
-  Uint32 i;
-  for(i = 0; i<StartBackupReq::MaxTableTriggers; i++) {
-    jam();
-    req->tableTriggers[i].tableId = tabPtr.p->tableId;
-    req->tableTriggers[i].triggerIds[0] = tabPtr.p->triggerIds[0];
-    req->tableTriggers[i].triggerIds[1] = tabPtr.p->triggerIds[1];
-    req->tableTriggers[i].triggerIds[2] = tabPtr.p->triggerIds[2];
-    if(!ptr.p->tables.next(tabPtr)){
-      jam();
-      i++;
-      break;
-    }//if
-  }//for
-  req->noOfTableTriggers = i;
 
+  /**
+   * We use trigger Ids that are unique to BACKUP.
+   * These don't interfere with other triggers (e.g. from DBDICT)
+   * as there is a special case in DBTUP.
+   *
+   * Consequently, backups during online upgrade won't work
+   */
   ptr.p->masterData.gsn = GSN_START_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
   NodeReceiverGroup rg(BACKUP, ptr.p->nodes);
-  sendSignal(rg, GSN_START_BACKUP_REQ, signal, 
-	     StartBackupReq::HeaderLength + 
-	     (i * StartBackupReq::TableTriggerLength), JBB);
+  sendSignal(rg, GSN_START_BACKUP_REQ, signal,
+	     StartBackupReq::SignalLength, JBB);
 }
 
 void
@@ -1467,14 +1493,13 @@ Backup::execSTART_BACKUP_REF(Signal* signal)
   StartBackupRef* ref = (StartBackupRef*)signal->getDataPtr();
   const Uint32 ptrI = ref->backupPtr;
   //const Uint32 backupId = ref->backupId;
-  const Uint32 signalNo = ref->signalNo;
   const Uint32 nodeId = ref->nodeId;
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
   ptr.p->setErrorCode(ref->errorCode);
-  startBackupReply(signal, ptr, nodeId, signalNo);
+  startBackupReply(signal, ptr, nodeId);
 }
 
 void
@@ -1485,23 +1510,20 @@ Backup::execSTART_BACKUP_CONF(Signal* signal)
   StartBackupConf* conf = (StartBackupConf*)signal->getDataPtr();
   const Uint32 ptrI = conf->backupPtr;
   //const Uint32 backupId = conf->backupId;
-  const Uint32 signalNo = conf->signalNo;
   const Uint32 nodeId = refToNode(signal->senderBlockRef());
   
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
-  startBackupReply(signal, ptr, nodeId, signalNo);
+  startBackupReply(signal, ptr, nodeId);
 }
 
 void
-Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, 
-			 Uint32 nodeId, Uint32 signalNo)
+Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 {
 
   CRASH_INSERTION((10004));
 
-  ndbrequire(ptr.p->masterData.startBackup.signalNo == signalNo);
   if (!haveAllSignals(ptr, GSN_START_BACKUP_REQ, nodeId)) {
     jam();
     return;
@@ -1518,146 +1540,18 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr,
     return;
   }
 
-  TablePtr tabPtr;
-  c_tablePool.getPtr(tabPtr, ptr.p->masterData.startBackup.tablePtr);
-  for(Uint32 i = 0; i<StartBackupReq::MaxTableTriggers; i++) {
-    jam();
-    if(!ptr.p->tables.next(tabPtr)) {
-      jam();
-      break;
-    }//if
-  }//for
-  
-  if(tabPtr.i != RNIL) {
-    jam();
-    ptr.p->masterData.startBackup.signalNo++;
-    sendStartBackup(signal, ptr, tabPtr);
-    return;
-  }
-
-  sendAlterTrig(signal, ptr);
-}
-
-/*****************************************************************************
- * 
- * Master functionallity - Activate triggers
- *
- *****************************************************************************/
-void
-Backup::sendAlterTrig(Signal* signal, BackupRecordPtr ptr)
-{
-  AlterTrigReq * req =(AlterTrigReq *)signal->getDataPtrSend();
-  
-  ptr.p->masterData.gsn = GSN_ALTER_TRIG_REQ;
-  ptr.p->masterData.sendCounter = 0;
-  
-  req->setUserRef(reference());
-  req->setConnectionPtr(ptr.i);
-  req->setRequestType(AlterTrigReq::RT_USER);
-  req->setTriggerInfo(0);       // not used on ALTER via DICT
-  req->setOnline(true);
-  req->setReceiverRef(reference());
-
-  TablePtr tabPtr;
-
-  if (ptr.p->masterData.alterTrig.tableId == RNIL) {
-    jam();
-    ptr.p->tables.first(tabPtr);
-  } else {
-    jam();
-    ndbrequire(findTable(ptr, tabPtr, ptr.p->masterData.alterTrig.tableId));
-    ptr.p->tables.next(tabPtr);
-  }//if
-  if (tabPtr.i != RNIL) {
-    jam();
-    ptr.p->masterData.alterTrig.tableId = tabPtr.p->tableId;
-    req->setTableId(tabPtr.p->tableId);
-
-    req->setTriggerId(tabPtr.p->triggerIds[0]);
-    sendSignal(DBDICT_REF, GSN_ALTER_TRIG_REQ, 
-	       signal, AlterTrigReq::SignalLength, JBB);
-    
-    req->setTriggerId(tabPtr.p->triggerIds[1]);
-    sendSignal(DBDICT_REF, GSN_ALTER_TRIG_REQ, 
-	       signal, AlterTrigReq::SignalLength, JBB);
-
-    req->setTriggerId(tabPtr.p->triggerIds[2]);
-    sendSignal(DBDICT_REF, GSN_ALTER_TRIG_REQ, 
-	       signal, AlterTrigReq::SignalLength, JBB);
-
-    ptr.p->masterData.sendCounter += 3;
-    return;
-  }//if
-  ptr.p->masterData.alterTrig.tableId = RNIL;
-
   /**
-   * Finished with all tables
+   * Wait for GCP
    */
   ptr.p->masterData.gsn = GSN_WAIT_GCP_REQ;
   ptr.p->masterData.waitGCP.startBackup = true;
-  
+
   WaitGCPReq * waitGCPReq = (WaitGCPReq*)signal->getDataPtrSend();
   waitGCPReq->senderRef = reference();
   waitGCPReq->senderData = ptr.i;
   waitGCPReq->requestType = WaitGCPReq::CompleteForceStart;
-  sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal, 
+  sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal,
 	     WaitGCPReq::SignalLength,JBB);
-}
-
-void
-Backup::execALTER_TRIG_CONF(Signal* signal)
-{
-  jamEntry();
-
-  AlterTrigConf* conf = (AlterTrigConf*)signal->getDataPtr();
-  const Uint32 ptrI = conf->getConnectionPtr();
-  
-  BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
-  
-  alterTrigReply(signal, ptr);
-}
-
-void
-Backup::execALTER_TRIG_REF(Signal* signal)
-{
-  jamEntry();
-
-  AlterTrigRef* ref = (AlterTrigRef*)signal->getDataPtr();
-  const Uint32 ptrI = ref->getConnectionPtr();
-  
-  BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, ptrI);
-
-  ptr.p->setErrorCode(ref->getErrorCode());
-  
-  alterTrigReply(signal, ptr);
-}
-
-void
-Backup::alterTrigReply(Signal* signal, BackupRecordPtr ptr)
-{
-
-  CRASH_INSERTION((10005));
-
-  ndbrequire(ptr.p->masterRef == reference());
-  ndbrequire(ptr.p->masterData.gsn == GSN_ALTER_TRIG_REQ);
-  ndbrequire(ptr.p->masterData.sendCounter.done() == false);
-
-  ptr.p->masterData.sendCounter--;
-
-  if(ptr.p->masterData.sendCounter.done() == false){
-    jam();
-    return;
-  }//if
-
-  if(ptr.p->checkError()){
-    jam();
-    masterAbort(signal, ptr);
-    return;
-  }//if
-
-  sendAlterTrig(signal, ptr);
 }
 
 void
@@ -1720,7 +1614,12 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
     {
       CRASH_INSERTION((10009));
       ptr.p->stopGCP = gcp;
-      sendDropTrig(signal, ptr); // regular dropping of triggers
+      /**
+       * Backup is complete - begin cleanup
+       * STOP_BACKUP_REQ is sent to participants.
+       * They then drop the local triggers
+       */
+      sendStopBackup(signal, ptr);
       return;
     }//if
     
@@ -1927,8 +1826,8 @@ err:
 }
 
 /*****************************************************************************
- * 
- * Master functionallity - Drop triggers
+ *
+ * Slave functionallity - Drop triggers
  *
  *****************************************************************************/
 
@@ -1936,23 +1835,63 @@ void
 Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 {
   TablePtr tabPtr;
-  if (ptr.p->masterData.dropTrig.tableId == RNIL) {
+  ptr.p->slaveData.gsn = GSN_DROP_TRIG_REQ;
+
+  if (ptr.p->slaveData.dropTrig.tableId == RNIL) {
     jam();
     ptr.p->tables.first(tabPtr);
   } else {
     jam();
-    ndbrequire(findTable(ptr, tabPtr, ptr.p->masterData.dropTrig.tableId));
+    ndbrequire(findTable(ptr, tabPtr, ptr.p->slaveData.dropTrig.tableId));
     ptr.p->tables.next(tabPtr);
   }//if
   if (tabPtr.i != RNIL) {
     jam();
     sendDropTrig(signal, ptr, tabPtr);
   } else {
-    jam();
-    ptr.p->masterData.dropTrig.tableId = RNIL;
+    /**
+     * Insert footers
+     */
+    {
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
+      Uint32 * dst;
+      ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, 1));
+      * dst = 0;
+      filePtr.p->operation.dataBuffer.updateWritePtr(1);
+    }
 
-    sendStopBackup(signal, ptr);
-  }//if
+    {
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+
+      const Uint32 gcpSz = sizeof(BackupFormat::CtlFile::GCPEntry) >> 2;
+
+      Uint32 * dst;
+      ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, gcpSz));
+
+      BackupFormat::CtlFile::GCPEntry * gcp = 
+	(BackupFormat::CtlFile::GCPEntry*)dst;
+
+      gcp->SectionType   = htonl(BackupFormat::GCP_ENTRY);
+      gcp->SectionLength = htonl(gcpSz);
+      gcp->StartGCP      = htonl(ptr.p->startGCP);
+      gcp->StopGCP       = htonl(ptr.p->stopGCP - 1);
+      filePtr.p->operation.dataBuffer.updateWritePtr(gcpSz);
+    }
+
+    { // UNLOCK while dropping trigger for better timeslicing
+      TablePtr tabPtr;
+      for(ptr.p->tables.first(tabPtr); tabPtr.i != RNIL;
+	  ptr.p->tables.next(tabPtr))
+      {
+	signal->theData[0] = tabPtr.p->tableId;
+	signal->theData[1] = 0; // unlock
+	EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
+      }
+    }
+    closeFiles(signal, ptr);
+  }
 }
 
 void
@@ -1961,40 +1900,26 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
   jam();
   DropTrigReq * req = (DropTrigReq *)signal->getDataPtrSend();
 
-  ptr.p->masterData.gsn = GSN_DROP_TRIG_REQ;
-  ptr.p->masterData.sendCounter = 0;
-    
+  ptr.p->slaveData.gsn = GSN_DROP_TRIG_REQ;
+  ptr.p->slaveData.trigSendCounter = 0;
   req->setConnectionPtr(ptr.i);
   req->setUserRef(reference()); // Sending to myself
   req->setRequestType(DropTrigReq::RT_USER);
   req->setIndexId(RNIL);
-  req->setTriggerInfo(0);       // not used on DROP via DICT
+  req->setTriggerInfo(0);       // not used on DROP
+  req->setTriggerType(TriggerType::SUBSCRIPTION);
+  req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
 
-  char triggerName[MAX_TAB_NAME_SIZE];
-  Uint32 nameBuffer[2 + ((MAX_TAB_NAME_SIZE + 3) >> 2)];  // SP string
-  LinearWriter w(nameBuffer, sizeof(nameBuffer) >> 2);
-  LinearSectionPtr lsPtr[3];
-  
-  ptr.p->masterData.dropTrig.tableId = tabPtr.p->tableId;
+  ptr.p->slaveData.dropTrig.tableId = tabPtr.p->tableId;
   req->setTableId(tabPtr.p->tableId);
 
   for (int i = 0; i < 3; i++) {
     Uint32 id = tabPtr.p->triggerIds[i];
     req->setTriggerId(id);
-    if (id != ILLEGAL_TRIGGER_ID) {
-      sendSignal(DBDICT_REF, GSN_DROP_TRIG_REQ, 
-		 signal, DropTrigReq::SignalLength, JBB);
-    } else {
-      BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
-	       ptr.p->backupId, tabPtr.p->tableId);
-      w.reset();
-      w.add(CreateTrigReq::TriggerNameKey, triggerName);
-      lsPtr[0].p = nameBuffer;
-      lsPtr[0].sz = w.getWordsUsed();
-      sendSignal(DBDICT_REF, GSN_DROP_TRIG_REQ, 
-		 signal, DropTrigReq::SignalLength, JBB, lsPtr, 1);
-    }
-    ptr.p->masterData.sendCounter ++;
+    req->setTriggerEvent(triggerEventValues[i]);
+    sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
+	       signal, DropTrigReq::SignalLength, JBB);
+    ptr.p->slaveData.trigSendCounter ++;
   }
 }
 
@@ -2005,11 +1930,13 @@ Backup::execDROP_TRIG_REF(Signal* signal)
 
   DropTrigRef* ref = (DropTrigRef*)signal->getDataPtr();
   const Uint32 ptrI = ref->getConnectionPtr();
-  
+
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
- 
-  //ndbrequire(ref->getErrorCode() == DropTrigRef::NoSuchTrigger);
+
+  ndbout << "ERROR DROPPING TRIGGER: " << ref->getConf()->getTriggerId();
+  ndbout << " Err: " << (Uint32)ref->getErrorCode() << endl << endl;
+
   dropTrigReply(signal, ptr);
 }
 
@@ -2020,29 +1947,29 @@ Backup::execDROP_TRIG_CONF(Signal* signal)
   
   DropTrigConf* conf = (DropTrigConf*)signal->getDataPtr();
   const Uint32 ptrI = conf->getConnectionPtr();
-  
+  const Uint32 triggerId= conf->getTriggerId();
+
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
-  
+
   dropTrigReply(signal, ptr);
 }
 
 void
 Backup::dropTrigReply(Signal* signal, BackupRecordPtr ptr)
 {
-
   CRASH_INSERTION((10012));
 
-  ndbrequire(ptr.p->masterRef == reference());
-  ndbrequire(ptr.p->masterData.gsn == GSN_DROP_TRIG_REQ);
-  ndbrequire(ptr.p->masterData.sendCounter.done() == false);
-  
-  ptr.p->masterData.sendCounter--;
-  if(ptr.p->masterData.sendCounter.done() == false){
+  ndbrequire(ptr.p->slaveData.gsn == GSN_DROP_TRIG_REQ);
+  ndbrequire(ptr.p->slaveData.trigSendCounter.done() == false);
+
+  // move from .masterData to .slaveData
+  ptr.p->slaveData.trigSendCounter--;
+  if(ptr.p->slaveData.trigSendCounter.done() == false){
     jam();
     return;
   }//if
-  
+
   sendDropTrig(signal, ptr); // recursive next
 }
 
@@ -2165,6 +2092,9 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
 #ifdef DEBUG_ABORT
   ndbout_c("************ masterAbort");
 #endif
+
+  ndbassert(ptr.p->masterRef == reference());
+
   if(ptr.p->masterData.errorCode != 0)
   {
     jam();
@@ -2208,13 +2138,13 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   case GSN_BACKUP_FRAGMENT_REQ:
     jam();
     ptr.p->stopGCP= ptr.p->startGCP + 1;
-    sendDropTrig(signal, ptr); // dropping due to error
+    sendStopBackup(signal, ptr); // dropping due to error
     return;
   case GSN_UTIL_SEQUENCE_REQ:
   case GSN_UTIL_LOCK_REQ:
-  case GSN_DROP_TRIG_REQ:
     ndbrequire(false);
     return;
+  case GSN_DROP_TRIG_REQ:
   case GSN_STOP_BACKUP_REQ:
     return;
   }
@@ -2329,6 +2259,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->m_gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->slaveState.forceState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
+  ptr.p->slaveData.dropTrig.tableId = RNIL;
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
   ptr.p->clientData = req->clientData;
@@ -2345,14 +2276,14 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->backupKey[0] = req->backupKey[0];
   ptr.p->backupKey[1] = req->backupKey[1];
   ptr.p->backupDataLen = req->backupDataLen;
-  ptr.p->masterData.dropTrig.tableId = RNIL;
-  ptr.p->masterData.alterTrig.tableId = RNIL;
   ptr.p->masterData.errorCode = 0;
   ptr.p->noOfBytes = 0;
   ptr.p->noOfRecords = 0;
   ptr.p->noOfLogBytes = 0;
   ptr.p->noOfLogRecords = 0;
   ptr.p->currGCP = 0;
+  ptr.p->startGCP = 0;
+  ptr.p->stopGCP = 0;
 
   /**
    * Allocate files
@@ -3261,63 +3192,22 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
   jamEntry();
 
   CRASH_INSERTION((10015));
-  
+
   StartBackupReq* req = (StartBackupReq*)signal->getDataPtr();
   const Uint32 ptrI = req->backupPtr;
-  //const Uint32 backupId = req->backupId;
-  const Uint32 signalNo = req->signalNo;
-  
+
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
-  
+
   ptr.p->slaveState.setState(STARTED);
   ptr.p->m_gsn = GSN_START_BACKUP_REQ;
 
-  for(Uint32 i = 0; i<req->noOfTableTriggers; i++) {
-    jam();
-    TablePtr tabPtr;
-    ndbrequire(findTable(ptr, tabPtr, req->tableTriggers[i].tableId));
-    for(Uint32 j = 0; j<3; j++) {
-      jam();
-      const Uint32 triggerId = req->tableTriggers[i].triggerIds[j];
-      tabPtr.p->triggerIds[j] = triggerId;
-      
-      TriggerPtr trigPtr;
-      if(!ptr.p->triggers.seizeId(trigPtr, triggerId)) {
-        jam();
-	ptr.p->m_gsn = GSN_START_BACKUP_REF;
-	StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
-	ref->backupPtr = ptr.i;
-	ref->backupId = ptr.p->backupId;
-	ref->signalNo = signalNo;
-	ref->errorCode = StartBackupRef::FailedToAllocateTriggerRecord;
-	ref->nodeId = getOwnNodeId();
-	sendSignal(ptr.p->masterRef, GSN_START_BACKUP_REF, signal,
-		   StartBackupRef::SignalLength, JBB);
-	return;
-      }//if
-
-      tabPtr.p->triggerAllocated[j] = true;
-      trigPtr.p->backupPtr = ptr.i;
-      trigPtr.p->tableId = tabPtr.p->tableId;
-      trigPtr.p->tab_ptr_i = tabPtr.i;
-      trigPtr.p->logEntry = 0;
-      trigPtr.p->event = j;
-      trigPtr.p->maxRecordSize = 2048;
-      trigPtr.p->operation = 
-	&ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
-      trigPtr.p->operation->noOfBytes = 0;
-      trigPtr.p->operation->noOfRecords = 0;
-      trigPtr.p->errorCode = 0;
-    }//for
-  }//for
-  
   /**
    * Start file threads...
    */
   BackupFilePtr filePtr;
-  for(ptr.p->files.first(filePtr); 
-      filePtr.i!=RNIL; 
+  for(ptr.p->files.first(filePtr);
+      filePtr.i!=RNIL;
       ptr.p->files.next(filePtr)){
     jam();
     if(filePtr.p->fileRunning == 0) {
@@ -3328,14 +3218,13 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
       sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 2);
     }//if
   }//for
-  
-  ptr.p->m_gsn = GSN_START_BACKUP_CONF;
-  StartBackupConf* conf = (StartBackupConf*)signal->getDataPtrSend();
-  conf->backupPtr = ptr.i;
-  conf->backupId = ptr.p->backupId;
-  conf->signalNo = signalNo;
-  sendSignal(ptr.p->masterRef, GSN_START_BACKUP_CONF, signal,
-	     StartBackupConf::SignalLength, JBB);
+
+  /**
+   * Tell DBTUP to create triggers
+   */
+  TablePtr tabPtr;
+  ndbrequire(ptr.p->tables.first(tabPtr));
+  sendCreateTrig(signal, ptr, tabPtr);
 }
 
 /*****************************************************************************
@@ -3887,7 +3776,7 @@ void
 Backup::execFSAPPENDCONF(Signal* signal)
 {
   jamEntry();
-  
+
   CRASH_INSERTION((10018));
 
   //FsConf * conf = (FsConf*)signal->getDataPtr();
@@ -3990,10 +3879,13 @@ Backup::execBACKUP_TRIG_REQ(Signal* signal)
   Uint32 result;
 
   jamEntry();
+
   c_triggerPool.getPtr(trigPtr, trigger_id);
+
   c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
   tabPtr.p->fragments.getPtr(fragPtr, frag_id);
   if (fragPtr.p->node != getOwnNodeId()) {
+
     jam();
     result = ZFALSE;
   } else {
@@ -4014,12 +3906,12 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   TriggerPtr trigPtr;
   c_triggerPool.getPtr(trigPtr, trg->getTriggerId());
   ndbrequire(trigPtr.p->event != ILLEGAL_TRIGGER_ID); // Online...
-  
+
   if(trigPtr.p->errorCode != 0) {
     jam();
     return;
   }//if
-  
+
   if(trg->getAttrInfoType() == TrigAttrInfo::BEFORE_VALUES) {
     jam();
     /**
@@ -4056,18 +3948,29 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
       memcpy(signal->getDataPtrSend(), save, 4*TrigAttrInfo::StaticLength);
       return;
     }//if
-        
+
     logEntry = (BackupFormat::LogFile::LogEntry *)dst;
     trigPtr.p->logEntry = logEntry;
     logEntry->Length       = 0;
     logEntry->TableId      = htonl(trigPtr.p->tableId);
-    logEntry->TriggerEvent = htonl(trigPtr.p->event);
+
+
+    if(trigPtr.p->event==0)
+      logEntry->TriggerEvent= htonl(TriggerEvent::TE_INSERT);
+    else if(trigPtr.p->event==1)
+      logEntry->TriggerEvent= htonl(TriggerEvent::TE_UPDATE);
+    else if(trigPtr.p->event==2)
+      logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
+    else {
+      ndbout << "Bad Event: " << trigPtr.p->event << endl;
+      ndbrequire(false);
+    }
   } else {
     ndbrequire(logEntry->TableId == htonl(trigPtr.p->tableId));
-    ndbrequire(logEntry->TriggerEvent == htonl(trigPtr.p->event));
+//    ndbrequire(logEntry->TriggerEvent == htonl(trigPtr.p->event));
   }//if
-  
-  const Uint32 pos = logEntry->Length; 
+
+  const Uint32 pos = logEntry->Length;
   const Uint32 dataLen = signal->length() - TrigAttrInfo::StaticLength;
   memcpy(&logEntry->Data[pos], trg->getData(), dataLen << 2);
 
@@ -4100,16 +4003,15 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, trigPtr.p->backupPtr);
-  if(gci != ptr.p->currGCP) 
+  if(gci != ptr.p->currGCP)
   {
     jam();
-    
-    trigPtr.p->logEntry->TriggerEvent = htonl(trigPtr.p->event | 0x10000);
+    trigPtr.p->logEntry->TriggerEvent|= htonl(0x10000);
     trigPtr.p->logEntry->Data[len] = htonl(gci);
     len++;
     ptr.p->currGCP = gci;
-  }//if
-  
+  }
+
   len += (sizeof(BackupFormat::LogFile::LogEntry) >> 2) - 2;
   trigPtr.p->logEntry->Length = htonl(len);
 
@@ -4165,7 +4067,7 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
    * At least one GCP must have passed
    */
   ndbrequire(stopGCP > startGCP);
-  
+
   /**
    * Get backup record
    */
@@ -4174,50 +4076,13 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
 
   ptr.p->slaveState.setState(STOPPING);
   ptr.p->m_gsn = GSN_STOP_BACKUP_REQ;
+  ptr.p->startGCP= startGCP;
+  ptr.p->stopGCP= stopGCP;
 
   /**
-   * Insert footers
+   * Destroy the triggers in local DBTUP we created
    */
-  {
-    BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
-    Uint32 * dst;
-    ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, 1));
-    * dst = 0;
-    filePtr.p->operation.dataBuffer.updateWritePtr(1);
-  }
-
-  {
-    BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-    
-    const Uint32 gcpSz = sizeof(BackupFormat::CtlFile::GCPEntry) >> 2;
-    
-    Uint32 * dst;
-    ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, gcpSz));
-    
-    BackupFormat::CtlFile::GCPEntry * gcp = 
-      (BackupFormat::CtlFile::GCPEntry*)dst;
-    
-    gcp->SectionType   = htonl(BackupFormat::GCP_ENTRY);
-    gcp->SectionLength = htonl(gcpSz);
-    gcp->StartGCP      = htonl(startGCP);
-    gcp->StopGCP       = htonl(stopGCP - 1);
-    filePtr.p->operation.dataBuffer.updateWritePtr(gcpSz);
-  }
-
-  {
-    TablePtr tabPtr;
-    for(ptr.p->tables.first(tabPtr); tabPtr.i != RNIL;
-	ptr.p->tables.next(tabPtr))
-    {
-      signal->theData[0] = tabPtr.p->tableId;
-      signal->theData[1] = 0; // unlock
-      EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
-    }
-  }
-  
-  closeFiles(signal, ptr);
+  sendDropTrig(signal, ptr);
 }
 
 void
@@ -4483,19 +4348,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   ptr.p->masterRef = reference();
   ptr.p->nodes.clear();
   ptr.p->nodes.set(getOwnNodeId());
-  
-  if(ref == reference())
-  {
-    ptr.p->stopGCP= ptr.p->startGCP + 1;
-    sendDropTrig(signal, ptr);
-  }
-  else
-  {
-    ptr.p->masterData.gsn = GSN_STOP_BACKUP_REQ;
-    ptr.p->masterData.sendCounter.clearWaitingFor();
-    ptr.p->masterData.sendCounter.setWaitingFor(getOwnNodeId());
-    closeFiles(signal, ptr);
-  }
+
+
+  ptr.p->stopGCP= ptr.p->startGCP + 1;
+  sendStopBackup(signal, ptr);
 }
 
 
