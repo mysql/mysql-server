@@ -27,8 +27,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 extern ulong ndb_extra_logging;
 
-#ifdef HAVE_NDB_BINLOG
-
 #define INJECTOR_EVENT_LEN 200
 
 enum SCHEMA_OP_TYPE
@@ -45,12 +43,13 @@ enum SCHEMA_OP_TYPE
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
 
+static const char *ha_ndb_ext=".ndb";
+static const char share_prefix[]= "./";
+
+#ifdef HAVE_NDB_BINLOG
 extern pthread_t ndb_binlog_thread;
 extern pthread_mutex_t injector_mutex;
 extern pthread_cond_t  injector_cond;
-
-static const char *ha_ndb_ext=".ndb";
-static const char share_prefix[]= "./";
 
 extern unsigned char g_node_id_map[max_ndb_nodes];
 extern handlerton ndbcluster_hton;
@@ -114,6 +113,8 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   the ndb binlog code
 */
 int ndbcluster_find_all_files(THD *thd);
+#endif /* HAVE_NDB_BINLOG */
+
 void ndb_unpack_record(TABLE *table, NdbValue *value,
                        MY_BITMAP *defined, byte *buf);
 
@@ -157,6 +158,3 @@ void
 set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton.slot]= thd_ndb; }
 
 Ndb* check_ndb_in_thd(THD* thd);
-
-
-#endif /* HAVE_NDB_BINLOG */
