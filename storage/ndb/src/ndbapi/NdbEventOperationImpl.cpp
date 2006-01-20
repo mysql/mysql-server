@@ -1353,23 +1353,23 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata,
 
 static struct Ev_t {
   enum {
-    INS = NdbDictionary::Event::_TE_INSERT,
-    DEL = NdbDictionary::Event::_TE_DELETE,
-    UPD = NdbDictionary::Event::_TE_UPDATE,
-    NUL = NdbDictionary::Event::_TE_NUL,
-    ERR = 255
+    enum_INS = NdbDictionary::Event::_TE_INSERT,
+    enum_DEL = NdbDictionary::Event::_TE_DELETE,
+    enum_UPD = NdbDictionary::Event::_TE_UPDATE,
+    enum_NUL = NdbDictionary::Event::_TE_NUL,
+    enum_ERR = 255
   };
   int t1, t2, t3;
 } ev_t[] = {
-  { Ev_t::INS, Ev_t::INS, Ev_t::ERR },
-  { Ev_t::INS, Ev_t::DEL, Ev_t::NUL }, //ok
-  { Ev_t::INS, Ev_t::UPD, Ev_t::INS }, //ok
-  { Ev_t::DEL, Ev_t::INS, Ev_t::UPD }, //ok
-  { Ev_t::DEL, Ev_t::DEL, Ev_t::ERR },
-  { Ev_t::DEL, Ev_t::UPD, Ev_t::ERR },
-  { Ev_t::UPD, Ev_t::INS, Ev_t::ERR },
-  { Ev_t::UPD, Ev_t::DEL, Ev_t::DEL }, //ok
-  { Ev_t::UPD, Ev_t::UPD, Ev_t::UPD }  //ok
+  { Ev_t::enum_INS, Ev_t::enum_INS, Ev_t::enum_ERR },
+  { Ev_t::enum_INS, Ev_t::enum_DEL, Ev_t::enum_NUL }, //ok
+  { Ev_t::enum_INS, Ev_t::enum_UPD, Ev_t::enum_INS }, //ok
+  { Ev_t::enum_DEL, Ev_t::enum_INS, Ev_t::enum_UPD }, //ok
+  { Ev_t::enum_DEL, Ev_t::enum_DEL, Ev_t::enum_ERR },
+  { Ev_t::enum_DEL, Ev_t::enum_UPD, Ev_t::enum_ERR },
+  { Ev_t::enum_UPD, Ev_t::enum_INS, Ev_t::enum_ERR },
+  { Ev_t::enum_UPD, Ev_t::enum_DEL, Ev_t::enum_DEL }, //ok
+  { Ev_t::enum_UPD, Ev_t::enum_UPD, Ev_t::enum_UPD }  //ok
 };
 
 /*
@@ -1424,7 +1424,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
 
   int t1 = data->sdata->operation;
   int t2 = sdata->operation;
-  if (t1 == Ev_t::NUL)
+  if (t1 == Ev_t::enum_NUL)
     DBUG_RETURN_EVENT(copy_data(sdata, ptr2, data));
 
   Ev_t* tp = 0;
@@ -1435,7 +1435,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
       break;
     }
   }
-  assert(tp != 0 && tp->t3 != Ev_t::ERR);
+  assert(tp != 0 && tp->t3 != Ev_t::enum_ERR);
 
   // save old data
   EventBufData olddata = *data;
@@ -1477,7 +1477,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
     }
 
     // merge after values, new version overrides
-    if (tp->t3 != Ev_t::DEL)
+    if (tp->t3 != Ev_t::enum_DEL)
     {
       AttributeHeader ah;
       Uint32 i = ptr[0].sz;
@@ -1526,7 +1526,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
     }
 
     // merge before values, old version overrides
-    if (tp->t3 != Ev_t::INS)
+    if (tp->t3 != Ev_t::enum_INS)
     {
       AttributeHeader ah;
       Uint32 k = 0;
