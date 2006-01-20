@@ -1189,8 +1189,8 @@ void sql_print_warning(const char *format, ...);
 void sql_print_information(const char *format, ...);
 
 /* type of the log table */
-#define LOG_SLOW 1
-#define LOG_GENERAL 2
+#define QUERY_LOG_SLOW 1
+#define QUERY_LOG_GENERAL 2
 
 int error_log_print(enum loglevel level, const char *format,
                     va_list args);
