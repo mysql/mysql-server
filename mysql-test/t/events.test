@@ -14,6 +14,16 @@ drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
 
+create event e_43 on schedule every 1 second do set @a = 5;
+set global event_scheduler = 1;
+select sleep(2);
+alter event e_43 do alter event e_43 do set @a = 4;
+select sleep(3);
+select db, name, body, status, interval_field, interval_value from mysql.event;
+drop event e_43;
+select sleep(1);
+set global event_scheduler = 0;
+
 create table t_event3 (a int, b float);
 drop event if exists event3;
 create event event3 on schedule every 50 + 10 minute starts date_add("20010101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());

@@ -12,6 +12,23 @@ alter event event3 rename to event2;
 drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
+create event e_43 on schedule every 1 second do set @a = 5;
+set global event_scheduler = 1;
+select sleep(2);
+sleep(2)
+0
+alter event e_43 do alter event e_43 do set @a = 4;
+select sleep(3);
+sleep(3)
+0
+select db, name, body, status, interval_field, interval_value from mysql.event;
+db	name	body	status	interval_field	interval_value
+events_test	e_43	 set @a = 4	ENABLED	SECOND	1
+drop event e_43;
+select sleep(1);
+sleep(1)
+0
+set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:
