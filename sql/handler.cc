@@ -1425,6 +1425,12 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 ** General handler functions
 ****************************************************************************/
 
+
+void handler::ha_statistic_increment(ulong SSV::*offset) const
+{
+  statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
+}
+
 /*
   Open database-handler.
 

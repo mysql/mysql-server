@@ -590,7 +590,10 @@ void ha_tina::update_status()
 }
 
 
-bool ha_tina::check_if_locking_is_allowed(THD *thd, TABLE *table, uint count)
+bool ha_tina::check_if_locking_is_allowed(uint sql_command,
+                                          ulong type, TABLE *table,
+                                          uint count,
+                                          bool called_by_logger_thread)
 {
   /*
     Deny locking of the log tables, which is incompatible with
@@ -598,11 +601,10 @@ bool ha_tina::check_if_locking_is_allowed(THD *thd, TABLE *table, uint count)
     general_log_thd or slow_log_thd.
   */
   if (table->s->log_table &&
-      thd->lex->sql_command != SQLCOM_TRUNCATE &&
-      !(thd->lex->sql_command == SQLCOM_FLUSH &&
-        thd->lex->type & REFRESH_LOG) &&
-      (thd != logger.get_general_log_thd()) &&
-      (thd != logger.get_slow_log_thd()) &&
+      sql_command != SQLCOM_TRUNCATE &&
+      !(sql_command == SQLCOM_FLUSH &&
+        type & REFRESH_LOG) &&
+      !called_by_logger_thread &&
       (table->reginfo.lock_type >= TL_READ_NO_INSERT))
   {
     /*
@@ -665,7 +667,7 @@ int ha_tina::write_row(byte * buf)
   int size;
   DBUG_ENTER("ha_tina::write_row");
 
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -714,9 +716,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   int size;
   DBUG_ENTER("ha_tina::update_row");
 
-
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -751,8 +751,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 int ha_tina::delete_row(const byte * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
-  statistic_increment(table->in_use->status_var.ha_delete_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
 
   if (chain_append())
     DBUG_RETURN(-1);
@@ -903,8 +902,7 @@ int ha_tina::rnd_next(byte *buf)
 {
   DBUG_ENTER("ha_tina::rnd_next");
 
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   current_position= next_position;
   if (!share->mapped_file)
@@ -941,8 +939,7 @@ void ha_tina::position(const byte *record)
 int ha_tina::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
