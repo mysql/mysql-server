@@ -153,12 +153,12 @@ int packfrm(const void *data, uint len,
   if (!(blob= (struct frm_blob_struct*) my_malloc(blob_len,MYF(MY_WME))))
     goto err;
 
-  // Store compressed blob in machine independent format
+  /* Store compressed blob in machine independent format */
   int4store((char*)(&blob->head.ver), 1);
   int4store((char*)(&blob->head.orglen), comp_len);
   int4store((char*)(&blob->head.complen), org_len);
 
-  // Copy frm data into blob, already in machine independent format
+  /* Copy frm data into blob, already in machine independent format */
   memcpy(blob->data, data, org_len);
 
   *pack_data= blob;

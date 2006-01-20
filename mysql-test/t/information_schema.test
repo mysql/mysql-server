@@ -1,6 +1,10 @@
 # This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
+# check that CSV engine was compiled in, as the result of the test
+# depends on the presence of the log tables (which are CSV-based).
+--source include/have_csv.inc
+
 # Test for information_schema.schemata &
 # show databases
 

@@ -1006,6 +1006,8 @@ typedef struct st_handler_buffer
   byte *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
+typedef struct system_status_var SSV;
+
 class handler :public Sql_alloc
 {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1026,6 +1028,9 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
+
+  void ha_statistic_increment(ulong SSV::*offset) const;
+
 
 private:
   virtual int reset() { return extra(HA_EXTRA_RESET); }
@@ -1088,6 +1093,33 @@ public:
   virtual ~handler(void)
   {
     /* TODO: DBUG_ASSERT(inited == NONE); */
+  }
+  /*
+    Check whether a handler allows to lock the table.
+
+    SYNOPSIS
+      check_if_locking_is_allowed()
+        thd     Handler of the thread, trying to lock the table
+        table   Table handler to check
+        count   Number of locks already granted to the table
+
+    DESCRIPTION
+      Check whether a handler allows to lock the table. For instance,
+      MyISAM does not allow to lock mysql.proc along with other tables.
+      This limitation stems from the fact that MyISAM does not support
+      row-level locking and we have to add this limitation to avoid
+      deadlocks.
+
+    RETURN
+      TRUE      Locking is allowed
+      FALSE     Locking is not allowed. The error was thrown.
+  */
+  virtual bool check_if_locking_is_allowed(uint sql_command,
+                                           ulong type, TABLE *table,
+                                           uint count,
+                                           bool called_by_logger_thread)
+  {
+    return TRUE;
   }
   virtual int ha_initialise();
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);

@@ -60,6 +60,10 @@ class ha_myisam: public handler
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
+  virtual bool check_if_locking_is_allowed(uint sql_command,
+                                           ulong type, TABLE *table,
+                                           uint count,
+                                           bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);

@@ -62,9 +62,6 @@ Backup::Backup(const Configuration & conf) :
   addRecSignal(GSN_CREATE_TRIG_REF, &Backup::execCREATE_TRIG_REF);
   addRecSignal(GSN_CREATE_TRIG_CONF, &Backup::execCREATE_TRIG_CONF);
 
-  addRecSignal(GSN_ALTER_TRIG_REF, &Backup::execALTER_TRIG_REF);
-  addRecSignal(GSN_ALTER_TRIG_CONF, &Backup::execALTER_TRIG_CONF);
-  
   addRecSignal(GSN_DROP_TRIG_REF, &Backup::execDROP_TRIG_REF);
   addRecSignal(GSN_DROP_TRIG_CONF, &Backup::execDROP_TRIG_CONF);
 
