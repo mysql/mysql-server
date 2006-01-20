@@ -3172,7 +3172,7 @@ with --log-bin instead.");
   if (opt_binlog_format_id == BF_UNSPECIFIED)
   {
 #ifdef HAVE_NDB_BINLOG
-    if (have_ndbcluster == SHOW_OPTION_YES)
+    if (opt_bin_log && have_ndbcluster == SHOW_OPTION_YES)
       opt_binlog_format_id= BF_ROW;
     else
 #endif
