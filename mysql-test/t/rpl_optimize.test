@@ -4,10 +4,8 @@
 #####################################
 # Change Author: JBM
 # Change Date: 2006-01-17
-# Change: Skip test when default table = ndb
+# Change: 
 #####################################
-
--- source include/not_ndb_table.inc
 -- source include/master-slave.inc
 
 create table t1 (a int not null auto_increment primary key, b int, key(b));
