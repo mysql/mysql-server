@@ -745,3 +745,4 @@ if ($fixed_bug16370)
 --source include/partition_12.inc
 }
 DROP TABLE t1;
+DROP TABLE if exists t0_template;
