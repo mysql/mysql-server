@@ -353,6 +353,9 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_VIO_READ_BUFF
 #define HAVE_STRNLEN
 
+#define strcasecmp stricmp
+#define strncasecmp strnicmp
+
 #ifndef __NT__
 #undef FILE_SHARE_DELETE
 #define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
