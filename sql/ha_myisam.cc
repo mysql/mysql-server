@@ -296,7 +296,10 @@ err:
 #endif /* HAVE_REPLICATION */
 
 
-bool ha_myisam::check_if_locking_is_allowed(THD *thd, TABLE *table, uint count)
+bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
+                                            ulong type, TABLE *table,
+                                            uint count,
+                                            bool called_by_logger_thread)
 {
   /*
     To be able to open and lock for reading system tables like 'mysql.proc',
