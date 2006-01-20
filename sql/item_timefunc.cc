@@ -885,6 +885,21 @@ longlong Item_func_to_days::val_int()
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
 }
 
+
+/*
+  Get information about this Item tree monotonicity
+
+  SYNOPSIS
+    Item_func_to_days::get_monotonicity_info()
+
+  DESCRIPTION
+  Get information about monotonicity of the function represented by this item
+  tree.
+
+  RETURN
+    See enum_monotonicity_info.
+*/
+
 enum_monotonicity_info Item_func_to_days::get_monotonicity_info() const
 {
   if (args[0]->type() == Item::FIELD_ITEM)
@@ -1079,6 +1094,21 @@ longlong Item_func_year::val_int()
   (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
   return (longlong) ltime.year;
 }
+
+
+/*
+  Get information about this Item tree monotonicity
+
+  SYNOPSIS
+    Item_func_to_days::get_monotonicity_info()
+
+  DESCRIPTION
+  Get information about monotonicity of the function represented by this item
+  tree.
+
+  RETURN
+    See enum_monotonicity_info.
+*/
 
 enum_monotonicity_info Item_func_year::get_monotonicity_info() const
 {
