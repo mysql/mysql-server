@@ -271,3 +271,10 @@ t1	CREATE TABLE `t1` (
   `b` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY RANGE (a) (PARTITION x1 VALUES LESS THAN (6) ENGINE = MyISAM, PARTITION x3 VALUES LESS THAN (8) ENGINE = MyISAM, PARTITION x4 VALUES LESS THAN (10) ENGINE = MyISAM, PARTITION x5 VALUES LESS THAN (12) ENGINE = MyISAM, PARTITION x6 VALUES LESS THAN (14) ENGINE = MyISAM, PARTITION x7 VALUES LESS THAN (16) ENGINE = MyISAM, PARTITION x8 VALUES LESS THAN (18) ENGINE = MyISAM, PARTITION x9 VALUES LESS THAN (20) ENGINE = MyISAM)
 drop table t1;
+create table t1 (a int not null, b int not null) partition by LIST (a+b) (
+partition p0 values in (12),
+partition p1 values in (14)
+);
+insert into t1 values (10,1);
+ERROR HY000: Table has no partition for value 11
+drop table t1;
