@@ -920,8 +920,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       lock_logger= 1;
       logger.lock();
-      logger.close_log_table(LOG_GENERAL, FALSE);
-      closed_log_tables= closed_log_tables | LOG_GENERAL;
+      logger.close_log_table(QUERY_LOG_GENERAL, FALSE);
+      closed_log_tables= closed_log_tables | QUERY_LOG_GENERAL;
     }
     else
       if (!my_strcasecmp(system_charset_info, table_list->table_name,
@@ -929,8 +929,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       {
         lock_logger= 1;
         logger.lock();
-        logger.close_log_table(LOG_SLOW, FALSE);
-        closed_log_tables= closed_log_tables | LOG_SLOW;
+        logger.close_log_table(QUERY_LOG_SLOW, FALSE);
+        closed_log_tables= closed_log_tables | QUERY_LOG_SLOW;
       }
   }
 
@@ -963,11 +963,11 @@ end:
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
 
-    if (closed_log_tables & LOG_SLOW)
-      logger.reopen_log_table(LOG_SLOW);
+    if (closed_log_tables & QUERY_LOG_SLOW)
+      logger.reopen_log_table(QUERY_LOG_SLOW);
 
-    if (closed_log_tables & LOG_GENERAL)
-      logger.reopen_log_table(LOG_GENERAL);
+    if (closed_log_tables & QUERY_LOG_GENERAL)
+      logger.reopen_log_table(QUERY_LOG_GENERAL);
     if (lock_logger)
       logger.unlock();
   }
