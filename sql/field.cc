@@ -5873,7 +5873,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
                                                     field_length/
                                                     field_charset->mbmaxlen,
                                                     &well_formed_error);
-  memcpy(ptr,from,copy_length);
+  memmove(ptr, from, copy_length);
 
   /* Append spaces if the string was shorter than the field. */
   if (copy_length < field_length)
@@ -6266,7 +6266,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 						    field_length/
 						    field_charset->mbmaxlen,
                                                     &well_formed_error);
-  memcpy(ptr + length_bytes, from, copy_length);
+  memmove(ptr + length_bytes, from, copy_length);
   if (length_bytes == 1)
     *ptr= (uchar) copy_length;
   else
