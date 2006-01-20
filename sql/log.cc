@@ -112,7 +112,8 @@ handlerton binlog_hton = {
   SYNOPSIS
     open_log_table()
 
-    log_type   type of the log table to open: QUERY_LOG_GENERAL or QUERY_LOG_SLOW
+    log_type   type of the log table to open: QUERY_LOG_GENERAL
+               or QUERY_LOG_SLOW
 
   DESCRIPTION
 
@@ -245,7 +246,8 @@ Log_to_csv_event_handler::~Log_to_csv_event_handler()
   SYNOPSIS
     reopen_log_table()
 
-    log_type   type of the log table to open: QUERY_LOG_GENERAL or QUERY_LOG_SLOW
+    log_type   type of the log table to open: QUERY_LOG_GENERAL
+               or QUERY_LOG_SLOW
 
   DESCRIPTION
 
@@ -878,7 +880,8 @@ bool Log_to_csv_event_handler::flush(THD *thd, TABLE_LIST *close_slow_log,
   unlock_table_name(thd, close_slow_log);
   unlock_table_name(thd, close_general_log);
   VOID(pthread_mutex_unlock(&LOCK_open));
-  return reopen_log_table(QUERY_LOG_SLOW) || reopen_log_table(QUERY_LOG_GENERAL);
+  return reopen_log_table(QUERY_LOG_SLOW) ||
+         reopen_log_table(QUERY_LOG_GENERAL);
 }
 
 /* the parameters are unused for the log tables */
@@ -923,7 +926,8 @@ int LOGGER::set_handlers(enum enum_printer error_log_printer,
   SYNOPSIS
     close_log_table()
 
-    log_type       type of the log table to close: QUERY_LOG_GENERAL or QUERY_LOG_SLOW
+    log_type       type of the log table to close: QUERY_LOG_GENERAL
+                   or QUERY_LOG_SLOW
     lock_in_use    Set to TRUE if the caller owns LOCK_open. FALSE otherwise.
 
   DESCRIPTION
