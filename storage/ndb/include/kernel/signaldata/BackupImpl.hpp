@@ -139,21 +139,11 @@ class StartBackupReq {
   friend bool printSTART_BACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
 
-  STATIC_CONST( MaxTableTriggers = 4 );
-  STATIC_CONST( HeaderLength = 5 );
-  STATIC_CONST( TableTriggerLength = 4);
-  
+  STATIC_CONST( SignalLength = 2 );
+
 private:
   Uint32 backupId;
   Uint32 backupPtr;
-  Uint32 signalNo;
-  Uint32 noOfSignals;
-  Uint32 noOfTableTriggers;
-
-  struct TableTriggers {
-    Uint32 tableId;
-    Uint32 triggerIds[3];
-  } tableTriggers[MaxTableTriggers];
 };
 
 class StartBackupRef {
@@ -169,7 +159,7 @@ class StartBackupRef {
 
   friend bool printSTART_BACKUP_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 4 );
 
   enum ErrorCode {
     FailedToAllocateTriggerRecord = 1
@@ -177,7 +167,6 @@ public:
 private:
   Uint32 backupId;
   Uint32 backupPtr;
-  Uint32 signalNo;
   Uint32 errorCode;
   Uint32 nodeId;
 };
@@ -195,12 +184,11 @@ class StartBackupConf {
 
   friend bool printSTART_BACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 2 );
 
 private:
   Uint32 backupId;
   Uint32 backupPtr;
-  Uint32 signalNo;
 };
 
 class BackupFragmentReq {
