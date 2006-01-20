@@ -326,11 +326,11 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       {
         if (!my_strcasecmp(system_charset_info, share->table_name.str,
                            "general_log"))
-          share->log_table= LOG_GENERAL;
+          share->log_table= QUERY_LOG_GENERAL;
         else
           if (!my_strcasecmp(system_charset_info, share->table_name.str,
                              "slow_log"))
-            share->log_table= LOG_SLOW;
+            share->log_table= QUERY_LOG_SLOW;
       }
     }
     error_given= 1;
