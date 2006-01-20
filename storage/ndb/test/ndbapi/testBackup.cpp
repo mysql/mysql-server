@@ -193,7 +193,7 @@ runDDL(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
-int runRestartInitial(NDBT_Context* ctx, NDBT_Step* step){
+int runDropTablesRestart(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
   Ndb* pNdb = GETNDB(step);
@@ -201,7 +201,7 @@ int runRestartInitial(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table *tab = ctx->getTab();
   pNdb->getDictionary()->dropTable(tab->getName());
 
-  if (restarter.restartAll(true) != 0)
+  if (restarter.restartAll(false) != 0)
     return NDBT_FAILED;
 
   if (restarter.waitClusterStarted() != 0)
@@ -406,6 +406,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
     // TEMPORARY FIX
     // To erase all tables from cache(s)
     // To be removed, maybe replaced by ndb.invalidate();
+    runDropTable(ctx,step);
     {
       Bank bank(ctx->m_cluster_connection);
       
@@ -416,8 +417,8 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
     }
     // END TEMPORARY FIX
 
-    ndbout << "Performing initial restart" << endl;
-    if (restarter.restartAll(true) != 0)
+    ndbout << "Performing restart" << endl;
+    if (restarter.restartAll(false) != 0)
       return NDBT_FAILED;
 
     if (restarter.waitClusterStarted() != 0)
@@ -465,12 +466,12 @@ TESTCASE("BackupOne",
 	 "Test that backup and restore works on one table \n"
 	 "1. Load table\n"
 	 "2. Backup\n"
-	 "3. Restart -i\n"
+	 "3. Drop tables and restart \n"
 	 "4. Restore\n"
 	 "5. Verify count and content of table\n"){
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupOne);
-  INITIALIZER(runRestartInitial);
+  INITIALIZER(runDropTablesRestart);
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
