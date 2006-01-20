@@ -186,7 +186,7 @@ Dbtup::execDROP_TRIG_REQ(Signal* signal)
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
   // Drop trigger
-  Uint32 r = dropTrigger(tabPtr.p, req);
+  Uint32 r = dropTrigger(tabPtr.p, req, refToBlock(senderRef));
   if (r == 0){
     // Send conf
     DropTrigConf* const conf = (DropTrigConf*)signal->getDataPtrSend();
@@ -318,7 +318,7 @@ Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
 /*                                                                  */
 /* ---------------------------------------------------------------- */
 Uint32
-Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
+Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
 {
   if (ERROR_INSERTED(4004)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -330,7 +330,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
   TriggerActionTime::Value ttime = req->getTriggerActionTime();
   TriggerEvent::Value tevent = req->getTriggerEvent();
 
-  //  ndbout_c("Drop TupTrigger %u = %u %u %u %u", triggerId, table, ttype, ttime, tevent);
+  //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
 
   ArrayList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
   ndbrequire(tlist != NULL);
@@ -339,6 +339,19 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req)
   for (tlist->first(ptr); !ptr.isNull(); tlist->next(ptr)) {
     ljam();
     if (ptr.p->triggerId == triggerId) {
+      if(ttype==TriggerType::SUBSCRIPTION && sender != ptr.p->m_receiverBlock)
+      {
+	/**
+	 * You can only drop your own triggers for subscription triggers.
+	 * Trigger IDs are private for each block.
+	 *
+	 * SUMA encodes information in the triggerId
+	 *
+	 * Backup doesn't really care about the Ids though.
+	 */
+	ljam();
+	continue;
+      }
       ljam();
       tlist->release(ptr.i);
       return 0;
