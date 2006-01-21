@@ -667,3 +667,7 @@ counter	datavalue
 57	newval
 58	newval
 drop table t1;
+CREATE TABLE t1 ( b INT ) PACK_KEYS = 0 ENGINE = ndb;
+select * from t1;
+b
+drop table t1;

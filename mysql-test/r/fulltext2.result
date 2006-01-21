@@ -215,3 +215,24 @@ select count(*) from t1 where match a against ('aaazzz' in boolean mode);
 count(*)
 262
 drop table t1;
+set names utf8;
+create table t1(a text,fulltext(a)) collate=utf8_swedish_ci;
+insert into t1 values('test test '),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
+('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test');
+delete from t1 limit 1;
+drop table t1;
+set names latin1;

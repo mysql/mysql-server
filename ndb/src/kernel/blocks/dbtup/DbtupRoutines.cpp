@@ -700,6 +700,27 @@ Dbtup::checkUpdateOfPrimaryKey(Uint32* updateBuffer, Tablerec* const regTabPtr)
   Uint32 attrDescriptorIndex = regTabPtr->tabDescriptor + (attributeId << ZAD_LOG_SIZE);
   Uint32 attrDescriptor = tableDescriptor[attrDescriptorIndex].tabDescr;
   Uint32 attributeOffset = tableDescriptor[attrDescriptorIndex + 1].tabDescr;
+
+  Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * 1]; // strxfrm_multiply == 1
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attributeOffset);
+  if (charsetFlag) {
+    Uint32 csPos = AttributeOffset::getCharsetPos(attributeOffset);
+    CHARSET_INFO* cs = regTabPtr->charsetArray[csPos];
+    Uint32 sizeInBytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
+    Uint32 sizeInWords = AttributeDescriptor::getSizeInWords(attrDescriptor);
+    const uchar* srcPtr = (uchar*)&updateBuffer[1];
+    uchar* dstPtr = (uchar*)&xfrmBuffer[1];
+    Uint32 n =
+      (*cs->coll->strnxfrm)(cs, dstPtr, sizeInBytes, srcPtr, sizeInBytes);
+    // pad with blanks (unlikely) and zeroes to match NDB API behaviour
+    while (n < sizeInBytes)
+      dstPtr[n++] = 0x20;
+    while (n < 4 * sizeInWords)
+      dstPtr[n++] = 0;
+    xfrmBuffer[0] = ahIn.m_value;
+    updateBuffer = xfrmBuffer;
+  }
+
   ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
   AttributeHeader::init(&attributeHeader, attributeId, 0);
@@ -707,7 +728,7 @@ Dbtup::checkUpdateOfPrimaryKey(Uint32* updateBuffer, Tablerec* const regTabPtr)
   tMaxRead = MAX_KEY_SIZE_IN_WORDS;
 
   bool tmp = tXfrmFlag;
-  tXfrmFlag = false;
+  tXfrmFlag = true;
   ndbrequire((this->*f)(&keyReadBuffer[0], ahOut, attrDescriptor, attributeOffset));
   tXfrmFlag = tmp;
   ndbrequire(tOutBufIndex == ahOut->getDataSize());

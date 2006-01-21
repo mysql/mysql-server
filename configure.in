@@ -5,18 +5,19 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 4.1.16)
+AM_INIT_AUTOMAKE(mysql, 4.1.18)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_VERSION=14:0:0
+SHARED_LIB_MAJOR_VERSION=14
+SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 
 # ndb version
 NDB_VERSION_MAJOR=4
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=16
+NDB_VERSION_BUILD=18
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -37,7 +38,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
 AVAILABLE_LANGUAGES_ERRORS=
-AVAILABLE_LANGUAGES_ERRORS_RULES=$srcdir/ac_available_languages_fragment
+AVAILABLE_LANGUAGES_ERRORS_RULES=ac_available_languages_fragment
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 for i in $AVAILABLE_LANGUAGES
 do
@@ -68,6 +69,7 @@ AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
 AC_SUBST(DOT_FRM_VERSION)
 AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
                    [Version of .frm files])
+AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
@@ -430,6 +432,13 @@ then
     fi
   fi
 fi
+
+# libmysqlclient versioning when linked with GNU ld.
+if $LD --version 2>/dev/null|grep -q GNU; then
+  LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_srcdir)/libmysql/libmysql.ver"
+  AC_CONFIG_FILES(libmysql/libmysql.ver)
+fi
+AC_SUBST(LD_VERSION_SCRIPT)
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
@@ -1672,6 +1681,19 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
   OPTIMIZE_CXXFLAGS="$OPTIMIZE_CXXFLAGS -DNDEBUG"
 fi
 
+# If the user specified CFLAGS, we won't add any optimizations
+if test -n "$SAVE_CFLAGS"
+then
+  OPTIMIZE_CFLAGS=""
+  DEBUG_OPTIMIZE_CC=""
+fi
+# Ditto for CXXFLAGS
+if test -n "$SAVE_CXXFLAGS"
+then
+  OPTIMIZE_CXXFLAGS=""
+  DEBUG_OPTIMIZE_CXX=""
+fi
+
 AC_ARG_WITH(debug,
     [  --without-debug         Build a production version without debugging code],
     [with_debug=$withval],
@@ -2300,6 +2322,7 @@ then
     echo "Warning: extra-tools disabled because --enable-thread-safe-client wasn't used"
   else
     tools_dirs="tools"
+    AC_CONFIG_FILES(tools/Makefile)
   fi
 fi
 AC_SUBST(tools_dirs)
@@ -2310,9 +2333,12 @@ MYSQL_CHECK_VIO
 MYSQL_CHECK_OPENSSL
 
 libmysqld_dirs=
+linked_libmysqld_targets=
 if test "$with_embedded_server" = "yes"
 then
   libmysqld_dirs=libmysqld
+  linked_libmysqld_targets="linked_libmysqld_sources linked_libmysqldex_sources"
+  AC_CONFIG_FILES(libmysqld/Makefile libmysqld/examples/Makefile)
   # We can't build embedded library without building the server, because
   # we depend on libmysys, libmystrings, libmyisam, etc.
   with_server=yes
@@ -2321,6 +2347,7 @@ fi
 # mysql_config --libmysqld-libs will print out something like
 # -L/path/to/lib/mysql -lmysqld -lmyisam -lmysys -lmystrings -ldbug ...
 AC_SUBST([libmysqld_dirs])
+AC_SUBST([linked_libmysqld_targets])
 
 # Shall we build the docs?
 AC_ARG_WITH(docs,
@@ -2347,10 +2374,14 @@ AC_ARG_WITH(man,
 if test "$with_man" = "yes"
 then
   man_dirs="man"
+  man1_files=`ls -1 $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
+  man1_files=`echo $man1_files`
 else
   man_dirs=""
+  man1_files=""
 fi
 AC_SUBST(man_dirs)
+AC_SUBST(man1_files)
 
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
@@ -2420,7 +2451,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
@@ -2430,7 +2461,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
+    readline_h_ln_cmd="\$(LN) -s \$(top_srcdir)/cmd-line-utils/readline readline"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
@@ -2911,6 +2942,7 @@ if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
+  AC_CONFIG_FILES(libmysql_r/Makefile)
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
@@ -3265,12 +3297,11 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
- libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql-common/Makefile SSL/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
- include/Makefile sql-bench/Makefile tools/Makefile dnl
+ include/Makefile sql-bench/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl

@@ -108,3 +108,29 @@ select * from t1 procedure analyse (1,1);
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.d	100000	100000	6	6	0	0	100000	0	MEDIUMINT(6) UNSIGNED NOT NULL
 drop table t1;
+create table t1 (product varchar(32), country_id int not null, year int,
+profit int);
+insert into t1  values ( 'Computer', 2,2000, 1200),
+( 'TV', 1, 1999, 150),
+( 'Calculator', 1, 1999,50),
+( 'Computer', 1, 1999,1500),
+( 'Computer', 1, 2000,1500),
+( 'TV', 1, 2000, 150),
+( 'TV', 2, 2000, 100),
+( 'TV', 2, 2000, 100),
+( 'Calculator', 1, 2000,75),
+( 'Calculator', 2, 2000,75),
+( 'TV', 1, 1999, 100),
+( 'Computer', 1, 1999,1200),
+( 'Computer', 2, 2000,1500),
+( 'Calculator', 2, 2000,75),
+( 'Phone', 3, 2003,10)
+;
+create table t2 (country_id int primary key, country char(20) not null);
+insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
+select product, sum(profit),avg(profit) from t1 group by product with rollup procedure analyse();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.product	Computer	TV	2	8	0	0	4.2500	NULL	ENUM('Computer','Phone','TV') NOT NULL
+sum(profit)	10	6900	2	4	0	0	1946	2868	ENUM('10','275','600','6900') NOT NULL
+avg(profit)	10.0000	1380.0000	7	9	0	0	394.6875	570.2003	ENUM('10.0000','68.7500','120.0000','1380.0000') NOT NULL
+drop table t1,t2;

@@ -20,7 +20,7 @@
 #
 
 SUBDIRS =		aout
-INCLUDES =		-I$(top_srcdir)/include
+INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 noinst_HEADERS =	bucomm.h debug.h ieee.h budbg.h demangle.h \
 			linuxthreads.h pstack.h pstacktrace.h
 SRC=			bucomm.c filemode.c linuxthreads.c rddbg.c \

@@ -30,3 +30,10 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+CREATE TABLE t1 (a int);
+prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
+execute stmt1;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+execute stmt1;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+deallocate prepare stmt1;

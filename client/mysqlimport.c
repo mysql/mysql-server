@@ -59,7 +59,7 @@ static char *shared_memory_base_name=0;
 static struct my_option my_long_options[] =
 {
 #ifdef __NETWARE__
-  {"auto-close", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
@@ -517,6 +517,13 @@ int main(int argc, char **argv)
     free_defaults(argv_to_free);
     return(1); /* purecov: deadcode */
   }
+
+  if (mysql_query(sock, "set @@character_set_database=binary;"))
+  {
+    db_error(sock); /* We shall countinue here, if --force was given */
+    return(1);
+  }
+
   if (lock_tables)
     lock_table(sock, argc, argv);
   for (; *argv != NULL; argv++)

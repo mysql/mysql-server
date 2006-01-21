@@ -42,10 +42,10 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
 link_sources:
 	set -x; \
 	for f in $(netware_build_files); do \
-	  rm -f $(srcdir)/../$$f; \
+	  rm -f ../$$f; \
 	  org=`echo $$f | sed -e 's/.*\/\(.*\)/\1/g'`; \
-	  @LN_CP_F@ $(srcdir)/$$org $(srcdir)/../$$f; \
-	done;
+	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
+	done
 else
 EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
 		isamchk.def isamlog.def libmysql.def libmysql.imp \

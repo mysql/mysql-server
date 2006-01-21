@@ -172,6 +172,7 @@ our $exe_mysqlbinlog;
 our $exe_mysql_client_test;
 our $exe_mysqld;
 our $exe_mysqldump;              # Called from test case
+our $exe_mysqlimport;              # Called from test case
 our $exe_mysqlshow;              # Called from test case
 our $exe_mysql_fix_system_tables;
 our $exe_mysqltest;
@@ -461,6 +462,13 @@ sub command_line_setup () {
   my $opt_master_myport= 9306;
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
+
+  if ( $ENV{'MTR_BUILD_THREAD'} )
+  {
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
+    $opt_slave_myport=    $opt_master_myport + 16;
+    $opt_ndbcluster_port= $opt_master_myport + 24;
+  }
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
@@ -833,7 +841,9 @@ sub executable_setup () {
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
                                            "$glob_basedir/bin");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt");
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+                                           "$path_client_bindir/mysqld",
+                                           "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
     }
@@ -861,6 +871,7 @@ sub executable_setup () {
 		       "/usr/bin/false");
     }
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -874,6 +885,7 @@ sub executable_setup () {
   {
     $path_client_bindir= mtr_path_exists("$glob_basedir/bin");
     $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
+    $exe_mysqlimport=    mtr_exe_exists("$path_client_bindir/mysqlimport");
     $exe_mysqlshow=      mtr_exe_exists("$path_client_bindir/mysqlshow");
     $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -886,8 +898,18 @@ sub executable_setup () {
                                          "$glob_basedir/share/english/");
     $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/mysql/charsets",
                                          "$glob_basedir/share/charsets");
-    $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
-                                         "$glob_basedir/bin/mysqld");
+
+    if ( $glob_win32 )
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/bin/mysqld-nt",
+                                           "$glob_basedir/bin/mysqld",
+                                           "$glob_basedir/bin/mysqld-debug",);
+    }
+    else
+    {
+      $exe_mysqld=         mtr_exe_exists ("$glob_basedir/libexec/mysqld",
+                                           "$glob_basedir/bin/mysqld");
+    }
 
     if ( $glob_use_embedded_server )
     {
@@ -971,6 +993,13 @@ sub environment_setup () {
       chomp($ENV{$key});
     }
   }
+
+  # We are nice and report a bit about our settings
+  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
+  print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
+  print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
+  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
 }
 
 
@@ -2076,6 +2105,14 @@ sub run_mysqltest ($) {
     $cmdline_mysqldump .=
       " --debug=d:t:A,$opt_vardir/log/mysqldump.trace";
   }
+  my $cmdline_mysqlimport= "$exe_mysqlimport -uroot " .
+                         "--port=$master->[0]->{'path_myport'} " .
+                         "--socket=$master->[0]->{'path_mysock'} --password=";
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlimport .=
+      " --debug=d:t:A,$opt_vardir/log/mysqlimport.trace";
+  }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
@@ -2126,6 +2163,7 @@ sub run_mysqltest ($) {
 
   $ENV{'MYSQL'}=                    $cmdline_mysql;
   $ENV{'MYSQL_DUMP'}=               $cmdline_mysqldump;
+  $ENV{'MYSQL_IMPORT'}=             $cmdline_mysqlimport;
   $ENV{'MYSQL_SHOW'}=               $cmdline_mysqlshow;
   $ENV{'MYSQL_BINLOG'}=             $cmdline_mysqlbinlog;
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;

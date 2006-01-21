@@ -5745,8 +5745,7 @@ void Field_blob::get_key_image(char *buff,uint length,
       return;
     }
     get_ptr(&blob);
-    gobj= Geometry::create_from_wkb(&buffer,
-				    blob + SRID_SIZE, blob_length - SRID_SIZE);
+    gobj= Geometry::construct(&buffer, blob, blob_length);
     if (gobj->get_mbr(&mbr, &dummy))
       bzero(buff, SIZEOF_STORED_DOUBLE*4);
     else
@@ -6039,8 +6038,7 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
     return;
   }
   get_ptr(&blob);
-  gobj= Geometry::create_from_wkb(&buffer,
-				  blob + SRID_SIZE, blob_length - SRID_SIZE);
+  gobj= Geometry::construct(&buffer, blob, blob_length);
   if (gobj->get_mbr(&mbr, &dummy))
     bzero(buff, SIZEOF_STORED_DOUBLE*4);
   else
@@ -6100,7 +6098,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     uint32 wkb_type;
     if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
       goto err;
-    wkb_type= uint4korr(from + WKB_HEADER_SIZE);
+    wkb_type= uint4korr(from + SRID_SIZE + 1);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
       return -1;
@@ -6511,8 +6509,20 @@ bool Field_num::eq_def(Field *field)
 ** Handling of field and create_field
 *****************************************************************************/
 
+/*
+  Convert create_field::length from number of characters to number of bytes
+
+  SYNOPSIS
+    create_field::create_length_to_internal_length()
+  
+  DESCRIPTION
+    Convert create_field::length from number of characters to number of bytes,
+    save original value in chars_length.
+*/
+
 void create_field::create_length_to_internal_length(void)
 {
+  chars_length= length;
   switch (sql_type) {
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
@@ -6939,11 +6949,11 @@ uint32 Field_blob::max_length()
   switch (packlength)
   {
   case 1:
-    return 255;
+    return 255 * field_charset->mbmaxlen;
   case 2:
-    return 65535;
+    return 65535 * field_charset->mbmaxlen;
   case 3:
-    return 16777215;
+    return 16777215 * field_charset->mbmaxlen;
   case 4:
     return (uint32) 4294967295U;
   default:

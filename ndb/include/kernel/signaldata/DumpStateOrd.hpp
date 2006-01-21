@@ -78,6 +78,8 @@ public:
     LqhDumpAllScanRec = 2301,
     LqhDumpAllActiveScanRec = 2302,
     LqhDumpLcpState = 2303,
+    LqhErrorInsert5042 = 2315,
+
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
     AccDumpAllActiveScanRec = 2402,
@@ -98,6 +100,8 @@ public:
     StartTcTimer = 2509,
     StopTcTimer = 2510,
     StartPeriodicTcTimer = 2511,
+    TcStartDumpIndexOpCount = 2512,
+    TcDumpIndexOpCount = 2513,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,

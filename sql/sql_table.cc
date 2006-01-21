@@ -220,7 +220,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL, TRUE);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -524,7 +524,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (!interval)
       {
-        interval= sql_field->interval= typelib(sql_field->interval_list);
+        /*
+          Create the typelib in prepared statement memory if we're
+          executing one.
+        */
+        MEM_ROOT *stmt_root= thd->current_arena->mem_root;
+
+        interval= sql_field->interval= typelib(stmt_root,
+                                               sql_field->interval_list);
         List_iterator<String> it(sql_field->interval_list);
         String conv, *tmp;
         for (uint i= 0; (tmp= it++); i++)
@@ -534,7 +541,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           {
             uint cnv_errs;
             conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-            char *buf= (char*) sql_alloc(conv.length()+1);
+            char *buf= (char*) alloc_root(stmt_root, conv.length()+1);
             memcpy(buf, conv.ptr(), conv.length());
             buf[conv.length()]= '\0';
             interval->type_names[i]= buf;
@@ -556,8 +563,22 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (sql_field->def && cs != sql_field->def->collation.collation)
       {
-        if (!(sql_field->def= 
-              sql_field->def->safe_charset_converter(cs)))
+        Item_arena backup_arena;
+        bool need_to_change_arena=
+          !thd->current_arena->is_conventional_execution();
+        if (need_to_change_arena)
+        {
+          /* Asser that we don't do that at every PS execute */
+          DBUG_ASSERT(thd->current_arena->is_first_stmt_execute());
+          thd->set_n_backup_item_arena(thd->current_arena, &backup_arena);
+        }
+
+        sql_field->def= sql_field->def->safe_charset_converter(cs);
+
+        if (need_to_change_arena)
+          thd->restore_backup_item_arena(thd->current_arena, &backup_arena);
+
+        if (! sql_field->def)
         {
           /* Could not convert */
           my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
@@ -639,16 +660,25 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	{
 	  /* Field redefined */
+	  sql_field->def=		dup_field->def;
 	  sql_field->sql_type=		dup_field->sql_type;
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
 					 create_info->default_table_charset);
-	  sql_field->length=		dup_field->length;
-	  sql_field->pack_length=	dup_field->pack_length;
+	  sql_field->length=		dup_field->chars_length;
+          sql_field->pack_length=	dup_field->pack_length;
 	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
-	  sql_field->flags=		dup_field->flags;
 	  sql_field->unireg_check=	dup_field->unireg_check;
+          /* 
+            We're making one field from two, the result field will have
+            dup_field->flags as flags. If we've incremented null_fields
+            because of sql_field->flags, decrement it back.
+          */
+          if (!(sql_field->flags & NOT_NULL_FLAG))
+            null_fields--;
+	  sql_field->flags=		dup_field->flags;
+          sql_field->interval=          dup_field->interval;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -1920,7 +1950,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL, FALSE);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -2772,8 +2802,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (!new_db || !my_strcasecmp(table_alias_charset, new_db, db))
     new_db= db;
   used_fields=create_info->used_fields;
+  
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL, FALSE);
 
-  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,

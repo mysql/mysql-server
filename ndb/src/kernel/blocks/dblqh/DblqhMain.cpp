@@ -3532,6 +3532,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     jam();
     regTcPtr->activeCreat = ZTRUE;
     CRASH_INSERTION(5002);
+    CRASH_INSERTION2(5042, tabptr.i == c_error_insert_table_id);
   } else {
     regTcPtr->activeCreat = ZFALSE;
   }//if
@@ -5869,12 +5870,21 @@ void Dblqh::execABORT(Signal* signal)
     warningReport(signal, 8);
     return;
   }//if
+  
+  TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  if (ERROR_INSERTED(5100))
+  {
+    SET_ERROR_INSERT_VALUE(5101);
+    return;
+  }
+  CRASH_INSERTION2(5101, regTcPtr->nextReplica != ZNIL);
+  
 /* ------------------------------------------------------------------------- */
 /*A GUIDING DESIGN PRINCIPLE IN HANDLING THESE ERROR SITUATIONS HAVE BEEN    */
 /*KEEP IT SIMPLE. THUS WE RATHER INSERT A WAIT AND SET THE ABORT_STATE TO    */
 /*ACTIVE RATHER THAN WRITE NEW CODE TO HANDLE EVERY SPECIAL SITUATION.       */
 /* ------------------------------------------------------------------------- */
-  TcConnectionrec * const regTcPtr = tcConnectptr.p;
   if (regTcPtr->nextReplica != ZNIL) {
 /* ------------------------------------------------------------------------- */
 // We will immediately send the ABORT message also to the next LQH node in line.
@@ -9210,6 +9220,15 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
 // completion. Signal completion through scanCompletedStatus-flag.
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
+    scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
+    if (ERROR_INSERTED(5042))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      tcConnectptr.p->copyCountWords = ~0;
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, scanptr.p->scanNodeId),
+		 GSN_NDB_TAMPER, signal, 1, JBA);
+    }
     return;
   }//if
 
@@ -18402,8 +18421,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-
-
+  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
+  {
+    c_error_insert_table_id = dumpState->args[1];
+    SET_ERROR_INSERT_VALUE(5042);
+  }
+  
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::execSET_VAR_REQ(Signal* signal) 
@@ -18444,60 +18467,54 @@ void
 Dblqh::execCREATE_TRIG_REQ(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference tupref = calcTupBlockRef(myNodeId);
 
-  sendSignal(tupref, GSN_CREATE_TRIG_REQ, signal, CreateTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, signal,
+             CreateTrigReq::SignalLength, JBB);
 }
 
 void
 Dblqh::execCREATE_TRIG_CONF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_CREATE_TRIG_CONF, signal, CreateTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_CONF, signal,
+             CreateTrigConf::SignalLength, JBB);
 }
 
 void
 Dblqh::execCREATE_TRIG_REF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_CREATE_TRIG_REF, signal, CreateTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REF, signal,
+             CreateTrigRef::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_REQ(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference tupref = calcTupBlockRef(myNodeId);
 
-  sendSignal(tupref, GSN_DROP_TRIG_REQ, signal, DropTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ, signal,
+             DropTrigReq::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_CONF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_DROP_TRIG_CONF, signal, DropTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_CONF, signal,
+             DropTrigConf::SignalLength, JBB);
 }
 
 void
 Dblqh::execDROP_TRIG_REF(Signal* signal)
 {
   jamEntry();
-  NodeId myNodeId = getOwnNodeId();
-  BlockReference dictref = calcDictBlockRef(myNodeId);
 
-  sendSignal(dictref, GSN_DROP_TRIG_REF, signal, DropTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_REF, signal,
+             DropTrigRef::SignalLength, JBB);
 }
 
 Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){

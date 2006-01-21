@@ -21,6 +21,7 @@
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
 #include <Vector.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
@@ -409,6 +410,132 @@ int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  
+  Uint32 tableId = ctx->getTab()->getTableId();
+  int dump[2] = { DumpStateOrd::LqhErrorInsert5042, 0 };
+  dump[1] = tableId;
+
+  int nodeId = restarter.getDbNodeId(1);
+
+  ndbout << "Restart node " << nodeId << endl; 
+  
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.dumpStateOneNode(nodeId, dump, 2))
+    return NDBT_FAILED;
+
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runBug15632(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  
+  int nodeId = restarter.getDbNodeId(1);
+
+  ndbout << "Restart node " << nodeId << endl; 
+  
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.insertErrorInNode(nodeId, 7165))
+    return NDBT_FAILED;
+  
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(nodeId,
+				 /** initial */ false, 
+				 /** nostart */ true,
+				 /** abort   */ true))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+    return NDBT_FAILED; 
+   
+  if (restarter.insertErrorInNode(nodeId, 7171))
+    return NDBT_FAILED;
+  
+  if (restarter.startNodes(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.waitNodesStarted(&nodeId, 1))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runBug15685(NDBT_Context* ctx, NDBT_Step* step){
+
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  NdbRestarter restarter;
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), 10) != 0){
+    return NDBT_FAILED;
+  }
+
+  if(hugoOps.startTransaction(pNdb) != 0)
+    goto err;
+  
+  if(hugoOps.pkUpdateRecord(pNdb, 0, 1, rand()) != 0)
+    goto err;
+
+  if(hugoOps.execute_NoCommit(pNdb) != 0)
+    goto err;
+
+  if (restarter.insertErrorInAllNodes(5100))
+    return NDBT_FAILED;
+  
+  hugoOps.execute_Rollback(pNdb);
+
+  if (restarter.waitClusterStarted() != 0)
+    goto err;
+
+  if (restarter.insertErrorInAllNodes(0))
+    return NDBT_FAILED;
+  
+  ctx->stopTest();
+  return NDBT_OK;
+  
+err:
+  ctx->stopTest();
+  return NDBT_FAILED;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -558,6 +685,8 @@ TESTCASE("RestartNFDuringNR",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -647,6 +776,8 @@ TESTCASE("RestartNodeDuringLCP",
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarts);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runScanUpdateUntilStopped);
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
@@ -669,6 +800,24 @@ TESTCASE("LateCommit",
 	 "Test commit after node failure"){
   INITIALIZER(runLoadTable);
   STEP(runLateCommit);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15587",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runBug15587);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15632",
+	 "Test bug with NF during NR"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug15632);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug15685",
+	 "Test bug with NF during abort"){
+  STEP(runBug15685);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);

@@ -1,7 +1,0 @@
-include ..\include\makefile.i
-
-read.lib: read0read.obj
-	lib -out:..\libs\read.lib read0read.obj
-
-read0read.obj: read0read.c
-	$(CCOM) $(CFL) -c read0read.c

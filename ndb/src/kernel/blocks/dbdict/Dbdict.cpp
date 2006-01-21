@@ -11694,7 +11694,6 @@ Dbdict::alterTrigger_toDropLocal(Signal* signal, OpAlterTriggerPtr opPtr)
     // broken trigger allowed if force
     if (! (triggerPtr.p->triggerLocal & TriggerRecord::TL_CREATED_LQH)) {
       jam();
-      ndbrequire(opPtr.p->m_requestFlag & RequestFlag::RF_FORCE);
       alterTrigger_sendReply(signal, opPtr, false);
       return;
     }

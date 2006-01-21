@@ -2016,6 +2016,22 @@ get_innobase_type_from_mysql_type(
 }
 
 /***********************************************************************
+Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
+storage format. */
+inline
+void
+innobase_write_to_2_little_endian(
+/*==============================*/
+	byte*	buf,	/* in: where to store */
+	ulint	val)	/* in: value to write, must be < 64k */
+{
+	ut_a(val < 256 * 256);
+
+	buf[0] = (byte)(val & 0xFF);
+	buf[1] = (byte)(val / 256);
+}
+
+/***********************************************************************
 Stores a key value for a row to a buffer. */
 
 uint
@@ -2034,8 +2050,6 @@ ha_innobase::store_key_val_for_row(
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
-	ulint		blob_len;
-	byte*		blob_data;
 	ibool		is_null;
 
   	DBUG_ENTER("store_key_val_for_row");
@@ -2084,13 +2098,25 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
+			CHARSET_INFO*	cs;
+			ulint		key_len;
+			ulint		len;
+			ulint		true_len;
+			int		error=0;
+			ulint		blob_len;
+			byte*		blob_data;
+
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
+			key_len = key_part->length;
+
 		        if (is_null) {
-				 buff += key_part->length + 2;
+				 buff += key_len + 2;
 				 
 				 continue;
 			}
+
+			cs = field->charset();
 		    
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
@@ -2099,29 +2125,108 @@ ha_innobase::store_key_val_for_row(
 
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
-			if (blob_len > key_part->length) {
-			        blob_len = key_part->length;
+
+			true_len = blob_len;
+
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
+			
+			if (key_len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) blob_data,
+						(const char *) blob_data 
+							+ blob_len,
+						key_len / cs->mbmaxlen,
+						&error);
+			}
+
+			/* All indexes on BLOB and TEXT are column prefix
+			indexes, and we may need to truncate the data to be
+			stored in the key value: */
+
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
 			storage of the number is little-endian */
 
-			ut_a(blob_len < 256);
-			*((byte*)buff) = (byte)blob_len;
+			innobase_write_to_2_little_endian(
+					(byte*)buff, true_len);
 			buff += 2;
 
-			memcpy(buff, blob_data, blob_len);
+			memcpy(buff, blob_data, true_len);
 
-			buff += key_part->length;
+			/* Note that we always reserve the maximum possible
+			length of the BLOB prefix in the key value. */
+
+			buff += key_len;
 		} else {
+			/* Here we handle all other data types except the
+			true VARCHAR, BLOB and TEXT. Note that the column
+			value we store may be also in a column prefix
+			index. */
+
+			CHARSET_INFO*		cs;
+			ulint			true_len;
+			ulint			key_len;
+			const mysql_byte*	src_start;
+			int			error=0;
+			enum_field_types	real_type;
+
+			key_len = key_part->length;
+
 		        if (is_null) {
-				 buff += key_part->length;
+				 buff += key_len;
 				 
 				 continue;
 			}
-			memcpy(buff, record + key_part->offset,
-							key_part->length);
-			buff += key_part->length;
+
+			src_start = record + key_part->offset;
+			real_type = field->real_type();
+			true_len = key_len;
+
+			/* Character set for the field is defined only
+			to fields whose type is string and real field
+			type is not enum or set. For these fields check
+			if character set is multi byte. */
+
+			if (real_type != FIELD_TYPE_ENUM 
+				&& real_type != FIELD_TYPE_SET
+				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
+					|| mysql_type == MYSQL_TYPE_STRING)) {
+
+				cs = field->charset();
+
+				/* For multi byte character sets we need to 
+				calculate the true length of the key */
+
+				if (key_len > 0 && cs->mbmaxlen > 1) {
+
+					true_len = (ulint) 
+						cs->cset->well_formed_len(cs,
+							(const char *)src_start,
+							(const char *)src_start 
+								+ key_len,
+							key_len / cs->mbmaxlen,
+							&error);
+				}
+			}
+
+			memcpy(buff, src_start, true_len);
+			buff += true_len;
+
+			/* Pad the unused space with spaces. Note that no 
+			padding is ever needed for UCS-2 because in MySQL, 
+			all UCS2 characters are 2 bytes, as MySQL does not 
+			support surrogate pairs, which are needed to represent
+			characters in the range U+10000 to U+10FFFF. */
+
+			if (true_len < key_len) {
+				ulint pad_len = key_len - true_len;
+				memset(buff, ' ', pad_len);
+				buff += pad_len;
+			}
 		}
   	}
 
@@ -4729,6 +4834,7 @@ ha_innobase::update_table_comment(
 	uint	length			= strlen(comment);
 	char*				str;
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	long	flen;
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -4748,42 +4854,42 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	/* output the data to a temporary file */
 
-		/* output the data to a temporary file */
-		fprintf(file, "InnoDB free: %lu kB",
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
+
+	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file,
+	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if(length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(file);
-			flen = fread(pos, 1, flen, file);
-			pos[flen] = 0;
-		}
-
-		fclose(file);
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (length + flen + 3 > 64000) {
+		flen = 64000 - 3 - length;
 	}
+
+	/* allocate buffer for the full string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(length + flen + 3, MYF(0));
+
+	if (str) {
+		char* pos	= str + length;
+		if (length) {
+			memcpy(str, comment, length);
+			*pos++ = ';';
+			*pos++ = ' ';
+		}
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
+		pos[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
         prebuilt->trx->op_info = (char*)"";
 
@@ -4802,6 +4908,7 @@ ha_innobase::get_foreign_key_create_info(void)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str	= 0;
+	long	flen;
 
 	ut_a(prebuilt != NULL);
 
@@ -4811,46 +4918,41 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	prebuilt->trx->op_info = (char*)"getting info on foreign keys";
 
-		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+	/* In case MySQL calls this in the middle of a SELECT query,
+	release possible adaptive hash latch to avoid
+	deadlocks of threads */
 
-		/* In case MySQL calls this in the middle of a SELECT query,
-		release possible adaptive hash latch to avoid
-		deadlocks of threads */
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-		trx_search_latch_release_if_reserved(prebuilt->trx);
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
 
-		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file,
+	/* output the data to a temporary file */
+	dict_print_info_on_foreign_keys(TRUE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		prebuilt->trx->op_info = (char*)"";
+	prebuilt->trx->op_info = (char*)"";
 
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if(flen > 64000 - 1) {
-			flen = 64000 - 1;
-		}
-
-		/* allocate buffer for the string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(flen + 1, MYF(0));
-
-		if (str) {
-			rewind(file);
-			flen = fread(str, 1, flen, file);
-			str[flen] = 0;
-		}
-
-		fclose(file);
-	} else {
-		/* unable to create temporary file */
-          	str = my_strdup(
-"/* Error: cannot display foreign key constraints */", MYF(0));
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
+		flen = 64000 - 1;
 	}
+
+	/* allocate buffer for the string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(flen + 1, MYF(0));
+
+	if (str) {
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(str, 1, flen, srv_dict_tmpfile);
+		str[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
   	return(str);
 }

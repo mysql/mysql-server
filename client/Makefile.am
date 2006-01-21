@@ -41,8 +41,8 @@ DEFS =			-DUNDEF_THREADS_HACK
 
 link_sources:
 	for f in $(sql_src) ; do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(top_srcdir)/sql/$$f $(srcdir)/$$f; \
+	  rm -f $$f; \
+	  @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
         done;
 
 # Don't update the files from bitkeeper

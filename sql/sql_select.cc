@@ -69,8 +69,6 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    SELECT_LEX_UNIT *unit);
 static COND *optimize_cond(THD *thd, COND *conds,
 			   Item::cond_result *cond_value);
-static COND *remove_eq_conds(THD *thd, COND *cond, 
-			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -289,7 +287,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(thd, ref_pointer_array, all_fields);
+      having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
   }
 
   // Is it subselect
@@ -689,6 +687,7 @@ JOIN::optimize()
   {
     order=0;					// The output has only one row
     simple_order=1;
+    select_distinct= 0;                       // No need in distinct for 1 row
   }
 
   calc_group_buffer(this, group_list);
@@ -1043,18 +1042,21 @@ JOIN::save_join_tab()
 void
 JOIN::exec()
 {
+  List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
   
   error= 0;
   if (procedure)
   {
-    if (procedure->change_columns(fields_list) ||
-	result->prepare(fields_list, unit))
+    procedure_fields_list= fields_list;
+    if (procedure->change_columns(procedure_fields_list) ||
+	result->prepare(procedure_fields_list, unit))
     {
       thd->limit_found_rows= thd->examined_row_count= 0;
       DBUG_VOID_RETURN;
     }
+    columns_list= &procedure_fields_list;
   }
   else if (test(select_options & OPTION_BUFFER_RESULT) &&
            result && result->prepare(fields_list, unit))
@@ -1071,7 +1073,7 @@ JOIN::exec()
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
-      result->send_fields(fields_list,1);
+      result->send_fields(*columns_list, 1);
       /*
         We have to test for 'conds' here as the WHERE may not be constant
         even if we don't have any tables for prepared statements or if
@@ -1081,9 +1083,9 @@ JOIN::exec()
           (!conds || conds->val_int()) &&
           (!having || having->val_int()))
       {
-	if (do_send_rows && (procedure ? (procedure->send_row(fields_list) ||
-                                          procedure->end_of_records())
-                                       : result->send_data(fields_list)))
+	if (do_send_rows &&
+            (procedure ? (procedure->send_row(procedure_fields_list) ||
+             procedure->end_of_records()) : result->send_data(fields_list)))
 	  error= 1;
 	else
 	{
@@ -1107,7 +1109,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, tables_list, fields_list,
+    (void) return_zero_rows(this, result, tables_list, *columns_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -4611,7 +4613,7 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
   COND_FALSE always false	( 1 = 2 )
 */
 
-static COND *
+COND *
 remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
@@ -5290,7 +5292,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
     if (!--hidden_field_count)
+    {
       hidden_null_count=null_count;
+      /*
+        We need to update hidden_field_count as we may have stored group
+        functions with constant arguments
+      */
+      param->hidden_field_count= (uint) (reg_field - table->field);
+    }
   }
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= (uint) (reg_field - table->field);
@@ -5486,7 +5495,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
   }
 
-  if (distinct)
+  if (distinct && field_count != param->hidden_field_count)
   {
     /*
       Create an unique key or an unique constraint over all columns
@@ -5844,13 +5853,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   JOIN_TAB *join_tab;
   int (*end_select)(JOIN *, struct st_join_table *,bool);
   DBUG_ENTER("do_select");
-
+  List<Item> *columns_list= procedure ? &join->procedure_fields_list : fields;
   join->procedure=procedure;
   /*
     Tell the client how many fields there are in a row
   */
   if (!table)
-    join->result->send_fields(*fields,1);
+    join->result->send_fields(*columns_list, 1);
   else
   {
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
@@ -5912,7 +5921,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	error=(*end_select)(join,join_tab,1);
     }
     else if (join->send_row_on_empty_set())
-      error= join->result->send_data(*join->fields);
+      error= join->result->send_data(*columns_list);
   }
   else
   {
@@ -5940,21 +5949,19 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   if (table)
   {
-    int tmp;
+    int tmp, new_errno= 0;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
       DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
     if ((tmp=table->file->ha_index_or_rnd_end()))
     {
       DBUG_PRINT("error",("ha_index_or_rnd_end() failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
-    if (error == -1)
-      table->file->print_error(my_errno,MYF(0));
+    if (new_errno)
+      table->file->print_error(new_errno,MYF(0));
   }
 #ifndef DBUG_OFF
   if (error)
@@ -6611,7 +6618,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(0);				// Didn't match having
     error=0;
     if (join->procedure)
-      error=join->procedure->send_row(*join->fields);
+      error=join->procedure->send_row(join->procedure_fields_list);
     else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
@@ -7352,8 +7359,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
-  /* Check which keys can be used to resolve ORDER BY */
-  usable_keys.set_all();
+  /*
+    Check which keys can be used to resolve ORDER BY.
+    We must not try to use disabled keys.
+  */
+  usable_keys= table->keys_in_use;
+
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)

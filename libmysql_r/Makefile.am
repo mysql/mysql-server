@@ -41,6 +41,6 @@ libmysqlclient_r_la_LDFLAGS = $(target_ldflags)
 link_sources:
 	set -x; \
 	for f in `cd $(libmysql_dir) && echo *.[ch]`; do \
-	  rm -f $(srcdir)/$$f; \
-	  @LN_CP_F@ $(libmysql_dir)/$$f $(srcdir)/$$f; \
+	  rm -f $$f; \
+	  @LN_CP_F@ $(libmysql_dir)/$$f $$f; \
 	done

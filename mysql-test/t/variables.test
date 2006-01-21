@@ -388,7 +388,6 @@ set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 set names latin1;
 
-# End of 4.1 tests
 
 #
 # Bug #9613: @@have_innodb
@@ -396,3 +395,12 @@ set names latin1;
 
 --replace_column 1 #
 select @@have_innodb;
+
+#
+# Bug #13334: query_prealloc_size default less than minimum
+#
+set @test = @@query_prealloc_size;
+set @@query_prealloc_size = @test;
+select @@query_prealloc_size = @test;
+
+# End of 4.1 tests

@@ -172,7 +172,7 @@ void report_stats()
     log_msg("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
 		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
-		log_msg("hint of what when wrong.\n");
+		log_msg("hint of what went wrong.\n");
 		log_msg("\nIf you want to report this error, please first read the documentation\n");
 		log_msg("at: http://www.mysql.com/doc/en/MySQL_test_suite.html\n");
   }
@@ -347,6 +347,8 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
+  add_arg(&al, "--log-slow-queries");
+  add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
   add_arg(&al, "--debug");
 #endif
@@ -520,6 +522,8 @@ void start_slave()
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+  add_arg(&al, "--log-slow-queries");
+  add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
   add_arg(&al, "--debug");
 #endif
@@ -941,7 +945,7 @@ void run_test(char *test)
       // increment total
       ++total_test;
     }
-    else if (err == 2)
+    else if (err == 62)  // To reflect the changes made in client/mysqltest.c 
     {
       // skip
       rstr = TEST_SKIP;

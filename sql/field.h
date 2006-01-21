@@ -1180,7 +1180,15 @@ public:
   LEX_STRING comment;			// Comment for field
   Item	*def;				// Default value
   enum	enum_field_types sql_type;
+  /*
+    At various stages in execution this can be length of field in bytes or
+    max number of characters. 
+  */
   uint32 length;
+  /*
+    The value of 'length' before a call to create_length_to_internal_length
+  */
+  uint32 chars_length;
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
