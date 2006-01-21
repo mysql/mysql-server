@@ -38,6 +38,7 @@
 #include "DictCache.hpp"
 #include <portlib/NdbMem.h>
 #include <NdbRecAttr.hpp>
+#include <NdbBlob.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
 
@@ -47,6 +48,20 @@ extern EventLogger g_eventLogger;
 static Gci_container g_empty_gci_container;
 static const Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
 static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
+
+#ifdef VM_TRACE
+static void
+print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
+{
+  printf("addr=%p gci=%d op=%d\n", (void*)sdata, sdata->gci, sdata->operation);
+  for (int i = 0; i <= 2; i++) {
+    printf("sec=%d addr=%p sz=%d\n", i, (void*)ptr[i].p, ptr[i].sz);
+    for (int j = 0; j < ptr[i].sz; j++)
+      printf("%08x ", ptr[i].p[j]);
+    printf("\n");
+  }
+}
+#endif
 
 /*
  * Class NdbEventOperationImpl
@@ -60,7 +75,7 @@ static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 #define DBUG_RETURN_EVENT(A) DBUG_RETURN(A)
 #define DBUG_VOID_RETURN_EVENT DBUG_VOID_RETURN
 #define DBUG_PRINT_EVENT(A,B) DBUG_PRINT(A,B)
-#define DBUG_DUMP_EVENT(A,B,C) DBUG_SUMP(A,B,C)
+#define DBUG_DUMP_EVENT(A,B,C) DBUG_DUMP(A,B,C)
 #else
 #define DBUG_ENTER_EVENT(A)
 #define DBUG_RETURN_EVENT(A) return(A)
@@ -92,6 +107,11 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
   theCurrentDataAttrs[0] = NULL;
   theFirstDataAttrs[1] = NULL;
   theCurrentDataAttrs[1] = NULL;
+
+  theBlobList = NULL;
+  theBlobOpList = NULL;
+  theMainOp = NULL;
+
   m_data_item= NULL;
   m_eventImpl = NULL;
 
@@ -117,7 +137,11 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 
   m_state= EO_CREATED;
 
-  m_mergeEvents = false;
+#ifdef ndb_event_stores_merge_events_flag
+  m_mergeEvents = m_eventImpl->m_mergeEvents;
+#else
+   m_mergeEvents = false;
+#endif
 
   m_has_error= 0;
 
@@ -254,10 +278,183 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
   DBUG_RETURN(tAttr);
 }
 
+NdbBlob*
+NdbEventOperationImpl::getBlobHandle(const char *colName, int n)
+{
+  DBUG_ENTER("NdbEventOperationImpl::getBlobHandle (colName)");
+
+  assert(m_mergeEvents);
+
+  if (m_state != EO_CREATED) {
+    ndbout_c("NdbEventOperationImpl::getBlobHandle may only be called between "
+	     "instantiation and execute()");
+    DBUG_RETURN(NULL);
+  }
+
+  NdbColumnImpl *tAttrInfo = m_eventImpl->m_tableImpl->getColumn(colName);
+
+  if (tAttrInfo == NULL) {
+    ndbout_c("NdbEventOperationImpl::getBlobHandle attribute %s not found",colName);
+    DBUG_RETURN(NULL);
+  }
+
+  NdbBlob* bh = getBlobHandle(tAttrInfo, n);
+  DBUG_RETURN(bh);
+}
+
+NdbBlob*
+NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
+{
+  DBUG_ENTER("NdbEventOperationImpl::getBlobHandle");
+  DBUG_PRINT("info", ("attr=%s post/pre=%d", tAttrInfo->m_name.c_str(), n));
+  
+  // as in NdbOperation, create only one instance
+  NdbBlob* tBlob = theBlobList;
+  NdbBlob* tLastBlob = NULL;
+  while (tBlob != NULL) {
+    if (tBlob->theColumn == tAttrInfo && tBlob->theEventBlobVersion == n)
+      DBUG_RETURN(tBlob);
+    tLastBlob = tBlob;
+    tBlob = tBlob->theNext;
+  }
+
+  // blob event name
+  char bename[MAX_TAB_NAME_SIZE];
+  NdbBlob::getBlobEventName(bename, m_eventImpl, tAttrInfo);
+
+  // find blob event op if any (it serves both post and pre handles)
+  assert(tAttrInfo->m_blobTable != NULL);
+  NdbEventOperationImpl* tBlobOp = theBlobOpList;
+  NdbEventOperationImpl* tLastBlopOp = NULL;
+  while (tBlobOp != NULL) {
+    if (strcmp(tBlobOp->m_eventImpl->m_name.c_str(), bename) == 0) {
+      assert(tBlobOp->m_eventImpl->m_tableImpl == tAttrInfo->m_blobTable);
+      break;
+    }
+    tLastBlopOp = tBlobOp;
+    tBlobOp = tBlobOp->theNextBlobOp;
+  }
+
+  DBUG_PRINT("info", ("%s op %s", tBlobOp ? " reuse" : " create", bename));
+
+  // create blob event op if not found
+  if (tBlobOp == NULL) {
+    NdbEventOperation* tmp = m_ndb->createEventOperation(bename);
+    if (tmp == NULL)
+      DBUG_RETURN(NULL);
+    tBlobOp = &tmp->m_impl;
+
+    // pointer to main table op
+    tBlobOp->theMainOp = this;
+    tBlobOp->m_mergeEvents = m_mergeEvents;
+
+    // add to list end
+    if (tLastBlopOp == NULL)
+      theBlobOpList = tBlobOp;
+    else
+      tLastBlopOp->theNextBlobOp = tBlobOp;
+    tBlobOp->theNextBlobOp = NULL;
+  }
+
+  tBlob = m_ndb->getNdbBlob();
+  if (tBlob == NULL)
+    DBUG_RETURN(NULL);
+
+  // calls getValue on inline and blob part
+  if (tBlob->atPrepare(this, tBlobOp, tAttrInfo, n) == -1) {
+    m_ndb->releaseNdbBlob(tBlob);
+    DBUG_RETURN(NULL);
+  }
+
+  // add to list end
+  if (tLastBlob == NULL)
+    theBlobList = tBlob;
+  else
+    tLastBlob->theNext = tBlob;
+  tBlob->theNext = NULL;
+  DBUG_RETURN(tBlob);
+}
+
+int
+NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
+                                     Uint32 part, Uint32 count)
+{
+  DBUG_ENTER_EVENT("NdbEventOperationImpl::readBlobParts");
+  DBUG_PRINT_EVENT("info", ("part=%u count=%u post/pre=%d",
+                      part, count, blob->theEventBlobVersion));
+
+  NdbEventOperationImpl* blob_op = blob->theBlobEventOp;
+
+  EventBufData* main_data = m_data_item;
+  DBUG_PRINT_EVENT("info", ("main_data=%p", main_data));
+  assert(main_data != NULL);
+
+  // search for blob parts list head
+  EventBufData* head;
+  assert(m_data_item != NULL);
+  head = m_data_item->m_next_blob;
+  while (head != NULL)
+  {
+    if (head->m_event_op == blob_op)
+    {
+      DBUG_PRINT_EVENT("info", ("found blob parts head %p", head));
+      break;
+    }
+    head = head->m_next_blob;
+  }
+
+  Uint32 nparts = 0;
+  EventBufData* data = head;
+  // XXX optimize using part no ordering
+  while (data != NULL)
+  {
+    /*
+     * Hack part no directly out of buffer since it is not returned
+     * in pre data (PK buglet).  For part data use receive_event().
+     * This means extra copy.
+     */
+    blob_op->m_data_item = data;
+    int r = blob_op->receive_event();
+    assert(r > 0);
+    Uint32 no = data->get_blob_part_no();
+    Uint32 sz = blob->thePartSize;
+    const char* src = blob->theBlobEventDataBuf.data;
+
+    DBUG_PRINT_EVENT("info", ("part_data=%p part no=%u part sz=%u", data, no, sz));
+
+    if (part <= no && no < part + count)
+    {
+      DBUG_PRINT_EVENT("info", ("part within read range"));
+      memcpy(buf + (no - part) * sz, src, sz);
+      nparts++;
+    }
+    else
+    {
+      DBUG_PRINT_EVENT("info", ("part outside read range"));
+    }
+    data = data->m_next;
+  }
+  assert(nparts == count);
+
+  DBUG_RETURN_EVENT(0);
+}
+
 int
 NdbEventOperationImpl::execute()
 {
   DBUG_ENTER("NdbEventOperationImpl::execute");
+  m_ndb->theEventBuffer->add_drop_lock();
+  int r = execute_nolock();
+  m_ndb->theEventBuffer->add_drop_unlock();
+  DBUG_RETURN(r);
+}
+
+int
+NdbEventOperationImpl::execute_nolock()
+{
+  DBUG_ENTER("NdbEventOperationImpl::execute_nolock");
+  DBUG_PRINT("info", ("this=%p type=%s", this, !theMainOp ? "main" : "blob"));
+
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
   if (!myDict) {
     m_error.code= m_ndb->getNdbError().code;
@@ -266,18 +463,26 @@ NdbEventOperationImpl::execute()
 
   if (theFirstPkAttrs[0] == NULL && 
       theFirstDataAttrs[0] == NULL) { // defaults to get all
-    
   }
 
-  m_ndb->theEventBuffer->add_drop_lock();
   m_magic_number= NDB_EVENT_OP_MAGIC_NUMBER;
   m_state= EO_EXECUTING;
   mi_type= m_eventImpl->mi_type;
   m_ndb->theEventBuffer->add_op();
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
   if (r == 0) {
-    m_ndb->theEventBuffer->add_drop_unlock();
-    DBUG_RETURN(0);
+    if (theMainOp == NULL) {
+      DBUG_PRINT("info", ("execute blob ops"));
+      NdbEventOperationImpl* blob_op = theBlobOpList;
+      while (blob_op != NULL) {
+        r = blob_op->execute_nolock();
+        if (r != 0)
+          break;
+        blob_op = blob_op->theNextBlobOp;
+      }
+    }
+    if (r == 0)
+      DBUG_RETURN(0);
   }
   //Error
   m_state= EO_ERROR;
@@ -285,7 +490,6 @@ NdbEventOperationImpl::execute()
   m_magic_number= 0;
   m_error.code= myDict->getNdbError().code;
   m_ndb->theEventBuffer->remove_op();
-  m_ndb->theEventBuffer->add_drop_unlock();
   DBUG_RETURN(r);
 }
 
@@ -709,21 +913,6 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
   return ret;
 }
 
-#ifdef VM_TRACE
-static void
-print_std(const char* tag, const SubTableData * sdata, LinearSectionPtr ptr[3])
-{
-  printf("%s\n", tag);
-  printf("addr=%p gci=%d op=%d\n", (void*)sdata, sdata->gci, sdata->operation);
-  for (int i = 0; i <= 2; i++) {
-    printf("sec=%d addr=%p sz=%d\n", i, (void*)ptr[i].p, ptr[i].sz);
-    for (int j = 0; j < ptr[i].sz; j++)
-      printf("%08x ", ptr[i].p[j]);
-    printf("\n");
-  }
-}
-#endif
-
 NdbEventOperation *
 NdbEventBuffer::nextEvent()
 {
@@ -751,6 +940,7 @@ NdbEventBuffer::nextEvent()
   while ((data= m_available_data.m_head))
   {
     NdbEventOperationImpl *op= data->m_event_op;
+    DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
 
     // set NdbEventOperation data
     op->m_data_item= data;
@@ -767,7 +957,10 @@ NdbEventBuffer::nextEvent()
 
     // NUL event is not returned
     if (data->sdata->operation == NdbDictionary::Event::_TE_NUL)
+    {
+      DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
       continue;
+    }
 
     int r= op->receive_event();
     if (r > 0)
@@ -777,6 +970,12 @@ NdbEventBuffer::nextEvent()
 #ifdef VM_TRACE
 	m_latest_command= m_latest_command_save;
 #endif
+        NdbBlob* tBlob = op->theBlobList;
+        while (tBlob != NULL)
+        {
+          (void)tBlob->atNextEvent();
+          tBlob = tBlob->theNext;
+        }
 	DBUG_RETURN_EVENT(op->m_facade);
       }
       // the next event belonged to an event op that is no
@@ -1161,7 +1360,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
   Uint64 gci= sdata->gci;
 
-  if ( likely((Uint32)op->mi_type & 1 << (Uint32)sdata->operation) )
+  if ( likely((Uint32)op->mi_type & (1 << (Uint32)sdata->operation)) )
   {
     Gci_container* bucket= find_bucket(&m_active_gci, gci);
       
@@ -1179,9 +1378,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_RETURN_EVENT(0);
     }
 
-    bool use_hash =
-      op->m_mergeEvents &&
+    const bool is_data_event =
       sdata->operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
+    const bool use_hash =  op->m_mergeEvents && is_data_event;
 
     // find position in bucket hash table
     EventBufData* data = 0;
@@ -1207,10 +1406,38 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
       }
-      // add it to list and hash table
-      bucket->m_data.append(data);
+      data->m_event_op = op;
+      if (op->theMainOp == NULL || ! is_data_event)
+      {
+        bucket->m_data.append(data);
+      }
+      else
+      {
+        // find or create main event for this blob event
+        EventBufData_hash::Pos main_hpos;
+        int ret = get_main_data(bucket, main_hpos, data);
+        if (ret == -1)
+        {
+          op->m_has_error = 4;
+          DBUG_RETURN_EVENT(-1);
+        }
+        EventBufData* main_data = main_hpos.data;
+        if (ret != 0) // main event was created
+        {
+          main_data->m_event_op = op->theMainOp;
+          bucket->m_data.append(main_data);
+          if (use_hash)
+          {
+            main_data->m_pkhash = main_hpos.pkhash;
+            bucket->m_data_hash.append(main_hpos, main_data);
+          }
+        }
+        // link blob event under main event
+        add_blob_data(main_data, data);
+      }
       if (use_hash)
       {
+        data->m_pkhash = hpos.pkhash;
         bucket->m_data_hash.append(hpos, data);
       }
 #ifdef VM_TRACE
@@ -1226,18 +1453,12 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         DBUG_RETURN_EVENT(-1);
       }
     }
-    data->m_event_op = op;
-    if (use_hash)
-    {
-      data->m_pkhash = hpos.pkhash;
-    }
     DBUG_RETURN_EVENT(0);
   }
 
 #ifdef VM_TRACE
-  if ((Uint32)op->m_eventImpl->mi_type & 1 << (Uint32)sdata->operation)
+  if ((Uint32)op->m_eventImpl->mi_type & (1 << (Uint32)sdata->operation))
   {
-    // XXX never reached
     DBUG_PRINT_EVENT("info",("Data arrived before ready eventId", op->m_eventId));
     DBUG_RETURN_EVENT(0);
   }
@@ -1300,6 +1521,8 @@ NdbEventBuffer::alloc_data()
 int
 NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbEventBuffer::alloc_mem");
+  DBUG_PRINT("info", ("ptr sz %u + %u + %u", ptr[0].sz, ptr[1].sz, ptr[2].sz));
   const Uint32 min_alloc_size = 128;
 
   Uint32 sz4 = (sizeof(SubTableData) + 3) >> 2;
@@ -1317,7 +1540,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
 
     data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
     if (data->memory == 0)
-      return -1;
+      DBUG_RETURN(-1);
     data->sz = alloc_size;
     m_total_alloc += data->sz;
   }
@@ -1332,7 +1555,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
     memptr += ptr[i].sz;
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int 
@@ -1404,13 +1627,10 @@ copy_attr(AttributeHeader ah,
   {
     Uint32 k;
     for (k = 0; k < n; k++)
-      p1[j1++] = p2[j2++];
+      p1[j1 + k] = p2[j2 + k];
   }
-  else
-  {
-    j1 += n;
-    j2 += n;
-  }
+  j1 += n;
+  j2 += n;
 }
 
 int 
@@ -1443,8 +1663,8 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
   data->sz = 0;
 
   // compose ptr1 o ptr2 = ptr
-  LinearSectionPtr (&ptr1) [3] = olddata.ptr;
-  LinearSectionPtr (&ptr) [3] = data->ptr;
+  LinearSectionPtr (&ptr1)[3] = olddata.ptr;
+  LinearSectionPtr (&ptr)[3] = data->ptr;
 
   // loop twice where first loop only sets sizes
   int loop;
@@ -1458,7 +1678,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
       data->sdata->operation = tp->t3;
     }
 
-    ptr[0].sz = ptr[1].sz = ptr[3].sz = 0;
+    ptr[0].sz = ptr[1].sz = ptr[2].sz = 0;
 
     // copy pk from new version
     {
@@ -1572,6 +1792,113 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
 
   DBUG_RETURN_EVENT(0);
 }
+ 
+/*
+ * Given blob part event, find main table event on inline part.  It
+ * should exist (force in TUP) but may arrive later.  If so, create
+ * NUL event on main table.  The real event replaces it later.
+ */
+
+// write attribute headers for concatened PK
+static void
+split_concatenated_pk(const NdbTableImpl* t, Uint32* ah_buffer,
+                      const Uint32* pk_buffer, Uint32 pk_sz)
+{
+  Uint32 sz = 0; // words parsed so far
+  Uint32 n;  // pk attr count
+  Uint32 i;
+  for (i = n = 0; i < t->m_columns.size() && n < t->m_noOfKeys; i++)
+  {
+    const NdbColumnImpl* c = t->getColumn(i);
+    assert(c != NULL);
+    if (! c->m_pk)
+      continue;
+
+    assert(sz < pk_sz);
+    Uint32 bytesize = c->m_attrSize * c->m_arraySize;
+    Uint32 lb, len;
+    bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_buffer[sz], bytesize,
+                                         lb, len);
+    assert(ok);
+
+    AttributeHeader ah(i, lb + len);
+    ah_buffer[n++] = ah.m_value;
+    sz += ah.getDataSize();
+  }
+  assert(n == t->m_noOfKeys && sz == pk_sz);
+}
+
+int
+NdbEventBuffer::get_main_data(Gci_container* bucket,
+                              EventBufData_hash::Pos& hpos,
+                              EventBufData* blob_data)
+{
+  DBUG_ENTER_EVENT("NdbEventBuffer::get_main_data");
+
+  NdbEventOperationImpl* main_op = blob_data->m_event_op->theMainOp;
+  assert(main_op != NULL);
+  const NdbTableImpl* mainTable = main_op->m_eventImpl->m_tableImpl;
+
+  // create LinearSectionPtr for main table key
+  LinearSectionPtr ptr[3];
+  Uint32 ah_buffer[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+  ptr[0].sz = mainTable->m_noOfKeys;
+  ptr[0].p = ah_buffer;
+  ptr[1].sz = AttributeHeader(blob_data->ptr[0].p[0]).getDataSize();
+  ptr[1].p = blob_data->ptr[1].p;
+  ptr[2].sz = 0;
+  ptr[2].p = 0;
+  split_concatenated_pk(mainTable, ptr[0].p, ptr[1].p, ptr[1].sz);
+
+  DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
+  DBUG_DUMP_EVENT("pk", (char*)ptr[1].p, ptr[1].sz << 2);
+
+  // search for main event buffer
+  bucket->m_data_hash.search(hpos, main_op, ptr);
+  if (hpos.data != NULL)
+    DBUG_RETURN_EVENT(0);
+
+  // not found, create a place-holder
+  EventBufData* main_data = alloc_data();
+  if (main_data == NULL)
+    DBUG_RETURN_EVENT(-1);
+  SubTableData sdata = *blob_data->sdata;
+  sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
+  sdata.operation = NdbDictionary::Event::_TE_NUL;
+  if (copy_data(&sdata, ptr, main_data) != 0)
+    DBUG_RETURN_EVENT(-1);
+  hpos.data = main_data;
+
+  DBUG_RETURN_EVENT(1);
+}
+
+void
+NdbEventBuffer::add_blob_data(EventBufData* main_data,
+                              EventBufData* blob_data)
+{
+  DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
+  DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p", main_data, blob_data));
+  EventBufData* head;
+  head = main_data->m_next_blob;
+  while (head != NULL)
+  {
+    if (head->m_event_op == blob_data->m_event_op)
+      break;
+    head = head->m_next_blob;
+  }
+  if (head == NULL)
+  {
+    head = blob_data;
+    head->m_next_blob = main_data->m_next_blob;
+    main_data->m_next_blob = head;
+  }
+  else
+  {
+    blob_data->m_next = head->m_next;
+    head->m_next = blob_data;
+  }
+  DBUG_VOID_RETURN_EVENT;
+}
 
 NdbEventOperationImpl *
 NdbEventBuffer::move_data()
@@ -1613,6 +1940,31 @@ NdbEventBuffer::free_list(EventBufData_list &list)
 #endif
   m_free_data_sz+= list.m_sz;
 
+  // free blobs XXX unacceptable performance, fix later
+  {
+    EventBufData* data = list.m_head;
+    while (1) {
+      while (data->m_next_blob != NULL) {
+        EventBufData* blob_head = data->m_next_blob;
+        data->m_next_blob = blob_head->m_next_blob;
+        blob_head->m_next_blob = NULL;
+        while (blob_head != NULL) {
+          EventBufData* blob_part = blob_head;
+          blob_head = blob_head->m_next;
+          blob_part->m_next = m_free_data;
+          m_free_data = blob_part;
+#ifdef VM_TRACE
+          m_free_data_count++;
+#endif
+          m_free_data_sz += blob_part->sz;
+        }
+      }
+      if (data == list.m_tail)
+        break;
+      data = data->m_next;
+    }
+  }
+
   // list returned to m_free_data
   new (&list) EventBufData_list;
 }
@@ -1648,6 +2000,14 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   if (m_dropped_ev_op)
     m_dropped_ev_op->m_prev= op;
   m_dropped_ev_op= op;
+ 
+  // drop blob ops
+  while (op->theBlobOpList != NULL)
+  {
+    NdbEventOperationImpl* tBlobOp = op->theBlobOpList;
+    op->theBlobOpList = op->theBlobOpList->theNextBlobOp;
+    (void)m_ndb->dropEventOperation(tBlobOp);
+  }
 
   // ToDo, take care of these to be deleted at the
   // appropriate time, after we are sure that there
@@ -1717,6 +2077,10 @@ send_report:
 Uint32
 EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER_EVENT("EventBufData_hash::getpkhash");
+  DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
+  DBUG_DUMP_EVENT("pk", (char*)ptr[1].p, ptr[1].sz << 2);
+
   const NdbTableImpl* tab = op->m_eventImpl->m_tableImpl;
 
   // in all cases ptr[0] = pk ah.. ptr[1] = pk ad..
@@ -1747,13 +2111,19 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
     dptr += ((bytesize + 3) / 4) * 4;
   }
-  return nr1;
+  DBUG_PRINT_EVENT("info", ("hash result=%08x", nr1));
+  DBUG_RETURN_EVENT(nr1);
 }
 
-// this is seldom invoked
 bool
 EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3], LinearSectionPtr ptr2[3])
 {
+  DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
+  DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
+  DBUG_DUMP_EVENT("pk1", (char*)ptr1[1].p, ptr1[1].sz << 2);
+  DBUG_DUMP_EVENT("ah2", (char*)ptr2[0].p, ptr2[0].sz << 2);
+  DBUG_DUMP_EVENT("pk2", (char*)ptr2[1].p, ptr2[1].sz << 2);
+
   const NdbTableImpl* tab = op->m_eventImpl->m_tableImpl;
 
   Uint32 nkey = tab->m_noOfKeys;
@@ -1762,6 +2132,8 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
   const Uint32* hptr2 = ptr2[0].p;
   const uchar* dptr1 = (uchar*)ptr1[1].p;
   const uchar* dptr2 = (uchar*)ptr2[1].p;
+
+  bool equal = true;
 
   while (nkey-- != 0)
   {
@@ -1787,16 +2159,22 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     int res = (cs->coll->strnncollsp)(cs, dptr1 + lb1, len1, dptr2 + lb2, len2, false);
     if (res != 0)
-      return false;
+    {
+      equal = false;
+      break;
+    }
     dptr1 += ((bytesize1 + 3) / 4) * 4;
     dptr2 += ((bytesize2 + 3) / 4) * 4;
   }
-  return true;
+
+  DBUG_PRINT_EVENT("info", ("equal=%s", equal ? "true" : "false"));
+  DBUG_RETURN_EVENT(equal);
 }
 
 void
 EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER_EVENT("EventBufData_hash::search");
   Uint32 pkhash = getpkhash(op, ptr);
   Uint32 index = (op->m_oid ^ pkhash) % GCI_EVENT_HASH_SIZE;
   EventBufData* data = m_hash[index];
@@ -1811,6 +2189,8 @@ EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr
   hpos.index = index;
   hpos.data = data;
   hpos.pkhash = pkhash;
+  DBUG_PRINT_EVENT("info", ("search result=%p", data));
+  DBUG_VOID_RETURN_EVENT;
 }
 
 template class Vector<Gci_container>;
