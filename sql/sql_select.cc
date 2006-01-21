@@ -639,6 +639,11 @@ JOIN::optimize()
     TABLE_LIST *tbl;
     for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
     {
+      /* 
+        If tbl->embedding!=NULL that means that this table is in the inner
+        part of the nested outer join, and we can't do partition pruning
+        (TODO: check if this limitation can be lifted)
+      */
       if (!tbl->embedding)
       {
         Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
