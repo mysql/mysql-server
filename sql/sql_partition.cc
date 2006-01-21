@@ -110,6 +110,21 @@ uint32 get_partition_id_linear_hash_sub(partition_info *part_info);
 uint32 get_partition_id_linear_key_sub(partition_info *part_info); 
 #endif
 
+static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
+static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
+uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
+uint32 get_next_partition_id_list(PARTITION_ITERATOR* part_iter);
+int get_part_iter_for_interval_via_mapping(partition_info *part_info,
+                                           bool is_subpart,
+                                           byte *min_value, byte *max_value,
+                                           uint flags,
+                                           PARTITION_ITERATOR *part_iter);
+int get_part_iter_for_interval_via_walking(partition_info *part_info,
+                                           bool is_subpart,
+                                           byte *min_value, byte *max_value,
+                                           uint flags,
+                                           PARTITION_ITERATOR *part_iter);
+static void set_up_range_analysis_info(partition_info *part_info);
 
 /*
   A routine used by the parser to decide whether we are specifying a full
@@ -1866,8 +1881,8 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   }
   DBUG_VOID_RETURN;
 }
-          
-        
+
+
 /*
   For linear hashing we need a mask which is on the form 2**n - 1 where
   2**n >= no_parts. Thus if no_parts is 6 then mask is 2**3 - 1 = 8 - 1 = 7.
@@ -2101,6 +2116,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
   part_info->fixed= TRUE;
+  set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
   thd->set_query_id= save_set_query_id;
@@ -5494,13 +5510,21 @@ void mem_alloc_error(size_t size)
   my_error(ER_OUTOFMEMORY, MYF(0), size);
 }
 
-
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
-  Fill the string comma-separated line of used partitions names
+  Return comma-separated list of used partitions in the provided given string
+
   SYNOPSIS
     make_used_partitions_str()
       part_info  IN  Partitioning info
       parts_str  OUT The string to fill
+
+  DESCRIPTION
+    Generate a list of used partitions (from bits in part_info->used_partitions
+    bitmap), asd store it into the provided String object.
+    
+  NOTE
+    The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
 */
 
 void make_used_partitions_str(partition_info *part_info, String *parts_str)
@@ -5510,7 +5534,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
   uint partition_id= 0;
   List_iterator<partition_element> it(part_info->partitions);
   
-  if (part_info->subpart_type != NOT_A_PARTITION)
+  if (is_sub_partitioned(part_info))
   {
     partition_element *head_pe;
     while ((head_pe= it++))
@@ -5549,4 +5573,445 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
     }
   }
 }
+#endif
+
+/****************************************************************************
+ * Partition interval analysis support
+ ***************************************************************************/
+
+/*
+  Setup partition_info::* members related to partitioning range analysis
+
+  SYNOPSIS
+    set_up_partition_func_pointers()
+      part_info  Partitioning info structure
+
+  DESCRIPTION
+    Assuming that passed partition_info structure already has correct values
+    for members that specify [sub]partitioning type, table fields, and
+    functions, set up partition_info::* members that are related to
+    Partitioning Interval Analysis (see get_partitions_in_range_iter for its
+    definition)
+
+  IMPLEMENTATION
+    There are two available interval analyzer functions:
+    (1) get_part_iter_for_interval_via_mapping 
+    (2) get_part_iter_for_interval_via_walking
+
+    They both have limited applicability:
+    (1) is applicable for "PARTITION BY <RANGE|LIST>(func(t.field))", where
+    func is a monotonic function.
+    
+    (2) is applicable for 
+      "[SUB]PARTITION BY <any-partitioning-type>(any_func(t.integer_field))"
+      
+    If both are applicable, (1) is preferred over (2).
+    
+    This function sets part_info::get_part_iter_for_interval according to
+    this criteria, and also sets some auxilary fields that the function
+    uses.
+*/
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+static void set_up_range_analysis_info(partition_info *part_info)
+{
+  enum_monotonicity_info minfo;
+
+  /* Set the catch-all default */
+  part_info->get_part_iter_for_interval= NULL;
+  part_info->get_subpart_iter_for_interval= NULL;
+
+  /* 
+    Check if get_part_iter_for_interval_via_mapping() can be used for 
+    partitioning
+  */
+  switch (part_info->part_type) {
+  case RANGE_PARTITION:
+  case LIST_PARTITION:
+    minfo= part_info->part_expr->get_monotonicity_info();
+    if (minfo != NON_MONOTONIC)
+    {
+      part_info->range_analysis_include_bounds=
+        test(minfo == MONOTONIC_INCREASING);
+      part_info->get_part_iter_for_interval=
+        get_part_iter_for_interval_via_mapping;
+      goto setup_subparts;
+    }
+  default:
+    ;
+  }
+   
+  /*
+    Check get_part_iter_for_interval_via_walking() can be used for
+    partitioning
+  */
+  if (part_info->no_part_fields == 1)
+  {
+    Field *field= part_info->part_field_array[0];
+    switch (field->type()) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      part_info->get_part_iter_for_interval=
+        get_part_iter_for_interval_via_walking;
+      break;
+    default:
+      ;
+    }
+  }
+
+setup_subparts:
+  /*
+    Check get_part_iter_for_interval_via_walking() can be used for
+    subpartitioning
+  */
+  if (part_info->no_subpart_fields == 1)
+  {
+    Field *field= part_info->subpart_field_array[0];
+    switch (field->type()) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      part_info->get_subpart_iter_for_interval=
+        get_part_iter_for_interval_via_walking;
+      break;
+    default:
+      ;
+    }
+  }
+}
+
+
+typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
+                                    bool include_endpoint);
+
+/*
+  Partitioning Interval Analysis: Initialize the iterator for "mapping" case
+
+  SYNOPSIS
+    get_part_iter_for_interval_via_mapping()
+      part_info   Partition info
+      is_subpart  TRUE  - act for subpartitioning
+                  FALSE - act for partitioning
+      min_value   minimum field value, in opt_range key format.
+      max_value   minimum field value, in opt_range key format.
+      flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
+                  NO_MAX_RANGE.
+      part_iter   Iterator structure to be initialized
+
+  DESCRIPTION
+    Initialize partition set iterator to walk over the interval in
+    ordered-array-of-partitions (for RANGE partitioning) or 
+    ordered-array-of-list-constants (for LIST partitioning) space.
+
+  IMPLEMENTATION
+    This function is used when partitioning is done by
+    <RANGE|LIST>(ascending_func(t.field)), and we can map an interval in
+    t.field space into a sub-array of partition_info::range_int_array or
+    partition_info::list_array (see get_partition_id_range_for_endpoint,
+    get_list_array_idx_for_endpoint for details).
+    
+    The function performs this interval mapping, and sets the iterator to
+    traverse the sub-array and return appropriate partitions.
+    
+  RETURN
+    0 - No matching partitions (iterator not initialized)
+    1 - Ok, iterator intialized for traversal of matching partitions.
+   -1 - All partitions would match (iterator not initialized)
+*/
+
+int get_part_iter_for_interval_via_mapping(partition_info *part_info,
+                                           bool is_subpart,
+                                           byte *min_value, byte *max_value,
+                                           uint flags,
+                                           PARTITION_ITERATOR *part_iter)
+{
+  DBUG_ASSERT(!is_subpart);
+  Field *field= part_info->part_field_array[0];
+  uint32             max_endpoint_val;
+  get_endpoint_func  get_endpoint;
+  uint field_len= field->pack_length_in_rec();
+
+  if (part_info->part_type == RANGE_PARTITION)
+  {
+    get_endpoint=        get_partition_id_range_for_endpoint;
+    max_endpoint_val=    part_info->no_parts;
+    part_iter->get_next= get_next_partition_id_range;
+  }
+  else if (part_info->part_type == LIST_PARTITION)
+  {
+    get_endpoint=        get_list_array_idx_for_endpoint;
+    max_endpoint_val=    part_info->no_list_values;
+    part_iter->get_next= get_next_partition_id_list;
+    part_iter->part_info= part_info;
+  }
+  else
+    DBUG_ASSERT(0);
+
+  /* Find minimum */
+  if (flags & NO_MIN_RANGE)
+    part_iter->start_part_num= 0;
+  else
+  {
+    /*
+      Store the interval edge in the record buffer, and call the
+      function that maps the edge in table-field space to an edge
+      in ordered-set-of-partitions (for RANGE partitioning) or 
+      index-in-ordered-array-of-list-constants (for LIST) space.
+    */
+    store_key_image_to_rec(field, min_value, field_len);
+    bool include_endp= part_info->range_analysis_include_bounds ||
+                       !test(flags & NEAR_MIN);
+    part_iter->start_part_num= get_endpoint(part_info, 1, include_endp);
+    if (part_iter->start_part_num == max_endpoint_val)
+      return 0; /* No partitions */
+  }
+
+  /* Find maximum, do the same as above but for right interval bound */
+  if (flags & NO_MAX_RANGE)
+    part_iter->end_part_num= max_endpoint_val;
+  else
+  {
+    store_key_image_to_rec(field, max_value, field_len);
+    bool include_endp= part_info->range_analysis_include_bounds ||
+                       !test(flags & NEAR_MAX);
+    part_iter->end_part_num= get_endpoint(part_info, 0, include_endp);
+    if (part_iter->start_part_num == part_iter->end_part_num)
+      return 0; /* No partitions */
+  }
+  return 1; /* Ok, iterator initialized */
+}
+
+
+/* See get_part_iter_for_interval_via_walking for definition of what this is */
+#define MAX_RANGE_TO_WALK 10
+
+
+/*
+  Partitioning Interval Analysis: Initialize iterator to walk field interval
+
+  SYNOPSIS
+    get_part_iter_for_interval_via_walking()
+      part_info   Partition info
+      is_subpart  TRUE  - act for subpartitioning
+                  FALSE - act for partitioning
+      min_value   minimum field value, in opt_range key format.
+      max_value   minimum field value, in opt_range key format.
+      flags       Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
+                  NO_MAX_RANGE.
+      part_iter   Iterator structure to be initialized
+
+  DESCRIPTION
+    Initialize partition set iterator to walk over interval in integer field
+    space. That is, for "const1 <=? t.field <=? const2" interval, initialize 
+    the iterator to return a set of [sub]partitions obtained with the
+    following procedure:
+      get partition id for t.field = const1,   return it
+      get partition id for t.field = const1+1, return it
+       ...                 t.field = const1+2, ...
+       ...                           ...       ...
+       ...                 t.field = const2    ...
+
+  IMPLEMENTATION
+    See get_partitions_in_range_iter for general description of interval
+    analysis. We support walking over the following intervals: 
+      "t.field IS NULL" 
+      "c1 <=? t.field <=? c2", where c1 and c2 are finite. 
+    Intervals with +inf/-inf, and [NULL, c1] interval can be processed but
+    that is more tricky and I don't have time to do it right now.
+
+    Additionally we have these requirements:
+    * number of values in the interval must be less then number of
+      [sub]partitions, and 
+    * Number of values in the interval must be less then MAX_RANGE_TO_WALK.
+    
+    The rationale behind these requirements is that if they are not met
+    we're likely to hit most of the partitions and traversing the interval
+    will only add overhead. So it's better return "all partitions used" in
+    that case.
+
+  RETURN
+    0 - No matching partitions, iterator not initialized
+    1 - Some partitions would match, iterator intialized for traversing them
+   -1 - All partitions would match, iterator not initialized
+*/
+
+int get_part_iter_for_interval_via_walking(partition_info *part_info,
+                                           bool is_subpart,
+                                           byte *min_value, byte *max_value,
+                                           uint flags,
+                                           PARTITION_ITERATOR *part_iter)
+{
+  Field *field;
+  uint total_parts;
+  partition_iter_func get_next_func;
+  if (is_subpart)
+  {
+    field= part_info->subpart_field_array[0];
+    total_parts= part_info->no_subparts;
+    get_next_func=  get_next_subpartition_via_walking;
+  }
+  else
+  {
+    field= part_info->part_field_array[0];
+    total_parts= part_info->no_parts;
+    get_next_func=  get_next_partition_via_walking;
+  }
+
+  /* Handle the "t.field IS NULL" interval, it is a special case */
+  if (field->real_maybe_null() && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)) &&
+      *min_value && *max_value)
+  {
+    /* 
+      We don't have a part_iter->get_next() function that would find which
+      partition "t.field IS NULL" belongs to, so find partition that contains 
+      NULL right here, and return an iterator over singleton set.
+    */
+    uint32 part_id;
+    field->set_null();
+    if (is_subpart)
+    {
+      part_id= part_info->get_subpartition_id(part_info);
+      init_single_partition_iterator(part_id, part_iter);
+      return 1; /* Ok, iterator initialized */
+    }
+    else
+    {
+      longlong dummy;
+      if (!part_info->get_partition_id(part_info, &part_id, &dummy))
+      {
+        init_single_partition_iterator(part_id, part_iter);
+        return 1; /* Ok, iterator initialized */
+      }
+    }
+    return 0; /* No partitions match */
+  }
+
+  if (flags & (NO_MIN_RANGE | NO_MAX_RANGE))
+    return -1; /* Can't handle this interval, have to use all partitions */
+  
+  /* Get integers for left and right interval bound */
+  longlong a, b;
+  uint len= field->pack_length_in_rec();
+  store_key_image_to_rec(field, min_value, len);
+  a= field->val_int();
+  
+  store_key_image_to_rec(field, max_value, len);
+  b= field->val_int();
+
+  a += test(flags & NEAR_MIN);
+  b += test(!(flags & NEAR_MAX));
+  uint n_values= b - a;
+  
+  if (n_values > total_parts || n_values > MAX_RANGE_TO_WALK)
+    return -1;
+
+  part_iter->start_val= a;
+  part_iter->end_val=   b;
+  part_iter->part_info= part_info;
+  part_iter->get_next=  get_next_func;
+  return 1;
+}
+
+
+/*
+  PARTITION_ITERATOR::get_next implementation: enumerate partitions in range
+
+  SYNOPSIS
+    get_next_partition_id_list()
+      part_iter  Partition set iterator structure
+
+  DESCRIPTION
+    This is implementation of PARTITION_ITERATOR::get_next() that returns
+    [sub]partition ids in [min_partition_id, max_partition_id] range.
+
+  RETURN
+    partition id
+    NOT_A_PARTITION_ID if there are no more partitions
+*/
+
+uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
+{
+  if (part_iter->start_part_num == part_iter->end_part_num)
+    return NOT_A_PARTITION_ID;
+  else
+    return part_iter->start_part_num++;
+}
+
+
+/*
+  PARTITION_ITERATOR::get_next implementation for LIST partitioning
+
+  SYNOPSIS
+    get_next_partition_id_list()
+      part_iter  Partition set iterator structure
+
+  DESCRIPTION
+    This implementation of PARTITION_ITERATOR::get_next() is special for 
+    LIST partitioning: it enumerates partition ids in 
+    part_info->list_array[i] where i runs over [min_idx, max_idx] interval.
+
+  RETURN 
+    partition id
+    NOT_A_PARTITION_ID if there are no more partitions
+*/
+
+uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
+{
+  if (part_iter->start_part_num == part_iter->end_part_num)
+    return NOT_A_PARTITION_ID;
+  else
+    return part_iter->part_info->list_array[part_iter->
+                                            start_part_num++].partition_id;
+}
+
+
+/*
+  PARTITION_ITERATOR::get_next implementation: walk over field-space interval
+
+  SYNOPSIS
+    get_next_partition_via_walking()
+      part_iter  Partitioning iterator
+
+  DESCRIPTION
+    This implementation of PARTITION_ITERATOR::get_next() returns ids of
+    partitions that contain records with partitioning field value within
+    [start_val, end_val] interval.
+
+  RETURN 
+    partition id
+    NOT_A_PARTITION_ID if there are no more partitioning.
+*/
+
+static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
+{
+  uint32 part_id;
+  Field *field= part_iter->part_info->part_field_array[0];
+  while (part_iter->start_val != part_iter->end_val)
+  {
+    field->store(part_iter->start_val, FALSE);
+    part_iter->start_val++;
+    longlong dummy;
+    if (!part_iter->part_info->get_partition_id(part_iter->part_info, 
+                                                &part_id, &dummy))
+      return part_id;
+  }
+  return NOT_A_PARTITION_ID;
+}
+
+
+/* Same as get_next_partition_via_walking, but for subpartitions */
+
+static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
+{
+  uint32 part_id;
+  Field *field= part_iter->part_info->subpart_field_array[0];
+  if (part_iter->start_val == part_iter->end_val)
+    return NOT_A_PARTITION_ID;
+  field->store(part_iter->start_val, FALSE);
+  part_iter->start_val++;
+  return part_iter->part_info->get_subpartition_id(part_iter->part_info);
+}
+#endif
 
