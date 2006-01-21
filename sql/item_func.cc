@@ -429,12 +429,19 @@ my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value)
 
 void Item_func::fix_num_length_and_dec()
 {
-  decimals= 0;
+  uint fl_length= 0;
+  decimals=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    set_if_bigger(decimals, args[i]->decimals);
+    set_if_bigger(decimals,args[i]->decimals);
+    set_if_bigger(fl_length, args[i]->max_length);
   }
-  max_length= float_length(decimals);
+  max_length=float_length(decimals);
+  if (fl_length > max_length)
+  {
+    decimals= NOT_FIXED_DEC;
+    max_length= float_length(NOT_FIXED_DEC);
+  }
 }
 
 
