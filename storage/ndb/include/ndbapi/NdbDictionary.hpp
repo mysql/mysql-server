@@ -1124,7 +1124,7 @@ public:
       _TE_NODE_FAILURE=10,
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
-      _TE_NUL=13 // internal (INS o DEL within same GCI)
+      _TE_NUL=13 // internal (e.g. INS o DEL within same GCI)
     };
 #endif
     /**
@@ -1260,6 +1260,24 @@ public:
      * @return Number of columns, -1 on error
      */
     int getNoOfEventColumns() const;
+
+    /**
+     * The merge events flag is false by default.  Setting it true
+     * implies that events are merged in following ways:
+     *
+     * - for given NdbEventOperation associated with this event,
+     *   events on same PK within same GCI are merged into single event
+     *
+     * - a blob table event is created for each blob attribute
+     *   and blob events are handled as part of main table events
+     *
+     * - blob post/pre data from the blob part events can be read
+     *   via NdbBlob methods as a single value
+     *
+     * NOTE: Currently this flag is not inherited by NdbEventOperation
+     * and must be set on NdbEventOperation explicitly.
+     */
+    void mergeEvents(bool flag);
 
     /**
      * Get object status

@@ -901,6 +901,11 @@ int NdbDictionary::Event::getNoOfEventColumns() const
   return m_impl.getNoOfEventColumns();
 }
 
+void NdbDictionary::Event::mergeEvents(bool flag)
+{
+  m_impl.m_mergeEvents = flag;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Event::getObjectStatus() const
 {

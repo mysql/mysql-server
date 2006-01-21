@@ -150,6 +150,14 @@ public:
    */
   NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
 
+  /**
+   * These methods replace getValue/getPreValue for blobs.  Each
+   * method creates a blob handle NdbBlob.  The handle supports only
+   * read operations.  See NdbBlob.
+   */
+  NdbBlob* getBlobHandle(const char *anAttrName);
+  NdbBlob* getPreBlobHandle(const char *anAttrName);
+
   int isOverrun() const;
 
   /**
