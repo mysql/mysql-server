@@ -142,7 +142,7 @@ struct MBR
   bool inner_point(double x, double y) const
   {
     /* The following should be safe, even if we compare doubles */
-    return (xmin<x) && (xmax>x) && (ymin<y) && (ymax>x);
+    return (xmin<x) && (xmax>x) && (ymin<y) && (ymax>y);
   }
 
   int overlaps(const MBR *mbr)
