@@ -179,8 +179,7 @@ a	b	c
 2	two	two
 alter table t1 drop index c;
 select * from t1 where b = 'two';
-a	b	c
-2	two	two
+ERROR HY000: Can't lock file (errno: 241)
 select * from t1 where b = 'two';
 a	b	c
 2	two	two

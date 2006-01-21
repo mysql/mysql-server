@@ -930,4 +930,22 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 DROP TABLE t1;
 
-# End of 4.1 tests
+#
+# Bug #15536: Crash when DELETE with subquery using BDB tables
+#
+create table t1 (a int, key(a)) engine=bdb;
+create table t2 (b int, key(b)) engine=bdb;
+insert into t1 values (1),(1),(2),(3),(4);
+insert into t2 values (1),(5),(6),(7);
+delete from t1 where (a in (select b from t2));
+select count(*) from t1;
+# INSERT also blows up
+--error 1242
+insert into t1 set a=(select b from t2);
+select count(*) from t1;
+# UPDATE also blows up
+update t1 set a = a + 1 where (a in (select b from t2));
+select count(*) from t1;
+drop table t1, t2;
+
+--echo End of 4.1 tests

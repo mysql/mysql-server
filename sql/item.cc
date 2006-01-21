@@ -211,16 +211,8 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 
 Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 {
-  /*
-    Allow conversion from and to "binary".
-    Don't allow automatic conversion to non-Unicode charsets,
-    as it potentially loses data.
-  */
-  if (collation.collation != &my_charset_bin &&
-      tocs != &my_charset_bin &&
-      !(tocs->state & MY_CS_UNICODE))
-    return NULL; // safe conversion is not possible
-  return new Item_func_conv_charset(this, tocs);
+  Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
+  return conv->safe ? conv : NULL;
 }
 
 
@@ -1768,7 +1760,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
         Item** res= find_item_in_list(this, thd->lex->current_select->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &not_used);
-        if (res != not_found_item && (*res)->type() == Item::FIELD_ITEM)
+        if (res != (Item **)not_found_item && (*res)->type() == Item::FIELD_ITEM)
         {
           set_field((*((Item_field**)res))->field);
           return 0;
@@ -2796,8 +2788,14 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
+  st_table_list *orig_next_table= table_list->next;
+  table_list->next= 0;
   if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
+  {
+    table_list->next= orig_next_table;
     return 1;
+  }
+  table_list->next= orig_next_table;
 
   if (arg->type() == REF_ITEM)
   {
@@ -2809,6 +2807,7 @@ bool Item_insert_value::fix_fields(THD *thd,
     arg= ref->ref[0];
   }
   Item_field *field_arg= (Item_field *)arg;
+
   if (field_arg->field->table->insert_values)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
@@ -2856,7 +2855,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
-  Item *new_item;
+  Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
@@ -2885,8 +2884,17 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     new_item= (null_value ? (Item*) new Item_null(name) :
                (Item*) new Item_int(name, result, length));
   }
-  else if (res_type == ROW_RESULT)
+  else if (res_type == ROW_RESULT && item->type() == Item::ROW_ITEM &&
+           comp_item->type() == Item::ROW_ITEM)
   {
+    /*
+      Substitute constants only in Item_rows. Don't affect other Items
+      with ROW_RESULT (eg Item_singlerow_subselect).
+
+      For such Items more optimal is to detect if it is constant and replace
+      it with Item_row. This would optimize queries like this:
+      SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
+    */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     uint col;
@@ -2903,7 +2911,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     while (col-- > 0)
       resolve_const_item(thd, item_row->addr(col), comp_item_row->el(col));
   }
-  else
+  else if (res_type == REAL_RESULT)
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
@@ -3267,8 +3275,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     {
       int delta1= max_length_orig - decimals_orig;
       int delta2= item->max_length - item->decimals;
-      max_length= min(max(delta1, delta2) + decimals,
-                      (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
+      if (fld_type == MYSQL_TYPE_DECIMAL)
+        max_length= max(delta1, delta2) + decimals;
+      else
+        max_length= min(max(delta1, delta2) + decimals,
+                        (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7);
     }
     else
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;

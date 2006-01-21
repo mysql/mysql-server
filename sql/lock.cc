@@ -394,6 +394,88 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 }
 
 
+/*
+  Find duplicate lock in tables.
+
+  SYNOPSIS
+    mysql_lock_have_duplicate()
+    thd                         The current thread.
+    table                       The table to check for duplicate lock.
+    tables                      The list of tables to search for the dup lock.
+
+  NOTE
+    This is mainly meant for MERGE tables in INSERT ... SELECT
+    situations. The 'real', underlying tables can be found only after
+    the table is opened. The easier way is to check this after the
+    tables are locked.
+
+  RETURN
+    1           A table from 'tables' matches a lock on 'table'.
+    0           No duplicate lock is present.
+    -1          Error.
+*/
+
+int mysql_lock_have_duplicate(THD *thd, TABLE *table, TABLE_LIST *tables)
+{
+  uint                  count;
+  MYSQL_LOCK            *sql_lock1;
+  MYSQL_LOCK            *sql_lock2;
+  TABLE                 **tables1= &table;
+  TABLE                 **tables2;
+  TABLE                 **table_ptr;
+  TABLE_LIST            *tablist2;
+  TABLE                 *write_lock_used;
+  THR_LOCK_DATA         **lock_data1;
+  THR_LOCK_DATA         **end_data1;
+  THR_LOCK_DATA         **lock_data2;
+  THR_LOCK_DATA         **end_data2;
+  THR_LOCK              *lock1;
+  DBUG_ENTER("mysql_lock_have_duplicate");
+
+  if (! (sql_lock1= get_lock_data(thd, tables1, 1, 1, &write_lock_used)))
+    goto err0;
+
+  count=0;
+  for (tablist2 = tables; tablist2; tablist2= tablist2->next)
+    count++;
+  if (! (tables2= (TABLE**) sql_alloc(sizeof(TABLE*) * count)))
+    goto err1;
+  table_ptr= tables2;
+  for (tablist2 = tables; tablist2; tablist2= tablist2->next)
+    *(table_ptr++)= tablist2->table;
+  if (! (sql_lock2= get_lock_data(thd, tables2, count, 1, &write_lock_used)))
+    goto err1;
+
+  count= 1;
+  for (lock_data1= sql_lock1->locks,
+         end_data1= lock_data1 + sql_lock1->lock_count;
+       lock_data1 < end_data1;
+       lock_data1++)
+  {
+    lock1= (*lock_data1)->lock;
+    for (lock_data2= sql_lock2->locks,
+           end_data2= lock_data2 + sql_lock2->lock_count;
+         lock_data2 < end_data2;
+         lock_data2++)
+    {
+      if ((*lock_data2)->lock == lock1)
+        goto end;
+    }
+  }
+  count= 0;
+
+ end:
+  my_free((gptr) sql_lock2, MYF(0));
+  my_free((gptr) sql_lock1, MYF(0));
+  DBUG_RETURN(count);
+
+ err1:
+  my_free((gptr) sql_lock1, MYF(0));
+ err0:
+  DBUG_RETURN(-1);
+}
+
+
 	/* unlock a set of external */
 
 static int unlock_external(THD *thd, TABLE **table,uint count)
@@ -430,6 +512,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   MYSQL_LOCK *sql_lock;
   THR_LOCK_DATA **locks;
   TABLE **to;
+  DBUG_ENTER("get_lock_data");
 
   *write_lock_used=0;
   for (i=tables=lock_count=0 ; i < count ; i++)
@@ -445,7 +528,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	my_malloc(sizeof(*sql_lock)+
 		  sizeof(THR_LOCK_DATA*)*tables+sizeof(table_ptr)*lock_count,
 		  MYF(0))))
-    return 0;
+    DBUG_RETURN(0);
   locks=sql_lock->locks=(THR_LOCK_DATA**) (sql_lock+1);
   to=sql_lock->table=(TABLE**) (locks+tables);
   sql_lock->table_count=lock_count;
@@ -465,7 +548,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       {
 	my_error(ER_OPEN_AS_READONLY,MYF(0),table->table_name);
 	my_free((gptr) sql_lock,MYF(0));
-	return 0;
+	DBUG_RETURN(0);
       }
     }
     THR_LOCK_DATA **org_locks = locks;
@@ -475,7 +558,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       for ( ; org_locks != locks ; org_locks++)
 	(*org_locks)->debug_print_param= (void *) table;
   }
-  return sql_lock;
+  DBUG_RETURN(sql_lock);
 }
 
 
@@ -558,6 +641,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
   uint  key_length;
+  HASH_SEARCH_STATE state;
   DBUG_ENTER("lock_table_name");
   DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->real_name));
 
@@ -568,9 +652,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 
 
   /* Only insert the table if we haven't insert it already */
-  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+  for (table=(TABLE*) hash_first(&open_cache, (byte*)key, key_length, &state);
        table ;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+       table = (TABLE*) hash_next(&open_cache, (byte*)key, key_length, &state))
     if (table->in_use == thd)
       DBUG_RETURN(0);
 

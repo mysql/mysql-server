@@ -144,14 +144,21 @@ create table t1 (a char(10) character set cp1251);
 insert into t1 values (_koi8r'×ÁÓÑ');
 # this is possible:
 select * from t1 where a=_koi8r'×ÁÓÑ';
-# this is not possible, because we have a function, not just a constant:
---error 1267
+# this is possible, because we have a function with constant arguments:
 select * from t1 where a=concat(_koi8r'×ÁÓÑ');
 # this is not posible, cannot convert _latin1'×ÁÓÑ' into cp1251:
 --error 1267
 select * from t1 where a=_latin1'×ÁÓÑ';
 drop table t1;
 set names latin1;
+
+#
+# Bug#10446 Illegal mix of collations
+#
+create table t1 (a char(10) character set utf8 collate utf8_bin);
+insert into t1 values ('       xxx');
+select * from t1 where a=lpad('xxx',10,' ');
+drop table t1;
 
 #
 # Check more automatic conversion

@@ -179,6 +179,8 @@ MgmtSrvr::startEventLog()
   }
   
   const char * tmp;
+  char errStr[100];
+  int err= 0;
   BaseString logdest;
   char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
   NdbAutoPtr<char> tmp_aptr(clusterLog);
@@ -192,9 +194,17 @@ MgmtSrvr::startEventLog()
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  if(!g_eventLogger.addHandler(logdest)) {
+  errStr[0]='\0';
+  if(!g_eventLogger.addHandler(logdest, &err, sizeof(errStr), errStr)) {
     ndbout << "Warning: could not add log destination \""
-	   << logdest.c_str() << "\"" << endl;
+           << logdest.c_str() << "\". Reason: ";
+    if(err)
+      ndbout << strerror(err);
+    if(err && errStr[0]!='\0')
+      ndbout << ", ";
+    if(errStr[0]!='\0')
+      ndbout << errStr;
+    ndbout << endl;
   }
 }
 

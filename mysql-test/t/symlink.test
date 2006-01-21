@@ -3,6 +3,8 @@ disable_query_log;
 show variables like "have_symlink";
 enable_query_log;
 
+--source include/not_windows.inc
+
 --disable_warnings
 drop table if exists t1,t2,t7,t8,t9;
 drop database if exists mysqltest;

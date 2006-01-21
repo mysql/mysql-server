@@ -206,4 +206,37 @@ drop user 'mysqltest_1'@'localhost';
 disconnect con2root;
 disconnect con3root;
 
+#
+# Bug #15775: "drop user" command does not refresh acl_check_hosts
+#
+
+# Create some test users
+insert into mysql.user (user, host) values
+	('mysqltest_1', 'host1'),
+	('mysqltest_2', 'host2'),
+	('mysqltest_3', 'host3'),
+	('mysqltest_4', 'host4'),
+	('mysqltest_5', 'host5'),
+	('mysqltest_6', 'host6'),
+	('mysqltest_7', 'host7');
+flush privileges;
+
+# Drop one user
+drop user mysqltest_3@host3;
+
+# This connect failed before fix since the acl_check_hosts list was corrupted by the "drop user"
+connect (con8,127.0.0.1,root,,test,$MASTER_MYPORT,);
+disconnect con8;
+connection default;
+
+# Clean up - Drop all of the remaining users at once
+drop user mysqltest_1@host1, mysqltest_2@host2, mysqltest_4@host4,
+  mysqltest_5@host5, mysqltest_6@host6, mysqltest_7@host7;
+
+# Check that it's still possible to connect
+connect (con9,127.0.0.1,root,,test,$MASTER_MYPORT,);
+disconnect con9;
+connection default;
+
+
 # End of 4.1 tests

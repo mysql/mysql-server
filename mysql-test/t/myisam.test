@@ -474,6 +474,18 @@ explain select distinct t1.a from t1,t2 order by t2.a;
 drop table t1,t2;
 
 #
+# Bug#14616 - Freshly imported table returns error 124 when using LIMIT
+#
+create table t1 (
+  c1 varchar(32),
+  key (c1)
+) engine=myisam;
+alter table t1 disable keys;
+insert into t1 values ('a'), ('b');
+select c1 from t1 order by c1 limit 1;
+drop table t1;
+
+#
 # Test RTREE index
 #
 --error 1235, 1289
@@ -637,4 +649,41 @@ show index from t1;
 
 drop table t1;
 
+# WL#2609, CSC#XXXX: MyISAM 
+set myisam_stats_method=nulls_ignored;
+show variables like 'myisam_stats_method';
+
+create table t1 (
+  a char(3), b char(4), c char(5), d char(6),
+  key(a,b,c,d)
+);
+insert into t1 values ('bcd','def1', NULL, 'zz');
+insert into t1 values ('bcd','def2', NULL, 'zz');
+insert into t1 values ('bce','def1', 'yuu', NULL);
+insert into t1 values ('bce','def2', NULL, 'quux');
+analyze table t1;
+show index from t1;
+delete from t1;
+analyze table t1;
+show index from t1;
+
+set myisam_stats_method=DEFAULT;
+drop table t1;
+
+# BUG#13814 - key value packed incorrectly for TINYBLOBs
+
+create table t1(
+  cip INT NOT NULL,
+  time TIME NOT NULL,
+  score INT NOT NULL DEFAULT 0,
+  bob TINYBLOB
+);
+
+insert into t1 (cip, time) VALUES (1, '00:01'), (2, '00:02'), (3,'00:03');
+insert into t1 (cip, bob, time) VALUES (4, 'a', '00:04'), (5, 'b', '00:05'), 
+                                       (6, 'c', '00:06');
+select * from t1 where bob is null and cip=1;
+create index bug on t1 (bob(22), cip, time);
+select * from t1 where bob is null and cip=1;
+drop table t1;
 # End of 4.1 tests

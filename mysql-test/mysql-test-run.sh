@@ -209,6 +209,25 @@ NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
+
+#
+# To make it easier for different devs to work on the same host,
+# an environment variable can be used to control all ports. A small
+# number is to be used, 0 - 16 or similar.
+#
+if [ -n "$MTR_BUILD_THREAD" ] ; then
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 5 + 10000`
+  MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
+  SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
+  NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 4`
+
+  echo "Using MTR_BUILD_THREAD   = $MTR_BUILD_THREAD"
+  echo "Using MASTER_MYPORT      = $MASTER_MYPORT"
+  echo "Using MYSQL_MANAGER_PORT = $MYSQL_MANAGER_PORT"
+  echo "Using SLAVE_MYPORT       = $SLAVE_MYPORT"
+  echo "Using NDBCLUSTER_PORT    = $NDBCLUSTER_PORT"
+fi
+
 NO_SLAVE=0
 USER_TEST=
 FAILED_CASES=
@@ -546,6 +565,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlimport" ] ; then
+   MYSQL_IMPORT="$BASEDIR/client/.libs/mysqlimport"
+ else
+   MYSQL_IMPORT="$BASEDIR/client/mysqlimport"
+ fi
  if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
    MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
  else
@@ -614,6 +638,7 @@ else
  fi
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_IMPORT="$CLIENT_BINDIR/mysqlimport"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
@@ -693,10 +718,11 @@ fi
 MYSQL_DUMP_DIR="$MYSQL_DUMP"
 export MYSQL_DUMP_DIR
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_IMPORT="$MYSQL_IMPORT -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
+export MYSQL MYSQL_DUMP MYSQL_IMPORT MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
 export NDB_MGM

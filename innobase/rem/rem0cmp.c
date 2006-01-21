@@ -98,7 +98,8 @@ cmp_types_are_equal(
 				/* out: TRUE if the types are considered
 				equal in comparisons */
 	dtype_t*	type1,	/* in: type 1 */
-	dtype_t*	type2)	/* in: type 2 */
+	dtype_t*	type2,	/* in: type 2 */
+	ibool		check_charsets) /* in: whether to check charsets */
 {
 	if (dtype_is_non_binary_string_type(type1->mtype, type1->prtype)
 	    && dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
@@ -106,12 +107,12 @@ cmp_types_are_equal(
 		/* Both are non-binary string types: they can be compared if
 		and only if the charset-collation is the same */
 
-		if (dtype_get_charset_coll(type1->prtype)
-				== dtype_get_charset_coll(type2->prtype)) {
+		if (check_charsets) {
+			return(dtype_get_charset_coll(type1->prtype)
+			    == dtype_get_charset_coll(type2->prtype));
+		} else {
 			return(TRUE);
 		}
-
-		return(FALSE);
         }
 
 	if (dtype_is_binary_string_type(type1->mtype, type1->prtype)

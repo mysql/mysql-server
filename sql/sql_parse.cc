@@ -689,6 +689,9 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  thd->set_active_vio(net->vio);
+#endif
 
   if (!thd->host)                           // If TCP/IP connection
   {
@@ -2894,16 +2897,17 @@ unsent_create_error:
     if (unit->select_limit_cnt < select_lex->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
-    if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
+    if ((res= open_and_lock_tables(thd, tables)))
+      break;
+
+    insert_table= tables->table;
+    /* MERGE sub-tables can only be detected after open. */
+    if (mysql_lock_have_duplicate(thd, insert_table, tables->next))
     {
       /* Using same table for INSERT and SELECT */
       select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
-    if ((res= open_and_lock_tables(thd, tables)))
-      break;
-      
-    insert_table= tables->table;
     /* Skip first table, which is the table we are inserting in */
     select_lex->table_list.first= (byte*) first_local_table->next;
     tables= (TABLE_LIST *) select_lex->table_list.first;

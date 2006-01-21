@@ -499,3 +499,8 @@ set names latin1;
 select @@have_innodb;
 @@have_innodb
 #
+set @test = @@query_prealloc_size;
+set @@query_prealloc_size = @test;
+select @@query_prealloc_size = @test;
+@@query_prealloc_size = @test
+1

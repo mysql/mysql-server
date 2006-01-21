@@ -2,8 +2,8 @@
 # Makefile for the GNU readline library.
 # Copyright (C) 1994,1996,1997 Free Software Foundation, Inc.
 
-ASRC=vi.c emacs.c common.c
-AHDR=vi.h emacs.h common.h
+ASRC =			$(srcdir)/vi.c $(srcdir)/emacs.c $(srcdir)/common.c
+AHDR =			vi.h emacs.h common.h
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(srcdir)/../.. -I..
@@ -42,16 +42,16 @@ SUFFIXES = .sh
 	$< > $@-t
 	@MV@ $@-t $@
 
-vi.h: vi.c makelist
-	sh ./makelist -h ./vi.c > $@.tmp && \
+vi.h: $(srcdir)/vi.c makelist
+	sh ./makelist -h $(srcdir)/vi.c > $@.tmp && \
 	mv $@.tmp $@
 
-emacs.h: emacs.c makelist
-	sh ./makelist -h ./emacs.c > $@.tmp && \
+emacs.h: $(srcdir)/emacs.c makelist
+	sh ./makelist -h $(srcdir)/emacs.c > $@.tmp && \
 	mv $@.tmp $@
 
-common.h: common.c makelist
-	sh ./makelist -h ./common.c > $@.tmp && \
+common.h: $(srcdir)/common.c makelist
+	sh ./makelist -h $(srcdir)/common.c > $@.tmp && \
 	mv $@.tmp $@
 
 help.c: ${ASRC} makelist

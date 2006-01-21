@@ -61,7 +61,8 @@ int mysql_update(THD *thd,
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
-  uint		used_index;
+  uint		used_index= MAX_KEY;
+  bool          need_sort= TRUE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -69,7 +70,7 @@ int mysql_update(THD *thd,
   ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
-  SQL_SELECT	*select;
+  SQL_SELECT	*select= 0;
   READ_RECORD	info;
   TABLE_LIST    *update_table_list= ((TABLE_LIST*)
 				     thd->lex->select_lex.table_list.first);
@@ -130,11 +131,19 @@ int mysql_update(THD *thd,
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
+  if (conds)
+  {
+    Item::cond_result cond_value;
+    conds= remove_eq_conds(thd, conds, &cond_value);
+    if (cond_value == Item::COND_FALSE)
+      limit= 0;                                   // Impossible WHERE
+  }
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys.clear_all();
-  select=make_select(table,0,0,conds,&error);
-  if (error ||
-      (select && select->check_quick(thd, safe_update, limit)) || !limit)
+  if (limit)
+    select=make_select(table,0,0,conds,&error);
+  if (error || !limit ||
+      (select && select->check_quick(thd, safe_update, limit)))
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -144,6 +153,11 @@ int mysql_update(THD *thd,
     }
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
+  }
+  if (!select && limit != HA_POS_ERROR)
+  {
+    if ((used_index= get_index_for_order(table, order, limit)) != MAX_KEY)
+      need_sort= FALSE;
   }
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -157,6 +171,7 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
+  
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
   {
@@ -164,13 +179,15 @@ int mysql_update(THD *thd,
     used_key_is_modified= (!select->quick->unique_key_range() &&
 			   check_if_key_used(table, used_index, fields));
   }
-  else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
-    used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
   {
-    used_key_is_modified=0;
-    used_index= MAX_KEY;
+    used_key_is_modified= 0;
+    if (used_index == MAX_KEY)                  // no index for sort order
+      used_index= table->file->key_used_on_scan;
+    if (used_index != MAX_KEY)
+      used_key_is_modified= check_if_key_used(table, used_index, fields);
   }
+
   if (used_key_is_modified || order)
   {
     /*
@@ -184,7 +201,8 @@ int mysql_update(THD *thd,
       table->file->extra(HA_EXTRA_KEYREAD);
     }
 
-    if (order)
+    /* note: can actually avoid sorting below.. */
+    if (order && (need_sort || used_key_is_modified))
     {
       /*
 	Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -194,6 +212,7 @@ int mysql_update(THD *thd,
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
 
+      used_index= MAX_KEY;                   // For call to init_read_record()
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length)) ||
@@ -225,7 +244,11 @@ int mysql_update(THD *thd,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
 	goto err;
 
-      init_read_record(&info,thd,table,select,0,1);
+      if (used_index == MAX_KEY)
+        init_read_record(&info,thd,table,select,0,1);
+      else
+        init_read_record_idx(&info, thd, table, 1, used_index);
+
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
 
@@ -251,6 +274,7 @@ int mysql_update(THD *thd,
 	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
+     
       /* Change select to use tempfile */
       if (select)
       {
@@ -353,6 +377,7 @@ int mysql_update(THD *thd,
     if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (transactional_table)
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
@@ -365,7 +390,6 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
   else
@@ -830,8 +854,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_real_table_in_list(update_tables, table_ref->db,
-				table_ref->real_name))
+	mysql_lock_have_duplicate(thd, table, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);
@@ -1058,22 +1081,23 @@ bool multi_update::send_data(List<Item> &not_used_values)
       int error;
       TABLE *tmp_table= tmp_tables[offset];
       fill_record(tmp_table->field+1, *values_for_table[offset], 1);
-      found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
       /* Write row, ignoring duplicated updates to a row */
-      if ((error= tmp_table->file->write_row(tmp_table->record[0])) &&
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (error= tmp_table->file->write_row(tmp_table->record[0]))
       {
-	if (create_myisam_from_heap(thd, tmp_table, tmp_table_param + offset,
-				    error, 1))
+        if (error != HA_ERR_FOUND_DUPP_KEY &&
+            error != HA_ERR_FOUND_DUPP_UNIQUE &&
+            create_myisam_from_heap(thd, tmp_table,
+                                         tmp_table_param + offset, error, 1))
 	{
 	  do_update=0;
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	}
       }
+      else
+        found++;
     }
   }
   DBUG_RETURN(0);

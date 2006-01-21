@@ -306,7 +306,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL);
+    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL,
+                   TRUE);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -798,6 +799,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
+  HASH_SEARCH_STATE state;
   DBUG_ENTER("open_table");
 
   /* find a unused table in the open table cache */
@@ -860,11 +862,13 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   }
 
   /* close handler tables which are marked for flush */
-  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
+  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
 
-  for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+  for (table= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
+                                  &state);
        table && table->in_use ;
-       table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+       table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
+                                 &state))
   {
     if (table->version != refresh_version)
     {
@@ -1008,10 +1012,20 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 
 
 /****************************************************************************
-** Reopen an table because the definition has changed. The date file for the
-** table is already closed.
-** Returns 0 if ok.
-** If table can't be reopened, the entry is unchanged.
+  Reopen an table because the definition has changed. The date file for the
+  table is already closed.
+
+  SYNOPSIS
+    reopen_table()
+    table		Table to be opened
+    locked		1 if we have already a lock on LOCK_open
+
+  NOTES
+    table->query_id will be 0 if table was reopened
+
+  RETURN
+    0  ok
+    1  error ('table' is unchanged if table couldn't be reopened)
 ****************************************************************************/
 
 bool reopen_table(TABLE *table,bool locked)
@@ -1081,8 +1095,10 @@ bool reopen_table(TABLE *table,bool locked)
     (*field)->table_name=table->table_name;
   }
   for (key=0 ; key < table->keys ; key++)
+  {
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
       table->key_info[key].key_part[part].field->table= table;
+  }
   VOID(pthread_cond_broadcast(&COND_refresh));
   error=0;
 
@@ -1235,12 +1251,14 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
 {
   do
   {
+    HASH_SEARCH_STATE state;
     char *key= table->table_cache_key;
     uint key_length=table->key_length;
-    for (TABLE *search=(TABLE*) hash_search(&open_cache,
-					    (byte*) key,key_length) ;
+    for (TABLE *search= (TABLE*) hash_first(&open_cache, (byte*) key,
+                                            key_length, &state);
 	 search ;
-	 search = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+         search= (TABLE*) hash_next(&open_cache, (byte*) key,
+                                    key_length, &state))
     {
       if (search->locked_by_flush ||
 	  search->locked_by_name && wait_for_name_lock ||
@@ -1265,7 +1283,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
+    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE, TRUE);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -2957,11 +2975,14 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   for (;;)
   {
+    HASH_SEARCH_STATE state;
     result= signalled= 0;
 
-    for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
+    for (table= (TABLE*) hash_first(&open_cache, (byte*) key, key_length,
+                                    &state);
          table;
-         table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
+         table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
+                                   &state))
     {
       THD *in_use;
       table->version=0L;		/* Free when thread is ready */

@@ -159,7 +159,9 @@ static void get_options(register int *argc,register char **argv[])
     case 'I':
     case '?':
       printf("         %s  (Compile errormessage)  Ver 1.3\n",progname);
-      puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+      puts("This software comes with ABSOLUTELY NO WARRANTY. "
+           "This is free software,\n"
+           "and you are welcome to modify and redistribute it under the GPL license.\n");
       printf("Usage:   %s [-?] [-I] [-V] fromfile[s] tofile\n",progname);
       puts("Options: -Info -Version\n");
       help=1;

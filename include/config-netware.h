@@ -92,6 +92,9 @@ extern "C" {
 /* On NetWare, stack grows towards lower address*/
 #define STACK_DIRECTION -1
 
+/* On NetWare, we need to set stack size for threads, otherwise default 16K is used */
+#define NW_THD_STACKSIZE 65536
+
 /* On NetWare, to fix the problem with the deletion of open files */
 #define CANT_DELETE_OPEN_FILES 1
 
@@ -116,15 +119,12 @@ extern "C" {
 /* do not use the extended time in LibC sys\stat.h */
 #define _POSIX_SOURCE
 
-/* Kernel call on NetWare that will only yield if our time slice is up */
-void kYieldIfTimeSliceUp(void);
-
 /* Some macros for portability */
 
 #define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time(NULL)+(SEC); (ABSTIME).tv_nsec=0; }
 
 /* extra protection against CPU Hogs on NetWare */
-#define NETWARE_YIELD kYieldIfTimeSliceUp()
+#define NETWARE_YIELD pthread_yield()
 /* Screen mode for help texts */
 #define NETWARE_SET_SCREEN_MODE(A) setscreenmode(A)
 

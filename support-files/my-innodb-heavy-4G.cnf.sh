@@ -128,7 +128,7 @@ join_buffer_size = 8M
 # the amount of thread creations needed if you have a lot of new
 # connections. (Normally this doesn't give a notable performance
 # improvement if you have a good thread implementation.)
-thread_cache = 8
+thread_cache_size = 8
 
 # This permits the application to give the threads system a hint for the
 # desired number of threads that should be run at the same time.  This

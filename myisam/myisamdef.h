@@ -297,7 +297,14 @@ typedef struct st_mi_sort_param
   pthread_t  thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
+  
+  /* 
+    The next two are used to collect statistics, see update_key_parts for
+    description.
+  */
   ulonglong unique[MI_MAX_KEY_SEG+1];
+  ulonglong notnull[MI_MAX_KEY_SEG+1];
+
   my_off_t pos,max_pos,filepos,start_recpos;
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;

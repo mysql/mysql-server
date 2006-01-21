@@ -1,9 +1,0 @@
-include ..\include\makefile.i
-
-fsp.lib: fsp0fsp.obj
-	lib -out:..\libs\fsp.lib fsp0fsp.obj
-
-fsp0fsp.obj: fsp0fsp.c
-	$(CCOM) $(CFL) -c fsp0fsp.c
-
-

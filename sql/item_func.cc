@@ -1983,7 +1983,7 @@ void item_user_lock_release(User_level_lock *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1, FALSE);
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),0, FALSE);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }
@@ -3261,7 +3261,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component)
 {
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
   LEX_STRING *base_name, *component_name;
 
   if (component.str == 0 &&

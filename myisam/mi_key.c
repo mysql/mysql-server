@@ -217,7 +217,10 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       {
 	k_length-=length;
         if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+        {
+          old+= 2;
           k_length-=2;                                  /* Skip length */
+        }
 	continue;					/* Found NULL */
       }
     }

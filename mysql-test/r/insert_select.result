@@ -678,3 +678,11 @@ f1
 2001
 2002
 drop table t1;
+create table t1(x int, y int);
+create table t2(x int, z int);
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(x);
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(z);
+ERROR 42S22: Unknown column 'z' in 'field list'
+insert into t1(x,y) select x,z from t2 on duplicate key update x=values(t2.x);
+ERROR 42S02: Unknown table 't2' in field list
+drop table t1,t2;

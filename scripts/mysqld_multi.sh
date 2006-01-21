@@ -718,9 +718,6 @@ sub usage
   print <<EOF;
 $my_progname version $VER by Jani Tolonen
 
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,
-and you are welcome to modify and redistribute it under the GPL license.
-
 Description:
 $my_progname can be used to start, or stop any number of separate
 mysqld processes running in different TCP/IP ports and UNIX sockets.
