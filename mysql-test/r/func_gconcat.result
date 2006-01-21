@@ -131,9 +131,9 @@ grp	group_concat(a separator "")+0
 3	456789
 select grp, group_concat(a separator "")+0.0 from t1 group by grp;
 grp	group_concat(a separator "")+0.0
-1	1.0
-2	23.0
-3	456789.0
+1	1
+2	23
+3	456789
 select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
 grp	ROUND(group_concat(a separator ""))
 1	1
