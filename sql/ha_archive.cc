@@ -135,6 +135,13 @@ static HASH archive_open_tables;
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
+/* 
+  Number of rows that will force a bulk insert.
+*/
+#define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
+
+
+
 /* dummy handlerton - only to have something to return from archive_db_init */
 handlerton archive_hton = {
   "ARCHIVE",
@@ -1026,7 +1033,8 @@ void ha_archive::info(uint flag)
 void ha_archive::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_archive::start_bulk_insert");
-  bulk_insert= TRUE;
+  if (!rows || rows >= ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT)
+    bulk_insert= TRUE;
   DBUG_VOID_RETURN;
 }
 
