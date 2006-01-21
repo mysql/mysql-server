@@ -91,7 +91,9 @@ drop table t1;
 #
 # InnoDB is required to reproduce the fault, but it is okay if we default to
 # MyISAM when testing.
+--disable_warnings
 create table t1 (a varchar(90), ts datetime not null, index (a)) engine=innodb default charset=utf8;
+--enable_warnings
 insert into t1 values ('http://www.foo.com/', now());
 select a from t1 where a='http://www.foo.com/' order by abs(timediff(ts, 0));
 drop table t1;
