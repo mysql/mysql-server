@@ -60,6 +60,8 @@ install-data-local:
 	for i in $(srcdir)/limits/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/limits; done
 	for i in $(srcdir)/Comments/*.* ; do $(INSTALL_DATA) $$i $(DESTDIR)$(benchdir)/Comments; done
 
+uninstall-local:
+	@RM@ -f -r $(DESTDIR)$(benchdir)
 
 SUFFIXES = .sh
 

@@ -360,4 +360,7 @@ t1 where object_id=85984;
 
 drop table t1;
 
+select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
+select (asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))));
+
 # End of 4.1 tests

@@ -2359,6 +2359,7 @@ scan_tz_dir(char * name_end)
 int
 main(int argc, char **argv)
 {
+#ifndef __NETWARE__
   MY_INIT(argv[0]);
 
   if (argc != 2 && argc != 3)
@@ -2416,6 +2417,10 @@ main(int argc, char **argv)
 
     free_root(&tz_storage, MYF(0));
   }
+
+#else
+  fprintf(stderr, "This tool has not been ported to NetWare\n");
+#endif /* __NETWARE__ */
 
   return 0;
 }

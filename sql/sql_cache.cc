@@ -956,16 +956,26 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err;
   }
 
-  /*
-    Test if the query is a SELECT
-    (pre-space is removed in dispatch_command)
-  */
-  if (my_toupper(system_charset_info, sql[0]) != 'S' || 
-      my_toupper(system_charset_info, sql[1]) != 'E' ||
-      my_toupper(system_charset_info,sql[2]) !='L')
   {
-    DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
-    goto err;
+    uint i= 0;
+    /*
+      Skip '(' characters in queries like following:
+      (select a from t1) union (select a from t1);
+    */
+    while (sql[i]=='(')
+      i++;
+
+    /*
+      Test if the query is a SELECT
+      (pre-space is removed in dispatch_command)
+    */
+    if (my_toupper(system_charset_info, sql[i])     != 'S' ||
+        my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+        my_toupper(system_charset_info, sql[i + 2]) != 'L')
+    {
+      DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+      goto err;
+    }
   }
 
   STRUCT_LOCK(&structure_guard_mutex);
@@ -2863,6 +2873,7 @@ my_bool Query_cache::move_by_type(byte **border,
   }
   case Query_cache_block::TABLE:
   {
+    HASH_SEARCH_STATE record_idx;
     DBUG_PRINT("qcache", ("block 0x%lx TABLE", (ulong) block));
     if (*border == 0)
       break;
@@ -2880,7 +2891,7 @@ my_bool Query_cache::move_by_type(byte **border,
     byte *key;
     uint key_length;
     key=query_cache_table_get_key((byte*) block, &key_length, 0);
-    hash_search(&tables, (byte*) key, key_length);
+    hash_first(&tables, (byte*) key, key_length, &record_idx);
 
     block->destroy();
     new_block->init(len);
@@ -2914,7 +2925,7 @@ my_bool Query_cache::move_by_type(byte **border,
     /* Fix pointer to table name */
     new_block->table()->table(new_block->table()->db() + tablename_offset);
     /* Fix hash to point at moved block */
-    hash_replace(&tables, tables.current_record, (byte*) new_block);
+    hash_replace(&tables, &record_idx, (byte*) new_block);
 
     DBUG_PRINT("qcache", ("moved %lu bytes to 0x%lx, new gap at 0x%lx",
 			len, (ulong) new_block, (ulong) *border));
@@ -2922,6 +2933,7 @@ my_bool Query_cache::move_by_type(byte **border,
   }
   case Query_cache_block::QUERY:
   {
+    HASH_SEARCH_STATE record_idx;
     DBUG_PRINT("qcache", ("block 0x%lx QUERY", (ulong) block));
     if (*border == 0)
       break;
@@ -2939,7 +2951,7 @@ my_bool Query_cache::move_by_type(byte **border,
     byte *key;
     uint key_length;
     key=query_cache_query_get_key((byte*) block, &key_length, 0);
-    hash_search(&queries, (byte*) key, key_length);
+    hash_first(&queries, (byte*) key, key_length, &record_idx);
     // Move table of used tables 
     memmove((char*) new_block->table(0), (char*) block->table(0),
 	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
@@ -3007,7 +3019,7 @@ my_bool Query_cache::move_by_type(byte **border,
       net->query_cache_query= (gptr) new_block;
     }
     /* Fix hash to point at moved block */
-    hash_replace(&queries, queries.current_record, (byte*) new_block);
+    hash_replace(&queries, &record_idx, (byte*) new_block);
     DBUG_PRINT("qcache", ("moved %lu bytes to 0x%lx, new gap at 0x%lx",
 			len, (ulong) new_block, (ulong) *border));
     break;

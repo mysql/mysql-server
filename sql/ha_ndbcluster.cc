@@ -50,6 +50,8 @@ static const char *ha_ndb_ext=".ndb";
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
+#define NDB_INVALID_SCHEMA_OBJECT 241
+
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 
@@ -212,7 +214,21 @@ Thd_ndb::Thd_ndb()
 Thd_ndb::~Thd_ndb()
 {
   if (ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete ndb;
+  }
   ndb= 0;
 }
 
@@ -3269,14 +3285,20 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("Table schema version: %d", 
                             tab->getObjectVersion()));
       }
-      if (m_table != (void *)tab || m_table_version < tab->getObjectVersion())
+      if (m_table_version < tab->getObjectVersion())
       {
         /*
-          The table has been altered, refresh the index list
+          The table has been altered, caller has to retry
         */
-        build_index_list(ndb, table, ILBP_OPEN);  
+        NdbError err= ndb->getNdbError(NDB_INVALID_SCHEMA_OBJECT);
+        DBUG_RETURN(ndb_to_mysql_error(&err));
+      }
+      if (m_table != (void *)tab)
+      {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
+        if (!(my_errno= build_index_list(ndb, table, ILBP_OPEN)))
+          DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
     }
@@ -3711,7 +3733,7 @@ int ha_ndbcluster::create(const char *name,
   const void *data, *pack_data;
   const char **key_names= form->keynames.type_names;
   char name2[FN_HEADLEN];
-  bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
+  bool create_from_engine= (info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
    
   DBUG_ENTER("create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -4657,7 +4679,21 @@ bool ndbcluster_end()
 {
   DBUG_ENTER("ndbcluster_end");
   if(g_ndb)
+  {
+#ifndef DBUG_OFF
+    Ndb::Free_list_usage tmp; tmp.m_name= 0;
+    while (g_ndb->get_free_list_usage(&tmp))
+    {
+      uint leaked= (uint) tmp.m_created - tmp.m_free;
+      if (leaked)
+        fprintf(stderr, "NDB: Found %u %s%s that %s not been released\n",
+                leaked, tmp.m_name,
+                (leaked == 1)?"":"'s",
+                (leaked == 1)?"has":"have");
+    }
+#endif
     delete g_ndb;
+  }
   g_ndb= NULL;
   if (g_ndb_cluster_connection)
     delete g_ndb_cluster_connection;

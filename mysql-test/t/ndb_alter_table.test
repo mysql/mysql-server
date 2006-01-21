@@ -138,6 +138,7 @@ INSERT INTO t1 VALUES (1,2,0),(18,19,4),(20,21,0);
 select c from t1 order by c;
 drop table t1;
 
+--disable_ps_protocol
 create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
 engine=ndb;
 insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
@@ -147,10 +148,13 @@ select * from t1 where b = 'two';
 connection server1;
 alter table t1 drop index c;
 connection server2;
+# This should fail since index information is not automatically refreshed
+--error 1015
 select * from t1 where b = 'two';
 select * from t1 where b = 'two';
 connection server1;
 drop table t1;
+--enable_ps_protocol
 
 #--disable_warnings
 #DROP TABLE IF EXISTS t2;

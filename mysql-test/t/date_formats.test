@@ -260,4 +260,12 @@ select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
        str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
 --enable_ps_protocol
 
+#
+# Bug #14016 
+#
+create table t1 (f1 datetime);
+insert into t1 (f1) values ("2005-01-01");
+insert into t1 (f1) values ("2005-02-01");
+select date_format(f1, "%m") as d1, date_format(f1, "%M") as d2 from t1 order by date_format(f1, "%M");
+drop table t1;
 # End of 4.1 tests

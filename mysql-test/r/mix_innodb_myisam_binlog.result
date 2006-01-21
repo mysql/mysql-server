@@ -93,6 +93,7 @@ master-bin.000001	79	Query	1	79	use `test`; BEGIN
 master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(8)
 master-bin.000001	178	Query	1	79	use `test`; insert into t2 select * from t1
 master-bin.000001	244	Query	1	244	use `test`; ROLLBACK
+master-bin.000001	287	Query	1	287	use `test`; DO RELEASE_LOCK("a")
 delete from t1;
 delete from t2;
 reset master;
@@ -202,3 +203,53 @@ select (@after-@before) >= 2;
 (@after-@before) >= 2
 1
 drop table t1,t2;
+commit;
+begin;
+create temporary table ti (a int) engine=innodb;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into ti values(1);
+set autocommit=0;
+create temporary table t1 (a int) engine=myisam;
+commit;
+insert t1 values (1);
+rollback;
+create table t0 (n int);
+insert t0 select * from t1;
+set autocommit=1;
+insert into t0 select GET_LOCK("lock1",null);
+set autocommit=0;
+create table t2 (n int) engine=innodb;
+insert into t2 values (3);
+select get_lock("lock1",60);
+get_lock("lock1",60)
+1
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(16)
+master-bin.000001	179	Query	1	79	use `test`; insert into t1 values(18)
+master-bin.000001	239	Query	1	239	use `test`; COMMIT
+master-bin.000001	280	Query	1	280	use `test`; delete from t1
+master-bin.000001	329	Query	1	329	use `test`; delete from t2
+master-bin.000001	378	Query	1	378	use `test`; alter table t2 type=MyISAM
+master-bin.000001	439	Query	1	439	use `test`; insert into t1 values (1)
+master-bin.000001	499	Query	1	499	use `test`; insert into t2 values (20)
+master-bin.000001	560	Query	1	560	use `test`; drop table t1,t2
+master-bin.000001	611	Query	1	611	use `test`; BEGIN
+master-bin.000001	651	Query	1	611	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	733	Query	1	733	use `test`; ROLLBACK
+master-bin.000001	776	Query	1	776	use `test`; insert into ti values(1)
+master-bin.000001	835	Query	1	835	use `test`; BEGIN
+master-bin.000001	875	Query	1	835	use `test`; create temporary table t1 (a int) engine=myisam
+master-bin.000001	957	Query	1	957	use `test`; COMMIT
+master-bin.000001	998	Query	1	998	use `test`; create table t0 (n int)
+master-bin.000001	1056	Query	1	1056	use `test`; insert t0 select * from t1
+master-bin.000001	1117	Query	1	1117	use `test`; DO RELEASE_LOCK("a")
+master-bin.000001	1172	Query	1	1172	use `test`; insert into t0 select GET_LOCK("lock1",null)
+master-bin.000001	1251	Query	1	1251	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	1323	Query	1	1323	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+master-bin.000001	1424	Query	1	1424	use `test`; DO RELEASE_LOCK("lock1")
+do release_lock("lock1");
+drop table t0,t2;

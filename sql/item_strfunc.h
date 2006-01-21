@@ -444,12 +444,15 @@ public:
 class Item_func_char :public Item_str_func
 {
 public:
-  Item_func_char(List<Item> &list) :Item_str_func(list) {}
+  Item_func_char(List<Item> &list) :Item_str_func(list)
+  { collation.set(default_charset()); }
+  Item_func_char(List<Item> &list, CHARSET_INFO *cs) :Item_str_func(list)
+  { collation.set(cs); }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    collation.set(default_charset());
-    maybe_null=0; max_length=arg_count;
+    maybe_null=0;
+    max_length=arg_count * collation.collation->mbmaxlen;
   }
   const char *func_name() const { return "char"; }
 };
@@ -611,10 +614,40 @@ public:
 
 class Item_func_conv_charset :public Item_str_func
 {
-  CHARSET_INFO *conv_charset;
+  bool use_cached_value;
 public:
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a)
-  { conv_charset=cs; }
+  bool safe;
+  CHARSET_INFO *conv_charset; // keep it public
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  { conv_charset= cs; use_cached_value= 0; safe= 0; }
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
+    :Item_str_func(a) 
+  {
+    DBUG_ASSERT(args[0]->fixed);
+    conv_charset= cs;
+    if (cache_if_const && args[0]->const_item())
+    {
+      uint errors= 0;
+      String tmp, *str= args[0]->val_str(&tmp);
+      if (!str || str_value.copy(str->ptr(), str->length(),
+                                 str->charset(), conv_charset, &errors))
+        null_value= 1;
+      use_cached_value= 1;
+      safe= (errors == 0);
+    }
+    else
+    {
+      use_cached_value= 0;
+      /*
+        Conversion from and to "binary" is safe.
+        Conversion to Unicode is safe.
+        Other kind of conversions are potentially lossy.
+      */
+      safe= (args[0]->collation.collation == &my_charset_bin ||
+             cs == &my_charset_bin ||
+             (cs->state & MY_CS_UNICODE));
+    }
+  }
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
@@ -715,7 +748,12 @@ public:
   Item_func_uuid(): Item_str_func() {}
   void fix_length_and_dec() {
     collation.set(system_charset_info);
-    max_length= UUID_LENGTH;
+    /*
+       NOTE! uuid() should be changed to use 'ascii'
+       charset when hex(), format(), md5(), etc, and implicit
+       number-to-string conversion will use 'ascii'
+    */
+    max_length= UUID_LENGTH * system_charset_info->mbmaxlen;
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);

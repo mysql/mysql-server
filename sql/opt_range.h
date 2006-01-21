@@ -167,4 +167,6 @@ public:
 QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 				       struct st_table_ref *ref);
 
+uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
+
 #endif

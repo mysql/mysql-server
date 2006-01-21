@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
@@ -231,21 +231,6 @@ insert into t1 values (NULL, NULL);
 ERROR 23000: Column 'k1' cannot be null
 drop table t1;
 create table t1 select x'4132';
-drop table t1;
-create table t1 select 1,2,3;
-create table if not exists t1 select 1,2;
-Warnings:
-Note	1050	Table 't1' already exists
-create table if not exists t1 select 1,2,3,4;
-ERROR 21S01: Column count doesn't match value count at row 1
-create table if not exists t1 select 1;
-Warnings:
-Note	1050	Table 't1' already exists
-select * from t1;
-1	2	3
-1	2	3
-0	1	2
-0	0	1
 drop table t1;
 create table t1 select 1,2,3;
 create table if not exists t1 select 1,2;
@@ -601,6 +586,11 @@ DESC t2;
 Field	Type	Null	Key	Default	Extra
 f2	varchar(86)	YES		NULL	
 DROP TABLE t1,t2;
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+SELECT * FROM t12913;
+f1
+a
+DROP TABLE t12913;
 create database mysqltest;
 use mysqltest;
 drop database mysqltest;
@@ -621,3 +611,91 @@ create table if not exists t1 (a int);
 Warnings:
 Note	1050	Table 't1' already exists
 drop table t1;
+create table t1 (
+a varchar(112) charset utf8 collate utf8_bin not null,
+primary key (a)
+) select 'test' as a ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(112) character set utf8 collate utf8_bin NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+CREATE TABLE t2 (
+a int(11) default NULL
+);
+insert into t2 values(111);
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) character set utf8 collate utf8_bin NOT NULL default '',
+  `b` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) character set utf8 collate utf8_bin NOT NULL default '',
+  `b` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) character set utf8 collate utf8_bin NOT NULL default '',
+  `b` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
+create table t1 ( 
+a1 int not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+drop table t1, t2;
+create table t1 ( 
+a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+drop table t2;
+create table t2 ( a int default 3, b int default 3)
+select a1,a2 from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) default '3',
+  `b` int(11) default '3',
+  `a1` int(11) default NULL,
+  `a2` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;

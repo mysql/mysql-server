@@ -911,6 +911,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
+  void cleanup();
 };
 
 #ifdef USE_REGEX
