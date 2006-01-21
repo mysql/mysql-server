@@ -1072,6 +1072,7 @@ void NdbEventImpl::init()
   m_tableId= RNIL;
   mi_type= 0;
   m_dur= NdbDictionary::Event::ED_UNDEFINED;
+  m_mergeEvents = false;
   m_tableImpl= NULL;
   m_rep= NdbDictionary::Event::ER_UPDATED;
 }
@@ -2036,7 +2037,7 @@ int
 NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
 {
   unsigned n= t.m_noOfBlobs;
-  DBUG_ENTER("NdbDictioanryImpl::addBlobTables");
+  DBUG_ENTER("NdbDictionaryImpl::addBlobTables");
   // optimized for blob column being the last one
   // and not looking for more than one if not neccessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
@@ -3151,7 +3152,37 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 #endif
 
   // NdbDictInterface m_receiver;
-  DBUG_RETURN(m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */));
+  if (m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */) != 0)
+    DBUG_RETURN(-1);
+
+  // Create blob events
+  if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
+    int save_code = m_error.code;
+    (void)dropEvent(evnt.m_name.c_str());
+    m_error.code = save_code;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictionaryImpl::createBlobEvents(NdbEventImpl& evnt)
+{
+  DBUG_ENTER("NdbDictionaryImpl::createBlobEvents");
+  NdbTableImpl& t = *evnt.m_tableImpl;
+  Uint32 n = t.m_noOfBlobs;
+  Uint32 i;
+  for (i = 0; i < evnt.m_columns.size() && n > 0; i++) {
+    NdbColumnImpl & c = *evnt.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    n--;
+    NdbEventImpl blob_evnt;
+    NdbBlob::getBlobEvent(blob_evnt, &evnt, &c);
+    if (createEvent(blob_evnt) != 0)
+      DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }
 
 int
@@ -3400,6 +3431,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   
   if ( attributeList_sz > table.getNoOfColumns() )
   {
+    m_error.code = 241;
     DBUG_PRINT("error",("Invalid version, too many columns"));
     delete ev;
     DBUG_RETURN(NULL);
@@ -3409,6 +3441,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   for(unsigned id= 0; ev->m_columns.size() < attributeList_sz; id++) {
     if ( id >= table.getNoOfColumns())
     {
+      m_error.code = 241;
       DBUG_PRINT("error",("Invalid version, column %d out of range", id));
       delete ev;
       DBUG_RETURN(NULL);
@@ -3566,13 +3599,54 @@ NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
 int 
 NdbDictionaryImpl::dropEvent(const char * eventName)
 {
-  NdbEventImpl *ev= new NdbEventImpl();
-  ev->setName(eventName);
-  int ret= m_receiver.dropEvent(*ev);
-  delete ev;  
+  DBUG_ENTER("NdbDictionaryImpl::dropEvent");
+  DBUG_PRINT("info", ("name=%s", eventName));
 
-  //  printf("__________________RET %u\n", ret);
-  return ret;
+  NdbEventImpl *evnt = getEvent(eventName); // allocated
+  if (evnt == NULL) {
+    if (m_error.code != 723 && // no such table
+        m_error.code != 241)   // invalid table
+      DBUG_RETURN(-1);
+    DBUG_PRINT("info", ("no table, drop by name alone"));
+    evnt = new NdbEventImpl();
+    evnt->setName(eventName);
+  }
+  int ret = dropEvent(*evnt);
+  delete evnt;  
+  DBUG_RETURN(ret);
+}
+
+int
+NdbDictionaryImpl::dropEvent(const NdbEventImpl& evnt)
+{
+  if (dropBlobEvents(evnt) != 0)
+    return -1;
+  if (m_receiver.dropEvent(evnt) != 0)
+    return -1;
+  return 0;
+}
+
+int
+NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
+{
+  DBUG_ENTER("NdbDictionaryImpl::dropBlobEvents");
+  if (evnt.m_tableImpl != 0) {
+    const NdbTableImpl& t = *evnt.m_tableImpl;
+    Uint32 n = t.m_noOfBlobs;
+    Uint32 i;
+    for (i = 0; i < evnt.m_columns.size() && n > 0; i++) {
+      const NdbColumnImpl& c = *evnt.m_columns[i];
+      if (! c.getBlobType() || c.getPartSize() == 0)
+        continue;
+      n--;
+      char bename[MAX_TAB_NAME_SIZE];
+      NdbBlob::getBlobEventName(bename, &evnt, &c);
+      (void)dropEvent(bename);
+    }
+  } else {
+    // could loop over MAX_ATTRIBUTES_IN_TABLE ...
+  }
+  DBUG_RETURN(0);
 }
 
 int
