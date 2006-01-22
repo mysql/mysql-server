@@ -1269,6 +1269,8 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
   // prepare blob column and table
   if (prepareColumn() == -1)
     DBUG_RETURN(-1);
+  // tinyblob sanity
+  assert((theBlobEventOp == NULL) == (theBlobTable == NULL));
   // extra buffers
   theBlobEventDataBuf.alloc(thePartSize);
   // prepare receive of head+inline
@@ -1278,20 +1280,22 @@ NdbBlob::atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, 
     DBUG_RETURN(-1);
   }
   // prepare receive of blob part
-  if ((theBlobEventPkRecAttr =
-         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)0),
-                                  theKeyBuf.data, version)) == NULL ||
-      (theBlobEventDistRecAttr =
-         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)1),
-                                  (char*)0, version)) == NULL ||
-      (theBlobEventPartRecAttr =
-         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)2),
-                                  (char*)&thePartNumber, version)) == NULL ||
-      (theBlobEventDataRecAttr =
-         theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)3),
-                                  theBlobEventDataBuf.data, version)) == NULL) {
-    setErrorCode(theBlobEventOp);
-    DBUG_RETURN(-1);
+  if (theBlobEventOp != NULL) {
+    if ((theBlobEventPkRecAttr =
+           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)0),
+                                    theKeyBuf.data, version)) == NULL ||
+        (theBlobEventDistRecAttr =
+           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)1),
+                                    (char*)0, version)) == NULL ||
+        (theBlobEventPartRecAttr =
+           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)2),
+                                    (char*)&thePartNumber, version)) == NULL ||
+        (theBlobEventDataRecAttr =
+           theBlobEventOp->getValue(theBlobTable->getColumn((Uint32)3),
+                                    theBlobEventDataBuf.data, version)) == NULL) {
+      setErrorCode(theBlobEventOp);
+      DBUG_RETURN(-1);
+    }
   }
   setState(Prepared);
   DBUG_RETURN(0);

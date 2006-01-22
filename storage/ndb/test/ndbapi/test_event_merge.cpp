@@ -203,7 +203,9 @@ struct Col {
   uint length;
   uint size;
   bool isblob() const {
-    return type == NdbDictionary::Column::Text;
+    return
+      type == NdbDictionary::Column::Text ||
+      type == NdbDictionary::Column::Blob;
   }
 };
 
@@ -213,19 +215,21 @@ static Col g_col[] = {
   { 2, "seq", NdbDictionary::Column::Unsigned,  false, false, 1, 4 },
   { 3, "cc1", NdbDictionary::Column::Char, false, true, g_charlen, g_charlen },
   { 4, "tx1", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 5, "tx2", NdbDictionary::Column::Text, false, true, 0, 0 }
+  { 5, "tx2", NdbDictionary::Column::Text, false, true, 0, 0 },
+  { 6, "bl1", NdbDictionary::Column::Blob, false, true, 0, 0 } // tinyblob
 };
 
 static const uint g_maxcol = sizeof(g_col)/sizeof(g_col[0]);
+static const uint g_blobcols = 3;
 
 static uint
 ncol()
 {
   uint n = g_maxcol;
   if (g_opts.no_blobs)
-    n -= 2;
+    n -= g_blobcols;
   else if (g_opts.one_blob)
-    n -= 1;
+    n -= (g_blobcols - 1);
   return n;
 }
 
@@ -277,6 +281,11 @@ createtable()
       col.setPartSize(g_blobpartsize);
       col.setStripeSize(g_blobstripesize);
       col.setCharset(cs);
+      break;
+    case NdbDictionary::Column::Blob:
+      col.setInlineSize(g_blobinlinesize);
+      col.setPartSize(0);
+      col.setStripeSize(0);
       break;
     default:
       assert(false);
@@ -332,6 +341,7 @@ struct Data {
   char cc1[g_charlen + 1];
   Txt tx1;
   Txt tx2;
+  Txt bl1;
   Ptr ptr[g_maxcol];
   int ind[g_maxcol]; // -1 = no data, 1 = NULL, 0 = not NULL
   uint noop; // bit: omit in NdbOperation (implicit NULL INS or no UPD)
@@ -342,14 +352,15 @@ struct Data {
     memset(pk2, 0, sizeof(pk2));
     seq = 0;
     memset(cc1, 0, sizeof(cc1));
-    tx1.val = tx2.val = 0;
-    tx1.len = tx2.len = 0;
+    tx1.val = tx2.val = bl1.val = 0;
+    tx1.len = tx2.len = bl1.len = 0;
     ptr[0].u32 = &pk1;
     ptr[1].ch = pk2;
     ptr[2].u32 = &seq;
     ptr[3].ch = cc1;
     ptr[4].txt = &tx1;
     ptr[5].txt = &tx2;
+    ptr[6].txt = &bl1;
     for (i = 0; i < g_maxcol; i++)
       ind[i] = -1;
     noop = 0;
@@ -358,6 +369,7 @@ struct Data {
   void free() {
     delete [] tx1.val;
     delete [] tx2.val;
+    delete [] bl1.val;
     init();
   }
 };
@@ -379,6 +391,7 @@ cmpcol(const Col& c, const Data& d1, const Data& d2)
         return 1;
       break;
     case NdbDictionary::Column::Text:
+    case NdbDictionary::Column::Blob:
       {
         const Data::Txt& t1 = *d1.ptr[i].txt;
         const Data::Txt& t2 = *d2.ptr[i].txt;
@@ -429,6 +442,7 @@ operator<<(NdbOut& out, const Data& d)
       }
       break;
     case NdbDictionary::Column::Text:
+    case NdbDictionary::Column::Blob:
       {
         Data::Txt& t = *d.ptr[i].txt;
         bool first = true;
@@ -1071,19 +1085,21 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type t)
       }
       break;
     case NdbDictionary::Column::Text:
+    case NdbDictionary::Column::Blob:
       {
+        const bool tinyblob = (c.type == NdbDictionary::Column::Blob);
         Data::Txt& t = *d.ptr[i].txt;
         delete [] t.val;
         t.val = 0;
         if (g_opts.tweak & 1) {
-          uint u = 256 + 2000;
+          uint u = g_blobinlinesize + (tinyblob ? 0 : g_blobpartsize);
           uint v = (g_opts.tweak & 2) ? 0 : urandom(strlen(g_charval));
           t.val = new char [u];
           t.len = u;
           memset(t.val, g_charval[v], u);
           break;
         }
-        uint u = urandom(g_maxblobsize);
+        uint u = urandom(tinyblob ? g_blobinlinesize : g_maxblobsize);
         u = urandom(u); // 4x bias for smaller blobs
         u = urandom(u);
         t.val = new char [u];
