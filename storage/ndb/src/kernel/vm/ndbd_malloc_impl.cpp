@@ -84,7 +84,7 @@ Ndbd_mem_manager::init(Uint32 pages)
     release(start+1, end - 1 - start);    
   }
 
-  return 0;
+  return true;
 }
 
 void
@@ -198,6 +198,25 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
     }
   }
   * pages = 0;
+}
+
+void*
+Ndbd_mem_manager::alloc(Uint32 *pages, Uint32 min)
+{
+  Uint32 ret;
+  alloc(&ret, pages, min);
+  if (pages)
+  {
+    return m_base_page + ret;
+  }
+  return 0;
+}
+
+void
+Ndbd_mem_manager::release(void* ptr, Uint32 cnt)
+{
+  Uint32 page = ((Alloc_page*)ptr) - m_base_page;
+  release(page, cnt);
 }
 
 void
