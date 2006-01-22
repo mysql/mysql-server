@@ -644,7 +644,7 @@ HeapPool::getNewPage()
   if (ap->m_currPage == ap->m_numPages) {
     // area is used up
     if (ap->m_nextArea == 0) {
-      if (! allocMemory())
+      if (! allocMemoryImpl())
         return RNIL;
     }
     ap = m_currArea = ap->m_nextArea;
@@ -711,7 +711,7 @@ HeapPool::allocArea(Area* ap, Uint32 tryPages)
 }
 
 bool
-HeapPool::allocMemory()
+HeapPool::allocMemoryImpl()
 {
   if (! allocInit())
     return false;
