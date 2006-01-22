@@ -318,42 +318,48 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
     tBlob = tBlob->theNext;
   }
 
-  // blob event name
-  char bename[MAX_TAB_NAME_SIZE];
-  NdbBlob::getBlobEventName(bename, m_eventImpl, tAttrInfo);
+  NdbEventOperationImpl* tBlobOp = NULL;
 
-  // find blob event op if any (it serves both post and pre handles)
-  assert(tAttrInfo->m_blobTable != NULL);
-  NdbEventOperationImpl* tBlobOp = theBlobOpList;
-  NdbEventOperationImpl* tLastBlopOp = NULL;
-  while (tBlobOp != NULL) {
-    if (strcmp(tBlobOp->m_eventImpl->m_name.c_str(), bename) == 0) {
-      assert(tBlobOp->m_eventImpl->m_tableImpl == tAttrInfo->m_blobTable);
-      break;
+  const bool is_tinyblob = (tAttrInfo->getPartSize() == 0);
+  assert(is_tinyblob == (tAttrInfo->m_blobTable == NULL));
+
+  if (! is_tinyblob) {
+    // blob event name
+    char bename[MAX_TAB_NAME_SIZE];
+    NdbBlob::getBlobEventName(bename, m_eventImpl, tAttrInfo);
+
+    // find blob event op if any (it serves both post and pre handles)
+    tBlobOp = theBlobOpList;
+    NdbEventOperationImpl* tLastBlopOp = NULL;
+    while (tBlobOp != NULL) {
+      if (strcmp(tBlobOp->m_eventImpl->m_name.c_str(), bename) == 0) {
+        assert(tBlobOp->m_eventImpl->m_tableImpl == tAttrInfo->m_blobTable);
+        break;
+      }
+      tLastBlopOp = tBlobOp;
+      tBlobOp = tBlobOp->theNextBlobOp;
     }
-    tLastBlopOp = tBlobOp;
-    tBlobOp = tBlobOp->theNextBlobOp;
-  }
 
-  DBUG_PRINT("info", ("%s op %s", tBlobOp ? " reuse" : " create", bename));
+    DBUG_PRINT("info", ("%s op %s", tBlobOp ? " reuse" : " create", bename));
 
-  // create blob event op if not found
-  if (tBlobOp == NULL) {
-    NdbEventOperation* tmp = m_ndb->createEventOperation(bename);
-    if (tmp == NULL)
-      DBUG_RETURN(NULL);
-    tBlobOp = &tmp->m_impl;
+    // create blob event op if not found
+    if (tBlobOp == NULL) {
+      NdbEventOperation* tmp = m_ndb->createEventOperation(bename);
+      if (tmp == NULL)
+        DBUG_RETURN(NULL);
+      tBlobOp = &tmp->m_impl;
 
-    // pointer to main table op
-    tBlobOp->theMainOp = this;
-    tBlobOp->m_mergeEvents = m_mergeEvents;
+      // pointer to main table op
+      tBlobOp->theMainOp = this;
+      tBlobOp->m_mergeEvents = m_mergeEvents;
 
-    // add to list end
-    if (tLastBlopOp == NULL)
-      theBlobOpList = tBlobOp;
-    else
-      tLastBlopOp->theNextBlobOp = tBlobOp;
-    tBlobOp->theNextBlobOp = NULL;
+      // add to list end
+      if (tLastBlopOp == NULL)
+        theBlobOpList = tBlobOp;
+      else
+        tLastBlopOp->theNextBlobOp = tBlobOp;
+      tBlobOp->theNextBlobOp = NULL;
+    }
   }
 
   tBlob = m_ndb->getNdbBlob();
