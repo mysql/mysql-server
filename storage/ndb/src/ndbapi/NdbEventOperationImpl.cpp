@@ -942,6 +942,9 @@ NdbEventBuffer::nextEvent()
     NdbEventOperationImpl *op= data->m_event_op;
     DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
 
+    // blob table ops must not be seen at this level
+    assert(op->theMainOp == NULL);
+
     // set NdbEventOperation data
     op->m_data_item= data;
 
@@ -1378,9 +1381,17 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_RETURN_EVENT(0);
     }
 
+    const bool is_blob_event = (op->theMainOp != NULL);
     const bool is_data_event =
       sdata->operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
     const bool use_hash =  op->m_mergeEvents && is_data_event;
+
+    if (! is_data_event && is_blob_event)
+    {
+      // currently subscribed to but not used
+      DBUG_PRINT_EVENT("info", ("ignore non-data event on blob table"));
+      DBUG_RETURN_EVENT(0);
+    }
 
     // find position in bucket hash table
     EventBufData* data = 0;
@@ -1400,14 +1411,13 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 2;
         DBUG_RETURN_EVENT(-1);
       }
-
       if (unlikely(copy_data(sdata, ptr, data)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
       }
       data->m_event_op = op;
-      if (op->theMainOp == NULL || ! is_data_event)
+      if (! is_blob_event || ! is_data_event)
       {
         bucket->m_data.append(data);
       }
