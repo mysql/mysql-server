@@ -580,7 +580,8 @@ public:
   bool allocArea(Area* ap, Uint32 tryPages);
 
   // Allocate memory.
-  virtual bool allocMemory();
+  virtual bool allocMemory() { return allocMemoryImpl();}
+  bool allocMemoryImpl();
 
   // List of malloc areas.
   Area m_areaHead;
