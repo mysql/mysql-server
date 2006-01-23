@@ -16,18 +16,25 @@
 
 /* Prototypes for the embedded version of MySQL */
 
-#include <my_global.h>
-#include <mysql.h>
-#include <mysql_embed.h>
-#include <mysqld_error.h>
-#include <my_pthread.h>
-
 C_MODE_START
 void lib_connection_phase(NET *net, int phase);
 void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
 void *create_embedded_thd(int client_flag, char *db);
 int check_embedded_connection(MYSQL *mysql);
 void free_old_query(MYSQL *mysql);
-void embedded_get_error(MYSQL *mysql);
 extern MYSQL_METHODS embedded_methods;
+
+/* This one is used by embedded library to gather returning data */
+typedef struct embedded_query_result
+{
+  MYSQL_ROWS **prev_ptr;
+  unsigned int warning_count, server_status;
+  struct st_mysql_data *next;
+  my_ulonglong affected_rows, insert_id;
+  char info[MYSQL_ERRMSG_SIZE];
+  MYSQL_FIELD *fields_list;
+  unsigned int last_errno;
+  char sqlstate[SQLSTATE_LENGTH+1];
+} EQR;
+
 C_MODE_END

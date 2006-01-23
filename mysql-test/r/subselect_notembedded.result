@@ -1,0 +1,1 @@
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
