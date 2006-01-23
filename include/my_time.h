@@ -89,6 +89,21 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to);
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to);
 int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
 
+/*
+  The following must be sorted so that simple intervals comes first.
+  (get_interval_value() depends on this)
+*/
+
+enum interval_type
+{
+  INTERVAL_YEAR, INTERVAL_QUARTER, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR,
+  INTERVAL_MINUTE, INTERVAL_WEEK, INTERVAL_SECOND, INTERVAL_MICROSECOND ,
+  INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE,
+  INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
+  INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
+  INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND
+};
+
 C_MODE_END
 
 #endif /* _my_time_h_ */

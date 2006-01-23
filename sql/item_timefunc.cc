@@ -1135,7 +1135,7 @@ longlong Item_func_time_to_sec::val_int()
   To make code easy, allow interval objects without separators.
 */
 
-static bool get_interval_value(Item *args,interval_type int_type,
+bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
@@ -1994,110 +1994,15 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   long period,sign;
   INTERVAL interval;
 
-  ltime->neg= 0;
   if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
       get_interval_value(args[1],int_type,&value,&interval))
     goto null_date;
-  sign= (interval.neg ? -1 : 1);
+
   if (date_sub_interval)
-    sign = -sign;
+    interval.neg = !interval.neg;
 
-  null_value=0;
-  switch (int_type) {
-  case INTERVAL_SECOND:
-  case INTERVAL_SECOND_MICROSECOND:
-  case INTERVAL_MICROSECOND:
-  case INTERVAL_MINUTE:
-  case INTERVAL_HOUR:
-  case INTERVAL_MINUTE_MICROSECOND:
-  case INTERVAL_MINUTE_SECOND:
-  case INTERVAL_HOUR_MICROSECOND:
-  case INTERVAL_HOUR_SECOND:
-  case INTERVAL_HOUR_MINUTE:
-  case INTERVAL_DAY_MICROSECOND:
-  case INTERVAL_DAY_SECOND:
-  case INTERVAL_DAY_MINUTE:
-  case INTERVAL_DAY_HOUR:
-  {
-    longlong sec, days, daynr, microseconds, extra_sec;
-    ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
-    microseconds= ltime->second_part + sign*interval.second_part;
-    extra_sec= microseconds/1000000L;
-    microseconds= microseconds%1000000L;
+  return (null_value= date_add_interval(ltime, int_type, interval));
 
-    sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
-	 ltime->second +
-	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*LL(3600)+interval.minute*LL(60)+
-                           interval.second))+ extra_sec;
-    if (microseconds < 0)
-    {
-      microseconds+= LL(1000000);
-      sec--;
-    }
-    days= sec/(3600*LL(24));
-    sec-= days*3600*LL(24);
-    if (sec < 0)
-    {
-      days--;
-      sec+= 3600*LL(24);
-    }
-    ltime->second_part= (uint) microseconds;
-    ltime->second= (uint) (sec % 60);
-    ltime->minute= (uint) (sec/60 % 60);
-    ltime->hour=   (uint) (sec/3600);
-    daynr= calc_daynr(ltime->year,ltime->month,1) + days;
-    /* Day number from year 0 to 9999-12-31 */
-    if ((ulonglong) daynr >= MAX_DAY_NUMBER)
-      goto invalid_date;
-    get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
-                        &ltime->day);
-    break;
-  }
-  case INTERVAL_DAY:
-  case INTERVAL_WEEK:
-    period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
-             sign * (long) interval.day);
-    /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period >= MAX_DAY_NUMBER)
-      goto invalid_date;
-    get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
-    break;
-  case INTERVAL_YEAR:
-    ltime->year+= sign * (long) interval.year;
-    if ((ulong) ltime->year >= 10000L)
-      goto invalid_date;
-    if (ltime->month == 2 && ltime->day == 29 &&
-	calc_days_in_year(ltime->year) != 366)
-      ltime->day=28;				// Was leap-year
-    break;
-  case INTERVAL_YEAR_MONTH:
-  case INTERVAL_QUARTER:
-  case INTERVAL_MONTH:
-    period= (ltime->year*12 + sign * (long) interval.year*12 +
-	     ltime->month-1 + sign * (long) interval.month);
-    if ((ulong) period >= 120000L)
-      goto invalid_date;
-    ltime->year= (uint) (period / 12);
-    ltime->month= (uint) (period % 12L)+1;
-    /* Adjust day if the new month doesn't have enough days */
-    if (ltime->day > days_in_month[ltime->month-1])
-    {
-      ltime->day = days_in_month[ltime->month-1];
-      if (ltime->month == 2 && calc_days_in_year(ltime->year) == 366)
-	ltime->day++;				// Leap-year
-    }
-    break;
-  default:
-    goto null_date;
-  }
-  return 0;					// Ok
-
-invalid_date:
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_DATETIME_FUNCTION_OVERFLOW,
-                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
-                      "datetime");
  null_date:
   return (null_value=1);
 }
