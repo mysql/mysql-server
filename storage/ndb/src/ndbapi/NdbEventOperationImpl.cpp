@@ -337,14 +337,16 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
         break;
       }
       tLastBlopOp = tBlobOp;
-      tBlobOp = tBlobOp->theNextBlobOp;
+      tBlobOp = tBlobOp->m_next;
     }
 
     DBUG_PRINT("info", ("%s op %s", tBlobOp ? " reuse" : " create", bename));
 
     // create blob event op if not found
     if (tBlobOp == NULL) {
-      NdbEventOperation* tmp = m_ndb->createEventOperation(bename);
+      // to hide blob op it is linked under main op, not under m_ndb
+      NdbEventOperation* tmp =
+        m_ndb->theEventBuffer->createEventOperation(bename, m_error);
       if (tmp == NULL)
         DBUG_RETURN(NULL);
       tBlobOp = &tmp->m_impl;
@@ -357,8 +359,8 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
       if (tLastBlopOp == NULL)
         theBlobOpList = tBlobOp;
       else
-        tLastBlopOp->theNextBlobOp = tBlobOp;
-      tBlobOp->theNextBlobOp = NULL;
+        tLastBlopOp->m_next = tBlobOp;
+      tBlobOp->m_next = NULL;
     }
   }
 
@@ -484,7 +486,7 @@ NdbEventOperationImpl::execute_nolock()
         r = blob_op->execute_nolock();
         if (r != 0)
           break;
-        blob_op = blob_op->theNextBlobOp;
+        blob_op = blob_op->m_next;
       }
     }
     if (r == 0)
@@ -2017,12 +2019,15 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
     m_dropped_ev_op->m_prev= op;
   m_dropped_ev_op= op;
  
-  // drop blob ops
-  while (op->theBlobOpList != NULL)
+  // stop blob event ops
+  if (op->theMainOp == NULL)
   {
     NdbEventOperationImpl* tBlobOp = op->theBlobOpList;
-    op->theBlobOpList = op->theBlobOpList->theNextBlobOp;
-    (void)m_ndb->dropEventOperation(tBlobOp);
+    while (tBlobOp != NULL)
+    {
+      tBlobOp->stop();
+      tBlobOp = tBlobOp->m_next;
+    }
   }
 
   // ToDo, take care of these to be deleted at the
