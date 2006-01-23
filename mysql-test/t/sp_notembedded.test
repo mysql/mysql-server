@@ -1,0 +1,261 @@
+# Can't test with embedded server
+-- source include/not_embedded.inc
+
+delimiter |;
+
+#
+# BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
+#
+# Added tests for show grants command
+--disable_warnings
+drop procedure if exists bug4902|
+--enable_warnings
+create procedure bug4902()
+begin
+  show grants for 'root'@'localhost';
+end|
+--disable_parsing
+show binlog events;
+show storage engines;
+show master status;
+show slave hosts;
+show slave status;
+--enable_parsing
+
+call bug4902()|
+call bug4902()|
+
+drop procedure bug4902|
+
+# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
+--disable_warnings
+drop procedure if exists bug4902_2|
+--enable_warnings
+create procedure bug4902_2()
+begin
+  show processlist;
+end|
+--replace_column 1 # 6 # 3 localhost
+call bug4902_2()|
+--replace_column 1 # 6 # 3 localhost
+call bug4902_2()|
+drop procedure bug4902_2|
+
+
+#
+# BUG#5278: Stored procedure packets out of order if SET PASSWORD.
+#
+--disable_warnings
+drop function if exists bug5278|
+--enable_warnings
+create function bug5278 () returns char
+begin
+  SET PASSWORD FOR 'bob'@'%.loc.gov' = PASSWORD('newpass');
+  return 'okay';
+end|
+
+--error 1133
+select bug5278()|
+--error 1133
+select bug5278()|
+drop function bug5278|
+
+
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (
+	id   char(16) not null default '',
+        data int not null
+)|
+#
+# BUG#3583: query cache doesn't work for stored procedures
+#
+--disable_warnings
+drop procedure if exists bug3583|
+--enable_warnings
+--disable_warnings
+drop procedure if exists bug3583|
+--enable_warnings
+create procedure bug3583()
+begin
+  declare c int;
+
+  select * from t1;
+  select count(*) into c from t1;
+  select c;
+end|
+
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+call bug3583()|
+show status like 'Qcache_hits'|
+call bug3583()|
+call bug3583()|
+show status like 'Qcache_hits'|
+
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
+drop table t1;
+
+#
+# BUG#6807: Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
+#
+--disable_warnings
+drop procedure if exists bug6807|
+--enable_warnings
+create procedure bug6807()
+begin
+  declare id int;
+
+  set id = connection_id();
+  kill query id;
+  select 'Not reached';
+end|
+
+--error 1317
+call bug6807()|
+--error 1317
+call bug6807()|
+
+drop procedure bug6807|
+
+#
+# BUG#10100: function (and stored procedure?) recursivity problem
+#
+--disable_warnings
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+--enable_warnings
+# routines with simple recursion
+create function bug10100f(prm int) returns int
+begin
+  if prm > 1 then
+    return prm * bug10100f(prm - 1);
+  end if;
+  return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+  set res = res * prm;
+  if prm > 1 then
+    call bug10100p(prm - 1, res);  
+  end if;
+end|
+create procedure bug10100t(prm int)
+begin
+  declare res int;
+  set res = 1;
+  call bug10100p(prm, res);
+  select res;
+end|
+
+# a procedure which use tables and recursion
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+  if level < lim then
+    update t3 set a=level;
+    FLUSH TABLES;
+    call bug10100pt(level+1, lim);
+  else
+    select * from t3;
+  end if;
+end|
+# view & recursion
+create procedure bug10100pv(level int, lim int)
+begin
+  if level < lim then
+    update v1 set a=level;
+    FLUSH TABLES;
+    call bug10100pv(level+1, lim);
+  else
+    select * from v1;
+  end if;
+end|
+# dynamic sql & recursion
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+  if level < lim then
+    select level;
+    prepare stmt1 from "update t3 set a=a+2";
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    execute stmt1;
+    FLUSH TABLES;
+    deallocate prepare stmt1;
+    execute stmt2;
+    select * from t3;
+    call bug10100pd(level+1, lim);
+  else
+    execute stmt2;
+  end if;
+end|
+# cursor & recursion
+create procedure bug10100pc(level int, lim int)
+begin
+  declare lv int;
+  declare c cursor for select a from t3;
+  open c;
+  if level < lim then
+    select level;
+    fetch c into lv;
+    select lv;
+    update t3 set a=level+lv;
+    FLUSH TABLES;
+    call bug10100pc(level+1, lim);
+  else
+    select * from t3;
+  end if;
+  close c;
+end|
+
+#end of the stack checking
+set @@max_sp_recursion_depth=255|
+set @var=1|
+#disable log because error about stack overrun contains numbers which
+#depend on a system
+-- disable_result_log
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100p(255, @var)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pt(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pv(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pd(1,255)|
+-- error ER_STACK_OVERRUN_NEED_MORE
+call bug10100pc(1,255)|
+-- enable_result_log
+set @@max_sp_recursion_depth=0|
+
+deallocate prepare stmt2|
+
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+
+delimiter ;|

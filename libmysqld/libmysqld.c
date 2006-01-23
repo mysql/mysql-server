@@ -14,6 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_global.h>
+#include <mysql.h>
+#include <mysql_embed.h>
+#include <mysqld_error.h>
+#include <my_pthread.h>
 #include "embedded_priv.h"
 #include <my_sys.h>
 #include <mysys_err.h>
@@ -193,7 +198,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   if (!user)
     user= "";
-  mysql->user=my_strdup(user,MYF(0));
+   /* 
+      We need to alloc some space for mysql->info but don't want to
+      put extra 'my_free's in mysql_close.
+      So we alloc it with the 'user' string to be freed at once
+   */
+  mysql->user= my_strdup(user, MYF(0));
 
   port=0;
   unix_socket=0;
@@ -207,6 +217,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
+  mysql->info_buffer= my_malloc(MYSQL_ERRMSG_SIZE, MYF(0));
   mysql->thd= create_embedded_thd(client_flag, db_name);
 
   init_embedded_mysql(mysql, client_flag, db_name);
@@ -243,7 +254,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_RETURN(mysql);
 
 error:
-  embedded_get_error(mysql);
   DBUG_PRINT("error",("message: %u (%s)", mysql->net.last_errno,
 		      mysql->net.last_error));
   {
