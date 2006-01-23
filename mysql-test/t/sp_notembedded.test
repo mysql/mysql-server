@@ -62,12 +62,12 @@ drop function bug5278|
 
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1|
 --enable_warnings
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+)|
 #
 # BUG#3583: query cache doesn't work for stored procedures
 #

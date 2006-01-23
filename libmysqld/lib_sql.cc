@@ -491,6 +491,12 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   my_progname= (char *)"mysql_embedded";
 
+  /*
+    Perform basic logger initialization logger. Should be called after
+    MY_INIT, as it initializes mutexes. Log tables are inited later.
+  */
+  logger.init_base();
+
   if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
   {
     mysql_server_end();
