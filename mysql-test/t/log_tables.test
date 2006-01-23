@@ -5,6 +5,7 @@
 # check that CSV engine was compiled in
 --source include/have_csv.inc
 
+--disable_ps_protocol
 use mysql;
 
 #
@@ -143,4 +144,5 @@ select "Mark that we woke up from TRUNCATE in the test"
 
 disconnect con2;
 disconnect con1;
+--enable_ps_protocol
 
