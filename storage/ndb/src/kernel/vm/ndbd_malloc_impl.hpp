@@ -64,8 +64,12 @@ public:
   bool grow(Uint32 pages = 0);
 
   void dump() const ;
-private:
-  
+
+  void* get_memroot() const { return (void*)m_base_page;}
+
+  void* alloc(Uint32 * pages, Uint32 min_requested);
+  void release(void* ptr, Uint32 cnt);
+
   /**
    * Compute 2log of size 
    * @note size = 0     -> 0
@@ -73,6 +77,7 @@ private:
    */
   static Uint32 log2(Uint32 size);
 
+private:
   /**
    * Return pointer to free page data on page
    */
