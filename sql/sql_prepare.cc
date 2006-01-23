@@ -92,6 +92,12 @@ public:
   virtual bool send_fields(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
+#ifdef EMBEDDED_LIBRARY
+  void begin_dataset()
+  {
+    protocol.begin_dataset();
+  }
+#endif
 };
 
 /******************************************************************************
@@ -524,9 +530,10 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
 
 void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
-  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+  MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
+  tm.neg= 0;
 
-  param->set_time(to, MYSQL_TIMESTAMP_DATETIME,
+  param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
