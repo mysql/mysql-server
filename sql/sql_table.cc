@@ -122,14 +122,17 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 }
 
 
-uint build_tmptable_filename(char *buff, size_t bufflen,
-                             const char *tmpdir,
-                             const char *table, const char *ext)
+uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 {
   uint length;
   char tbbuff[FN_REFLEN];
-  VOID(tablename_to_filename(table, tbbuff, sizeof(tbbuff)));
-  strxnmov(buff, bufflen, tmpdir, "/", tbbuff, ext, NullS);
+  char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
+  my_snprintf(tmp_table_name, sizeof(tmp_table_name),
+	      "%s%lx_%lx_%x",
+	      tmp_file_prefix, current_pid,
+	      thd->thread_id, thd->tmp_table++);
+  VOID(tablename_to_filename(tmp_table_name, tbbuff, sizeof(tbbuff)));
+  strxnmov(buff, bufflen, mysql_tmpdir, "/", tbbuff, reg_ext, NullS);
   length= unpack_filename(buff, buff);
   return length;
 }
@@ -2168,12 +2171,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    char tmp_table_name[tmp_file_prefix_length+22+22+22+3];
-    my_snprintf(tmp_table_name, sizeof(tmp_table_name), "%s%lx_%lx_%x",
-		tmp_file_prefix, current_pid, thd->thread_id,
-		thd->tmp_table++);
-    path_length= build_tmptable_filename(path, sizeof(path), mysql_tmpdir,
-                                         tmp_table_name, reg_ext);
+    path_length= build_tmptable_filename(thd, path, sizeof(path));
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
@@ -3358,10 +3356,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     if (find_temporary_table(thd, db, table_name))
       goto table_exists;
-    dst_path_length= my_snprintf(dst_path, sizeof(dst_path),
-                                 "%s%s%lx_%lx_%x%s",
-                                 mysql_tmpdir, tmp_file_prefix, current_pid,
-                                 thd->thread_id, thd->tmp_table++, reg_ext);
+    dst_path_length= build_tmptable_filename(thd, dst_path, sizeof(dst_path));
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, dst_path);
     create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
