@@ -5888,7 +5888,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
-    tabRequire(name.assign(c_tableDesc.tableDesc.TableName, tableNameLength, name_hash),
+    tabRequire(name.assign(c_tableDesc.TableName, tableNameLength, name_hash),
 	       CreateTableRef::OutOfStringBuffer);
   }
 
