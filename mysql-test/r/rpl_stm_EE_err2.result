@@ -9,5 +9,5 @@ set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;
 insert into t1 values(1),(2);
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'a'
 drop table t1;

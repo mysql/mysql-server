@@ -62,7 +62,7 @@ binary v='a '
 1
 insert into t1 values('a');
 alter table t1 add primary key (v);
-ERROR 23000: Duplicate entry 'a' for key 1
+ERROR 23000: Duplicate entry 'a' for key 'PRIMARY'
 drop table t1;
 create table t1 (v varbinary(20));
 insert into t1 values('a');
