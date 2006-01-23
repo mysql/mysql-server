@@ -211,7 +211,7 @@ BackupRestore::table(const TableS & table){
   return true;
 }
 
-void BackupRestore::tuple(const TupleS & tup)
+void BackupRestore::tuple(const TupleS & tup, Uint32 fragId)
 {
   if (!m_restore) 
   {
@@ -225,6 +225,7 @@ void BackupRestore::tuple(const TupleS & tup)
   {
     m_free_callback = cb->next;
     cb->retries = 0;
+    cb->fragId = fragId;
     cb->tup = &tup;
     tuple_a(cb);
   }

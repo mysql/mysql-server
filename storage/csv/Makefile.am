@@ -24,17 +24,16 @@ INCLUDES =              -I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir)
-WRAPLIBS=
 
-pkglib_LTLIBRARIES =	ha_csv.la
-
-ha_csv_la_LDFLAGS =	-module
-noinst_HEADERS	  =	ha_tina.h
-ha_csv_la_SOURCES =	ha_tina.cc
+pkglib_LIBRARIES =	libcsv.a
 
 LDADD =
 
-DEFS =                  -DMYSQL_SERVER @DEFS@
+DEFS =	@DEFS@
+
+libcsv_a_CXXFLAGS =	$(AM_CFLAGS)
+noinst_HEADERS = 	ha_tina.h
+libcsv_a_SOURCES =	ha_tina.cc
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -1,0 +1,54 @@
+use mysql;
+truncate table general_log;
+select * from general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	root[root] @ localhost []	1	1	Query	select * from general_log
+truncate table slow_log;
+select * from slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+truncate table general_log;
+select * from general_log where argument like '%general_log%';
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	root[root] @ localhost []	1	1	Query	select * from general_log where argument like '%general_log%'
+create table join_test (verbose_comment varchar (80), command_type varchar(64));
+insert into join_test values ("User performed a usual SQL query", "Query");
+insert into join_test values ("New DB connection was registered", "Connect");
+insert into join_test values ("Get the table info", "Field List");
+select verbose_comment, user_host, argument
+from  mysql.general_log join join_test
+on (mysql.general_log.command_type = join_test.command_type);
+verbose_comment	user_host	argument
+User performed a usual SQL query	root[root] @ localhost []	select * from general_log where argument like '%general_log%'
+User performed a usual SQL query	root[root] @ localhost []	create table join_test (verbose_comment varchar (80), command_type varchar(64))
+User performed a usual SQL query	root[root] @ localhost []	insert into join_test values ("User performed a usual SQL query", "Query")
+User performed a usual SQL query	root[root] @ localhost []	insert into join_test values ("New DB connection was registered", "Connect")
+User performed a usual SQL query	root[root] @ localhost []	insert into join_test values ("Get the table info", "Field List")
+User performed a usual SQL query	root[root] @ localhost []	select verbose_comment, user_host, argument
+from  mysql.general_log join join_test
+on (mysql.general_log.command_type = join_test.command_type)
+drop table join_test;
+flush logs;
+lock tables mysql.general_log WRITE;
+ERROR HY000: You can't write-lock a log table. Only read access is possible.
+lock tables mysql.slow_log WRITE;
+ERROR HY000: You can't write-lock a log table. Only read access is possible.
+lock tables mysql.general_log READ;
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+lock tables mysql.slow_log READ;
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
+unlock tables;
+lock tables mysql.general_log READ LOCAL;
+ flush logs;
+unlock tables;
+select "Mark that we woke up from flush logs in the test"
+       as "test passed";
+test passed
+Mark that we woke up from flush logs in the test
+lock tables mysql.general_log READ LOCAL;
+ truncate mysql.general_log;
+unlock tables;
+select "Mark that we woke up from TRUNCATE in the test"
+       as "test passed";
+test passed
+Mark that we woke up from TRUNCATE in the test

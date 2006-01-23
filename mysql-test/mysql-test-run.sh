@@ -268,9 +268,11 @@ USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=@USE_NDBCLUSTER@
 USE_NDBCLUSTER_SLAVE=@USE_NDBCLUSTER@
 USE_NDBCLUSTER_ALL=0
+USE_NDBCLUSTER_ONLY=0
 USE_RUNNING_NDBCLUSTER=""
 USE_RUNNING_NDBCLUSTER_SLAVE=""
 NDB_EXTRA_TEST=0
+NDB_VERBOSE=0
 NDBCLUSTER_EXTRA_OPTS=""
 USE_PURIFY=""
 PURIFY_LOGS=""
@@ -297,6 +299,7 @@ TEST_MODE=""
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
 NDBD_EXTRA_OPTS=
+MASTER_MYSQLDBINLOG=1
 SLAVE_MYSQLDBINLOG=1
 
 DO_STRESS=""
@@ -316,6 +319,8 @@ while test $# -gt 0; do
       USE_EMBEDDED_SERVER=1
       USE_MANAGER=0 NO_SLAVE=1
       USE_RUNNING_SERVER=0
+      USE_NDBCLUSTER=""
+      USE_NDBCLUSTER_SLAVE=""
       TEST_MODE="$TEST_MODE embedded" ;;
     --purify)
       USE_PURIFY=1
@@ -341,6 +346,10 @@ while test $# -gt 0; do
       USE_NDBCLUSTER="--ndbcluster"
       USE_NDBCLUSTER_SLAVE="--ndbcluster"
       USE_NDBCLUSTER_ALL=1 ;;
+    --with-ndbcluster-only)
+      USE_NDBCLUSTER="--ndbcluster"
+      USE_NDBCLUSTER_SLAVE="--ndbcluster"
+      USE_NDBCLUSTER_ONLY=1 ;;
     --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
@@ -351,6 +360,8 @@ while test $# -gt 0; do
       NDBCLUSTER_EXTRA_OPTS=" "
       NDB_EXTRA_TEST=1 ;
       ;;
+    --ndb-verbose)
+      NDB_VERBOSE=2 ;;
     --ndb_mgm-extra-opts=*)
       NDB_MGM_EXTRA_OPTS=`$ECHO "$1" | $SED -e "s;--ndb_mgm-extra-opts=;;"` ;;
     --ndb_mgmd-extra-opts=*)
@@ -543,6 +554,7 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-ndbcluster"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-ndbcluster"
       ;;
+    --skip-master-binlog) MASTER_MYSQLDBINLOG=0 ;;
     --skip-slave-binlog) SLAVE_MYSQLDBINLOG=0 ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
@@ -1266,8 +1278,10 @@ start_ndbcluster()
     then
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=2 --initial"
-    echo "Starting master ndbcluster " $OPTS
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir"
+    if [ "x$NDB_VERBOSE" != "x0" ] ; then
+      echo "Starting master ndbcluster " $OPTS
+    fi
     ./ndb/ndbcluster $OPTS || NDB_STATUS_OK=0
     if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
@@ -1351,9 +1365,13 @@ start_master()
   then
       CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
   fi
+  if [ x$MASTER_MYSQLDBINLOG = x1 ]
+  then
+    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1"
+  fi
   if [ -z "$DO_BENCH" -a -z "$DO_STRESS"  ]
   then
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+    master_args="--no-defaults \
   	    --server-id=$id  \
           --basedir=$MY_BASEDIR \
           --port=$this_master_myport \
@@ -1379,7 +1397,7 @@ start_master()
            $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+    master_args="--no-defaults \
           --server-id=$id --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
           --port=$this_master_myport \
@@ -1493,8 +1511,10 @@ start_slave()
          NDBCLUSTER_EXTRA_OPTS="--small"
       fi
 
-      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=2"
-      echo "Starting slave ndbcluster " $OPTS
+      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=$NDB_VERBOSE --relative-config-data-dir"
+      if [ "x$NDB_VERBOSE" != "x0" ] ; then
+        echo "Starting slave ndbcluster " $OPTS
+      fi
       ./ndb/ndbcluster $OPTS \
                       || NDB_SLAVE_STATUS_OK=0
       #                > /dev/null 2>&1 || NDB_SLAVE_STATUS_OK=0
@@ -1749,6 +1769,10 @@ run_testcase ()
  NDBCLUSTER_TEST=`$EXPR \( $tname : '.*ndb.*' \) != 0`
  if [ "x$USE_NDBCLUSTER_ALL" = "x1" ] ; then
    NDBCLUSTER_TEST=1
+ fi
+ if [ "x$USE_NDBCLUSTER_ONLY" = "x1" -a "x$NDBCLUSTER_TEST" != "x1" ] ; then
+   skip_test $tname
+   return
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`

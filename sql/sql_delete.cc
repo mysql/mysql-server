@@ -857,6 +857,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   char path[FN_REFLEN];
   TABLE *table;
   bool error;
+  uint closed_log_tables= 0, lock_logger= 0;
+  TABLE_LIST *tmp_table_list;
   uint path_length;
   DBUG_ENTER("mysql_truncate");
 
@@ -905,13 +907,36 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
                                       HTON_CAN_RECREATE)
         || thd->lex->sphead)
       goto trunc_by_del;
+
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(TRUE);
   }
 
-  // Remove the .frm extension
-  // AIX 5.2 64-bit compiler bug (BUG#16155): this crashes, replacement works.
-  //   *(path + path_length - reg_ext_length)= '\0';
+  /* close log tables in use */
+  if (!my_strcasecmp(system_charset_info, table_list->db, "mysql"))
+  {
+    if (!my_strcasecmp(system_charset_info, table_list->table_name,
+                       "general_log"))
+    {
+      lock_logger= 1;
+      logger.lock();
+      logger.close_log_table(QUERY_LOG_GENERAL, FALSE);
+      closed_log_tables= closed_log_tables | QUERY_LOG_GENERAL;
+    }
+    else
+      if (!my_strcasecmp(system_charset_info, table_list->table_name,
+                         "slow_log"))
+      {
+        lock_logger= 1;
+        logger.lock();
+        logger.close_log_table(QUERY_LOG_SLOW, FALSE);
+        closed_log_tables= closed_log_tables | QUERY_LOG_SLOW;
+      }
+  }
+
+  // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
+  // crashes, replacement works.  *(path + path_length - reg_ext_length)=
+  // '\0';
   path[path_length - reg_ext_length] = 0;
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
@@ -937,6 +962,14 @@ end:
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
+
+    if (closed_log_tables & QUERY_LOG_SLOW)
+      logger.reopen_log_table(QUERY_LOG_SLOW);
+
+    if (closed_log_tables & QUERY_LOG_GENERAL)
+      logger.reopen_log_table(QUERY_LOG_GENERAL);
+    if (lock_logger)
+      logger.unlock();
   }
   else if (error)
   {

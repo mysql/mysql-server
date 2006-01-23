@@ -19,6 +19,7 @@ innodb_concurrent : Results are not deterministic, Elliot will fix (BUG#3300)
 subselect       : Bug#15706
 ps_7ndb         : dbug assert in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
+partition_03ndb : Bug#16385
 events          : Affects flush test case. A table lock not released somewhere
 ndb_binlog_basic   : Results are not deterministic, Tomas will fix
 rpl_ndb_basic   : Bug#16228
@@ -26,3 +27,5 @@ rpl_sp          : Bug #16456
 #ndb_dd_disk2memory : Bug #16466
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
+system_mysql_db : Needs fixing
+system_mysql_db_fix : Needs fixing

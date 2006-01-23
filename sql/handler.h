@@ -99,6 +99,7 @@
 #define HA_CAN_PARTITION       (1 << 0) /* Partition support */
 #define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
 #define HA_CAN_PARTITION_UNIQUE (1 << 2)
+#define HA_USE_AUTO_PARTITION (1 << 3)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -109,37 +110,64 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
-/* bits in alter_table_flags */
-#define HA_ONLINE_ADD_EMPTY_PARTITION           0x00000001
-#define HA_ONLINE_DROP_PARTITION                0x00000002
+/*
+  bits in alter_table_flags:
+*/
 /*
   These bits are set if different kinds of indexes can be created
   off-line without re-create of the table (but with a table lock).
 */
-#define HA_ONLINE_ADD_INDEX_NO_WRITES           0x00000004 /*add index w/lock*/
-#define HA_ONLINE_DROP_INDEX_NO_WRITES          0x00000008 /*drop index w/lock*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    0x00000010 /*add unique w/lock*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   0x00000020 /*drop uniq. w/lock*/
-#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        0x00000040 /*add prim. w/lock*/
-#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       0x00000080 /*drop prim. w/lock*/
+#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
+#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
+#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
+#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
 /*
   These are set if different kinds of indexes can be created on-line
   (without a table lock). If a handler is capable of one or more of
   these, it should also set the corresponding *_NO_WRITES bit(s).
 */
-#define HA_ONLINE_ADD_INDEX                     0x00000100 /*add index online*/
-#define HA_ONLINE_DROP_INDEX                    0x00000200 /*drop index online*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX              0x00000400 /*add unique online*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX             0x00000800 /*drop uniq. online*/
-#define HA_ONLINE_ADD_PK_INDEX                  0x00001000 /*add prim. online*/
-#define HA_ONLINE_DROP_PK_INDEX                 0x00002000 /*drop prim. online*/
+#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
+#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
+#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
+#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
+#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
+#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+/*
+  HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
+  supported at all.
+  HA_FAST_CHANGE_PARTITION means that optimised variants of the changes
+  exists but they are not necessarily done online.
+
+  HA_ONLINE_DOUBLE_WRITE means that the handler supports writing to both
+  the new partition and to the old partitions when updating through the
+  old partitioning schema while performing a change of the partitioning.
+  This means that we can support updating of the table while performing
+  the copy phase of the change. For no lock at all also a double write
+  from new to old must exist and this is not required when this flag is
+  set.
+  This is actually removed even before it was introduced the first time.
+  The new idea is that handlers will handle the lock level already in
+  store_lock for ALTER TABLE partitions.
+
+  HA_PARTITION_ONE_PHASE is a flag that can be set by handlers that take
+  care of changing the partitions online and in one phase. Thus all phases
+  needed to handle the change are implemented inside the storage engine.
+  The storage engine must also support auto-discovery since the frm file
+  is changed as part of the change and this change must be controlled by
+  the storage engine. A typical engine to support this is NDB (through
+  WL #2498).
+*/
+#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
+#define HA_FAST_CHANGE_PARTITION                (1L << 13)
+#define HA_PARTITION_ONE_PHASE                  (1L << 14)
 
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
-
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -540,6 +568,8 @@ typedef struct
    int (*start_consistent_snapshot)(THD *thd);
    bool (*flush_logs)();
    bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+   uint (*partition_flags)();
+   uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(THD *thd, st_alter_tablespace *ts_info);
    uint32 flags;                                /* global handler flags */
    /* 
@@ -604,10 +634,12 @@ enum partition_state {
   PART_NORMAL= 0,
   PART_IS_DROPPED= 1,
   PART_TO_BE_DROPPED= 2,
-  PART_DROPPING= 3,
-  PART_IS_ADDED= 4,
-  PART_ADDING= 5,
-  PART_ADDED= 6
+  PART_TO_BE_ADDED= 3,
+  PART_TO_BE_REORGED= 4,
+  PART_REORGED_DROPPED= 5,
+  PART_CHANGED= 6,
+  PART_IS_CHANGED= 7,
+  PART_IS_ADDED= 8
 };
 
 typedef struct {
@@ -657,13 +689,14 @@ public:
 
 typedef struct {
   longlong list_value;
-  uint partition_id;
+  uint32 partition_id;
 } LIST_PART_ENTRY;
 
 class partition_info;
 
-typedef bool (*get_part_id_func)(partition_info *part_info,
-                                 uint32 *part_id);
+typedef int (*get_part_id_func)(partition_info *part_info,
+                                 uint32 *part_id,
+                                 longlong *func_value);
 typedef uint32 (*get_subpart_id_func)(partition_info *part_info);
 
 class partition_info :public Sql_alloc {
@@ -732,6 +765,8 @@ public:
   char *part_func_string;
   char *subpart_func_string;
 
+  uchar *part_state;
+
   partition_element *curr_part_elem;
   partition_element *current_partition;
   /*
@@ -748,12 +783,12 @@ public:
   partition_type subpart_type;
 
   uint part_info_len;
+  uint part_state_len;
   uint part_func_len;
   uint subpart_func_len;
 
   uint no_parts;
   uint no_subparts;
-  uint count_curr_parts;
   uint count_curr_subparts;
 
   uint part_error_code;
@@ -764,14 +799,24 @@ public:
   uint no_subpart_fields;
   uint no_full_part_fields;
 
+  /*
+    This variable is used to calculate the partition id when using
+    LINEAR KEY/HASH. This functionality is kept in the MySQL Server
+    but mainly of use to handlers supporting partitioning.
+  */
   uint16 linear_hash_mask;
 
   bool use_default_partitions;
+  bool use_default_no_partitions;
   bool use_default_subpartitions;
+  bool use_default_no_subpartitions;
+  bool default_partitions_setup;
   bool defined_max_value;
   bool list_of_part_fields;
   bool list_of_subpart_fields;
   bool linear_hash_ind;
+  bool fixed;
+  bool from_openfrm;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -782,19 +827,27 @@ public:
     list_array(NULL),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
+    part_state(NULL),
     curr_part_elem(NULL), current_partition(NULL),
     default_engine_type(NULL),
     part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
-    part_info_len(0), part_func_len(0), subpart_func_len(0),
+    part_info_len(0), part_state_len(0),
+    part_func_len(0), subpart_func_len(0),
     no_parts(0), no_subparts(0),
-    count_curr_parts(0), count_curr_subparts(0), part_error_code(0),
+    count_curr_subparts(0), part_error_code(0),
     no_list_values(0), no_part_fields(0), no_subpart_fields(0),
     no_full_part_fields(0), linear_hash_mask(0),
     use_default_partitions(TRUE),
-    use_default_subpartitions(TRUE), defined_max_value(FALSE),
+    use_default_no_partitions(TRUE),
+    use_default_subpartitions(TRUE),
+    use_default_no_subpartitions(TRUE),
+    default_partitions_setup(FALSE),
+    defined_max_value(FALSE),
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
-    linear_hash_ind(FALSE)
+    linear_hash_ind(FALSE),
+    fixed(FALSE),
+    from_openfrm(FALSE)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();
@@ -842,6 +895,8 @@ uint get_tot_partitions(partition_info *part_info)
   return part_info->no_parts *
          (is_sub_partitioned(part_info) ? part_info->no_subparts : 1);
 }
+
+
 #endif
 
 typedef struct st_ha_create_information
@@ -891,8 +946,8 @@ typedef struct st_ha_check_opt
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
-bool is_partitions_in_table(partition_info *new_part_info,
-                            partition_info *old_part_info);
+char *are_partitions_in_table(partition_info *new_part_info,
+                              partition_info *old_part_info);
 bool check_reorganise_list(partition_info *new_part_info,
                            partition_info *old_part_info,
                            List<char> list_part_names);
@@ -903,15 +958,17 @@ bool set_up_defaults_for_partitioning(partition_info *part_info,
 handler *get_ha_partition(partition_info *part_info);
 int get_parts_for_update(const byte *old_data, byte *new_data,
                          const byte *rec0, partition_info *part_info,
-                         uint32 *old_part_id, uint32 *new_part_id);
+                         uint32 *old_part_id, uint32 *new_part_id,
+                         longlong *func_value);
 int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id);
-bool check_partition_info(partition_info *part_info,handlerton *eng_type,
+bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           handler *file, ulonglong max_rows);
-bool fix_partition_func(THD *thd, const char *name, TABLE *table);
+bool fix_partition_func(THD *thd, const char *name, TABLE *table,
+                        bool create_table_ind);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
-                                bool add_default_info);
+                                bool write_all);
 bool partition_key_modified(TABLE *table, List<Item> &fields);
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec,
@@ -921,7 +978,9 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
                                const key_range *key_spec,
                                part_id_range *part_spec);
 bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
-                            uint part_info_len, TABLE *table,
+                            uint part_info_len,
+                            uchar *part_state, uint part_state_len,
+                            TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type);
 void make_used_partitions_str(partition_info *part_info, String *parts_str);
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
@@ -947,6 +1006,8 @@ typedef struct st_handler_buffer
   byte *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
+typedef struct system_status_var SSV;
+
 class handler :public Sql_alloc
 {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -967,6 +1028,9 @@ class handler :public Sql_alloc
   */
   virtual int rnd_init(bool scan) =0;
   virtual int rnd_end() { return 0; }
+
+  void ha_statistic_increment(ulong SSV::*offset) const;
+
 
 private:
   virtual int reset() { return extra(HA_EXTRA_RESET); }
@@ -1029,6 +1093,33 @@ public:
   virtual ~handler(void)
   {
     /* TODO: DBUG_ASSERT(inited == NONE); */
+  }
+  /*
+    Check whether a handler allows to lock the table.
+
+    SYNOPSIS
+      check_if_locking_is_allowed()
+        thd     Handler of the thread, trying to lock the table
+        table   Table handler to check
+        count   Number of locks already granted to the table
+
+    DESCRIPTION
+      Check whether a handler allows to lock the table. For instance,
+      MyISAM does not allow to lock mysql.proc along with other tables.
+      This limitation stems from the fact that MyISAM does not support
+      row-level locking and we have to add this limitation to avoid
+      deadlocks.
+
+    RETURN
+      TRUE      Locking is allowed
+      FALSE     Locking is not allowed. The error was thrown.
+  */
+  virtual bool check_if_locking_is_allowed(uint sql_command,
+                                           ulong type, TABLE *table,
+                                           uint count,
+                                           bool called_by_logger_thread)
+  {
+    return TRUE;
   }
   virtual int ha_initialise();
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
@@ -1480,11 +1571,16 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
-  virtual ulong alter_table_flags(void) const { return 0; }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  virtual ulong partition_flags(void) const { return 0;}
   virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
-  virtual void set_part_info(partition_info *part_info) { return; }
+  virtual void set_auto_partitions(partition_info *part_info) { return; }
+  virtual bool get_no_parts(const char *name,
+                            uint *no_parts)
+  {
+    *no_parts= 0;
+    return 0;
+  }
+  virtual void set_part_info(partition_info *part_info) {return;}
 #endif
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
@@ -1530,19 +1626,26 @@ public:
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
   virtual int create_handler_files(const char *name) { return FALSE;}
 
-  /*
-    SYNOPSIS
-      drop_partitions()
-      path                        Complete path of db and table name
-    RETURN VALUE
-      TRUE                        Failure
-      FALSE                       Success
-    DESCRIPTION
-      Drop a partition, during this operation no other activity is ongoing
-      in this server on the table.
-  */
+  virtual int change_partitions(HA_CREATE_INFO *create_info,
+                                const char *path,
+                                ulonglong *copied,
+                                ulonglong *deleted,
+                                const void *pack_frm_data,
+                                uint pack_frm_len)
+  { return HA_ERR_WRONG_COMMAND; }
   virtual int drop_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  virtual int rename_partitions(const char *path)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int optimize_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int analyze_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int check_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+  virtual int repair_partitions(THD *thd)
+  { return HA_ERR_WRONG_COMMAND; }
+
   /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
   virtual THR_LOCK_DATA **store_lock(THD *thd,

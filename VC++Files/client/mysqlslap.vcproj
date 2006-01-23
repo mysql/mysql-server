@@ -3,6 +3,7 @@
 	ProjectType="Visual C++"
 	Version="7.10"
 	Name="mysqlslap"
+	ProjectGUID="{2E9332CF-072A-4381-BF37-17C5AB4F8583}"
 	SccProjectName=""
 	SccLocalPath="">
 	<Platforms>
@@ -39,7 +40,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
 				OutputFile="../client_release/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -101,7 +102,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
 				OutputFile="../client_classic/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -161,7 +162,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
 				OutputFile="../client_debug/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"

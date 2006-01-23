@@ -1420,6 +1420,7 @@ AC_MSG_CHECKING("named thread libs:")
 if test "$with_named_thread" != "no"
 then
   LIBS="$with_named_thread $LIBS $with_named_thread"
+  CLIENT_THREAD_LIBS="$with_named_thread"
   with_posix_threads="yes"
   AC_MSG_RESULT("$with_named_thread")
 else
@@ -1436,6 +1437,7 @@ else
     AC_MSG_CHECKING("for pthread_create in -lpthread");
     ac_save_LIBS="$LIBS"
     LIBS="$LIBS -lpthread"
+    CLIENT_THREAD_LIBS="-lpthread"
     AC_TRY_LINK(
     [#include <pthread.h>],
     [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1444,6 +1446,7 @@ else
     if test "$with_posix_threads" = "no"
     then
       LIBS=" $ac_save_LIBS -lpthreads"
+      CLIENT_THREAD_LIBS="-lpthreads"
       AC_MSG_CHECKING("for pthread_create in -lpthreads");
       AC_TRY_LINK(
       [#include <pthread.h>],
@@ -1454,6 +1457,7 @@ else
       then
         # This is for FreeBSD
         LIBS="$ac_save_LIBS -pthread"
+        CLIENT_THREAD_LIBS="-pthread"
         AC_MSG_CHECKING("for pthread_create in -pthread");
         AC_TRY_LINK(
         [#include <pthread.h>],
@@ -2437,7 +2441,8 @@ MYSQL_STORAGE_ENGINE(archive,,,,,,storage/archive,,
  \$(top_builddir)/storage/archive/libarchive.a, [
   AC_CONFIG_FILES(storage/archive/Makefile)
 ])
-MYSQL_STORAGE_ENGINE(csv,,,,,no,storage/csv,,,[
+MYSQL_STORAGE_ENGINE(csv,,,"yes",,tina_hton,storage/csv,no,
+  \$(top_builddir)/storage/csv/libcsv.a,[
   AC_CONFIG_FILES(storage/csv/Makefile)
 ])
 MYSQL_STORAGE_ENGINE(blackhole)
@@ -2469,6 +2474,7 @@ fi
 CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(CLIENT_LIBS)
+AC_SUBST(CLIENT_THREAD_LIBS)
 AC_SUBST(NON_THREADED_LIBS)
 AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)

@@ -1009,7 +1009,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   TL_WRITE_ONLY to abort any new accesses to the lock
 */
 
-void thr_abort_locks(THR_LOCK *lock)
+void thr_abort_locks(THR_LOCK *lock, bool upgrade_lock)
 {
   THR_LOCK_DATA *data;
   DBUG_ENTER("thr_abort_locks");
@@ -1031,7 +1031,7 @@ void thr_abort_locks(THR_LOCK *lock)
   lock->read_wait.last= &lock->read_wait.data;
   lock->write_wait.last= &lock->write_wait.data;
   lock->read_wait.data=lock->write_wait.data=0;
-  if (lock->write.data)
+  if (upgrade_lock && lock->write.data)
     lock->write.data->type=TL_WRITE_ONLY;
   pthread_mutex_unlock(&lock->mutex);
   DBUG_VOID_RETURN;
@@ -1089,6 +1089,213 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread)
 }
 
 
+/*
+  Downgrade a WRITE_* to a lower WRITE level
+  SYNOPSIS
+    thr_downgrade_write_lock()
+    in_data                   Lock data of thread downgrading its lock
+    new_lock_type             New write lock type
+  RETURN VALUE
+    NONE
+  DESCRIPTION
+    This can be used to downgrade a lock already owned. When the downgrade
+    occurs also other waiters, both readers and writers can be allowed to
+    start.
+    The previous lock is often TL_WRITE_ONLY but can also be
+    TL_WRITE and TL_WRITE_ALLOW_READ. The normal downgrade variants are
+    TL_WRITE_ONLY => TL_WRITE_ALLOW_READ After a short exclusive lock
+    TL_WRITE_ALLOW_READ => TL_WRITE_ALLOW_WRITE After discovering that the
+    operation didn't need such a high lock.
+    TL_WRITE_ONLY => TL_WRITE after a short exclusive lock while holding a
+    write table lock
+    TL_WRITE_ONLY => TL_WRITE_ALLOW_WRITE After a short exclusive lock after
+    already earlier having dongraded lock to TL_WRITE_ALLOW_WRITE
+    The implementation is conservative and rather don't start rather than
+    go on unknown paths to start, the common cases are handled.
+
+    NOTE:
+    In its current implementation it is only allowed to downgrade from
+    TL_WRITE_ONLY. In this case there are no waiters. Thus no wake up
+    logic is required.
+*/
+
+void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
+                              enum thr_lock_type new_lock_type)
+{
+  THR_LOCK *lock=in_data->lock;
+  THR_LOCK_DATA *data, *next;
+  enum thr_lock_type old_lock_type= in_data->type;
+  bool start_writers= FALSE;
+  bool start_readers= FALSE;
+  DBUG_ENTER("thr_downgrade_write_only_lock");
+
+  pthread_mutex_lock(&lock->mutex);
+  DBUG_ASSERT(old_lock_type == TL_WRITE_ONLY);
+  DBUG_ASSERT(old_lock_type > new_lock_type);
+  in_data->type= new_lock_type;
+  check_locks(lock,"after downgrading lock",0);
+#if 0
+  switch (old_lock_type)
+  {
+    case TL_WRITE_ONLY:
+    case TL_WRITE:
+    case TL_WRITE_LOW_PRIORITY:
+    /*
+      Previous lock was exclusive we are now ready to start up most waiting
+      threads.
+    */
+      switch (new_lock_type)
+      {
+        case TL_WRITE_ALLOW_READ:
+        /* Still cannot start WRITE operations. Can only start readers.  */
+          start_readers= TRUE;
+          break;
+        case TL_WRITE:
+        case TL_WRITE_LOW_PRIORITY:
+        /*
+           Still cannot start anything, but new requests are no longer
+           aborted.
+        */
+          break;
+        case TL_WRITE_ALLOW_WRITE:
+        /*
+          We can start both writers and readers.
+        */
+          start_writers= TRUE;
+          start_readers= TRUE;
+          break;
+        case TL_WRITE_CONCURRENT_INSERT:
+        case TL_WRITE_DELAYED:
+        /*
+          This routine is not designed for those. Lock will be downgraded
+          but no start of waiters will occur. This is not the optimal but
+          should be a correct behaviour.
+        */
+          break;
+        default:
+          DBUG_ASSERT(0);
+      }
+      break;
+    case TL_WRITE_DELAYED:
+    case TL_WRITE_CONCURRENT_INSERT:
+    /*
+      This routine is not designed for those. Lock will be downgraded
+      but no start of waiters will occur. This is not the optimal but
+      should be a correct behaviour.
+    */
+      break;
+    case TL_WRITE_ALLOW_READ:
+      DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE);
+      /*
+        Previously writers were not allowed to start, now it is ok to
+        start them again. Readers are already allowed so no reason to
+        handle them.
+      */
+      start_writers= TRUE;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+  }
+  if (start_writers)
+  {
+    /*
+      At this time the only active writer can be ourselves. Thus we need
+      not worry about that there are other concurrent write operations
+      active on the table. Thus we only need to worry about starting
+      waiting operations.
+      We also only come here with TL_WRITE_ALLOW_WRITE as the new
+      lock type, thus we can start other writers also of the same type.
+      If we find a lock at exclusive level >= TL_WRITE_LOW_PRIORITY we
+      don't start any more operations that would be mean those operations
+      will have to wait for things started afterwards.
+    */
+    DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE);
+    for (data=lock->write_wait.data; data ; data= next)
+    {
+      /*
+        All WRITE requests compatible with new lock type are also
+        started
+      */
+      next= data->next;
+      if (start_writers && data->type == new_lock_type)
+      {
+        pthread_cond_t *cond= data->cond;
+        /*
+          It is ok to start this waiter.
+          Move from being first in wait queue to be last in write queue.
+        */
+        if (((*data->prev)= data->next))
+          data->next->prev= data->prev;
+        else
+          lock->write_wait.last= data->prev;
+        data->prev= lock->write.last;
+        lock->write.last= &data->next;
+        data->next= 0;
+        check_locks(lock, "Started write lock after downgrade",0);
+        data->cond= 0;
+        pthread_cond_signal(cond);
+      }
+      else
+      {
+        /*
+          We found an incompatible lock, we won't start any more write
+          requests to avoid letting writers pass other writers in the
+          queue.
+        */
+        start_writers= FALSE;
+        if (data->type >= TL_WRITE_LOW_PRIORITY)
+        {
+          /*
+            We have an exclusive writer in the queue so we won't start
+            readers either.
+          */
+          start_readers= FALSE;
+        }
+      }
+    }
+  }
+  if (start_readers)
+  {
+    DBUG_ASSERT(new_lock_type == TL_WRITE_ALLOW_WRITE ||
+                new_lock_type == TL_WRITE_ALLOW_READ);
+    /*
+      When we come here we know that the write locks are
+      TL_WRITE_ALLOW_WRITE or TL_WRITE_ALLOW_READ. This means that reads
+      are ok
+    */
+    for (data=lock->read_wait.data; data ; data=next)
+    {
+      next= data->next;
+      /*
+        All reads are ok to start now except TL_READ_NO_INSERT when
+        write lock is TL_WRITE_ALLOW_READ.
+      */
+      if (new_lock_type != TL_WRITE_ALLOW_READ ||
+          data->type != TL_READ_NO_INSERT)
+      {
+        pthread_cond_t *cond= data->cond;
+        if (((*data->prev)= data->next))
+          data->next->prev= data->prev;
+        else
+          lock->read_wait.last= data->prev;
+        data->prev= lock->read.last;
+        lock->read.last= &data->next;
+        data->next= 0;
+
+        if (data->type == TL_READ_NO_INSERT)
+          lock->read_no_write_count++;
+        check_locks(lock, "Started read lock after downgrade",0);
+        data->cond= 0;
+        pthread_cond_signal(cond);
+      }
+    }
+  }
+  check_locks(lock,"after starting waiters after downgrading lock",0);
+#endif
+  pthread_mutex_unlock(&lock->mutex);
+  DBUG_VOID_RETURN;
+}
 
 /* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
 

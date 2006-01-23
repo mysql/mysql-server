@@ -27,6 +27,7 @@
  */
 #define MAX_NDB_NODES 49
 #define MAX_NODES     64
+#define UNDEF_NODEGROUP 0xFFFF
 
 /**
  * MAX_API_NODES = MAX_NODES - No of NDB Nodes in use
@@ -64,6 +65,7 @@
 #define MAX_NULL_BITS 4096
 #define MAX_FRAGMENT_DATA_BYTES (4+(2 * 8 * MAX_REPLICAS * MAX_NDB_NODES))
 #define MAX_NDB_PARTITIONS 1024
+#define MAX_RANGE_DATA (131072+MAX_NDB_PARTITIONS) //0.5 MByte of list data
 
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*

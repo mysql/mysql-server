@@ -23,9 +23,20 @@
 typedef struct st_tina_share {
   char *table_name;
   byte *mapped_file;                /* mapped region of file */
-  uint table_name_length,use_count;
+  uint table_name_length, use_count;
+  /*
+    Below flag is needed to make log tables work with concurrent insert.
+    For more details see comment to ha_tina::update_status.
+  */
+  my_bool is_log_table;
   MY_STAT file_stat;                /* Stat information for the data file */
   File data_file;                   /* Current open data file */
+  /*
+    Here we save the length of the file for readers. This is updated by
+    inserts, updates and deletes. The var is initialized along with the
+    share initialization.
+  */
+  off_t saved_data_file_length;
   pthread_mutex_t mutex;
   THR_LOCK lock;
 } TINA_SHARE;
@@ -41,6 +52,7 @@ class ha_tina: public handler
   TINA_SHARE *share;       /* Shared lock info */
   off_t current_position;  /* Current position in the file during a file scan */
   off_t next_position;     /* Next position in the file scan */
+  off_t local_saved_data_file_length; /* save position for reads */
   byte byte_buffer[IO_SIZE];
   String buffer;
   /*
@@ -92,19 +104,15 @@ public:
   */
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
 
+  virtual bool check_if_locking_is_allowed(uint sql_command,
+                                           ulong type, TABLE *table,
+                                           uint count,
+                                           bool called_by_logger_thread);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key,
-      uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-      uint key_len, enum ha_rkey_function find_flag);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
@@ -112,13 +120,18 @@ public:
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
-  int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
       enum thr_lock_type lock_type);
+
+  /*
+    These functions used to get/update status of the handler.
+    Needed to enable concurrent inserts.
+  */
+  void get_status();
+  void update_status();
 
   /* The following methods were added just for TINA */
   int encode_quote(byte *buf);

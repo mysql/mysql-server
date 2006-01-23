@@ -41,67 +41,17 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
                          handlerton **new_engine);                             
+static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
+                               List<create_field> *fields,
+                               List<Key> *keys, bool tmp_table,
+                               uint *db_options,
+                               handler *file, KEY **key_info_buffer,
+                               uint *key_count, int select_field_count);
 
-/*
-  SYNOPSIS
-    write_bin_log()
-    thd                           Thread object
-    clear_error                   is clear_error to be called
-  RETURN VALUES
-    NONE
-  DESCRIPTION
-    Write the binlog if open, routine used in multiple places in this
-    file
-*/
-
-static void write_bin_log(THD *thd, bool clear_error,
-                          char const* query, ulong query_length)
-{
-  if (mysql_bin_log.is_open())
-  {
-    if (clear_error)
-      thd->clear_error();
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      query, query_length, FALSE, FALSE);
-  }
-}
-
-/*
-  SYNOPSIS
-    abort_and_upgrade_lock()
-    thd                           Thread object
-    table                         Table object
-    db                            Database name
-    table_name                    Table name
-    old_lock_level                Old lock level
-  RETURN VALUES
-    TRUE                          Failure
-    FALSE                         Success
-  DESCRIPTION
-    Remember old lock level (for possible downgrade later on), abort all
-    waiting threads and ensure that all keeping locks currently are
-    completed such that we own the lock exclusively and no other interaction
-    is ongoing.
-*/
-
-static bool abort_and_upgrade_lock(THD *thd, TABLE *table, const char *db,
-                                   const char *table_name,
-                                   uint *old_lock_level)
-{
-  uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
-  DBUG_ENTER("abort_and_upgrade_locks");
-
-  *old_lock_level= table->reginfo.lock_type;
-  mysql_lock_abort(thd, table);
-  VOID(remove_table_from_cache(thd, db, table_name, flags));
-  if (thd->killed)
-  {
-    thd->no_warnings_for_error= 0;
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-}
-
+static int mysql_copy_create_lists(List<create_field> *orig_create_list,
+                                   List<Key> *orig_key,
+                                   List<create_field> *new_create_list,
+                                   List<Key> *new_key);
 
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
@@ -191,6 +141,272 @@ uint build_tmptable_filename(char *buff, size_t bufflen,
 #define ALTER_TABLE_DATA_CHANGED  1
 #define ALTER_TABLE_INDEX_CHANGED 2
 
+
+/*
+  SYNOPSIS
+    mysql_copy_create_list()
+    orig_create_list          Original list of created fields
+    inout::new_create_list    Copy of original list
+
+  RETURN VALUES
+    FALSE                     Success
+    TRUE                      Memory allocation error
+
+  DESCRIPTION
+    mysql_prepare_table destroys the create_list and in some cases we need
+    this lists for more purposes. Thus we copy it specifically for use
+    by mysql_prepare_table
+*/
+
+static int mysql_copy_create_list(List<create_field> *orig_create_list,
+
+                                   List<create_field> *new_create_list)
+{
+  List_iterator<create_field> prep_field_it(*orig_create_list);
+  create_field *prep_field;
+  DBUG_ENTER("mysql_copy_create_list");
+
+  while ((prep_field= prep_field_it++))
+  {
+    create_field *field= new create_field(*prep_field);
+    if (!field || new_create_list->push_back(field))
+    {
+      mem_alloc_error(2);
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  SYNOPSIS
+    mysql_copy_key_list()
+    orig_key                  Original list of keys
+    inout::new_key            Copy of original list
+
+  RETURN VALUES
+    FALSE                     Success
+    TRUE                      Memory allocation error
+
+  DESCRIPTION
+    mysql_prepare_table destroys the key list and in some cases we need
+    this lists for more purposes. Thus we copy it specifically for use
+    by mysql_prepare_table
+*/
+
+static int mysql_copy_key_list(List<Key> *orig_key,
+                               List<Key> *new_key)
+{
+  List_iterator<Key> prep_key_it(*orig_key);
+  Key *prep_key;
+  DBUG_ENTER("mysql_copy_create_lists");
+
+  while ((prep_key= prep_key_it++))
+  {
+    List<key_part_spec> prep_columns;
+    List_iterator<key_part_spec> prep_col_it(prep_key->columns);
+    key_part_spec *prep_col;
+    Key *temp_key;
+
+    while ((prep_col= prep_col_it++))
+    {
+      key_part_spec *prep_key_part;
+      if (prep_key_part= new key_part_spec(*prep_col))
+      {
+        mem_alloc_error(sizeof(key_part_spec));
+        DBUG_RETURN(TRUE);
+      }
+      if (prep_columns.push_back(prep_key_part))
+      {
+        mem_alloc_error(2);
+        DBUG_RETURN(TRUE);
+      }
+    }
+    if ((temp_key= new Key(prep_key->type, prep_key->name,
+                           prep_key->algorithm,
+                           prep_key->generated,
+                           prep_columns,
+                           prep_key->parser_name)))
+    {
+      mem_alloc_error(sizeof(Key));
+      DBUG_RETURN(TRUE);
+    }
+    if (new_key->push_back(temp_key))
+    {
+      mem_alloc_error(2);
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  SYNOPSIS
+    mysql_write_frm()
+    lpt                    Struct carrying many parameters needed for this
+                           method
+    flags                  Flags as defined below
+      WFRM_INITIAL_WRITE        If set we need to prepare table before
+                                creating the frm file
+      WFRM_CREATE_HANDLER_FILES If set we need to create the handler file as
+                                part of the creation of the frm file
+      WFRM_PACK_FRM             If set we should pack the frm file and delete
+                                the frm file
+
+  RETURN VALUES
+    TRUE                   Error
+    FALSE                  Success
+
+  DESCRIPTION
+    A support method that creates a new frm file and in this process it
+    regenerates the partition data. It works fine also for non-partitioned
+    tables since it only handles partitioned data if it exists.
+*/
+
+bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
+{
+  /*
+    Prepare table to prepare for writing a new frm file where the
+    partitions in add/drop state have temporarily changed their state
+    We set tmp_table to avoid get errors on naming of primary key index.
+  */
+  int error= 0;
+  char path[FN_REFLEN+1];
+  char frm_name[FN_REFLEN+1];
+  DBUG_ENTER("mysql_write_frm");
+
+  if (flags & WFRM_INITIAL_WRITE)
+  {
+    error= mysql_copy_create_list(lpt->create_list,
+                                  &lpt->new_create_list);
+    error+= mysql_copy_key_list(lpt->key_list,
+                                &lpt->new_key_list);
+    if (error)
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
+  strxmov(frm_name, path, reg_ext, NullS);
+  if ((flags & WFRM_INITIAL_WRITE) &&
+      (mysql_prepare_table(lpt->thd, lpt->create_info, &lpt->new_create_list,
+                           &lpt->new_key_list,/*tmp_table*/ 1, &lpt->db_options,
+                           lpt->table->file, &lpt->key_info_buffer,
+                           &lpt->key_count, /*select_field_count*/ 0)))
+  {
+    DBUG_RETURN(TRUE);
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  {
+    partition_info *part_info= lpt->table->part_info;
+    char *part_syntax_buf;
+    uint syntax_len, i;
+    bool any_unnormal_state= FALSE;
+
+    if (part_info)
+    {
+      uint max_part_state_len= part_info->partitions.elements +
+                           part_info->temp_partitions.elements;
+      if (!(part_info->part_state= (uchar*)sql_alloc(max_part_state_len)))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      part_info->part_state_len= 0;
+      if (!(part_syntax_buf= generate_partition_syntax(part_info,
+                                                       &syntax_len,
+                                                       TRUE, FALSE)))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      for (i= 0; i < part_info->part_state_len; i++)
+      {
+        enum partition_state part_state=
+                        (enum partition_state)part_info->part_state[i];
+        if (part_state != PART_NORMAL && part_state != PART_IS_ADDED)
+          any_unnormal_state= TRUE;
+      }
+      if (!any_unnormal_state)
+      {
+        part_info->part_state= NULL;
+        part_info->part_state_len= 0;
+      }
+      part_info->part_info_string= part_syntax_buf;
+      part_info->part_info_len= syntax_len;
+    }
+  }
+#endif
+  /*
+    We write the frm file with the LOCK_open mutex since otherwise we could
+    overwrite the frm file as another is reading it in open_table.
+  */
+  lpt->create_info->table_options= lpt->db_options;
+  VOID(pthread_mutex_lock(&LOCK_open));
+  if ((mysql_create_frm(lpt->thd, frm_name, lpt->db, lpt->table_name,
+                        lpt->create_info, lpt->new_create_list, lpt->key_count,
+                        lpt->key_info_buffer, lpt->table->file)) ||
+      ((flags & WFRM_CREATE_HANDLER_FILES) &&
+       lpt->table->file->create_handler_files(path)))
+  {
+    error= 1;
+    goto end;
+  }
+  if (flags & WFRM_PACK_FRM)
+  {
+    /*
+      We need to pack the frm file and after packing it we delete the
+      frm file to ensure it doesn't get used. This is only used for
+      handlers that have the main version of the frm file stored in the
+      handler.
+    */
+    const void *data= 0;
+    uint length= 0;
+    if (readfrm(path, &data, &length) ||
+        packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
+    {
+      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((char*)lpt->pack_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+      mem_alloc_error(length);
+      error= 1;
+      goto end;
+    }
+    error= my_delete(frm_name, MYF(MY_WME));
+  }
+  /* Frm file have been updated to reflect the change about to happen.  */
+end:
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  DBUG_RETURN(error);
+}
+
+
+/*
+  SYNOPSIS
+    write_bin_log()
+    thd                           Thread object
+    clear_error                   is clear_error to be called
+    query                         Query to log
+    query_length                  Length of query
+
+  RETURN VALUES
+    NONE
+
+  DESCRIPTION
+    Write the binlog if open, routine used in multiple places in this
+    file
+*/
+
+void write_bin_log(THD *thd, bool clear_error,
+                   char const *query, ulong query_length)
+{
+  if (mysql_bin_log.is_open())
+  {
+    if (clear_error)
+      thd->clear_error();
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      query, query_length, FALSE, FALSE);
+  }
+}
 
 
 /*
@@ -1807,24 +2023,54 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (!(file=get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
                              create_info->db_type)))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 128);//128 bytes invented
+    mem_alloc_error(sizeof(handler));
     DBUG_RETURN(TRUE);
   }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->lex->part_info;
+  if (!part_info && create_info->db_type->partition_flags &&
+      (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION))
+  {
+    /*
+      Table is not defined as a partitioned table but the engine handles
+      all tables as partitioned. The handler will set up the partition info
+      object with the default settings.
+    */
+    thd->lex->part_info= part_info= new partition_info();
+    if (!part_info)
+    {
+      mem_alloc_error(sizeof(partition_info));
+      DBUG_RETURN(TRUE);
+    }
+    file->set_auto_partitions(part_info);
+  }
   if (part_info)
   {
     /*
-    The table has been specified as a partitioned table.
-    If this is part of an ALTER TABLE the handler will be the partition
-    handler but we need to specify the default handler to use for
-    partitions also in the call to check_partition_info. We transport
-    this information in the default_db_type variable, it is either
-    DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
+      The table has been specified as a partitioned table.
+      If this is part of an ALTER TABLE the handler will be the partition
+      handler but we need to specify the default handler to use for
+      partitions also in the call to check_partition_info. We transport
+      this information in the default_db_type variable, it is either
+      DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
+
+      Check that we don't use foreign keys in the table since it won't
+      work even with InnoDB beneath it.
     */
+    List_iterator<Key> key_iterator(keys);
+    Key *key;
     handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
     uint syntax_len;
+    handlerton *engine_type;
+    while ((key= key_iterator++))
+    {
+      if (key->type == Key::FOREIGN_KEY)
+      {
+        my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+        goto err;
+      }
+    }
     if (part_engine_type == &partition_hton)
     {
       /*
@@ -1832,16 +2078,29 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
         default_engine_type was assigned from the engine set in the ALTER
         TABLE command.
       */
-      part_engine_type= ha_checktype(thd,
-                        ha_legacy_type(part_info->default_engine_type), 0, 0);
+      ;
     }
     else
     {
-      part_info->default_engine_type= create_info->db_type;
+      if (create_info->used_fields & HA_CREATE_USED_ENGINE)
+      {
+        part_info->default_engine_type= create_info->db_type;
+      }
+      else
+      {
+        if (part_info->default_engine_type == NULL)
+        {
+          part_info->default_engine_type= ha_checktype(thd,
+                                          DB_TYPE_DEFAULT, 0, 0);
+        }
+      }
     }
-    if (check_partition_info(part_info, part_engine_type,
-                             file, create_info->max_rows))
+    DBUG_PRINT("info", ("db_type = %d",
+                         ha_legacy_type(part_info->default_engine_type)));
+    if (check_partition_info(part_info, &engine_type, file,
+                             create_info->max_rows))
       goto err;
+    part_info->default_engine_type= engine_type;
 
     /*
       We reverse the partitioning parser and generate a standard format
@@ -1849,19 +2108,29 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     */
     if (!(part_syntax_buf= generate_partition_syntax(part_info,
                                                      &syntax_len,
-                                                     TRUE,TRUE)))
+                                                     TRUE, FALSE)))
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
-    if ((!(file->partition_flags() & HA_CAN_PARTITION)) ||
+    if (create_info->db_type != engine_type)
+    {
+      delete file;
+      if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, engine_type)))
+      {
+        mem_alloc_error(sizeof(handler));
+        DBUG_RETURN(TRUE);
+      }
+    }
+    if ((!(engine_type->partition_flags &&
+           engine_type->partition_flags() & HA_CAN_PARTITION)) ||
         create_info->db_type == &partition_hton)
     {
       /*
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %d  part_flag: %d",
-                          create_info->db_type,file->partition_flags()));
+      DBUG_PRINT("info", ("db_type: %d",
+                          ha_legacy_type(create_info->db_type)));
       delete file;
       create_info->db_type= &partition_hton;
       if (!(file= get_ha_partition(part_info)))
@@ -2252,7 +2521,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
 
   VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
-  mysql_lock_abort(thd, table);			// end threads waiting on lock
+  mysql_lock_abort(thd, table, TRUE);	/* end threads waiting on lock */
 
   /* Wait until all there are no other threads that has this table open */
   remove_table_from_cache(thd, table->s->db.str,
@@ -2405,7 +2674,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(0);				// Can't open frm file
     }
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
     {
       release_table_share(share, RELEASE_NORMAL);
       pthread_mutex_unlock(&LOCK_open);
@@ -2659,12 +2928,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /* Close all instances of the table to allow repair to rename files */
-    if (lock_type == TL_WRITE && table->table->s->version)
+    if (lock_type == TL_WRITE && table->table->s->version &&
+        !table->table->s->log_table)
     {
       pthread_mutex_lock(&LOCK_open);
       const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					      "Waiting to get writelock");
-      mysql_lock_abort(thd,table->table);
+      mysql_lock_abort(thd,table->table, TRUE);
       remove_table_from_cache(thd, table->table->s->db.str,
                               table->table->s->table_name.str,
                               RTFC_WAIT_OTHER_THREAD_FLAG |
@@ -2829,9 +3099,10 @@ send_result_message:
     }
     if (table->table)
     {
+      /* in the below check we do not refresh the log tables */
       if (fatal_error)
         table->table->s->version=0;               // Force close of table
-      else if (open_for_modify)
+      else if (open_for_modify && !table->table->s->log_table)
       {
         pthread_mutex_lock(&LOCK_open);
         remove_table_from_cache(thd, table->table->s->db.str,
@@ -3014,7 +3285,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
                              Table_ident *table_ident)
 {
   TABLE *tmp_table;
-  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN], tmp_path[FN_REFLEN];
   uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
@@ -3120,6 +3391,19 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     creation, instead create the table directly (for both normal
     and temporary tables).
   */
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    For partitioned tables we need to copy the .par file as well since
+    it is used in open_table_def to even be able to create a new handler.
+    There is no way to find out here if the original table is a
+    partitioned table so we copy the file and ignore any errors.
+  */
+  fn_format(tmp_path, dst_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+  strmov(dst_path, tmp_path);
+  fn_format(tmp_path, src_path, reg_ext, ".par", MYF(MY_REPLACE_EXT));
+  strmov(src_path, tmp_path);
+  my_copy(src_path, dst_path, MYF(MY_DONT_OVERWRITE_FILE));
+#endif
   dst_path[dst_path_length - reg_ext_length]= '\0';  // Remove .frm
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
 
@@ -3547,10 +3831,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type;
   uint need_copy_table= 0;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  bool online_add_empty_partition= FALSE;
-  bool online_drop_partition= FALSE;
+  uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
-  handlerton *default_engine_type;
 #endif
   List<create_field> prepared_create_list;
   List<Key>          prepared_key_list;
@@ -3562,6 +3844,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_drop_buffer;
   uint index_add_count;
   uint *index_add_buffer;
+  bool committed= 0;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -3642,413 +3925,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->db_type= old_db_type;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /*
-   We need to handle both partition management command such as Add Partition
-   and others here as well as an ALTER TABLE that completely changes the
-   partitioning and yet others that don't change anything at all. We start
-   by checking the partition management variants and then check the general
-   change patterns.
-   */
-  if (alter_info->flags & (ALTER_ADD_PARTITION +
-      ALTER_DROP_PARTITION + ALTER_COALESCE_PARTITION +
-      ALTER_REORGANISE_PARTITION))
+  if (prep_alter_part_table(thd, table, alter_info, create_info, old_db_type,
+                            &partition_changed, &fast_alter_partition))
   {
-    partition_info *tab_part_info= table->part_info;
-    if (!tab_part_info)
-    {
-      my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(TRUE);
-    }
-    default_engine_type= tab_part_info->default_engine_type;
-    /*
-      We are going to manipulate the partition info on the table object
-      so we need to ensure that the data structure of the table object
-      is freed by setting version to 0.
-    */
-    table->s->version= 0L;
-    if (alter_info->flags == ALTER_ADD_PARTITION)
-    {
-      /*
-        We start by moving the new partitions to the list of temporary
-        partitions. We will then check that the new partitions fit in the
-        partitioning scheme as currently set-up.
-        Partitions are always added at the end in ADD PARTITION.
-      */
-      partition_info *alt_part_info= thd->lex->part_info;
-      uint no_new_partitions= alt_part_info->no_parts;
-      uint no_orig_partitions= tab_part_info->no_parts;
-      uint check_total_partitions= no_new_partitions + no_orig_partitions;
-      uint new_total_partitions= check_total_partitions;
-      /*
-        We allow quite a lot of values to be supplied by defaults, however we
-        must know the number of new partitions in this case.
-      */ 
-      if (no_new_partitions == 0)
-      {
-        my_error(ER_ADD_PARTITION_NO_NEW_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (is_sub_partitioned(tab_part_info))
-      {
-        if (alt_part_info->no_subparts == 0)
-          alt_part_info->no_subparts= tab_part_info->no_subparts;
-        else if (alt_part_info->no_subparts != tab_part_info->no_subparts)
-        {
-          my_error(ER_ADD_PARTITION_SUBPART_ERROR, MYF(0));
-          DBUG_RETURN(TRUE);
-        }
-        check_total_partitions= new_total_partitions*
-                                alt_part_info->no_subparts;
-      }
-      if (check_total_partitions > MAX_PARTITIONS)
-      {
-        my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      alt_part_info->part_type= tab_part_info->part_type;
-      if (set_up_defaults_for_partitioning(alt_part_info,
-                                           table->file,
-                                           (ulonglong)0ULL,
-                                           tab_part_info->no_parts))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      /*
-        Need to concatenate the lists here to make it possible to check the
-        partition info for correctness using check_partition_info
-      */
-      {
-        List_iterator<partition_element> alt_it(alt_part_info->partitions);
-        uint part_count= 0;
-        do
-        {
-          partition_element *part_elem= alt_it++;
-          tab_part_info->partitions.push_back(part_elem);
-          tab_part_info->temp_partitions.push_back(part_elem);
-        } while (++part_count < no_new_partitions);
-        tab_part_info->no_parts+= no_new_partitions;
-      }
-      {
-        List_iterator<partition_element> tab_it(tab_part_info->partitions);
-        partition_element *part_elem= tab_it++;
-        if (is_sub_partitioned(tab_part_info))
-        {
-          List_iterator<partition_element> sub_it(part_elem->subpartitions);
-          part_elem= sub_it++;
-        }
-        if (check_partition_info(tab_part_info, part_elem->engine_type,
-                                 table->file, (ulonglong)0ULL))
-        {
-          DBUG_RETURN(TRUE);
-        }
-      }
-      create_info->db_type= &partition_hton;
-      thd->lex->part_info= tab_part_info;
-      if (table->file->alter_table_flags() & HA_ONLINE_ADD_EMPTY_PARTITION &&
-          (tab_part_info->part_type == RANGE_PARTITION ||
-           tab_part_info->part_type == LIST_PARTITION))
-      {
-        /*
-          For range and list partitions add partition is simply adding a new
-          empty partition to the table. If the handler support this we will
-          use the simple method of doing this. In this case we need to break
-          out the new partitions from the list again and only keep them in the
-          temporary list. Added partitions are always added at the end.
-        */
-        {
-          List_iterator<partition_element> tab_it(tab_part_info->partitions);
-          uint part_count= 0;
-          do
-          {
-            tab_it++;
-          } while (++part_count < no_orig_partitions);
-          do
-          {
-            tab_it++;
-            tab_it.remove();
-          } while (++part_count < new_total_partitions);
-        }
-        tab_part_info->no_parts-= no_new_partitions;
-        online_add_empty_partition= TRUE;
-      }
-      else
-      {
-        tab_part_info->temp_partitions.empty();
-      }
-    }
-    else if (alter_info->flags == ALTER_DROP_PARTITION)
-    {
-      /*
-        Drop a partition from a range partition and list partitioning is
-        always safe and can be made more or less immediate. It is necessary
-        however to ensure that the partition to be removed is safely removed
-        and that REPAIR TABLE can remove the partition if for some reason the
-        command to drop the partition failed in the middle.
-      */
-      uint part_count= 0;
-      uint no_parts_dropped= alter_info->partition_names.elements;
-      uint no_parts_found= 0;
-      List_iterator<partition_element> part_it(tab_part_info->partitions);
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION))
-      {
-        my_error(ER_ONLY_ON_RANGE_LIST_PARTITION, MYF(0), "DROP");
-        DBUG_RETURN(TRUE);
-      }
-      if (no_parts_dropped >= tab_part_info->no_parts)
-      {
-        my_error(ER_DROP_LAST_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      do
-      {
-        partition_element *part_elem= part_it++;
-        if (is_partition_in_list(part_elem->partition_name,
-                                 alter_info->partition_names))
-        {
-          /*
-            Remove the partition from the list and put it instead in the
-            list of temporary partitions with a new state.
-          */
-          no_parts_found++;
-          part_elem->part_state= PART_IS_DROPPED;
-        }
-      } while (++part_count < tab_part_info->no_parts);
-      if (no_parts_found != no_parts_dropped)
-      {
-        my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (!(table->file->alter_table_flags() & HA_ONLINE_DROP_PARTITION))
-      {
-        my_error(ER_DROP_PARTITION_FAILURE, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (table->file->is_fk_defined_on_table_or_index(MAX_KEY))
-      {
-        my_error(ER_DROP_PARTITION_WHEN_FK_DEFINED, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      /*
-        This code needs set-up of structures needed by mysql_create_table
-        before it is called and thus we only set a boolean variable to be
-        checked later down in the code when all needed data structures are
-        prepared.
-      */
-      online_drop_partition= TRUE;
-    }
-    else if (alter_info->flags == ALTER_COALESCE_PARTITION)
-    {
-      /*
-        In this version COALESCE PARTITION is implemented by simply removing
-        a partition from the table and using the normal ALTER TABLE code
-        and ensuring that copy to a new table occurs. Later on we can optimise
-        this function for Linear Hash partitions. In that case we can avoid
-        reorganising the entire table. For normal hash partitions it will
-        be a complete reorganise anyways so that can only be made on-line
-        if it still uses a copy table.
-      */
-      uint part_count= 0;
-      uint no_parts_coalesced= alter_info->no_parts;
-      uint no_parts_remain= tab_part_info->no_parts - no_parts_coalesced;
-      List_iterator<partition_element> part_it(tab_part_info->partitions);
-      if (tab_part_info->part_type != HASH_PARTITION)
-      {
-        my_error(ER_COALESCE_ONLY_ON_HASH_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (no_parts_coalesced == 0)
-      {
-        my_error(ER_COALESCE_PARTITION_NO_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (no_parts_coalesced >= tab_part_info->no_parts)
-      {
-        my_error(ER_DROP_LAST_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      do
-      {
-        part_it++;
-        if (++part_count > no_parts_remain)
-          part_it.remove();
-      } while (part_count < tab_part_info->no_parts);
-      tab_part_info->no_parts= no_parts_remain;
-    }
-    else if (alter_info->flags == ALTER_REORGANISE_PARTITION)
-    {
-      /*
-        Reorganise partitions takes a number of partitions that are next
-        to each other (at least for RANGE PARTITIONS) and then uses those
-        to create a set of new partitions. So data is copied from those
-        partitions into the new set of partitions. Those new partitions
-        can have more values in the LIST value specifications or less both
-        are allowed. The ranges can be different but since they are 
-        changing a set of consecutive partitions they must cover the same
-        range as those changed from.
-        This command can be used on RANGE and LIST partitions.
-      */
-      uint no_parts_reorged= alter_info->partition_names.elements;
-      uint no_parts_new= thd->lex->part_info->partitions.elements;
-      partition_info *alt_part_info= thd->lex->part_info;
-      uint check_total_partitions;
-      if (no_parts_reorged > tab_part_info->no_parts)
-      {
-        my_error(ER_REORG_PARTITION_NOT_EXIST, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (!(tab_part_info->part_type == RANGE_PARTITION ||
-            tab_part_info->part_type == LIST_PARTITION))
-      {
-        my_error(ER_ONLY_ON_RANGE_LIST_PARTITION, MYF(0), "REORGANISE");
-        DBUG_RETURN(TRUE);
-      }
-      if (check_reorganise_list(alt_part_info, tab_part_info,
-                                alter_info->partition_names))
-      {
-        my_error(ER_SAME_NAME_PARTITION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      check_total_partitions= tab_part_info->no_parts + no_parts_new;
-      check_total_partitions-= no_parts_reorged;
-      if (check_total_partitions > MAX_PARTITIONS)
-      {
-        my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      {
-        List_iterator<partition_element> tab_it(tab_part_info->partitions);
-        uint part_count= 0;
-        bool found_first= FALSE, found_last= FALSE;
-        uint drop_count= 0;
-        longlong tab_max_range, alt_max_range;
-        do
-        {
-          partition_element *part_elem= tab_it++;
-          if (is_partition_in_list(part_elem->partition_name,
-                                   alter_info->partition_names))
-          {
-            drop_count++;
-            tab_max_range= part_elem->range_value;
-            if (!found_first)
-            {
-              uint alt_part_count= 0;
-              found_first= TRUE;
-              List_iterator<partition_element> alt_it(alt_part_info->partitions);
-              do
-              {
-                partition_element *alt_part_elem= alt_it++;
-                alt_max_range= alt_part_elem->range_value;
-                if (alt_part_count == 0)
-                  tab_it.replace(alt_part_elem);
-                else
-                  tab_it.after(alt_part_elem);
-              } while (++alt_part_count < no_parts_new);
-            }
-            else if (found_last)
-            {
-              my_error(ER_CONSECUTIVE_REORG_PARTITIONS, MYF(0));
-              DBUG_RETURN(TRUE);
-            }
-            else
-              tab_it.remove();
-          }
-          else
-          {
-            if (found_first)
-              found_last= TRUE;
-          }
-        } while (++part_count < tab_part_info->no_parts);
-        if (drop_count != no_parts_reorged)
-        {
-          my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0));
-          DBUG_RETURN(TRUE);
-        }
-        if (tab_part_info->part_type == RANGE_PARTITION &&
-            alt_max_range > tab_max_range)
-        {
-          my_error(ER_REORG_OUTSIDE_RANGE, MYF(0));
-          DBUG_RETURN(TRUE);
-        }
-      }
-    }
-    partition_changed= TRUE;
-    tab_part_info->no_parts= tab_part_info->partitions.elements;
-    create_info->db_type= &partition_hton;
-    thd->lex->part_info= tab_part_info;
-    if (alter_info->flags == ALTER_ADD_PARTITION ||
-        alter_info->flags == ALTER_REORGANISE_PARTITION)
-    {
-      if (check_partition_info(tab_part_info, default_engine_type,
-                               table->file, (ulonglong)0ULL))
-      {
-        DBUG_RETURN(TRUE);
-      }
-    }
-  }
-  else
-  {
-    /*
-     When thd->lex->part_info has a reference to a partition_info the
-     ALTER TABLE contained a definition of a partitioning.
-
-     Case I:
-       If there was a partition before and there is a new one defined.
-       We use the new partitioning. The new partitioning is already
-       defined in the correct variable so no work is needed to
-       accomplish this.
-       We do however need to update partition_changed to ensure that not
-       only the frm file is changed in the ALTER TABLE command.
-
-     Case IIa:
-       There was a partitioning before and there is no new one defined.
-       Also the user has not specified an explicit engine to use.
-
-       We use the old partitioning also for the new table. We do this
-       by assigning the partition_info from the table loaded in
-       open_ltable to the partition_info struct used by mysql_create_table
-       later in this method.
-
-     Case IIb:
-       There was a partitioning before and there is no new one defined.
-       The user has specified an explicit engine to use.
-
-       Since the user has specified an explicit engine to use we override
-       the old partitioning info and create a new table using the specified
-       engine. This is the reason for the extra check if old and new engine
-       is equal.
-       In this case the partition also is changed.
-
-     Case III:
-       There was no partitioning before altering the table, there is
-       partitioning defined in the altered table. Use the new partitioning.
-       No work needed since the partitioning info is already in the
-       correct variable.
-       Also here partition has changed and thus a new table must be
-       created.
-
-     Case IV:
-       There was no partitioning before and no partitioning defined.
-       Obviously no work needed.
-    */
-    if (table->part_info)
-    {
-      if (!thd->lex->part_info &&
-          create_info->db_type == old_db_type)
-        thd->lex->part_info= table->part_info;
-    }
-    if (thd->lex->part_info)
-    {
-      /*
-        Need to cater for engine types that can handle partition without
-        using the partition handler.
-      */
-      if (thd->lex->part_info != table->part_info)
-        partition_changed= TRUE;
-      if (create_info->db_type != &partition_hton)
-        thd->lex->part_info->default_engine_type= create_info->db_type;
-      create_info->db_type= &partition_hton;
-    }
+    DBUG_RETURN(TRUE);
   }
 #endif
   if (check_engine(thd, new_name, &create_info->db_type))
@@ -4057,7 +3937,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type= table->s->row_type;
 
-  DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
+  DBUG_PRINT("info", ("old type: %s  new type: %s",
+             ha_resolve_storage_engine_name(old_db_type),
+             ha_resolve_storage_engine_name(new_db_type)));
   if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
       ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
@@ -4503,14 +4385,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
   {
     int   pk_changed= 0;
-    ulong alter_flags= table->file->alter_table_flags();
+    ulong alter_flags= 0;
     ulong needed_online_flags= 0;
     ulong needed_fast_flags= 0;
     KEY   *key;
     uint  *idx_p;
     uint  *idx_end_p;
-    DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
 
+    if (table->s->db_type->alter_table_flags)
+      alter_flags= table->s->db_type->alter_table_flags(alter_info->flags);
+    DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
          idx_p < idx_end_p;
@@ -4610,103 +4494,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->frm_only= 1;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (partition_changed)
+  if (fast_alter_partition)
   {
-    if (online_drop_partition)
-    {
-      /*
-        Now after all checks and setting state on dropped partitions we can
-        start the actual dropping of the partitions.
-        1) Lock table in TL_WRITE_ONLY to ensure all other accesses on table
-           are completed and no new ones are started until we have changed
-           the frm file.
-        2) Write the new frm file where state of dropped partitions is
-           changed to PART_IS_DROPPED
-        3) Perform the actual drop of the partition using the handler of the
-           table.
-        4) Write a new frm file of the table where the partitions are dropped
-           from the table.
-
-      */
-      uint old_lock_type;
-      partition_info *part_info= table->part_info;
-      char path[FN_REFLEN+1], noext_path[FN_REFLEN+1];
-      uint syntax_len;
-      char *part_syntax_buf;
-
-      VOID(pthread_mutex_lock(&LOCK_open));
-      if (abort_and_upgrade_lock(thd, table, db, table_name, &old_lock_type))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                       &syntax_len,
-                                                       TRUE,TRUE)))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      part_info->part_info_string= part_syntax_buf;
-      part_info->part_info_len= syntax_len;
-      build_table_filename(path, sizeof(path), db, table_name, reg_ext);
-      if (mysql_create_frm(thd, path, db, table_name, create_info,
-                           prepared_create_list, key_count, key_info_buffer,
-                           table->file))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      thd->lex->part_info= part_info;
-      build_table_filename(path, sizeof(path), db, table_name, "");
-      if (table->file->drop_partitions(path))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      {
-        List_iterator<partition_element> part_it(part_info->partitions);
-        uint i= 0, remove_count= 0;
-        do
-        {
-          partition_element *part_elem= part_it++;
-          if (is_partition_in_list(part_elem->partition_name,
-                                   alter_info->partition_names))
-          {
-            part_it.remove();
-            remove_count++;
-          }
-        } while (++i < part_info->no_parts);
-        part_info->no_parts-= remove_count;
-      }
-      if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                       &syntax_len,
-                                                       TRUE,TRUE)))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      part_info->part_info_string= part_syntax_buf;
-      part_info->part_info_len= syntax_len;
-      build_table_filename(path, sizeof(path), db, table_name, reg_ext);
-      build_table_filename(noext_path, sizeof(noext_path), db, table_name, "");
-      if (mysql_create_frm(thd, path, db, table_name, create_info,
-                           prepared_create_list, key_count, key_info_buffer,
-                           table->file)  ||
-          table->file->create_handler_files(noext_path))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      thd->proc_info="end";
-      query_cache_invalidate3(thd, table_list, 0);
-      error= ha_commit_stmt(thd);
-      if (ha_commit(thd))
-        error= 1;
-      if (!error)
-      {
-        close_thread_tables(thd);
-        write_bin_log(thd, FALSE, thd->query, thd->query_length);
-        send_ok(thd);
-        DBUG_RETURN(FALSE);
-      }
-      DBUG_RETURN(error);
-    }
+    DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
+                                           create_info, table_list,
+                                           &create_list, &key_list,
+                                           db, table_name,
+                                           fast_alter_partition));
   }
 #endif
 
@@ -4968,6 +4762,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_PRINT("info", ("Committing after add/drop index"));
       if (ha_commit_stmt(thd) || ha_commit(thd))
         goto err;
+      committed= 1;
     }
   }
   /*end of if (! new_table) for add/drop index*/
@@ -5099,7 +4894,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
-#ifdef XXX_TO_BE_DONE_LATER_BY_WL1892
   if (! need_copy_table)
   {
     if (! table)
@@ -5116,7 +4910,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-#endif
   if (thd->lock || new_name != table_name)	// True if WIN32
   {
     /*
@@ -5143,7 +4936,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       /* Mark in-use copies old */
       remove_table_from_cache(thd,db,table_name,RTFC_NO_FLAG);
       /* end threads waiting on lock */
-      mysql_lock_abort(thd,table);
+      mysql_lock_abort(thd,table, TRUE);
     }
     VOID(quick_rm_table(old_db_type,db,old_name));
     if (close_data_tables(thd,db,table_name) ||
@@ -5166,11 +4959,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     wait_if_global_read_lock(), which could create a deadlock if called
     with LOCK_open.
   */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
-    error=1;
-  if (error)
-    goto err;
+  if (!committed)
+  {
+    error = ha_commit_stmt(thd);
+    if (ha_commit(thd))
+      error=1;
+    if (error)
+      goto err;
+  }
   thd->proc_info="end";
 
   DBUG_ASSERT(!(mysql_bin_log.is_open() && binlog_row_based &&

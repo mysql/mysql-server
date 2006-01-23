@@ -29,6 +29,7 @@ class st_alter_tablespace;
 class partition_info;
 class event_timed;
 
+#ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
   YYSTYPE before including this file
@@ -42,6 +43,7 @@ class event_timed;
 #include "lex_symbol.h"
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
+#endif
 #endif
 
 /*
@@ -114,6 +116,8 @@ enum enum_sql_command {
   additional "partitions" column even if partitioning is not compiled in.
 */
 #define DESCRIBE_PARTITIONS	4
+
+#ifdef MYSQL_SERVER
 
 enum enum_sp_suid_behaviour
 {
@@ -665,23 +669,31 @@ public:
 };
 typedef class st_select_lex SELECT_LEX;
 
-#define ALTER_ADD_COLUMN	1
-#define ALTER_DROP_COLUMN	2
-#define ALTER_CHANGE_COLUMN	4
-#define ALTER_ADD_INDEX		8
-#define ALTER_DROP_INDEX	16
-#define ALTER_RENAME		32
-#define ALTER_ORDER		64
-#define ALTER_OPTIONS		128
-#define ALTER_CHANGE_COLUMN_DEFAULT 256
-#define ALTER_KEYS_ONOFF        512
-#define ALTER_CONVERT          1024
-#define ALTER_FORCE		2048
-#define ALTER_RECREATE          4096
-#define ALTER_ADD_PARTITION     8192
-#define ALTER_DROP_PARTITION    16384
-#define ALTER_COALESCE_PARTITION 32768
-#define ALTER_REORGANISE_PARTITION   65536
+#define ALTER_ADD_COLUMN	(1L << 0)
+#define ALTER_DROP_COLUMN	(1L << 1)
+#define ALTER_CHANGE_COLUMN	(1L << 2)
+#define ALTER_ADD_INDEX		(1L << 3)
+#define ALTER_DROP_INDEX	(1L << 4)
+#define ALTER_RENAME		(1L << 5)
+#define ALTER_ORDER		(1L << 6)
+#define ALTER_OPTIONS		(1L << 7)
+#define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
+#define ALTER_KEYS_ONOFF        (1L << 9)
+#define ALTER_CONVERT           (1L << 10)
+#define ALTER_FORCE		(1L << 11)
+#define ALTER_RECREATE          (1L << 12)
+#define ALTER_ADD_PARTITION     (1L << 13)
+#define ALTER_DROP_PARTITION    (1L << 14)
+#define ALTER_COALESCE_PARTITION (1L << 15)
+#define ALTER_REORGANIZE_PARTITION (1L << 16) 
+#define ALTER_PARTITION          (1L << 17)
+#define ALTER_OPTIMIZE_PARTITION (1L << 18)
+#define ALTER_TABLE_REORG        (1L << 19)
+#define ALTER_REBUILD_PARTITION  (1L << 20)
+#define ALTER_ALL_PARTITION      (1L << 21)
+#define ALTER_ANALYZE_PARTITION  (1L << 22)
+#define ALTER_CHECK_PARTITION    (1L << 23)
+#define ALTER_REPAIR_PARTITION   (1L << 24)
 
 typedef struct st_alter_info
 {
@@ -1101,3 +1113,5 @@ extern int yylex(void *arg, void *yythd);
 extern pthread_key(LEX*,THR_LEX);
 
 #define current_lex (current_thd->lex)
+
+#endif
