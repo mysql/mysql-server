@@ -721,6 +721,7 @@ uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
+void store_key_image_to_rec(Field *field, char *ptr, uint len);
 #endif
 
 #endif
