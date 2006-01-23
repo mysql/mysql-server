@@ -764,77 +764,6 @@ int ha_tina::delete_row(const byte * buf)
   DBUG_RETURN(0);
 }
 
-/*
-  Fill buf with value from key. Simply this is used for a single index read
-  with a key.
-*/
-int ha_tina::index_read(byte * buf, const byte * key,
-                        uint key_len __attribute__((unused)),
-                        enum ha_rkey_function find_flag
-                        __attribute__((unused)))
-{
-  DBUG_ENTER("ha_tina::index_read");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Fill buf with value from key. Simply this is used for a single index read
-  with a key.
-  Whatever the current key is we will use it. This is what will be in "index".
-*/
-int ha_tina::index_read_idx(byte * buf, uint index, const byte * key,
-                            uint key_len __attribute__((unused)),
-                            enum ha_rkey_function find_flag
-                            __attribute__((unused)))
-{
-  DBUG_ENTER("ha_tina::index_read_idx");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-
-/*
-  Read the next position in the index.
-*/
-int ha_tina::index_next(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_next");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the previous position in the index.
-*/
-int ha_tina::index_prev(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_prev");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the first position in the index
-*/
-int ha_tina::index_first(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_first");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the last position in the index
-  With this we don't need to do a filesort() with index.
-  We just read the last row and call previous.
-*/
-int ha_tina::index_last(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_last");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
 
 /*
   All table scans call this first.
@@ -976,17 +905,6 @@ int ha_tina::extra(enum ha_extra_function operation)
 }
 
 /*
-  This is no longer used.
-*/
-int ha_tina::reset(void)
-{
-  DBUG_ENTER("ha_tina::reset");
-  ha_tina::extra(HA_EXTRA_RESET);
-  DBUG_RETURN(0);
-}
-
-
-/*
   Called after each table scan. In particular after deletes,
   and updates. In the last case we employ chain of deleted
   slots to clean up all of the dead space we have collected while
@@ -1061,15 +979,6 @@ int ha_tina::delete_all_rows()
 
   records=0;
   DBUG_RETURN(rc);
-}
-
-/*
-  Always called by the start of a transaction (or by "lock tables");
-*/
-int ha_tina::external_lock(THD *thd, int lock_type)
-{
-  DBUG_ENTER("ha_tina::external_lock");
-  DBUG_RETURN(0);          // No external locking
 }
 
 /*
