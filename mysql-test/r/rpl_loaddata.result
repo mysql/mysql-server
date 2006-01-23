@@ -61,7 +61,7 @@ unique(day)) engine=MyISAM;
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
-ERROR 23000: Duplicate entry '2003-03-22' for key 1
+ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
 select * from t2;
 day	id	category	name
 2003-02-22	2461	b	a a a @ %  ' " a
@@ -76,6 +76,6 @@ delete from t2;
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
-ERROR 23000: Duplicate entry '2003-03-22' for key 1
+ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
 drop table t2;
 drop table t2;

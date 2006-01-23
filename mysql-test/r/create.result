@@ -162,7 +162,7 @@ Note	1051	Unknown table 't2'
 CREATE TABLE t1 (a int not null);
 INSERT INTO t1 values (1),(2),(1);
 CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
-ERROR 23000: Duplicate entry '1' for key 1
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 DROP TABLE t1;
@@ -280,7 +280,7 @@ create table if not exists t1 select 3 as 'a',4 as 'b';
 Warnings:
 Note	1050	Table 't1' already exists
 create table if not exists t1 select 3 as 'a',3 as 'b';
-ERROR 23000: Duplicate entry '3' for key 1
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 select * from t1;
 a	b
 1	1
