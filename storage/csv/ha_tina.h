@@ -113,14 +113,6 @@ public:
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
-  int index_read(byte * buf, const byte * key,
-      uint key_len, enum ha_rkey_function find_flag);
-  int index_read_idx(byte * buf, uint idx, const byte * key,
-      uint key_len, enum ha_rkey_function find_flag);
-  int index_next(byte * buf);
-  int index_prev(byte * buf);
-  int index_first(byte * buf);
-  int index_last(byte * buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
@@ -128,8 +120,6 @@ public:
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
-  int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 
