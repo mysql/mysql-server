@@ -143,12 +143,12 @@ public:
 
   int
   load_from_row(MEM_ROOT *mem_root, TABLE *table);
-  
+
   bool
   compute_next_execution_time();  
 
   void
-  mark_last_executed();
+  mark_last_executed(THD *thd);
   
   int
   drop(THD *thd);
