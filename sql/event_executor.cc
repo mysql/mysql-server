@@ -492,12 +492,18 @@ event_executor_worker(void *event_void)
     sql_print_information("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
                           event->dbname.str, event->name.str,
                           (int) event->expression, ret);
+    if (ret == EVEX_COMPILE_ERROR)
+      sql_print_information("    EVEX COMPILE ERROR for event %s.%s",
+                             event->dbname.str, event->name.str);
+    
     DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
                         event->dbname.str, event->name.str,
                         (int) event->expression, ret));
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
+    DBUG_PRINT("event_executor_worker",
+               ("%s exec no more. to drop=%d",event->name.str, event->dropped));
     if (event->dropped)
       event->drop(thd);
     delete event;
