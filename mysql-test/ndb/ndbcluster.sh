@@ -52,6 +52,7 @@ initial_ndb=
 status_ndb=
 ndb_diskless=0
 ndbd_nodes=2
+relative_config_data_dir=
 
 ndb_no_ord=512
 ndb_no_attr=2048
@@ -98,6 +99,9 @@ while test $# -gt 0; do
      ;;
     --data-dir=*)
      fsdir=`echo "$1" | sed -e "s;--data-dir=;;"`
+     ;;
+    --relative-config-data-dir)
+     relative_config_data_dir=1
      ;;
     --port=*)
      port=`echo "$1" | sed -e "s;--port=;;"`
@@ -196,6 +200,11 @@ fi
 # Start management server as deamon
 
 # Edit file system path and ports in config file
+if [ $relative_config_data_dir ] ; then
+  config_fs_ndb="."
+else
+  config_fs_ndb=$fs_ndb
+fi
 if [ $initial_ndb ] ; then
   rm -rf $fs_ndb/ndb_* 2>&1 | cat > /dev/null
   sed \
@@ -206,7 +215,7 @@ if [ $initial_ndb ] ; then
     -e s,"CHOOSE_IndexMemory","$ndb_imem",g \
     -e s,"CHOOSE_Diskless","$ndb_diskless",g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
-    -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
+    -e s,"CHOOSE_FILESYSTEM","$config_fs_ndb",g \
     -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
     -e s,"CHOOSE_DiskPageBufferMemory","$ndb_pbmem",g \
     < "$config_ini" \

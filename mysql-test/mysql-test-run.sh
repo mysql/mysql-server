@@ -272,6 +272,7 @@ USE_NDBCLUSTER_ONLY=0
 USE_RUNNING_NDBCLUSTER=""
 USE_RUNNING_NDBCLUSTER_SLAVE=""
 NDB_EXTRA_TEST=0
+NDB_VERBOSE=0
 NDBCLUSTER_EXTRA_OPTS=""
 USE_PURIFY=""
 PURIFY_LOGS=""
@@ -357,6 +358,8 @@ while test $# -gt 0; do
       NDBCLUSTER_EXTRA_OPTS=" "
       NDB_EXTRA_TEST=1 ;
       ;;
+    --ndb-verbose)
+      NDB_VERBOSE=2 ;;
     --ndb_mgm-extra-opts=*)
       NDB_MGM_EXTRA_OPTS=`$ECHO "$1" | $SED -e "s;--ndb_mgm-extra-opts=;;"` ;;
     --ndb_mgmd-extra-opts=*)
@@ -1273,8 +1276,10 @@ start_ndbcluster()
     then
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=2 --initial"
-    echo "Starting master ndbcluster " $OPTS
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir"
+    if [ "x$NDB_VERBOSE" != "x0" ] ; then
+      echo "Starting master ndbcluster " $OPTS
+    fi
     ./ndb/ndbcluster $OPTS || NDB_STATUS_OK=0
     if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
@@ -1504,8 +1509,10 @@ start_slave()
          NDBCLUSTER_EXTRA_OPTS="--small"
       fi
 
-      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=2"
-      echo "Starting slave ndbcluster " $OPTS
+      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=$NDB_VERBOSE --relative-config-data-dir"
+      if [ "x$NDB_VERBOSE" != "x0" ] ; then
+        echo "Starting slave ndbcluster " $OPTS
+      fi
       ./ndb/ndbcluster $OPTS \
                       || NDB_SLAVE_STATUS_OK=0
       #                > /dev/null 2>&1 || NDB_SLAVE_STATUS_OK=0
