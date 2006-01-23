@@ -1,6 +1,6 @@
-select -1 as "before_use_test" ;
+select 0 as "before_use_test" ;
 before_use_test
--1
+0
 select otto from (select 1 as otto) as t1;
 otto
 1
