@@ -138,6 +138,9 @@ struct st_table {
   uint next_number_index;
   uint blob_ptr_size;			/* 4 or 8 */
   uint next_number_key_offset;
+  uint lock_position;                   /* Position in MYSQL_LOCK.table */
+  uint lock_data_start;                 /* Start pos. in MYSQL_LOCK.locks */
+  uint lock_count;                      /* Number of locks */
   int current_lock;			/* Type of lock on table */
   enum tmp_table_type tmp_table;
   my_bool copy_blobs;			/* copy_blobs when storing */
