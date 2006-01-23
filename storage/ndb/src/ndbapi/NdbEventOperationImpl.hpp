@@ -223,11 +223,8 @@ public:
   NdbRecAttr *theCurrentDataAttrs[2];
 
   NdbBlob* theBlobList;
-  union {
-  NdbEventOperationImpl* theBlobOpList;
-  NdbEventOperationImpl* theNextBlobOp;
-  };
-  NdbEventOperationImpl* theMainOp; // blob op pointer to main op
+  NdbEventOperationImpl* theBlobOpList; // in main op, list of blob ops
+  NdbEventOperationImpl* theMainOp; // in blob op, the main op
 
   NdbEventOperation::State m_state; /* note connection to mi_type */
   Uint32 mi_type; /* should be == 0 if m_state != EO_EXECUTING
