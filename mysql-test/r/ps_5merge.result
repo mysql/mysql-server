@@ -1452,7 +1452,7 @@ select a,b from t1 where b = @arg00;
 a	b
 6	six
 execute stmt1 using @arg00;
-ERROR 23000: Duplicate entry '6' for key 1
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
 set @arg00=NULL ;
 prepare stmt1 from 'insert into t1 values(0, ? )';
 execute stmt1 using @arg00;
@@ -1565,7 +1565,7 @@ a	b
 set @arg00=81 ;
 set @arg01=1 ;
 execute stmt1 using @arg00, @arg01;
-ERROR 23000: Duplicate entry '82' for key 1
+ERROR 23000: Duplicate entry '82' for key 'PRIMARY'
 drop table if exists t2 ;
 create table t2 (id int auto_increment primary key) 
 ENGINE= 'MYISAM'  ;
@@ -4466,7 +4466,7 @@ select a,b from t1 where b = @arg00;
 a	b
 6	six
 execute stmt1 using @arg00;
-ERROR 23000: Duplicate entry '6' for key 1
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
 set @arg00=NULL ;
 prepare stmt1 from 'insert into t1 values(0, ? )';
 execute stmt1 using @arg00;
@@ -4579,7 +4579,7 @@ a	b
 set @arg00=81 ;
 set @arg01=1 ;
 execute stmt1 using @arg00, @arg01;
-ERROR 23000: Duplicate entry '82' for key 1
+ERROR 23000: Duplicate entry '82' for key 'PRIMARY'
 drop table if exists t2 ;
 create table t2 (id int auto_increment primary key) 
 ENGINE= 'MYISAM'  ;

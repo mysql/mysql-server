@@ -7,7 +7,7 @@ start slave;
 create table t1 (a int primary key);
 create table t4 (a int primary key);
 insert into t1 values (1),(1);
-ERROR 23000: Duplicate entry '1' for key 1
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 insert into t4 values (1),(2);
 show tables like 't1';
 Tables_in_test (t1)
