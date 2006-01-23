@@ -42,21 +42,48 @@ C_MODE_START
 #undef ER
 #include "errmsg.h"
 #include <sql_common.h>
+#include "embedded_priv.h"
 
-void embedded_get_error(MYSQL *mysql)
+static my_bool emb_read_query_result(MYSQL *mysql);
+
+void THD::clear_data_list()
 {
-  THD *thd=(THD *) mysql->thd;
+  while (first_data)
+  {
+    MYSQL_DATA *data= first_data;
+    first_data= data->embedded_info->next;
+    free_rows(data);
+  }
+  data_tail= &first_data;
+  free_rows(cur_data);
+  cur_data= 0;
+}
+
+
+/*
+  Reads error information from the MYSQL_DATA and puts
+  it into proper MYSQL members
+
+  SYNOPSIS
+    embedded_get_error()
+    mysql        connection handler
+    data         query result
+
+  NOTES
+    after that function error information will be accessible
+       with usual functions like mysql_error()
+    data is my_free-d in this function
+    most of the data is stored in data->embedded_info structure
+*/
+
+void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
+{
   NET *net= &mysql->net;
-  if ((net->last_errno= thd->net.last_errno))
-  {
-    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
-    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
-  }
-  else
-  {
-    net->last_error[0]= 0;
-    strmov(net->sqlstate, not_error_sqlstate);
-  }
+  struct embedded_query_result *ei= data->embedded_info;
+  net->last_errno= ei->last_errno;
+  strmake(net->last_error, ei->info, sizeof(net->last_error));
+  memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
+  my_free((gptr) data, MYF(0));
 }
 
 static my_bool
@@ -68,11 +95,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
 
-  if (thd->data)
-  {
-    free_rows(thd->data);
-    thd->data= 0;
-  }
+  thd->clear_data_list();
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -104,83 +127,101 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     arg_length= header_length;
   }
 
+  thd->net.no_send_error= 0;
   result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
+  thd->cur_data= 0;
 
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  /*
-    If mysql->field_count is set it means the parsing of the query was OK
-    and metadata was returned (see Protocol::send_fields).
-    In this case we postpone the error to be returned in mysql_stmt_store_result
-    (see emb_read_rows) to behave just as standalone server.
-  */
-  if (!mysql->field_count)
-    embedded_get_error(mysql);
-  mysql->server_status= thd->server_status;
-  mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
 
 static void emb_flush_use_result(MYSQL *mysql)
 {
-  MYSQL_DATA *data= ((THD*)(mysql->thd))->data;
-
-  if (data)
+  THD *thd= (THD*) mysql->thd;
+  if (thd->cur_data)
   {
+    free_rows(thd->cur_data);
+    thd->cur_data= 0;
+  }
+  else if (thd->first_data)
+  {
+    MYSQL_DATA *data= thd->first_data;
+    thd->first_data= data->embedded_info->next;
     free_rows(data);
-    ((THD*)(mysql->thd))->data= NULL;
   }
 }
+
+
+/*
+  reads dataset from the next query result
+
+  SYNOPSIS
+  emb_read_rows()
+  mysql		connection handle
+  other parameters are not used
+
+  NOTES
+    It just gets next MYSQL_DATA from the result's queue
+
+  RETURN
+    pointer to MYSQL_DATA with the coming recordset
+*/
 
 static MYSQL_DATA *
 emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 	      unsigned int fields __attribute__((unused)))
 {
-  MYSQL_DATA *result= ((THD*)mysql->thd)->data;
-  embedded_get_error(mysql);
-  if (mysql->net.last_errno)
-    return NULL;
-  if (!result)
+  MYSQL_DATA *result= ((THD*)mysql->thd)->cur_data;
+  ((THD*)mysql->thd)->cur_data= 0;
+  if (result->embedded_info->last_errno)
   {
-    if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-					 MYF(MY_WME | MY_ZEROFILL))))
-    {
-      NET *net = &mysql->net;
-      net->last_errno=CR_OUT_OF_MEMORY;
-      strmov(net->sqlstate, unknown_sqlstate);
-      strmov(net->last_error,ER(net->last_errno));
-      return NULL;
-    }    
-    return result;
+    embedded_get_error(mysql, result);
+    return NULL;
   }
-  *result->prev_ptr= NULL;
-  ((THD*)mysql->thd)->data= NULL;
+  *result->embedded_info->prev_ptr= NULL;
   return result;
 }
 
+
 static MYSQL_FIELD *emb_list_fields(MYSQL *mysql)
 {
+  MYSQL_DATA *res;
+  if (emb_read_query_result(mysql))
+    return 0;
+  res= ((THD*) mysql->thd)->cur_data;
+  ((THD*) mysql->thd)->cur_data= 0;
+  mysql->field_alloc= res->alloc;
+  my_free((gptr) res,MYF(0));
+  mysql->status= MYSQL_STATUS_READY;
   return mysql->fields;
 }
 
 static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
-  THD *thd= (THD*)mysql->thd;
-  if (mysql->net.last_errno)
-    return 1;
+  THD *thd= (THD*) mysql->thd;
+  MYSQL_DATA *res;
+
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
-  stmt->field_count= mysql->field_count;
+  stmt->field_count= 0;
 
-  if (stmt->field_count != 0)
+  if (thd->first_data)
   {
+    if (emb_read_query_result(mysql))
+      return 1;
+    stmt->field_count= mysql->field_count;
+    mysql->status= MYSQL_STATUS_READY;
+    res= thd->cur_data;
+    thd->cur_data= NULL;
     if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     stmt->fields= mysql->fields;
-    stmt->mem_root= mysql->field_alloc;
+    stmt->mem_root= res->alloc;
     mysql->fields= NULL;
+    my_free((gptr) res,MYF(0));
   }
 
   return 0;
@@ -201,13 +242,42 @@ static void emb_fetch_lengths(ulong *to, MYSQL_ROW column,
     *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
 }
 
-static my_bool emb_mysql_read_query_result(MYSQL *mysql)
+static my_bool emb_read_query_result(MYSQL *mysql)
 {
-  if (mysql->net.last_errno)
-    return -1;
+  THD *thd= (THD*) mysql->thd;
+  MYSQL_DATA *res= thd->first_data;
+  DBUG_ASSERT(!thd->cur_data);
+  thd->first_data= res->embedded_info->next;
+  if (res->embedded_info->last_errno &&
+      !res->embedded_info->fields_list)
+  {
+    embedded_get_error(mysql, res);
+    return 1;
+  }
 
-  if (mysql->field_count)
+  mysql->warning_count= res->embedded_info->warning_count;
+  mysql->server_status= res->embedded_info->server_status;
+  mysql->field_count= res->fields;
+  mysql->fields= res->embedded_info->fields_list;
+  mysql->affected_rows= res->embedded_info->affected_rows;
+  mysql->insert_id= res->embedded_info->insert_id;
+  mysql->net.last_errno= 0;
+  mysql->net.last_error[0]= 0;
+  mysql->info= 0;
+
+  if (res->embedded_info->info[0])
+  {
+    strmake(mysql->info_buffer, res->embedded_info->info, MYSQL_ERRMSG_SIZE-1);
+    mysql->info= mysql->info_buffer;
+  }
+
+  if (res->embedded_info->fields_list)
+  {
     mysql->status=MYSQL_STATUS_GET_RESULT;
+    thd->cur_data= res;
+  }
+  else
+    my_free((gptr) res, MYF(0));
 
   return 0;
 }
@@ -215,14 +285,18 @@ static my_bool emb_mysql_read_query_result(MYSQL *mysql)
 static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
-  char header[4];
+  char header[5];
+  MYSQL_DATA *res;
+  THD *thd;
+
   int4store(header, stmt->stmt_id);
-  THD *thd= (THD*)stmt->mysql->thd;
+  header[4]= stmt->flags;
+  thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
   if (emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE,0,0,
                            header, sizeof(header), 1) ||
-      emb_mysql_read_query_result(stmt->mysql))
+      emb_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -230,6 +304,8 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   }
   stmt->affected_rows= stmt->mysql->affected_rows;
   stmt->insert_id= stmt->mysql->insert_id;
+  stmt->server_status= stmt->mysql->server_status;
+
   DBUG_RETURN(0);
 }
 
@@ -240,22 +316,53 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
     return 1;
   stmt->result= *data;
   my_free((char *) data, MYF(0));
+  set_stmt_errmsg(stmt, stmt->mysql->net.last_error,
+                  stmt->mysql->net.last_errno, stmt->mysql->net.sqlstate);
   return 0;
+}
+
+int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
+{
+  MYSQL *mysql= stmt->mysql;
+  THD *thd= (THD*) mysql->thd;
+  MYSQL_DATA *res= thd->first_data;
+  DBUG_ASSERT(!thd->first_data->embedded_info->next);
+  thd->first_data= 0;
+  if (res->embedded_info->last_errno)
+  {
+    embedded_get_error(mysql, res);
+    set_stmt_errmsg(stmt, mysql->net.last_error,
+                    mysql->net.last_errno, mysql->net.sqlstate);
+    return 1;
+  }
+
+  thd->cur_data= res;
+  mysql->warning_count= res->embedded_info->warning_count;
+  mysql->server_status= res->embedded_info->server_status;
+  mysql->net.last_errno= 0;
+  mysql->net.last_error[0]= 0;
+
+  return emb_read_binary_rows(stmt);
 }
 
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
-  MYSQL_DATA *data= ((THD*)mysql->thd)->data;
-  embedded_get_error(mysql);
-  if (mysql->net.last_errno)
-    return mysql->net.last_errno;
+  THD *thd= (THD*) mysql->thd;
+  MYSQL_DATA *data= thd->cur_data;
+  if (data && data->embedded_info->last_errno)
+  {
+    embedded_get_error(mysql, data);
+    thd->cur_data= 0;
+    return 1;
+  }
   if (!data || !data->data)
   {
     *row= NULL;
     if (data)
     {
+      thd->cur_data= thd->first_data;
+      thd->first_data= data->embedded_info->next;
       free_rows(data);
-      ((THD*)mysql->thd)->data= NULL;
     }
   }
   else
@@ -269,9 +376,9 @@ int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  if (thd->data)
-    free_rows(thd->data);
+  thd->clear_data_list();
   thread_count--;
+  thd->store_globals();
   delete thd;
   mysql->thd=0;
 }
@@ -283,23 +390,11 @@ static const char * emb_read_statistics(MYSQL *mysql)
 }
 
 
-static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
+static MYSQL_RES * emb_store_result(MYSQL *mysql)
 {
   return mysql_store_result(mysql);
 }
 
-my_bool emb_next_result(MYSQL *mysql)
-{
-  THD *thd= (THD*)mysql->thd;
-  DBUG_ENTER("emb_next_result");
-
-  if (emb_advanced_command(mysql, COM_QUERY,0,0,
-			   thd->query_rest.ptr(),thd->query_rest.length(),1) ||
-      emb_mysql_read_query_result(mysql))
-    DBUG_RETURN(1);
-
-  DBUG_RETURN(0);				/* No more results */
-}
 
 int emb_read_change_user_result(MYSQL *mysql, 
 				char *buff __attribute__((unused)),
@@ -310,10 +405,10 @@ int emb_read_change_user_result(MYSQL *mysql,
 
 MYSQL_METHODS embedded_methods= 
 {
-  emb_mysql_read_query_result,
+  emb_read_query_result,
   emb_advanced_command,
   emb_read_rows,
-  emb_mysql_store_result,
+  emb_store_result,
   emb_fetch_lengths, 
   emb_flush_use_result,
   emb_list_fields,
@@ -323,8 +418,9 @@ MYSQL_METHODS embedded_methods=
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
   emb_read_statistics,
-  emb_next_result,
-  emb_read_change_user_result
+  emb_read_query_result,
+  emb_read_change_user_result,
+  emb_read_rows_from_cursor
 };
 
 C_MODE_END
@@ -394,6 +490,12 @@ int init_embedded_server(int argc, char **argv, char **groups)
     groups= (char**) fake_groups;
 
   my_progname= (char *)"mysql_embedded";
+
+  /*
+    Perform basic logger initialization logger. Should be called after
+    MY_INIT, as it initializes mutexes. Log tables are inited later.
+  */
+  logger.init_base();
 
   if (init_common_variables("my", *argcp, *argvp, (const char **)groups))
   {
@@ -483,6 +585,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
   mysql->server_version= server_version;
+  init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
 void *create_embedded_thd(int client_flag, char *db)
@@ -490,6 +593,7 @@ void *create_embedded_thd(int client_flag, char *db)
   THD * thd= new THD;
   thd->thread_id= thread_id++;
 
+  thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
   {
     fprintf(stderr,"store_globals failed.\n");
@@ -498,7 +602,6 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thd->mysys_var= my_thread_var;
   thd->dbug_thread_id= my_thread_id();
-  thd->thread_stack= (char*) &thd;
 
 /* TODO - add init_connect command execution */
 
@@ -517,9 +620,10 @@ void *create_embedded_thd(int client_flag, char *db)
   thd->security_ctx->db_access= DB_ACLS;
   thd->security_ctx->master_access= ~NO_ACCESS;
 #endif
-  thd->net.query_cache_query= 0;
-
-  thd->data= 0;
+  thd->cur_data= 0;
+  thd->first_data= 0;
+  thd->data_tail= &thd->first_data;
+  bzero((char*) &thd->net, sizeof(thd->net));
 
   thread_count++;
   return thd;
@@ -531,11 +635,15 @@ err:
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 int check_embedded_connection(MYSQL *mysql)
 {
+  int result;
   THD *thd= (THD*)mysql->thd;
   Security_context *sctx= thd->security_ctx;
-  sctx->host_or_ip= sctx->host= (char*)my_localhost;
+  sctx->host_or_ip= sctx->host= (char*) my_localhost;
+  strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
-  return check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
+  result= check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
+  emb_read_query_result(mysql);
+  return result;
 }
 
 #else
@@ -616,32 +724,157 @@ static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 }
 
 
+/*
+  creates new result and hooks it to the list
+
+  SYNOPSIS
+  alloc_new_dataset()
+
+  NOTES
+    allocs the MYSQL_DATA + embedded_query_result couple
+    to store the next query result,
+    links these two and attach it to the THD::data_tail
+
+  RETURN
+    pointer to the newly created query result
+*/
+
+MYSQL_DATA *THD::alloc_new_dataset()
+{
+  MYSQL_DATA *data;
+  struct embedded_query_result *emb_data;
+  if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+                       &data, sizeof(*data),
+                       &emb_data, sizeof(*emb_data),
+                       NULL))
+    return NULL;
+
+  emb_data->prev_ptr= &data->data;
+  cur_data= data;
+  *data_tail= data;
+  data_tail= &emb_data->next;
+  data->embedded_info= emb_data;
+  return data;
+}
+
+
+/*
+  stores server_status and warning_count in the current
+  query result structures
+
+  SYNOPSIS
+  write_eof_packet()
+  thd		current thread
+
+  NOTES
+    should be called to after we get the recordset-result
+
+*/
+
+static void write_eof_packet(THD *thd)
+{
+  /*
+    The following test should never be true, but it's better to do it
+    because if 'is_fatal_error' is set the server is not going to execute
+    other queries (see the if test in dispatch_command / COM_QUERY)
+  */
+  if (thd->is_fatal_error)
+    thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+  thd->cur_data->embedded_info->server_status= thd->server_status;
+  /*
+    Don't send warn count during SP execution, as the warn_list
+    is cleared between substatements, and mysqltest gets confused
+  */
+  thd->cur_data->embedded_info->warning_count=
+    (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
+}
+
+
+/*
+  allocs new query result and initialises Protocol::alloc
+
+  SYNOPSIS
+  Protocol::begin_dataset()
+
+  RETURN
+    0 if success
+    1 if memory allocation failed
+*/
+
+int Protocol::begin_dataset()
+{
+  MYSQL_DATA *data= thd->alloc_new_dataset();
+  if (!data)
+    return 1;
+  alloc= &data->alloc;
+  init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
+  alloc->min_malloc=sizeof(MYSQL_ROWS);
+  return 0;
+}
+
+
+/*
+  remove last row of current recordset
+
+  SYNOPSIS
+  Protocol_simple::remove_last_row()
+
+  NOTES
+    does the loop from the beginning of the current recordset to
+    the last record and cuts it off.
+    Not supposed to be frequently called.
+*/
+
+void Protocol_simple::remove_last_row()
+{
+  MYSQL_DATA *data= thd->cur_data;
+  MYSQL_ROWS **last_row_hook= &data->data;
+  uint count= data->rows;
+  DBUG_ENTER("Protocol_simple::remove_last_row");
+  while (--count)
+    last_row_hook= &(*last_row_hook)->next;
+
+  *last_row_hook= 0;
+  data->embedded_info->prev_ptr= last_row_hook;
+  data->rows--;
+
+  DBUG_VOID_RETURN;
+}
+
+
 bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
   MYSQL_FIELD              *client_field;
-  MYSQL                    *mysql= thd->mysql;
   MEM_ROOT                 *field_alloc;
   CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
   CHARSET_INFO             *cs= system_charset_info;
-  
+  MYSQL_DATA               *data;
   DBUG_ENTER("send_fields");
 
-  if (!mysql)            // bootstrap file handling
+  if (!thd->mysql)            // bootstrap file handling
     DBUG_RETURN(0);
 
-  field_count= list->elements;
-  field_alloc= &mysql->field_alloc;
-  if (!(client_field= thd->mysql->fields= 
-	(MYSQL_FIELD *)alloc_root(field_alloc, 
-				  sizeof(MYSQL_FIELD) * field_count)))
+  if (begin_dataset())
+    goto err;
+
+  data= thd->cur_data;
+  data->fields= field_count= list->elements;
+  field_alloc= &data->alloc;
+
+  if (!(client_field= data->embedded_info->fields_list= 
+	(MYSQL_FIELD*)alloc_root(field_alloc, sizeof(MYSQL_FIELD)*field_count)))
     goto err;
 
   while ((item= it++))
   {
     Send_field server_field;
     item->make_field(&server_field);
+
+    /* Keep things compatible for old clients */
+    if (server_field.type == MYSQL_TYPE_VARCHAR)
+      server_field.type= MYSQL_TYPE_VAR_STRING;
 
     client_field->db= dup_str_aux(field_alloc, server_field.db_name,
                                   strlen(server_field.db_name), cs, thd_cs);
@@ -703,7 +936,9 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     client_field->max_length= 0;
     ++client_field;
   }
-  thd->mysql->field_count= field_count;
+
+  if (flags & SEND_EOF)
+    write_eof_packet(thd);
 
   DBUG_RETURN(prepare_for_send(list));
  err:
@@ -723,25 +958,11 @@ bool Protocol::write()
 bool Protocol_prep::write()
 {
   MYSQL_ROWS *cur;
-  MYSQL_DATA *data= thd->data;
-
-  if (!data)
-  {
-    if (!(data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-					MYF(MY_WME | MY_ZEROFILL))))
-      return true;
-    
-    alloc= &data->alloc;
-    init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
-    alloc->min_malloc=sizeof(MYSQL_ROWS);
-    data->rows=0;
-    data->fields=field_count;
-    data->prev_ptr= &data->data;
-    thd->data= data;
-  }
+  MYSQL_DATA *data= thd->cur_data;
 
   data->rows++;
-  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+packet->length())))
+  if (!(cur= (MYSQL_ROWS *)alloc_root(alloc,
+                                      sizeof(MYSQL_ROWS)+packet->length())))
   {
     my_error(ER_OUT_OF_RESOURCES,MYF(0));
     return true;
@@ -750,8 +971,8 @@ bool Protocol_prep::write()
   memcpy(cur->data, packet->ptr()+1, packet->length()-1);
   cur->length= packet->length();       /* To allow us to do sanity checks */
 
-  *data->prev_ptr= cur;
-  data->prev_ptr= &cur->next;
+  *data->embedded_info->prev_ptr= cur;
+  data->embedded_info->prev_ptr= &cur->next;
   cur->next= 0;
   
   return false;
@@ -761,45 +982,51 @@ void
 send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 {
   DBUG_ENTER("send_ok");
-  MYSQL *mysql= current_thd->mysql;
+  MYSQL_DATA *data;
+  MYSQL *mysql= thd->mysql;
+  
   if (!mysql)            // bootstrap file handling
     DBUG_VOID_RETURN;
-  mysql->affected_rows= affected_rows;
-  mysql->insert_id= id;
+  if (thd->net.no_send_ok)	// hack for re-parsing queries
+    DBUG_VOID_RETURN;
+  if (!(data= thd->alloc_new_dataset()))
+    return;
+  data->embedded_info->affected_rows= affected_rows;
+  data->embedded_info->insert_id= id;
   if (message)
-  {
-    strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
-    mysql->info= thd->net.last_error;
-  }
+    strmake(data->embedded_info->info, message,
+            sizeof(data->embedded_info->info)-1);
+
+  write_eof_packet(thd);
+  thd->cur_data= 0;
   DBUG_VOID_RETURN;
 }
 
 void
 send_eof(THD *thd)
 {
+  write_eof_packet(thd);
+  thd->cur_data= 0;
 }
+
+
+void net_send_error_packet(THD *thd, uint sql_errno, const char *err)
+{
+  MYSQL_DATA *data= thd->cur_data ? thd->cur_data : thd->alloc_new_dataset();
+  struct embedded_query_result *ei= data->embedded_info;
+
+  ei->last_errno= sql_errno;
+  strmake(ei->info, err, sizeof(ei->info)-1);
+  strmov(ei->sqlstate, mysql_errno_to_sqlstate(sql_errno));
+  thd->cur_data= 0;
+}
+
 
 void Protocol_simple::prepare_for_resend()
 {
   MYSQL_ROWS *cur;
-  MYSQL_DATA *data= thd->data;
-
+  MYSQL_DATA *data= thd->cur_data;
   DBUG_ENTER("send_data");
-
-  if (!data)
-  {
-    if (!(data= (MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
-					MYF(MY_WME | MY_ZEROFILL))))
-      goto err;
-    
-    alloc= &data->alloc;
-    init_alloc_root(alloc,8192,0);	/* Assume rowlength < 8192 */
-    alloc->min_malloc=sizeof(MYSQL_ROWS);
-    data->rows=0;
-    data->fields=field_count;
-    data->prev_ptr= &data->data;
-    thd->data= data;
-  }
 
   data->rows++;
   if (!(cur= (MYSQL_ROWS *)alloc_root(alloc, sizeof(MYSQL_ROWS)+(field_count + 1) * sizeof(char *))))
@@ -809,10 +1036,10 @@ void Protocol_simple::prepare_for_resend()
   }
   cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
 
-  *data->prev_ptr= cur;
-  data->prev_ptr= &cur->next;
+  *data->embedded_info->prev_ptr= cur;
+  data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
-  next_mysql_field= thd->mysql->fields;
+  next_mysql_field= data->embedded_info->fields_list;
 err:
   DBUG_VOID_RETURN;
 }
