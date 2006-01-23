@@ -16,6 +16,8 @@
 
 # Process this file with automake to create Makefile.in
 
+INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include
+
 pkglib_LTLIBRARIES=libz.la
 
 libz_la_LDFLAGS= -version-info 3:3:2
