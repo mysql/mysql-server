@@ -334,9 +334,19 @@ event_executor_main(void *arg)
     {
       pthread_t th;
 
-      DBUG_PRINT("evex main thread",("mark_last_executed"));
-      et->mark_last_executed();
-      et->compute_next_execution_time();
+      DBUG_PRINT("evex main thread", ("[%10s] this exec at [%llu]", et->name.str,
+                               TIME_to_ulonglong_datetime(&et->execute_at)));
+      et->mark_last_executed(thd);
+      if (et->compute_next_execution_time())
+      {
+        sql_print_error("Error while computing time of %s.%s . "
+                        "Disabling after execution.",
+                        et->dbname.str, et->name.str);
+        et->status= MYSQL_EVENT_DISABLED;
+      }
+      DBUG_PRINT("evex main thread", ("[%10s] next exec at [%llu]", et->name.str,
+                               TIME_to_ulonglong_datetime(&et->execute_at)));
+
       et->update_fields(thd);
       DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
 #ifndef DBUG_FAULTY_THR
@@ -605,7 +615,12 @@ evex_load_events_from_db(THD *thd)
     }
     
     // let's find when to be executed  
-    et->compute_next_execution_time();
+    if (et->compute_next_execution_time())
+    {
+      sql_print_error("Error while computing execution time of %s.%s. Skipping",
+                       et->dbname.str, et->name.str);
+      continue;
+    }
     
     DBUG_PRINT("evex_load_events_from_db", ("Adding to the exec list."));
 
