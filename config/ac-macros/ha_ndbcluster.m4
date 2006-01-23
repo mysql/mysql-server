@@ -324,21 +324,11 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/src/kernel/Makefile dnl
    storage/ndb/src/kernel/error/Makefile dnl
    storage/ndb/src/kernel/blocks/Makefile dnl
-   storage/ndb/src/kernel/blocks/cmvmi/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbacc/Makefile dnl
    storage/ndb/src/kernel/blocks/dbdict/Makefile dnl
    storage/ndb/src/kernel/blocks/dbdih/Makefile dnl
    storage/ndb/src/kernel/blocks/dblqh/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtc/Makefile dnl
    storage/ndb/src/kernel/blocks/dbtup/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbfs/Makefile dnl
-   storage/ndb/src/kernel/blocks/ndbcntr/Makefile dnl
-   storage/ndb/src/kernel/blocks/qmgr/Makefile dnl
-   storage/ndb/src/kernel/blocks/trix/Makefile dnl
    storage/ndb/src/kernel/blocks/backup/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbutil/Makefile dnl
-   storage/ndb/src/kernel/blocks/suma/Makefile dnl
-   storage/ndb/src/kernel/blocks/dbtux/Makefile dnl
    storage/ndb/src/kernel/vm/Makefile dnl
    storage/ndb/src/mgmapi/Makefile dnl
    storage/ndb/src/ndbapi/Makefile dnl
