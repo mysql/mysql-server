@@ -23,6 +23,6 @@ events          : Affects flush test case. A table lock not released somewhere
 ndb_binlog_basic   : Results are not deterministic, Tomas will fix
 rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
-ndb_dd_disk2memory : Bug #16466
+#ndb_dd_disk2memory : Bug #16466
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
