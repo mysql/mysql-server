@@ -603,6 +603,7 @@ void Materialized_cursor::fetch(ulong num_rows)
   THD *thd= table->in_use;
 
   int res= 0;
+  result->begin_dataset();
   for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
   {
     if ((res= table->file->rnd_next(table->record[0])))

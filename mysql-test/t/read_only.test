@@ -1,6 +1,9 @@
 # Test of the READ_ONLY global variable:
 # check that it blocks updates unless they are only on temporary tables.
 
+# should work with embedded server after mysqltest is fixed
+-- source include/not_embedded.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
