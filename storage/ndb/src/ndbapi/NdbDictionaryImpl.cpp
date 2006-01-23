@@ -42,6 +42,7 @@
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 #include <NdbEnv.h>
+#include <NdbMem.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -370,28 +371,48 @@ void
 NdbTableImpl::init(){
   m_changeMask= 0;
   m_id= RNIL;
+  m_version = ~0;
+  m_status = NdbDictionary::Object::Invalid;
+  m_type = NdbDictionary::Object::TypeUndefined;
   m_primaryTableId= RNIL;
+  m_internalName.clear();
+  m_externalName.clear();
+  m_newExternalName.clear();
+  m_mysqlName.clear();
   m_frm.clear();
   m_newFrm.clear();
-  m_fragmentType= NdbDictionary::Object::DistrKeyHash;
+  m_ts_name.clear();
+  m_new_ts_name.clear();
+  m_ts.clear();
+  m_new_ts.clear();
+  m_fd.clear();
+  m_new_fd.clear();
+  m_range.clear();
+  m_new_range.clear();
+  m_fragmentType= NdbDictionary::Object::FragAllSmall;
   m_hashValueMask= 0;
   m_hashpointerValue= 0;
+  m_linear_flag= true;
+  m_primaryTable.clear();
+  m_max_rows = 0;
+  m_default_no_part_flag = 1;
   m_logging= true;
+  m_row_gci = true;
+  m_row_checksum = true;
   m_kvalue= 6;
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
   m_keyLenInWords= 0;
   m_fragmentCount= 0;
-  m_dictionary= NULL;
   m_index= NULL;
   m_indexType= NdbDictionary::Object::TypeUndefined;
   m_noOfKeys= 0;
   m_noOfDistributionKeys= 0;
   m_noOfBlobs= 0;
   m_replicaCount= 0;
+  m_tablespace_name.clear();
   m_tablespace_id = ~0;
-  m_row_gci = true;
-  m_row_checksum = true;
+  m_tablespace_version = ~0;
 }
 
 bool
@@ -401,63 +422,192 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
   if ((m_internalName.c_str() == NULL) || 
       (strcmp(m_internalName.c_str(), "") == 0) ||
       (obj.m_internalName.c_str() == NULL) || 
-      (strcmp(obj.m_internalName.c_str(), "") == 0)) {
+      (strcmp(obj.m_internalName.c_str(), "") == 0))
+  {
     // Shallow equal
-    if(strcmp(getName(), obj.getName()) != 0){
+    if(strcmp(getName(), obj.getName()) != 0)
+    {
       DBUG_PRINT("info",("name %s != %s",getName(),obj.getName()));
       DBUG_RETURN(false);    
     }
-  } else 
+  }
+  else
+  {
     // Deep equal
-    if(strcmp(m_internalName.c_str(), obj.m_internalName.c_str()) != 0){
+    if(strcmp(m_internalName.c_str(), obj.m_internalName.c_str()) != 0)
     {
       DBUG_PRINT("info",("m_internalName %s != %s",
 			 m_internalName.c_str(),obj.m_internalName.c_str()));
       DBUG_RETURN(false);
     }
   }
-  if(m_fragmentType != obj.m_fragmentType){
-    DBUG_PRINT("info",("m_fragmentType %d != %d",m_fragmentType,obj.m_fragmentType));
+  if (m_frm.length() != obj.m_frm.length() ||
+      (memcmp(m_frm.get_data(), obj.m_frm.get_data(), m_frm.length())))
+  {
+    DBUG_PRINT("info",("m_frm not equal"));
     DBUG_RETURN(false);
   }
-  if(m_columns.size() != obj.m_columns.size()){
-    DBUG_PRINT("info",("m_columns.size %d != %d",m_columns.size(),obj.m_columns.size()));
+  if (m_fd.length() != obj.m_fd.length() ||
+      (memcmp(m_fd.get_data(), obj.m_fd.get_data(), m_fd.length())))
+  {
+    DBUG_PRINT("info",("m_fd not equal"));
+    DBUG_RETURN(false);
+  }
+  if (m_ts.length() != obj.m_ts.length() ||
+      (memcmp(m_ts.get_data(), obj.m_ts.get_data(), m_ts.length())))
+  {
+    DBUG_PRINT("info",("m_ts not equal"));
+    DBUG_RETURN(false);
+  }
+  if (m_range.length() != obj.m_range.length() ||
+      (memcmp(m_range.get_data(), obj.m_range.get_data(), m_range.length())))
+  {
+    DBUG_PRINT("info",("m_range not equal"));
+    DBUG_RETURN(false);
+  }
+  if(m_fragmentType != obj.m_fragmentType)
+  {
+    DBUG_PRINT("info",("m_fragmentType %d != %d",m_fragmentType,
+                        obj.m_fragmentType));
+    DBUG_RETURN(false);
+  }
+  if(m_columns.size() != obj.m_columns.size())
+  {
+    DBUG_PRINT("info",("m_columns.size %d != %d",m_columns.size(),
+                       obj.m_columns.size()));
     DBUG_RETURN(false);
   }
 
-  for(unsigned i = 0; i<obj.m_columns.size(); i++){
-    if(!m_columns[i]->equal(* obj.m_columns[i])){
+  for(unsigned i = 0; i<obj.m_columns.size(); i++)
+  {
+    if(!m_columns[i]->equal(* obj.m_columns[i]))
+    {
       DBUG_PRINT("info",("m_columns [%d] != [%d]",i,i));
       DBUG_RETURN(false);
     }
   }
   
-  if(m_logging != obj.m_logging){
+  if(m_linear_flag != obj.m_linear_flag)
+  {
+    DBUG_PRINT("info",("m_linear_flag %d != %d",m_linear_flag,
+                        obj.m_linear_flag));
+    DBUG_RETURN(false);
+  }
+
+  if(m_max_rows != obj.m_max_rows)
+  {
+    DBUG_PRINT("info",("m_max_rows %d != %d",(int32)m_max_rows,
+                       (int32)obj.m_max_rows));
+    DBUG_RETURN(false);
+  }
+
+  if(m_default_no_part_flag != obj.m_default_no_part_flag)
+  {
+    DBUG_PRINT("info",("m_default_no_part_flag %d != %d",m_default_no_part_flag,
+                        obj.m_default_no_part_flag));
+    DBUG_RETURN(false);
+  }
+
+  if(m_logging != obj.m_logging)
+  {
     DBUG_PRINT("info",("m_logging %d != %d",m_logging,obj.m_logging));
     DBUG_RETURN(false);
   }
 
-  if(m_kvalue != obj.m_kvalue){
+  if(m_row_gci != obj.m_row_gci)
+  {
+    DBUG_PRINT("info",("m_row_gci %d != %d",m_row_gci,obj.m_row_gci));
+    DBUG_RETURN(false);
+  }
+
+  if(m_row_checksum != obj.m_row_checksum)
+  {
+    DBUG_PRINT("info",("m_row_checksum %d != %d",m_row_checksum,
+                        obj.m_row_checksum));
+    DBUG_RETURN(false);
+  }
+
+  if(m_kvalue != obj.m_kvalue)
+  {
     DBUG_PRINT("info",("m_kvalue %d != %d",m_kvalue,obj.m_kvalue));
     DBUG_RETURN(false);
   }
 
-  if(m_minLoadFactor != obj.m_minLoadFactor){
-    DBUG_PRINT("info",("m_minLoadFactor %d != %d",m_minLoadFactor,obj.m_minLoadFactor));
+  if(m_minLoadFactor != obj.m_minLoadFactor)
+  {
+    DBUG_PRINT("info",("m_minLoadFactor %d != %d",m_minLoadFactor,
+                        obj.m_minLoadFactor));
     DBUG_RETURN(false);
   }
 
-  if(m_maxLoadFactor != obj.m_maxLoadFactor){
-    DBUG_PRINT("info",("m_maxLoadFactor %d != %d",m_maxLoadFactor,obj.m_maxLoadFactor));
+  if(m_maxLoadFactor != obj.m_maxLoadFactor)
+  {
+    DBUG_PRINT("info",("m_maxLoadFactor %d != %d",m_maxLoadFactor,
+                        obj.m_maxLoadFactor));
     DBUG_RETURN(false);
   }
 
+  if(m_tablespace_id != obj.m_tablespace_id)
+  {
+    DBUG_PRINT("info",("m_tablespace_id %d != %d",m_tablespace_id,
+                        obj.m_tablespace_id));
+    DBUG_RETURN(false);
+  }
+
+  if(m_tablespace_version != obj.m_tablespace_version)
+  {
+    DBUG_PRINT("info",("m_tablespace_version %d != %d",m_tablespace_version,
+                        obj.m_tablespace_version));
+    DBUG_RETURN(false);
+  }
+
+  if(m_id != obj.m_id)
+  {
+    DBUG_PRINT("info",("m_id %d != %d",m_id,obj.m_id));
+    DBUG_RETURN(false);
+  }
+
+  if(m_version != obj.m_version)
+  {
+    DBUG_PRINT("info",("m_version %d != %d",m_version,obj.m_version));
+    DBUG_RETURN(false);
+  }
+
+  if(m_type != obj.m_type)
+  {
+    DBUG_PRINT("info",("m_type %d != %d",m_type,obj.m_type));
+    DBUG_RETURN(false);
+  }
+
+  if (m_type == NdbDictionary::Object::UniqueHashIndex ||
+      m_type == NdbDictionary::Object::OrderedIndex)
+  {
+    if(m_primaryTableId != obj.m_primaryTableId)
+    {
+      DBUG_PRINT("info",("m_primaryTableId %d != %d",m_primaryTableId,
+                 obj.m_primaryTableId));
+      DBUG_RETURN(false);
+    }
+    if (m_indexType != obj.m_indexType)
+    {
+      DBUG_PRINT("info",("m_indexType %d != %d",m_indexType,obj.m_indexType));
+      DBUG_RETURN(false);
+    }
+    if(strcmp(m_primaryTable.c_str(), obj.m_primaryTable.c_str()) != 0)
+    {
+      DBUG_PRINT("info",("m_primaryTable %s != %s",
+			 m_primaryTable.c_str(),obj.m_primaryTable.c_str()));
+      DBUG_RETURN(false);
+    }
+  }
   DBUG_RETURN(true);
 }
 
 void
 NdbTableImpl::assign(const NdbTableImpl& org)
 {
+  /* m_changeMask intentionally not copied */
+  m_primaryTableId = org.m_primaryTableId;
   m_internalName.assign(org.m_internalName);
   updateMysqlName();
   // If the name has been explicitly set, use that name
@@ -467,10 +617,21 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   else
     m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
-  m_ng.assign(org.m_ng.get_data(), org.m_ng.length());
-  m_fragmentType = org.m_fragmentType;
-  m_fragmentCount = org.m_fragmentCount;
+  m_ts_name.assign(org.m_ts_name.get_data(), org.m_ts_name.length());
+  m_new_ts_name.assign(org.m_new_ts_name.get_data(),
+                       org.m_new_ts_name.length());
+  m_ts.assign(org.m_ts.get_data(), org.m_ts.length());
+  m_new_ts.assign(org.m_new_ts.get_data(), org.m_new_ts.length());
+  m_fd.assign(org.m_fd.get_data(), org.m_fd.length());
+  m_new_fd.assign(org.m_new_fd.get_data(), org.m_new_fd.length());
+  m_range.assign(org.m_range.get_data(), org.m_range.length());
+  m_new_range.assign(org.m_new_range.get_data(), org.m_new_range.length());
 
+  m_fragmentType = org.m_fragmentType;
+  /*
+    m_columnHashMask, m_columnHash, m_hashValueMask, m_hashpointerValue
+    is state calculated by computeAggregates and buildColumnHash
+  */
   for(unsigned i = 0; i<org.m_columns.size(); i++){
     NdbColumnImpl * col = new NdbColumnImpl();
     const NdbColumnImpl * iorg = org.m_columns[i];
@@ -478,19 +639,31 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     m_columns.push_back(col);
   }
 
+  m_fragments = org.m_fragments;
+
+  m_linear_flag = org.m_linear_flag;
+  m_max_rows = org.m_max_rows;
+  m_default_no_part_flag = org.m_default_no_part_flag;
   m_logging = org.m_logging;
+  m_row_gci = org.m_row_gci;
+  m_row_checksum = org.m_row_checksum;
   m_kvalue = org.m_kvalue;
   m_minLoadFactor = org.m_minLoadFactor;
   m_maxLoadFactor = org.m_maxLoadFactor;
+  m_keyLenInWords = org.m_keyLenInWords;
+  m_fragmentCount = org.m_fragmentCount;
   
   if (m_index != 0)
     delete m_index;
   m_index = org.m_index;
-  
-  m_noOfDistributionKeys = org.m_noOfDistributionKeys;
+ 
+  m_primaryTable = org.m_primaryTable;
+  m_indexType = org.m_indexType;
+
   m_noOfKeys = org.m_noOfKeys;
-  m_keyLenInWords = org.m_keyLenInWords;
+  m_noOfDistributionKeys = org.m_noOfDistributionKeys;
   m_noOfBlobs = org.m_noOfBlobs;
+  m_replicaCount = org.m_replicaCount;
 
   m_id = org.m_id;
   m_version = org.m_version;
@@ -575,6 +748,39 @@ NdbTableImpl::computeAggregates()
   }
 }
 
+const void*
+NdbTableImpl::getTablespaceNames() const
+{
+  if (m_new_ts_name.empty())
+    return m_ts_name.get_data();
+  else
+    return m_new_ts_name.get_data();
+}
+
+Uint32
+NdbTableImpl::getTablespaceNamesLen() const
+{
+  if (m_new_ts_name.empty())
+    return m_ts_name.length();
+  else
+    return m_new_ts_name.length();
+}
+
+void NdbTableImpl::setTablespaceNames(const void *data, Uint32 len)
+{
+  m_new_ts_name.assign(data, len);
+}
+
+void NdbTableImpl::setFragmentCount(Uint32 count)
+{
+  m_fragmentCount= count;
+}
+
+Uint32 NdbTableImpl::getFragmentCount() const
+{
+  return m_fragmentCount;
+}
+
 void NdbTableImpl::setFrm(const void* data, Uint32 len)
 {
   m_newFrm.assign(data, len);
@@ -596,6 +802,75 @@ NdbTableImpl::getFrmLength() const
     return m_frm.length();
   else
     return m_newFrm.length();
+}
+
+void NdbTableImpl::setFragmentData(const void* data, Uint32 len)
+{
+  m_new_fd.assign(data, len);
+}
+
+const void * 
+NdbTableImpl::getFragmentData() const
+{
+  if (m_new_fd.empty())
+    return m_fd.get_data();
+  else
+    return m_new_fd.get_data();
+}
+
+Uint32
+NdbTableImpl::getFragmentDataLen() const 
+{
+  if (m_new_fd.empty())
+    return m_fd.length();
+  else
+    return m_new_fd.length();
+}
+
+void NdbTableImpl::setTablespaceData(const void* data, Uint32 len)
+{
+  m_new_ts.assign(data, len);
+}
+
+const void * 
+NdbTableImpl::getTablespaceData() const
+{
+  if (m_new_ts.empty())
+    return m_ts.get_data();
+  else
+    return m_new_ts.get_data();
+}
+
+Uint32
+NdbTableImpl::getTablespaceDataLen() const 
+{
+  if (m_new_ts.empty())
+    return m_ts.length();
+  else
+    return m_new_ts.length();
+}
+
+void NdbTableImpl::setRangeListData(const void* data, Uint32 len)
+{
+  m_new_range.assign(data, len);
+}
+
+const void * 
+NdbTableImpl::getRangeListData() const
+{
+  if (m_new_range.empty())
+    return m_range.get_data();
+  else
+    return m_new_range.get_data();
+}
+
+Uint32
+NdbTableImpl::getRangeListDataLen() const 
+{
+  if (m_new_range.empty())
+    return m_range.length();
+  else
+    return m_new_range.length();
 }
 
 void
@@ -1512,59 +1787,83 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
 				 bool fullyQualifiedNames)
 {
+  SimplePropertiesLinearReader it(data, len);
+  DictTabInfo::Table *tableDesc;
+  SimpleProperties::UnpackStatus s;
   DBUG_ENTER("NdbDictInterface::parseTableInfo");
 
-  SimplePropertiesLinearReader it(data, len);
-  DictTabInfo::Table tableDesc; tableDesc.init();
-  SimpleProperties::UnpackStatus s;
-  s = SimpleProperties::unpack(it, &tableDesc, 
+  tableDesc = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  if (!tableDesc)
+  {
+    DBUG_RETURN(4000);
+  }
+  tableDesc->init();
+  s = SimpleProperties::unpack(it, tableDesc, 
 			       DictTabInfo::TableMapping, 
 			       DictTabInfo::TableMappingSize, 
 			       true, true);
   
   if(s != SimpleProperties::Break){
+    NdbMem_Free((void*)tableDesc);
     DBUG_RETURN(703);
   }
-  const char * internalName = tableDesc.TableName;
+  const char * internalName = tableDesc->TableName;
   const char * externalName = Ndb::externalizeTableName(internalName, fullyQualifiedNames);
 
   NdbTableImpl * impl = new NdbTableImpl();
-  impl->m_id = tableDesc.TableId;
-  impl->m_version = tableDesc.TableVersion;
+  impl->m_id = tableDesc->TableId;
+  impl->m_version = tableDesc->TableVersion;
   impl->m_status = NdbDictionary::Object::Retrieved;
   impl->m_internalName.assign(internalName);
   impl->updateMysqlName();
   impl->m_externalName.assign(externalName);
 
-  impl->m_frm.assign(tableDesc.FrmData, tableDesc.FrmLen);
-  impl->m_ng.assign(tableDesc.FragmentData, tableDesc.FragmentDataLen);
+  impl->m_frm.assign(tableDesc->FrmData, tableDesc->FrmLen);
+  impl->m_fd.assign(tableDesc->FragmentData, tableDesc->FragmentDataLen);
+  impl->m_range.assign(tableDesc->RangeListData, tableDesc->RangeListDataLen);
+  impl->m_fragmentCount = tableDesc->FragmentCount;
+
+  /*
+    We specifically don't get tablespace data and range/list arrays here
+    since those are known by the MySQL Server through analysing the
+    frm file.
+    Fragment Data contains the real node group mapping and the fragment
+    identities used for each fragment. At the moment we have no need for
+    this.
+    Frm file is needed for autodiscovery.
+  */
   
   impl->m_fragmentType = (NdbDictionary::Object::FragmentType)
-    getApiConstant(tableDesc.FragmentType, 
+    getApiConstant(tableDesc->FragmentType, 
 		   fragmentTypeMapping, 
 		   (Uint32)NdbDictionary::Object::FragUndefined);
   
-  impl->m_logging = tableDesc.TableLoggedFlag;
-  impl->m_row_gci = tableDesc.RowGCIFlag;
-  impl->m_row_checksum = tableDesc.RowChecksumFlag;
-  impl->m_kvalue = tableDesc.TableKValue;
-  impl->m_minLoadFactor = tableDesc.MinLoadFactor;
-  impl->m_maxLoadFactor = tableDesc.MaxLoadFactor;
+  Uint64 max_rows = ((Uint64)tableDesc->MaxRowsHigh) << 32;
+  max_rows += tableDesc->MaxRowsLow;
+  impl->m_max_rows = max_rows;
+  impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
+  impl->m_linear_flag = tableDesc->LinearHashFlag;
+  impl->m_logging = tableDesc->TableLoggedFlag;
+  impl->m_row_gci = tableDesc->RowGCIFlag;
+  impl->m_row_checksum = tableDesc->RowChecksumFlag;
+  impl->m_kvalue = tableDesc->TableKValue;
+  impl->m_minLoadFactor = tableDesc->MinLoadFactor;
+  impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
 
   impl->m_indexType = (NdbDictionary::Object::Type)
-    getApiConstant(tableDesc.TableType,
+    getApiConstant(tableDesc->TableType,
 		   indexTypeMapping,
 		   NdbDictionary::Object::TypeUndefined);
   
   if(impl->m_indexType == NdbDictionary::Object::TypeUndefined){
   } else {
     const char * externalPrimary = 
-      Ndb::externalizeTableName(tableDesc.PrimaryTable, fullyQualifiedNames);
+      Ndb::externalizeTableName(tableDesc->PrimaryTable, fullyQualifiedNames);
     impl->m_primaryTable.assign(externalPrimary);
   }
   
   Uint32 i;
-  for(i = 0; i < tableDesc.NoOfAttributes; i++) {
+  for(i = 0; i < tableDesc->NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
     s = SimpleProperties::unpack(it, 
 				 &attrDesc, 
@@ -1573,6 +1872,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 true, true);
     if(s != SimpleProperties::Break){
       delete impl;
+      NdbMem_Free((void*)tableDesc);
       DBUG_RETURN(703);
     }
     
@@ -1583,6 +1883,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     // check type and compute attribute size and array size
     if (! attrDesc.translateExtType()) {
       delete impl;
+      NdbMem_Free((void*)tableDesc);
       DBUG_RETURN(703);
     }
     col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
@@ -1594,12 +1895,14 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     // charset is defined exactly for char types
     if (col->getCharType() != (cs_number != 0)) {
       delete impl;
+      NdbMem_Free((void*)tableDesc);
       DBUG_RETURN(703);
     }
     if (col->getCharType()) {
       col->m_cs = get_charset(cs_number, MYF(0));
       if (col->m_cs == NULL) {
         delete impl;
+        NdbMem_Free((void*)tableDesc);
         DBUG_RETURN(743);
       }
     }
@@ -1627,17 +1930,17 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   impl->computeAggregates();
 
-  if(tableDesc.FragmentDataLen > 0)
+  if(tableDesc->ReplicaDataLen > 0)
   {
-    Uint16 replicaCount = tableDesc.FragmentData[0];
-    Uint16 fragCount = tableDesc.FragmentData[1];
+    Uint16 replicaCount = tableDesc->ReplicaData[0];
+    Uint16 fragCount = tableDesc->ReplicaData[1];
 
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
     DBUG_PRINT("info", ("replicaCount=%x , fragCount=%x",replicaCount,fragCount));
     for(i = 0; i < (Uint32) (fragCount*replicaCount); i++)
     {
-      impl->m_fragments.push_back(tableDesc.FragmentData[i+2]);
+      impl->m_fragments.push_back(tableDesc->ReplicaData[i+2]);
     }
 
     Uint32 topBit = (1 << 31);
@@ -1649,17 +1952,18 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   }
   else
   {
-    impl->m_fragmentCount = tableDesc.FragmentCount;
+    impl->m_fragmentCount = tableDesc->FragmentCount;
     impl->m_replicaCount = 0;
     impl->m_hashValueMask = 0;
     impl->m_hashpointerValue = 0;
   }
 
-  impl->m_tablespace_id = tableDesc.TablespaceId;
-  impl->m_tablespace_version = tableDesc.TablespaceVersion;
+  impl->m_tablespace_id = tableDesc->TablespaceId;
+  impl->m_tablespace_version = tableDesc->TablespaceVersion;
   
   * ret = impl;
 
+  NdbMem_Free((void*)tableDesc);
   DBUG_ASSERT(impl->m_fragmentCount > 0);
   DBUG_RETURN(0);
 }
@@ -1800,8 +2104,9 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
-  DBUG_ENTER("NdbDictInterface::createOrAlterTable");
   unsigned i;
+  char *ts_names[MAX_NDB_PARTITIONS];
+  DBUG_ENTER("NdbDictInterface::createOrAlterTable");
 
   impl.computeAggregates();
 
@@ -1827,7 +2132,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     impl.m_newExternalName.clear();
   }
   // Definition change (frm)
-  if (!impl.m_newFrm.empty()) {
+  if (!impl.m_newFrm.empty())
+  {
     if (alter)
     {
       AlterTableReq::setFrmFlag(impl.m_changeMask, true);
@@ -1835,6 +2141,55 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     impl.m_frm.assign(impl.m_newFrm.get_data(), impl.m_newFrm.length());
     impl.m_newFrm.clear();
   }
+  // Change FragmentData (fragment identity, state, tablespace id)
+  if (!impl.m_new_fd.empty())
+  {
+    if (alter)
+    {
+      AlterTableReq::setFragDataFlag(impl.m_changeMask, true);
+    }
+    impl.m_fd.assign(impl.m_new_fd.get_data(), impl.m_new_fd.length());
+    impl.m_new_fd.clear();
+  }
+  // Change Tablespace Name Data
+  if (!impl.m_new_ts_name.empty())
+  {
+    if (alter)
+    {
+      AlterTableReq::setTsNameFlag(impl.m_changeMask, true);
+    }
+    impl.m_ts_name.assign(impl.m_new_ts_name.get_data(),
+                          impl.m_new_ts_name.length());
+    impl.m_new_ts_name.clear();
+  }
+  // Change Range/List Data
+  if (!impl.m_new_range.empty())
+  {
+    if (alter)
+    {
+      AlterTableReq::setRangeListFlag(impl.m_changeMask, true);
+    }
+    impl.m_range.assign(impl.m_new_range.get_data(),
+                          impl.m_new_range.length());
+    impl.m_new_range.clear();
+  }
+  // Change Tablespace Data
+  if (!impl.m_new_ts.empty())
+  {
+    if (alter)
+    {
+      AlterTableReq::setTsFlag(impl.m_changeMask, true);
+    }
+    impl.m_ts.assign(impl.m_new_ts.get_data(),
+                     impl.m_new_ts.length());
+    impl.m_new_ts.clear();
+  }
+
+
+  /*
+     TODO RONM: Here I need to insert checks for fragment array and
+     range or list array
+  */
   
   //validate();
   //aggregate();
@@ -1843,10 +2198,17 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     ndb.internalize_table_name(impl.m_externalName.c_str()));
   impl.m_internalName.assign(internalName);
   impl.updateMysqlName();
-  DictTabInfo::Table tmpTab;
-  tmpTab.init();
-  BaseString::snprintf(tmpTab.TableName,
-	   sizeof(tmpTab.TableName),
+  DictTabInfo::Table *tmpTab;
+
+  tmpTab = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  if (!tmpTab)
+  {
+    m_error.code = 4000;
+    DBUG_RETURN(-1);
+  }
+  tmpTab->init();
+  BaseString::snprintf(tmpTab->TableName,
+	   sizeof(tmpTab->TableName),
 	   internalName.c_str());
 
   bool haveAutoIncrement = false;
@@ -1859,6 +2221,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if (col->m_autoIncrement) {
       if (haveAutoIncrement) {
         m_error.code= 4335;
+        NdbMem_Free((void*)tmpTab);
         DBUG_RETURN(-1);
       }
       haveAutoIncrement = true;
@@ -1877,35 +2240,89 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
     m_error.code= 1229;
+    NdbMem_Free((void*)tmpTab);
     DBUG_RETURN(-1);
   }
-  tmpTab.FrmLen = impl.m_frm.length();
-  memcpy(tmpTab.FrmData, impl.m_frm.get_data(), impl.m_frm.length());
-  tmpTab.FragmentDataLen = impl.m_ng.length();
-  memcpy(tmpTab.FragmentData, impl.m_ng.get_data(), impl.m_ng.length());
+  /*
+    TODO RONM: This needs to change to dynamic arrays instead
+    Frm Data, FragmentData, TablespaceData, RangeListData, TsNameData
+  */
+  tmpTab->FrmLen = impl.m_frm.length();
+  memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
 
-  tmpTab.TableLoggedFlag = impl.m_logging;
-  tmpTab.RowGCIFlag = impl.m_row_gci;
-  tmpTab.RowChecksumFlag = impl.m_row_checksum;
-  tmpTab.TableLoggedFlag = impl.m_logging;
-  tmpTab.TableKValue = impl.m_kvalue;
-  tmpTab.MinLoadFactor = impl.m_minLoadFactor;
-  tmpTab.MaxLoadFactor = impl.m_maxLoadFactor;
-  tmpTab.TableType = DictTabInfo::UserTable;
-  tmpTab.PrimaryTableId = impl.m_primaryTableId;
-  tmpTab.NoOfAttributes = sz;
-  
-  tmpTab.FragmentType = getKernelConstant(impl.m_fragmentType,
-					  fragmentTypeMapping,
-					  DictTabInfo::AllNodesSmallTable);
-  tmpTab.TableVersion = rand();
+  tmpTab->FragmentDataLen = impl.m_fd.length();
+  memcpy(tmpTab->FragmentData, impl.m_fd.get_data(), impl.m_fd.length());
 
-  const char* tablespace_name= impl.m_tablespace_name.c_str();
+  tmpTab->TablespaceDataLen = impl.m_ts.length();
+  memcpy(tmpTab->TablespaceData, impl.m_ts.get_data(), impl.m_ts.length());
+
+  tmpTab->RangeListDataLen = impl.m_range.length();
+  memcpy(tmpTab->RangeListData, impl.m_range.get_data(),
+         impl.m_range.length());
+
+  memcpy(ts_names, impl.m_ts_name.get_data(),
+         impl.m_ts_name.length());
+
+  tmpTab->FragmentCount= impl.m_fragmentCount;
+  tmpTab->TableLoggedFlag = impl.m_logging;
+  tmpTab->RowGCIFlag = impl.m_row_gci;
+  tmpTab->RowChecksumFlag = impl.m_row_checksum;
+  tmpTab->TableKValue = impl.m_kvalue;
+  tmpTab->MinLoadFactor = impl.m_minLoadFactor;
+  tmpTab->MaxLoadFactor = impl.m_maxLoadFactor;
+  tmpTab->TableType = DictTabInfo::UserTable;
+  tmpTab->PrimaryTableId = impl.m_primaryTableId;
+  tmpTab->NoOfAttributes = sz;
+  tmpTab->MaxRowsHigh = (Uint32)(impl.m_max_rows >> 32);
+  tmpTab->MaxRowsLow = (Uint32)(impl.m_max_rows & 0xFFFFFFFF);
+  tmpTab->DefaultNoPartFlag = impl.m_default_no_part_flag;
+  tmpTab->LinearHashFlag = impl.m_linear_flag;
+
+  if (impl.m_ts_name.length())
+  {
+    char **ts_name_ptr= (char**)ts_names;
+    i= 0;
+    do
+    {
+      NdbTablespaceImpl tmp;
+      if (*ts_name_ptr)
+      {
+        if(get_filegroup(tmp, NdbDictionary::Object::Tablespace, 
+                         (const char*)*ts_name_ptr) == 0)
+        {
+          tmpTab->TablespaceData[2*i] = tmp.m_id;
+          tmpTab->TablespaceData[2*i + 1] = tmp.m_version;
+        }
+        else
+        { 
+          NdbMem_Free((void*)tmpTab);
+          DBUG_RETURN(-1);
+        }
+      }
+      else
+      {
+        /*
+          No tablespace used, set tablespace id to NULL
+        */
+        tmpTab->TablespaceData[2*i] = RNIL;
+        tmpTab->TablespaceData[2*i + 1] = 0;
+      }
+      ts_name_ptr++;
+    } while (++i < tmpTab->FragmentCount);
+    tmpTab->TablespaceDataLen= 4*i;
+  }
+
+  tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
+ 					   fragmentTypeMapping,
+					   DictTabInfo::AllNodesSmallTable);
+  tmpTab->TableVersion = rand();
+
+  const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:
   if(impl.m_tablespace_id != ~(Uint32)0)
   {
-    tmpTab.TablespaceId = impl.m_tablespace_id;
-    tmpTab.TablespaceVersion = impl.m_tablespace_version;
+    tmpTab->TablespaceId = impl.m_tablespace_id;
+    tmpTab->TablespaceVersion = impl.m_tablespace_version;
   }
   else if(strlen(tablespace_name))
   {
@@ -1913,13 +2330,14 @@ loop:
     if(get_filegroup(tmp, NdbDictionary::Object::Tablespace, 
 		     tablespace_name) == 0)
     {
-      tmpTab.TablespaceId = tmp.m_id;
-      tmpTab.TablespaceVersion = tmp.m_version;
+      tmpTab->TablespaceId = tmp.m_id;
+      tmpTab->TablespaceVersion = tmp.m_version;
     }
     else 
     {
       // error set by get filegroup
-      return -1;
+      NdbMem_Free((void*)tmpTab);
+      DBUG_RETURN(-1);
     }
   } 
   else
@@ -1937,13 +2355,14 @@ loop:
   UtilBufferWriter w(m_buffer);
   SimpleProperties::UnpackStatus s;
   s = SimpleProperties::pack(w, 
-			     &tmpTab,
+			     tmpTab,
 			     DictTabInfo::TableMapping, 
 			     DictTabInfo::TableMappingSize, true);
   
   if(s != SimpleProperties::Eof){
     abort();
   }
+  NdbMem_Free((void*)tmpTab);
   
   DBUG_PRINT("info",("impl.m_noOfDistributionKeys: %d impl.m_noOfKeys: %d distKeys: %d",
 		     impl.m_noOfDistributionKeys, impl.m_noOfKeys, distKeys));
@@ -2053,7 +2472,7 @@ loop:
     
     if(m_error.code == AlterTableRef::InvalidTableVersion) {
       // Clear caches and try again
-      return INCOMPATIBLE_VERSION;
+      DBUG_RETURN(INCOMPATIBLE_VERSION);
     }
   } else {
     tSignal.theVerId_signalNumber   = GSN_CREATE_TABLE_REQ;

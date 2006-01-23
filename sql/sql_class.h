@@ -171,6 +171,7 @@ public:
 
 class delayed_insert;
 class select_result;
+class Time_zone;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
@@ -258,6 +259,7 @@ struct system_variables
   my_bool old_passwords;
 
   /* Only charset part of these variables is sensible */
+  CHARSET_INFO  *character_set_filesystem;
   CHARSET_INFO  *character_set_client;
   CHARSET_INFO  *character_set_results;
 
@@ -343,6 +345,8 @@ typedef struct system_status_var
 #define last_system_status_var com_stmt_close
 
 
+#ifdef MYSQL_SERVER
+
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
@@ -352,7 +356,6 @@ void free_tmp_table(THD *thd, TABLE *entry);
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
-
 
 class Query_arena
 {
@@ -801,13 +804,16 @@ public:
 
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;
-  struct st_mysql_data *data;
   unsigned long	 client_stmt_id;
   unsigned long  client_param_count;
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
-  String query_rest;
+  struct st_mysql_data *cur_data;
+  struct st_mysql_data *first_data;
+  struct st_mysql_data **data_tail;
+  void clear_data_list();
+  struct st_mysql_data *alloc_new_dataset();
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -1126,6 +1132,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
+  bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     no_trans_update, abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
@@ -1443,6 +1450,11 @@ public:
   */
   virtual void cleanup();
   void set_thd(THD *thd_arg) { thd= thd_arg; }
+#ifdef EMBEDDED_LIBRARY
+  virtual void begin_dataset() {}
+#else
+  void begin_dataset() {}
+#endif
 };
 
 
@@ -1903,3 +1915,5 @@ public:
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
+
+#endif /* MYSQL_SERVER */

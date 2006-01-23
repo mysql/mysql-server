@@ -39,7 +39,10 @@ then
   AC_DEFINE([$5])
   mysql_se_decls="${mysql_se_decls},$6"
   mysql_se_htons="${mysql_se_htons},&$6"
-  mysql_se_objs="$mysql_se_objs $8"
+  if test "$8" != "no"
+  then
+    mysql_se_objs="$mysql_se_objs $8"
+  fi
   mysql_se_dirs="$mysql_se_dirs $7"
   mysql_se_libs="$mysql_se_libs $9"
 else

@@ -16,6 +16,7 @@
 
 #include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
+#include <my_sys.h>
 #include <NdbSleep.h>
 
 extern my_bool opt_core;
@@ -25,6 +26,8 @@ extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
 
 static void callback(int, NdbTransaction*, void*);
+static Uint32 get_part_id(const NdbDictionary::Table *table,
+                          Uint32 hash_value);
 
 extern const char * g_connect_string;
 bool
@@ -152,6 +155,284 @@ BackupRestore::finalize_table(const TableS & table){
   return ret;
 }
 
+
+static bool default_nodegroups(NdbDictionary::Table *table)
+{
+  Uint16 *node_groups = (Uint16*)table->getFragmentData();
+  Uint32 no_parts = table->getFragmentDataLen() >> 1;
+  Uint32 i;
+
+  if (node_groups[0] != 0)
+    return false; 
+  for (i = 1; i < no_parts; i++) 
+  {
+    if (node_groups[i] != UNDEF_NODEGROUP)
+      return false;
+  }
+  return true;
+}
+
+
+static Uint32 get_no_fragments(Uint64 max_rows, Uint32 no_nodes)
+{
+  Uint32 i = 0;
+  Uint32 acc_row_size = 27;
+  Uint32 acc_fragment_size = 512*1024*1024;
+  Uint32 no_parts= (max_rows*acc_row_size)/acc_fragment_size + 1;
+  Uint32 reported_parts = no_nodes; 
+  while (reported_parts < no_parts && ++i < 4 &&
+         (reported_parts + no_parts) < MAX_NDB_PARTITIONS)
+    reported_parts+= no_nodes;
+  if (reported_parts < no_parts)
+  {
+    err << "Table will be restored but will not be able to handle the maximum";
+    err << " amount of rows as requested" << endl;
+  }
+  return reported_parts;
+}
+
+
+static void set_default_nodegroups(NdbDictionary::Table *table)
+{
+  Uint32 no_parts = table->getFragmentCount();
+  Uint16 node_group[MAX_NDB_PARTITIONS];
+  Uint32 i;
+
+  node_group[0] = 0;
+  for (i = 1; i < no_parts; i++)
+  {
+    node_group[i] = UNDEF_NODEGROUP;
+  }
+  table->setFragmentData((const void*)node_group, 2 * no_parts);
+}
+
+Uint32 BackupRestore::map_ng(Uint32 ng)
+{
+  NODE_GROUP_MAP *ng_map = m_nodegroup_map;
+
+  if (ng == UNDEF_NODEGROUP ||
+      ng_map[ng].map_array[0] == UNDEF_NODEGROUP)
+  {
+    return ng;
+  }
+  else
+  {
+    Uint32 new_ng;
+    Uint32 curr_inx = ng_map[ng].curr_index;
+    Uint32 new_curr_inx = curr_inx + 1;
+
+    assert(ng < MAX_NDB_PARTITIONS);
+    assert(curr_inx < MAX_MAPS_PER_NODE_GROUP);
+    assert(new_curr_inx < MAX_MAPS_PER_NODE_GROUP);
+
+    if (new_curr_inx >= MAX_MAPS_PER_NODE_GROUP)
+      new_curr_inx = 0;
+    else if (ng_map[ng].map_array[new_curr_inx] == UNDEF_NODEGROUP)
+      new_curr_inx = 0;
+    new_ng = ng_map[ng].map_array[curr_inx];
+    ng_map[ng].curr_index = new_curr_inx;
+    return new_ng;
+  }
+}
+
+
+bool BackupRestore::map_nodegroups(Uint16 *ng_array, Uint32 no_parts)
+{
+  Uint32 i;
+  bool mapped = FALSE;
+  DBUG_ENTER("map_nodegroups");
+
+  assert(no_parts < MAX_NDB_PARTITIONS);
+  for (i = 0; i < no_parts; i++)
+  {
+    Uint32 ng;
+    ng = map_ng((Uint32)ng_array[i]);
+    if (ng != ng_array[i])
+      mapped = TRUE;
+    ng_array[i] = ng;
+  }
+  DBUG_RETURN(mapped);
+}
+
+
+static void copy_byte(const char **data, char **new_data, uint *len)
+{
+  **new_data = **data;
+  (*data)++;
+  (*new_data)++;
+  (*len)++;
+}
+
+
+bool BackupRestore::search_replace(char *search_str, char **new_data,
+                                   const char **data, const char *end_data,
+                                   uint *new_data_len)
+{
+  uint search_str_len = strlen(search_str);
+  uint inx = 0;
+  bool in_delimiters = FALSE;
+  bool escape_char = FALSE;
+  char start_delimiter = 0;
+  DBUG_ENTER("search_replace");
+
+  do
+  {
+    char c = **data;
+    copy_byte(data, new_data, new_data_len);
+    if (escape_char)
+    {
+      escape_char = FALSE;
+    }
+    else if (in_delimiters)
+    {
+      if (c == start_delimiter)
+        in_delimiters = FALSE;
+    }
+    else if (c == '\'' || c == '\"')
+    {
+      in_delimiters = TRUE;
+      start_delimiter = c;
+    }
+    else if (c == '\\')
+    {
+      escape_char = TRUE;
+    }
+    else if (c == search_str[inx])
+    {
+      inx++;
+      if (inx == search_str_len)
+      {
+        bool found = FALSE;
+        uint number = 0;
+        while (*data != end_data)
+        {
+          if (isdigit(**data))
+          {
+            found = TRUE;
+            number = (10 * number) + (**data);
+            if (number > MAX_NDB_NODES)
+              break;
+          }
+          else if (found)
+          {
+            /*
+               After long and tedious preparations we have actually found
+               a node group identifier to convert. We'll use the mapping
+               table created for node groups and then insert the new number
+               instead of the old number.
+            */
+            uint temp = map_ng(number);
+            int no_digits = 0;
+            char digits[10];
+            while (temp != 0)
+            {
+              digits[no_digits] = temp % 10;
+              no_digits++;
+              temp/=10;
+            }
+            for (no_digits--; no_digits >= 0; no_digits--)
+            {
+              **new_data = digits[no_digits];
+              *new_data_len+=1;
+            }
+            DBUG_RETURN(FALSE); 
+          }
+          else
+            break;
+          (*data)++;
+        }
+        DBUG_RETURN(TRUE);
+      }
+    }
+    else
+      inx = 0;
+  } while (*data < end_data);
+  DBUG_RETURN(FALSE);
+}
+
+bool BackupRestore::map_in_frm(char *new_data, const char *data,
+                                       uint data_len, uint *new_data_len)
+{
+  const char *end_data= data + data_len;
+  const char *end_part_data;
+  const char *part_data;
+  char *extra_ptr;
+  uint start_key_definition_len = uint2korr(data + 6);
+  uint key_definition_len = uint4korr(data + 47);
+  uint part_info_len;
+  DBUG_ENTER("map_in_frm");
+
+  if (data_len < 4096) goto error;
+  extra_ptr = (char*)data + start_key_definition_len + key_definition_len;
+  if ((int)data_len < ((extra_ptr - data) + 2)) goto error;
+  extra_ptr = extra_ptr + 2 + uint2korr(extra_ptr);
+  if ((int)data_len < ((extra_ptr - data) + 2)) goto error;
+  extra_ptr = extra_ptr + 2 + uint2korr(extra_ptr);
+  if ((int)data_len < ((extra_ptr - data) + 4)) goto error;
+  part_info_len = uint4korr(extra_ptr);
+  part_data = extra_ptr + 4;
+  if ((int)data_len < ((part_data + part_info_len) - data)) goto error;
+ 
+  do
+  {
+    copy_byte(&data, &new_data, new_data_len);
+  } while (data < part_data);
+  end_part_data = part_data + part_info_len;
+  do
+  {
+    if (search_replace((char*)" NODEGROUP = ", &new_data, &data,
+                       end_part_data, new_data_len))
+      goto error;
+  } while (data != end_part_data);
+  do
+  {
+    copy_byte(&data, &new_data, new_data_len);
+  } while (data < end_data);
+  DBUG_RETURN(FALSE);
+error:
+  DBUG_RETURN(TRUE);
+}
+
+
+bool BackupRestore::translate_frm(NdbDictionary::Table *table)
+{
+  const void *pack_data, *data, *new_pack_data;
+  char *new_data;
+  uint data_len, pack_len, new_data_len, new_pack_len;
+  uint no_parts, extra_growth;
+  DBUG_ENTER("translate_frm");
+
+  pack_data = table->getFrmData();
+  no_parts = table->getFragmentCount();
+  /*
+    Add max 4 characters per partition to handle worst case
+    of mapping from single digit to 5-digit number.
+    Fairly future-proof, ok up to 99999 node groups.
+  */
+  extra_growth = no_parts * 4;
+  if (unpackfrm(&data, &data_len, pack_data))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  if ((new_data = my_malloc(data_len + extra_growth, MYF(0))))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  if (map_in_frm(new_data, (const char*)data, data_len, &new_data_len))
+  {
+    my_free(new_data, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  if (packfrm((const void*)new_data, new_data_len,
+              &new_pack_data, &new_pack_len))
+  {
+    my_free(new_data, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  table->setFrm(new_pack_data, new_pack_len);
+  DBUG_RETURN(FALSE);
+}
+
 #include <signaldata/DictTabInfo.hpp>
 
 bool
@@ -190,7 +471,7 @@ BackupRestore::object(Uint32 type, const void * ptr)
       NdbDictionary::Tablespace* currptr = new NdbDictionary::Tablespace(curr);
       NdbDictionary::Tablespace * null = 0;
       m_tablespaces.set(currptr, id, null);
-      debug << "Retreived tablspace: " << currptr->getName() 
+      debug << "Retreived tablespace: " << currptr->getName() 
 	    << " oldid: " << id << " newid: " << currptr->getObjectId() 
 	    << " " << (void*)currptr << endl;
       return true;
@@ -348,7 +629,7 @@ BackupRestore::table(const TableS & table){
     return true;
 
   const char * name = table.getTableName();
-  
+ 
   /**
    * Ignore blob tables
    */
@@ -372,7 +653,8 @@ BackupRestore::table(const TableS & table){
   m_ndb->setSchemaName(split[1].c_str());
   
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  if(m_restore_meta){
+  if(m_restore_meta)
+  {
     NdbDictionary::Table copy(*table.m_dictTable);
 
     copy.setName(split[2].c_str());
@@ -385,10 +667,57 @@ BackupRestore::table(const TableS & table){
       copy.setTablespace(* ts);
     }
     
+    if (copy.getDefaultNoPartitionsFlag())
+    {
+      /*
+        Table was defined with default number of partitions. We can restore
+        it with whatever is the default in this cluster.
+        We use the max_rows parameter in calculating the default number.
+      */
+      Uint32 no_nodes = m_cluster_connection->no_db_nodes();
+      copy.setFragmentCount(get_no_fragments(copy.getMaxRows(),
+                            no_nodes));
+      set_default_nodegroups(&copy);
+    }
+    else
+    {
+      /*
+        Table was defined with specific number of partitions. It should be
+        restored with the same number of partitions. It will either be
+        restored in the same node groups as when backup was taken or by
+        using a node group map supplied to the ndb_restore program.
+      */
+      Uint16 *ng_array = (Uint16*)copy.getFragmentData();
+      Uint16 no_parts = copy.getFragmentCount();
+      if (map_nodegroups(ng_array, no_parts))
+      {
+        if (translate_frm(&copy))
+        {
+          err << "Create table " << table.getTableName() << " failed: ";
+          err << "Translate frm error" << endl;
+          return false;
+        }
+      }
+      copy.setFragmentData((const void *)ng_array, no_parts << 1);
+    }
+
     if (dict->createTable(copy) == -1) 
     {
       err << "Create table " << table.getTableName() << " failed: "
-	  << dict->getNdbError() << endl;
+          << dict->getNdbError() << endl;
+      if (dict->getNdbError().code == 771)
+      {
+        /*
+          The user on the cluster where the backup was created had specified
+          specific node groups for partitions. Some of these node groups
+          didn't exist on this cluster. We will warn the user of this and
+          inform him of his option.
+        */
+        err << "The node groups defined in the table didn't exist in this";
+        err << " cluster." << endl << "There is an option to use the";
+        err << " the parameter ndb-nodegroup-map to define a mapping from";
+        err << endl << "the old nodegroups to new nodegroups" << endl; 
+      }
       return false;
     }
     info << "Successfully restored table " << table.getTableName()<< endl ;
@@ -503,7 +832,7 @@ BackupRestore::endOfTables(){
   return true;
 }
 
-void BackupRestore::tuple(const TupleS & tup)
+void BackupRestore::tuple(const TupleS & tup, Uint32 fragmentId)
 {
   if (!m_restore) 
     return;
@@ -523,6 +852,7 @@ void BackupRestore::tuple(const TupleS & tup)
   
   m_free_callback = cb->next;
   cb->retries = 0;
+  cb->fragId = fragmentId;
   cb->tup = tup; // must do copy!
   tuple_a(cb);
 
@@ -530,6 +860,7 @@ void BackupRestore::tuple(const TupleS & tup)
 
 void BackupRestore::tuple_a(restore_callback_t *cb)
 {
+  Uint32 partition_id = cb->fragId;
   while (cb->retries < 10) 
   {
     /**
@@ -543,6 +874,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	m_ndb->sendPollNdb(3000, 1);
 	continue;
       }
+      err << "Cannot start transaction" << endl;
       exitHandler();
     } // if
     
@@ -555,6 +887,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
+      err << "Cannot get operation: " << cb->connection->getNdbError() << endl;
       exitHandler();
     } // if
     
@@ -562,9 +895,37 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb))
 	continue;
+      err << "Error defining op: " << cb->connection->getNdbError() << endl;
       exitHandler();
     } // if
-    
+
+    if (table->getFragmentType() == NdbDictionary::Object::UserDefined)
+    {
+      if (table->getDefaultNoPartitionsFlag())
+      {
+        /*
+          This can only happen for HASH partitioning with
+          user defined hash function where user hasn't
+          specified the number of partitions and we
+          have to calculate it. We use the hash value
+          stored in the record to calculate the partition
+          to use.
+        */
+        int i = tup.getNoOfAttributes() - 1;
+	const AttributeData  *attr_data = tup.getData(i);
+        Uint32 hash_value =  *attr_data->u_int32_value;
+        op->setPartitionId(get_part_id(table, hash_value));
+      }
+      else
+      {
+        /*
+          Either RANGE or LIST (with or without subparts)
+          OR HASH partitioning with user defined hash
+          function but with fixed set of partitions.
+        */
+        op->setPartitionId(partition_id);
+      }
+    }
     int ret = 0;
     for (int j = 0; j < 2; j++)
     {
@@ -607,6 +968,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
+      err << "Error defining op: " << cb->connection->getNdbError() << endl;
       exitHandler();
     }
 
@@ -679,30 +1041,28 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
   switch(error.status)
   {
   case NdbError::Success:
+    err << "Success error: " << error << endl;
     return false;
     // ERROR!
-    break;
     
   case NdbError::TemporaryError:
     err << "Temporary error: " << error << endl;
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY
-    break;
     
   case NdbError::UnknownResult:
-    err << error << endl;
+    err << "Unknown: " << error << endl;
     return false;
     // ERROR!
-    break;
     
   default:
   case NdbError::PermanentError:
     //ERROR
-    err << error << endl;
+    err << "Permanent: " << error << endl;
     return false;
-    break;
   }
+  err << "No error status" << endl;
   return false;
 }
 
@@ -734,6 +1094,35 @@ void
 BackupRestore::endOfTuples()
 {
   tuple_free();
+}
+
+static bool use_part_id(const NdbDictionary::Table *table)
+{
+  if (table->getDefaultNoPartitionsFlag() &&
+      (table->getFragmentType() == NdbDictionary::Object::UserDefined))
+    return false;
+  else
+    return true;
+}
+
+static Uint32 get_part_id(const NdbDictionary::Table *table,
+                          Uint32 hash_value)
+{
+  Uint32 no_frags = table->getFragmentCount();
+  
+  if (table->getLinearFlag())
+  {
+    Uint32 part_id;
+    Uint32 mask = 1;
+    while (no_frags > mask) mask <<= 1;
+    mask--;
+    part_id = hash_value & mask;
+    if (part_id >= no_frags)
+      part_id = hash_value & (mask >> 1);
+    return part_id;
+  }
+  else
+    return (hash_value % no_frags);
 }
 
 void
@@ -781,7 +1170,19 @@ BackupRestore::logEntry(const LogEntry & tup)
     err << "Error defining op: " << trans->getNdbError() << endl;
     exitHandler();
   } // if
-  
+
+  if (table->getFragmentType() == NdbDictionary::Object::UserDefined)
+  {
+    if (table->getDefaultNoPartitionsFlag())
+    {
+      const AttributeS * attr = tup[tup.size()-1];
+      Uint32 hash_value = *(Uint32*)attr->Data.string_value;
+      op->setPartitionId(get_part_id(table, hash_value));
+    }
+    else
+      op->setPartitionId(tup.m_frag_id);
+  }
+
   Bitmask<4096> keys;
   for (Uint32 i= 0; i < tup.size(); i++) 
   {

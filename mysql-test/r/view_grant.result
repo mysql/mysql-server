@@ -520,3 +520,12 @@ use test;
 use test;
 drop user mysqltest_1@localhost;
 drop database mysqltest;
+create definer=some_user@`` sql security invoker view v1 as select 1;
+ERROR HY000: Definer is not fully qualified
+create definer=some_user@localhost sql security invoker view v1 as select 1;
+Warnings:
+Note	1449	There is no 'some_user'@'localhost' registered
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`some_user`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select 1 AS `1`
+drop view v1;

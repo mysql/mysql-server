@@ -73,14 +73,38 @@ static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 
 const char *any_db="*any*";	// Special symbol for check_access
 
-const char *command_name[]={
-  "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
-  "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
-  "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
-  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Execute", "Long Data", "Close stmt",
-  "Reset stmt", "Set option", "Fetch", "Daemon",
-  "Error"					// Last command number
+LEX_STRING command_name[]={
+  (char *)STRING_WITH_LEN("Sleep"),
+  (char *)STRING_WITH_LEN("Quit"),
+  (char *)STRING_WITH_LEN("Init DB"),
+  (char *)STRING_WITH_LEN("Query"),
+  (char *)STRING_WITH_LEN("Field List"),
+  (char *)STRING_WITH_LEN("Create DB"),
+  (char *)STRING_WITH_LEN("Drop DB"),
+  (char *)STRING_WITH_LEN("Refresh"),
+  (char *)STRING_WITH_LEN("Shutdown"),
+  (char *)STRING_WITH_LEN("Statistics"),
+  (char *)STRING_WITH_LEN("Processlist"),
+  (char *)STRING_WITH_LEN("Connect"),
+  (char *)STRING_WITH_LEN("Kill"),
+  (char *)STRING_WITH_LEN("Debug"),
+  (char *)STRING_WITH_LEN("Ping"),
+  (char *)STRING_WITH_LEN("Time"),
+  (char *)STRING_WITH_LEN("Delayed insert"),
+  (char *)STRING_WITH_LEN("Change user"),
+  (char *)STRING_WITH_LEN("Binlog Dump"),
+  (char *)STRING_WITH_LEN("Table Dump"),
+  (char *)STRING_WITH_LEN("Connect Out"),
+  (char *)STRING_WITH_LEN("Register Slave"),
+  (char *)STRING_WITH_LEN("Prepare"),
+  (char *)STRING_WITH_LEN("Execute"),
+  (char *)STRING_WITH_LEN("Long Data"),
+  (char *)STRING_WITH_LEN("Close stmt"),
+  (char *)STRING_WITH_LEN("Reset stmt"),
+  (char *)STRING_WITH_LEN("Set option"),
+  (char *)STRING_WITH_LEN("Fetch"),
+  (char *)STRING_WITH_LEN("Daemon"),
+  (char *)STRING_WITH_LEN("Error")  // Last command number
 };
 
 const char *xa_state_names[]={
@@ -322,7 +346,7 @@ int check_user(THD *thd, enum enum_server_command command,
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   if (passwd_len != 0 &&
@@ -356,9 +380,9 @@ int check_user(THD *thd, enum enum_server_command command,
       net_printf_error(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
                        thd->main_security_ctx.user,
                        thd->main_security_ctx.host_or_ip);
-      mysql_log.write(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      thd->main_security_ctx.user,
-                      thd->main_security_ctx.host_or_ip);
+      general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                        thd->main_security_ctx.user,
+                        thd->main_security_ctx.host_or_ip);
       DBUG_RETURN(-1);
     }
     /* We have to read very specific packet size */
@@ -406,14 +430,14 @@ int check_user(THD *thd, enum enum_server_command command,
       }
 
       /* Why logging is performed before all checks've passed? */
-      mysql_log.write(thd, command,
-                      (thd->main_security_ctx.priv_user ==
-                       thd->main_security_ctx.user ?
-                       (char*) "%s@%s on %s" :
-                       (char*) "%s@%s as anonymous on %s"),
-                      thd->main_security_ctx.user,
-                      thd->main_security_ctx.host_or_ip,
-                      db ? db : (char*) "");
+      general_log_print(thd, command,
+                        (thd->main_security_ctx.priv_user ==
+                         thd->main_security_ctx.user ?
+                         (char*) "%s@%s on %s" :
+                         (char*) "%s@%s as anonymous on %s"),
+                        thd->main_security_ctx.user,
+                        thd->main_security_ctx.host_or_ip,
+                        db ? db : (char*) "");
 
       /*
         This is the default access rights for the current database.  It's
@@ -460,17 +484,17 @@ int check_user(THD *thd, enum enum_server_command command,
   else if (res == 2) // client gave short hash, server has long hash
   {
     net_printf_error(thd, ER_NOT_SUPPORTED_AUTH_MODE);
-    mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(-1);
   }
   net_printf_error(thd, ER_ACCESS_DENIED_ERROR,
                    thd->main_security_ctx.user,
                    thd->main_security_ctx.host_or_ip,
                    passwd_len ? ER(ER_YES) : ER(ER_NO));
-  mysql_log.write(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                  thd->main_security_ctx.user,
-                  thd->main_security_ctx.host_or_ip,
-                  passwd_len ? ER(ER_YES) : ER(ER_NO));
+  general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                    thd->main_security_ctx.user,
+                    thd->main_security_ctx.host_or_ip,
+                    passwd_len ? ER(ER_YES) : ER(ER_NO));
   DBUG_RETURN(-1);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
@@ -1570,7 +1594,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, strlen(packet), thd->charset());
     if (!mysql_change_db(thd, tmp.str, FALSE))
     {
-      mysql_log.write(thd,command,"%s",thd->db);
+      general_log_print(thd, command, "%s",thd->db);
       send_ok(thd);
     }
     break;
@@ -1703,7 +1727,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     char *packet_end= thd->query + thd->query_length;
-    mysql_log.write(thd,command,"%s",thd->query);
+    general_log_print(thd, command, "%s", thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1717,13 +1741,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       net->no_send_error= 0;
       /*
         Multiple queries exits, execute them individually
-	in embedded server - just store them to be executed later 
       */
-#ifndef EMBEDDED_LIBRARY
       if (thd->lock || thd->open_tables || thd->derived_tables ||
           thd->prelocked_mode)
         close_thread_tables(thd);
-#endif
       ulong length= (ulong)(packet_end-packet);
 
       log_slow_statement(thd);
@@ -1741,25 +1762,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-#ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
-#else
-      /*
-	'packet' can point inside the query_rest's buffer
-	so we have to do memmove here
-       */
-      if (thd->query_rest.length() > length)
-      {
-	memmove(thd->query_rest.c_ptr(), packet, length);
-	thd->query_rest.length(length);
-      }
-      else
-	thd->query_rest.copy(packet, length, thd->query_rest.charset());
-
-      thd->server_status&= ~ (SERVER_QUERY_NO_INDEX_USED |
-                              SERVER_QUERY_NO_GOOD_INDEX_USED);
-      break;
-#endif /*EMBEDDED_LIBRARY*/
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1812,7 +1815,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
-    mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
+    general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
     remove_escape(table_list.table_name);	// This can't have wildcards
@@ -1841,7 +1844,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_QUIT:
     /* We don't calculate statistics for this command */
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
     error=TRUE;					// End server
     break;
@@ -1861,7 +1864,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       if (check_access(thd,CREATE_ACL,db,0,1,0,is_schema_db(db)))
 	break;
-      mysql_log.write(thd,command,packet);
+      general_log_print(thd, command, packet);
       bzero(&create_info, sizeof(create_info));
       mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
                       &create_info, 0);
@@ -1886,7 +1889,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                    ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
 	break;
       }
-      mysql_log.write(thd,command,db);
+      general_log_print(thd, command, db);
       mysql_rm_db(thd, db, 0, 0);
       break;
     }
@@ -1910,7 +1913,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
 
-      mysql_log.write(thd, command, "Log: '%s'  Pos: %ld", packet+10,
+      general_log_print(thd, command, "Log: '%s'  Pos: %ld", packet+10,
                       (long) pos);
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
@@ -1928,7 +1931,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
       break;
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
       send_ok(thd);
     break;
@@ -1956,7 +1959,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     send_eof(thd);
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
@@ -1973,7 +1976,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_STATISTICS:
   {
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
 			&LOCK_status);
 #ifndef EMBEDDED_LIBRARY
@@ -2013,7 +2016,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     mysqld_list_processes(thd,
 			  thd->security_ctx->master_access & PROCESS_ACL ? 
 			  NullS : thd->security_ctx->priv_user, 0);
@@ -2050,7 +2053,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status();
-    mysql_log.write(thd,command,NullS);
+    general_log_print(thd, command, NullS);
     send_eof(thd);
     break;
   case COM_SLEEP:
@@ -2132,7 +2135,7 @@ void log_slow_statement(THD *thd)
 	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
       thd->status_var.long_query_count++;
-      mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
+      slow_log_print(thd, thd->query, thd->query_length, start_of_query);
     }
   }
 }
@@ -4301,10 +4304,8 @@ end_with_restore_list:
             goto error;
         }
 
-#ifndef EMBEDDED_LIBRARY
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
-#endif
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
 	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
@@ -4314,9 +4315,7 @@ end_with_restore_list:
               back
             */
 	    my_error(ER_SP_BADSELECT, MYF(0), sp->m_qname.str);
-#ifndef EMBEDDED_LIBRARY
 	    thd->net.no_send_ok= nsok;
-#endif
 	    goto error;
 	  }
           /*
@@ -4333,18 +4332,14 @@ end_with_restore_list:
 				 sp->m_db.str, sp->m_name.str, TRUE, 0) ||
           sp_change_security_context(thd, sp, &save_ctx))
 	{
-#ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
-#endif
 	  goto error;
 	}
 	if (save_ctx &&
             check_routine_access(thd, EXECUTE_ACL,
                                  sp->m_db.str, sp->m_name.str, TRUE, 0))
 	{
-#ifndef EMBEDDED_LIBRARY
 	  thd->net.no_send_ok= nsok;
-#endif
 	  sp_restore_security_context(thd, save_ctx);
 	  goto error;
 	}
@@ -4376,9 +4371,7 @@ end_with_restore_list:
 	sp_restore_security_context(thd, save_ctx);
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
-#endif
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
@@ -6541,7 +6534,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     /*
       Flush the normal query log, the update log, the binary log,
-      the slow query log, and the relay log (if it exists).
+      the slow query log, the relay log (if it exists) and the log
+      tables.
     */
 
     /*
@@ -6551,14 +6545,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       than it would help them)
     */
     tmp_write_to_binlog= 0;
-    mysql_log.new_file(1);
-    mysql_slow_log.new_file(1);
     mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
 #ifdef HAVE_REPLICATION
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
 #endif
+
+    /* flush slow and general logs */
+    logger.flush_logs(thd);
+
     if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())

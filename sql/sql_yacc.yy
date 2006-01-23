@@ -530,6 +530,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  READ_SYM
 %token  READ_WRITE_SYM
 %token  REAL
+%token  REBUILD_SYM
 %token  RECOVER_SYM
 %token  REDO_BUFFER_SIZE_SYM
 %token  REDOFILE_SYM
@@ -542,7 +543,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RELEASE_SYM
 %token  RELOAD
 %token  RENAME
-%token  REORGANISE_SYM
+%token  REORGANIZE_SYM
 %token  REPAIR
 %token  REPEATABLE_SYM
 %token  REPEAT_SYM
@@ -729,7 +730,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM label_ident
+        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
 
 %type <lex_str_ptr>
 	opt_table_alias opt_fulltext_parser
@@ -3214,9 +3215,9 @@ size_number:
             ulonglong number, test_number;
             uint text_shift_number= 0;
             longlong prefix_number;
-            char *end_ptr;
             char *start_ptr= $1.str;
             uint str_len= strlen(start_ptr);
+            char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
             if ((start_ptr + str_len - 1) == end_ptr)
@@ -3331,8 +3332,12 @@ partitioning:
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            mem_alloc_error(sizeof(partition_info));
             YYABORT;
+          }
+          if (lex->sql_command == SQLCOM_ALTER_TABLE)
+          {
+            lex->alter_info.flags|= ALTER_PARTITION;
           }
         }
         partition
@@ -3342,24 +3347,15 @@ partition_entry:
         PARTITION_SYM
         {
           LEX *lex= Lex;
-          if (lex->part_info)
-          {
-            /*
-              We enter here when opening the frm file to translate
-              partition info string into part_info data structure.
-            */
-            lex->part_info= new partition_info();
-            if (!lex->part_info)
-            {
-              my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
-              YYABORT;
-            }
-          }
-          else
+          if (!lex->part_info)
           {
             yyerror(ER(ER_PARTITION_ENTRY_ERROR));
             YYABORT;
           }
+          /*
+            We enter here when opening the frm file to translate
+            partition info string into part_info data structure.
+          */
         }
         partition {}
         ;
@@ -3393,14 +3389,23 @@ opt_linear:
         ;
 
 part_field_list:
+        /* empty */ {}
+        | part_field_item_list {}
+        ;
+
+part_field_item_list:
         part_field_item {}
-        | part_field_list ',' part_field_item {}
+        | part_field_item_list ',' part_field_item {}
         ;
 
 part_field_item:
         ident
         {
-          Lex->part_info->part_field_list.push_back($1.str);
+          if (Lex->part_info->part_field_list.push_back($1.str))
+          {
+            mem_alloc_error(1);
+            YYABORT;
+          }
         }
         ;
 
@@ -3434,12 +3439,15 @@ opt_no_parts:
         | PARTITIONS_SYM ulong_num 
         { 
           uint no_parts= $2;
+          LEX *lex= Lex;
           if (no_parts == 0)
           {
             my_error(ER_NO_PARTS_ERROR, MYF(0), "partitions");
             YYABORT;
           }
-          Lex->part_info->no_parts= no_parts;
+
+          lex->part_info->no_parts= no_parts;
+          lex->part_info->use_default_no_partitions= FALSE;
         }
         ;
 
@@ -3465,7 +3473,13 @@ sub_part_field_list:
 
 sub_part_field_item:
         ident
-        { Lex->part_info->subpart_field_list.push_back($1.str); }
+        {
+          if (Lex->part_info->subpart_field_list.push_back($1.str))
+          {
+            mem_alloc_error(1);
+            YYABORT;
+          }
+        }
         ;
 
 part_func_expr:
@@ -3489,12 +3503,14 @@ opt_no_subparts:
         | SUBPARTITIONS_SYM ulong_num
         {
           uint no_parts= $2;
+          LEX *lex= Lex;
           if (no_parts == 0)
           {
             my_error(ER_NO_PARTS_ERROR, MYF(0), "subpartitions");
             YYABORT;
           }
-          Lex->part_info->no_subparts= no_parts;
+          lex->part_info->no_subparts= no_parts;
+          lex->part_info->use_default_no_subpartitions= FALSE;
         }
         ;
 
@@ -3505,21 +3521,21 @@ part_defs:
         {
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
+          uint count_curr_parts= part_info->partitions.elements;
           if (part_info->no_parts != 0)
           {
             if (part_info->no_parts !=
-                part_info->count_curr_parts)
+                count_curr_parts)
             {
               yyerror(ER(ER_PARTITION_WRONG_NO_PART_ERROR));
               YYABORT;
             }
           }
-          else if (part_info->count_curr_parts > 0)
+          else if (count_curr_parts > 0)
           {
-            part_info->no_parts= part_info->count_curr_parts;
+            part_info->no_parts= count_curr_parts;
           }
           part_info->count_curr_subparts= 0;
-          part_info->count_curr_parts= 0;
         }
         ;
 
@@ -3534,17 +3550,79 @@ part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          if (!p_elem)
+          uint part_id= part_info->partitions.elements +
+                        part_info->temp_partitions.elements;
+          enum partition_state part_state;
+
+          if (part_info->part_state)
+            part_state= (enum partition_state)part_info->part_state[part_id];
+          else
+            part_state= PART_NORMAL;
+          switch (part_state)
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_element));
-            YYABORT;
+            case PART_TO_BE_DROPPED:
+            /*
+              This part is currently removed so we keep it in a
+              temporary list for REPAIR TABLE to be able to handle
+              failures during drop partition process.
+            */
+            case PART_TO_BE_ADDED:
+            /*
+              This part is currently being added so we keep it in a
+              temporary list for REPAIR TABLE to be able to handle
+              failures during add partition process.
+            */
+              if (!p_elem || part_info->temp_partitions.push_back(p_elem))
+              {
+                mem_alloc_error(sizeof(partition_element));
+                YYABORT;
+              }
+              break;
+            case PART_IS_ADDED:
+            /*
+              Part has been added and is now a normal partition
+            */
+            case PART_TO_BE_REORGED:
+            /*
+              This part is currently reorganised, it is still however
+              used so we keep it in the list of partitions. We do
+              however need the state to be able to handle REPAIR TABLE
+              after failures in the reorganisation process.
+            */
+            case PART_REORGED_DROPPED:
+            /*
+              This part is currently reorganised as part of a
+              COALESCE PARTITION and it will be dropped without a new
+              replacement partition after completing the reorganisation.
+            */
+            case PART_CHANGED:
+            /*
+              This part is currently split or merged as part of ADD
+              PARTITION for a hash partition or as part of COALESCE
+              PARTITION for a hash partitioned table.
+            */
+            case PART_IS_CHANGED:
+            /*
+              This part has been split or merged as part of ADD
+              PARTITION for a hash partition or as part of COALESCE
+              PARTITION for a hash partitioned table.
+            */
+            case PART_NORMAL:
+              if (!p_elem || part_info->partitions.push_back(p_elem))
+              {
+                mem_alloc_error(sizeof(partition_element));
+                YYABORT;
+              }
+              break;
+            default:
+              mem_alloc_error((part_id * 1000) + part_state);
+              YYABORT;
           }
+          p_elem->part_state= part_state;
           part_info->curr_part_elem= p_elem;
           part_info->current_partition= p_elem;
           part_info->use_default_partitions= FALSE;
-          part_info->partitions.push_back(p_elem);
-          p_elem->engine_type= NULL;
-          part_info->count_curr_parts++;
+          part_info->use_default_no_partitions= FALSE;
         }
         part_name {}
         opt_part_values {}
@@ -3554,7 +3632,12 @@ part_definition:
 
 part_name:
         ident_or_text
-        { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+        {
+          LEX *lex= Lex;
+          partition_info *part_info= lex->part_info;
+          partition_element *p_elem= part_info->curr_part_elem;
+          p_elem->partition_name= $1.str;
+        }
         ;
 
 opt_part_values:
@@ -3643,13 +3726,13 @@ part_list_item:
         part_bit_expr
         {
           longlong *value_ptr;
-          if (!(value_ptr= (longlong*)sql_alloc(sizeof(longlong))))
+          if (!(value_ptr= (longlong*)sql_alloc(sizeof(longlong))) ||
+              ((*value_ptr= $1, FALSE) ||
+     Lex->part_info->curr_part_elem->list_val_list.push_back(value_ptr)))
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(longlong));
+            mem_alloc_error(sizeof(longlong));
             YYABORT;
           }
-          *value_ptr= $1;
-          Lex->part_info->curr_part_elem->list_val_list.push_back(value_ptr);
         }
         ;
 
@@ -3659,20 +3742,23 @@ part_bit_expr:
           Item *part_expr= $1;
           bool not_corr_func;
           LEX *lex= Lex;
+          THD *thd= YYTHD;
           longlong item_value;
           Name_resolution_context *context= &lex->current_select->context;
           TABLE_LIST *save_list= context->table_list;
+          const char *save_where= thd->where;
 
           context->table_list= 0;
-          part_expr->fix_fields(YYTHD, (Item**)0);
-          context->table_list= save_list;
-          not_corr_func= !part_expr->const_item() ||
-                         !lex->safe_to_cache_query;
-          if (not_corr_func)
+          thd->where= "partition function";
+          if (part_expr->fix_fields(YYTHD, (Item**)0) ||
+              ((context->table_list= save_list), FALSE) ||
+              (!part_expr->const_item()) ||
+              (!lex->safe_to_cache_query))
           {
             yyerror(ER(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR));
             YYABORT;
           }
+          thd->where= save_where;
           if (part_expr->result_type() != INT_RESULT)
           {
             yyerror(ER(ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR));
@@ -3717,16 +3803,16 @@ sub_part_definition:
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
           partition_element *p_elem= new partition_element();
-          if (!p_elem)
+          if (!p_elem ||
+           part_info->current_partition->subpartitions.push_back(p_elem))
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_element));
+            mem_alloc_error(sizeof(partition_element));
             YYABORT;
           }
           part_info->curr_part_elem= p_elem;
-          part_info->current_partition->subpartitions.push_back(p_elem);
           part_info->use_default_subpartitions= FALSE;
+          part_info->use_default_no_subpartitions= FALSE;
           part_info->count_curr_subparts++;
-          p_elem->engine_type= NULL;
         }
         sub_name opt_part_options {}
         ;
@@ -4794,7 +4880,7 @@ alter_commands:
 	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
 	| IMPORT TABLESPACE { Lex->alter_info.tablespace_op= IMPORT_TABLESPACE; }
         | alter_list
-        opt_partitioning
+          opt_partitioning
         | partitioning
 /*
   This part was added for release 5.1 by Mikael Ronström.
@@ -4809,26 +4895,77 @@ alter_commands:
           {
 	    Lex->alter_info.flags|= ALTER_DROP_PARTITION;
           }
-        | COALESCE PARTITION_SYM ulong_num
+        | REBUILD_SYM PARTITION_SYM opt_no_write_to_binlog
+          all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_REBUILD_PARTITION;
+            lex->no_write_to_binlog= $3;
+          }
+        | OPTIMIZE PARTITION_SYM opt_no_write_to_binlog
+          all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_OPTIMIZE_PARTITION;
+            lex->no_write_to_binlog= $3;
+            lex->check_opt.init();
+          }
+          opt_no_write_to_binlog opt_mi_check_type
+        | ANALYZE_SYM PARTITION_SYM opt_no_write_to_binlog
+          all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_ANALYZE_PARTITION;
+            lex->no_write_to_binlog= $3;
+            lex->check_opt.init();
+          }
+          opt_mi_check_type
+        | CHECK_SYM PARTITION_SYM all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_CHECK_PARTITION;
+            lex->check_opt.init();
+          }
+          opt_mi_check_type
+        | REPAIR PARTITION_SYM opt_no_write_to_binlog
+          all_or_alt_part_name_list
+          {
+            LEX *lex= Lex;
+	    lex->alter_info.flags|= ALTER_REPAIR_PARTITION;
+            lex->no_write_to_binlog= $3;
+            lex->check_opt.init();
+          }
+          opt_mi_repair_type
+        | COALESCE PARTITION_SYM opt_no_write_to_binlog ulong_num
           {
             LEX *lex= Lex;
 	    lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
-	    lex->alter_info.no_parts= $3;
+            lex->no_write_to_binlog= $3;
+	    lex->alter_info.no_parts= $4;
           }
         | reorg_partition_rule
         ;
 
+all_or_alt_part_name_list:
+        | ALL
+        {
+	  Lex->alter_info.flags|= ALTER_ALL_PARTITION;
+        }
+        | alt_part_name_list
+        ;
+
 add_partition_rule:
-        ADD PARTITION_SYM
+        ADD PARTITION_SYM opt_no_write_to_binlog
         {
           LEX *lex= Lex;
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            mem_alloc_error(sizeof(partition_info));
             YYABORT;
           }
 	  lex->alter_info.flags|= ALTER_ADD_PARTITION;
+          lex->no_write_to_binlog= $3;
         }
         add_part_extra
         {}
@@ -4838,7 +4975,7 @@ add_part_extra:
         | '(' part_def_list ')'
         {
           LEX *lex= Lex;
-          lex->part_info->no_parts= lex->part_info->count_curr_parts;
+          lex->part_info->no_parts= lex->part_info->partitions.elements;
         }
         | PARTITIONS_SYM ulong_num
         {
@@ -4848,21 +4985,34 @@ add_part_extra:
         ;
 
 reorg_partition_rule:
-        REORGANISE_SYM PARTITION_SYM
+        REORGANIZE_SYM PARTITION_SYM opt_no_write_to_binlog
         {
           LEX *lex= Lex;
           lex->part_info= new partition_info();
           if (!lex->part_info)
           {
-            my_error(ER_OUTOFMEMORY, MYF(0), sizeof(partition_info));
+            mem_alloc_error(sizeof(partition_info));
             YYABORT;
           }
-	  lex->alter_info.flags|= ALTER_REORGANISE_PARTITION;
+          lex->no_write_to_binlog= $3;
         }
-        alt_part_name_list INTO '(' part_def_list ')'
+        reorg_parts_rule
+        ;
+
+reorg_parts_rule:
+        /* empty */
+        {
+	  Lex->alter_info.flags|= ALTER_TABLE_REORG;
+        }
+        |
+        alt_part_name_list
+        {
+	  Lex->alter_info.flags|= ALTER_REORGANIZE_PARTITION;
+        }
+        INTO '(' part_def_list ')'
         {
           LEX *lex= Lex;
-          lex->part_info->no_parts= lex->part_info->count_curr_parts;
+          lex->part_info->no_parts= lex->part_info->partitions.elements;
         }
         ;
 
@@ -4874,7 +5024,11 @@ alt_part_name_list:
 alt_part_name_item:
         ident
         {
-          Lex->alter_info.partition_names.push_back($1.str);
+          if (Lex->alter_info.partition_names.push_back($1.str))
+          {
+            mem_alloc_error(1);
+            YYABORT;
+          }
         }
         ;
 
@@ -7370,7 +7524,7 @@ select_var_ident:
            ;
 
 into:
-        INTO OUTFILE TEXT_STRING_sys
+        INTO OUTFILE TEXT_STRING_filesystem
 	{
           LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -7379,7 +7533,7 @@ into:
             YYABORT;
 	}
 	opt_field_term opt_line_term
-	| INTO DUMPFILE TEXT_STRING_sys
+	| INTO DUMPFILE TEXT_STRING_filesystem
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
@@ -8442,7 +8596,7 @@ load:   LOAD DATA_SYM
         };
 
 load_data:
-	load_data_lock opt_local INFILE TEXT_STRING_sys
+	load_data_lock opt_local INFILE TEXT_STRING_filesystem
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
@@ -8970,6 +9124,18 @@ TEXT_STRING_literal:
 	;
 
 
+TEXT_STRING_filesystem:
+	TEXT_STRING
+	{
+	  THD *thd= YYTHD;
+	  if (thd->charset_is_character_set_filesystem)
+	    $$= $1;
+	  else
+	    thd->convert_string(&$$, thd->variables.character_set_filesystem,
+				$1.str, $1.length, thd->charset());
+	}
+	;
+
 ident:
 	IDENT_sys	    { $$=$1; }
 	| READ_ONLY_SYM
@@ -9262,6 +9428,7 @@ keyword_sp:
 	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM	{}
 	| RAID_TYPE		{}
+        | REBUILD_SYM           {}
         | RECOVER_SYM           {}
 	| REDO_BUFFER_SIZE_SYM	{}
 	| REDOFILE_SYM  	{}
@@ -9269,7 +9436,7 @@ keyword_sp:
 	| RELAY_LOG_FILE_SYM	{}
 	| RELAY_LOG_POS_SYM	{}
 	| RELOAD		{}
-	| REORGANISE_SYM	{}
+	| REORGANIZE_SYM	{}
 	| REPEATABLE_SYM	{}
 	| REPLICATION		{}
 	| RESOURCES		{}

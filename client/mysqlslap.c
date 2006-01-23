@@ -85,12 +85,24 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
+#ifndef __WIN__
 #include <sys/wait.h>
+#endif
 #include <ctype.h>
 #include <my_pthread.h>
 
 #define MYSLAPLOCK "/myslaplock.lck"
 #define MYSLAPLOCK_DIR "/tmp"
+
+#ifdef __WIN__
+#define srandom  srand
+#define random   rand
+#define snprintf _snprintf
+#endif
+
+#ifdef HAVE_SMEM 
+static char *shared_memory_base_name=0;
+#endif
 
 static char **defaults_argv;
 
@@ -213,6 +225,17 @@ static long int timedif(struct timeval a, struct timeval b)
     return s + us;
 }
 
+#ifdef __WIN__
+static int gettimeofday(struct timeval *tp, void *tzp)
+{
+  unsigned int ticks;
+  ticks= GetTickCount();
+  tp->tv_usec= ticks*1000;
+  tp->tv_sec= ticks/1000;
+
+  return 0;
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -222,7 +245,10 @@ int main(int argc, char **argv)
   unsigned long long client_limit;
   statement *eptr;
 
-  DBUG_ENTER("main");
+#ifdef __WIN__
+  opt_use_threads= 1;
+#endif
+
   MY_INIT(argv[0]);
 
   /* Seed the random number generator if we will be using it. */
@@ -353,12 +379,14 @@ int main(int argc, char **argv)
   free_defaults(defaults_argv);
   my_end(0);
 
-  DBUG_RETURN(0); /* No compiler warnings */
+  return 0;
 }
 
 
 static struct my_option my_long_options[] =
 {
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"auto-generate-sql", 'a',
     "Generate SQL where not supplied by file or command line.",
     (gptr*) &auto_generate_sql, (gptr*) &auto_generate_sql,
@@ -375,7 +403,8 @@ static struct my_option my_long_options[] =
   {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
     (gptr*) &create_schema_string, (gptr*) &create_schema_string, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"csv", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
+  {"csv", OPT_CREATE_SLAP_SCHEMA,
+	"Generate CSV output to named file or to stdout if no file is named.",
     (gptr*) &opt_csv_str, (gptr*) &opt_csv_str, 0, GET_STR, 
     OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
@@ -388,8 +417,6 @@ static struct my_option my_long_options[] =
   {"engine", 'e', "Storage engine to use for creating the table.",
     (gptr*) &default_engine, (gptr*) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times too run the tests.", (gptr*) &iterations,
@@ -402,28 +429,28 @@ static struct my_option my_long_options[] =
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
     1, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
-    "Number of VARCHAR columns to create table with if specifying \
-      --sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
+    "Number of VARCHAR columns to create table with if specifying "
+      "--sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
     GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-  {"number-of-query", OPT_MYSQL_NUMBER_OF_QUERY, 
+  {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
     (gptr*) &num_of_query, (gptr*) &num_of_query, 0,
     GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"only-print", OPT_MYSQL_ONLY_PRINT,
-    "This causes mysqlslap to not connect to the databases, but instead print \
-      out what it would have done instead.",
+    "This causes mysqlslap to not connect to the databases, but instead print "
+      "out what it would have done instead.",
     (gptr*) &opt_only_print, (gptr*) &opt_only_print, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"password", 'p',
-    "Password to use when connecting to server. If password is not given it's \
-      asked from the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
-    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
-    0},
+    "Password to use when connecting to server. If password is not given it's "
+      "asked from the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+    0},
   {"preserve-schema", OPT_MYSQL_PRESERVE_SCHEMA,
     "Preserve the schema from the mysqlslap run.",
     (gptr*) &opt_preserve, (gptr*) &opt_preserve, 0, GET_BOOL,
@@ -434,33 +461,33 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     (gptr*) &user_supplied_query, (gptr*) &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"silent", 's', "Run program in silent mode - no output.",
-    (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
-    0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", (gptr*) &shared_memory_base_name,
     (gptr*) &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
 #endif
+  {"silent", 's', "Run program in silent mode - no output.",
+    (gptr*) &opt_silent, (gptr*) &opt_silent, 0, GET_BOOL,  NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"slave", OPT_MYSQL_SLAP_SLAVE, "Follow master locks for other slap clients",
     (gptr*) &opt_slave, (gptr*) &opt_slave, 0, GET_BOOL,  NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
     (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <sslopt-longopts.h>
   {"use-threads", OPT_USE_THREADS,
     "Use pthread calls instead of fork() calls (default on Windows)",
       (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
       GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &user,
     (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"verbose", 'v',
-    "More verbose output; You can use this multiple times to get even more \
-      verbose output.", (gptr*) &verbose, (gptr*) &verbose, 0, 
+    "More verbose output; You can use this multiple times to get even more "
+      "verbose output.", (gptr*) &verbose, (gptr*) &verbose, 0, 
       GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -936,7 +963,6 @@ drop_schema(MYSQL *mysql, const char *db)
   DBUG_RETURN(0);
 }
 
-
 static int
 run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 {
@@ -980,6 +1006,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
+#ifndef __WIN__
   else
   {
     fflush(NULL);
@@ -1020,6 +1047,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
       }
     }
   }
+#endif
 
   /* Lets release use some clients! */
   if (!opt_slave)
@@ -1041,6 +1069,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     }
     my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
   }
+#ifndef __WIN__
   else
   {
 WAIT:
@@ -1051,6 +1080,7 @@ WAIT:
       DBUG_PRINT("info", ("Parent: child %d status %d", pid, status));
     }
   }
+#endif
   gettimeofday(&end_time, NULL);
 
   my_close(lock_file, MYF(0));

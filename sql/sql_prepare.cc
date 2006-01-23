@@ -92,6 +92,12 @@ public:
   virtual bool send_fields(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
+#ifdef EMBEDDED_LIBRARY
+  void begin_dataset()
+  {
+    protocol.begin_dataset();
+  }
+#endif
 };
 
 /******************************************************************************
@@ -524,9 +530,10 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
 
 void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
-  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+  MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
+  tm.neg= 0;
 
-  param->set_time(to, MYSQL_TIMESTAMP_DATETIME,
+  param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
@@ -1866,7 +1873,7 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
   }
   else
-    mysql_log.write(thd, COM_STMT_PREPARE, "[%lu] %s", stmt->id, packet);
+    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %s", stmt->id, packet);
 
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
@@ -2228,7 +2235,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   if (error == 0)
-    mysql_log.write(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
+    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
 
   DBUG_VOID_RETURN;
 
@@ -2607,7 +2614,7 @@ void Prepared_statement::setup_set_params()
 {
   /* Setup binary logging */
   if (mysql_bin_log.is_open() && is_update_query(lex->sql_command) ||
-      mysql_log.is_open() || mysql_slow_log.is_open())
+      opt_log || opt_slow_log)
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
