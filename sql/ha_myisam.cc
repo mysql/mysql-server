@@ -86,6 +86,8 @@ handlerton myisam_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Partition flags */
+  NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   HTON_CAN_RECREATE
 };
@@ -292,6 +294,28 @@ err:
   return error;
 }
 #endif /* HAVE_REPLICATION */
+
+
+bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
+                                            ulong type, TABLE *table,
+                                            uint count,
+                                            bool called_by_logger_thread)
+{
+  /*
+    To be able to open and lock for reading system tables like 'mysql.proc',
+    when we already have some tables opened and locked, and avoid deadlocks
+    we have to disallow write-locking of these tables with any other tables.
+  */
+  if (table->s->system_table &&
+      table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
+      count != 1)
+  {
+    my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    return FALSE;
+  }
+  return TRUE;
+}
 
 	/* Name is here without an extension */
 

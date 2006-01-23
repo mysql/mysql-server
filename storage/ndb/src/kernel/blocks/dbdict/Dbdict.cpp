@@ -408,6 +408,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   union {
     char tableName[MAX_TAB_NAME_SIZE];
     char frmData[MAX_FRM_DATA_SIZE];
+    char rangeData[16*MAX_NDB_PARTITIONS];
+    char ngData[2*MAX_NDB_PARTITIONS];
+    char tsData[2*2*MAX_NDB_PARTITIONS];
     char defaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     char attributeName[MAX_ATTR_NAME_SIZE];
   };
@@ -434,13 +437,16 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
-  
-  if(!signal)
+  w.add(DictTabInfo::MaxRowsLow, tablePtr.p->maxRowsLow);
+  w.add(DictTabInfo::MaxRowsHigh, tablePtr.p->maxRowsHigh);
+  w.add(DictTabInfo::DefaultNoPartFlag, tablePtr.p->defaultNoPartFlag);
+  w.add(DictTabInfo::LinearHashFlag, tablePtr.p->linearHashFlag);
+  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+
+  if(signal)
   {
-    w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
-  }
-  else
-  {
+    /* Denna branch körs vid GET_TABINFOREQ */
+
     Uint32 * theData = signal->getDataPtrSend();
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
     req->senderRef = 0;
@@ -450,18 +456,16 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     req->primaryTableId = tablePtr.i;
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
 		   CreateFragmentationReq::SignalLength);
-    if(signal->theData[0] == 0)
-    {
-      Uint16 *data = (Uint16*)&signal->theData[25];
-      Uint32 count = 2 + data[0] * data[1];
-      w.add(DictTabInfo::FragmentDataLen, 2*count);
-      w.add(DictTabInfo::FragmentData, data, 2*count);
-      ndbrequire(count > 0);
-    }
-    else
-    {
-      ndbrequire(false);
-    }
+    ndbrequire(signal->theData[0] == 0);
+    Uint16 *data = (Uint16*)&signal->theData[25];
+    Uint32 count = 2 + data[0] * data[1];
+    w.add(DictTabInfo::ReplicaDataLen, 2*count);
+    w.add(DictTabInfo::ReplicaData, data, 2*count);
+  }
+  else
+  {
+    /* Denna del körs vid CREATE_TABLEREQ, ALTER_TABLEREQ */
+    ;
   }
   
   if (tablePtr.p->primaryTableId != RNIL){
@@ -480,9 +484,26 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   ConstRope frm(c_rope_pool, tablePtr.p->frmData);
   frm.copy(frmData);
-  
   w.add(DictTabInfo::FrmLen, frm.size());
   w.add(DictTabInfo::FrmData, frmData, frm.size());
+
+  {
+    jam();
+    ConstRope ts(c_rope_pool, tablePtr.p->tsData);
+    ts.copy(tsData);
+    w.add(DictTabInfo::TablespaceDataLen, ts.size());
+    w.add(DictTabInfo::TablespaceData, tsData, ts.size());
+
+    ConstRope ng(c_rope_pool, tablePtr.p->ngData);
+    ng.copy(ngData);
+    w.add(DictTabInfo::FragmentDataLen, ng.size());
+    w.add(DictTabInfo::FragmentData, ngData, ng.size());
+
+    ConstRope range(c_rope_pool, tablePtr.p->rangeData);
+    range.copy(rangeData);
+    w.add(DictTabInfo::RangeListDataLen, range.size());
+    w.add(DictTabInfo::RangeListData, rangeData, range.size());
+  }
 
   if(tablePtr.p->m_tablespace_id != RNIL)
   {
@@ -1797,8 +1818,6 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->gciTableCreated = 0;
   tablePtr.p->noOfAttributes = ZNIL;
   tablePtr.p->noOfNullAttr = 0;
-  tablePtr.p->ngLen = 0;
-  memset(tablePtr.p->ngData, 0, sizeof(tablePtr.p->ngData));
   tablePtr.p->fragmentCount = 0;
   /*
     tablePtr.p->lh3PageIndexBits = 0;
@@ -1811,6 +1830,10 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->minLoadFactor = 70;
   tablePtr.p->noOfPrimkey = 1;
   tablePtr.p->tupKeyLength = 1;
+  tablePtr.p->maxRowsLow = 0;
+  tablePtr.p->maxRowsHigh = 0;
+  tablePtr.p->defaultNoPartFlag = true;
+  tablePtr.p->linearHashFlag = true;
   tablePtr.p->m_bits = 0;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
@@ -2033,8 +2056,30 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_schemaOp.setSize(8);
   //c_opDropObj.setSize(8);
   c_Trans.setSize(8);
-  c_rope_pool.setSize(100000/28);
 
+  Uint32 rps = 0;
+  rps += tablerecSize * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
+  rps += attributesize * (MAX_ATTR_NAME_SIZE + MAX_ATTR_DEFAULT_VALUE_SIZE);
+  rps += c_maxNoOfTriggers * MAX_TAB_NAME_SIZE;
+  rps += (10 + 10) * MAX_TAB_NAME_SIZE;
+
+  Uint32 sm = 5;
+  ndb_mgm_get_int_parameter(p, CFG_DB_STRING_MEMORY, &sm);
+  if (sm == 0)
+    sm = 5;
+  
+  Uint32 sb = 0;
+  if (sm < 100)
+  {
+    sb = (rps * sm) / 100;
+  }
+  else
+  {
+    sb = sm;
+  }
+  
+  c_rope_pool.setSize(sb/28 + 100);
+  
   // Initialize BAT for interface to file system
   NewVARIABLE* bat = allocateBat(2);
   bat[0].WA = &c_schemaPageRecordArray.getPtr(0)->word[0];
@@ -3608,15 +3653,15 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
 
     Uint32 key = c_opRecordSequence + 1;
     Uint32 *theData = signal->getDataPtrSend(), i;
-    Uint16 *node_group= (Uint16*)&signal->theData[25];
+    Uint16 *frag_data= (Uint16*)&signal->theData[25];
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
     req->senderRef = reference();
     req->senderData = key;
     req->primaryTableId = parseRecord.tablePtr.p->primaryTableId;
-    req->noOfFragments = parseRecord.tablePtr.p->ngLen >> 1;
+    req->noOfFragments = parseRecord.tablePtr.p->fragmentCount;
     req->fragmentationType = parseRecord.tablePtr.p->fragmentType;
-    for (i = 0; i < req->noOfFragments; i++)
-      node_group[i] = parseRecord.tablePtr.p->ngData[i];
+    MEMCOPY_NO_WORDS(frag_data, c_fragData, c_fragDataLen);
+
     if (parseRecord.tablePtr.p->isOrderedIndex()) {
       jam();
       // ordered index has same fragmentation as the table
@@ -4520,6 +4565,9 @@ int Dbdict::handleAlterTab(AlterTabReq * req,
     ndbrequire(org.assign(tmp, src.size()));
   }
 
+/*
+  TODO RONM: Lite ny kod för FragmentData och RangeOrListData
+*/
   if (supportedAlteration)
   {
     // Set new schema version
@@ -4727,11 +4775,12 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   packTableIntoPages(w, tabPtr);
   
   SegmentedSectionPtr spDataPtr;
+  Ptr<SectionSegment> tmpTsPtr;
   w.getPtr(spDataPtr);
   
   signal->setSection(spDataPtr, CreateTabReq::DICT_TAB_INFO);
   signal->setSection(fragDataPtr, CreateTabReq::FRAGMENTATION);
-  
+ 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
   SafeCounter tmp(c_counterMgr, createTabPtr.p->m_coordinatorData.m_counter);
   createTabPtr.p->m_coordinatorData.m_gsn = GSN_CREATE_TAB_REQ;
@@ -5109,6 +5158,9 @@ Dbdict::createTab_dih(Signal* signal,
   req->schemaVersion = tabPtr.p->tableVersion;
   req->primaryTableId = tabPtr.p->primaryTableId;
 
+/*
+  Behöver fiska upp fragDataPtr från table object istället
+*/
   if(!fragDataPtr.isNull()){
     signal->setSection(fragDataPtr, DiAddTabReq::FRAGMENTATION);
   }
@@ -5203,6 +5255,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
   Uint32 fragCount = req->totalFragments;
   Uint32 requestInfo = req->requestInfo;
   Uint32 startGci = req->startGci;
+  Uint32 tablespace_id= req->tablespaceId;
   Uint32 logPart = req->logPartId;
 
   ndbrequire(node == getOwnNodeId());
@@ -5258,6 +5311,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->tableType = tabPtr.p->tableType;
     req->primaryTableId = tabPtr.p->primaryTableId;
     req->tablespace_id= tabPtr.p->m_tablespace_id;
+    //req->tablespace_id= tablespace_id;
     req->logPartId = logPart;
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal, 
 	       LqhFragReq::SignalLength, JBB);
@@ -5740,8 +5794,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   it.first();
 
   SimpleProperties::UnpackStatus status;
-  DictTabInfo::Table tableDesc; tableDesc.init();
-  status = SimpleProperties::unpack(it, &tableDesc, 
+  c_tableDesc.init();
+  status = SimpleProperties::unpack(it, &c_tableDesc, 
 				    DictTabInfo::TableMapping, 
 				    DictTabInfo::TableMappingSize, 
 				    true, true);
@@ -5767,12 +5821,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   // Verify that table name is an allowed table name.
   // TODO
   /* ---------------------------------------------------------------- */
-  const Uint32 tableNameLength = strlen(tableDesc.TableName) + 1;
-  const Uint32 name_hash = Rope::hash(tableDesc.TableName, tableNameLength);
+  const Uint32 tableNameLength = strlen(c_tableDesc.TableName) + 1;
+  const Uint32 name_hash = Rope::hash(c_tableDesc.TableName, tableNameLength);
 
   if(checkExist){
     jam();
-    tabRequire(get_object(tableDesc.TableName, tableNameLength) == 0, 
+    tabRequire(get_object(c_tableDesc.TableName, tableNameLength) == 0, 
 	       CreateTableRef::TableAlreadyExist);
   }
   
@@ -5783,7 +5837,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   }
   case DictTabInfo::AlterTableFromAPI:{
     jam();
-    tablePtr.i = getFreeTableRecord(tableDesc.PrimaryTableId);
+    tablePtr.i = getFreeTableRecord(c_tableDesc.PrimaryTableId);
     /* ---------------------------------------------------------------- */
     // Check if no free tables existed.
     /* ---------------------------------------------------------------- */
@@ -5799,7 +5853,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 /* ---------------------------------------------------------------- */
 // Get table id and check that table doesn't already exist
 /* ---------------------------------------------------------------- */
-    tablePtr.i = tableDesc.TableId;
+    tablePtr.i = c_tableDesc.TableId;
     
     if (parseP->requestType == DictTabInfo::ReadTableFromDiskSR) {
       ndbrequire(tablePtr.i == c_restartRecord.activeTable);
@@ -5821,7 +5875,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 /* ---------------------------------------------------------------- */
 // Set table version
 /* ---------------------------------------------------------------- */
-    Uint32 tableVersion = tableDesc.TableVersion;
+    Uint32 tableVersion = c_tableDesc.TableVersion;
     tablePtr.p->tableVersion = tableVersion;
     
     break;
@@ -5834,7 +5888,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
-    ndbrequire(name.assign(tableDesc.TableName, tableNameLength, name_hash));
+    tabRequire(name.assign(c_tableDesc.TableName, tableNameLength, name_hash),
+	       CreateTableRef::OutOfStringBuffer);
   }
 
   Ptr<DictObject> obj_ptr;
@@ -5842,7 +5897,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
     ndbrequire(c_obj_hash.seize(obj_ptr));
     obj_ptr.p->m_id = tablePtr.i;
-    obj_ptr.p->m_type = tableDesc.TableType;
+    obj_ptr.p->m_type = c_tableDesc.TableType;
     obj_ptr.p->m_name = tablePtr.p->tableName;
     obj_ptr.p->m_ref_count = 0;
     c_obj_hash.add(obj_ptr);
@@ -5850,42 +5905,59 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 
 #ifdef VM_TRACE
     ndbout_c("Dbdict: name=%s,id=%u,obj_ptr_i=%d", 
-	     tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
+	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
 #endif
   }
   
-  tablePtr.p->noOfAttributes = tableDesc.NoOfAttributes;
+  tablePtr.p->noOfAttributes = c_tableDesc.NoOfAttributes;
   tablePtr.p->m_bits |= 
-    (tableDesc.TableLoggedFlag ? TableRecord::TR_Logged : 0);
+    (c_tableDesc.TableLoggedFlag ? TableRecord::TR_Logged : 0);
   tablePtr.p->m_bits |= 
-    (tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
+    (c_tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
   tablePtr.p->m_bits |= 
-    (tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
-  tablePtr.p->minLoadFactor = tableDesc.MinLoadFactor;
-  tablePtr.p->maxLoadFactor = tableDesc.MaxLoadFactor;
-  tablePtr.p->fragmentType = (DictTabInfo::FragmentType)tableDesc.FragmentType;
-  tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
-  tablePtr.p->kValue = tableDesc.TableKValue;
-  tablePtr.p->fragmentCount = tableDesc.FragmentCount;
-  tablePtr.p->m_tablespace_id = tableDesc.TablespaceId; 
+    (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
+  tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
+  tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
+  tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
+  tablePtr.p->tableType = (DictTabInfo::TableType)c_tableDesc.TableType;
+  tablePtr.p->kValue = c_tableDesc.TableKValue;
+  tablePtr.p->fragmentCount = c_tableDesc.FragmentCount;
+  tablePtr.p->m_tablespace_id = c_tableDesc.TablespaceId; 
+  tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow; 
+  tablePtr.p->maxRowsHigh = c_tableDesc.MaxRowsHigh; 
+  tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
+  tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
-    ndbrequire(frm.assign(tableDesc.FrmData, tableDesc.FrmLen));
+    tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
+	       CreateTableRef::OutOfStringBuffer);
+    Rope range(c_rope_pool, tablePtr.p->rangeData);
+    tabRequire(range.assign(c_tableDesc.RangeListData,
+               c_tableDesc.RangeListDataLen),
+	      CreateTableRef::OutOfStringBuffer);
+    Rope fd(c_rope_pool, tablePtr.p->ngData);
+    tabRequire(fd.assign((const char*)c_tableDesc.FragmentData,
+                         c_tableDesc.FragmentDataLen),
+	       CreateTableRef::OutOfStringBuffer);
+    Rope ts(c_rope_pool, tablePtr.p->tsData);
+    tabRequire(ts.assign((const char*)c_tableDesc.TablespaceData,
+                         c_tableDesc.TablespaceDataLen),
+	       CreateTableRef::OutOfStringBuffer);
   }
   
-  tablePtr.p->ngLen = tableDesc.FragmentDataLen;
-  memcpy(tablePtr.p->ngData, tableDesc.FragmentData,
-         tableDesc.FragmentDataLen);
+  c_fragDataLen = c_tableDesc.FragmentDataLen;
+  memcpy(c_fragData, c_tableDesc.FragmentData,
+         c_tableDesc.FragmentDataLen);
 
-  if(tableDesc.PrimaryTableId != RNIL) {
+  if(c_tableDesc.PrimaryTableId != RNIL) {
     
-    tablePtr.p->primaryTableId = tableDesc.PrimaryTableId;
-    tablePtr.p->indexState = (TableRecord::IndexState)tableDesc.IndexState;
-    tablePtr.p->insertTriggerId = tableDesc.InsertTriggerId;
-    tablePtr.p->updateTriggerId = tableDesc.UpdateTriggerId;
-    tablePtr.p->deleteTriggerId = tableDesc.DeleteTriggerId;
-    tablePtr.p->customTriggerId = tableDesc.CustomTriggerId;
+    tablePtr.p->primaryTableId = c_tableDesc.PrimaryTableId;
+    tablePtr.p->indexState = (TableRecord::IndexState)c_tableDesc.IndexState;
+    tablePtr.p->insertTriggerId = c_tableDesc.InsertTriggerId;
+    tablePtr.p->updateTriggerId = c_tableDesc.UpdateTriggerId;
+    tablePtr.p->deleteTriggerId = c_tableDesc.DeleteTriggerId;
+    tablePtr.p->customTriggerId = c_tableDesc.CustomTriggerId;
   } else {
     tablePtr.p->primaryTableId = RNIL;
     tablePtr.p->indexState = TableRecord::IS_UNDEFINED;
@@ -5897,7 +5969,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->buildTriggerId = RNIL;
   tablePtr.p->indexLocal = 0;
   
-  handleTabInfo(it, parseP, tableDesc);
+  handleTabInfo(it, parseP, c_tableDesc);
   
   if(parseP->errorCode != 0)
   {
@@ -5986,7 +6058,13 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
      */
     {
       Rope name(c_rope_pool, attrPtr.p->attributeName);
-      name.assign(attrDesc.AttributeName, len, name_hash);
+      if (!name.assign(attrDesc.AttributeName, len, name_hash))
+      {
+	jam();
+	parseP->errorCode = CreateTableRef::OutOfStringBuffer;
+	parseP->errorLine = __LINE__;
+	return;
+      }
     }
     attrPtr.p->attributeId = i;
     //attrPtr.p->attributeId = attrDesc.AttributeId;
@@ -7460,10 +7538,9 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     // save name and index table properties
     signal->getSection(ssPtr, CreateIndxReq::INDEX_NAME_SECTION);
     SimplePropertiesSectionReader r1(ssPtr, getSectionSegmentPool());
-    DictTabInfo::Table tableDesc;
-    tableDesc.init();
+    c_tableDesc.init();
     SimpleProperties::UnpackStatus status = SimpleProperties::unpack(
-        r1, &tableDesc,
+        r1, &c_tableDesc,
         DictTabInfo::TableMapping, DictTabInfo::TableMappingSize,
         true, true);
     if (status != SimpleProperties::Eof) {
@@ -7473,8 +7550,8 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
       createIndex_sendReply(signal, opPtr, opPtr.p->m_isMaster);
       return;
     }
-    memcpy(opPtr.p->m_indexName, tableDesc.TableName, MAX_TAB_NAME_SIZE);
-    opPtr.p->m_storedIndex = tableDesc.TableLoggedFlag;
+    memcpy(opPtr.p->m_indexName, c_tableDesc.TableName, MAX_TAB_NAME_SIZE);
+    opPtr.p->m_storedIndex = c_tableDesc.TableLoggedFlag;
     releaseSections(signal);
     // master expects to hear from all
     if (opPtr.p->m_isMaster)
@@ -13097,7 +13174,7 @@ Dbdict::getTableKeyList(TableRecordPtr tablePtr,
       list.id[list.sz++] = attrPtr.p->attributeId;
     }
   }
-  ndbrequire(list.sz == tablePtr.p->noOfPrimkey + 1);
+  ndbrequire(list.sz == (uint)(tablePtr.p->noOfPrimkey + 1));
   ndbrequire(list.sz <= MAX_ATTRIBUTES_IN_INDEX + 1);
 }
 
@@ -14719,7 +14796,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
     }
@@ -14958,7 +15035,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
     }

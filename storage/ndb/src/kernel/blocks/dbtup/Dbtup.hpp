@@ -777,6 +777,10 @@ struct TupTriggerData {
   
   /**
    * Trigger id, used by DICT/TRIX to identify the trigger
+   *
+   * trigger Ids are unique per block for SUBSCRIPTION triggers.
+   * This is so that BACKUP can use TUP triggers directly and delete them
+   * properly.
    */
   Uint32 triggerId;
 
@@ -2012,7 +2016,9 @@ private:
 
   bool createTrigger(Tablerec* table, const CreateTrigReq* req);
 
-  Uint32 dropTrigger(Tablerec* table, const DropTrigReq* req);
+  Uint32 dropTrigger(Tablerec* table,
+		     const DropTrigReq* req,
+		     BlockNumber sender);
 
   void
   checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,

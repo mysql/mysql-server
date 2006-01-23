@@ -16,6 +16,7 @@
 
 #include "Restore.hpp"
 #include <NdbTCP.h>
+#include <NdbMem.h>
 #include <OutputStream.hpp>
 #include <Bitmask.hpp>
 
@@ -23,6 +24,7 @@
 #include <trigger_definitions.h>
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <ndb_limits.h>
 
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
@@ -321,6 +323,7 @@ TableS::~TableS()
     delete allAttributesDesc[i];
 }
 
+
 // Parse dictTabInfo buffer and pushback to to vector storage 
 bool
 RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
@@ -336,8 +339,6 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
     return false;
 
   debug << "parseTableInfo " << tableImpl->getName() << " done" << endl;
-  tableImpl->m_ng.clear();
-  tableImpl->m_fragmentType = NdbDictionary::Object::FragAllSmall;
   TableS * table = new TableS(m_fileHeader.NdbVersion, tableImpl);
   if(table == NULL) {
     return false;
@@ -738,7 +739,7 @@ BackupFile::validateFooter(){
   return true;
 }
 
-bool RestoreDataIterator::readFragmentHeader(int & ret)
+bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
 {
   BackupFormat::DataFile::FragmentHeader Header;
   
@@ -780,7 +781,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret)
   
   m_count = 0;
   ret = 0;
-
+  *fragmentId = Header.FragmentNo;
   return true;
 } // RestoreDataIterator::getNextFragment
 
@@ -901,7 +902,7 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 }
 
 const LogEntry *
-RestoreLogIterator::getNextLogEntry(int & res) {
+RestoreLogIterator::getNextLogEntry(int & res, bool *alloc_flag) {
   // Read record length
   typedef BackupFormat::LogFile::LogEntry LogE;
 
@@ -925,7 +926,30 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       res= 0;
       return 0;
     }
-
+    if (m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION)
+    {
+      /*
+        FragId was introduced in LogEntry in version
+        5.1.6
+        We set FragId to 0 in older versions (these versions
+        do not support restore of user defined partitioned
+        tables.
+      */
+      int i;
+      LogE *tmpLogE = (LogE*)NdbMem_Allocate(data_len + 4);
+      if (!tmpLogE)
+      {
+        res = -2;
+        return 0;
+      }
+      tmpLogE->Length = logE->Length;
+      tmpLogE->TableId = logE->TableId;
+      tmpLogE->TriggerEvent = logE->TriggerEvent;
+      tmpLogE->FragId = 0;
+      for (i = 0; i < len - 3; i++)
+        tmpLogE->Data[i] = logE->Data[i-1];
+      *alloc_flag= true;
+    }
     logE->TableId= ntohl(logE->TableId);
     logE->TriggerEvent= ntohl(logE->TriggerEvent);
     
@@ -960,6 +984,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
   AttributeHeader * ah = (AttributeHeader *)&logE->Data[0];
   AttributeHeader *end = (AttributeHeader *)&logE->Data[len - 2];
   AttributeS *  attr;
+  m_logEntry.m_frag_id = ntohl(logE->FragId);
   while(ah < end){
     attr= m_logEntry.add_attr();
     if(attr == NULL) {

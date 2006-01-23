@@ -605,8 +605,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->host_or_ip, dbname);
-    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-		    sctx->priv_user, sctx->host_or_ip, dbname);
+    general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+                      sctx->priv_user, sctx->host_or_ip, dbname);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -1243,8 +1243,8 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     char *part_syntax;
     if (table->part_info &&
         ((part_syntax= generate_partition_syntax(table->part_info,
-                                                 &part_syntax_len,
-                                                 FALSE,FALSE))))
+                                                  &part_syntax_len,
+                                                  FALSE,FALSE))))
     {
        packet->append(part_syntax, part_syntax_len);
        my_free(part_syntax, MYF(0));
@@ -1502,7 +1502,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     if (thd_info->proc_info)
       protocol->store(thd_info->proc_info, system_charset_info);
     else
-      protocol->store(command_name[thd_info->command], system_charset_info);
+      protocol->store(command_name[thd_info->command].str, system_charset_info);
     if (thd_info->start_time)
       protocol->store((uint32) (now - thd_info->start_time));
     else
@@ -2835,6 +2835,7 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
     CHARSET_INFO *tmp_cs= cs[0];
     if (tmp_cs && (tmp_cs->state & MY_CS_PRIMARY) && 
         (tmp_cs->state & MY_CS_AVAILABLE) &&
+        !(tmp_cs->state & MY_CS_HIDDEN) &&
         !(wild && wild[0] &&
 	  wild_case_compare(scs, tmp_cs->csname,wild)))
     {
@@ -2904,6 +2905,7 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, COND *cond)
     CHARSET_INFO **cl;
     CHARSET_INFO *tmp_cs= cs[0];
     if (!tmp_cs || !(tmp_cs->state & MY_CS_AVAILABLE) || 
+         (tmp_cs->state & MY_CS_HIDDEN) ||
         !(tmp_cs->state & MY_CS_PRIMARY))
       continue;
     for (cl= all_charsets; cl < all_charsets+255 ;cl ++)

@@ -88,6 +88,8 @@ handlerton tina_hton= {
   NULL,    /* Start Consistent Snapshot */
   NULL,    /* Flush logs */
   NULL,    /* Show status */
+  NULL,    /* Partition flags */
+  NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   HTON_CAN_RECREATE
 };
@@ -195,8 +197,16 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   char *tmp_name;
   uint length;
 
+  if (!tina_init)
+     tina_init_func();
+
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
+
+  /*
+    If share is not present in the hash, create a new share and
+    initialize its members.
+  */
   if (!(share=(TINA_SHARE*) hash_search(&tina_open_tables,
                                         (byte*) table_name,
                                         length)))
@@ -212,6 +222,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     }
 
     share->use_count= 0;
+    share->is_log_table= FALSE;
     share->table_name_length= length;
     share->table_name= tmp_name;
     strmov(share->table_name, table_name);
@@ -236,6 +247,9 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     share->mapped_file= NULL; // We don't know the state as we just allocated it
     if (get_mmap(share, 0) > 0)
       goto error3;
+
+    /* init file length value used by readers */
+    share->saved_data_file_length= share->file_stat.st_size;
   }
   share->use_count++;
   pthread_mutex_unlock(&tina_mutex);
@@ -309,13 +323,15 @@ ha_tina::ha_tina(TABLE_SHARE *table_arg)
     These definitions are found in handler.h
     They are not probably completely right.
   */
-  current_position(0), next_position(0), chain_alloced(0),
-  chain_size(DEFAULT_CHAIN_LENGTH), records_is_known(0)
+  current_position(0), next_position(0), local_saved_data_file_length(0),
+  chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH),
+  records_is_known(0)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set(byte_buffer, IO_SIZE, system_charset_info);
   chain= chain_buffer;
 }
+
 
 /*
   Encode a buffer into the quoted format.
@@ -425,13 +441,18 @@ int ha_tina::chain_append()
 */
 int ha_tina::find_current_row(byte *buf)
 {
-  byte *mapped_ptr= (byte *)share->mapped_file + current_position;
+  byte *mapped_ptr;
   byte *end_ptr;
   DBUG_ENTER("ha_tina::find_current_row");
 
-  /* EOF should be counted as new line */
+  mapped_ptr= (byte *)share->mapped_file + current_position;
+
+  /*
+    We do not read further then local_saved_data_file_length in order
+    not to conflict with undergoing concurrent insert.
+  */
   if ((end_ptr=  find_eoln(share->mapped_file, current_position,
-                           share->file_stat.st_size)) == 0)
+                           local_saved_data_file_length)) == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   for (Field **field=table->field ; *field ; field++)
@@ -489,6 +510,114 @@ const char **ha_tina::bas_ext() const
   return ha_tina_exts;
 }
 
+/*
+  Three functions below are needed to enable concurrent insert functionality
+  for CSV engine. For more details see mysys/thr_lock.c
+*/
+
+void tina_get_status(void* param, int concurrent_insert)
+{
+  ha_tina *tina= (ha_tina*) param;
+  tina->get_status();
+}
+
+void tina_update_status(void* param)
+{
+  ha_tina *tina= (ha_tina*) param;
+  tina->update_status();
+}
+
+/* this should exist and return 0 for concurrent insert to work */
+my_bool tina_check_status(void* param)
+{
+  return 0;
+}
+
+/*
+  Save the state of the table
+
+  SYNOPSIS
+    get_status()
+
+  DESCRIPTION
+    This function is used to retrieve the file length. During the lock
+    phase of concurrent insert. For more details see comment to
+    ha_tina::update_status below.
+*/
+
+void ha_tina::get_status()
+{
+  if (share->is_log_table)
+  {
+    /*
+      We have to use mutex to follow pthreads memory visibility
+      rules for share->saved_data_file_length
+    */
+    pthread_mutex_lock(&share->mutex);
+    local_saved_data_file_length= share->saved_data_file_length;
+    pthread_mutex_unlock(&share->mutex);
+    return;
+  }
+  local_saved_data_file_length= share->saved_data_file_length;
+}
+
+
+/*
+  Correct the state of the table. Called by unlock routines
+  before the write lock is released.
+
+  SYNOPSIS
+    update_status()
+
+  DESCRIPTION
+    When we employ concurrent insert lock, we save current length of the file
+    during the lock phase. We do not read further saved value, as we don't
+    want to interfere with undergoing concurrent insert. Writers update file
+    length info during unlock with update_status().
+
+  NOTE
+    For log tables concurrent insert works different. The reason is that
+    log tables are always opened and locked. And as they do not unlock
+    tables, the file length after writes should be updated in a different
+    way. For this purpose we need is_log_table flag. When this flag is set
+    we call update_status() explicitly after each row write.
+*/
+
+void ha_tina::update_status()
+{
+  /* correct local_saved_data_file_length for writers */
+  share->saved_data_file_length= share->file_stat.st_size;
+}
+
+
+bool ha_tina::check_if_locking_is_allowed(uint sql_command,
+                                          ulong type, TABLE *table,
+                                          uint count,
+                                          bool called_by_logger_thread)
+{
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (table->s->log_table &&
+      sql_command != SQLCOM_TRUNCATE &&
+      !(sql_command == SQLCOM_FLUSH &&
+        type & REFRESH_LOG) &&
+      !called_by_logger_thread &&
+      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
+  {
+    /*
+      The check  >= TL_READ_NO_INSERT denies all write locks
+      plus the only read lock (TL_READ_NO_INSERT itself)
+    */
+    table->reginfo.lock_type == TL_READ_NO_INSERT ?
+      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
+        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
+    return FALSE;
+  }
+  return TRUE;
+}
 
 /*
   Open a database file. Keep in mind that tables are caches, so
@@ -501,8 +630,18 @@ int ha_tina::open(const char *name, int mode, uint test_if_locked)
 
   if (!(share= get_share(name, table)))
     DBUG_RETURN(1);
-  thr_lock_data_init(&share->lock,&lock,NULL);
+
+  /*
+    Init locking. Pass handler object to the locking routines,
+    so that they could save/update local_saved_data_file_length value
+    during locking. This is needed to enable concurrent inserts.
+  */
+  thr_lock_data_init(&share->lock, &lock, (void*) this);
   ref_length=sizeof(off_t);
+
+  share->lock.get_status= tina_get_status;
+  share->lock.update_status= tina_update_status;
+  share->lock.check_status= tina_check_status;
 
   DBUG_RETURN(0);
 }
@@ -528,7 +667,7 @@ int ha_tina::write_row(byte * buf)
   int size;
   DBUG_ENTER("ha_tina::write_row");
 
-  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+  ha_statistic_increment(&SSV::ha_write_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -547,6 +686,18 @@ int ha_tina::write_row(byte * buf)
   */
   if (get_mmap(share, 0) > 0)
     DBUG_RETURN(-1);
+
+  /* update local copy of the max position to see our own changes */
+  local_saved_data_file_length= share->file_stat.st_size;
+
+  /* update status for the log tables */
+  if (share->is_log_table)
+  {
+    pthread_mutex_lock(&share->mutex);
+    update_status();
+    pthread_mutex_unlock(&share->mutex);
+  }
+
   records++;
   DBUG_RETURN(0);
 }
@@ -565,8 +716,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   int size;
   DBUG_ENTER("ha_tina::update_row");
 
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -578,6 +728,13 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 
   if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
+
+  /* UPDATE should never happen on the log tables */
+  DBUG_ASSERT(!share->is_log_table);
+
+  /* update local copy of the max position to see our own changes */
+  local_saved_data_file_length= share->file_stat.st_size;
+
   DBUG_RETURN(0);
 }
 
@@ -594,88 +751,19 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 int ha_tina::delete_row(const byte * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
-  statistic_increment(table->in_use->status_var.ha_delete_count,
-                      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_delete_count);
 
   if (chain_append())
     DBUG_RETURN(-1);
 
   --records;
 
+  /* DELETE should never happen on the log table */
+  DBUG_ASSERT(!share->is_log_table);
+
   DBUG_RETURN(0);
 }
 
-/*
-  Fill buf with value from key. Simply this is used for a single index read
-  with a key.
-*/
-int ha_tina::index_read(byte * buf, const byte * key,
-                        uint key_len __attribute__((unused)),
-                        enum ha_rkey_function find_flag
-                        __attribute__((unused)))
-{
-  DBUG_ENTER("ha_tina::index_read");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Fill buf with value from key. Simply this is used for a single index read
-  with a key.
-  Whatever the current key is we will use it. This is what will be in "index".
-*/
-int ha_tina::index_read_idx(byte * buf, uint index, const byte * key,
-                            uint key_len __attribute__((unused)),
-                            enum ha_rkey_function find_flag
-                            __attribute__((unused)))
-{
-  DBUG_ENTER("ha_tina::index_read_idx");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-
-/*
-  Read the next position in the index.
-*/
-int ha_tina::index_next(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_next");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the previous position in the index.
-*/
-int ha_tina::index_prev(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_prev");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the first position in the index
-*/
-int ha_tina::index_first(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_first");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
-
-/*
-  Read the last position in the index
-  With this we don't need to do a filesort() with index.
-  We just read the last row and call previous.
-*/
-int ha_tina::index_last(byte * buf)
-{
-  DBUG_ENTER("ha_tina::index_last");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-}
 
 /*
   All table scans call this first.
@@ -743,8 +831,7 @@ int ha_tina::rnd_next(byte *buf)
 {
   DBUG_ENTER("ha_tina::rnd_next");
 
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   current_position= next_position;
   if (!share->mapped_file)
@@ -781,8 +868,7 @@ void ha_tina::position(const byte *record)
 int ha_tina::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
-  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
@@ -809,19 +895,14 @@ void ha_tina::info(uint flag)
 int ha_tina::extra(enum ha_extra_function operation)
 {
   DBUG_ENTER("ha_tina::extra");
+ if (operation == HA_EXTRA_MARK_AS_LOG_TABLE)
+ {
+   pthread_mutex_lock(&share->mutex);
+   share->is_log_table= TRUE;
+   pthread_mutex_unlock(&share->mutex);
+ }
   DBUG_RETURN(0);
 }
-
-/*
-  This is no longer used.
-*/
-int ha_tina::reset(void)
-{
-  DBUG_ENTER("ha_tina::reset");
-  ha_tina::extra(HA_EXTRA_RESET);
-  DBUG_RETURN(0);
-}
-
 
 /*
   Called after each table scan. In particular after deletes,
@@ -898,15 +979,6 @@ int ha_tina::delete_all_rows()
 
   records=0;
   DBUG_RETURN(rc);
-}
-
-/*
-  Always called by the start of a transaction (or by "lock tables");
-*/
-int ha_tina::external_lock(THD *thd, int lock_type)
-{
-  DBUG_ENTER("ha_tina::external_lock");
-  DBUG_RETURN(0);          // No external locking
 }
 
 /*

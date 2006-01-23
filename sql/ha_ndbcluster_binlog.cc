@@ -260,7 +260,7 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
       break;
     }
     if ((error= open_table_from_share(thd, table_share, "", 0, 
-                                      (uint) READ_ALL, 0, table)))
+                                      (uint) READ_ALL, 0, table, FALSE)))
     {
       sql_print_error("Unable to open table for %s, error=%d(%d)",
                       share->key, error, my_errno);
@@ -1219,7 +1219,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       pOp->getReqNodeId() != g_ndb_cluster_connection->node_id())
   {
     ndb->setDatabaseName(share->table->s->db.str);
-    ha_ndbcluster::invalidate_dictionary_cache(share->table,
+    ha_ndbcluster::invalidate_dictionary_cache(share->table->s,
                                                ndb,
                                                share->table->s->table_name.str,
                                                TRUE);
@@ -1714,7 +1714,16 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
 {
   DBUG_ENTER("ndbcluster_create_event");
   if (!share)
+  {
+    DBUG_PRINT("info", ("share == NULL"));
     DBUG_RETURN(0);
+  }
+  if (share->flags & NSF_NO_BINLOG)
+  {
+    DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x %d", share->flags, share->flags & NSF_NO_BINLOG));
+    DBUG_RETURN(0);
+  }
+
   NDBDICT *dict= ndb->getDictionary();
   NDBEVENT my_event(event_name);
   my_event.setTable(*ndbtab);
@@ -1831,6 +1840,12 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
 
   DBUG_ASSERT(share != 0);
 
+  if (share->flags & NSF_NO_BINLOG)
+  {
+    DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x", share->flags));
+    DBUG_RETURN(0);
+  }
+
   if (share->op)
   {
     assert(share->op->getCustomData() == (void *) share);
@@ -1854,6 +1869,7 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     {
       sql_print_error("NDB Binlog: logging of blob table %s "
                       "is not supported", share->key);
+      share->flags|= NSF_NO_BINLOG;
       DBUG_RETURN(0);
     }
   }

@@ -517,6 +517,7 @@ sub command_line_setup () {
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
     $opt_slave_myport=    $opt_master_myport + 16;
     $opt_ndbcluster_port= $opt_master_myport + 24;
+    $opt_ndbcluster_port_slave= $opt_master_myport + 32;
     $im_port=             $opt_master_myport + 10;
     $im_mysqld1_port=     $opt_master_myport + 12;
     $im_mysqld2_port=     $opt_master_myport + 14;
@@ -711,6 +712,8 @@ sub command_line_setup () {
     $glob_use_embedded_server= 1;
     push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
+    $opt_skip_ndbcluster= 1;       # Avoid auto detection
+    $opt_skip_ssl= 1;
 
     if ( $opt_extern )
     {
@@ -909,6 +912,7 @@ sub command_line_setup () {
    path_datadir => "$opt_vardir/im_mysqld_1.data",
    path_sock    => "$sockdir/mysqld_1.sock",
    path_pid     => "$opt_vardir/run/mysqld_1.pid",
+   old_log_format => 1
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -919,6 +923,7 @@ sub command_line_setup () {
    path_sock    => "$sockdir/mysqld_2.sock",
    path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
+   old_log_format => 1
   };
 
   if ( $opt_extern )
@@ -1118,6 +1123,9 @@ sub environment_setup () {
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
+  $ENV{'NDBCLUSTER_PORT_SLAVE'}=$opt_ndbcluster_port_slave;
+
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
@@ -1142,7 +1150,8 @@ sub environment_setup () {
   print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
-  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
+  print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
   print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
   print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
 }
@@ -1364,7 +1373,8 @@ sub ndbcluster_install () {
 		 "--data-dir=$opt_vardir",
 		 "--verbose=2",
 		 $ndbcluster_opts,
-		 "--initial"],
+		 "--initial",
+                 "--relative-config-data-dir"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install");
@@ -1456,7 +1466,8 @@ sub ndbcluster_install_slave () {
 		 "--verbose=2",
 		 "--small",
 		 "--ndbd-nodes=1",
-		 "--initial"],
+		 "--initial",
+		 "--relative-config-data-dir"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install_slave");
@@ -1821,6 +1832,7 @@ EOF
 ;
 
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
+    print OUT "old-log-format\n" if $instance->{'old_log_format'};
     print OUT "\n";
   }
 

@@ -19,6 +19,7 @@
 #include <Vector.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
+#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <NDBT_ReturnCodes.h>
 
@@ -36,6 +37,11 @@ static bool ga_dont_ignore_systab_0 = false;
 static Vector<class BackupConsumer *> g_consumers;
 
 static const char* ga_backupPath = "." DIR_SEPARATOR;
+
+static const char *opt_nodegroup_map_str= 0;
+static unsigned opt_nodegroup_map_len= 0;
+static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
+#define OPT_NDB_NODEGROUP_MAP 'z'
 
 NDB_STD_OPTS_VARS;
 
@@ -107,8 +113,123 @@ static struct my_option my_long_options[] =
     "Experimental. Do not ignore system table during restore.", 
     (gptr*) &ga_dont_ignore_systab_0, (gptr*) &ga_dont_ignore_systab_0, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "ndb-nodegroup-map", OPT_NDB_NODEGROUP_MAP,
+    "Nodegroup map for ndbcluster. Syntax: list of (source_ng, dest_ng)",
+    (gptr*) &opt_nodegroup_map_str,
+    (gptr*) &opt_nodegroup_map_str,
+    0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+
+static char* analyse_one_map(char *map_str, uint16 *source, uint16 *dest)
+{
+  char *end_ptr;
+  int number;
+  DBUG_ENTER("analyse_one_map");
+  /*
+    Search for pattern ( source_ng , dest_ng )
+  */
+
+  while (isspace(*map_str)) map_str++;
+
+  if (*map_str != '(')
+  {
+    DBUG_RETURN(NULL);
+  }
+  map_str++;
+
+  while (isspace(*map_str)) map_str++;
+
+  number= strtol(map_str, &end_ptr, 10);
+  if (!end_ptr || number < 0 || number >= MAX_NODE_GROUP_MAPS)
+  {
+    DBUG_RETURN(NULL);
+  }
+  *source= (uint16)number;
+  map_str= end_ptr;
+
+  while (isspace(*map_str)) map_str++;
+
+  if (*map_str != ',')
+  {
+    DBUG_RETURN(NULL);
+  }
+  map_str++;
+
+  number= strtol(map_str, &end_ptr, 10);
+  if (!end_ptr || number < 0 || number >= UNDEF_NODEGROUP)
+  {
+    DBUG_RETURN(NULL);
+  }
+  *dest= (uint16)number;
+  map_str= end_ptr;
+
+  if (*map_str != ')')
+  {
+    DBUG_RETURN(NULL);
+  }
+  map_str++;
+
+  while (isspace(*map_str)) map_str++;
+  DBUG_RETURN(map_str);
+}
+
+static bool insert_ng_map(NODE_GROUP_MAP *ng_map,
+                          uint16 source_ng, uint16 dest_ng)
+{
+  uint index= source_ng;
+  uint ng_index= ng_map[index].no_maps;
+
+  opt_nodegroup_map_len++;
+  if (ng_index >= MAX_MAPS_PER_NODE_GROUP)
+    return true;
+  ng_map[index].no_maps++;
+  ng_map[index].map_array[ng_index]= dest_ng;
+  return false;
+}
+
+static void init_nodegroup_map()
+{
+  uint i,j;
+  NODE_GROUP_MAP *ng_map = &opt_nodegroup_map[0];
+
+  for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
+  {
+    ng_map[i].no_maps= 0;
+    for (j= 0; j < MAX_MAPS_PER_NODE_GROUP; j++)
+      ng_map[i].map_array[j]= UNDEF_NODEGROUP;
+  }
+}
+
+static bool analyse_nodegroup_map(const char *ng_map_str,
+                                  NODE_GROUP_MAP *ng_map)
+{
+  uint16 source_ng, dest_ng;
+  char *local_str= (char*)ng_map_str;
+  DBUG_ENTER("analyse_nodegroup_map");
+
+  do
+  {
+    if (!local_str)
+    {
+      DBUG_RETURN(TRUE);
+    }
+    local_str= analyse_one_map(local_str, &source_ng, &dest_ng);
+    if (!local_str)
+    {
+      DBUG_RETURN(TRUE);
+    }
+    if (insert_ng_map(ng_map, source_ng, dest_ng))
+    {
+      DBUG_RETURN(TRUE);
+    }
+    if (!(*local_str))
+      break;
+  } while (TRUE);
+  DBUG_RETURN(FALSE);
+}
 
 static void short_usage_sub(void)
 {
@@ -136,11 +257,26 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       printf("Error in --nodeid,-n setting, see --help\n");
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
+    info << "Nodeid = " << ga_nodeId << endl;
     break;
   case 'b':
     if (ga_backupId == 0)
     {
       printf("Error in --backupid,-b setting, see --help\n");
+      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    }
+    info << "Backup Id = " << ga_backupId << endl;
+    break;
+  case OPT_NDB_NODEGROUP_MAP:
+    /*
+      This option is used to set a map from nodegroup in original cluster
+      to nodegroup in new cluster.
+    */
+    opt_nodegroup_map_len= 0;
+    info << "Analyse node group map" << endl;
+    if (analyse_nodegroup_map(opt_nodegroup_map_str,
+                              &opt_nodegroup_map[0]))
+    {
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
     break;
@@ -150,18 +286,55 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 bool
 readArguments(int *pargc, char*** pargv) 
 {
+  Uint32 i;
+  debug << "Load defaults" << endl;
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+
+  init_nodegroup_map();
   load_defaults("my",load_default_groups,pargc,pargv);
+  debug << "handle_options" << endl;
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
+  for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
+    opt_nodegroup_map[i].curr_index = 0;
 
-  BackupPrinter* printer = new BackupPrinter();
+#if 0
+  /*
+    Test code written t{
+o verify nodegroup mapping
+  */
+  printf("Handled options successfully\n");
+  Uint16 map_ng[16];
+  Uint32 j;
+  for (j = 0; j < 4; j++)
+  {
+  for (i = 0; i < 4 ; i++)
+    map_ng[i] = i;
+  map_nodegroups(&map_ng[0], (Uint32)4);
+  for (i = 0; i < 4 ; i++)
+    printf("NG %u mapped to %u \n", i, map_ng[i]);
+  }
+  for (j = 0; j < 4; j++)
+  {
+  for (i = 0; i < 8 ; i++)
+    map_ng[i] = i >> 1;
+  map_nodegroups(&map_ng[0], (Uint32)8);
+  for (i = 0; i < 8 ; i++)
+    printf("NG %u mapped to %u \n", i >> 1, map_ng[i]);
+  }
+  exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+#endif
+
+  BackupPrinter* printer = new BackupPrinter(opt_nodegroup_map,
+                                             opt_nodegroup_map_len);
   if (printer == NULL)
     return false;
 
-  BackupRestore* restore = new BackupRestore(ga_nParallelism);
+  BackupRestore* restore = new BackupRestore(opt_nodegroup_map,
+                                             opt_nodegroup_map_len,
+                                             ga_nParallelism);
   if (restore == NULL) 
   {
     delete printer;
@@ -225,7 +398,7 @@ readArguments(int *pargc, char*** pargv)
   {
     ga_backupPath = *pargv[0];
   }
-
+  info << "backup path = " << ga_backupPath << endl;
   return true;
 }
 
@@ -271,6 +444,7 @@ main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
 
+  debug << "Start readArguments" << endl;
   if (!readArguments(&argc, &argv))
   {
     exitHandler(NDBT_FAILED);
@@ -281,10 +455,11 @@ main(int argc, char** argv)
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
+  debug << "Start restoring meta data" << endl;
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
   if (!metaData.readHeader())
   {
-    ndbout << "Failed to read " << metaData.getFilename() << endl << endl;
+    err << "Failed to read " << metaData.getFilename() << endl << endl;
     exitHandler(NDBT_FAILED);
   }
 
@@ -292,57 +467,58 @@ main(int argc, char** argv)
   const Uint32 version = tmp.NdbVersion;
   
   char buf[NDB_VERSION_STRING_BUF_SZ];
-  ndbout << "Ndb version in backup files: " 
+  info << "Ndb version in backup files: " 
 	 <<  getVersionString(version, 0, buf, sizeof(buf)) << endl;
   
   /**
    * check wheater we can restore the backup (right version).
    */
+  debug << "Load content" << endl;
   int res  = metaData.loadContent();
   
   if (res == 0)
   {
-    ndbout_c("Restore: Failed to load content");
+    err << "Restore: Failed to load content" << endl;
     exitHandler(NDBT_FAILED);
   }
-  
+  debug << "Get no of Tables" << endl; 
   if (metaData.getNoOfTables() == 0) 
   {
-    ndbout_c("Restore: The backup contains no tables ");
+    err << "The backup contains no tables" << endl;
     exitHandler(NDBT_FAILED);
   }
-
+  debug << "Validate Footer" << endl;
 
   if (!metaData.validateFooter()) 
   {
-    ndbout_c("Restore: Failed to validate footer.");
+    err << "Restore: Failed to validate footer." << endl;
     exitHandler(NDBT_FAILED);
   }
-
+  debug << "Init Backup objects" << endl;
   Uint32 i;
   for(i= 0; i < g_consumers.size(); i++)
   {
     if (!g_consumers[i]->init())
     {
       clearConsumers();
+      err << "Failed to initialize consumers" << endl;
       exitHandler(NDBT_FAILED);
     }
 
   }
-
+  debug << "Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
       if (!g_consumers[j]->object(metaData.getObjType(i),
 				  metaData.getObjPtr(i)))
       {
-	ndbout_c("Restore: Failed to restore table: %s. "
-		 "Exiting...", 
-		 metaData[i]->getTableName());
+	err << "Restore: Failed to restore table: ";
+        err << metaData[i]->getTableName() << " ... Exiting " << endl;
 	exitHandler(NDBT_FAILED);
       } 
   }
-  
+  debug << "Restoring tables" << endl; 
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
     if (checkSysTable(metaData[i]->getTableName()))
@@ -350,21 +526,20 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
 	if (!g_consumers[j]->table(* metaData[i]))
 	{
-	  ndbout_c("Restore: Failed to restore table: %s. "
-		   "Exiting...", 
-		   metaData[i]->getTableName());
+	  err << "Restore: Failed to restore table: ";
+          err << metaData[i]->getTableName() << " ... Exiting " << endl;
 	  exitHandler(NDBT_FAILED);
 	} 
     }
   }
-  
+  debug << "Close tables" << endl; 
   for(i= 0; i < g_consumers.size(); i++)
     if (!g_consumers[i]->endOfTables())
     {
-      ndbout_c("Restore: Failed while closing tables");
+      err << "Restore: Failed while closing tables" << endl;
       exitHandler(NDBT_FAILED);
     } 
-  
+  debug << "Iterate over data" << endl; 
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
@@ -374,30 +549,30 @@ main(int argc, char** argv)
       // Read data file header
       if (!dataIter.readHeader())
       {
-	ndbout << "Failed to read header of data file. Exiting..." ;
+	err << "Failed to read header of data file. Exiting..." << endl;
 	exitHandler(NDBT_FAILED);
       }
       
-      
-      while (dataIter.readFragmentHeader(res= 0))
+      Uint32 fragmentId; 
+      while (dataIter.readFragmentHeader(res= 0, &fragmentId))
       {
 	const TupleS* tuple;
 	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	{
 	  if (checkSysTable(tuple->getTable()->getTableName()))
 	    for(Uint32 i= 0; i < g_consumers.size(); i++) 
-	      g_consumers[i]->tuple(* tuple);
+	      g_consumers[i]->tuple(* tuple, fragmentId);
 	} // while (tuple != NULL);
 	
 	if (res < 0)
 	{
-	  ndbout_c("Restore: An error occured while restoring data. "
-		   "Exiting...");
+	  err <<" Restore: An error occured while restoring data. Exiting...";
+          err << endl;
 	  exitHandler(NDBT_FAILED);
 	}
 	if (!dataIter.validateFragmentFooter()) {
-	  ndbout_c("Restore: Error validating fragment footer. "
-		   "Exiting...");
+	  err << "Restore: Error validating fragment footer. ";
+          err << "Exiting..." << endl;
 	  exitHandler(NDBT_FAILED);
 	}
       } // while (dataIter.readFragmentHeader(res))
@@ -405,7 +580,7 @@ main(int argc, char** argv)
       if (res < 0)
       {
 	err << "Restore: An error occured while restoring data. Exiting... "
-	    << "res=" << res << endl;
+	    << "res= " << res << endl;
 	exitHandler(NDBT_FAILED);
       }
       
@@ -426,11 +601,14 @@ main(int argc, char** argv)
       }
       
       const LogEntry * logEntry = 0;
-      while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
+      bool alloc_flag = false;
+      while ((logEntry = logIter.getNextLogEntry(res= 0, &alloc_flag)) != 0)
       {
 	if (checkSysTable(logEntry->m_table->getTableName()))
 	  for(Uint32 i= 0; i < g_consumers.size(); i++)
 	    g_consumers[i]->logEntry(* logEntry);
+        if (alloc_flag)
+          NdbMem_Free((void*)logEntry);
       }
       if (res < 0)
       {
@@ -452,9 +630,8 @@ main(int argc, char** argv)
 	  for(Uint32 j= 0; j < g_consumers.size(); j++)
 	    if (!g_consumers[j]->finalize_table(* metaData[i]))
 	    {
-	      ndbout_c("Restore: Failed to finalize restore table: %s. "
-		       "Exiting...", 
-		       metaData[i]->getTableName());
+	      err << "Restore: Failed to finalize restore table: %s. ";
+              err << "Exiting... " << metaData[i]->getTableName() << endl;
 	      exitHandler(NDBT_FAILED);
 	    } 
 	}
@@ -466,7 +643,7 @@ main(int argc, char** argv)
     for (i= 0; i < g_consumers.size(); i++)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
-	ndbout_c("Restore: Failed to restore epoch");
+	err << "Restore: Failed to restore epoch" << endl;
 	return -1;
       }
   }

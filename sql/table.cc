@@ -310,16 +310,29 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
 
-    /*
-      We can't mark all tables in 'mysql' database as system since we don't
-      allow to lock such tables for writing with any other tables (even with
-      other system tables) and some privilege tables need this.
-    */
     if (share->db.length == 5 &&
-        !my_strcasecmp(system_charset_info, share->db.str, "mysql") &&
-        (!my_strcasecmp(system_charset_info, share->table_name.str, "proc") ||
-         !my_strcasecmp(system_charset_info, share->table_name.str, "event")))
-      share->system_table= 1;
+        !my_strcasecmp(system_charset_info, share->db.str, "mysql"))
+    {
+      /*
+        We can't mark all tables in 'mysql' database as system since we don't
+        allow to lock such tables for writing with any other tables (even with
+        other system tables) and some privilege tables need this.
+      */
+      if (!my_strcasecmp(system_charset_info, share->table_name.str, "proc")
+          || !my_strcasecmp(system_charset_info, share->table_name.str,
+                            "event"))
+        share->system_table= 1;
+      else
+      {
+        if (!my_strcasecmp(system_charset_info, share->table_name.str,
+                           "general_log"))
+          share->log_table= QUERY_LOG_GENERAL;
+        else
+          if (!my_strcasecmp(system_charset_info, share->table_name.str,
+                             "slow_log"))
+            share->log_table= QUERY_LOG_SLOW;
+      }
+    }
     error_given= 1;
   }
 
@@ -388,6 +401,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   share->default_part_db_type= 
         ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 0, 0);
+  DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
   share->db_type= ha_checktype(thd, legacy_db_type, 0, 0);
@@ -525,7 +539,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                           ((uint2korr(head+14) == 0xffff ?
                             uint4korr(head+47) : uint2korr(head+14))));
  
-  if ((n_length= uint2korr(head+55)))
+  if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
     char *buff, *next_chunk, *buff_end;
@@ -599,6 +613,38 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
+    if (share->mysql_version > 50105 && next_chunk + 5 < buff_end)
+    {
+      /*
+        Partition state was introduced to support partition management in version 5.1.5
+      */
+      uint32 part_state_len= uint4korr(next_chunk);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if ((share->part_state_len= part_state_len))
+        if (!(share->part_state=
+              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
+                                   part_state_len)))
+        {
+          my_free(buff, MYF(0));
+          goto err;
+        }
+#else
+      if (part_state_len)
+      {
+        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
+        my_free(buff, MYF(0));
+        goto err;
+      }
+#endif
+      next_chunk+= 4 + part_state_len;
+    }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    else
+    {
+      share->part_state_len= 0;
+      share->part_state= NULL;
+    }
+#endif
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
     {
@@ -1223,7 +1269,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam)
+                          TABLE *outparam, bool is_create_table)
 {
   int error;
   uint records, i;
@@ -1379,13 +1425,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   {
     if (mysql_unpack_partition(thd, share->partition_info,
                                share->partition_info_len,
-                               outparam, share->default_part_db_type))
+                               (uchar*)share->part_state,
+                               share->part_state_len,
+                               outparam, is_create_table,
+                               share->default_part_db_type))
       goto err;
     /*
       Fix the partition functions and ensure they are not constant
       functions
     */
-    if (fix_partition_func(thd, share->normalized_path.str, outparam))
+    if (fix_partition_func(thd, share->normalized_path.str, outparam,
+                           is_create_table))
       goto err;
   }
 #endif
@@ -1503,6 +1553,7 @@ int closefrm(register TABLE *table, bool free_share)
   if (table->part_info)
   {
     free_items(table->part_info->item_free_list);
+    table->part_info->item_free_list= 0;
     table->part_info= 0;
   }
 #endif
@@ -1985,7 +2036,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
-    int2store(fileinfo+55, create_info->extra_size);
+    int4store(fileinfo+55, create_info->extra_size);
     bzero(fill,IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {

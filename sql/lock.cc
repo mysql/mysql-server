@@ -351,9 +351,25 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
   }
 }
 
+/* Downgrade all locks on a table to new WRITE level from WRITE_ONLY */
+
+void mysql_lock_downgrade_write(THD *thd, TABLE *table,
+                                thr_lock_type new_lock_type)
+{
+  MYSQL_LOCK *locked;
+  TABLE *write_lock_used;
+  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  {
+    for (uint i=0; i < locked->lock_count; i++)
+      thr_downgrade_write_lock(locked->locks[i], new_lock_type);
+    my_free((gptr) locked,MYF(0));
+  }
+}
+
+
 /* abort all other threads waiting to get lock in table */
 
-void mysql_lock_abort(THD *thd, TABLE *table)
+void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
 {
   MYSQL_LOCK *locked;
   TABLE *write_lock_used;
@@ -362,7 +378,7 @@ void mysql_lock_abort(THD *thd, TABLE *table)
   if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
   {
     for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock);
+      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
     my_free((gptr) locked,MYF(0));
   }
   DBUG_VOID_RETURN;
@@ -598,18 +614,15 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       lock_count++;
     }
     /*
-      To be able to open and lock for reading system tables like 'mysql.proc',
-      when we already have some tables opened and locked, and avoid deadlocks
-      we have to disallow write-locking of these tables with any other tables.
+      Check if we can lock the table. For some tables we cannot do that
+      beacause of handler-specific locking issues.
     */
-    if (table_ptr[i]->s->system_table &&
-        table_ptr[i]->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-        count != 1)
-    {
-      my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db.str,
-               table_ptr[i]->s->table_name.str);
-      DBUG_RETURN(0);
-    }
+    if (!table_ptr[i]-> file->
+          check_if_locking_is_allowed(thd->lex->sql_command, thd->lex->type,
+                                      table_ptr[i], count,
+                                      (thd == logger.get_general_log_thd()) ||
+                                           (thd == logger.get_slow_log_thd())))
+      return 0;
   }
 
   if (!(sql_lock= (MYSQL_LOCK*)
