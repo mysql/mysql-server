@@ -1371,7 +1371,8 @@ sub ndbcluster_install () {
 		 "--data-dir=$opt_vardir",
 		 "--verbose=2",
 		 $ndbcluster_opts,
-		 "--initial"],
+		 "--initial",
+                 "--relative-config-data-dir"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install");
@@ -1463,7 +1464,8 @@ sub ndbcluster_install_slave () {
 		 "--verbose=2",
 		 "--small",
 		 "--ndbd-nodes=1",
-		 "--initial"],
+		 "--initial",
+		 "--relative-config-data-dir"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install_slave");
