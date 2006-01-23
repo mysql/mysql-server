@@ -91,6 +91,12 @@ public:
   virtual bool store_date(TIME *time)=0;
   virtual bool store_time(TIME *time)=0;
   virtual bool store(Field *field)=0;
+#ifdef EMBEDDED_LIBRARY
+  int begin_dataset();
+  virtual void remove_last_row() {}
+#else
+  void remove_last_row() {}
+#endif
 };
 
 
@@ -117,6 +123,9 @@ public:
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
+#ifdef EMBEDDED_LIBRARY
+  void remove_last_row();
+#endif
 };
 
 
