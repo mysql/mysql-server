@@ -12,6 +12,7 @@
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 rpl_bit_npk     : Bug #13418
+events          : Test case instability - infinite locking. To be fixed.
 func_group      : Bug #15448
 func_math       : Bug #15448
 group_min_max   : Bug #15448 
