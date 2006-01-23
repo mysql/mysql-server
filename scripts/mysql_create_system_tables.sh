@@ -43,6 +43,7 @@ c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls="" c_pl=""
 i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls="" i_pl=""
 c_p="" c_pp=""
 c_gl="" c_sl=""
+c_ev= ""
 
 # Check for old tables
 if test ! -f $mdata/db.frm

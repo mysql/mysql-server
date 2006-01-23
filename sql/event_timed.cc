@@ -191,16 +191,78 @@ int
 event_timed::init_interval(THD *thd, Item *expr, interval_type new_interval)
 {
   longlong tmp;
+  String value;
+  INTERVAL interval;
+  
   DBUG_ENTER("event_timed::init_interval");
 
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  if ((tmp= expr->val_int()) <= 0)
-    DBUG_RETURN(EVEX_BAD_PARAMS);
+  value.alloc(MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN);
+  if (get_interval_value(expr, new_interval, &value, &interval))
+    DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  expression= tmp;
-  interval= new_interval;
+  expression= 0;
+
+  switch (new_interval) {
+  case INTERVAL_YEAR:
+    expression= interval.year;
+    break;
+  case INTERVAL_QUARTER:
+  case INTERVAL_MONTH:
+    expression= interval.month;
+    break;
+  case INTERVAL_WEEK:
+  case INTERVAL_DAY:
+    expression= interval.day;
+    break;
+  case INTERVAL_HOUR:
+    expression= interval.hour;
+    break;
+  case INTERVAL_MINUTE:
+    expression= interval.minute;
+    break;
+  case INTERVAL_SECOND:
+    expression= interval.second;
+    break;
+  case INTERVAL_YEAR_MONTH:			// Allow YEAR-MONTH YYYYYMM
+    expression= interval.year* 12 + interval.month;
+    break;
+  case INTERVAL_DAY_HOUR:
+    expression= interval.day* 24 + interval.hour;
+    break;
+  case INTERVAL_DAY_MINUTE:
+    expression= (interval.day* 24 + interval.hour) * 60 + interval.minute;
+    break;
+  case INTERVAL_HOUR_SECOND: // day is anyway 0
+  case INTERVAL_DAY_SECOND:
+    /* DAY_SECOND having problems because of leap seconds? */
+    expression= ((interval.day* 24 + interval.hour) * 60 + interval.minute)*60
+                 + interval.second;
+    break;
+  case INTERVAL_MINUTE_MICROSECOND: // day and hour are 0
+  case INTERVAL_HOUR_MICROSECOND:// day is anyway 0
+  case INTERVAL_DAY_MICROSECOND:
+    expression= ((((interval.day*24) + interval.hour)*60+interval.minute)*60 +
+                interval.second) * 1000000L + interval.second_part;
+    break;
+  case INTERVAL_HOUR_MINUTE:
+    expression= interval.hour * 60 + interval.minute;
+    break;
+  case INTERVAL_MINUTE_SECOND:
+    expression= interval.minute * 60 + interval.second;
+    break;
+  case INTERVAL_SECOND_MICROSECOND:
+    expression= interval.second * 1000000L + interval.second_part;
+    break;
+  default:
+    break;
+  }
+  if (interval.neg || expression > EVEX_MAX_INTERVAL_VALUE)
+    DBUG_RETURN(EVEX_BAD_PARAMS);
+  
+  this->interval= new_interval;
   DBUG_RETURN(0);
 }
 
@@ -355,7 +417,7 @@ event_timed::init_definer(THD *thd)
  Loads an event from a row from mysql.event
  
  SYNOPSIS
-   event_timed::load_from_row()
+   event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
    
  REMARKS
    This method is silent on errors and should behave like that. Callers
@@ -499,8 +561,83 @@ error:
 
 
 /*
-  Note: In the comments this->ends is referenced as m_ends
+ Computes the sum of a timestamp plus interval
+ 
+ SYNOPSIS
+   get_next_time(TIME *start, int interval_value, interval_type interval)
+   
+   next        - the sum
+   start       - add interval_value to this time
+   i_value - quantity of time type interval to add
+   i_type       - type of interval to add (SECOND, MINUTE, HOUR, WEEK ...) 
+*/
 
+static
+bool get_next_time(TIME *next, TIME *start, int i_value, interval_type i_type)
+{
+  bool ret;
+  INTERVAL interval;
+  TIME tmp;
+  
+  bzero(&interval, sizeof(interval));
+
+  switch (i_type) {
+  case INTERVAL_YEAR:
+    interval.year= (ulong) i_value;
+    break;
+  case INTERVAL_QUARTER:
+    interval.month= (ulong)(i_value*3);
+    break;
+  case INTERVAL_YEAR_MONTH:
+  case INTERVAL_MONTH:
+    interval.month= (ulong) i_value;
+    break;
+  case INTERVAL_WEEK:
+    interval.day= (ulong)(i_value*7);
+    break;
+  case INTERVAL_DAY:
+    interval.day= (ulong) i_value;
+    break;
+  case INTERVAL_DAY_HOUR:
+  case INTERVAL_HOUR:
+    interval.hour= (ulong) i_value;
+    break;
+  case INTERVAL_DAY_MINUTE:
+  case INTERVAL_HOUR_MINUTE:
+  case INTERVAL_MINUTE:
+    interval.minute=i_value;
+    break;
+  case INTERVAL_DAY_SECOND:
+  case INTERVAL_HOUR_SECOND:
+  case INTERVAL_MINUTE_SECOND:
+  case INTERVAL_SECOND:
+    interval.second=i_value;
+    break;
+  case INTERVAL_DAY_MICROSECOND:
+  case INTERVAL_HOUR_MICROSECOND:
+  case INTERVAL_MINUTE_MICROSECOND:
+  case INTERVAL_SECOND_MICROSECOND:
+  case INTERVAL_MICROSECOND:
+    interval.second_part=i_value;
+    break;
+  }
+  tmp= *start;
+  if (!(ret= date_add_interval(&tmp, i_type, interval)))
+    *next= tmp;
+
+  return ret;
+}
+
+
+/*
+ Computes next execution time. 
+ 
+ SYNOPSIS
+   event_timed::compute_next_execution_time()
+ 
+ REMARKS:
+   The time is set in execute_at, if no more executions the latter is set to
+   0000-00-00.
 */
 
 bool
@@ -605,14 +742,13 @@ event_timed::compute_next_execution_time()
       execute_at= time_now;
     else
     {
-      my_time_t last, ll_ends;
-
-      // There was previous execution     
-      last= sec_since_epoch_TIME(&last_executed) + expression;
-      ll_ends= sec_since_epoch_TIME(&ends);
-      //now convert back to TIME
-      //ToDo Andrey: maybe check for error here?
-      if (ll_ends < last)
+      TIME next_exec;
+      
+      if (get_next_time(&next_exec, &last_executed, expression, interval))
+        goto err;
+      
+      // There was previous execution
+      if (my_time_compare(&ends, &next_exec) == -1)
       {
         // Next execution after ends. No more executions
         set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
@@ -620,7 +756,7 @@ event_timed::compute_next_execution_time()
           dropped= true;
       }
       else
-        my_tz_UTC->gmt_sec_to_TIME(&execute_at, last);
+        execute_at= next_exec;
     }
     goto ret;
   }
@@ -628,14 +764,14 @@ event_timed::compute_next_execution_time()
   {
     // both starts and m_ends are not set, se we schedule for the next
     // based on last_executed
-    if (!last_executed.year)
+    if (last_executed.year)
+    {
+      if (get_next_time(&execute_at, &last_executed, expression, interval))
+        goto err;
+    }
+    else
        //last_executed not set. Schedule the event for now
       execute_at= time_now;
-    else
-      //ToDo Andrey: maybe check for error here?
-      my_tz_UTC->gmt_sec_to_TIME(&execute_at, 
-                   sec_since_epoch_TIME(&last_executed) + expression);
-    goto ret;
   }
   else
   {
@@ -648,17 +784,13 @@ event_timed::compute_next_execution_time()
         Hence schedule for starts + m_expression in case last_executed
         is not set, otherwise to last_executed + m_expression
       */
-      my_time_t last;
-
-      //convert either last_executed or starts to seconds
       if (last_executed.year)
-        last= sec_since_epoch_TIME(&last_executed) + expression;
+      {
+        if (get_next_time(&execute_at, &last_executed, expression, interval))
+          goto err;
+      }
       else
-        last= sec_since_epoch_TIME(&starts);
-
-      //now convert back to TIME
-      //ToDo Andrey: maybe check for error here?
-      my_tz_UTC->gmt_sec_to_TIME(&execute_at, last);
+        execute_at= starts;
     }
     else
     {
@@ -668,25 +800,24 @@ event_timed::compute_next_execution_time()
         Hence check for m_last_execute and increment with m_expression.
         If last_executed is not set then schedule for now
       */
-      my_time_t last, ll_ends;
 
       if (!last_executed.year)
         execute_at= time_now;
       else
       {
-        last= sec_since_epoch_TIME(&last_executed);
-        ll_ends= sec_since_epoch_TIME(&ends);
-        last+= expression;
-        //now convert back to TIME
-        //ToDo Andrey: maybe check for error here?
-        if (ll_ends < last)
+        TIME next_exec;
+
+        if (get_next_time(&next_exec, &last_executed, expression, interval))
+          goto err;
+
+        if (my_time_compare(&ends, &next_exec) == -1)
         {
           set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
           if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
             dropped= true;
         }
         else
-          my_tz_UTC->gmt_sec_to_TIME(&execute_at, last);
+          execute_at= next_exec;
       }
     }
     goto ret;
@@ -694,17 +825,18 @@ event_timed::compute_next_execution_time()
 ret:
 
   DBUG_RETURN(false);
+err:
+  DBUG_RETURN(true);
 }
 
 
 void
-event_timed::mark_last_executed()
+event_timed::mark_last_executed(THD *thd)
 {
   TIME time_now;
-  my_time_t now;
 
-  time((time_t *)&now);
-  my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
+  thd->end_time();
+  my_tz_UTC->gmt_sec_to_TIME(&time_now, (my_time_t) thd->query_start());
 
   last_executed= time_now; // was execute_at
 #ifdef ANDREY_0
