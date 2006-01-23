@@ -95,7 +95,8 @@ public:
     InvalidTablespace = 755,
     VarsizeBitfieldNotSupported = 757,
     NotATablespace = 758,
-    InvalidTablespaceVersion = 759
+    InvalidTablespaceVersion = 759,
+    OutOfStringBuffer = 773
   };
 
 private:

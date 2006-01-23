@@ -2056,8 +2056,30 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_schemaOp.setSize(8);
   //c_opDropObj.setSize(8);
   c_Trans.setSize(8);
-  c_rope_pool.setSize(100000/28);
 
+  Uint32 rps = 0;
+  rps += tablerecSize * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
+  rps += attributesize * (MAX_ATTR_NAME_SIZE + MAX_ATTR_DEFAULT_VALUE_SIZE);
+  rps += c_maxNoOfTriggers * MAX_TAB_NAME_SIZE;
+  rps += (10 + 10) * MAX_TAB_NAME_SIZE;
+
+  Uint32 sm = 5;
+  ndb_mgm_get_int_parameter(p, CFG_DB_STRING_MEMORY, &sm);
+  if (sm == 0)
+    sm = 5;
+  
+  Uint32 sb = 0;
+  if (sm < 100)
+  {
+    sb = (rps * sm) / 100;
+  }
+  else
+  {
+    sb = sm;
+  }
+  
+  c_rope_pool.setSize(sb/28 + 100);
+  
   // Initialize BAT for interface to file system
   NewVARIABLE* bat = allocateBat(2);
   bat[0].WA = &c_schemaPageRecordArray.getPtr(0)->word[0];
@@ -5866,7 +5888,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   { 
     Rope name(c_rope_pool, tablePtr.p->tableName);
-    ndbrequire(name.assign(c_tableDesc.TableName, tableNameLength, name_hash));
+    tabRequire(name.assign(c_tableDesc.tableDesc.TableName, tableNameLength, name_hash),
+	       CreateTableRef::OutOfStringBuffer);
   }
 
   Ptr<DictObject> obj_ptr;
@@ -5907,16 +5930,20 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
-    ndbrequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen));
+    tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
+	       CreateTableRef::OutOfStringBuffer);
     Rope range(c_rope_pool, tablePtr.p->rangeData);
-    ndbrequire(range.assign(c_tableDesc.RangeListData,
-               c_tableDesc.RangeListDataLen));
+    tabRequire(range.assign(c_tableDesc.RangeListData,
+               c_tableDesc.RangeListDataLen),
+	      CreateTableRef::OutOfStringBuffer);
     Rope fd(c_rope_pool, tablePtr.p->ngData);
-    ndbrequire(fd.assign((const char*)c_tableDesc.FragmentData,
-                         c_tableDesc.FragmentDataLen));
+    tabRequire(fd.assign((const char*)c_tableDesc.FragmentData,
+                         c_tableDesc.FragmentDataLen),
+	       CreateTableRef::OutOfStringBuffer);
     Rope ts(c_rope_pool, tablePtr.p->tsData);
-    ndbrequire(ts.assign((const char*)c_tableDesc.TablespaceData,
-                         c_tableDesc.TablespaceDataLen));
+    tabRequire(ts.assign((const char*)c_tableDesc.TablespaceData,
+                         c_tableDesc.TablespaceDataLen),
+	       CreateTableRef::OutOfStringBuffer);
   }
   
   c_fragDataLen = c_tableDesc.FragmentDataLen;
@@ -6031,7 +6058,13 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
      */
     {
       Rope name(c_rope_pool, attrPtr.p->attributeName);
-      name.assign(attrDesc.AttributeName, len, name_hash);
+      if (!name.assign(attrDesc.AttributeName, len, name_hash))
+      {
+	jam();
+	parseP->errorCode = CreateTableRef::OutOfStringBuffer;
+	parseP->errorLine = __LINE__;
+	return;
+      }
     }
     attrPtr.p->attributeId = i;
     //attrPtr.p->attributeId = attrDesc.AttributeId;
@@ -14763,7 +14796,7 @@ Dbdict::create_fg_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(fg.FilegroupName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
     }
@@ -15002,7 +15035,7 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     {
       Rope name(c_rope_pool, obj_ptr.p->m_name);
       if(!name.assign(f.FileName, len, hash)){
-	op->m_errorCode = CreateTableRef::TableNameTooLong;
+	op->m_errorCode = CreateTableRef::OutOfStringBuffer;
 	break;
       }
     }

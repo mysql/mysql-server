@@ -3215,9 +3215,9 @@ size_number:
             ulonglong number, test_number;
             uint text_shift_number= 0;
             longlong prefix_number;
-            char *end_ptr;
             char *start_ptr= $1.str;
             uint str_len= strlen(start_ptr);
+            char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
             if ((start_ptr + str_len - 1) == end_ptr)
