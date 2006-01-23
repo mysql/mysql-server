@@ -174,3 +174,11 @@ insert into t1 values (0, '1');
 update t1 set b = b + 1 where a = 0;
 select * from t1;
 drop table t1;
+
+#
+# Bug #16510 Updating field named like '*name' caused server crash
+#
+create table t1(f1 int, `*f2` int);
+insert into t1 values (1,1);
+update t1 set `*f2`=1;
+drop table t1;
