@@ -12,6 +12,7 @@
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 rpl_bit_npk     : Bug #13418
+events          : Test case instability - infinite locking. To be fixed.
 func_group      : Bug #15448
 func_math       : Bug #15448
 group_min_max   : Bug #15448 
@@ -20,7 +21,6 @@ subselect       : Bug#15706
 ps_7ndb         : dbug assert in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
 partition_03ndb : Bug#16385
-events          : Affects flush test case. A table lock not released somewhere
 ndb_binlog_basic   : Results are not deterministic, Tomas will fix
 rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
