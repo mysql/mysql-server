@@ -806,16 +806,18 @@ event_timed::get_show_create_event(THD *thd, uint *length)
 {
   char *dst, *ret;
   uint len, tmp_len;
+  DBUG_ENTER("get_show_create_event");
+  DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]", body.length, body.str));
 
-  len = strlen("CREATE EVENT `") + dbname.length + strlen(".") + name.length +
-        strlen("` ON SCHEDULE EVERY 5 MINUTE DO ") + body.length + strlen(";");
+  len = strlen("CREATE EVENT `") + dbname.length + strlen("`.`") + name.length +
+        strlen("` ON SCHEDULE EVERY 5 MINUTE DO ") + body.length;// + strlen(";");
   
   ret= dst= (char*) alloc_root(thd->mem_root, len + 1);
   memcpy(dst, "CREATE EVENT `", tmp_len= strlen("CREATE EVENT `"));
   dst+= tmp_len;
   memcpy(dst, dbname.str, tmp_len=dbname.length);
   dst+= tmp_len;
-  memcpy(dst, ".", tmp_len= strlen("."));
+  memcpy(dst, "`.`", tmp_len= strlen("`.`"));
   dst+= tmp_len;
   memcpy(dst, name.str, tmp_len= name.length);
   dst+= tmp_len;
@@ -825,13 +827,14 @@ event_timed::get_show_create_event(THD *thd, uint *length)
 
   memcpy(dst, body.str, tmp_len= body.length);
   dst+= tmp_len;
-  memcpy(dst, ";", 1);
-  ++dst;
+//  memcpy(dst, ";", 1);
+//  ++dst;
   *dst= '\0';
  
   *length= len;
-
-  return ret;
+  
+  DBUG_PRINT("ret_info",("len=%d",*length));
+  DBUG_RETURN(ret);
 }
 
 
@@ -944,8 +947,12 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   lex.et_compile_phase= TRUE;
   if (yyparse((void *)thd) || thd->is_fatal_error)
   {
+    DBUG_PRINT("error", ("error during compile or thd->is_fatal_error=%d",
+                          thd->is_fatal_error));
     //  Free lex associated resources
     //  QQ: Do we really need all this stuff here ?
+    sql_print_error("error during compile of %s.%s or thd->is_fatal_error=%d",
+                    dbname.str, name.str, thd->is_fatal_error);
     if (lex.sphead)
     {
       if (&lex != thd->lex)
@@ -953,13 +960,10 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
       delete lex.sphead;
       lex.sphead= 0;
     }
-    // QQ: anything else ?
-    lex_end(&lex);
-    thd->lex= old_lex;
-
     ret= EVEX_COMPILE_ERROR;
     goto done;
   }
+  DBUG_PRINT("note", ("success compiling %s.%s", dbname.str, name.str));
   
   sphead= lex.et->sphead;
   sphead->m_db= dbname;
@@ -973,6 +977,8 @@ done:
   lex.et->free_sphead_on_delete= false;
   delete lex.et;
   lex_end(&lex);
+  DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
+
   thd->lex= old_lex;
   thd->query= old_query;
   thd->query_length= old_query_len;

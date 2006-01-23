@@ -6,9 +6,29 @@ Note	1305	Event event1 does not exist
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2;
 alter event event2 disabled;
+alter event event2 on completion not preserve;
+alter event event2 on schedule every 1 year on completion preserve rename to event3 comment "new comment" do begin select 1; end__
+alter event event3 rename to event2;
 drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
+create event e_43 on schedule every 1 second do set @a = 5;
+set global event_scheduler = 1;
+select sleep(2);
+sleep(2)
+0
+alter event e_43 do alter event e_43 do set @a = 4;
+select sleep(3);
+sleep(3)
+0
+select db, name, body, status, interval_field, interval_value from mysql.event;
+db	name	body	status	interval_field	interval_value
+events_test	e_43	 set @a = 4	ENABLED	SECOND	1
+drop event e_43;
+select sleep(1);
+sleep(1)
+0
+set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:
@@ -27,69 +47,4 @@ set event_scheduler=0;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
 set global event_scheduler=2;
 ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
-set global event_scheduler=0;
-select count(*) from mysql.event;
-count(*)
-0
-select get_lock("test_lock1", 20);
-get_lock("test_lock1", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
-select count(*) from mysql.event;
-count(*)
-1
-select release_lock("test_lock1");
-release_lock("test_lock1")
-1
-drop event закачка;
-select count(*) from mysql.event;
-count(*)
-0
-set global event_scheduler=1;
-select get_lock("test_lock2", 20);
-get_lock("test_lock2", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
-select sleep(2);
-sleep(2)
-0
-select release_lock("test_lock2");
-release_lock("test_lock2")
-1
-drop event закачка;
-set global event_scheduler=1;
-select get_lock("test_lock2_1", 20);
-get_lock("test_lock2_1", 20)
-1
-create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
-select sleep(2);
-sleep(2)
-0
-set global event_scheduler=0;
-select sleep(2);
-sleep(2)
-0
-select release_lock("test_lock2_1");
-release_lock("test_lock2_1")
-1
-select sleep(2);
-sleep(2)
-0
-drop event закачка21;
-set global event_scheduler=1;
-select get_lock("test_lock3", 20);
-get_lock("test_lock3", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
-select sleep(2);
-sleep(2)
-0
-drop event закачка;
-select release_lock("test_lock3");
-release_lock("test_lock3")
-1
-set global event_scheduler=0;
-select sleep(2);
-sleep(2)
-0
 drop database events_test;
