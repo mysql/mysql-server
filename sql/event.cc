@@ -88,8 +88,14 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 int
 my_time_compare(TIME *a, TIME *b)
 {
+
+#ifdef ENABLE_WHEN_WE_HAVE_MILLISECOND_IN_TIMESTAMPS
   my_ulonglong a_t= TIME_to_ulonglong_datetime(a)*100L + a->second_part;
   my_ulonglong b_t= TIME_to_ulonglong_datetime(b)*100L + b->second_part;
+#else
+  my_ulonglong a_t= TIME_to_ulonglong_datetime(a);
+  my_ulonglong b_t= TIME_to_ulonglong_datetime(b);
+#endif
 
   if (a_t > b_t)
     return 1;
@@ -356,10 +362,15 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
   DBUG_PRINT("info", ("check existance of an event with the same name"));
   if (!evex_db_find_event_aux(thd, et->dbname, et->name, table))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		      ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
-		      et->name.str);
-    goto ok;    
+    if (create_if_not)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		          ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
+		          et->name.str);
+      goto ok;    
+    }
+    my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), et->name.str);
+    goto err;
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
