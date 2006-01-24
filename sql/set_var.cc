@@ -631,7 +631,7 @@ sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
 sys_var_have_variable sys_have_isam("have_isam", &have_isam);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
-sys_var_have_variable sys_have_partition_db("have_partition_engine",
+sys_var_have_variable sys_have_partition_db("have_partitioning",
                                             &have_partition_db);
 sys_var_have_variable sys_have_query_cache("have_query_cache",
                                            &have_query_cache);
