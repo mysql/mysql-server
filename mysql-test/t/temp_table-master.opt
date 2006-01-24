@@ -1,1 +1,1 @@
---tmpdir=$MYSQL_TEST_DIR/var//tmp
+--tmpdir=$MYSQLTEST_VARDIR//tmp
