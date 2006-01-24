@@ -14,7 +14,7 @@ show binlog events from 98;
 # absolutely need variables names to be quoted and strings to be
 # escaped).
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 
 drop table t2;
 
 # End of 4.1 tests
