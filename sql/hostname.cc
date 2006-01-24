@@ -61,7 +61,7 @@ bool hostname_cache_init()
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
 				     sizeof(struct in_addr),NULL,
 				     (hash_free_key) free,
-				     &my_charset_latin1)))
+				     &my_charset_bin)))
     return 1;
   hostname_cache->clear();
   (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
