@@ -287,4 +287,12 @@ update t1 set f1=1 where f1=3;
 update t2,t1 set f1=3,f2=3 where f1=f2 and f1=1;
 --disable_info
 drop table t1,t2;
+
+#
+# Bug #16510 Updating field named like '*name' caused server crash
+#
+create table t1(f1 int, `*f2` int);
+insert into t1 values (1,1);
+update t1 set `*f2`=1;
+drop table t1;
 # End of 4.1 tests
