@@ -1,1 +1,1 @@
-rm -f $MYSQL_TEST_DIR/var/slave-data/master.info
+rm -f $MYSQLTEST_VARDIR/slave-data/master.info

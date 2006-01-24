@@ -221,8 +221,8 @@ mysqltest: At line 1: Variable name in =hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
 mysqltest: At line 1: Missing file name in source
 mysqltest: At line 1: Could not open file ./non_existingFile
-mysqltest: In included file "./var/tmp/recursive.sql": At line 1: Source directives are nesting too deep
-mysqltest: In included file "./var/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 
 2 = outer loop variable after while
 here is the sourced script
@@ -353,9 +353,9 @@ mysqltest: At line 1: Missing connection db
 mysqltest: At line 1: Could not open connection 'con2': Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
-mysqltest: In included file "./var/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
-mysqltest: In included file "./var/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
-mysqltest: In included file "./var/tmp/con.sql": At line 2: Connection test_con1 already exists
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/con.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/con.sql": At line 3: connection 'test_con1' not found in connection pool
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/con.sql": At line 2: Connection test_con1 already exists
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc

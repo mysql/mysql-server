@@ -46,15 +46,15 @@ sync_slave_with_master;
 set time_zone='Europe/Moscow';
 select * from t1;
 connection master;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 
 
 # Let us check with LOAD DATA INFILE
 # (we do it after mysqlbinlog because the temp files names are not constant)
 connection master;
 delete from t1;
 set time_zone='UTC';
-load data infile '../../std_data/rpl_timezone.dat' into table t1;
+load data infile '../std_data_ln/rpl_timezone.dat' into table t1;
 select * from t1;
 sync_slave_with_master;
 set time_zone='UTC';

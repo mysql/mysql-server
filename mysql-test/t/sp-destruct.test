@@ -11,9 +11,9 @@
 --source include/not_windows.inc
 
 # Backup proc table
---system rm -rf var/master-data/mysql/backup
---system mkdir var/master-data/mysql/backup
---system cp var/master-data/mysql/proc.* var/master-data/mysql/backup/
+--system rm -rf $MYSQLTEST_VARDIR/master-data/mysql/backup
+--system mkdir $MYSQLTEST_VARDIR/master-data/mysql/backup
+--system cp $MYSQLTEST_VARDIR/master-data/mysql/proc.* $MYSQLTEST_VARDIR/master-data/mysql/backup/
 
 use test;
 
@@ -45,7 +45,7 @@ insert into t1 values (0);
 flush table mysql.proc;
 
 # Thrashing the .frm file
---system echo 'saljdlfa' > var/master-data/mysql/proc.frm
+--system echo 'saljdlfa' > $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
 --error ER_NOT_FORM_FILE
 call bug14233();
 --error ER_NOT_FORM_FILE
@@ -57,7 +57,7 @@ insert into t1 values (0);
 flush table mysql.proc;
 
 # Drop the mysql.proc table
---system rm var/master-data/mysql/proc.*
+--system rm $MYSQLTEST_VARDIR/master-data/mysql/proc.*
 --error ER_NO_SUCH_TABLE
 call bug14233();
 --error ER_NO_SUCH_TABLE
@@ -66,8 +66,8 @@ create view v1 as select bug14233_f();
 insert into t1 values (0);
 
 # Restore mysql.proc
---system mv var/master-data/mysql/backup/* var/master-data/mysql/
---system rmdir var/master-data/mysql/backup
+--system mv $MYSQLTEST_VARDIR/master-data/mysql/backup/* $MYSQLTEST_VARDIR/master-data/mysql/
+--system rmdir $MYSQLTEST_VARDIR/master-data/mysql/backup
 
 flush table mysql.proc;
 flush privileges;

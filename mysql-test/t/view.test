@@ -1221,11 +1221,11 @@ drop table t1;
 create table t1 (a int, b char(10));
 create view v1 as select * from t1 where a != 0 with check option;
 -- error 1369
-load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+load data infile '../std_data_ln/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 select * from v1;
 delete from t1;
-load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+load data infile '../std_data_ln/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 select * from v1;
 drop view v1;
@@ -1234,11 +1234,11 @@ drop table t1;
 create table t1 (a text, b text);
 create view v1 as select * from t1 where a <> 'Field A' with check option;
 -- error 1369
-load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+load data infile '../std_data_ln/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 select concat('|',a,'|'), concat('|',b,'|') from v1;
 delete from t1;
-load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+load data infile '../std_data_ln/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 select concat('|',a,'|'), concat('|',b,'|') from v1;
 drop view v1;
