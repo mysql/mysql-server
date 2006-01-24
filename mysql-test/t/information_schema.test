@@ -790,3 +790,13 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
+
+#
+# Bug #15851 Unlistable directories yield no info from information_schema
+#
+create database mysqltest;
+create table mysqltest.t1(a int);
+--exec chmod -r $MYSQL_TEST_DIR/var/master-data/mysqltest
+select table_schema from information_schema.tables where table_schema='mysqltest';
+--exec chmod +r $MYSQL_TEST_DIR/var/master-data/mysqltest
+drop database mysqltest;
