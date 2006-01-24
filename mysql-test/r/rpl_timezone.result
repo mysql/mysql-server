@@ -68,7 +68,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 delete from t1;
 set time_zone='UTC';
-load data infile '../../std_data/rpl_timezone.dat' into table t1;
+load data infile '../std_data_ln/rpl_timezone.dat' into table t1;
 select * from t1;
 t
 2004-01-01 00:00:00

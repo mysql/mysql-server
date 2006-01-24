@@ -14,8 +14,8 @@ connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
-system cat /dev/null > var/slave-data/master.info;
-system chmod 000 var/slave-data/master.info;
+system cat /dev/null > $MYSQLTEST_VARDIR/slave-data/master.info;
+system chmod 000 $MYSQLTEST_VARDIR/slave-data/master.info;
 connection slave;
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
@@ -26,7 +26,7 @@ drop table if exists t1, t2, t3, t4;
 --replace_result $MYSQL_TEST_DIR TESTDIR
 --error 1105,1105,29
 start slave;
-system chmod 600 var/slave-data/master.info;
+system chmod 600  $MYSQLTEST_VARDIR/slave-data/master.info;
 # It will fail again because the file is empty so the slave cannot get valuable
 # info about how to connect to the master from it (failure in
 # init_strvar_from_file() in init_master_info()).

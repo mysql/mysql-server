@@ -711,14 +711,14 @@ eval set storage_engine=$default;
 # Test how DROP TABLE works if the index or data file doesn't exists
 
 create table t1 (a int) engine=myisam;
-system rm ./var/master-data/test/t1.MYI ;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
 drop table if exists t1;
 create table t1 (a int) engine=myisam;
-system rm ./var/master-data/test/t1.MYI ;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
 --error 1051,6
 drop table t1;
 create table t1 (a int) engine=myisam;
-system rm ./var/master-data/test/t1.MYD ;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYD ;
 --error 1105,6,29
 drop table t1;
 --error 1051

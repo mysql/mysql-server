@@ -22,11 +22,11 @@ insert into t2 values ();
 
 # test for load data and load data distributed among the several 
 # files (we need to fill up first binlog)
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
+load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../std_data_ln/words.dat' into table t1;
 # simple query to show more in second binlog
 insert into t1 values ("Alas");
 flush logs;
@@ -41,29 +41,29 @@ select "--- Local --" as "";
 # be time dependend. Better than nothing.
 #
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ $MYSQL_TEST_DIR/var/log/master-bin.000001 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000001 
 
 # this should not fail but shouldn't produce any working statements
 --disable_query_log
 select "--- Broken LOAD DATA --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ $MYSQL_TEST_DIR/var/log/master-bin.000002
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000002
 
 # this should show almost nothing
 --disable_query_log
 select "--- --database --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --database=nottest $MYSQL_TEST_DIR/var/log/master-bin.000001
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # this test for position option
 --disable_query_log
 select "--- --position --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --position=231 $MYSQL_TEST_DIR/var/log/master-bin.000002
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=231 $MYSQLTEST_VARDIR/log/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -73,29 +73,29 @@ select "--- Remote --" as "";
 --enable_query_log
 
 # This is broken now
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 
 # This is broken too
 --disable_query_log
 select "--- Broken LOAD DATA --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # And this too ! (altough it is documented)
 --disable_query_log
 select "--- --database --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.000001
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.000001
 
 # Strangely but this works
 --disable_query_log
 select "--- --position --" as "";
 --enable_query_log
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=231 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=231 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 --disable_query_log
