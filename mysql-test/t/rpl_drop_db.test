@@ -53,5 +53,5 @@ sync_slave_with_master;
 #cleanup
 connection slave;
 stop slave;
-system rm -rf var/master-data/mysqltest1;
+system rm -rf $MYSQLTEST_VARDIR/master-data/mysqltest1;
 
