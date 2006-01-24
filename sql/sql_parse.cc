@@ -68,8 +68,6 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(THD *thd);
-static bool append_file_to_dir(THD *thd, const char **filename_ptr,
-			       const char *table_name);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -6733,8 +6731,8 @@ static void refresh_status(THD *thd)
 
 	/* If pointer is not a null pointer, append filename to it */
 
-static bool append_file_to_dir(THD *thd, const char **filename_ptr,
-			       const char *table_name)
+bool append_file_to_dir(THD *thd, const char **filename_ptr,
+                        const char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)

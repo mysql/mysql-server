@@ -197,8 +197,10 @@ private:
   bool new_handlers_from_part_info();
   bool create_handlers();
   void clear_handler_file();
-  void set_up_table_before_create(TABLE * table_arg, HA_CREATE_INFO * info,
-				  uint part_id);
+  void set_up_table_before_create(TABLE *table_arg,
+                                  const char *partition_name_with_path,
+                                  HA_CREATE_INFO *info,
+                                  uint part_id);
   partition_element *find_partition_element(uint part_id);
 public:
 

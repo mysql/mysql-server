@@ -158,3 +158,19 @@ ALTER TABLE t1 DROP PARTITION x1;
 ALTER TABLE t1 DROP PARTITION x0;
 
 DROP TABLE t1;
+
+#
+# BUG: 14354 Partitions: data directory clause fails
+#
+--exec rm -rf $MYSQL_TEST_DIR/var/tmp/bug14354
+--exec mkdir $MYSQL_TEST_DIR/var/tmp/bug14354
+disable_query_log;
+eval CREATE TABLE t1 (id int) PARTITION BY RANGE(id) (
+PARTITION p1 VALUES LESS THAN (20) ENGINE=myiasm 
+DATA DIRECTORY="$MYSQL_TEST_DIR/var/tmp/bug14354" 
+INDEX DIRECTORY="$MYSQL_TEST_DIR/var/tmp/bug14354");
+enable_query_log;
+--exec test -f $MYSQL_TEST_DIR/var/tmp/bug14354/t1_p1.MYD
+--exec test -f $MYSQL_TEST_DIR/var/tmp/bug14354/t1_p1.MYI
+DROP TABLE t1;
+--exec rm -rf $MYSQL_TEST_DIR/var/tmp/bug14354
