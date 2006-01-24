@@ -1167,7 +1167,8 @@ static void frm_error(int error, TABLE *form, const char *name,
       my_error(ER_NO_SUCH_TABLE, MYF(0), db, real_name);
     }
     else
-      my_error(ER_FILE_NOT_FOUND, errortype,
+      my_error((my_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND, 
+               errortype,
                fn_format(buff, name, form_dev, reg_ext, 0), my_errno);
     break;
   case 2:
