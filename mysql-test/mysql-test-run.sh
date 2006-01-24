@@ -590,7 +590,8 @@ fi
 [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
 [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
 [ -d $MYSQL_TEST_DIR/var/log ] || mkdir $MYSQL_TEST_DIR/var/log
-
+ln -s $MYSQL_TEST_DIR/std_data $MYSQL_TEST_DIR/var/std_data_ln
+ 
 if test ${COLUMNS:-0} -lt 80 ; then COLUMNS=80 ; fi
 E=`$EXPR $COLUMNS - 8`
 DASH72=`$ECHO '-------------------------------------------------------'|$CUT -c 1-$E`
