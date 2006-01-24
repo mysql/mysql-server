@@ -61,8 +61,8 @@ CREATE TRIGGER wl2818_trg1 BEFORE INSERT ON t1
 --echo
 --echo ---> patching t1.TRG...
 
---exec grep --text -v 'definers=' $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG > $MYSQL_TEST_DIR/var/tmp/t1.TRG
---exec mv $MYSQL_TEST_DIR/var/tmp/t1.TRG $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG
+--exec grep --text -v 'definers=' $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
+--exec mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG
 
 #
 # Create a new trigger.

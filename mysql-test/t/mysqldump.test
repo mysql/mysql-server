@@ -125,14 +125,14 @@ drop table t1;
 
 create table t1(a int);
 insert into t1 values (1),(2),(3);
---exec $MYSQL_DUMP --skip-comments --tab=$MYSQL_TEST_DIR/var/tmp/ test
---exec cat $MYSQL_TEST_DIR/var/tmp/t1.sql
---exec cat $MYSQL_TEST_DIR/var/tmp/t1.txt
---exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
---exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
---exec $MYSQL_DUMP --tab=$MYSQL_TEST_DIR/var/tmp/ test
---exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
---exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec $MYSQL_DUMP --skip-comments --tab=$MYSQLTEST_VARDIR/tmp/ test
+--exec cat $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec cat $MYSQLTEST_VARDIR/tmp/t1.txt
+--exec rm $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec rm $MYSQLTEST_VARDIR/tmp/t1.txt
+--exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ test
+--exec rm $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec rm $MYSQLTEST_VARDIR/tmp/t1.txt
 drop table t1;
 
 #
@@ -587,7 +587,7 @@ create view v1 as select * from t2;
 create view v2 as select * from t1;
 
 # dump tables and view from db2
---exec $MYSQL_DUMP db2 > var/tmp/bug10713.sql
+--exec $MYSQL_DUMP db2 > $MYSQLTEST_VARDIR/tmp/bug10713.sql
 
 # drop the db, tables and views
 drop table t1, t2;
@@ -597,7 +597,7 @@ drop database db2;
 # create db1 and reload dump
 create database db1;
 use db1;
---exec $MYSQL db1 < var/tmp/bug10713.sql
+--exec $MYSQL db1 < $MYSQLTEST_VARDIR/tmp/bug10713.sql
 
 # check that all tables and views could be created
 show tables;
@@ -705,9 +705,9 @@ drop table t1, t2;
 create table t1 (a text character set utf8, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
---exec $MYSQL_DUMP --tab=$MYSQL_TEST_DIR/var/tmp/ test
---exec $MYSQL test < $MYSQL_TEST_DIR/var/tmp/t1.sql
---exec $MYSQL_IMPORT test $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ test
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec $MYSQL_IMPORT test $MYSQLTEST_VARDIR/tmp/t1.txt
 select * from t1;
 
 drop table t1;
@@ -817,9 +817,9 @@ update t1 set a = 4 where a=3;
 # Skip dumping triggers
 --exec $MYSQL_DUMP --skip-comments --databases --skip-triggers test
 # Dump and reload...
---exec $MYSQL_DUMP --skip-comments --databases test > var/tmp/mysqldump.sql
+--exec $MYSQL_DUMP --skip-comments --databases test > $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 drop table t1;
---exec $MYSQL test < var/tmp/mysqldump.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 # Check that tables have been reloaded
 show tables;
 --replace_column 6 #
@@ -830,11 +830,11 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---exec echo "[mysqltest1]" > $MYSQL_TEST_DIR/var/tmp/tmp.cnf
---exec echo "port=1234" >> $MYSQL_TEST_DIR/var/tmp/tmp.cnf
---exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1
---exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQL_TEST_DIR/var/tmp/tmp.cnf mysqltest1 mysqltest1
---exec rm $MYSQL_TEST_DIR/var/tmp/tmp.cnf
+--exec echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--exec echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
+--exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
+--exec rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 #
 # Test of fix to BUG 12597
@@ -859,13 +859,13 @@ INSERT INTO `test1` VALUES (1);
 SELECT * FROM `test2`;
 
 # dump
---exec $MYSQL_DUMP --skip-comments --databases test > var/tmp/mysqldump.sql
+--exec $MYSQL_DUMP --skip-comments --databases test > $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 
 #DROP TRIGGER testref;
 #DROP TABLE test1;
 #DROP TABLE test2;
 # restore
---exec $MYSQL test < var/tmp/mysqldump.sql
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 SHOW TRIGGERS;
 SELECT * FROM `test1`;
 SELECT * FROM `test2`;
