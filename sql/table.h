@@ -515,6 +515,7 @@ typedef struct st_table_list
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
+  bool is_schema_table_processed;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
