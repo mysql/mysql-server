@@ -368,10 +368,10 @@ select 3 from t1 ;
 # Missing delimiter until eof
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing 
---system echo "sleep 7" > var/tmp/mysqltest.sql
---system echo "# Another comment" >> var/tmp/mysqltest.sql
+--system echo "sleep 7" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "# Another comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
@@ -884,8 +884,7 @@ select "a" as col1, "c" as col2;
 --exec echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/con.sql
 --exec echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/con.sql
 --exec echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql;" | $MYSQL_TEST 2>&1
---exec echo "source var/tmp/con.sql; echo OK;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
 --exec echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/con.sql
@@ -1004,26 +1003,26 @@ select "this will be executed";
 #
 # Test zero length result file. Should not pass
 #
---exec touch $MYSQL_TEST_DIR/var/tmp/zero_length_file.result
---exec echo "echo ok;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
+--exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
---exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/zero_length_file.result  2>&1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  2>&1
 #
 # Test that a test file that does not generate any output fails.
 #
---exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
---exec $MYSQL_TEST -x var/tmp/query.sql  2>&1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql  2>&1
 
 #
 # Test that mysqltest fails when there are no queries executed
 # but a result file exist
 # NOTE! This will never happen as long as it's not allowed to have
 # test files that does not produce any output
-#--exec echo "something" > $MYSQL_TEST_DIR/var/tmp/result_file.result
-#--exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+#--exec echo "something" > $MYSQLTEST_VARDIR/tmp/result_file.result
+#--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 #--error 1
-#--exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/result_file.result 2>&1
+#--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/result_file.result 2>&1
 
 #
 # Bug #11731 mysqltest in multi-statement queries ignores errors in
@@ -1045,13 +1044,9 @@ echo Failing multi statement query;
 drop table t1;
 
 --error 1
---exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out
-# The .out file should be empty, cat will fail!
---error 1
---exec cat $MYSQLTEST_VARDIR/tmp/bug11731.out
---exec $MYSQL_TEST --record -x $MYSQL_TEST_DIR/var/tmp/bug11731.sql -R $MYSQL_TEST_DIR/var/tmp/bug11731.out 2>&1
+--exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
 # The .out file should be non existent
---exec test ! -s $MYSQL_TEST_DIR/var/tmp/bug11731.out
+--exec test ! -s $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 
 
