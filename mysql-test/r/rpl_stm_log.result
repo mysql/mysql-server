@@ -12,7 +12,7 @@ create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
 create table t1 (word char(20) not null);
-load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
+load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
 count(*)
 69
@@ -26,7 +26,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)
 master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 show binlog events from 102 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -56,7 +56,7 @@ master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)
 master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	#	Execute_load_query	1	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
@@ -85,7 +85,7 @@ slave-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL)
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t1 (word char(20) not null)
 slave-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=581
-slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../../var/tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
+slave-bin.000001	#	Execute_load_query	1	#	use `test`; load data INFILE '../tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
 slave-bin.000001	#	Query	1	#	use `test`; drop table t1
 slave-bin.000001	#	Query	1	#	use `test`; create table t5 (a int)
 slave-bin.000001	#	Query	1	#	use `test`; drop table t5

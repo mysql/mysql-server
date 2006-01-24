@@ -55,7 +55,7 @@
 
 # - check the configuration file;
 
---exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+--exec grep server_id $MYSQLTEST_VARDIR/im.cnf ;
 
 # - check the running instances.
 
@@ -86,7 +86,7 @@ UNSET mysqld1.server_id;
 #   - check that the configuration file has been updated (i.e.  does not
 #     contain 'server_id=' line for the instance);
 
---exec grep server_id $MYSQL_TEST_DIR/var/im.cnf ;
+--exec grep server_id $MYSQLTEST_VARDIR/im.cnf ;
 
 #   - check that the running instance has not been affected: connect to the
 #     instance and check that 'SHOW VARIABLES LIKE 'server_id'' returns non-zero
@@ -111,7 +111,7 @@ UNSET mysqld2.server_id;
 #   - check that the configuration file has been updated (i.e.  does not
 #     contain 'server_id=' line for the instance);
 
---exec grep server_id $MYSQL_TEST_DIR/var/im.cnf || true;
+--exec grep server_id $MYSQLTEST_VARDIR/im.cnf || true;
 
 #   - check that internal cache of Instance Manager is not affected (i.e.  SHOW
 #     INSTANCE OPTIONS <instance> contains non-zero value for server_id);
@@ -130,7 +130,7 @@ FLUSH INSTANCES;
 #   - check that the configuration file has not been updated (i.e.  does not
 #     contain 'server_id=' for the instance);
 
---exec grep server_id $MYSQL_TEST_DIR/var/im.cnf || true;
+--exec grep server_id $MYSQLTEST_VARDIR/im.cnf || true;
 
 #   - (for mysqld1) check that the running instance has not been affected:
 #     connect to the instance and check that 'SHOW VARIABLES LIKE 'server_id''
