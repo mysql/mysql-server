@@ -8,8 +8,6 @@
 #
 # Tests for WL#2818:
 #   - Check that triggers are executed under the authorization of the definer.
-#   - Check that if trigger contains NEW/OLD variables, the definer must have
-#     SELECT privilege on the subject table.
 #   - Check DEFINER clause of CREATE TRIGGER statement;
 #     - Check that SUPER privilege required to create a trigger with different
 #       definer.
@@ -18,6 +16,8 @@
 #     - Check that the definer of a trigger does not exist, the trigger will
 #       not be activated.
 #   - Check that SHOW TRIGGERS statement provides "Definer" column.
+#   - Check that if trigger contains NEW/OLD variables, the definer must have
+#     SELECT privilege on the subject table (aka BUG#15166/BUG#15196).
 #
 #  Let's also check that user name part of definer can contain '@' symbol (to
 #  check that triggers are not affected by BUG#13310 "incorrect user parsing
@@ -143,223 +143,6 @@ SELECT * FROM t1;
 SELECT * FROM t2;
 
 #
-# Check that if trigger contains NEW/OLD variables, the definer must have
-# SELECT/UPDATE privilege on the subject table:
-#   - drop the trigger;
-#   - create a new trigger, which will use NEW variable;
-#   - create another new trigger, which will use OLD variable;
-#   - revoke SELECT/UPDATE privilege on the first table from "definer";
-#   - insert a row into the first table;
-#   - analyze error code;
-#
-
-#
-# SELECT privilege.
-#
-
---connection default
---echo
---echo ---> connection: default
-
-use mysqltest_db1;
-
-REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
-
---connection wl2818_definer_con
---echo
---echo ---> connection: wl2818_definer_con
-
-use mysqltest_db1;
-
-DROP TRIGGER trg1;
-
-SET @new_sum = 0;
-SET @old_sum = 0;
-
-# INSERT INTO statement; BEFORE timing
-
---echo ---> INSERT INTO statement; BEFORE timing
-
-CREATE TRIGGER trg1 BEFORE INSERT ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO t1 VALUES(4);
-
-# INSERT INTO statement; AFTER timing
-
---echo ---> INSERT INTO statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER INSERT ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO t1 VALUES(5);
-
-# UPDATE statement; BEFORE timing
-
---echo ---> UPDATE statement; BEFORE timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 BEFORE UPDATE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE t1 SET num_value = 10;
-
-# UPDATE statement; AFTER timing
-
---echo ---> UPDATE statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER UPDATE ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE t1 SET num_value = 20;
-
-# DELETE statement; BEFORE timing
-
---echo ---> DELETE statement; BEFORE timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 BEFORE DELETE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM t1;
-
-# DELETE statement; AFTER timing
-
---echo ---> DELETE statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER DELETE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM t1;
-
-#
-# UPDATE privilege
-#
-# NOTE: At the moment, UPDATE privilege is required if the trigger contains
-# NEW/OLD variables, whenever the trigger modifies them or not. Moreover,
-# UPDATE privilege is checked for whole table, not for individual columns.
-#
-# The following test cases should be changed when full support of UPDATE
-# privilege will be done.
-#
-
---connection default
---echo
---echo ---> connection: default
-
-use mysqltest_db1;
-
-GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
-REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
-
---connection wl2818_definer_con
---echo
---echo ---> connection: wl2818_definer_con
-
-use mysqltest_db1;
-
-DROP TRIGGER trg1;
-
-SET @new_sum = 0;
-SET @old_sum = 0;
-
-# INSERT INTO statement; BEFORE timing
-
---echo ---> INSERT INTO statement; BEFORE timing
-
-CREATE TRIGGER trg1 BEFORE INSERT ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO t1 VALUES(4);
-
-# INSERT INTO statement; AFTER timing
-
---echo ---> INSERT INTO statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER INSERT ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO t1 VALUES(5);
-
-# UPDATE statement; BEFORE timing
-
---echo ---> UPDATE statement; BEFORE timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 BEFORE UPDATE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE t1 SET num_value = 10;
-
-# UPDATE statement; AFTER timing
-
---echo ---> UPDATE statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER UPDATE ON t1
-  FOR EACH ROW
-    SET @new_sum = @new_sum + NEW.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-UPDATE t1 SET num_value = 20;
-
-# DELETE statement; BEFORE timing
-
---echo ---> DELETE statement; BEFORE timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 BEFORE DELETE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM t1;
-
-# DELETE statement; AFTER timing
-
---echo ---> DELETE statement; AFTER timing
-
-DROP TRIGGER trg1;
-
-CREATE TRIGGER trg1 AFTER DELETE ON t1
-  FOR EACH ROW
-    SET @old_sum = @old_sum + OLD.num_value;
-
---error ER_TABLEACCESS_DENIED_ERROR
-DELETE FROM t1;
-
-#
 # Check DEFINER clause of CREATE TRIGGER statement.
 #
 # NOTE: there is no dedicated TRIGGER privilege for CREATE TRIGGER statement.
@@ -471,5 +254,313 @@ SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 
 DROP USER mysqltest_dfn@localhost;
 DROP USER mysqltest_inv@localhost;
+
+DROP DATABASE mysqltest_db1;
+
+###########################################################################
+#
+# BUG#15166: Wrong update [was: select/update] permissions required to execute
+# triggers.
+#
+# BUG#15196: Wrong select permission required to execute triggers.
+#
+###########################################################################
+
+#
+# Prepare environment.
+#
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+use mysqltest_db1;
+
+# Tables for tesing table-level privileges:
+CREATE TABLE t1(col CHAR(20)); # table for "read-value" trigger
+CREATE TABLE t2(col CHAR(20)); # table for "write-value" trigger
+
+# Tables for tesing column-level privileges:
+CREATE TABLE t3(col CHAR(20)); # table for "read-value" trigger
+CREATE TABLE t4(col CHAR(20)); # table for "write-value" trigger
+
+CREATE USER mysqltest_u1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+GRANT SUPER ON *.* TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost; # to allow connect
+
+SET @mysqltest_var = NULL;
+
+--connect (bug15166_u1_con,localhost,mysqltest_u1,,mysqltest_db1)
+
+# parsing (CREATE TRIGGER) time:
+#   - check that nor SELECT either UPDATE is required to execute triggger w/o
+#     NEW/OLD variables.
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+CREATE TRIGGER t1_trg_after_delete AFTER DELETE ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = 'Hello, world!';
+
+# parsing (CREATE TRIGGER) time:
+#   - check that UPDATE is not enough to read the value;
+#   - check that UPDATE is required to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+# - table-level privileges
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t1_trg_err_1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+DROP TRIGGER t1_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t1_trg_err_2 BEFORE DELETE ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+DROP TRIGGER t1_trg_err_2;
+
+CREATE TRIGGER t2_trg_before_insert BEFORE INSERT ON t2
+  FOR EACH ROW
+    SET NEW.col = 't2_trg_before_insert';
+
+# - column-level privileges
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t3_trg_err_1 BEFORE INSERT ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+DROP TRIGGER t3_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t3_trg_err_2 BEFORE DELETE ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+DROP TRIGGER t3_trg_err_2;
+
+CREATE TRIGGER t4_trg_before_insert BEFORE INSERT ON t4
+  FOR EACH ROW
+    SET NEW.col = 't4_trg_before_insert';
+
+# parsing (CREATE TRIGGER) time:
+#   - check that SELECT is required to read the value;
+#   - check that SELECT is not enough to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+# - table-level privileges
+
+CREATE TRIGGER t1_trg_after_insert AFTER INSERT ON t1
+ FOR EACH ROW
+  SET @mysqltest_var = NEW.col;
+
+CREATE TRIGGER t1_trg_after_update AFTER UPDATE ON t1
+ FOR EACH ROW
+  SET @mysqltest_var = OLD.col;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t2_trg_err_1 BEFORE UPDATE ON t2
+ FOR EACH ROW
+  SET NEW.col = 't2_trg_err_1';
+DROP TRIGGER t2_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t2_trg_err_2 BEFORE UPDATE ON t2
+ FOR EACH ROW
+  SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t2_trg_err_2;
+
+# - column-level privileges
+
+CREATE TRIGGER t3_trg_after_insert AFTER INSERT ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+
+CREATE TRIGGER t3_trg_after_update AFTER UPDATE ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t4_trg_err_1 BEFORE UPDATE ON t4
+ FOR EACH ROW
+  SET NEW.col = 't4_trg_err_1';
+DROP TRIGGER t4_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t4_trg_err_2 BEFORE UPDATE ON t4
+ FOR EACH ROW
+  SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t4_trg_err_2;
+
+# execution time:
+#   - check that UPDATE is not enough to read the value;
+#   - check that UPDATE is required to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE SELECT ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE SELECT(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE SELECT(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+# - table-level privileges
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES('line1');
+
+SELECT * FROM t1;
+SELECT @mysqltest_var;
+
+INSERT INTO t2 VALUES('line2');
+
+SELECT * FROM t2;
+
+# - column-level privileges
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t3 VALUES('t3_line1');
+
+SELECT * FROM t3;
+SELECT @mysqltest_var;
+
+INSERT INTO t4 VALUES('t4_line2');
+
+SELECT * FROM t4;
+
+# execution time:
+#   - check that SELECT is required to read the value;
+#   - check that SELECT is not enough to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+# - table-level privileges
+
+INSERT INTO t1 VALUES('line3');
+
+SELECT * FROM t1;
+SELECT @mysqltest_var;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES('line4');
+
+SELECT * FROM t2;
+
+# - column-level privileges
+
+INSERT INTO t3 VALUES('t3_line2');
+
+SELECT * FROM t3;
+SELECT @mysqltest_var;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t4 VALUES('t4_line2');
+
+SELECT * FROM t4;
+
+# execution time:
+#   - check that nor SELECT either UPDATE is required to execute triggger w/o
+#     NEW/OLD variables.
+
+DELETE FROM t1;
+
+SELECT @mysqltest_var;
+
+#
+# Cleanup.
+#
+
+DROP USER mysqltest_u1@localhost;
 
 DROP DATABASE mysqltest_db1;
