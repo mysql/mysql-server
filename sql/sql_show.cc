@@ -3845,7 +3845,16 @@ bool get_schema_tables_result(JOIN *join)
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_derived_tables())
     {
-      if (&lex->unit != lex->current_select->master_unit()) // is subselect
+      bool is_subselect= (&lex->unit != lex->current_select->master_unit());
+      /*
+        The schema table is already processed and 
+        the statement is not a subselect.
+        So we don't need to handle this table again.
+      */
+      if (table_list->is_schema_table_processed && !is_subselect)
+        continue;
+
+      if (is_subselect) // is subselect
       {
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->delete_all_rows();
@@ -3858,6 +3867,7 @@ bool get_schema_tables_result(JOIN *join)
       if (table_list->schema_table->fill_table(thd, table_list,
                                                tab->select_cond))
         result= 1;
+      table_list->is_schema_table_processed= TRUE;
     }
   }
   thd->no_warnings_for_error= 0;

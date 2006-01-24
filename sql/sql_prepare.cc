@@ -2111,6 +2111,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       were closed in the end of previous prepare or execute call.
     */
     tables->table= 0;
+    /* Reset is_schema_table_processed value(needed for I_S tables */
+    tables->is_schema_table_processed= FALSE;
 
     if (tables->prep_on_expr)
     {
