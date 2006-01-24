@@ -783,6 +783,7 @@ begin
 end//
 call p1()//
 drop procedure p1//
+drop function f1//
 
 drop table t1//
 delimiter ;//

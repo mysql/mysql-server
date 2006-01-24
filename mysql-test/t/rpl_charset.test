@@ -153,7 +153,7 @@ select hex(c1), hex(c2) from t1;
 connection master;
 # Let's have a look at generated SETs.
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 
 drop table t1;
 sync_slave_with_master;
 
