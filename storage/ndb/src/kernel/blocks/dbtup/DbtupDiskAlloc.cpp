@@ -270,11 +270,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
 
       if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
       {
-	//XXX
 	c_extent_pool.release(ext);
 	c_page_request_pool.release(req);
-	ndbout_c("no free extent");
-	return -err;
+	return err;
       }
       
       int pages= err;
