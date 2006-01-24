@@ -507,7 +507,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
       error= (*file)->delete_table((const char*) from_buff);
     else
     {
-      set_up_table_before_create(table_arg, create_info, i);
+      set_up_table_before_create(table_arg, from_buff, create_info, i);
       error= (*file)->create(from_buff, table_arg, create_info);
     }
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
@@ -550,8 +550,9 @@ partition_element *ha_partition::find_partition_element(uint part_id)
 
 
 void ha_partition::set_up_table_before_create(TABLE *table,
-					      HA_CREATE_INFO *info,
-					      uint part_id)
+                   const char *partition_name_with_path, 
+                   HA_CREATE_INFO *info,
+                   uint part_id)
 {
   /*
     Set up
@@ -565,6 +566,15 @@ void ha_partition::set_up_table_before_create(TABLE *table,
     return;                                     // Fatal error
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
+  char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  if (part_elem->index_file_name)
+    append_file_to_dir(current_thd,
+                       (const char**)&part_elem->index_file_name,
+                       partition_name+1);
+  if (part_elem->data_file_name)
+    append_file_to_dir(current_thd,
+                       (const char**)&part_elem->data_file_name,
+                       partition_name+1);
   info->index_file_name= part_elem->index_file_name;
   info->data_file_name= part_elem->data_file_name;
 }
