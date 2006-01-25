@@ -1601,6 +1601,8 @@ private:
    * Reply from nodeId
    */
   void startInfoReply(Signal *, Uint32 nodeId);
+
+  void dump_replica_info();
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
