@@ -1439,6 +1439,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
+      terrorCode = -ret;
       goto disk_prealloc_error;
     }
     
