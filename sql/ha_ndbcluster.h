@@ -25,6 +25,9 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+/* Blob tables and events are internal to NDB and must never be accessed */
+#define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
+
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
 
@@ -78,6 +81,10 @@ typedef struct ndb_index_data {
 
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
+int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
+                        byte*& buffer, uint& buffer_size,
+                        my_ptrdiff_t ptrdiff);
+
 typedef enum {
   NSS_INITIAL= 0,
   NSS_DROPPED,
@@ -114,6 +121,7 @@ typedef struct st_ndbcluster_share {
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */
+#define NSF_BLOB_FLAG 2 /* table has blob attributes */
 #define NSF_NO_BINLOG 4 /* table should not be binlogged */
 #endif
 
