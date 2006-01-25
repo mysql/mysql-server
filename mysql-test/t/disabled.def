@@ -28,3 +28,7 @@ ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
 system_mysql_db : Needs fixing
 system_mysql_db_fix : Needs fixing
+#ndb_alter_table_row : sometimes wrong error 1015!=1046
+ndb_gis : garbled msgs from corrupt THD* + partitioning problem
+
+# vim: set filetype=conf:
