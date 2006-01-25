@@ -40,6 +40,12 @@
 #define dbg(x)
 #endif
 
+#if 1
+#define DBG_LCP(x)
+#else
+#define DBG_LCP(x) ndbout << x
+#endif
+
 Pgman::Pgman(const Configuration & conf) :
   SimulatedBlock(PGMAN, conf),
   m_file_map(m_data_buffer_pool),
@@ -1083,6 +1089,7 @@ Pgman::execLCP_FRAG_ORD(Signal* signal)
   LcpFragOrd* ord = (LcpFragOrd*)signal->getDataPtr();
   ndbrequire(ord->lcpId >= m_last_lcp_complete + 1 || m_last_lcp_complete == 0);
   m_last_lcp = ord->lcpId;
+  DBG_LCP("execLCP_FRAG_ORD" << endl);
 
   ndbrequire(!m_lcp_outstanding);
   ndbrequire(m_lcp_copy_page_free);
@@ -1104,6 +1111,8 @@ Pgman::execEND_LCP_REQ(Signal* signal)
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtr();
   m_end_lcp_req = *req;
 
+  DBG_LCP("execEND_LCP_REQ" << endl);
+
 #ifdef VM_TRACE
   debugOut
     << "PGMAN: execEND_LCP_REQ"
@@ -1117,6 +1126,7 @@ Pgman::execEND_LCP_REQ(Signal* signal)
     ndbrequire(! m_lcp_loop_on);
     signal->theData[0] = m_end_lcp_req.senderData;
     sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+    DBG_LCP("GSN_END_LCP_CONF" << endl);
   }
 
   m_last_lcp_complete = m_last_lcp;
@@ -1149,6 +1159,8 @@ Pgman::process_lcp(Signal* signal)
       Ptr<Page_entry>& ptr = iter.curr;
       Uint16 state = ptr.p->m_state;
 
+      DBG_LCP("PROCESS LCP: " << ptr);
+      
       if (ptr.p->m_last_lcp < m_last_lcp &&
           (state & Page_entry::DIRTY))
       {
@@ -1159,6 +1171,7 @@ Pgman::process_lcp(Signal* signal)
         }
         if (state & Page_entry::BUSY)
         {
+	  DBG_LCP(" BUSY" << endl);
           break;  // wait for it
         }
         if (state & Page_entry::LOCKED)
@@ -1169,6 +1182,7 @@ Pgman::process_lcp(Signal* signal)
            */
           if (!m_lcp_copy_page_free)
           {
+	    DBG_LCP(" !m_lcp_copy_page_free" << endl);
             break;
           }
           m_lcp_copy_page_free = false;
@@ -1183,10 +1197,12 @@ Pgman::process_lcp(Signal* signal)
         }
         else if (state & Page_entry::PAGEOUT)
         {
+	  DBG_LCP(" PAGEOUT -> state |= LCP" << endl);
           set_page_state(ptr, state | Page_entry::LCP);
         }
         else
         {
+	  DBG_LCP(" pageout()" << endl);
           ptr.p->m_state |= Page_entry::LCP;
           pageout(signal, ptr);
         }
@@ -1205,11 +1221,15 @@ Pgman::process_lcp(Signal* signal)
     {
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      DBG_LCP("GSN_END_LCP_CONF" << endl);
     }
+    DBG_LCP(" -- RETURN FALSE" << endl);
     m_last_lcp_complete = m_last_lcp;
     m_lcp_curr_bucket = ~(Uint32)0;
     return false;
   }
+
+  DBG_LCP(" -- RETURN TRUE" << endl);
   return true;
 }
 

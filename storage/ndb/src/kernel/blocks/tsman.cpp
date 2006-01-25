@@ -684,20 +684,15 @@ Tsman::open_file(Signal* signal,
   req->file_size_lo = lo;
 
   Uint64 pages = (Uint64(hi) << 32 | lo) / File_formats::NDB_PAGE_SIZE;
-  
-  // Extent size in #pages
-  Uint32 extent_size = ts_ptr.p->m_extent_size;
+  Uint32 extent_size = ts_ptr.p->m_extent_size; // Extent size in #pages
+  Uint64 extents = (pages + extent_size - 1) / extent_size;
+  extents = extents ? extents : 1;
+  Uint64 data_pages = extents * extent_size;
+
   Uint32 eh_words = File_formats::Datafile::extent_header_words(extent_size);
   ndbrequire(eh_words < File_formats::Datafile::EXTENT_PAGE_WORDS);
-  
   Uint32 extents_per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh_words;
-  Uint64 tmp = Uint64(extents_per_page) * Uint64(extent_size);
-  Uint64 extent_pages = pages / (1+tmp);
-  extent_pages = extent_pages ? extent_pages : 1;
-  
-  Uint64 data_pages = pages - extent_pages -1;
-  Uint64 extents = data_pages / extent_size;
-  data_pages = extents * extent_size;
+  Uint64 extent_pages = (extents + extents_per_page - 1) / extents_per_page;
   
   ptr.p->m_create.m_extent_pages = extent_pages;
   ptr.p->m_create.m_data_pages = data_pages;
