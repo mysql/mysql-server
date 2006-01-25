@@ -2390,7 +2390,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
         ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*' &&
-        ((Item_field*) item)->field_name[1] == 0 &&
 	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
