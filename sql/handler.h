@@ -737,17 +737,23 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
 typedef struct st_partition_iter
 {
   partition_iter_func get_next;
+  
+  struct st_part_num_range
+  {
+    uint32 start;
+    uint32 end;
+  };
 
-  union {
-    struct {
-      uint32 start_part_num;
-      uint32 end_part_num;
-    };
-    struct {
-      longlong start_val;
-      longlong end_val;
-    };
-    bool null_returned;
+  struct st_field_value_range
+  {
+    longlong start;
+    longlong end;
+  };
+
+  union
+  {
+    struct st_part_num_range     part_nums;
+    struct st_field_value_range  field_vals;
   };
   partition_info *part_info;
 } PARTITION_ITERATOR;
@@ -1004,8 +1010,8 @@ uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
 inline void init_single_partition_iterator(uint32 part_id,
                                            PARTITION_ITERATOR *part_iter)
 {
-  part_iter->start_part_num= part_id;
-  part_iter->end_part_num= part_id+1;
+  part_iter->part_nums.start= part_id;
+  part_iter->part_nums.end= part_id+1;
   part_iter->get_next= get_next_partition_id_range;
 }
 
@@ -1013,8 +1019,8 @@ inline
 void init_all_partitions_iterator(partition_info *part_info,
                                   PARTITION_ITERATOR *part_iter)
 {
-  part_iter->start_part_num= 0;
-  part_iter->end_part_num= part_info->no_parts;
+  part_iter->part_nums.start= 0;
+  part_iter->part_nums.end= part_info->no_parts;
   part_iter->get_next= get_next_partition_id_range;
 }
 
