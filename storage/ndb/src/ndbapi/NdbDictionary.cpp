@@ -901,6 +901,11 @@ int NdbDictionary::Event::getNoOfEventColumns() const
   return m_impl.getNoOfEventColumns();
 }
 
+void NdbDictionary::Event::mergeEvents(bool flag)
+{
+  m_impl.m_mergeEvents = flag;
+}
+
 NdbDictionary::Object::Status
 NdbDictionary::Event::getObjectStatus() const
 {
@@ -1471,6 +1476,12 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 const struct NdbError & 
 NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
+}
+
+void
+NdbDictionary::Dictionary::fix_blob_events(const Table* table, const char* ev_name)
+{
+  m_impl.fix_blob_events(table, ev_name);
 }
 
 // printers

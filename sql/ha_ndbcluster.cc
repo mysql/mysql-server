@@ -35,6 +35,11 @@
 
 #include "ha_ndbcluster_binlog.h"
 
+#ifdef ndb_dynamite
+#undef assert
+#define assert(x) do { if(x) break; ::printf("%s %d: assert failed: %s\n", __FILE__, __LINE__, #x); ::fflush(stdout); ::signal(SIGABRT,SIG_DFL); ::abort(); ::kill(::getpid(),6); ::kill(::getpid(),9); } while (0)
+#endif
+
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
@@ -791,10 +796,20 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   if (ndb_blob->blobsNextBlob() != NULL)
     DBUG_RETURN(0);
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
-  DBUG_RETURN(ha->get_ndb_blobs_value(ndb_blob));
+  int ret= get_ndb_blobs_value(ha->table, ha->m_value,
+                               ha->m_blobs_buffer, ha->m_blobs_buffer_size,
+                               0);
+  DBUG_RETURN(ret);
 }
 
-int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
+/*
+  This routine is shared by injector.  There is no common blobs buffer
+  so the buffer and length are passed by reference.  Injector also
+  passes a record pointer diff.
+ */
+int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
+                        byte*& buffer, uint& buffer_size,
+                        my_ptrdiff_t ptrdiff)
 {
   DBUG_ENTER("get_ndb_blobs_value");
 
@@ -803,44 +818,51 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
   for (int loop= 0; loop <= 1; loop++)
   {
     uint32 offset= 0;
-    for (uint i= 0; i < table_share->fields; i++)
+    for (uint i= 0; i < table->s->fields; i++)
     {
       Field *field= table->field[i];
-      NdbValue value= m_value[i];
+      NdbValue value= value_array[i];
       if (value.ptr != NULL && (field->flags & BLOB_FLAG))
       {
         Field_blob *field_blob= (Field_blob *)field;
         NdbBlob *ndb_blob= value.blob;
-        Uint64 blob_len= 0;
-        if (ndb_blob->getLength(blob_len) != 0)
-          DBUG_RETURN(-1);
-        // Align to Uint64
-        uint32 blob_size= blob_len;
-        if (blob_size % 8 != 0)
-          blob_size+= 8 - blob_size % 8;
-        if (loop == 1)
-        {
-          char *buf= m_blobs_buffer + offset;
-          uint32 len= 0xffffffff;  // Max uint32
-          DBUG_PRINT("value", ("read blob ptr=%lx  len=%u",
-                               buf, (uint) blob_len));
-          if (ndb_blob->readData(buf, len) != 0)
+        int isNull;
+        ndb_blob->getDefined(isNull);
+        if (isNull == 0) { // XXX -1 should be allowed only for events
+          Uint64 blob_len= 0;
+          if (ndb_blob->getLength(blob_len) != 0)
             DBUG_RETURN(-1);
-          DBUG_ASSERT(len == blob_len);
-          field_blob->set_ptr(len, buf);
+          // Align to Uint64
+          uint32 blob_size= blob_len;
+          if (blob_size % 8 != 0)
+            blob_size+= 8 - blob_size % 8;
+          if (loop == 1)
+          {
+            char *buf= buffer + offset;
+            uint32 len= 0xffffffff;  // Max uint32
+            DBUG_PRINT("info", ("read blob ptr=%p len=%u",
+                                buf, (uint) blob_len));
+            if (ndb_blob->readData(buf, len) != 0)
+              DBUG_RETURN(-1);
+            DBUG_ASSERT(len == blob_len);
+            // Ugly hack assumes only ptr needs to be changed
+            field_blob->ptr += ptrdiff;
+            field_blob->set_ptr(len, buf);
+            field_blob->ptr -= ptrdiff;
+          }
+          offset+= blob_size;
         }
-        offset+= blob_size;
       }
     }
-    if (loop == 0 && offset > m_blobs_buffer_size)
+    if (loop == 0 && offset > buffer_size)
     {
-      my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-      m_blobs_buffer_size= 0;
-      DBUG_PRINT("value", ("allocate blobs buffer size %u", offset));
-      m_blobs_buffer= my_malloc(offset, MYF(MY_WME));
-      if (m_blobs_buffer == NULL)
+      my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
+      buffer_size= 0;
+      DBUG_PRINT("info", ("allocate blobs buffer size %u", offset));
+      buffer= my_malloc(offset, MYF(MY_WME));
+      if (buffer == NULL)
         DBUG_RETURN(-1);
-      m_blobs_buffer_size= offset;
+      buffer_size= offset;
     }
   }
   DBUG_RETURN(0);
@@ -2713,14 +2735,22 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
       else
       {
         NdbBlob *ndb_blob= (*value).blob;
-        bool isNull= TRUE;
-#ifndef DBUG_OFF
-        int ret= 
-#endif
-          ndb_blob->getNull(isNull);
-        DBUG_ASSERT(ret == 0);
-        if (isNull)
-          field->set_null(row_offset);
+        int isNull;
+        ndb_blob->getDefined(isNull);
+        if (isNull != 0)
+        {
+          uint col_no = ndb_blob->getColumn()->getColumnNo();
+          if (isNull == 1)
+          {
+            DBUG_PRINT("info",("[%u] NULL", col_no))
+            field->set_null(row_offset);
+          }
+          else
+          {
+            DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
+            bitmap_clear_bit(defined, col_no);
+          }
+        }
       }
     }
   }
@@ -4713,6 +4743,7 @@ int ha_ndbcluster::alter_table_name(const char *to)
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *orig_tab= (const NDBTAB *) m_table;
   DBUG_ENTER("alter_table_name");
+  DBUG_PRINT("info", ("from: %s to: %s", orig_tab->getName(), to));
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(to);
