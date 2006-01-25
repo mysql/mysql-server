@@ -243,6 +243,16 @@ int mysql_update(THD *thd,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
 	goto err;
 
+      /*
+        When we get here, we have one of the following options:
+        A. used_index == MAX_KEY
+           This means we should use full table scan, and start it with
+           init_read_record call
+        B. used_index != MAX_KEY
+           B.1 quick select is used, start the scan with init_read_record
+           B.2 quick select is not used, this is full index scan (with LIMIT)
+               Full index scan must be started with init_read_record_idx
+      */
       if (used_index == MAX_KEY || (select && select->quick))
         init_read_record(&info,thd,table,select,0,1);
       else
