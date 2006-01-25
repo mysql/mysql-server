@@ -4497,4 +4497,23 @@ drop procedure if exists bug15231_1|
 drop procedure if exists bug15231_2|
 drop procedure if exists bug15231_3|
 drop procedure if exists bug15231_4|
+drop procedure if exists bug15011|
+create table t3 (c1 int primary key)|
+insert into t3 values (1)|
+create procedure bug15011()
+deterministic
+begin
+declare continue handler for 1062
+select 'Outer' as 'Handler';
+begin
+declare continue handler for 1062
+select 'Inner' as 'Handler';
+insert into t3 values (1);
+end;
+end|
+call bug15011()|
+Handler
+Inner
+drop procedure bug15011|
+drop table t3|
 drop table t1,t2;
