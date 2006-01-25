@@ -270,7 +270,32 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    goto err_not_open;
+  {
+    /* Try unecoded 5.0 name */
+    uint length;
+    strxnmov(path, sizeof(path)-1,
+             mysql_data_home, "/", share->db.str, "/",
+             share->table_name.str, reg_ext, NullS);
+    length= unpack_filename(path, path) - reg_ext_length;
+    /*
+      The following is a safety test and should never fail
+      as the old file name should never be longer than the new one.
+    */
+    DBUG_ASSERT(length <= share->normalized_path.length);
+    /*
+      If the old and the new names have the same length,
+      then table name does not have tricky characters,
+      so no need to check the old file name.
+    */
+    if (length == share->normalized_path.length ||
+        ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0))
+      goto err_not_open;
+
+    /* Unencoded 5.0 table name found */
+    path[length]= '\0'; // Remove .frm extension
+    strmov(share->normalized_path.str, path);
+    share->normalized_path.length= length;
+  }
 
   error= 4;
   if (my_read(file,(byte*) head, 64, MYF(MY_NABP)))
