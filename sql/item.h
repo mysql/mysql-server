@@ -2126,6 +2126,8 @@ public:
   /* Is this item represents row from NEW or OLD row ? */
   enum row_version_type {OLD_ROW, NEW_ROW};
   row_version_type row_version;
+  /* Is this item used for reading or updating the value? */
+  enum access_types { AT_READ = 0x1, AT_UPDATE = 0x2 };
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
@@ -2135,18 +2137,24 @@ public:
 
   Item_trigger_field(Name_resolution_context *context_arg,
                      row_version_type row_ver_arg,
-                     const char *field_name_arg)
+                     const char *field_name_arg,
+                     access_types access_type_arg)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1)
+     row_version(row_ver_arg), field_idx((uint)-1),
+     access_type(access_type_arg), table_grants(NULL)
   {}
-  void setup_field(THD *thd, TABLE *table);
+  void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   void print(String *str);
   table_map used_tables() const { return (table_map)0L; }
   void cleanup();
+
+private:
+  access_types access_type;
+  GRANT_INFO *table_grants;
 };
 
 
