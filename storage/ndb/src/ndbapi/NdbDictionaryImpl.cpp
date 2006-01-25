@@ -3398,12 +3398,14 @@ NdbDictionaryImpl::getEvent(const char * eventName)
     if (ev->m_tableId      == info->m_table_impl->m_id &&
 	ev->m_tableVersion == info->m_table_impl->m_version)
       break;
+    DBUG_PRINT("error",("%s: retry=%d: "
+                        "table version mismatch, event: [%u,%u] table: [%u,%u]",
+                        ev->getTableName(), retry,
+                        ev->m_tableId, ev->m_tableVersion,
+                        info->m_table_impl->m_id, info->m_table_impl->m_version));
     if (retry)
     {
       m_error.code= 241;
-      DBUG_PRINT("error",("%s: table version mismatch, event: [%u,%u] table: [%u,%u]",
-			  ev->getTableName(), ev->m_tableId, ev->m_tableVersion,
-			  info->m_table_impl->m_id, info->m_table_impl->m_version));
       delete ev;
       DBUG_RETURN(NULL);
     }
@@ -3607,7 +3609,7 @@ NdbDictionaryImpl::dropEvent(const char * eventName)
     if (m_error.code != 723 && // no such table
         m_error.code != 241)   // invalid table
       DBUG_RETURN(-1);
-    DBUG_PRINT("info", ("no table, drop by name alone"));
+    DBUG_PRINT("info", ("no table err=%d, drop by name alone", m_error.code));
     evnt = new NdbEventImpl();
     evnt->setName(eventName);
   }
@@ -3644,7 +3646,17 @@ NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
       (void)dropEvent(bename);
     }
   } else {
-    // could loop over MAX_ATTRIBUTES_IN_TABLE ...
+    // loop over MAX_ATTRIBUTES_IN_TABLE ...
+    Uint32 i;
+    for (i = 0; i < MAX_ATTRIBUTES_IN_TABLE; i++) {
+      char bename[MAX_TAB_NAME_SIZE];
+      // XXX should get name from NdbBlob
+      sprintf(bename, "NDB$BLOBEVENT_%s_%u", evnt.getName(), i);
+      NdbEventImpl* bevnt = new NdbEventImpl();
+      bevnt->setName(bename);
+      (void)m_receiver.dropEvent(*bevnt);
+      delete bevnt;
+    }
   }
   DBUG_RETURN(0);
 }
@@ -4629,6 +4641,30 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   dst.m_filegroup_version= f.FilegroupVersion;
   dst.m_free=  f.FileFreeExtents;
   return 0;
+}
+
+// XXX temp
+void
+NdbDictionaryImpl::fix_blob_events(const NdbDictionary::Table* table, const char* ev_name)
+{
+  const NdbTableImpl& t = table->m_impl;
+  const NdbEventImpl* ev = getEvent(ev_name);
+  assert(ev != NULL && ev->m_tableImpl == &t);
+  Uint32 i;
+  for (i = 0; i < t.m_columns.size(); i++) {
+    assert(t.m_columns[i] != NULL);
+    const NdbColumnImpl& c = *t.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    char bename[200];
+    NdbBlob::getBlobEventName(bename, ev, &c);
+    // following fixes dict cache blob table
+    NdbEventImpl* bev = getEvent(bename);
+    if (c.m_blobTable != bev->m_tableImpl) {
+      // XXX const violation
+      ((NdbColumnImpl*)&c)->m_blobTable = bev->m_tableImpl;
+    }
+  }
 }
 
 template class Vector<int>;

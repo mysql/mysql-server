@@ -1327,10 +1327,10 @@ NdbBlob::prepareColumn()
   assert((NDB_BLOB_HEAD_SIZE << 2) == sizeof(Head));
   assert(theColumn->m_attrSize * theColumn->m_arraySize == sizeof(Head) + theInlineSize);
   if (thePartSize > 0) {
-    const NdbDictionary::Table* bt = NULL;
-    const NdbDictionary::Column* bc = NULL;
+    const NdbTableImpl* bt = NULL;
+    const NdbColumnImpl* bc = NULL;
     if (theStripeSize == 0 ||
-        (bt = theColumn->getBlobTable()) == NULL ||
+        (bt = theColumn->m_blobTable) == NULL ||
         (bc = bt->getColumn("DATA")) == NULL ||
         bc->getType() != partType ||
         bc->getLength() != (int)thePartSize) {

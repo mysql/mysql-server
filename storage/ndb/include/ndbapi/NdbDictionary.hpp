@@ -883,6 +883,7 @@ public:
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
 #endif
     class NdbTableImpl & m_impl;
@@ -1764,6 +1765,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
     void set_local_table_data_size(unsigned sz);
+    void fix_blob_events(const Table* table, const char* ev_name);
 #endif
   };
 };
