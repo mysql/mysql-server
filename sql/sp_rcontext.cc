@@ -188,7 +188,8 @@ sp_rcontext::find_handler(uint sql_errno,
     switch (cond->type)
     {
     case sp_cond_type_t::number:
-      if (sql_errno == cond->mysqlerr)
+      if (sql_errno == cond->mysqlerr &&
+          (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
 	found= i;		// Always the most specific
       break;
     case sp_cond_type_t::state:
