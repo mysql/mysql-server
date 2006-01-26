@@ -41,7 +41,7 @@ count(*)
 0
 drop event event3;
 drop table t_event3;
-create event e_26 on schedule at '2017-01-01 00:00:00' disabled do set @a = 5;
+create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
 events_test	e_26	 set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
