@@ -638,7 +638,7 @@ static char *get_word(char **str)
   DBUG_ENTER("get_word");
 
   *str= find_end_of_word(start);
-  DBUG_RETURN(my_strdup_with_length(start, (uint) (*str - start),
+  DBUG_RETURN(my_strndup(start, (uint) (*str - start),
 				    MYF(MY_WME | MY_FAE)));
 }
 
@@ -672,7 +672,7 @@ static struct message *parse_message_string(struct message *new_message,
   while (*str != ' ' && *str != '\t' && *str)
     str++;
   if (!(new_message->lang_short_name=
-	my_strdup_with_length(start, (uint) (str - start),
+	my_strndup(start, (uint) (str - start),
 			      MYF(MY_WME | MY_FAE))))
     DBUG_RETURN(0);				/* Fatal error */
   DBUG_PRINT("info", ("msg_slang: %s", new_message->lang_short_name));
@@ -692,7 +692,7 @@ static struct message *parse_message_string(struct message *new_message,
   start= str + 1;
   str= parse_text_line(start);
 
-  if (!(new_message->text= my_strdup_with_length(start, (uint) (str - start),
+  if (!(new_message->text= my_strndup(start, (uint) (str - start),
 						 MYF(MY_WME | MY_FAE))))
     DBUG_RETURN(0);				/* Fatal error */
   DBUG_PRINT("info", ("msg_text: %s", new_message->text));
