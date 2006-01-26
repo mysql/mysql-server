@@ -589,7 +589,7 @@ CREATE TABLE event (
   ends DATETIME default NULL,
   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
   PRIMARY KEY  (db,name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
