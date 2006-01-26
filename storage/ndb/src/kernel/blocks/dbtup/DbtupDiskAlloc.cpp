@@ -346,12 +346,19 @@ Dbtup::disk_page_prealloc(Signal* signal,
     if ((pos= alloc.find_extent(sz)) != RNIL)
     {
       jam();
+      Uint32 cnt = 0;
       LocalDLList<Extent_info> list(c_extent_pool, alloc.m_free_extents[pos]);
       list.first(ext);
+      while((pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits)) < 0)
+	if(!list.next(ext) || ++cnt < 10)
+	  break;
+      if (cnt == 10 || ext.isNull())
+	goto alloc;
       list.remove(ext);
     }
     else
     {
+  alloc:
       jam();
       /**
        * We need to alloc an extent
