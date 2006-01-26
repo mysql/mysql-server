@@ -1780,7 +1780,7 @@ void ha_partition::set_up_table_before_create(TABLE *table,
     return;                                     // Fatal error
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
-  char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  const char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
   if (part_elem->index_file_name)
     append_file_to_dir(current_thd,
                        (const char**)&part_elem->index_file_name,
