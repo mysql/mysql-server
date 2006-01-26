@@ -2,8 +2,9 @@ create database if not exists events_test;
 use events_test;
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
-alter event event1 rename to event2;
-alter event event2 disabled;
+alter event event1 rename to event2 enable;
+alter event event2 disable;
+alter event event2 enable;
 alter event event2 on completion not preserve;
 delimiter __;
 alter event event2 on schedule every 1 year on completion preserve rename to event3 comment "new comment" do begin select 1; end__
