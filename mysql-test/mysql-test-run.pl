@@ -157,7 +157,7 @@ our $path_client_bindir;
 our $path_language;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
-our $path_slave_load_tmpdir;     # What is this?!
+our $path_mysqltest_log; 
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_tmpdir;                 # A path but set directly on cmd line
