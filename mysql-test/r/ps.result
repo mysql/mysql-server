@@ -825,6 +825,40 @@ execute stmt;
 drop table t1;
 set names default;
 deallocate prepare stmt;
+create table t1 (
+word_id mediumint(8) unsigned not null default '0',
+formatted varchar(20) not null default ''
+);
+insert into t1 values
+(80,'pendant'), (475,'pretendants'), (989,'tendances'),
+(1019,'cependant'),(1022,'abondance'),(1205,'independants'),
+(13,'lessiver'),(25,'lambiner'),(46,'situer'),(71,'terminer'),
+(82,'decrocher');
+select count(*) from t1 where formatted like '%NDAN%';
+count(*)
+6
+select count(*) from t1 where formatted like '%ER';
+count(*)
+5
+prepare stmt from "select count(*) from t1 where formatted like ?";
+set @like="%NDAN%";
+execute stmt using @like;
+count(*)
+6
+set @like="%ER";
+execute stmt using @like;
+count(*)
+5
+set @like="%NDAN%";
+execute stmt using @like;
+count(*)
+6
+set @like="%ER";
+execute stmt using @like;
+count(*)
+5
+deallocate prepare stmt;
+drop table t1;
 create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
