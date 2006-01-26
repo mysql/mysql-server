@@ -34,7 +34,7 @@ drop event event3;
 drop table t_event3;
 
 
-create event e_26 on schedule at '2017-01-01 00:00:00' disabled do set @a = 5;
+create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
 --error 1503
