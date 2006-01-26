@@ -4107,6 +4107,20 @@ JOIN::join_free(bool full)
       problems in free_elements() as some of the elements are then deleted.
     */
     tmp_table_param.copy_funcs.empty();
+    /*
+      If we have tmp_join and 'this' JOIN is not tmp_join and
+      tmp_table_param.copy_field's  of them are equal then we have to remove
+      pointer to  tmp_table_param.copy_field from tmp_join, because it qill
+      be removed in tmp_table_param.cleanup().
+    */
+    if (tmp_join &&
+        tmp_join != this &&
+        tmp_join->tmp_table_param.copy_field ==
+        tmp_table_param.copy_field)
+    {
+      tmp_join->tmp_table_param.copy_field=
+        tmp_join->tmp_table_param.save_copy_field= 0;
+    }
     tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
