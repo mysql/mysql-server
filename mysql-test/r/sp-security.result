@@ -134,7 +134,11 @@ drop database db2;
 select type,db,name from mysql.proc;
 type	db	name
 delete from mysql.user where user='user1' or user='user2';
+delete from mysql.user where user='' and host='%';
 delete from mysql.procs_priv where user='user1' or user='user2';
+delete from mysql.procs_priv where user='' and host='%';
+delete from mysql.db where user='user2';
+flush privileges;
 grant usage on *.* to usera@localhost;
 grant usage on *.* to userb@localhost;
 grant usage on *.* to userc@localhost;
@@ -195,6 +199,9 @@ use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
 delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
+delete from mysql.tables_priv where user='usera';
+flush privileges;
+drop table t1;
 drop function if exists bug_9503;
 create database mysqltest//
 use mysqltest//

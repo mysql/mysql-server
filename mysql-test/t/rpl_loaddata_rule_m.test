@@ -24,7 +24,10 @@ load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 # were returned).
 --replace_column 2 # 5 #
 show binlog events from 98;
+
 drop database mysqltest;
+use test;
+drop table t1;
 
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012: Delete me
