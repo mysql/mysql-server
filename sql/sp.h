@@ -40,7 +40,10 @@ sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
 int
-sp_exists_routine(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
+sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
+
+int
+sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
 
 int
 sp_create_procedure(THD *thd, sp_head *sp);
