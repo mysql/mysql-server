@@ -2243,6 +2243,7 @@ static int add_int(File fptr, longlong number)
 }
 
 static int add_keyword_string(File fptr, const char *keyword,
+                              bool should_use_quotes, 
                               const char *keystr)
 {
   int err= add_string(fptr, keyword);
@@ -2250,7 +2251,11 @@ static int add_keyword_string(File fptr, const char *keyword,
   err+= add_space(fptr);
   err+= add_equal(fptr);
   err+= add_space(fptr);
+  if (should_use_quotes)
+    err+= add_string(fptr, "'");
   err+= add_string(fptr, keystr);
+  if (should_use_quotes)
+    err+= add_string(fptr, "'");
   return err + add_space(fptr);
 }
 
@@ -2278,7 +2283,8 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   int err= 0;
 
   if (p_elem->tablespace_name)
-    err+= add_keyword_string(fptr,"TABLESPACE",p_elem->tablespace_name);
+    err+= add_keyword_string(fptr,"TABLESPACE", FALSE, 
+                             p_elem->tablespace_name);
   if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
     err+= add_keyword_int(fptr,"NODEGROUP",(longlong)p_elem->nodegroup_id);
   if (p_elem->part_max_rows)
@@ -2286,11 +2292,13 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   if (p_elem->part_min_rows)
     err+= add_keyword_int(fptr,"MIN_ROWS",(longlong)p_elem->part_min_rows);
   if (p_elem->data_file_name)
-    err+= add_keyword_string(fptr,"DATA DIRECTORY",p_elem->data_file_name);
+    err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
+                             p_elem->data_file_name);
   if (p_elem->index_file_name)
-    err+= add_keyword_string(fptr,"INDEX DIRECTORY",p_elem->index_file_name);
+    err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
+                             p_elem->index_file_name);
   if (p_elem->part_comment)
-    err+= add_keyword_string(fptr, "COMMENT",p_elem->part_comment);
+    err+= add_keyword_string(fptr, "COMMENT", FALSE, p_elem->part_comment);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -5751,7 +5759,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
   /* Find minimum */
   if (flags & NO_MIN_RANGE)
-    part_iter->start_part_num= 0;
+    part_iter->part_nums.start= 0;
   else
   {
     /*
@@ -5763,21 +5771,21 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     store_key_image_to_rec(field, min_value, field_len);
     bool include_endp= part_info->range_analysis_include_bounds ||
                        !test(flags & NEAR_MIN);
-    part_iter->start_part_num= get_endpoint(part_info, 1, include_endp);
-    if (part_iter->start_part_num == max_endpoint_val)
+    part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
+    if (part_iter->part_nums.start == max_endpoint_val)
       return 0; /* No partitions */
   }
 
   /* Find maximum, do the same as above but for right interval bound */
   if (flags & NO_MAX_RANGE)
-    part_iter->end_part_num= max_endpoint_val;
+    part_iter->part_nums.end= max_endpoint_val;
   else
   {
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp= part_info->range_analysis_include_bounds ||
                        !test(flags & NEAR_MAX);
-    part_iter->end_part_num= get_endpoint(part_info, 0, include_endp);
-    if (part_iter->start_part_num == part_iter->end_part_num)
+    part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
+    if (part_iter->part_nums.start== part_iter->part_nums.end)
       return 0; /* No partitions */
   }
   return 1; /* Ok, iterator initialized */
@@ -5907,8 +5915,8 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   if (n_values > total_parts || n_values > MAX_RANGE_TO_WALK)
     return -1;
 
-  part_iter->start_val= a;
-  part_iter->end_val=   b;
+  part_iter->field_vals.start= a;
+  part_iter->field_vals.end=   b;
   part_iter->part_info= part_info;
   part_iter->get_next=  get_next_func;
   return 1;
@@ -5933,10 +5941,10 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
 
 uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 {
-  if (part_iter->start_part_num == part_iter->end_part_num)
+  if (part_iter->part_nums.start== part_iter->part_nums.end)
     return NOT_A_PARTITION_ID;
   else
-    return part_iter->start_part_num++;
+    return part_iter->part_nums.start++;
 }
 
 
@@ -5959,11 +5967,11 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
 
 uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
 {
-  if (part_iter->start_part_num == part_iter->end_part_num)
+  if (part_iter->part_nums.start == part_iter->part_nums.end)
     return NOT_A_PARTITION_ID;
   else
     return part_iter->part_info->list_array[part_iter->
-                                            start_part_num++].partition_id;
+                                            part_nums.start++].partition_id;
 }
 
 
@@ -5988,10 +5996,10 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
 {
   uint32 part_id;
   Field *field= part_iter->part_info->part_field_array[0];
-  while (part_iter->start_val != part_iter->end_val)
+  while (part_iter->field_vals.start != part_iter->field_vals.end)
   {
-    field->store(part_iter->start_val, FALSE);
-    part_iter->start_val++;
+    field->store(part_iter->field_vals.start, FALSE);
+    part_iter->field_vals.start++;
     longlong dummy;
     if (!part_iter->part_info->get_partition_id(part_iter->part_info, 
                                                 &part_id, &dummy))
@@ -6007,10 +6015,10 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
 {
   uint32 part_id;
   Field *field= part_iter->part_info->subpart_field_array[0];
-  if (part_iter->start_val == part_iter->end_val)
+  if (part_iter->field_vals.start == part_iter->field_vals.end)
     return NOT_A_PARTITION_ID;
-  field->store(part_iter->start_val, FALSE);
-  part_iter->start_val++;
+  field->store(part_iter->field_vals.start, FALSE);
+  part_iter->field_vals.start++;
   return part_iter->part_info->get_subpartition_id(part_iter->part_info);
 }
 #endif

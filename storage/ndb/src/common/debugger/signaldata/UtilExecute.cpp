@@ -20,10 +20,12 @@ bool
 printUTIL_EXECUTE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec) 
 {
   const UtilExecuteReq* const sig = (UtilExecuteReq*)data;
-  fprintf(out, " senderRef: H'%.8x, senderData: H'%.8x prepareId: %d\n",
+  fprintf(out, " senderRef: H'%.8x, senderData: H'%.8x prepareId: %d "
+          " releaseFlag: %d\n",
 	  sig->senderRef,
 	  sig->senderData,
-	  sig->prepareId);
+	  sig->getPrepareId(),
+          sig->getReleaseFlag());
   return true;
 }
 
@@ -48,8 +50,6 @@ printUTIL_EXECUTE_REF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
 	  "IllegalAttrNumber" : 
 	  sig->errorCode == UtilExecuteRef::TCError ? 
 	  "TCError" : 
-	  sig->errorCode == UtilExecuteRef::IllegalPrepareId ? 
-	  "IllegalPrepareId" :
 	  sig->errorCode == UtilExecuteRef::AllocationError ? 
 	  "AllocationError" :
 	  "Unknown");
