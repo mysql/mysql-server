@@ -38,3 +38,13 @@ NULL	mysqltest_db1	wl2818_trg1	INSERT	NULL	mysqltest_db1	t1	0	NULL
 INSERT INTO t2 VALUES(CURRENT_USER())	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		
 NULL	mysqltest_db1	wl2818_trg2	INSERT	NULL	mysqltest_db1	t1	0	NULL	
 INSERT INTO t2 VALUES(CURRENT_USER())	ROW	AFTER	NULL	NULL	OLD	NEW	NULL		mysqltest_dfn@localhost
+DROP TRIGGER wl2818_trg1;
+Warnings:
+Warning	1454	No definer attribute for trigger 'mysqltest_db1'.'wl2818_trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
+DROP TRIGGER wl2818_trg2;
+use mysqltest_db1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+DROP DATABASE mysqltest_db1;

@@ -6,6 +6,8 @@ grant create view on test.* to test@localhost;
 show grants for test@localhost;
 revoke create view on test.* from test@localhost;
 show grants for test@localhost;
+# The grant above creates a new user test@localhost, delete it
+drop user test@localhost;
 
 # grant create view test
 #
