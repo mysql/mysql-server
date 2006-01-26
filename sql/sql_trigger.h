@@ -56,10 +56,9 @@ class Table_triggers_list: public Sql_alloc
   LEX_STRING        sroutines_key;
 
   /*
-    is_special_var_used specifies whether trigger body contains special
-    variables (NEW/OLD).
+    Grant information for each trigger (pair: subject table, trigger definer).
   */
-  bool m_spec_var_used[TRG_EVENT_MAX][TRG_ACTION_MAX];
+  GRANT_INFO        subject_table_grants[TRG_EVENT_MAX][TRG_ACTION_MAX];
 
 public:
   /*
@@ -78,6 +77,7 @@ public:
     record1_field(0), table(table_arg)
   {
     bzero((char *)bodies, sizeof(bodies));
+    bzero((char *)&subject_table_grants, sizeof(subject_table_grants));
   }
   ~Table_triggers_list();
 
@@ -107,11 +107,6 @@ public:
   bool has_before_update_triggers()
   {
     return test(bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE]);
-  }
-
-  inline bool is_special_var_used(int event, int action_time) const
-  {
-    return m_spec_var_used[event][action_time];
   }
 
   void set_table(TABLE *new_table);
