@@ -53,7 +53,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     end=strcend(pathlist, DELIM);
     strmake(buff, pathlist, (uint) (end-pathlist));
     length= cleanup_dirname(buff, buff);
-    if (!(copy= my_strdup_with_length(buff, length, MYF(MY_WME))) ||
+    if (!(copy= my_strndup(buff, length, MYF(MY_WME))) ||
         insert_dynamic(&t_arr, (gptr) &copy))
       DBUG_RETURN(TRUE);
     pathlist=end+1;
