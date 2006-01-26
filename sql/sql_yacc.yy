@@ -1434,6 +1434,16 @@ ev_schedule_time: EVERY_SYM expr interval
                 yyerror(ER(ER_SYNTAX_ERROR));
                 YYABORT;  
                 break;
+              case ER_WRONG_VALUE:
+                {
+                  char buff[120];
+                  String str(buff,(uint32) sizeof(buff), system_charset_info);
+                  String *str2= $2->val_str(&str);
+                  my_error(ER_WRONG_VALUE, MYF(0), "AT",
+                           str2? str2->c_ptr():"NULL");
+                  YYABORT;
+                  break;
+                }          
               case EVEX_BAD_PARAMS:
                 my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
                 YYABORT;
