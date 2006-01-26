@@ -3828,9 +3828,9 @@ ha_innobase::delete_row(
 }
 
 /**************************************************************************
-Removes a new lock set on a row. This can be called after a row has been read
-in the processing of an UPDATE or a DELETE query, if the option
-innodb_locks_unsafe_for_binlog is set. */
+Removes a new lock set on a row, if it was not read optimistically. This can 
+be called after a row has been read in the processing of an UPDATE or a DELETE
+query, if the option innodb_locks_unsafe_for_binlog is set. */
 
 void
 ha_innobase::unlock_row(void)
@@ -3840,7 +3840,7 @@ ha_innobase::unlock_row(void)
 
 	DBUG_ENTER("ha_innobase::unlock_row");
 
-	if (last_query_id != user_thd->query_id) {
+	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
 		ut_print_timestamp(stderr);
 		sql_print_error("last_query_id is %lu != user_thd_query_id is "
 				"%lu", (ulong) last_query_id,
@@ -3848,9 +3848,45 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-	
-	if (srv_locks_unsafe_for_binlog) {
+
+	switch (prebuilt->row_read_type) {
+	case ROW_READ_WITH_LOCKS:
+		if (!srv_locks_unsafe_for_binlog) {
+			break;
+		}
+		/* fall through */
+	case ROW_READ_TRY_SEMI_CONSISTENT:
 		row_unlock_for_mysql(prebuilt, FALSE);
+		break;
+	case ROW_READ_DID_SEMI_CONSISTENT:
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+		break;
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+bool
+ha_innobase::was_semi_consistent_read(void)
+/*=======================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	return(prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT);
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+void
+ha_innobase::try_semi_consistent_read(bool yes)
+/*===========================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	if (yes && srv_locks_unsafe_for_binlog) {
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+	} else {
+		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 }
 
