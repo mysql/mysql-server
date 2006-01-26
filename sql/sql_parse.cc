@@ -4599,7 +4599,7 @@ end_with_restore_list:
       else
         sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
                             &thd->sp_func_cache, FALSE);
-      if (!sp || !sp->show_routine_code(thd))
+      if (!sp || sp->show_routine_code(thd))
       {
         /* We don't distinguish between errors for now */
         my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
