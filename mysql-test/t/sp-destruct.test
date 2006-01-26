@@ -119,6 +119,15 @@ create trigger t1_ai after insert on t1 for each row call bug14233_3();
 insert into t1 values (0);
 
 # Clean-up
-delete from mysql.proc where name like 'bug14233%';
 drop trigger t1_ai;
 drop table t1;
+
+#
+# BUG#16303: erroneus stored procedures and functions should be droppable
+#
+drop function bug14233_1;
+drop function bug14233_2;
+drop procedure bug14233_3;
+# Assert: These should show nothing.
+show procedure status;
+show function status;
