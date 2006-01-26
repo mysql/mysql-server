@@ -844,7 +844,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
         file->ha_reset();
-        file->external_lock(current_thd, F_UNLCK);
+        file->ha_external_lock(current_thd, F_UNLCK);
         file->close();
         delete file;
       }
@@ -1008,14 +1008,14 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     /* Caller will free the memory */
     goto failure;
   }
-  if (file->external_lock(thd, F_RDLCK))
+  if (file->ha_external_lock(thd, F_RDLCK))
     goto failure;
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
       file->ha_retrieve_all_pk() ||
       init() || reset())
   {
-    file->external_lock(thd, F_UNLCK);
+    file->ha_external_lock(thd, F_UNLCK);
     file->close();
     goto failure;
   }
