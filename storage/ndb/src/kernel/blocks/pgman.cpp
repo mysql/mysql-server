@@ -125,7 +125,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   if (page_buffer > 0)
   {
     page_buffer /= GLOBAL_PAGE_SIZE; // in pages
-    m_page_entry_pool.setSize(2*page_buffer);
+    m_page_entry_pool.setSize(100*page_buffer);
     m_page_request_pool.setSize(10000);
     m_param.m_max_pages = page_buffer;
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
@@ -145,7 +145,7 @@ Pgman::Param::Param() :
   m_max_io_waits(64),
   m_stats_loop_delay(1000),
   m_cleanup_loop_delay(200),
-  m_lcp_loop_delay(200)
+  m_lcp_loop_delay(0)
 {
 }
 
@@ -411,6 +411,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     return true;
   }
 
+  ndbrequire(false);
+  
   return false;
 }
 
@@ -739,7 +741,10 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
   {
     Uint32 delay = m_param.m_lcp_loop_delay;
     signal->theData[0] = PgmanContinueB::LCP_LOOP;
-    sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    if (delay)
+      sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    else
+      sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
   }
 #ifdef VM_TRACE
   debugOut << "PGMAN: <do_lcp_loop on=" << m_lcp_loop_on
