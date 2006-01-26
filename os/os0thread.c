@@ -148,6 +148,15 @@ os_thread_create(
 		 exit(1);
 	}
 #endif
+#ifdef __NETWARE__
+	ret = pthread_attr_setstacksize(&attr,
+					(size_t) NW_THD_STACKSIZE);
+        if (ret) {
+	         fprintf(stderr,
+          "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
+		 exit(1);
+	}
+#endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
