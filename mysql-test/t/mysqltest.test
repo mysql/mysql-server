@@ -839,7 +839,7 @@ select "a" as col1, "c" as col2;
 --exec echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/con.sql
 --exec echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/con.sql
 --exec echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/con.sql
---exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/con.sql; echo OK;" | $MYSQL_TEST 2>&1
 
 # Repeat connect/disconnect, exceed max number of connections
 --exec echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/con.sql
