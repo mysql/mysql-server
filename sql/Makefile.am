@@ -124,7 +124,7 @@ DEFS =			-DMYSQL_SERVER \
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		udf_example.cc handlerton-win.cc $(BUILT_SOURCES)
-DISTCLEANFILES =        lex_hash.h
+CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
 AM_YFLAGS =		-d
 
 mysql_tzinfo_to_sql.cc:
