@@ -626,6 +626,8 @@ row_create_prebuilt(
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
 
+	prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
+
 	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(heap,
