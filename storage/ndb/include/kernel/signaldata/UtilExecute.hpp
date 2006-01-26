@@ -49,9 +49,9 @@ public:
   GET_SET_SENDERREF
   GET_SET_SENDERDATA
   void setPrepareId(Uint32 pId) { prepareId = pId; }; // !! unsets release flag
-  Uint32 getPrepareId() { return prepareId & 0xFF; };
+  Uint32 getPrepareId() const { return prepareId & 0xFF; };
   void setReleaseFlag() { prepareId |= 0x100; };
-  bool getReleaseFlag() { return (prepareId & 0x100) != 0; };
+  bool getReleaseFlag() const { return (prepareId & 0x100) != 0; };
 private:
   Uint32 senderData; // MUST be no 1!
   Uint32 senderRef;
@@ -117,7 +117,6 @@ public:
     IllegalKeyNumber = 1,
     IllegalAttrNumber = 2,
     TCError = 3,
-    IllegalPrepareId = 4,
     AllocationError = 5,
     MissingDataSection = 6,
     MissingData = 7

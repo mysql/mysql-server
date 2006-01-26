@@ -1184,7 +1184,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
        tmp= tmp->next)
   {
     count++;
-    tmp->string= my_strdup_with_length(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
+    tmp->string= my_strndup(ptr, (size_t)(retstr - ptr), MYF(MY_FAE));
     tmp->length= (size_t)(retstr - ptr);
     DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));
     ptr+= retstr - ptr + 1;
@@ -1195,7 +1195,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
 
   if (ptr != script+length)
   {
-    tmp->string= my_strdup_with_length(ptr, (size_t)((script + length) - ptr), 
+    tmp->string= my_strndup(ptr, (size_t)((script + length) - ptr), 
                                        MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
     DBUG_PRINT("info", (" Creating : %.*s\n", (uint)tmp->length, tmp->string));

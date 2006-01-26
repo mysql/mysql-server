@@ -80,6 +80,7 @@ static const char* empty_string = "";
  * 1300 - BACKUP
  * 1400 - SUMA
  * 1500 - LGMAN
+ * 1600 - TSMAN
  * 4000 - API
  * 4100 - ""
  * 4200 - ""
@@ -197,7 +198,8 @@ ErrorBundle ErrorCodes[] = {
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
-
+  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
+  
   /**
    * TimeoutExpired 
    */
