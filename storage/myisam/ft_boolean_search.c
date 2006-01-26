@@ -107,6 +107,7 @@ typedef struct st_ftb_word
   my_off_t   key_root;
   my_off_t  *max_docid;
   MI_KEYDEF *keyinfo;
+  struct st_ftb_word *prev;
   float      weight;
   uint       ndepth;
   uint       len;
@@ -121,6 +122,7 @@ typedef struct st_ft_info
   CHARSET_INFO *charset;
   FTB_EXPR  *root;
   FTB_WORD **list;
+  FTB_WORD  *last_word;
   MEM_ROOT   mem_root;
   QUEUE      queue;
   TREE       no_dupes;
@@ -199,7 +201,9 @@ static int ftb_query_add_word(void *param, byte *word, uint word_len,
       memcpy(ftbw->word + 1, word, word_len);
       ftbw->word[0]= word_len;
       if (info->yesno > 0) ftbw->up->ythresh++;
-      queue_insert(&ftb_param->ftb->queue, (byte *)ftbw);
+      ftb_param->ftb->queue.max_elements++;
+      ftbw->prev= ftb_param->ftb->last_word;
+      ftb_param->ftb->last_word= ftbw;
       ftb_param->ftb->with_scan|= (info->trunc & FTB_FLAG_TRUNC);
       for (tmp_expr= ftb_param->ftbe; tmp_expr->up; tmp_expr= tmp_expr->up)
         if (! (tmp_expr->flags & FTB_FLAG_YES))
@@ -505,7 +509,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
-  uint       res;
+  FTB_WORD  *ftbw;
 
   if (!(ftb=(FTB *)my_malloc(sizeof(FTB), MYF(MY_WME))))
     return 0;
@@ -518,19 +522,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->with_scan=0;
   ftb->lastpos=HA_OFFSET_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
+  ftb->last_word= 0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
-
-  /*
-    Hack: instead of init_queue, we'll use reinit queue to be able
-    to alloc queue with alloc_root()
-  */
-  res=ftb->queue.max_elements=1+query_len/2;
-  if (!(ftb->queue.root=
-        (byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*))))
-    goto err;
-  reinit_queue(& ftb->queue, res, 0, 0,
-                         (int (*)(void*,byte*,byte*))FTB_WORD_cmp, 0);
+  ftb->queue.max_elements= 0;
   if (!(ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
     goto err;
   ftbe->weight=1;
@@ -545,6 +540,18 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   _ftb_parse_query(ftb, query, query_len, keynr == NO_SUCH_KEY ?
                                           &ft_default_parser :
                                           info->s->keyinfo[keynr].parser);
+  /*
+    Hack: instead of init_queue, we'll use reinit queue to be able
+    to alloc queue with alloc_root()
+  */
+  if (! (ftb->queue.root= (byte **)alloc_root(&ftb->mem_root,
+                                              (ftb->queue.max_elements + 1) *
+                                              sizeof(void *))))
+    goto err;
+  reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
+                         (int (*)(void*, byte*, byte*))FTB_WORD_cmp, 0);
+  for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
+    queue_insert(&ftb->queue, (byte *)ftbw);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
