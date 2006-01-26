@@ -1074,6 +1074,7 @@ a	f1()
 1	2
 2	2
 drop procedure p1//
+drop function f1//
 drop table t1//
 flush query cache;
 reset query cache;
