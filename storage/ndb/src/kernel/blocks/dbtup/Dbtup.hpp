@@ -565,7 +565,6 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
      * 
      */
     STATIC_CONST( SZ = EXTENT_SEARCH_MATRIX_SIZE );
-    Uint32 m_extent_search_matrix[SZ]; // 4x4
     DLList<Extent_info>::Head m_free_extents[SZ];
     Uint32 m_total_extent_free_space_thresholds[EXTENT_SEARCH_MATRIX_ROWS];
     Uint32 m_page_free_bits_map[EXTENT_SEARCH_MATRIX_COLS];
@@ -593,6 +592,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     SLList<Extent_info, Extent_list_t>::Head m_extent_list;
   };
   
+  void dump_disk_alloc(Disk_alloc_info&);
+
 struct Fragrecord {
   Uint32 nextStartRange;
   Uint32 currentPageRange;
