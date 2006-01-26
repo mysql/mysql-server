@@ -4089,8 +4089,6 @@ NULL	1
 call bug14643_2()|
 Handler
 boo
-2
-2
 Handler
 boo
 drop procedure bug14643_1|
@@ -4428,6 +4426,11 @@ done
 call bug14498_3()|
 v
 maybe
+Handler
+error
+End
+done
+call bug14498_4()|
 Handler
 error
 End

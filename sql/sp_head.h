@@ -41,6 +41,7 @@ sp_get_flags_for_command(LEX *lex);
 
 struct sp_label;
 class sp_instr;
+class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
 struct sp_cond_type;
 struct sp_pvar;
@@ -271,11 +272,11 @@ public:
 
   // Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
   void
-  new_cont_backpatch(sp_instr_jump_if_not *i);
+  new_cont_backpatch(sp_instr_opt_meta *i);
 
   // Add an instruction to the current level
   void
-  add_cont_backpatch(sp_instr_jump_if_not *i);
+  add_cont_backpatch(sp_instr_opt_meta *i);
 
   // Backpatch (and pop) the current level to the current position.
   void
@@ -372,15 +373,15 @@ private:
   } bp_t;
   List<bp_t> m_backpatch;	// Instructions needing backpatching
   /*
-    We need a special list for backpatching of conditional jump's continue
+    We need a special list for backpatching of instructions with a continue
     destination (in the case of a continue handler catching an error in
     the test), since it would otherwise interfere with the normal backpatch
-    mechanism - jump_if_not instructions have two different destination
+    mechanism - e.g. jump_if_not instructions have two different destinations
     which are to be patched differently.
     Since these occur in a more restricted way (always the same "level" in
     the code), we don't need the label.
    */
-  List<sp_instr_jump_if_not> m_cont_backpatch;
+  List<sp_instr_opt_meta> m_cont_backpatch;
   uint m_cont_level;            // The current cont. backpatch level
 
   /*
@@ -660,21 +661,55 @@ private:
 }; // class sp_instr_trigger_field : public sp_instr
 
 
-class sp_instr_jump : public sp_instr
+/*
+  An abstract class for all instructions with destinations that
+  needs to be updated by the optimizer.
+  Even if not all subclasses will use both the normal destination and
+  the continuation destination, we put them both here for simplicity.
+ */
+class sp_instr_opt_meta : public sp_instr
+{
+public:
+
+  uint m_dest;			// Where we will go
+  uint m_cont_dest;             // Where continue handlers will go
+
+  sp_instr_opt_meta(uint ip, sp_pcontext *ctx)
+    : sp_instr(ip, ctx),
+      m_dest(0), m_cont_dest(0), m_optdest(0), m_cont_optdest(0)
+  {}
+
+  sp_instr_opt_meta(uint ip, sp_pcontext *ctx, uint dest)
+    : sp_instr(ip, ctx),
+      m_dest(dest), m_cont_dest(0), m_optdest(0), m_cont_optdest(0)
+  {}
+
+  virtual ~sp_instr_opt_meta()
+  {}
+
+  virtual void set_destination(uint old_dest, uint new_dest)
+    = 0;
+
+protected:
+
+  sp_instr *m_optdest;		// Used during optimization
+  sp_instr *m_cont_optdest;     // Used during optimization
+
+}; // class sp_instr_opt_meta : public sp_instr
+
+class sp_instr_jump : public sp_instr_opt_meta
 {
   sp_instr_jump(const sp_instr_jump &);	/* Prevent use of these */
   void operator=(sp_instr_jump &);
 
 public:
 
-  uint m_dest;			// Where we will go
-
   sp_instr_jump(uint ip, sp_pcontext *ctx)
-    : sp_instr(ip, ctx), m_dest(0), m_optdest(0)
+    : sp_instr_opt_meta(ip, ctx)
   {}
 
   sp_instr_jump(uint ip, sp_pcontext *ctx, uint dest)
-    : sp_instr(ip, ctx), m_dest(dest), m_optdest(0)
+    : sp_instr_opt_meta(ip, ctx, dest)
   {}
 
   virtual ~sp_instr_jump()
@@ -702,11 +737,7 @@ public:
       m_dest= new_dest;
   }
 
-protected:
-
-  sp_instr *m_optdest;		// Used during optimization
-
-}; // class sp_instr_jump : public sp_instr
+}; // class sp_instr_jump : public sp_instr_opt_meta
 
 
 class sp_instr_jump_if_not : public sp_instr_jump
@@ -716,16 +747,14 @@ class sp_instr_jump_if_not : public sp_instr_jump
 
 public:
 
-  uint m_cont_dest;             // Where continue handlers will go
-
   sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, LEX *lex)
-    : sp_instr_jump(ip, ctx), m_cont_dest(0), m_expr(i),
-      m_lex_keeper(lex, TRUE), m_cont_optdest(0)
+    : sp_instr_jump(ip, ctx), m_expr(i),
+      m_lex_keeper(lex, TRUE)
   {}
 
   sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, uint dest, LEX *lex)
-    : sp_instr_jump(ip, ctx, dest), m_cont_dest(0), m_expr(i),
-      m_lex_keeper(lex, TRUE), m_cont_optdest(0)
+    : sp_instr_jump(ip, ctx, dest), m_expr(i),
+      m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_jump_if_not()
@@ -757,7 +786,6 @@ private:
 
   Item *m_expr;			// The condition
   sp_lex_keeper m_lex_keeper;
-  sp_instr *m_cont_optdest;     // Used during optimization
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump
 
@@ -899,7 +927,7 @@ private:
 
   uint m_frame;
 
-}; // class sp_instr_hreturn : public sp_instr
+}; // class sp_instr_hreturn : public sp_instr_jump
 
 
 /* This is DECLARE CURSOR */
@@ -1085,14 +1113,18 @@ private:
 }; // class sp_instr_error : public sp_instr
 
 
-class sp_instr_set_case_expr :public sp_instr
+class sp_instr_set_case_expr : public sp_instr_opt_meta
 {
 public:
 
   sp_instr_set_case_expr(uint ip, sp_pcontext *ctx, uint case_expr_id,
                          Item *case_expr, LEX *lex)
-    :sp_instr(ip, ctx), m_case_expr_id(case_expr_id), m_case_expr(case_expr),
-     m_lex_keeper(lex, TRUE)
+    : sp_instr_opt_meta(ip, ctx),
+      m_case_expr_id(case_expr_id), m_case_expr(case_expr),
+      m_lex_keeper(lex, TRUE)
+  {}
+
+  virtual ~sp_instr_set_case_expr()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
@@ -1101,13 +1133,23 @@ public:
 
   virtual void print(String *str);
 
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual void opt_move(uint dst, List<sp_instr> *ibp);
+
+  virtual void set_destination(uint old_dest, uint new_dest)
+  {
+    if (m_cont_dest == old_dest)
+      m_cont_dest= new_dest;
+  }
+
 private:
 
   uint m_case_expr_id;
   Item *m_case_expr;
   sp_lex_keeper m_lex_keeper;
 
-}; // class sp_instr_set_case_expr : public sp_instr
+}; // class sp_instr_set_case_expr : public sp_instr_opt_meta
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
