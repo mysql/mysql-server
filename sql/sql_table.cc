@@ -5254,7 +5254,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  if (to->file->external_lock(thd, F_WRLCK))
+  if (to->file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
 
   /* We can abort alter table for any table type */
@@ -5394,7 +5394,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
-  if (to->file->external_lock(thd,F_UNLCK))
+  if (to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
