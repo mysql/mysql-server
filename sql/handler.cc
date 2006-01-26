@@ -3014,40 +3014,48 @@ template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const 
 
 #endif /* HAVE_ROW_BASED_REPLICATION */
 
+int handler::ha_external_lock(THD *thd, int lock_type)
+{
+  int error;
+  if (unlikely(error= external_lock(thd, lock_type)))
+    return error;
+  return 0;
+}
+
 int handler::ha_write_row(byte *buf)
 {
   int error;
-  if (likely(!(error= write_row(buf))))
-  {
+  if (unlikely(error= write_row(buf)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Write_rows_log_event>(table, 0, buf);
+  if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
+    return error;
 #endif
-  }
-  return error;
+  return 0;
 }
 
 int handler::ha_update_row(const byte *old_data, byte *new_data)
 {
   int error;
-  if (likely(!(error= update_row(old_data, new_data))))
-  {
+  if (unlikely(error= update_row(old_data, new_data)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data);
+  if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
+    return error;
 #endif
-  }
-  return error;
+  return 0;
 }
 
 int handler::ha_delete_row(const byte *buf)
 {
   int error;
-  if (likely(!(error= delete_row(buf))))
-  {
+  if (unlikely(error= delete_row(buf)))
+    return error;
 #ifdef HAVE_ROW_BASED_REPLICATION
-    error= binlog_log_row<Delete_rows_log_event>(table, buf, 0);
+  if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
+    return error;
 #endif
-  }
-  return error;
+  return 0;
 }
 
 

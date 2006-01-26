@@ -1237,6 +1237,7 @@ public:
     interface, see the (private) functions write_row(), update_row(),
     and delete_row() below.
    */
+  int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(byte * buf);
   int ha_update_row(const byte * old_data, byte * new_data);
   int ha_delete_row(const byte * buf);
@@ -1378,7 +1379,6 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
-  virtual int external_lock(THD *thd, int lock_type) { return 0; }
   /*
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
@@ -1626,6 +1626,12 @@ private:
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
   */
+  virtual int external_lock(THD *thd __attribute__((unused)),
+                            int lock_type __attribute__((unused)))
+  {
+    return 0;
+  }
+
   virtual int write_row(byte *buf __attribute__((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
