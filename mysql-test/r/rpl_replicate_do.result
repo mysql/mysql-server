@@ -40,3 +40,4 @@ set one_shot time_zone='met';
 select * from t1;
 ts
 2005-08-12 00:00:00
+drop table t1;
