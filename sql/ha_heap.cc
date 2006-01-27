@@ -142,7 +142,13 @@ int ha_heap::write_row(byte * buf)
   res= heap_write(file,buf);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
+  {
+    /*
+       We can perform this safely since only one writer at the time is
+       allowed on the table.
+    */
     file->s->key_stat_version++;
+  }
   return res;
 }
 
@@ -155,7 +161,13 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
   res= heap_update(file,old_data,new_data);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
+  {
+    /*
+       We can perform this safely since only one writer at the time is
+       allowed on the table.
+    */
     file->s->key_stat_version++;
+  }
   return res;
 }
 
@@ -166,7 +178,13 @@ int ha_heap::delete_row(const byte * buf)
   res= heap_delete(file,buf);
   if (!res && table->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+  {
+    /*
+       We can perform this safely since only one writer at the time is
+       allowed on the table.
+    */
     file->s->key_stat_version++;
+  }
   return res;
 }
 
@@ -297,7 +315,13 @@ int ha_heap::delete_all_rows()
 {
   heap_clear(file);
   if (table->tmp_table == NO_TMP_TABLE)
+  {
+    /*
+       We can perform this safely since only one writer at the time is
+       allowed on the table.
+    */
     file->s->key_stat_version++;
+  }
   return 0;
 }
 
