@@ -40,10 +40,11 @@
 #define dbg(x)
 #endif
 
+static bool g_dbg_lcp = false;
 #if 1
 #define DBG_LCP(x)
 #else
-#define DBG_LCP(x) ndbout << x
+#define DBG_LCP(x) if(g_dbg_lcp) ndbout << x
 #endif
 
 Pgman::Pgman(const Configuration & conf) :
@@ -1156,15 +1157,25 @@ Pgman::process_lcp(Signal* signal)
   // start or re-start from beginning of current hash bucket
   if (m_lcp_curr_bucket != ~(Uint32)0)
   {
+    DBG_LCP(" PROCESS LCP m_lcp_curr_bucket" 
+	    << m_lcp_curr_bucket << endl);
+    
     Page_hashlist::Iterator iter;
     pl_hash.next(m_lcp_curr_bucket, iter);
-
-    while (iter.curr.i != RNIL && --max_count > 0)
+    Uint32 loop = 0;
+    while (iter.curr.i != RNIL && 
+	   m_lcp_outstanding < max_count &&
+	   (loop ++ < 32 || iter.bucket == m_lcp_curr_bucket))
     {
       Ptr<Page_entry>& ptr = iter.curr;
       Uint16 state = ptr.p->m_state;
-
-      DBG_LCP("PROCESS LCP: " << ptr);
+      
+      DBG_LCP("LCP " 
+	      << " m_lcp_outstanding: " << m_lcp_outstanding
+	      << " max_count: " << max_count
+	      << " loop: " << loop 
+	      << " iter.curr.i: " << iter.curr.i
+	      << " " << ptr);
       
       if (ptr.p->m_last_lcp < m_last_lcp &&
           (state & Page_entry::DIRTY))
@@ -1214,6 +1225,10 @@ Pgman::process_lcp(Signal* signal)
         ptr.p->m_last_lcp = m_last_lcp;
         m_lcp_outstanding++;
       }
+      else
+      {
+	DBG_LCP(" NOT DIRTY" << endl);
+      }	
       pl_hash.next(iter);
     }
 
@@ -2235,6 +2250,36 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 #else
     ndbout << "Only in VM_TRACE builds" << endl;
 #endif
+  }
+
+  if (signal->theData[0] == 11004)
+  {
+    ndbout << "Dump LCP bucket m_lcp_outstanding: %d", m_lcp_outstanding;
+    if (m_lcp_curr_bucket != ~(Uint32)0)
+    {
+      Page_hashlist::Iterator iter;
+      pl_hash.next(m_lcp_curr_bucket, iter);
+      
+      ndbout_c(" %d", m_lcp_curr_bucket);
+
+      while (iter.curr.i != RNIL && iter.bucket == m_lcp_curr_bucket)
+      {
+	Ptr<Page_entry>& ptr = iter.curr;
+	ndbout << ptr << endl;
+	pl_hash.next(iter);
+      }
+
+      ndbout_c("-- done");
+    }
+    else
+    {
+      ndbout_c(" == ~0");
+    }
+  }
+
+  if (signal->theData[0] == 11005)
+  {
+    g_dbg_lcp = ~g_dbg_lcp;
   }
 }
 
