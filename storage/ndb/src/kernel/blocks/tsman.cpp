@@ -30,6 +30,7 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <dbtup/Dbtup.hpp>
 
+#define JONAS 0
 
 Tsman::Tsman(const Configuration & conf, class Pgman* pg, class Lgman* lg) :
   SimulatedBlock(TSMAN, conf),
@@ -1725,8 +1726,9 @@ Tsman::unmap_page(Signal* signal, Local_key *key)
     unsigned bit = 
       (header->get_free_bits(page_no_in_extent) & ((1 << (SZ - 1)) - 1));
     header->update_free_bits(page_no_in_extent, bit);
-    ndbout_c("toggle page: (%d, %d, %d) from %x to %x", 
-	     key->m_page_no, extent, page_no_in_extent, old, bit);
+    if (JONAS)
+      ndbout_c("toggle page: (%d, %d, %d) from %x to %x", 
+	       key->m_page_no, extent, page_no_in_extent, old, bit);
     return 0;
   }
   
@@ -1842,8 +1844,9 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   return;
   
 found:
-  ndbout_c("alloc page: (%d, %d, %d)", 
-	   data_off + extent * size + page_no, per_page + extent, page_no);
+  if (JONAS)
+    ndbout_c("alloc page: (%d, %d, %d)", 
+	     data_off + extent * size + page_no, per_page + extent, page_no);
   src_bits |= (1 << (SZ - 1)); // high unlogged, allocated bit
   header->update_free_bits(page_no, src_bits);
   rep->bits= src_bits & ((1 << (SZ - 1)) - 1); 
