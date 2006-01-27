@@ -561,14 +561,25 @@ bool LOGGER::error_log_print(enum loglevel level, const char *format,
 }
 
 
-void LOGGER::cleanup()
+void LOGGER::cleanup_base()
 {
   DBUG_ASSERT(inited == 1);
   (void) pthread_mutex_destroy(&LOCK_logger);
   if (table_log_handler)
+  {
     table_log_handler->cleanup();
+    delete table_log_handler;
+  }
   if (file_log_handler)
     file_log_handler->cleanup();
+}
+
+
+void LOGGER::cleanup_end()
+{
+  DBUG_ASSERT(inited == 1);
+  if (file_log_handler)
+    delete file_log_handler;
 }
 
 
