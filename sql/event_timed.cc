@@ -133,6 +133,7 @@ event_timed::init_body(THD *thd)
    0 - OK
    EVEX_PARSE_ERROR - fix_fields failed
    EVEX_BAD_PARAMS  - datetime is in the past
+   ER_WRONG_VALUE   - wrong value for execute at
 */
 
 int
@@ -148,18 +149,18 @@ event_timed::init_execute_at(THD *thd, Item *expr)
   if (expr->fix_fields(thd, &expr))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  if (expr->val_int() == MYSQL_TIMESTAMP_ERROR)
-    DBUG_RETURN(EVEX_BAD_PARAMS);
-
   // let's check whether time is in the past
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
                               (my_time_t) thd->query_start()); 
 
-  if (expr->val_int() < TIME_to_ulonglong_datetime(&time_tmp))
-    DBUG_RETURN(EVEX_BAD_PARAMS);
 
   if ((not_used= expr->get_date(&ltime, TIME_NO_ZERO_DATE)))
+    DBUG_RETURN(ER_WRONG_VALUE);
+
+  if (TIME_to_ulonglong_datetime(&ltime) <
+      TIME_to_ulonglong_datetime(&time_tmp))
     DBUG_RETURN(EVEX_BAD_PARAMS);
+
 
   /*
       This may result in a 1970-01-01 date if ltime is > 2037-xx-xx
@@ -292,18 +293,22 @@ int
 event_timed::init_starts(THD *thd, Item *new_starts)
 {
   my_bool not_used;
-  TIME ltime;
-  my_time_t my_time_tmp;
+  TIME ltime, time_tmp;
 
   DBUG_ENTER("event_timed::init_starts");
 
   if (new_starts->fix_fields(thd, &new_starts))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  if (new_starts->val_int() == MYSQL_TIMESTAMP_ERROR)
+  if ((not_used= new_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
-  if ((not_used= new_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  // let's check whether time is in the past
+  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
+                              (my_time_t) thd->query_start()); 
+
+  if (TIME_to_ulonglong_datetime(&ltime) <
+      TIME_to_ulonglong_datetime(&time_tmp))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
   /*
