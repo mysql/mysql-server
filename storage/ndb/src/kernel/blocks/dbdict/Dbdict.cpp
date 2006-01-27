@@ -5984,6 +5984,17 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
      * Release table
      */
     releaseTableObject(tablePtr.i, checkExist);
+    return;
+  }
+
+  if (checkExist && tablePtr.p->m_tablespace_id != RNIL)
+  {
+    /**
+     * Increase ref count
+     */
+    FilegroupPtr ptr;
+    ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
+    increase_ref_count(ptr.p->m_obj_ptr_i);
   }
 }//handleTabInfoInit()
 
@@ -6237,15 +6248,6 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     if(tablespacePtr.p->m_version != tableDesc.TablespaceVersion)
     {
       tabRequire(false, CreateTableRef::InvalidTablespaceVersion);
-    }
-
-    {
-      /**
-       * Increase ref count
-       */
-      FilegroupPtr ptr;
-      ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
-      increase_ref_count(ptr.p->m_obj_ptr_i);
     }
   }
 }//handleTabInfo()
