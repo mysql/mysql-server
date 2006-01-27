@@ -346,11 +346,26 @@ Dbtup::disk_page_prealloc(Signal* signal,
     if ((pos= alloc.find_extent(sz)) != RNIL)
     {
       jam();
+      Uint32 cnt = 0;
       LocalDLList<Extent_info> list(c_extent_pool, alloc.m_free_extents[pos]);
       list.first(ext);
-      list.remove(ext);
+      while((pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits)) < 0)
+	if(!list.next(ext) || ++cnt == 10)
+	  break;
+
+      if (cnt == 10 || ext.isNull())
+      {
+	pos = RNIL;
+      }
+      else
+      {
+	list.remove(ext);
+	alloc.m_curr_extent_info_ptr_i= ext.i;
+	ext.p->m_free_matrix_pos= RNIL;
+      }
     }
-    else
+
+    if (pos == RNIL)
     {
       jam();
       /**
@@ -383,18 +398,19 @@ Dbtup::disk_page_prealloc(Signal* signal,
       LocalSLList<Extent_info, Extent_list_t> 
 	list1(c_extent_pool, alloc.m_extent_list);
       list1.add(ext);
-    }
-    alloc.m_curr_extent_info_ptr_i= ext.i;
-    ext.p->m_free_matrix_pos= RNIL;
-    pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
+
+      alloc.m_curr_extent_info_ptr_i= ext.i;
+      ext.p->m_free_matrix_pos= RNIL;
+      pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
 #ifdef VM_TRACE
-    ddassert(pageBits >= 0);
+      ddassert(pageBits >= 0);
 #else
-    if (unlikely(pageBits < 0))
-    {
-      return -AllocExtentReq::NoExtentAvailable;
-    }
+      if (unlikely(pageBits < 0))
+      {
+	return -AllocExtentReq::NoExtentAvailable;
+      }
 #endif
+    }
   }
   
   /**

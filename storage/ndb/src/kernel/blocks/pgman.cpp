@@ -40,10 +40,11 @@
 #define dbg(x)
 #endif
 
+static bool g_dbg_lcp = false;
 #if 1
 #define DBG_LCP(x)
 #else
-#define DBG_LCP(x) ndbout << x
+#define DBG_LCP(x) if(g_dbg_lcp) ndbout << x
 #endif
 
 Pgman::Pgman(const Configuration & conf) :
@@ -125,7 +126,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   if (page_buffer > 0)
   {
     page_buffer /= GLOBAL_PAGE_SIZE; // in pages
-    m_page_entry_pool.setSize(2*page_buffer);
+    m_page_entry_pool.setSize(100*page_buffer);
     m_page_request_pool.setSize(10000);
     m_param.m_max_pages = page_buffer;
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
@@ -145,7 +146,7 @@ Pgman::Param::Param() :
   m_max_io_waits(64),
   m_stats_loop_delay(1000),
   m_cleanup_loop_delay(200),
-  m_lcp_loop_delay(200)
+  m_lcp_loop_delay(0)
 {
 }
 
@@ -411,6 +412,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     return true;
   }
 
+  ndbrequire(false);
+  
   return false;
 }
 
@@ -739,7 +742,10 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
   {
     Uint32 delay = m_param.m_lcp_loop_delay;
     signal->theData[0] = PgmanContinueB::LCP_LOOP;
-    sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    if (delay)
+      sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    else
+      sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
   }
 #ifdef VM_TRACE
   debugOut << "PGMAN: <do_lcp_loop on=" << m_lcp_loop_on
@@ -1151,15 +1157,25 @@ Pgman::process_lcp(Signal* signal)
   // start or re-start from beginning of current hash bucket
   if (m_lcp_curr_bucket != ~(Uint32)0)
   {
+    DBG_LCP(" PROCESS LCP m_lcp_curr_bucket" 
+	    << m_lcp_curr_bucket << endl);
+    
     Page_hashlist::Iterator iter;
     pl_hash.next(m_lcp_curr_bucket, iter);
-
-    while (iter.curr.i != RNIL && --max_count > 0)
+    Uint32 loop = 0;
+    while (iter.curr.i != RNIL && 
+	   m_lcp_outstanding < max_count &&
+	   (loop ++ < 32 || iter.bucket == m_lcp_curr_bucket))
     {
       Ptr<Page_entry>& ptr = iter.curr;
       Uint16 state = ptr.p->m_state;
-
-      DBG_LCP("PROCESS LCP: " << ptr);
+      
+      DBG_LCP("LCP " 
+	      << " m_lcp_outstanding: " << m_lcp_outstanding
+	      << " max_count: " << max_count
+	      << " loop: " << loop 
+	      << " iter.curr.i: " << iter.curr.i
+	      << " " << ptr);
       
       if (ptr.p->m_last_lcp < m_last_lcp &&
           (state & Page_entry::DIRTY))
@@ -1209,6 +1225,10 @@ Pgman::process_lcp(Signal* signal)
         ptr.p->m_last_lcp = m_last_lcp;
         m_lcp_outstanding++;
       }
+      else
+      {
+	DBG_LCP(" NOT DIRTY" << endl);
+      }	
       pl_hash.next(iter);
     }
 
@@ -2230,6 +2250,36 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 #else
     ndbout << "Only in VM_TRACE builds" << endl;
 #endif
+  }
+
+  if (signal->theData[0] == 11004)
+  {
+    ndbout << "Dump LCP bucket m_lcp_outstanding: %d", m_lcp_outstanding;
+    if (m_lcp_curr_bucket != ~(Uint32)0)
+    {
+      Page_hashlist::Iterator iter;
+      pl_hash.next(m_lcp_curr_bucket, iter);
+      
+      ndbout_c(" %d", m_lcp_curr_bucket);
+
+      while (iter.curr.i != RNIL && iter.bucket == m_lcp_curr_bucket)
+      {
+	Ptr<Page_entry>& ptr = iter.curr;
+	ndbout << ptr << endl;
+	pl_hash.next(iter);
+      }
+
+      ndbout_c("-- done");
+    }
+    else
+    {
+      ndbout_c(" == ~0");
+    }
+  }
+
+  if (signal->theData[0] == 11005)
+  {
+    g_dbg_lcp = ~g_dbg_lcp;
   }
 }
 

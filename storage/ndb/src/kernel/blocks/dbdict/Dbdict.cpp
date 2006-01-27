@@ -286,6 +286,20 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     MEMINFO("c_opRecordPool", c_opRecordPool);
     MEMINFO("c_rope_pool", c_rope_pool);
   }
+
+  if (signal->theData[0] == 1227)
+  {
+    DLHashTable<DictObject>::Iterator iter;
+    bool ok = c_obj_hash.first(iter);
+    for(; ok; ok = c_obj_hash.next(iter))
+    {
+      Rope name(c_rope_pool, iter.curr.p->m_name);
+      const Uint32 size = name.size();
+      char buf[1024];
+      name.copy(buf);
+      ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
+    }
+  }    
   
   return;
 }//Dbdict::execDUMP_STATE_ORD()
@@ -5080,13 +5094,6 @@ Dbdict::createTab_prepare(Signal* signal, CreateTabReq * req){
     safe_cast(&Dbdict::createTab_writeSchemaConf1);
   
   updateSchemaState(signal, tableId, &tabEntry, &callback);
-
-  if (tabPtr.p->m_tablespace_id != RNIL)
-  {
-    FilegroupPtr ptr;
-    ndbrequire(c_filegroup_hash.find(ptr, tabPtr.p->m_tablespace_id));
-    increase_ref_count(ptr.p->m_obj_ptr_i);
-  }
 }
 
 void getSection(SegmentedSectionPtr & ptr, Uint32 i);
@@ -5977,6 +5984,17 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
      * Release table
      */
     releaseTableObject(tablePtr.i, checkExist);
+    return;
+  }
+
+  if (checkExist && tablePtr.p->m_tablespace_id != RNIL)
+  {
+    /**
+     * Increase ref count
+     */
+    FilegroupPtr ptr;
+    ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
+    increase_ref_count(ptr.p->m_obj_ptr_i);
   }
 }//handleTabInfoInit()
 
@@ -6231,7 +6249,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     {
       tabRequire(false, CreateTableRef::InvalidTablespaceVersion);
     }
-  } 
+  }
 }//handleTabInfo()
 
 
