@@ -352,16 +352,21 @@ Dbtup::disk_page_prealloc(Signal* signal,
       while((pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits)) < 0)
 	if(!list.next(ext) || ++cnt == 10)
 	  break;
-      ndbout_c("cnt: %d", cnt);
+
       if (cnt == 10 || ext.isNull())
-	goto alloc;
-      list.remove(ext);
-      alloc.m_curr_extent_info_ptr_i= ext.i;
-      ext.p->m_free_matrix_pos= RNIL;
+      {
+	pos = RNIL;
+      }
+      else
+      {
+	list.remove(ext);
+	alloc.m_curr_extent_info_ptr_i= ext.i;
+	ext.p->m_free_matrix_pos= RNIL;
+      }
     }
-    else
+
+    if (pos == RNIL)
     {
-  alloc:
       jam();
       /**
        * We need to alloc an extent
