@@ -123,6 +123,7 @@ select n from t1;
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 connection master1;
 drop table t1;
+delete from mysql.user where user="blafasel2";
 save_master_pos;
 connection slave;
 sync_with_master;

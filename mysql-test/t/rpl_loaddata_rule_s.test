@@ -19,4 +19,7 @@ sync_with_master;
 select count(*) from t1; # check that LOAD was replicated
 show binlog events from 98; # should be nothing
 
+connection master;
+drop table t1;
+
 # End of 4.1 tests
