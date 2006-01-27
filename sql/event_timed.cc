@@ -300,9 +300,6 @@ event_timed::init_starts(THD *thd, Item *new_starts)
   if (new_starts->fix_fields(thd, &new_starts))
     DBUG_RETURN(EVEX_PARSE_ERROR);
 
-  if (new_starts->val_int() == MYSQL_TIMESTAMP_ERROR)
-    DBUG_RETURN(EVEX_BAD_PARAMS);
-
   if ((not_used= new_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
