@@ -435,7 +435,7 @@ fi
 
 # libmysqlclient versioning when linked with GNU ld.
 if $LD --version 2>/dev/null|grep -q GNU; then
-  LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_srcdir)/libmysql/libmysql.ver"
+  LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
 fi
 AC_SUBST(LD_VERSION_SCRIPT)
