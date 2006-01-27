@@ -30,6 +30,7 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <dbtup/Dbtup.hpp>
 
+#define JONAS 0
 
 Tsman::Tsman(const Configuration & conf, class Pgman* pg, class Lgman* lg) :
   SimulatedBlock(TSMAN, conf),
@@ -148,7 +149,15 @@ Tsman::execCONTINUEB(Signal* signal){
     release_extent_pages(signal, ptr);
     return;
   }
+  case TsmanContinueB::LOAD_EXTENT_PAGES:
+  {
+    Ptr<Datafile> ptr;
+    m_file_pool.getPtr(ptr, ptrI);
+    load_extent_pages(signal, ptr);
+    return;
   }
+  }
+  ndbrequire(false);
 }
 
 #ifdef VM_TRACE
@@ -702,8 +711,9 @@ Tsman::open_file(Signal* signal,
    * Update file size
    */
   pages = 1 + extent_pages + data_pages;
-  hi = (pages * File_formats::NDB_PAGE_SIZE) >> 32;
-  lo = (pages * File_formats::NDB_PAGE_SIZE) & 0xFFFFFFFF;
+  Uint64 bytes = pages * File_formats::NDB_PAGE_SIZE;
+  hi = bytes >> 32;
+  lo = bytes & 0xFFFFFFFF;
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 
@@ -1185,7 +1195,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
        * Last extent header page...
        *   set correct no of extent headers
        */
-      extents= datapages / size;
+      extents= (datapages / size) % per_page;
     }
     for(Uint32 j = 0; j<extents; j++)
     {
@@ -1712,9 +1722,13 @@ Tsman::unmap_page(Signal* signal, Local_key *key)
     /**
      * Toggle word
      */
+    Uint32 old = header->get_free_bits(page_no_in_extent);
     unsigned bit = 
       (header->get_free_bits(page_no_in_extent) & ((1 << (SZ - 1)) - 1));
     header->update_free_bits(page_no_in_extent, bit);
+    if (JONAS)
+      ndbout_c("toggle page: (%d, %d, %d) from %x to %x", 
+	       key->m_page_no, extent, page_no_in_extent, old, bit);
     return 0;
   }
   
@@ -1815,6 +1829,14 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
       shift &= 31;
     }
 
+#if 0
+    printf("req.bits: %d bits: ", req.bits);
+    for(Uint32 i = 0; i<size; i++)
+    {
+      printf("%x", header->get_free_bits(i));
+    }
+    ndbout_c("");
+#endif
     err= AllocPageReq::NoPageFree;
   }
   
@@ -1822,6 +1844,9 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
   return;
   
 found:
+  if (JONAS)
+    ndbout_c("alloc page: (%d, %d, %d)", 
+	     data_off + extent * size + page_no, per_page + extent, page_no);
   src_bits |= (1 << (SZ - 1)); // high unlogged, allocated bit
   header->update_free_bits(page_no, src_bits);
   rep->bits= src_bits & ((1 << (SZ - 1)) - 1); 
