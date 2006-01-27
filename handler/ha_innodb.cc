@@ -828,6 +828,7 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
                   HA_CAN_INDEX_BLOBS |
                   HA_CAN_SQL_HANDLER |
                   HA_NOT_EXACT_COUNT |
+                  HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS |
                   HA_PRIMARY_KEY_IN_READ_INDEX |
                   HA_CAN_GEOMETRY |
                   HA_TABLE_SCAN_ON_INDEX),
@@ -4399,6 +4400,13 @@ ha_innobase::rnd_init(
 		err = change_active_index(MAX_KEY);
 	} else {
 		err = change_active_index(primary_key);
+	}
+
+	/* Don't use semi-consistent read in random row reads (by position).
+	This means we must disable semi_consistent_read if scan is false */
+
+	if (!scan) {
+		try_semi_consistent_read(0);
 	}
 
   	start_of_scan = 1;
