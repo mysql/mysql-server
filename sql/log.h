@@ -479,7 +479,10 @@ public:
   {
     return (THD *) table_log_handler->slow_log_thd;
   }
-  void cleanup();
+  /* Perform basic logger cleanup. this will leave e.g. error log open. */
+  void cleanup_base();
+  /* Free memory. Nothing could be logged after this function is called */
+  void cleanup_end();
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
   bool slow_log_print(THD *thd, const char *query, uint query_length,
