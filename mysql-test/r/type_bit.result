@@ -563,3 +563,4 @@ b1+0	sum(b1)	sum(b2)
 0	0	0
 1	4	4
 2	2	2
+drop table t1, t2;

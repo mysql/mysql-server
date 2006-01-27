@@ -236,4 +236,5 @@ delimiter ;//
 call p1();
 call p1();
 call p1();
+drop procedure p1;
 drop tables t1,t2,t3;
