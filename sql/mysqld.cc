@@ -1144,7 +1144,8 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
-  logger.cleanup();
+  logger.cleanup_base();
+
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -1237,6 +1238,8 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  logger.cleanup_end();
+
   /*
     The following lines may never be executed as the main thread may have
     killed us
