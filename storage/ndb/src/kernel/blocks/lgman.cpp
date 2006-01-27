@@ -1461,6 +1461,8 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   }
 }
 
+#define REALLY_SLOW_FS 0
+
 Uint32
 Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
 		       Uint32 pageId, Uint32 in_pages)
@@ -1506,9 +1508,13 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     max= pages;
     head.m_idx += max;
     ptr.p->m_file_pos[HEAD] = head;  
-    
-    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
-	       FsReadWriteReq::FixedLength + 1, JBA);
+
+    if (REALLY_SLOW_FS)
+      sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, REALLY_SLOW_FS,
+			  FsReadWriteReq::FixedLength + 1);
+    else
+      sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
+		 FsReadWriteReq::FixedLength + 1, JBA);
 
     ptr.p->m_outstanding_fs++;
     filePtr.p->m_online.m_outstanding = max;
@@ -1529,8 +1535,12 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     req->numberOfPages = max;
     FsReadWriteReq::setSyncFlag(req->operationFlag, 1);
     
-    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
-	       FsReadWriteReq::FixedLength + 1, JBA);
+    if (REALLY_SLOW_FS)
+      sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, REALLY_SLOW_FS, 
+			  FsReadWriteReq::FixedLength + 1);
+    else
+      sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
+		 FsReadWriteReq::FixedLength + 1, JBA);
 
     ptr.p->m_outstanding_fs++;
     filePtr.p->m_online.m_outstanding = max;
@@ -1553,7 +1563,6 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
       files.first(next);
     }
     ndbout_c("changing file from %d to %d", filePtr.i, next.i);
-    ndbassert(filePtr.i != next.i);
     filePtr.p->m_state |= Undofile::FS_MOVE_NEXT;
     next.p->m_state &= ~(Uint32)Undofile::FS_EMPTY;
 
@@ -2815,6 +2824,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	(Uint64)compute_free_file_pages(ptr);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
+      ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
       signal->theData[0] = LgmanContinueB::FLUSH_LOG;
       signal->theData[1] = ptr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);

@@ -870,6 +870,36 @@ drop table t1;
 set names default;
 deallocate prepare stmt;
 
+#
+# A test case for Bug#12734 "prepared statement may return incorrect result
+# set for a select SQL request": test that canDoTurboBM is reset for each
+# execute of a prepared statement.
+#
+create table t1 (
+  word_id mediumint(8) unsigned not null default '0',
+  formatted varchar(20) not null default ''
+);
+
+insert into t1 values
+  (80,'pendant'), (475,'pretendants'), (989,'tendances'),
+  (1019,'cependant'),(1022,'abondance'),(1205,'independants'),
+  (13,'lessiver'),(25,'lambiner'),(46,'situer'),(71,'terminer'),
+  (82,'decrocher');
+
+select count(*) from t1 where formatted like '%NDAN%';
+select count(*) from t1 where formatted like '%ER';
+prepare stmt from "select count(*) from t1 where formatted like ?";
+set @like="%NDAN%";
+execute stmt using @like;
+set @like="%ER";
+execute stmt using @like;
+set @like="%NDAN%";
+execute stmt using @like;
+set @like="%ER";
+execute stmt using @like;
+deallocate prepare stmt;
+drop table t1;
+
 # End of 4.1 tests
 
 #
