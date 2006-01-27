@@ -844,13 +844,28 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
                                 buf, (uint) blob_len));
             if (ndb_blob->readData(buf, len) != 0)
               DBUG_RETURN(-1);
+            DBUG_PRINT("info", ("blob field %d offset=%u len=%u [ptrdiff=%d]",
+                                i, offset, len, (int)ptrdiff));
             DBUG_ASSERT(len == blob_len);
             // Ugly hack assumes only ptr needs to be changed
-            field_blob->ptr += ptrdiff;
+            field_blob->ptr+= ptrdiff;
             field_blob->set_ptr(len, buf);
-            field_blob->ptr -= ptrdiff;
+            field_blob->ptr-= ptrdiff;
           }
           offset+= blob_size;
+        }
+        else
+        {
+          if (loop == 1)
+          {
+            // have to set length even in this case
+            char *buf= buffer + offset;
+            uint32 len= 0;
+            field_blob->ptr+= ptrdiff;
+            field_blob->set_ptr(len, buf);
+            field_blob->ptr-= ptrdiff;
+            DBUG_PRINT("info", ("blob field %d isNull=%d", i, isNull));
+          }
         }
       }
     }
@@ -2735,21 +2750,29 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
       else
       {
         NdbBlob *ndb_blob= (*value).blob;
+        uint col_no = ndb_blob->getColumn()->getColumnNo();
         int isNull;
         ndb_blob->getDefined(isNull);
-        if (isNull != 0)
+        if (isNull == 1)
         {
-          uint col_no = ndb_blob->getColumn()->getColumnNo();
-          if (isNull == 1)
-          {
-            DBUG_PRINT("info",("[%u] NULL", col_no))
-            field->set_null(row_offset);
-          }
-          else
-          {
-            DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
-            bitmap_clear_bit(defined, col_no);
-          }
+          DBUG_PRINT("info",("[%u] NULL", col_no))
+          field->set_null(row_offset);
+        }
+        else if (isNull == -1)
+        {
+          DBUG_PRINT("info",("[%u] UNDEFINED", col_no));
+          bitmap_clear_bit(defined, col_no);
+        }
+        else
+        {
+#ifndef DBUG_OFF
+          // pointer vas set in get_ndb_blobs_value
+          Field_blob *field_blob= (Field_blob*)field;
+          char* ptr;
+          field_blob->get_ptr(&ptr, row_offset);
+          uint32 len= field_blob->get_length(row_offset);
+          DBUG_PRINT("info",("[%u] SET ptr=%p len=%u", col_no, ptr, len));
+#endif
         }
       }
     }
