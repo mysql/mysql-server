@@ -2824,6 +2824,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	(Uint64)compute_free_file_pages(ptr);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
+      ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
       signal->theData[0] = LgmanContinueB::FLUSH_LOG;
       signal->theData[1] = ptr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
