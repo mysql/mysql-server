@@ -501,7 +501,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
-    strxmov(definer, thd->security_ctx->priv_user, "@",
+    strxnmov(definer, sizeof(definer)-1, thd->security_ctx->priv_user, "@",
             thd->security_ctx->priv_host, NullS);
 
     if (table->s->fields != MYSQL_PROC_FIELD_COUNT)

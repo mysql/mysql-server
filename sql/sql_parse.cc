@@ -1253,6 +1253,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->priv_host[0]=0;
 
   buff= (char*) thd->net.buff;
   thd->init_for_queries();
