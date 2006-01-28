@@ -463,11 +463,21 @@ sub command_line_setup () {
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
 
+  #
+  # To make it easier for different devs to work on the same host,
+  # an environment variable can be used to control all ports. A small
+  # number is to be used, 0 - 16 or similar.
+  #
+  # Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+  # versions of this script, else a 4.0 test run might conflict with a
+  # 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+  # all port numbers might not be used in this version of the script.
+  #
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
-    $opt_slave_myport=    $opt_master_myport + 16;
-    $opt_ndbcluster_port= $opt_master_myport + 24;
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000;
+    $opt_slave_myport=    $opt_master_myport + 3;
+    $opt_ndbcluster_port= $opt_master_myport + 4;
   }
 
   # Read the command line
