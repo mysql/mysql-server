@@ -63,7 +63,7 @@ static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
     keys		number of keys to create
     key_info		Keys to create
     db_file		Handler to use. May be zero, in which case we use
-    			create_info->db_type
+			create_info->db_type
   RETURN
     0  ok
     1  error
@@ -84,7 +84,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  char buff[5];
+  char buff[32];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info= thd->lex->part_info;
 #endif
@@ -232,7 +232,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
         goto err;
     }
   }
-        
+
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file,(byte*) forminfo,288,MYF_RW) ||
       my_write(file,(byte*) screen_buff,info_length,MYF_RW) ||
