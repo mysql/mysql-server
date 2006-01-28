@@ -571,6 +571,9 @@ typedef struct
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(THD *thd, st_alter_tablespace *ts_info);
+   int (*fill_files_table)(THD *thd,
+                           struct st_table_list *tables,
+                           class Item *cond);
    uint32 flags;                                /* global handler flags */
    /* 
       Handlerton functions are not set in the different storage
