@@ -3004,7 +3004,7 @@ int get_partition_id_range(partition_info *part_info,
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-    if (range_array[loc_part_id] < part_func_value)
+    if (range_array[loc_part_id] <= part_func_value)
       min_part_id= loc_part_id + 1;
     else
       max_part_id= loc_part_id - 1;
@@ -3077,7 +3077,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-    if (range_array[loc_part_id] < part_func_value)
+    if (range_array[loc_part_id] <= part_func_value)
       min_part_id= loc_part_id + 1;
     else
       max_part_id= loc_part_id - 1;
@@ -3639,7 +3639,6 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
   bool found_part_field= FALSE;
   DBUG_ENTER("get_partition_set");
 
-  part_spec->use_bit_array= FALSE;
   part_spec->start_part= 0;
   part_spec->end_part= no_parts - 1;
   if ((index < MAX_KEY) && 
@@ -3757,7 +3756,6 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
     else
     {
       DBUG_ASSERT(sub_part != no_parts);
-      part_spec->use_bit_array= TRUE;
       part_spec->start_part= sub_part;
       part_spec->end_part=sub_part+
                            (part_info->no_subparts*(part_info->no_parts-1));
