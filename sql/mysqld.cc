@@ -3086,7 +3086,10 @@ static int init_server_components()
   }
 
 #ifdef WITH_CSV_STORAGE_ENGINE
-  logger.init_log_tables();
+  if (opt_bootstrap)
+    opt_old_log_format= TRUE;
+  else
+    logger.init_log_tables();
 
   if (opt_old_log_format || (have_csv_db != SHOW_OPTION_YES))
     logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
