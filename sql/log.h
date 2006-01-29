@@ -473,11 +473,17 @@ public:
   bool flush_logs(THD *thd);
   THD *get_general_log_thd()
   {
-    return (THD *) table_log_handler->general_log_thd;
+    if (table_log_handler)
+      return (THD *) table_log_handler->general_log_thd;
+    else
+      return NULL;
   }
   THD *get_slow_log_thd()
   {
-    return (THD *) table_log_handler->slow_log_thd;
+    if (table_log_handler)
+      return (THD *) table_log_handler->slow_log_thd;
+    else
+      return NULL;
   }
   /* Perform basic logger cleanup. this will leave e.g. error log open. */
   void cleanup_base();
