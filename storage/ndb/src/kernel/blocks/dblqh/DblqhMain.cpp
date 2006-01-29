@@ -930,6 +930,9 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   jamEntry();
   LqhFragReq * req = (LqhFragReq*)signal->getDataPtr();
   
+  printLQH_FRAG_REQ(stdout, signal->getDataPtr(),
+		    signal->getLength(), number());
+  
   Uint32 retPtr = req->senderData;
   BlockReference retRef = req->senderRef;
   Uint32 fragId = req->fragmentId;
@@ -10886,6 +10889,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     LcpRecord::FragOrd fragOrd;
     fragOrd.fragPtrI = fragptr.i;
     fragOrd.lcpFragOrd = * lcpFragOrd;
+    ndbout_c("tabptr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE -> sendLCP_FRAG_REP");
     sendLCP_FRAG_REP(signal, fragOrd);
     return;
   }
@@ -10909,7 +10913,7 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
   jamEntry();
 
   LcpPrepareRef* ref= (LcpPrepareRef*)signal->getDataPtr();
-  
+    
   lcpPtr.i = ref->senderData;
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
   ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_WAIT_FRAGID);
@@ -10925,6 +10929,10 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
   
   lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
   lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::ACC_COMPLETED;
+  
+  ndbout_c("execLCP_PREPARE_REF tab: %d frag: %d err: %d", 
+	   fragptr.p->tabRef, fragptr.p->fragId, ref->errorCode);
+  
   contChkpNextFragLab(signal);
 }
 
@@ -11139,6 +11147,10 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
     /**
      * Fake that the fragment is done
      */
+    ndbout_c("tableStatus->contChkpNextFragLab tab: %d frag: %d",
+	     lcpPtr.p->currentFragment.lcpFragOrd.tableId,
+	     lcpPtr.p->currentFragment.lcpFragOrd.fragmentId);
+
     contChkpNextFragLab(signal);
     return;
   }
