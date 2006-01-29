@@ -9992,7 +9992,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   jamEntry();
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   
-#if 0
+#if 1
   printLCP_FRAG_REP(stdout, 
 		    signal->getDataPtr(),
 		    signal->length(), number());
@@ -12789,6 +12789,9 @@ void Dbdih::sendStartFragreq(Signal* signal,
 
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
+
+    printSTART_FRAG_REQ(stdout, signal->theData, 
+			StartFragReq::SignalLength, DBLQH);
   }//for
 }//Dbdih::sendStartFragreq()
 
@@ -13412,7 +13415,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   signal->theData[0] = filePtr.p->fileRef;
   signal->theData[1] = reference();
   signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS;
+  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
   signal->theData[4] = ZVAR_NO_WORD;
   signal->theData[5] = tab->noPages;
   for (Uint32 i = 0; i < tab->noPages; i++) {
