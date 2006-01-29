@@ -799,14 +799,6 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 
-/* Initialize the iterator to return a single partition with given part_id */
-inline void init_single_partition_iterator(uint32 part_id,
-                                           PARTITION_ITERATOR *part_iter);
-
-/* Initialize the iterator to enumerate all partitions */
-inline void init_all_partitions_iterator(partition_info *part_info,
-                                         PARTITION_ITERATOR *part_iter);
-
 class partition_info : public Sql_alloc
 {
 public:
@@ -1006,7 +998,9 @@ public:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
 
-inline void init_single_partition_iterator(uint32 part_id,
+/* Initialize the iterator to return a single partition with given part_id */
+
+static inline void init_single_partition_iterator(uint32 part_id,
                                            PARTITION_ITERATOR *part_iter)
 {
   part_iter->part_nums.start= part_id;
@@ -1014,7 +1008,8 @@ inline void init_single_partition_iterator(uint32 part_id,
   part_iter->get_next= get_next_partition_id_range;
 }
 
-inline 
+/* Initialize the iterator to enumerate all partitions */
+static inline
 void init_all_partitions_iterator(partition_info *part_info,
                                   PARTITION_ITERATOR *part_iter)
 {
@@ -1033,7 +1028,7 @@ void init_all_partitions_iterator(partition_info *part_info,
   DESCRIPTION
     A routine to check for subpartitioning for improved readability of code
 */
-inline
+static inline
 bool is_sub_partitioned(partition_info *part_info)
 { return (part_info->subpart_type == NOT_A_PARTITION ?  FALSE : TRUE); }
 
@@ -1049,7 +1044,7 @@ bool is_sub_partitioned(partition_info *part_info)
     A routine to check for number of partitions for improved readability
     of code
 */
-inline
+static inline
 uint get_tot_partitions(partition_info *part_info)
 {
   return part_info->no_parts *
@@ -1923,22 +1918,22 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                           bool no_substitute, bool report_error);
 
 
-inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
+static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 {
   return (db_type == NULL) ? DB_TYPE_UNKNOWN : db_type->db_type;
 }
 
-inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
+static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
   return db_type == NULL ? "UNKNOWN" : db_type->name;
 }
 
-inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
+static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
   return db_type == NULL ? FALSE : test(db_type->flags & flag);
 }
 
-inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
+static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
 {
   return (db_type && db_type->create) ?
          (db_type->state == SHOW_OPTION_YES) : FALSE;
