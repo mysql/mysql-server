@@ -75,7 +75,7 @@ struct st_mysql_plugin
   const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
   int (*init)(void);    /* the function to invoke when plugin is loaded */
   int (*deinit)(void);  /* the function to invoke when plugin is unloaded */
-  uint version;         /* plugin version (for SHOW PLUGINS)            */
+  unsigned int version; /* plugin version (for SHOW PLUGINS)            */
   struct st_mysql_show_var *status_vars;
 };
 
@@ -176,11 +176,11 @@ typedef struct st_mysql_ftparser_boolean_info
   enum enum_ft_token_type type;
   int yesno;
   int weight_adjust;
-  bool wasign;
-  bool trunc;
+  char wasign;
+  char trunc;
   /* These are parser state and must be removed. */
-  byte prev;
-  byte *quot;
+  char prev;
+  char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
 
 
@@ -224,14 +224,14 @@ typedef struct st_mysql_ftparser_boolean_info
 
 typedef struct st_mysql_ftparser_param
 {
-  int (*mysql_parse)(void *param, byte *doc, uint doc_len);
-  int (*mysql_add_word)(void *param, byte *word, uint word_len,
+  int (*mysql_parse)(void *param, char *doc, int doc_len);
+  int (*mysql_add_word)(void *param, char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  CHARSET_INFO *cs;
-  byte *doc;
-  uint length;
+  struct charset_info_st *cs;
+  char *doc;
+  int length;
   int mode;
 } MYSQL_FTPARSER_PARAM;
 
