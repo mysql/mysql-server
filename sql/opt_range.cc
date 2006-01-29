@@ -2309,7 +2309,9 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   thd->no_errors=1;				// Don't warn about NULL
   thd->mem_root=&alloc;
-  
+
+  bitmap_clear_all(&part_info->used_partitions);
+
   prune_param.key= prune_param.range_param.key_parts;
   SEL_TREE *tree;
   SEL_ARG *arg;
@@ -2453,7 +2455,10 @@ static void store_selargs_to_rec(PART_PRUNE_PARAM *ppar, SEL_ARG **start,
 static void mark_full_partition_used_no_parts(partition_info* part_info,
                                               uint32 part_id)
 {
+  DBUG_ENTER("mark_full_partition_used_no_parts");
+  DBUG_PRINT("enter", ("Mark partition %u as used", part_id));
   bitmap_set_bit(&part_info->used_partitions, part_id);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2463,8 +2468,14 @@ static void mark_full_partition_used_with_parts(partition_info *part_info,
 {
   uint32 start= part_id * part_info->no_subparts;
   uint32 end=   start + part_info->no_subparts; 
+  DBUG_ENTER("mark_full_partition_used_with_parts");
+
   for (; start != end; start++)
+  {
+    DBUG_PRINT("info", ("1:Mark subpartition %u as used", start));
     bitmap_set_bit(&part_info->used_partitions, start);
+  }
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -2495,7 +2506,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
   if (!(bitmap_buf= (uint32*)alloc_root(ppar->range_param.mem_root,
                                         bitmap_bytes)))
   {
-    /* 
+    /*
       Fallback, process just the first SEL_IMERGE. This can leave us with more
       partitions marked as used then actually needed.
     */
@@ -2503,7 +2514,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
   }
   bitmap_init(&all_merges, bitmap_buf, n_bits, FALSE);
   bitmap_set_prefix(&all_merges, n_bits);
-  
+
   List_iterator<SEL_IMERGE> it(merges);
   SEL_IMERGE *imerge;
   while ((imerge=it++))
@@ -2514,7 +2525,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
       /* no used partitions on one ANDed imerge => no used partitions at all */
       return 0;
     }
-    
+
     if (res != -1)
       bitmap_intersect(&all_merges, &ppar->part_info->used_partitions);
 

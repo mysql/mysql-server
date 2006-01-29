@@ -618,7 +618,6 @@ enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
 typedef struct {
   uint32 start_part;
   uint32 end_part;
-  bool use_bit_array;
 } part_id_range;
 
 
