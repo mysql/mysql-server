@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <m_ctype.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <plugin.h>
 
 long number_of_calls= 0; /* for SHOW STATUS, see below */
@@ -181,7 +180,7 @@ int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
         add_word(param, start, end - start);
       break;
     }
-    else if (my_isspace(param->cs, *end))
+    else if (isspace(*end))
     {
       if (end > start)
         add_word(param, start, end - start);
