@@ -100,7 +100,6 @@ private:
   bool m_create_handler;                 // Handler used to create table
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
-  bool m_use_bit_array;
 
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
