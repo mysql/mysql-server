@@ -85,6 +85,11 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_READ_NODESREQ, &Qmgr::execREAD_NODESREQ);
   addRecSignal(GSN_SET_VAR_REQ,  &Qmgr::execSET_VAR_REQ);
   addRecSignal(GSN_API_BROADCAST_REP,  &Qmgr::execAPI_BROADCAST_REP);
+
+  addRecSignal(GSN_NODE_FAILREP, &Qmgr::execNODE_FAILREP);
+  addRecSignal(GSN_ALLOC_NODEID_REQ,  &Qmgr::execALLOC_NODEID_REQ);
+  addRecSignal(GSN_ALLOC_NODEID_CONF,  &Qmgr::execALLOC_NODEID_CONF);
+  addRecSignal(GSN_ALLOC_NODEID_REF,  &Qmgr::execALLOC_NODEID_REF);
   
   // Arbitration signals
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);
