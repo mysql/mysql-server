@@ -1365,4 +1365,17 @@ insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1
 select a,hex(b) from t1 order by b;
 update t1 set b = 'three' where a = 6;
 drop table t1;
+
+# Ensure that <tablename>_ibfk_0 is not mistreated as a
+# generated foreign key identifier.  (Bug #16387)
+
+CREATE TABLE t1(a INT, PRIMARY KEY(a)) ENGINE=InnoDB;
+CREATE TABLE t2(a INT) ENGINE=InnoDB;
+ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_0 FOREIGN KEY (a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
+SHOW CREATE TABLE t2;
+DROP TABLE t2,t1;
+
 # End of 4.1 tests
