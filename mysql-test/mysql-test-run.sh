@@ -1278,7 +1278,7 @@ start_ndbcluster()
     then
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir"
+    OPTS="$NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --verbose=$NDB_VERBOSE --initial --relative-config-data-dir --core"
     if [ "x$NDB_VERBOSE" != "x0" ] ; then
       echo "Starting master ndbcluster " $OPTS
     fi
@@ -1511,7 +1511,7 @@ start_slave()
          NDBCLUSTER_EXTRA_OPTS="--small"
       fi
 
-      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=$NDB_VERBOSE --relative-config-data-dir"
+      OPTS="$NDBCLUSTER_OPTS_SLAVE --initial $NDBCLUSTER_EXTRA_OPTS --ndbd-nodes=1 --verbose=$NDB_VERBOSE --relative-config-data-dir --core"
       if [ "x$NDB_VERBOSE" != "x0" ] ; then
         echo "Starting slave ndbcluster " $OPTS
       fi
