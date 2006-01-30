@@ -338,8 +338,8 @@ public:
     */
     if (min_flag || max_flag)
       return FALSE;
-    byte *min_val= min_value;
-    byte *max_val= min_value;
+    byte *min_val= (byte *)min_value;
+    byte *max_val= (byte *)min_value;
 
     if (maybe_null)
     {

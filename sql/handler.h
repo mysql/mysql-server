@@ -795,7 +795,7 @@ typedef struct st_partition_iter
 
 typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             bool is_subpart,
-                                            byte *min_val, byte *max_val,
+                                            char *min_val, char *max_val,
                                             uint flags,
                                             PARTITION_ITERATOR *part_iter);
 
