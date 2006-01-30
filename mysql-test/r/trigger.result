@@ -404,13 +404,13 @@ create table t1 (i int, j int, k int);
 create trigger trg1 before insert on t1 for each row set new.k = new.i;
 create trigger trg2 after insert on t1 for each row set @b:= "Fired";
 set @b:="";
-load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, i);
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, i);
 select *, @b from t1;
 i	j	k	@b
 10	NULL	10	Fired
 15	NULL	15	Fired
 set @b:="";
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
 select *, @b from t1;
 i	j	k	@b
 10	NULL	10	Fired
@@ -447,7 +447,7 @@ ERROR 42S22: Unknown column 'at' in 'OLD'
 select * from t1;
 i	k
 1	1
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 ERROR 42S22: Unknown column 'at' in 'NEW'
 select * from t1;
 i	k
@@ -528,7 +528,7 @@ select * from t1;
 i	k
 1	1
 2	2
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 ERROR 42S22: Unknown column 'bt' in 'NEW'
 select * from t1;
 i	k

@@ -449,9 +449,9 @@ CREATE TRIGGER trg5 BEFORE DELETE ON t1
   FOR EACH ROW
     SET @a = 5;
 
---exec egrep -v '^definers=' $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG > $MYSQL_TEST_DIR/var/tmp/t1.TRG
---exec echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQL_TEST_DIR/var/tmp/t1.TRG
---exec mv $MYSQL_TEST_DIR/var/tmp/t1.TRG $MYSQL_TEST_DIR/var/master-data/mysqltest_db1/t1.TRG
+--exec egrep -v '^definers=' $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG > $MYSQLTEST_VARDIR/tmp/t1.TRG
+--exec echo "definers='' '@' '@abc@def@@' '@hostname' '@abcdef@@@hostname'" >> $MYSQLTEST_VARDIR/tmp/t1.TRG
+--exec mv $MYSQLTEST_VARDIR/tmp/t1.TRG $MYSQLTEST_VARDIR/master-data/mysqltest_db1/t1.TRG
 
 --echo
 

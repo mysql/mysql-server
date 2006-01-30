@@ -3,7 +3,7 @@ drop table if exists t1, t2;
 --enable_warnings
 
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
-system cp std_data/vchar.frm var/master-data/test/;
+system cp $MYSQL_TEST_DIR/std_data/vchar.frm $MYSQLTEST_VARDIR/master-data/test/;
 truncate table vchar;
 show create table t1;
 show create table vchar;
