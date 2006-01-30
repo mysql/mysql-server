@@ -7114,7 +7114,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       return;
     }
     
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     return;
   }
   
@@ -7135,7 +7135,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(len > MAX_TAB_NAME_SIZE){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong);
+      sendGET_TABINFOREF(signal,req,GetTabInfoRef::TableNameTooLong, __LINE__);
       return;
     }
 
@@ -7147,7 +7147,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(!r0.getWords((Uint32*)tableName, (len+3)/4)){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
     releaseSections(signal);
@@ -7169,14 +7169,14 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   // The table seached for was not found
   if(objEntry == 0){
     jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
   }//if
   
   if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
       objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED){
     jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
   }//if
 
@@ -7189,7 +7189,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if (tabPtr.p->tabState != TableRecord::DEFINED)
     {
       jam();
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
   }
@@ -7280,7 +7280,8 @@ void Dbdict::sendGetTabResponse(Signal* signal)
 
 void Dbdict::sendGET_TABINFOREF(Signal* signal, 
 				GetTabInfoReq * req,
-				GetTabInfoRef::ErrorCode errorCode) 
+				GetTabInfoRef::ErrorCode errorCode,
+				Uint32 line) 
 {
   jamEntry();
   GetTabInfoRef * const ref = (GetTabInfoRef *)&signal->theData[0];
@@ -7289,8 +7290,9 @@ void Dbdict::sendGET_TABINFOREF(Signal* signal,
    */
   BlockReference retRef = req->senderRef;
   ref->errorCode = errorCode;
-  
-  sendSignal(retRef, GSN_GET_TABINFOREF, signal, signal->length(), JBB);
+  signal->theData[GetTabInfoRef::SignalLength] = line;
+  sendSignal(retRef, GSN_GET_TABINFOREF, signal, 
+	     GetTabInfoRef::SignalLength+1, JBB);
 }//sendGET_TABINFOREF()
 
 void
