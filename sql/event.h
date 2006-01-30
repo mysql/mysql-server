@@ -177,7 +177,7 @@ public:
   update_fields(THD *thd);
 
   char *
-  get_show_create_event(THD *thd, uint *length);
+  get_show_create_event(THD *thd, uint32 *length);
   
   int
   execute(THD *thd, MEM_ROOT *mem_root= NULL);
