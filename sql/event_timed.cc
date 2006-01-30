@@ -934,7 +934,7 @@ done:
 
 
 char *
-event_timed::get_show_create_event(THD *thd, uint *length)
+event_timed::get_show_create_event(THD *thd, uint32 *length)
 {
   char *dst, *ret;
   uint len, tmp_len;

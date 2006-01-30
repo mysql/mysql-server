@@ -116,12 +116,12 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 uint32 get_next_partition_id_list(PARTITION_ITERATOR* part_iter);
 int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            bool is_subpart,
-                                           byte *min_value, byte *max_value,
+                                           char *min_value, char *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
 int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            bool is_subpart,
-                                           byte *min_value, byte *max_value,
+                                           char *min_value, char *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
 static void set_up_range_analysis_info(partition_info *part_info);
@@ -5731,7 +5731,7 @@ typedef uint32 (*get_endpoint_func)(partition_info*, bool left_endpoint,
 
 int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            bool is_subpart,
-                                           byte *min_value, byte *max_value,
+                                           char *min_value, char *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter)
 {
@@ -5847,7 +5847,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
 int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            bool is_subpart,
-                                           byte *min_value, byte *max_value,
+                                           char *min_value, char *max_value,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter)
 {
