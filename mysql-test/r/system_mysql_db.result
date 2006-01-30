@@ -204,7 +204,7 @@ event	CREATE TABLE `event` (
   `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
   `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
-  PRIMARY KEY  (`db`,`name`)
+  PRIMARY KEY  (`definer`,`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 show create table general_log;
 Table	Create Table
