@@ -792,7 +792,7 @@ then
   c_ev="$c_ev   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',"
   c_ev="$c_ev   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',"
   c_ev="$c_ev   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
-  c_ev="$c_ev   PRIMARY KEY  (db,name)"
+  c_ev="$c_ev   PRIMARY KEY  (definer, db, name)"
   c_ev="$c_ev ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';"
 fi
 
