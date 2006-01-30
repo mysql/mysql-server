@@ -600,4 +600,6 @@ CREATE TABLE event (
 
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
+ALTER TABLE event DROP PRIMARY KEY;
+ALTER TABLE event ADD PRIMARY KEY(definer, db, name);
 
