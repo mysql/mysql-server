@@ -97,8 +97,7 @@ static int simple_parser_plugin_deinit(void)
     1                    failure (cannot happen)
 */
 
-static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
-                              __attribute__((unused)))
+static int simple_parser_init(MYSQL_FTPARSER_PARAM *param)
 {
   return(0);
 }
