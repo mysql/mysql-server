@@ -163,7 +163,103 @@ drop table t1,t2;
 drop database other;
 
 #
-# End of test
+# Test specific triggers including SELECT into var with replication
+# BUG#13227:
+# slave performs an update to the replicatable table, t1, 
+# and modifies its local data, t3, by mean of its local trigger that uses
+# another local table t2.
+# Expected values are commented into queries.
+#
+# Body of the test executes in a loop since the problem occurred randomly.
+# 
+
+let $max_rows=5;
+let $rnd=10;
+
+--echo test case for BUG#13227
+while ($rnd)
+{
+  --echo -------------------
+    echo $rnd;
+  --echo -------------------
+
+### SETUP
+
+--disable_warnings
+  connection master;
+  eval drop table if exists t1$rnd;
+  connection slave;
+  eval drop table if exists t2$rnd,t3$rnd;
+--enable_warnings
+
+  connection master;
+  eval create table t1$rnd (f1 int)  /* 2 replicate */;  
+  let $i=$max_rows;
+  while ($i)
+  {
+    eval insert into t1$rnd values (-$i);
+    dec $i;
+  }
+
+  sync_slave_with_master;
+#connection slave;
+  eval select * from t1$rnd;
+  delimiter |;
+  eval create trigger trg1$rnd before update on t1$rnd /* slave local */
+  for each row
+  begin
+    DECLARE r integer;
+    SELECT f2 INTO r FROM t2$rnd where f1=NEW.f1;
+    INSERT INTO t3$rnd values (r);
+  end|
+  delimiter ;|
+  eval create table t2$rnd (f1 int, f2 int) /* slave local */;        
+  eval create table t3$rnd (f3 int) /* slave local */;                
+  let $i=$max_rows;
+  while ($i) 
+  {
+    eval insert into t2$rnd values ($i, $i*100);
+    dec $i;
+  }
+
+### Test
+
+#connection slave;
+
+# trigger works as specified when updates from slave
+  eval select * from t2$rnd;
+  eval UPDATE t1$rnd SET f1=$max_rows where f1=-$max_rows;
+  eval SELECT * from t1$rnd /* must be f1 $max_rows, 1 - $max_rows 2 - $max_rows ... -1 */;
+  eval SELECT * from t3$rnd /* must be f3 $max_rows*100 */;
+
+  connection master;
+  let $i=$max_rows;
+  while ($i)
+  {
+    eval UPDATE t1$rnd SET f1=$i where f1=-$i;
+    dec $i;
+  }
+  
+  sync_slave_with_master;
+#connection slave;
+  eval SELECT * from t1$rnd /* must be f1 $max_rows ... 1 */;
+  eval SELECT * from t3$rnd /* must be f3 $max_rows * 100 ...  100 */;
+  
+### CLEANUP
+#connection slave;
+  eval drop trigger trg1$rnd;
+  eval drop table t2$rnd,t3$rnd;
+  
+  connection master;
+  eval drop table t1$rnd;
+  
+  dec $rnd;
+}
+
+
+
+#
+# End of tests
 #
 save_master_pos;
 connection slave;
