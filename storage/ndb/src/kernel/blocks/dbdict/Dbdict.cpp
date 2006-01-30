@@ -7186,7 +7186,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     jam();
     TableRecordPtr tabPtr;
     c_tableRecordPool.getPtr(tabPtr, obj_id);
-    if (tabPtr.p->tabState != TableRecord::DEFINED)
+    if (tabPtr.p->tabState != TableRecord::DEFINED &&
+	tabPtr.p->tabState != TableRecord::BACKUP_ONGOING)
     {
       jam();
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
