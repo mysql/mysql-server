@@ -506,7 +506,8 @@ private:
    *   @return  -1 if block not found, otherwise block number
    */
   int getBlockNumber(const BaseString &blockName);
-  
+
+  int alloc_node_id_req(Uint32 free_node_id);
   //**************************************************************************
   
   int _blockNumber;
