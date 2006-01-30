@@ -338,7 +338,8 @@ event_executor_main(void *arg)
       et->mark_last_executed();
       et->compute_next_execution_time();
       et->update_fields(thd);
-      DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
+      ++iter_num;
+      DBUG_PRINT("info", ("  Spawning a thread %d", iter_num));
 #ifndef DBUG_FAULTY_THR
       if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
       {
@@ -451,7 +452,7 @@ event_executor_worker(void *event_void)
   thd->mem_root= &worker_mem_root;
 
   pthread_detach(pthread_self());
-
+  
   if (init_event_thread(thd))
     goto err;
 
