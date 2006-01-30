@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "authors.h"
+#include "event.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1901,6 +1902,7 @@ void get_index_field_values(LEX *lex, INDEX_FIELD_VALUES *index_field_values)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_TRIGGERS:
+  case SQLCOM_SHOW_EVENTS:
     index_field_values->db_value= lex->select_lex.db;
     index_field_values->table_value= wild;
     break;
@@ -3770,6 +3772,269 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
 }
 
 
+static LEX_STRING interval_type_to_name[] = {
+  {(char *) STRING_WITH_LEN("INTERVAL_YEAR")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_QUARTER")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_MONTH")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_DAY")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_HOUR")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_WEEK")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_SECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_MICROSECOND ")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_YEAR_MONTH")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_DAY_HOUR")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_DAY_MINUTE")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_DAY_SECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_MINUTE")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_SECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE_SECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_DAY_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("INTERVAL_SECOND_MICROSECOND")}
+}; 
+
+
+static interval_type get_real_interval_type(interval_type i_type)
+{
+  switch (i_type) {
+  case INTERVAL_YEAR:
+    return INTERVAL_YEAR;
+
+  case INTERVAL_QUARTER:
+  case INTERVAL_YEAR_MONTH:
+  case INTERVAL_MONTH:
+    return INTERVAL_MONTH;
+
+  case INTERVAL_WEEK:
+  case INTERVAL_DAY:
+    return INTERVAL_DAY;
+
+  case INTERVAL_DAY_HOUR:
+  case INTERVAL_HOUR:
+    return INTERVAL_HOUR;
+
+  case INTERVAL_DAY_MINUTE:
+  case INTERVAL_HOUR_MINUTE:
+  case INTERVAL_MINUTE:
+    return INTERVAL_MINUTE;
+
+  case INTERVAL_DAY_SECOND:
+  case INTERVAL_HOUR_SECOND:
+  case INTERVAL_MINUTE_SECOND:
+  case INTERVAL_SECOND:
+    return INTERVAL_SECOND;
+
+  case INTERVAL_DAY_MICROSECOND:
+  case INTERVAL_HOUR_MICROSECOND:
+  case INTERVAL_MINUTE_MICROSECOND:
+  case INTERVAL_SECOND_MICROSECOND:
+  case INTERVAL_MICROSECOND:
+    return INTERVAL_MICROSECOND;
+  }
+  DBUG_ASSERT(0);
+  return INTERVAL_SECOND;
+}
+
+
+static int
+fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
+{
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  CHARSET_INFO *scs= system_charset_info;
+  TIME time;
+  event_timed et;    
+  DBUG_ENTER("fill_events_copy_to_schema_tab");
+
+  restore_record(sch_table, s->default_values);
+
+  if (et.load_from_row(thd->mem_root, event_table))
+  {
+    my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  if (!(!wild || !wild[0] || !wild_compare(et.name.str, wild, 0)))
+    DBUG_RETURN(0);
+  
+  //->field[0] is EVENT_CATALOG and is by default NULL
+  
+  sch_table->field[1]->store(et.dbname.str, et.dbname.length, scs);
+  sch_table->field[2]->store(et.name.str, et.name.length, scs);
+  sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
+  sch_table->field[4]->store(et.body.str, et.body.length, scs);
+
+  // [9] is SQL_MODE and is NULL for now, will be fixed later
+  sch_table->field[9]->set_null();
+  if (et.expression)
+  {
+    //type
+    sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
+    //execute_at
+    sch_table->field[6]->set_null();
+    //interval_value
+    sch_table->field[7]->set_notnull();
+    sch_table->field[7]->store((longlong) et.expression);
+    //interval_type
+    LEX_STRING *ival=&interval_type_to_name[get_real_interval_type(et.interval)];
+    sch_table->field[8]->set_notnull();
+    sch_table->field[8]->store(ival->str, ival->length, scs);
+    //starts & ends
+    sch_table->field[10]->set_notnull();
+    sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[11]->set_notnull();
+    sch_table->field[11]->store_time(&et.ends, MYSQL_TIMESTAMP_DATETIME);
+  }
+  else
+  {
+    //type
+    sch_table->field[5]->store(STRING_WITH_LEN("ONE TIME"), scs);
+    //execute_at
+    sch_table->field[6]->set_notnull();
+    sch_table->field[6]->store_time(&et.execute_at, MYSQL_TIMESTAMP_DATETIME);
+    //interval
+    sch_table->field[7]->set_null();
+    //interval_type
+    sch_table->field[8]->set_null();
+    //starts & ends
+    sch_table->field[10]->set_null();
+    sch_table->field[11]->set_null();
+  }
+
+  //status
+  if (et.status == MYSQL_EVENT_ENABLED)
+    sch_table->field[12]->store(STRING_WITH_LEN("ENABLED"), scs);
+  else
+    sch_table->field[12]->store(STRING_WITH_LEN("DISABLED"), scs);
+
+  //on_completion
+  if (et.on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
+    sch_table->field[13]->store(STRING_WITH_LEN("NOT PRESERVE"), scs);
+  else
+    sch_table->field[13]->store(STRING_WITH_LEN("PRESERVE"), scs);
+    
+  int not_used=0;
+  number_to_datetime(et.created, &time, 0, &not_used);
+  DBUG_ASSERT(not_used==0);
+  sch_table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+
+  number_to_datetime(et.modified, &time, 0, &not_used);
+  DBUG_ASSERT(not_used==0);
+  sch_table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+
+  if (et.last_executed.year)
+    sch_table->field[16]->store_time(&et.last_executed,MYSQL_TIMESTAMP_DATETIME);
+  else
+    sch_table->field[16]->set_null();
+
+  sch_table->field[17]->store(et.comment.str, et.comment.length, scs);
+
+  if (schema_table_store_record(thd, sch_table))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+
+int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  TABLE *table= tables->table;
+  CHARSET_INFO *scs= system_charset_info;
+  TABLE *event_table= NULL;
+  Open_tables_state backup;
+  int ret=0;
+  bool verbose= false;
+  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  bool use_prefix_scanning= true;
+  uint key_len= 0;
+  byte *key_buf= NULL;
+  LINT_INIT(key_buf);
+
+  DBUG_ENTER("fill_schema_events");
+
+  strxmov(definer, thd->security_ctx->priv_user,"@",thd->security_ctx->priv_host,
+          NullS);
+
+  DBUG_PRINT("info",("db=%s current_user=%s", thd->lex->select_lex.db, definer));
+
+  thd->reset_n_backup_open_tables_state(&backup);
+
+  if ((ret= evex_open_event_table(thd, TL_READ, &event_table)))
+  {
+    sql_print_error("Table mysql.event is damaged.");
+    ret= 1;
+    goto err;
+  }
+  
+  event_table->file->ha_index_init(0, 1);
+
+  /* 
+    see others' events only if you have PROCESS_ACL !!
+    thd->lex->verbose is set either if SHOW FULL EVENTS or
+    in case of SELECT FROM I_S.EVENTS
+  */
+  verbose= (thd->lex->verbose
+            && (thd->security_ctx->master_access & PROCESS_ACL));
+
+  if (verbose && thd->security_ctx->user)
+  {    
+    ret= event_table->file->index_first(event_table->record[0]);
+    use_prefix_scanning= false;
+  }
+  else
+  {
+    event_table->field[EVEX_FIELD_DEFINER]->store(definer, strlen(definer), scs);    
+    key_len= event_table->key_info->key_part[0].store_length;
+
+    if (thd->lex->select_lex.db)
+    {
+      event_table->field[EVEX_FIELD_DB]->
+            store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
+      key_len+= event_table->key_info->key_part[1].store_length;
+    }
+    if (!(key_buf= alloc_root(thd->mem_root, key_len)))
+    {
+      ret= 1;
+      goto err;
+    }
+    
+    key_copy(key_buf, event_table->record[0], event_table->key_info, key_len);
+    ret= event_table->file->index_read(event_table->record[0], key_buf, key_len,
+                                       HA_READ_PREFIX);
+  }
+
+  if (ret)
+  {
+    ret= (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND) ? 0 : 1;
+    goto err;
+  }
+
+  while (!ret)
+  {
+    if ((ret= fill_events_copy_to_schema_table(thd, table, event_table)))
+      goto err;
+
+    if (use_prefix_scanning)
+      ret= event_table->file->
+                       index_next_same(event_table->record[0], key_buf, key_len);                                  
+    else
+      ret= event_table->file->index_next(event_table->record[0]);
+  }
+  // ret is guaranteed to be != 0
+  ret= (ret != HA_ERR_END_OF_FILE);
+err:
+  if (event_table)
+  {
+    event_table->file->ha_index_end();
+    close_thread_tables(thd);
+  }
+
+  thd->restore_backup_open_tables_state(&backup);
+  DBUG_RETURN(ret);
+}
+
+
 int fill_open_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_open_tables");
@@ -4390,6 +4655,31 @@ ST_FIELD_INFO engines_fields_info[]=
 };
 
 
+ST_FIELD_INFO events_fields_info[]=
+{
+  {"EVENT_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EVENT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
+  {"EVENT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
+  {"EVENT_BODY", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EVENT_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
+  {"INTERVAL_VALUE", 11, MYSQL_TYPE_LONG, 0, 1, "Interval value"},
+  {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field"},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
+  {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
+  {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},
+  {"ON_COMPLETION", 12, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
+  {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
+  {"LAST_EXECUTED", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"EVENT_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
+
 ST_FIELD_INFO coll_charset_app_fields_info[]=
 {
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
@@ -4655,6 +4945,8 @@ ST_SCHEMA_TABLE schema_tables[]=
     fill_schema_column_privileges, 0, 0, -1, -1, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0},
+  {"EVENTS", events_fields_info, create_schema_table,
+   fill_schema_events, make_old_format, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
