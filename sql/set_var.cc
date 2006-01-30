@@ -109,7 +109,7 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 
 
 
-extern my_bool event_executor_running_global_var;
+extern volatile my_bool event_executor_running_global_var;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -216,7 +216,7 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
 sys_var_event_executor        sys_event_executor("event_scheduler",
-                                               &event_executor_running_global_var);
+                                               (my_bool *)&event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
