@@ -1355,8 +1355,11 @@ create:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
-            if (!lex->et_compile_phase) 
+            if (!lex->et_compile_phase)
+            {
               lex->et->init_name(YYTHD, $4);
+              lex->et->init_definer(YYTHD);
+            }
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -1599,7 +1602,6 @@ ev_sql_stmt:
             if (!lex->et_compile_phase)
             {
               lex->et->init_body(YYTHD);
-              lex->et->init_definer(YYTHD);
             }
           }
       ;
@@ -4816,8 +4818,13 @@ alter:
             if (!(et= new event_timed()))// implicitly calls event_timed::init()
               YYABORT;
             lex->et = et;
-            et->init_name(YYTHD, $3);
 
+            if (!lex->et_compile_phase)
+            {
+              et->init_definer(YYTHD);
+              et->init_name(YYTHD, $3);
+            }
+            
             /*
                 We have to turn of CLIENT_MULTI_QUERIES while parsing a
                 stored procedure, otherwise yylex will chop it into pieces
@@ -4825,7 +4832,6 @@ alter:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -7664,7 +7670,6 @@ drop:
 
             if (lex->et)
             {
-              // ToDo Andrey : Change the error message
               /*
                 Recursive events are not possible because recursive SPs
                 are not also possible. lex->sp_head is not stacked.
@@ -7675,8 +7680,13 @@ drop:
 
             if (!(lex->et= new event_timed()))
               YYABORT;
-            lex->et->init_name(YYTHD, $4);
 	  
+            if (!lex->et_compile_phase)
+            {
+              lex->et->init_name(YYTHD, $4);
+              lex->et->init_definer(YYTHD);
+            }
+
             lex->sql_command = SQLCOM_DROP_EVENT;
             lex->drop_if_exists= $3;
           }
@@ -8066,6 +8076,15 @@ show_param:
              lex->orig_sql_command= SQLCOM_SHOW_TRIGGERS;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
+               YYABORT;
+           }
+         | opt_full EVENTS_SYM opt_db wild_and_where
+           {
+             LEX *lex= Lex;
+             lex->sql_command= SQLCOM_SELECT;
+             lex->orig_sql_command= SQLCOM_SHOW_EVENTS;
+             lex->select_lex.db= $3;
+             if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
            }
          | TABLE_SYM STATUS_SYM opt_db wild_and_where

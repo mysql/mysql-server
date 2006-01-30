@@ -596,7 +596,7 @@ CREATE TABLE event (
   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  (db,name)
+  PRIMARY KEY  (definer, db, name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
 CREATE DATABASE IF NOT EXISTS cluster_replication;
