@@ -24,26 +24,6 @@
 #define UNLOCK_MUTEX_AND_BAIL_OUT(__mutex, __label) \
     { VOID(pthread_mutex_unlock(&__mutex)); goto __label; }
 
-enum evex_table_field
-{
-  EVEX_FIELD_DB = 0,
-  EVEX_FIELD_NAME,
-  EVEX_FIELD_BODY,
-  EVEX_FIELD_DEFINER,
-  EVEX_FIELD_EXECUTE_AT,  
-  EVEX_FIELD_INTERVAL_EXPR,  
-  EVEX_FIELD_TRANSIENT_INTERVAL,  
-  EVEX_FIELD_CREATED,
-  EVEX_FIELD_MODIFIED,
-  EVEX_FIELD_LAST_EXECUTED,
-  EVEX_FIELD_STARTS,
-  EVEX_FIELD_ENDS,
-  EVEX_FIELD_STATUS,
-  EVEX_FIELD_ON_COMPLETION,
-  EVEX_FIELD_COMMENT,
-  EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
-} ;
-
 #define EVEX_DB_FIELD_LEN 64
 #define EVEX_NAME_FIELD_LEN 64
 #define EVEX_MAX_INTERVAL_VALUE 2147483647L
@@ -53,11 +33,10 @@ my_time_compare(TIME *a, TIME *b);
 
 int
 evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
-                       const LEX_STRING rname, TABLE *table);
+                       const LEX_STRING rname,
+                       const LEX_STRING definer,
+                       TABLE *table);
                        
-int
-evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
-
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b);
 
