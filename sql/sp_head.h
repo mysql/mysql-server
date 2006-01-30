@@ -461,17 +461,34 @@ public:
   virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
   {}
 
+  /*
+    Mark this instruction as reachable during optimization and return the
+    index to the next instruction. Jump instruction will mark their
+    destination too recursively.
+  */
   virtual uint opt_mark(sp_head *sp)
   {
     marked= 1;
     return m_ip+1;
   }
 
+  /*
+    Short-cut jumps to jumps during optimization. This is used by the
+    jump instructions' opt_mark() methods. 'start' is the starting point,
+    used to prevent the mark sweep from looping for ever. Return the
+    end destination.
+  */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     return m_ip;
   }
 
+  /*
+    Inform the instruction that it has been moved during optimization.
+    Most instructions will simply update its index, but jump instructions
+    must also take care of their destination pointers. Forward jumps get
+    pushed to the backpatch list 'ibp'.
+  */
   virtual void opt_move(uint dst, List<sp_instr> *ibp)
   {
     m_ip= dst;
@@ -696,6 +713,9 @@ public:
       m_dest= dest;
   }
 
+  /*
+    Update the destination; used by the optimizer.
+  */
   virtual void set_destination(uint old_dest, uint new_dest)
   {
     if (m_dest == old_dest)
@@ -739,6 +759,7 @@ public:
 
   virtual uint opt_mark(sp_head *sp);
 
+  /* Override sp_instr_jump's shortcut; we stop here */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     return m_ip;
@@ -822,6 +843,7 @@ public:
 
   virtual uint opt_mark(sp_head *sp);
 
+  /* Override sp_instr_jump's shortcut; we stop here. */
   virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
   {
     return m_ip;
@@ -858,15 +880,6 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
-
-  virtual void backpatch(uint dest, sp_pcontext *dst_ctx);
-
-  virtual uint opt_mark(sp_head *sp)
-  {
-    if (m_count)
-      marked= 1;
-    return m_ip+1;
-  }
 
 private:
 
@@ -952,15 +965,6 @@ public:
   virtual int execute(THD *thd, uint *nextp);
 
   virtual void print(String *str);
-
-  virtual void backpatch(uint dest, sp_pcontext *dst_ctx);
-
-  virtual uint opt_mark(sp_head *sp)
-  {
-    if (m_count)
-      marked= 1;
-    return m_ip+1;
-  }
 
 private:
 
