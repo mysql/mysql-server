@@ -2756,6 +2756,11 @@ Backup::execGET_TABINFOREF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, senderData);
 
+  ndbout_c("execGET_TABINFOREF: tab: %d errorCode: %d extra: %d",
+	   ref->tableId,
+	   ref->errorCode,
+	   signal->theData[signal->getLength()-1]);
+  
   defineBackupRef(signal, ptr, ref->errorCode);
 }
 
