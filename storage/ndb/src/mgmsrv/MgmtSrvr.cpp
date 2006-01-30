@@ -40,6 +40,7 @@
 #include <signaldata/ManagementServer.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/AllocNodeId.hpp>
 #include <NdbSleep.h>
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
@@ -1712,6 +1713,88 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
   }
 }
 
+int
+MgmtSrvr::alloc_node_id_req(Uint32 free_node_id)
+{
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
+  SimpleSignal ssig;
+  AllocNodeIdReq* req = CAST_PTR(AllocNodeIdReq, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, QMGR, GSN_ALLOC_NODEID_REQ,
+	   AllocNodeIdReq::SignalLength);
+  
+  req->senderRef = ss.getOwnRef();
+  req->senderData = 19;
+  req->nodeId = free_node_id;
+
+  int do_send = 1;
+  NodeId nodeId = 0;
+  while (1)
+  {
+    if (nodeId == 0)
+    {
+      bool next;
+      while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
+            theFacade->get_node_alive(nodeId) == false);
+      if (!next)
+        return NO_CONTACT_WITH_DB_NODES;
+      do_send = 1;
+    }
+    if (do_send)
+    {
+      if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
+        return SEND_OR_RECEIVE_FAILED;
+      }
+      do_send = 0;
+    }
+    
+    SimpleSignal *signal = ss.waitFor();
+
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_ALLOC_NODEID_CONF:
+    {
+      const AllocNodeIdConf * const conf =
+        CAST_CONSTPTR(AllocNodeIdConf, signal->getDataPtr());
+      return 0;
+    }
+    case GSN_ALLOC_NODEID_REF:
+    {
+      const AllocNodeIdRef * const ref =
+        CAST_CONSTPTR(AllocNodeIdRef, signal->getDataPtr());
+      if (ref->errorCode == AllocNodeIdRef::NotMaster ||
+          ref->errorCode == AllocNodeIdRef::Busy)
+      {
+        do_send = 1;
+        nodeId = refToNode(ref->masterRef);
+        continue;
+      }
+      return ref->errorCode;
+    }
+    case GSN_NF_COMPLETEREP:
+    {
+      const NFCompleteRep * const rep =
+        CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
+#ifdef VM_TRACE
+      ndbout_c("Node %d fail completed", rep->failedNodeId);
+#endif
+      if (rep->failedNodeId == nodeId)
+        nodeId = 0;
+      continue;
+    }
+    case GSN_NODE_FAILREP:{
+      // ignore NF_COMPLETEREP will come
+      continue;
+    }
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+  return 0;
+}
+
 bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
@@ -1835,6 +1918,39 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     id_found= tmp; // mgmt server matched, check for more matches
   }
   NdbMutex_Unlock(m_configMutex);
+
+  if (id_found && client_addr != 0)
+  {
+    int res = alloc_node_id_req(id_found);
+    unsigned save_id_found = id_found;
+    switch (res)
+    {
+    case 0:
+      // ok continue
+      break;
+    case NO_CONTACT_WITH_DB_NODES:
+      // ok continue
+      break;
+    default:
+      // something wrong
+      id_found = 0;
+      break;
+
+    }
+    if (id_found == 0)
+    {
+      char buf[128];
+      ndb_error_string(res, buf, sizeof(buf));
+      error_string.appfmt("Cluster refused allocation of id %d. Error: %d (%s).",
+			  save_id_found, res, buf);
+      g_eventLogger.warning("Cluster refused allocation of id %d. "
+                            "Connection from ip %s. "
+                            "Returned error string \"%s\"", save_id_found,
+                            inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr),
+                            error_string.c_str());
+      DBUG_RETURN(false);
+    }
+  }
 
   if (id_found)
   {

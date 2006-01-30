@@ -81,6 +81,7 @@ static const char* empty_string = "";
  * 1400 - SUMA
  * 1500 - LGMAN
  * 1600 - TSMAN
+ * 1700 - QMGR
  * 4000 - API
  * 4100 - ""
  * 4200 - ""
@@ -450,6 +451,15 @@ ErrorBundle ErrorCodes[] = {
   { 1348, DMEC, AE, "Backup failed to allocate file record (check configuration)" },
   { 1349, DMEC, AE, "Backup failed to allocate attribute record (check configuration)" },
   { 1329, DMEC, AE, "Backup during software upgrade not supported" },
+
+  /**
+   * Node id allocation error codes
+   */ 
+
+  { 1700, DMEC, IE, "Undefined error" },
+  { 1701, DMEC, AE, "Node already reserved" },
+  { 1702, DMEC, AE, "Node already connected" },
+  { 1703, DMEC, AE, "Node failure handling not completed" },
   
   /**
    * Still uncategorized
