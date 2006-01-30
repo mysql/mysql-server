@@ -461,7 +461,7 @@ event_executor_worker(void *event_void)
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->mem_root= &worker_mem_root;
 
-  pthread_detach(pthread_self());
+  pthread_detach_this_thread();
   
   if (init_event_thread(thd))
     goto err;
