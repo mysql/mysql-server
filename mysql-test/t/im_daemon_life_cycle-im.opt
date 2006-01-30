@@ -1,2 +1,2 @@
 --run-as-service
---log=$MYSQL_TEST_DIR/var/log/im.log
+--log=$MYSQLTEST_VARDIR/log/im.log

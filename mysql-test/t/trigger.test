@@ -465,11 +465,11 @@ create trigger trg1 before insert on t1 for each row set new.k = new.i;
 create trigger trg2 after insert on t1 for each row set @b:= "Fired"; 
 set @b:="";
 # Test triggers with file with separators
-load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, i);
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, i);
 select *, @b from t1;
 set @b:="";
 # Test triggers with fixed size row file
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, j);
 select *, @b from t1;
 # This also will drop triggers
 drop table t1;
@@ -503,7 +503,7 @@ delete from t1 where i = 2;
 select * from t1;
 # Should fail and insert only 1 row
 --error 1054
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 select * from t1;
 --error 1054
 insert into t1 select 3, 3;
@@ -563,7 +563,7 @@ select * from t1;
 delete from t1;
 select * from t1;
 --error 1054
-load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
 select * from t1;
 --error 1054
 insert into t1 select 3, 3;
