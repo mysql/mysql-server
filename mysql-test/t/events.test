@@ -28,6 +28,80 @@ set event_scheduler=0;
 --error 1231
 set global event_scheduler=2;
 
+#
+#INFORMATION_SCHEMA.EVENTS test begin
+#
+create event one_event on schedule every 10 second do select 123;
+--replace_column 8 # 9 #
+SHOW EVENTS;
+SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
+CREATE DATABASE events_test2;
+CREATE USER ev_test@localhost;
+GRANT ALL ON events_test.* to ev_test@localhost;
+GRANT ALL on events_test2.* to ev_test@localhost;
+REVOKE EVENT ON events_test2.* FROM ev_test@localhost;
+REVOKE PROCESS on *.* from ev_test@localhost;
+#now we are on con1
+connect (ev_con1,localhost,ev_test,,events_test2);
+select "NEW CONNECTION";
+SELECT USER(), DATABASE();
+SHOW GRANTS;
+
+select "Here comes an error:";
+#NO EVENT_ACL on events_test2
+--error 1044
+SHOW EVENTS;
+USE events_test;
+
+select "Now the list should be empty:";
+--replace_column 8 # 9 #
+SHOW EVENTS;
+#now create an event with the same name but we are different user
+select concat("Let's create some new events from the name of ",user());
+create event one_event on schedule every 20 second do select 123;
+create event two_event on schedule every 20 second on completion not preserve comment "two event" do select 123;
+create event three_event on schedule every 20 second on completion preserve comment "three event" do select 123;
+
+select "Now we should see 3 events:";
+--replace_column 8 # 9 #
+SHOW EVENTS;
+
+select "This should show us only 3 events:";
+--replace_column 8 # 9 #
+SHOW FULL EVENTS;
+
+select "This should show us only 2 events:";
+--replace_column 8 # 9 #
+SHOW FULL EVENTS LIKE 't%event';
+
+select "This should show us no events:";
+--replace_column 8 # 9 #
+SHOW FULL EVENTS FROM test LIKE '%';
+#ok, we are back
+connection default;
+DROP DATABASE events_test2;
+
+select "should see 1 event:";
+--replace_column 8 # 9 #
+SHOW EVENTS;
+
+select "we should see 4 events now:";
+--replace_column 8 # 9 #
+SHOW FULL EVENTS;
+SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
+
+connection ev_con1;
+drop event one_event;
+drop event two_event;
+drop event three_event;
+disconnect ev_con1;
+connection default;
+drop user ev_test@localhost;
+drop event one_event;
+#
+##INFORMATION_SCHEMA.EVENTS test end
+#
+
 set global event_scheduler=0;
 select count(*) from mysql.event;
 select get_lock("test_lock1", 20);

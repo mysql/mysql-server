@@ -54,6 +54,25 @@ enum enum_event_status
   MYSQL_EVENT_DISABLED
 };
 
+enum evex_table_field
+{
+  EVEX_FIELD_DB = 0,
+  EVEX_FIELD_NAME,
+  EVEX_FIELD_BODY,
+  EVEX_FIELD_DEFINER,
+  EVEX_FIELD_EXECUTE_AT,  
+  EVEX_FIELD_INTERVAL_EXPR,  
+  EVEX_FIELD_TRANSIENT_INTERVAL,  
+  EVEX_FIELD_CREATED,
+  EVEX_FIELD_MODIFIED,
+  EVEX_FIELD_LAST_EXECUTED,
+  EVEX_FIELD_STARTS,
+  EVEX_FIELD_ENDS,
+  EVEX_FIELD_STATUS,
+  EVEX_FIELD_ON_COMPLETION,
+  EVEX_FIELD_COMMENT,
+  EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
+} ;
 
 class event_timed
 {
@@ -64,9 +83,10 @@ class event_timed
 
   bool status_changed;
   bool last_executed_changed;
-  TIME last_executed;
 
 public:
+  TIME last_executed;
+
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING body;
@@ -83,8 +103,8 @@ public:
   longlong expression;
   interval_type interval;
 
-  longlong created;
-  longlong modified;
+  ulonglong created;
+  ulonglong modified;
   enum enum_event_on_completion on_completion;
   enum enum_event_status status;
   sp_head *sphead;
@@ -197,6 +217,10 @@ int
 evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
                 uint *rows_affected);
 
+int
+evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
+
+int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
 int
 init_events();
@@ -208,6 +232,7 @@ shutdown_events();
 // auxiliary
 int 
 event_timed_compare(event_timed **a, event_timed **b);
+
 
 
 /*
@@ -233,7 +258,7 @@ CREATE TABLE event (
   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
   comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  (db,name)
+  PRIMARY KEY  (definer,db,name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 */
 
