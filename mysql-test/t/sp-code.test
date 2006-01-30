@@ -63,7 +63,7 @@ drop procedure code_sample;
 #   wasn't trivial to create a smaller test,
 # - There's some value in having another more complex code sample
 #   in this test file. This might catch future code generation bugs
-#   that doesn't not show in behaviour in any obvious way.
+#   that doesn't show in behaviour in any obvious way.
 
 --disable_warnings
 drop procedure if exists sudoku_solve;
