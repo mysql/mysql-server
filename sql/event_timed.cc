@@ -413,6 +413,16 @@ event_timed::init_definer(THD *thd)
 
   definer_host.str= strdup_root(thd->mem_root, thd->security_ctx->priv_host);
   definer_host.length= strlen(thd->security_ctx->priv_host);
+  
+  definer.length= definer_user.length + definer_host.length + 1;
+  definer.str= alloc_root(thd->mem_root, definer.length + 1);
+
+  memcpy(definer.str, definer_user.str, definer_user.length);
+  definer.str[definer_user.length]= '@';
+  
+  memcpy(definer.str + definer_user.length + 1, definer_host.str,
+         definer_host.length);
+  definer.str[definer.length]= '\0';     
 
   DBUG_RETURN(0);
 }
@@ -486,7 +496,6 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   et->definer_host.str= strmake_root(mem_root, ptr + 1, len);//1: because of @
   et->definer_host.length= len;
   
-  
   res1= table->field[EVEX_FIELD_STARTS]->
                      get_date(&et->starts, TIME_NO_ZERO_DATE);
 
@@ -542,8 +551,7 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
     goto error;
   
   DBUG_PRINT("load_from_row", ("Event [%s] is [%s]", et->name.str, ptr));
-  et->status= (ptr[0]=='E'? MYSQL_EVENT_ENABLED:
-                                     MYSQL_EVENT_DISABLED);
+  et->status= (ptr[0]=='E'? MYSQL_EVENT_ENABLED:MYSQL_EVENT_DISABLED);
 
   // ToDo : Andrey . Find a way not to allocate ptr on event_mem_root
   if ((ptr= get_field(mem_root,
@@ -681,7 +689,8 @@ event_timed::compute_next_execution_time()
   }
   time((time_t *)&now);
   my_tz_UTC->gmt_sec_to_TIME(&time_now, now);
-/*
+
+#ifdef ANDREY_0
   sql_print_information("[%s.%s]", dbname.str, name.str);
   sql_print_information("time_now : [%d-%d-%d %d:%d:%d ]", 
                          time_now.year, time_now.month, time_now.day,
@@ -696,7 +705,8 @@ event_timed::compute_next_execution_time()
                         last_executed.month, last_executed.day,
                         last_executed.hour, last_executed.minute,
                         last_executed.second);
-*/
+#endif
+
   //if time_now is after ends don't execute anymore
   if (ends.year && (tmp= my_time_compare(&ends, &time_now)) == -1)
   {
@@ -871,7 +881,7 @@ event_timed::drop(THD *thd)
   if (evex_open_event_table(thd, TL_WRITE, &table))
     DBUG_RETURN(-1);
 
-  if (evex_db_find_event_aux(thd, dbname, name, table))
+  if (evex_db_find_event_aux(thd, dbname, name, definer, table))
     DBUG_RETURN(-2);
 
   if ((ret= table->file->ha_delete_row(table->record[0])))
@@ -907,11 +917,12 @@ event_timed::update_fields(THD *thd)
   }
 
 
-  if ((ret= evex_db_find_event_aux(thd, dbname, name, table)))
+  if ((ret= evex_db_find_event_aux(thd, dbname, name, definer, table)))
     goto done;
 
   store_record(table,record[1]);
-  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET; // Don't update create on row update.
+  // Don't update create on row update.
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET; 
 
   if (last_executed_changed)
   {
