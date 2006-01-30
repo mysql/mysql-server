@@ -34,29 +34,13 @@ create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:
 Note	1305	Event event3 does not exist
-create event event3 on schedule every 50 + 10 minute starts date_add("20010101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
 set max_allowed_packet=128000000;
 select count(*) from t_event3;
 count(*)
 0
 drop event event3;
 drop table t_event3;
-create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
-select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
-db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
-events_test	e_26	 set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
-drop event e_26;
-create event e_26 on schedule at NULL disabled do set @a = 5;
-ERROR HY000: Incorrect AT value: 'NULL'
-create event e_26 on schedule at 'definitely not a datetime' disabled do set @a = 5;
-ERROR HY000: Incorrect AT value: 'definitely not a datetime'
-set names utf8;
-create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
-drop event задачка;
-set event_scheduler=0;
-ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
-set global event_scheduler=2;
-ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
 create event one_event on schedule every 10 second do select 123;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
@@ -81,15 +65,11 @@ Grants for ev_test@localhost
 GRANT USAGE ON *.* TO 'ev_test'@'localhost'
 GRANT ALL PRIVILEGES ON `events_test`.* TO 'ev_test'@'localhost'
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `events_test2`.* TO 'ev_test'@'localhost'
-select "Here comes an error:";
-Here comes an error:
-Here comes an error:
+"Here comes an error:";
 SHOW EVENTS;
 ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_test2'
 USE events_test;
-select "Now the list should be empty:";
-Now the list should be empty:
-Now the list should be empty:
+"Now the list should be empty:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 select concat("Let's create some new events from the name of ",user());
@@ -98,44 +78,32 @@ Let's create some new events from the name of ev_test@localhost
 create event one_event on schedule every 20 second do select 123;
 create event two_event on schedule every 20 second on completion not preserve comment "two event" do select 123;
 create event three_event on schedule every 20 second on completion preserve comment "three event" do select 123;
-select "Now we should see 3 events:";
-Now we should see 3 events:
-Now we should see 3 events:
+"Now we should see 3 events:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-select "This should show us only 3 events:";
-This should show us only 3 events:
-This should show us only 3 events:
+"This should show us only 3 events:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-select "This should show us only 2 events:";
-This should show us only 2 events:
-This should show us only 2 events:
+"This should show us only 2 events:";
 SHOW FULL EVENTS LIKE 't%event';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
 events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-select "This should show us no events:";
-This should show us no events:
-This should show us no events:
+"This should show us no events:";
 SHOW FULL EVENTS FROM test LIKE '%';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 DROP DATABASE events_test2;
-select "should see 1 event:";
-should see 1 event:
-should see 1 event:
+"should see 1 event:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	root@localhost	RECURRING	NULL	10	INTERVAL_SECOND	#	#	ENABLED
-select "we should see 4 events now:";
-we should see 4 events now:
-we should see 4 events now:
+"we should see 4 events now:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
@@ -153,69 +121,20 @@ drop event two_event;
 drop event three_event;
 drop user ev_test@localhost;
 drop event one_event;
-set global event_scheduler=0;
-select count(*) from mysql.event;
-count(*)
-0
-select get_lock("test_lock1", 20);
-get_lock("test_lock1", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
-select count(*) from mysql.event;
-count(*)
-1
-select release_lock("test_lock1");
-release_lock("test_lock1")
-1
-drop event закачка;
-select count(*) from mysql.event;
-count(*)
-0
-set global event_scheduler=1;
-select get_lock("test_lock2", 20);
-get_lock("test_lock2", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
-select sleep(2);
-sleep(2)
-0
-select release_lock("test_lock2");
-release_lock("test_lock2")
-1
-drop event закачка;
-set global event_scheduler=1;
-select get_lock("test_lock2_1", 20);
-get_lock("test_lock2_1", 20)
-1
-create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
-select sleep(2);
-sleep(2)
-0
-set global event_scheduler=0;
-select sleep(2);
-sleep(2)
-0
-select release_lock("test_lock2_1");
-release_lock("test_lock2_1")
-1
-select sleep(2);
-sleep(2)
-0
-drop event закачка21;
-set global event_scheduler=1;
-select get_lock("test_lock3", 20);
-get_lock("test_lock3", 20)
-1
-create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
-select sleep(2);
-sleep(2)
-0
-drop event закачка;
-select release_lock("test_lock3");
-release_lock("test_lock3")
-1
-set global event_scheduler=0;
-select sleep(2);
-sleep(2)
-0
+create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
+select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
+db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
+events_test	e_26	 set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
+drop event e_26;
+create event e_26 on schedule at NULL disabled do set @a = 5;
+ERROR HY000: Incorrect AT value: 'NULL'
+create event e_26 on schedule at 'definitely not a datetime' disabled do set @a = 5;
+ERROR HY000: Incorrect AT value: 'definitely not a datetime'
+set names utf8;
+create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
+drop event задачка;
+set event_scheduler=0;
+ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
+set global event_scheduler=2;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
 drop database events_test;

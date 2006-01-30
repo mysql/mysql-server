@@ -307,6 +307,8 @@ event_timed::init_starts(THD *thd, Item *new_starts)
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
                               (my_time_t) thd->query_start()); 
 
+  DBUG_PRINT("info",("now   =%lld", TIME_to_ulonglong_datetime(&time_tmp)));
+  DBUG_PRINT("info",("starts=%lld", TIME_to_ulonglong_datetime(&ltime)));
   if (TIME_to_ulonglong_datetime(&ltime) <
       TIME_to_ulonglong_datetime(&time_tmp))
     DBUG_RETURN(EVEX_BAD_PARAMS);

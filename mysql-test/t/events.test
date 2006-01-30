@@ -27,7 +27,7 @@ set global event_scheduler = 0;
 
 create table t_event3 (a int, b float);
 drop event if exists event3;
-create event event3 on schedule every 50 + 10 minute starts date_add("20010101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
 set max_allowed_packet=128000000;
 select count(*) from t_event3;
 drop event event3;
@@ -52,13 +52,13 @@ select "NEW CONNECTION";
 SELECT USER(), DATABASE();
 SHOW GRANTS;
 
-select "Here comes an error:";
+--echo "Here comes an error:";
 #NO EVENT_ACL on events_test2
 --error 1044
 SHOW EVENTS;
 USE events_test;
 
-select "Now the list should be empty:";
+--echo "Now the list should be empty:";
 --replace_column 8 # 9 #
 SHOW EVENTS;
 #now create an event with the same name but we are different user
@@ -67,30 +67,30 @@ create event one_event on schedule every 20 second do select 123;
 create event two_event on schedule every 20 second on completion not preserve comment "two event" do select 123;
 create event three_event on schedule every 20 second on completion preserve comment "three event" do select 123;
 
-select "Now we should see 3 events:";
+--echo "Now we should see 3 events:";
 --replace_column 8 # 9 #
 SHOW EVENTS;
 
-select "This should show us only 3 events:";
+--echo "This should show us only 3 events:";
 --replace_column 8 # 9 #
 SHOW FULL EVENTS;
 
-select "This should show us only 2 events:";
+--echo "This should show us only 2 events:";
 --replace_column 8 # 9 #
 SHOW FULL EVENTS LIKE 't%event';
 
-select "This should show us no events:";
+--echo "This should show us no events:";
 --replace_column 8 # 9 #
 SHOW FULL EVENTS FROM test LIKE '%';
 #ok, we are back
 connection default;
 DROP DATABASE events_test2;
 
-select "should see 1 event:";
+--echo "should see 1 event:";
 --replace_column 8 # 9 #
 SHOW EVENTS;
 
-select "we should see 4 events now:";
+--echo "we should see 4 events now:";
 --replace_column 8 # 9 #
 SHOW FULL EVENTS;
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
