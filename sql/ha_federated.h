@@ -285,6 +285,7 @@ public:
   void position(const byte *record);                            //required
   void info(uint);                                              //required
 
+  void update_auto_increment(void);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
 

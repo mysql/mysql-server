@@ -1393,6 +1393,12 @@ static int free_share(FEDERATED_SHARE *share)
     hash_delete(&federated_open_tables, (byte*) share);
     my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
     share->scheme= 0;
+    if (share->socket)
+    {
+      my_free((gptr) share->socket, MYF(MY_ALLOW_ZERO_PTR));
+      share->socket= 0;
+    }
+
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
@@ -1695,10 +1701,34 @@ int ha_federated::write_row(byte *buf)
   {
     DBUG_RETURN(stash_remote_error());
   }
+  /*
+    If the table we've just written a record to contains an auto_increment field,
+    then store the last_insert_id() value from the foreign server
+  */
+  if (table->next_number_field)
+    update_auto_increment();
 
   DBUG_RETURN(0);
 }
 
+/*
+  ha_federated::update_auto_increment
+
+  This method ensures that last_insert_id() works properly. What it simply does
+  is calls last_insert_id() on the foreign database immediately after insert
+  (if the table has an auto_increment field) and sets the insert id via
+  thd->insert_id(ID) (as well as storing thd->prev_insert_id)
+*/
+void ha_federated::update_auto_increment(void)
+{
+  THD *thd= current_thd;
+  DBUG_ENTER("ha_federated::update_auto_increment");
+
+  thd->insert_id(mysql->last_used_con->insert_id);
+  DBUG_PRINT("info",("last_insert_id %d", auto_increment_value));
+
+  DBUG_VOID_RETURN;
+}
 
 int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
