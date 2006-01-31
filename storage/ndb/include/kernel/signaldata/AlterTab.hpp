@@ -33,6 +33,7 @@ class AlterTabReq {
   friend class Dbdih;
   friend class Dbtc;
   friend class Dblqh;
+  friend class Suma;
 
   /**
    * For printing
@@ -103,7 +104,6 @@ class AlterTabConf {
   friend class Dbtc;
   friend class Dblqh;
   friend class Dbtup;
-  friend class Suma;
   
   /**
    * For printing

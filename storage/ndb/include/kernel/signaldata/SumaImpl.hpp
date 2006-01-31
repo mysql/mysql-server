@@ -277,22 +277,6 @@ struct SubSyncConf {
   Uint32 senderData;
 };
 
-struct SubMetaData {
-  /**
-   * Sender(s)/Reciver(s)
-   */
-  friend struct SumaParticipant;
-  friend struct Grep;
-  
-  friend bool printSUB_META_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
-  SECTION( DICT_TAB_INFO = 0 );
-  
-  Uint32 gci;
-  Uint32 senderData;
-  Uint32 tableId;
-};
-
 struct SubTableData {
   /**
    * Sender(s)/Reciver(s)
@@ -301,7 +285,11 @@ struct SubTableData {
   friend struct Grep;
   
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
+  SECTION( DICT_TAB_INFO = 0 );
+  SECTION( ATTR_INFO = 0 );
+  SECTION( AFTER_VALUES = 1 );
+  SECTION( BEFORE_VALUES = 2 );
   
   enum LogType {
     SCAN = 1, 
@@ -317,6 +305,8 @@ struct SubTableData {
   Uint8  ndbd_nodeid;
   Uint8  not_used3;
   Uint32 logType;
+  Uint32 changeMask;
+  Uint32 totalLen;
 };
 
 struct SubSyncContinueReq {
