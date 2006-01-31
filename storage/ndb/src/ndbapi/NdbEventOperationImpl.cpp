@@ -41,6 +41,7 @@
 #include <NdbBlob.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
+#include <signaldata/AlterTable.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
@@ -92,6 +93,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 					     const char* eventName) 
   : NdbEventOperation(*this), m_facade(&N), m_magic_number(0),
     m_ndb(theNdb), m_state(EO_ERROR), mi_type(0), m_oid(~(Uint32)0),
+    m_change_mask(0),
 #ifdef VM_TRACE
     m_data_done_count(0), m_data_count(0),
 #endif
@@ -553,6 +555,26 @@ NdbEventOperationImpl::stop()
   DBUG_RETURN(r);
 }
 
+const bool NdbEventOperationImpl::tableNameChanged() const
+{
+  return (bool)AlterTableReq::getNameFlag(m_change_mask);
+}
+
+const bool NdbEventOperationImpl::tableFrmChanged() const
+{
+  return (bool)AlterTableReq::getFrmFlag(m_change_mask);
+}
+
+const bool NdbEventOperationImpl::tableFragmentationChanged() const
+{
+  return (bool)AlterTableReq::getFragDataFlag(m_change_mask);
+}
+
+const bool NdbEventOperationImpl::tableRangeListChanged() const
+{
+  return (bool)AlterTableReq::getRangeListFlag(m_change_mask);
+}
+
 Uint64
 NdbEventOperationImpl::getGCI()
 {
@@ -565,6 +587,35 @@ NdbEventOperationImpl::getLatestGCI()
   return m_ndb->theEventBuffer->getLatestGCI();
 }
 
+bool
+NdbEventOperationImpl::execSUB_TABLE_DATA(NdbApiSignal * signal, 
+                                          LinearSectionPtr ptr[3])
+{
+  DBUG_ENTER("NdbEventOperationImpl::execSUB_TABLE_DATA");
+  const SubTableData * const sdata=
+    CAST_CONSTPTR(SubTableData, signal->getDataPtr());
+
+  if(signal->isFirstFragment()){
+    m_fragmentId = signal->getFragmentId();
+    m_buffer.grow(4 * sdata->totalLen);
+  } else {
+    if(m_fragmentId != signal->getFragmentId()){
+      abort();
+    }
+  }
+  const Uint32 i = SubTableData::DICT_TAB_INFO;
+  DBUG_PRINT("info", ("Accumulated %u bytes for fragment %u", 
+                      4 * ptr[i].sz, m_fragmentId));
+  m_buffer.append(ptr[i].p, 4 * ptr[i].sz);
+  
+  if(!signal->isLastFragment()){
+    DBUG_RETURN(FALSE);
+  }  
+  
+  DBUG_RETURN(TRUE);
+}
+
+
 int
 NdbEventOperationImpl::receive_event()
 {
@@ -572,6 +623,26 @@ NdbEventOperationImpl::receive_event()
 
   Uint32 operation= (Uint32)m_data_item->sdata->operation;
   DBUG_PRINT_EVENT("info",("sdata->operation %u",operation));
+
+  if (operation == NdbDictionary::Event::_TE_ALTER)
+  {
+    // Parse the new table definition and
+    // create a table object
+    NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
+    NdbDictionaryImpl *dict = & NdbDictionaryImpl::getImpl(*myDict);
+    NdbError error;
+    NdbDictInterface dif(error);
+    NdbTableImpl *at;
+    m_change_mask = m_data_item->sdata->changeMask;
+    error.code = dif.parseTableInfo(&at,
+                                    (Uint32*)m_buffer.get_data(), 
+                                    m_buffer.length() / 4, 
+                                    true);
+    m_buffer.clear();
+    if ( m_eventImpl->m_tableImpl) 
+      delete m_eventImpl->m_tableImpl;
+    m_eventImpl->m_tableImpl = at;
+  }
 
   if (unlikely(operation >= NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT))
   {
@@ -1388,7 +1459,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
        */
       DBUG_RETURN_EVENT(0);
     }
-
+    
     const bool is_blob_event = (op->theMainOp != NULL);
     const bool is_data_event =
       sdata->operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
