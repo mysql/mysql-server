@@ -246,6 +246,14 @@ static int got_end_timer= FALSE;
 static void timer_output(void);
 static ulonglong timer_now(void);
 
+/* Precompiled re's */
+static my_regex_t ps_re;     /* the query can be run using PS protocol */
+static my_regex_t sp_re;     /* the query can be run as a SP */
+static my_regex_t view_re;   /* the query can be run as a view*/
+
+static void init_re(void);
+static int match_re(my_regex_t *, char *);
+static void free_re(void);
 
 static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace, 
  char *string, int icase);
@@ -4345,6 +4353,19 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 end:
   free_replace();
   free_replace_regex();
+  
+  if (!disable_warnings)
+  {
+    dynstr_free(&ds_prepare_warnings);
+    dynstr_free(&ds_execute_warnings);
+  }
+
+  /*
+    We save the return code (mysql_stmt_errno(stmt)) from the last call sent
+    to the server into the mysqltest builtin variable $mysql_errno. This
+    variable then can be used from the test case itself.
+  */
+  
   var_set_errno(mysql_stmt_errno(stmt));
 #ifndef BUG15518_FIXED
   mysql_stmt_close(stmt);
