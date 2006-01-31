@@ -634,7 +634,7 @@ ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(definer, db, name);
-ALTER TABLE proc MODIFY sql_mode
+ALTER TABLE event ADD sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
