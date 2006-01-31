@@ -8,7 +8,7 @@ a	b	c
 2	two	two
 alter table t1 drop index c;
 select * from t1 where c = 'two';
-ERROR HY000: Can't lock file (errno: 159)
+ERROR HY000: Table definition has changed, please retry transaction
 select * from t1 where c = 'two';
 a	b	c
 2	two	two
