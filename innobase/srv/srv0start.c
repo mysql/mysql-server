@@ -233,6 +233,13 @@ srv_parse_data_file_paths_and_sizes(
 		}
 	}
 
+	if (i == 0) {
+		/* If innodb_data_file_path was defined it must contain
+		at least one data file definition */
+
+		return(FALSE);
+	}
+	
 	*data_file_names = (char**)ut_malloc(i * sizeof(void*));
 	*data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
 	*data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
@@ -379,6 +386,13 @@ srv_parse_log_group_home_dirs(
 		}
 	}
 
+	if (i != 1) {
+		/* If innodb_log_group_home_dir was defined it must
+		contain exactly one path definition under current MySQL */
+		
+		return(FALSE);
+	}
+	
 	*log_group_home_dirs = (char**) ut_malloc(i * sizeof(void*));
 
 	/* Then store the actual values to our array */
