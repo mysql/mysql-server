@@ -317,28 +317,28 @@ os_event_wait(
 	os_fast_mutex_lock(&(event->os_mutex));
 
 	old_signal_count = event->signal_count;
-loop:
-	if (event->is_set == TRUE
-            || event->signal_count != old_signal_count) {
 
-		os_fast_mutex_unlock(&(event->os_mutex));
+	for (;;) {
+		if (event->is_set == TRUE
+			|| event->signal_count != old_signal_count) {
 
-		if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+			os_fast_mutex_unlock(&(event->os_mutex));
 
-		        os_thread_exit(NULL);
+			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+				os_thread_exit(NULL);
+			}
+			/* Ok, we may return */
+
+			return;
 		}
-		/* Ok, we may return */
 
-		return;
+		pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
+
+		/* Solaris manual said that spurious wakeups may occur: we
+		have to check if the event really has been signaled after
+		we came here to wait */
 	}
-
-	pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
-
-	/* Solaris manual said that spurious wakeups may occur: we have to
-	check if the event really has been signaled after we came here to
-	wait */
-
-	goto loop;
 #endif
 }
 
