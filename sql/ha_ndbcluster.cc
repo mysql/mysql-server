@@ -466,7 +466,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
     #   The mapped error code
 */
 
-void
+int
 ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
 					   const char *tabname, bool global)
 {
@@ -474,11 +474,26 @@ ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
   DBUG_ENTER("invalidate_dictionary_cache");
   DBUG_PRINT("info", ("invalidating %s", tabname));
 
+#ifdef HAVE_NDB_BINLOG
+  char key[FN_REFLEN];
+  strxnmov(key, FN_LEN-1, mysql_data_home, "/",
+           dbname, "/", tabname, NullS);
+  DBUG_PRINT("info", ("Getting ndbcluster mutex"));
+  pthread_mutex_lock(&ndbcluster_mutex);
+  NDB_SHARE *ndb_share= (NDB_SHARE*)hash_search(&ndbcluster_open_tables,
+                                                (byte*) key, strlen(key));
+  pthread_mutex_unlock(&ndbcluster_mutex);
+  DBUG_PRINT("info", ("Released ndbcluster mutex"));
+  // Only binlog_thread is allowed to globally invalidate a table
+  if (global && ndb_share && ndb_share->op && (current_thd != injector_thd))
+    DBUG_RETURN(1);
+#endif
+
   if (global)
   {
     const NDBTAB *tab= dict->getTable(tabname);
     if (!tab)
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(1);
     if (tab->getObjectStatus() == NdbDictionary::Object::Invalid)
     {
       // Global cache has already been invalidated
@@ -491,13 +506,14 @@ ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
   else
     dict->removeCachedTable(tabname);
   share->version=0L;			/* Free when thread is ready */
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 void ha_ndbcluster::invalidate_dictionary_cache(bool global)
 {
   NDBDICT *dict= get_ndb()->getDictionary();
-  invalidate_dictionary_cache(table_share, get_ndb(), m_tabname, global);
+  if (invalidate_dictionary_cache(table_share, get_ndb(), m_tabname, global))
+    return;
   /* Invalidate indexes */
   for (uint i= 0; i < table_share->keys; i++)
   {
@@ -9244,10 +9260,7 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
   DBUG_ENTER("ha_ndbcluster::check_if_incompatible_data");
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
-#ifdef HAVE_NDB_BINLOG
-  DBUG_PRINT("info", ("add/drop index not supported with binlog"));
-  DBUG_RETURN(COMPATIBLE_DATA_NO); // Disable fast add/drop index with binlog
-#endif
+
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
