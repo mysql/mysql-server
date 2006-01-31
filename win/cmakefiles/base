@@ -1,0 +1,13 @@
+PROJECT(MySql)
+
+EXEC_PROGRAM(cscript.exe win32 ARGS config-version.js OUT_VARIABLE out)
+
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4996 -D_DEBUG")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /wd4996 -D_DEBUG")
+
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4996 -DDBUG_OFF -DNDEBUG")
+SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4996 -DDBUG_OFF -DNDEBUG")
+ADD_DEFINITIONS("-D_WINDOWS -D__WIN__")
+
+SUBDIRS(vio dbug strings regex mysys zlib storage/innobase storage/heap storage/myisam storage/myisammrg 
+			  extra extra/yassl extra/yassl/taocrypt client sql)
