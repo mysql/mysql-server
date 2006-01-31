@@ -5388,6 +5388,18 @@ static void ndbcluster_drop_database(char *path)
 /*
   find all tables in ndb and discover those needed
 */
+int ndb_create_table_from_engine(THD *thd, const char *db,
+                                 const char *table_name)
+{
+  LEX *old_lex= thd->lex, newlex;
+  thd->lex= &newlex;
+  newlex.current_select= NULL;
+  lex_start(thd, (const uchar*) "", 0);
+  int res= ha_create_table_from_engine(thd, db, table_name);
+  thd->lex= old_lex;
+  return res;
+}
+
 int ndbcluster_find_all_files(THD *thd)
 {
   DBUG_ENTER("ndbcluster_find_all_files");
@@ -5440,8 +5452,15 @@ int ndbcluster_find_all_files(THD *thd)
       if (ndbtab->getFrmLength() == 0)
         continue;
     
-      strxnmov(key, FN_LEN-1, mysql_data_home, "/",
-               elmt.database, "/", elmt.name, NullS);
+      /* check if database exists */
+      char *end= strxnmov(key, FN_LEN-1, mysql_data_home, "/",
+                          elmt.database, NullS);
+      if (my_access(key, F_OK))
+      {
+        /* no such database defined, skip table */
+        continue;
+      }
+      strxnmov(end, FN_LEN-1-(key-end), "/", elmt.name, NullS);
       const void *data= 0, *pack_data= 0;
       uint length, pack_length;
       int discover= 0;
@@ -5471,7 +5490,7 @@ int ndbcluster_find_all_files(THD *thd)
       {
         /* ToDo 4.1 database needs to be created if missing */
         pthread_mutex_lock(&LOCK_open);
-        if (ha_create_table_from_engine(thd, elmt.database, elmt.name))
+        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name))
         {
           /* ToDo 4.1 handle error */
         }
@@ -5699,7 +5718,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   while ((file_name=it2++))
   {  
     DBUG_PRINT("info", ("Table %s need discovery", file_name));
-    if (ha_create_table_from_engine(thd, db, file_name) == 0)
+    if (ndb_create_table_from_engine(thd, db, file_name) == 0)
       files->push_back(thd->strdup(file_name)); 
   }
 
