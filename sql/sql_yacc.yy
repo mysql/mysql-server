@@ -1981,7 +1981,7 @@ sp_proc_stmt:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if (sp->m_type == TYPE_ENUM_PROCEDURE)
+	    if (sp->m_type != TYPE_ENUM_FUNCTION)
 	    {
 	      my_message(ER_SP_BADRETURN, ER(ER_SP_BADRETURN), MYF(0));
 	      YYABORT;
