@@ -408,12 +408,12 @@ public:
    * One record per backup
    */
   struct BackupRecord {
-    BackupRecord(Backup& b, ArrayPool<Page32> & pp, 
+    BackupRecord(Backup& b, 
 		 ArrayPool<Table> & tp, 
 		 ArrayPool<BackupFile> & bp,
 		 ArrayPool<TriggerRecord> & trp) 
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
-      , tables(tp), triggers(trp), files(bp), pages(pp)
+      , tables(tp), triggers(trp), files(bp)
       , masterData(b), backup(b)
       {
       }
@@ -448,7 +448,6 @@ public:
     Uint32 dataFilePtr; // Ptr.i to first data-file
     
     Uint32 backupDataLen;  // Used for (un)packing backup request
-    Array<Page32> pages;   // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
 
     struct SlaveData {
@@ -608,7 +607,7 @@ public:
 
   NodeId getMasterNodeId() const { return c_masterNodeId; }
   bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId) const;
-  bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, Uint32);
+  bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, const Uint32*, Uint32);
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
   void sendBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errorCode);

@@ -206,7 +206,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     ArrayList<BackupRecord> recs(c_backupPool);
     BackupRecordPtr ptr;
     while(recs.seize(ptr)){
-      new (ptr.p) BackupRecord(* this, c_pagePool, c_tablePool, 
+      new (ptr.p) BackupRecord(* this, c_tablePool, 
 			       c_backupFilePool, c_triggerPool);
     }
     recs.release();
