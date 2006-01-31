@@ -1235,6 +1235,7 @@ CREATE TABLE federated.t1 (
 
 connection master;
 DROP TABLE IF EXISTS federated.t1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL auto_increment,
     PRIMARY KEY  (`id`)
