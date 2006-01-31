@@ -468,7 +468,8 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 
 int
 ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-					   const char *tabname, bool global)
+                                           const char *dbname, const char *tabname,
+                                           bool global)
 {
   NDBDICT *dict= ndb->getDictionary();
   DBUG_ENTER("invalidate_dictionary_cache");
@@ -512,7 +513,7 @@ ha_ndbcluster::invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
 void ha_ndbcluster::invalidate_dictionary_cache(bool global)
 {
   NDBDICT *dict= get_ndb()->getDictionary();
-  if (invalidate_dictionary_cache(table_share, get_ndb(), m_tabname, global))
+  if (invalidate_dictionary_cache(table_share, get_ndb(), m_dbname, m_tabname, global))
     return;
   /* Invalidate indexes */
   for (uint i= 0; i < table_share->keys; i++)

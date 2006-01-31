@@ -1236,6 +1236,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     ndb->setDatabaseName(share->table->s->db.str);
     ha_ndbcluster::invalidate_dictionary_cache(share->table->s,
                                                ndb,
+                                               share->table->s->db.str,
                                                share->table->s->table_name.str,
                                                TRUE);
     remote_drop_table= 1;
