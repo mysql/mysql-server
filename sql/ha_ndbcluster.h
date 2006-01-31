@@ -662,8 +662,9 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
-  static void invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-					  const char *tabname, bool global);
+  static int invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
+                                         const char *dbname, const char *tabname,
+                                         bool global);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
