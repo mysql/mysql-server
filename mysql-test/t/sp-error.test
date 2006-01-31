@@ -1644,6 +1644,35 @@ drop procedure ` bug15658`;
 
 
 #
+# BUG#14270: Stored procedures: crash if load index
+#
+--disable_warnings
+drop function if exists bug14270;
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (s1 int primary key);
+
+delimiter |;
+--error ER_SP_NO_RETSET
+create function bug14270() returns int
+begin
+  load index into cache t1;
+  return 1;
+end|
+
+--error ER_SP_NO_RETSET
+create function bug14270() returns int
+begin
+  cache index t1 key (`primary`) in keycache1;
+  return 1;
+end|
+delimiter ;|
+
+drop table t1;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
