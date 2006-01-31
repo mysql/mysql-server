@@ -665,5 +665,5 @@ ALTER TABLE event ADD sql_mode
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
-                            ) DEFAULT '' NOT NULL;
+                            ) DEFAULT '' NOT NULL AFTER on_completion;
 
