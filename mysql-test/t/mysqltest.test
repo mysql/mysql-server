@@ -994,4 +994,30 @@ drop table t1;
 drop table t1;
 
 
+# test for replace_regex
+--replace_regex /at/b/
+select "at" as col1, "c" as col2;
 
+--replace_regex /at/b/i
+select "at" as col1, "AT" as col2, "c" as col3;
+
+--replace_regex /a/b/ /ct/d/
+select "a" as col1, "ct" as col2; 
+
+--replace_regex /(strawberry)/raspberry and \1/ /blueberry/blackberry/ /potato/tomato/;
+select "strawberry","blueberry","potato";
+
+--error 1
+--exec echo "--replace_regex a" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_regex a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a ;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a b; echo OK;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_regex /a b c" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1 
