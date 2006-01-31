@@ -413,3 +413,22 @@ select-me
 select-me
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
+select "b" as col1, "c" as col2;
+col1	col2
+b	c
+select "b" as col1, "b" as col2, "c" as col3;
+col1	col2	col3
+b	b	c
+seled "b" bs col1, "d" bs col2;
+col1	col2
+b	d
+select "raspberry and strawberry","blackberry","tomato";
+raspberry and strawberry	blackberry	tomato
+raspberry and strawberry	blackberry	tomato
+mysqltest: At line 1: Error parsing replace_regex "a"
+mysqltest: At line 1: Error parsing replace_regex "a;"
+mysqltest: At line 1: Error parsing replace_regex "a"
+mysqltest: At line 1: Error parsing replace_regex "a "
+mysqltest: At line 1: Error parsing replace_regex "a b"
+mysqltest: At line 1: Error parsing replace_regex "/a b c"
+mysqltest: At line 1: Error parsing replace_regex "/a /b c "

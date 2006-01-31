@@ -181,16 +181,26 @@ static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
 
+/* Stores regex substitutions */
+
 struct st_regex
 {
-  char* pattern;
-  char* replace;
-  int icase;
+  char* pattern; /* Pattern to be replaced */
+  char* replace; /* String or expression to replace the pattern with */
+  int icase; /* true if the match is case insensitive */
 };
 
 struct st_replace_regex
 {
-  DYNAMIC_ARRAY regex_arr;
+  DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+  
+  /* 
+    Temporary storage areas for substitutions. To reduce unnessary copying
+    and memory freeing/allocation, we pre-allocate two buffers, and alternate
+    their use, one for input/one for output, the roles changing on the next
+    st_regex substition. At the end of substitutions  buf points to the 
+    one containing the final result.
+   */
   char* buf;
   char* even_buf;
   uint even_buf_len;
@@ -1797,6 +1807,11 @@ static char *get_string(char **to_ptr, char **from_ptr,
   DBUG_RETURN(start);
 }
 
+/*
+  Finds the next (non-escaped) '/' in the expression.
+  (If the character '/' is needed, it can be escaped using '\'.)
+*/
+
 #define PARSE_REGEX_ARG \
   while (p < expr_end) \
   {\
@@ -1820,6 +1835,13 @@ static char *get_string(char **to_ptr, char **from_ptr,
     p++;\
   }  \
 
+/*
+  Initializes the regular substitution expression to be used in the 
+  result output of test.
+
+  Returns: st_replace_regex struct with pairs of substitutions
+*/
+  
 static struct st_replace_regex* init_replace_regex(char* expr)
 {
   struct st_replace_regex* res;
@@ -1829,10 +1851,10 @@ static struct st_replace_regex* init_replace_regex(char* expr)
   uint expr_len= strlen(expr);
   char last_c = 0;
   struct st_regex reg;
-     
-  if (!(res=(struct st_replace_regex*)my_malloc(
-              sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME))))
-    return 0;
+ 
+  /* my_malloc() will die on fail with MY_FAE */    
+  res=(struct st_replace_regex*)my_malloc(
+              sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
   my_init_dynamic_array(&res->regex_arr,sizeof(struct st_regex),128,128);
     
   buf= (char*)res + sizeof(*res);
@@ -1862,6 +1884,7 @@ static struct st_replace_regex* init_replace_regex(char* expr)
     /* we found the start */  
     reg.pattern= buf_p;
     
+    /* Find first argument -- pattern string to be removed */
     PARSE_REGEX_ARG
     
     if (p == expr_end || ++p == expr_end)
@@ -1870,6 +1893,7 @@ static struct st_replace_regex* init_replace_regex(char* expr)
     /* buf_p now points to the replacement pattern terminated with \0 */  
     reg.replace= buf_p;  
     
+    /* Find second argument -- replace string to replace pattern */
     PARSE_REGEX_ARG
     
     if (p == expr_end)
@@ -1878,6 +1902,7 @@ static struct st_replace_regex* init_replace_regex(char* expr)
     /* skip the ending '/' in the statement */    
     p++;
     
+    /* Check if we should do matching case insensitive */
     if (p < expr_end && *p == 'i')
       reg.icase= 1;    
     
@@ -1894,13 +1919,28 @@ static struct st_replace_regex* init_replace_regex(char* expr)
   
 err:
   my_free((gptr)res,0);
+  die("Error parsing replace_regex \"%s\"", expr);
   return 0;    
 }
 
-/* 
+/*  
+   Execute all substitutions on val.
+
+   Returns: true if substituition was made, false otherwise
+   Side-effect: Sets r->buf to be the buffer with all substitutions done.
+   
+   IN: 
+     struct st_replace_regex* r
+     char* val
+   Out: 
+     struct st_replace_regex* r
+     r->buf points at the resulting buffer
+     r->even_buf and r->odd_buf might have been reallocated  
+     r->even_buf_len and r->odd_buf_len might have been changed
+     
   TODO:  at some point figure out if there is a way to do everything
          in one pass 
- */
+*/
 
 static int multi_reg_replace(struct st_replace_regex* r,char* val)
 {
@@ -1913,6 +1953,7 @@ static int multi_reg_replace(struct st_replace_regex* r,char* val)
   buf_len_p= &r->even_buf_len;
   r->buf= 0;
   
+  /* For each substitution, do the replace */
   for (i= 0; i < r->regex_arr.elements; i++)
   {
     struct st_regex re;
@@ -1920,11 +1961,10 @@ static int multi_reg_replace(struct st_replace_regex* r,char* val)
     
     get_dynamic(&r->regex_arr,(gptr)&re,i);
     
-    if (!reg_replace(&out_buf,buf_len_p,re.pattern,re.replace,
-       in_buf,re.icase))
+    if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace,
+       in_buf, re.icase))
     {
-      //printf("out_buf=%s\n", out_buf);
-      /* the buffer has been reallocated, make adjustements */
+      /* if the buffer has been reallocated, make adjustements */
       if (save_out_buf != out_buf)
       {
         if (save_out_buf == r->even_buf)
@@ -1947,6 +1987,15 @@ static int multi_reg_replace(struct st_replace_regex* r,char* val)
   return (r->buf == 0);
 }
 
+/*
+  Parse the regular expression to be used in all result files
+  from now on.
+  
+  The syntax is --replace_regex /from/to/i /from/to/i ...
+  i means case-insensitive match. If omitted, the match is 
+  case-sensitive
+  
+*/
 static void get_replace_regex(struct st_query *q)
 {
   char *expr= q->first_argument;
@@ -3190,11 +3239,14 @@ static void check_regerr(my_regex_t* r, int err)
   if (err)
   {
     my_regerror(err,r,err_buf,sizeof(err_buf));
-    fprintf(stderr, "Regex error: %s\n", err_buf);
-    exit(1);
+    die("Regex error: %s\n", err_buf);
   }  
 }
 
+/* 
+  auxiluary macro used by reg_replace
+  makes sure the result buffer has sufficient length
+*/  
 #define SECURE_REG_BUF   if (buf_len < need_buf_len)\
   {\
     int off= res_p - buf;\
@@ -3203,8 +3255,20 @@ static void check_regerr(my_regex_t* r, int err)
     buf_len= need_buf_len;\
   }\
 
-static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace, 
- char *string, int icase)
+/*
+  Performs a regex substitution
+  
+  IN:
+  
+    buf_p - result buffer pointer. Will change if reallocated
+    buf_len_p - result buffer length. Will change if the buffer is reallocated
+    pattern - regexp pattern to match
+    replace - replacement expression
+    string - the string to perform substituions in
+    icase - flag, if set to 1 the match is case insensitive
+ */  
+static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, 
+  char *replace, char *string, int icase)
 {
   my_regex_t r;
   my_regmatch_t* subs;
@@ -3219,6 +3283,10 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
   buf_len= *buf_len_p;  
   len= strlen(string);
   str_end= string + len;
+  
+  /* start with a buffer of a reasonable size that hopefully will not 
+     need to be reallocated
+   */
   need_buf_len= len * 2 + 1;
   res_p= buf;
 
@@ -3242,11 +3310,14 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
   str_p= string;
   replace_end= replace + strlen(replace);
   
+  /* for each pattern match instance perform a replacement */
   while (!err_code)
   {
-    err_code= my_regexec(&r,str_p,r.re_nsub+1,subs, 
+    /* find the match */
+    err_code= my_regexec(&r,str_p, r.re_nsub+1, subs, 
       (str_p == string) ? REG_NOTBOL : 0);
     
+    /* if regular expression error (eg. bad syntax, or out of memory) */  
     if (err_code && err_code != REG_NOMATCH)
     {
       check_regerr(&r,err_code);
@@ -3254,13 +3325,19 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
       return 1;
     }
     
+    /* if match found */
     if (!err_code)
     {
       char* expr_p= replace;
       int c;
       
+      /* 
+        we need at least what we have so far in the buffer + the part
+        before this match
+      */
       need_buf_len= (res_p - buf) + subs[0].rm_so;
       
+      /* on this pass, calculate the memory for the result buffer */
       while (expr_p < replace_end)
       {
         int back_ref_num= -1;
@@ -3271,6 +3348,7 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
           back_ref_num= expr_p[1] - '0';
         }
         
+        /* found a valid back_ref (eg. \1)*/
         if (back_ref_num >= 0 && back_ref_num <= (int)r.re_nsub)
         {
           int start_off,end_off;
@@ -3288,8 +3366,13 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
         }
       }
       need_buf_len++;
+      /* 
+        now that we know the size of the buffer, 
+        make sure it is big enough
+      */  
       SECURE_REG_BUF
       
+      /* copy the pre-match part */
       if (subs[0].rm_so)
       {
         memcpy(res_p,str_p,subs[0].rm_so);
@@ -3298,6 +3381,7 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
         
       expr_p= replace;
       
+      /* copy the match and expand back_refs */
       while (expr_p < replace_end)
       {
         int back_ref_num= -1;
@@ -3326,6 +3410,7 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
         }
       } 
       
+      /* handle the post-match part */
       if (subs[0].rm_so == subs[0].rm_eo)
       {
         if (str_p + subs[0].rm_so >= str_end)
@@ -3338,7 +3423,7 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replac
         str_p += subs[0].rm_eo;
       }  
     }
-    else /* no match this time */
+    else /* no match this time, just copy the string as is */
     {
       int left_in_str= str_end-str_p;
       need_buf_len= (res_p-buf) + left_in_str;
