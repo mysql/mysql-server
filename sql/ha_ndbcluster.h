@@ -685,7 +685,7 @@ private:
   void clear_index(int i);
   void clear_indexes();
   int open_indexes(Ndb *ndb, TABLE *tab);
-  int renumber_indexes(Ndb *ndb, TABLE *tab);
+  void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *index_name, uint index_no);
