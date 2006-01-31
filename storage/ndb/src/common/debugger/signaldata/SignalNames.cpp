@@ -540,7 +540,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_SUB_SYNC_REQ,           "SUB_SYNC_REQ" }
   ,{ GSN_SUB_SYNC_REF,           "SUB_SYNC_REF" }
   ,{ GSN_SUB_SYNC_CONF,          "SUB_SYNC_CONF" }
-  ,{ GSN_SUB_META_DATA,          "SUB_META_DATA" }
   ,{ GSN_SUB_TABLE_DATA,         "SUB_TABLE_DATA" }
   ,{ GSN_SUB_SYNC_CONTINUE_REQ,  "SUB_SYNC_CONTINUE_REQ" }
   ,{ GSN_SUB_SYNC_CONTINUE_REF,  "SUB_SYNC_CONTINUE_REF" }
