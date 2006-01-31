@@ -52,7 +52,6 @@ class ha_innobase: public handler
   	THR_LOCK_DATA 	lock;
 	INNOBASE_SHARE  *share;
 
-  	gptr 		alloc_ptr;
   	byte*		upd_buff;	/* buffer used in updates */
   	byte*		key_val_buff;	/* buffer used in converting
   					search key values from MySQL format
@@ -62,7 +61,6 @@ class ha_innobase: public handler
 					two buffers */
   	ulong 		int_table_flags;
   	uint 		primary_key;
-	uint		last_dup_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
@@ -70,7 +68,6 @@ class ha_innobase: public handler
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
 	uint		num_write_row;	/* number of write_row() calls */
-	ulong max_supported_row_length(const byte *buf);
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
 					       const byte* record);
@@ -199,11 +196,8 @@ class ha_innobase: public handler
 };
 
 extern struct show_var_st innodb_status_variables[];
-extern uint innobase_init_flags, innobase_lock_type;
-extern ulong innobase_cache_size, innobase_fast_shutdown;
+extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
-extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
-extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern longlong innobase_buffer_pool_size, innobase_log_file_size;
 extern long innobase_log_buffer_size;
@@ -239,8 +233,6 @@ extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
 extern ulong srv_flush_log_at_trx_commit;
 }
-
-extern TYPELIB innobase_lock_typelib;
 
 bool innobase_init(void);
 bool innobase_end(void);
@@ -309,9 +301,6 @@ which is in the prepared state */
 int innobase_rollback_by_xid(
 			/* out: 0 or error number */
 	XID	*xid);	/* in : X/Open XA Transaction Identification */
-
-
-int innobase_xa_end(THD *thd);
 
 
 int innobase_repl_report_sent_binlog(THD *thd, char *log_file_name,
