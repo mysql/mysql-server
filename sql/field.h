@@ -63,6 +63,7 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   query_id_t	query_id;		// For quick test of used fields
+  bool          add_index;              // For check if field will be indexed
   /* Field is part of the following keys */
   key_map	key_start,part_of_key,part_of_sortkey;
   /* 

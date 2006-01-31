@@ -1256,10 +1256,9 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
   Renumber indexes in index list by shifting out
   indexes that are to be dropped
  */
-int ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
+void ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
 {
   uint i;
-  int error= 0;
   const char *index_name;
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
@@ -1288,7 +1287,7 @@ int ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
     }
   }
 
-  DBUG_RETURN(error);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -4418,7 +4417,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
   NDBDICT *dict= ndb->getDictionary();
   if (!(tab= dict->getTable(m_tabname)))
     DBUG_RETURN(0); // Must be a create, ignore since frm is saved in create
-
+  DBUG_ASSERT(m_share->state == NSS_ALTERED);
   name= table->s->normalized_path.str;
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, name));
   if (readfrm(name, &data, &length) ||
@@ -4427,17 +4426,18 @@ int ha_ndbcluster::create_handler_files(const char *file)
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
-    DBUG_RETURN(1);
+    error= 1;
   }
-  if (cmp_frm(tab, pack_data, pack_length))
-  {  
+  else
+  {
     DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb", 
                         m_tabname));
     error= table_changed(pack_data, pack_length);
-    m_share->state= NSS_INITIAL;
+    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
-  my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+  m_share->state= NSS_INITIAL;
+  free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(error);
 }
@@ -4554,6 +4554,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
   int error= 0;
   uint idx;
 
+  DBUG_ASSERT(m_share->state == NSS_INITIAL);
   for (idx= 0; idx < num_of_keys; idx++)
   {
     KEY *key= key_info + idx;
@@ -4569,7 +4570,11 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
     if((error= create_index(key_info[idx].name, key, idx_type, idx)))
       break;
   }
-  m_share->state= NSS_ALTERED;
+  if (!error)
+  {
+    ndbcluster_get_share(m_share); // Increase ref_count
+    m_share->state= NSS_ALTERED;
+  }
   DBUG_RETURN(error);  
 }
 
@@ -4593,6 +4598,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
                                       uint *key_num, uint num_of_keys)
 {
   DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
+  DBUG_ASSERT(m_share->state == NSS_INITIAL);
   // Mark indexes for deletion
   uint idx;
   for (idx= 0; idx < num_of_keys; idx++)
@@ -4604,8 +4610,10 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
+  renumber_indexes(ndb, table_arg);
+  ndbcluster_get_share(m_share); // Increase ref_count
   m_share->state= NSS_ALTERED;
-  DBUG_RETURN(renumber_indexes(ndb, table_arg));
+  DBUG_RETURN(0);
 }
  
 /*
@@ -4613,13 +4621,19 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
 */
 int ha_ndbcluster::final_drop_index(TABLE *table_arg)
 {
+  int error;
   DBUG_ENTER("ha_ndbcluster::final_drop_index");
   DBUG_PRINT("info", ("ha_ndbcluster::final_drop_index"));
   // Really drop indexes
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
-  DBUG_RETURN(drop_indexes(ndb, table_arg));
+  if((error= drop_indexes(ndb, table_arg)))
+  {
+    m_share->state= NSS_INITIAL;
+    free_share(&m_share); // Decrease ref_count
+  }
+  DBUG_RETURN(error);
 }
 
 /*
@@ -5237,41 +5251,66 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   const void* data;
   const NDBTAB* tab;
   Ndb* ndb;
+  char key[FN_REFLEN];
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);  
   ndb->setDatabaseName(db);
-
   NDBDICT* dict= ndb->getDictionary();
   dict->set_local_table_data_size(sizeof(Ndb_local_table_statistics));
   dict->invalidateTable(name);
-  if (!(tab= dict->getTable(name)))
-  {    
-    const NdbError err= dict->getNdbError();
-    if (err.code == 709 || err.code == 723)
-      DBUG_RETURN(-1);
-    ERR_RETURN(err);
-  }
-  DBUG_PRINT("info", ("Found table %s", tab->getName()));
-  
-  len= tab->getFrmLength();  
-  if (len == 0 || tab->getFrmData() == NULL)
+  strxnmov(key, FN_LEN-1, mysql_data_home, "/", db, "/", name, NullS);
+  NDB_SHARE *share= get_share(key, 0, false);
+  if (share && share->state == NSS_ALTERED)
   {
-    DBUG_PRINT("error", ("No frm data found."));
-    DBUG_RETURN(1);
+    // Frm has been altered on disk, but not yet written to ndb
+    if (readfrm(key, &data, &len))
+    {
+      DBUG_PRINT("error", ("Could not read frm"));
+      if (share)
+        free_share(&share);
+      DBUG_RETURN(1);
+    }
   }
-  
-  if (unpackfrm(&data, &len, tab->getFrmData()))
+  else
   {
-    DBUG_PRINT("error", ("Could not unpack table"));
-    DBUG_RETURN(1);
+    if (!(tab= dict->getTable(name)))
+    {    
+      const NdbError err= dict->getNdbError();
+      if (share)
+        free_share(&share);
+      if (err.code == 709 || err.code == 723)
+        DBUG_RETURN(-1);
+      ERR_RETURN(err);
+    }
+    DBUG_PRINT("info", ("Found table %s", tab->getName()));
+    
+    len= tab->getFrmLength();  
+    if (len == 0 || tab->getFrmData() == NULL)
+    {
+      DBUG_PRINT("error", ("No frm data found."));
+      if (share)
+        free_share(&share);
+      DBUG_RETURN(1);
+    }
+    
+    if (unpackfrm(&data, &len, tab->getFrmData()))
+    {
+      DBUG_PRINT("error", ("Could not unpack table"));
+      if (share)
+        free_share(&share);
+      DBUG_RETURN(1);
+    }
   }
 
   *frmlen= len;
   *frmblob= data;
   
+  if (share)
+    free_share(&share);
+
   DBUG_RETURN(0);
 }
 
@@ -9202,21 +9241,38 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
 					       uint table_changes)
 {
-  return COMPATIBLE_DATA_NO; // Disable fast add/drop index  
+  DBUG_ENTER("ha_ndbcluster::check_if_incompatible_data");
+  uint i;
+  const NDBTAB *tab= (const NDBTAB *) m_table;
+#ifdef HAVE_NDB_BINLOG
+  DBUG_PRINT("info", ("add/drop index not supported with binlog"));
+  DBUG_RETURN(COMPATIBLE_DATA_NO); // Disable fast add/drop index with binlog
+#endif
+  for (i= 0; i < table->s->fields; i++) 
+  {
+    Field *field= table->field[i];
+    const NDBCOL *col= tab->getColumn(field->field_name);
+    if (field->add_index &&
+        col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+    {
+      DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
+      DBUG_RETURN(COMPATIBLE_DATA_NO);
+    }
+  }
   if (table_changes != IS_EQUAL_YES)
-    return COMPATIBLE_DATA_NO;
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
   
   /* Check that auto_increment value was not changed */
   if ((info->used_fields & HA_CREATE_USED_AUTO) &&
       info->auto_increment_value != 0)
-    return COMPATIBLE_DATA_NO;
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
   
   /* Check that row format didn't change */
   if ((info->used_fields & HA_CREATE_USED_AUTO) &&
       get_row_type() != info->row_type)
-    return COMPATIBLE_DATA_NO;
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
 
-  return COMPATIBLE_DATA_YES;
+  DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 
 bool set_up_tablespace(st_alter_tablespace *info,
