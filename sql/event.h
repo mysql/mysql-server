@@ -70,6 +70,7 @@ enum evex_table_field
   EVEX_FIELD_ENDS,
   EVEX_FIELD_STATUS,
   EVEX_FIELD_ON_COMPLETION,
+  EVEX_FIELD_SQL_MODE,
   EVEX_FIELD_COMMENT,
   EVEX_FIELD_COUNT /* a cool trick to count the number of fields :) */
 } ;
