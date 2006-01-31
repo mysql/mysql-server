@@ -1136,6 +1136,17 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
     /*
+      Get possible table space definitions and append them
+      to the CREATE TABLE statement
+    */
+
+    if ((for_str= file->get_tablespace_create_info()))
+    {
+      packet->append(for_str, strlen(for_str));
+      my_free(for_str, MYF(0));
+    }
+
+    /*
       IF   check_create_info
       THEN add ENGINE only if it was used when creating the table
     */

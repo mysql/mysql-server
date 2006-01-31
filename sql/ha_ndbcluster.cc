@@ -8858,6 +8858,33 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 }
 
 /*
+  get table space info for SHOW CREATE TABLE
+*/
+char* ha_ndbcluster::get_tablespace_create_info()
+{
+  const char tablespace_key[]= " TABLESPACE ";
+  const char storage_key[]= " STORAGE DISK";
+  char*	str= 0;
+
+  Ndb *ndb= get_ndb();
+  NDBDICT *ndbdict= ndb->getDictionary();
+  ndb->setDatabaseName(m_dbname);
+  const NDBTAB *ndbtab= ndbdict->getTable(m_tabname);
+  if (ndbtab == 0)
+    return 0;
+
+  // TODO retrieve table space name if there is one
+  return 0;
+
+  const char *tablespace_name= "<name>";
+
+  uint len= sizeof(tablespace_key) + strlen(tablespace_name) + sizeof(storage_key);
+  str= my_malloc(len, MYF(0));
+  strxnmov(str, len, tablespace_key, tablespace_name, storage_key, NullS);
+  return(str);
+}
+
+/*
   Implements the SHOW NDB STATUS command.
 */
 bool
