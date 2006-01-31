@@ -1314,7 +1314,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           /* fall through */
         case SOT_ALTER_TABLE:
           pthread_mutex_lock(&LOCK_open);
-          if (ha_create_table_from_engine(thd, schema->db, schema->name))
+          if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
             sql_print_error("Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d",
