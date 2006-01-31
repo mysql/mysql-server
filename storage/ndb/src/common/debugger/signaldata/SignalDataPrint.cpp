@@ -166,7 +166,6 @@ SignalDataPrintFunctions[] = {
   { GSN_SUB_SYNC_REQ,           printSUB_SYNC_REQ },
   { GSN_SUB_SYNC_REF,           printSUB_SYNC_REF },
   { GSN_SUB_SYNC_CONF,          printSUB_SYNC_CONF },
-  { GSN_SUB_META_DATA,          printSUB_META_DATA },
   { GSN_SUB_TABLE_DATA,         printSUB_TABLE_DATA },
   { GSN_SUB_SYNC_CONTINUE_REQ,  printSUB_SYNC_CONTINUE_REQ },
   { GSN_SUB_SYNC_CONTINUE_REF,  printSUB_SYNC_CONTINUE_REF },

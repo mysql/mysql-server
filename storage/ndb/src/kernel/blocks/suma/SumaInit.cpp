@@ -76,7 +76,7 @@ Suma::Suma(const Configuration & conf) :
    * Dict interface
    */
   addRecSignal(GSN_DROP_TAB_CONF, &Suma::execDROP_TAB_CONF);
-  addRecSignal(GSN_ALTER_TAB_CONF, &Suma::execALTER_TAB_CONF);
+  addRecSignal(GSN_ALTER_TAB_REQ, &Suma::execALTER_TAB_REQ);
   addRecSignal(GSN_CREATE_TAB_CONF, &Suma::execCREATE_TAB_CONF);
 
 #if 0
