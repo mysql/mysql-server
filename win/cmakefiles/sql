@@ -70,14 +70,14 @@ ADD_CUSTOM_COMMAND(
 ADD_CUSTOM_COMMAND(
 	SOURCE ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
 	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysql_version.h
-	COMMAND ${CMAKE_SOURCE_DIR}/win32/config-version.js
+	COMMAND ${CMAKE_SOURCE_DIR}/win/config-version.js
 	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in)
 
 # Handlerton file
 ADD_CUSTOM_COMMAND(
 	SOURCE ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in
 	OUTPUT ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
-	COMMAND ${CMAKE_SOURCE_DIR}/win32/config-handlerton.js ARGS ${CMAKE_SOURCE_DIR}/win32/configure.data
+	COMMAND ${CMAKE_SOURCE_DIR}/win/config-handlerton.js ARGS ${CMAKE_SOURCE_DIR}/win/configure.data
 	DEPENDS ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in)
 
 # Error file
