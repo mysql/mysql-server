@@ -90,7 +90,8 @@ int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl);
-
+int ndb_create_table_from_engine(THD *thd, const char *db,
+                                 const char *table_name);
 int ndbcluster_binlog_start();
 pthread_handler_t ndb_binlog_thread_func(void *arg);
 
