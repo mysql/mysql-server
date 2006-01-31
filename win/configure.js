@@ -11,7 +11,7 @@ try
     
 	var args = WScript.Arguments
 	
-    var configfile = fso.CreateTextFile("configure.data", true);
+    var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
     {
 		configfile.WriteLine(args.Item(i));
