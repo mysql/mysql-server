@@ -9605,8 +9605,7 @@ end:
 static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   TABLE* table= tables->table;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
+  Ndb *ndb= check_ndb_in_thd(thd);
   NdbDictionary::Dictionary* dict= ndb->getDictionary();
   NdbDictionary::Dictionary::List dflist;
 
