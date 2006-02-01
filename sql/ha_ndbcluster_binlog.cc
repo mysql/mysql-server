@@ -1041,15 +1041,18 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
       break;
     }
 err:
-    if (trans->getNdbError().status == NdbError::TemporaryError)
+    const NdbError *this_error= trans ?
+      &trans->getNdbError() : &ndb->getNdbError();
+    if (this_error->status == NdbError::TemporaryError)
     {
       if (retries--)
       {
-        ndb->closeTransaction(trans);
+        if (trans)
+          ndb->closeTransaction(trans);
         continue; // retry
       }
     }
-    ndb_error= &trans->getNdbError();
+    ndb_error= this_error;
     break;
   }
 end:
@@ -1235,15 +1238,18 @@ ndbcluster_update_slock(THD *thd,
       break;
     }
   err:
-    if (trans->getNdbError().status == NdbError::TemporaryError)
+    const NdbError *this_error= trans ?
+      &trans->getNdbError() : &ndb->getNdbError();
+    if (this_error->status == NdbError::TemporaryError)
     {
       if (retries--)
       {
-        ndb->closeTransaction(trans);
+        if (trans)
+          ndb->closeTransaction(trans);
         continue; // retry
       }
     }
-    ndb_error= &trans->getNdbError();
+    ndb_error= this_error;
     break;
   }
 end:
