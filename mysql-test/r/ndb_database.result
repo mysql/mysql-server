@@ -1,8 +1,4 @@
-drop table if exists t1;
 drop database if exists mysqltest;
-drop table if exists t1;
-drop database if exists mysqltest;
-create database mysqltest;
 create database mysqltest;
 create table mysqltest.t1 (a int primary key, b int) engine=ndb;
 use mysqltest;
@@ -10,18 +6,8 @@ show tables;
 Tables_in_mysqltest
 t1
 drop database mysqltest;
-use mysqltest;
-show tables;
-Tables_in_mysqltest
 create database mysqltest;
-create table mysqltest.t1 (c int, d int primary key) engine=ndb;
 use mysqltest;
 show tables;
 Tables_in_mysqltest
-t1
 drop database mysqltest;
-use mysqltest;
-show tables;
-Tables_in_mysqltest
-drop table if exists t1;
-drop database if exists mysqltest;
