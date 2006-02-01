@@ -8905,28 +8905,41 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 /*
   get table space info for SHOW CREATE TABLE
 */
-char* ha_ndbcluster::get_tablespace_create_info()
+char* ha_ndbcluster::get_tablespace_name()
 {
-  const char tablespace_key[]= " TABLESPACE ";
-  const char storage_key[]= " STORAGE DISK";
-  char*	str= 0;
-
   Ndb *ndb= get_ndb();
   NDBDICT *ndbdict= ndb->getDictionary();
+  NdbError ndberr;
+  Uint32 id;
   ndb->setDatabaseName(m_dbname);
   const NDBTAB *ndbtab= ndbdict->getTable(m_tabname);
   if (ndbtab == 0)
-    return 0;
-
-  // TODO retrieve table space name if there is one
+  {
+    ndberr= ndbdict->getNdbError();
+    goto err;
+  }
+  if (!ndbtab->getTablespace(&id))
+  {
+    ndberr= ndbdict->getNdbError();
+    goto err;
+  }
+  {
+    NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
+    ndberr= ndbdict->getNdbError();
+    if(ndberr.classification != ndberror_cl_none)
+      goto err;
+    return (my_strdup(ts.getName(), MYF(0)));
+  }
+err:
+  if (ndberr.status == NdbError::TemporaryError)
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+			ndberr.code, ndberr.message, "NDB");
+  else
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+			ndberr.code, ndberr.message, "NDB");
   return 0;
-
-  const char *tablespace_name= "<name>";
-
-  uint len= sizeof(tablespace_key) + strlen(tablespace_name) + sizeof(storage_key);
-  str= my_malloc(len, MYF(0));
-  strxnmov(str, len, tablespace_key, tablespace_name, storage_key, NullS);
-  return(str);
 }
 
 /*
