@@ -5115,6 +5115,146 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 
 /*
+  Write the log entry to ensure that the shadow frm file is removed at
+  crash.
+  SYNOPSIS
+    write_log_shadow_frm()
+    lpt                      Struct containing parameters
+    install_frm              Should we log action to install shadow frm or should
+                             the action be to remove the shadow frm file.
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare an entry to the table log indicating a drop/install of the shadow frm
+    file and its corresponding handler file.
+*/
+
+bool
+write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
+{
+  DBUG_ENTER("write_log_shadow_frm");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write the log entries to ensure that the drop partition command is completed
+  even in the presence of a crash.
+
+  SYNOPSIS
+    write_log_drop_partition()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare entries to the table log indicating all partitions to drop and to
+    install the shadow frm file and remove the old frm file.
+*/
+
+bool
+write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_drop_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write the log entries to ensure that the drop partition command is completed
+  even in the presence of a crash.
+
+  SYNOPSIS
+    write_log_drop_partition()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare entries to the table log indicating all partitions to drop and to
+    install the shadow frm file and remove the old frm file.
+*/
+
+bool
+write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_drop_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write the log entries to ensure that the add partition command is not
+  executed at all if a crash before it has completed
+
+  SYNOPSIS
+    write_log_add_partition()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare entries to the table log indicating all partitions to drop and to
+    remove the shadow frm file.
+*/
+
+bool
+write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_add_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write indicator of how to abort in first phase of change partitions
+  SYNOPSIS
+    write_log_ph1_change_partition()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Write the log entries to remove partitions in creation when changing
+    partitions in an ADD/REORGANIZE/COALESCE command. These commands will
+    abort the entire operation if the system crashes before the next phase
+    is done.
+*/
+
+bool
+write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_ph1_change_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write description of how to complete the operation after first phase of
+  change partitions.
+
+  SYNOPSIS
+    write_log_ph2_change_partition()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    We will write log entries that specify to remove all partitions reorganised,
+    to rename others to reflect the new naming scheme and to install the shadow
+    frm file.
+*/
+
+bool
+write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_ph2_change_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Actually perform the change requested by ALTER TABLE of partitions
   previously prepared.
 
@@ -5305,7 +5445,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       We insert Error injections at all places where it could be interesting
       to test if recovery is properly done.
     */
-    if (write_log_shadow_frm(lpt) ||
+    if (write_log_shadow_frm(lpt, FALSE) ||
         ERROR_INJECTOR_CRASH(1000) ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECTOR_CRASH(1001) ||
@@ -5352,13 +5492,16 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
       4) Write binlog
-      5) Install the new frm file of the table where the partitions are
+      5) Now the change is completed except for the installation of the
+         new frm file. We thus write an action in the log to change to
+         the shadow frm file
+      6) Install the new frm file of the table where the partitions are
          added to the table.
-      6) Wait until all accesses using the old frm file has completed
-      7) Remove entries from table log
-      8) Complete query
+      7) Wait until all accesses using the old frm file has completed
+      8) Remove entries from table log
+      9) Complete query
     */
-    if (write_log_shadow_frm(lpt) ||
+    if (write_log_shadow_frm(lpt, FALSE) ||
         ERROR_INJECTED_CRASH(1010) ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECTED_CRASH(1011) ||
@@ -5371,11 +5514,13 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
         ERROR_INJECTED_CRASH(1014) ||
-        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        write_log_shadow_frm(lpt, TRUE) ||
         ERROR_INJECTED_CRASH(1015) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        ERROR_INJECTED_CRASH(1016) ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         write_log_completed(lpt) ||
-        ERROR_INJECTED_CRASH(1016)) 
+        ERROR_INJECTED_CRASH(1017)) 
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
@@ -5437,7 +5582,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       14)Complete query
     */
 
-    if (write_log_shadow_frm(lpt) ||
+    if (write_log_shadow_frm(lpt, FALSE) ||
         ERROR_INJECT_CRASH(1020) ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH(1021) ||
