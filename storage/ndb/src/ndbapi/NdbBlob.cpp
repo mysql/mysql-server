@@ -158,6 +158,7 @@ NdbBlob::getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const
   if (c == NULL)
     return -1;
   getBlobEventName(bename, e, c);
+  delete e; // it is from new NdbEventImpl
   return 0;
 }
 

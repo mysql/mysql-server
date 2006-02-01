@@ -10237,6 +10237,7 @@ object_privilege:
 	| ALTER ROUTINE_SYM { Lex->grant |= ALTER_PROC_ACL; }
 	| CREATE USER { Lex->grant |= CREATE_USER_ACL; }
         | EVENT_SYM { Lex->grant |= EVENT_ACL;}
+        | TRIGGER_SYM { Lex->grant |= TRIGGER_ACL; }
 	;
 
 

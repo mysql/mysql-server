@@ -1713,8 +1713,8 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_create_info()
-  { return(NULL);}  /* gets tablespace create string from handler */
+  virtual char* get_tablespace_name()
+  { return(NULL);}  /* gets tablespace name from handler */
   /* used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
   /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
