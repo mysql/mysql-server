@@ -67,7 +67,6 @@ ALTER DATABASE mysqltest CHARACTER SET latin1;
 
 # drop table and drop should come after data events
 --connection server2
-insert into mysqltest.t1 values (1);
 drop table mysqltest.t1;
 
 --connection server1
