@@ -4628,6 +4628,12 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
   /* If statement hasnt been prepared there is nothing to reset */
   if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
     DBUG_RETURN(0);
+  if (!stmt->mysql)
+  {
+    /* mysql can be reset in mysql_close called from mysql_reconnect */
+    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
+    DBUG_RETURN(1);  
+  }
 
   mysql= stmt->mysql->last_used_con;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
