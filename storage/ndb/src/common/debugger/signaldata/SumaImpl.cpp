@@ -170,17 +170,6 @@ printSUB_SYNC_CONF(FILE * output, const Uint32 * theData,
 }
 
 bool
-printSUB_META_DATA(FILE * output, const Uint32 * theData, 
-		   Uint32 len, Uint16 receiverBlockNo) {
-  const SubMetaData * const sig = (SubMetaData *)theData;
-  fprintf(output, " gci: %x\n", sig->gci);
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " tableId: %x\n", sig->tableId);
-  return false;
-}
-
-bool
 printSUB_TABLE_DATA(FILE * output, const Uint32 * theData, 
 		    Uint32 len, Uint16 receiverBlockNo) {
   const SubTableData * const sig = (SubTableData *)theData;
