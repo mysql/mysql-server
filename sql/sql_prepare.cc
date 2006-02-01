@@ -405,7 +405,7 @@ static void set_param_decimal(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
   param->set_decimal((char*)*pos, length);
-  *pos+= len;
+  *pos+= length;
 }
 
 #ifndef EMBEDDED_LIBRARY
