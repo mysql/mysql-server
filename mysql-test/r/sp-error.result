@@ -1147,3 +1147,32 @@ show procedure status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop procedure ` bug15658`;
+drop function if exists bug14270;
+drop table if exists t1;
+create table t1 (s1 int primary key);
+create function bug14270() returns int
+begin
+load index into cache t1;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+create function bug14270() returns int
+begin
+cache index t1 key (`primary`) in keycache1;
+return 1;
+end|
+ERROR 0A000: Not allowed to return a result set from a function
+drop table t1;
+drop procedure if exists bug15091;
+create procedure bug15091()
+begin
+declare selectstr varchar(6000) default ' ';
+declare conditionstr varchar(5000)  default '';
+set selectstr = concat(selectstr,
+' and ',
+c.operatorid,
+'in (',conditionstr, ')');
+end|
+call bug15091();
+ERROR 42S02: Unknown table 'c' in field list
+drop procedure bug15091;
