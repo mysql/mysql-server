@@ -563,7 +563,9 @@ int ha_partition::rename_table(const char *from, const char *to)
     and types of engines in the partitions.
 */
 
-int ha_partition::create_handler_files(const char *name)
+int ha_partition::create_handler_files(const char *path,
+                                       const char *old_path,
+                                       bool rename_flag)
 {
   DBUG_ENTER("ha_partition::create_handler_files()");
 
@@ -571,10 +573,27 @@ int ha_partition::create_handler_files(const char *name)
     We need to update total number of parts since we might write the handler
     file as part of a partition management command
   */
-  if (create_handler_file(name))
+  if (rename_flag)
   {
-    my_error(ER_CANT_CREATE_HANDLER_FILE, MYF(0));
-    DBUG_RETURN(1);
+    char name[FN_REFLEN];
+    char old_name[FN_REFLEN];
+    char *par_str= ".par";
+
+    strxmov(name, path, par_str, NullS);
+    strxmov(old_name, old_path, par_str, NullS);
+    if (my_delete(name, MYF(MY_WME)) ||
+        my_rename(old_name, name, MYF(MY_WME)))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  else
+  {
+    if (create_handler_file(path))
+    {
+      my_error(ER_CANT_CREATE_HANDLER_FILE, MYF(0));
+      DBUG_RETURN(1);
+    }
   }
   DBUG_RETURN(0);
 }

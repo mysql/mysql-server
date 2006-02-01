@@ -215,6 +215,12 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
+#ifdef ERROR_INJECT_SUPPORT
+sys_var_long_ptr	sys_error_inject_code("error_inject_code",
+					      &error_inject_code);
+sys_var_long_ptr	sys_error_inject_value("error_inject_value",
+					       &error_inject_value);
+#endif
 sys_var_event_executor        sys_event_executor("event_scheduler",
                                                &event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
@@ -729,6 +735,10 @@ SHOW_VAR init_vars[]= {
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
   {sys_engine_condition_pushdown.name, 
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
+#ifdef ERROR_INJECT_SUPPORT
+  {sys_error_inject_code.name,(char*) &sys_error_inject_code,       SHOW_SYS},
+  {sys_error_inject_value.name,(char*)&sys_error_inject_value,      SHOW_SYS},
+#endif
   {sys_event_executor.name,   (char*) &sys_event_executor,          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},

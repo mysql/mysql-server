@@ -603,6 +603,29 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
+/*
+  Error injector Macros to enable easy testing of recovery after failures
+  in various error cases.
+*/
+#ifndef ERROR_INJECT_SUPPORT
+#define ERROR_INJECTOR(x)
+#define ERROR_INJECTOR_ACTION(x)
+#define ERROR_INJECTOR_CRASH(x)
+#else
+
+inline bool
+my_error_inject(int error)
+{
+  return (current_thd->variables.error_inject_code == error) ? 1 : 0;
+}
+
+#define ERROR_INJECTOR_CRASH(code) \
+  (my_error_inject((code)) ? ((DBUG_ASSERT(0)), 0) : 0
+#define ERROR_INJECTOR_ACTION(code, action) \
+  (my_error_inject((code)) ? ((action), 0) : 0
+#define ERROR_INJECT(code) \
+  (my_error_inject((code)) ? 1 : 0)
+#endif
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext);
 void write_bin_log(THD *thd, bool clear_error,
@@ -1099,9 +1122,10 @@ typedef struct st_lock_param_type
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);
-#define WFRM_INITIAL_WRITE 1
-#define WFRM_CREATE_HANDLER_FILES 2
-#define WFRM_PACK_FRM 4
+bool write_table_log(ALTER_PARTITION_PARAM_TYPE *lpt);
+#define WFRM_WRITE_SHADOW 1
+#define WFRM_INSTALL_SHADOW 2
+#define WFRM_PACK_FRM
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
