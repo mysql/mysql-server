@@ -44,8 +44,123 @@ CREATE DATABASE mysqltest_db1;
 CREATE USER mysqltest_dfn@localhost;
 CREATE USER mysqltest_inv@localhost;
 
-GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
 GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT INSERT, DELETE ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DELETE ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+#
+# Check that the user must have TRIGGER privilege to create a trigger.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--disconnect wl2818_definer_con
+
+#
+# Check that the user must have TRIGGER privilege to drop a trigger.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+REVOKE TRIGGER ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DROP TRIGGER trg1;
+
+--disconnect wl2818_definer_con
+
+#
+# Check that the definer must have TRIGGER privilege to activate a trigger.
+#
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(0);
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+INSERT INTO t1 VALUES(0);
+
+# Cleanup for further tests.
+DROP TRIGGER trg1;
+DELETE FROM t1;
+DELETE FROM t2;
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
 
 #
 # Check that triggers are executed under the authorization of the definer:
@@ -63,9 +178,6 @@ GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
 --connection wl2818_definer_con
 --echo
 --echo ---> connection: wl2818_definer_con
-
-CREATE TABLE t1(num_value INT);
-CREATE TABLE t2(user_str TEXT);
 
 CREATE TRIGGER trg1 AFTER INSERT ON t1
   FOR EACH ROW
@@ -362,10 +474,6 @@ DELETE FROM t1;
 #
 # Check DEFINER clause of CREATE TRIGGER statement.
 #
-# NOTE: there is no dedicated TRIGGER privilege for CREATE TRIGGER statement.
-# SUPER privilege is used instead. I.e., if one invokes CREATE TRIGGER, it should
-# have SUPER privilege, so this test is meaningless right now.
-#
 #   - Check that SUPER privilege required to create a trigger with different
 #     definer:
 #     - try to create a trigger with DEFINER="definer@localhost" under
@@ -391,7 +499,26 @@ use mysqltest_db1;
 DROP TRIGGER trg1;
 
 # Check that SUPER is required to specify different DEFINER.
-# NOTE: meaningless at the moment
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+--disconnect wl2818_definer_con
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
 
 CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
@@ -407,7 +534,10 @@ CREATE DEFINER='mysqltest_nonexs'@'localhost'
 
 # Check that trg2 will not be activated.
 
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+# --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+#
+# TODO: Due to the BUG#13198(SP executes if definer does not exist) the
+# following statement does not fail as it should.
 INSERT INTO t1 VALUES(6);
 
 #
