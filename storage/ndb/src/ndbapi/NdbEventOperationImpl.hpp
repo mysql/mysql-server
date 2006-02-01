@@ -22,6 +22,7 @@
 #include <transporter/TransporterDefinitions.hpp>
 #include <NdbRecAttr.hpp>
 #include <AttributeHeader.hpp>
+#include <UtilBuffer.hpp>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 
@@ -200,8 +201,14 @@ public:
   NdbBlob *getBlobHandle(const NdbColumnImpl *, int n);
   int readBlobParts(char* buf, NdbBlob* blob, Uint32 part, Uint32 count);
   int receive_event();
+  const bool tableNameChanged() const;
+  const bool tableFrmChanged() const;
+  const bool tableFragmentationChanged() const;
+  const bool tableRangeListChanged() const;
   Uint64 getGCI();
   Uint64 getLatestGCI();
+  bool execSUB_TABLE_DATA(NdbApiSignal * signal, 
+                          LinearSectionPtr ptr[3]);
 
   NdbDictionary::Event::TableEvent getEventType();
 
@@ -239,6 +246,12 @@ public:
 
   void *m_custom_data;
   int m_has_error;
+
+  Uint32 m_fragmentId;
+  UtilBuffer m_buffer;
+
+  // Bit mask for what has changed in a table (for TE_ALTER event)
+  Uint32 m_change_mask;
 
 #ifdef VM_TRACE
   Uint32 m_data_done_count;
