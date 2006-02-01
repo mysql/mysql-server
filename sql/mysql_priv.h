@@ -611,7 +611,14 @@ struct Query_cache_query_flags
 #define ERROR_INJECTOR(x)
 #define ERROR_INJECTOR_ACTION(x)
 #define ERROR_INJECTOR_CRASH(x)
+#define SET_ERROR_INJECT_CODE(x)
+#define SET_ERROR_INJECT_VALUE(x)
 #else
+
+#define SET_ERROR_INJECT_CODE(x) \
+  current_thd->variables.error_inject_code= (x)
+#define SET_ERROR_INJECT_VALUE(x) \
+  current_thd->variables.error_inject_value= (x)
 
 inline bool
 my_error_inject(int error)
@@ -632,6 +639,7 @@ my_error_inject(int error)
 #define ERROR_INJECT(code) \
   (my_error_inject((code)) ? 1 : 0)
 #endif
+
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext);
 void write_bin_log(THD *thd, bool clear_error,
@@ -1128,7 +1136,14 @@ typedef struct st_lock_param_type
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);
+
 bool write_table_log(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
+bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
+
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM
