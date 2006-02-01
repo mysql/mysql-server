@@ -4382,7 +4382,7 @@ int ha_ndbcluster::create(const char *name,
       if (ndbcluster_create_event(ndb, t, event_name.c_ptr(), share) < 0)
       {
         /* this is only a serious error if the binlog is on */
-	if (share && ndb_binlog_thread_running > 0)
+	if (share && ndb_binlog_running)
 	{
           push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                               ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
@@ -4395,14 +4395,14 @@ int ha_ndbcluster::create(const char *name,
         sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
                               event_name.c_ptr());
 
-      if (share && ndb_binlog_thread_running > 0 &&
+      if (share && ndb_binlog_running &&
           ndbcluster_create_event_ops(share, t, event_name.c_ptr()) < 0)
       {
         sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
                         " Event: %s", name2);
         /* a warning has been issued to the client */
       }
-      if (share && ndb_binlog_thread_running <= 0)
+      if (share && !ndb_binlog_running)
         share->flags|= NSF_NO_BINLOG;
       ndbcluster_log_schema_op(current_thd, share,
                                current_thd->query, current_thd->query_length,
@@ -4686,7 +4686,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   }
 #ifdef HAVE_NDB_BINLOG
   NDB_SHARE *share= 0;
-  if (ndb_binlog_thread_running > 0 &&
+  if (ndb_binlog_running &&
       (share= get_share(from, 0, false)))
   {
     int r= rename_share(share, to);
@@ -5866,18 +5866,8 @@ static bool ndbcluster_init()
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
 #ifdef HAVE_NDB_BINLOG
   /* start the ndb injector thread */
-  if (opt_bin_log)
-  {
-    if (binlog_row_based)
-    {
-      if (ndbcluster_binlog_start())
-        goto ndbcluster_init_error;
-    }
-    else
-    {
-      sql_print_error("NDB: only row based binary logging is supported");
-    }
-  }
+  if (ndbcluster_binlog_start())
+    goto ndbcluster_init_error;
 #endif /* HAVE_NDB_BINLOG */
   
   pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
@@ -7440,9 +7430,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   ndbcluster_util_inited= 1;
 
 #ifdef HAVE_NDB_BINLOG
-  /* If running, signal injector thread that all is setup */
-  if (ndb_binlog_thread_running > 0)
-    pthread_cond_signal(&injector_cond);
+  /* Signal injector thread that all is setup */
+  pthread_cond_signal(&injector_cond);
 #endif
 
   set_timespec(abstime, 0);
@@ -9360,6 +9349,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
 {
   DBUG_ENTER("ha_ndbcluster::alter_tablespace");
 
+  int is_tablespace= 0;
   Ndb *ndb= check_ndb_in_thd(thd);
   if (ndb == NULL)
   {
@@ -9398,6 +9388,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
       DBUG_PRINT("error", ("createDatafile returned %d", error));
       goto ndberror;
     }
+    is_tablespace= 1;
     break;
   }
   case (ALTER_TABLESPACE):
@@ -9441,6 +9432,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
 			   info->ts_alter_tablespace_type));
       DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
     }
+    is_tablespace= 1;
     break;
   }
   case (CREATE_LOGFILE_GROUP):
@@ -9506,6 +9498,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     {
       goto ndberror;
     }
+    is_tablespace= 1;
     break;
   }
   case (DROP_LOGFILE_GROUP):
@@ -9531,6 +9524,20 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   }
+
+  if (is_tablespace)
+    ndbcluster_log_schema_op(thd, 0,
+                             thd->query, thd->query_length,
+                             "", info->tablespace_name,
+                             0, 0,
+                             SOT_TABLESPACE);
+  else
+    ndbcluster_log_schema_op(thd, 0,
+                             thd->query, thd->query_length,
+                             "", info->logfile_group_name,
+                             0, 0,
+                             SOT_LOGFILE_GROUP);
+
   DBUG_RETURN(FALSE);
 
 ndberror:
