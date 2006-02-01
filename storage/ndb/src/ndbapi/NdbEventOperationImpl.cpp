@@ -335,7 +335,6 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
     NdbEventOperationImpl* tLastBlopOp = NULL;
     while (tBlobOp != NULL) {
       if (strcmp(tBlobOp->m_eventImpl->m_name.c_str(), bename) == 0) {
-        assert(tBlobOp->m_eventImpl->m_tableImpl == tAttrInfo->m_blobTable);
         break;
       }
       tLastBlopOp = tBlobOp;

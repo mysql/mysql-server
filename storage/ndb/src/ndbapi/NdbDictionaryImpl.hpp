@@ -267,6 +267,7 @@ class NdbEventImpl : public NdbDictionary::Event, public NdbDictObjectImpl {
   friend class NdbEventOperationImpl;
   friend class NdbEventBuffer;
   friend class EventBufData_hash;
+  friend class NdbBlob;
 public:
   NdbEventImpl();
   NdbEventImpl(NdbDictionary::Event &);
