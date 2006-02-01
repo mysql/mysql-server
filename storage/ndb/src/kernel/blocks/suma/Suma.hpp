@@ -70,7 +70,7 @@ public:
   void execGET_TABLEID_REF(Signal* signal);
 
   void execDROP_TAB_CONF(Signal* signal);
-  void execALTER_TAB_CONF(Signal* signal);
+  void execALTER_TAB_REQ(Signal* signal);
   void execCREATE_TAB_CONF(Signal* signal);
   /**
    * Scan interface
