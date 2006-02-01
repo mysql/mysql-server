@@ -1,0 +1,145 @@
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+reset master;
+reset master;
+create database mysqltest;
+use mysqltest;
+create table t1 (a int primary key) engine=ndb;
+create table t2 (a int primary key) engine=ndb;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	create database mysqltest
+master-bin1.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
+master-bin1.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=ndb
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	create database mysqltest
+master-bin.000001	#	Query	#	#	use `mysqltest`; create table t1 (a int primary key) engine=ndb
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=ndb
+reset master;
+reset master;
+use mysqltest;
+drop table test.t2;
+create table t2 (a int primary key) engine=ndb;
+alter table t2 add column (b int);
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `mysqltest`; drop table test.t2
+master-bin1.000001	#	Query	#	#	use `mysqltest`; create table t2 (a int primary key) engine=ndb
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `mysqltest`; alter table t2 add column (b int)
+reset master;
+reset master;
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+insert into t1 values (1);
+drop table t1;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin.000001	#	Write_rows	#	#	
+master-bin.000001	#	Table_map	#	#	mysqltest.t1
+master-bin.000001	#	Write_rows	#	#	
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin.000001	#	Write_rows	#	#	
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `mysqltest`; drop table `t1`
+reset master;
+reset master;
+insert into t2 values (1,2);
+drop database mysqltest;
+use test;
+create table t1 (a int primary key) engine=ndb;
+use test;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Table_map	#	#	mysqltest.t2
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	drop database mysqltest
+master-bin1.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=ndb
+reset master;
+reset master;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB;
+ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile.dat' 
+ENGINE = NDB;
+ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile02.dat' 
+ENGINE = NDB;
+DROP TABLESPACE ts1 
+ENGINE = NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+drop table t1;
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin1.000001	#	Query	#	#	CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1
+ADD DATAFILE 'datafile02.dat'
+INITIAL_SIZE = 4M 
+ENGINE=NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile.dat' 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	ALTER TABLESPACE ts1 
+DROP DATAFILE 'datafile02.dat' 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	DROP TABLESPACE ts1 
+ENGINE = NDB
+master-bin1.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
+ENGINE =NDB
+master-bin1.000001	#	Query	#	#	BEGIN
+master-bin1.000001	#	Table_map	#	#	cluster_replication.apply_status
+master-bin1.000001	#	Write_rows	#	#	
+master-bin1.000001	#	Query	#	#	COMMIT
+master-bin1.000001	#	Query	#	#	use `test`; drop table `t1`
