@@ -361,6 +361,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       if (table->s->fields <= 37 && (user.access & CREATE_ACL))
         user.access|= EVENT_ACL;
 
+      /*
+        if it is pre 5.1.6 privilege then map TRIGGER privilege on CREATE.
+      */
+      if (table->s->fields <= 38 && (user.access & SUPER_ACL))
+        user.access|= TRIGGER_ACL;
+
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
@@ -4070,13 +4076,13 @@ static const char *command_array[]=
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
-  "CREATE USER", "EVENT"
+  "CREATE USER", "EVENT", "TRIGGER"
 };
 
 static uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
-  14, 13, 11, 5
+  14, 13, 11, 5, 7
 };
 
 
