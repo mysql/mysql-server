@@ -3423,7 +3423,17 @@ NdbDictionaryImpl::getEvent(const char * eventName)
     delete ev;
     DBUG_RETURN(NULL);
   }
-
+  if (info->m_table_impl->m_status == NdbDictionary::Object::Invalid)
+  {
+    removeCachedObject(*info->m_table_impl);
+    info= get_local_table_info(ev->getTableName(), true);
+    if (info == 0)
+    {
+      DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
+      delete ev;
+      DBUG_RETURN(NULL);
+    }
+  }
   ev->setTable(info->m_table_impl);
   ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
