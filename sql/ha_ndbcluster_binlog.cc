@@ -1715,6 +1715,12 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
   if (share)
   {
+    if (share->op || share->op_old)
+    {
+      my_errno= HA_ERR_TABLE_EXIST;
+      pthread_mutex_unlock(&ndbcluster_mutex);
+      DBUG_RETURN(1);
+    }
     handle_trailing_share(share);
   }
 

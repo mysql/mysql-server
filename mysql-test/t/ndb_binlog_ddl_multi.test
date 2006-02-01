@@ -48,10 +48,6 @@ reset master;
 reset master;
 
 --connection server2
-use mysqltest;
-#alter table test.t2 rename t2;
-drop table test.t2;
-create table t2 (a int primary key) engine=ndb;
 alter table t2 add column (b int);
 
 --connections server1
@@ -71,8 +67,7 @@ ALTER DATABASE mysqltest CHARACTER SET latin1;
 
 # drop table and drop should come after data events
 --connection server2
-insert into t1 values (1);
-drop table t1;
+drop table mysqltest.t1;
 
 --connection server1
 --replace_column 2 # 4 # 5 # 
@@ -86,15 +81,17 @@ reset master;
 reset master;
 
 --connection server1
+use test;
 insert into t2 values (1,2);
 drop database mysqltest;
-use test;
 create table t1 (a int primary key) engine=ndb;
 
 --connection server2
-use test;
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
+
+--connection server2
+drop table t2;
 
 # logfile groups and table spaces
 --connection server1
