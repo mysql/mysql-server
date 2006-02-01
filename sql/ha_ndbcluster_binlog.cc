@@ -2653,7 +2653,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
       {
         // sometimes get TE_ALTER with invalid table
         DBUG_ASSERT(pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
-                    ! IS_NDB_BLOB_PREFIX(pOp->getTable()->getName()));
+                    ! IS_NDB_BLOB_PREFIX(pOp->getEvent()->getTable()->getName()));
         ndb->
           setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
         ndb->setReportThreshEventFreeMem(ndb_report_thresh_binlog_mem_usage);
@@ -2794,7 +2794,7 @@ err:
     DBUG_PRINT("info",("removing all event operations"));
     while ((op= ndb->getEventOperation()))
     {
-      DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getTable()->getName()));
+      DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(op->getEvent()->getTable()->getName()));
       DBUG_PRINT("info",("removing event operation on %s",
                          op->getEvent()->getName()));
       NDB_SHARE *share= (NDB_SHARE*) op->getCustomData();
