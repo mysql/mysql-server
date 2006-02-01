@@ -1074,6 +1074,7 @@ void st_select_lex::init_query()
   item_list.empty();
   join= 0;
   where= 0;
+  having= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
@@ -1081,6 +1082,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
+  prep_having= 0;
   subquery_in_having= explicit_limit= 0;
   parsing_place= NO_MATTER;
   is_item_list_lookup= 0;
