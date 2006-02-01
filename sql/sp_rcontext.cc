@@ -164,6 +164,33 @@ sp_rcontext::set_return_value(THD *thd, Item *return_value_item)
 #define IS_NOT_FOUND_CONDITION(S) ((S)[0] == '0' && (S)[1] == '2')
 #define IS_EXCEPTION_CONDITION(S) ((S)[0] != '0' || (S)[1] > '2')
 
+/*
+  Find a handler for the given errno.
+  This is called from all error message functions (e.g. push_warning,
+  net_send_error, et al) when a sp_rcontext is in effect. If a handler
+  is found, no error is sent, and the the SP execution loop will instead
+  invoke the found handler.
+  This might be called several times before we get back to the execution
+  loop, so m_hfound can be >= 0 if a handler has already been found.
+  (In which case we don't search again - the first found handler will
+   be used.)
+  Handlers are pushed on the stack m_handler, with the latest/innermost
+  one on the top; we then search for matching handlers from the top and
+  down.
+  We search through all the handlers, looking for the most specific one
+  (sql_errno more specific than sqlstate more specific than the rest).
+  Note that mysql error code handlers is a MySQL extension, not part of
+  the standard.
+
+  SYNOPSIS
+    sql_errno     The error code
+    level         Warning level
+
+  RETURN
+    1             if a handler was found, m_hfound is set to its index (>= 0)
+    0             if not found, m_hfound is -1
+*/
+
 bool
 sp_rcontext::find_handler(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
@@ -174,11 +201,13 @@ sp_rcontext::find_handler(uint sql_errno,
   const char *sqlstate= mysql_errno_to_sqlstate(sql_errno);
   int i= m_hcount, found= -1;
 
+  /* Search handlers from the latest (innermost) to the oldest (outermost) */
   while (i--)
   {
     sp_cond_type_t *cond= m_handler[i].cond;
     int j= m_ihsp;
 
+    /* Check active handlers, to avoid invoking one recursively */
     while (j--)
       if (m_in_handler[j] == m_handler[i].handler)
 	break;
@@ -188,7 +217,8 @@ sp_rcontext::find_handler(uint sql_errno,
     switch (cond->type)
     {
     case sp_cond_type_t::number:
-      if (sql_errno == cond->mysqlerr)
+      if (sql_errno == cond->mysqlerr &&
+          (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
 	found= i;		// Always the most specific
       break;
     case sp_cond_type_t::state:
