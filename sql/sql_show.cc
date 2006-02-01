@@ -267,6 +267,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Show view","Tables","To see views with SHOW CREATE VIEW"},
   {"Shutdown","Server Admin", "To shut down the server"},
   {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+  {"Trigger","Tables", "To use triggers"},
   {"Update", "Tables",  "To update existing rows"},
   {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}

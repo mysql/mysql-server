@@ -667,3 +667,12 @@ ALTER TABLE event ADD sql_mode
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
 
+--
+-- TRIGGER privilege
+--
+
+SET @hadTriggerPriv := 0;
+SELECT @hadTriggerPriv :=1 FROM user WHERE Trigger_priv LIKE '%';
+
+ALTER TABLE user add Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
