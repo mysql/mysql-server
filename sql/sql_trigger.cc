@@ -177,12 +177,20 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   DBUG_ASSERT(tables->next_global == 0);
 
   /*
-    TODO: We should check if user has TRIGGER privilege for table here.
-    Now we just require SUPER privilege for creating/dropping because
-    we don't have proper privilege checking for triggers in place yet.
+    Check that the user has TRIGGER privilege on the subject table.
   */
-  if (check_global_access(thd, SUPER_ACL))
-    DBUG_RETURN(TRUE);
+  {
+    bool err_status;
+    TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
+    thd->lex->query_tables_own_last= 0;
+
+    err_status= check_table_access(thd, TRIGGER_ACL, tables, 0);
+
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+
+    if (err_status)
+      DBUG_RETURN(TRUE);
+  }
 
   /*
     There is no DETERMINISTIC clause for triggers, so can't check it.
@@ -1151,24 +1159,10 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     if (sp_change_security_context(thd, sp_trigger, &save_ctx))
       return TRUE;
 
-    /*
-      NOTE: TRIGGER_ACL should be used below.
-    */
-
-    if (check_global_access(thd, SUPER_ACL))
-    {
-      sp_restore_security_context(thd, save_ctx);
-      return TRUE;
-    }
-
-    /*
-      If the trigger uses special variables (NEW/OLD), check that we have
-      SELECT and UPDATE privileges on the subject table.
-    */
-    
-    if (is_special_var_used(event, time_type))
     {
       TABLE_LIST table_list, **save_query_tables_own_last;
+      ulong wanted_access = TRIGGER_ACL;
+      
       bzero((char *) &table_list, sizeof (table_list));
       table_list.db= (char *) table->s->db.str;
       table_list.db_length= table->s->db.length;
@@ -1178,9 +1172,17 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       table_list.table= table;
       save_query_tables_own_last= thd->lex->query_tables_own_last;
       thd->lex->query_tables_own_last= 0;
+      
+      /*
+         If the trigger uses special variables (NEW/OLD), check that we have
+         SELECT and UPDATE privileges on the subject table.
+       */
 
-      err_status= check_table_access(thd, SELECT_ACL | UPDATE_ACL,
-                                     &table_list, 0);
+      if (is_special_var_used(event, time_type))
+        wanted_access|= SELECT_ACL | UPDATE_ACL;
+
+      err_status= check_table_access(thd, wanted_access, &table_list, 0);
+
       thd->lex->query_tables_own_last= save_query_tables_own_last;
       if (err_status)
       {
