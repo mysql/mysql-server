@@ -7,12 +7,57 @@ DROP DATABASE IF EXISTS mysqltest_db1;
 CREATE DATABASE mysqltest_db1;
 CREATE USER mysqltest_dfn@localhost;
 CREATE USER mysqltest_inv@localhost;
-GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
 GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
 
 ---> connection: wl2818_definer_con
 CREATE TABLE t1(num_value INT);
 CREATE TABLE t2(user_str TEXT);
+
+---> connection: default
+GRANT INSERT, DELETE ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DELETE ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+---> connection: default
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: default
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+
+---> connection: default
+REVOKE TRIGGER ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+DROP TRIGGER trg1;
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: wl2818_definer_con
+INSERT INTO t1 VALUES(0);
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: default
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+INSERT INTO t1 VALUES(0);
+DROP TRIGGER trg1;
+DELETE FROM t1;
+DELETE FROM t2;
+
+---> connection: default
+REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
 CREATE TRIGGER trg1 AFTER INSERT ON t1
 FOR EACH ROW
 INSERT INTO t2 VALUES(CURRENT_USER());
@@ -175,6 +220,17 @@ CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW
 SET @new_sum = 0;
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+
+---> connection: default
+use mysqltest_db1;
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
 CREATE DEFINER='mysqltest_nonexs'@'localhost'
   TRIGGER trg2 AFTER INSERT ON t1
 FOR EACH ROW
@@ -182,7 +238,6 @@ SET @new_sum = 0;
 Warnings:
 Note	1449	There is no 'mysqltest_nonexs'@'localhost' registered
 INSERT INTO t1 VALUES(6);
-ERROR 42000: Access denied; you need the SUPER privilege for this operation
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 trg1	INSERT	t1	SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost

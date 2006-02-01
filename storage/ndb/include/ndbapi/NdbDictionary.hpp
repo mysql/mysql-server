@@ -783,7 +783,7 @@ public:
     void setTablespace(const char * name);
     void setTablespace(const class Tablespace &);
     const char * getTablespace() const;
-    Uint32 getTablespaceId() const;
+    bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
     /**
      * Get table object type
@@ -1736,6 +1736,7 @@ public:
     int createTablespace(const Tablespace &);
     int dropTablespace(const Tablespace&);
     Tablespace getTablespace(const char * name);
+    Tablespace getTablespace(Uint32 tablespaceId);
 
     int createDatafile(const Datafile &, bool overwrite_existing = false);
     int dropDatafile(const Datafile&);
