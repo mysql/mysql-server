@@ -4586,7 +4586,7 @@ int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   int i;
   TABLE *table= tables->table;
-  DBUG_ENTER("fill_schema_logfile_groups");
+  DBUG_ENTER("fill_schema_files");
 
   struct run_hton_fill_schema_files_args args;
   args.tables= tables;
