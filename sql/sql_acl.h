@@ -43,6 +43,7 @@
 #define ALTER_PROC_ACL  (1L << 24)
 #define CREATE_USER_ACL (1L << 25)
 #define EVENT_ACL       (1L << 26)
+#define TRIGGER_ACL     (1L << 27)
 /*
   don't forget to update
   1. static struct show_privileges_st sys_privileges[]
@@ -57,12 +58,12 @@
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \
  LOCK_TABLES_ACL | EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
- CREATE_PROC_ACL | ALTER_PROC_ACL | EVENT_ACL)
+ CREATE_PROC_ACL | ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL)
 
 #define TABLE_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
  GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | \
- SHOW_VIEW_ACL)
+ SHOW_VIEW_ACL | TRIGGER_ACL)
 
 #define COL_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | REFERENCES_ACL)
@@ -79,7 +80,7 @@
  REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
  EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
- ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL)
+ ALTER_PROC_ACL | CREATE_USER_ACL | EVENT_ACL | TRIGGER_ACL)
 
 #define DEFAULT_CREATE_PROC_ACLS \
 (ALTER_PROC_ACL | EXECUTE_ACL)
@@ -97,7 +98,7 @@
 #define DB_CHUNK3 (CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
 		   CREATE_PROC_ACL | ALTER_PROC_ACL )
 #define DB_CHUNK4 (EXECUTE_ACL)
-#define DB_CHUNK5 (EVENT_ACL)
+#define DB_CHUNK5 (EVENT_ACL | TRIGGER_ACL)
 
 #define fix_rights_for_db(A)  (((A)       & DB_CHUNK0) | \
 			      (((A) << 4) & DB_CHUNK1) | \
@@ -114,12 +115,15 @@
 #define TBL_CHUNK0 DB_CHUNK0
 #define TBL_CHUNK1 DB_CHUNK1
 #define TBL_CHUNK2 (CREATE_VIEW_ACL | SHOW_VIEW_ACL)
+#define TBL_CHUNK3 TRIGGER_ACL
 #define fix_rights_for_table(A) (((A)        & TBL_CHUNK0) | \
                                 (((A) <<  4) & TBL_CHUNK1) | \
-                                (((A) << 11) & TBL_CHUNK2))
+                                (((A) << 11) & TBL_CHUNK2) | \
+                                (((A) << 15) & TBL_CHUNK3))
 #define get_rights_for_table(A) (((A) & TBL_CHUNK0)        | \
                                 (((A) & TBL_CHUNK1) >>  4) | \
-                                (((A) & TBL_CHUNK2) >> 11))
+                                (((A) & TBL_CHUNK2) >> 11) | \
+                                (((A) & TBL_CHUNK3) >> 15))
 #define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
 #define get_rights_for_column(A) (((A) & 7) | ((A) >> 8))
 #define fix_rights_for_procedure(A) ((((A) << 18) & EXECUTE_ACL) | \
