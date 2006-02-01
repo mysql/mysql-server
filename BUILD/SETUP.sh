@@ -71,6 +71,7 @@ pentium_cflags="$check_cpu_cflags"
 pentium64_cflags="$check_cpu_cflags -m64"
 ppc_cflags="$check_cpu_cflags"
 sparc_cflags=""
+error_inject_flag="--with-error-inject "
 
 # be as fast as we can be without losing our ability to backtrace
 fast_cflags="-O3 -fno-omit-frame-pointer"

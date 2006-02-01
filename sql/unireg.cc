@@ -330,7 +330,7 @@ int rea_create_table(THD *thd, const char *path,
 
   // Make sure mysql_create_frm din't remove extension
   DBUG_ASSERT(*fn_rext(frm_name));
-  if (file->create_handler_files(path))
+  if (file->create_handler_files(path, NULL, FALSE))
     goto err_handler;
   if (!create_info->frm_only && ha_create_table(thd, path, db, table_name,
                                                 create_info,0))

@@ -5244,7 +5244,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       1) Write the new frm, pack it and then delete it
       2) Perform the change within the handler
     */
-    if ((mysql_write_frm(lpt, WFRM_INITIAL_WRITE | WFRM_PACK_FRM)) ||
+    if ((mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM)) ||
         (mysql_change_partitions(lpt)))
     {
       fast_alter_partition_error_handler(lpt);
@@ -5275,29 +5275,56 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       after a DROP PARTITION) if one ensured that failed accesses to the
       dropped partitions was aborted for sure (thus only possible for
       transactional engines).
-      
-      1) Lock the table in TL_WRITE_ONLY to ensure all other accesses to
+
+      0) Write an entry that removes the shadow frm file if crash occurs 
+      1) Write the new frm file as a shadow frm
+      2) Write the table log to ensure that the operation is completed
+         even in the presence of a MySQL Server crash
+      3) Lock the table in TL_WRITE_ONLY to ensure all other accesses to
          the table have completed
-      2) Write the new frm file where the partitions have changed but are
-         still remaining with the state PART_TO_BE_DROPPED
-      3) Write the bin log
-      4) Prepare MyISAM handlers for drop of partitions
-      5) Ensure that any users that has opened the table but not yet
+      4) Write the bin log
+         Unfortunately the writing of the binlog is not synchronised with
+         other logging activities. So no matter in which order the binlog
+         is written compared to other activities there will always be cases
+         where crashes make strange things occur. In this placement it can
+         happen that the ALTER TABLE DROP PARTITION gets performed in the
+         master but not in the slaves if we have a crash, after writing the
+         table log but before writing the binlog. A solution to this would
+         require writing the statement first in the table log and then
+         when recovering from the crash read the binlog and insert it into
+         the binlog if not written already.
+      5) Install the previously written shadow frm file
+      6) Ensure that any users that has opened the table but not yet
          reached the abort lock do that before downgrading the lock.
-      6) Drop the partitions
-      7) Write the frm file that the partition has been dropped
-      8) Wait until all accesses using the old frm file has completed
-      9) Complete query
+      7) Prepare MyISAM handlers for drop of partitions
+      8) Drop the partitions
+      9) Remove entries from table log
+      10) Wait until all accesses using the old frm file has completed
+      11) Complete query
+
+      We insert Error injections at all places where it could be interesting
+      to test if recovery is properly done.
     */
-    if ((abort_and_upgrade_lock(lpt)) ||
-        (mysql_write_frm(lpt, WFRM_INITIAL_WRITE)) ||
+    if (write_log_shadow_frm(lpt) ||
+        ERROR_INJECTOR_CRASH(1000) ||
+        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        ERROR_INJECTOR_CRASH(1001) ||
+        write_log_drop_partition(lpt) ||
+        ERROR_INJECTOR_CRASH(1002) ||
+        abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
-         (write_bin_log(thd, FALSE,
-                       thd->query, thd->query_length), FALSE)) ||
-        (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE)) ||
+         write_bin_log(thd, FALSE,
+                       thd->query, thd->query_length), FALSE) ||
+        ERROR_INJECTOR_CRASH(1003) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         (close_open_tables_and_downgrade(lpt), FALSE) || 
-        (mysql_drop_partitions(lpt)) ||
-        (mysql_write_frm(lpt, WFRM_CREATE_HANDLER_FILES)) ||
+        ERROR_INJECTOR_CRASH(1004) ||
+        table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
+        ERROR_INJECTOR_CRASH(1005) ||
+        mysql_drop_partitions(lpt) ||
+        ERROR_INJECTOR_CRASH(1006) ||
+        write_log_completed(lpt) ||
+        ERROR_INJECTOR_CRASH(1007) ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
       fast_alter_partition_error_handler(lpt);
@@ -5317,26 +5344,38 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       miss updates made by a transaction serialised before it that are
       inserted into the new partition.
 
-      1) Write the new frm file where state of added partitions is
-         changed to PART_TO_BE_ADDED
+      0) Write an entry that removes the shadow frm file if crash occurs 
+      1) Write the new frm file as a shadow frm file
+      2) Log the changes to happen in table log
       2) Add the new partitions
       3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Write a new frm file of the table where the partitions are added
-         to the table.
-      5) Write binlog
+      4) Write binlog
+      5) Install the new frm file of the table where the partitions are
+         added to the table.
       6) Wait until all accesses using the old frm file has completed
-      7) Complete query
+      7) Remove entries from table log
+      8) Complete query
     */
-    if ((mysql_write_frm(lpt, WFRM_INITIAL_WRITE)) ||
-        (mysql_change_partitions(lpt)) ||
-        (abort_and_upgrade_lock(lpt)) ||
-        (mysql_write_frm(lpt, WFRM_CREATE_HANDLER_FILES)) ||
+    if (write_log_shadow_frm(lpt) ||
+        ERROR_INJECTED_CRASH(1010) ||
+        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        ERROR_INJECTED_CRASH(1011) ||
+        write_log_add_partition(lpt) ||
+        ERROR_INJECTED_CRASH(1012) ||
+        mysql_change_partitions(lpt) ||
+        ERROR_INJECTED_CRASH(1013) ||
+        abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        (close_open_tables_and_downgrade(lpt), FALSE))
+        ERROR_INJECTED_CRASH(1014) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        ERROR_INJECTED_CRASH(1015) ||
+        (close_open_tables_and_downgrade(lpt), FALSE) ||
+        write_log_completed(lpt) ||
+        ERROR_INJECTED_CRASH(1016)) 
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
@@ -5375,40 +5414,56 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       use a lower lock level. This can be handled inside store_lock in the
       respective handler.
 
-      1) Write the new frm file where state of added partitions is
-         changed to PART_TO_BE_ADDED and the reorganised partitions
-         are set in state PART_TO_BE_REORGED.
-      2) Add the new partitions
+      0) Write an entry that removes the shadow frm file if crash occurs 
+      1) Write the shadow frm file of new partitioning
+      2) Log such that temporary partitions added in change phase are
+         removed in a crash situation
+      3) Add the new partitions
          Copy from the reorganised partitions to the new partitions
-      3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
+      4) Log that operation is completed and log all complete actions
+         needed to complete operation from here
+      5) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Prepare MyISAM handlers for rename and delete of partitions
-      5) Write a new frm file of the table where the partitions are
-         reorganised.
-      6) Rename the reorged partitions such that they are no longer
+      6) Prepare MyISAM handlers for rename and delete of partitions
+      7) Rename the reorged partitions such that they are no longer
          used and rename those added to their real new names.
-      7) Write bin log
-      8) Wait until all accesses using the old frm file has completed
-      9) Drop the reorganised partitions
-      10)Write a new frm file of the table where the partitions are
-         reorganised.
-      11)Wait until all accesses using the old frm file has completed
-      12)Complete query
+      8) Write bin log
+      9) Install the shadow frm file
+      10) Wait until all accesses using the old frm file has completed
+      11) Drop the reorganised partitions
+      12) Remove log entry
+      13)Wait until all accesses using the old frm file has completed
+      14)Complete query
     */
 
-    if ((mysql_write_frm(lpt, WFRM_INITIAL_WRITE)) ||
-        (mysql_change_partitions(lpt)) ||
-        (abort_and_upgrade_lock(lpt)) ||
-        (mysql_write_frm(lpt, WFRM_CREATE_HANDLER_FILES)) ||
-        (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE)) ||
-        (mysql_rename_partitions(lpt)) ||
+    if (write_log_shadow_frm(lpt) ||
+        ERROR_INJECT_CRASH(1020) ||
+        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        ERROR_INJECT_CRASH(1021) ||
+        write_log_ph1_change_partition(lpt) ||
+        ERROR_INJECT_CRASH(1022) ||
+        mysql_change_partitions(lpt) ||
+        ERROR_INJECT_CRASH(1023) ||
+        write_log_ph2_change_partition(lpt) ||
+        ERROR_INJECT_CRASH(1024) ||
+        abort_and_upgrade_lock(lpt) ||
+        table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
+        ERROR_INJECT_CRASH(1025) ||
+        mysql_rename_partitions(lpt) ||
+        ERROR_INJECT_CRASH(1026) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
+        ERROR_INJECT_CRASH(1027) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        ERROR_INJECT_CRASH(1028) ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
-        (mysql_drop_partitions(lpt)) ||
-        (mysql_write_frm(lpt, 0UL)) ||
+        ERROR_INJECT_CRASH(1029) ||
+        mysql_drop_partitions(lpt) ||
+        ERROR_INJECT_CRASH(1030) ||
+        write_log_completed(lpt) ||
+        ERROR_INJECT_CRASH(1031) ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
         fast_alter_partition_error_handler(lpt);

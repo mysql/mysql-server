@@ -7055,6 +7055,12 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
+#ifdef ERROR_INJECT_SUPPORT
+  global_system_variables.error_inject_code= 0;
+  global_system_variables.error_inject_value= 0;
+  max_system_variables.error_inject_code= ~0;
+  max_system_variables.error_inject_value= ~0;
+#endif
   
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
