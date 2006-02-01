@@ -9666,7 +9666,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
       table->field[c++]->store("NORMAL",6, system_charset_info);
 
       char extra[30];
-      int len= snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
+      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
       table->field[c]->store(extra,len,system_charset_info);
       schema_table_store_record(thd, table);
     }
@@ -9741,7 +9741,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
       table->field[c++]->store("NORMAL",6, system_charset_info);
 
       char extra[30];
-      int len= snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
+      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u",id);
       table->field[c]->store(extra,len,system_charset_info);
       schema_table_store_record(thd, table);
     }
