@@ -2388,15 +2388,10 @@ char *generate_partition_syntax(partition_info *part_info,
   char path[FN_REFLEN];
   int err= 0;
   List_iterator<partition_element> part_it(part_info->partitions);
-  List_iterator<partition_element> temp_it(part_info->temp_partitions);
   File fptr;
   char *buf= NULL; //Return buffer
-  uint use_temp= 0;
-  uint no_temp_parts= part_info->temp_partitions.elements;
-  bool write_part_state;
   DBUG_ENTER("generate_partition_syntax");
 
-  write_part_state= (part_info->part_state && !part_info->part_state_len);
   if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy", 0,0))) < 0))
     DBUG_RETURN(NULL);
 #ifndef __WIN__
@@ -2459,8 +2454,7 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_space(fptr);
     }
   }
-  no_parts= part_info->no_parts;
-  tot_no_parts= no_parts + no_temp_parts;
+  tot_no_parts= part_info->partitions.elements;
   no_subparts= part_info->no_subparts;
 
   if (write_all || (!part_info->use_default_partitions))
@@ -2469,57 +2463,10 @@ char *generate_partition_syntax(partition_info *part_info,
     i= 0;
     do
     {
-      /*
-        We need to do some clever list manipulation here since we have two
-        different needs for our list processing and here we take some of the
-        cost of using a simpler list processing for the other parts of the
-        code.
-
-        ALTER TABLE REORGANIZE PARTITIONS has the list of partitions to be
-        the final list as the main list and the reorganised partitions is in
-        the temporary partition list. Thus when finding the first part added
-        we insert the temporary list if there is such a list. If there is no
-        temporary list we are performing an ADD PARTITION.
-      */
-      if (use_temp && use_temp <= no_temp_parts)
+      part_elem= part_it++;
+      if (part_elem->part_state != PART_TO_BE_DROPPED &&
+          part_elem->part_state != PART_REORGED_DROPPED)
       {
-        part_elem= temp_it++;
-        DBUG_ASSERT(no_temp_parts);
-        no_temp_parts--;
-      }
-      else if (use_temp)
-      {
-        DBUG_ASSERT(no_parts);
-        part_elem= save_part_elem;
-        use_temp= 0;
-        no_parts--;
-      }
-      else
-      {
-        part_elem= part_it++;
-        if ((part_elem->part_state == PART_TO_BE_ADDED ||
-             part_elem->part_state == PART_IS_ADDED) && no_temp_parts)
-        {
-          save_part_elem= part_elem;
-          part_elem= temp_it++;
-          no_temp_parts--;
-          use_temp= 1;
-        }
-        else
-        {
-          DBUG_ASSERT(no_parts);
-          no_parts--;
-        }
-      }
-
-      if (part_elem->part_state != PART_IS_DROPPED)
-      {
-        if (write_part_state)
-        {
-          uint32 part_state_id= part_info->part_state_len;
-          part_info->part_state[part_state_id]= (uchar)part_elem->part_state;
-          part_info->part_state_len= part_state_id+1;
-        }
         err+= add_partition(fptr);
         err+= add_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
@@ -2558,7 +2505,6 @@ char *generate_partition_syntax(partition_info *part_info,
       if (i == (tot_no_parts-1))
         err+= add_end_parenthesis(fptr);
     } while (++i < tot_no_parts);
-    DBUG_ASSERT(!no_parts && !no_temp_parts);
   }
   if (err)
     goto close_file;
@@ -4576,6 +4522,7 @@ that are reorganised.
         my_error(ER_ROW_IS_REFERENCED, MYF(0));
         DBUG_RETURN(TRUE);
       }
+      tab_part_info->no_parts-= no_parts_dropped;
     }
     else if ((alter_info->flags & ALTER_OPTIMIZE_PARTITION) ||
              (alter_info->flags & ALTER_ANALYZE_PARTITION) ||
@@ -5134,29 +5081,6 @@ bool
 write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
 {
   DBUG_ENTER("write_log_shadow_frm");
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Write the log entries to ensure that the drop partition command is completed
-  even in the presence of a crash.
-
-  SYNOPSIS
-    write_log_drop_partition()
-    lpt                      Struct containing parameters
-  RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
-  DESCRIPTION
-    Prepare entries to the table log indicating all partitions to drop and to
-    install the shadow frm file and remove the old frm file.
-*/
-
-bool
-write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  DBUG_ENTER("write_log_drop_partition");
   DBUG_RETURN(FALSE);
 }
 
