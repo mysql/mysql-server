@@ -1757,5 +1757,8 @@ inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
 
+/* Used by handlers to store things in schema tables */
+bool schema_table_store_record(THD *thd, TABLE *table);
+
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

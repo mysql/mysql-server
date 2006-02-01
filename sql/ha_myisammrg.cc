@@ -67,6 +67,7 @@ handlerton myisammrg_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
+  NULL,    /* Fill Files Table */
   HTON_CAN_RECREATE
 };
 

@@ -237,6 +237,7 @@ handlerton innobase_hton = {
   innobase_show_status,		/* Show status */
   NULL,                         /* Partition flags */
   NULL,                         /* Alter table flags */
+  NULL,                         /* Fill FILES table */
   HTON_NO_FLAGS
 };
 
