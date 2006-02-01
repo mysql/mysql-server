@@ -264,6 +264,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Show view","Tables","To see views with SHOW CREATE VIEW"},
   {"Shutdown","Server Admin", "To shut down the server"},
   {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+  {"Trigger","Tables", "To use triggers"},
   {"Update", "Tables",  "To update existing rows"},
   {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}
@@ -1137,9 +1138,11 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       to the CREATE TABLE statement
     */
 
-    if ((for_str= file->get_tablespace_create_info()))
+    if ((for_str= file->get_tablespace_name()))
     {
+      packet->append(" TABLESPACE ");
       packet->append(for_str, strlen(for_str));
+      packet->append(" STORAGE DISK");
       my_free(for_str, MYF(0));
     }
 

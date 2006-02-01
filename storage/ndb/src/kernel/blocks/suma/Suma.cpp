@@ -181,7 +181,15 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_subscriptionPool.setSize(noTables);
   c_syncPool.setSize(2);
   c_dataBufferPool.setSize(noAttrs);
-  c_gcp_pool.setSize(10);
+
+  // Calculate needed gcp pool as 10 records + the ones needed
+  // during a possible api timeout
+  Uint32 dbApiHbInterval, gcpInterval;
+  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL,
+			    &dbApiHbInterval);
+  ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL,
+                            &gcpInterval);
+  c_gcp_pool.setSize(10 + (4*dbApiHbInterval)/gcpInterval);
   
   c_page_chunk_pool.setSize(50);
 
