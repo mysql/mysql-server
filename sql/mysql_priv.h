@@ -616,7 +616,13 @@ struct Query_cache_query_flags
 inline bool
 my_error_inject(int error)
 {
-  return (current_thd->variables.error_inject_code == error) ? 1 : 0;
+  THD *thd= current_thd;
+  if (thd->variables.error_inject_code == error)
+  {
+    thd->variables.error_inject_code= 0;
+    return 1;
+  }
+  return 0;
 }
 
 #define ERROR_INJECTOR_CRASH(code) \
