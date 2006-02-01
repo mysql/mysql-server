@@ -658,11 +658,11 @@ BackupRestore::table(const TableS & table){
     NdbDictionary::Table copy(*table.m_dictTable);
 
     copy.setName(split[2].c_str());
-    if (copy.getTablespaceId() != RNIL)
+    Uint32 id;
+    if (copy.getTablespace(&id))
     {
-      Uint32 id = copy.getTablespaceId();
       debug << "Connecting " << name << " to tablespace oldid: " << id << flush;
-      NdbDictionary::Tablespace* ts = m_tablespaces[copy.getTablespaceId()];
+      NdbDictionary::Tablespace* ts = m_tablespaces[id];
       debug << " newid: " << ts->getObjectId() << endl;
       copy.setTablespace(* ts);
     }
