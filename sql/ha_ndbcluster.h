@@ -118,6 +118,26 @@ typedef struct st_ndbcluster_share {
 #endif
 } NDB_SHARE;
 
+inline
+NDB_SHARE_STATE
+get_ndb_share_state(NDB_SHARE *share)
+{
+  NDB_SHARE_STATE state;
+  pthread_mutex_lock(&share->mutex);
+  state= share->state;
+  pthread_mutex_unlock(&share->mutex);
+  return state;
+}
+
+inline
+void
+set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
+{
+  pthread_mutex_lock(&share->mutex);
+  share->state= state;
+  pthread_mutex_unlock(&share->mutex);
+}
+
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */

@@ -1041,7 +1041,8 @@ int ha_ndbcluster::get_metadata(const char *path)
       DBUG_RETURN(1);
     }
     
-    if (m_share->state != NSS_ALTERED && cmp_frm(tab, pack_data, pack_length))
+    if (get_ndb_share_state(m_share) != NSS_ALTERED 
+        && cmp_frm(tab, pack_data, pack_length))
     {
       if (!invalidating_ndb_table)
       {
@@ -4434,7 +4435,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
   NDBDICT *dict= ndb->getDictionary();
   if (!(tab= dict->getTable(m_tabname)))
     DBUG_RETURN(0); // Must be a create, ignore since frm is saved in create
-  DBUG_ASSERT(m_share->state == NSS_ALTERED);
+  DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
   name= table->s->normalized_path.str;
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, name));
   if (readfrm(name, &data, &length) ||
@@ -4453,7 +4454,7 @@ int ha_ndbcluster::create_handler_files(const char *file)
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
   }
-  m_share->state= NSS_INITIAL;
+  set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(error);
@@ -4590,7 +4591,7 @@ int ha_ndbcluster::add_index(TABLE *table_arg,
   if (!error)
   {
     ndbcluster_get_share(m_share); // Increase ref_count
-    m_share->state= NSS_ALTERED;
+    set_ndb_share_state(m_share, NSS_ALTERED);
   }
   DBUG_RETURN(error);  
 }
@@ -4629,7 +4630,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   Ndb *ndb= thd_ndb->ndb;
   renumber_indexes(ndb, table_arg);
   ndbcluster_get_share(m_share); // Increase ref_count
-  m_share->state= NSS_ALTERED;
+  set_ndb_share_state(m_share, NSS_ALTERED);
   DBUG_RETURN(0);
 }
  
@@ -5280,7 +5281,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   dict->invalidateTable(name);
   strxnmov(key, FN_LEN-1, mysql_data_home, "/", db, "/", name, NullS);
   NDB_SHARE *share= get_share(key, 0, false);
-  if (share && share->state == NSS_ALTERED)
+  if (share && get_ndb_share_state(share) == NSS_ALTERED)
   {
     // Frm has been altered on disk, but not yet written to ndb
     if (readfrm(key, &data, &len))
@@ -5532,7 +5533,7 @@ int ndbcluster_find_all_files(THD *thd)
       else if (cmp_frm(ndbtab, pack_data, pack_length))
       {
         NDB_SHARE *share= get_share(key, 0, false);
-        if (!share || share->state != NSS_ALTERED)
+        if (!share || get_ndb_share_state(share) != NSS_ALTERED)
         {
           discover= 1;
           sql_print_information("NDB: mismatch in frm for %s.%s, discovering...",
@@ -9524,7 +9525,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   }
-
+#ifdef HAVE_NDB_BINLOG
   if (is_tablespace)
     ndbcluster_log_schema_op(thd, 0,
                              thd->query, thd->query_length,
@@ -9537,7 +9538,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
                              "", info->logfile_group_name,
                              0, 0,
                              SOT_LOGFILE_GROUP);
-
+#endif
   DBUG_RETURN(FALSE);
 
 ndberror:
