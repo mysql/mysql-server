@@ -42,9 +42,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names, NULL};
 #endif
 
-static bool schema_table_store_record(THD *thd, TABLE *table);
-
-
 /***************************************************************************
 ** List all table types supported 
 ***************************************************************************/
@@ -1889,7 +1886,7 @@ typedef struct st_index_field_values
     1	                  error
 */
 
-static bool schema_table_store_record(THD *thd, TABLE *table)
+bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
   if ((error= table->file->ha_write_row(table->record[0])))
@@ -4568,6 +4565,38 @@ bool get_schema_tables_result(JOIN *join)
   DBUG_RETURN(result);
 }
 
+struct run_hton_fill_schema_files_args
+{
+  TABLE_LIST *tables;
+  COND *cond;
+};
+
+static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
+                                          void *arg)
+{
+  struct run_hton_fill_schema_files_args *args=
+    (run_hton_fill_schema_files_args *) arg;
+  handlerton *hton= (handlerton *) plugin->plugin->info;
+  if(hton->fill_files_table)
+    hton->fill_files_table(thd, args->tables, args->cond);
+  return false;
+}
+
+int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  int i;
+  TABLE *table= tables->table;
+  DBUG_ENTER("fill_schema_logfile_groups");
+
+  struct run_hton_fill_schema_files_args args;
+  args.tables= tables;
+  args.cond= cond;
+
+  plugin_foreach(thd, run_hton_fill_schema_files,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+
+  DBUG_RETURN(0);
+}
 
 ST_FIELD_INFO schema_fields_info[]=
 {
@@ -4934,6 +4963,48 @@ ST_FIELD_INFO plugin_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
+ST_FIELD_INFO files_fields_info[]=
+{
+  {"FILE_ID", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"FILE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"LOGFILE_GROUP_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"FULLTEXT_KEYS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DELETED_ROWS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"UPDATE_COUNT", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"FREE_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"TOTAL_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"EXTENT_SIZE", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"INITIAL_SIZE", 8, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"MAXIMUM_SIZE", 8, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"AUTOEXTEND_SIZE", 8, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"CREATION_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
+  {"LAST_UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
+  {"LAST_ACCESS_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
+  {"RECOVER_TIME", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"TRANSACTION_COUNTER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"VERSION", 21 , MYSQL_TYPE_LONG, 0, 1, "Version"},
+  {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format"},
+  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
+  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Avg_row_length"},
+  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_length"},
+  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Max_data_length"},
+  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Index_length"},
+  {"DATA_FREE", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_free"},
+  {"CREATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Create_time"},
+  {"UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Update_time"},
+  {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
+  {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
+  {"STATUS", 20, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EXTRA", 255, MYSQL_TYPE_STRING, 0, 0, 0},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
 
 /*
   Description of ST_FIELD_INFO in table.h
@@ -4958,6 +5029,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_engines, make_old_format, 0, -1, -1, 0},
   {"EVENTS", events_fields_info, create_schema_table,
    fill_schema_events, make_old_format, 0, -1, -1, 0},
+  {"FILES", files_fields_info, create_schema_table,
+   fill_schema_files, 0, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,

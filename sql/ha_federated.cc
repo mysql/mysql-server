@@ -397,6 +397,7 @@ handlerton federated_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
+  NULL,    /* Fill FILES table */
   HTON_ALTER_NOT_SUPPORTED
 };
 
