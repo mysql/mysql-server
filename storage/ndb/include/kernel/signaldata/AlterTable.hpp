@@ -36,6 +36,7 @@ class AlterTableReq {
    * Sender(s) / Reciver(s)
    */
   friend class NdbTableImpl;
+  friend class NdbEventOperationImpl;
   friend class NdbDictInterface;
   friend class Dbdict;
 
