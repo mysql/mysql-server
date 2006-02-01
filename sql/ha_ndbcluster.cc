@@ -8920,8 +8920,7 @@ char* ha_ndbcluster::get_tablespace_name()
   }
   if (!ndbtab->getTablespace(&id))
   {
-    ndberr= ndbdict->getNdbError();
-    goto err;
+    return 0;
   }
   {
     NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
