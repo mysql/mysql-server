@@ -38,7 +38,9 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_DB,
   SOT_CREATE_DB,
   SOT_ALTER_DB,
-  SOT_CLEAR_SLOCK
+  SOT_CLEAR_SLOCK,
+  SOT_TABLESPACE,
+  SOT_LOGFILE_GROUP
 };
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
@@ -104,7 +106,7 @@ extern NDB_SHARE *apply_status_share;
 extern NDB_SHARE *schema_share;
 
 extern THD *injector_thd;
-extern int ndb_binlog_thread_running;
+extern my_bool ndb_binlog_running;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
