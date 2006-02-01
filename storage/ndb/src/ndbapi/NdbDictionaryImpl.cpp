@@ -4670,7 +4670,7 @@ NdbDictionaryImpl::fix_blob_events(const NdbDictionary::Table* table, const char
 {
   const NdbTableImpl& t = table->m_impl;
   const NdbEventImpl* ev = getEvent(ev_name);
-  assert(ev != NULL && ev->m_tableImpl == &t);
+  assert(ev != NULL);
   Uint32 i;
   for (i = 0; i < t.m_columns.size(); i++) {
     assert(t.m_columns[i] != NULL);
