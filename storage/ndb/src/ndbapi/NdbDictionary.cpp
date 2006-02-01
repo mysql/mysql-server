@@ -600,10 +600,16 @@ NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {
   return pNdb->getDictionary()->createTable(* this);
 }
 
-Uint32
-NdbDictionary::Table::getTablespaceId() const 
+bool
+NdbDictionary::Table::getTablespace(Uint32 *id, Uint32 *version) const 
 {
-  return m_impl.m_tablespace_id;
+  if (m_impl.m_tablespace_id == RNIL)
+    return false;
+  if (id)
+    *id= m_impl.m_tablespace_id;
+  if (version)
+    *version= m_impl.m_version;
+  return true;
 }
 
 void 
@@ -1690,6 +1696,15 @@ NdbDictionary::Dictionary::getTablespace(const char * name){
   NdbDictionary::Tablespace tmp;
   m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
 				  NdbDictionary::Object::Tablespace, name);
+  return tmp;
+}
+
+NdbDictionary::Tablespace
+NdbDictionary::Dictionary::getTablespace(Uint32 tablespaceId){
+  NdbDictionary::Tablespace tmp;
+  m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
+				  NdbDictionary::Object::Tablespace,
+                                  tablespaceId);
   return tmp;
 }
 

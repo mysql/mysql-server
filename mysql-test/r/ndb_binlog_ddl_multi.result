@@ -31,17 +31,10 @@ master-bin1.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset master;
 reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
-insert into mysqltest.t1 values (1);
 drop table mysqltest.t1;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	cluster_replication.apply_status
-master-bin.000001	#	Write_rows	#	#	
-master-bin.000001	#	Table_map	#	#	mysqltest.t1
-master-bin.000001	#	Write_rows	#	#	
-master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	cluster_replication.apply_status
 master-bin.000001	#	Write_rows	#	#	
