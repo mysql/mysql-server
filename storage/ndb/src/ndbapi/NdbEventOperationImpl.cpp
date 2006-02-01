@@ -159,7 +159,8 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   ; // ToDo? We should send stop signal here
   
   m_ndb->theImpl->theNdbObjectIdMap.unmap(m_oid, this);
-  DBUG_PRINT("exit",("this: 0x%x/0x%x oid: %u", this, m_facade, m_oid));
+  DBUG_PRINT("exit",("this: %p/%p oid: %u main: %p",
+             this, m_facade, m_oid, theMainOp));
 
   if (m_eventImpl)
   {
@@ -2027,6 +2028,14 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
     {
       tBlobOp->stop();
       tBlobOp = tBlobOp->m_next;
+    }
+
+    // release blob handles now, further access is user error
+    while (op->theBlobList != NULL)
+    {
+      NdbBlob* tBlob = op->theBlobList;
+      op->theBlobList = tBlob->theNext;
+      m_ndb->releaseNdbBlob(tBlob);
     }
   }
 
