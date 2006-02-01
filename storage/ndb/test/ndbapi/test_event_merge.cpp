@@ -366,11 +366,12 @@ struct Data {
     noop = 0;
     ppeq = 0;
   }
-  void free() {
+  void freemem() {
     delete [] tx1.val;
     delete [] tx2.val;
     delete [] bl1.val;
-    init();
+    tx1.val = tx2.val = bl1.val = 0;
+    tx1.len = tx2.len = bl1.len = 0;
   }
 };
 
@@ -469,6 +470,12 @@ operator<<(NdbOut& out, const Data& d)
   return out;
 }
 
+// some random os may define these
+#undef NUL
+#undef INS
+#undef DEL
+#undef UPD
+
 static const uint g_optypes = 3; // real ops 0-2
 
 /*
@@ -503,6 +510,10 @@ struct Op { // single or composite
     data[1].init();
     match = false;
     gci = 0;
+  }
+  void freemem() {
+    data[0].freemem();
+    data[1].freemem();
   }
 };
 
@@ -583,7 +594,7 @@ getop(Op::Kind a_kind)
     assert(g_freeops == 0);
     Op* op = new Op;
     assert(op != 0);
-    op->next_free = g_opfree;
+    op->next_free = g_opfree; // 0
     g_opfree = op;
     op->free = true;
     g_freeops++;
@@ -594,6 +605,7 @@ getop(Op::Kind a_kind)
   g_freeops--;
   g_usedops++;
   op->init(a_kind);
+  op->free = false;
   return op;
 }
 
@@ -601,8 +613,7 @@ static void
 freeop(Op* op)
 {
   assert(! op->free);
-  op->data[0].free();
-  op->data[1].free();
+  op->freemem();
   op->free = true;
   op->next_free = g_opfree;
   g_opfree = op;
@@ -663,6 +674,18 @@ resetmem()
   }
   assert(g_usedops == 0);
   g_num_gci = g_num_ev = 0;
+}
+
+static void
+deleteops() // for memleak checks
+{
+  while (g_opfree != 0) {
+    Op* tmp_op = g_opfree;
+    g_opfree = g_opfree->next_free;
+    delete tmp_op;
+    g_freeops--;
+  }
+  assert(g_freeops == 0);
 }
 
 struct Comp {
@@ -1312,6 +1335,10 @@ runops()
     Op* tot_op = g_pk_op[pk1];
     if (tot_op == 0)
       continue;
+    if (tot_op->next_gci == 0) {
+      assert(g_loop != 0 && tot_op->type == Op::INS);
+      continue;
+    }
     // first commit chain
     assert(tot_op->next_gci != 0);
     gci_op[pk1] = tot_op->next_gci;
@@ -1361,7 +1388,10 @@ mergeops()
     if (tot_op == 0)
       continue;
     Op* gci_op = tot_op->next_gci;
-    assert(gci_op != 0);
+    if (gci_op == 0) {
+      assert(g_loop != 0 && tot_op->type == Op::INS);
+      continue;
+    }
     while (gci_op != 0) {
       Op* com_op = gci_op->next_com;
       assert(com_op != 0 && com_op->next_com == 0);
@@ -1648,6 +1678,7 @@ runevents()
       // copy and add
       Op* ev = getop(Op::EV);
       copyop(g_rec_ev, ev);
+      g_rec_ev->freemem();
       last_ev->next_ev = ev;
       g_num_ev++;
     }
@@ -1706,6 +1737,8 @@ runtest()
   }
   chkrc(dropevent() == 0);
   chkrc(droptable() == 0);
+  resetmem();
+  deleteops();
   return 0;
 }
 
@@ -1836,8 +1869,11 @@ main(int argc, char** argv)
   if (g_ncc->connect(30) == 0) {
     g_ndb = new Ndb(g_ncc, "TEST_DB");
     if (g_ndb->init() == 0 && g_ndb->waitUntilReady(30) == 0) {
-      if (runtest() == 0)
+      if (runtest() == 0) {
+        delete g_ndb;
+        delete g_ncc;
         return NDBT_ProgramExit(NDBT_OK);
+      }
     }
   }
   if (g_evt_op != 0) {
