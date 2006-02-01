@@ -4,11 +4,11 @@
 
 --disable_warnings
 connection server2;
-drop table if exists t1,t2;
 drop database if exists mysqltest;
+drop table if exists t1,t2;
 connection server1;
-drop table if exists t1,t2;
 drop database if exists mysqltest;
+drop table if exists t1,t2;
 --connection server1
 reset master;
 --connection server2
