@@ -101,6 +101,7 @@ handlerton partition_hton = {
   partition_flags, /* Partition flags */
   alter_table_flags, /* Partition flags */
   NULL, /* Alter Tablespace */
+  NULL, /* Fill FILES table */
   HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
 };
 
