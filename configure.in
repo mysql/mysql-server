@@ -654,6 +654,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
+  
 MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
@@ -1552,6 +1553,18 @@ if test -n "$SAVE_CXXFLAGS"
 then
   OPTIMIZE_CXXFLAGS=""
   DEBUG_OPTIMIZE_CXX=""
+fi
+
+# If we should allow error injection tests
+AC_ARG_WITH(error-inject,
+    [ --with-error-inject    Enable error injection in MySQL Server],
+    [ with_error_inject=$withval ],
+    [ with_error_inject=no ])
+
+if test "$with_error_inject" = "yes"
+then
+  CFLAGS="-DERROR_INJECT_SUPPORT $CFLAGS"
+  CXXFLAGS="-DERROR_INJECT_SUPPORT $CXXFLAGS"
 fi
 
 AC_ARG_WITH(debug,

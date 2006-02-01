@@ -186,6 +186,10 @@ struct system_variables
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
+#ifdef ERROR_INJECT_SUPPORT
+  ulong error_inject_code;
+  ulong error_inject_value;
+#endif
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
