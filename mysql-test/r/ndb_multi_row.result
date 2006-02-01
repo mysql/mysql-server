@@ -50,15 +50,9 @@ a
 select * from t3;
 a	b	c	last_col
 1	Hi!	89	Longtext column
-show status like 'handler_discover%';
-Variable_name	Value
-Handler_discover	1
 show tables like 't4';
 Tables_in_test (t4)
 t4
-show status like 'handler_discover%';
-Variable_name	Value
-Handler_discover	2
 show tables;
 Tables_in_test
 t1
