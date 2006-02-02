@@ -439,3 +439,13 @@ select * from t1;
 alter table t1 add unique key (i, v);
 select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 drop table t1;
+
+#
+# Bug#6073 "ALTER table minor glich": ALTER TABLE complains that an index
+# without # prefix is not allowed for TEXT columns, while index
+# is defined with prefix.
+# 
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;
