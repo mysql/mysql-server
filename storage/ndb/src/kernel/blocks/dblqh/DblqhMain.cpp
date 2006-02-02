@@ -10923,9 +10923,38 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
   tabptr.i = ref->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
-  lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::ACC_COMPLETED;
-  contChkpNextFragLab(signal);
+  ndbrequire(lcpPtr.p->m_outstanding);
+  lcpPtr.p->m_outstanding--;
+
+  /**
+   * Only BACKUP is allowed to ref LCP_PREPARE
+   */
+  ndbrequire(refToBlock(signal->getSendersBlockRef()) == BACKUP);
+  lcpPtr.p->m_error = ref->errorCode;
+  
+  if (lcpPtr.p->m_outstanding == 0)
+  {
+    jam();
+    
+    if(lcpPtr.p->firstFragmentFlag)
+    {
+      jam();
+      LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
+      lcpPtr.p->firstFragmentFlag= false;
+      *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+      EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      jamEntry();
+      
+      /**
+       * First fragment mean that last LCP is complete :-)
+       */
+      EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, signal->length());
+      jamEntry();
+    }
+    
+    lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
+    contChkpNextFragLab(signal);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -10945,72 +10974,86 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
   
   fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
-  
-  ndbrequire(conf->tableId == fragptr.p->tabRef);
-  ndbrequire(conf->fragmentId == fragptr.p->fragId);
 
-  lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_HOLDOPS;
-  lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::WAIT_LCPHOLDOP;
-
-  lcpPtr.p->lcpState = LcpRecord::LCP_START_CHKP;
-  lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::HOLDOP_READY;
-  
-  /* ----------------------------------------------------------------------
-   *    UPDATE THE MAX_GCI_IN_LCP AND MAX_GCI_COMPLETED_IN_LCP NOW BEFORE
-   *    ACTIVATING THE FRAGMENT AGAIN.
-   * --------------------------------------------------------------------- */
-  ndbrequire(lcpPtr.p->currentFragment.lcpFragOrd.lcpNo < MAX_LCP_STORED);
-  fragptr.p->maxGciInLcp = fragptr.p->newestGci;
-  fragptr.p->maxGciCompletedInLcp = cnewestCompletedGci;
-
+  if (refToBlock(signal->getSendersBlockRef()) != PGMAN)
   {
-    LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
-    *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-    EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
-    jamEntry();
-
-    *ord = lcpPtr.p->currentFragment.lcpFragOrd;
-    EXECUTE_DIRECT(DBTUP, GSN_LCP_FRAG_ORD, signal, signal->length());
-    jamEntry();
+    ndbrequire(conf->tableId == fragptr.p->tabRef);
+    ndbrequire(conf->fragmentId == fragptr.p->fragId);
+  }
+  
+  ndbrequire(lcpPtr.p->m_outstanding);
+  lcpPtr.p->m_outstanding--;
+  if (lcpPtr.p->m_outstanding == 0)
+  {
+    jam();
 
     if(lcpPtr.p->firstFragmentFlag)
     {
       jam();
+      LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
       lcpPtr.p->firstFragmentFlag= false;
       *ord = lcpPtr.p->currentFragment.lcpFragOrd;
       EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
       jamEntry();
-
+      
       /**
        * First fragment mean that last LCP is complete :-)
        */
       EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ, signal, signal->length());
       jamEntry();
     }
-  }
+    
+    if (lcpPtr.p->m_error)
+    {
+      jam();
 
-  BackupFragmentReq* req= (BackupFragmentReq*)signal->getDataPtr();
-  req->tableId = lcpPtr.p->currentFragment.lcpFragOrd.tableId;
-  req->fragmentNo = 0; 
-  req->backupPtr = m_backup_ptr;
-  req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
-  req->count = 0;
+      lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
+      contChkpNextFragLab(signal);
+      return;
+    }
 
+    lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_HOLDOPS;
+    lcpPtr.p->lcpState = LcpRecord::LCP_START_CHKP;
+    
+    /* ----------------------------------------------------------------------
+     *    UPDATE THE MAX_GCI_IN_LCP AND MAX_GCI_COMPLETED_IN_LCP NOW BEFORE
+     *    ACTIVATING THE FRAGMENT AGAIN.
+     * --------------------------------------------------------------------- */
+    ndbrequire(lcpPtr.p->currentFragment.lcpFragOrd.lcpNo < MAX_LCP_STORED);
+    fragptr.p->maxGciInLcp = fragptr.p->newestGci;
+    fragptr.p->maxGciCompletedInLcp = cnewestCompletedGci;
+    
+    {
+      LcpFragOrd *ord= (LcpFragOrd*)signal->getDataPtrSend();
+      *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+      EXECUTE_DIRECT(LGMAN, GSN_LCP_FRAG_ORD, signal, signal->length());
+      jamEntry();
+      
+      *ord = lcpPtr.p->currentFragment.lcpFragOrd;
+      EXECUTE_DIRECT(DBTUP, GSN_LCP_FRAG_ORD, signal, signal->length());
+      jamEntry();
+    }
+    
+    BackupFragmentReq* req= (BackupFragmentReq*)signal->getDataPtr();
+    req->tableId = lcpPtr.p->currentFragment.lcpFragOrd.tableId;
+    req->fragmentNo = 0; 
+    req->backupPtr = m_backup_ptr;
+    req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
+    req->count = 0;
+    
 #ifdef NDB_DEBUG_FULL
-  if(ERROR_INSERTED(5904))
-  {
+    if(ERROR_INSERTED(5904))
+    {
     g_trace_lcp.sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
 			   BackupFragmentReq::SignalLength, JBB);
-  }
-  else
+    }
+    else
 #endif
-  {
-    sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
-	       BackupFragmentReq::SignalLength, JBB);
+    {
+      sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
+		 BackupFragmentReq::SignalLength, JBB);
+    }
   }
-  
-  lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::ACC_STARTED;
-  lcpPtr.p->m_tup.lcpLocstate = LcpLocRecord::TUP_COMPLETED;
 }
 
 void Dblqh::execBACKUP_FRAGMENT_REF(Signal* signal) 
@@ -11025,8 +11068,7 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
 
   lcpPtr.i = 0;
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
-  ndbrequire(lcpPtr.p->m_acc.lcpLocstate == LcpLocRecord::ACC_STARTED);
-  lcpPtr.p->m_acc.lcpLocstate = LcpLocRecord::ACC_COMPLETED;
+  ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_START_CHKP);
   lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
 
   /* ------------------------------------------------------------------------
@@ -11142,7 +11184,10 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
     contChkpNextFragLab(signal);
     return;
   }
-  
+
+  lcpPtr.p->m_error = 0;
+  lcpPtr.p->m_outstanding = 1;
+
   ndbrequire(tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED);
   
   lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_FRAGID;
@@ -11157,6 +11202,13 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
   sendSignal(BACKUP_REF, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
+
+  if (lcpPtr.p->firstFragmentFlag)
+  {
+    lcpPtr.p->m_outstanding++;
+    sendSignal(PGMAN_REF, GSN_LCP_PREPARE_REQ, signal, 
+	       LcpPrepareReq::SignalLength, JBB);
+  }
 }//Dblqh::sendLCP_FRAGIDREQ()
 
 void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)
@@ -13600,7 +13652,7 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     lcpPtr.p->m_outstanding = 1;
     
     signal->theData[0] = c_lcpId;
-    sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
     return;
   }
 }
@@ -13654,7 +13706,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     lcpPtr.p->m_outstanding = 1;
     
     signal->theData[0] = c_lcpId;
-    sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
   }//if
 }//Dblqh::execSTART_RECREQ()
 
@@ -13681,17 +13733,18 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   switch(refToBlock(sender)){
   case TSMAN:
     jam();
-    lcpPtr.p->m_outstanding++;
-    signal->theData[0] = c_lcpId;
-    sendSignal(LGMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
-    return;
+    break;
   case LGMAN:
     jam();
+    lcpPtr.p->m_outstanding++;
+    signal->theData[0] = c_lcpId;
+    sendSignal(TSMAN_REF, GSN_START_RECREQ, signal, 1, JBB);
+    return;
     break;
   default:
     ndbrequire(false);
   }
-
+  
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
   c_lcp_complete_fragments.first(fragptr);
@@ -15780,29 +15833,6 @@ void Dblqh::checkScanTcCompleted(Signal* signal)
     sendCopyActiveConf(signal, tcConnectptr.p->tableref);
   }//if
 }//Dblqh::checkScanTcCompleted()
-
-/* ========================================================================== 
- * === CHECK IF ALL PARTS OF A SYSTEM RESTART ON A FRAGMENT ARE COMPLETED === 
- *
- *       SUBROUTINE SHORT NAME = CSC
- * ========================================================================= */
-void Dblqh::checkSrCompleted(Signal* signal) 
-{
-  terrorCode = ZOK;
-  ptrGuard(lcpPtr);
-  if(lcpPtr.p->m_acc.lcpLocstate != LcpLocRecord::SR_ACC_COMPLETED)
-  {
-    ndbrequire(lcpPtr.p->m_acc.lcpLocstate == LcpLocRecord::SR_ACC_STARTED);
-    return;
-  }
-  
-  if(lcpPtr.p->m_tup.lcpLocstate != LcpLocRecord::SR_TUP_COMPLETED) 
-  {
-    ndbrequire(lcpPtr.p->m_tup.lcpLocstate == LcpLocRecord::SR_TUP_STARTED);
-    return;
-  }
-  lcpPtr.p->lcpState = LcpRecord::LCP_SR_COMPLETED;
-}//Dblqh::checkSrCompleted()
 
 /* ------------------------------------------------------------------------- */
 /* ------       CLOSE A FILE DURING EXECUTION OF FRAGMENT LOG        ------- */
@@ -18116,12 +18146,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     // Print information about the current local checkpoint
     TlcpPtr.i = 0;
     ptrAss(TlcpPtr, lcpRecord);
-    infoEvent(" lcpState=%d", TlcpPtr.p->lcpState);
-    infoEvent(" lcpAccptr=%d lastFragmentFlag=%d",
-	      TlcpPtr.p->m_acc.lcpRef,
-	      TlcpPtr.p->lastFragmentFlag);
+    infoEvent(" lcpState=%d lastFragmentFlag=%d", 
+	      TlcpPtr.p->lcpState, TlcpPtr.p->lastFragmentFlag);
     infoEvent("currentFragment.fragPtrI=%d",
-	        TlcpPtr.p->currentFragment.fragPtrI);
+	      TlcpPtr.p->currentFragment.fragPtrI);
     infoEvent("currentFragment.lcpFragOrd.tableId=%d",
 	      TlcpPtr.p->currentFragment.lcpFragOrd.tableId);
     infoEvent(" lcpQueued=%d reportEmpty=%d",
