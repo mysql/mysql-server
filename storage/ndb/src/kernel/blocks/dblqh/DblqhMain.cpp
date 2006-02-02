@@ -930,9 +930,6 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   jamEntry();
   LqhFragReq * req = (LqhFragReq*)signal->getDataPtr();
   
-  printLQH_FRAG_REQ(stdout, signal->getDataPtr(),
-		    signal->getLength(), number());
-  
   Uint32 retPtr = req->senderData;
   BlockReference retRef = req->senderRef;
   Uint32 fragId = req->fragmentId;
