@@ -160,6 +160,11 @@ sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
   -e "s;VERSION;$version;g" $mwenv.org > $mwenv
 chmod +rwx $mwenv
 
+PWD=`pwd`
+SRC_DIR=`grep "^export MYDEV=" $mwenv | cut -d'=' -f2 | \
+           sed -e 's;";;g' -e "s;^;echo ;g" -e "s;$;/\`basename $PWD\`;g" | /bin/sh`
+
+
 # edit the def file versions
 echo "updating *.def file versions..."
 nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1, \2, \3;"`
@@ -167,13 +172,14 @@ nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1
 for file in ./netware/*.def
 do
   mv -f $file $file.org
-  sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file
+  sed -e "s;VERSION.*;VERSION $nlm_version;g" \
+      -e "s;XDCDATA.*;XDCDATA $SRC_DIR/netware/mysql.xdc;g" $file.org > $file
   rm $file.org
 done
 
 # create the libmysql.imp file in netware folder from libmysql/libmysql.def
 # file
-echo "generating llibmysql.imp file..."
+echo "generating libmysql.imp file..."
 awk 'BEGIN{x=0;}  END{printf("\n");} x==1 {printf(" %s",$1); x++; next} x>1 {printf(",\n %s", $1);next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
 # build linux tools
 echo "compiling linux tools..."
