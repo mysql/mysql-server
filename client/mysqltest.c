@@ -3171,7 +3171,8 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
     len= 4;
   }
 #ifdef __WIN__
-  else if (field->type == MYSQL_TYPE_DOUBLE &&
+  else if ((field->type == MYSQL_TYPE_DOUBLE ||
+            field->type == MYSQL_TYPE_FLOAT ) &&
            field->decimals >= 31)
   {
     /* Convert 1.2e+018 to 1.2e+18 and 1.2e-018 to 1.2e-18 */
