@@ -1009,8 +1009,6 @@ public:
       LCP_SR_STARTED = 10,
       LCP_SR_COMPLETED = 11
     };
-    LcpLocRecord m_acc;
-    LcpLocRecord m_tup;
  
     LcpState lcpState;
     bool firstFragmentFlag;
@@ -1028,6 +1026,7 @@ public:
     bool   reportEmpty;
     NdbNodeBitmask m_EMPTY_LCP_REQ;
 
+    Uint32 m_error;
     Uint32 m_outstanding;
   }; // Size 76 bytes
   typedef Ptr<LcpRecord> LcpRecordPtr;
@@ -2248,10 +2247,6 @@ private:
   bool checkLcpStarted(Signal* signal);
   void checkLcpTupprep(Signal* signal);
   void getNextFragForLcp(Signal* signal);
-  void initLcpLocAcc(Signal* signal, Uint32 fragId);
-  void initLcpLocTup(Signal* signal, Uint32 fragId);
-  void releaseLocalLcps(Signal* signal);
-  void seizeLcpLoc(Signal* signal);
   void sendAccContOp(Signal* signal);
   void sendStartLcp(Signal* signal);
   void setLogTail(Signal* signal, Uint32 keepGci);
@@ -2283,7 +2278,6 @@ private:
   void checkNewMbyte(Signal* signal);
   void checkReadExecSr(Signal* signal);
   void checkScanTcCompleted(Signal* signal);
-  void checkSrCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
   void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
   void deleteFragrec(Uint32 fragId);
@@ -2302,7 +2296,6 @@ private:
   void initialiseFragrec(Signal* signal);
   void initialiseGcprec(Signal* signal);
   void initialiseLcpRec(Signal* signal);
-  void initialiseLcpLocrec(Signal* signal);
   void initialiseLfo(Signal* signal);
   void initialiseLogFile(Signal* signal);
   void initialiseLogPage(Signal* signal);
@@ -2346,7 +2339,6 @@ private:
   void releaseActiveCopy(Signal* signal);
   void releaseAddfragrec(Signal* signal);
   void releaseFragrec();
-  void releaseLcpLoc(Signal* signal);
   void releaseOprec(Signal* signal);
   void releasePageRef(Signal* signal);
   void releaseMmPages(Signal* signal);

@@ -29,7 +29,8 @@ private:
     STATS_LOOP = 0,
     BUSY_LOOP = 1,
     CLEANUP_LOOP = 2,
-    LCP_LOOP = 3
+    LCP_LOOP = 3,
+    LCP_PREPARE = 4
   };
 };
 
