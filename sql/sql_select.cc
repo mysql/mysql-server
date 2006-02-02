@@ -12381,7 +12381,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR), from_field->field_name,
+                          ER(ER_NON_UNIQ_ERROR),
+                          ((Item_ident*) order_item)->field_name,
                           current_thd->where);
     }
   }
