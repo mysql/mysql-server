@@ -397,6 +397,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_numcells_8bit,
     my_mb_wc_latin1,
     my_wc_mb_latin1,
+    my_mb_ctype_8bit,
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
