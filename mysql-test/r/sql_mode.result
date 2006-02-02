@@ -17,7 +17,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL auto_increment,
   `pseudo` varchar(35) character set latin2 NOT NULL default '',
   `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="ansi_quotes";
@@ -30,7 +30,7 @@ t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL auto_increment,
   "pseudo" varchar(35) character set latin2 NOT NULL default '',
   "email" varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  ("a"),
+  PRIMARY KEY ("a"),
   UNIQUE KEY "email" USING BTREE ("email")
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_table_options";
@@ -43,7 +43,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL auto_increment,
   `pseudo` varchar(35) character set latin2 NOT NULL default '',
   `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` USING BTREE (`email`)
 )
 set @@sql_mode="no_key_options";
@@ -56,7 +56,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL auto_increment,
   `pseudo` varchar(35) character set latin2 NOT NULL default '',
   `email` varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_field_options,mysql323,mysql40";
@@ -69,7 +69,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `pseudo` varchar(35) NOT NULL default '',
   `email` varchar(60) NOT NULL default '',
-  PRIMARY KEY  (`a`),
+  PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`)
 ) TYPE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
@@ -82,7 +82,7 @@ t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL,
   "pseudo" varchar(35) character set latin2 NOT NULL default '',
   "email" varchar(60) character set latin2 NOT NULL default '',
-  PRIMARY KEY  ("a"),
+  PRIMARY KEY ("a"),
   UNIQUE KEY "email" ("email")
 )
 drop table t1;
@@ -150,7 +150,7 @@ Table	Create Table
 t1	CREATE TABLE "t1" (
   "f1" int(11) NOT NULL auto_increment,
   "f2" timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  ("f1")
+  PRIMARY KEY ("f1")
 )
 set session sql_mode=no_field_options;
 show create table t1;
@@ -158,7 +158,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   `f2` timestamp NOT NULL default CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`f1`)
+  PRIMARY KEY (`f1`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
