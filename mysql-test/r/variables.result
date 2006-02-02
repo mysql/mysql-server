@@ -537,10 +537,10 @@ select @@query_prealloc_size = @test;
 create table t1 (a int);
 select a into @x from t1;
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 show warnings;
 Level	Code	Message
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop table t1;
 set @@warning_count=1;
 ERROR HY000: Variable 'warning_count' is a read only variable
