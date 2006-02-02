@@ -47,6 +47,15 @@ typedef struct unicase_info_st
 extern MY_UNICASE_INFO *my_unicase_default[256];
 extern MY_UNICASE_INFO *my_unicase_turkish[256];
 
+typedef struct uni_ctype_st
+{
+  unsigned char  pctype;
+  unsigned char  *ctype;
+} MY_UNI_CTYPE;
+
+extern MY_UNI_CTYPE my_uni_ctype[256];
+
+
 #define MY_CS_ILSEQ	0
 #define MY_CS_ILUNI	0
 #define MY_CS_TOOSMALL	-1
@@ -164,6 +173,10 @@ typedef struct my_charset_handler_st
 	       const unsigned char *s,const unsigned char *e);
   int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
 	       unsigned char *s,unsigned char *e);
+  
+  /* CTYPE scanner */
+  int (*ctype)(struct charset_info_st *cs, int *ctype,
+               const unsigned char *s, const unsigned char *e);
   
   /* Functions for case and sort convertion */
   void    (*caseup_str)(struct charset_info_st *, char *);
@@ -307,6 +320,9 @@ extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
+
+int my_mb_ctype_8bit(CHARSET_INFO *,int *, const uchar *,const uchar *);
+int my_mb_ctype_mb(CHARSET_INFO *,int *, const uchar *,const uchar *);
 
 ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
