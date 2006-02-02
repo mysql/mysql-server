@@ -114,7 +114,7 @@ my_bool bitmap_init(MY_BITMAP *map, uint32 *buf, uint n_bits,
 #endif
     ;
     if (!(buf= (uint32*) my_malloc(size_in_bytes, MYF(MY_WME))))
-      return 1;
+      DBUG_RETURN(1);
   }
 #ifdef THREAD
   else
