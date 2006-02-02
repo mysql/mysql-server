@@ -220,7 +220,7 @@ sp_rcontext::find_handler(uint sql_errno,
       Only "exception conditions" are propagated to handlers in calling
       contexts. If no handler is found locally for a "completion condition"
       (warning or "not found") we will simply resume execution.
-     */
+    */
     if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
         level == MYSQL_ERROR::WARN_LEVEL_ERROR)
       return m_prev_runtime_ctx->find_handler(sql_errno, level);

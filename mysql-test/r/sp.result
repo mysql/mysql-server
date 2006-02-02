@@ -522,7 +522,7 @@ delete from t1|
 create table t3 ( s char(16), d int)|
 call into_test4()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t3|
 s	d
 into4	NULL
@@ -1787,10 +1787,10 @@ end|
 call bug1863(10)|
 Warnings:
 Note	1051	Unknown table 'temp_t1'
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug1863(10)|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 f1	rc	t3
 2	0	NULL
@@ -2084,10 +2084,10 @@ end|
 call bug4579_1()|
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug4579_1()|
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
@@ -2507,7 +2507,7 @@ call bug7743("OneWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug7743("anotherword")|
 var
 2
@@ -2515,7 +2515,7 @@ call bug7743("AnotherWord")|
 var
 NULL
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug7743|
 drop table t4|
 delete from t3|
@@ -4296,6 +4296,90 @@ id	county
 2	NULL
 drop table t3|
 drop procedure bug15441|
+drop procedure if exists bug14498_1|
+drop procedure if exists bug14498_2|
+drop procedure if exists bug14498_3|
+drop procedure if exists bug14498_4|
+drop procedure if exists bug14498_5|
+create procedure bug14498_1()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+if v then
+select 'yes' as 'v';
+else
+select 'no' as 'v';
+end if;
+select 'done' as 'End';
+end|
+create procedure bug14498_2()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+while v do
+select 'yes' as 'v';
+end while;
+select 'done' as 'End';
+end|
+create procedure bug14498_3()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+repeat
+select 'maybe' as 'v';
+until v end repeat;
+select 'done' as 'End';
+end|
+create procedure bug14498_4()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case v
+when 1 then
+select '1' as 'v';
+when 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+create procedure bug14498_5()
+begin
+declare continue handler for sqlexception select 'error' as 'Handler';
+case
+when v = 1 then
+select '1' as 'v';
+when v = 2 then
+select '2' as 'v';
+else
+select '?' as 'v';
+end case;
+select 'done' as 'End';
+end|
+call bug14498_1()|
+Handler
+error
+End
+done
+call bug14498_2()|
+Handler
+error
+End
+done
+call bug14498_3()|
+v
+maybe
+Handler
+error
+End
+done
+call bug14498_5()|
+Handler
+error
+End
+done
+drop procedure bug14498_1|
+drop procedure bug14498_2|
+drop procedure bug14498_3|
+drop procedure bug14498_4|
+drop procedure bug14498_5|
 drop table if exists t3|
 drop procedure if exists bug15231_1|
 drop procedure if exists bug15231_2|
@@ -4340,7 +4424,7 @@ After NOT FOUND condtition is triggered
 xid	xdone
 1	0
 Warnings:
-Warning	1329	No data to FETCH
+Warning	1329	No data - zero rows fetched, selected, or processed
 call bug15231_3()|
 Result
 Missed it (correct)

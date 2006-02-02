@@ -52,6 +52,15 @@ typedef struct sp_pvar
 #define SP_LAB_BEGIN 2		// Label at BEGIN
 #define SP_LAB_ITER  3		// Label at iteration control
 
+/*
+  An SQL/PSM label. Can refer to the identifier used with the
+  "label_name:" construct which may precede some SQL/PSM statements, or
+  to an implicit implementation-dependent identifier which the parser
+  inserts before a high-level flow control statement such as
+  IF/WHILE/REPEAT/LOOP, when such statement is rewritten into
+  a combination of low-level jump/jump_if instructions and labels.
+*/
+
 typedef struct sp_label
 {
   char *name;
