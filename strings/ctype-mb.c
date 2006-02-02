@@ -914,6 +914,22 @@ uint my_numcells_mb(CHARSET_INFO *cs, const char *b, const char *e)
 }
 
 
+int my_mb_ctype_mb(CHARSET_INFO *cs, int *ctype,
+                   const unsigned char *s, const unsigned char *e)
+{
+  my_wc_t wc;
+  int res= cs->cset->mb_wc(cs, &wc, s, e);
+  if (res <= 0)
+    *ctype= 0;
+  else
+    *ctype= my_uni_ctype[wc>>8].ctype ?
+            my_uni_ctype[wc>>8].ctype[wc&0xFF] :
+            my_uni_ctype[wc>>8].pctype;    
+  return res;
+}
+
+
+
 MY_COLLATION_HANDLER my_collation_mb_bin_handler =
 {
     NULL,		/* init */
