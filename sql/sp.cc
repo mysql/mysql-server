@@ -1073,9 +1073,7 @@ sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
-    if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
-      ret= SP_OK;
-    else
+    if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
       ret= SP_KEY_NOT_FOUND;
     close_proc_table(thd, &open_tables_state_backup);
   }
