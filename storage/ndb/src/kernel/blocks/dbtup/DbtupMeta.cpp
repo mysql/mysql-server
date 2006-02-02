@@ -915,13 +915,17 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       return;
     }
     
-    Uint32 page_id = alloc_info.m_dirty_pages[pos].firstItem;
-    Ptr<GlobalPage> page;
-    m_global_page_pool.getPtr(page, page_id);
+    Ptr<Page> pagePtr;
+    ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
+    {
+      LocalDLList<Page> list(*pool, alloc_info.m_dirty_pages[pos]);
+      list.first(pagePtr);
+      list.remove(pagePtr);
+    }
     
     Page_cache_client::Request req;
-    req.m_page.m_page_no = ((Page*)page.p)->m_page_no;
-    req.m_page.m_file_no = ((Page*)page.p)->m_file_no;
+    req.m_page.m_page_no = pagePtr.p->m_page_no;
+    req.m_page.m_file_no = pagePtr.p->m_file_no;
     
     req.m_callback.m_callbackData= pos;
     req.m_callback.m_callbackFunction = 
@@ -935,7 +939,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     case -1:
       break;
     default:
-      ndbrequire(res == page_id);
+      ndbrequire(res == pagePtr.i);
       drop_fragment_unmap_page_callback(signal, pos, res);
     }
     return;
