@@ -985,7 +985,7 @@ Item_case_expr::this_item_addr(THD *thd, Item **)
 
 void Item_case_expr::print(String *str)
 {
-  str->append(STRING_WITH_LEN("case_expr@"));
+  VOID(str->append(STRING_WITH_LEN("case_expr@")));
   str->qs_append(m_case_expr_id);
 }
 
@@ -3868,7 +3868,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
 			  name);
     break;
   case MYSQL_TYPE_BIT:
-    field= new Field_bit_as_char(NULL, max_length, null_ptr, 0, NULL, 0,
+    field= new Field_bit_as_char(NULL, max_length, null_ptr, 0,
                                  Field::NONE, name);
     break;
   default:
