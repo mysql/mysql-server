@@ -134,6 +134,13 @@ int deny_severity = LOG_WARNING;
 #define zVOLSTATE_DEACTIVE 2
 #define zVOLSTATE_MAINTENANCE 3
 
+#undef __event_h__
+#include <../include/event.h>
+/*
+  This #undef exists here because both libc of NetWare and MySQL have
+  files named event.h which causes compilation errors.
+*/
+
 #include <nks/netware.h>
 #include <nks/vm.h>
 #include <library.h>
@@ -3305,6 +3312,10 @@ server.");
       mysql_bin_log.purge_logs_before_date(purge_time);
   }
 #endif
+#ifdef __NETWARE__
+  /* Increasing stacksize of threads on NetWare */
+  pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
+#endif
 
   if (opt_myisam_log)
     (void) mi_log(1);
@@ -3538,7 +3549,6 @@ int main(int argc, char **argv)
 #endif
 #ifdef __NETWARE__
   /* Increasing stacksize of threads on NetWare */
-  
   pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
 #endif
 

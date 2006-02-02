@@ -6,7 +6,7 @@
 # stop on errors
 set -e
 
-for package in . ./innobase
+for package in . ./storage/innobase
 do
 	(cd $package
 	rm -rf config.cache autom4te.cache
