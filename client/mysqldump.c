@@ -2489,14 +2489,15 @@ static int dump_all_tablespaces()
   int first;
 
   if (mysql_query_with_error_report(sock, &tableres,
-                                    "SELECT DISTINCT "
-                                    "LOGFILE_GROUP_NAME,"
-                                    "FILE_NAME,"
-                                    "INITIAL_SIZE,"
-                                    "ENGINE "
-                                    "FROM INFORMATION_SCHEMA.FILES "
-                                    "WHERE FILE_TYPE = \"UNDO LOG\" "
-                                    "ORDER BY LOGFILE_GROUP_NAME"))
+                                    "SELECT DISTINCT"
+                                    " LOGFILE_GROUP_NAME,"
+                                    " FILE_NAME,"
+                                    " TOTAL_EXTENTS,"
+                                    " INITIAL_SIZE,"
+                                    " ENGINE"
+                                    " FROM INFORMATION_SCHEMA.FILES"
+                                    " WHERE FILE_TYPE = \"UNDO LOG\""
+                                    " ORDER BY LOGFILE_GROUP_NAME"))
     return 1;
 
   buf[0]= 0;
@@ -2506,14 +2507,12 @@ static int dump_all_tablespaces()
       first= 1;
     if (first)
     {
-      first= 0;
       if (!opt_xml && opt_comments)
       {
 	fprintf(md_result_file,"\n--\n-- Logfile group: %s\n--\n", row[0]);
 	check_io(md_result_file);
       }
       fprintf(md_result_file, "\nCREATE");
-      strxmov(buf, row[0], NullS);
     }
     else
     {
@@ -2521,27 +2520,39 @@ static int dump_all_tablespaces()
     }
     fprintf(md_result_file,
             " LOGFILE GROUP %s\n"
-            "  ADD UNDOFILE '%s'\n"
+            "  ADD UNDOFILE '%s'\n",
+            row[0],
+            row[1]);
+    if (first)
+    {
+      fprintf(md_result_file,
+              "  UNDO_BUFFER_SIZE %s\n",
+              row[2]);
+    }
+    fprintf(md_result_file,
             "  INITIAL_SIZE %s\n"
             "  ENGINE=%s;\n",
-            row[0],
-            row[1],
-            row[2],
-            row[3]
-            );
+            row[3],
+            row[4]);
     check_io(md_result_file);
+    if (first)
+    {
+      first= 0;
+      strxmov(buf, row[0], NullS);
+    }
   }
 
   if (mysql_query_with_error_report(sock, &tableres,
-                                    "SELECT DISTINCT "
-                                    "TABLESPACE_NAME,"
-                                    "LOGFILE_GROUP_NAME,"
-                                    "FILE_NAME,"
-                                    "INITIAL_SIZE,"
-                                    "ENGINE "
-                                    "FROM INFORMATION_SCHEMA.FILES "
-                                    "WHERE FILE_TYPE = \"DATAFILE\" "
-                                    "ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME"))
+                                    "SELECT DISTINCT"
+                                    " TABLESPACE_NAME,"
+                                    " FILE_NAME,"
+                                    " LOGFILE_GROUP_NAME,"
+                                    " EXTENT_SIZE,"
+                                    " INITIAL_SIZE,"
+                                    " ENGINE"
+                                    " FROM INFORMATION_SCHEMA.FILES"
+                                    " WHERE FILE_TYPE = \"DATAFILE\""
+                                    " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME"))
     return 1;
 
   buf[0]= 0;
@@ -2557,7 +2568,6 @@ static int dump_all_tablespaces()
 	check_io(md_result_file);
       }
       fprintf(md_result_file, "\nCREATE");
-      strxmov(buf, row[0], NullS);
     }
     else
     {
@@ -2567,23 +2577,26 @@ static int dump_all_tablespaces()
             " TABLESPACE %s\n"
             "  ADD DATAFILE '%s'\n",
             row[0],
-            row[2]
-            );
+            row[1]);
     if (first)
     {
-      first= 0;
       fprintf(md_result_file,
-              "  USE LOGFILE GROUP %s\n",
-              row[1]
-              );
+              "  USE LOGFILE GROUP %s\n"
+              "  EXTENT_SIZE %s\n",
+              row[2],
+              row[3]);
     }
     fprintf(md_result_file,
             "  INITIAL_SIZE %s\n"
             "  ENGINE=%s;\n",
-            row[3],
-            row[4]
-            );
+            row[4],
+            row[5]);
     check_io(md_result_file);
+    if (first)
+    {
+      first= 0;
+      strxmov(buf, row[0], NullS);
+    }
   }
   return 0;
 }
