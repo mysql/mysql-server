@@ -327,6 +327,8 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   regOperPtr.p->m_commit_disk_callback_page= page_id;
   m_global_page_pool.getPtr(m_pgman.m_ptr, page_id);
   
+  disk_page_set_dirty(*(Ptr<Page>*)&m_pgman.m_ptr);
+  
   execTUP_COMMITREQ(signal);
   if(signal->theData[0] == 0)
     c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
@@ -477,8 +479,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      * the page hot.   XXX move to TUP which knows better.
      */
     int flags= regOperPtr.p->op_struct.op_type |
-      Page_cache_client::COMMIT_REQ | Page_cache_client::STRICT_ORDER |
-      Page_cache_client::CORR_REQ;
+      Page_cache_client::COMMIT_REQ | Page_cache_client::CORR_REQ;
     int res= m_pgman.get_page(signal, req, flags);
     switch(res){
     case 0:
@@ -491,6 +492,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       ndbrequire("NOT YET IMPLEMENTED" == 0);
       break;
     }
+    disk_page_set_dirty(*(Ptr<Page>*)&m_pgman.m_ptr);
     regOperPtr.p->m_commit_disk_callback_page= res;
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   } 

@@ -2600,7 +2600,7 @@ private:
   void disk_page_prealloc_callback_common(Signal*, 
 					  Ptr<Page_request>, 
 					  Ptr<Fragrecord>,
-					  Ptr<GlobalPage>);
+					  Ptr<Page>);
   
   void disk_page_alloc(Signal*, 
 		       Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
@@ -2631,18 +2631,22 @@ private:
 
   void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
 
+  void disk_page_set_dirty(Ptr<Page>);
+  void restart_setup_page(Ptr<Page>);
+  void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>);
+  
   /**
    * Disk restart code
    */
 public:
   int disk_page_load_hook(Uint32 page_id);
-
-  void disk_page_unmap_callback(Uint32 page_id);
+  
+  void disk_page_unmap_callback(Uint32 page_id, Uint32 dirty_count);
   
   int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
 				const Local_key* key, Uint32 pages);
   void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-			      const Local_key*, Uint32 old_bits, Uint32 bits);
+			      const Local_key*, Uint32 bits);
   void disk_restart_undo(Signal* signal, Uint64 lsn,
 			 Uint32 type, const Uint32 * ptr, Uint32 len);
 
@@ -2654,6 +2658,7 @@ public:
     Ptr<Tablerec> m_table_ptr;
     Ptr<Fragrecord> m_fragment_ptr;
     Ptr<Page> m_page_ptr;
+    Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
   };
   
@@ -2664,7 +2669,7 @@ private:
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
   void disk_restart_undo_free(Apply_undo*);
-  void disk_restart_undo_page_bits(Apply_undo*);
+  void disk_restart_undo_page_bits(Signal*, Apply_undo*);
 
 #ifdef VM_TRACE
   void verify_page_lists(Disk_alloc_info&);

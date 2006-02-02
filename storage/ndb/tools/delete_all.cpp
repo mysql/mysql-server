@@ -130,7 +130,8 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       goto failed;
     }
     
-    if( pOp->readTuples(NdbOperation::LM_Exclusive,par) ) {
+    if( pOp->readTuples(NdbOperation::LM_Exclusive, 
+			NdbScanOperation::SF_TupScan, par) ) {
       goto failed;
     }
     

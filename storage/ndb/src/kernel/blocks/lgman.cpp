@@ -2887,6 +2887,9 @@ Lgman::stop_run_undo_log(Signal* signal)
 void
 Lgman::execEND_LCP_CONF(Signal* signal)
 {
+  Dbtup* tup= (Dbtup*)globalData.getBlock(DBTUP);
+  tup->disk_restart_undo(signal, 0, File_formats::Undofile::UNDO_END, 0, 0);
+  
   /**
    * pgman has completed flushing all pages
    *
