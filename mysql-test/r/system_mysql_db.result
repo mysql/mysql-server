@@ -46,6 +46,7 @@ db	CREATE TABLE `db` (
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Execute_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Event_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Trigger_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Database privileges'
@@ -71,6 +72,7 @@ host	CREATE TABLE `host` (
   `Create_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Execute_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Trigger_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
@@ -106,6 +108,7 @@ user	CREATE TABLE `user` (
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Create_user_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Event_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Trigger_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') character set utf8 NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
@@ -134,7 +137,7 @@ tables_priv	CREATE TABLE `tables_priv` (
   `Table_name` char(64) collate utf8_bin NOT NULL default '',
   `Grantor` char(77) collate utf8_bin NOT NULL default '',
   `Timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') character set utf8 NOT NULL default '',
+  `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') character set utf8 NOT NULL default '',
   `Column_priv` set('Select','Insert','Update','References') character set utf8 NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`),
   KEY `Grantor` (`Grantor`)
