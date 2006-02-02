@@ -794,6 +794,29 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
+
+#
+# Bug #15851 Unlistable directories yield no info from information_schema
+#
+create database mysqltest;
+create table mysqltest.t1(a int);
+--exec chmod -r $MYSQL_TEST_DIR/var/master-data/mysqltest
+select table_schema from information_schema.tables where table_schema='mysqltest';
+--exec chmod +r $MYSQL_TEST_DIR/var/master-data/mysqltest
+drop database mysqltest;
+
+#
+# Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
+#
+select column_type, group_concat(table_schema, '.', table_name), count(*) as num
+from information_schema.columns where
+table_schema='information_schema' and
+(column_type = 'varchar(7)' or column_type = 'varchar(20)')
+group by column_type order by num;
+
+#
+# End of 5.0 tests.
+#
 # Show engines
 #
 

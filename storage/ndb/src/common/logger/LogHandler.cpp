@@ -23,7 +23,8 @@
 //
 LogHandler::LogHandler() : 
   m_pDateTimeFormat("%d-%.2d-%.2d %.2d:%.2d:%.2d"),
-  m_errorCode(0)
+  m_errorCode(0),
+  m_errorStr(NULL)
 {
   m_max_repeat_frequency= 3; // repeat messages maximum every 3 seconds
   m_count_repeated_messages= 0;
@@ -155,6 +156,19 @@ LogHandler::setErrorCode(int code)
   m_errorCode = code;
 }
 
+
+char*
+LogHandler::getErrorStr()
+{
+  return m_errorStr;
+}
+
+void
+LogHandler::setErrorStr(char* str)
+{
+  m_errorStr= str;
+}
+
 bool
 LogHandler::parseParams(const BaseString &_params) {
   Vector<BaseString> v_args;
@@ -165,9 +179,18 @@ LogHandler::parseParams(const BaseString &_params) {
   for(size_t i=0; i < v_args.size(); i++) {
     Vector<BaseString> v_param_value;
     if(v_args[i].split(v_param_value, "=", 2) != 2)
+    {
       ret = false;
-    else if (!setParam(v_param_value[0], v_param_value[1]))
-      ret = false;
+      setErrorStr("Can't find key=value pair.");
+    }
+    else
+    {
+      v_param_value[0].trim(" \t");
+      if (!setParam(v_param_value[0], v_param_value[1]))
+      {
+        ret = false;
+      }
+    }
   }
 
   if(!checkParams())
