@@ -52,6 +52,13 @@ public:
   bool seize(Ptr<T> &);
 
   /**
+   * Allocate an object from pool - update Ptr - put in front of list
+   *
+   * Return i
+   */
+  bool seizeFront(Ptr<T> &);
+
+  /**
    * Allocate object <b>i</b> from pool - update Ptr
    *
    * Return i
@@ -242,6 +249,32 @@ DLFifoList<T,U>::seize(Ptr<T> & p){
   thePool.seize(p);
   if (p.i != RNIL) {
     add(p);
+    return true;
+  }
+  p.p = NULL;
+  return false;
+}
+
+template <class T, class U>
+inline
+bool
+DLFifoList<T,U>::seizeFront(Ptr<T> & p){
+  Uint32 ff = head.firstItem;
+  thePool.seize(p);
+  if (p.i != RNIL) 
+  {
+    p.p->U::prevList = RNIL;
+    p.p->U::nextList = ff;
+    head.firstItem = p.i;
+    if (ff == RNIL)
+    {
+      head.lastItem = p.i;
+    }
+    else
+    {
+      T * t2 = thePool.getPtr(ff);
+      t2->U::prevList = p.i;
+    }
     return true;
   }
   p.p = NULL;

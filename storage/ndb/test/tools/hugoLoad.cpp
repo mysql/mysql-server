@@ -30,6 +30,7 @@ int main(int argc, const char** argv){
   int _help = 0;
   int _batch = 512;
   int _loops = -1;
+  int _rand = 0;
   const char* db = 0;
 
   struct getargs args[] = {
@@ -37,7 +38,8 @@ int main(int argc, const char** argv){
     { "batch", 'b', arg_integer, &_batch, "Number of operations in each transaction", "batch" },
     { "loops", 'l', arg_integer, &_loops, "Number of loops", "" },
     { "database", 'd', arg_string, &db, "Database", "" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
+    { "usage", '?', arg_flag, &_help, "Print help", "" },
+    { "rnd-rows", 0, arg_flag, &_rand, "Rand number of records", "recs" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -89,8 +91,9 @@ int main(int argc, const char** argv){
     
     HugoTransactions hugoTrans(*pTab);
 loop:    
+    int rows = (_rand ? rand() % _records : _records);
     if (hugoTrans.loadTable(&MyNdb, 
-			    _records,
+			    rows,
 			    _batch,
 			    true, 0, false, _loops) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -98,6 +101,7 @@ loop:
     
     if(_loops > 0)
     {
+      ndbout << "clearing..." << endl;
       hugoTrans.clearTable(&MyNdb);
       //hugoTrans.pkDelRecords(&MyNdb, _records);
       _loops--;
