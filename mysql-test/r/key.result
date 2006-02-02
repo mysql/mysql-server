@@ -416,7 +416,7 @@ t1	CREATE TABLE `t1` (
   `c2` char(12) NOT NULL default '',
   `c3` varchar(123) NOT NULL default '',
   `c4` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`c2`,`c3`),
+  PRIMARY KEY (`c2`,`c3`),
   UNIQUE KEY `i4` (`c4`),
   KEY `c1` (`c1`),
   KEY `i1` (`c1`),
