@@ -17,6 +17,7 @@ func_group      : Bug #15448
 func_math       : Bug #15448
 group_min_max   : Bug #15448 
 innodb_concurrent : Results are not deterministic, Elliot will fix (BUG#3300)
+innodb_unsafe_binlog : re-enable with InnoDB 5.1 snapshot containing bug#15650
 subselect       : Bug#15706
 ps_7ndb         : dbug assert in RBR mode when executing test suite
 rpl_ddl         : Bug#15963 SBR does not show "Definer" correctly
@@ -27,6 +28,7 @@ rpl_sp          : Bug #16456
 #ndb_dd_disk2memory : Bug #16466 
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
+ndb_blob        : BLOB replication causes core in master1 (Pekka will fix)
 system_mysql_db : Needs fixing
 system_mysql_db_fix : Needs fixing
 #ndb_alter_table_row : sometimes wrong error 1015!=1046

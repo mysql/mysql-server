@@ -1069,7 +1069,6 @@ void NdbEventImpl::init()
 {
   m_eventId= RNIL;
   m_eventKey= RNIL;
-  m_tableId= RNIL;
   mi_type= 0;
   m_dur= NdbDictionary::Event::ED_UNDEFINED;
   m_mergeEvents = false;
@@ -1081,6 +1080,8 @@ NdbEventImpl::~NdbEventImpl()
 {
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete  m_columns[i];
+  if (m_tableImpl)
+    delete m_tableImpl;
 }
 
 void NdbEventImpl::setName(const char * name)
@@ -1096,8 +1097,27 @@ const char *NdbEventImpl::getName() const
 void 
 NdbEventImpl::setTable(const NdbDictionary::Table& table)
 {
-  m_tableImpl= &NdbTableImpl::getImpl(table);
+  setTable(&NdbTableImpl::getImpl(table));
   m_tableName.assign(m_tableImpl->getName());
+}
+
+void 
+NdbEventImpl::setTable(NdbTableImpl *tableImpl)
+{
+  DBUG_ASSERT(tableImpl->m_status != NdbDictionary::Object::Invalid);
+  if (!m_tableImpl) 
+    m_tableImpl = new NdbTableImpl();
+  // Copy table, since event might be accessed from different threads
+  m_tableImpl->assign(*tableImpl);
+}
+
+const NdbDictionary::Table *
+NdbEventImpl::getTable() const
+{
+  if (m_tableImpl) 
+    return m_tableImpl->m_facade;
+  else
+    return NULL;
 }
 
 void 
@@ -1246,6 +1266,21 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
   
   return info;
+}
+
+void
+NdbDictionaryImpl::putTable(NdbTableImpl *impl)
+{
+  m_globalHash->lock();
+  m_globalHash->put(impl->m_internalName.c_str(), impl);
+  m_globalHash->unlock();
+  Ndb_local_table_info *info=
+    Ndb_local_table_info::create(impl, m_local_table_data_size);
+  
+  m_localHash.put(impl->m_internalName.c_str(), info);
+  
+  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
+  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
 }
 
 #if 0
@@ -3075,13 +3110,11 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 			 evnt.getTableName()));
       DBUG_RETURN(-1);
     }
+    evnt.setTable(tab);
   }
 
   DBUG_PRINT("info",("Table: id: %d version: %d", tab->m_id, tab->m_version));
 
-  evnt.m_tableId = tab->m_id;
-  evnt.m_tableVersion = tab->m_version;
-  evnt.m_tableImpl = tab;
   NdbTableImpl &table = *evnt.m_tableImpl;
 
   int attributeList_sz = evnt.m_attrIds.size();
@@ -3103,7 +3136,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   attributeList_sz = evnt.m_columns.size();
 
   DBUG_PRINT("info",("Event on tableId=%d, tableVersion=%d, event name %s, no of columns %d",
-		     evnt.m_tableId, evnt.m_tableVersion,
+		     table.m_id, table.m_version,
 		     evnt.m_name.c_str(),
 		     evnt.m_columns.size()));
 
@@ -3211,11 +3244,12 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     req->setRequestType(CreateEvntReq::RT_USER_GET);
   } else {
     DBUG_PRINT("info",("tableId: %u tableVersion: %u",
-		       evnt.m_tableId, evnt.m_tableVersion));
+		       evnt.m_tableImpl->m_id, 
+                       evnt.m_tableImpl->m_version));
     // creating event in Dictionary
     req->setRequestType(CreateEvntReq::RT_USER_CREATE);
-    req->setTableId(evnt.m_tableId);
-    req->setTableVersion(evnt.m_tableVersion);
+    req->setTableId(evnt.m_tableImpl->m_id);
+    req->setTableVersion(evnt.m_tableImpl->m_version);
     req->setAttrListBitmask(evnt.m_attrListBitmask);
     req->setEventType(evnt.mi_type);
     req->clearFlags();
@@ -3266,14 +3300,12 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   //  NdbEventImpl *evntImpl = (NdbEventImpl *)evntConf->getUserData();
 
   if (getFlag) {
-    evnt.m_tableId         = evntConf->getTableId();
-    evnt.m_tableVersion    = evntConf->getTableVersion();
     evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
     evnt.mi_type           = evntConf->getEventType();
     evnt.setTable(dataPtr);
   } else {
-    if (evnt.m_tableId         != evntConf->getTableId() ||
-	evnt.m_tableVersion    != evntConf->getTableVersion() ||
+    if (evnt.m_tableImpl->m_id         != evntConf->getTableId() ||
+	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
       ndbout_c("ERROR*************");
@@ -3367,7 +3399,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   DBUG_ENTER("NdbDictionaryImpl::getEvent");
   DBUG_PRINT("enter",("eventName= %s", eventName));
 
-  NdbEventImpl *ev =  new NdbEventImpl();
+ NdbEventImpl *ev =  new NdbEventImpl();
   if (ev == NULL) {
     DBUG_RETURN(NULL);
   }
@@ -3384,9 +3416,16 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   // We only have the table name with internal name
   DBUG_PRINT("info",("table %s", ev->getTableName()));
   Ndb_local_table_info *info;
-  int retry= 0;
-  while (1)
+  info= get_local_table_info(ev->getTableName(), true);
+  if (info == 0)
   {
+    DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
+    delete ev;
+    DBUG_RETURN(NULL);
+  }
+  if (info->m_table_impl->m_status == NdbDictionary::Object::Invalid)
+  {
+    removeCachedObject(*info->m_table_impl);
     info= get_local_table_info(ev->getTableName(), true);
     if (info == 0)
     {
@@ -3394,40 +3433,22 @@ NdbDictionaryImpl::getEvent(const char * eventName)
       delete ev;
       DBUG_RETURN(NULL);
     }
-
-    if (ev->m_tableId      == info->m_table_impl->m_id &&
-	ev->m_tableVersion == info->m_table_impl->m_version)
-      break;
-    DBUG_PRINT("error",("%s: retry=%d: "
-                        "table version mismatch, event: [%u,%u] table: [%u,%u]",
-                        ev->getTableName(), retry,
-                        ev->m_tableId, ev->m_tableVersion,
-                        info->m_table_impl->m_id, info->m_table_impl->m_version));
-    if (retry)
-    {
-      m_error.code= 241;
-      delete ev;
-      DBUG_RETURN(NULL);
-    }
-    invalidateObject(*info->m_table_impl);
-    retry++;
   }
-
-  ev->m_tableImpl= info->m_table_impl;
-  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));
-
+  ev->setTable(info->m_table_impl);
+  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
-
   NdbTableImpl &table = *ev->m_tableImpl;
   AttributeMask & mask = ev->m_attrListBitmask;
   unsigned attributeList_sz = mask.count();
 
-  DBUG_PRINT("info",("Table: id: %d version: %d", table.m_id, table.m_version));
+  DBUG_PRINT("info",("Table: id: %d version: %d", 
+                     table.m_id, table.m_version));
 
 #ifndef DBUG_OFF
   char buf[128] = {0};
   mask.getText(buf);
-  DBUG_PRINT("info",("attributeList_sz= %d, mask= %s", attributeList_sz, buf));
+  DBUG_PRINT("info",("attributeList_sz= %d, mask= %s", 
+                     attributeList_sz, buf));
 #endif
 
   
@@ -4649,7 +4670,7 @@ NdbDictionaryImpl::fix_blob_events(const NdbDictionary::Table* table, const char
 {
   const NdbTableImpl& t = table->m_impl;
   const NdbEventImpl* ev = getEvent(ev_name);
-  assert(ev != NULL && ev->m_tableImpl == &t);
+  assert(ev != NULL);
   Uint32 i;
   for (i = 0; i < t.m_columns.size(); i++) {
     assert(t.m_columns[i] != NULL);
