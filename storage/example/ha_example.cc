@@ -106,6 +106,7 @@ handlerton example_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter tablespace */
+  NULL,    /* Fill Files table */
   HTON_CAN_RECREATE
 };
 
