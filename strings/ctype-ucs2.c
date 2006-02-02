@@ -1615,6 +1615,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_numcells_mb,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
+    my_mb_ctype_mb,
     my_caseup_str_ucs2,
     my_casedn_str_ucs2,
     my_caseup_ucs2,
