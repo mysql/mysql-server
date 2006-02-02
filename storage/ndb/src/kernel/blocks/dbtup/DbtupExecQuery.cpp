@@ -484,8 +484,6 @@ Dbtup::load_diskpage(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_callback);
     
-    // Make sure we maintain order
-    flags |= Page_cache_client::STRICT_ORDER;
     if((res= m_pgman.get_page(signal, req, flags)) > 0)
     {
       //ndbout_c("in cache");
@@ -563,8 +561,6 @@ Dbtup::load_diskpage_scan(Signal* signal,
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
-    // Make sure we maintain order
-    flags |= Page_cache_client::STRICT_ORDER;
     if((res= m_pgman.get_page(signal, req, flags)) > 0)
     {
       // ndbout_c("in cache");
@@ -3111,8 +3107,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     preq.m_callback.m_callbackData = senderData;
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_page_callback);
-    int flags = Page_cache_client::COMMIT_REQ | 
-      Page_cache_client::STRICT_ORDER;
+    int flags = Page_cache_client::COMMIT_REQ;
     res = m_pgman.get_page(signal, preq, flags);
     if (res == 0)
     {
