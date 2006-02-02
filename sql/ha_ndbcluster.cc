@@ -9759,4 +9759,5 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
       schema_table_store_record(thd, table);
     }
   }
+  return 0;
 }
