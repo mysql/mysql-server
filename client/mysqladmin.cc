@@ -569,6 +569,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	return -1;
       }
       mysql_close(mysql);	/* Close connection to avoid error messages */
+      argc=1;                   /* force SHUTDOWN to be the last command    */
       if (got_pidfile)
       {
 	if (opt_verbose)

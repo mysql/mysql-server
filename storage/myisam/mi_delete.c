@@ -276,7 +276,8 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       if (subkeys == -1)
       {
         /* the last entry in sub-tree */
-        _mi_dispose(info, keyinfo, root,DFLT_INIT_HITS);
+        if (_mi_dispose(info, keyinfo, root,DFLT_INIT_HITS))
+          DBUG_RETURN(-1);
         /* fall through to normal delete */
       }
       else
