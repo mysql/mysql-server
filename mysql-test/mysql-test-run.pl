@@ -2316,6 +2316,7 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
                   $opt_ndbconnectstring);
+      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
     }
   }
 
@@ -2383,6 +2384,7 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
                   $opt_ndbconnectstring_slave);
+      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
     }
   } # end slave
 
