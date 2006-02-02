@@ -162,6 +162,7 @@ public:
 
   class Table; // forward declaration
   class Tablespace; // forward declaration
+//  class NdbEventOperation; // forward declaration
 
   /**
    * @class Column
@@ -885,6 +886,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
+    friend class NdbEventOperationImpl;
 #endif
     class NdbTableImpl & m_impl;
     Table(NdbTableImpl&);
@@ -1182,6 +1184,12 @@ public:
      * Get unique identifier for the event
      */
     const char *getName() const;
+    /**
+     * Get table that the event is defined on
+     *
+     * @return pointer to table or NULL if no table has been defined
+     */
+    const NdbDictionary::Table * getTable() const;
     /**
      * Define table on which events should be detected
      *
