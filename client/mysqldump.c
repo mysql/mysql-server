@@ -94,7 +94,8 @@ static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 		opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
-                opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
+                opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
+                opt_alltspcs=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static my_bool insert_pat_inited=0;
@@ -161,6 +162,10 @@ static struct my_option my_long_options[] =
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"all-tablespaces", 'Y',
+   "Dump all the tablespaces.",
+   (gptr*) &opt_alltspcs, (gptr*) &opt_alltspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"add-drop-database", OPT_DROP_DATABASE, "Add a 'DROP DATABASE' before each create.",
    (gptr*) &opt_drop_database, (gptr*) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -2471,6 +2476,131 @@ static char *getTableName(int reset)
 } /* getTableName */
 
 
+/*
+  dump all logfile groups and tablespaces
+*/
+
+static int dump_all_tablespaces()
+{
+  MYSQL_ROW row;
+  MYSQL_RES *tableres;
+  int result=0;
+  char buf[FN_REFLEN];
+  int first;
+
+  if (mysql_query_with_error_report(sock, &tableres,
+                                    "SELECT DISTINCT"
+                                    " LOGFILE_GROUP_NAME,"
+                                    " FILE_NAME,"
+                                    " TOTAL_EXTENTS,"
+                                    " INITIAL_SIZE,"
+                                    " ENGINE"
+                                    " FROM INFORMATION_SCHEMA.FILES"
+                                    " WHERE FILE_TYPE = \"UNDO LOG\""
+                                    " ORDER BY LOGFILE_GROUP_NAME"))
+    return 1;
+
+  buf[0]= 0;
+  while ((row= mysql_fetch_row(tableres)))
+  {
+    if (strcmp(buf, row[0]) != 0)
+      first= 1;
+    if (first)
+    {
+      if (!opt_xml && opt_comments)
+      {
+	fprintf(md_result_file,"\n--\n-- Logfile group: %s\n--\n", row[0]);
+	check_io(md_result_file);
+      }
+      fprintf(md_result_file, "\nCREATE");
+    }
+    else
+    {
+      fprintf(md_result_file, "\nALTER");
+    }
+    fprintf(md_result_file,
+            " LOGFILE GROUP %s\n"
+            "  ADD UNDOFILE '%s'\n",
+            row[0],
+            row[1]);
+    if (first)
+    {
+      fprintf(md_result_file,
+              "  UNDO_BUFFER_SIZE %s\n",
+              row[2]);
+    }
+    fprintf(md_result_file,
+            "  INITIAL_SIZE %s\n"
+            "  ENGINE=%s;\n",
+            row[3],
+            row[4]);
+    check_io(md_result_file);
+    if (first)
+    {
+      first= 0;
+      strxmov(buf, row[0], NullS);
+    }
+  }
+
+  if (mysql_query_with_error_report(sock, &tableres,
+                                    "SELECT DISTINCT"
+                                    " TABLESPACE_NAME,"
+                                    " FILE_NAME,"
+                                    " LOGFILE_GROUP_NAME,"
+                                    " EXTENT_SIZE,"
+                                    " INITIAL_SIZE,"
+                                    " ENGINE"
+                                    " FROM INFORMATION_SCHEMA.FILES"
+                                    " WHERE FILE_TYPE = \"DATAFILE\""
+                                    " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME"))
+    return 1;
+
+  buf[0]= 0;
+  while ((row= mysql_fetch_row(tableres)))
+  {
+    if (strcmp(buf, row[0]) != 0)
+      first= 1;
+    if (first)
+    {
+      if (!opt_xml && opt_comments)
+      {
+	fprintf(md_result_file,"\n--\n-- Tablespace: %s\n--\n", row[0]);
+	check_io(md_result_file);
+      }
+      fprintf(md_result_file, "\nCREATE");
+    }
+    else
+    {
+      fprintf(md_result_file, "\nALTER");
+    }
+    fprintf(md_result_file,
+            " TABLESPACE %s\n"
+            "  ADD DATAFILE '%s'\n",
+            row[0],
+            row[1]);
+    if (first)
+    {
+      fprintf(md_result_file,
+              "  USE LOGFILE GROUP %s\n"
+              "  EXTENT_SIZE %s\n",
+              row[2],
+              row[3]);
+    }
+    fprintf(md_result_file,
+            "  INITIAL_SIZE %s\n"
+            "  ENGINE=%s;\n",
+            row[4],
+            row[5]);
+    check_io(md_result_file);
+    if (first)
+    {
+      first= 0;
+      strxmov(buf, row[0], NullS);
+    }
+  }
+  return 0;
+}
+
 static int dump_all_databases()
 {
   MYSQL_ROW row;
@@ -3347,6 +3477,9 @@ int main(int argc, char **argv)
     goto err;
   if (opt_single_transaction && do_unlock_tables(sock)) /* unlock but no commit! */
     goto err;
+
+  if (opt_alltspcs)
+    dump_all_tablespaces();
 
   if (opt_alldbs)
     dump_all_databases();
