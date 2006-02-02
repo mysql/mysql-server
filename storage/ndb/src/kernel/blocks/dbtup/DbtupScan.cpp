@@ -694,10 +694,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 				  frag.fragTableId, 
 				  frag.fragmentId, 
 				  frag.m_tablespace_id);
-	  unsigned bits = ~(unsigned)0;
-	  int ret = tsman.get_page_free_bits(&key, &bits);
+	  unsigned uncommitted, committed;
+	  uncommitted = committed = ~(unsigned)0;
+	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
 	  ndbrequire(ret == 0);
-	  if (bits == 0) {
+	  if (committed == 0) {
 	    // skip empty page
 	    jam();
 	    pos.m_get = ScanPos::Get_next_page_dd;
@@ -710,7 +711,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         preq.m_callback.m_callbackData = scanPtr.i;
         preq.m_callback.m_callbackFunction =
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
-        int flags = Page_cache_client::STRICT_ORDER;
+        int flags = 0;
         int res = m_pgman.get_page(signal, preq, flags);
         if (res == 0) {
           jam();
