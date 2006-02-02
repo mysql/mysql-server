@@ -503,6 +503,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_numcells_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
+    my_mb_ctype_8bit,
     my_case_str_bin,
     my_case_str_bin,
     my_case_bin,

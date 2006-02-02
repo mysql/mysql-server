@@ -703,7 +703,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				 aSignal, ptr);
     return;
     
-  case GSN_SUB_META_DATA:
   case GSN_SUB_REMOVE_CONF:
   case GSN_SUB_REMOVE_REF:
     return; // ignore these signals
@@ -726,6 +725,16 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     const SubTableData * const sdata=
       CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
     const Uint32 oid = sdata->senderData;
+    NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
+
+    if (op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER)
+      g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
+			  "number");
+
+    // Accumulate DIC_TAB_INFO for TE_ALTER events
+    if (sdata->operation == NdbDictionary::Event::_TE_ALTER &&
+        !op->execSUB_TABLE_DATA(aSignal, ptr))
+      return;
 
     for (int i= aSignal->m_noOfSections;i < 3; i++) {
       ptr[i].p = NULL;
@@ -736,12 +745,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 		       sdata->senderData, sdata->gci, sdata->operation,
 		       sdata->tableId));
 
-    NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
-    if (op->m_magic_number == NDB_EVENT_OP_MAGIC_NUMBER)
-      theEventBuffer->insertDataL(op,sdata, ptr);
-    else
-      g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
-			  "number");
+    theEventBuffer->insertDataL(op,sdata, ptr);
     return;
   }
   case GSN_DIHNDBTAMPER:
