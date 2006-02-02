@@ -41,6 +41,8 @@
 
 #ifdef HAVE_UNIDATA
 
+#include "my_uctype.h"
+
 static MY_UNICASE_INFO plane00[]={
   {0x0000,0x0000,0x0000},  {0x0001,0x0001,0x0001},
   {0x0002,0x0002,0x0002},  {0x0003,0x0003,0x0003},
@@ -2534,6 +2536,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
     my_numcells_mb,
     my_utf8_uni,
     my_uni_utf8,
+    my_mb_ctype_mb,
     my_caseup_str_utf8,
     my_casedn_str_utf8,
     my_caseup_utf8,
@@ -4027,6 +4030,7 @@ static MY_CHARSET_HANDLER my_charset_filename_handler=
     my_numcells_mb,
     my_mb_wc_filename,
     my_wc_mb_filename,
+    my_mb_ctype_mb,
     my_caseup_str_utf8,
     my_casedn_str_utf8,
     my_caseup_utf8,

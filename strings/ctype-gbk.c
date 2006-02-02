@@ -10001,6 +10001,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_numcells_8bit,
   my_mb_wc_gbk,
   my_wc_mb_gbk,
+  my_mb_ctype_mb,
   my_caseup_str_mb,
   my_casedn_str_mb,
   my_caseup_mb,
