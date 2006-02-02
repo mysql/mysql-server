@@ -107,7 +107,7 @@ Token shift_token(const char **text, uint *word_len)
 int get_text_id(const char **text, uint *word_len, const char **id)
 {
   get_word(text, word_len);
-  if (word_len == 0)
+  if (*word_len == 0)
     return 1;
   *id= *text;
   return 0;
