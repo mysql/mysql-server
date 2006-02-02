@@ -54,7 +54,8 @@ bool skip_first_param;
 
 
 #define ARG_BUF			10
-#define TRY_MAX			5
+#define TRY_MAX			 5
+#define NULL              (char) 0
 
 #ifdef __NETWARE__
 #define strstr(A,B) strindex(A,B)
