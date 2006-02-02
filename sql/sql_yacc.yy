@@ -1642,11 +1642,26 @@ clear_privileges:
 sp_name:
 	  ident '.' ident
 	  {
+            if (!$1.str || check_db_name($1.str))
+            {
+	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+	      YYABORT;
+	    }
+	    if (check_routine_name($3))
+            {
+	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
+	      YYABORT;
+	    }
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
 	  {
+	    if (check_routine_name($1))
+            {
+	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
+	      YYABORT;
+	    }
 	    $$= sp_name_current_db_new(YYTHD, $1);
 	  }
 	;
