@@ -4,6 +4,27 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET SQL_LOG_BIN=0,timestamp=200006;
+CREATE TABLE t1(t TIMESTAMP NOT NULL,a CHAR(1))ENGINE=MyISAM;
+INSERT INTO t1 ( a) VALUE ('F');
+select unix_timestamp(t) from t1;
+unix_timestamp(t)
+200006
+load table t1 from master;
+select unix_timestamp(t) from t1;
+unix_timestamp(t)
+200006
+set SQL_LOG_BIN=1,timestamp=default;
+drop table t1;
+set SQL_LOG_BIN=0;
+CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
+INSERT INTO t1 VALUES (1);
+load table t1 from master;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+drop table t1;
 set SQL_LOG_BIN=0;
 create table t1 (word char(20) not null, index(word))ENGINE=MyISAM;
 load data infile '../../std_data/words.dat' into table t1;
