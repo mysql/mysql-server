@@ -608,36 +608,45 @@ struct Query_cache_query_flags
   in various error cases.
 */
 #ifndef ERROR_INJECT_SUPPORT
+
 #define ERROR_INJECT(x) 0
-#define ERROR_INJECT_ACTION(x) 0
+#define ERROR_INJECT_ACTION(x,action) 0
 #define ERROR_INJECT_CRASH(x) 0
-#define SET_ERROR_INJECT_CODE(x)
+#define ERROR_INJECT_VALUE(x) 0
+#define ERROR_INJECT_VALUE_ACTION(x,action) 0
+#define ERROR_INJECT_VALUE_CRASH(x) 0
 #define SET_ERROR_INJECT_VALUE(x)
+
 #else
 
-#define SET_ERROR_INJECT_CODE(x) \
-  current_thd->variables.error_inject_code= (x)
 #define SET_ERROR_INJECT_VALUE(x) \
-  current_thd->variables.error_inject_value= (x)
+  current_thd->error_inject_value= (x)
 
 inline bool
-my_error_inject(int error)
+my_error_inject(int value)
 {
   THD *thd= current_thd;
-  if (thd->variables.error_inject_code == (uint)error)
+  if (thd->error_inject_value == (uint)value)
   {
-    thd->variables.error_inject_code= 0;
+    thd->error_inject_value= 0;
     return 1;
   }
   return 0;
 }
 
 #define ERROR_INJECT_CRASH(code) \
-  (my_error_inject((code)) ? ((DBUG_ASSERT(0)), 0) : 0)
+  DBUG_EXECUTE_COND(code, abort();)
 #define ERROR_INJECT_ACTION(code, action) \
-  (my_error_inject((code)) ? ((action), 0) : 0)
+  DBUG_EXECUTE_COND(code, action)
 #define ERROR_INJECT(code) \
-  (my_error_inject((code)) ? 1 : 0)
+  DBUG_COND(code)
+#define ERROR_INJECT_VALUE(value) \
+  my_error_inject(value)
+#define ERROR_INJECT_VALUE_ACTION(value,action) \
+  (my_error_inject(value) ? (action) : 0)
+#define ERROR_INJECT_VALUE_CRASH(value) \
+  (my_error_inject(value) ? abort() : 0)
+
 #endif
 
 uint build_table_path(char *buff, size_t bufflen, const char *db,
