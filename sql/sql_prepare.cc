@@ -1862,96 +1862,6 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   {
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   }
   else
     mysql_log.write(thd, COM_STMT_PREPARE, "[%lu] %s", stmt->id, packet);
@@ -2045,14 +1955,11 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
   }
   else
   {
-    stmt->setup_set_params();
-    SELECT_LEX *sl= stmt->lex->all_selects_list;
-    for (; sl; sl= sl->next_select_in_list())
-    {
-      /*
-        during query optimisation.
-      */
-      sl->prep_where= sl->where;
+    query_str= lex->prepared_stmt_code.str;
+    *query_len= lex->prepared_stmt_code.length;
+  }
+end:
+  return query_str;
 }
 
 
