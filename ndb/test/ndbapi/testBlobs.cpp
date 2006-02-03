@@ -1483,13 +1483,16 @@ testperf()
   // insert char (one trans)
   {
     DBG("--- insert char ---");
+    char b[20];
     t1.on();
     CHK((g_con = g_ndb->startTransaction()) != 0);
     for (Uint32 k = 0; k < g_opt.m_rowsperf; k++) {
       CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
       CHK(g_opr->insertTuple() == 0);
       CHK(g_opr->equal(cA, (char*)&k) == 0);
-      CHK(g_opr->setValue(cB, "b") == 0);
+      memset(b, 0x20, sizeof(b));
+      b[0] = 'b';
+      CHK(g_opr->setValue(cB, b) == 0);
       CHK(g_con->execute(NoCommit) == 0);
     }
     t1.off(g_opt.m_rowsperf);
@@ -1526,12 +1529,15 @@ testperf()
   {
     DBG("--- insert for read test ---");
     unsigned n = 0;
+    char b[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     for (Uint32 k = 0; k < g_opt.m_rowsperf; k++) {
       CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
       CHK(g_opr->insertTuple() == 0);
       CHK(g_opr->equal(cA, (char*)&k) == 0);
-      CHK(g_opr->setValue(cB, "b") == 0);
+      memset(b, 0x20, sizeof(b));
+      b[0] = 'b';
+      CHK(g_opr->setValue(cB, b) == 0);
       CHK((g_bh1 = g_opr->getBlobHandle(cC)) != 0);
       CHK((g_bh1->setValue("c", 1) == 0));
       if (++n == g_opt.m_batch) {
@@ -1565,7 +1571,7 @@ testperf()
       a = (Uint32)-1;
       b[0] = 0;
       CHK(g_con->execute(NoCommit) == 0);
-      CHK(a == k && strcmp(b, "b") == 0);
+      CHK(a == k && b[0] == 'b');
     }
     CHK(g_con->execute(Commit) == 0);
     t1.off(g_opt.m_rowsperf);
@@ -1591,7 +1597,7 @@ testperf()
       CHK(g_con->execute(NoCommit) == 0);
       Uint32 m = 20;
       CHK(g_bh1->readData(c, m) == 0);
-      CHK(a == k && m == 1 && strcmp(c, "c") == 0);
+      CHK(a == k && m == 1 && c[0] == 'c');
     }
     CHK(g_con->execute(Commit) == 0);
     t2.off(g_opt.m_rowsperf);
@@ -1623,7 +1629,7 @@ testperf()
       CHK((ret = g_ops->nextResult(true)) == 0 || ret == 1);
       if (ret == 1)
         break;
-      CHK(a < g_opt.m_rowsperf && strcmp(b, "b") == 0);
+      CHK(a < g_opt.m_rowsperf && b[0] == 'b');
       n++;
     }
     CHK(n == g_opt.m_rowsperf);
@@ -1654,7 +1660,7 @@ testperf()
         break;
       Uint32 m = 20;
       CHK(g_bh1->readData(c, m) == 0);
-      CHK(a < g_opt.m_rowsperf && m == 1 && strcmp(c, "c") == 0);
+      CHK(a < g_opt.m_rowsperf && m == 1 && c[0] == 'c');
       n++;
     }
     CHK(n == g_opt.m_rowsperf);
