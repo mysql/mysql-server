@@ -203,6 +203,8 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("bye", &MgmApiSession::bye, ""),
 
+  MGM_CMD("end session", &MgmApiSession::endSession, ""),
+
   MGM_CMD("set loglevel", &MgmApiSession::setLogLevel, ""),
     MGM_ARG("node", Int, Mandatory, "Node"),
     MGM_ARG("category", Int, Mandatory, "Event category"),
@@ -719,8 +721,19 @@ MgmApiSession::dumpState(Parser<MgmApiSession>::Context &,
 
 void
 MgmApiSession::bye(Parser<MgmApiSession>::Context &,
-		   Properties const &) {
+                   Properties const &) {
   m_stop = true;
+}
+
+void
+MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
+                          Properties const &) {
+  if(m_allocated_resources)
+    delete m_allocated_resources;
+
+  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+
+  m_output->println("end session reply");
 }
 
 void
