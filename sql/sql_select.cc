@@ -501,12 +501,18 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  if (cond_value == Item::COND_FALSE ||
-      (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
-  {						/* Impossible cond */
-    zero_result_cause= "Impossible WHERE";
-    error= 0;
-    DBUG_RETURN(0);
+  {
+    Item::cond_result having_value;
+    having= optimize_cond(thd, having, &having_value);
+
+    if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
+        (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
+    {						/* Impossible cond */
+      zero_result_cause= having_value == Item::COND_FALSE ?
+                           "Impossible HAVING" : "Impossible WHERE";
+      error= 0;
+      DBUG_RETURN(0);
+    }
   }
 
   /* Optimize count(*), min() and max() */
@@ -4611,10 +4617,8 @@ optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
     DBUG_EXECUTE("info", print_where(conds, "after remove"););
   }
   else
-  {
     *cond_value= Item::COND_TRUE;
-    select->prep_where= 0;
-  }
+
   DBUG_RETURN(conds);
 }
 
