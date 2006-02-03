@@ -3,6 +3,10 @@
 # Change Date: 2006-01-17
 # Change: Added order by in select
 ####################
+# Change Date: 2006-02-02
+# Change: renamed to make bettre sense,
+# and wrapped per Engine test
+############################
 source include/master-slave.inc;
 
 #
@@ -10,7 +14,7 @@ source include/master-slave.inc;
 #
 SHOW VARIABLES LIKE 'relay_log_space_limit';
 
-CREATE TABLE t1 (name varchar(64), age smallint(3));
+eval CREATE TABLE t1 (name varchar(64), age smallint(3))ENGINE=$engine_type;
 INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;
 INSERT into t1 SET name='Caleb', age=1;

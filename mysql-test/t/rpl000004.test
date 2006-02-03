@@ -1,11 +1,19 @@
+######################################
+# Change Author: JBM
+# Change Date: 2006-02-02
+# Change: Added ENGINE=MyISAM
+# Reason: LOAD FROM MASTER is only supported from
+# MyISAM, therefore there is no reason for this test
+# To use anyother Engine
+######################################
 source include/master-slave.inc;
 
 set SQL_LOG_BIN=0;
-create table t1 (word char(20) not null, index(word));
+create table t1 (word char(20) not null, index(word))ENGINE=MyISAM;
 load data infile '../../std_data/words.dat' into table t1;
-create table t2 (word char(20) not null);
+create table t2 (word char(20) not null)ENGINE=MyISAM;
 load data infile '../../std_data/words.dat' into table t2;
-create table t3 (word char(20) not null primary key);
+create table t3 (word char(20) not null primary key)ENGINE=MyISAM;
 connection slave;
 load table t1 from master;
 load table t2 from master;

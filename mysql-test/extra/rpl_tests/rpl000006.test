@@ -1,3 +1,11 @@
+###########################################################
+# Change Author: JBM
+# Change Date: 2006-2-2
+# Change: Added ENGINE=$engine_type for first create table
+# Reason: Only MyISAM supports load from master no need to
+# run test case for other engines, in addition test will
+# fail if other engines are set as default engine
+###########################################################
 #
 # Test forced timestamp
 #
@@ -5,7 +13,7 @@
 
 # Don't log table creating to the slave as we want to test LOAD TABLE
 set SQL_LOG_BIN=0,timestamp=200006;
-create table t1(t timestamp not null,a char(1));
+eval create table t1(t timestamp not null,a char(1))ENGINE=$engine_type;
 insert into t1 ( a) values ('F');
 select unix_timestamp(t) from t1;
 connection slave;
