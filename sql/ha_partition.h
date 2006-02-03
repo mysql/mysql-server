@@ -100,7 +100,6 @@ private:
   bool m_create_handler;                 // Handler used to create table
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
-  bool m_use_bit_array;
 
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
@@ -220,8 +219,10 @@ private:
   bool new_handlers_from_part_info();
   bool create_handlers();
   void clear_handler_file();
-  void set_up_table_before_create(TABLE * table_arg, HA_CREATE_INFO * info,
-				  uint part_id);
+  void set_up_table_before_create(TABLE *table_arg,
+                                  const char *partition_name_with_path,
+                                  HA_CREATE_INFO *info,
+                                  uint part_id);
   partition_element *find_partition_element(uint part_id);
 public:
 

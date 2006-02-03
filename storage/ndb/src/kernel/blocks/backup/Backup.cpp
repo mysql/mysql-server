@@ -349,7 +349,6 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr);
       ndbrequire(c_pagePool.getSize() == 
 		 c_pagePool.getNoOfFree() + 
-		 lcp.p->pages.getSize() + 
 		 lcp_file.p->pages.getSize());
     }
   }
@@ -906,7 +905,6 @@ Backup::execBACKUP_REQ(Signal* signal)
     return;
   }//if
 
-  ndbrequire(ptr.p->pages.empty());
   ndbrequire(ptr.p->tables.isEmpty());
   
   ptr.p->m_gsn = 0;
@@ -2786,27 +2784,12 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   TablePtr tabPtr ;
   ndbrequire(findTable(ptr, tabPtr, tableId));
 
-  /**
-   * No of pages needed
-   */
-  const Uint32 noPages = (len + sizeof(Page32) - 1) / sizeof(Page32);
-  if(ptr.p->pages.getSize() < noPages) {
-    jam();
-    ptr.p->pages.release();
-    if(ptr.p->pages.seize(noPages) == false) {
-      jam();
-      ptr.p->setErrorCode(DefineBackupRef::FailedAllocateTableMem);
-      releaseSections(signal);
-      defineBackupRef(signal, ptr);
-      return;
-    }//if
-  }//if
-  
   BackupFilePtr filePtr;
   ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
   FsBuffer & buf = filePtr.p->operation.dataBuffer;
+  Uint32* dst = 0;
   { // Write into ctl file
-    Uint32* dst, dstLen = len + 3;
+    Uint32 dstLen = len + 3;
     if(!buf.getWritePtr(&dst, dstLen)) {
       jam();
       ndbrequire(false);
@@ -2830,9 +2813,10 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     }//if
   }
 
+  releaseSections(signal);
+
   if(ptr.p->checkError()) {
     jam();
-    releaseSections(signal);
     defineBackupRef(signal, ptr);
     return;
   }//if
@@ -2840,7 +2824,6 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   if (!DictTabInfo::isTable(tabPtr.p->tableType))
   {
     jam();
-    releaseSections(signal);
 
     TablePtr tmp = tabPtr;
     ptr.p->tables.next(tabPtr);
@@ -2848,13 +2831,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     goto next;
   }
   
-  ndbrequire(ptr.p->pages.getSize() >= noPages);
-  Page32Ptr pagePtr;
-  ptr.p->pages.getPtr(pagePtr, 0);
-  copy(&pagePtr.p->data[0], dictTabInfoPtr);
-  releaseSections(signal);
-  
-  if (!parseTableDescription(signal, ptr, tabPtr, len))
+  if (!parseTableDescription(signal, ptr, tabPtr, dst, len))
   {
     jam();
     defineBackupRef(signal, ptr);
@@ -2878,8 +2855,6 @@ next:
      * Done with all tables...
      */
     jam();
-    
-    ptr.p->pages.release();
     
     if(ptr.p->is_lcp())
     {
@@ -2911,13 +2886,10 @@ bool
 Backup::parseTableDescription(Signal* signal, 
 			      BackupRecordPtr ptr, 
 			      TablePtr tabPtr, 
+			      const Uint32 * tabdescptr,
 			      Uint32 len)
 {
-
-  Page32Ptr pagePtr;
-  ptr.p->pages.getPtr(pagePtr, 0);
-  
-  SimplePropertiesLinearReader it(&pagePtr.p->data[0], len);
+  SimplePropertiesLinearReader it(tabdescptr, len);
   
   it.first();
   
@@ -4443,7 +4415,6 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
   ptr.p->files.release();
   ptr.p->tables.release();
   ptr.p->triggers.release();
-  ptr.p->pages.release();
   ptr.p->backupId = ~0;
   
   if(ptr.p->checkError())

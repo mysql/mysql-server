@@ -222,7 +222,7 @@ File_formats::Datafile::Extent_header::check_free(Uint32 extent_size) const
   for(; words; words--)
     sum |= m_page_bitmask[words-1];
 
-  if(sum & 0x7777)
+  if(sum & 0x3333)
     return false;
   
   return true;

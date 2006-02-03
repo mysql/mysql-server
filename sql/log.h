@@ -473,13 +473,22 @@ public:
   bool flush_logs(THD *thd);
   THD *get_general_log_thd()
   {
-    return (THD *) table_log_handler->general_log_thd;
+    if (table_log_handler)
+      return (THD *) table_log_handler->general_log_thd;
+    else
+      return NULL;
   }
   THD *get_slow_log_thd()
   {
-    return (THD *) table_log_handler->slow_log_thd;
+    if (table_log_handler)
+      return (THD *) table_log_handler->slow_log_thd;
+    else
+      return NULL;
   }
-  void cleanup();
+  /* Perform basic logger cleanup. this will leave e.g. error log open. */
+  void cleanup_base();
+  /* Free memory. Nothing could be logged after this function is called */
+  void cleanup_end();
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
   bool slow_log_print(THD *thd, const char *query, uint query_length,

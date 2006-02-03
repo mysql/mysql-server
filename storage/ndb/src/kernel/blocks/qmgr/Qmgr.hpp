@@ -29,6 +29,10 @@
 #include <signaldata/CmRegSignalData.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/FailRep.hpp>
+#include <signaldata/AllocNodeId.hpp>
+
+#include <SafeCounter.hpp>
+#include <RequestTracker.hpp>
 
 #include "timer.hpp"
 
@@ -222,6 +226,12 @@ private:
   void execAPI_VERSION_REQ(Signal* signal);
   void execAPI_BROADCAST_REP(Signal* signal);
 
+  void execNODE_FAILREP(Signal *);
+  void execALLOC_NODEID_REQ(Signal *);
+  void execALLOC_NODEID_CONF(Signal *);
+  void execALLOC_NODEID_REF(Signal *);
+  void completeAllocNodeIdReq(Signal *);
+
   // Arbitration signals
   void execARBIT_CFG(Signal* signal);
   void execARBIT_PREPREQ(Signal* signal);
@@ -388,6 +398,14 @@ private:
   Uint16 cprepFailedNodes[MAX_NDB_NODES];
   Uint16 ccommitFailedNodes[MAX_NDB_NODES];
 
+  struct OpAllocNodeIdReq {
+    RequestTracker m_tracker;
+    AllocNodeIdReq m_req;
+    Uint32 m_connectCount;
+    Uint32 m_error;
+  };
+
+  struct OpAllocNodeIdReq opAllocNodeIdReq;
 };
 
 #endif

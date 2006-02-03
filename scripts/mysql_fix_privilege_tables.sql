@@ -589,7 +589,39 @@ CREATE TABLE event (
   ends DATETIME default NULL,
   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  sql_mode          set(
+                        'REAL_AS_FLOAT',
+                        'PIPES_AS_CONCAT',
+                        'ANSI_QUOTES',
+                        'IGNORE_SPACE',
+                        'NOT_USED',
+                        'ONLY_FULL_GROUP_BY',
+                        'NO_UNSIGNED_SUBTRACTION',
+                        'NO_DIR_IN_CREATE',
+                        'POSTGRESQL',
+                        'ORACLE',
+                        'MSSQL',
+                        'DB2',
+                        'MAXDB',
+                        'NO_KEY_OPTIONS',
+                        'NO_TABLE_OPTIONS',
+                        'NO_FIELD_OPTIONS',
+                        'MYSQL323',
+                        'MYSQL40',
+                        'ANSI',
+                        'NO_AUTO_VALUE_ON_ZERO',
+                        'NO_BACKSLASH_ESCAPES',
+                        'STRICT_TRANS_TABLES',
+                        'STRICT_ALL_TABLES',
+                        'NO_ZERO_IN_DATE',
+                        'NO_ZERO_DATE',
+                        'INVALID_DATES',
+                        'ERROR_FOR_DIVISION_BY_ZERO',
+                        'TRADITIONAL',
+                        'NO_AUTO_CREATE_USER',
+                        'HIGH_NOT_PRECEDENCE'
+                    ) DEFAULT '' NOT NULL,
+  comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
   PRIMARY KEY  (db,name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
@@ -600,4 +632,47 @@ CREATE TABLE event (
 
 ALTER TABLE user add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL AFTER Create_user_priv;
 ALTER TABLE db add Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NOT NULL;
+ALTER TABLE event DROP PRIMARY KEY;
+ALTER TABLE event ADD PRIMARY KEY(definer, db, name);
+ALTER TABLE event ADD sql_mode
+                        set('REAL_AS_FLOAT',
+                            'PIPES_AS_CONCAT',
+                            'ANSI_QUOTES',
+                            'IGNORE_SPACE',
+                            'NOT_USED',
+                            'ONLY_FULL_GROUP_BY',
+                            'NO_UNSIGNED_SUBTRACTION',
+                            'NO_DIR_IN_CREATE',
+                            'POSTGRESQL',
+                            'ORACLE',
+                            'MSSQL',
+                            'DB2',
+                            'MAXDB',
+                            'NO_KEY_OPTIONS',
+                            'NO_TABLE_OPTIONS',
+                            'NO_FIELD_OPTIONS',
+                            'MYSQL323',
+                            'MYSQL40',
+                            'ANSI',
+                            'NO_AUTO_VALUE_ON_ZERO',
+                            'NO_BACKSLASH_ESCAPES',
+                            'STRICT_TRANS_TABLES',
+                            'STRICT_ALL_TABLES',
+                            'NO_ZERO_IN_DATE',
+                            'NO_ZERO_DATE',
+                            'INVALID_DATES',
+                            'ERROR_FOR_DIVISION_BY_ZERO',
+                            'TRADITIONAL',
+                            'NO_AUTO_CREATE_USER',
+                            'HIGH_NOT_PRECEDENCE'
+                            ) DEFAULT '' NOT NULL AFTER on_completion;
 
+--
+-- TRIGGER privilege
+--
+
+SET @hadTriggerPriv := 0;
+SELECT @hadTriggerPriv :=1 FROM user WHERE Trigger_priv LIKE '%';
+
+ALTER TABLE user add Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;

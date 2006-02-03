@@ -286,6 +286,20 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     MEMINFO("c_opRecordPool", c_opRecordPool);
     MEMINFO("c_rope_pool", c_rope_pool);
   }
+
+  if (signal->theData[0] == 1227)
+  {
+    DLHashTable<DictObject>::Iterator iter;
+    bool ok = c_obj_hash.first(iter);
+    for(; ok; ok = c_obj_hash.next(iter))
+    {
+      Rope name(c_rope_pool, iter.curr.p->m_name);
+      const Uint32 size = name.size();
+      char buf[1024];
+      name.copy(buf);
+      ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
+    }
+  }    
   
   return;
 }//Dbdict::execDUMP_STATE_ORD()
@@ -4652,12 +4666,7 @@ Dbdict::alterTab_writeSchemaConf(Signal* signal,
   
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
-  
   writeTableFile(signal, tableId, tabInfoPtr, &callback);
-
-  alterTabPtr.p->m_tabInfoPtrI = RNIL;
-  signal->setSection(tabInfoPtr, 0);
-  releaseSections(signal);
 }
 
 void
@@ -4671,8 +4680,32 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   Uint32 coordinatorRef = alterTabPtr.p->m_coordinatorRef;
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, alterTabPtr.p->m_alterTableId);
-
   // Alter table commit request handled successfully 
+  // Inform Suma so it can send events to any subscribers of the table
+  AlterTabReq * req = (AlterTabReq*)signal->getDataPtrSend();
+  if (coordinatorRef == reference())
+    req->senderRef = alterTabPtr.p->m_senderRef;
+  else
+    req->senderRef = 0;
+  req->senderData = callbackData;
+  req->tableId = tabPtr.p->tableId;
+  req->tableVersion = tabPtr.p->tableVersion;
+  req->gci = tabPtr.p->gciTableCreated;
+  req->requestType = AlterTabReq::AlterTableCommit;
+  req->changeMask = alterTabPtr.p->m_changeMask;
+  SegmentedSectionPtr tabInfoPtr;
+  getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
+  signal->setSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+#ifndef DBUG_OFF
+  ndbout_c("DICT_TAB_INFO in DICT");
+  SimplePropertiesSectionReader reader(tabInfoPtr, getSectionSegmentPool());
+  reader.printAll(ndbout);
+#endif
+  EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_REQ, signal,
+                 AlterTabReq::SignalLength);
+  releaseSections(signal);
+  alterTabPtr.p->m_tabInfoPtrI = RNIL;
+  jamEntry();
   AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = callbackData;
@@ -4680,17 +4713,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   conf->tableVersion = tabPtr.p->tableVersion;
   conf->gci = tabPtr.p->gciTableCreated;
   conf->requestType = AlterTabReq::AlterTableCommit;
-  {
-    AlterTabConf tmp= *conf;
-    if (coordinatorRef == reference())
-      conf->senderRef = alterTabPtr.p->m_senderRef;
-    else
-      conf->senderRef = 0;
-    EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_CONF, signal,
-		   AlterTabConf::SignalLength);
-    jamEntry();
-    *conf= tmp;
-  }
+  conf->changeMask = alterTabPtr.p->m_changeMask;
   sendSignal(coordinatorRef, GSN_ALTER_TAB_CONF, signal, 
 	       AlterTabConf::SignalLength, JBB);
 
@@ -5080,13 +5103,6 @@ Dbdict::createTab_prepare(Signal* signal, CreateTabReq * req){
     safe_cast(&Dbdict::createTab_writeSchemaConf1);
   
   updateSchemaState(signal, tableId, &tabEntry, &callback);
-
-  if (tabPtr.p->m_tablespace_id != RNIL)
-  {
-    FilegroupPtr ptr;
-    ndbrequire(c_filegroup_hash.find(ptr, tabPtr.p->m_tablespace_id));
-    increase_ref_count(ptr.p->m_obj_ptr_i);
-  }
 }
 
 void getSection(SegmentedSectionPtr & ptr, Uint32 i);
@@ -5977,6 +5993,17 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
      * Release table
      */
     releaseTableObject(tablePtr.i, checkExist);
+    return;
+  }
+
+  if (checkExist && tablePtr.p->m_tablespace_id != RNIL)
+  {
+    /**
+     * Increase ref count
+     */
+    FilegroupPtr ptr;
+    ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
+    increase_ref_count(ptr.p->m_obj_ptr_i);
   }
 }//handleTabInfoInit()
 
@@ -6231,7 +6258,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     {
       tabRequire(false, CreateTableRef::InvalidTablespaceVersion);
     }
-  } 
+  }
 }//handleTabInfo()
 
 
@@ -7096,7 +7123,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       return;
     }
     
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     return;
   }
   
@@ -7117,7 +7144,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(len > MAX_TAB_NAME_SIZE){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNameTooLong);
+      sendGET_TABINFOREF(signal,req,GetTabInfoRef::TableNameTooLong, __LINE__);
       return;
     }
 
@@ -7129,7 +7156,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     if(!r0.getWords((Uint32*)tableName, (len+3)/4)){
       jam();
       releaseSections(signal);
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
     releaseSections(signal);
@@ -7151,14 +7178,14 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   // The table seached for was not found
   if(objEntry == 0){
     jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
   }//if
   
   if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
       objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED){
     jam();
-    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+    sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
     return;
   }//if
 
@@ -7168,10 +7195,11 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     jam();
     TableRecordPtr tabPtr;
     c_tableRecordPool.getPtr(tabPtr, obj_id);
-    if (tabPtr.p->tabState != TableRecord::DEFINED)
+    if (tabPtr.p->tabState != TableRecord::DEFINED &&
+	tabPtr.p->tabState != TableRecord::BACKUP_ONGOING)
     {
       jam();
-      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined, __LINE__);
       return;
     }
   }
@@ -7262,7 +7290,8 @@ void Dbdict::sendGetTabResponse(Signal* signal)
 
 void Dbdict::sendGET_TABINFOREF(Signal* signal, 
 				GetTabInfoReq * req,
-				GetTabInfoRef::ErrorCode errorCode) 
+				GetTabInfoRef::ErrorCode errorCode,
+				Uint32 line) 
 {
   jamEntry();
   GetTabInfoRef * const ref = (GetTabInfoRef *)&signal->theData[0];
@@ -7271,8 +7300,9 @@ void Dbdict::sendGET_TABINFOREF(Signal* signal,
    */
   BlockReference retRef = req->senderRef;
   ref->errorCode = errorCode;
-  
-  sendSignal(retRef, GSN_GET_TABINFOREF, signal, signal->length(), JBB);
+  signal->theData[GetTabInfoRef::SignalLength] = line;
+  sendSignal(retRef, GSN_GET_TABINFOREF, signal, 
+	     GetTabInfoRef::SignalLength+1, JBB);
 }//sendGET_TABINFOREF()
 
 void

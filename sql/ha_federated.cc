@@ -397,6 +397,7 @@ handlerton federated_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
+  NULL,    /* Fill FILES table */
   HTON_ALTER_NOT_SUPPORTED
 };
 
@@ -647,7 +648,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
   DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length, 
                       table->s->connect_string.str));
-  share->scheme= my_strdup_with_length((const byte*)table->s->
+  share->scheme= my_strndup((const byte*)table->s->
                                        connect_string.str, 
                                        table->s->connect_string.length,
                                        MYF(0));

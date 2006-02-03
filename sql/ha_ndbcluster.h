@@ -25,6 +25,9 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+/* Blob tables and events are internal to NDB and must never be accessed */
+#define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
+
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
 
@@ -78,6 +81,10 @@ typedef struct ndb_index_data {
 
 typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
 
+int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
+                        byte*& buffer, uint& buffer_size,
+                        my_ptrdiff_t ptrdiff);
+
 typedef enum {
   NSS_INITIAL= 0,
   NSS_DROPPED,
@@ -111,9 +118,30 @@ typedef struct st_ndbcluster_share {
 #endif
 } NDB_SHARE;
 
+inline
+NDB_SHARE_STATE
+get_ndb_share_state(NDB_SHARE *share)
+{
+  NDB_SHARE_STATE state;
+  pthread_mutex_lock(&share->mutex);
+  state= share->state;
+  pthread_mutex_unlock(&share->mutex);
+  return state;
+}
+
+inline
+void
+set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
+{
+  pthread_mutex_lock(&share->mutex);
+  share->state= state;
+  pthread_mutex_unlock(&share->mutex);
+}
+
 #ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK 1 /* table has hidden primary key */
+#define NSF_BLOB_FLAG 2 /* table has blob attributes */
 #define NSF_NO_BINLOG 4 /* table should not be binlogged */
 #endif
 
@@ -654,8 +682,9 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
 				  uint table_changes);
-  static void invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
-					  const char *tabname, bool global);
+  static int invalidate_dictionary_cache(TABLE_SHARE *share, Ndb *ndb,
+                                         const char *dbname, const char *tabname,
+                                         bool global);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
@@ -677,7 +706,7 @@ private:
   void clear_index(int i);
   void clear_indexes();
   int open_indexes(Ndb *ndb, TABLE *tab);
-  int renumber_indexes(Ndb *ndb, TABLE *tab);
+  void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *index_name, uint index_no);
@@ -692,6 +721,7 @@ private:
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
                              void *tab);
+  char* get_tablespace_name();
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
   int complemented_pk_read(const byte *old_data, byte *new_data,

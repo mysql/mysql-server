@@ -649,6 +649,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
+bool append_file_to_dir(THD *thd, const char **filename_ptr, 
+                        const char *table_name);
 
 bool table_cache_init(void);
 void table_cache_free(void);
@@ -1532,6 +1534,9 @@ void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 void make_truncated_value_warning(THD *thd, const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
+
+bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
+
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);
@@ -1751,6 +1756,9 @@ bool check_stack_overrun(THD *thd, long margin, char *dummy);
 inline void kill_delayed_threads(void) {}
 #define check_stack_overrun(A, B, C) 0
 #endif
+
+/* Used by handlers to store things in schema tables */
+bool schema_table_store_record(THD *thd, TABLE *table);
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */

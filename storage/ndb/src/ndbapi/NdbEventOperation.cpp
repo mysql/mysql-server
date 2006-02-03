@@ -55,6 +55,18 @@ NdbEventOperation::getPreValue(const char *colName, char *aValue)
   return m_impl.getValue(colName, aValue, 1);
 }
 
+NdbBlob *
+NdbEventOperation::getBlobHandle(const char *colName)
+{
+  return m_impl.getBlobHandle(colName, 0);
+}
+
+NdbBlob *
+NdbEventOperation::getPreBlobHandle(const char *colName)
+{
+  return m_impl.getBlobHandle(colName, 1);
+}
+
 int
 NdbEventOperation::execute()
 {
@@ -85,6 +97,26 @@ NdbEventOperation::hasError() const
   return m_impl.m_has_error;
 }
 
+const bool NdbEventOperation::tableNameChanged() const
+{
+  return m_impl.tableNameChanged();
+}
+
+const bool NdbEventOperation::tableFrmChanged() const
+{
+  return m_impl.tableFrmChanged();
+}
+
+const bool NdbEventOperation::tableFragmentationChanged() const
+{
+  return m_impl.tableFragmentationChanged();
+}
+
+const bool NdbEventOperation::tableRangeListChanged() const
+{
+  return m_impl.tableRangeListChanged();
+}
+
 Uint64
 NdbEventOperation::getGCI() const
 {
@@ -112,10 +144,6 @@ NdbEventOperation::print()
 /*
  * Internal for the mysql server
  */
-const NdbDictionary::Table *NdbEventOperation::getTable() const
-{
-  return m_impl.m_eventImpl->m_tableImpl->m_facade;
-}
 const NdbDictionary::Event *NdbEventOperation::getEvent() const
 {
   return m_impl.m_eventImpl->m_facade;
@@ -136,6 +164,7 @@ const NdbRecAttr* NdbEventOperation::getFirstDataPreAttr() const
 {
   return m_impl.theFirstDataAttrs[1];
 }
+/*
 bool NdbEventOperation::validateTable(NdbDictionary::Table &table) const
 {
   DBUG_ENTER("NdbEventOperation::validateTable");
@@ -147,7 +176,7 @@ bool NdbEventOperation::validateTable(NdbDictionary::Table &table) const
   }
   DBUG_RETURN(res);
 }
-
+*/
 void NdbEventOperation::setCustomData(void * data)
 {
   m_impl.m_custom_data= data;

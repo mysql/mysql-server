@@ -152,6 +152,7 @@ handlerton berkeley_hton = {
   NULL, /* Partition flags */
   NULL, /* Alter table flags */
   NULL, /* Alter Tablespace */
+  NULL, /* Fill Files Table */
   HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME
 };
 

@@ -376,3 +376,4 @@ insert INTO t2 SELECT * FROM t1;
 
 select * from t2; 
 drop table t1, t2;
+

@@ -261,6 +261,13 @@ public:
 };
 
 class NdbEventImpl : public NdbDictionary::Event, public NdbDictObjectImpl {
+  friend class NdbDictInterface;
+  friend class NdbDictionaryImpl;
+  friend class NdbEventOperation;
+  friend class NdbEventOperationImpl;
+  friend class NdbEventBuffer;
+  friend class EventBufData_hash;
+  friend class NdbBlob;
 public:
   NdbEventImpl();
   NdbEventImpl(NdbDictionary::Event &);
@@ -270,6 +277,7 @@ public:
   void setName(const char * name);
   const char * getName() const;
   void setTable(const NdbDictionary::Table& table);
+  const NdbDictionary::Table * getTable() const;
   void setTable(const char * table);
   const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
@@ -277,7 +285,6 @@ public:
   NdbDictionary::Event::EventDurability  getDurability() const;
   void setReport(NdbDictionary::Event::EventReport r);
   NdbDictionary::Event::EventReport  getReport() const;
-  void addEventColumn(const NdbColumnImpl &c);
   int getNoOfEventColumns() const;
 
   void print() {
@@ -288,15 +295,13 @@ public:
 
   Uint32 m_eventId;
   Uint32 m_eventKey;
-  Uint32 m_tableId;
-  Uint32 m_tableVersion;
   AttributeMask m_attrListBitmask;
   BaseString m_name;
   Uint32 mi_type;
   NdbDictionary::Event::EventDurability m_dur;
   NdbDictionary::Event::EventReport m_rep;
+  bool m_mergeEvents;
 
-  NdbTableImpl *m_tableImpl;
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
   Vector<unsigned> m_attrIds;
@@ -304,6 +309,9 @@ public:
   static NdbEventImpl & getImpl(NdbDictionary::Event & t);
   static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
   NdbDictionary::Event * m_facade;
+private:
+  NdbTableImpl *m_tableImpl;
+  void setTable(NdbTableImpl *tableImpl);
 };
 
 struct NdbFilegroupImpl : public NdbDictObjectImpl {
@@ -547,7 +555,10 @@ public:
 			       NdbTableImpl * table);
 
   int createEvent(NdbEventImpl &);
+  int createBlobEvents(NdbEventImpl &);
   int dropEvent(const char * eventName);
+  int dropEvent(const NdbEventImpl &);
+  int dropBlobEvents(const NdbEventImpl &);
 
   int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
@@ -558,6 +569,7 @@ public:
   int listIndexes(List& list, Uint32 indexId);
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
+  void putTable(NdbTableImpl *impl);
   Ndb_local_table_info* get_local_table_info(
     const BaseString& internalTableName, bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
@@ -589,6 +601,9 @@ public:
 
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
+
+  // XXX temp
+  void fix_blob_events(const NdbDictionary::Table* table, const char* ev_name);
 private:
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);

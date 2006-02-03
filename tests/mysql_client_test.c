@@ -14598,7 +14598,6 @@ static void test_bug14845()
 static void test_bug15510()
 {
   MYSQL_STMT *stmt;
-  MYSQL_RES *res;
   int rc;
   const char *query= "select 1 from dual where 1/0";
 
@@ -14623,6 +14622,81 @@ static void test_bug15510()
   rc= mysql_query(mysql, "set @@sql_mode=''");
   myquery(rc);
 }
+
+
+/* Test MYSQL_OPT_RECONNECT, Bug#15719 */
+
+static void test_opt_reconnect()
+{
+  MYSQL *lmysql;
+  my_bool my_true= TRUE;
+
+  myheader("test_opt_reconnect");
+
+  if (!(lmysql= mysql_init(NULL)))
+  {
+    myerror("mysql_init() failed");
+    exit(1);
+  }
+
+  if (!opt_silent)
+    fprintf(stdout, "reconnect before mysql_options: %d\n", lmysql->reconnect);
+  DIE_UNLESS(lmysql->reconnect == 0);
+
+  if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &my_true))
+  {
+    myerror("mysql_options failed: unknown option MYSQL_OPT_RECONNECT\n");
+    exit(1);
+  }
+
+  /* reconnect should be 1 */
+  if (!opt_silent)
+    fprintf(stdout, "reconnect after mysql_options: %d\n", lmysql->reconnect);
+  DIE_UNLESS(lmysql->reconnect == 1);
+
+  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    exit(1);
+  }
+
+  /* reconnect should still be 1 */
+  if (!opt_silent)
+    fprintf(stdout, "reconnect after mysql_real_connect: %d\n",
+	    lmysql->reconnect);
+  DIE_UNLESS(lmysql->reconnect == 1);
+
+  mysql_close(lmysql);
+
+  if (!(lmysql= mysql_init(NULL)))
+  {
+    myerror("mysql_init() failed");
+    exit(1);
+  }
+
+  if (!opt_silent)
+    fprintf(stdout, "reconnect before mysql_real_connect: %d\n", lmysql->reconnect);
+  DIE_UNLESS(lmysql->reconnect == 0);
+
+  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    exit(1);
+  }
+
+  /* reconnect should still be 0 */
+  if (!opt_silent)
+    fprintf(stdout, "reconnect after mysql_real_connect: %d\n",
+	    lmysql->reconnect);
+  DIE_UNLESS(lmysql->reconnect == 0);
+
+  mysql_close(lmysql);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -14883,7 +14957,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13488", test_bug13488 },
   { "test_bug13524", test_bug13524 },
   { "test_bug14845", test_bug14845 },
-  { "test_bug15510", test_bug15510},
+  { "test_bug15510", test_bug15510 },
+  { "test_opt_reconnect", test_opt_reconnect },
+
   { 0, 0 }
 };
 

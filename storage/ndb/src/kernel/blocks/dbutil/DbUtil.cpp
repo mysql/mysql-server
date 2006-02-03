@@ -52,7 +52,6 @@
 DbUtil::DbUtil(const Configuration & conf) :
   SimulatedBlock(DBUTIL, conf),
   c_runningPrepares(c_preparePool),
-  c_runningPreparedOperations(c_preparedOperationPool),
   c_seizingTransactions(c_transactionPool),
   c_runningTransactions(c_transactionPool),
   c_lockQueues(c_lockQueuePool)
@@ -566,12 +565,13 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
 	}
 	ndbout << "PreparedOperation Id: " << signal->theData[2] << endl;
 	PreparedOperationPtr prepOpPtr;
-	c_runningPreparedOperations.getPtr(prepOpPtr, signal->theData[2]);
+	c_preparedOperationPool.getPtr(prepOpPtr, signal->theData[2]);
 	prepOpPtr.p->print();
 	return;
       }
 
       // ** Print all records **
+#if 0 // not implemented
       PreparedOperationPtr prepOpPtr;
       if (!c_runningPreparedOperations.first(prepOpPtr)) {
 	ndbout << "No PreparedOperations exist" << endl;
@@ -583,6 +583,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
 	ndbout << "]";
 	c_runningPreparedOperations.next(prepOpPtr);
       }
+#endif
       return;
 
     case 3:
@@ -988,7 +989,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
    * Seize and store PreparedOperation struct
    *******************************************/
   PreparedOperationPtr prepOpPtr;  
-  if(!c_runningPreparedOperations.seize(prepOpPtr)) {
+  if(!c_preparedOperationPool.seize(prepOpPtr)) {
     jam();
     releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
@@ -1738,17 +1739,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
    * Get PreparedOperation struct
    *******************************/
   PreparedOperationPtr prepOpPtr;
-  c_runningPreparedOperations.first(prepOpPtr);
-  while (!prepOpPtr.isNull() && prepOpPtr.i != prepareId) 
-    c_runningPreparedOperations.next(prepOpPtr);
-  
-  if (prepOpPtr.i != prepareId) {
-    jam();
-    releaseSections(signal);
-    sendUtilExecuteRef(signal, UtilExecuteRef::IllegalPrepareId,
-		       0, clientRef, clientData);
-    return;
-  }
+  c_preparedOperationPool.getPtr(prepOpPtr, prepareId);
 
   prepOpPtr.p->releaseFlag = releaseFlag;
 
