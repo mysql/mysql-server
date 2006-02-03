@@ -195,7 +195,7 @@ SELECT * FROM t1 WHERE b<=>NULL;
 a	b
 99	NULL
 INSERT INTO t1 VALUES (1,3);
-ERROR 23000: Duplicate entry '3' for key 1
+ERROR 23000: Duplicate entry '3' for key 'b'
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null, primary key using HASH (a)) engine=heap;
 INSERT into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11);
