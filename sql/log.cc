@@ -310,7 +310,8 @@ bool Log_to_csv_event_handler::
   log_general(time_t event_time, const char *user_host,
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
-              const char *sql_text, uint sql_text_len)
+              const char *sql_text, uint sql_text_len,
+              CHARSET_INFO *client_cs)
 {
   TABLE *table= general_log.table;
 
@@ -325,11 +326,11 @@ bool Log_to_csv_event_handler::
   /* set default value (which is CURRENT_TIMESTAMP) */
   table->field[0]->set_null();
 
-  table->field[1]->store(user_host, user_host_len, &my_charset_latin1);
+  table->field[1]->store(user_host, user_host_len, client_cs);
   table->field[2]->store((longlong) thread_id);
   table->field[3]->store((longlong) server_id);
-  table->field[4]->store(command_type, command_type_len, &my_charset_latin1);
-  table->field[5]->store(sql_text, sql_text_len, &my_charset_latin1);
+  table->field[4]->store(command_type, command_type_len, client_cs);
+  table->field[5]->store(sql_text, sql_text_len, client_cs);
   table->file->ha_write_row(table->record[0]);
 
   reenable_binlog(current_thd);
@@ -375,6 +376,7 @@ bool Log_to_csv_event_handler::
 {
   /* table variables */
   TABLE *table= slow_log.table;
+  CHARSET_INFO *client_cs= thd->variables.character_set_client;
 
   DBUG_ENTER("log_slow_to_csv");
 
@@ -395,7 +397,7 @@ bool Log_to_csv_event_handler::
   table->field[0]->set_null();
 
   /* store the value */
-  table->field[1]->store(user_host, user_host_len, &my_charset_latin1);
+  table->field[1]->store(user_host, user_host_len, client_cs);
 
   if (query_start_arg)
   {
@@ -418,7 +420,7 @@ bool Log_to_csv_event_handler::
 
   if (thd->db)
     /* fill database field */
-    table->field[6]->store(thd->db, thd->db_length, &my_charset_latin1);
+    table->field[6]->store(thd->db, thd->db_length, client_cs);
   else
     table->field[6]->set_null();
 
@@ -436,8 +438,7 @@ bool Log_to_csv_event_handler::
   table->field[9]->store((longlong) server_id);
 
   /* sql_text */
-  table->field[10]->store(sql_text,sql_text_len,
-                          &my_charset_latin1);
+  table->field[10]->store(sql_text,sql_text_len, client_cs);
 
   /* write the row */
   table->file->ha_write_row(table->record[0]);
@@ -493,7 +494,8 @@ bool Log_to_file_event_handler::
   log_general(time_t event_time, const char *user_host,
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
-              const char *sql_text, uint sql_text_len)
+              const char *sql_text, uint sql_text_len,
+              CHARSET_INFO *client_cs)
 {
   return mysql_log.write(event_time, user_host, user_host_len,
                          thread_id, command_type, command_type_len,
@@ -809,7 +811,8 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
                    user_host_len, id,
                    command_name[(uint) command].str,
                    command_name[(uint) command].length,
-                   message_buff, message_buff_len) || error;
+                   message_buff, message_buff_len,
+                   thd->variables.character_set_client) || error;
     unlock();
   }
   return error;
