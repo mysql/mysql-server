@@ -38,12 +38,12 @@ mysql
 mysqltest
 mysqltest2
 test
-create table mysqltest2.t1(n int, s char(20));
-create table mysqltest2.t2(n int, s text);
+create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest2.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three');
 insert into mysqltest2.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen');
-create table mysqltest.t1(n int, s char(20));
-create table mysqltest.t2(n int, s text);
+create table mysqltest.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest.t1 values (1, 'one test'), (2, 'two test'), (3, 'three test');
 insert into mysqltest.t2 values (11, 'eleven test'), (12, 'twelve test'),
 (13, 'thirteen test');

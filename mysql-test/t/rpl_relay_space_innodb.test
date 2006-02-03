@@ -1,0 +1,7 @@
+##################################
+# Wrapper rpl_sv_relay_space.test#
+##################################
+-- source include/have_innodb.inc
+let $engine_type=InnoDB;
+-- source extra/rpl_tests/rpl_sv_relay_space.test
+

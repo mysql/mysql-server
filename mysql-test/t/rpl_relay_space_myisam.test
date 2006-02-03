@@ -1,0 +1,6 @@
+##################################
+# Wrapper rpl_sv_relay_space.test#
+##################################
+let $engine_type=MyISAM;
+-- source extra/rpl_tests/rpl_sv_relay_space.test
+

@@ -1,0 +1,7 @@
+##################################
+# Wrapper rpl_sv_relay_space.test#
+##################################
+--source include/have_ndb.inc
+let $engine_type=NDB;
+-- source extra/rpl_tests/rpl_sv_relay_space.test
+
