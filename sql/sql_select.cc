@@ -628,7 +628,7 @@ JOIN::optimize()
 
   {
     Item::cond_result having_value;
-    having= optimize_cond(thd, having, &having_value);
+    having= optimize_cond(this, having, join_list, &having_value);
     if (thd->net.report_error)
     {
       error= 1;
@@ -641,7 +641,7 @@ JOIN::optimize()
     {						/* Impossible cond */
       DBUG_PRINT("info", (having_value == Item::COND_FALSE ? 
                             "Impossible HAVING" : "Impossible WHERE"));
-      zero_result_cause=  ?
+      zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
       error= 0;
       DBUG_RETURN(0);
