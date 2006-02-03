@@ -401,5 +401,18 @@ drop function f1;
 select * from t1;
 a
 1
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(col VARCHAR(10));
+CREATE PROCEDURE p1(arg VARCHAR(10))
+INSERT INTO t1 VALUES(arg);
+CALL p1('test');
+SELECT * FROM t1;
+col
+test
+SELECT * FROM t1;
+col
+test
+DROP PROCEDURE p1;
 drop table t1;
 reset master;
