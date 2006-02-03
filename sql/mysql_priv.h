@@ -608,9 +608,9 @@ struct Query_cache_query_flags
   in various error cases.
 */
 #ifndef ERROR_INJECT_SUPPORT
-#define ERROR_INJECTOR(x)
-#define ERROR_INJECTOR_ACTION(x)
-#define ERROR_INJECTOR_CRASH(x)
+#define ERROR_INJECT(x) 0
+#define ERROR_INJECT_ACTION(x) 0
+#define ERROR_INJECT_CRASH(x) 0
 #define SET_ERROR_INJECT_CODE(x)
 #define SET_ERROR_INJECT_VALUE(x)
 #else
@@ -624,7 +624,7 @@ inline bool
 my_error_inject(int error)
 {
   THD *thd= current_thd;
-  if (thd->variables.error_inject_code == error)
+  if (thd->variables.error_inject_code == (uint)error)
   {
     thd->variables.error_inject_code= 0;
     return 1;
@@ -632,10 +632,10 @@ my_error_inject(int error)
   return 0;
 }
 
-#define ERROR_INJECTOR_CRASH(code) \
-  (my_error_inject((code)) ? ((DBUG_ASSERT(0)), 0) : 0
-#define ERROR_INJECTOR_ACTION(code, action) \
-  (my_error_inject((code)) ? ((action), 0) : 0
+#define ERROR_INJECT_CRASH(code) \
+  (my_error_inject((code)) ? ((DBUG_ASSERT(0)), 0) : 0)
+#define ERROR_INJECT_ACTION(code, action) \
+  (my_error_inject((code)) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
   (my_error_inject((code)) ? 1 : 0)
 #endif
@@ -1146,7 +1146,7 @@ bool write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
 
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
-#define WFRM_PACK_FRM
+#define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
@@ -1317,6 +1317,9 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
+#ifdef ERROR_INJECT_SUPPORT
+extern ulong error_inject_code, error_inject_value;
+#endif
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;

@@ -638,6 +638,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
+#if 0
     if (share->mysql_version == 50106)
     {
       /*
@@ -647,6 +648,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
        */
       next_chunk+= 4;
     }
+#endif
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
     {
