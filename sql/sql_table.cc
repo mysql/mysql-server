@@ -307,9 +307,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   /*
     Build shadow frm file name
   */
-  build_table_filename(shadow_path, sizeof(path), lpt->db,
+  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                        lpt->table_name, "#");
-  strxmov(shadow_frm_name, path, reg_ext, NullS);
+  strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
     if (mysql_copy_create_list(lpt->create_list,
@@ -324,7 +324,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                             lpt->table->file,
                             &lpt->key_info_buffer,
                             &lpt->key_count,
-                            /*select_field_count*/ 0)))
+                            /*select_field_count*/ 0))
     {
       DBUG_RETURN(TRUE);
     }

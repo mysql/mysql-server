@@ -503,6 +503,10 @@ ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
 ulong delayed_insert_errors,flush_time;
+#ifdef ERROR_INJECT_SUPPORT
+ulong error_inject_code= 0;
+ulong error_inject_value= 0;
+#endif
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;

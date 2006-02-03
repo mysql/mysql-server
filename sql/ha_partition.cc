@@ -1879,8 +1879,8 @@ bool ha_partition::create_handler_file(const char *name)
   {
     part_elem= part_it++;
     if (part_elem->part_state != PART_NORMAL &&
-        part_elem->part_state != PART_IS_ADDED &&
-        part_elem->part_state != PART_IS_CHANGED)
+        part_elem->part_state != PART_TO_BE_ADDED &&
+        part_elem->part_state != PART_CHANGED)
       continue;
     tablename_to_filename(part_elem->partition_name, part_name,
                           FN_REFLEN);
@@ -1931,8 +1931,8 @@ bool ha_partition::create_handler_file(const char *name)
   {
     part_elem= part_it++;
     if (part_elem->part_state != PART_NORMAL &&
-        part_elem->part_state != PART_IS_ADDED &&
-        part_elem->part_state != PART_IS_CHANGED)
+        part_elem->part_state != PART_TO_BE_ADDED &&
+        part_elem->part_state != PART_CHANGED)
       continue;
     if (!m_is_sub_partitioned)
     {

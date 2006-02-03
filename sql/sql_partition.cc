@@ -2459,6 +2459,7 @@ char *generate_partition_syntax(partition_info *part_info,
 
   if (write_all || (!part_info->use_default_partitions))
   {
+    bool first= TRUE;
     err+= add_begin_parenthesis(fptr);
     i= 0;
     do
@@ -2467,6 +2468,12 @@ char *generate_partition_syntax(partition_info *part_info,
       if (part_elem->part_state != PART_TO_BE_DROPPED &&
           part_elem->part_state != PART_REORGED_DROPPED)
       {
+        if (!first)
+        {
+          err+= add_comma(fptr);
+          err+= add_space(fptr);
+        }
+        first= FALSE;
         err+= add_partition(fptr);
         err+= add_string(fptr, part_elem->partition_name);
         err+= add_space(fptr);
@@ -2495,11 +2502,6 @@ char *generate_partition_syntax(partition_info *part_info,
             else
               err+= add_end_parenthesis(fptr);
           } while (++j < no_subparts);
-        }
-        if (i != (tot_no_parts-1))
-        {
-          err+= add_comma(fptr);
-          err+= add_space(fptr);
         }
       }
       if (i == (tot_no_parts-1))
@@ -5179,6 +5181,25 @@ write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 
 /*
+  Remove entry from table log and release resources for others to use
+
+  SYNOPSIS
+    write_log_completed()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+*/
+static
+bool
+write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  DBUG_ENTER("write_log_ph2_change_partition");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Actually perform the change requested by ALTER TABLE of partitions
   previously prepared.
 
@@ -5308,8 +5329,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       1) Write the new frm, pack it and then delete it
       2) Perform the change within the handler
     */
-    if ((mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM)) ||
-        (mysql_change_partitions(lpt)))
+    if (mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM) ||
+        mysql_change_partitions(lpt))
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
@@ -5370,25 +5391,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       to test if recovery is properly done.
     */
     if (write_log_shadow_frm(lpt, FALSE) ||
-        ERROR_INJECTOR_CRASH(1000) ||
+        ERROR_INJECT_CRASH(1000) ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECTOR_CRASH(1001) ||
+        ERROR_INJECT_CRASH(1001) ||
         write_log_drop_partition(lpt) ||
-        ERROR_INJECTOR_CRASH(1002) ||
+        ERROR_INJECT_CRASH(1002) ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
-         write_bin_log(thd, FALSE,
-                       thd->query, thd->query_length), FALSE) ||
-        ERROR_INJECTOR_CRASH(1003) ||
+         (write_bin_log(thd, FALSE,
+                        thd->query, thd->query_length), FALSE)) ||
+        ERROR_INJECT_CRASH(1003) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         (close_open_tables_and_downgrade(lpt), FALSE) || 
-        ERROR_INJECTOR_CRASH(1004) ||
+        ERROR_INJECT_CRASH(1004) ||
         table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
-        ERROR_INJECTOR_CRASH(1005) ||
+        ERROR_INJECT_CRASH(1005) ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECTOR_CRASH(1006) ||
+        ERROR_INJECT_CRASH(1006) ||
         write_log_completed(lpt) ||
-        ERROR_INJECTOR_CRASH(1007) ||
+        ERROR_INJECT_CRASH(1007) ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
       fast_alter_partition_error_handler(lpt);
@@ -5426,25 +5447,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       9) Complete query
     */
     if (write_log_shadow_frm(lpt, FALSE) ||
-        ERROR_INJECTED_CRASH(1010) ||
+        ERROR_INJECT_CRASH(1010) ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECTED_CRASH(1011) ||
+        ERROR_INJECT_CRASH(1011) ||
         write_log_add_partition(lpt) ||
-        ERROR_INJECTED_CRASH(1012) ||
+        ERROR_INJECT_CRASH(1012) ||
         mysql_change_partitions(lpt) ||
-        ERROR_INJECTED_CRASH(1013) ||
+        ERROR_INJECT_CRASH(1013) ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECTED_CRASH(1014) ||
+        ERROR_INJECT_CRASH(1014) ||
         write_log_shadow_frm(lpt, TRUE) ||
-        ERROR_INJECTED_CRASH(1015) ||
+        ERROR_INJECT_CRASH(1015) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECTED_CRASH(1016) ||
+        ERROR_INJECT_CRASH(1016) ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         write_log_completed(lpt) ||
-        ERROR_INJECTED_CRASH(1017)) 
+        ERROR_INJECT_CRASH(1017)) 
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
