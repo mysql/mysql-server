@@ -1084,8 +1084,25 @@ dict_create_index_step(
 
 			return(thr);
 		} else {
-			node->state = INDEX_CREATE_INDEX_TREE;
+			node->state = INDEX_ADD_TO_CACHE;
 		}
+	}
+
+	if (node->state == INDEX_ADD_TO_CACHE) {
+
+		dulint	index_id = node->index->id;
+
+		success = dict_index_add_to_cache(node->table, node->index,
+				FIL_NULL);
+
+		ut_a(success);
+
+		node->index = dict_index_get_if_in_cache_low(index_id);
+		ut_a(node->index);
+
+		err = DB_SUCCESS;
+
+		node->state = INDEX_CREATE_INDEX_TREE;
 	}
 
 	if (node->state == INDEX_CREATE_INDEX_TREE) {
@@ -1093,10 +1110,13 @@ dict_create_index_step(
 		err = dict_create_index_tree_step(node);
 
 		if (err != DB_SUCCESS) {
+			dict_index_remove_from_cache(node->table, node->index);
+			node->index = NULL;
 
 			goto function_exit;
 		}
 
+		node->index->tree->page = node->page_no;
 		node->state = INDEX_COMMIT_WORK;
 	}
 
@@ -1106,21 +1126,11 @@ dict_create_index_step(
 		(CREATE INDEX does NOT currently do an implicit commit of
 		the current transaction) */
 		
-		node->state = INDEX_ADD_TO_CACHE;
+		node->state = INDEX_CREATE_INDEX_TREE;
 
 		/* thr->run_node = node->commit_node;
 
 		return(thr); */
-	}
-
-	if (node->state == INDEX_ADD_TO_CACHE) {
-
-		success = dict_index_add_to_cache(node->table, node->index,
-				node->page_no);
-
-		ut_a(success);
-
-		err = DB_SUCCESS;
 	}
 
 function_exit:
