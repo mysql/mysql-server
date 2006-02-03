@@ -231,6 +231,16 @@ void
 Dbtup::update_extent_pos(Disk_alloc_info& alloc, 
 			 Ptr<Extent_info> extentPtr)
 {
+#ifdef VM_TRACE
+  Uint32 min_free = 0;
+  for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  {
+    Uint32 sum = alloc.calc_page_free_space(i);
+    min_free += sum * extentPtr.p->m_free_page_count[i];
+  }
+  ddassert(extentPtr.p->m_free_space >= min_free);
+#endif
+  
   Uint32 old = extentPtr.p->m_free_matrix_pos;
   if (old != RNIL)
   {
@@ -252,7 +262,7 @@ Dbtup::update_extent_pos(Disk_alloc_info& alloc,
 }
 
 void
-Dbtup::restart_setup_page(Ptr<Page> pagePtr)
+Dbtup::restart_setup_page(Disk_alloc_info& alloc, Ptr<Page> pagePtr)
 {
   /**
    * Link to extent, clear uncommitted_used_space
@@ -266,7 +276,18 @@ Dbtup::restart_setup_page(Ptr<Page> pagePtr)
   Ptr<Extent_info> extentPtr;
   ndbrequire(c_extent_hash.find(extentPtr, key));
   pagePtr.p->m_extent_info_ptr = extentPtr.i;
-}  
+
+  Uint32 idx = pagePtr.p->list_index & ~0x8000;
+  Uint32 estimated = alloc.calc_page_free_space(idx);
+  Uint32 real_free = pagePtr.p->free_space;
+
+  ddassert(real_free >= estimated);
+  if (real_free != estimated)
+  {
+    extentPtr.p->m_free_space += (real_free - estimated);
+    update_extent_pos(alloc, extentPtr);
+  }
+}
 
 
 /**
@@ -608,7 +629,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
 
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
-    restart_setup_page(pagePtr);
+    restart_setup_page(fragPtr.p->m_disk_alloc_info, pagePtr);
   }
 
   disk_page_prealloc_callback_common(signal, req, fragPtr, pagePtr);
@@ -746,11 +767,6 @@ Dbtup::disk_page_set_dirty(Ptr<Page> pagePtr)
     return ;
   }
   
-  if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
-  {
-    restart_setup_page(pagePtr);
-  }
-  
   Local_key key;
   key.m_page_no = pagePtr.p->m_page_no;
   key.m_file_no = pagePtr.p->m_file_no;
@@ -772,6 +788,12 @@ Dbtup::disk_page_set_dirty(Ptr<Page> pagePtr)
   getFragmentrec(fragPtr, pagePtr.p->m_fragment_id, tabPtr.p);
   
   Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
+
+  if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
+  {
+    restart_setup_page(alloc, pagePtr);
+  }
+  
   Tablespace_client tsman(0, c_tsman,
 			  fragPtr.p->fragTableId,
 			  fragPtr.p->fragmentId,
