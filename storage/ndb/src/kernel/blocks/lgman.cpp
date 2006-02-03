@@ -1087,7 +1087,7 @@ Lgman::force_log_sync(Signal* signal,
        * Update free space with extra NOOP
        */
       ndbrequire(ptr.p->m_free_file_words >= free);
-      ndbrequire(ptr.p->m_free_buffer_words >= free);
+      ndbrequire(ptr.p->m_free_buffer_words > free);
       ptr.p->m_free_file_words -= free;
       ptr.p->m_free_buffer_words -= free;
       
@@ -1171,7 +1171,7 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
   {
 next:
     // fits this page wo/ problem
-    ndbrequire(total_free >= sz);
+    ndbrequire(total_free > sz);
     ptr.p->m_free_buffer_words = total_free - sz;
     ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = pos + sz;
     return ((File_formats::Undofile::Undo_page*)page)->m_data + pos;
@@ -1340,7 +1340,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	
 	Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
 
-	ndbout_c("force flush %d", free);
+	ndbout_c("force flush %d %d", pos.m_idx, ptr.p->m_free_buffer_words);
 	
 	ndbrequire(pos.m_idx); // don't flush empty page...
 	Uint64 lsn= ptr.p->m_last_lsn - 1;
@@ -1355,7 +1355,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	 * Update free space with extra NOOP
 	 */
 	ndbrequire(ptr.p->m_free_file_words >= free);
-	ndbrequire(ptr.p->m_free_buffer_words >= free);
+	ndbrequire(ptr.p->m_free_buffer_words > free);
 	ptr.p->m_free_file_words -= free;
 	ptr.p->m_free_buffer_words -= free;
 	
@@ -1486,7 +1486,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 
   if(list.isEmpty())
   {
-    ptr.p->m_state &= (Uint32)Logfile_group::LG_WAITERS_THREAD;
+    ptr.p->m_state &= ~(Uint32)Logfile_group::LG_WAITERS_THREAD;
     return;
   }
   
@@ -1661,23 +1661,26 @@ Lgman::execFSWRITECONF(Signal* signal)
   {
     Uint32 tot= 0;
     Uint64 lsn = 0;
-    LocalDLFifoList<Undofile> files(m_file_pool, lg_ptr.p->m_files);
-    while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
     {
-      Uint32 state= ptr.p->m_state;
-      Uint32 pages= ptr.p->m_online.m_outstanding;
-      ndbrequire(pages);
-      ptr.p->m_online.m_outstanding= 0;
-      ptr.p->m_state &= ~(Uint32)Undofile::FS_MOVE_NEXT;
-      tot += pages;
-      cnt--;
-      
-      lsn = ptr.p->m_online.m_lsn;
-
-      if((state & Undofile::FS_MOVE_NEXT) && !files.next(ptr))
-	files.first(ptr);
+      LocalDLFifoList<Undofile> files(m_file_pool, lg_ptr.p->m_files);
+      while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
+      {
+	Uint32 state= ptr.p->m_state;
+	Uint32 pages= ptr.p->m_online.m_outstanding;
+	ndbrequire(pages);
+	ptr.p->m_online.m_outstanding= 0;
+	ptr.p->m_state &= ~(Uint32)Undofile::FS_MOVE_NEXT;
+	tot += pages;
+	cnt--;
+	
+	lsn = ptr.p->m_online.m_lsn;
+	
+	if((state & Undofile::FS_MOVE_NEXT) && !files.next(ptr))
+	  files.first(ptr);
+      }
     }
     
+    ndbassert(tot);
     lg_ptr.p->m_outstanding_fs = cnt;
     lg_ptr.p->m_free_buffer_words += (tot * File_formats::UNDO_PAGE_WORDS);
     lg_ptr.p->m_next_reply_ptr_i = ptr.i;
@@ -1692,6 +1695,10 @@ Lgman::execFSWRITECONF(Signal* signal)
     {
       process_log_buffer_waiters(signal, lg_ptr);
     }
+  }
+  else
+  {
+    ndbout_c("miss matched writes");
   }
   
   return;
@@ -3004,29 +3011,32 @@ Lgman::execEND_LCP_CONF(Signal* signal)
 void 
 Lgman::validate_logfile_group(Ptr<Logfile_group> ptr, const char * heading)
 {
-  if (ptr.p->m_file_pos[HEAD].m_ptr_i == RNIL)
-    return;
-
-  Uint32 pages = compute_free_file_pages(ptr);
-
-  Uint32 group_pages = 
-    ((ptr.p->m_free_file_words + File_formats::UNDO_PAGE_WORDS - 1)/ File_formats::UNDO_PAGE_WORDS) ;
-  Uint32 last = ptr.p->m_free_file_words % File_formats::UNDO_PAGE_WORDS;
-  
-  if(! (pages >= group_pages))
+  do 
   {
-    ndbout << heading << " Tail: " << ptr.p->m_file_pos[TAIL] 
-	   << " Head: " << ptr.p->m_file_pos[HEAD] 
-	   << " free: " << group_pages << "(" << last << ")" 
-	   << " found: " << pages;
-    for(Uint32 i = 0; i<3; i++)
+    if (ptr.p->m_file_pos[HEAD].m_ptr_i == RNIL)
+      break;
+    
+    Uint32 pages = compute_free_file_pages(ptr);
+    
+    Uint32 group_pages = 
+      ((ptr.p->m_free_file_words + File_formats::UNDO_PAGE_WORDS - 1)/ File_formats::UNDO_PAGE_WORDS) ;
+    Uint32 last = ptr.p->m_free_file_words % File_formats::UNDO_PAGE_WORDS;
+    
+    if(! (pages >= group_pages))
     {
-      ndbout << " - " << ptr.p->m_tail_pos[i];
+      ndbout << heading << " Tail: " << ptr.p->m_file_pos[TAIL] 
+	     << " Head: " << ptr.p->m_file_pos[HEAD] 
+	     << " free: " << group_pages << "(" << last << ")" 
+	     << " found: " << pages;
+      for(Uint32 i = 0; i<3; i++)
+      {
+	ndbout << " - " << ptr.p->m_tail_pos[i];
+      }
+      ndbout << endl;
+      
+      ndbrequire(pages >= group_pages);
     }
-    ndbout << endl;
-
-    ndbrequire(pages >= group_pages);
-  }
+  } while(0);
 }
 #endif
 

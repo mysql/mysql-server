@@ -2632,7 +2632,7 @@ private:
   void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
 
   void disk_page_set_dirty(Ptr<Page>);
-  void restart_setup_page(Ptr<Page>);
+  void restart_setup_page(Disk_alloc_info&, Ptr<Page>);
   void update_extent_pos(Disk_alloc_info&, Ptr<Extent_info>);
   
   /**
