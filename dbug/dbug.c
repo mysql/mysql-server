@@ -249,6 +249,7 @@ typedef struct st_code_state {
   uint u_line;			/* User source code line number */
   int  locked;			/* If locked with _db_lock_file */
   const char *u_keyword;	/* Keyword for current macro */
+  struct link *keywords;        /* Thread specific, active keywords */
 } CODE_STATE;
 
 	/* Parse a debug command string */
@@ -1252,7 +1253,9 @@ static BOOLEAN DoProfile ()
 BOOLEAN _db_strict_keyword_ (
 const char *keyword)
 {
-  if (stack -> keywords == NULL)
+  CODE_STATE *state;
+  if (stack->keywords == NULL &&
+      (!(state= code_state()) || state->keywords == NULL))
     return FALSE;
   return _db_keyword_ (keyword);
 }
@@ -1288,16 +1291,15 @@ const char *keyword)
   REGISTER BOOLEAN result;
   CODE_STATE *state;
 
-  if (!init_done)
-    _db_push_ ("");
-  /* Sasha: pre-my_thread_init() safety */
   if (!(state=code_state()))
     return FALSE;
   result = FALSE;
   if (DEBUGGING && !state->disable_output &&
       state->level <= stack -> maxdepth &&
       InList (stack -> functions, state->func) &&
-      InList (stack -> keywords, keyword) &&
+      (InList (stack -> keywords, keyword) ||
+       (state -> keywords &&
+        InList (state -> keywords, keyword))) &&
       InList (stack -> processes, _db_process_))
     result = TRUE;
   return (result);
@@ -1372,6 +1374,81 @@ struct link *linkp)
   }
 }
 
+
+/*
+ *  FUNCTION
+ *
+ *	Add key word to _db_strict_keyword_ list
+ *
+ *  SYNOPSIS
+ *
+ *	VOID _db_add_strict_keyword(keyword)
+ *	const char *keyword;
+ *
+ *  DESCRIPTION
+ *
+ *	Add key word to _db_strict_keyword_ to active DEBUG_EXECUTE_IF
+ *      statements for this thread only
+ *
+ *      Returns TRUE if keyword accepted, FALSE otherwise.
+ *
+ */
+
+BOOLEAN _db_add_strict_keyword_(const char *keyword)
+{
+  CODE_STATE *state;
+  struct link *tmp;
+  uint length;
+
+  if (!(state=code_state()) ||
+      !(tmp= (struct link *) DbugMalloc(sizeof(struct link) +
+                                        (length= strlen(keyword)+1))))
+    return FALSE;
+  tmp->str= (char*) (tmp+1);
+  memcpy(tmp->str, keyword, length);
+  tmp->next_link= state->keywords;
+  state->keywords= tmp;
+  return TRUE;
+}
+
+/*
+ *  FUNCTION
+ *
+ *	Remove key word from thread specific _db_strict_keyword_ list
+ *
+ *  SYNOPSIS
+ *
+ *	VOID _db_del_strict_keyword_(keyword)
+ *	const char *keyword;
+ *
+ *  DESCRIPTION
+ *
+ *	Delete key word from _db_strict_keyword_ to decative DEBUG_EXECUTE_IF
+ *      statements for this thread only
+ *
+ *      Returns TRUE if keyword deleted, FALSE otherwise.
+ *
+ */
+
+BOOLEAN _db_del_strict_keyword_(const char *keyword)
+{
+  CODE_STATE *state;
+  struct link *link, **linkp;
+
+  if (!(state=code_state()))
+    return FALSE;
+
+  for (linkp= &state->keywords; (link= *linkp); linkp= &link->next_link)
+  {
+    if (STREQ(link->str, keyword))
+    {
+      *linkp= link->next_link;
+      free(link);      
+      return TRUE;
+    }
+  }
+  return (FALSE);
+}
 
 /*
  *  FUNCTION
