@@ -285,7 +285,14 @@ class JOIN :public Sql_alloc
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
-  
+
+  JOIN(JOIN &join)
+    :fields_list(join.fields_list)
+  {
+    init(join.thd, join.fields_list, join.select_options,
+         join.result);
+  }
+
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
   {
@@ -332,7 +339,7 @@ class JOIN :public Sql_alloc
     all_fields= fields_arg;
     fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
-    tmp_table_param.copy_field=0;
+    tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
   }
