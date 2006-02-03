@@ -49,7 +49,7 @@ Pos	Instruction
 9	set err@1 1
 10	hreturn 5
 11	cfetch c@0 n@4
-12	jump_if_not 15 isnull(n@4)
+12	jump_if_not 15(17) isnull(n@4)
 13	set nulls@2 (nulls@2 + 1)
 14	jump 17
 15	set count@3 (count@3 + 1)

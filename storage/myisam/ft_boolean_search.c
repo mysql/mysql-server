@@ -107,6 +107,7 @@ typedef struct st_ftb_word
   my_off_t   key_root;
   my_off_t  *max_docid;
   MI_KEYDEF *keyinfo;
+  struct st_ftb_word *prev;
   float      weight;
   uint       ndepth;
   uint       len;
@@ -121,6 +122,7 @@ typedef struct st_ft_info
   CHARSET_INFO *charset;
   FTB_EXPR  *root;
   FTB_WORD **list;
+  FTB_WORD  *last_word;
   MEM_ROOT   mem_root;
   QUEUE      queue;
   TREE       no_dupes;
@@ -165,7 +167,7 @@ typedef struct st_my_ftb_param
 } MY_FTB_PARAM;
 
 
-static int ftb_query_add_word(void *param, byte *word, uint word_len,
+static int ftb_query_add_word(void *param, char *word, int word_len,
                               MYSQL_FTPARSER_BOOLEAN_INFO *info)
 {
   MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
@@ -199,7 +201,9 @@ static int ftb_query_add_word(void *param, byte *word, uint word_len,
       memcpy(ftbw->word + 1, word, word_len);
       ftbw->word[0]= word_len;
       if (info->yesno > 0) ftbw->up->ythresh++;
-      queue_insert(&ftb_param->ftb->queue, (byte *)ftbw);
+      ftb_param->ftb->queue.max_elements++;
+      ftbw->prev= ftb_param->ftb->last_word;
+      ftb_param->ftb->last_word= ftbw;
       ftb_param->ftb->with_scan|= (info->trunc & FTB_FLAG_TRUNC);
       for (tmp_expr= ftb_param->ftbe; tmp_expr->up; tmp_expr= tmp_expr->up)
         if (! (tmp_expr->flags & FTB_FLAG_YES))
@@ -264,13 +268,13 @@ static int ftb_query_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ftb_parse_query_internal(void *param, byte *query, uint len)
+static int ftb_parse_query_internal(void *param, char *query, int len)
 {
   MY_FTB_PARAM *ftb_param= (MY_FTB_PARAM *)param;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
-  byte **start= &query;
-  byte *end= query + len;
+  char **start= &query;
+  char *end= query + len;
   FT_WORD w;
 
   info.prev= ' ';
@@ -505,7 +509,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
-  uint       res;
+  FTB_WORD  *ftbw;
 
   if (!(ftb=(FTB *)my_malloc(sizeof(FTB), MYF(MY_WME))))
     return 0;
@@ -518,19 +522,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->with_scan=0;
   ftb->lastpos=HA_OFFSET_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
+  ftb->last_word= 0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
-
-  /*
-    Hack: instead of init_queue, we'll use reinit queue to be able
-    to alloc queue with alloc_root()
-  */
-  res=ftb->queue.max_elements=1+query_len/2;
-  if (!(ftb->queue.root=
-        (byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*))))
-    goto err;
-  reinit_queue(& ftb->queue, res, 0, 0,
-                         (int (*)(void*,byte*,byte*))FTB_WORD_cmp, 0);
+  ftb->queue.max_elements= 0;
   if (!(ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
     goto err;
   ftbe->weight=1;
@@ -545,6 +540,18 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   _ftb_parse_query(ftb, query, query_len, keynr == NO_SUCH_KEY ?
                                           &ft_default_parser :
                                           info->s->keyinfo[keynr].parser);
+  /*
+    Hack: instead of init_queue, we'll use reinit queue to be able
+    to alloc queue with alloc_root()
+  */
+  if (! (ftb->queue.root= (byte **)alloc_root(&ftb->mem_root,
+                                              (ftb->queue.max_elements + 1) *
+                                              sizeof(void *))))
+    goto err;
+  reinit_queue(&ftb->queue, ftb->queue.max_elements, 0, 0,
+                         (int (*)(void*, byte*, byte*))FTB_WORD_cmp, 0);
+  for (ftbw= ftb->last_word; ftbw; ftbw= ftbw->prev)
+    queue_insert(&ftb->queue, (byte *)ftbw);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
@@ -571,7 +578,7 @@ typedef struct st_my_ftb_phrase_param
 } MY_FTB_PHRASE_PARAM;
 
 
-static int ftb_phrase_add_word(void *param, byte *word, uint word_len,
+static int ftb_phrase_add_word(void *param, char *word, int word_len,
     MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
@@ -601,11 +608,11 @@ static int ftb_phrase_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int ftb_check_phrase_internal(void *param, byte *document, uint len)
+static int ftb_check_phrase_internal(void *param, char *document, int len)
 {
   FT_WORD word;
   MY_FTB_PHRASE_PARAM *phrase_param= (MY_FTB_PHRASE_PARAM *)param;
-  const byte *docend= document + len;
+  const char *docend= document + len;
   while (ft_simple_get_word(phrase_param->cs, &document, docend, &word, FALSE))
   {
     ftb_phrase_add_word(param, word.pos, word.len, 0);
@@ -812,7 +819,7 @@ typedef struct st_my_ftb_find_param
 } MY_FTB_FIND_PARAM;
 
 
-static int ftb_find_relevance_add_word(void *param, byte *word, uint len,
+static int ftb_find_relevance_add_word(void *param, char *word, int len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   MY_FTB_FIND_PARAM *ftb_param= (MY_FTB_FIND_PARAM *)param;
@@ -845,10 +852,10 @@ static int ftb_find_relevance_add_word(void *param, byte *word, uint len,
 }
 
 
-static int ftb_find_relevance_parse(void *param, byte *doc, uint len)
+static int ftb_find_relevance_parse(void *param, char *doc, int len)
 {
   FT_INFO *ftb= ((MY_FTB_FIND_PARAM *)param)->ftb;
-  byte *end= doc + len;
+  char *end= doc + len;
   FT_WORD w;
   while (ft_simple_get_word(ftb->charset, &doc, end, &w, TRUE))
     ftb_find_relevance_add_word(param, w.pos, w.len, 0);

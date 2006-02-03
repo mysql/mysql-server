@@ -243,7 +243,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DETERMINISTIC_SYM
 %token  DIRECTORY_SYM
 %token  DISABLE_SYM
-%token  DISABLED_SYM
 %token  DISCARD
 %token  DISK_SYM
 %token  DISTINCT
@@ -259,7 +258,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ELSEIF_SYM
 %token  ELT_FUNC
 %token  ENABLE_SYM
-%token  ENABLED_SYM
 %token  ENCLOSED
 %token  ENCODE_SYM
 %token  ENCRYPT
@@ -1357,13 +1355,16 @@ create:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
-            if (!lex->et_compile_phase) 
+            if (!lex->et_compile_phase)
+            {
               lex->et->init_name(YYTHD, $4);
+              lex->et->init_definer(YYTHD);
+            }
           }
           ON SCHEDULE_SYM ev_schedule_time
-          ev_on_completion
-          ev_status
-          ev_comment
+          opt_ev_on_completion
+          opt_ev_status
+          opt_ev_comment
           DO_SYM ev_sql_stmt
           {
             /*
@@ -1418,7 +1419,7 @@ ev_schedule_time: EVERY_SYM expr interval
                 YYABORT;
                 break;
               case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE, MYF(0));
+                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
                 YYABORT;
                 break;
               }
@@ -1436,6 +1437,16 @@ ev_schedule_time: EVERY_SYM expr interval
                 yyerror(ER(ER_SYNTAX_ERROR));
                 YYABORT;  
                 break;
+              case ER_WRONG_VALUE:
+                {
+                  char buff[120];
+                  String str(buff,(uint32) sizeof(buff), system_charset_info);
+                  String *str2= $2->val_str(&str);
+                  my_error(ER_WRONG_VALUE, MYF(0), "AT",
+                           str2? str2->c_ptr():"NULL");
+                  YYABORT;
+                  break;
+                }          
               case EVEX_BAD_PARAMS:
                 my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
                 YYABORT;
@@ -1445,15 +1456,15 @@ ev_schedule_time: EVERY_SYM expr interval
           }
       ;
     
-ev_status: /* empty */ {$<ulong_num>$= 0;}
-        | ENABLED_SYM
+opt_ev_status: /* empty */ {$<ulong_num>$= 0;}
+        | ENABLE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->status= MYSQL_EVENT_ENABLED;
             $<ulong_num>$= 1;	   
           }
-        | DISABLED_SYM
+        | DISABLE_SYM
           {
             LEX *lex=Lex;
             
@@ -1468,7 +1479,25 @@ ev_starts: /* empty */
           {
             LEX *lex= Lex;
             if (!lex->et_compile_phase)
-              lex->et->init_starts(YYTHD, $2);
+            {
+              
+              switch (lex->et->init_starts(YYTHD, $2)) {
+              case EVEX_PARSE_ERROR:
+                yyerror(ER(ER_SYNTAX_ERROR));
+                YYABORT;
+                break;
+              case EVEX_BAD_PARAMS:
+                {
+                  char buff[20];
+                  String str(buff,(uint32) sizeof(buff), system_charset_info);
+                  String *str2= $2->val_str(&str);
+                  my_error(ER_WRONG_VALUE, MYF(0), "STARTS", str2? str2->c_ptr():
+                                                                   NULL);
+                  YYABORT;
+                  break;
+                }
+              }
+            }
           }
       ;
 
@@ -1492,8 +1521,12 @@ ev_ends: /* empty */
           }
       ;
 
-ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
-        | ON COMPLETION_SYM PRESERVE_SYM
+opt_ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
+        | ev_on_completion
+      ;
+
+ev_on_completion: 
+          ON COMPLETION_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
@@ -1509,7 +1542,7 @@ ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
           }
       ;
 
-ev_comment: /* empty */ {$<ulong_num>$= 0;}
+opt_ev_comment: /* empty */ {$<ulong_num>$= 0;}
         | COMMENT_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
@@ -1569,7 +1602,6 @@ ev_sql_stmt:
             if (!lex->et_compile_phase)
             {
               lex->et->init_body(YYTHD);
-              lex->et->init_definer(YYTHD);
             }
           }
       ;
@@ -2256,7 +2288,9 @@ sp_proc_stmt:
         ;
 
 sp_proc_stmt_if:
-        IF sp_if END IF {}
+        IF { Lex->sphead->new_cont_backpatch(NULL); }
+        sp_if END IF
+        { Lex->sphead->do_cont_backpatch(); }
         ;
         
 sp_proc_stmt_statement:
@@ -2334,13 +2368,17 @@ sp_proc_stmt_case_simple:
 	CASE_SYM WHEN_SYM
 	  {
 	    Lex->sphead->m_flags&= ~sp_head::IN_SIMPLE_CASE;
+            Lex->sphead->new_cont_backpatch(NULL);
 	  }
-	  sp_case END CASE_SYM {}
+          sp_case END CASE_SYM { Lex->sphead->do_cont_backpatch(); }
         ;
         
 sp_proc_stmt_case:
           CASE_SYM
-          { Lex->sphead->reset_lex(YYTHD); }
+          {
+            Lex->sphead->reset_lex(YYTHD);
+            Lex->sphead->new_cont_backpatch(NULL);
+          }
           expr WHEN_SYM
 	  {
 	    LEX *lex= Lex;
@@ -2364,6 +2402,7 @@ sp_proc_stmt_case:
 	  sp_case END CASE_SYM
 	  {
 	    Lex->spcont->pop_case_expr_id();
+            Lex->sphead->do_cont_backpatch();
 	  }
         ;
 
@@ -2654,6 +2693,7 @@ sp_if:
                                                                $2, lex);
 
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2712,6 +2752,7 @@ sp_case:
 	      i= new sp_instr_jump_if_not(ip, ctx, expr, lex);
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+            sp->add_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2841,6 +2882,7 @@ sp_unlabeled_control:
 
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
+            sp->new_cont_backpatch(i);
             sp->add_instr(i);
             sp->restore_lex(YYTHD);
 	  }
@@ -2852,6 +2894,7 @@ sp_unlabeled_control:
 	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
 
 	    lex->sphead->add_instr(i);
+            lex->sphead->do_cont_backpatch();
 	  }
         | REPEAT_SYM sp_proc_stmts1 UNTIL_SYM 
           { Lex->sphead->reset_lex(YYTHD); }
@@ -2865,6 +2908,8 @@ sp_unlabeled_control:
                                                                lex);
             lex->sphead->add_instr(i);
             lex->sphead->restore_lex(YYTHD);
+            /* We can shortcut the cont_backpatch here */
+            i->m_cont_dest= ip+1;
 	  }
 	;
 
@@ -4786,8 +4831,13 @@ alter:
             if (!(et= new event_timed()))// implicitly calls event_timed::init()
               YYABORT;
             lex->et = et;
-            et->init_name(YYTHD, $3);
 
+            if (!lex->et_compile_phase)
+            {
+              et->init_definer(YYTHD);
+              et->init_name(YYTHD, $3);
+            }
+            
             /*
                 We have to turn of CLIENT_MULTI_QUERIES while parsing a
                 stored procedure, otherwise yylex will chop it into pieces
@@ -4795,14 +4845,12 @@ alter:
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	    
           }
-          ev_on_schedule
-          ev_rename_to
-          ev_on_completion
-          ev_status
-          ev_comment
-          ev_opt_sql_stmt
+          ev_alter_on_schedule_completion
+          opt_ev_rename_to
+          opt_ev_status
+          opt_ev_comment
+          opt_ev_sql_stmt
           {
             /*
               $1 - ALTER
@@ -4817,7 +4865,7 @@ alter:
               can overwrite it
             */
             if (!($<ulong_num>5 || $<ulong_num>6 || $<ulong_num>7 ||
-                  $<ulong_num>8 || $<ulong_num>9 || $<ulong_num>10))
+                  $<ulong_num>8 || $<ulong_num>9))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
@@ -4846,15 +4894,13 @@ alter:
           }
 	;
 
+ev_alter_on_schedule_completion: /* empty */ { $<ulong_num>$= 0;}
+        | ON SCHEDULE_SYM ev_schedule_time { $<ulong_num>$= 1; }
+        | ev_on_completion { $<ulong_num>$= 1; }
+        | ON SCHEDULE_SYM ev_schedule_time ev_on_completion { $<ulong_num>$= 1; }
+      ;
 
-ev_on_schedule: /* empty */ { $<ulong_num>$= 0;}
-        | ON SCHEDULE_SYM ev_schedule_time
-          {
-            $<ulong_num>$= 1;
-          }
-        ;
-
-ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
+opt_ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
         | RENAME TO_SYM sp_name
           {
             LEX *lex=Lex;
@@ -4864,7 +4910,7 @@ ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
           }
       ;
  
-ev_opt_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
+opt_ev_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
         | DO_SYM ev_sql_stmt
           {
             $<ulong_num>$= 1;
@@ -7637,7 +7683,6 @@ drop:
 
             if (lex->et)
             {
-              // ToDo Andrey : Change the error message
               /*
                 Recursive events are not possible because recursive SPs
                 are not also possible. lex->sp_head is not stacked.
@@ -7648,8 +7693,13 @@ drop:
 
             if (!(lex->et= new event_timed()))
               YYABORT;
-            lex->et->init_name(YYTHD, $4);
 	  
+            if (!lex->et_compile_phase)
+            {
+              lex->et->init_name(YYTHD, $4);
+              lex->et->init_definer(YYTHD);
+            }
+
             lex->sql_command = SQLCOM_DROP_EVENT;
             lex->drop_if_exists= $3;
           }
@@ -8039,6 +8089,15 @@ show_param:
              lex->orig_sql_command= SQLCOM_SHOW_TRIGGERS;
              lex->select_lex.db= $3;
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TRIGGERS))
+               YYABORT;
+           }
+         | opt_full EVENTS_SYM opt_db wild_and_where
+           {
+             LEX *lex= Lex;
+             lex->sql_command= SQLCOM_SELECT;
+             lex->orig_sql_command= SQLCOM_SHOW_EVENTS;
+             lex->select_lex.db= $3;
+             if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
            }
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
@@ -9301,7 +9360,7 @@ keyword_sp:
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
-	| DISABLED_SYM		{}
+	| DISABLE_SYM		{}
 	| DISCARD		{}
 	| DISK_SYM              {}
 	| DUMPFILE		{}
@@ -9321,9 +9380,7 @@ keyword_sp:
 	| EXTENT_SIZE_SYM       {}
 	| FAST_SYM		{}
 	| FOUND_SYM		{}
-	| DISABLE_SYM		{}
 	| ENABLE_SYM		{}
-	| ENABLED_SYM		{}
 	| FULL			{}
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
@@ -10193,6 +10250,7 @@ object_privilege:
 	| ALTER ROUTINE_SYM { Lex->grant |= ALTER_PROC_ACL; }
 	| CREATE USER { Lex->grant |= CREATE_USER_ACL; }
         | EVENT_SYM { Lex->grant |= EVENT_ACL;}
+        | TRIGGER_SYM { Lex->grant |= TRIGGER_ACL; }
 	;
 
 

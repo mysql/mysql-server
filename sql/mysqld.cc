@@ -1144,7 +1144,8 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
-  logger.cleanup();
+  logger.cleanup_base();
+
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -1237,6 +1238,8 @@ void clean_up(bool print_message)
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  logger.cleanup_end();
+
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -3083,7 +3086,10 @@ static int init_server_components()
   }
 
 #ifdef WITH_CSV_STORAGE_ENGINE
-  logger.init_log_tables();
+  if (opt_bootstrap)
+    opt_old_log_format= TRUE;
+  else
+    logger.init_log_tables();
 
   if (opt_old_log_format || (have_csv_db != SHOW_OPTION_YES))
     logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
@@ -6523,24 +6529,24 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 {
   var->type= SHOW_CHAR;
   if (!ssl_acceptor_fd)
-    var->value= "NONE";
+    var->value= const_cast<char*>("NONE");
   else
     switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
     {
     case SSL_SESS_CACHE_OFF:
-      var->value= "OFF"; break;
+      var->value= const_cast<char*>("OFF"); break;
     case SSL_SESS_CACHE_CLIENT:
-      var->value= "CLIENT"; break;
+      var->value= const_cast<char*>("CLIENT"); break;
     case SSL_SESS_CACHE_SERVER:
-      var->value= "SERVER"; break;
+      var->value= const_cast<char*>("SERVER"); break;
     case SSL_SESS_CACHE_BOTH:
-      var->value= "BOTH"; break;
+      var->value= const_cast<char*>("BOTH"); break;
     case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-      var->value= "NO_AUTO_CLEAR"; break;
+      var->value= const_cast<char*>("NO_AUTO_CLEAR"); break;
     case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-      var->value= "NO_INTERNAL_LOOKUP"; break;
+      var->value= const_cast<char*>("NO_INTERNAL_LOOKUP"); break;
     default:
-      var->value= "Unknown"; break;
+      var->value= const_cast<char*>("Unknown"); break;
     }
   return 0;
 }
@@ -6561,6 +6567,7 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
   *((long *)buff)= (long)thd->net.vio->ssl_arg ?
                          SSL_session_reused((SSL*) thd->net.vio->ssl_arg) :
                          0;
+  return 0;
 }
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
@@ -6711,6 +6718,7 @@ SHOW_VAR status_vars[]= {
   {"Com_show_engine_logs",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_LOGS]), SHOW_LONG_STATUS},
   {"Com_show_engine_mutex",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_MUTEX]), SHOW_LONG_STATUS},
   {"Com_show_engine_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ENGINE_STATUS]), SHOW_LONG_STATUS},
+  {"Com_show_events",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_EVENTS]), SHOW_LONG_STATUS},
   {"Com_show_errors",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
   {"Com_show_fields",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
   {"Com_show_grants",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},

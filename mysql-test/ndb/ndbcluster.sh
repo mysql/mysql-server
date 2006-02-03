@@ -53,6 +53,7 @@ status_ndb=
 ndb_diskless=0
 ndbd_nodes=2
 relative_config_data_dir=
+opt_core=
 
 ndb_no_ord=512
 ndb_no_attr=2048
@@ -118,6 +119,9 @@ while test $# -gt 0; do
     --ndbd-extra-opts=*)
      NDBD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndbd-extra-opts=;;"`
      ;;
+    --core)
+     opt_core="--core"
+     ;;
     --verbose=*)
      VERBOSE=`echo "$1" | sed -e "s;--verbose=;;"`
      ;;
@@ -153,10 +157,10 @@ if [ ! -f "$config_ini" ]; then
   exit 1
 fi
 
-exec_mgmtclient="$exec_mgmtclient --no-defaults $NDB_MGM_EXTRA_OPTS"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $NDB_MGMD_EXTRA_OPTS"
-exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS"
-exec_waiter="$exec_waiter --no-defaults"
+exec_mgmtclient="$exec_mgmtclient --no-defaults $opt_core $NDB_MGM_EXTRA_OPTS"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $opt_core $NDB_MGMD_EXTRA_OPTS"
+exec_ndb="$exec_ndb --no-defaults $opt_core $NDBD_EXTRA_OPTS"
+exec_waiter="$exec_waiter --no-defaults $opt_core"
 
 ndb_host="localhost"
 ndb_mgmd_port=$port

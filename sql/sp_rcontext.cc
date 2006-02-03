@@ -160,6 +160,10 @@ sp_rcontext::set_return_value(THD *thd, Item *return_value_item)
 }
 
 
+#define IS_WARNING_CONDITION(S)   ((S)[0] == '0' && (S)[1] == '1')
+#define IS_NOT_FOUND_CONDITION(S) ((S)[0] == '0' && (S)[1] == '2')
+#define IS_EXCEPTION_CONDITION(S) ((S)[0] != '0' || (S)[1] > '2')
+
 bool
 sp_rcontext::find_handler(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
@@ -193,18 +197,17 @@ sp_rcontext::find_handler(uint sql_errno,
 	found= i;
       break;
     case sp_cond_type_t::warning:
-      if ((sqlstate[0] == '0' && sqlstate[1] == '1' ||
-	   level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
-	  found < 0)
+      if ((IS_WARNING_CONDITION(sqlstate) ||
+           level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+          found < 0)
 	found= i;
       break;
     case sp_cond_type_t::notfound:
-      if (sqlstate[0] == '0' && sqlstate[1] == '2' &&
-	  found < 0)
+      if (IS_NOT_FOUND_CONDITION(sqlstate) && found < 0)
 	found= i;
       break;
     case sp_cond_type_t::exception:
-      if ((sqlstate[0] != '0' || sqlstate[1] > '2') &&
+      if (IS_EXCEPTION_CONDITION(sqlstate) &&
 	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
 	  found < 0)
 	found= i;
@@ -213,7 +216,13 @@ sp_rcontext::find_handler(uint sql_errno,
   }
   if (found < 0)
   {
-    if (m_prev_runtime_ctx)
+    /*
+      Only "exception conditions" are propagated to handlers in calling
+      contexts. If no handler is found locally for a "completion condition"
+      (warning or "not found") we will simply resume execution.
+    */
+    if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
+        level == MYSQL_ERROR::WARN_LEVEL_ERROR)
       return m_prev_runtime_ctx->find_handler(sql_errno, level);
     return FALSE;
   }

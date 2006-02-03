@@ -249,15 +249,13 @@ private:
   struct Page_request {
     enum Flags {
       OP_MASK       = 0x000F // 4 bits for TUP operation
-      ,STRICT_ORDER = 0x0010 // maintain request order
       ,LOCK_PAGE    = 0x0020 // lock page in memory
       ,EMPTY_PAGE   = 0x0040 // empty (new) page
       ,ALLOC_REQ    = 0x0080 // part of alloc
       ,COMMIT_REQ   = 0x0100 // part of commit
       ,DIRTY_REQ    = 0x0200 // make page dirty wo/ update_lsn
-      ,NO_HOOK      = 0x0400 // dont run load hook
-      ,UNLOCK_PAGE  = 0x0800
-      ,CORR_REQ     = 0x1000 // correlated request (no LIRS update)
+      ,UNLOCK_PAGE  = 0x0400
+      ,CORR_REQ     = 0x0800 // correlated request (no LIRS update)
     };
 
     Uint16 m_block;
@@ -286,6 +284,8 @@ private:
     Uint32 prevList;
   };
 
+  typedef Uint16 Page_state;
+  
   struct Page_entry : Page_entry_stack_ptr,
                       Page_entry_queue_ptr,
                       Page_entry_sublist_ptr {
@@ -305,7 +305,7 @@ private:
       ,PAGEIN  = 0x0100 // paging in
       ,PAGEOUT = 0x0200 // paging out
       ,LOGSYNC = 0x0400 // undo WAL as part of pageout
-      ,NO_HOOK = 0x0800 // don't run load hook
+      ,COPY    = 0x0800 // Copy page for LCP
       ,LCP     = 0x1000 // page is LCP flushed
       ,HOT     = 0x2000 // page is hot
       ,ONSTACK = 0x4000 // page is on LIRS stack
@@ -324,26 +324,26 @@ private:
       ,SUBLIST_COUNT = 8
     };
 
-    Uint16 m_state;             // flags (0 for new entry)
-
-    Uint16 m_file_no;           // disk page address set at seize
+    Uint16 m_file_no;       // disk page address set at seize
+    Page_state m_state;         // flags (0 for new entry)
+    
     Uint32 m_page_no;
     Uint32 m_real_page_i;
-    Uint32 m_copy_real_page_i;  // used for flushing LOCKED pages
-    
     Uint64 m_lsn;
-    Uint32 m_last_lcp;
     
+    Uint32 m_last_lcp;
+    Uint32 m_dirty_count;
+    Uint32 m_copy_page_i;
     union {
       Uint32 m_busy_count;        // non-zero means BUSY
       Uint32 nextPool;
     };
     
     DLFifoList<Page_request>::Head m_requests;
-
+    
     Uint32 nextHash;
     Uint32 prevHash;
-
+    
     Uint32 hashValue() const { return m_file_no << 16 | m_page_no; }
     bool equal(const Page_entry& obj) const { 
       return 
@@ -374,8 +374,6 @@ private:
   Uint32 m_last_lcp_complete;
   Uint32 m_lcp_curr_bucket;
   Uint32 m_lcp_outstanding;     // remaining i/o waits
-  Uint32 m_lcp_copy_page;
-  bool m_lcp_copy_page_free;
   EndLcpReq m_end_lcp_req;
   
   // clean-up variables
@@ -421,9 +419,10 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
+  void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAG_ORD(Signal*);
   void execEND_LCP_REQ(Signal*);
-
+  
   void execFSREADCONF(Signal*);
   void execFSREADREF(Signal*);
   void execFSWRITECONF(Signal*);
@@ -432,8 +431,8 @@ protected:
   void execDUMP_STATE_ORD(Signal* signal);
 
 private:
-  static Uint32 get_sublist_no(Uint16 state);
-  void set_page_state(Ptr<Page_entry> ptr, Uint16 new_state);
+  static Uint32 get_sublist_no(Page_state state);
+  void set_page_state(Ptr<Page_entry> ptr, Page_state new_state);
 
   bool seize_cache_page(Ptr<GlobalPage>& gptr);
   void release_cache_page(Uint32 i);
@@ -463,7 +462,10 @@ private:
   void move_cleanup_ptr(Ptr<Page_entry> ptr);
 
   bool process_lcp(Signal*);
-  
+  void process_lcp_prepare(Signal* signal, Ptr<Page_entry> ptr);
+  int create_copy_page(Ptr<Page_entry>, Uint32 req_flags);
+  void restore_copy_page(Ptr<Page_entry>);
+
   void pagein(Signal*, Ptr<Page_entry>);
   void fsreadreq(Signal*, Ptr<Page_entry>);
   void fsreadconf(Signal*, Ptr<Page_entry>);
@@ -510,13 +512,11 @@ public:
   Ptr<GlobalPage> m_ptr;        // TODO remove
 
   enum RequestFlags {
-    STRICT_ORDER = Pgman::Page_request::STRICT_ORDER
-    ,LOCK_PAGE = Pgman::Page_request::LOCK_PAGE
+    LOCK_PAGE = Pgman::Page_request::LOCK_PAGE
     ,EMPTY_PAGE = Pgman::Page_request::EMPTY_PAGE
     ,ALLOC_REQ = Pgman::Page_request::ALLOC_REQ
     ,COMMIT_REQ = Pgman::Page_request::COMMIT_REQ
     ,DIRTY_REQ = Pgman::Page_request::DIRTY_REQ
-    ,NO_HOOK = Pgman::Page_request::NO_HOOK
     ,UNLOCK_PAGE = Pgman::Page_request::UNLOCK_PAGE
     ,CORR_REQ = Pgman::Page_request::CORR_REQ
   };

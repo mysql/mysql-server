@@ -68,8 +68,6 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(THD *thd);
-static bool append_file_to_dir(THD *thd, const char **filename_ptr,
-			       const char *table_name);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1255,6 +1253,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  thd->security_ctx->priv_host[0]=0;
 
   buff= (char*) thd->net.buff;
   thd->init_for_queries();
@@ -2162,6 +2161,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_TABLES:
   case SCH_VIEWS:
   case SCH_TRIGGERS:
+  case SCH_EVENTS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     my_message(ER_NOT_ALLOWED_COMMAND,
                ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
@@ -2450,11 +2450,15 @@ mysql_execute_command(THD *thd)
     if (all_tables)
     {
       if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
-          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC)
+          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC &&
+          lex->orig_sql_command != SQLCOM_SHOW_EVENTS)
         res= check_table_access(thd,
                                 lex->exchange ? SELECT_ACL | FILE_ACL :
                                 SELECT_ACL,
                                 all_tables, 0);
+      else if (lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
+        res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
+                       is_schema_db(thd->lex->select_lex.db));
     }
     else
       res= check_access(thd,
@@ -6729,8 +6733,8 @@ static void refresh_status(THD *thd)
 
 	/* If pointer is not a null pointer, append filename to it */
 
-static bool append_file_to_dir(THD *thd, const char **filename_ptr,
-			       const char *table_name)
+bool append_file_to_dir(THD *thd, const char **filename_ptr,
+                        const char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)

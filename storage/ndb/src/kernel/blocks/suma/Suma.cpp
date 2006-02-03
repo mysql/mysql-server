@@ -181,7 +181,15 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_subscriptionPool.setSize(noTables);
   c_syncPool.setSize(2);
   c_dataBufferPool.setSize(noAttrs);
-  c_gcp_pool.setSize(10);
+
+  // Calculate needed gcp pool as 10 records + the ones needed
+  // during a possible api timeout
+  Uint32 dbApiHbInterval, gcpInterval;
+  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL,
+			    &dbApiHbInterval);
+  ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL,
+                            &gcpInterval);
+  c_gcp_pool.setSize(10 + (4*dbApiHbInterval)/gcpInterval);
   
   c_page_chunk_pool.setSize(50);
 
@@ -2551,8 +2559,9 @@ Suma::reportAllSubscribers(Signal *signal,
   data->gci            = m_last_complete_gci + 1;
   data->tableId        = subPtr.p->m_tableId;
   data->operation      = table_event;
-  data->logType        = 0;
   data->ndbd_nodeid    = refToNode(reference());
+  data->changeMask     = 0;
+  data->totalLen       = 0;
   
   TablePtr tabPtr;
   c_tables.getPtr(tabPtr, subPtr.p->m_table_ptrI);
@@ -3169,7 +3178,9 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     LinearSectionPtr ptr[3];
     const Uint32 nptr= reformat(signal, ptr, 
 				f_buffer, sz, b_buffer, b_trigBufferSize);
-    
+    Uint32 ptrLen= 0;
+    for(Uint32 i =0; i < nptr; i++)
+      ptrLen+= ptr[i].sz;    
     /**
      * Signal to subscriber(s)
      */
@@ -3180,6 +3191,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->tableId        = tabPtr.p->m_tableId;
     data->operation      = event;
     data->logType        = 0;
+    data->changeMask     = 0;
+    data->totalLen       = ptrLen;
     
     {
       LocalDLList<Subscriber> list(c_subscriberPool,tabPtr.p->c_subscribers);
@@ -3427,17 +3440,19 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   DBUG_VOID_RETURN;
 }
 
+static Uint32 b_dti_buf[10000];
+
 void
-Suma::execALTER_TAB_CONF(Signal *signal)
+Suma::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
-  DBUG_ENTER("Suma::execALTER_TAB_CONF");
-  ndbassert(signal->getNoOfSections() == 0);
+  DBUG_ENTER("Suma::execALTER_TAB_REQ");
+  ndbassert(signal->getNoOfSections() == 1);
 
-  AlterTabConf * const conf = (AlterTabConf*)signal->getDataPtr();
-  Uint32 senderRef= conf->senderRef;
-  Uint32 tableId= conf->tableId;
-
+  AlterTabReq * const req = (AlterTabReq*)signal->getDataPtr();
+  Uint32 senderRef= req->senderRef;
+  Uint32 tableId= req->tableId;
+  Uint32 changeMask= req->changeMask;
   TablePtr tabPtr;
   if (!c_tables.find(tabPtr, tableId) ||
       tabPtr.p->m_state == Table::DROPPED ||
@@ -3456,13 +3471,30 @@ Suma::execALTER_TAB_CONF(Signal *signal)
     DBUG_VOID_RETURN;
   }
   // dict coordinator sends info to API
-  
+
+  // Copy DICT_TAB_INFO to local buffer
+  SegmentedSectionPtr tabInfoPtr;
+  signal->getSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+#ifndef DBUG_OFF
+  ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
+  SimplePropertiesSectionReader reader(tabInfoPtr, getSectionSegmentPool());
+  reader.printAll(ndbout);
+#endif
+  copy(b_dti_buf, tabInfoPtr);
+  LinearSectionPtr ptr[3];
+  ptr[0].p = b_dti_buf;
+  ptr[0].sz = tabInfoPtr.sz;
+
+  releaseSections(signal);
+
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci+1;
   data->tableId        = tableId;
   data->operation      = NdbDictionary::Event::_TE_ALTER;
   data->req_nodeid     = refToNode(senderRef);
- 
+  data->logType        = 0;
+  data->changeMask     = changeMask;
+  data->totalLen       = tabInfoPtr.sz;
   {
     LocalDLList<Subscriber> subbs(c_subscriberPool,tabPtr.p->c_subscribers);
     SubscriberPtr subbPtr;
@@ -3482,8 +3514,9 @@ Suma::execALTER_TAB_CONF(Signal *signal)
       }
 
       data->senderData= subbPtr.p->m_senderData;
-      sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-		 SubTableData::SignalLength, JBB);
+      Callback c = { 0, 0 };
+      sendFragmentedSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+                           SubTableData::SignalLength, JBB, ptr, 1, c);
       DBUG_PRINT("info",("sent to subscriber %d", subbPtr.i));
     }
   }
@@ -4660,7 +4693,9 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
       const Uint32 nptr= reformat(signal, ptr, 
 				  src, sz_1, 
 				  src + sz_1, sz - 2 - sz_1);
-      
+      Uint32 ptrLen= 0;
+      for(Uint32 i =0; i < nptr; i++)
+        ptrLen+= ptr[i].sz;
       /**
        * Signal to subscriber(s)
        */
@@ -4672,6 +4707,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
       data->tableId        = tabPtr.p->m_tableId;
       data->operation      = event;
       data->logType        = 0;
+      data->changeMask     = 0;
+      data->totalLen       = ptrLen;
       
       {
 	LocalDLList<Subscriber> list(c_subscriberPool,tabPtr.p->c_subscribers);

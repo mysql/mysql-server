@@ -334,11 +334,22 @@ event_executor_main(void *arg)
     {
       pthread_t th;
 
-      DBUG_PRINT("evex main thread",("mark_last_executed"));
-      et->mark_last_executed();
-      et->compute_next_execution_time();
+      DBUG_PRINT("evex main thread", ("[%10s] this exec at [%llu]", et->name.str,
+                               TIME_to_ulonglong_datetime(&et->execute_at)));
+      et->mark_last_executed(thd);
+      if (et->compute_next_execution_time())
+      {
+        sql_print_error("Error while computing time of %s.%s . "
+                        "Disabling after execution.",
+                        et->dbname.str, et->name.str);
+        et->status= MYSQL_EVENT_DISABLED;
+      }
+      DBUG_PRINT("evex main thread", ("[%10s] next exec at [%llu]", et->name.str,
+                               TIME_to_ulonglong_datetime(&et->execute_at)));
+
       et->update_fields(thd);
-      DBUG_PRINT("info", ("  Spawning a thread %d", ++iter_num));
+      ++iter_num;
+      DBUG_PRINT("info", ("  Spawning a thread %d", iter_num));
 #ifndef DBUG_FAULTY_THR
       if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
       {
@@ -450,8 +461,8 @@ event_executor_worker(void *event_void)
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->mem_root= &worker_mem_root;
 
-  pthread_detach(pthread_self());
-
+  pthread_detach_this_thread();
+  
   if (init_event_thread(thd))
     goto err;
 
@@ -492,12 +503,18 @@ event_executor_worker(void *event_void)
     sql_print_information("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
                           event->dbname.str, event->name.str,
                           (int) event->expression, ret);
+    if (ret == EVEX_COMPILE_ERROR)
+      sql_print_information("    EVEX COMPILE ERROR for event %s.%s",
+                             event->dbname.str, event->name.str);
+    
     DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
                         event->dbname.str, event->name.str,
                         (int) event->expression, ret));
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
+    DBUG_PRINT("event_executor_worker",
+               ("%s exec no more. to drop=%d",event->name.str, event->dropped));
     if (event->dropped)
       event->drop(thd);
     delete event;
@@ -599,7 +616,12 @@ evex_load_events_from_db(THD *thd)
     }
     
     // let's find when to be executed  
-    et->compute_next_execution_time();
+    if (et->compute_next_execution_time())
+    {
+      sql_print_error("Error while computing execution time of %s.%s. Skipping",
+                       et->dbname.str, et->name.str);
+      continue;
+    }
     
     DBUG_PRINT("evex_load_events_from_db", ("Adding to the exec list."));
 

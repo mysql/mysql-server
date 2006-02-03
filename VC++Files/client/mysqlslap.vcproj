@@ -40,7 +40,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
 				OutputFile="../client_release/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -102,7 +102,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
 				OutputFile="../client_classic/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
@@ -162,7 +162,7 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib mysqlclient.lib mysys.lib"
+				AdditionalDependencies="wsock32.lib odbc32.lib odbccp32.lib"
 				OutputFile="../client_debug/mysqlslap.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"

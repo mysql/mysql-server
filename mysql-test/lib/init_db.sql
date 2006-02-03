@@ -23,6 +23,7 @@ CREATE TABLE db (
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db,User),
   KEY User (User)
 ) engine=MyISAM
@@ -30,8 +31,8 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Database privileges';
 
   
-INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');
-INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');
+INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 
 
 CREATE TABLE host (
@@ -54,6 +55,7 @@ CREATE TABLE host (
   Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   PRIMARY KEY Host (Host,Db)
 ) engine=MyISAM
 CHARACTER SET utf8 COLLATE utf8_bin
@@ -91,6 +93,7 @@ CREATE TABLE user (
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   ssl_cipher BLOB NOT NULL,
   x509_issuer BLOB NOT NULL,
@@ -105,9 +108,9 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Users and global privileges';
 
 
-INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 INSERT  INTO user (host,user) VALUES ('localhost','');
 INSERT  INTO user (host,user) VALUES ('@HOSTNAME@%','');
 
@@ -139,7 +142,7 @@ CREATE TABLE tables_priv (
   Table_name char(64) binary DEFAULT '' NOT NULL,
   Grantor char(77) DEFAULT '' NOT NULL,
   Timestamp timestamp(14),
-  Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+  Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name),KEY Grantor (Grantor)
 ) engine=MyISAM
@@ -595,8 +598,40 @@ CREATE TABLE event (
   ends DATETIME default NULL,
   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',
-  comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
-  PRIMARY KEY  (db,name)
+  sql_mode          set(
+                        'REAL_AS_FLOAT',
+                        'PIPES_AS_CONCAT',
+                        'ANSI_QUOTES',
+                        'IGNORE_SPACE',
+                        'NOT_USED',
+                        'ONLY_FULL_GROUP_BY',
+                        'NO_UNSIGNED_SUBTRACTION',
+                        'NO_DIR_IN_CREATE',
+                        'POSTGRESQL',
+                        'ORACLE',
+                        'MSSQL',
+                        'DB2',
+                        'MAXDB',
+                        'NO_KEY_OPTIONS',
+                        'NO_TABLE_OPTIONS',
+                        'NO_FIELD_OPTIONS',
+                        'MYSQL323',
+                        'MYSQL40',
+                        'ANSI',
+                        'NO_AUTO_VALUE_ON_ZERO',
+                        'NO_BACKSLASH_ESCAPES',
+                        'STRICT_TRANS_TABLES',
+                        'STRICT_ALL_TABLES',
+                        'NO_ZERO_IN_DATE',
+                        'NO_ZERO_DATE',
+                        'INVALID_DATES',
+                        'ERROR_FOR_DIVISION_BY_ZERO',
+                        'TRADITIONAL',
+                        'NO_AUTO_CREATE_USER',
+                        'HIGH_NOT_PRECEDENCE'
+                    ) DEFAULT '' NOT NULL,
+  comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  PRIMARY KEY  (definer, db, name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
 CREATE DATABASE IF NOT EXISTS cluster_replication;

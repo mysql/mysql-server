@@ -40,6 +40,13 @@
 #define dbg(x)
 #endif
 
+static bool g_dbg_lcp = false;
+#if 1
+#define DBG_LCP(x)
+#else
+#define DBG_LCP(x) if(g_dbg_lcp) ndbout << x
+#endif
+
 Pgman::Pgman(const Configuration & conf) :
   SimulatedBlock(PGMAN, conf),
   m_file_map(m_data_buffer_pool),
@@ -63,9 +70,10 @@ Pgman::Pgman(const Configuration & conf) :
   addRecSignal(GSN_FSWRITEREF, &Pgman::execFSWRITEREF, true);
   addRecSignal(GSN_FSWRITECONF, &Pgman::execFSWRITECONF);
 
+  addRecSignal(GSN_LCP_PREPARE_REQ, &Pgman::execLCP_PREPARE_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Pgman::execLCP_FRAG_ORD);
   addRecSignal(GSN_END_LCP_REQ, &Pgman::execEND_LCP_REQ);
-
+  
   // loop status
   m_stats_loop_on = false;
   m_busy_loop_on = false;
@@ -77,8 +85,6 @@ Pgman::Pgman(const Configuration & conf) :
   m_last_lcp_complete = 0;
   m_lcp_curr_bucket = ~(Uint32)0;
   m_lcp_outstanding = 0;
-  m_lcp_copy_page = RNIL;
-  m_lcp_copy_page_free = false;
 
   // clean-up variables
   m_cleanup_ptr.i = RNIL;
@@ -119,7 +125,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   if (page_buffer > 0)
   {
     page_buffer /= GLOBAL_PAGE_SIZE; // in pages
-    m_page_entry_pool.setSize(2*page_buffer);
+    m_page_entry_pool.setSize(100*page_buffer);
     m_page_request_pool.setSize(10000);
     m_param.m_max_pages = page_buffer;
     m_param.m_max_hot_pages = (page_buffer * 9) / 10;
@@ -139,7 +145,7 @@ Pgman::Param::Param() :
   m_max_io_waits(64),
   m_stats_loop_delay(1000),
   m_cleanup_loop_delay(200),
-  m_lcp_loop_delay(200)
+  m_lcp_loop_delay(0)
 {
 }
 
@@ -168,10 +174,6 @@ Pgman::execSTTOR(Signal* signal)
     break;
   case 3:
     {
-      Ptr<GlobalPage> page_ptr;
-      ndbrequire(m_global_page_pool.seize(page_ptr));
-      m_lcp_copy_page = page_ptr.i;
-      m_lcp_copy_page_free = true;
       // start forever loops
       do_stats_loop(signal);
       do_cleanup_loop(signal);
@@ -222,6 +224,23 @@ Pgman::execCONTINUEB(Signal* signal)
     jam();
     do_lcp_loop(signal);
     break;
+  case PgmanContinueB::LCP_PREPARE:
+  {
+    jam();
+    Ptr<Page_entry> ptr;
+    Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+    pl.getPtr(ptr, data1);
+    if (pl.next(ptr))
+    {
+      process_lcp_prepare(signal, ptr);
+    }
+    else
+    {
+      signal->theData[0] = 0;
+      sendSignal(DBLQH_REF, GSN_LCP_PREPARE_CONF, signal, 1, JBB);
+    }
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -235,8 +254,10 @@ Pgman::Page_entry::Page_entry(Uint32 file_no, Uint32 page_no) :
   m_file_no(file_no),
   m_page_no(page_no),
   m_real_page_i(RNIL),
+  m_copy_page_i(RNIL),
   m_lsn(0),
   m_last_lcp(0),
+  m_dirty_count(0),
   m_busy_count(0),
   m_requests()
 {
@@ -245,7 +266,7 @@ Pgman::Page_entry::Page_entry(Uint32 file_no, Uint32 page_no) :
 // page lists
 
 Uint32
-Pgman::get_sublist_no(Uint16 state)
+Pgman::get_sublist_no(Page_state state)
 {
   if (state == 0)
   {
@@ -283,14 +304,14 @@ Pgman::get_sublist_no(Uint16 state)
 }
 
 void
-Pgman::set_page_state(Ptr<Page_entry> ptr, Uint16 new_state)
+Pgman::set_page_state(Ptr<Page_entry> ptr, Page_state new_state)
 {
 #ifdef VM_TRACE
   debugOut << "PGMAN: >set_page_state: state=" << hex << new_state << endl;
   debugOut << "PGMAN: " << ptr << ": before" << endl;
 #endif
 
-  Uint16 old_state = ptr.p->m_state;
+  Page_state old_state = ptr.p->m_state;
   if (old_state != new_state)
   {
     Uint32 old_list_no = get_sublist_no(old_state);
@@ -405,6 +426,8 @@ Pgman::get_page_entry(Ptr<Page_entry>& ptr, Uint32 file_no, Uint32 page_no)
     return true;
   }
 
+  ndbrequire(false);
+  
   return false;
 }
 
@@ -415,7 +438,7 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
   debugOut << "PGMAN: release_page_entry" << endl;
   debugOut << "PGMAN: " << ptr << endl;
 #endif
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
   ndbrequire(! (state & Page_entry::REQUEST));
   ndbrequire(ptr.p->m_requests.isEmpty());
@@ -450,7 +473,7 @@ Pgman::lirs_stack_prune()
 
   while (pl_stack.first(ptr))      // first is stack bottom
   {
-    Uint16 state = ptr.p->m_state;
+    Page_state state = ptr.p->m_state;
     if (state & Page_entry::HOT)
     {
       jam();
@@ -505,7 +528,7 @@ Pgman::lirs_stack_pop()
   Ptr<Page_entry> ptr;
   bool ok = pl_stack.first(ptr);
   ndbrequire(ok);
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
 #ifdef VM_TRACE
   debugOut << "PGMAN: " << ptr << ": pop from stack" << endl;
@@ -548,7 +571,7 @@ Pgman::lirs_reference(Ptr<Page_entry> ptr)
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   ndbrequire(! (state & Page_entry::LOCKED));
 
   // even non-LIRS cache pages are counted on l.h.s.
@@ -733,7 +756,10 @@ Pgman::do_lcp_loop(Signal* signal, bool direct)
   {
     Uint32 delay = m_param.m_lcp_loop_delay;
     signal->theData[0] = PgmanContinueB::LCP_LOOP;
-    sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    if (delay)
+      sendSignalWithDelay(PGMAN_REF, GSN_CONTINUEB, signal, delay, 1);
+    else
+      sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
   }
 #ifdef VM_TRACE
   debugOut << "PGMAN: <do_lcp_loop on=" << m_lcp_loop_on
@@ -799,7 +825,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
       // XXX busy loop
       return false;
     }
-    Uint16 clean_state = clean_ptr.p->m_state;
+    Page_state clean_state = clean_ptr.p->m_state;
     // under unusual circumstances it could still be paging in
     if (! (clean_state & Page_entry::MAPPED) ||
         clean_state & Page_entry::DIRTY ||
@@ -818,6 +844,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     debugOut << "PGMAN: " << clean_ptr << " : evict" << endl;
 #endif
 
+    ndbassert(clean_ptr.p->m_dirty_count == 0);
     ndbrequire(clean_state & Page_entry::ONQUEUE);
     ndbrequire(clean_state & Page_entry::BOUND);
     ndbrequire(clean_state & Page_entry::MAPPED);
@@ -828,7 +855,6 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
 
     gptr.i = clean_ptr.p->m_real_page_i;
 
-    c_tup->disk_page_unmap_callback(clean_ptr.p->m_real_page_i);
     clean_ptr.p->m_real_page_i = RNIL;
     clean_state &= ~ Page_entry::BOUND;
     clean_state &= ~ Page_entry::MAPPED;
@@ -841,7 +867,7 @@ Pgman::process_bind(Signal* signal, Ptr<Page_entry> ptr)
     m_global_page_pool.getPtr(gptr);
   }
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
   ptr.p->m_real_page_i = gptr.i;
   state |= Page_entry::BOUND;
@@ -940,7 +966,7 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
   debugOut << "PGMAN: " << ptr << " : process_callback" << endl;
 #endif
   int max_count = 1;
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
   while (! ptr.p->m_requests.isEmpty() && --max_count >= 0)
   {
@@ -969,19 +995,19 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
       {
         jam();
         state |= Page_entry::DIRTY;
+	ndbassert(ptr.p->m_dirty_count);
+	ptr.p->m_dirty_count --;
       }
     }
     ndbrequire(state & Page_entry::BOUND);
     ndbrequire(state & Page_entry::MAPPED);
-
+    
     // callback may re-enter PGMAN and change page state
     set_page_state(ptr, state);
     b->execute(signal, callback, ptr.p->m_real_page_i);
     state = ptr.p->m_state;
-
-    state &= ~ Page_entry::NO_HOOK;
   }
-
+  
   if (ptr.p->m_requests.isEmpty())
   {
     jam();
@@ -1028,7 +1054,7 @@ Pgman::process_cleanup(Signal* signal)
   Ptr<Page_entry> ptr = m_cleanup_ptr;
   while (max_loop_count != 0 && max_count != 0)
   {
-    Uint16 state = ptr.p->m_state;
+    Page_state state = ptr.p->m_state;
     ndbrequire(! (state & Page_entry::LOCKED));
     if (state & Page_entry::BUSY)
     {
@@ -1045,6 +1071,8 @@ Pgman::process_cleanup(Signal* signal)
 #ifdef VM_TRACE
       debugOut << "PGMAN: " << ptr << " : process_cleanup" << endl;
 #endif
+      c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+				      ptr.p->m_dirty_count);
       pageout(signal, ptr);
       max_count--;
     }
@@ -1078,23 +1106,108 @@ Pgman::move_cleanup_ptr(Ptr<Page_entry> ptr)
 // LCP
 
 void
+Pgman::execLCP_PREPARE_REQ(Signal* signal)
+{
+  jamEntry();
+
+  /**
+   * Reserve pages for all LOCKED pages...
+   */
+  Ptr<Page_entry> ptr;
+  Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+  if (pl.first(ptr))
+  {
+    process_lcp_prepare(signal, ptr);
+  }
+  else
+  {
+    signal->theData[0] = 0;
+    sendSignal(DBLQH_REF, GSN_LCP_PREPARE_CONF, signal, 1, JBB);
+  }
+}
+
+void
+Pgman::process_lcp_prepare(Signal* signal, Ptr<Page_entry> ptr)
+{
+  ndbrequire(ptr.p->m_copy_page_i == RNIL);
+  
+  Ptr<GlobalPage> copy;
+  ndbrequire(m_global_page_pool.seize(copy));
+  ptr.p->m_copy_page_i = copy.i;
+  
+  DBG_LCP("assigning copy page to " << ptr << endl);
+  
+  signal->theData[0] = PgmanContinueB::LCP_PREPARE;
+  signal->theData[1] = ptr.i;
+  sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
+}
+
+int
+Pgman::create_copy_page(Ptr<Page_entry> ptr, Uint32 req_flags)
+{
+  DBG_LCP(<< ptr << " create_copy_page ");
+  
+  if (! (req_flags & DIRTY_FLAGS) && ! (ptr.p->m_state & Page_entry::COPY))
+  {
+    DBG_LCP(" return original" << endl);
+    return ptr.p->m_real_page_i;
+  }
+  if (! (ptr.p->m_state & Page_entry::COPY))
+  {
+    ptr.p->m_state |= Page_entry::COPY;
+    
+    Ptr<GlobalPage> src;
+    Ptr<GlobalPage> copy;
+    m_global_page_pool.getPtr(src, ptr.p->m_real_page_i);
+    m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
+    memcpy(copy.p, src.p, sizeof(GlobalPage));
+    DBG_LCP("making copy... ");
+  }
+  DBG_LCP("return " << ptr.p->m_copy_page_i);
+  return ptr.p->m_copy_page_i;
+}
+
+void
+Pgman::restore_copy_page(Ptr<Page_entry> ptr)
+{
+  DBG_LCP(ptr << " restore_copy_page");
+
+  Uint32 copyPtrI = ptr.p->m_copy_page_i;
+  if (ptr.p->m_state & Page_entry::COPY)
+  {
+    DBG_LCP(" copy back");
+    Ptr<GlobalPage> src;
+    Ptr<GlobalPage> copy;
+    m_global_page_pool.getPtr(src, ptr.p->m_real_page_i);
+    m_global_page_pool.getPtr(copy, copyPtrI);
+    memcpy(src.p, copy.p, sizeof(GlobalPage));
+  }
+  
+  m_global_page_pool.release(copyPtrI);
+  DBG_LCP(endl);
+  
+  ptr.p->m_state &= ~Page_entry::COPY;
+  ptr.p->m_copy_page_i = RNIL;
+}
+
+void
 Pgman::execLCP_FRAG_ORD(Signal* signal)
 {
   LcpFragOrd* ord = (LcpFragOrd*)signal->getDataPtr();
   ndbrequire(ord->lcpId >= m_last_lcp_complete + 1 || m_last_lcp_complete == 0);
   m_last_lcp = ord->lcpId;
+  DBG_LCP("execLCP_FRAG_ORD" << endl);
 
   ndbrequire(!m_lcp_outstanding);
-  ndbrequire(m_lcp_copy_page_free);
   m_lcp_curr_bucket = 0;
-
+  
 #ifdef VM_TRACE
   debugOut
     << "PGMAN: execLCP_FRAG_ORD"
     << " this=" << m_last_lcp << " last_complete=" << m_last_lcp_complete
     << " bucket=" << m_lcp_curr_bucket << endl;
 #endif
-
+  
   do_lcp_loop(signal, true);
 }
 
@@ -1103,6 +1216,8 @@ Pgman::execEND_LCP_REQ(Signal* signal)
 {
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtr();
   m_end_lcp_req = *req;
+
+  DBG_LCP("execEND_LCP_REQ" << endl);
 
 #ifdef VM_TRACE
   debugOut
@@ -1117,6 +1232,7 @@ Pgman::execEND_LCP_REQ(Signal* signal)
     ndbrequire(! m_lcp_loop_on);
     signal->theData[0] = m_end_lcp_req.senderData;
     sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+    DBG_LCP("GSN_END_LCP_CONF" << endl);
   }
 
   m_last_lcp_complete = m_last_lcp;
@@ -1141,14 +1257,26 @@ Pgman::process_lcp(Signal* signal)
   // start or re-start from beginning of current hash bucket
   if (m_lcp_curr_bucket != ~(Uint32)0)
   {
+    DBG_LCP(" PROCESS LCP m_lcp_curr_bucket" 
+	    << m_lcp_curr_bucket << endl);
+    
     Page_hashlist::Iterator iter;
     pl_hash.next(m_lcp_curr_bucket, iter);
-
-    while (iter.curr.i != RNIL && --max_count > 0)
+    Uint32 loop = 0;
+    while (iter.curr.i != RNIL && 
+	   m_lcp_outstanding < max_count &&
+	   (loop ++ < 32 || iter.bucket == m_lcp_curr_bucket))
     {
       Ptr<Page_entry>& ptr = iter.curr;
-      Uint16 state = ptr.p->m_state;
-
+      Page_state state = ptr.p->m_state;
+      
+      DBG_LCP("LCP " 
+	      << " m_lcp_outstanding: " << m_lcp_outstanding
+	      << " max_count: " << max_count
+	      << " loop: " << loop 
+	      << " iter.curr.i: " << iter.curr.i
+	      << " " << ptr);
+      
       if (ptr.p->m_last_lcp < m_last_lcp &&
           (state & Page_entry::DIRTY))
       {
@@ -1159,43 +1287,37 @@ Pgman::process_lcp(Signal* signal)
         }
         if (state & Page_entry::BUSY)
         {
+	  DBG_LCP(" BUSY" << endl);
           break;  // wait for it
         }
-        if (state & Page_entry::LOCKED)
+        if (state & Page_entry::PAGEOUT)
         {
-          /**
-           * Special handling of LOCKED pages...only write 1 at a time...
-           *   using copy page (m_lcp_copy_page)
-           */
-          if (!m_lcp_copy_page_free)
-          {
-            break;
-          }
-          m_lcp_copy_page_free = false;
-          Ptr<GlobalPage> src, copy;
-          m_global_page_pool.getPtr(copy, m_lcp_copy_page);
-          m_global_page_pool.getPtr(src, ptr.p->m_real_page_i);
-          memcpy(copy.p, src.p, sizeof(GlobalPage));
-          ptr.p->m_real_page_i = copy.i;
-          ptr.p->m_copy_real_page_i = src.i;
-          ptr.p->m_state |= Page_entry::LCP;
-          pageout(signal, ptr);
-        }
-        else if (state & Page_entry::PAGEOUT)
-        {
+	  DBG_LCP(" PAGEOUT -> state |= LCP" << endl);
           set_page_state(ptr, state | Page_entry::LCP);
         }
         else
         {
+	  DBG_LCP(" pageout()" << endl);
           ptr.p->m_state |= Page_entry::LCP;
+	  c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+					  ptr.p->m_dirty_count);
           pageout(signal, ptr);
         }
         ptr.p->m_last_lcp = m_last_lcp;
         m_lcp_outstanding++;
       }
+      else if (ptr.p->m_copy_page_i != RNIL)
+      {
+	DBG_LCP(" NOT DIRTY" << endl);
+	restore_copy_page(ptr);	
+      }
+      else
+      {
+	DBG_LCP(" NOT DIRTY" << endl);
+      }	
       pl_hash.next(iter);
     }
-
+    
     m_lcp_curr_bucket = (iter.curr.i != RNIL ? iter.bucket : ~(Uint32)0);
   }
 
@@ -1205,11 +1327,15 @@ Pgman::process_lcp(Signal* signal)
     {
       signal->theData[0] = m_end_lcp_req.senderData;
       sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+      DBG_LCP("GSN_END_LCP_CONF" << endl);
     }
+    DBG_LCP(" -- RETURN FALSE" << endl);
     m_last_lcp_complete = m_last_lcp;
     m_lcp_curr_bucket = ~(Uint32)0;
     return false;
   }
+
+  DBG_LCP(" -- RETURN TRUE" << endl);
   return true;
 }
 
@@ -1238,17 +1364,10 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
   debugOut << "PGMAN: " << ptr << endl;
 #endif
   ndbrequire(ptr.p->m_state & Page_entry::PAGEIN);
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
-  if (!(state & Page_entry::NO_HOOK) &&
-      c_tup->disk_page_load_hook(ptr.p->m_real_page_i))
-  {
-    state |= Page_entry::DIRTY;
-  }
-  
   state &= ~ Page_entry::PAGEIN;
   state &= ~ Page_entry::EMPTY;
-  state &= ~ Page_entry::NO_HOOK;
   state |= Page_entry::MAPPED;
   set_page_state(ptr, state);
 
@@ -1267,16 +1386,14 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   debugOut << "PGMAN: " << ptr << endl;
 #endif
   
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::BOUND);
   ndbrequire(state & Page_entry::MAPPED);
   ndbrequire(! (state & Page_entry::BUSY));
   ndbrequire(! (state & Page_entry::PAGEOUT));
 
-  state &= ~ Page_entry::NO_HOOK;
   state |= Page_entry::PAGEOUT;
-  c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i);
-  
+
   // update lsn on page prior to write
   Ptr<GlobalPage> pagePtr;
   m_global_page_pool.getPtr(pagePtr, ptr.p->m_real_page_i);
@@ -1315,7 +1432,7 @@ Pgman::logsync_callback(Signal* signal, Uint32 ptrI, Uint32 res)
 #endif
 
   // it is OK to be "busy" at this point (the commit is queued)
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
   ndbrequire(state & Page_entry::LOGSYNC);
   state &= ~ Page_entry::LOGSYNC;
@@ -1333,7 +1450,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   debugOut << "PGMAN: " << ptr << endl;
 #endif
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   ndbrequire(state & Page_entry::PAGEOUT);
 
   state &= ~ Page_entry::PAGEOUT;
@@ -1343,22 +1460,20 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
 
-  if (state & Page_entry::LOCKED)
+  if (ptr.p->m_copy_page_i != RNIL)
   {
     jam();
-    ndbrequire(!m_lcp_copy_page_free);
-    m_lcp_copy_page_free = true;
-    ptr.p->m_real_page_i = ptr.p->m_copy_real_page_i;
-    ptr.p->m_copy_real_page_i = RNIL;
+    restore_copy_page(ptr);
+    state &= ~ Page_entry::COPY;
   }
-
+  
   if (state & Page_entry::LCP)
   {
     ndbrequire(m_lcp_outstanding);
     m_lcp_outstanding--;
+    state &= ~ Page_entry::LCP;
   }
-  state &= ~ Page_entry::LCP;
-
+  
   set_page_state(ptr, state);
   do_busy_loop(signal, true);
 }
@@ -1471,7 +1586,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
     //ndbrequire(ptr.p->m_requests.isEmpty());
   }
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   bool is_new = (state == 0);
   bool busy_count = false;
 
@@ -1505,8 +1620,21 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
     state = ptr.p->m_state;
   }
 
+  const Page_state LOCKED = Page_entry::LOCKED | Page_entry::MAPPED;
+  if ((state & LOCKED) == LOCKED && 
+      ! (req_flags & Page_request::UNLOCK_PAGE))
+  {
+    ptr.p->m_state |= (req_flags & DIRTY_FLAGS ? Page_entry::DIRTY : 0);
+    if (m_lcp_loop_on && ptr.p->m_copy_page_i != RNIL)
+    {
+      return create_copy_page(ptr, req_flags);
+    }
+    
+    return ptr.p->m_real_page_i;
+  }
+  
   bool only_request = ptr.p->m_requests.isEmpty();
-
+  
   if (only_request &&
       state & Page_entry::MAPPED)
   {
@@ -1525,14 +1653,6 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
       ndbrequire(ptr.p->m_real_page_i != RNIL);
       return ptr.p->m_real_page_i;
     }
-
-    if (state & Page_entry::LOCKED && 
-	! (req_flags & Page_request::UNLOCK_PAGE))
-    {
-      ndbrequire(ptr.p->m_copy_real_page_i != m_lcp_copy_page);
-      ndbrequire(ptr.p->m_copy_real_page_i != RNIL);
-      return ptr.p->m_copy_real_page_i;
-    }
   }
   
   if (! (req_flags & Page_request::LOCK_PAGE))
@@ -1545,9 +1665,12 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
   {
     LocalDLFifoList<Page_request>
       req_list(m_page_request_pool, ptr.p->m_requests);
-    req_list.seize(req_ptr);
+    if (! (req_flags & Page_request::ALLOC_REQ))
+      req_list.seize(req_ptr);
+    else
+      req_list.seizeFront(req_ptr);
   }
-
+  
   if (req_ptr.i == RNIL)
   {
     if (is_new)
@@ -1567,19 +1690,15 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
     state |= Page_entry::EMPTY;
   }
 
-  if (req_flags & Page_request::NO_HOOK)
-  {
-    state |= Page_entry::NO_HOOK;    
-  }
-
   if (req_flags & Page_request::UNLOCK_PAGE)
   {
     state &= ~ Page_entry::LOCKED;
   }
   
   ptr.p->m_busy_count += busy_count;
+  ptr.p->m_dirty_count += !!(req_flags & DIRTY_FLAGS);
   set_page_state(ptr, state);
-
+  
   do_busy_loop(signal, true);
 
 #ifdef VM_TRACE
@@ -1598,7 +1717,7 @@ Pgman::update_lsn(Ptr<Page_entry> ptr, Uint32 block, Uint64 lsn)
   debugOut << "PGMAN: " << ptr << endl;
 #endif
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   ptr.p->m_lsn = lsn;
   
   if (state & Page_entry::BUSY)
@@ -1705,7 +1824,7 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
   Page_stack& pl_stack = m_page_stack;
   Page_queue& pl_queue = m_page_queue;
 
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
   if (! (state & (Page_entry::PAGEIN | Page_entry::PAGEOUT)))
   {
     ndbrequire(state & Page_entry::BOUND);
@@ -1728,7 +1847,6 @@ Pgman::drop_page(Ptr<Page_entry> ptr)
     if (ptr.p->m_real_page_i != RNIL)
     {
       jam();
-      c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i);
       release_cache_page(ptr.p->m_real_page_i);
       ptr.p->m_real_page_i = RNIL;
     }
@@ -1750,7 +1868,7 @@ void
 Pgman::verify_page_entry(Ptr<Page_entry> ptr)
 {
   Uint32 ptrI = ptr.i;
-  Uint16 state = ptr.p->m_state;
+  Page_state state = ptr.p->m_state;
 
   bool has_req = state & Page_entry::REQUEST;
   bool has_req2 = ! ptr.p->m_requests.isEmpty();
@@ -1839,7 +1957,7 @@ Pgman::verify_page_lists()
   {
     verify_page_entry(iter.curr);
 
-    Uint16 state = iter.curr.p->m_state;
+    Page_state state = iter.curr.p->m_state;
     if (state & Page_entry::ONSTACK)
       stack_count++;
     if (state & Page_entry::ONQUEUE)
@@ -1866,7 +1984,7 @@ Pgman::verify_page_lists()
   {
     ndbrequire(i1 != ptr.i);
     i1 = ptr.i;
-    Uint16 state = ptr.p->m_state;
+    Page_state state = ptr.p->m_state;
     ndbrequire(state & Page_entry::ONSTACK || dump_page_lists());
     if (! pl_stack.hasPrev(ptr))
       ndbrequire(state & Page_entry::HOT || dump_page_lists());
@@ -1880,7 +1998,7 @@ Pgman::verify_page_lists()
   {
     ndbrequire(i2 != ptr.i);
     i2 = ptr.i;
-    Uint16 state = ptr.p->m_state;
+    Page_state state = ptr.p->m_state;
     ndbrequire(state & Page_entry::ONQUEUE || dump_page_lists());
     ndbrequire(state & Page_entry::BOUND || dump_page_lists());
     cold_bound_count++;
@@ -2042,8 +2160,6 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
   out << " flags=" << hex << pr.m_flags;
   out << "," << dec << (pr.m_flags & Pgman::Page_request::OP_MASK);
   {
-    if (pr.m_flags & Pgman::Page_request::STRICT_ORDER)
-      out << ",strict_order";
     if (pr.m_flags & Pgman::Page_request::LOCK_PAGE)
       out << ",lock_page";
     if (pr.m_flags & Pgman::Page_request::EMPTY_PAGE)
@@ -2054,8 +2170,6 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
       out << ",commit_req";
     if (pr.m_flags & Pgman::Page_request::DIRTY_REQ)
       out << ",dirty_req";
-    if (pr.m_flags & Pgman::Page_request::NO_HOOK)
-      out << ",no_hook";
     if (pr.m_flags & Pgman::Page_request::CORR_REQ)
       out << ",corr_req";
   }
@@ -2092,8 +2206,6 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
       out << ",pageout";
     if (pe.m_state & Pgman::Page_entry::LOGSYNC)
       out << ",logsync";
-    if (pe.m_state & Pgman::Page_entry::NO_HOOK)
-      out << ",no_hook";
     if (pe.m_state & Pgman::Page_entry::LCP)
       out << ",lcp";
     if (pe.m_state & Pgman::Page_entry::HOT)
@@ -2197,10 +2309,12 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     if (pl_hash.find(ptr, key))
     {
       ndbout << "pageout " << ptr << endl;
+      c_tup->disk_page_unmap_callback(ptr.p->m_real_page_i, 
+				      ptr.p->m_dirty_count);
       pageout(signal, ptr);
     }
   }
-
+  
 
   if (signal->theData[0] == 11003)
   {
@@ -2210,6 +2324,36 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 #else
     ndbout << "Only in VM_TRACE builds" << endl;
 #endif
+  }
+
+  if (signal->theData[0] == 11004)
+  {
+    ndbout << "Dump LCP bucket m_lcp_outstanding: %d", m_lcp_outstanding;
+    if (m_lcp_curr_bucket != ~(Uint32)0)
+    {
+      Page_hashlist::Iterator iter;
+      pl_hash.next(m_lcp_curr_bucket, iter);
+      
+      ndbout_c(" %d", m_lcp_curr_bucket);
+
+      while (iter.curr.i != RNIL && iter.bucket == m_lcp_curr_bucket)
+      {
+	Ptr<Page_entry>& ptr = iter.curr;
+	ndbout << ptr << endl;
+	pl_hash.next(iter);
+      }
+
+      ndbout_c("-- done");
+    }
+    else
+    {
+      ndbout_c(" == ~0");
+    }
+  }
+
+  if (signal->theData[0] == 11005)
+  {
+    g_dbg_lcp = ~g_dbg_lcp;
   }
 }
 

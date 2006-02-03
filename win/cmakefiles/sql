@@ -1,0 +1,118 @@
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/yassl/include ${CMAKE_SOURCE_DIR}/sql ${CMAKE_SOURCE_DIR}/regex ${CMAKE_SOURCE_DIR}/zlib)
+
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
+							${CMAKE_SOURCE_DIR}/sql/message.h 
+							${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
+							${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+                            ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
+                            ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+                            ${CMAKE_SOURCE_DIR}/include/sql_state.h
+                            ${CMAKE_SOURCE_DIR}/include/mysql_version.h
+                            ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
+                            ${CMAKE_SOURCE_DIR}/sql/lex_hash.h PROPERTIES GENERATED 1)
+ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE -DHAVE_ARCHIVE_DB -DHAVE_BLACKHOLE_DB -DHAVE_EXAMPLE_DB)
+ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DHAVE_FEDERATED_DB -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DWITH_PARTITION_STORAGE_ENGINE -D_CRT_SECURE_NO_DEPRECATE)
+
+ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.cc ../libmysql/errmsg.c field.cc
+					  field_conv.cc filesort.cc gstream.cc ha_blackhole.cc
+					  ha_federated.cc ha_heap.cc ha_innodb.cc ha_myisam.cc ha_myisammrg.cc
+					  ha_partition.cc handler.cc hash_filo.cc hash_filo.h hostname.cc
+					  init.cc item.cc item_buff.cc item_cmpfunc.cc item_create.cc item_func.cc item_geofunc.cc
+					  item_row.cc item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc item_uniq.cc
+					  key.cc log.cc lock.cc log_event.cc message.rc message.h mf_iocache.cc 
+					  my_decimal.cc ../sql-common/my_time.c
+					  ../storage/myisammrg/myrg_rnext_same.c mysqld.cc net_serv.cc nt_servc.cc nt_servc.h opt_range.cc opt_range.h
+					  opt_sum.cc ../sql-common/pack.c parse_file.cc password.c procedure.cc protocol.cc records.cc 
+					  repl_failsafe.cc rpl_filter.cc set_var.cc slave.cc sp.cc sp_cache.cc sp_head.cc 
+					  sp_pcontext.cc sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc sql_cache.cc
+					  sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h sql_cursor.cc sql_db.cc sql_delete.cc
+					  sql_derived.cc sql_do.cc sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc
+					  sql_lex.cc sql_list.cc sql_load.cc sql_manager.cc sql_map.cc sql_parse.cc sql_partition.cc
+					  sql_plugin.cc sql_prepare.cc sql_rename.cc sql_repl.cc sql_select.cc sql_show.cc
+					  sql_state.c sql_string.cc sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
+					  sql_update.cc sql_view.cc sql_yacc.h sql_yacc.cc strfunc.cc table.cc thr_malloc.cc time.cc tztime.cc
+					  uniques.cc unireg.cc item_xmlfunc.cc rpl_tblmap.cc sql_binlog.cc event_executor.cc
+					  event_timed.cc sql_tablespace.cc event.cc ../sql-common/my_user.c
+					  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+  					  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+					  ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
+					  ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h 
+					  ${CMAKE_SOURCE_DIR}/include/sql_state.h
+					  ${CMAKE_SOURCE_DIR}/include/mysql_version.h 
+					  ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
+					  ${CMAKE_SOURCE_DIR}/sql/lex_hash.h)
+TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg innobase mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
+
+# Sql Parser custom command
+ADD_CUSTOM_COMMAND(
+	SOURCE ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
+	OUTPUT ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+	COMMAND bison.exe ARGS --defines=sql_yacc.h	--output=sql_yacc.cc sql_yacc.yy
+	DEPENDS ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy)
+
+ADD_CUSTOM_COMMAND(
+	OUTPUT ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+	COMMAND echo
+	DEPENDS ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+)
+
+# Windows message file
+ADD_CUSTOM_COMMAND(
+	SOURCE ../VC++Files/sql/message.mc
+	OUTPUT message.rc message.h
+	COMMAND mc ARGS ../VC++Files/sql/message.mc
+	DEPENDS ../VC++Files/sql/message.mc)
+
+# MySql_version.h.
+ADD_CUSTOM_COMMAND(
+	SOURCE ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
+	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysql_version.h
+	COMMAND ${CMAKE_SOURCE_DIR}/win/config-version.js
+	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in)
+
+# Handlerton file
+ADD_CUSTOM_COMMAND(
+	SOURCE ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in
+	OUTPUT ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
+	COMMAND ${CMAKE_SOURCE_DIR}/win/config-handlerton.js ARGS ${CMAKE_SOURCE_DIR}/win/configure.data
+	DEPENDS ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in)
+
+# Error file
+GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
+ADD_CUSTOM_COMMAND(
+	SOURCE ${CMAKE_SOURCE_DIR}/sql/share/errmsg.txt
+	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysqld_error.h 
+	COMMAND ${COMP_ERR_EXE}
+	ARGS --charset=${CMAKE_SOURCE_DIR}/sql/share/charsets 
+	     --out-dir=${CMAKE_SOURCE_DIR}/sql/share/
+		 --header_file=${CMAKE_SOURCE_DIR}/include/mysqld_error.h 
+		 --name_file=${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+	     --state_file=${CMAKE_SOURCE_DIR}/include/sql_state.h
+         --in_file=${CMAKE_SOURCE_DIR}/sql/share/errmsg.txt
+    DEPENDS ${COMP_ERR_EXE} share/errmsg.txt)
+
+ADD_CUSTOM_COMMAND(
+	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+	COMMAND echo
+	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
+)
+
+ADD_CUSTOM_COMMAND(
+	OUTPUT ${CMAKE_SOURCE_DIR}/include/sql_state.h
+	COMMAND echo
+	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+)
+
+
+# Gen_lex_hash
+ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
+TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient wsock32)
+GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
+ADD_CUSTOM_COMMAND(
+	OUTPUT ${CMAKE_SOURCE_DIR}/sql/lex_hash.h
+	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
+	DEPENDS ${GEN_LEX_HASH_EXE}
+)

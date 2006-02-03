@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <m_ctype.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <plugin.h>
 
 long number_of_calls= 0; /* for SHOW STATUS, see below */
@@ -98,8 +97,7 @@ static int simple_parser_plugin_deinit(void)
     1                    failure (cannot happen)
 */
 
-static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
-                              __attribute__((unused)))
+static int simple_parser_init(MYSQL_FTPARSER_PARAM *param)
 {
   return(0);
 }
@@ -119,8 +117,7 @@ static int simple_parser_init(MYSQL_FTPARSER_PARAM *param
     1                    failure (cannot happen)
 */
 
-static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
-                                __attribute__((unused)))
+static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param)
 {
   return(0);
 }
@@ -181,7 +178,7 @@ int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
         add_word(param, start, end - start);
       break;
     }
-    else if (my_isspace(param->cs, *end))
+    else if (isspace(*end))
     {
       if (end > start)
         add_word(param, start, end - start);

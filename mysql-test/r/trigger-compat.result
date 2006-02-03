@@ -7,8 +7,7 @@ DROP DATABASE IF EXISTS mysqltest_db1;
 CREATE DATABASE mysqltest_db1;
 CREATE USER mysqltest_dfn@localhost;
 CREATE USER mysqltest_inv@localhost;
-GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
-GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+GRANT CREATE, TRIGGER ON mysqltest_db1.* TO mysqltest_dfn@localhost;
 
 ---> connection: wl2818_definer_con
 CREATE TABLE t1(num_value INT);

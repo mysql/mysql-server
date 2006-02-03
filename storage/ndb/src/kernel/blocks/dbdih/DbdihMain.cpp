@@ -8925,6 +8925,80 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
 /*****************************************************************************/
 /* **********     START FRAGMENT MODULE                          *************/
 /*****************************************************************************/
+void
+Dbdih::dump_replica_info()
+{
+  TabRecordPtr tabPtr;
+  FragmentstorePtr fragPtr;
+
+  for(tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+  {
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+      continue;
+    
+    for(Uint32 fid = 0; fid<tabPtr.p->totalfragments; fid++)
+    {
+      getFragstore(tabPtr.p, fid, fragPtr);
+      ndbout_c("tab: %d frag: %d gci: %d\n  -- storedReplicas:", 
+	       tabPtr.i, fid, SYSFILE->newestRestorableGCI);
+      
+      Uint32 i;
+      ReplicaRecordPtr replicaPtr;
+      replicaPtr.i = fragPtr.p->storedReplicas;
+      for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
+      {
+	ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+	ndbout_c("  node: %d initialGci: %d nextLcp: %d noCrashedReplicas: %d",
+		 replicaPtr.p->procNode,
+		 replicaPtr.p->initialGci,
+		 replicaPtr.p->nextLcp,
+		 replicaPtr.p->noCrashedReplicas);
+	for(i = 0; i<MAX_LCP_STORED; i++)
+	{
+	  ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
+		   i, 
+		   (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
+		   replicaPtr.p->lcpId[i],
+		   replicaPtr.p->maxGciCompleted[i],
+		   replicaPtr.p->maxGciStarted[i]);
+	}
+	
+	for (i = 0; i < 8; i++)
+	{
+	  ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
+		   i, 
+		   replicaPtr.p->replicaLastGci[i],
+		   replicaPtr.p->createGci[i]);
+	}
+      }
+      ndbout_c("  -- oldStoredReplicas");
+      replicaPtr.i = fragPtr.p->oldStoredReplicas;
+      for(; replicaPtr.i != RNIL; replicaPtr.i = replicaPtr.p->nextReplica)
+      {
+	ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+	for(i = 0; i<MAX_LCP_STORED; i++)
+	{
+	  ndbout_c("    i: %d %s : lcpId: %d maxGci Completed: %d Started: %d",
+		   i, 
+		   (replicaPtr.p->lcpStatus[i] == ZVALID ?"VALID":"INVALID"),
+		   replicaPtr.p->lcpId[i],
+		   replicaPtr.p->maxGciCompleted[i],
+		   replicaPtr.p->maxGciStarted[i]);
+	}
+	
+	for (i = 0; i < 8; i++)
+	{
+	  ndbout_c("    crashed replica: %d replicaLastGci: %d createGci: %d",
+		   i, 
+		   replicaPtr.p->replicaLastGci[i],
+		   replicaPtr.p->createGci[i]);
+	}
+      }
+    }
+  }
+}
+
 void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId) 
 {
   Uint32 TloopCount = 0;
@@ -8986,6 +9060,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
   /*     SEARCH FOR STORED REPLICAS THAT CAN BE USED TO RESTART THE SYSTEM.  */
   /* ----------------------------------------------------------------------- */
   searchStoredReplicas(fragPtr);
+
   if (cnoOfCreateReplicas == 0) {
     /* --------------------------------------------------------------------- */
     /*   THERE WERE NO STORED REPLICAS AVAILABLE THAT CAN SERVE AS REPLICA TO*/
@@ -8998,6 +9073,10 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     char buf[64];
     BaseString::snprintf(buf, sizeof(buf), "table: %d fragment: %d gci: %d",
 			 tableId, fragId, SYSFILE->newestRestorableGCI);
+
+    ndbout_c(buf);
+    dump_replica_info();
+    
     progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
     ndbrequire(false);
     return;
@@ -13333,7 +13412,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   signal->theData[0] = filePtr.p->fileRef;
   signal->theData[1] = reference();
   signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS;
+  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
   signal->theData[4] = ZVAR_NO_WORD;
   signal->theData[5] = tab->noPages;
   for (Uint32 i = 0; i < tab->noPages; i++) {
