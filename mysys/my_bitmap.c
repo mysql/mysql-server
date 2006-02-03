@@ -452,10 +452,10 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
               return bit_found;
             }
           }
-          DBUG_ASSERT(1);
+          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;
@@ -489,10 +489,10 @@ uint bitmap_get_first(const MY_BITMAP *map)
               return bit_found;
             }
           }
-          DBUG_ASSERT(1);
+          DBUG_ASSERT(0);
         }
       }
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
     }
   }
   return MY_BIT_NONE;

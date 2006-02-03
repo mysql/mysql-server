@@ -1374,7 +1374,8 @@ sub ndbcluster_install () {
 		 "--verbose=2",
 		 $ndbcluster_opts,
 		 "--initial",
-                 "--relative-config-data-dir"],
+                 "--relative-config-data-dir",
+	         "--core"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install");
@@ -1410,7 +1411,8 @@ sub ndbcluster_start ($) {
   if ( mtr_run("$glob_mysql_test_dir/ndb/ndbcluster",
 	       ["--port=$opt_ndbcluster_port",
 		"--data-dir=$opt_vardir",
-		"--verbose=2"],
+		"--verbose=2",
+	        "--core"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start");
@@ -1467,7 +1469,8 @@ sub ndbcluster_install_slave () {
 		 "--small",
 		 "--ndbd-nodes=1",
 		 "--initial",
-		 "--relative-config-data-dir"],
+		 "--relative-config-data-dir",
+		 "--core"],
 		"", "", "", "") )
   {
     mtr_error("Error ndbcluster_install_slave");
@@ -1501,7 +1504,8 @@ sub ndbcluster_start_slave ($) {
 	       ["--port=$opt_ndbcluster_port_slave",
 		"--data-dir=$opt_vardir",
 		"--verbose=2",
-		"--ndbd-nodes=1"],
+		"--ndbd-nodes=1",
+	        "--core"],
 	       "", "/dev/null", "", "") )
   {
     mtr_error("Error ndbcluster_start_slave");
@@ -2312,6 +2316,7 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
                   $opt_ndbconnectstring);
+      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
     }
   }
 
@@ -2379,6 +2384,7 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
                   $opt_ndbconnectstring_slave);
+      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
     }
   } # end slave
 

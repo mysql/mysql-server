@@ -101,7 +101,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
   SQLCOM_SHOW_PLUGINS,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-  SQLCOM_SHOW_CREATE_EVENT,
+  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
 
   /* This should be the last !!! */
 
@@ -112,7 +112,7 @@ enum enum_sql_command {
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 /*
-  This is not #ifdef'ed because we want "EXPLAIN PARTITIONS ..." to produce
+  This is not within #ifdef because we want "EXPLAIN PARTITIONS ..." to produce
   additional "partitions" column even if partitioning is not compiled in.
 */
 #define DESCRIBE_PARTITIONS	4

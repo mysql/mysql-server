@@ -600,10 +600,16 @@ NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {
   return pNdb->getDictionary()->createTable(* this);
 }
 
-Uint32
-NdbDictionary::Table::getTablespaceId() const 
+bool
+NdbDictionary::Table::getTablespace(Uint32 *id, Uint32 *version) const 
 {
-  return m_impl.m_tablespace_id;
+  if (m_impl.m_tablespace_id == RNIL)
+    return false;
+  if (id)
+    *id= m_impl.m_tablespace_id;
+  if (version)
+    *version= m_impl.m_version;
+  return true;
 }
 
 void 
@@ -827,6 +833,12 @@ NdbDictionary::Event::setTable(const Table& table)
   m_impl.setTable(table);
 }
 
+const NdbDictionary::Table *
+NdbDictionary::Event::getTable() const
+{
+  return m_impl.getTable();
+}
+
 void 
 NdbDictionary::Event::setTable(const char * table)
 {
@@ -899,6 +911,11 @@ NdbDictionary::Event::addEventColumns(int n, const char ** names)
 int NdbDictionary::Event::getNoOfEventColumns() const
 {
   return m_impl.getNoOfEventColumns();
+}
+
+void NdbDictionary::Event::mergeEvents(bool flag)
+{
+  m_impl.m_mergeEvents = flag;
 }
 
 NdbDictionary::Object::Status
@@ -1473,6 +1490,12 @@ NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
 }
 
+void
+NdbDictionary::Dictionary::fix_blob_events(const Table* table, const char* ev_name)
+{
+  m_impl.fix_blob_events(table, ev_name);
+}
+
 // printers
 
 NdbOut&
@@ -1673,6 +1696,15 @@ NdbDictionary::Dictionary::getTablespace(const char * name){
   NdbDictionary::Tablespace tmp;
   m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
 				  NdbDictionary::Object::Tablespace, name);
+  return tmp;
+}
+
+NdbDictionary::Tablespace
+NdbDictionary::Dictionary::getTablespace(Uint32 tablespaceId){
+  NdbDictionary::Tablespace tmp;
+  m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
+				  NdbDictionary::Object::Tablespace,
+                                  tablespaceId);
   return tmp;
 }
 

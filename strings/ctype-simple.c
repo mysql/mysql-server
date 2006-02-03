@@ -1354,6 +1354,19 @@ longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+int my_mb_ctype_8bit(CHARSET_INFO *cs, int *ctype,
+                   const unsigned char *s, const unsigned char *e)
+{
+  if (s >= e)
+  {
+    *ctype= 0;
+    return MY_CS_TOOFEW(0);
+  }
+  *ctype= cs->ctype[*s];
+  return 1;
+}
+
+
 /*
   Check if a constant can be propagated
 
@@ -1420,6 +1433,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_numcells_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,
+    my_mb_ctype_8bit,
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,

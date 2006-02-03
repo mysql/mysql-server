@@ -111,9 +111,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 57 unused */
 /* 58 unused */
 /* 59 unused */
-/* 60 unused */
-/* 61 unused */
-/* 62 unused */
+#define GSN_ALLOC_NODEID_REQ            60
+#define GSN_ALLOC_NODEID_CONF           61
+#define GSN_ALLOC_NODEID_REF            62
 /* 63 unused */
 /* 64 unused */
 /* 65 unused */
@@ -754,7 +754,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUB_SYNC_REQ                582
 #define GSN_SUB_SYNC_REF                583
 #define GSN_SUB_SYNC_CONF               584
-#define GSN_SUB_META_DATA               585
+/*                                      585 unused */
 #define GSN_SUB_TABLE_DATA              586
 
 #define GSN_CREATE_TABLE_REQ            587

@@ -1509,6 +1509,9 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
 	     NodeFailRep::SignalLength, JBB);
 
+  sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
+	     NodeFailRep::SignalLength, JBB);
+
   Uint32 nodeId = 0;
   while(!allFailed.isclear()){
     nodeId = allFailed.find(nodeId + 1);

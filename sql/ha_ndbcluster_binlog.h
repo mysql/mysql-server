@@ -38,7 +38,9 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_DB,
   SOT_CREATE_DB,
   SOT_ALTER_DB,
-  SOT_CLEAR_SLOCK
+  SOT_CLEAR_SLOCK,
+  SOT_TABLESPACE,
+  SOT_LOGFILE_GROUP
 };
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
@@ -72,9 +74,10 @@ void ndbcluster_binlog_init_handlerton();
 void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *table);
 
 int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
+                                   uint key_len,
                                    const char *db,
                                    const char *table_name,
-                                   NDB_SHARE *share);
+                                   my_bool share_may_exist);
 int ndbcluster_create_event(Ndb *ndb, const NDBTAB *table,
                             const char *event_name, NDB_SHARE *share);
 int ndbcluster_create_event_ops(NDB_SHARE *share,
@@ -90,7 +93,8 @@ int ndbcluster_handle_drop_table(Ndb *ndb, const char *event_name,
                                  NDB_SHARE *share);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl);
-
+int ndb_create_table_from_engine(THD *thd, const char *db,
+                                 const char *table_name);
 int ndbcluster_binlog_start();
 pthread_handler_t ndb_binlog_thread_func(void *arg);
 
@@ -102,7 +106,7 @@ extern NDB_SHARE *apply_status_share;
 extern NDB_SHARE *schema_share;
 
 extern THD *injector_thd;
-extern int ndb_binlog_thread_running;
+extern my_bool ndb_binlog_running;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,

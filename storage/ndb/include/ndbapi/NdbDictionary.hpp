@@ -162,6 +162,7 @@ public:
 
   class Table; // forward declaration
   class Tablespace; // forward declaration
+//  class NdbEventOperation; // forward declaration
 
   /**
    * @class Column
@@ -783,7 +784,7 @@ public:
     void setTablespace(const char * name);
     void setTablespace(const class Tablespace &);
     const char * getTablespace() const;
-    Uint32 getTablespaceId() const;
+    bool getTablespace(Uint32 *id= 0, Uint32 *version= 0) const;
 
     /**
      * Get table object type
@@ -883,7 +884,9 @@ public:
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
+    friend class NdbEventOperationImpl;
 #endif
     class NdbTableImpl & m_impl;
     Table(NdbTableImpl&);
@@ -1124,7 +1127,7 @@ public:
       _TE_NODE_FAILURE=10,
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
-      _TE_NUL=13 // internal (INS o DEL within same GCI)
+      _TE_NUL=13 // internal (e.g. INS o DEL within same GCI)
     };
 #endif
     /**
@@ -1181,6 +1184,12 @@ public:
      * Get unique identifier for the event
      */
     const char *getName() const;
+    /**
+     * Get table that the event is defined on
+     *
+     * @return pointer to table or NULL if no table has been defined
+     */
+    const NdbDictionary::Table * getTable() const;
     /**
      * Define table on which events should be detected
      *
@@ -1260,6 +1269,24 @@ public:
      * @return Number of columns, -1 on error
      */
     int getNoOfEventColumns() const;
+
+    /**
+     * The merge events flag is false by default.  Setting it true
+     * implies that events are merged in following ways:
+     *
+     * - for given NdbEventOperation associated with this event,
+     *   events on same PK within same GCI are merged into single event
+     *
+     * - a blob table event is created for each blob attribute
+     *   and blob events are handled as part of main table events
+     *
+     * - blob post/pre data from the blob part events can be read
+     *   via NdbBlob methods as a single value
+     *
+     * NOTE: Currently this flag is not inherited by NdbEventOperation
+     * and must be set on NdbEventOperation explicitly.
+     */
+    void mergeEvents(bool flag);
 
     /**
      * Get object status
@@ -1717,6 +1744,7 @@ public:
     int createTablespace(const Tablespace &);
     int dropTablespace(const Tablespace&);
     Tablespace getTablespace(const char * name);
+    Tablespace getTablespace(Uint32 tablespaceId);
 
     int createDatafile(const Datafile &, bool overwrite_existing = false);
     int dropDatafile(const Datafile&);
@@ -1746,6 +1774,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
     void set_local_table_data_size(unsigned sz);
+    void fix_blob_events(const Table* table, const char* ev_name);
 #endif
   };
 };

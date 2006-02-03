@@ -91,6 +91,7 @@ handlerton tina_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
+  NULL,    /* Fill FILES Table */
   HTON_CAN_RECREATE
 };
 

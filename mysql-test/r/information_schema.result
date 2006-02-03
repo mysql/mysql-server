@@ -44,6 +44,8 @@ COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
 ENGINES
+EVENTS
+FILES
 KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
@@ -405,6 +407,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	CREATE ROUTINE	YES
 'mysqltest_1'@'localhost'	NULL	test	ALTER ROUTINE	YES
 'mysqltest_1'@'localhost'	NULL	test	EVENT	YES
+'mysqltest_1'@'localhost'	NULL	test	TRIGGER	YES
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	t1	SELECT	NO
@@ -734,7 +737,7 @@ CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-109
+111
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -742,6 +745,8 @@ information_schema.columns
 where data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_TYPE
+information_schema	EVENTS	EVENT_BODY
+information_schema	EVENTS	SQL_MODE
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
@@ -756,6 +761,18 @@ information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where data_type = 'datetime';
 table_name	column_name	data_type
+EVENTS	EXECUTE_AT	datetime
+EVENTS	STARTS	datetime
+EVENTS	ENDS	datetime
+EVENTS	CREATED	datetime
+EVENTS	LAST_ALTERED	datetime
+EVENTS	LAST_EXECUTED	datetime
+FILES	CREATION_TIME	datetime
+FILES	LAST_UPDATE_TIME	datetime
+FILES	LAST_ACCESS_TIME	datetime
+FILES	CREATE_TIME	datetime
+FILES	UPDATE_TIME	datetime
+FILES	CHECK_TIME	datetime
 PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
@@ -804,6 +821,7 @@ where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
+FILES	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 STATISTICS	TABLE_NAME	select
@@ -817,7 +835,7 @@ flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 cluster_replication	1
-information_schema	19
+information_schema	21
 mysql	21
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row

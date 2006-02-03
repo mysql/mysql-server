@@ -46,6 +46,8 @@ C_MODE_START
 
 static my_bool emb_read_query_result(MYSQL *mysql);
 
+C_MODE_END
+
 void THD::clear_data_list()
 {
   while (first_data)
@@ -59,6 +61,7 @@ void THD::clear_data_list()
   cur_data= 0;
 }
 
+C_MODE_START
 
 /*
   Reads error information from the MYSQL_DATA and puts

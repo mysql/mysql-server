@@ -43,6 +43,7 @@ c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls="" c_pl=""
 i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls="" i_pl=""
 c_p="" c_pp=""
 c_gl="" c_sl=""
+c_ev=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -74,14 +75,15 @@ then
   c_d="$c_d   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
   c_d="$c_d KEY User (User)"
   c_d="$c_d ) engine=MyISAM"
   c_d="$c_d CHARACTER SET utf8 COLLATE utf8_bin"
   c_d="$c_d comment='Database privileges';"
   
-  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');
-  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y');"
+  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');"
 fi
 
 if test ! -f $mdata/host.frm
@@ -110,6 +112,7 @@ then
   c_h="$c_h  Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_h="$c_h  Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
+  c_h="$c_h  Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_h="$c_h  PRIMARY KEY Host (Host,Db)"
   c_h="$c_h ) engine=MyISAM"
   c_h="$c_h CHARACTER SET utf8 COLLATE utf8_bin"
@@ -153,6 +156,7 @@ then
   c_u="$c_u   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,"
   c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
@@ -168,22 +172,22 @@ then
 
   if test "$1" = "test" 
   then
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
     INSERT INTO user (host,user) values ('localhost','');
     INSERT INTO user (host,user) values ('$hostname','');"
   else
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);"
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);"
     if test "$windows" = "0"
     then
       i_u="$i_u
-           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
            INSERT INTO user (host,user) values ('$hostname','');
            INSERT INTO user (host,user) values ('localhost','');"
     else
       i_u="$i_u
-	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     fi
   fi 
 fi
@@ -233,7 +237,7 @@ then
   c_t="$c_t   Table_name char(64) binary DEFAULT '' NOT NULL,"
   c_t="$c_t   Grantor char(77) DEFAULT '' NOT NULL,"
   c_t="$c_t   Timestamp timestamp,"
-  c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
+  c_t="$c_t   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL,"
   c_t="$c_t   PRIMARY KEY (Host,Db,User,Table_name),"
   c_t="$c_t   KEY Grantor (Grantor)"
@@ -790,8 +794,40 @@ then
   c_ev="$c_ev   ends DATETIME default NULL,"
   c_ev="$c_ev   status ENUM('ENABLED','DISABLED') NOT NULL default 'ENABLED',"
   c_ev="$c_ev   on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP',"
-  c_ev="$c_ev   comment varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
-  c_ev="$c_ev   PRIMARY KEY  (db,name)"
+  c_ev="$c_ev   sql_mode          set("
+  c_ev="$c_ev                         'REAL_AS_FLOAT',"
+  c_ev="$c_ev                         'PIPES_AS_CONCAT',"
+  c_ev="$c_ev                         'ANSI_QUOTES',"
+  c_ev="$c_ev                         'IGNORE_SPACE',"
+  c_ev="$c_ev                         'NOT_USED',"
+  c_ev="$c_ev                         'ONLY_FULL_GROUP_BY',"
+  c_ev="$c_ev                         'NO_UNSIGNED_SUBTRACTION',"
+  c_ev="$c_ev                         'NO_DIR_IN_CREATE',"
+  c_ev="$c_ev                         'POSTGRESQL',"
+  c_ev="$c_ev                         'ORACLE',"
+  c_ev="$c_ev                         'MSSQL',"
+  c_ev="$c_ev                         'DB2',"
+  c_ev="$c_ev                         'MAXDB',"
+  c_ev="$c_ev                         'NO_KEY_OPTIONS',"
+  c_ev="$c_ev                         'NO_TABLE_OPTIONS',"
+  c_ev="$c_ev                         'NO_FIELD_OPTIONS',"
+  c_ev="$c_ev                         'MYSQL323',"
+  c_ev="$c_ev                         'MYSQL40',"
+  c_ev="$c_ev                         'ANSI',"
+  c_ev="$c_ev                         'NO_AUTO_VALUE_ON_ZERO',"
+  c_ev="$c_ev                         'NO_BACKSLASH_ESCAPES',"
+  c_ev="$c_ev                         'STRICT_TRANS_TABLES',"
+  c_ev="$c_ev                         'STRICT_ALL_TABLES',"
+  c_ev="$c_ev                         'NO_ZERO_IN_DATE',"
+  c_ev="$c_ev                         'NO_ZERO_DATE',"
+  c_ev="$c_ev                         'INVALID_DATES',"
+  c_ev="$c_ev                         'ERROR_FOR_DIVISION_BY_ZERO',"
+  c_ev="$c_ev                         'TRADITIONAL',"
+  c_ev="$c_ev                         'NO_AUTO_CREATE_USER',"
+  c_ev="$c_ev                         'HIGH_NOT_PRECEDENCE'"
+  c_ev="$c_ev                     ) DEFAULT '' NOT NULL,"
+  c_ev="$c_ev   comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',"
+  c_ev="$c_ev   PRIMARY KEY  (definer, db, name)"
   c_ev="$c_ev ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';"
 fi
 

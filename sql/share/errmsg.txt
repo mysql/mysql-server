@@ -5172,8 +5172,8 @@ ER_SP_WRONG_NO_OF_FETCH_ARGS
 	eng "Incorrect number of FETCH variables"
 	ger "Falsche Anzahl von FETCH-Variablen"
 ER_SP_FETCH_NO_DATA 02000 
-	eng "No data to FETCH"
-	ger "Keine Daten mit FETCH abzuholen"
+	eng "No data - zero rows fetched, selected, or processed"
+	ger "Keine Daten - null Zeilen geholt (fetch), ausgewählt oder verarbeitet"
 ER_SP_DUP_PARAM 42000 
 	eng "Duplicate parameter: %s"
 	ger "Doppelter Parameter: %s"
@@ -5769,10 +5769,10 @@ ER_EVENT_CANT_ALTER
         eng "Failed to alter event '%-.64s'"
 ER_EVENT_DROP_FAILED
         eng "Failed to drop %s"
-ER_EVENT_INTERVAL_NOT_POSITIVE
-        eng "INTERVAL must be positive"
+ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+        eng "INTERVAL is either not positive or too big"
 ER_EVENT_ENDS_BEFORE_STARTS
-        eng "ENDS must be after STARTS"
+        eng "ENDS is either invalid or before STARTS"
 ER_EVENT_EXEC_TIME_IN_THE_PAST
         eng "Activation (AT) time is in the past"
 ER_EVENT_OPEN_TABLE_FAILED
@@ -5793,7 +5793,7 @@ ER_EVENT_DATA_TOO_LONG
         eng "Data for column '%s' too long"
 ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.64s': needed in a foreign key constraint"
-        ger "Kann Index '%-.64s' nicht löschen: wird für einen einen Fremdschlüssel benötigt"
+        ger "Kann Index '%-.64s' nicht löschen: wird für einen Fremdschlüssel benötigt"
 ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible."
 ER_CANT_READ_LOCK_LOG_TABLE

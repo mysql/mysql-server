@@ -389,7 +389,6 @@ public:
   DataBuffer<1>::DataBufferPool   c_attrMappingPool;
   DataBuffer<11>::DataBufferPool  c_dataBufPool;
   DLList<Prepare>                 c_runningPrepares;
-  DLList<PreparedOperation>       c_runningPreparedOperations;
   DLList<Transaction>             c_seizingTransactions; // Being seized at TC
   DLList<Transaction>             c_runningTransactions; // Seized and now exec.
   

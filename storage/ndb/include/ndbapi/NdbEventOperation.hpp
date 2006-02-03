@@ -150,6 +150,14 @@ public:
    */
   NdbRecAttr *getPreValue(const char *anAttrName, char *aValue = 0);
 
+  /**
+   * These methods replace getValue/getPreValue for blobs.  Each
+   * method creates a blob handle NdbBlob.  The handle supports only
+   * read operations.  See NdbBlob.
+   */
+  NdbBlob* getBlobHandle(const char *anAttrName);
+  NdbBlob* getPreBlobHandle(const char *anAttrName);
+
   int isOverrun() const;
 
   /**
@@ -167,6 +175,26 @@ public:
    * @return type of event
    */
   NdbDictionary::Event::TableEvent getEventType() const;
+
+  /**
+   * Check if table name has changed, for event TE_ALTER
+   */
+  const bool tableNameChanged() const;
+
+  /**
+   * Check if table frm has changed, for event TE_ALTER
+   */
+  const bool tableFrmChanged() const;
+
+  /**
+   * Check if table fragmentation has changed, for event TE_ALTER
+   */
+  const bool tableFragmentationChanged() const;
+
+  /**
+   * Check if table range partition list name has changed, for event TE_ALTER
+   */
+  const bool tableRangeListChanged() const;
 
   /**
    * Retrieve the GCI of the latest retrieved event
@@ -192,14 +220,13 @@ public:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */
-  const NdbDictionary::Table *getTable() const;
   const NdbDictionary::Event *getEvent() const;
   const NdbRecAttr *getFirstPkAttr() const;
   const NdbRecAttr *getFirstPkPreAttr() const;
   const NdbRecAttr *getFirstDataAttr() const;
   const NdbRecAttr *getFirstDataPreAttr() const;
 
-  bool validateTable(NdbDictionary::Table &table) const;
+//  bool validateTable(NdbDictionary::Table &table) const;
 
   void setCustomData(void * data);
   void * getCustomData() const;

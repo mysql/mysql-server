@@ -109,7 +109,7 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 
 
 
-extern my_bool event_executor_running_global_var;
+extern volatile my_bool event_executor_running_global_var;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -216,7 +216,7 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
 sys_var_event_executor        sys_event_executor("event_scheduler",
-                                               &event_executor_running_global_var);
+                                               (my_bool *)&event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
@@ -631,7 +631,7 @@ sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
 sys_var_have_variable sys_have_isam("have_isam", &have_isam);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
-sys_var_have_variable sys_have_partition_db("have_partition_engine",
+sys_var_have_variable sys_have_partition_db("have_partitioning",
                                             &have_partition_db);
 sys_var_have_variable sys_have_query_cache("have_query_cache",
                                            &have_query_cache);
@@ -1021,7 +1021,7 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   uint new_length= (var ? var->value->str_value.length() : 0);
   if (!old_value)
     old_value= (char*) "";
-  if (!(res= my_strdup_with_length((byte*)old_value, new_length, MYF(0))))
+  if (!(res= my_strndup((byte*)old_value, new_length, MYF(0))))
     return 1;
   /*
     Replace the old value in such a way that the any thread using

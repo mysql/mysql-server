@@ -1069,9 +1069,9 @@ void NdbEventImpl::init()
 {
   m_eventId= RNIL;
   m_eventKey= RNIL;
-  m_tableId= RNIL;
   mi_type= 0;
   m_dur= NdbDictionary::Event::ED_UNDEFINED;
+  m_mergeEvents = false;
   m_tableImpl= NULL;
   m_rep= NdbDictionary::Event::ER_UPDATED;
 }
@@ -1080,6 +1080,8 @@ NdbEventImpl::~NdbEventImpl()
 {
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete  m_columns[i];
+  if (m_tableImpl)
+    delete m_tableImpl;
 }
 
 void NdbEventImpl::setName(const char * name)
@@ -1095,8 +1097,27 @@ const char *NdbEventImpl::getName() const
 void 
 NdbEventImpl::setTable(const NdbDictionary::Table& table)
 {
-  m_tableImpl= &NdbTableImpl::getImpl(table);
+  setTable(&NdbTableImpl::getImpl(table));
   m_tableName.assign(m_tableImpl->getName());
+}
+
+void 
+NdbEventImpl::setTable(NdbTableImpl *tableImpl)
+{
+  DBUG_ASSERT(tableImpl->m_status != NdbDictionary::Object::Invalid);
+  if (!m_tableImpl) 
+    m_tableImpl = new NdbTableImpl();
+  // Copy table, since event might be accessed from different threads
+  m_tableImpl->assign(*tableImpl);
+}
+
+const NdbDictionary::Table *
+NdbEventImpl::getTable() const
+{
+  if (m_tableImpl) 
+    return m_tableImpl->m_facade;
+  else
+    return NULL;
 }
 
 void 
@@ -1245,6 +1266,21 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const BaseString& internalTableName)
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
   
   return info;
+}
+
+void
+NdbDictionaryImpl::putTable(NdbTableImpl *impl)
+{
+  m_globalHash->lock();
+  m_globalHash->put(impl->m_internalName.c_str(), impl);
+  m_globalHash->unlock();
+  Ndb_local_table_info *info=
+    Ndb_local_table_info::create(impl, m_local_table_data_size);
+  
+  m_localHash.put(impl->m_internalName.c_str(), info);
+  
+  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
+  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
 }
 
 #if 0
@@ -2036,7 +2072,7 @@ int
 NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
 {
   unsigned n= t.m_noOfBlobs;
-  DBUG_ENTER("NdbDictioanryImpl::addBlobTables");
+  DBUG_ENTER("NdbDictionaryImpl::addBlobTables");
   // optimized for blob column being the last one
   // and not looking for more than one if not neccessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
@@ -3074,13 +3110,11 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 			 evnt.getTableName()));
       DBUG_RETURN(-1);
     }
+    evnt.setTable(tab);
   }
 
   DBUG_PRINT("info",("Table: id: %d version: %d", tab->m_id, tab->m_version));
 
-  evnt.m_tableId = tab->m_id;
-  evnt.m_tableVersion = tab->m_version;
-  evnt.m_tableImpl = tab;
   NdbTableImpl &table = *evnt.m_tableImpl;
 
   int attributeList_sz = evnt.m_attrIds.size();
@@ -3102,7 +3136,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   attributeList_sz = evnt.m_columns.size();
 
   DBUG_PRINT("info",("Event on tableId=%d, tableVersion=%d, event name %s, no of columns %d",
-		     evnt.m_tableId, evnt.m_tableVersion,
+		     table.m_id, table.m_version,
 		     evnt.m_name.c_str(),
 		     evnt.m_columns.size()));
 
@@ -3151,7 +3185,37 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 #endif
 
   // NdbDictInterface m_receiver;
-  DBUG_RETURN(m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */));
+  if (m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */) != 0)
+    DBUG_RETURN(-1);
+
+  // Create blob events
+  if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
+    int save_code = m_error.code;
+    (void)dropEvent(evnt.m_name.c_str());
+    m_error.code = save_code;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictionaryImpl::createBlobEvents(NdbEventImpl& evnt)
+{
+  DBUG_ENTER("NdbDictionaryImpl::createBlobEvents");
+  NdbTableImpl& t = *evnt.m_tableImpl;
+  Uint32 n = t.m_noOfBlobs;
+  Uint32 i;
+  for (i = 0; i < evnt.m_columns.size() && n > 0; i++) {
+    NdbColumnImpl & c = *evnt.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    n--;
+    NdbEventImpl blob_evnt;
+    NdbBlob::getBlobEvent(blob_evnt, &evnt, &c);
+    if (createEvent(blob_evnt) != 0)
+      DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }
 
 int
@@ -3180,11 +3244,12 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     req->setRequestType(CreateEvntReq::RT_USER_GET);
   } else {
     DBUG_PRINT("info",("tableId: %u tableVersion: %u",
-		       evnt.m_tableId, evnt.m_tableVersion));
+		       evnt.m_tableImpl->m_id, 
+                       evnt.m_tableImpl->m_version));
     // creating event in Dictionary
     req->setRequestType(CreateEvntReq::RT_USER_CREATE);
-    req->setTableId(evnt.m_tableId);
-    req->setTableVersion(evnt.m_tableVersion);
+    req->setTableId(evnt.m_tableImpl->m_id);
+    req->setTableVersion(evnt.m_tableImpl->m_version);
     req->setAttrListBitmask(evnt.m_attrListBitmask);
     req->setEventType(evnt.mi_type);
     req->clearFlags();
@@ -3235,14 +3300,12 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   //  NdbEventImpl *evntImpl = (NdbEventImpl *)evntConf->getUserData();
 
   if (getFlag) {
-    evnt.m_tableId         = evntConf->getTableId();
-    evnt.m_tableVersion    = evntConf->getTableVersion();
     evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
     evnt.mi_type           = evntConf->getEventType();
     evnt.setTable(dataPtr);
   } else {
-    if (evnt.m_tableId         != evntConf->getTableId() ||
-	evnt.m_tableVersion    != evntConf->getTableVersion() ||
+    if (evnt.m_tableImpl->m_id         != evntConf->getTableId() ||
+	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
       ndbout_c("ERROR*************");
@@ -3336,7 +3399,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   DBUG_ENTER("NdbDictionaryImpl::getEvent");
   DBUG_PRINT("enter",("eventName= %s", eventName));
 
-  NdbEventImpl *ev =  new NdbEventImpl();
+ NdbEventImpl *ev =  new NdbEventImpl();
   if (ev == NULL) {
     DBUG_RETURN(NULL);
   }
@@ -3353,9 +3416,16 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   // We only have the table name with internal name
   DBUG_PRINT("info",("table %s", ev->getTableName()));
   Ndb_local_table_info *info;
-  int retry= 0;
-  while (1)
+  info= get_local_table_info(ev->getTableName(), true);
+  if (info == 0)
   {
+    DBUG_PRINT("error",("unable to find table %s", ev->getTableName()));
+    delete ev;
+    DBUG_RETURN(NULL);
+  }
+  if (info->m_table_impl->m_status == NdbDictionary::Object::Invalid)
+  {
+    removeCachedObject(*info->m_table_impl);
     info= get_local_table_info(ev->getTableName(), true);
     if (info == 0)
     {
@@ -3363,43 +3433,28 @@ NdbDictionaryImpl::getEvent(const char * eventName)
       delete ev;
       DBUG_RETURN(NULL);
     }
-
-    if (ev->m_tableId      == info->m_table_impl->m_id &&
-	ev->m_tableVersion == info->m_table_impl->m_version)
-      break;
-    if (retry)
-    {
-      m_error.code= 241;
-      DBUG_PRINT("error",("%s: table version mismatch, event: [%u,%u] table: [%u,%u]",
-			  ev->getTableName(), ev->m_tableId, ev->m_tableVersion,
-			  info->m_table_impl->m_id, info->m_table_impl->m_version));
-      delete ev;
-      DBUG_RETURN(NULL);
-    }
-    invalidateObject(*info->m_table_impl);
-    retry++;
   }
-
-  ev->m_tableImpl= info->m_table_impl;
-  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));
-
+  ev->setTable(info->m_table_impl);
+  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
   // get the columns from the attrListBitmask
-
   NdbTableImpl &table = *ev->m_tableImpl;
   AttributeMask & mask = ev->m_attrListBitmask;
   unsigned attributeList_sz = mask.count();
 
-  DBUG_PRINT("info",("Table: id: %d version: %d", table.m_id, table.m_version));
+  DBUG_PRINT("info",("Table: id: %d version: %d", 
+                     table.m_id, table.m_version));
 
 #ifndef DBUG_OFF
   char buf[128] = {0};
   mask.getText(buf);
-  DBUG_PRINT("info",("attributeList_sz= %d, mask= %s", attributeList_sz, buf));
+  DBUG_PRINT("info",("attributeList_sz= %d, mask= %s", 
+                     attributeList_sz, buf));
 #endif
 
   
   if ( attributeList_sz > table.getNoOfColumns() )
   {
+    m_error.code = 241;
     DBUG_PRINT("error",("Invalid version, too many columns"));
     delete ev;
     DBUG_RETURN(NULL);
@@ -3409,6 +3464,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   for(unsigned id= 0; ev->m_columns.size() < attributeList_sz; id++) {
     if ( id >= table.getNoOfColumns())
     {
+      m_error.code = 241;
       DBUG_PRINT("error",("Invalid version, column %d out of range", id));
       delete ev;
       DBUG_RETURN(NULL);
@@ -3566,13 +3622,64 @@ NdbDictInterface::execSUB_START_REF(NdbApiSignal * signal,
 int 
 NdbDictionaryImpl::dropEvent(const char * eventName)
 {
-  NdbEventImpl *ev= new NdbEventImpl();
-  ev->setName(eventName);
-  int ret= m_receiver.dropEvent(*ev);
-  delete ev;  
+  DBUG_ENTER("NdbDictionaryImpl::dropEvent");
+  DBUG_PRINT("info", ("name=%s", eventName));
 
-  //  printf("__________________RET %u\n", ret);
-  return ret;
+  NdbEventImpl *evnt = getEvent(eventName); // allocated
+  if (evnt == NULL) {
+    if (m_error.code != 723 && // no such table
+        m_error.code != 241)   // invalid table
+      DBUG_RETURN(-1);
+    DBUG_PRINT("info", ("no table err=%d, drop by name alone", m_error.code));
+    evnt = new NdbEventImpl();
+    evnt->setName(eventName);
+  }
+  int ret = dropEvent(*evnt);
+  delete evnt;  
+  DBUG_RETURN(ret);
+}
+
+int
+NdbDictionaryImpl::dropEvent(const NdbEventImpl& evnt)
+{
+  if (dropBlobEvents(evnt) != 0)
+    return -1;
+  if (m_receiver.dropEvent(evnt) != 0)
+    return -1;
+  return 0;
+}
+
+int
+NdbDictionaryImpl::dropBlobEvents(const NdbEventImpl& evnt)
+{
+  DBUG_ENTER("NdbDictionaryImpl::dropBlobEvents");
+  if (evnt.m_tableImpl != 0) {
+    const NdbTableImpl& t = *evnt.m_tableImpl;
+    Uint32 n = t.m_noOfBlobs;
+    Uint32 i;
+    for (i = 0; i < evnt.m_columns.size() && n > 0; i++) {
+      const NdbColumnImpl& c = *evnt.m_columns[i];
+      if (! c.getBlobType() || c.getPartSize() == 0)
+        continue;
+      n--;
+      char bename[MAX_TAB_NAME_SIZE];
+      NdbBlob::getBlobEventName(bename, &evnt, &c);
+      (void)dropEvent(bename);
+    }
+  } else {
+    // loop over MAX_ATTRIBUTES_IN_TABLE ...
+    Uint32 i;
+    for (i = 0; i < MAX_ATTRIBUTES_IN_TABLE; i++) {
+      char bename[MAX_TAB_NAME_SIZE];
+      // XXX should get name from NdbBlob
+      sprintf(bename, "NDB$BLOBEVENT_%s_%u", evnt.getName(), i);
+      NdbEventImpl* bevnt = new NdbEventImpl();
+      bevnt->setName(bename);
+      (void)m_receiver.dropEvent(*bevnt);
+      delete bevnt;
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 int
@@ -4555,6 +4662,30 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   dst.m_filegroup_version= f.FilegroupVersion;
   dst.m_free=  f.FileFreeExtents;
   return 0;
+}
+
+// XXX temp
+void
+NdbDictionaryImpl::fix_blob_events(const NdbDictionary::Table* table, const char* ev_name)
+{
+  const NdbTableImpl& t = table->m_impl;
+  const NdbEventImpl* ev = getEvent(ev_name);
+  assert(ev != NULL);
+  Uint32 i;
+  for (i = 0; i < t.m_columns.size(); i++) {
+    assert(t.m_columns[i] != NULL);
+    const NdbColumnImpl& c = *t.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    char bename[200];
+    NdbBlob::getBlobEventName(bename, ev, &c);
+    // following fixes dict cache blob table
+    NdbEventImpl* bev = getEvent(bename);
+    if (c.m_blobTable != bev->m_tableImpl) {
+      // XXX const violation
+      ((NdbColumnImpl*)&c)->m_blobTable = bev->m_tableImpl;
+    }
+  }
 }
 
 template class Vector<int>;

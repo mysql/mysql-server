@@ -801,7 +801,7 @@ int ha_archive::write_row(byte *buf)
 error:
   pthread_mutex_unlock(&share->mutex);
   if (read_buf)
-    my_free(read_buf, MYF(0));
+    my_free((gptr) read_buf, MYF(0));
 
   DBUG_RETURN(rc);
 }
