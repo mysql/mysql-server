@@ -72,6 +72,10 @@ extern	void _db_unlock_file(void);
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXECUTE_IF(keyword,a1) \
         {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}}
+#define DBUG_EXECUTE_COND(keyword, a1) \
+        (_db_on_ ? ((_db_strict_keyword_ (keyword)) ? ((a1), 0) : 0) : 0)
+#define DBUG_COND(keyword) \
+        ((_db_on_ && _db_strict_keyword_ (keyword)) ? 1 : 0)
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -79,6 +83,8 @@ extern	void _db_unlock_file(void);
 #define DBUG_VOID_RETURN return
 #define DBUG_EXECUTE(keyword,a1) {}
 #define DBUG_EXECUTE_IF(keyword,a1) {}
+#define DBUG_EXECUTE_COND(keyword, a1) 0
+#define DBUG_COND(keyword) 0
 #define DBUG_PRINT(keyword,arglist) {}
 #define DBUG_PUSH(a1) {}
 #define DBUG_POP() {}
