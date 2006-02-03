@@ -24,8 +24,10 @@ extern "C" {
 extern	int _db_on_,_no_db_;
 extern	FILE *_db_fp_;
 extern	char *_db_process_;
-extern	int _db_keyword_(const char *keyword);
+extern  int _db_keyword_(const char *keyword);
 extern  int _db_strict_keyword_(const char *keyword);
+extern  int _db_add_strict_keyword_(const char *keyword);
+extern  int _db_del_strict_keyword_(const char *keyword);
 extern	void _db_setjmp_(void);
 extern	void _db_longjmp_(void);
 extern	void _db_push_(const char *control);
@@ -76,6 +78,8 @@ extern	void _db_unlock_file(void);
         (_db_on_ ? ((_db_strict_keyword_ (keyword)) ? ((a1), 0) : 0) : 0)
 #define DBUG_COND(keyword) \
         ((_db_on_ && _db_strict_keyword_ (keyword)) ? 1 : 0)
+#define DBUG_ADD_KEYWORD(key) _db_add_strict_keyword_(key)
+#define DBUG_DEL_KEYWORD(key) _db_del_strict_keyword_(key)
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -85,6 +89,8 @@ extern	void _db_unlock_file(void);
 #define DBUG_EXECUTE_IF(keyword,a1) {}
 #define DBUG_EXECUTE_COND(keyword, a1) 0
 #define DBUG_COND(keyword) 0
+#define DBUG_ADD_KEYWORD(key)
+#define DBUG_DEL_KEYWORD(key)
 #define DBUG_PRINT(keyword,arglist) {}
 #define DBUG_PUSH(a1) {}
 #define DBUG_POP() {}
