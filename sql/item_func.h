@@ -1057,9 +1057,6 @@ public:
     {
       ft_handler->please->close_search(ft_handler);
       ft_handler=0;
-      if (join_key)
-	table->file->ft_handler=0;
-      table->fulltext_searched=0;
     }
     if (concat)
     {
