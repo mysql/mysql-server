@@ -240,6 +240,28 @@ t3	CREATE TABLE `t3` (
   `d` double(22,9) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
+create table t1 select  105213674794682365.00 + 0.0 x;
+show warnings;
+Level	Code	Message
+desc  t1;
+Field	Type	Null	Key	Default	Extra
+x	decimal(21,2) unsigned	NO		0.00	
+drop table t1;
+create table t1 select 0.0 x;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+x	decimal(2,1) unsigned	NO		0.0	
+create table t2 select 105213674794682365.00 y;
+desc t2;
+Field	Type	Null	Key	Default	Extra
+y	decimal(20,2) unsigned	NO		0.00	
+create table t3 select x+y a from t1,t2;
+show warnings;
+Level	Code	Message
+desc t3;
+Field	Type	Null	Key	Default	Extra
+a	decimal(21,2) unsigned	NO		0.00	
+drop table t1,t2,t3;
 create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
 create table t1 (s1 float(1,2));

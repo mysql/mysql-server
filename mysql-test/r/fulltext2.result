@@ -234,5 +234,10 @@ insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test');
 delete from t1 limit 1;
+truncate table t1;
+insert into t1 values('ab c d');
+update t1 set a='ab c d';
+select * from t1 where match a against('ab c' in boolean mode);
+a
 drop table t1;
 set names latin1;
