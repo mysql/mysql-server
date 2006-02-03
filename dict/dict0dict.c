@@ -105,14 +105,6 @@ dict_col_remove_from_cache(
 /*=======================*/
 	dict_table_t*	table,	/* in: table */
 	dict_col_t*	col);	/* in: column */
-/**************************************************************************
-Removes an index from the dictionary cache. */
-static
-void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/* in: table */
-	dict_index_t*	index);	/* in, own: index */
 /***********************************************************************
 Copies fields contained in index2 to index1. */
 static
@@ -1512,7 +1504,7 @@ dict_index_add_to_cache(
 
 /**************************************************************************
 Removes an index from the dictionary cache. */
-static
+
 void
 dict_index_remove_from_cache(
 /*=========================*/
@@ -3582,23 +3574,22 @@ syntax_error:
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
 /**************************************************************************
-Returns an index object if it is found in the dictionary cache. */
+Returns an index object if it is found in the dictionary cache.
+Assumes that dict_sys->mutex is already being held. */
 
 dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
+dict_index_get_if_in_cache_low(
+/*===========================*/
 				/* out: index, NULL if not found */
 	dulint	index_id)	/* in: index id */
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
 
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
-	mutex_enter(&(dict_sys->mutex));
-	
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
 	while (table) {
@@ -3607,7 +3598,7 @@ dict_index_get_if_in_cache(
 		while (index) {
 			if (0 == ut_dulint_cmp(index->id, index_id)) {
 
-				goto found;
+				return(index);
 			}
 
 			index = UT_LIST_GET_NEXT(indexes, index);
@@ -3616,8 +3607,28 @@ dict_index_get_if_in_cache(
 		table = UT_LIST_GET_NEXT(table_LRU, table);
 	}
 
-	index = NULL;
-found:
+	return(NULL);
+}
+
+/**************************************************************************
+Returns an index object if it is found in the dictionary cache. */
+
+dict_index_t*
+dict_index_get_if_in_cache(
+/*=======================*/
+				/* out: index, NULL if not found */
+	dulint	index_id)	/* in: index id */
+{
+	dict_index_t*	index;
+
+	if (dict_sys == NULL) {
+		return(NULL);
+	}
+
+	mutex_enter(&(dict_sys->mutex));
+
+	index = dict_index_get_if_in_cache_low(index_id);
+
 	mutex_exit(&(dict_sys->mutex));
 
 	return(index);

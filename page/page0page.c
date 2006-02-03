@@ -378,6 +378,9 @@ page_create(
 	page_t*		page;
 	dict_index_t*	index;
 	ulint*		offsets;
+#if 1 /* testing */
+	byte		zip_data[512];
+#endif
 
 	if (UNIV_LIKELY(comp)) {
 		index = srv_sys->dummy_ind2;
@@ -391,6 +394,13 @@ page_create(
 	      <= PAGE_DATA);
 	ut_ad(PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE
 	      <= PAGE_DATA);
+
+	/* The infimum and supremum records use a dummy index. */
+	if (UNIV_LIKELY(comp)) {
+		index = srv_sys->dummy_ind2;
+	} else {
+		index = srv_sys->dummy_ind1;
+	}
 
 	/* 1. INCREMENT MODIFY CLOCK */
 	buf_frame_modify_clock_inc(frame);
@@ -506,6 +516,14 @@ page_create(
 		rec_set_next_offs_old(supremum_rec, 0);
 	}
 
+#if 1 /* testing */
+	if (UNIV_LIKELY(comp)) {
+		page_zip = &buf_block_align(page)->page_zip;
+		page_zip->data = zip_data;
+		page_zip->size = sizeof zip_data;
+		page_zip->m_start = page_zip->m_end = 0;
+	}
+#endif
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		ut_ad(comp);
 
@@ -515,6 +533,9 @@ page_create(
 			ut_error;
 		}
 	}
+#if 1 /* testing */
+	buf_block_align(page)->page_zip.data = 0;
+#endif
 
 	return(page);
 }

@@ -524,6 +524,14 @@ dict_index_add_to_cache(
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
 	ulint		page_no);/* in: root page number of the index */
+/**************************************************************************
+Removes an index from the dictionary cache. */
+
+void
+dict_index_remove_from_cache(
+/*=========================*/
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index);	/* in, own: index */
 /************************************************************************
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system. */
@@ -741,6 +749,15 @@ dict_is_mixed_table_rec(
 				table */
 	dict_table_t*	table,	/* in: table in a mixed cluster */
 	rec_t*		rec);	/* in: user record in the clustered index */
+/**************************************************************************
+Returns an index object if it is found in the dictionary cache.
+Assumes that dict_sys->mutex is already being held. */
+
+dict_index_t*
+dict_index_get_if_in_cache_low(
+/*===========================*/
+				/* out: index, NULL if not found */
+	dulint	index_id);	/* in: index id */
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache. */
 
