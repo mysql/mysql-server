@@ -503,10 +503,6 @@ ulong aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
 ulong delayed_insert_errors,flush_time;
-#ifdef ERROR_INJECT_SUPPORT
-ulong error_inject_code= 0;
-ulong error_inject_value= 0;
-#endif
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
@@ -7059,12 +7055,6 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
-#ifdef ERROR_INJECT_SUPPORT
-  global_system_variables.error_inject_code= 0;
-  global_system_variables.error_inject_value= 0;
-  max_system_variables.error_inject_code= ~0;
-  max_system_variables.error_inject_value= ~0;
-#endif
   
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal

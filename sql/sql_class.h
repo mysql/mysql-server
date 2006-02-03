@@ -186,10 +186,6 @@ struct system_variables
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
-#ifdef ERROR_INJECT_SUPPORT
-  ulong error_inject_code;
-  ulong error_inject_value;
-#endif
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
@@ -1103,6 +1099,9 @@ public:
   query_id_t query_id, warn_id;
   ulong      thread_id, col_access;
 
+#ifdef ERROR_INJECT_SUPPORT
+  ulong      error_inject_value;
+#endif
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
