@@ -126,7 +126,7 @@ a
 504
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
-ERROR 23000: Duplicate entry '600' for key 1
+ERROR 23000: Duplicate entry '600' for key 'PRIMARY'
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
 select * from t1;
