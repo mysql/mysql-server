@@ -504,6 +504,12 @@ JOIN::optimize()
   {
     Item::cond_result having_value;
     having= optimize_cond(thd, having, &having_value);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from optimize_cond"));
+      DBUG_RETURN(1);
+    }
 
     if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
         (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
