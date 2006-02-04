@@ -623,6 +623,18 @@ struct Query_cache_query_flags
   current_thd->error_inject_value= (x)
 
 inline bool
+my_error_inject_name(const char *dbug_str)
+{
+  if (_db_on_ && _db_strict_keyword_ (dbug_str))
+  {
+    DBUG_DEL_KEYWORD(dbug_str);
+    return 1;
+  }
+  return 0;
+}
+
+
+inline bool
 my_error_inject(int value)
 {
   THD *thd= current_thd;
@@ -637,9 +649,9 @@ my_error_inject(int value)
 #define ERROR_INJECT_CRASH(code) \
   DBUG_EXECUTE_COND(code, abort();)
 #define ERROR_INJECT_ACTION(code, action) \
-  DBUG_EXECUTE_COND(code, action)
+  (my_error_inject_name(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
-  DBUG_COND(code)
+  my_error_inject_name(code)
 #define ERROR_INJECT_VALUE(value) \
   my_error_inject(value)
 #define ERROR_INJECT_VALUE_ACTION(value,action) \
