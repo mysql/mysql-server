@@ -31,7 +31,21 @@
  */
 static const bool g_ndb_blob_ok_to_read_index_table = false;
 
-// state (inline)
+// get state
+
+NdbBlob::State
+NdbBlob::getState()
+{
+  return theState;
+}
+
+void
+NdbBlob::getVersion(int& version)
+{
+  version = theEventBlobVersion;
+}
+
+// set state (inline)
 
 inline void
 NdbBlob::setState(State newState)
@@ -608,7 +622,7 @@ NdbBlob::setActiveHook(ActiveHook activeHook, void* arg)
 // misc operations
 
 int
-NdbBlob::getDefined(int& isNull)
+NdbBlob::getDefined(int& isNull) // deprecated
 {
   DBUG_ENTER("NdbBlob::getDefined");
   if (theState == Prepared && theSetFlag) {
@@ -620,7 +634,7 @@ NdbBlob::getDefined(int& isNull)
 }
 
 int
-NdbBlob::getNull(bool& isNull)
+NdbBlob::getNull(bool& isNull) // deprecated
 {
   DBUG_ENTER("NdbBlob::getNull");
   if (theState == Prepared && theSetFlag) {
@@ -632,6 +646,23 @@ NdbBlob::getNull(bool& isNull)
     DBUG_RETURN(-1);
   }
   isNull = theNullFlag;
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::getNull(int& isNull)
+{
+  DBUG_ENTER("NdbBlob::getNull");
+  if (theState == Prepared && theSetFlag) {
+    isNull = (theSetBuf == NULL);
+    DBUG_RETURN(0);
+  }
+  isNull = theNullFlag;
+  if (isNull == -1 && theEventBlobVersion == -1) {
+    setErrorCode(NdbBlobImpl::ErrState);
+    DBUG_RETURN(-1);
+  }
+  DBUG_PRINT("info", ("isNull=%d", isNull));
   DBUG_RETURN(0);
 }
 
@@ -1085,6 +1116,8 @@ NdbBlob::deletePartsUnknown(Uint32 part)
 {
   DBUG_ENTER("NdbBlob::deletePartsUnknown");
   DBUG_PRINT("info", ("part=%u count=all", part));
+  if (thePartSize == 0) // tinyblob
+    DBUG_RETURN(0);
   static const unsigned maxbat = 256;
   static const unsigned minbat = 1;
   unsigned bat = minbat;

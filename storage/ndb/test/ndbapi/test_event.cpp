@@ -990,7 +990,7 @@ static int copy_events(Ndb *ndb)
     while ((pOp= ndb->nextEvent()))
     {
       char buf[1024];
-      sprintf(buf, "%s_SHADOW", pOp->getTable()->getName());
+      sprintf(buf, "%s_SHADOW", pOp->getEvent()->getTable()->getName());
       const NdbDictionary::Table *table= dict->getTable(buf);
 
       if (table == 0)
