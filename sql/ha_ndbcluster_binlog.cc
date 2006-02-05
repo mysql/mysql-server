@@ -2084,6 +2084,20 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
           DBUG_PRINT("info", ("%s blob", col_name));
           attr0.blob= op->getBlobHandle(col_name);
           attr1.blob= op->getPreBlobHandle(col_name);
+          if (attr0.blob == NULL || attr1.blob == NULL)
+          {
+            sql_print_error("NDB Binlog: Creating NdbEventOperation"
+                            " blob field %u handles failed (code=%d) for %s",
+                            j, op->getNdbError().code, event_name);
+            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                                op->getNdbError().code,
+                                op->getNdbError().message,
+                                "NDB");
+            ndb->dropEventOperation(op);
+            pthread_mutex_unlock(&injector_mutex);
+            DBUG_RETURN(-1);
+          }
         }
       }
       else
