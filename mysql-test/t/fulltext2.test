@@ -209,6 +209,14 @@ insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test');
 delete from t1 limit 1;
+
+#
+# BUG#16489: utf8 + fulltext leads to corrupt index file.
+#
+truncate table t1;
+insert into t1 values('ab c d');
+update t1 set a='ab c d';
+select * from t1 where match a against('ab c' in boolean mode);
 drop table t1;
 set names latin1;
 

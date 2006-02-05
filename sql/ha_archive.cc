@@ -139,6 +139,10 @@ static HASH archive_open_tables;
 
 /* Static declarations for handerton */
 static handler *archive_create_handler(TABLE_SHARE *table);
+/*
+  Number of rows that will force a bulk insert.
+*/
+#define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
 
 /* dummy handlerton - only to have something to return from archive_db_init */
@@ -1302,7 +1306,8 @@ void ha_archive::info(uint flag)
 void ha_archive::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_archive::start_bulk_insert");
-  bulk_insert= TRUE;
+  if (!rows || rows >= ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT)
+    bulk_insert= TRUE;
   DBUG_VOID_RETURN;
 }
 
