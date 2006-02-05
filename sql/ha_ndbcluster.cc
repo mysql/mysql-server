@@ -840,51 +840,51 @@ int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
     {
       Field *field= table->field[i];
       NdbValue value= value_array[i];
-      if (value.ptr != NULL && (field->flags & BLOB_FLAG))
+      if (! (field->flags & BLOB_FLAG))
+        continue;
+      if (value.blob == NULL)
       {
-        Field_blob *field_blob= (Field_blob *)field;
-        NdbBlob *ndb_blob= value.blob;
-        int isNull;
-        ndb_blob->getDefined(isNull);
-        if (isNull == 0) { // XXX -1 should be allowed only for events
-          Uint64 blob_len= 0;
-          if (ndb_blob->getLength(blob_len) != 0)
-            DBUG_RETURN(-1);
-          // Align to Uint64
-          uint32 blob_size= blob_len;
-          if (blob_size % 8 != 0)
-            blob_size+= 8 - blob_size % 8;
-          if (loop == 1)
-          {
-            char *buf= buffer + offset;
-            uint32 len= 0xffffffff;  // Max uint32
-            DBUG_PRINT("info", ("read blob ptr=%p len=%u",
-                                buf, (uint) blob_len));
-            if (ndb_blob->readData(buf, len) != 0)
-              DBUG_RETURN(-1);
-            DBUG_PRINT("info", ("blob field %d offset=%u len=%u [ptrdiff=%d]",
-                                i, offset, len, (int)ptrdiff));
-            DBUG_ASSERT(len == blob_len);
-            // Ugly hack assumes only ptr needs to be changed
-            field_blob->ptr+= ptrdiff;
-            field_blob->set_ptr(len, buf);
-            field_blob->ptr-= ptrdiff;
-          }
-          offset+= blob_size;
-        }
-        else
+        DBUG_PRINT("info",("[%u] skipped", i));
+        continue;
+      }
+      Field_blob *field_blob= (Field_blob *)field;
+      NdbBlob *ndb_blob= value.blob;
+      int isNull;
+      if (ndb_blob->getNull(isNull) != 0)
+        ERR_RETURN(ndb_blob->getNdbError());
+      if (isNull == 0) {
+        Uint64 len64= 0;
+        if (ndb_blob->getLength(len64) != 0)
+          ERR_RETURN(ndb_blob->getNdbError());
+        // Align to Uint64
+        uint32 size= len64;
+        if (size % 8 != 0)
+          size+= 8 - size % 8;
+        if (loop == 1)
         {
-          if (loop == 1)
-          {
-            // have to set length even in this case
-            char *buf= buffer + offset;
-            uint32 len= 0;
-            field_blob->ptr+= ptrdiff;
-            field_blob->set_ptr(len, buf);
-            field_blob->ptr-= ptrdiff;
-            DBUG_PRINT("info", ("blob field %d isNull=%d", i, isNull));
-          }
+          char *buf= buffer + offset;
+          uint32 len= 0xffffffff;  // Max uint32
+          if (ndb_blob->readData(buf, len) != 0)
+            ERR_RETURN(ndb_blob->getNdbError());
+          DBUG_PRINT("info", ("[%u] offset=%u buf=%p len=%u [ptrdiff=%d]",
+                              i, offset, buf, len, (int)ptrdiff));
+          DBUG_ASSERT(len == len64);
+          // Ugly hack assumes only ptr needs to be changed
+          field_blob->ptr+= ptrdiff;
+          field_blob->set_ptr(len, buf);
+          field_blob->ptr-= ptrdiff;
         }
+        offset+= size;
+      }
+      else if (loop == 1) // undefined or null
+      {
+        // have to set length even in this case
+        char *buf= buffer + offset; // or maybe NULL
+        uint32 len= 0;
+        field_blob->ptr+= ptrdiff;
+        field_blob->set_ptr(len, buf);
+        field_blob->ptr-= ptrdiff;
+        DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
       }
     }
     if (loop == 0 && offset > buffer_size)
