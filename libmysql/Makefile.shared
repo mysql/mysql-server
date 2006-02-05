@@ -77,7 +77,7 @@ mysysobjects2 =		my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
-target_ldflags = -version-info @SHARED_LIB_VERSION@
+target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ 
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target)

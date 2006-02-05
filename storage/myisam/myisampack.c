@@ -1159,7 +1159,7 @@ static int compare_huff_elements(void *not_used __attribute__((unused)),
 static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 			 my_off_t records)
 {
-  uint space_fields,fill_zero_fields,field_count[(int) FIELD_VARCHAR+1];
+  uint space_fields,fill_zero_fields,field_count[(int) FIELD_enum_val_count];
   my_off_t old_length,new_length,length;
   DBUG_ENTER("check_counts");
 

@@ -35,7 +35,7 @@ public:
 
   void fetch_configuration();
   void setupConfiguration();
-  void closeConfiguration();
+  void closeConfiguration(bool end_session= true);
   
   bool lockPagesInMainMemory() const;
   
