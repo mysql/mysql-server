@@ -87,7 +87,12 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_arrayType = col.m_arrayType;
   m_storageType = col.m_storageType;
   m_keyInfoPos = col.m_keyInfoPos;
-  m_blobTable = col.m_blobTable;
+  if (col.m_blobTable == NULL)
+    m_blobTable = NULL;
+  else {
+    m_blobTable = new NdbTableImpl();
+    m_blobTable->assign(*col.m_blobTable);
+  }
   m_column_no = col.m_column_no;
   // Do not copy m_facade !!
 
@@ -2747,14 +2752,25 @@ NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 }
 
 int
-NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
+NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl, bool lock)
 {
   const char * internalTableName = impl.m_internalName.c_str();
 
+  if (lock)
+    m_globalHash->lock();
+  if (impl.m_noOfBlobs != 0) {
+    for (uint i = 0; i < impl.m_columns.size(); i++) {
+      NdbColumnImpl& c = *impl.m_columns[i];
+      if (! c.getBlobType() || c.getPartSize() == 0)
+        continue;
+      assert(c.m_blobTable != NULL);
+      removeCachedObject(*c.m_blobTable, false);
+    }
+  }
   m_localHash.drop(internalTableName);  
-  m_globalHash->lock();
   m_globalHash->release(&impl);
-  m_globalHash->unlock();
+  if (lock)
+    m_globalHash->unlock();
   return 0;
 }
 
