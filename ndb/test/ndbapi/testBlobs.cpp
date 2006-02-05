@@ -1300,7 +1300,7 @@ static int
 testmain()
 {
   g_ndb = new Ndb(g_ncc, "TEST_DB");
-  CHK(g_ndb->init() == 0);
+  CHK(g_ndb->init(20) == 0);
   CHK(g_ndb->waitUntilReady() == 0);
   g_dic = g_ndb->getDictionary();
   g_tups = new Tup [g_opt.m_rows];
