@@ -42,6 +42,8 @@ SocketServer::~SocketServer() {
     delete m_sessions[i].m_session;
   }
   for(i = 0; i<m_services.size(); i++){
+    if(m_services[i].m_socket)
+      NDB_CLOSE_SOCKET(m_services[i].m_socket);
     delete m_services[i].m_service;
   }
 }
