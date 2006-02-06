@@ -1094,3 +1094,13 @@ select "strawberry","blueberry","potato";
 --exec echo "--replace_regex /a b c" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1 
+
+# REQUIREMENT
+#   replace_regex should replace substitutions from left to right in output
+
+create table t1 (a int, b int);
+insert into t1 values (1,3);
+insert into t1 values (2,4);
+--replace_regex /A/C/ /B/D/i /3/2/ /2/1/
+select * from t1;
+drop table t1;
