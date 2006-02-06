@@ -2020,7 +2020,8 @@ int ha_repl_report_replication_stop(THD *thd);
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
-void ha_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
+void ha_binlog_log_query(THD *thd, const handlerton *db_type,
+                         enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);

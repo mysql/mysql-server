@@ -29,18 +29,24 @@ extern ulong ndb_extra_logging;
 
 #define INJECTOR_EVENT_LEN 200
 
+/*
+  The numbers below must not change as they
+  are passed between mysql servers, and if changed
+  would break compatablility.  Add new numbers to
+  the end.
+*/
 enum SCHEMA_OP_TYPE
 {
-  SOT_DROP_TABLE,
-  SOT_CREATE_TABLE,
-  SOT_RENAME_TABLE,
-  SOT_ALTER_TABLE,
-  SOT_DROP_DB,
-  SOT_CREATE_DB,
-  SOT_ALTER_DB,
-  SOT_CLEAR_SLOCK,
-  SOT_TABLESPACE,
-  SOT_LOGFILE_GROUP
+  SOT_DROP_TABLE= 0,
+  SOT_CREATE_TABLE= 1,
+  SOT_RENAME_TABLE= 2,
+  SOT_ALTER_TABLE= 3,
+  SOT_DROP_DB= 4,
+  SOT_CREATE_DB= 5,
+  SOT_ALTER_DB= 6,
+  SOT_CLEAR_SLOCK= 7,
+  SOT_TABLESPACE= 8,
+  SOT_LOGFILE_GROUP= 9
 };
 
 const uint max_ndb_nodes= 64; /* multiple of 32 */
