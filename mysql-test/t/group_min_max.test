@@ -715,3 +715,24 @@ select distinct c1, c2 from t1 order by c2;
 select c1,min(c2) as c2 from t1 group by c1 order by c2;
 select c1,c2 from t1 group by c1,c2 order by c2;
 drop table t1;
+
+#
+# Bug #16203: Analysis for possible min/max optimization erroneously
+#             returns impossible range
+#
+
+CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES ('AA',1), ('AA',2), ('AA',3), ('BB',1), ('AA',4);
+OPTIMIZE TABLE t1;
+
+SELECT a FROM t1 WHERE a='AA' GROUP BY a;
+SELECT a FROM t1 WHERE a='BB' GROUP BY a;
+
+EXPLAIN SELECT a FROM t1 WHERE a='AA' GROUP BY a;
+EXPLAIN SELECT a FROM t1 WHERE a='BB' GROUP BY a;
+
+SELECT DISTINCT a FROM t1 WHERE a='BB';
+SELECT DISTINCT a FROM t1 WHERE a LIKE 'B%';
+SELECT a FROM t1 WHERE a LIKE 'B%' GROUP BY a;
+
+DROP TABLE t1;
