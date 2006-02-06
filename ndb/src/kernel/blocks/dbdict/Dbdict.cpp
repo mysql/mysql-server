@@ -2402,7 +2402,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf), 
 			 "Unable to restart, fail while creating table %d"
-			 " error: %d. Most likely change of configution",
+			 " error: %d. Most likely change of configuration",
 			 c_readTableRecord.tableId,
 			 parseRecord.errorCode);
     progError(__LINE__, 
