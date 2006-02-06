@@ -25,11 +25,10 @@ partition_03ndb : Bug#16385
 ndb_binlog_basic   : Results are not deterministic, Tomas will fix
 rpl_ndb_basic   : Bug#16228
 rpl_sp          : Bug #16456
-#ndb_dd_disk2memory : Bug #16466 
 ndb_autodiscover : Needs to be fixed w.r.t binlog
 ndb_autodiscover2 : Needs to be fixed w.r.t binlog
 #ndb_alter_table_row : sometimes wrong error 1015!=1046
 ndb_gis : garbled msgs from corrupt THD*
+rpl_ndb_auto_inc : MySQL Bugs:17086
+rpl_ndb_relay_space : Results are not deterministic
 ndb_binlog_ddl_multi : Bug #17038
-
-# vim: set filetype=conf:
