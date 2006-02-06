@@ -3288,8 +3288,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           ERR_RETURN(ndb->getNdbError());
         no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
-        if (m_transaction_on)
-          trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
@@ -3304,8 +3303,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             ERR_RETURN(ndb->getNdbError());
           no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
-          if (m_transaction_on)
-            trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
