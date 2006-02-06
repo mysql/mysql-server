@@ -823,7 +823,9 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_logfile_group_id = req->filegroup_id;
   m_version = req->filegroup_version;
   m_state = LG_ONLINE;
-
+  m_outstanding_fs = 0;
+  m_next_reply_ptr_i = RNIL;
+  
   m_last_lsn = 0;
   m_last_synced_lsn = 0;
   m_last_sync_req_lsn = 0;
