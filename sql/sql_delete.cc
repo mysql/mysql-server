@@ -52,7 +52,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
 
@@ -79,6 +78,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       !(table->triggers && table->triggers->has_delete_triggers()))
   {
+    /* Update the table->file->records number */
+    table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->records;
     /*
       If all rows shall be deleted, we always log this statement-based
@@ -108,12 +109,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
-  /* 
-    Update the table->records number (note: we probably could remove the
-    previous file->info() call)
-  */
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 #endif
+  /* Update the table->file->records number */
+  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->used_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
