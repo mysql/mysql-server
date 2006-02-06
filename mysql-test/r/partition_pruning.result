@@ -304,21 +304,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1_sp2,p2_sp2	system	NULL	NULL	NULL	NULL	1	
-DROP TABLE IF EXISTS `t1`;
+drop table t1;
+create table t1 (a int) partition by list(a) (
+partition p0 values in (1,2),
+partition p1 values in (3,4)
+);
+insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+flush status;
+update t1 set a=100 where a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+update t1 set a=100 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	10
+flush status;
+delete from t1 where a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+delete from t1 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	10
+create table t2 like t1;
+insert into t2 select * from t2;
+flush status;
+update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+drop table t1,t2;
 CREATE TABLE `t1` (
 `a` int(11) default NULL
 );
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-DROP TABLE IF EXISTS `t2`;
-Warnings:
-Note	1051	Unknown table 't2'
 CREATE TABLE `t2` (
 `a` int(11) default NULL,
 KEY `a` (`a`)
 ) ;
 insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
 insert into t1 select a from t2;
-DROP TABLE IF EXISTS `t2`;
+drop table t2;
 CREATE TABLE `t2` (
 `a` int(11) default NULL,
 `b` int(11) default NULL
@@ -367,23 +402,23 @@ flush status;
 update t2 set a = 1002 where a = 1001;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1015
+Handler_read_rnd_next	0
 flush status;
 update t2 set b = 6 where a = 600;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1015
+Handler_read_rnd_next	201
 flush status;
 update t2 set b = 6 where a > 600 and a < 800;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1015
+Handler_read_rnd_next	201
 flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	1015
-DROP TABLE IF EXISTS `t2`;
+Handler_read_rnd_next	402
+drop table t2;
 CREATE TABLE `t2` (
 `a` int(11) default NULL,
 `b` int(11) default NULL,

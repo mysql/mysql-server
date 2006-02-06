@@ -30,13 +30,16 @@ netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqldump.def client/mysqlimport.def \
                                 client/mysqlshow.def client/mysqltest.def \
                                 client/mysqlslap.def \
+                                sql/mysqld.def extra/mysql_waitpid.def \
                                 extra/mysql_install.def extra/my_print_defaults.def \
                                 extra/perror.def extra/replace.def \
                                 extra/resolveip.def extra/comp_err.def \
-                                libmysqld/libmysqld.def myisam/myisamchk.def \
-                                myisam/myisamlog.def myisam/myisampack.def \
-                                sql/mysqld.def extra/mysql_waitpid.def \
-                                extra/resolve_stack_dump.def myisam/myisam_ftdump.def
+                                extra/resolve_stack_dump.def \
+                                libmysqld/libmysqld.def \
+                                storage/myisam/myisamchk.def \
+                                storage/myisam/myisamlog.def \
+                                storage/myisam/myisampack.def \
+                                storage/myisam/myisam_ftdump.def
 
 link_sources:
 	set -x; \

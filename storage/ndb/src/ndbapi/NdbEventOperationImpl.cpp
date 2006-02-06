@@ -342,15 +342,18 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
       tBlobOp = tBlobOp->m_next;
     }
 
-    DBUG_PRINT("info", ("%s op %s", tBlobOp ? " reuse" : " create", bename));
+    DBUG_PRINT("info", ("%s blob event op for %s",
+                        tBlobOp ? " reuse" : " create", bename));
 
     // create blob event op if not found
     if (tBlobOp == NULL) {
       // to hide blob op it is linked under main op, not under m_ndb
       NdbEventOperation* tmp =
         m_ndb->theEventBuffer->createEventOperation(bename, m_error);
-      if (tmp == NULL)
+      if (tmp == NULL) {
+        m_error.code = m_ndb->theEventBuffer->m_error.code;
         DBUG_RETURN(NULL);
+      }
       tBlobOp = &tmp->m_impl;
 
       // pointer to main table op
@@ -367,11 +370,14 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
   }
 
   tBlob = m_ndb->getNdbBlob();
-  if (tBlob == NULL)
+  if (tBlob == NULL) {
+    m_error.code = m_ndb->getNdbError().code;
     DBUG_RETURN(NULL);
+  }
 
   // calls getValue on inline and blob part
   if (tBlob->atPrepare(this, tBlobOp, tAttrInfo, n) == -1) {
+    m_error.code = tBlob->getNdbError().code;
     m_ndb->releaseNdbBlob(tBlob);
     DBUG_RETURN(NULL);
   }

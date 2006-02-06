@@ -630,7 +630,7 @@ export MASTER_MYHOST MASTER_MYPORT SLAVE_MYHOST SLAVE_MYPORT MYSQL_TCP_PORT MAST
 NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --data-dir=$MYSQL_TEST_DIR/var --ndb_mgm-extra-opts=$NDB_MGM_EXTRA_OPTS --ndb_mgmd-extra-opts=$NDB_MGMD_EXTRA_OPTS --ndbd-extra-opts=$NDBD_EXTRA_OPTS"
 NDBCLUSTER_OPTS_SLAVE="--port=$NDBCLUSTER_PORT_SLAVE --data-dir=$MYSQL_TEST_DIR/var"
 if [ -n "$USE_NDBCLUSTER_SLAVE" ] ; then
-  USE_NDBCLUSTER_SLAVE="$USE_NDBCLUSTER_SLAVE --ndb-connectstring=localhost:$NDBCLUSTER_PORT_SLAVE"
+  USE_NDBCLUSTER_SLAVE="$USE_NDBCLUSTER_SLAVE --ndb-connectstring=localhost:$NDBCLUSTER_PORT_SLAVE --ndb-extra-logging"
 fi
 NDB_BACKUP_DIR=$MYSQL_TEST_DIR/var/ndbcluster-$NDBCLUSTER_PORT
 NDB_TOOLS_OUTPUT=$MYSQL_TEST_DIR/var/log/ndb_tools.log
@@ -1016,6 +1016,10 @@ disable_test() {
 report_current_test () {
    tname=$1
    echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
+   eval "master1_running=\$MASTER1_RUNNING"
+   if [ x$master1_running = x1 ] ; then
+     echo "CURRENT_TEST: $tname" >> $MASTER_MYERR"1"
+   fi
    if [ -n "$PURIFY_LOGS" ] ; then
      for log in $PURIFY_LOGS
      do
@@ -1297,7 +1301,7 @@ start_ndbcluster()
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
     echo "Using ndbcluster at $NDB_CONNECTSTRING"
   fi
-  USE_NDBCLUSTER_OPT="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\""
+  USE_NDBCLUSTER_OPT="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\" --ndb-extra-logging"
   export NDB_CONNECTSTRING
   fi
 }
@@ -1876,6 +1880,7 @@ run_testcase ()
      start_ndbcluster
      start_master
      if [ x$USING_NDBCLUSTER = x1 -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
+       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR"1"
        start_master 1
      fi
      TZ=$MY_TZ; export TZ
@@ -1903,6 +1908,7 @@ run_testcase ()
        start_ndbcluster
        start_master
        if [ x$USING_NDBCLUSTER = x1  -a -z "$DO_BENCH" -a -z "$DO_STRESS" ] ; then
+         echo "CURRENT_TEST: $tname" >> $MASTER_MYERR"1"
          start_master 1
        fi
      else

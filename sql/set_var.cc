@@ -215,8 +215,9 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
-sys_var_event_executor        sys_event_executor("event_scheduler",
-                                               (my_bool *)&event_executor_running_global_var);
+sys_var_event_executor  sys_event_executor("event_scheduler",
+					   (my_bool *)
+					   &event_executor_running_global_var);
 sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
 					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
@@ -2495,7 +2496,6 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
-  pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
   sync_binlog_period= (ulong) var->save_result.ulonglong_value;
   return 0;
 }

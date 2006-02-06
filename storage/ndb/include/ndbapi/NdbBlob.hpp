@@ -76,8 +76,8 @@ class NdbEventOperationImpl;
  * handle can be read after next event on main table has been retrieved.
  * The data is available immediately.  See NdbEventOperation.
  *
- * NdbBlob methods return -1 on error and 0 on success, and use output
- * parameters when necessary.
+ * Non-void NdbBlob methods return -1 on error and 0 on success.  Output
+ * parameters are used when necessary.
  *
  * Operation types:
  * - insertTuple must use setValue if blob column is non-nullable
@@ -117,6 +117,11 @@ public:
    */
   State getState();
   /**
+   * Returns -1 for normal statement based blob and 0/1 for event
+   * operation post/pre data blob.  Always succeeds.
+   */
+  void getVersion(int& version);
+  /**
    * Inline blob header.
    */
   struct Head {
@@ -150,16 +155,15 @@ public:
    * then the callback is invoked.
    */
   int setActiveHook(ActiveHook* activeHook, void* arg);
-  /**
-   * Check if blob value is defined (NULL or not).  Used as first call
-   * on event based blob.  The argument is set to -1 for not defined.
-   * Unlike getNull() this does not cause error on the handle.
-   */
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   int getDefined(int& isNull);
-  /**
-   * Check if blob is null.
-   */
   int getNull(bool& isNull);
+#endif
+  /**
+   * Return -1, 0, 1 if blob is undefined, non-null, or null.  For
+   * non-event blob, undefined causes a state error.
+   */
+  int getNull(int& isNull);
   /**
    * Set blob to NULL.
    */
@@ -208,8 +212,8 @@ public:
    */
   static int getBlobEventName(char* bename, Ndb* anNdb, const char* eventName, const char* columnName);
   /**
-   * Return error object.  The error may be blob specific (below) or may
-   * be copied from a failed implicit operation.
+   * Return error object.  The error may be blob specific or may be
+   * copied from a failed implicit operation.
    */
   const NdbError& getNdbError() const;
   /**

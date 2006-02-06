@@ -13,7 +13,8 @@ AM_CONFIG_HEADER(config.h)
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_VERSION=15:0:0
+SHARED_LIB_MAJOR_VERSION=15
+SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -60,6 +61,7 @@ AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
 AC_SUBST(DOT_FRM_VERSION)
 AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
                    [Version of .frm files])
+AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
@@ -338,6 +340,13 @@ then
 fi
 
 MYSQL_PROG_AR
+
+# libmysqlclient versioning when linked with GNU ld.
+if $LD --version 2>/dev/null|grep -q GNU; then
+  LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_srcdir)/libmysql/libmysql.ver"
+  AC_CONFIG_FILES(libmysql/libmysql.ver)
+fi
+AC_SUBST(LD_VERSION_SCRIPT)
 
 # Avoid bug in fcntl on some versions of linux
 AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
@@ -2548,9 +2557,12 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
+
+CONF_ARGS=
 case $SYSTEM_TYPE in
   *netware*)
     MAKE_BINARY_DISTRIBUTION_OPTIONS=--no-strip
+    CONF_ARGS=--host="$MACHINE_TYPE-$SYSTEM_TYPE"
     ;;
   *)
     MAKE_BINARY_DISTRIBUTION_OPTIONS=
@@ -2558,7 +2570,7 @@ case $SYSTEM_TYPE in
 esac
 
 for CONF in $other_configures; do
-  (cd `dirname $CONF`; ./`basename $CONF` --build=$build_alias)
+  (cd `dirname $CONF`; ./`basename $CONF` $CONF_ARGS --build=$build_alias)
 done
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
