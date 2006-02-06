@@ -9378,7 +9378,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   switch (info->ts_cmd_type){
   case (CREATE_TABLESPACE):
   {
-    error= ER_CREATE_TABLESPACE_FAILED;
+    error= ER_CREATE_FILEGROUP_FAILED;
     
     NdbDictionary::Tablespace ndb_ts;
     NdbDictionary::Datafile ndb_df;
@@ -9408,7 +9408,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
   case (ALTER_TABLESPACE):
   {
-    error= ER_ALTER_TABLESPACE_FAILED;
+    error= ER_ALTER_FILEGROUP_FAILED;
     if (info->ts_alter_tablespace_type == ALTER_TABLESPACE_ADD_FILE)
     {
       NdbDictionary::Datafile ndb_df;
@@ -9437,7 +9437,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
       else
       {
 	DBUG_PRINT("error", ("No such datafile"));
-	my_error(ER_ALTER_TABLESPACE_FAILED, MYF(0), " NO SUCH FILE");
+	my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), " NO SUCH FILE");
 	DBUG_RETURN(1);
       }
     }
@@ -9452,7 +9452,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
   case (CREATE_LOGFILE_GROUP):
   {
-    error= ER_CREATE_TABLESPACE_FAILED;
+    error= ER_CREATE_FILEGROUP_FAILED;
     NdbDictionary::LogfileGroup ndb_lg;
     NdbDictionary::Undofile ndb_uf;
     if (info->undo_file_name == NULL)
@@ -9485,7 +9485,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
   case (ALTER_LOGFILE_GROUP):
   {
-    error= ER_ALTER_TABLESPACE_FAILED;
+    error= ER_ALTER_FILEGROUP_FAILED;
     if (info->undo_file_name == NULL)
     {
       /*
@@ -9507,7 +9507,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
   case (DROP_TABLESPACE):
   {
-    error= ER_DROP_TABLESPACE_FAILED;
+    error= ER_DROP_FILEGROUP_FAILED;
     errmsg= "TABLESPACE";
     if (dict->dropTablespace(dict->getTablespace(info->tablespace_name)))
     {
@@ -9518,7 +9518,7 @@ int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info)
   }
   case (DROP_LOGFILE_GROUP):
   {
-    error= ER_DROP_TABLESPACE_FAILED;
+    error= ER_DROP_FILEGROUP_FAILED;
     errmsg= "LOGFILE GROUP";
     if (dict->dropLogfileGroup(dict->getLogfileGroup(info->logfile_group_name)))
     {
