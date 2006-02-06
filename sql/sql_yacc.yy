@@ -9043,7 +9043,8 @@ simple_ident_q:
                                                   new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
-                                                  $3.str)))
+                                                  $3.str,
+                                                  Item_trigger_field::AT_READ)))
               YYABORT;
 
             /*
@@ -9727,7 +9728,9 @@ sys_option_value:
 
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   Item_trigger_field::NEW_ROW,
-                                                  $2.base_name.str)) ||
+                                                  $2.base_name.str,
+                                                  Item_trigger_field::AT_UPDATE)
+                                                  ) ||
                 !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
                           	                         instructions(),
                                 	                 lex->spcont,
