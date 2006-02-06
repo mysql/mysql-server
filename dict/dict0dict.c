@@ -2194,8 +2194,9 @@ dict_foreign_error_report(
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
 	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk, TRUE);
+	putc('\n', file);
 	if (fk->foreign_index) {
-		fputs("\nThe index in the foreign key in table is ", file);
+		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
 		fputs(
 "\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
