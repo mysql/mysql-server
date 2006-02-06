@@ -3215,7 +3215,7 @@ opt_ts_nodegroup:
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->nodegroup_id != UNDEF_NODEGROUP)
             {
-              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"NODEGROUP");
+              my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),"NODEGROUP");
               YYABORT;
             }
             lex->alter_tablespace_info->nodegroup_id= $3;
@@ -3227,7 +3227,7 @@ opt_ts_comment:
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->ts_comment != NULL)
             {
-              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"COMMENT");
+              my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),"COMMENT");
               YYABORT;
             }
             lex->alter_tablespace_info->ts_comment= $3.str;
@@ -3239,7 +3239,7 @@ opt_ts_engine:
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->storage_engine != DB_TYPE_UNKNOWN)
             {
-              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),
+              my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),
                        "STORAGE ENGINE");
               YYABORT;
             }
@@ -3262,7 +3262,7 @@ ts_wait:
             LEX *lex= Lex;
             if (!(lex->alter_tablespace_info->wait_until_completed))
             {
-              my_error(ER_TABLESPACE_OPTION_ONLY_ONCE,MYF(0),"NO_WAIT");
+              my_error(ER_FILEGROUP_OPTION_ONLY_ONCE,MYF(0),"NO_WAIT");
               YYABORT;
             }
             lex->alter_tablespace_info->wait_until_completed= FALSE;
