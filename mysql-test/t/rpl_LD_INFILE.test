@@ -11,7 +11,6 @@
 # Begin clean up test section
 --disable_warnings
 connection master;
-DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;
 --enable_warnings
 
@@ -23,18 +22,15 @@ DELETE FROM test.t1;
 LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE test.t1;
 
 
-connection master;
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY a DESC;
 save_master_pos;
 sync_slave_with_master;
 connection slave;
-SELECT * FROM test.t1;
-
+SELECT * FROM test.t1 ORDER BY a DESC;
 connection master;
 # Lets cleanup
 #show binlog events;
 
-DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
 
 # End of 5.0 test case
