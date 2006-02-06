@@ -3001,7 +3001,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
 			 c_readTableRecord.tableId,
 			 parseRecord.errorCode);
     progError(__LINE__, 
-	      ERR_INVALID_CONFIG,
+	      NDBD_EXIT_INVALID_CONFIG,
 	      buf);
     ndbrequire(parseRecord.errorCode == 0);
   }
