@@ -790,7 +790,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
   DataBuffer<15> variable(m_databuffer_pool);
   
   Uint32 null_offset = 0;
-  union { Column c; Uint32 _align[1];};
+  union { Column c; Uint32 _align[2];};
   for(Uint32 i = 0; i<tmpTab.NoOfAttributes; i++) {
     jam();
     DictTabInfo::Attribute tmp; tmp.init();
@@ -809,7 +809,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     
     union {
       Column c;
-      Uint32 _align[1];
+      Uint32 _align[2];
     };
     c.m_id = tmp.AttributeId;
     c.m_size = sz32;
@@ -935,11 +935,12 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   Uint32 *attrData = attr_start;
   union {
     Column c;
-    Uint32 _align[1];
+    Uint32 _align[2];
   };
   bool disk = false;
   bool rowid = false;
   bool gci = false;
+  Uint32 tableId = file_ptr.p->m_table_id;
 
   Uint64 gci_val;
   Local_key rowid_val;
@@ -998,7 +999,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 
     Uint32 sz32 = (sz + 3) >> 2;
     ndbassert(c.m_flags & (Column::COL_VAR | Column::COL_NULL));
-    if(c.m_flags & Column::COL_KEY)
+    if (c.m_flags & Column::COL_KEY)
     {
       memcpy(keyData, data, 4 * sz32);
       keyData += sz32;
@@ -1019,7 +1020,6 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   Uint32 attrLen = attrData - attr_start;
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
   
-  Uint32 tableId = file_ptr.p->m_table_id;
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
   if (desc->noOfKeyAttr != desc->noOfVarKeys)
   {
