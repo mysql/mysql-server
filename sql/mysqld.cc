@@ -3092,7 +3092,7 @@ static int init_server_components()
 
 #ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
-    opt_old_log_format= TRUE;
+    log_output_options= LOG_FILE;
   else
     logger.init_log_tables();
 
