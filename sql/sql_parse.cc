@@ -4445,21 +4445,17 @@ end_with_restore_list:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
-      sp_head *sp;
       int result;
-      char *db, *name;
+      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
-      if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
-                            &thd->sp_proc_cache, FALSE);
-      else
-        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                            &thd->sp_func_cache, FALSE);
+      result= sp_routine_exists_in_table(thd, type, lex->spname);
       mysql_reset_errors(thd, 0);
-      if (sp)
+      if (result == SP_OK)
       {
-        db= thd->strdup(sp->m_db.str);
-	name= thd->strdup(sp->m_name.str);
+        char *db= lex->spname->m_db.str;
+	char *name= lex->spname->m_name.str;
+
 	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
