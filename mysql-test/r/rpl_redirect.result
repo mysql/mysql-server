@@ -12,26 +12,26 @@ Server_id	Host	Port	Rpl_recovery_rank	Master_id
 create table t1 ( n int);
 insert into t1 values (1),(2),(3),(4);
 insert into t1 values(5);
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 1
 2
 3
 4
 5
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 1
 2
 3
 4
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 1
 2
 3
 4
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 n
 1
 2
