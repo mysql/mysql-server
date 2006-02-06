@@ -4770,13 +4770,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                           "Creating event for logging table failed. "
                           "See error log for details.");
     }
-    if (is_old_table_tmpfile)
-      ndbcluster_log_schema_op(current_thd, share,
-                               current_thd->query, current_thd->query_length,
-                               m_dbname, new_tabname,
-                               0, 0,
-                               SOT_ALTER_TABLE);
-    else
+    if (!is_old_table_tmpfile)
       ndbcluster_log_schema_op(current_thd, share,
                                current_thd->query, current_thd->query_length,
                                m_dbname, new_tabname,

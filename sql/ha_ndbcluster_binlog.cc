@@ -441,6 +441,7 @@ ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
     break;
   case LOGCOM_ALTER_TABLE:
     type= SOT_ALTER_TABLE;
+    log= 1;
     break;
   case LOGCOM_RENAME_TABLE:
     type= SOT_RENAME_TABLE;
@@ -461,8 +462,10 @@ ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
     break;
   }
   if (log)
+  {
     ndbcluster_log_schema_op(thd, 0, query, query_length,
                              db, table_name, 0, 0, type);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -891,6 +894,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   }
 
   char tmp_buf2[FN_REFLEN];
+  int get_a_share= 0;
   switch (type)
   {
   case SOT_DROP_TABLE:
@@ -900,13 +904,15 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     /* redo the drop table query as is may contain several tables */
     query= tmp_buf2;
     query_length= (uint) (strxmov(tmp_buf2, "drop table `",
-                                  table_name, "`", NullS) - tmp_buf2);   
-    break;
+                                  table_name, "`", NullS) - tmp_buf2);
+    // fall through
   case SOT_CREATE_TABLE:
-    break;
+    // fall through
   case SOT_RENAME_TABLE:
-    break;
+    // fall through
   case SOT_ALTER_TABLE:
+    if (!share)
+      get_a_share= 1;
     break;
   case SOT_DROP_DB:
     break;
@@ -920,6 +926,14 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     break;
   default:
     abort(); /* should not happen, programming error */
+  }
+
+  if (get_a_share)
+  {
+    char key[FN_REFLEN];
+    (void)strxnmov(key, FN_REFLEN, share_prefix, db,
+                   "/", table_name, NullS);
+    share= get_share(key, 0, false, false);
   }
 
   const NdbError *ndb_error= 0;
@@ -956,7 +970,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   }
 
   Ndb *ndb= thd_ndb->ndb;
-  char old_db[128];
+  char old_db[FN_REFLEN];
   strcpy(old_db, ndb->getDatabaseName());
 
   char tmp_buf[SCHEMA_QUERY_SIZE];
@@ -974,9 +988,8 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
         strcmp(NDB_SCHEMA_TABLE, table_name))
     {
       ndb_error= &dict->getNdbError();
-      goto end;
     }
-    DBUG_RETURN(0);
+    goto end;
   }
 
   {
@@ -1119,6 +1132,10 @@ end:
     }
     (void) pthread_mutex_unlock(&share->mutex);
   }
+
+  if (get_a_share)
+    free_share(&share);
+
   DBUG_RETURN(0);
 }
 
@@ -1328,7 +1345,10 @@ static int
 ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                       NdbEventOperation *pOp,
                                       List<Cluster_replication_schema> 
-                                      *schema_list, MEM_ROOT *mem_root)
+                                      *post_epoch_log_list,
+                                      List<Cluster_replication_schema> 
+                                      *post_epoch_unlock_list,
+                                      MEM_ROOT *mem_root)
 {
   DBUG_ENTER("ndb_binlog_thread_handle_schema_event");
   NDB_SHARE *share= (NDB_SHARE *)pOp->getCustomData();
@@ -1357,7 +1377,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         {
         case SOT_DROP_TABLE:
           /* binlog dropping table after any table operations */
-          schema_list->push_back(schema, mem_root);
+          post_epoch_log_list->push_back(schema, mem_root);
           log_query= 0;
           break;
         case SOT_RENAME_TABLE:
@@ -1389,7 +1409,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                     TRUE,    /* print error */
                     TRUE);   /* don't binlog the query */
           /* binlog dropping database after any table operations */
-          schema_list->push_back(schema, mem_root);
+          post_epoch_log_list->push_back(schema, mem_root);
           log_query= 0;
           break;
         case SOT_CREATE_DB:
@@ -1431,7 +1451,18 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         {
           DBUG_DUMP("slock", (char*)schema->slock, schema->slock_length);
           if (bitmap_is_set(&slock, node_id))
-            ndbcluster_update_slock(thd, schema->db, schema->name);
+          {
+            /*
+              If it is an SOT_ALTER_TABLE we need to acknowledge the
+              schema operation _after_ all the events have been
+              processed so that all schema events coming through
+              the event operation has been processed
+            */
+            if ((enum SCHEMA_OP_TYPE)schema->type == SOT_ALTER_TABLE)
+              post_epoch_unlock_list->push_back(schema, mem_root);
+            else
+              ndbcluster_update_slock(thd, schema->db, schema->name);
+          }
         }
 
         if (log_query)
@@ -2724,7 +2755,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(&mem_root, 4096, 0);
-    List<Cluster_replication_schema> schema_list;
+    List<Cluster_replication_schema> post_epoch_log_list;
+    List<Cluster_replication_schema> post_epoch_unlock_list;
     *root_ptr= &mem_root;
 
     if (unlikely(schema_res > 0))
@@ -2737,7 +2769,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
       {
         if (!pOp->hasError())
           ndb_binlog_thread_handle_schema_event(thd, schema_ndb, pOp,
-                                                &schema_list, &mem_root);
+                                                &post_epoch_log_list,
+                                                &post_epoch_unlock_list,
+                                                &mem_root);
         else
           sql_print_error("NDB: error %lu (%s) on handling "
                           "binlog schema event",
@@ -2864,9 +2898,17 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
       }
     }
 
+    /*
+      process any operations that should be done after
+      the epoch is complete
+    */
     {
       Cluster_replication_schema *schema;
-      while ((schema= schema_list.pop()))
+      while ((schema= post_epoch_unlock_list.pop()))
+      {
+        ndbcluster_update_slock(thd, schema->db, schema->name);
+      }      
+      while ((schema= post_epoch_log_list.pop()))
       {
         char *thd_db_save= thd->db;
         thd->db= schema->db;
