@@ -3091,12 +3091,26 @@ static int init_server_components()
   logger.init_log_tables();
 
   if (log_output_options & LOG_NONE)
+  {
+    /*
+      Issue a warining if there were specified additional options to the
+      log-output along with NONE. Probably this wasn't what user wanted.
+    */
+    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+      sql_print_warning("There were other values specified to "
+                        "log-output besides NONE. Disabling slow "
+                        "and general logs anyway.");
     logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+  }
   else
   {
     /* fall back to the log files if tables are not present */
     if (have_csv_db == SHOW_OPTION_NO)
+    {
+      sql_print_error("CSV engine is not present, falling back to the "
+                      "log files");
       log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+    }
 
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
@@ -4681,7 +4695,7 @@ enum options_mysqld
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
-  OPT_INNODB_DATA_HOME_DIR, OPT_LOG_OUTPUT,
+  OPT_INNODB_DATA_HOME_DIR,
   OPT_INNODB_DATA_FILE_PATH,
   OPT_INNODB_LOG_GROUP_HOME_DIR,
   OPT_INNODB_LOG_ARCH_DIR,
@@ -4823,6 +4837,7 @@ enum options_mysqld
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_DIR,
+  OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT
 };
 
@@ -5223,7 +5238,7 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_CSV_STORAGE_ENGINE
   {"log-output", OPT_LOG_OUTPUT,
-   "Syntax: log-output[=option[,option...]], where option can be TABLE, "
+   "Syntax: log-output[=value[,value...]], where \"value\" could be TABLE, "
    "FILE or NONE.",
    (gptr*) &log_output_str, (gptr*) &log_output_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -7365,10 +7380,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       log_output_str= argument;
       if ((log_output_options=
-	   find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
+           find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
       {
-	fprintf(stderr, "Unknown option to log-output: %s\n", argument);
-	exit(1);
+        fprintf(stderr, "Unknown option to log-output: %s\n", argument);
+        exit(1);
       }
     }
     break;
