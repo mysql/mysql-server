@@ -247,11 +247,12 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 
 /*
   SYNOPSIS
-    write_table_log()
-    lpt                       Struct carrying parameters to the function
+    write_table_log_entry()
+    table_log_entry         Information about log entry
+    out:entry_written       Entry information written into   
 
   RETURN VALUES
-    TRUE                      Failure in writing the log
+    TRUE                      Error
     FALSE                     Success
 
   DESCRIPTION
@@ -260,10 +261,119 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 */
 
 bool
-write_table_log(ALTER_PARTITION_PARAM_TYPE *lpt)
+write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
+                      uint next_entry,
+                      uint *entry_written)
 {
-  DBUG_ENTER("write_table_log");
+  DBUG_ENTER("write_table_log_entry");
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write final entry in the table log
+  SYNOPSIS
+    write_execute_table_log_entry()
+    first_entry                    First entry in linked list of entries
+                                   to execute, if 0 = NULL it means that
+                                   the entry is removed and the entries
+                                   are put into the free list.
+    in:out:exec_entry              Entry to execute, 0 = NULL if the entry
+                                   is written first time and needs to be
+                                   returned. In this case the entry written
+                                   is returned in this parameter
+  RETURN VALUES
+    TRUE                           Error
+    FALSE                          Success
+
+  DESCRIPTION
+    This is the last write in the table log. The previous log entries have
+    already been written but not yet synched to disk.
+*/ 
+
+bool
+write_execute_table_log_entry(uint first_entry, uint *exec_entry)
+{
+  DBUG_ENTER("write_execute_table_log_entry");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Read header of table log file
+  SYNOPSIS
+    read_table_log_header()
+  RETURN VALUES
+    > 0                  Last entry in table log
+    0                    No entries in table log
+  DESCRIPTION
+    When we read the table log header we get information about maximum sizes
+    of names in the table log and we also get information about the number
+    of entries in the table log.
+*/
+
+uint
+read_table_log_header()
+{
+  DBUG_ENTER("read_table_log_header");
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Read a table log entry
+  SYNOPSIS
+    read_table_log_entry()
+    read_entry               Number of entry to read
+    out:entry_info           Information from entry
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Read a specified entry in the table log
+*/
+
+bool
+read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
+{
+  DBUG_ENTER("read_table_log_entry");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Initialise table log
+  SYNOPSIS
+    init_table_log()
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Write the header of the table log file and length of names. Also set
+    number of entries to zero.
+*/
+
+bool
+init_table_log()
+{
+  DBUG_ENTER("init_table_log");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Release all memory allocated to the table log
+  SYNOPSIS
+    release_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+release_table_log()
+{
+  DBUG_ENTER("release_table_log");
+  DBUG_RETURN_VOID;
 }
 
 

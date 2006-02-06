@@ -1158,7 +1158,24 @@ typedef struct st_lock_param_type
 
 void mem_alloc_error(size_t size);
 
-bool write_table_log(ALTER_PARTITION_PARAM_TYPE *lpt);
+typedef struct st_table_log_entry
+{
+  const char *name;
+  const char *from_name;
+  const char *handler_type;
+  char action_type;
+} TABLE_LOG_ENTRY;
+
+
+bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
+                           uint next_entry,
+                           uint *entry_written);
+bool write_execute_table_log_entry(uint first_entry, uint *exec_entry);
+uint read_table_log_header();
+bool read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry);
+bool init_table_log();
+void release_table_log();
+
 bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
 bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
 bool write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
