@@ -4974,6 +4974,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   thd->proc_info="end";
 
+  ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
+                      thd->query, thd->query_length,
+                      db, table_name);
+
   DBUG_ASSERT(!(mysql_bin_log.is_open() && binlog_row_based &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   write_bin_log(thd, TRUE, thd->query, thd->query_length);
