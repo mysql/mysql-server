@@ -3030,7 +3030,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!revoke_grant)
   {
-    if (sp_exists_routine(thd, table_list, is_proc, no_error)<0)
+    if (sp_exist_routines(thd, table_list, is_proc, no_error)<0)
       DBUG_RETURN(TRUE);
   }
 
