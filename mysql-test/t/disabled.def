@@ -32,3 +32,4 @@ ndb_gis : garbled msgs from corrupt THD*
 rpl_ndb_auto_inc : MySQL Bugs:17086
 rpl_ndb_relay_space : Results are not deterministic
 ndb_binlog_ddl_multi : Bug #17038
+rpl_ndb_log : MySQL Bugs: #17158

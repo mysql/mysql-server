@@ -58,8 +58,10 @@ let $VERSION=`select version()`;
 SHOW DATABASES;
 sync_slave_with_master;
 SHOW DATABASES;
-SHOW CREATE TABLE mysqltest_prometheus.t1;
-SHOW CREATE TABLE mysqltest_sisyfos.t2;
+USE mysqltest_prometheus;
+SHOW TABLES;
+USE mysqltest_sisyfos;
+SHOW TABLES;
 
 connection master;
 DROP DATABASE IF EXISTS mysqltest_prometheus;
