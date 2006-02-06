@@ -9992,7 +9992,7 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   jamEntry();
   ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   
-#if 1
+#if 0
   printLCP_FRAG_REP(stdout, 
 		    signal->getDataPtr(),
 		    signal->length(), number());
@@ -12789,9 +12789,6 @@ void Dbdih::sendStartFragreq(Signal* signal,
 
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
-
-    printSTART_FRAG_REQ(stdout, signal->theData, 
-			StartFragReq::SignalLength, DBLQH);
   }//for
 }//Dbdih::sendStartFragreq()
 
