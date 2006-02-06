@@ -304,11 +304,13 @@ our $opt_warnings;
 
 our $opt_udiff;
 
-our $opt_skip_ndbcluster;
+our $opt_skip_ndbcluster= 0;
 our $opt_with_ndbcluster;
-our $opt_skip_ndbcluster_slave;
+our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster_slave;
-our $opt_ndb_extra_test;
+our $opt_with_ndbcluster_all= 0;
+our $opt_with_ndbcluster_only= 0;
+our $opt_ndb_extra_test= 0;
 
 our $exe_ndb_mgm;
 our $path_ndb_tools_dir;
@@ -548,6 +550,8 @@ sub command_line_setup () {
              'with-ndbcluster-slave'    => \$opt_with_ndbcluster_slave,
              'skip-ndbcluster-slave|skip-ndb-slave'
                                         => \$opt_skip_ndbcluster_slave,
+             'with-ndbcluster-all'      => \$opt_with_ndbcluster_all,
+             'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
@@ -1938,6 +1942,10 @@ sub run_testcase ($) {
   mtr_report_test_name($tinfo);
 
   mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  if ( $master->[1]->{'pid'} )
+  {
+    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  }
 
 # FIXME test cases that depend on each other, prevent this from
 # being at this location.
@@ -1986,6 +1994,7 @@ sub run_testcase ($) {
       }
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
+        mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[],
 		       $using_ndbcluster_master);
@@ -3038,7 +3047,9 @@ Options to control what engine/variation to run
 Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
-  with-ndbcluster       Use cluster, and enable test cases that requres it
+  with-ndbcluster       Use cluster, and enable test cases that requires it
+  with-ndbcluster-all   Use cluster in all tests
+  with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip the ndb test cases, don't start cluster
   do-test=PREFIX        Run test cases which name are prefixed with PREFIX
   start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
