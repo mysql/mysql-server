@@ -5324,8 +5324,8 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
       table_grants->want_privilege=
         access_type == AT_READ ? SELECT_ACL : UPDATE_ACL;
 
-      if (check_grant_column(thd, table_grants, triggers->table->s->db,
-                             triggers->table->s->table_name, field_name,
+      if (check_grant_column(thd, table_grants, triggers->table->s->db.str,
+                             triggers->table->s->table_name.str, field_name,
                              strlen(field_name), thd->security_ctx))
         return TRUE;
     }
