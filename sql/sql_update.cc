@@ -168,7 +168,6 @@ int mysql_update(THD *thd,
 
   thd->proc_info="init";
   table= table_list->table;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   /* Calculate "table->used_keys" based on the WHERE */
   table->used_keys= table->s->keys_in_use;
@@ -252,12 +251,9 @@ int mysql_update(THD *thd,
     send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
-  /* 
-    Update the table->records number (note: we probably could remove the
-    previous file->info() call)
-  */
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 #endif
+  /* Update the table->file->records number */
+  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   select= make_select(table, 0, 0, conds, 0, &error);
   if (error || !limit ||
