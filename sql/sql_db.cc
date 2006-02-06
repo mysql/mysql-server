@@ -501,7 +501,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       query_length= thd->query_length;
     }
 
-    ha_binlog_log_query(thd, LOGCOM_CREATE_DB,
+    ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
                         query, query_length,
                         db, "");
 
@@ -579,7 +579,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     thd->variables.collation_database= thd->db_charset;
   }
 
-  ha_binlog_log_query(thd, LOGCOM_ALTER_DB,
+  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
                       thd->query, thd->query_length,
                       db, "");
 

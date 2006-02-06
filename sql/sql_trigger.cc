@@ -390,7 +390,12 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   for (trg_field= (Item_trigger_field *)(lex->trg_table_fields.first);
        trg_field; trg_field= trg_field->next_trg_field)
   {
-    trg_field->setup_field(thd, table);
+    /*
+      NOTE: now we do not check privileges at CREATE TRIGGER time. This will
+      be changed in the future.
+    */
+    trg_field->setup_field(thd, table, NULL);
+
     if (!trg_field->fixed &&
         trg_field->fix_fields(thd, (Item **)0))
       return 1;
@@ -826,8 +831,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       char *trg_name_buff;
       List_iterator_fast<ulonglong> itm(triggers->definition_modes_list);
-      List_iterator_fast<LEX_STRING> it_definer(triggers->
-                                                definers_list);
+      List_iterator_fast<LEX_STRING> it_definer(triggers->definers_list);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
       ulong save_sql_mode= thd->variables.sql_mode;
@@ -842,6 +846,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       {
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
+
         thd->variables.sql_mode= (ulong)*trg_sql_mode;
         lex_start(thd, (uchar*)trg_create_str->str, trg_create_str->length);
 
@@ -915,11 +920,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                (Item_trigger_field *)(lex.trg_table_fields.first);
              trg_field;
              trg_field= trg_field->next_trg_field)
-          trg_field->setup_field(thd, table);
-
-        triggers->m_spec_var_used[lex.trg_chistics.event]
-          [lex.trg_chistics.action_time]=
-          lex.trg_table_fields.first ? TRUE : FALSE;
+        {
+          trg_field->setup_field(thd, table, 
+            &triggers->subject_table_grants[lex.trg_chistics.event]
+                                           [lex.trg_chistics.action_time]);
+        }
 
         lex_end(&lex);
       }
@@ -1159,38 +1164,30 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
     if (sp_change_security_context(thd, sp_trigger, &save_ctx))
       return TRUE;
 
+    /*
+      Fetch information about table-level privileges to GRANT_INFO structure for
+      subject table. Check of privileges that will use it and information about
+      column-level privileges will happen in Item_trigger_field::fix_fields().
+    */
+
+    fill_effective_table_privileges(thd,
+                                    &subject_table_grants[event][time_type],
+                                    table->s->db.str, table->s->table_name.str);
+
+    /* Check that the definer has TRIGGER privilege on the subject table. */
+
+    if (!(subject_table_grants[event][time_type].privilege & TRIGGER_ACL))
     {
-      TABLE_LIST table_list, **save_query_tables_own_last;
-      ulong wanted_access = TRIGGER_ACL;
-      
-      bzero((char *) &table_list, sizeof (table_list));
-      table_list.db= (char *) table->s->db.str;
-      table_list.db_length= table->s->db.length;
-      table_list.table_name= table->s->table_name.str;
-      table_list.table_name_length= table->s->table_name.length;
-      table_list.alias= (char *) table->alias;
-      table_list.table= table;
-      save_query_tables_own_last= thd->lex->query_tables_own_last;
-      thd->lex->query_tables_own_last= 0;
-      
-      /*
-         If the trigger uses special variables (NEW/OLD), check that we have
-         SELECT and UPDATE privileges on the subject table.
-       */
+      char priv_desc[128];
+      get_privilege_desc(priv_desc, sizeof(priv_desc), TRIGGER_ACL);
 
-      if (is_special_var_used(event, time_type))
-        wanted_access|= SELECT_ACL | UPDATE_ACL;
+      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
+               thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
+               table->s->table_name);
 
-      err_status= check_table_access(thd, wanted_access, &table_list, 0);
-
-      thd->lex->query_tables_own_last= save_query_tables_own_last;
-      if (err_status)
-      {
-        sp_restore_security_context(thd, save_ctx);
-        return TRUE;
-      }
+      sp_restore_security_context(thd, save_ctx);
+      return TRUE;
     }
-    
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);

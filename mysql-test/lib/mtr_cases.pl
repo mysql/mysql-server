@@ -253,12 +253,17 @@ sub collect_one_test_case($$$$$$$) {
   }
 
   if ( ( $::opt_with_ndbcluster or $::glob_use_running_ndbcluster ) and
-       defined mtr_match_substring($tname,"ndb") )
+       ( $::opt_with_ndbcluster_all or defined mtr_match_substring($tname,"ndb") ))
   {
     $tinfo->{'ndb_test'}= 1;
   }
   else
   {
+    if ( $::opt_with_ndbcluster_only )
+    {
+      $tinfo->{'skip'}= 1;
+      return;
+    }
     $tinfo->{'ndb_test'}= 0;
   }
 
