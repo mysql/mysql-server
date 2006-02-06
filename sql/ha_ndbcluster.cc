@@ -3116,9 +3116,23 @@ int ha_ndbcluster::end_bulk_insert()
                         "rows_inserted:%d, bulk_insert_rows: %d", 
                         (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
-    if (execute_no_commit(this,trans) != 0) {
-      no_uncommitted_rows_execute_failure();
-      my_errno= error= ndb_err(trans);
+    if (m_transaction_on)
+    {
+      if (execute_no_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+    }
+    else
+    {
+      if (execute_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+      int res= trans->restart();
+      DBUG_ASSERT(res == 0);
     }
   }
 
@@ -5093,7 +5107,7 @@ bool ha_ndbcluster::low_byte_first() const
 }
 bool ha_ndbcluster::has_transactions()
 {
-  return m_transaction_on;
+  return TRUE;
 }
 const char* ha_ndbcluster::index_type(uint key_number)
 {
