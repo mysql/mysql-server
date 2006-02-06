@@ -2992,7 +2992,19 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   Uint32 sz = c_readTableRecord.no_of_words;
   SimplePropertiesLinearReader r(pageRecPtr.p->word+ZPAGE_HEADER_SIZE, sz);
   handleTabInfoInit(r, &parseRecord);
-  ndbrequire(parseRecord.errorCode == 0);
+  if (parseRecord.errorCode != 0)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf), 
+			 "Unable to restart, fail while creating table %d"
+			 " error: %d. Most likely change of configuration",
+			 c_readTableRecord.tableId,
+			 parseRecord.errorCode);
+    progError(__LINE__, 
+	      ERR_INVALID_CONFIG,
+	      buf);
+    ndbrequire(parseRecord.errorCode == 0);
+  }
 
   /* ---------------------------------------------------------------- */
   // We have read the table description from disk as part of system restart.

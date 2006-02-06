@@ -15991,8 +15991,22 @@ void Dblqh::findLogfile(Signal* signal,
     }//if
     locLogFilePtr.i = locLogFilePtr.p->nextLogFile;
     loopCount++;
+    if (loopCount >= flfLogPartPtr.p->noLogFiles &&
+	getNodeState().startLevel != NodeState::SL_STARTED)
+    {
+      goto error;
+    }
     ndbrequire(loopCount < flfLogPartPtr.p->noLogFiles);
   }//while
+
+error:
+  char buf[255];
+  BaseString::snprintf(buf, sizeof(buf), 
+		       "Unable to restart, failed while reading redo."
+		       " Likely invalid change of configuration");
+  progError(__LINE__, 
+	    ERR_INVALID_CONFIG,
+	    buf);
 }//Dblqh::findLogfile()
 
 /* ------------------------------------------------------------------------- */
