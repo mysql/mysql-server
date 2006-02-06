@@ -52,7 +52,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
 
@@ -79,6 +78,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       !(table->triggers && table->triggers->has_delete_triggers()))
   {
+    /* Update the table->file->records number */
+    table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->records;
     /*
       If all rows shall be deleted, we always log this statement-based
@@ -100,6 +101,18 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     /* Handler didn't support fast delete; Delete rows one by one */
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (prune_partitions(thd, table, conds))
+  {
+    free_underlaid_joins(thd, select_lex);
+    thd->row_count_func= 0;
+    send_ok(thd);				// No matching records
+    DBUG_RETURN(0);
+  }
+#endif
+  /* Update the table->file->records number */
+  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+
   table->used_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table, 0, 0, conds, 0, &error);
@@ -111,13 +124,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
     send_ok(thd,0L);
-
     /*
       We don't need to call reset_auto_increment in this case, because
       mysql_truncate always gives a NULL conds argument, hence we never
       get here.
     */
-
     DBUG_RETURN(0);				// Nothing to delete
   }
 

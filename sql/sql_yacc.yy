@@ -1642,11 +1642,26 @@ clear_privileges:
 sp_name:
 	  ident '.' ident
 	  {
+            if (!$1.str || check_db_name($1.str))
+            {
+	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+	      YYABORT;
+	    }
+	    if (check_routine_name($3))
+            {
+	      my_error(ER_SP_WRONG_NAME, MYF(0), $3.str);
+	      YYABORT;
+	    }
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
 	  }
 	| ident
 	  {
+	    if (check_routine_name($1))
+            {
+	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
+	      YYABORT;
+	    }
 	    $$= sp_name_current_db_new(YYTHD, $1);
 	  }
 	;
@@ -9028,7 +9043,8 @@ simple_ident_q:
                                                   new_row ?
                                                   Item_trigger_field::NEW_ROW:
                                                   Item_trigger_field::OLD_ROW,
-                                                  $3.str)))
+                                                  $3.str,
+                                                  Item_trigger_field::AT_READ)))
               YYABORT;
 
             /*
@@ -9712,7 +9728,9 @@ sys_option_value:
 
             if (!(trg_fld= new Item_trigger_field(Lex->current_context(),
                                                   Item_trigger_field::NEW_ROW,
-                                                  $2.base_name.str)) ||
+                                                  $2.base_name.str,
+                                                  Item_trigger_field::AT_UPDATE)
+                                                  ) ||
                 !(sp_fld= new sp_instr_set_trigger_field(lex->sphead->
                           	                         instructions(),
                                 	                 lex->spcont,

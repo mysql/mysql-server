@@ -103,6 +103,8 @@ public:
 sp_name *
 sp_name_current_db_new(THD *thd, LEX_STRING name);
 
+bool
+check_routine_name(LEX_STRING name);
 
 class sp_head :private Query_arena
 {

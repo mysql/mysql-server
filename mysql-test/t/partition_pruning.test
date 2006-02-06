@@ -269,26 +269,71 @@ insert into t1 values (1,1),(2,2),(3,3);
 
 explain partitions select * from t1 where b >  1 and b < 3;
 explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
+drop table t1;
 
-# WL# 2986
-DROP TABLE IF EXISTS `t1`;
+# Test partition pruning for single-table UPDATE/DELETE.
+# TODO: Currently we test only "all partitions pruned away" case. Add more
+# tests when the patch that makes use of partition pruning results at
+# execution phase is pushed.
+
+create table t1 (a int) partition by list(a) (
+  partition p0 values in (1,2),
+  partition p1 values in (3,4)
+);
+insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+
+# This won't do any table access
+flush status;
+update t1 set a=100 where a=5;
+show status like 'Handler_read_rnd_next';
+
+# ... as compared to this, which will scan both partitions
+flush status;
+update t1 set a=100 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+
+# Same as above for DELETE:
+flush status;
+delete from t1 where a=5;
+show status like 'Handler_read_rnd_next';
+
+flush status;
+delete from t1 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+
+# Same as above multi-table UPDATE/DELETE
+create table t2 like t1;
+insert into t2 select * from t2;
+
+flush status;
+update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+# ^ This shows 3 accesses, these are caused by const table reads. 
+# They should vanish when partition pruning results are used.
+
+flush status;
+delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+drop table t1,t2;
+
+#
+# WL#2986 Tests (Checking if partition pruning results are used at query
+#   execution phase)
+#
 CREATE TABLE `t1` (
   `a` int(11) default NULL
 );
-
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-DROP TABLE IF EXISTS `t2`;
 CREATE TABLE `t2` (
   `a` int(11) default NULL,
   KEY `a` (`a`)
 ) ;
 
 insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
-
 insert into t1 select a from t2;
 
-DROP TABLE IF EXISTS `t2`;
+drop table t2;
 CREATE TABLE `t2` (
   `a` int(11) default NULL,
   `b` int(11) default NULL
@@ -331,8 +376,7 @@ flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
 
-
-DROP TABLE IF EXISTS `t2`;
+drop table t2;
 CREATE TABLE `t2` (
   `a` int(11) default NULL,
   `b` int(11) default NULL,
@@ -402,5 +446,6 @@ show status like 'Handler_read_prev';
 show status like 'Handler_read_next';
 
 drop table t1, t2;
+
 # No tests for NULLs in RANGE(monotonic_expr()) - they depend on BUG#15447
 # being fixed.

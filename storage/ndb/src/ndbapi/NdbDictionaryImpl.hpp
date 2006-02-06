@@ -545,7 +545,7 @@ public:
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
   int invalidateObject(NdbTableImpl &);
-  int removeCachedObject(NdbTableImpl &);
+  int removeCachedObject(NdbTableImpl &, bool lock = true);
 
   int createIndex(NdbIndexImpl &ix);
   int dropIndex(const char * indexName, 

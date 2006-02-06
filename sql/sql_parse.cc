@@ -1615,6 +1615,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_other, &LOCK_status);
     thd->enable_slow_log= opt_log_slow_admin_statements;
     db= thd->alloc(db_len + tbl_len + 2);
+    if (!db)
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      break;
+    }
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
     mysql_table_dump(thd, db, tbl_name, -1);
@@ -1628,14 +1633,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_other, &LOCK_status);
     char *user= (char*) packet;
     char *passwd= strend(user)+1;
-    /* 
+    /*
       Old clients send null-terminated string ('\0' for empty string) for
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8 
+    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
     char *db= passwd;
-    uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+    uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
@@ -2414,23 +2419,26 @@ mysql_execute_command(THD *thd)
     }
   }
   else
-#endif /* HAVE_REPLICATION */
-
-  /*
-    When option readonly is set deny operations which change non-temporary
-    tables. Except for the replication thread and the 'super' users.
-  */
-  if (opt_readonly &&
-      !(thd->security_ctx->master_access & SUPER_ACL) &&
-      uc_update_queries[lex->sql_command] &&
-      !((lex->sql_command == SQLCOM_CREATE_TABLE) &&
-        (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
-      ((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
-       some_non_temp_table_to_be_updated(thd, all_tables)))
   {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-    DBUG_RETURN(-1);
-  }
+#endif /* HAVE_REPLICATION */
+    /*
+      When option readonly is set deny operations which change non-temporary
+      tables. Except for the replication thread and the 'super' users.
+    */
+    if (opt_readonly &&
+	!(thd->security_ctx->master_access & SUPER_ACL) &&
+	uc_update_queries[lex->sql_command] &&
+	!((lex->sql_command == SQLCOM_CREATE_TABLE) &&
+	  (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
+	((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
+	 some_non_temp_table_to_be_updated(thd, all_tables)))
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      DBUG_RETURN(-1);
+    }
+#ifdef HAVE_REPLICATION
+  } /* endif unlikely slave */
+#endif
   if(lex->orig_sql_command == SQLCOM_END)
     statistic_increment(thd->status_var.com_stat[lex->sql_command],
                         &LOCK_status);
@@ -3226,8 +3234,7 @@ end_with_restore_list:
     else
       res= 0;
 
-    if ((res= mysql_multi_update_prepare(thd)))
-      break;
+    res= mysql_multi_update_prepare(thd);
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
@@ -3235,20 +3242,33 @@ end_with_restore_list:
     {
       if (all_tables_not_ok(thd, all_tables))
       {
+        if (res!= 0)
+        {
+          res= 0;             /* don't care of prev failure  */
+          thd->clear_error(); /* filters are of highest prior */
+        }
         /* we warn the slave SQL thread */
         my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
         break;
       }
+      if (res)
+        break;
     }
     else
-#endif /* HAVE_REPLICATION */
-    if (opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
-        some_non_temp_table_to_be_updated(thd, all_tables))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-      break;
-    }
+#endif /* HAVE_REPLICATION */
+      if (res)
+        break;
+      if (opt_readonly &&
+	  !(thd->security_ctx->master_access & SUPER_ACL) &&
+	  some_non_temp_table_to_be_updated(thd, all_tables))
+      {
+	my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+	break;
+      }
+#ifdef HAVE_REPLICATION
+    }  /* unlikely */
+#endif
 
     res= mysql_multi_update(thd, all_tables,
                             &select_lex->item_list,
@@ -6631,6 +6651,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
+    DBUG_ASSERT(thd);
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {

@@ -2529,12 +2529,11 @@ struct binlog_log_query_st
   const char *table_name;
 };
 
-static my_bool binlog_log_query_handlerton(THD *thd,
-                                           st_plugin_int *plugin,
-                                           void *args)
+static my_bool binlog_log_query_handlerton2(THD *thd,
+                                            const handlerton *hton,
+                                            void *args)
 {
   struct binlog_log_query_st *b= (struct binlog_log_query_st*)args;
-  handlerton *hton= (handlerton *) plugin->plugin->info;
   if (hton->state == SHOW_OPTION_YES && hton->binlog_log_query)
     hton->binlog_log_query(thd,
                            b->binlog_command,
@@ -2545,7 +2544,15 @@ static my_bool binlog_log_query_handlerton(THD *thd,
   return FALSE;
 }
 
-void ha_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
+static my_bool binlog_log_query_handlerton(THD *thd,
+                                           st_plugin_int *plugin,
+                                           void *args)
+{
+  return binlog_log_query_handlerton2(thd, (const handlerton *) plugin->plugin->info, args);
+}
+
+void ha_binlog_log_query(THD *thd, const handlerton *hton,
+                         enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name)
 {
@@ -2555,8 +2562,11 @@ void ha_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
   b.query_length= query_length;
   b.db= db;
   b.table_name= table_name;
-  plugin_foreach(thd, binlog_log_query_handlerton,
-                 MYSQL_STORAGE_ENGINE_PLUGIN, &b);
+  if (hton == 0)
+    plugin_foreach(thd, binlog_log_query_handlerton,
+                   MYSQL_STORAGE_ENGINE_PLUGIN, &b);
+  else
+    binlog_log_query_handlerton2(thd, hton, &b);
 }
 #endif
 
