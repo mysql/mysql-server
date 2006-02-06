@@ -2135,8 +2135,7 @@ private:
   /* ------------------------------------------------------------ */
   void sendGET_TABINFOREF(Signal* signal, 
 			  GetTabInfoReq*,
-			  GetTabInfoRef::ErrorCode errorCode,
-			  Uint32 line);
+			  GetTabInfoRef::ErrorCode errorCode);
 
   void sendGET_TABLEID_REF(Signal* signal, 
 			   GetTableIdReq * req,

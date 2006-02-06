@@ -437,4 +437,48 @@ disconnect test_user_12812|
 DROP USER user_bug12812@localhost|
 drop function bug12812|
 delimiter ;|
+
+
+#
+# BUG#14834: Server denies to execute Stored Procedure
+#
+# The problem here was with '_' in the database name.
+#
+create database db_bug14834;
+
+create user user1_bug14834@localhost identified by '';
+# The exact name of the database (no wildcard)
+grant all on `db\_bug14834`.* to user1_bug14834@localhost;
+
+create user user2_bug14834@localhost identified by '';
+# The exact name of the database (no wildcard)
+grant all on `db\_bug14834`.* to user2_bug14834@localhost;
+
+create user user3_bug14834@localhost identified by '';
+# Wildcards in the database name
+grant all on `db__ug14834`.* to user3_bug14834@localhost;
+
+connect (user1_bug14834,localhost,user1_bug14834,,db_bug14834);
+# Create the procedure and check that we can call it
+create procedure p_bug14834() select user(), current_user();
+call p_bug14834();
+
+connect (user2_bug14834,localhost,user2_bug14834,,db_bug14834);
+# This didn't work before
+call p_bug14834();
+
+connect (user3_bug14834,localhost,user3_bug14834,,db_bug14834);
+# Should also work
+call p_bug14834();
+
+# Cleanup
+connection default;
+disconnect user1_bug14834;
+disconnect user2_bug14834;
+disconnect user3_bug14834;
+drop user user1_bug14834@localhost;
+drop user user2_bug14834@localhost;
+drop user user3_bug14834@localhost;
+drop database db_bug14834;
+
 # End of 5.0 bugs.

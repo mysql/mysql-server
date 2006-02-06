@@ -170,6 +170,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       bzero(finfo.mystat, sizeof(MY_STAT));
       VOID(strmov(tmp_file,dp->d_name));
       VOID(my_stat(tmp_path, finfo.mystat, MyFlags));
+      if (!(finfo.mystat->st_mode & MY_S_IREAD))
+        continue;
     }
     else
       finfo.mystat= NULL;

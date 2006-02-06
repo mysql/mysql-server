@@ -19,6 +19,14 @@
 #ifndef _config_netware_h
 #define _config_netware_h
 
+#define __event_h__
+#define _EVENT_H_
+/* 
+  These two #define(s) are needed as both libc of NetWare and MySQL have 
+  files named event.h which causes compilation errors.
+*/
+
+
 /* required headers */
 #include <unistd.h>
 #include <stdio.h>
@@ -34,6 +42,12 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <termios.h>
+
+#undef _EVENT_H_
+/* 
+  This #undef exists here because both libc of NetWare and MySQL have 
+  files named event.h which causes compilation errors.
+*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,6 +78,13 @@ extern "C" {
 #undef HAVE_READLINK
 #undef HAVE_STPCPY
 /* changes  end  */
+
+/* Changes made to make use of LibC-June-2005 for building purpose */
+#undef HAVE_GETPASS
+#undef HAVE_GETRLIMIT
+#undef HAVE_GETRUSAGE
+#undef HAVE_INITGROUPS
+/* Changes  end  - LibC-June-2005 */
 
 /* no libc crypt() function */
 #ifdef HAVE_OPENSSL

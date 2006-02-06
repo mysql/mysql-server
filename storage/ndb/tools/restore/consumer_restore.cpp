@@ -453,15 +453,15 @@ BackupRestore::object(Uint32 type, const void * ptr)
     {
       NdbDictionary::LogfileGroup * lg = m_logfilegroups[old.getDefaultLogfileGroupId()];
       old.setDefaultLogfileGroup(* lg);
+      info << "Creating tablespace: " << old.getName() << "..." << flush;
       int ret = dict->createTablespace(old);
       if (ret)
       {
 	NdbError errobj= dict->getNdbError();
-	err << "Failed to create tablespace \"" << old.getName() << "\": "
-	    << errobj << endl;
+	info << "FAILED " << errobj << endl;
 	return false;
       }
-      debug << "Created tablespace: " << old.getName() << endl;
+      info << "done" << endl;
     }
     
     NdbDictionary::Tablespace curr = dict->getTablespace(old.getName());
@@ -491,15 +491,15 @@ BackupRestore::object(Uint32 type, const void * ptr)
     
     if (!m_no_restore_disk)
     {
+      info << "Creating logfile group: " << old.getName() << "..." << flush;
       int ret = dict->createLogfileGroup(old);
       if (ret)
       {
 	NdbError errobj= dict->getNdbError();
-	err << "Failed to create logfile group \"" << old.getName() << "\": "
-	    << errobj << endl;
+	info << "FAILED" << errobj << endl;
 	return false;
       }
-      debug << "Created logfile group: " << old.getName() << endl;
+      info << "done" << endl;
     }
     
     NdbDictionary::LogfileGroup curr = dict->getLogfileGroup(old.getName());
@@ -532,12 +532,13 @@ BackupRestore::object(Uint32 type, const void * ptr)
 	    << " to tablespace: oldid: " << old.getTablespaceId() 
 	    << " newid: " << ts->getObjectId() << endl;
       old.setTablespace(* ts);
+      info << "Creating datafile \"" << old.getPath() << "\"..." << flush;
       if (dict->createDatafile(old))
       {
-	err << "Failed to create datafile \"" << old.getPath() << "\": "
-	    << dict->getNdbError() << endl;
+	info << "FAILED " << dict->getNdbError() << endl;
 	return false;
       }
+      info << "done" << endl;
     }
     return true;
     break;
@@ -554,12 +555,13 @@ BackupRestore::object(Uint32 type, const void * ptr)
 	    << " newid: " << lg->getObjectId() 
 	    << " " << (void*)lg << endl;
       old.setLogfileGroup(* lg);
+      info << "Creating undofile \"" << old.getPath() << "\"..." << flush;
       if (dict->createUndofile(old))
       {
-	err << "Failed to create undofile \"" << old.getPath() << "\": "
-	    << dict->getNdbError() << endl;
+	info << "FAILED " << dict->getNdbError() << endl;
 	return false;
       }
+      info << "done" << endl;
     }
     return true;
     break;

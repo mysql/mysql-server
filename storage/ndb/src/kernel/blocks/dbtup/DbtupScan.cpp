@@ -896,6 +896,23 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
 void
 Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
 {
+  ScanOp& scan = *scanPtr.p;
+  ndbrequire(! (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) && scan.m_accLockOp == RNIL);
+  // unlock all not unlocked by LQH
+  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  ScanLockPtr lockPtr;
+  while (list.first(lockPtr)) {
+    jam();
+    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+    lockReq->returnCode = RNIL;
+    lockReq->requestInfo = AccLockReq::Abort;
+    lockReq->accOpPtr = lockPtr.p->m_accLockOp;
+    EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
+    jamEntry();
+    ndbrequire(lockReq->returnCode == AccLockReq::Success);
+    list.release(lockPtr);
+  }
+  // send conf
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scanPtr.p->m_userPtr;
   conf->accOperationPtr = RNIL;
