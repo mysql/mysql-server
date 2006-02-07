@@ -5073,12 +5073,12 @@ ST_SCHEMA_TABLE schema_tables[]=
     fill_schema_table_privileges, 0, 0, -1, -1, 0},
   {"TRIGGERS", triggers_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0},
+  {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
+    fill_schema_user_privileges, 0, 0, -1, -1, 0},
   {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
    make_old_format, 0, -1, -1, 1},
   {"VIEWS", view_fields_info, create_schema_table, 
     get_all_tables, 0, get_schema_views_record, 1, 2, 0},
-  {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
-    fill_schema_user_privileges, 0, 0, -1, -1, 0},
   {0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 

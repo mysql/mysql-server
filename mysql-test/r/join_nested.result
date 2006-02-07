@@ -1481,3 +1481,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	5	test.t1.a	1	
 1	SIMPLE	t3	ref	a	a	5	test.t2.a	1	
 drop table t1, t2, t3;
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t2 (pid int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t3 (cid int NOT NULL PRIMARY KEY,
+id int NOT NULL,
+pid int NOT NULL);
+INSERT INTO t1 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t2 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t3 VALUES (1, 1, 1), (3, 3, 3);
+SELECT * FROM t1 p LEFT JOIN (t3 JOIN t1)
+ON (t1.id=t3.id AND t1.type='B' AND p.id=t3.id)
+LEFT JOIN t2 ON (t3.pid=t2.pid)
+WHERE p.id=1;
+id	type	cid	id	pid	id	type	pid	type
+1	A	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+CREATE VIEW v1 AS
+SELECT t3.* FROM t3 JOIN t1 ON t1.id=t3.id AND t1.type='B';
+SELECT * FROM t1 p LEFT JOIN v1 ON p.id=v1.id
+LEFT JOIN t2 ON v1.pid=t2.pid
+WHERE p.id=1;
+id	type	cid	id	pid	pid	type
+1	A	NULL	NULL	NULL	NULL	NULL
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;

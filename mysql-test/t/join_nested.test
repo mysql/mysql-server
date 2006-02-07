@@ -914,3 +914,31 @@ explain select * from t1 left join
   on (t1.a = t2.a);
 drop table t1, t2, t3;
 
+#
+# Bug #16260: single row table in the inner nest of an outer join  
+#
+
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t2 (pid int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t3 (cid int NOT NULL PRIMARY KEY,
+                 id int NOT NULL,
+                 pid int NOT NULL);
+
+INSERT INTO t1 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t2 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t3 VALUES (1, 1, 1), (3, 3, 3);
+
+SELECT * FROM t1 p LEFT JOIN (t3 JOIN t1)
+                     ON (t1.id=t3.id AND t1.type='B' AND p.id=t3.id)
+                   LEFT JOIN t2 ON (t3.pid=t2.pid)
+  WHERE p.id=1;
+
+CREATE VIEW v1 AS
+  SELECT t3.* FROM t3 JOIN t1 ON t1.id=t3.id AND t1.type='B';
+
+SELECT * FROM t1 p LEFT JOIN v1 ON p.id=v1.id
+                   LEFT JOIN t2 ON v1.pid=t2.pid
+  WHERE p.id=1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
