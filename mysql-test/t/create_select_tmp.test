@@ -30,5 +30,6 @@ select * from t2;
 CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
 --error 1146
 select * from t2;
+drop table t1;
 
 # End of 4.1 tests

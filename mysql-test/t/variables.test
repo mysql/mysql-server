@@ -20,7 +20,6 @@ select @test, @`test`, @TEST, @`TEST`, @"teSt";
 set @select=2,@t5=1.23456;
 select @`select`,@not_used;
 set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
---replace_result e-0 e- e+0 e+
 select @test_int,@test_double,@test_string,@test_string2,@select;
 set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
 select @test_int,@test_double,@test_string,@test_string2;
@@ -48,7 +47,7 @@ drop table t1;
 #
 # Test system variables
 #
-
+set GLOBAL max_join_size=10;
 set max_join_size=100;
 show variables like 'max_join_size';
 --replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
