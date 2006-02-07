@@ -1632,17 +1632,6 @@ dict_index_add_col(
 	if (!(dtype_get_prtype(&col->type) & DATA_NOT_NULL)) {
 		index->n_nullable++;
 	}
-
-	if (index->n_def > 1) {
-		const dict_field_t*	field2 =
-			dict_index_get_nth_field(index, index->n_def - 2);
-		field->fixed_offs = (!field2->fixed_len ||
-					field2->fixed_offs == ULINT_UNDEFINED)
-				? ULINT_UNDEFINED
-				: field2->fixed_len + field2->fixed_offs;
-	} else {
-		field->fixed_offs = 0;
-	}
 }
 
 /***********************************************************************
