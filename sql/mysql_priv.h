@@ -1163,7 +1163,9 @@ typedef struct st_table_log_entry
   const char *name;
   const char *from_name;
   const char *handler_type;
+  uint next_entry;
   char action_type;
+  char entry_type;
 } TABLE_LOG_ENTRY;
 
 
@@ -1175,6 +1177,11 @@ uint read_table_log_header();
 bool read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry);
 bool init_table_log();
 void release_table_log();
+void execute_table_log_recovery();
+bool execute_table_log_entry(uint first_entry);
+bool execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry);
+void lock_global_table_log();
+void unlock_global_table_log();
 
 bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
 bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
