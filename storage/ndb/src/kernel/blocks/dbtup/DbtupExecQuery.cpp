@@ -1114,9 +1114,12 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
     ptr= ALIGN_WORD(dst->m_data_ptr+regTabPtr->m_offsets[MM].m_max_var_offset);
     order += regTabPtr->m_attributes[MM].m_no_of_fixsize;
     Uint32 pos= 0;
+    Uint16 *pos_ptr = req_struct->var_pos_array;
+    Uint16 *len_ptr = pos_ptr + cnt1;
     for(Uint32 i= 0; i<cnt1; i++)
     {
-      dst->m_offset_array_ptr[i]= pos;
+      * pos_ptr++ = pos;
+      * len_ptr++ = pos;
       pos += AttributeDescriptor::getSizeInBytes(tab_descr[*order++].tabDescr);
     }
   } 
