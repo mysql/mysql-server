@@ -9618,13 +9618,16 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
   NdbDictionary::Dictionary* dict= ndb->getDictionary();
   NdbDictionary::Dictionary::List dflist;
   NdbError ndberr;
+  unsigned i;
+
+  DBUG_ENTER("ndbcluster_fill_files_table");
 
   dict->listObjects(dflist, NdbDictionary::Object::Datafile);
   ndberr= dict->getNdbError();
-  if (ndberr.classification != ndberror_cl_none)
-    return 0;
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
 
-  for (unsigned i= 0; i < dflist.count; i++)
+  for (i= 0; i < dflist.count; i++)
   {
     NdbDictionary::Dictionary::List::Element& elt = dflist.elements[i];
     Ndb_cluster_connection_node_iter iter;
@@ -9632,16 +9635,24 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
 
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while (id= g_ndb_cluster_connection->get_next_node(iter))
+    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
     {
       NdbDictionary::Datafile df= dict->getDatafile(id, elt.name);
       ndberr= dict->getNdbError();
-      if(ndberr.classification != ndberror_cl_none)
-        continue;
+      if(ndberr.classification != NdbError::NoError)
+      {
+        if (ndberr.classification == NdbError::SchemaError)
+          continue;
+        ERR_RETURN(ndberr);
+      }
       NdbDictionary::Tablespace ts= dict->getTablespace(df.getTablespace());
       ndberr= dict->getNdbError();
-      if (ndberr.classification != ndberror_cl_none)
-        continue;
+      if (ndberr.classification != NdbError::NoError)
+      {
+        if (ndberr.classification == NdbError::SchemaError)
+          continue;
+        ERR_RETURN(ndberr);
+      }
 
       int c= 0;
       table->field[c++]->set_null(); // FILE_ID
@@ -9706,10 +9717,10 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
 
   dict->listObjects(dflist, NdbDictionary::Object::Undofile);
   ndberr= dict->getNdbError();
-  if (ndberr.classification != ndberror_cl_none)
-    return 0;
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
 
-  for (unsigned i= 0; i < dflist.count; i++)
+  for (i= 0; i < dflist.count; i++)
   {
     NdbDictionary::Dictionary::List::Element& elt= dflist.elements[i];
     Ndb_cluster_connection_node_iter iter;
@@ -9717,17 +9728,25 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
 
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while (id= g_ndb_cluster_connection->get_next_node(iter))
+    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
     {
       NdbDictionary::Undofile uf= dict->getUndofile(id, elt.name);
       ndberr= dict->getNdbError();
-      if (ndberr.classification != ndberror_cl_none)
-        continue;
+      if (ndberr.classification != NdbError::NoError)
+      {
+        if (ndberr.classification == NdbError::SchemaError)
+          continue;
+        ERR_RETURN(ndberr);
+      }
       NdbDictionary::LogfileGroup lfg=
         dict->getLogfileGroup(uf.getLogfileGroup());
       ndberr= dict->getNdbError();
-      if (ndberr.classification != ndberror_cl_none)
-        continue;
+      if (ndberr.classification != NdbError::NoError)
+      {
+        if (ndberr.classification == NdbError::SchemaError)
+          continue;
+        ERR_RETURN(ndberr);
+      }
 
       int c= 0;
       table->field[c++]->set_null(); // FILE_ID
@@ -9788,5 +9807,5 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
       schema_table_store_record(thd, table);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
