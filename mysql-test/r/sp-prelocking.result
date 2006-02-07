@@ -208,7 +208,8 @@ select f3() //
 f3()
 1
 call sp1() //
-drop table t1,t2,t3;
+drop view v1;
+drop table t1,t2,t3,t4;
 drop function f1;
 drop function f2;
 drop function f3;

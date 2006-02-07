@@ -101,3 +101,5 @@ insert into t1 values(1);
 connection default;
 drop table t1,t2;
 drop user test@localhost;
+
+set global read_only=0;
