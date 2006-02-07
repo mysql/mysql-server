@@ -2397,7 +2397,8 @@ char *generate_partition_syntax(partition_info *part_info,
   DBUG_ENTER("generate_partition_syntax");
 
   write_part_state= (part_info->part_state && !part_info->part_state_len);
-  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy", 0,0))) < 0))
+  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy", O_RDWR, 
+                                        MYF(MY_WME)))) < 0))
     DBUG_RETURN(NULL);
 #ifndef __WIN__
   unlink(path);
