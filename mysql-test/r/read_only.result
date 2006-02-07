@@ -41,3 +41,4 @@ insert into t1 values(1);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 drop table t1,t2;
 drop user test@localhost;
+set global read_only=0;
