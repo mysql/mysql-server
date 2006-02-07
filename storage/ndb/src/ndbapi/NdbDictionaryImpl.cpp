@@ -1178,6 +1178,29 @@ int NdbEventImpl::getNoOfEventColumns() const
   return m_attrIds.size() + m_columns.size();
 }
 
+const NdbDictionary::Column *
+NdbEventImpl::getEventColumn(unsigned no) const
+{
+  if (m_columns.size())
+  {
+    if (no < m_columns.size())
+    {
+      return m_columns[no];
+    }
+  }
+  else if (m_attrIds.size())
+  {
+    if (no < m_attrIds.size())
+    {
+      NdbTableImpl* tab= m_tableImpl;
+      if (tab == 0)
+        return 0;
+      return tab->getColumn(m_attrIds[no]);
+    }
+  }
+  return 0;
+}
+
 /**
  * NdbDictionaryImpl
  */
