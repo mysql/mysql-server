@@ -2214,7 +2214,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
 	      ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
 	       HA_NOSAME) &&
-              !table->fulltext_searched)
+              !table->fulltext_searched && 
+              !table->pos_in_table_list->embedding)
 	  {
 	    if (const_ref == eq_part)
 	    {					// Found everything for ref.
