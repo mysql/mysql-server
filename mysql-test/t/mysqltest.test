@@ -370,10 +370,10 @@ select 3 from t1 ;
 # Missing delimiter until eof
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing 
---system echo "sleep 7" > var/tmp/mysqltest.sql
---system echo "# Another comment" >> var/tmp/mysqltest.sql
+--system echo "sleep 7" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "# Another comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/tmp/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
@@ -1002,26 +1002,26 @@ select "this will be executed";
 #
 # Test zero length result file. Should not pass
 #
---exec touch $MYSQL_TEST_DIR/var/tmp/zero_length_file.result
---exec echo "echo ok;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
+--exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
---exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/zero_length_file.result  2>&1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  2>&1
 #
 # Test that a test file that does not generate any output fails.
 #
---exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 --error 1
---exec $MYSQL_TEST -x var/tmp/query.sql  2>&1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql  2>&1
 
 #
 # Test that mysqltest fails when there are no queries executed
 # but a result file exist
 # NOTE! This will never happen as long as it's not allowed to have
 # test files that does not produce any output
-#--exec echo "something" > $MYSQL_TEST_DIR/var/tmp/result_file.result
-#--exec echo "let \$i= 1;" > $MYSQL_TEST_DIR/var/tmp/query.sql
+#--exec echo "something" > $MYSQLTEST_VARDIR/tmp/result_file.result
+#--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
 #--error 1
-#--exec $MYSQL_TEST -x var/tmp/query.sql -R var/tmp/result_file.result 2>&1
+#--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/result_file.result 2>&1
 
 #
 # Bug #11731 mysqltest in multi-statement queries ignores errors in
