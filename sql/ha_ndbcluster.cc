@@ -9592,6 +9592,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
       break;
     }
     ndb= get_ndb();
+    ndb->setDatabaseName(m_dbname);
     dict= ndb->getDictionary();
     if (!(tab= dict->getTable(m_tabname)))
       ERR_BREAK(dict->getNdbError(), err);
