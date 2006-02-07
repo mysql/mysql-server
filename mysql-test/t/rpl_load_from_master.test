@@ -1,5 +1,11 @@
 # This one assumes we are ignoring updates on tables in database mysqltest2,
 # but doing the ones in database mysqltest
+#################################################################
+# Change Author: JBM
+# Change Date: 2006-02-02
+# Change: Added ENGINE=MyISAM
+# Reason: LOAD from master is only supported by MyISAM
+#################################################################
 
 source include/master-slave.inc;
 --disable_warnings
@@ -19,12 +25,12 @@ save_master_pos;
 connection slave;
 sync_with_master;
 create database mysqltest2;
-create table mysqltest2.foo (n int);
+create table mysqltest2.foo (n int)ENGINE=MyISAM;
 insert into mysqltest2.foo values(4);
 connection master;
-create table mysqltest2.foo (n int);
+create table mysqltest2.foo (n int)ENGINE=MyISAM;
 insert into mysqltest2.foo values(5);
-create table mysqltest.bar (m int);
+create table mysqltest.bar (m int)ENGINE=MyISAM;
 insert into mysqltest.bar values(15);
 save_master_pos;
 connection slave;
@@ -49,13 +55,13 @@ set sql_log_bin = 0;
 create database mysqltest2;
 create database mysqltest;
 show databases;
-create table mysqltest2.t1(n int, s char(20));
-create table mysqltest2.t2(n int, s text);
+create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest2.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three'); 
 insert into mysqltest2.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen'); 
 
-create table mysqltest.t1(n int, s char(20));
-create table mysqltest.t2(n int, s text);
+create table mysqltest.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest.t1 values (1, 'one test'), (2, 'two test'), (3, 'three test'); 
 insert into mysqltest.t2 values (11, 'eleven test'), (12, 'twelve test'),
  (13, 'thirteen test'); 
@@ -69,21 +75,21 @@ show databases;
 # Create mysqltest2 and mysqltest3 on slave; we expect that LOAD DATA FROM
 # MASTER will neither touch database mysqltest nor mysqltest3
 create database mysqltest2;
-create table mysqltest2.t1(n int, s char(20));
+create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'original foo.t1');
-create table mysqltest2.t3(n int, s char(20));
+create table mysqltest2.t3(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest2.t3 values (1, 'original foo.t3');
 create database mysqltest3;
-create table mysqltest3.t1(n int, s char(20));
+create table mysqltest3.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest3.t1 values (1, 'original foo2.t1');
 
 # Create mysqltest, and mysqltest.t1, to check that it gets replaced,
 # and mysqltest.t3 to check that it is not touched (there is no
 # mysqltest.t3 on master)
 create database mysqltest;
-create table mysqltest.t1(n int, s char(20));
+create table mysqltest.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest.t1 values (1, 'original bar.t1');
-create table mysqltest.t3(n int, s char(20));
+create table mysqltest.t3(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest.t3 values (1, 'original bar.t3');
 
 load data from master;

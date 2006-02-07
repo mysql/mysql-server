@@ -16,7 +16,7 @@ insert into t1 values(15),(16),(17);
 update t1 set m=20 where m=16;
 delete from t1 where m=17;
 create table t11 select * from t1;
-select * from t1;
+select * from t1 ORDER BY m;
 m
 15
 20
