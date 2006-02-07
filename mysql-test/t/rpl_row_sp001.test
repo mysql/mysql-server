@@ -85,34 +85,34 @@ delimiter ;//
 
 INSERT INTO test.t2 VALUES(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW');
 
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 
 connection master;
 call test.p2(1);
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 
 
 connection master;
 call test.p2(2);
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 
 connection master;
 call test.p2(3);
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from test.t2;
+SELECT * FROM t2 ORDER BY a;
 
 ##Used for debugging
 #show binlog events;
