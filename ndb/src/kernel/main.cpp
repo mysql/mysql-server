@@ -272,8 +272,8 @@ int main(int argc, char** argv)
 #ifndef NDB_WIN32
   signal(SIGUSR1, handler_sigusr1);
 
-  pid_t child;
-  while (1)
+  pid_t child = -1;
+  while (! theConfig->getForegroundMode()) // the cond is const
   {
     // setup reporting between child and parent
     int filedes[2];
@@ -395,8 +395,10 @@ int main(int argc, char** argv)
 
   if (child >= 0)
     g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
-  else
+  else if (child > 0)
     g_eventLogger.info("Ndb pid: %d", getpid());
+  else
+    g_eventLogger.info("Ndb started in foreground");
 #else
   g_eventLogger.info("Ndb started");
 #endif
@@ -571,10 +573,7 @@ catchsigs(bool ignore){
 #ifdef SIGPOLL
     SIGPOLL,
 #endif
-    SIGSEGV,
-#ifdef SIGTRAP
-    SIGTRAP
-#endif
+    SIGSEGV
   };
 
   static const int signals_ignore[] = {
@@ -588,6 +587,11 @@ catchsigs(bool ignore){
     handler_register(signals_error[i], handler_error, ignore);
   for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
     handler_register(signals_ignore[i], SIG_IGN, ignore);
+#ifdef SIGTRAP
+  Configuration* theConfig = globalEmulatorData.theConfiguration;
+  if (! theConfig->getForegroundMode())
+    handler_register(SIGTRAP, handler_error, ignore);
+#endif
 #endif
 }
 
