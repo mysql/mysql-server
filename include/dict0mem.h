@@ -175,10 +175,6 @@ struct dict_field_struct{
 	ulint		fixed_len;	/* 0 or the fixed length of the
 					column if smaller than
 					DICT_MAX_INDEX_COL_LEN */
-	ulint		fixed_offs;	/* offset to the field, or
-					ULINT_UNDEFINED if it is not fixed
-					within the record (due to preceding
-					variable-length fields) */
 };
 
 /* Data structure for an index tree */
