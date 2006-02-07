@@ -6,7 +6,7 @@ Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
-Error	1	Can't create/write to file 'MYSQL_TEST_DIR/var/bogus/t4.frm' (Errcode: X)
+Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/bogus/t4.frm' (Errcode: X)
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	status	OK
@@ -15,7 +15,7 @@ Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
-Error	1	Can't create/write to file 'MYSQL_TEST_DIR/var/tmp/t4.frm' (Errcode: X)
+Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/tmp/t4.frm' (Errcode: X)
 drop table t4;
 restore table t4 from '../tmp';
 Table	Op	Msg_type	Msg_text
@@ -33,7 +33,7 @@ restore table t1 from '../bogus';
 Table	Op	Msg_type	Msg_text
 t1	restore	error	Failed copying .frm file
 Warnings:
-Error	29	File 'MYSQL_TEST_DIR/var/bogus/t1.frm' not found (Errcode: X)
+Error	29	File 'MYSQLTEST_VARDIR/bogus/t1.frm' not found (Errcode: X)
 restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
