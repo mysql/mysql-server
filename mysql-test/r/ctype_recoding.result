@@ -247,3 +247,4 @@ lpad(c1,3,'ö')	lpad('ö',3,c1)
 select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
 rpad(c1,3,'ö')	rpad('ö',3,c1)
 ßöö	ößß
+drop table t1;

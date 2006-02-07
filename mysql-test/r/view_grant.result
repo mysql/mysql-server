@@ -9,6 +9,7 @@ revoke create view on test.* from test@localhost;
 show grants for test@localhost;
 Grants for test@localhost
 GRANT USAGE ON *.* TO 'test'@'localhost'
+drop user test@localhost;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);

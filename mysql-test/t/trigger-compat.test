@@ -81,3 +81,16 @@ SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_n
 --echo
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
+
+# Clean up
+DROP TRIGGER wl2818_trg1;
+DROP TRIGGER wl2818_trg2;
+disconnect wl2818_definer_con;
+connection default;
+use mysqltest_db1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+DROP DATABASE mysqltest_db1;
+

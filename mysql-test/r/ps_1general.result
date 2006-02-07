@@ -784,4 +784,4 @@ prepare stmt1 from @string ;
 execute stmt1 ;
 prepare stmt1 from ' select * from t5 ' ;
 execute stmt1 ;
-drop table t5, t9;
+drop table t1, t5, t9;

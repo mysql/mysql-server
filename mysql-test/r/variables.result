@@ -71,6 +71,7 @@ c_id	c_name	c_country
 1	Bozo	USA
 4	Mr. Floppy	GB
 drop table t1;
+set GLOBAL max_join_size=10;
 set max_join_size=100;
 show variables like 'max_join_size';
 Variable_name	Value

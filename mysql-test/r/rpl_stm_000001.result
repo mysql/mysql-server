@@ -79,3 +79,4 @@ select select_priv,user from mysql.user where user = _binary'blafasel2';
 select_priv	user
 Y	blafasel2
 drop table t1;
+delete from mysql.user where user="blafasel2";
