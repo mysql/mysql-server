@@ -877,20 +877,10 @@ int
 event_timed::drop(THD *thd)
 {
   TABLE *table;
-  int ret= 0;
+  uint tmp= 0;
   DBUG_ENTER("event_timed::drop");
 
-  if (evex_open_event_table(thd, TL_WRITE, &table))
-    DBUG_RETURN(-1);
-
-  if (evex_db_find_event_aux(thd, dbname, name, definer, table))
-    DBUG_RETURN(-2);
-
-  if ((ret= table->file->ha_delete_row(table->record[0])))
-    DBUG_RETURN(ret);
-    
-  close_thread_tables(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(db_drop_event(thd, this, false, &tmp));
 }
 
 

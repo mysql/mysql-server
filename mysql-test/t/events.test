@@ -17,12 +17,12 @@ drop event event2;
 
 create event e_43 on schedule every 1 second do set @a = 5;
 set global event_scheduler = 1;
-select sleep(2);
+--sleep 2
 alter event e_43 do alter event e_43 do set @a = 4;
-select sleep(3);
+--sleep 2
 select db, name, body, status, interval_field, interval_value from mysql.event;
 drop event e_43;
-select sleep(1);
+--sleep 1
 set global event_scheduler = 0;
 
 create table t_event3 (a int, b float);
@@ -107,8 +107,8 @@ drop event one_event;
 ##INFORMATION_SCHEMA.EVENTS test end
 #
 
-
-
+--echo "Sleep a bit so the server closes the second connection"
+--sleep 2
 
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
@@ -129,23 +129,38 @@ set event_scheduler=0;
 --error 1231
 set global event_scheduler=2;
 
-#set global event_scheduler=0;
-#select count(*) from mysql.event;
-#select get_lock("test_lock1", 20);
-#create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
-#select count(*) from mysql.event;
-##show processlist;
-#select release_lock("test_lock1");
-#drop event закачка;
-#select count(*) from mysql.event;
+--echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
+set global event_scheduler=0;
+select definer, name, db from mysql.event;
+select get_lock("test_lock1", 20);
+create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
+--echo "Should return 1 row"
+select definer, name, db from mysql.event;
+
+--echo "Should be only 1 process"
+--replace_column 1 # 6 #
+show processlist;
+select release_lock("test_lock1");
+drop event закачка;
+--echo "Should have 0 events"
+select count(*) from mysql.event;
+
 #
-#set global event_scheduler=1;
-#select get_lock("test_lock2", 20);
-#create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
-#select sleep(2);
-#show processlist;
-#select release_lock("test_lock2");
-#drop event закачка;
+#
+#
+--echo "ENABLE the scheduler and get a lock"
+set global event_scheduler=1;
+select get_lock("test_lock2", 20);
+--echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
+create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
+--echo "Let some time pass to the event starts"
+--sleep 2
+--echo "Should have only 3 processes: the scheduler, our conn and the locked event"
+--replace_column 1 # 6 #
+show processlist;
+--echo "Release the mutex, the event worker should finish."
+select release_lock("test_lock2");
+drop event закачка;
 
 ##
 ## 1. get a lock
@@ -155,26 +170,33 @@ set global event_scheduler=2;
 ## 5. kill the scheduler, it will wait for the child to stop
 ## 6. both processes should be there on show processlist
 ## 7. release the lock and sleep, both scheduler and child should end
-#set global event_scheduler=1;
-#select get_lock("test_lock2_1", 20);
-#create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
-#select sleep(2);
-##show processlist;
-#set global event_scheduler=0;
-#select sleep(2);
-##show processlist;
-#select release_lock("test_lock2_1");
-#select sleep(2);
-##show processlist;
-#drop event закачка21;
-
-#set global event_scheduler=1;
-#select get_lock("test_lock3", 20);
-#create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
-#select sleep(2);
+set global event_scheduler=1;
+select get_lock("test_lock2_1", 20);
+create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
+--sleep 1
+--echo "Should see 2 processes, one locked on get_lock("
 #show processlist;
-#drop event закачка;
-#select release_lock("test_lock3");
+--echo "Shutting down the scheduler, it should wait for the running event"
+set global event_scheduler=0;
+--sleep 1
+--echo "Should have only 3 processes: the scheduler, our conn and the locked event"
+--replace_column 1 # 6 #
+show processlist;
+--echo "Release the lock so the child process should finish. Hence the scheduler also"
+select release_lock("test_lock2_1");
+--sleep 1
+--echo "Should have only our process now:"
+--replace_column 1 # 6 #
+show processlist;
+drop event закачка21;
+
+##set global event_scheduler=1;
+##select get_lock("test_lock3", 20);
+##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
+##select sleep(2);
+##show processlist;
+##drop event закачка;
+##select release_lock("test_lock3");
 
 #
 # test with very often occuring event
@@ -182,14 +204,15 @@ set global event_scheduler=2;
 ##select get_lock("test_lock4", 20);
 ##create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);
 ##select sleep(3);
+##--replace_column 1 # 6 #
 ##show processlist;
 ##drop event закачка4;
 ##select release_lock("test_lock4");
 
-#set global event_scheduler=0;
-#select sleep(2);
+##set global event_scheduler=0;
+##select sleep(2);
+##--replace_column 1 # 6 #
 ##show processlist;
-##the following locks for some reason and is a bug, commented for now
 ##select count(*) from mysql.event;
 
 drop database events_test;
