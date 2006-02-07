@@ -287,6 +287,7 @@ public:
   void setReport(NdbDictionary::Event::EventReport r);
   NdbDictionary::Event::EventReport  getReport() const;
   int getNoOfEventColumns() const;
+  const NdbDictionary::Column * getEventColumn(unsigned no) const;
 
   void print() {
     ndbout_c("NdbEventImpl: id=%d, key=%d",
