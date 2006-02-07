@@ -244,6 +244,52 @@ static int mysql_copy_key_list(List<Key> *orig_key,
   DBUG_RETURN(FALSE);
 }
 
+/*
+--------------------------------------------------------------------------
+
+   MODULE: Table log
+   -----------------
+
+   This module is used to ensure that we can recover from crashes that occur
+   in the middle of a meta-data operation in MySQL. E.g. DROP TABLE t1, t2;
+   We need to ensure that both t1 and t2 are dropped and not only t1 and
+   also that each table drop is entirely done and not "half-baked".
+
+   To support this we create log entries for each meta-data statement in the
+   table log while we are executing. These entries are dropped when the
+   operation is completed.
+
+   At recovery those entries that were not completed will be executed.
+
+   There is only one table log in the system and it is protected by a mutex
+   and there is a global struct that contains information about its current
+   state.
+
+--------------------------------------------------------------------------
+*/
+
+
+typedef struct st_table_log_memory_entry
+{
+  uint entry_pos;
+} TABLE_LOG_MEMORY_ENTRY;
+
+typedef struct st_global_table_log
+{
+  char file_entry[IO_SIZE];
+  char file_name_str[FN_REFLEN];
+  char *file_name;
+  List<TABLE_LOG_MEMORY_ENTRY> free_entries;
+  List<TABLE_LOG_MEMORY_ENTRY> log_entries;
+  File file_id;
+  uint name_len;
+  uint handler_type_len;
+} GLOBAL_TABLE_LOG;
+
+GLOBAL_TABLE_LOG global_table_log;
+
+pthread_mutex_t LOCK_gtl;
+
 
 /*
   SYNOPSIS
@@ -300,6 +346,31 @@ write_execute_table_log_entry(uint first_entry, uint *exec_entry)
 
 
 /*
+  Read one entry from table log file
+  SYNOPSIS
+    read_table_log_file_entry()
+    file_id                      File identifier
+    file_entry                   Memory area to read entry into
+    entry_no                     Entry number to read
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+*/
+
+static
+bool
+read_table_log_file_entry(File file_id, byte *file_entry, uint entry_no)
+{
+  bool error= FALSE;
+  DBUG_ENTER("read_table_log_file_entry");
+
+  if (my_pread(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
   Read header of table log file
   SYNOPSIS
     read_table_log_header()
@@ -315,8 +386,20 @@ write_execute_table_log_entry(uint first_entry, uint *exec_entry)
 uint
 read_table_log_header()
 {
+  char *file_entry= (char*)&global_table_log.file_entry;
   DBUG_ENTER("read_table_log_header");
-  DBUG_RETURN(0);
+
+  if (read_table_log_file_entry(global_table_log.file_id,
+                                (char*)&file_entry, 0UL))
+  {
+    DBUG_RETURN(0);
+  }
+  entry_no= uint4korr(&file_entry[0]);
+  global_table_log.name_len= uint2korr(&file_entry[4]);
+  global_table_log.handler_type_len= uint2korr(&file_entry[6]);
+  global_table_log.free_entries.clear();
+  VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
+  DBUG_RETURN(entry_no);
 }
 
 
@@ -356,7 +439,17 @@ read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
 bool
 init_table_log()
 {
+  uint no_entries= 0;
+  uint16 const_var;
   DBUG_ENTER("init_table_log");
+  VOID(my_delete(global_table_log.file_name));
+  global_table_log.file_id= my_open(global_table_log.file_name,
+                                    0, 0, MYF(0));
+  int4store(&global_table_log.file_entry[0], &no_entries);
+  const_var= NAMELEN;
+  int2store(&global_table_log.file_entry[4], &const_var);
+  const_var= 32;
+  int2store(&global_table_log.file_entry[6], &const_var);
   DBUG_RETURN(FALSE);
 }
 
@@ -373,8 +466,140 @@ void
 release_table_log()
 {
   DBUG_ENTER("release_table_log");
+
+  VOID(pthread_mutex_destroy(&LOCK_gtl));
   DBUG_RETURN_VOID;
 }
+
+
+/*
+  Lock mutex for global table log
+  SYNOPSIS
+    lock_global_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+lock_global_table_log()
+{
+  DBUG_ENTER("lock_global_table_log");
+
+  VOID(pthread_mutex_lock(&LOCK_gtl));
+  DBUG_RETURN_VOID;
+}
+
+
+/*
+  Unlock mutex for global table log
+  SYNOPSIS
+    unlock_global_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+unlock_global_table_log()
+{
+  DBUG_ENTER("unlock_global_table_log");
+
+  VOID(pthread_mutex_unlock(&LOCK_gtl));
+  DBUG_RETURN_VOID;
+}
+
+
+/*
+  Execute one action in a table log entry
+  SYNOPSIS
+    execute_table_log_action()
+    table_log_entry              Information in action entry to execute
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+bool
+execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
+{
+  DBUG_ENTER("execute_table_log_action");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Execute one entry in the table log. Executing an entry means executing
+  a linked list of actions.
+  SYNOPSIS
+    execute_table_log_entry()
+    first_entry                Reference to first action in entry
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+bool
+execute_table_log_entry(uint first_entry)
+{
+  TABLE_LOG_ENTRY table_log_entry;
+  uint read_entry= first_entry;
+  DBUG_ENTER("execute_table_log_entry");
+
+  do
+  {
+    read_table_log_entry(read_entry, &table_log_entry);
+    DBUG_ASSERT(table_log_entry.entry_type == 'i');
+    if (execute_table_log_action(&table_log_entry))
+    {
+      /* error handling */
+      DBUG_RETURN(TRUE);
+    }
+    read_entry= table_log_entry.next_entry;
+  } while (read_entry);
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Execute the table log at recovery of MySQL Server
+  SYNOPSIS
+    execute_table_log_recovery()
+  RETURN VALUES
+    NONE
+*/
+
+void
+execute_table_log_recovery()
+{
+  uint no_entries, i;
+  TABLE_LOG_ENTRY table_log_entry;
+  DBUG_ENTER("execute_table_log_recovery");
+
+  no_entries= read_log_header();
+  for (i= 0; i < no_entries; i++)
+  {
+    read_table_log_entry(i, &table_log_entry);
+    if (table_log_entry.entry_type == 'e')
+    {
+      if (execute_table_log_entry(table_log_entry.next_entry))
+      {
+        /* error handling */
+        DBUG_RETURN_VOID;
+      }
+    }
+  }
+  init_table_log();
+  DBUG_RETURN_VOID;
+}
+
+
+/*
+---------------------------------------------------------------------------
+
+  END MODULE Table log
+  --------------------
+
+---------------------------------------------------------------------------
+*/
 
 
 /*

@@ -5083,6 +5083,9 @@ bool
 write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
 {
   DBUG_ENTER("write_log_shadow_frm");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
@@ -5106,6 +5109,9 @@ bool
 write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_drop_partition");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
@@ -5129,6 +5135,9 @@ bool
 write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_add_partition");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
@@ -5152,6 +5161,9 @@ bool
 write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_ph1_change_partition");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
@@ -5176,6 +5188,9 @@ bool
 write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_ph2_change_partition");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
@@ -5195,6 +5210,9 @@ bool
 write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_ph2_change_partition");
+
+  lock_global_table_log();
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
 
