@@ -520,7 +520,7 @@ const char **ha_archive::bas_ext() const
   Init out lock.
   We open the file we will read from.
 */
-int ha_archive::open(const char *name, int mode, uint test_if_locked)
+int ha_archive::open(const char *name, int mode, uint open_options)
 {
   DBUG_ENTER("ha_archive::open");
 
@@ -535,7 +535,10 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
-  DBUG_RETURN(0);
+  if (open_options & HA_OPEN_FOR_REPAIR)
+    DBUG_RETURN(0);
+
+  DBUG_RETURN(share->crashed ? HA_ERR_CRASHED_ON_USAGE : 0);
 }
 
 
@@ -1340,7 +1343,8 @@ int ha_archive::delete_all_rows()
 */
 bool ha_archive::is_crashed() const 
 {
-  return share->crashed; 
+  DBUG_ENTER("ha_archive::is_crashed");
+  DBUG_RETURN(share->crashed); 
 }
 
 /*
@@ -1402,12 +1406,5 @@ bool ha_archive::check_and_repair(THD *thd)
 
   check_opt.init();
 
-  if (check(thd, &check_opt) == HA_ADMIN_CORRUPT)
-  {
-    DBUG_RETURN(repair(thd, &check_opt));
-  }
-  else
-  {
-    DBUG_RETURN(HA_ADMIN_OK);
-  }
+  DBUG_RETURN(repair(thd, &check_opt));
 }
