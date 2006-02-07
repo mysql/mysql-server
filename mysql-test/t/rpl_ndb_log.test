@@ -6,6 +6,7 @@
 # bin-log                         #
 ###################################
 -- source include/have_binlog_format_row.inc
-let $engine_type=MyISAM;
+-- source include/have_ndb.inc
+let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_log.test
 
