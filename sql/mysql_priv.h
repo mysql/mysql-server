@@ -1182,6 +1182,7 @@ bool execute_table_log_entry(uint first_entry);
 bool execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry);
 void lock_global_table_log();
 void unlock_global_table_log();
+bool sync_table_log();
 
 bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
 bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
