@@ -30,6 +30,6 @@ ndb_autodiscover2 : Needs to be fixed w.r.t binlog
 #ndb_alter_table_row : sometimes wrong error 1015!=1046
 ndb_gis : garbled msgs from corrupt THD*
 rpl_ndb_auto_inc : MySQL Bugs:17086
-rpl_ndb_relay_space : Results are not deterministic
+rpl_ndb_relay_space : Bug 16993
 ndb_binlog_ddl_multi : Bug #17038
 rpl_ndb_log : MySQL Bugs: #17158
