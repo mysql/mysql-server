@@ -281,6 +281,7 @@ typedef struct st_global_table_log
   char *file_name;
   List<TABLE_LOG_MEMORY_ENTRY> free_entries;
   List<TABLE_LOG_MEMORY_ENTRY> log_entries;
+  uint no_entries;
   File file_id;
   uint name_len;
   uint handler_type_len;
@@ -289,6 +290,52 @@ typedef struct st_global_table_log
 GLOBAL_TABLE_LOG global_table_log;
 
 pthread_mutex_t LOCK_gtl;
+
+
+/*
+  Sync table log file
+  SYNOPSIS
+    sync_table_log()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+bool
+sync_table_log()
+{
+  bool error= FALSE;
+  DBUG_ENTER("sync_table_log");
+
+  if (my_sync(global_table_log.file_id, MYF(0)))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Write one entry from table log file
+  SYNOPSIS
+    write_table_log_file_entry()
+    file_id                      File identifier
+    file_entry                   Memory area to read entry into
+    entry_no                     Entry number to read
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+*/
+
+static
+bool
+write_table_log_file_entry(File file_id, byte *file_entry, uint entry_no)
+{
+  bool error= FALSE;
+  DBUG_ENTER("read_table_log_file_entry");
+
+  if (my_pwrite(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
 
 
 /*
@@ -308,10 +355,67 @@ pthread_mutex_t LOCK_gtl;
 
 bool
 write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
-                      uint next_entry,
                       uint *entry_written)
 {
+  bool write_header, error;
   DBUG_ENTER("write_table_log_entry");
+
+  global_table_log.file_entry[0]= 'i';
+  global_table_log.file_entry[1]= table_log_entry->action_type;
+  int4store(&global_table_log.file_entry[2],
+            table_log_entry->next_entry);
+  strcpy(&global_table_log.file_entry[6], table_log_entry->name);
+  if (table_log_entry.action_type == 'r')
+    global_table_log.file_entry[6 + NAMELEN]= 0;
+  else
+    strcpy(&global_table_log.file_entry[6 + NAMELEN],
+          table_log_entry->from_name);
+  strcpy(&global_table_log.file_entry[6 + (2*NAMELEN)],
+         table_log_entry->handler_type);
+  if (global_table_log.free_entries.is_empty())
+  {
+    global_table_log.no_entries++;
+    entry_no= global_table_log.no_entries;
+    write_header= TRUE;
+  }
+  else
+  {
+    TABLE_LOG_MEMORY *tmp= global_table_log.free_entries.pop();
+    global_table_log.log_entries.push_back(tmp);
+    entry_no= tmp->entry_pos;
+    write_header= FALSE;
+  }
+  error= FALSE;
+  if (write_table_log_entry(global_table_log.file_id,
+                            global_table_log.file_entry,
+                            entry_no))
+    error= TRUE;
+  else if (write_header || !(write_table_log_header()))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Write table log header
+  SYNOPSIS
+    write_table_log_header()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+bool
+write_table_log_header()
+{
+  uint16 const_var;
+  DBUG_ENTER("write_table_log_header");
+
+  int4store(&global_table_log.file_entry[0], global_table_log.no_entries);
+  const_var= NAMELEN;
+  int2store(&global_table_log.file_entry[4], const_var);
+  const_var= 32;
+  int2store(&global_table_log.file_entry[6], const_var);
   DBUG_RETURN(FALSE);
 }
 
@@ -398,6 +502,8 @@ read_table_log_header()
   global_table_log.name_len= uint2korr(&file_entry[4]);
   global_table_log.handler_type_len= uint2korr(&file_entry[6]);
   global_table_log.free_entries.clear();
+  global_table_log.log_entries.clear();
+  global_table_log.no_entries= 0;
   VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
   DBUG_RETURN(entry_no);
 }
@@ -439,18 +545,15 @@ read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
 bool
 init_table_log()
 {
-  uint no_entries= 0;
-  uint16 const_var;
+  bool error= FALSE;
   DBUG_ENTER("init_table_log");
+
   VOID(my_delete(global_table_log.file_name));
   global_table_log.file_id= my_open(global_table_log.file_name,
                                     0, 0, MYF(0));
-  int4store(&global_table_log.file_entry[0], &no_entries);
-  const_var= NAMELEN;
-  int2store(&global_table_log.file_entry[4], &const_var);
-  const_var= 32;
-  int2store(&global_table_log.file_entry[6], &const_var);
-  DBUG_RETURN(FALSE);
+  if (write_table_log_header())
+    error= TRUE;
+  DBUG_RETURN(error);
 }
 
 
