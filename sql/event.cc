@@ -704,11 +704,17 @@ done:
 }
 
 
+/*
+   0 - OK can drop from outside
+   1 - Scheduled from dropping, don't drop from outside
+*/
+
 static int
 evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
                        bool is_drop)
 {
   uint i;
+  int ret= 0;
 
   DBUG_ENTER("evex_remove_from_cache");
   /*
@@ -738,7 +744,8 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
         DBUG_PRINT("evex_remove_from_cache",
                ("running.defer mem free. is_drop=%d", is_drop));
         et->flags|= EVENT_EXEC_NO_MORE;
-        et->dropped= is_drop;
+        if ((et->dropped= is_drop))
+          ret= 1;
       }
       DBUG_PRINT("evex_remove_from_cache", ("delete from queue"));
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
@@ -751,7 +758,7 @@ done:
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 
@@ -866,21 +873,25 @@ done:
  Drops an event
 
  SYNOPSIS
-   evex_drop_event()
+   db_drop_event()
      thd             THD
      et              event's name
      drop_if_exists  if set and the event not existing => warning onto the stack
+     rows_affected   affected number of rows is returned heres
           
 */
 
-int
-evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
-                uint *rows_affected)
+int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+                  uint *rows_affected)
 {
   TABLE *table;
-  int ret= EVEX_OPEN_TABLE_FAILED;
-  DBUG_ENTER("evex_drop_event");
+  Open_tables_state backup;
+  uint ret;
 
+  DBUG_ENTER("db_drop_event");
+  ret= EVEX_OPEN_TABLE_FAILED;
+
+  thd->reset_n_backup_open_tables_state(&backup);
   if (evex_open_event_table(thd, TL_WRITE, &table))
   {
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -908,10 +919,6 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
     goto done;
   }
 
-  VOID(pthread_mutex_lock(&LOCK_evex_running));
-  if (evex_is_running)
-    ret= evex_remove_from_cache(&et->dbname, &et->name, true, true);
-  VOID(pthread_mutex_unlock(&LOCK_evex_running));
 
 done:
   /*
@@ -919,6 +926,44 @@ done:
     we have to close our thread tables.
   */
   close_thread_tables(thd);
+  thd->restore_backup_open_tables_state(&backup);
+  DBUG_RETURN(ret);
+}
+
+
+/*
+ Drops an event
+
+ SYNOPSIS
+   evex_drop_event()
+     thd             THD
+     et              event's name
+     drop_if_exists  if set and the event not existing => warning onto the stack
+     rows_affected   affected number of rows is returned heres
+          
+*/
+
+int
+evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
+                uint *rows_affected)
+{
+  TABLE *table;
+  int ret= 0;
+
+  DBUG_ENTER("evex_drop_event");
+
+
+  VOID(pthread_mutex_lock(&LOCK_evex_running));
+  if (evex_is_running)
+    ret= evex_remove_from_cache(&et->dbname, &et->name, true, true);
+  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+  
+  if (ret == 1)
+    ret= 0;
+  else if (ret == 0)   
+    ret= db_drop_event(thd, et, drop_if_exists, rows_affected);
+  else
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
 
   DBUG_RETURN(ret);
 }
