@@ -20,7 +20,7 @@
 
 eval create table t1 (a int) engine=$engine_type;
 flush tables;
-system rm ./var/master-data/test/t1.MYI ;
+system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
 drop table if exists t1;
 save_master_pos;
 connection slave;
