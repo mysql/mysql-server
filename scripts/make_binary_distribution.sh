@@ -129,8 +129,8 @@ copyfileto $BASE COPYING COPYING.LIB README Docs/INSTALL-BINARY \
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolveip$BS extra/my_print_defaults$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
-  myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
-  myisam/myisam_ftdump$BS \
+  storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
+  storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
   sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
