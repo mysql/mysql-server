@@ -3446,9 +3446,26 @@ int ha_ndbcluster::end_bulk_insert()
                         "rows_inserted:%d, bulk_insert_rows: %d", 
                         (int) m_rows_inserted, (int) m_bulk_insert_rows)); 
     m_bulk_insert_not_flushed= FALSE;
-    if (execute_no_commit(this,trans) != 0) {
-      no_uncommitted_rows_execute_failure();
-      my_errno= error= ndb_err(trans);
+    if (m_transaction_on)
+    {
+      if (execute_no_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+    }
+    else
+    {
+      if (execute_commit(this, trans) != 0)
+      {
+        no_uncommitted_rows_execute_failure();
+        my_errno= error= ndb_err(trans);
+      }
+      else
+      {
+        int res= trans->restart();
+        DBUG_ASSERT(res == 0);
+      }
     }
   }
 
@@ -3605,8 +3622,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           ERR_RETURN(ndb->getNdbError());
         no_uncommitted_rows_reset(thd);
         thd_ndb->stmt= trans;
-        if (m_transaction_on)
-          trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
@@ -3621,8 +3637,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             ERR_RETURN(ndb->getNdbError());
           no_uncommitted_rows_reset(thd);
           thd_ndb->all= trans; 
-          if (m_transaction_on)
-            trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -6194,7 +6209,7 @@ bool ha_ndbcluster::low_byte_first() const
 }
 bool ha_ndbcluster::has_transactions()
 {
-  return m_transaction_on;
+  return TRUE;
 }
 const char* ha_ndbcluster::index_type(uint key_number)
 {
