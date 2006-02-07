@@ -25,7 +25,7 @@ select ((@id := kill_id) - kill_id) from t3;
 ((@id := kill_id) - kill_id)
 0
 kill @id;
-ERROR 08S01: Server shutdown in progress
+Got one of the listed errors
 drop table t1, t2, t3;
 select get_lock("a", 10);
 get_lock("a", 10)
