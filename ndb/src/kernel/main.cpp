@@ -63,8 +63,10 @@ extern "C" void handler_sigusr1(int signum);  // child signalling failed restart
 void systemInfo(const Configuration & conf,
 		const LogLevel & ll); 
 
-static FILE *child_info_file_r= 0;
-static FILE *child_info_file_w= 0;
+// These are used already before fork if fetch_configuration() fails
+// (e.g. Unable to alloc node id).  Set them to something reasonable.
+static FILE *child_info_file_r= stdin;
+static FILE *child_info_file_w= stdout;
 
 static void writeChildInfo(const char *token, int val)
 {
