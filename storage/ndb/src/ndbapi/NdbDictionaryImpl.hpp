@@ -281,6 +281,7 @@ public:
   void setTable(const char * table);
   const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
+  bool getTableEvent(const NdbDictionary::Event::TableEvent t) const;
   void setDurability(NdbDictionary::Event::EventDurability d);
   NdbDictionary::Event::EventDurability  getDurability() const;
   void setReport(NdbDictionary::Event::EventReport r);

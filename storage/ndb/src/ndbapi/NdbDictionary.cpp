@@ -857,6 +857,12 @@ NdbDictionary::Event::addTableEvent(const TableEvent t)
   m_impl.addTableEvent(t);
 }
 
+bool
+NdbDictionary::Event::getTableEvent(const TableEvent t) const
+{
+  return m_impl.getTableEvent(t);
+}
+
 void
 NdbDictionary::Event::setDurability(EventDurability d)
 {
@@ -911,6 +917,29 @@ NdbDictionary::Event::addEventColumns(int n, const char ** names)
 int NdbDictionary::Event::getNoOfEventColumns() const
 {
   return m_impl.getNoOfEventColumns();
+}
+
+const NdbDictionary::Column *
+NdbDictionary::Event::getEventColumn(unsigned no) const
+{
+  if (m_impl.m_columns.size())
+  {
+    if (no < m_impl.m_columns.size())
+    {
+      return m_impl.m_columns[no];
+    }
+  }
+  else if (m_impl.m_attrIds.size())
+  {
+    if (no < m_impl.m_attrIds.size())
+    {
+      NdbTableImpl* tab= m_impl.m_tableImpl;
+      if (tab == 0)
+        return 0;
+      return tab->getColumn(m_impl.m_attrIds[no]);
+    }
+  }
+  return 0;
 }
 
 void NdbDictionary::Event::mergeEvents(bool flag)

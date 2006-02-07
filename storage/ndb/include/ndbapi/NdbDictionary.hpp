@@ -1218,6 +1218,10 @@ public:
      */
     void addTableEvent(const TableEvent te);
     /**
+     * Check if a specific table event will be detected
+     */
+    bool getTableEvent(const TableEvent te) const;
+    /**
      * Set durability of the event
      */
     void setDurability(EventDurability);
@@ -1269,6 +1273,11 @@ public:
      * @return Number of columns, -1 on error
      */
     int getNoOfEventColumns() const;
+
+    /**
+     * Get a specific column in the event
+     */
+    const Column * getEventColumn(unsigned no) const;
 
     /**
      * The merge events flag is false by default.  Setting it true
