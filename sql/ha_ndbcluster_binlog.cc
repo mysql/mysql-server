@@ -20,6 +20,7 @@
 
 #ifdef HAVE_NDB_BINLOG
 #include "rpl_injector.h"
+#include "rpl_filter.h"
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
 
@@ -2016,6 +2017,12 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
   if (share->flags & NSF_NO_BINLOG)
   {
     DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x", share->flags));
+    DBUG_RETURN(0);
+  }
+
+  if (!binlog_filter->db_ok(share->db))
+  {
+    share->flags|= NSF_NO_BINLOG;
     DBUG_RETURN(0);
   }
 
