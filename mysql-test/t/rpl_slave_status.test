@@ -29,4 +29,8 @@ start slave;
 --vertical_results
 show slave status;
 
+connection master;
+drop table t1;
+sync_with_master;
+
 # end of 4.1 tests
