@@ -33,10 +33,12 @@ create table t1 (a int primary key) engine=ndb;
 
 --connection server2
 create table t2 (a int primary key) engine=ndb;
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
 
 --connection server1
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
 
@@ -51,6 +53,7 @@ reset master;
 alter table t2 add column (b int);
 
 --connections server1
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
 
@@ -70,6 +73,7 @@ ALTER DATABASE mysqltest CHARACTER SET latin1;
 drop table mysqltest.t1;
 
 --connection server1
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
 
@@ -87,6 +91,7 @@ drop database mysqltest;
 create table t1 (a int primary key) engine=ndb;
 
 --connection server2
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
 
@@ -139,5 +144,6 @@ ENGINE =NDB;
 drop table t1;
 
 --connection server2
+--replace_result $binlog_start <binlog_start>
 --replace_column 2 # 4 # 5 # 
 --eval show binlog events from $binlog_start
