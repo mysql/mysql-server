@@ -3,6 +3,7 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 ADD_DEFINITIONS(-DUSE_TLS -DMYSQL_CLIENT)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib ${CMAKE_SOURCE_DIR}/extra/yassl/include ${CMAKE_SOURCE_DIR}/libmysql)
+
 ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c 
                         ../strings/bmove_upp.c ../mysys/charset-def.c ../mysys/charset.c
                         ../sql-common/client.c ../strings/ctype-big5.c ../strings/ctype-bin.c 
@@ -38,8 +39,9 @@ ADD_LIBRARY(mysqlclient ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                         ../strings/strtoll.c ../strings/strtoull.c ../strings/strxmov.c ../strings/strxnmov.c 
                         ../mysys/thr_mutex.c ../mysys/typelib.c ../vio/vio.c ../vio/viosocket.c 
                         ../vio/viossl.c ../vio/viosslfactories.c ../strings/xml.c
-                        ${CMAKE_SOURCE_DIR}/include/mysql_version.h)
+                        ${PROJECT_SOURCE_DIR}/include/mysql_version.h)
 
+ADD_DEPENDENCIES(mysqlclient comp_err)
 ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
 LINK_DIRECTORIES(${MYSQL_BINARY_DIR}/mysys ${MYSQL_BINARY_DIR}/zlib)
 TARGET_LINK_LIBRARIES(mysql mysqlclient mysys yassl zlib dbug yassl  taocrypt wsock32)
