@@ -152,6 +152,7 @@ void my_end(int infoflag)
       DBUG_PRINT("error",("%s",errbuff[0]));
     }
   }
+  free_charsets();
   my_once_free();
 
   if ((infoflag & MY_GIVE_INFO) || print_info)
