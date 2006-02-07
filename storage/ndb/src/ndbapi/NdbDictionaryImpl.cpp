@@ -1143,6 +1143,12 @@ NdbEventImpl::addTableEvent(const NdbDictionary::Event::TableEvent t =  NdbDicti
   mi_type |= (unsigned)t;
 }
 
+bool
+NdbEventImpl::getTableEvent(const NdbDictionary::Event::TableEvent t) const
+{
+  return (mi_type & (unsigned)t) == (unsigned)t;
+}
+
 void
 NdbEventImpl::setDurability(NdbDictionary::Event::EventDurability d)
 {
