@@ -250,14 +250,14 @@ char *are_partitions_in_table(partition_info *new_part_info,
     FALSE                         Success
 */
 
-bool partition_default_handling(TABLE *table, partition_info *part_info)
+bool partition_default_handling(TABLE *table, partition_info *part_info,
+                                const char *normalized_path)
 {
   DBUG_ENTER("partition_default_handling");
 
   if (part_info->use_default_no_partitions)
   {
-    if (table->file->get_no_parts(table->s->normalized_path.str,
-                                  &part_info->no_parts))
+    if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
     {
       DBUG_RETURN(TRUE);
     }
@@ -266,8 +266,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info)
            part_info->use_default_no_subpartitions)
   {
     uint no_parts;
-    if (table->file->get_no_parts(table->s->normalized_path.str,
-                                  &no_parts))
+    if (table->file->get_no_parts(normalized_path, &no_parts))
     {
       DBUG_RETURN(TRUE);
     }
@@ -2005,7 +2004,8 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
 
   if (!is_create_table_ind)
   {
-    if (partition_default_handling(table, part_info))
+    if (partition_default_handling(table, part_info,
+                                   table->s->normalized_path.str))
     {
       DBUG_RETURN(TRUE);
     }
@@ -3901,9 +3901,15 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         old_lex->name contains the t2 and the table we are opening has 
         name t1.
       */
-      if (partition_default_handling(table, part_info))
+      Table_ident *table_ident= (Table_ident *)old_lex->name;
+      char *src_db= table_ident->db.str ? table_ident->db.str : thd->db;
+      char *src_table= table_ident->table.str;
+      char buf[FN_REFLEN];
+      build_table_filename(buf, sizeof(buf), src_db, src_table, "");
+      if (partition_default_handling(table, part_info, buf))
       {
-        DBUG_RETURN(TRUE);
+        result= TRUE;
+        goto end;
       }
     }
     else
