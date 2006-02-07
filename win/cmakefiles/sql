@@ -7,12 +7,13 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc
 							${CMAKE_SOURCE_DIR}/sql/message.h 
 							${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
 							${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-                            ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
-                            ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
-                            ${CMAKE_SOURCE_DIR}/include/sql_state.h
                             ${CMAKE_SOURCE_DIR}/include/mysql_version.h
                             ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
-                            ${CMAKE_SOURCE_DIR}/sql/lex_hash.h PROPERTIES GENERATED 1)
+                            ${CMAKE_SOURCE_DIR}/sql/lex_hash.h 
+                            ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
+                            ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+                            ${PROJECT_SOURCE_DIR}/include/sql_state.h PROPERTIES GENERATED 1)
+                            
 ADD_DEFINITIONS(-DWITH_INNOBASE_STORAGE_ENGINE -DHAVE_ARCHIVE_DB -DHAVE_BLACKHOLE_DB -DHAVE_EXAMPLE_DB)
 ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DHAVE_FEDERATED_DB -DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DWITH_PARTITION_STORAGE_ENGINE -D_CRT_SECURE_NO_DEPRECATE)
 
@@ -36,27 +37,27 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.
 					  sql_update.cc sql_view.cc sql_yacc.h sql_yacc.cc strfunc.cc table.cc thr_malloc.cc time.cc tztime.cc
 					  uniques.cc unireg.cc item_xmlfunc.cc rpl_tblmap.cc sql_binlog.cc event_executor.cc
 					  event_timed.cc sql_tablespace.cc event.cc ../sql-common/my_user.c
-					  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-  					  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
-					  ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
-					  ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h 
-					  ${CMAKE_SOURCE_DIR}/include/sql_state.h
-					  ${CMAKE_SOURCE_DIR}/include/mysql_version.h 
-					  ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
-					  ${CMAKE_SOURCE_DIR}/sql/lex_hash.h)
+					  ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
+  					  ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
+					  ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
+					  ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h 
+					  ${PROJECT_SOURCE_DIR}/include/sql_state.h
+					  ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
+					  ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
+					  ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg innobase mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
-	SOURCE ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
-	OUTPUT ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+	SOURCE ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy 
+	OUTPUT ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
 	COMMAND bison.exe ARGS --defines=sql_yacc.h	--output=sql_yacc.cc sql_yacc.yy
-	DEPENDS ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy)
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy)
 
 ADD_CUSTOM_COMMAND(
-	OUTPUT ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+	OUTPUT ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
 	COMMAND echo
-	DEPENDS ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
 )
 
 # Windows message file
@@ -67,43 +68,43 @@ ADD_CUSTOM_COMMAND(
 	DEPENDS ../VC++Files/sql/message.mc)
 
 # MySql_version.h.
-ADD_CUSTOM_COMMAND(
-	SOURCE ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in
-	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysql_version.h
-	COMMAND ${CMAKE_SOURCE_DIR}/win/config-version.js
-	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysql_version.h.in)
+#ADD_CUSTOM_COMMAND(
+#	SOURCE ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in
+#	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysql_version.h
+#	COMMAND ${PROJECT_SOURCE_DIR}/win/config-version.js
+#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in)
 
 # Handlerton file
 ADD_CUSTOM_COMMAND(
-	SOURCE ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in
-	OUTPUT ${CMAKE_SOURCE_DIR}/sql/handlerton.cc
-	COMMAND ${CMAKE_SOURCE_DIR}/win/config-handlerton.js ARGS ${CMAKE_SOURCE_DIR}/win/configure.data
-	DEPENDS ${CMAKE_SOURCE_DIR}/sql/handlerton.cc.in)
+	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
+	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
+	COMMAND ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
+	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
 
 # Error file
 GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
 ADD_CUSTOM_COMMAND(
-	SOURCE ${CMAKE_SOURCE_DIR}/sql/share/errmsg.txt
-	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysqld_error.h 
+	SOURCE ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
+	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
 	COMMAND ${COMP_ERR_EXE}
-	ARGS --charset=${CMAKE_SOURCE_DIR}/sql/share/charsets 
-	     --out-dir=${CMAKE_SOURCE_DIR}/sql/share/
-		 --header_file=${CMAKE_SOURCE_DIR}/include/mysqld_error.h 
-		 --name_file=${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
-	     --state_file=${CMAKE_SOURCE_DIR}/include/sql_state.h
-         --in_file=${CMAKE_SOURCE_DIR}/sql/share/errmsg.txt
+	ARGS --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
+	     --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
+		 --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
+		 --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+	     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
+         --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
     DEPENDS ${COMP_ERR_EXE} share/errmsg.txt)
 
 ADD_CUSTOM_COMMAND(
-	OUTPUT ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
 	COMMAND echo
-	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysqld_error.h
+	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
 )
 
 ADD_CUSTOM_COMMAND(
-	OUTPUT ${CMAKE_SOURCE_DIR}/include/sql_state.h
+	OUTPUT ${PROJECT_SOURCE_DIR}/include/sql_state.h
 	COMMAND echo
-	DEPENDS ${CMAKE_SOURCE_DIR}/include/mysqld_ername.h
+	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
 )
 
 
@@ -112,7 +113,9 @@ ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
 TARGET_LINK_LIBRARIES(gen_lex_hash dbug mysqlclient wsock32)
 GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
 ADD_CUSTOM_COMMAND(
-	OUTPUT ${CMAKE_SOURCE_DIR}/sql/lex_hash.h
+	OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h
 	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
 	DEPENDS ${GEN_LEX_HASH_EXE}
 )
+
+ADD_DEPENDENCIES(mysqld gen_lex_hash)
