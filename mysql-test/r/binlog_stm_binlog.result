@@ -1,3 +1,15 @@
+create table t1 (a int, b int) engine=innodb;
+begin;
+insert into t1 values (1,2);
+commit;
+show binlog events;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	102	Server ver: 5.1.7-beta-debug-log, Binlog ver: 4
+master-bin.000001	102	Query	1	209	use `test`; create table t1 (a int, b int) engine=innodb
+master-bin.000001	209	Query	1	277	use `test`; BEGIN
+master-bin.000001	277	Query	1	90	use `test`; insert into t1 values (1,2)
+master-bin.000001	367	Xid	1	394	COMMIT /* XID */
+drop table t1;
 drop table if exists t1, t2;
 reset master;
 create table t1 (a int) engine=bdb;
