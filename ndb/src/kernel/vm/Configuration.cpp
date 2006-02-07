@@ -48,11 +48,13 @@ extern EventLogger g_eventLogger;
 
 enum ndbd_options {
   OPT_INITIAL = NDB_STD_OPTIONS_LAST,
-  OPT_NODAEMON
+  OPT_NODAEMON,
+  OPT_FOREGROUND
 };
 
 NDB_STD_OPTS_VARS;
-static int _daemon, _no_daemon, _initial, _no_start;
+// XXX should be my_bool ???
+static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
 /**
  * Arguments to NDB process
  */ 
@@ -74,6 +76,11 @@ static struct my_option my_long_options[] =
   { "nodaemon", OPT_NODAEMON,
     "Do not start ndbd as daemon, provided for testing purposes",
     (gptr*) &_no_daemon, (gptr*) &_no_daemon, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "foreground", OPT_FOREGROUND,
+    "Run real ndbd in foreground, provided for debugging purposes"
+    " (implies --nodaemon)",
+    (gptr*) &_foreground, (gptr*) &_foreground, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -103,13 +110,14 @@ Configuration::init(int argc, char** argv)
 			       ndb_std_get_one_option)))
     exit(ho_error);
 
-  if (_no_daemon) {
+  if (_no_daemon || _foreground) {
     _daemon= 0;
   }
 
   DBUG_PRINT("info", ("no_start=%d", _no_start));
   DBUG_PRINT("info", ("initial=%d", _initial));
   DBUG_PRINT("info", ("daemon=%d", _daemon));
+  DBUG_PRINT("info", ("foreground=%d", _foreground));
   DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
 
   ndbSetOwnVersion();
@@ -131,6 +139,8 @@ Configuration::init(int argc, char** argv)
   // Check daemon flag
   if (_daemon)
     _daemonMode = true;
+  if (_foreground)
+    _foregroundMode = true;
 
   // Save programname
   if(argc > 0 && argv[0] != 0)
@@ -151,6 +161,7 @@ Configuration::Configuration()
   _backupPath = 0;
   _initialStart = false;
   _daemonMode = false;
+  _foregroundMode = false;
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;
