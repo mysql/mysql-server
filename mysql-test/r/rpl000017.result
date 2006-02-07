@@ -15,3 +15,4 @@ select * from t1;
 n
 24
 drop table t1;
+delete from mysql.user where user="replicate";

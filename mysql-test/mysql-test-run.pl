@@ -246,6 +246,7 @@ our $opt_manager_port;          # Does nothing now, we never use manager
 our $opt_old_master;
 
 our $opt_record;
+our $opt_check_testcases;
 
 our $opt_result_ext;
 
@@ -571,6 +572,7 @@ sub command_line_setup () {
 
              # Test case authoring
              'record'                   => \$opt_record,
+             'check-testcases'          => \$opt_check_testcases,
 
              # ???
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -2730,6 +2732,54 @@ sub im_stop($) {
   $instance_manager->{'pid'} = undef;
 }
 
+#
+# Run include/check-testcase.test
+# Before a testcase, run in record mode, save result file to var
+# After testcase, run and compare with the recorded file, they should be equal!
+#
+sub run_check_testcase ($) {
+
+  my $mode=     shift;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--silent");
+  mtr_add_arg($args, "-v");
+  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+
+  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_mysock'});
+  mtr_add_arg($args, "--port=%d", $master->[0]->{'path_myport'});
+  mtr_add_arg($args, "--database=test");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--password=");
+
+  mtr_add_arg($args, "-R");
+  mtr_add_arg($args, "$opt_vardir/tmp/check-testcase.result");
+
+  if ( $mode eq "before" )
+  {
+    mtr_add_arg($args, "--record");
+  }
+
+  my $res = mtr_run_test($exe_mysqltest,$args,
+	        "include/check-testcase.test", "", "", "");
+
+  if ( $res == 1  and $mode = "after")
+  {
+    mtr_run("diff",["-u",
+		    "$opt_vardir/tmp/check-testcase.result",
+		    "$opt_vardir/tmp/check-testcase.reject"],
+	    "", "", "", "");
+  }
+  elsif ( $res )
+  {
+    mtr_error("Could not execute 'check-testcase' $mode testcase");
+  }
+}
+
 sub run_mysqltest ($) {
   my $tinfo=       shift;
 
@@ -2983,7 +3033,18 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--record");
   }
 
-  return mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
+  if ( $opt_check_testcases )
+  {
+    run_check_testcase("before");
+  }
+
+  my $res = mtr_run_test($exe,$args,$tinfo->{'path'},"",$path_timefile,"");
+
+  if ( $opt_check_testcases )
+  {
+    run_check_testcase("after");
+  }
+  return $res;
 }
 
 
@@ -3067,6 +3128,7 @@ Options that specify ports
 Options for test case authoring
 
   record TESTNAME       (Re)genereate the result file for TESTNAME
+  check-testcases       Check testcases for sideeffects
 
 Options that pass on options
 
