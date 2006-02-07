@@ -1,6 +1,7 @@
 disable_query_log;
 -- source include/test_outfile.inc
-eval set @tmpdir="$MYSQL_TEST_DIR/var/tmp";
+# Server are started in "var/master-data", so "../tmp" will be "var/tmp"
+eval set @tmpdir="../tmp";
 enable_query_log;
 -- source include/have_outfile.inc
 
@@ -15,42 +16,43 @@ drop table if exists t1;
 create table t1 (`a` blob);
 insert into t1 values("hello world"),("Hello mars"),(NULL);
 disable_query_log;
-eval select * into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.1" from t1;
+eval select * into outfile "../tmp/outfile-test.1" from t1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.1"));
 disable_query_log;
-eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.2" from t1 limit 1;
+eval select * into dumpfile "../tmp/outfile-test.2" from t1 limit 1;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.2"));
 disable_query_log;
-eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1 where a is null;
+eval select * into dumpfile "../tmp/outfile-test.3" from t1 where a is null;
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.3"));
 
 # the following should give errors
 
-#disabled as error message has variable path
-#disable_query_log;
-#--error 1086
-#eval select * into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.1" from t1;
-#--error 1086
-#eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.2" from t1;
-#--error 1086
-#eval select * into dumpfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.3" from t1;
-#enable_query_log;
+disable_query_log;
+--error 1086
+eval select * into outfile "../tmp/outfile-test.1" from t1;
+
+--error 1086
+eval select * into dumpfile "../tmp/outfile-test.2" from t1;
+
+--error 1086
+eval select * into dumpfile "../tmp/outfile-test.3" from t1;
+enable_query_log;
 --error 13,2
 select load_file(concat(@tmpdir,"/outfile-test.not-exist"));
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.1
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.2
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.3
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.1
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.2
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.3
 drop table t1;
 
 # Bug#8191
 disable_query_log;
-eval select 1 into outfile "$MYSQL_TEST_DIR/var/tmp/outfile-test.4";
+eval select 1 into outfile "../tmp/outfile-test.4";
 enable_query_log;
 select load_file(concat(@tmpdir,"/outfile-test.4"));
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 #
 # Bug #5382: 'explain select into outfile' crashes the server
@@ -70,16 +72,16 @@ DROP TABLE t1;
 # Bug#13202  SELECT * INTO OUTFILE ... FROM information_schema.schemata now fails
 #
 disable_query_log;
-eval SELECT * INTO OUTFILE "$MYSQL_TEST_DIR/var/tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM information_schema.schemata LIMIT 0, 5;
 # enable_query_log;
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4
 
 use information_schema;
 # disable_query_log;
-eval SELECT * INTO OUTFILE "$MYSQL_TEST_DIR/var/tmp/outfile-test.4"
+eval SELECT * INTO OUTFILE "../tmp/outfile-test.4"
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 FROM schemata LIMIT 0, 5;
 enable_query_log;
---exec rm $MYSQL_TEST_DIR/var/tmp/outfile-test.4
+--exec rm $MYSQLTEST_VARDIR/tmp/outfile-test.4

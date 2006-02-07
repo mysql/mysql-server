@@ -1,4 +1,4 @@
-rm -f $MYSQL_TEST_DIR/var/master-data/master.info
-rm -f $MYSQL_TEST_DIR/var/master-data/*-bin.*
-rm -f $MYSQL_TEST_DIR/var/master-data/*.index
+rm -f $MYSQLTEST_VARDIR/master-data/master.info
+rm -f $MYSQLTEST_VARDIR/master-data/*-bin.*
+rm -f $MYSQLTEST_VARDIR/master-data/*.index
 
