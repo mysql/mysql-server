@@ -3061,8 +3061,11 @@ int ha_ndbcluster::end_bulk_insert()
         no_uncommitted_rows_execute_failure();
         my_errno= error= ndb_err(trans);
       }
-      int res= trans->restart();
-      DBUG_ASSERT(res == 0);
+      else
+      {
+        int res= trans->restart();
+        DBUG_ASSERT(res == 0);
+      }
     }
   }
 
