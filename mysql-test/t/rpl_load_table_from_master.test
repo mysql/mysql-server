@@ -15,14 +15,13 @@
 ############################################################
 # REQUIREMENT TEST 1:
 # LOAD TABLE FROM MASTER must work with a forced timestamp.
-#
-# REQUIREMENTi TEST 2:
-#LOAD TABLE FROM MASTER must work with table checksum
 ############################################################
 #
 # Test forced timestamp
 #
 -- source include/master-slave.inc
+
+-- echo "******************** Test Requirment 1 *************"
 
 # Don't log table creating to the slave as we want to test LOAD TABLE
 SET SQL_LOG_BIN=0,timestamp=200006;
@@ -48,6 +47,12 @@ connection master;
 
 # Don't log table creating to the slave as we want to test LOAD TABLE
 set SQL_LOG_BIN=0;
+
+#######################################################
+# REQUIREMENTi TEST 2:
+#LOAD TABLE FROM MASTER must work with table checksum
+#######################################################
+-- echo "******************** Test Requirment 2 *************"
 
 eval CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
 INSERT INTO t1 VALUES (1);

@@ -1,10 +1,17 @@
+##############################################
+# Change Author: JBM
+# Change Date: 2006-02-07
+# Change: Added ENGINE=MyISAM
+# Purpose: According to TU in 16552 This is how
+# to work around NDB's issue with temp tables
+##############################################
 source include/master-slave.inc;
 --disable_warnings
 create database if not exists mysqltest;
 --enable_warnings
 
-create temporary table mysqltest.t1 (n int);
-create temporary table mysqltest.t2 (n int);
+create temporary table mysqltest.t1 (n int)ENGINE=MyISAM;
+create temporary table mysqltest.t2 (n int)ENGINE=MyISAM;
 sync_slave_with_master;
 connection master;
 disconnect master;
