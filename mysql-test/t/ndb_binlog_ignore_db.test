@@ -1,0 +1,19 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+
+--let $binlog_start=102
+
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
+
+create database mysqltest;
+use mysqltest;
+create table t1 (a int primary key, b int) engine=ndb;
+insert into t1 values (1, 1);
+--replace_result $binlog_start <binlog_start>
+--replace_column 2 # 4 # 5 #
+--eval show binlog events from $binlog_start
+
+drop database mysqltest;
