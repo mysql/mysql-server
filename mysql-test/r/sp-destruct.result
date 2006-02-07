@@ -72,6 +72,12 @@ drop trigger t1_ai;
 create trigger t1_ai after insert on t1 for each row call bug14233_3();
 insert into t1 values (0);
 ERROR HY000: Failed to load routine test.bug14233_3. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
-delete from mysql.proc where name like 'bug14233%';
 drop trigger t1_ai;
 drop table t1;
+drop function bug14233_1;
+drop function bug14233_2;
+drop procedure bug14233_3;
+show procedure status;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+show function status;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
