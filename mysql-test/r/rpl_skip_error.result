@@ -13,3 +13,4 @@ n
 1
 2
 3
+drop table t1;
