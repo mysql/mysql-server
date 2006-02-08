@@ -2026,6 +2026,15 @@ sp_head::show_create_function(THD *thd)
     1) Mark used instructions
        1.1) While doing this, shortcut jumps to jump instructions
     2) Compact the code, removing unused instructions
+
+  This is the main mark and move loop; it relies on the following methods
+  in sp_instr and its subclasses:
+
+  opt_mark()           Mark instruction as reachable (will recurse for jumps)
+  opt_shortcut_jump()  Shortcut jumps to the final destination;
+                       used by opt_mark().
+  opt_move()           Update moved instruction
+  set_destination()    Set the new destination (jump instructions only)
 */
 
 void sp_head::optimize()
@@ -2718,12 +2727,6 @@ sp_instr_hpop::print(String *str)
   str->qs_append(m_count);
 }
 
-void
-sp_instr_hpop::backpatch(uint dest, sp_pcontext *dst_ctx)
-{
-  m_count= m_ctx->diff_handlers(dst_ctx);
-}
-
 
 /*
   sp_instr_hreturn class functions
@@ -2843,12 +2846,6 @@ sp_instr_cpop::print(String *str)
     return;
   str->qs_append(STRING_WITH_LEN("cpop "));
   str->qs_append(m_count);
-}
-
-void
-sp_instr_cpop::backpatch(uint dest, sp_pcontext *dst_ctx)
-{
-  m_count= m_ctx->diff_cursors(dst_ctx);
 }
 
 
