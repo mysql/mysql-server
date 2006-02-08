@@ -370,7 +370,6 @@ void AsyncFile::openReq(Request* request)
   const int mode = S_IRUSR | S_IWUSR |
 	           S_IRGRP | S_IWGRP |
 		   S_IROTH | S_IWOTH;
-retry:
   if(flags & FsOpenReq::OM_CREATE_IF_NONE){
     if((theFd = ::open(theFileName.c_str(), new_flags, mode)) != -1) {
       close(theFd);
@@ -432,6 +431,7 @@ retry:
 
       m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal, 
 			  FsReadWriteReq::FixedLength + 1);
+  retry:
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0){
@@ -449,9 +449,21 @@ retry:
       }
       if(size != 0)
       {
+	int err = errno;
+#ifdef O_DIRECT
+	if ((new_flags & O_DIRECT) && off == 0)
+	{
+	  ndbout_c("error on first write(%d), disable O_DIRECT", err);
+	  new_flags &= ~O_DIRECT;
+	  close(theFd);
+	  theFd = ::open(theFileName.c_str(), new_flags, mode);
+	  if (theFd != -1)
+	    goto retry;
+	}
+#endif
 	close(theFd);
 	unlink(theFileName.c_str());
-	request->error = errno;
+	request->error = err;
 	return;
       }
       off += request->par.open.page_size;
