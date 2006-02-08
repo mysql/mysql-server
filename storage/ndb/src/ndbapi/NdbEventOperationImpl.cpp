@@ -639,6 +639,14 @@ NdbEventOperationImpl::receive_event()
                                     m_buffer.length() / 4, 
                                     true);
     m_buffer.clear();
+    if (at)
+      at->buildColumnHash();
+    else
+    {
+      DBUG_PRINT_EVENT("info", ("Failed to parse DictTabInfo error %u", 
+                                error.code));
+      DBUG_RETURN_EVENT(1);
+    }
     if ( m_eventImpl->m_tableImpl) 
       delete m_eventImpl->m_tableImpl;
     m_eventImpl->m_tableImpl = at;

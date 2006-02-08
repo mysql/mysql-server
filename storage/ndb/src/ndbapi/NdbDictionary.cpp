@@ -1337,6 +1337,13 @@ NdbDictionary::Dictionary::getTable(const char * name, void **data) const
   return 0;
 }
 
+void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
+{
+ NdbDictionary::Table  *copy_table = new NdbDictionary::Table;
+  *copy_table = *table;
+  m_impl.putTable(&NdbTableImpl::getImpl(*copy_table));
+}
+
 void NdbDictionary::Dictionary::set_local_table_data_size(unsigned sz)
 {
   m_impl.m_local_table_data_size= sz;
