@@ -4,6 +4,11 @@
 
 -- source include/is_debug_build.inc
 
+--disable_warnings
+drop procedure if exists empty;
+drop procedure if exists code_sample;
+--enable_warnings
+
 create procedure empty()
 begin
 end;
@@ -47,3 +52,141 @@ end//
 delimiter ;//
 show procedure code code_sample;
 drop procedure code_sample;
+
+
+#
+# BUG#15737: Stored procedure optimizer bug with LEAVE
+#
+# This is a much more extensive test case than is strictly needed,
+# but it was kept as is for two reasons:
+# - The bug occurs under some quite special circumstances, so it
+#   wasn't trivial to create a smaller test,
+# - There's some value in having another more complex code sample
+#   in this test file. This might catch future code generation bugs
+#   that doesn't show in behaviour in any obvious way.
+
+--disable_warnings
+drop procedure if exists sudoku_solve;
+--enable_warnings
+
+delimiter //;
+create procedure sudoku_solve(p_naive boolean, p_all boolean)
+  deterministic
+  modifies sql data
+begin
+  drop temporary table if exists sudoku_work, sudoku_schedule;
+
+  create temporary table sudoku_work
+  (
+    row smallint not null,
+    col smallint not null,
+    dig smallint not null,
+    cnt smallint,
+    key using btree (cnt),
+    key using btree (row),
+    key using btree (col),
+    unique key using hash (row,col)
+  );
+
+  create temporary table sudoku_schedule
+  (
+    idx int not null auto_increment primary key,
+    row smallint not null,
+    col smallint not null
+  );
+
+  call sudoku_init();
+
+  if p_naive then
+    update sudoku_work set cnt = 0 where dig = 0;
+  else
+    call sudoku_count();
+  end if;
+  insert into sudoku_schedule (row,col)
+    select row,col from sudoku_work where cnt is not null order by cnt desc;
+
+  begin
+    declare v_scounter bigint default 0;
+    declare v_i smallint default 1;
+    declare v_dig smallint;
+    declare v_schedmax smallint;
+
+    select count(*) into v_schedmax from sudoku_schedule;
+
+   more: 
+    loop
+    begin
+      declare v_tcounter bigint default 0;
+
+     sched:
+      while v_i <= v_schedmax do
+      begin
+        declare v_row, v_col smallint;
+
+        select row,col into v_row,v_col from sudoku_schedule where v_i = idx;
+
+        select dig into v_dig from sudoku_work
+          where v_row = row and v_col = col;
+
+        case v_dig
+        when 0 then
+          set v_dig = 1;
+          update sudoku_work set dig = 1
+            where v_row = row and v_col = col;
+        when 9 then
+          if v_i > 0 then
+            update sudoku_work set dig = 0
+              where v_row = row and v_col = col;
+            set v_i = v_i - 1;
+            iterate sched;
+          else
+            select v_scounter as 'Solutions';
+            leave more;
+          end if;
+        else
+          set v_dig = v_dig + 1;
+          update sudoku_work set dig = v_dig
+            where v_row = row and v_col = col;
+        end case;
+
+        set v_tcounter = v_tcounter + 1;
+        if not sudoku_digit_ok(v_row, v_col, v_dig) then
+          iterate sched;
+        end if;
+        set v_i = v_i + 1;
+      end;
+      end while sched;
+
+      select dig from sudoku_work;
+      select v_tcounter as 'Tests';
+      set v_scounter = v_scounter + 1;
+
+      if p_all and v_i > 0 then
+        set v_i = v_i - 1;
+      else
+        leave more;
+      end if;
+    end;
+    end loop more;
+  end;
+
+  drop temporary table sudoku_work, sudoku_schedule;
+end//
+delimiter ;//
+
+# The interestings parts are where the code for the two "leave" are:
+# ...
+#|  26 | jump_if_not 30 (v_i@3 > 0)                                            |
+# ...
+#|  30 | stmt 0 "select v_scounter as 'Solutions'"                             |
+#|  31 | jump 45                                                               |
+# ...
+#|  42 | jump_if_not 45 (p_all@1 and (v_i@3 > 0))                              |
+#|  43 | set v_i@3 (v_i@3 - 1)                                                 |
+#|  44 | jump 14                                                               |
+#|  45 | stmt 9 "drop temporary table sudoku_work, sud..."                     |
+#+-----+-----------------------------------------------------------------------+
+# The bug appeared at position 42 (with the wrong destination).
+show procedure code sudoku_solve;
+
+drop procedure sudoku_solve;
