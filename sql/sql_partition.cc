@@ -1984,6 +1984,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
     DBUG_RETURN(FALSE);
   }
   thd->set_query_id= 0;
+  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   /*
     Set-up the TABLE_LIST object to be a list with a single table
     Set the object to zero to create NULL pointers and set alias
@@ -2120,6 +2121,7 @@ bool fix_partition_func(THD *thd, const char* name, TABLE *table,
   result= FALSE;
 end:
   thd->set_query_id= save_set_query_id;
+  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   DBUG_RETURN(result);
 }
 
