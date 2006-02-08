@@ -12,7 +12,7 @@ PRIMARY KEY  (id),
 UNIQUE KEY unique_rec (name,number)
 ) ENGINE=InnoDB;
 LOAD DATA
-INFILE '../../std_data/loaddata_pair.dat'  
+INFILE '../std_data_ln/loaddata_pair.dat'  
 REPLACE INTO TABLE t4 
 (name,number);
 SELECT * FROM t4;
@@ -24,7 +24,7 @@ id	name	number
 1	XXX	12345
 2	XXY	12345
 LOAD DATA
-INFILE '../../std_data/loaddata_pair.dat'  
+INFILE '../std_data_ln/loaddata_pair.dat'  
 REPLACE INTO TABLE t4
 (name,number);
 SELECT * FROM t4;

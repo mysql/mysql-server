@@ -196,7 +196,6 @@ use db2;
 call q();
 select * from t2;
 
-
 #
 # BUG#6030: Stored procedure has no appropriate DROP privilege
 # (or ALTER for that matter)
@@ -233,9 +232,13 @@ drop database db2;
 select type,db,name from mysql.proc;
 # Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
+delete from mysql.user where user='' and host='%';
 # And any routine privileges
 delete from mysql.procs_priv where user='user1' or user='user2';
-
+# Delete the grants to user ''@'%' that was created above
+delete from mysql.procs_priv where user='' and host='%';
+delete from mysql.db where user='user2';
+flush privileges;
 #
 # Test the new security acls
 #
@@ -304,6 +307,9 @@ use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
 delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
+delete from mysql.tables_priv where user='usera';
+flush privileges;
+drop table t1;
 
 #
 # BUG#9503: reseting correct parameters of thread after error in SP function
