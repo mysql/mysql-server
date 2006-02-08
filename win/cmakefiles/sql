@@ -1,7 +1,11 @@
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX -DUSE_SYMDIR")
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/yassl/include ${CMAKE_SOURCE_DIR}/sql ${CMAKE_SOURCE_DIR}/regex ${CMAKE_SOURCE_DIR}/zlib)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include 
+                    ${CMAKE_SOURCE_DIR}/sql 
+                    ${CMAKE_SOURCE_DIR}/regex 
+                    ${CMAKE_SOURCE_DIR}/zlib)
 
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
 							${CMAKE_SOURCE_DIR}/sql/message.h 
@@ -46,6 +50,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc discover.
 					  ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
 					  ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 TARGET_LINK_LIBRARIES(mysqld heap myisam myisammrg innobase mysys yassl zlib dbug yassl taocrypt strings vio regex wsock32)
+ADD_DEPENDENCIES(mysqld GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
@@ -82,30 +87,30 @@ ADD_CUSTOM_COMMAND(
 	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
 
 # Error file
-GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
-ADD_CUSTOM_COMMAND(
-	SOURCE ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-	COMMAND ${COMP_ERR_EXE}
-	ARGS --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-	     --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
-		 --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-		 --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-	     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
-         --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-    DEPENDS ${COMP_ERR_EXE} share/errmsg.txt)
+#GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
+#ADD_CUSTOM_COMMAND(
+	#SOURCE ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
+	#OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
+	#COMMAND ${COMP_ERR_EXE}
+	#ARGS --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
+	#     --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
+##		 --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
+#		 --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+#	     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
+ #        --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
+  #  DEPENDS ${COMP_ERR_EXE} share/errmsg.txt)
 
-ADD_CUSTOM_COMMAND(
-	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-	COMMAND echo
-	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-)
+#ADD_CUSTOM_COMMAND(
+#	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+#	COMMAND echo
+#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
+#)
 
-ADD_CUSTOM_COMMAND(
-	OUTPUT ${PROJECT_SOURCE_DIR}/include/sql_state.h
-	COMMAND echo
-	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-)
+#ADD_CUSTOM_COMMAND(
+#	OUTPUT ${PROJECT_SOURCE_DIR}/include/sql_state.h
+#	COMMAND echo
+#	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+#)
 
 
 # Gen_lex_hash
