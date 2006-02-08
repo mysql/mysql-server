@@ -1338,6 +1338,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     */
     bool save_set_query_id= thd->set_query_id;
     thd->set_query_id= 0;
+    DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
     for (Field_translator *fld= trans; fld < end_of_trans; fld++)
     {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
@@ -1347,6 +1348,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       }
     }
     thd->set_query_id= save_set_query_id;
+    DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   }
   /* Loop over all keys to see if a unique-not-null key is used */
   for (;key_info != key_info_end ; key_info++)
