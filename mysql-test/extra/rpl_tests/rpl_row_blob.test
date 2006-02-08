@@ -20,12 +20,11 @@ DROP TABLE IF EXISTS test.t2;
 --echo *****  Table Create Section ****
 --echo
 --disable_warnings
---replace_result $engine_type engine_type
-CREATE TABLE test.t1 (c1 int not null auto_increment, 
+--replace_result $engine_type #
+eval CREATE TABLE test.t1 (c1 int not null auto_increment, 
 data LONGBLOB, PRIMARY KEY(c1))ENGINE=$engine_type;
 --enable_warnings
 --echo
-
 --echo **** Data Insert Section test.t1 *****
 --echo
 INSERT INTO test.t1 VALUES (NULL, NULL);
@@ -77,8 +76,8 @@ connection master;
 --echo **** Create Table test.t2 ****
 --echo
 --disable_warnings
---replace_result $engine_type engine_type
-CREATE TABLE test.t2 (
+--replace_result $engine_type #
+eval CREATE TABLE test.t2 (
   c1 INT NOT NULL PRIMARY KEY,
   c2 TEXT,
   c3 INT,

@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS test.t2;
 *****  Table Create Section ****
 
 CREATE TABLE test.t1 (c1 int not null auto_increment, 
-data LONGBLOB, PRIMARY KEY(c1))ENGINE=engine_type;
+data LONGBLOB, PRIMARY KEY(c1))ENGINE=#;
 
 **** Data Insert Section test.t1 *****
 
@@ -76,7 +76,7 @@ c1 INT NOT NULL PRIMARY KEY,
 c2 TEXT,
 c3 INT,
 c4 LONGBLOB,
-KEY(c3))ENGINE=engine_type;
+KEY(c3))ENGINE=#;
 
 *** Setup Values For test.t2 ***
 set @x0 = '01234567012345670123456701234567';
