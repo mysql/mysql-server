@@ -3605,6 +3605,59 @@ static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 
 
 /*
+  Append the result for one field to the dynamic string ds
+*/
+
+static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
+                         const char* val, ulonglong len, bool is_null)
+{
+
+  char buf[256];
+  if (col_idx < max_replace_column && replace_column[col_idx])
+  {
+    val= replace_column[col_idx];
+    len= strlen(val);
+  }
+  else if (is_null)
+  {
+    val= "NULL";
+    len= 4;
+  }
+#ifdef __WIN__
+  else if ((field->type == MYSQL_TYPE_DOUBLE ||
+            field->type == MYSQL_TYPE_FLOAT ) &&
+           field->decimals >= 31)
+  {
+    /* Convert 1.2e+018 to 1.2e+18 and 1.2e-018 to 1.2e-18 */
+    char *start= strchr(val, 'e');
+    if (start && strlen(start) >= 5 &&
+        (start[1] == '-' || start[1] == '+') && start[2] == '0')
+    {
+      start+=2; /* Now points at first '0' */
+      /* Move all chars after the first '0' one step left */
+      memmove(start, start + 1, strlen(start));
+      len--;
+    }
+  }
+#endif
+
+  if (!display_result_vertically)
+  {
+    if (col_idx)
+      dynstr_append_mem(ds, "\t", 1);
+    replace_dynstr_append_mem(ds, val, (int)len);
+  }
+  else
+  {
+    dynstr_append(ds, field->name);
+    dynstr_append_mem(ds, "\t", 1);
+    replace_dynstr_append_mem(ds, val, (int)len);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+}
+
+
+/*
   Append all results to the dynamic string separated with '\t'
   Values may be converted with 'replace_column'
 */
@@ -3613,41 +3666,16 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 {
   MYSQL_ROW row;
   uint num_fields= mysql_num_fields(res);
-  MYSQL_FIELD *fields= !display_result_vertically ? 0 : mysql_fetch_fields(res);
+  MYSQL_FIELD *fields= mysql_fetch_fields(res);
   ulong *lengths;
+
   while ((row = mysql_fetch_row(res)))
   {
     uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++)
-    {
-      const char *val= row[i];
-      ulonglong len= lengths[i];
-
-      if (i < max_replace_column && replace_column[i])
-      {
-	val= replace_column[i];
-	len= strlen(val);
-      }
-      if (!val)
-      {
-	val= "NULL";
-	len= 4;
-      }
-      if (!display_result_vertically)
-      {
-	if (i)
-	  dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, (int)len);
-      }
-      else
-      {
-	dynstr_append(ds, fields[i].name);
-	dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, (int)len);
-	dynstr_append_mem(ds, "\n", 1);
-      }
-    }
+      append_field(ds, i, &fields[i],
+                   (const char*)row[i], lengths[i], !row[i]);
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -3661,13 +3689,12 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 */
 
 static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
-			       MYSQL_FIELD *field, uint num_fields)
+                               MYSQL_FIELD *fields, uint num_fields)
 {
   MYSQL_BIND *bind;
   my_bool *is_null;
   ulong *length;
-  ulonglong num_rows;
-  uint col_idx, row_idx;
+  uint i;
 
   /* Allocate array with bind structs, lengths and NULL flags */
   bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
@@ -3677,71 +3704,29 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   is_null= (my_bool*) my_malloc(num_fields * sizeof(my_bool),
 				MYF(MY_WME | MY_FAE));
 
-  for (col_idx= 0; col_idx < num_fields; col_idx++)
+  /* Allocate data for the result of each field */
+  for (i= 0; i < num_fields; i++)
   {
-    /* Allocate data for output */
-    uint max_length= field[col_idx].max_length + 1;
-    char *str_data= (char *) my_malloc(max_length, MYF(MY_WME | MY_FAE));
-
-    bind[col_idx].buffer_type= MYSQL_TYPE_STRING;
-    bind[col_idx].buffer= (char *)str_data;
-    bind[col_idx].buffer_length= max_length;
-    bind[col_idx].is_null= &is_null[col_idx];
-    bind[col_idx].length= &length[col_idx];
+    uint max_length= fields[i].max_length + 1;
+    bind[i].buffer_type= MYSQL_TYPE_STRING;
+    bind[i].buffer= (char *)my_malloc(max_length, MYF(MY_WME | MY_FAE));
+    bind[i].buffer_length= max_length;
+    bind[i].is_null= &is_null[i];
+    bind[i].length= &length[i];
 
     DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %d",
-			col_idx,
-			bind[col_idx].buffer_type,
-			bind[col_idx].buffer_length));
+			i, bind[i].buffer_type, bind[i].buffer_length));
   }
 
-  /* Fill in the data into the structures created above */
   if (mysql_stmt_bind_result(stmt, bind))
     die("mysql_stmt_bind_result failed: %d: %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
-  /* Read result from each row */
-  num_rows= mysql_stmt_num_rows(stmt);
-  for (row_idx= 0; row_idx < num_rows; row_idx++)
+  while (mysql_stmt_fetch(stmt) == 0)
   {
-    if (mysql_stmt_fetch(stmt))
-      die("mysql_stmt_fetch failed: %d %s",
-	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
-
-    /* Read result from each column */
-    for (col_idx= 0; col_idx < num_fields; col_idx++)
-    {
-      const char *val;
-      ulonglong len;
-      if (col_idx < max_replace_column && replace_column[col_idx])
-      {
-	val= replace_column[col_idx];
-	len= strlen(val);
-      }
-      else if (*bind[col_idx].is_null)
-      {
-	val= "NULL";
-	len= 4;
-      }
-      else
-      {
-	val= (const char *) bind[col_idx].buffer;
-	len= *bind[col_idx].length;
-      }
-      if (!display_result_vertically)
-      {
-	if (col_idx)                      /* No tab before first col */
-	  dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, (int)len);
-      }
-      else
-      {
-	dynstr_append(ds, field[col_idx].name);
-	dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, (int)len);
-	dynstr_append_mem(ds, "\n", 1);
-      }
-    }
+    for (i= 0; i < num_fields; i++)
+      append_field(ds, i, &fields[i], (const char *) bind[i].buffer,
+                   *bind[i].length, *bind[i].is_null);
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -3752,10 +3737,10 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
 
   free_replace_column();
 
-  for (col_idx= 0; col_idx < num_fields; col_idx++)
+  for (i= 0; i < num_fields; i++)
   {
     /* Free data for output */
-    my_free((gptr)bind[col_idx].buffer, MYF(MY_WME | MY_FAE));
+    my_free((gptr)bind[i].buffer, MYF(MY_WME | MY_FAE));
   }
   /* Free array with bind structs, lengths and NULL flags */
   my_free((gptr)bind    , MYF(MY_WME | MY_FAE));
