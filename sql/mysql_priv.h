@@ -1168,21 +1168,24 @@ typedef struct st_table_log_entry
   char entry_type;
 } TABLE_LOG_ENTRY;
 
+typedef struct st_table_log_memory_entry
+{
+  uint entry_pos;
+  TABLE_LOG_MEMORY *next_log_entry;
+  TABLE_LOG_MEMORY *prev_log_entry;
+  TABLE_LOG_MEMORY *next_active_log_entry;
+} TABLE_LOG_MEMORY_ENTRY;
 
 bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
-                           uint next_entry,
-                           uint *entry_written);
-bool write_execute_table_log_entry(uint first_entry, uint *exec_entry);
-uint read_table_log_header();
-bool read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry);
-bool init_table_log();
+                           TABLE_LOG_MEMORY_ENTRY **active_entry);
+bool write_execute_table_log_entry(uint first_entry,
+                                   TABLE_LOG_MEMORY_ENTRY **active_entry);
+void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
 void release_table_log();
 void execute_table_log_recovery();
 bool execute_table_log_entry(uint first_entry);
-bool execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry);
 void lock_global_table_log();
 void unlock_global_table_log();
-bool sync_table_log();
 
 bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
 bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);

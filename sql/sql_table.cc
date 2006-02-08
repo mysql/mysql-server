@@ -265,22 +265,19 @@ static int mysql_copy_key_list(List<Key> *orig_key,
    and there is a global struct that contains information about its current
    state.
 
+   History:
+   First version written in 2006 by Mikael Ronstrom
 --------------------------------------------------------------------------
 */
 
-
-typedef struct st_table_log_memory_entry
-{
-  uint entry_pos;
-} TABLE_LOG_MEMORY_ENTRY;
 
 typedef struct st_global_table_log
 {
   char file_entry[IO_SIZE];
   char file_name_str[FN_REFLEN];
   char *file_name;
-  List<TABLE_LOG_MEMORY_ENTRY> free_entries;
-  List<TABLE_LOG_MEMORY_ENTRY> log_entries;
+  TABLE_LOG_MEMORY_ENTRY *first_free;
+  TABLE_LOG_MEMORY_ENTRY *first_used;
   uint no_entries;
   File file_id;
   uint name_len;
@@ -301,6 +298,7 @@ pthread_mutex_t LOCK_gtl;
     FALSE                     Success
 */
 
+static
 bool
 sync_table_log()
 {
@@ -308,7 +306,10 @@ sync_table_log()
   DBUG_ENTER("sync_table_log");
 
   if (my_sync(global_table_log.file_id, MYF(0)))
+  {
+    /* Write to error log */
     error= TRUE;
+  }
   DBUG_RETURN(error);
 }
 
@@ -317,8 +318,6 @@ sync_table_log()
   Write one entry from table log file
   SYNOPSIS
     write_table_log_file_entry()
-    file_id                      File identifier
-    file_entry                   Memory area to read entry into
     entry_no                     Entry number to read
   RETURN VALUES
     TRUE                         Error
@@ -327,16 +326,276 @@ sync_table_log()
 
 static
 bool
-write_table_log_file_entry(File file_id, byte *file_entry, uint entry_no)
+write_table_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
-  DBUG_ENTER("read_table_log_file_entry");
+  File file_id= global_table_log.file_id;
+  char *file_entry= (char*)global_table_log.file_entry;
+  DBUG_ENTER("write_table_log_file_entry");
 
   if (my_pwrite(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
     error= TRUE;
   DBUG_RETURN(error);
 }
 
+
+/*
+  Write table log header
+  SYNOPSIS
+    write_table_log_header()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+static
+bool
+write_table_log_header()
+{
+  uint16 const_var;
+  bool error= FALSE;
+  DBUG_ENTER("write_table_log_header");
+
+  int4store(&global_table_log.file_entry[0], global_table_log.no_entries);
+  const_var= NAMELEN;
+  int2store(&global_table_log.file_entry[4], const_var);
+  const_var= 32;
+  int2store(&global_table_log.file_entry[6], const_var);
+  if (write_table_log_file_entry(0UL))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Read one entry from table log file
+  SYNOPSIS
+    read_table_log_file_entry()
+    entry_no                     Entry number to read
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+*/
+
+static
+bool
+read_table_log_file_entry(uint entry_no)
+{
+  bool error= FALSE;
+  File file_id= global_table_log.file_id;
+  char *file_entry= (char*)global_table_log.file_entry;
+  DBUG_ENTER("read_table_log_file_entry");
+
+  if (my_pread(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Create table log file name
+  SYNOPSIS
+    create_table_log_file_name()
+    file_name                   Filename setup
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+create_table_log_file_name(char *file_name)
+{
+  strxmov(file_name, mysql_data_home, "/", "table_log.log", NullS);
+}
+
+
+/*
+  Read header of table log file
+  SYNOPSIS
+    read_table_log_header()
+  RETURN VALUES
+    > 0                  Last entry in table log
+    0                    No entries in table log
+  DESCRIPTION
+    When we read the table log header we get information about maximum sizes
+    of names in the table log and we also get information about the number
+    of entries in the table log.
+*/
+
+static
+uint
+read_table_log_header()
+{
+  char *file_entry= (char*)global_table_log.file_entry;
+  char file_name[FN_REFLEN];
+  DBUG_ENTER("read_table_log_header");
+
+  bzero(file_entry, sizeof(global_table_log.file_entry));
+  create_table_log_file_name(file_name);
+  if (!(my_open(file_name, O_RDWR | O_TRUNC, MYF(0))))
+  {
+    if (read_table_log_file_entry(0UL))
+    {
+      /* Write message into error log */
+    }
+  }
+  entry_no= uint4korr(&file_entry[0]);
+  global_table_log.name_len= uint2korr(&file_entry[4]);
+  global_table_log.handler_type_len= uint2korr(&file_entry[6]);
+  global_table_log.first_free= NULL;
+  global_table_log.first_used= NULL;
+  global_table_log.no_entries= 0;
+  VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
+  DBUG_RETURN(entry_no);
+}
+
+
+/*
+  Read a table log entry
+  SYNOPSIS
+    read_table_log_entry()
+    read_entry               Number of entry to read
+    out:entry_info           Information from entry
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Read a specified entry in the table log
+*/
+
+bool
+read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
+{
+  char *file_entry= (char*)&global_table_log.file_entry;
+  DBUG_ENTER("read_table_log_entry");
+
+  if (read_table_log_file_entry(global_table_log.file_id,
+                                (char*)&file_entry, read_entry))
+  {
+    /* Error handling */
+    DBUG_RETURN(TRUE);
+  }
+  table_log_entry->entry_type= file_entry[0];
+  table_log_entry->action_type= file_entry[1];
+  table_log_entry->next_entry= uint4korr(&file_entry[2]);
+  table_log_entry->name= &file_entry[6];
+  index= 6 + global_table_log->name_len;
+  table_log_entry->from_name= &file_entry[index];
+  index+= global_table_log->name_len;
+  table_log_entry->handler_type= &file_entry[index];
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Initialise table log
+  SYNOPSIS
+    init_table_log()
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Write the header of the table log file and length of names. Also set
+    number of entries to zero.
+*/
+
+static
+bool
+init_table_log()
+{
+  bool error= FALSE;
+  char file_name[FN_REFLEN];
+  DBUG_ENTER("init_table_log");
+
+  create_table_log_file_name(file_name);
+  VOID(my_delete(file_name));
+  if ((global_table_log.file_id= my_create(file_name,
+                                           CREATE_MODE,
+                                           create_flags, MYF(0))) < 0)
+  {
+    /* Couldn't create table log file, this is serious error */
+    abort();
+  }
+  if (write_table_log_header())
+  {
+    /* Write to error log */
+    error= TRUE;
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Execute one action in a table log entry
+  SYNOPSIS
+    execute_table_log_action()
+    table_log_entry              Information in action entry to execute
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+static
+bool
+execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
+{
+  DBUG_ENTER("execute_table_log_action");
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Get a free entry in the table log
+  SYNOPSIS
+    get_free_table_log_entry()
+    out:active_entry                A table log memory entry returned
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+static
+bool
+get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry)
+{
+  bool write_header;
+  TABLE_LOG_MEMORY_ENTRY *used_entry;
+  TABLE_LOG_MEMORY_ENTRY *first_used= global_table_log.first_used;
+  if (global_table_log.first_free == NULL)
+  {
+    if (!(used_entry= my_malloc(sizeof(TABLE_LOG_MEMORY_ENTRY))))
+    {
+      DBUG_RETURN(TRUE);
+    }
+    global_table_log.no_entries++;
+    used_entry->entry_no= entry_no= global_table_log.no_entries;
+    write_header= TRUE;
+  }
+  else
+  {
+    used_entry= global_table_log.first_free;
+    global_table_log.first_free= used_entry->next_log_entry;
+    entry_no= first_free->entry_pos;
+    used_entry= first_free;
+    write_header= FALSE;
+  }
+  /*
+    Move from free list to used list
+  */
+  used_entry->next_log_entry= first_used;
+  used_entry->prev_log_entry= NULL;
+  global_table_log.first_used= used_entry;
+  if (first_used)
+    first_used->prev_log_entry= used_entry;
+
+  *active_entry= used_entry;
+}
+
+
+/*
+  External interface methods for the Table log Module
+  ---------------------------------------------------
+*/
 
 /*
   SYNOPSIS
@@ -355,9 +614,9 @@ write_table_log_file_entry(File file_id, byte *file_entry, uint entry_no)
 
 bool
 write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
-                      uint *entry_written)
+                      TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
-  bool write_header, error;
+  bool error;
   DBUG_ENTER("write_table_log_entry");
 
   global_table_log.file_entry[0]= 'i';
@@ -372,51 +631,20 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
           table_log_entry->from_name);
   strcpy(&global_table_log.file_entry[6 + (2*NAMELEN)],
          table_log_entry->handler_type);
-  if (global_table_log.free_entries.is_empty())
+  if (get_free_table_log_entry(active_entry))
   {
-    global_table_log.no_entries++;
-    entry_no= global_table_log.no_entries;
-    write_header= TRUE;
-  }
-  else
-  {
-    TABLE_LOG_MEMORY *tmp= global_table_log.free_entries.pop();
-    global_table_log.log_entries.push_back(tmp);
-    entry_no= tmp->entry_pos;
-    write_header= FALSE;
+    DBUG_RETURN(TRUE);
   }
   error= FALSE;
-  if (write_table_log_entry(global_table_log.file_id,
-                            global_table_log.file_entry,
-                            entry_no))
+  if (write_table_log_file_entry(global_table_log.file_id,
+                                 global_table_log.file_entry,
+                                 (*active_entry)->entry_pos))
     error= TRUE;
   else if (write_header || !(write_table_log_header()))
     error= TRUE;
+  if (error)
+    release_table_log_memory_entry(*active_entry);
   DBUG_RETURN(error);
-}
-
-
-/*
-  Write table log header
-  SYNOPSIS
-    write_table_log_header()
-  RETURN VALUES
-    TRUE                      Error
-    FALSE                     Success
-*/
-
-bool
-write_table_log_header()
-{
-  uint16 const_var;
-  DBUG_ENTER("write_table_log_header");
-
-  int4store(&global_table_log.file_entry[0], global_table_log.no_entries);
-  const_var= NAMELEN;
-  int2store(&global_table_log.file_entry[4], const_var);
-  const_var= 32;
-  int2store(&global_table_log.file_entry[6], const_var);
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -442,118 +670,141 @@ write_table_log_header()
 */ 
 
 bool
-write_execute_table_log_entry(uint first_entry, uint *exec_entry)
+write_execute_table_log_entry(uint first_entry,
+                              TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
+  char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("write_execute_table_log_entry");
+
+  VOID(sync_table_log());
+  file_entry[0]= 'e';
+  file_entry[1]= 0; /* Ignored for execute entries */
+  int4store(&file_entry[2], first_entry);
+  file_entry[6]= 0;
+  file_entry[6 + NAMELEN]= 0;
+  file_entry[6 + 2*NAMELEN]= 0;
+  if (get_free_table_log_entry(active_entry))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  if (write_table_log_file_entry((*active_entry)->entry_pos))
+  {
+    release_table_log_memory_entry(*active_entry);
+    DBUG_RETURN(TRUE);
+  }
+  VOID(sync_table_log());
   DBUG_RETURN(FALSE);
 }
 
 
 /*
-  Read one entry from table log file
+  Release a log memory entry
   SYNOPSIS
-    read_table_log_file_entry()
-    file_id                      File identifier
-    file_entry                   Memory area to read entry into
-    entry_no                     Entry number to read
+    release_table_log_memory_entry()
+    log_memory_entry                Log memory entry to release
   RETURN VALUES
-    TRUE                         Error
-    FALSE                        Success
+    NONE
+*/
+
+void
+release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
+{
+  TABLE_LOG_MEMORY_ENTRY *first_free= global_table_log.first_free;
+  TABLE_LOG_MEMORY_ENTRY *next_log_entry= log_entry->next_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *prev_log_entry= log_entry->prev_log_entry;
+  DBUG_ENTER("release_table_log_memory_entry");
+
+  global_table_log.first_free= log_entry;
+  log_entry->next_log_entry= first_free;
+
+  if (prev_log_entry)
+    prev_log_entry->next_log_entry= next_log_entry;
+  else
+    global_table_log.first_used= next_log_entry;
+  if (next_log_entry)
+    next_log_entry->prev_log_entry= prev_log_entry;
+  DBUG_RETURN_VOID;
+}
+
+
+/*
+  Execute one entry in the table log. Executing an entry means executing
+  a linked list of actions.
+  SYNOPSIS
+    execute_table_log_entry()
+    first_entry                Reference to first action in entry
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
 */
 
 static
 bool
-read_table_log_file_entry(File file_id, byte *file_entry, uint entry_no)
+execute_table_log_entry(uint first_entry)
 {
-  bool error= FALSE;
-  DBUG_ENTER("read_table_log_file_entry");
+  TABLE_LOG_ENTRY table_log_entry;
+  uint read_entry= first_entry;
+  DBUG_ENTER("execute_table_log_entry");
 
-  if (my_pread(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
-    error= TRUE;
-  DBUG_RETURN(error);
-}
-
-
-/*
-  Read header of table log file
-  SYNOPSIS
-    read_table_log_header()
-  RETURN VALUES
-    > 0                  Last entry in table log
-    0                    No entries in table log
-  DESCRIPTION
-    When we read the table log header we get information about maximum sizes
-    of names in the table log and we also get information about the number
-    of entries in the table log.
-*/
-
-uint
-read_table_log_header()
-{
-  char *file_entry= (char*)&global_table_log.file_entry;
-  DBUG_ENTER("read_table_log_header");
-
-  if (read_table_log_file_entry(global_table_log.file_id,
-                                (char*)&file_entry, 0UL))
+  do
   {
-    DBUG_RETURN(0);
-  }
-  entry_no= uint4korr(&file_entry[0]);
-  global_table_log.name_len= uint2korr(&file_entry[4]);
-  global_table_log.handler_type_len= uint2korr(&file_entry[6]);
-  global_table_log.free_entries.clear();
-  global_table_log.log_entries.clear();
-  global_table_log.no_entries= 0;
-  VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
-  DBUG_RETURN(entry_no);
-}
-
-
-/*
-  Read a table log entry
-  SYNOPSIS
-    read_table_log_entry()
-    read_entry               Number of entry to read
-    out:entry_info           Information from entry
-  RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
-  DESCRIPTION
-    Read a specified entry in the table log
-*/
-
-bool
-read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
-{
-  DBUG_ENTER("read_table_log_entry");
+    if (read_table_log_entry(read_entry, &table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log and continue with next log entry */
+      break;
+    }
+    DBUG_ASSERT(table_log_entry.entry_type == 'i');
+    if (execute_table_log_action(&table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log and continue with next log entry */
+      break;
+    }
+    read_entry= table_log_entry.next_entry;
+  } while (read_entry);
   DBUG_RETURN(FALSE);
 }
 
-
 /*
-  Initialise table log
+  Execute the table log at recovery of MySQL Server
   SYNOPSIS
-    init_table_log()
+    execute_table_log_recovery()
   RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
-  DESCRIPTION
-    Write the header of the table log file and length of names. Also set
-    number of entries to zero.
+    NONE
 */
 
-bool
-init_table_log()
+void
+execute_table_log_recovery()
 {
-  bool error= FALSE;
-  DBUG_ENTER("init_table_log");
+  uint no_entries, i;
+  TABLE_LOG_ENTRY table_log_entry;
+  DBUG_ENTER("execute_table_log_recovery");
 
-  VOID(my_delete(global_table_log.file_name));
-  global_table_log.file_id= my_open(global_table_log.file_name,
-                                    0, 0, MYF(0));
-  if (write_table_log_header())
-    error= TRUE;
-  DBUG_RETURN(error);
+  no_entries= read_log_header();
+  for (i= 0; i < no_entries; i++)
+  {
+    if (read_table_log_entry(i, &table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log */
+      break;
+    }
+    if (table_log_entry.entry_type == 'e')
+    {
+      if (execute_table_log_entry(table_log_entry.next_entry))
+      {
+        /*
+           Currently errors are either crashing or ignored so we should
+           never end up here
+        */
+        abort();
+        DBUG_RETURN_VOID;
+      }
+    }
+  }
+  VOID(init_table_log());
+  DBUG_RETURN_VOID;
 }
 
 
@@ -568,9 +819,23 @@ init_table_log()
 void
 release_table_log()
 {
+  TABLE_LOG_MEMORY_ENTRY *free_list= global_table_log.first_free;
+  TABLE_LOG_MEMORY_ENTRY *used_list= global_table_log.first_used;
   DBUG_ENTER("release_table_log");
 
   VOID(pthread_mutex_destroy(&LOCK_gtl));
+  while (used_list)
+  {
+    TABLE_LOG_MEMORY_ENTRY tmp= used_list;
+    my_free(used_list, MYF(0));
+    used_list= tmp->next_log_entry;
+  }
+  while (free_list)
+  {
+    TABLE_LOG_MEMORY_ENTRY tmp= free_list;
+    my_free(free_list, MYF(0));
+    free_list= tmp->next_log_entry;
+  }
   DBUG_RETURN_VOID;
 }
 
@@ -607,90 +872,6 @@ unlock_global_table_log()
   DBUG_ENTER("unlock_global_table_log");
 
   VOID(pthread_mutex_unlock(&LOCK_gtl));
-  DBUG_RETURN_VOID;
-}
-
-
-/*
-  Execute one action in a table log entry
-  SYNOPSIS
-    execute_table_log_action()
-    table_log_entry              Information in action entry to execute
-  RETURN VALUES
-    TRUE                       Error
-    FALSE                      Success
-*/
-
-bool
-execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
-{
-  DBUG_ENTER("execute_table_log_action");
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Execute one entry in the table log. Executing an entry means executing
-  a linked list of actions.
-  SYNOPSIS
-    execute_table_log_entry()
-    first_entry                Reference to first action in entry
-  RETURN VALUES
-    TRUE                       Error
-    FALSE                      Success
-*/
-
-bool
-execute_table_log_entry(uint first_entry)
-{
-  TABLE_LOG_ENTRY table_log_entry;
-  uint read_entry= first_entry;
-  DBUG_ENTER("execute_table_log_entry");
-
-  do
-  {
-    read_table_log_entry(read_entry, &table_log_entry);
-    DBUG_ASSERT(table_log_entry.entry_type == 'i');
-    if (execute_table_log_action(&table_log_entry))
-    {
-      /* error handling */
-      DBUG_RETURN(TRUE);
-    }
-    read_entry= table_log_entry.next_entry;
-  } while (read_entry);
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Execute the table log at recovery of MySQL Server
-  SYNOPSIS
-    execute_table_log_recovery()
-  RETURN VALUES
-    NONE
-*/
-
-void
-execute_table_log_recovery()
-{
-  uint no_entries, i;
-  TABLE_LOG_ENTRY table_log_entry;
-  DBUG_ENTER("execute_table_log_recovery");
-
-  no_entries= read_log_header();
-  for (i= 0; i < no_entries; i++)
-  {
-    read_table_log_entry(i, &table_log_entry);
-    if (table_log_entry.entry_type == 'e')
-    {
-      if (execute_table_log_entry(table_log_entry.next_entry))
-      {
-        /* error handling */
-        DBUG_RETURN_VOID;
-      }
-    }
-  }
-  init_table_log();
   DBUG_RETURN_VOID;
 }
 
