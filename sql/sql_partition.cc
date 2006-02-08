@@ -5409,25 +5409,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       to test if recovery is properly done.
     */
     if (write_log_shadow_frm(lpt, FALSE) ||
-        ERROR_INJECT_CRASH(1000) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECT_CRASH(1001) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         write_log_drop_partition(lpt) ||
-        ERROR_INJECT_CRASH(1002) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH(1003) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_4") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         (close_open_tables_and_downgrade(lpt), FALSE) || 
-        ERROR_INJECT_CRASH(1004) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
-        ERROR_INJECT_CRASH(1005) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH(1006) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH(1007) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
       fast_alter_partition_error_handler(lpt);
@@ -5465,25 +5465,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       9) Complete query
     */
     if (write_log_shadow_frm(lpt, FALSE) ||
-        ERROR_INJECT_CRASH(1010) ||
+        ERROR_INJECT_CRASH("crash_add_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECT_CRASH(1011) ||
+        ERROR_INJECT_CRASH("crash_add_partition_2") ||
         write_log_add_partition(lpt) ||
-        ERROR_INJECT_CRASH(1012) ||
+        ERROR_INJECT_CRASH("crash_add_partition_3") ||
         mysql_change_partitions(lpt) ||
-        ERROR_INJECT_CRASH(1013) ||
+        ERROR_INJECT_CRASH("crash_add_partition_4") ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH(1014) ||
+        ERROR_INJECT_CRASH("crash_add_partition_5") ||
         write_log_shadow_frm(lpt, TRUE) ||
-        ERROR_INJECT_CRASH(1015) ||
+        ERROR_INJECT_CRASH("crash_add_partition_6") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH(1016) ||
+        ERROR_INJECT_CRASH("crash_add_partition_7") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH(1017)) 
+        ERROR_INJECT_CRASH("crash_add_partition_8")) 
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
@@ -5546,32 +5546,32 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     */
 
     if (write_log_shadow_frm(lpt, FALSE) ||
-        ERROR_INJECT_CRASH(1020) ||
+        ERROR_INJECT_CRASH("crash_change_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
-        ERROR_INJECT_CRASH(1021) ||
+        ERROR_INJECT_CRASH("crash_change_partition_2") ||
         write_log_ph1_change_partition(lpt) ||
-        ERROR_INJECT_CRASH(1022) ||
+        ERROR_INJECT_CRASH("crash_change_partition_3") ||
         mysql_change_partitions(lpt) ||
-        ERROR_INJECT_CRASH(1023) ||
+        ERROR_INJECT_CRASH("crash_change_partition_4") ||
         write_log_ph2_change_partition(lpt) ||
-        ERROR_INJECT_CRASH(1024) ||
+        ERROR_INJECT_CRASH("crash_change_partition_5") ||
         abort_and_upgrade_lock(lpt) ||
         table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
-        ERROR_INJECT_CRASH(1025) ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         mysql_rename_partitions(lpt) ||
-        ERROR_INJECT_CRASH(1026) ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH(1027) ||
+        ERROR_INJECT_CRASH("crash_change_partition_8") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH(1028) ||
+        ERROR_INJECT_CRASH("crash_change_partition_9") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
-        ERROR_INJECT_CRASH(1029) ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH(1030) ||
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH(1031) ||
+        ERROR_INJECT_CRASH("crash_change_partition_12") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
         fast_alter_partition_error_handler(lpt);

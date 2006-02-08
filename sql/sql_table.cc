@@ -357,7 +357,7 @@ write_table_log_header()
   DBUG_ENTER("write_table_log_header");
 
   int4store(&global_table_log.file_entry[0], global_table_log.no_entries);
-  const_var= NAMELEN;
+  const_var= FN_LEN;
   int2store(&global_table_log.file_entry[4], const_var);
   const_var= 32;
   int2store(&global_table_log.file_entry[6], const_var);
@@ -428,11 +428,12 @@ read_table_log_header()
 {
   char *file_entry= (char*)global_table_log.file_entry;
   char file_name[FN_REFLEN];
+  uint entry_no;
   DBUG_ENTER("read_table_log_header");
 
   bzero(file_entry, sizeof(global_table_log.file_entry));
   create_table_log_file_name(file_name);
-  if (!(my_open(file_name, O_RDWR | O_TRUNC, MYF(0))))
+  if (!(my_open(file_name, O_RDWR | O_TRUNC | O_BINARY, MYF(0))))
   {
     if (read_table_log_file_entry(0UL))
     {
@@ -467,10 +468,10 @@ bool
 read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
 {
   char *file_entry= (char*)&global_table_log.file_entry;
+  uint inx;
   DBUG_ENTER("read_table_log_entry");
 
-  if (read_table_log_file_entry(global_table_log.file_id,
-                                (char*)&file_entry, read_entry))
+  if (read_table_log_file_entry(read_entry))
   {
     /* Error handling */
     DBUG_RETURN(TRUE);
@@ -479,10 +480,10 @@ read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
   table_log_entry->action_type= file_entry[1];
   table_log_entry->next_entry= uint4korr(&file_entry[2]);
   table_log_entry->name= &file_entry[6];
-  index= 6 + global_table_log->name_len;
-  table_log_entry->from_name= &file_entry[index];
-  index+= global_table_log->name_len;
-  table_log_entry->handler_type= &file_entry[index];
+  inx= 6 + global_table_log.name_len;
+  table_log_entry->from_name= &file_entry[inx];
+  inx+= global_table_log.name_len;
+  table_log_entry->handler_type= &file_entry[inx];
   DBUG_RETURN(FALSE);
 }
 
@@ -508,10 +509,11 @@ init_table_log()
   DBUG_ENTER("init_table_log");
 
   create_table_log_file_name(file_name);
-  VOID(my_delete(file_name));
+  VOID(my_delete(file_name, MYF(0)));
   if ((global_table_log.file_id= my_create(file_name,
                                            CREATE_MODE,
-                                           create_flags, MYF(0))) < 0)
+                                           O_RDWR | O_TRUNC | O_BINARY,
+                                           MYF(0))) < 0)
   {
     /* Couldn't create table log file, this is serious error */
     abort();
@@ -556,28 +558,31 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
 
 static
 bool
-get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry)
+get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
+                         bool *write_header)
 {
-  bool write_header;
+  uint entry_no;
   TABLE_LOG_MEMORY_ENTRY *used_entry;
   TABLE_LOG_MEMORY_ENTRY *first_used= global_table_log.first_used;
+  DBUG_ENTER("get_free_table_log_entry");
+
   if (global_table_log.first_free == NULL)
   {
-    if (!(used_entry= my_malloc(sizeof(TABLE_LOG_MEMORY_ENTRY))))
+    if (!(used_entry= (TABLE_LOG_MEMORY_ENTRY*)my_malloc(
+                              sizeof(TABLE_LOG_MEMORY_ENTRY), MYF(0))))
     {
       DBUG_RETURN(TRUE);
     }
     global_table_log.no_entries++;
-    used_entry->entry_no= entry_no= global_table_log.no_entries;
-    write_header= TRUE;
+    used_entry->entry_pos= entry_no= global_table_log.no_entries;
+    *write_header= TRUE;
   }
   else
   {
     used_entry= global_table_log.first_free;
     global_table_log.first_free= used_entry->next_log_entry;
-    entry_no= first_free->entry_pos;
-    used_entry= first_free;
-    write_header= FALSE;
+    entry_no= used_entry->entry_pos;
+    *write_header= FALSE;
   }
   /*
     Move from free list to used list
@@ -589,6 +594,7 @@ get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry)
     first_used->prev_log_entry= used_entry;
 
   *active_entry= used_entry;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -616,7 +622,7 @@ bool
 write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
                       TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
-  bool error;
+  bool error, write_header;
   DBUG_ENTER("write_table_log_entry");
 
   global_table_log.file_entry[0]= 'i';
@@ -624,24 +630,25 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
   int4store(&global_table_log.file_entry[2],
             table_log_entry->next_entry);
   strcpy(&global_table_log.file_entry[6], table_log_entry->name);
-  if (table_log_entry.action_type == 'r')
-    global_table_log.file_entry[6 + NAMELEN]= 0;
+  if (table_log_entry->action_type == 'r')
+    global_table_log.file_entry[6 + FN_LEN]= 0;
   else
-    strcpy(&global_table_log.file_entry[6 + NAMELEN],
+    strcpy(&global_table_log.file_entry[6 + FN_LEN],
           table_log_entry->from_name);
-  strcpy(&global_table_log.file_entry[6 + (2*NAMELEN)],
+  strcpy(&global_table_log.file_entry[6 + (2*FN_LEN)],
          table_log_entry->handler_type);
-  if (get_free_table_log_entry(active_entry))
+  if (get_free_table_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);
   }
   error= FALSE;
-  if (write_table_log_file_entry(global_table_log.file_id,
-                                 global_table_log.file_entry,
-                                 (*active_entry)->entry_pos))
+  if (write_table_log_file_entry((*active_entry)->entry_pos))
     error= TRUE;
-  else if (write_header || !(write_table_log_header()))
-    error= TRUE;
+  if (write_header && !error)
+  {
+    if (sync_table_log() || write_table_log_header())
+      error= TRUE;
+  }
   if (error)
     release_table_log_memory_entry(*active_entry);
   DBUG_RETURN(error);
@@ -673,6 +680,7 @@ bool
 write_execute_table_log_entry(uint first_entry,
                               TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
+  bool write_header;
   char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("write_execute_table_log_entry");
 
@@ -681,9 +689,9 @@ write_execute_table_log_entry(uint first_entry,
   file_entry[1]= 0; /* Ignored for execute entries */
   int4store(&file_entry[2], first_entry);
   file_entry[6]= 0;
-  file_entry[6 + NAMELEN]= 0;
-  file_entry[6 + 2*NAMELEN]= 0;
-  if (get_free_table_log_entry(active_entry))
+  file_entry[6 + FN_LEN]= 0;
+  file_entry[6 + 2*FN_LEN]= 0;
+  if (get_free_table_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);
   }
@@ -693,6 +701,14 @@ write_execute_table_log_entry(uint first_entry,
     DBUG_RETURN(TRUE);
   }
   VOID(sync_table_log());
+  if (write_header)
+  {
+    if (write_table_log_header())
+    {
+      release_table_log_memory_entry(*active_entry);
+      DBUG_RETURN(TRUE);
+    }
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -723,7 +739,7 @@ release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
     global_table_log.first_used= next_log_entry;
   if (next_log_entry)
     next_log_entry->prev_log_entry= prev_log_entry;
-  DBUG_RETURN_VOID;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -738,7 +754,6 @@ release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
     FALSE                      Success
 */
 
-static
 bool
 execute_table_log_entry(uint first_entry)
 {
@@ -781,7 +796,7 @@ execute_table_log_recovery()
   TABLE_LOG_ENTRY table_log_entry;
   DBUG_ENTER("execute_table_log_recovery");
 
-  no_entries= read_log_header();
+  no_entries= read_table_log_header();
   for (i= 0; i < no_entries; i++)
   {
     if (read_table_log_entry(i, &table_log_entry))
@@ -799,12 +814,12 @@ execute_table_log_recovery()
            never end up here
         */
         abort();
-        DBUG_RETURN_VOID;
+        DBUG_VOID_RETURN;
       }
     }
   }
   VOID(init_table_log());
-  DBUG_RETURN_VOID;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -826,17 +841,17 @@ release_table_log()
   VOID(pthread_mutex_destroy(&LOCK_gtl));
   while (used_list)
   {
-    TABLE_LOG_MEMORY_ENTRY tmp= used_list;
-    my_free(used_list, MYF(0));
+    TABLE_LOG_MEMORY_ENTRY *tmp= used_list;
+    my_free((char*)used_list, MYF(0));
     used_list= tmp->next_log_entry;
   }
   while (free_list)
   {
-    TABLE_LOG_MEMORY_ENTRY tmp= free_list;
-    my_free(free_list, MYF(0));
+    TABLE_LOG_MEMORY_ENTRY *tmp= free_list;
+    my_free((char*)free_list, MYF(0));
     free_list= tmp->next_log_entry;
   }
-  DBUG_RETURN_VOID;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -854,7 +869,7 @@ lock_global_table_log()
   DBUG_ENTER("lock_global_table_log");
 
   VOID(pthread_mutex_lock(&LOCK_gtl));
-  DBUG_RETURN_VOID;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -872,7 +887,7 @@ unlock_global_table_log()
   DBUG_ENTER("unlock_global_table_log");
 
   VOID(pthread_mutex_unlock(&LOCK_gtl));
-  DBUG_RETURN_VOID;
+  DBUG_VOID_RETURN;
 }
 
 

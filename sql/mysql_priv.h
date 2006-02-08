@@ -647,7 +647,7 @@ my_error_inject(int value)
 }
 
 #define ERROR_INJECT_CRASH(code) \
-  DBUG_EXECUTE_COND(code, abort();)
+  DBUG_EXECUTE_COND(code, abort())
 #define ERROR_INJECT_ACTION(code, action) \
   (my_error_inject_name(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
@@ -1171,9 +1171,9 @@ typedef struct st_table_log_entry
 typedef struct st_table_log_memory_entry
 {
   uint entry_pos;
-  TABLE_LOG_MEMORY *next_log_entry;
-  TABLE_LOG_MEMORY *prev_log_entry;
-  TABLE_LOG_MEMORY *next_active_log_entry;
+  struct st_table_log_memory_entry *next_log_entry;
+  struct st_table_log_memory_entry *prev_log_entry;
+  struct st_table_log_memory_entry *next_active_log_entry;
 } TABLE_LOG_MEMORY_ENTRY;
 
 bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
