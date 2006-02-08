@@ -604,6 +604,7 @@ struct Fragrecord {
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
   
   Uint32 m_lcp_scan_op;
+  Uint32 m_lcp_keep_list;
 
   State fragStatus;
   Uint32 fragTableId;
@@ -1194,8 +1195,10 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
     STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREE        = 0x00800000 ); // On free list of page
+    STATIC_CONST( FREED       = 0x00800000 ); // Is freed
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
+    STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
+    STATIC_CONST( FREE        = 0x02800000 ); // Is free
     
     Uint32 get_tuple_version() const { 
       return m_header_bits & TUP_VERSION_MASK;
