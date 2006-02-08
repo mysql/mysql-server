@@ -73,7 +73,7 @@ static handler *heap_create_handler(TABLE_SHARE *table)
 
 ha_heap::ha_heap(TABLE_SHARE *table_arg)
   :handler(&heap_hton, table_arg), file(0), records_changed(0),
-  key_stats_version(0)
+  key_stat_version(0)
 {}
 
 
@@ -559,7 +559,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
     return records;
 
   /* Assert that info() did run. We need current statistics here. */
-  DBUG_ASSERT(key_stats_ok);
+  DBUG_ASSERT(key_stat_version);
   return key->rec_per_key[key->key_parts-1];
 }
 
