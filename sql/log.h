@@ -368,7 +368,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len)= 0;
+                           const char *sql_text, uint sql_text_len,
+                           CHARSET_INFO *client_cs)= 0;
   virtual ~Log_event_handler() {}
 };
 
@@ -403,7 +404,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len);
+                           const char *sql_text, uint sql_text_len,
+                            CHARSET_INFO *client_cs);
   bool flush(THD *thd, TABLE_LIST *close_slow_Log,
              TABLE_LIST* close_general_log);
   void close_log_table(uint log_type, bool lock_in_use);
@@ -431,7 +433,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len);
+                           const char *sql_text, uint sql_text_len,
+                           CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
 };
