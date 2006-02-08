@@ -1183,7 +1183,7 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
                thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
-               table->s->table_name);
+               table->s->table_name.str);
 
       sp_restore_security_context(thd, save_ctx);
       return TRUE;
