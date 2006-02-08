@@ -16,4 +16,7 @@ connection slave;
 sync_with_master;
 select * from t1 ORDER BY n;
 
+connection master;
+drop table t1;
+sync_with_master;
 # End of 4.1 tests

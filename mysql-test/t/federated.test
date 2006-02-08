@@ -1226,4 +1226,34 @@ drop table federated.t1;
 connection slave;
 drop table federated.t1;
 
+#
+# BUG# 14768 test auto_increment last_insert_id()
+#
+connection slave;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL auto_increment,
+    PRIMARY KEY  (`id`));
+
+connection master;
+DROP TABLE IF EXISTS federated.t1;
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL auto_increment,
+    PRIMARY KEY  (`id`)
+    )
+  ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+SELECT * FROM federated.t1;
+
 source include/federated_cleanup.inc;
