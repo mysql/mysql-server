@@ -114,8 +114,6 @@ Group:		Applications/Databases
 This package contains the ndbcluster storage engine. 
 It is necessary to have this package installed on all 
 computers that should store ndbcluster table data.
-Note that this storage engine can only be used in conjunction
-with the MySQL Max server.
 
 %{see_base}
 
@@ -181,29 +179,6 @@ Group: Applications/Databases
 This package contains the shared libraries (*.so*) which certain
 languages and applications need to dynamically load and use MySQL.
 
-%package Max
-Summary: MySQL - server with extended functionality
-Group: Applications/Databases
-Provides: mysql-Max
-Obsoletes: mysql-Max
-Requires: MySQL-server >= @MYSQL_BASE_VERSION@
-
-%description Max 
-Optional MySQL server binary that supports additional features like:
-
- - Berkeley DB Storage Engine
- - Ndbcluster Storage Engine interface
- - Archive Storage Engine
- - CSV Storage Engine
- - Example Storage Engine
- - Federated Storage Engine
- - User Defined Functions (UDFs).
-
-To activate this binary, just install this package in addition to
-the standard MySQL package.
-
-Please note that this is a dynamically linked binary!
-
 %package embedded
 Requires: %{name}-devel
 Summary: MySQL - embedded library
@@ -224,7 +199,11 @@ client/server version.
 %{see_base}
 
 %prep
-%setup -n mysql-%{mysql_version}
+# We unpack the source twice, once for debug and once for release build.
+%setup -T -a 0 -c -n mysql-%{mysql_version}
+mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
+%setup -D -T -a 0 -n mysql-%{mysql_version}
+mv mysql-%{mysql_version} mysql-release-%{mysql_version}
 
 %build
 
@@ -234,10 +213,8 @@ BuildMySQL() {
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CC=\"${CC:-$MYSQL_BUILD_CC}\" \
 	CXX=\"${CXX:-$MYSQL_BUILD_CXX}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS \
-	          -felide-constructors -fno-exceptions -fno-rtti \
-		  }\" \
+	CFLAGS=\"$CFLAGS\" \
+	CXXFLAGS=\"$CXXFLAGS\" \
 	./configure \
  	    $* \
 	    --enable-assembler \
@@ -280,7 +257,6 @@ fi
 # Use the build root for temporary storage of the shared libraries.
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
@@ -292,8 +268,7 @@ mkdir -p $RBR%{_libdir}/mysql
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# Build the Max binary (includes BDB and UDFs and therefore
-# cannot be linked statically against the patched glibc)
+# Build the Debug binary.
 
 # Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
 # including exceptions into the code
@@ -303,6 +278,35 @@ then
 	export CXX="gcc"
 fi
 
+# Strip -Oxxx, add -g and --with-debug.
+(cd mysql-debug-%{mysql_version} &&
+CFLAGS=`echo "${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" | sed -e 's/-O[0-9]*//g'` \
+CXXFLAGS=`echo "${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" | sed -e 's/-O[0-9]*//g'` \
+BuildMySQL "--enable-shared \
+		--with-debug \
+		--with-berkeley-db \
+		--with-innodb \
+		--with-ndbcluster \
+		--with-archive-storage-engine \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
+		--with-blackhole-storage-engine \
+		--with-federated-storage-engine \
+	        --with-big-tables \
+		--with-comment=\"MySQL Community Edition - Debug (GPL)\"")
+
+# We might want to save the config log file
+if test -n "$MYSQL_DEBUGCONFLOG_DEST"
+then
+  cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
+fi
+
+(cd mysql-debug-%{mysql_version} && make test-force) || true
+
+# Build release binary.
+(cd mysql-release-%{mysql_version} &&
+CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
+CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
 BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
@@ -313,86 +317,19 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
 	        --with-big-tables \
-		--with-comment=\"MySQL Community Edition - Experimental (GPL)\" \
-		--with-server-suffix='-max'"
-
-# We might want to save the config log file
-if test -n "$MYSQL_MAXCONFLOG_DEST"
-then
-  cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
-fi
-
-make test-force || true
-
-# Save mysqld-max
-# check if mysqld was installed in .libs/
-if test -f sql/.libs/mysqld
-then
-	cp sql/.libs/mysqld sql/mysqld-max
-else
-	cp sql/mysqld sql/mysqld-max
-fi
-nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
-# Save the perror binary so it supports the NDB error codes (BUG#13740)
-mv extra/perror extra/perror.ndb
-
-# Install the ndb binaries
-(cd ndb; make install DESTDIR=$RBR)
-
-# Include libgcc.a in the devel subpackage (BUG 4921)
-if expr "$CC" : ".*gcc.*" > /dev/null ;
-then
-  libgcc=`$CC --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    %define have_libgcc 1
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-  fi
-fi
-
-# Save libraries
-(cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
-(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
-(cd ndb/src/.libs; tar rf $RBR/shared-libs.tar *.so*)
-
-# Now clean up
-make clean
-
-#
-# Only link statically on our i386 build host (which has a specially
-# patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
-# so don't link statically there
-#
-BuildMySQL "--disable-shared \
-%if %{STATIC_BUILD}
-		--with-mysqld-ldflags='-all-static' \
-		--with-client-ldflags='-all-static' \
-		$USE_OTHER_LIBC_DIR \
-%endif
-		--with-zlib-dir=bundled \
-		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
-		--with-server-suffix='%{server_suffix}' \
-		--with-archive-storage-engine \
-		--with-innodb \
-		--with-big-tables"
-if test -f sql/.libs/mysqld
-then
-	nm --numeric-sort sql/.libs/mysqld > sql/mysqld.sym
-else
-	nm --numeric-sort sql/mysqld > sql/mysqld.sym
-fi
+		--with-comment=\"MySQL Community Edition (GPL)\"")
 
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
 then
-  cp -fp config.log "$MYSQL_CONFLOG_DEST"
+  cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-make test-force || true
+(cd  mysql-release-%{mysql_version} && make test-force) || true
 
 %install
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
+MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-release-%{mysql_version}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
@@ -404,21 +341,22 @@ install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
 
-# Install all binaries stripped 
-make install-strip DESTDIR=$RBR benchdir_root=%{_datadir}
+# Install all binaries 
+(cd $MBD && make install DESTDIR=$RBR benchdir_root=%{_datadir})
+# Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
+# the same here.
+mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
 
-# Install shared libraries (Disable for architectures that don't support it)
-(cd $RBR%{_libdir}; tar xf $RBR/shared-libs.tar; rm -f $RBR/shared-libs.tar)
-
-# install saved mysqld-max
-install -s -m 755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
+# install mysqld-debug
+if test -f $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld
+then
+	install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/.libs/mysqld $RBR%{_sbindir}/mysqld-debug
+else
+	install -m 755 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld $RBR%{_sbindir}/mysqld-debug
+fi
 
 # install saved perror binary with NDB support (BUG#13740)
-install -s -m 755 $MBD/extra/perror.ndb $RBR%{_bindir}/perror
-
-# install symbol files ( for stack trace resolution)
-install -m 644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
-install -m 644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
 
 # Install logrotate and autostart
 install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
@@ -510,11 +448,6 @@ mysql_clusterdir=/var/lib/mysql-cluster
 if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 
-%post Max
-# Restart mysqld, to use the new binary.
-echo "Restarting mysqld."
-%{_sysconfdir}/init.d/mysql restart > /dev/null 2>&1
-
 %preun server
 if test $1 = 0
 then
@@ -546,9 +479,9 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING README 
-%doc support-files/my-*.cnf
-%doc support-files/ndb-*.ini
+%doc mysql-release-%{mysql_version}/COPYING mysql-release-%{mysql_version}/README 
+%doc mysql-release-%{mysql_version}/support-files/my-*.cnf
+%doc mysql-release-%{mysql_version}/support-files/ndb-*.ini
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -597,9 +530,9 @@ fi
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
@@ -631,6 +564,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqldump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlimport.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
 %post shared
 /sbin/ldconfig
@@ -666,7 +600,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
-%doc EXCEPTIONS-CLIENT
+%doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -675,9 +609,6 @@ fi
 %{_includedir}/mysql/*
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
-%if %{have_libgcc}
-%{_libdir}/mysql/libmygcc.a
-%endif
 %{_libdir}/mysql/libmyisam.a
 %{_libdir}/mysql/libmyisammrg.a
 %{_libdir}/mysql/libmysqlclient.a
@@ -705,11 +636,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltestmanager
 %attr(755, root, root) %{_bindir}/mysqltestmanager-pwgen
 %attr(755, root, root) %{_bindir}/mysqltestmanagerc
-
-%files Max
-%defattr(-, root, root, 0755)
-%attr(755, root, root) %{_sbindir}/mysqld-max
-%attr(644, root, root) %{_libdir}/mysql/mysqld-max.sym
 
 %files embedded
 %defattr(-, root, root, 0755)
