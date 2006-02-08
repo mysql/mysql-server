@@ -17,3 +17,4 @@ CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
 ERROR 23000: Duplicate entry '1' for key 1
 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
