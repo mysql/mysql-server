@@ -431,6 +431,7 @@ void AsyncFile::openReq(Request* request)
 
       m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal, 
 			  FsReadWriteReq::FixedLength + 1);
+  retry:
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0){
@@ -457,7 +458,7 @@ void AsyncFile::openReq(Request* request)
 	  close(theFd);
 	  theFd = ::open(theFileName.c_str(), new_flags, mode);
 	  if (theFd != -1)
-	    continue;
+	    goto retry;
 	}
 #endif
 	close(theFd);
