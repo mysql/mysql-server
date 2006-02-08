@@ -1,3 +1,6 @@
+##########################################
+# 2006-02-07 By JBM: Added order by
+#########################################
 source include/master-slave.inc;
 
 create table t1 (n int not null primary key);
@@ -11,6 +14,6 @@ insert into t1 values (2),(3);
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from t1;
+select * from t1 ORDER BY n;
 
 # End of 4.1 tests

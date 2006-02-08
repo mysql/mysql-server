@@ -2,6 +2,6 @@
 # Wrapper for rpl_row_blob.test#
 #################################
 -- source include/have_innodb.inc
-let $engine_type=INNODB;
+let $engine_type=InnoDB;
 -- source extra/rpl_tests/rpl_row_blob.test
 
