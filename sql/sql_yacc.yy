@@ -2361,7 +2361,7 @@ sp_proc_stmt_return:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
-	    if (sp->m_type == TYPE_ENUM_PROCEDURE)
+	    if (sp->m_type != TYPE_ENUM_FUNCTION)
 	    {
 	      my_message(ER_SP_BADRETURN, ER(ER_SP_BADRETURN), MYF(0));
 	      YYABORT;
@@ -2450,17 +2450,16 @@ sp_proc_stmt_leave:
 	    }
 	    else
 	    {
-	      uint ip= sp->instructions();
 	      sp_instr_jump *i;
-	      sp_instr_hpop *ih;
-	      sp_instr_cpop *ic;
+	      uint ip= sp->instructions();
+	      uint n;
 
-	      ih= new sp_instr_hpop(ip++, ctx, 0);
-	      sp->push_backpatch(ih, lab);
-	      sp->add_instr(ih);
-	      ic= new sp_instr_cpop(ip++, ctx, 0);
-	      sp->push_backpatch(ic, lab);
-	      sp->add_instr(ic);
+	      n= ctx->diff_handlers(lab->ctx);
+	      if (n)
+	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
+	      n= ctx->diff_cursors(lab->ctx);
+	      if (n)
+	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
 	      i= new sp_instr_jump(ip, ctx);
 	      sp->push_backpatch(i, lab);  /* Jumping forward */
               sp->add_instr(i);
