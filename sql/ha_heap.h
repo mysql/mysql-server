@@ -29,7 +29,7 @@ class ha_heap: public handler
   key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
-  bool    key_stats_ok;
+  uint    key_stat_version;
 public:
   ha_heap(TABLE_SHARE *table);
   ~ha_heap() {}
