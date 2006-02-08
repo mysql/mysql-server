@@ -42,7 +42,7 @@ libdbtup.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libdbtup_a_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
 
-ndbtest_PROGRAMS = test_varpage
+EXTRA_PROGRAMS = test_varpage
 test_varpage_SOURCES = test_varpage.cpp tuppage.cpp
 test_varpage_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
