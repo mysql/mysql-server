@@ -12717,11 +12717,12 @@ calc_group_buffer(JOIN *join,ORDER *group)
     Field *field= group_item->get_tmp_table_field();
     if (field)
     {
-      if (field->type() == FIELD_TYPE_BLOB)
+      enum_field_types type;
+      if ((type= field->type()) == FIELD_TYPE_BLOB)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
-      else if (field->type() == MYSQL_TYPE_VARCHAR)
+      else if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_VAR_STRING)
         key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
-      else if (field->type() == FIELD_TYPE_BIT)
+      else if (type == FIELD_TYPE_BIT)
       {
         /* Bit is usually stored as a longlong key for group fields */
         key_length+= 8;                         // Big enough
