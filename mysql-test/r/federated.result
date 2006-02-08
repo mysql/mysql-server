@@ -1517,6 +1517,48 @@ bitty
 drop table federated.t1;
 drop table federated.t1;
 DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+PRIMARY KEY  (`id`));
+DROP TABLE IF EXISTS federated.t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL auto_increment,
+PRIMARY KEY  (`id`)
+)
+ENGINE="FEDERATED" DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:9308/federated/t1';
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+1
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+2
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+3
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+4
+INSERT INTO federated.t1 VALUES ();
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+5
+SELECT * FROM federated.t1;
+id
+1
+2
+3
+4
+5
+DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
