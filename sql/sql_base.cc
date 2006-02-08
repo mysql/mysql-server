@@ -3869,6 +3869,11 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 #endif
       if (thd->set_query_id)
       {
+        /*
+         * get rw_set correct for this field so that the handler
+         * knows that this field is involved in the query and gets
+         * retrieved/updated
+         */
         Field *field_to_set= NULL;
         if (fld == view_ref_found)
         {
@@ -3879,8 +3884,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
         else
           field_to_set= fld;
         if (field_to_set)
-          field_to_set->table->file->ha_set_bit_in_rw_set(field_to_set->fieldnr,
-                                                          (bool)(thd->set_query_id-1));
+          field_to_set->table->file->
+            ha_set_bit_in_rw_set(field_to_set->fieldnr,
+                                 (bool)(thd->set_query_id-1));
       }
   }
   DBUG_RETURN(fld);
