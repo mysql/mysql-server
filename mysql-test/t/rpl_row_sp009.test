@@ -5,6 +5,8 @@
 #############################################################################
 #TEST: Taken and modfied from http://bugs.mysql.com/bug.php?id=12168        #
 #############################################################################
+# 2006-02-08 By JBM : Added order by for ndb engine use
+#############################################################################
 
 # Includes
 -- source include/have_binlog_format_row.inc
@@ -68,29 +70,29 @@ END|
 delimiter ;|
 
 CALL test.p1('a');
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 connection master;
 truncate test.t2;
 
 # this next call fails, but should not
 call test.p1('b');
-select * from test.t2;
+select * from test.t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 
 connection master;
 truncate test.t2;
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 
 
 connection master;

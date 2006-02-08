@@ -49,28 +49,28 @@ END;
 END IF;
 END|
 CALL test.p1('a');
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 3
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 1
 3
 truncate test.t2;
 call test.p1('b');
-select * from test.t2;
+select * from test.t2 ORDER BY a;
 a
 2
 4
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 2
 4
 truncate test.t2;
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
-SELECT * FROM test.t2;
+SELECT * FROM test.t2 ORDER BY a;
 a
 DROP PROCEDURE test.p1;
 DROP TABLE test.t1;
