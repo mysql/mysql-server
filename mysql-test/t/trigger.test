@@ -958,3 +958,12 @@ create trigger test.t1_bi before insert on t1 for each row set @a:=0;
 --error ER_NO_DB_ERROR
 drop trigger t1_bi;
 connection default;
+
+# Test for bug #16829 "Firing trigger with RETURN crashes the server"
+# RETURN is not supposed to be used anywhere except functions, so error
+# should be returned when one attempts to create trigger with RETURN.
+create table t1 (i int);
+--error ER_SP_BADRETURN
+create trigger t1_bi before insert on t1 for each row return 0;
+insert into t1 values (1);
+drop table t1;

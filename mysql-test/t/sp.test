@@ -5199,6 +5199,37 @@ drop procedure if exists bug15231_4|
 
 
 #
+# BUG#15011: error handler in nested block not activated
+#
+--disable_warnings
+drop procedure if exists bug15011|
+--enable_warnings
+
+create table t3 (c1 int primary key)|
+
+insert into t3 values (1)|
+
+create procedure bug15011()
+  deterministic
+begin
+  declare continue handler for 1062
+    select 'Outer' as 'Handler';
+
+  begin
+    declare continue handler for 1062
+      select 'Inner' as 'Handler';
+
+    insert into t3 values (1);
+  end;
+end|
+
+call bug15011()|
+
+drop procedure bug15011|
+drop table t3|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
