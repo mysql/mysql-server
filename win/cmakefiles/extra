@@ -6,4 +6,16 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 ADD_EXECUTABLE(comp_err comp_err.c)
 TARGET_LINK_LIBRARIES(comp_err dbug mysys strings wsock32)
 
+GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
+
+ADD_CUSTOM_TARGET(GenError
+                  ${COMP_ERR_EXE} --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
+	     --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
+		 --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
+		 --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
+	     --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
+         --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
+         DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
+         
+         
 
