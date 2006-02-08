@@ -51,6 +51,15 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
+
+    ndbassert(ptr->m_header_bits & Tuple_header::FREE);
+
+    if (ptr->m_header_bits & Tuple_header::LCP_KEEP)
+    {
+      ndbassert(ptr.p->m_header_bits & Tuple_header::FREED);
+      ptr->m_header_bits |= Tuple_header::FREED;
+      return;
+    }
     
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize)
     {
@@ -140,6 +149,15 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
   regOperPtr->m_undo_buffer_space= 0;
 }
 
+static
+inline
+bool
+operator>=(const Local_key& key1, const Local_key& key2)
+{
+  return key1.m_page_no > key2.m_page_no ||
+    (key1.m_page_no == key2.m_page_no && key1.m_page_idx >= key2.m_page_idx);
+}
+
 void
 Dbtup::dealloc_tuple(Signal* signal,
 		     Uint32 gci,
@@ -149,29 +167,41 @@ Dbtup::dealloc_tuple(Signal* signal,
 		     Fragrecord* regFragPtr, 
 		     Tablerec* regTabPtr)
 {
-  ptr->m_header_bits |= Tuple_header::FREE;
-  if (ptr->m_header_bits & Tuple_header::DISK_PART)
+  Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
+  Uint32 lcp_keep_list = regFragPtr->m_lcp_keep_list;
+
+  Uint32 bits = ptr->m_header_bits;
+  Uint32 extra_bits = Tuple_header::FREED;
+  if (bits & Tuple_header::DISK_PART)
   {
     Local_key disk;
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
     disk_page_free(signal, regTabPtr, regFragPtr, 
 		   &disk, *(PagePtr*)&m_pgman.m_ptr, gci);
   }
-
+  
+  if (! (bits & Tuple_header::LCP_SKIP) && lcpScan_ptr_i != RNIL)
+  {
+    ScanOpPtr scanOp;
+    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    Local_key rowid = regOperPtr->m_tuple_location;
+    Local_key scanpos = scanOp.p->m_scanPos.m_key;
+    rowid.m_page_no = page->frag_page_id;
+    if (rowid >= scanpos)
+    {
+      extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
+      ptr->m_operation_ptr_i = lcp_keep_list;
+      regFragPtr->m_lcp_keep_list = rowid.ref();
+    }
+  }
+  
+  ptr->m_header_bits = bits | extra_bits;
+  
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
     jam();
     * ptr->get_mm_gci(regTabPtr) = gci;
   }
-}
-
-static
-inline
-bool
-operator>=(const Local_key& key1, const Local_key& key2)
-{
-  return key1.m_page_no > key2.m_page_no ||
-    (key1.m_page_no == key2.m_page_no && key1.m_page_idx >= key2.m_page_idx);
 }
 
 void
