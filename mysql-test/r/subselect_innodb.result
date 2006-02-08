@@ -243,4 +243,5 @@ x
 NULL
 x
 NULL
+drop procedure p1;
 drop tables t1,t2,t3;
