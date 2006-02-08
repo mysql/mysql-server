@@ -41,3 +41,7 @@ connection slave;
 --disable_abort_on_error
 revoke select on *.* FROM 'user_foo';
 --enable_abort_on_error
+
+connection master;
+delete from mysql.user where user="user_foo";
+sync_slave_with_master;
