@@ -69,7 +69,7 @@ handlerton ndbcluster_hton = {
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   "ndbcluster",
   SHOW_OPTION_YES,
-  "Clustered, fault-tolerant, memory-based tables", 
+  "Clustered, fault-tolerant tables", 
   DB_TYPE_NDBCLUSTER,
   ndbcluster_init,
   ~(uint)0, /* slot */
