@@ -6,7 +6,8 @@
 # Test: Tests SPs with cursors, flow logic, and alter sp. In addition the   #
 #       tests SPs with insert and update operations.                        #
 #############################################################################
-
+# 2006-02-08 By JBM added ORDER BY for use with NDB engine
+#############################################################################
 
 # Includes
 -- source include/have_binlog_format_row.inc
@@ -35,8 +36,8 @@ BEGIN
 DECLARE done INT DEFAULT 0;
   DECLARE spa CHAR(16);
   DECLARE spb,spc INT;
-  DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1;
-  DECLARE cur2 CURSOR FOR SELECT id2 FROM test.t2;
+  DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1 ORDER BY id;
+  DECLARE cur2 CURSOR FOR SELECT id2 FROM test.t2 ORDER BY id2;
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
 
   OPEN cur1;
@@ -68,28 +69,28 @@ delimiter ;|
 let $message=< ---- Master selects-- >;
 --source include/show_msg.inc
 CALL test.p2();
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY id;
+SELECT * FROM test.t2 ORDER BY id2;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t1;
-SELECT * FROM test.t2;
+SELECT * FROM test.t1 ORDER BY id;
+SELECT * FROM test.t2 ORDER BY id2;
 
 let $message=< ---- Master selects-- >;
 --source include/show_msg.inc
 connection master;
 CALL test.p1();
 sleep 6;
-SELECT * FROM test.t3;
+SELECT * FROM test.t3 ORDER BY id3;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
 connection slave;
-SELECT * FROM test.t3;
+SELECT * FROM test.t3 ORDER BY id3;
 
 connection master;
 
