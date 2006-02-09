@@ -1551,6 +1551,11 @@ void Query_log_event::print_query_header(FILE* file,
     }
     if (unlikely(bcmp(print_event_info->charset, charset, 6)))
     {
+      CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
+      if (cs_info)
+      {
+        fprintf(file, "/*!\\C %s */;\n", cs_info->csname); /* for mysql client */
+      }
       fprintf(file,"SET "
               "@@session.character_set_client=%d,"
               "@@session.collation_connection=%d,"
