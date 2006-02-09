@@ -5064,6 +5064,50 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 
 /*
+  Insert log entry into list
+  SYNOPSIS
+    insert_part_info_log_entry_list()
+    log_entry
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+insert_part_info_log_entry_list(partition_info *part_info,
+                                TABLE_LOG_MEMORY_ENTRY *log_entry)
+{
+  log_entry->next_active_log_entry= part_info->first_log_entry;
+  part_info->first_log_entry= log_entry;
+}
+
+
+/*
+  Release all log entries for this partition info struct
+  SYNOPSIS
+    release_part_info_log_entries()
+    first_log_entry                 First log entry in list to release
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
+{
+  DBUG_ENTER("release_part_info_log_entries");
+
+  while (log_entry)
+  {
+    release_table_log_memory_entry(log_entry);
+    log_entry= log_entry->next_log_entry;
+  }
+  part_info->first_log_entry= NULL;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Write the log entry to ensure that the shadow frm file is removed at
   crash.
   SYNOPSIS
@@ -5082,11 +5126,111 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 bool
 write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
 {
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  char shadow_path[FN_LEN];
   DBUG_ENTER("write_log_shadow_frm");
 
   lock_global_table_log();
+  do
+  {
+    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                         lpt->table_name, "#");
+    table_log_entry.action_type= 'd';
+    table_log_entry.next_entry= 0;
+    table_log_entry.handler_type= "frm";
+    table_log_entry.name= shadow_path;
+    
+    if (write_table_log_entry(&table_log_entry, &log_entry))
+      break;
+    insert_part_info_log_entry_list(part_info, log_entry);
+    if (write_execute_table_log_entry(log_entry->entry_pos, &log_entry))
+      break;
+    part_info->exec_log_entry= log_entry;
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE);
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
   unlock_global_table_log();
+  DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Log dropped partitions
+  SYNOPSIS
+    write_log_dropped_partitions()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+*/
+
+static
+bool
+write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
+                             uint *next_entry,
+                             const char *path)
+{
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  char tmp_path[FN_LEN];
+  List_iterator<partition_element> part_it(part_info->partitions);
+  uint no_elements= part_info->partitions.elements;
+  DBUG_ENTER("write_log_dropped_partitions");
+
+  table_log_entry.action_type= 'd';
+  do
+  {
+    partition_element part_elem= part_it++;
+    if (part_elem->part_state == PART_TO_BE_DROPPED ||
+        part_elem->part_state == PART_TO_BE_ADDED)
+    {
+      if (is_sub_partitioned(part_info))
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        uint no_subparts= part_info->no_subparts;
+        do
+        {
+          partition_element *sub_elem= sub_it++;
+          table_log_entry.next_entry= *next_entry;
+          table_log_entry.handler_type=
+                 ha_resolve_storage_engine_name(sub_elem->engine_type);
+          create_subpartition_name(tmp_path, path,
+                                   part_elem->partition_name,
+                                   sub_elem->partition_name,
+                                   NORMAL_PART_NAME);
+          table_log_entry.name= tmp_path;
+          if (write_table_log_entry(&table_log_entry, &log_entry))
+          {
+            DBUG_RETURN(TRUE);
+          }
+          *next_entry= log_entry->entry_pos;
+          insert_part_info_log_entry_list(part_info, log_entry);
+        } while (++i < no_subparts);
+      }
+      else
+      {
+        table_log_entry.next_entry= *next_entry;
+        table_log_entry.handler_type=
+               ha_resolve_storage_engine_name(part_elem->engine_type);
+        create_partition_name(tmp_path, path,
+                              part_elem->partition_name,
+                              NORMAL_PART_NAME, TRUE);
+        table_log_entry.name= tmp_path;
+        if (write_table_log_entry(&table_log_entry, &log_entry))
+        {
+          DBUG_RETURN(TRUE);
+        }
+        *next_entry= log_entry->entry_pos;
+        insert_part_info_log_entry_list(part_info, log_entry);
+      }
+    }
+  } while (++i < no_elements);
   DBUG_RETURN(FALSE);
+error:
 }
 
 
@@ -5108,11 +5252,47 @@ write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
 bool
 write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  char tmp_path[FN_LEN];
+  char path[FN_LEN];
+  uint next_entry= 0;
+  TABLE_LOG_MEMORY_ENTRY *old_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_drop_partition");
 
+  part_info->first_log_entry= NULL;
+  build_table_filename(path, sizeof(path), lpt->db,
+                       lpt->table_name, "");
   lock_global_table_log();
+  do
+  {
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path))
+      break;
+    /*
+      At first we write an entry that installs the new frm file
+    */
+    build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+                         lpt->table_name, "#");
+    table_log_entry.action_type= 'r';
+    table_log_entry.next_entry= next_entry;
+    table_log_entry.handler_type= "frm";
+    table_log_entry.name= path;
+    table_log_entry.from_name= tmp_path;
+    if (write_table_log_entry(&table_log_entry, &log_entry))
+      break;
+    insert_part_info_log_entry_list(part_info, log_entry);
+    log_entry= part_info->exec_log_entry;
+    if (write_execute_table_log_entry(log_entry->entry_pos, NULL))
+      break;
+    release_part_info_log_entries(old_first_log_entry);
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE); 
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= old_log_entry;
   unlock_global_table_log();
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5129,16 +5309,48 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   DESCRIPTION
     Prepare entries to the table log indicating all partitions to drop and to
     remove the shadow frm file.
+    The removal of the shadow frm file is already in the log file so we only
+    need to link the new entries to the existing and carefully ensure that
+    the new linked list has first the dropped partitions and then the
+    drop of the shadow frm file.
+    We always inject entries backwards in the list in the table log since we
+    don't know the entry position until we have written it.
 */
 
 bool
 write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   DBUG_ENTER("write_log_add_partition");
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  char tmp_path[FN_LEN];
+  char path[FN_LEN];
+  TABLE_LOG_MEMORY_ENTRY *old_log_entry= part_info->first_log_entry;
+  uint next_entry= old_log_entry->entry_pos;
+  /* Ensure we linked the existing entries at the back */
+  DBUG_ENTER("write_log_add_partition");
 
+  part_info->first_log_entry= NULL;
+  build_table_filename(path, sizeof(path), lpt->db,
+                       lpt->table_name, "");
   lock_global_table_log();
+  do
+  {
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path))
+      break;
+    log_entry= part_info->first_log_entry;
+    /* Ensure first entry is the last dropped partition */
+    if (write_execute_table_log_entry(log_entry->entry_pos, NULL))
+      break;
+    release_part_info_log_entries(old_first_log_entry);
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE); 
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= old_log_entry;
   unlock_global_table_log();
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -6181,6 +6393,88 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter)
   field->store(part_iter->field_vals.start, FALSE);
   part_iter->field_vals.start++;
   return part_iter->part_info->get_subpartition_id(part_iter->part_info);
+}
+
+
+/*
+  Create partition names
+
+  SYNOPSIS
+    create_partition_name()
+    out:out                   Created partition name string
+    in1                       First part
+    in2                       Second part
+    name_variant              Normal, temporary or renamed partition name
+
+  RETURN VALUE
+    NONE
+
+  DESCRIPTION
+    This method is used to calculate the partition name, service routine to
+    the del_ren_cre_table method.
+*/
+
+void
+create_partition_name(char *out, const char *in1,
+                      const char *in2, uint name_variant,
+                      bool translate)
+{
+  char transl_part_name[FN_REFLEN];
+  const char *transl_part;
+
+  if (translate)
+  {
+    tablename_to_filename(in2, transl_part_name, FN_REFLEN);
+    transl_part= transl_part_name;
+  }
+  else
+    transl_part= in2;
+  if (name_variant == NORMAL_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part, NullS);
+  else if (name_variant == TEMP_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part, "#TMP#", NullS);
+  else if (name_variant == RENAMED_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part, "#REN#", NullS);
+}
+
+
+/*
+  Create subpartition name
+
+  SYNOPSIS
+    create_subpartition_name()
+    out:out                   Created partition name string
+    in1                       First part
+    in2                       Second part
+    in3                       Third part
+    name_variant              Normal, temporary or renamed partition name
+
+  RETURN VALUE
+    NONE
+
+  DESCRIPTION
+  This method is used to calculate the subpartition name, service routine to
+  the del_ren_cre_table method.
+*/
+
+void
+create_subpartition_name(char *out, const char *in1,
+                         const char *in2, const char *in3,
+                         uint name_variant)
+{
+  char transl_part_name[FN_REFLEN], transl_subpart_name[FN_REFLEN];
+
+  tablename_to_filename(in2, transl_part_name, FN_REFLEN);
+  tablename_to_filename(in3, transl_subpart_name, FN_REFLEN);
+  if (name_variant == NORMAL_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part_name,
+            "#SP#", transl_subpart_name, NullS);
+  else if (name_variant == TEMP_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part_name,
+            "#SP#", transl_subpart_name, "#TMP#", NullS);
+  else if (name_variant == RENAMED_PART_NAME)
+    strxmov(out, in1, "#P#", transl_part_name,
+            "#SP#", transl_subpart_name, "#REN#", NullS);
 }
 #endif
 
