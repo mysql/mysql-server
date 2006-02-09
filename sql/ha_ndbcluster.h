@@ -604,6 +604,7 @@ class ha_ndbcluster: public handler
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
   uint max_supported_key_length() const;
+  uint max_supported_key_part_length() const;
 
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);

@@ -1283,10 +1283,8 @@ public:
     DBUG_ENTER("Item_func_match");
     Item_real_func::cleanup();
     if (!master && ft_handler)
-    {
       ft_handler->please->close_search(ft_handler);
-      ft_handler=0;
-    }
+    ft_handler= 0;
     concat= 0;
     DBUG_VOID_RETURN;
   }
