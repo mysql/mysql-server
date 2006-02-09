@@ -1190,6 +1190,7 @@ typedef struct st_table_log_memory_entry
 bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
                            TABLE_LOG_MEMORY_ENTRY **active_entry);
 bool write_execute_table_log_entry(uint first_entry,
+                                   bool complete,
                                    TABLE_LOG_MEMORY_ENTRY **active_entry);
 void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
 void release_table_log();
