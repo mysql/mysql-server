@@ -358,6 +358,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_TABLE_EXIST,            ER(ER_TABLE_EXISTS_ERROR));
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
   SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
+  SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1868,6 +1869,29 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_KEY;
     break;
   }
+  case HA_ERR_FOREIGN_DUPLICATE_KEY:
+  {
+    uint key_nr= get_dup_key(error);
+    if ((int) key_nr >= 0)
+    {
+      /* Write the key in the error message */
+      char key[MAX_KEY_LENGTH];
+      String str(key,sizeof(key),system_charset_info);
+      /* Table is opened and defined at this point */
+      key_unpack(&str,table,(uint) key_nr);
+      uint max_length= MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY));
+      if (str.length() >= max_length)
+      {
+        str.length(max_length-4);
+        str.append(STRING_WITH_LEN("..."));
+      }
+      my_error(ER_FOREIGN_DUPLICATE_KEY, MYF(0), table_share->table_name.str,
+        str.c_ptr(), key_nr+1);
+      DBUG_VOID_RETURN;
+    }
+    textno= ER_DUP_KEY;
+    break;
+  }
   case HA_ERR_NULL_IN_SPATIAL:
     textno= ER_UNKNOWN_ERROR;
     break;
@@ -2003,8 +2027,9 @@ uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE ||
-      error == HA_ERR_NULL_IN_SPATIAL || error == HA_ERR_DROP_INDEX_FK)
+  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
+      error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
+      error == HA_ERR_DROP_INDEX_FK)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
