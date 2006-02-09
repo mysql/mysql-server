@@ -1135,6 +1135,16 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 
+#define NORMAL_PART_NAME 0
+#define TEMP_PART_NAME 1
+#define RENAMED_PART_NAME 2
+void create_partition_name(char *out, const char *in1,
+                           const char *in2, uint name_variant,
+                           bool translate);
+void create_subpartition_name(char *out, const char *in1,
+                              const char *in2, const char *in3,
+                              uint name_variant);
+
 typedef struct st_lock_param_type
 {
   ulonglong copied;
