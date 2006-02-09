@@ -1530,7 +1530,7 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY  (`id`)
 )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
-CONNECTION='mysql://root@127.0.0.1:9308/federated/t1';
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 VALUES ();
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()

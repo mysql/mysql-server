@@ -1,0 +1,6 @@
+#################################
+# Wrapper for rpl_insert_id.test#
+#################################
+-- source include/have_innodb.inc
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_insert_id_pk.test

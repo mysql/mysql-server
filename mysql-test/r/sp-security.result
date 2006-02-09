@@ -291,3 +291,26 @@ drop user user1_bug14834@localhost;
 drop user user2_bug14834@localhost;
 drop user user3_bug14834@localhost;
 drop database db_bug14834;
+create database db_bug14533;
+use db_bug14533;
+create table t1 (id int);
+create user user_bug14533@localhost identified by '';
+create procedure bug14533_1()
+sql security definer
+desc db_bug14533.t1;
+create procedure bug14533_2()
+sql security definer
+select * from db_bug14533.t1;
+grant execute on procedure db_bug14533.bug14533_1 to user_bug14533@localhost;
+grant execute on procedure db_bug14533.bug14533_2 to user_bug14533@localhost;
+call db_bug14533.bug14533_1();
+Field	Type	Null	Key	Default	Extra
+id	int(11)	YES		NULL	
+call db_bug14533.bug14533_2();
+id
+desc db_bug14533.t1;
+ERROR 42000: SELECT command denied to user 'user_bug14533'@'localhost' for table 't1'
+select * from db_bug14533.t1;
+ERROR 42000: SELECT command denied to user 'user_bug14533'@'localhost' for table 't1'
+drop user user_bug14533@localhost;
+drop database db_bug14533;

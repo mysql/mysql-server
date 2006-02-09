@@ -17,8 +17,8 @@ BEGIN
 DECLARE done INT DEFAULT 0;
 DECLARE spa CHAR(16);
 DECLARE spb,spc INT;
-DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1;
-DECLARE cur2 CURSOR FOR SELECT id2 FROM test.t2;
+DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1 ORDER BY id;
+DECLARE cur2 CURSOR FOR SELECT id2 FROM test.t2 ORDER BY id2;
 DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
 OPEN cur1;
 OPEN cur2;
@@ -46,13 +46,13 @@ END|
 < ---- Master selects-- >
 -------------------------
 CALL test.p2();
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY id;
 id	data
 8	MySQL
-20	ROCKS
-11	Texas
 10	kyle
-SELECT * FROM test.t2;
+11	Texas
+20	ROCKS
+SELECT * FROM test.t2 ORDER BY id2;
 id2
 1
 2
@@ -61,13 +61,13 @@ id2
 
 < ---- Slave selects-- >
 ------------------------
-SELECT * FROM test.t1;
+SELECT * FROM test.t1 ORDER BY id;
 id	data
 8	MySQL
-20	ROCKS
-11	Texas
 10	kyle
-SELECT * FROM test.t2;
+11	Texas
+20	ROCKS
+SELECT * FROM test.t2 ORDER BY id2;
 id2
 1
 2
@@ -77,21 +77,21 @@ id2
 < ---- Master selects-- >
 -------------------------
 CALL test.p1();
-SELECT * FROM test.t3;
+SELECT * FROM test.t3 ORDER BY id3;
 id3	c
 1	MySQL
-2	ROCKS
+2	kyle
 3	Texas
-4	kyle
+4	ROCKS
 
 < ---- Slave selects-- >
 ------------------------
-SELECT * FROM test.t3;
+SELECT * FROM test.t3 ORDER BY id3;
 id3	c
 1	MySQL
-2	ROCKS
+2	kyle
 3	Texas
-4	kyle
+4	ROCKS
 ALTER PROCEDURE test.p1 MODIFIES SQL DATA;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
