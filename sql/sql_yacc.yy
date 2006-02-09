@@ -2400,17 +2400,18 @@ sp_proc_stmt_case:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *parsing_ctx= lex->spcont;
 	    int case_expr_id= parsing_ctx->register_case_expr();
+            sp_instr_set_case_expr *i;
 	    
 	    if (parsing_ctx->push_case_expr_id(case_expr_id))
               YYABORT;
-	    
-	    sp->add_instr(
-	      new sp_instr_set_case_expr(sp->instructions(),
-	                                 parsing_ctx,
-	                                 case_expr_id,
-	                                 $3,
-	                                 lex));
-	    
+
+            i= new sp_instr_set_case_expr(sp->instructions(),
+                                          parsing_ctx,
+                                          case_expr_id,
+                                          $3,
+                                          lex);
+            sp->add_cont_backpatch(i);
+            sp->add_instr(i);
 	    sp->m_flags|= sp_head::IN_SIMPLE_CASE;
 	    sp->restore_lex(YYTHD);
 	  }

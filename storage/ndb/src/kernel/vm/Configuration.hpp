@@ -64,6 +64,7 @@ public:
   bool getInitialStart() const;
   void setInitialStart(bool val);
   bool getDaemonMode() const;
+  bool getForegroundMode() const;
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
@@ -105,7 +106,8 @@ private:
   char * _connectString;
   Uint32 m_mgmd_port;
   BaseString m_mgmd_host;
-  bool _daemonMode;
+  bool _daemonMode; // if not, angel in foreground
+  bool _foregroundMode; // no angel, raw ndbd in foreground
 
   void calcSizeAlt(class ConfigValues * );
 };
@@ -138,6 +140,12 @@ inline
 bool
 Configuration::getDaemonMode() const {
   return _daemonMode;
+}
+
+inline
+bool
+Configuration::getForegroundMode() const {
+  return _foregroundMode;
 }
 
 #endif
