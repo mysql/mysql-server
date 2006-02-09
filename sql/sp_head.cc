@@ -1761,7 +1761,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
 
 
 void
-sp_head::new_cont_backpatch(sp_instr_jump_if_not *i)
+sp_head::new_cont_backpatch(sp_instr_opt_meta *i)
 {
   m_cont_level+= 1;
   if (i)
@@ -1773,7 +1773,7 @@ sp_head::new_cont_backpatch(sp_instr_jump_if_not *i)
 }
 
 void
-sp_head::add_cont_backpatch(sp_instr_jump_if_not *i)
+sp_head::add_cont_backpatch(sp_instr_opt_meta *i)
 {
   i->m_cont_dest= m_cont_level;
   (void)m_cont_backpatch.push_front(i);
@@ -1784,7 +1784,7 @@ sp_head::do_cont_backpatch()
 {
   uint dest= instructions();
   uint lev= m_cont_level--;
-  sp_instr_jump_if_not *i;
+  sp_instr_opt_meta *i;
 
   while ((i= m_cont_backpatch.head()) && i->m_cont_dest == lev)
   {
@@ -2048,10 +2048,10 @@ void sp_head::optimize()
 
 	set_dynamic(&m_instr, (gptr)&i, dst);
 	while ((ibp= li++))
-	{
-	  sp_instr_jump *ji= static_cast<sp_instr_jump *>(ibp);
-          ji->set_destination(src, dst);
-	}
+        {
+          sp_instr_opt_meta *im= static_cast<sp_instr_opt_meta *>(ibp);
+          im->set_destination(src, dst);
+        }
       }
       i->opt_move(dst, &bp);
       src+= 1;
@@ -2073,6 +2073,10 @@ sp_head::opt_mark(uint ip)
 
 
 #ifndef DBUG_OFF
+/*
+  Return the routine instructions as a result set.
+  Returns 0 if ok, !=0 on error.
+*/
 int
 sp_head::show_routine_code(THD *thd)
 {
@@ -2100,6 +2104,22 @@ sp_head::show_routine_code(THD *thd)
 
   for (ip= 0; (i = get_instr(ip)) ; ip++)
   {
+    /* 
+      Consistency check. If these are different something went wrong
+      during optimization.
+    */
+    if (ip != i->m_ip)
+    {
+      const char *format= "Instruction at position %u has m_ip=%u";
+      char tmp[sizeof(format) + 2*SP_INSTR_UINT_MAXLEN + 1];
+
+      sprintf(tmp, format, ip, i->m_ip);
+      /*
+        Since this is for debugging purposes only, we don't bother to
+        introduce a special error code for it.
+      */
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
+    }
     protocol->prepare_for_resend();
     protocol->store((longlong)ip);
 
@@ -2524,14 +2544,14 @@ sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 void
 sp_instr_jump_if_not::print(String *str)
 {
-  /* jump_if_not dest ... */
+  /* jump_if_not dest(cont) ... */
   if (str->reserve(2*SP_INSTR_UINT_MAXLEN+14+32)) // Add some for the expr. too
     return;
   str->qs_append(STRING_WITH_LEN("jump_if_not "));
   str->qs_append(m_dest);
-  str->append('(');
+  str->qs_append('(');
   str->qs_append(m_cont_dest);
-  str->append(") ");
+  str->qs_append(STRING_WITH_LEN(") "));
   m_expr->print(str);
 }
 
@@ -3077,28 +3097,51 @@ sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
       spcont->clear_handler();
       thd->spcont= spcont;
     }
+    *nextp= m_cont_dest;        /* For continue handler */
   }
+  else
+    *nextp= m_ip+1;
 
-  *nextp = m_ip+1;
-
-  return res; /* no error */
+  return res;
 }
 
 
 void
 sp_instr_set_case_expr::print(String *str)
 {
-  const char CASE_EXPR_TAG[]= "set_case_expr ";
-  const int CASE_EXPR_TAG_LEN= sizeof(CASE_EXPR_TAG) - 1;
-  const int INT_STRING_MAX_LEN= 10;
-
-  /* We must call reserve(), because qs_append() doesn't care about memory. */
-  str->reserve(CASE_EXPR_TAG_LEN + INT_STRING_MAX_LEN + 2);
-
-  str->qs_append(CASE_EXPR_TAG, CASE_EXPR_TAG_LEN);
+  /* set_case_expr (cont) id ... */
+  str->reserve(2*SP_INSTR_UINT_MAXLEN+18+32); // Add some extra for expr too
+  str->qs_append(STRING_WITH_LEN("set_case_expr ("));
+  str->qs_append(m_cont_dest);
+  str->qs_append(STRING_WITH_LEN(") "));
   str->qs_append(m_case_expr_id);
   str->qs_append(' ');
   m_case_expr->print(str);
+}
+
+uint
+sp_instr_set_case_expr::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_cont_dest)))
+  {
+    m_cont_dest= i->opt_shortcut_jump(sp, this);
+    m_cont_optdest= sp->get_instr(m_cont_dest);
+  }
+  sp->opt_mark(m_cont_dest);
+  return m_ip+1;
+}
+
+void
+sp_instr_set_case_expr::opt_move(uint dst, List<sp_instr> *bp)
+{
+  if (m_cont_dest > m_ip)
+    bp->push_back(this);        // Forward
+  else if (m_cont_optdest)
+    m_cont_dest= m_cont_optdest->m_ip; // Backward
+  m_ip= dst;
 }
 
 

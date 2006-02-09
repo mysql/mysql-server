@@ -1002,22 +1002,26 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
 }
 
 
+/*
+  This is used by sql_acl.cc:mysql_routine_grant() and is used to find
+  the routines in 'routines'.
+*/
 
 int
-sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
+sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any, bool no_error)
 {
-  TABLE_LIST *table;
+  TABLE_LIST *routine;
   bool result= 0;
   DBUG_ENTER("sp_exists_routine");
-  for (table= tables; table; table= table->next_global)
+  for (routine= routines; routine; routine= routine->next_global)
   {
     sp_name *name;
     LEX_STRING lex_db;
     LEX_STRING lex_name;
-    lex_db.length= strlen(table->db);
-    lex_name.length= strlen(table->table_name);
-    lex_db.str= thd->strmake(table->db, lex_db.length);
-    lex_name.str= thd->strmake(table->table_name, lex_name.length);
+    lex_db.length= strlen(routine->db);
+    lex_name.length= strlen(routine->table_name);
+    lex_db.str= thd->strmake(routine->db, lex_db.length);
+    lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name);
     name->init_qname(thd);
     if (sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
@@ -1034,13 +1038,46 @@ sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
       if (!no_error)
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE", 
-		 table->table_name);
+		 routine->table_name);
 	DBUG_RETURN(-1);
       }
       DBUG_RETURN(0);
     }
   }
   DBUG_RETURN(result);
+}
+
+
+/*
+  Check if a routine exists in the mysql.proc table, without actually
+  parsing the definition. (Used for dropping)
+
+  SYNOPSIS
+    sp_routine_exists_in_table()
+      thd        - thread context
+      name       - name of procedure
+
+  RETURN VALUE
+    0     - Success
+    non-0 - Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
+*/
+
+int
+sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
+{
+  TABLE *table;
+  int ret;
+  Open_tables_state open_tables_state_backup;
+
+  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
+    ret= SP_OPEN_TABLE_FAILED;
+  else
+  {
+    if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
+      ret= SP_KEY_NOT_FOUND;
+    close_proc_table(thd, &open_tables_state_backup);
+  }
+  return ret;
 }
 
 
