@@ -141,3 +141,17 @@ select log(2,-1);
 select log(-2,1);
 set sql_mode='';
 
+#
+# Bug #8461 truncate() and round() return false results 2nd argument negative.
+# 
+# round(a,-b) log_10(b) > a
+select round(111,-10);
+# round on bigint 
+select round(-5000111000111000155,-1);
+# round on unsigned bigint
+select round(15000111000111000155,-1);
+# truncate on bigint 
+select truncate(-5000111000111000155,-1);
+# truncate on unsigned bigint
+select truncate(15000111000111000155,-1);
+

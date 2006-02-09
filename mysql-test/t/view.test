@@ -2358,3 +2358,20 @@ EXPLAIN SELECT MIN(a) FROM v1;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug#16382: grouping name is resolved against a view column name
+#            which coincides with a select column name
+
+CREATE TABLE t1 (x varchar(10));
+INSERT INTO t1 VALUES (null), ('foo'), ('bar'), (null);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT IF(x IS NULL, 'blank', 'not blank') FROM v1 GROUP BY x;
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM t1 GROUP BY x;
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1;
+SELECT IF(x IS NULL, 'blank', 'not blank') AS y FROM v1 GROUP BY y;
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1 GROUP BY x;
+
+DROP VIEW v1;
+DROP TABLE t1;

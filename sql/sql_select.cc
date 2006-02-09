@@ -612,6 +612,7 @@ JOIN::optimize()
     build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
+    sel->prep_having= having ? having->copy_andor_structure(thd) : 0;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
@@ -625,13 +626,26 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  if (cond_value == Item::COND_FALSE ||
-      (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
-  {						/* Impossible cond */
-    DBUG_PRINT("info", ("Impossible WHERE"));
-    zero_result_cause= "Impossible WHERE";
-    error= 0;
-    DBUG_RETURN(0);
+  {
+    Item::cond_result having_value;
+    having= optimize_cond(this, having, join_list, &having_value);
+    if (thd->net.report_error)
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from optimize_cond"));
+      DBUG_RETURN(1);
+    }
+
+    if (cond_value == Item::COND_FALSE || having_value == Item::COND_FALSE || 
+        (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
+    {						/* Impossible cond */
+      DBUG_PRINT("info", (having_value == Item::COND_FALSE ? 
+                            "Impossible HAVING" : "Impossible WHERE"));
+      zero_result_cause=  having_value == Item::COND_FALSE ?
+                           "Impossible HAVING" : "Impossible WHERE";
+      error= 0;
+      DBUG_RETURN(0);
+    }
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -12472,7 +12486,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
         overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR), from_field->field_name,
+                          ER(ER_NON_UNIQ_ERROR),
+                          ((Item_ident*) order_item)->field_name,
                           current_thd->where);
     }
   }
