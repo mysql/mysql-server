@@ -799,6 +799,8 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 
+struct TABLE_LOG_MEMORY_ENTRY;
+
 class partition_info : public Sql_alloc
 {
 public:
@@ -845,7 +847,9 @@ public:
   Item *subpart_expr;
 
   Item *item_free_list;
-  
+
+  TABLE_LOG_MEMORY_ENTRY *first_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry;
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
