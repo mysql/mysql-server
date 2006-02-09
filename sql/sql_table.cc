@@ -851,6 +851,7 @@ release_table_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp->next_log_entry;
   }
+  VOID(my_close(global_table_log.file_id, MYF(0)));
   DBUG_VOID_RETURN;
 }
 
