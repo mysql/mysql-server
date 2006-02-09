@@ -367,6 +367,8 @@ write_table_log_header()
   int4store(&global_table_log.file_entry[8], const_var);
   if (write_table_log_file_entry(0UL))
     error= TRUE;
+  if (!error)
+    error= sync_table_log();
   DBUG_RETURN(error);
 }
 
@@ -688,14 +690,20 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
 
 bool
 write_execute_table_log_entry(uint first_entry,
+                              bool complete,
                               TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
   bool write_header;
   char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("write_execute_table_log_entry");
 
-  VOID(sync_table_log());
-  file_entry[0]= 'e';
+  if (!complete)
+  {
+    VOID(sync_table_log());
+    file_entry[0]= 'e';
+  }
+  else
+    file_entry[0]= 'i';
   file_entry[1]= 0; /* Ignored for execute entries */
   int4store(&file_entry[2], first_entry);
   file_entry[6]= 0;
