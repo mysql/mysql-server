@@ -5181,7 +5181,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
   char tmp_path[FN_LEN];
   List_iterator<partition_element> part_it(part_info->partitions);
   uint no_elements= part_info->partitions.elements;
-  uint i;
+  uint i= 0;
   DBUG_ENTER("write_log_dropped_partitions");
 
   table_log_entry.action_type= 'd';
@@ -5195,6 +5195,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         uint no_subparts= part_info->no_subparts;
+        uint j= 0;
         do
         {
           partition_element *sub_elem= sub_it++;
@@ -5212,7 +5213,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           }
           *next_entry= log_entry->entry_pos;
           insert_part_info_log_entry_list(part_info, log_entry);
-        } while (++i < no_subparts);
+        } while (++j < no_subparts);
       }
       else
       {
