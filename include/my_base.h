@@ -367,8 +367,11 @@ enum ha_base_keytype {
                                           given value */
 #define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
 #define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr. */
+#define HA_ERR_FOREIGN_DUPLICATE_KEY 163 /* Upholding foreign key constraints
+                                            would lead to a duplicate key
+                                            error in some other table. */
 
-#define HA_ERR_LAST               162  /* Copy last error no */
+#define HA_ERR_LAST               163  /* Copy last error no */
 
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
