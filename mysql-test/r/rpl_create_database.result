@@ -61,16 +61,14 @@ mysql
 mysqltest_prometheus
 mysqltest_sisyfos
 test
-SHOW CREATE TABLE mysqltest_prometheus.t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW CREATE TABLE mysqltest_sisyfos.t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` int(11) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+USE mysqltest_prometheus;
+SHOW TABLES;
+Tables_in_mysqltest_prometheus
+t1
+USE mysqltest_sisyfos;
+SHOW TABLES;
+Tables_in_mysqltest_sisyfos
+t2
 DROP DATABASE IF EXISTS mysqltest_prometheus;
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
 DROP DATABASE IF EXISTS mysqltest_bob;

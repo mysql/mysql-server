@@ -1,4 +1,11 @@
-# Requires row base logging
+###################################
+# Wrapper for rpl_row_log.test    #
+# Added wrapper so that MyISAM &  #
+# Innodb and NDB could all use the#
+# Same test. NDB produced a diff  #
+# bin-log                         #
+###################################
 -- source include/have_binlog_format_row.inc
+let $engine_type=MyISAM;
 -- source extra/rpl_tests/rpl_log.test
 

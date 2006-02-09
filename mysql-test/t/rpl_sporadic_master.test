@@ -1,3 +1,6 @@
+#############################################################
+# 2006-02-07 By JBM added order by
+#############################################################
 # test to see if replication can continue when master sporadically fails on
 # COM_BINLOG_DUMP and additionally limits the number of events per dump
 
@@ -18,7 +21,7 @@ flush logs;
 truncate table t1;
 insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
 sync_slave_with_master;
-select * from t1;
+select * from t1 ORDER BY n;
 connection master;
 drop table t1,t2;
 sync_slave_with_master;

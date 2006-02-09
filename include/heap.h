@@ -136,6 +136,7 @@ typedef struct st_heap_share
   HP_KEYDEF  *keydef;
   ulong min_records,max_records;	/* Params to open */
   ulong data_length,index_length,max_table_size;
+  uint key_stat_version;                /* version to indicate insert/delete */
   uint records;				/* records */
   uint blength;				/* records rounded up to 2^n */
   uint deleted;				/* Deleted records in database */

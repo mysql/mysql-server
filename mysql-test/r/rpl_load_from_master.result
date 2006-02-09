@@ -13,11 +13,11 @@ drop database if exists mysqltest3;
 create database mysqltest2;
 create database mysqltest;
 create database mysqltest2;
-create table mysqltest2.foo (n int);
+create table mysqltest2.foo (n int)ENGINE=MyISAM;
 insert into mysqltest2.foo values(4);
-create table mysqltest2.foo (n int);
+create table mysqltest2.foo (n int)ENGINE=MyISAM;
 insert into mysqltest2.foo values(5);
-create table mysqltest.bar (m int);
+create table mysqltest.bar (m int)ENGINE=MyISAM;
 insert into mysqltest.bar values(15);
 select mysqltest2.foo.n,mysqltest.bar.m from mysqltest2.foo,mysqltest.bar;
 n	m
@@ -38,12 +38,12 @@ mysql
 mysqltest
 mysqltest2
 test
-create table mysqltest2.t1(n int, s char(20));
-create table mysqltest2.t2(n int, s text);
+create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest2.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three');
 insert into mysqltest2.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen');
-create table mysqltest.t1(n int, s char(20));
-create table mysqltest.t2(n int, s text);
+create table mysqltest.t1(n int, s char(20))ENGINE=MyISAM;
+create table mysqltest.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest.t1 values (1, 'one test'), (2, 'two test'), (3, 'three test');
 insert into mysqltest.t2 values (11, 'eleven test'), (12, 'twelve test'),
 (13, 'thirteen test');
@@ -55,17 +55,17 @@ cluster_replication
 mysql
 test
 create database mysqltest2;
-create table mysqltest2.t1(n int, s char(20));
+create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'original foo.t1');
-create table mysqltest2.t3(n int, s char(20));
+create table mysqltest2.t3(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest2.t3 values (1, 'original foo.t3');
 create database mysqltest3;
-create table mysqltest3.t1(n int, s char(20));
+create table mysqltest3.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest3.t1 values (1, 'original foo2.t1');
 create database mysqltest;
-create table mysqltest.t1(n int, s char(20));
+create table mysqltest.t1(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest.t1 values (1, 'original bar.t1');
-create table mysqltest.t3(n int, s char(20));
+create table mysqltest.t3(n int, s char(20))ENGINE=MyISAM;
 insert into mysqltest.t3 values (1, 'original bar.t3');
 load data from master;
 show databases;

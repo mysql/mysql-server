@@ -6,6 +6,13 @@ EXEC_PROGRAM(cscript.exe win ARGS config-version.js OUT_VARIABLE out)
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D DBUG_OFF")
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D DBUG_OFF")
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 8")
+    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /wd4996")
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /wd4996")
+    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /wd4996")
+    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /wd4996")
+ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 8")
+
 IF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR CMAKE_GENERATOR MATCHES "Visual Studio 8")
 	# replace /MDd with /MTd
 	STRING(REPLACE "/MDd" "/MTd" CMAKE_CXX_FLAGS_DEBUG_INIT ${CMAKE_CXX_FLAGS_DEBUG_INIT})
@@ -25,4 +32,4 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR CMAKE_GENERATOR MATCHES "Visu
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__")
 
 SUBDIRS(vio dbug strings regex mysys extra zlib storage/innobase storage/heap storage/myisam storage/myisammrg 
-			  extra/yassl extra/yassl/taocrypt client sql)
+			  extra/yassl extra/yassl/taocrypt client sql server-tools/instance-manager)
