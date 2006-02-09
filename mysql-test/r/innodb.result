@@ -2758,3 +2758,21 @@ e varchar(255) character set utf8,
 key (a,b,c,d,e)) engine=innodb;
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 End of 5.0 tests
+CREATE TABLE t1 (
+field1 varchar(8) NOT NULL DEFAULT '',
+field2 varchar(8) NOT NULL DEFAULT '',
+PRIMARY KEY  (field1, field2)
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+field1 varchar(8) NOT NULL DEFAULT '' PRIMARY KEY,
+FOREIGN KEY (field1) REFERENCES t1 (field1)
+ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('old', 'somevalu');
+INSERT INTO t1 VALUES ('other', 'anyvalue');
+INSERT INTO t2 VALUES ('old');
+INSERT INTO t2 VALUES ('other');
+UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
+ERROR 23000: Upholding foreign key constraints for table 't1', entry 'other-somevalu', key 1 would lead to a duplicate entry
+DROP TABLE t2;
+DROP TABLE t1;

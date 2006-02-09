@@ -1376,6 +1376,21 @@ run_again:
 						thr, foreign, &pcur, entry,
 									&mtr);
 					if (err != DB_SUCCESS) {
+						/* Since reporting a plain
+						"duplicate key" error
+						message to the user in
+						cases where a long CASCADE
+						operation would lead to a
+						duplicate key in some
+						other table is very
+						confusing, map duplicate
+						key errors resulting from
+						FK constraints to a
+						separate error code. */
+				    
+						if (err == DB_DUPLICATE_KEY) {
+						    err = DB_FOREIGN_DUPLICATE_KEY;
+						}
 
 						break;
 					}
