@@ -5100,7 +5100,7 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
   while (log_entry)
   {
     release_table_log_memory_entry(log_entry);
-    log_entry= log_entry->next_log_entry;
+    log_entry= log_entry->next_active_log_entry;
   }
   DBUG_VOID_RETURN;
 }
@@ -5145,7 +5145,8 @@ write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
     if (write_table_log_entry(&table_log_entry, &log_entry))
       break;
     insert_part_info_log_entry_list(part_info, log_entry);
-    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
       break;
     part_info->exec_log_entry= exec_log_entry;
     unlock_global_table_log();
@@ -5286,7 +5287,8 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_table_log_entry(&table_log_entry, &log_entry))
       break;
     insert_part_info_log_entry_list(part_info, log_entry);
-    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
       break;
     release_part_info_log_entries(old_first_log_entry);
     unlock_global_table_log();
@@ -5345,7 +5347,8 @@ write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
       break;
     log_entry= part_info->first_log_entry;
     /* Ensure first entry is the last dropped partition */
-    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
       break;
     release_part_info_log_entries(old_first_log_entry);
     unlock_global_table_log();
@@ -5426,9 +5429,21 @@ static
 bool
 write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DBUG_ENTER("write_log_ph2_change_partition");
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
+  DBUG_ENTER("write_log_completed");
 
   lock_global_table_log();
+  DBUG_ASSERT(part_info->exec_log_entry);
+  if (write_execute_table_log_entry(0UL, TRUE, &part_info->exec_log_entry))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= NULL;
+  part_info->exec_log_entry->next_active_log_entry= NULL;
+  release_part_info_log_entries(part_info->exec_log_entry);
+  part_info->exec_log_entry= NULL;
   unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
