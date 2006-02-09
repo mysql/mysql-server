@@ -109,7 +109,7 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 
 
 
-extern volatile my_bool event_executor_running_global_var;
+extern my_bool event_executor_running_global_var;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
