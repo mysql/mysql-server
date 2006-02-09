@@ -172,7 +172,7 @@ Pos	Instruction
 17	set v_col@8 NULL
 18	stmt 0 "select row,col into v_row,v_col from ..."
 19	stmt 0 "select dig into v_dig from sudoku_wor..."
-20	set_case_expr 0 v_dig@4
+20	set_case_expr (34) 0 v_dig@4
 21	jump_if_not 25(34) (case_expr@0 = 0)
 22	set v_dig@4 1
 23	stmt 4 "update sudoku_work set dig = 1 where ..."

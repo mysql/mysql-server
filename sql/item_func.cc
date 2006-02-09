@@ -1865,28 +1865,30 @@ longlong Item_func_round::int_op()
     return value; // integer have not digits after point
 
   abs_dec= -dec;
-  double tmp;
-  /*
-    tmp2 is here to avoid return the value with 80 bit precision
-    This will fix that the test round(0.1,1) = round(0.1,1) is true
-  */
-  volatile double tmp2;
-
-  tmp= (abs_dec < array_elements(log_10) ?
-        log_10[abs_dec] : pow(10.0, (double) abs_dec));
-
+  longlong tmp;
+  
+  if(abs_dec >= array_elements(log_10_int))
+    return 0;
+  
+  tmp= log_10_int[abs_dec];
+  
   if (truncate)
   {
     if (unsigned_flag)
-      tmp2= floor(ulonglong2double(value)/tmp)*tmp;
-    else if (value >= 0)
-      tmp2= floor(((double)value)/tmp)*tmp;
+      value= (ulonglong(value)/tmp)*tmp;
     else
-      tmp2= ceil(((double)value)/tmp)*tmp;
+      value= (value/tmp)*tmp;
   }
   else
-    tmp2= rint(((double)value)/tmp)*tmp;
-  return (longlong)tmp2;
+  {
+    if (unsigned_flag)
+      value= ((ulonglong(value)+(tmp>>1))/tmp)*tmp;
+    else if ( value >= 0)
+      value= ((value+(tmp>>1))/tmp)*tmp;
+    else
+      value= ((value-(tmp>>1))/tmp)*tmp;
+  }
+  return value;
 }
 
 
