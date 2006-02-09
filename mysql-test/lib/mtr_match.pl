@@ -50,6 +50,23 @@ sub mtr_match_extension ($$) {
 }
 
 
+# Match a substring anywere in a string
+
+sub mtr_match_substring ($$) {
+  my $string= shift;
+  my $substring= shift;
+
+  if ( $string =~ /(.*)\Q$substring\E(.*)$/ ) # strncmp
+  {
+    return $1;
+  }
+  else
+  {
+    return undef;		# NULL
+  }
+}
+
+
 sub mtr_match_any_exact ($$) {
   my $string= shift;
   my $mlist=  shift;
