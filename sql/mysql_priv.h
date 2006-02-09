@@ -1199,12 +1199,6 @@ bool execute_table_log_entry(uint first_entry);
 void lock_global_table_log();
 void unlock_global_table_log();
 
-bool write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_flag);
-bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
-bool write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
-bool write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
-bool write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt);
-
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
