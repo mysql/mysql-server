@@ -14697,6 +14697,38 @@ static void test_opt_reconnect()
   mysql_close(lmysql);
 }
 
+
+static void test_bug12744()
+{
+  MYSQL_STMT *prep_stmt = NULL;
+  int rc;
+  myheader("test_bug12744");
+
+  prep_stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(prep_stmt, "SELECT 1", 8);
+  DIE_UNLESS(rc==0);
+
+  rc= mysql_kill(mysql, mysql_thread_id(mysql));
+  DIE_UNLESS(rc==0);
+
+  if (rc= mysql_stmt_execute(prep_stmt))
+  {
+    if (rc= mysql_stmt_reset(prep_stmt))
+      printf("OK!\n");
+    else
+    {
+      printf("Error!");
+      DIE_UNLESS(1==0);
+    }
+  }
+  else
+  {
+    fprintf(stderr, "expected error but no error occured\n");
+    DIE_UNLESS(1==0);
+  }
+  rc= mysql_stmt_close(prep_stmt);
+}
+
 /* Bug #16144: mysql_stmt_attr_get type error */
 
 static void test_bug16144()
@@ -14711,6 +14743,7 @@ static void test_bug16144()
   mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (const void*) &flag);
   mysql_stmt_attr_get(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &flag);
   DIE_UNLESS(flag == flag_orig);
+
   mysql_stmt_close(stmt);
 }
 
@@ -15038,6 +15071,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug14845", test_bug14845 },
   { "test_opt_reconnect", test_opt_reconnect },
   { "test_bug15510", test_bug15510},
+  { "test_bug12744", test_bug12744 },
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { 0, 0 }

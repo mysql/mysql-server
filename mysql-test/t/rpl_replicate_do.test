@@ -21,7 +21,7 @@ create table t11 select * from t1;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from t1;
+select * from t1 ORDER BY m;
 select * from t2;
 --error 1146
 select * from t11;

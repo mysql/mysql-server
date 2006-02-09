@@ -1,3 +1,4 @@
+
 -- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
@@ -79,7 +80,7 @@ connection con2;
 insert into t2 select count(*) from t3;
 drop temporary table t3;
 
-select * from t2;
+select * from t2 ORDER BY f;
 
 # Commented out 8/30/2005 to make compatable with both sbr and rbr
 #--replace_result $VERSION VERSION
@@ -121,7 +122,7 @@ SET TIMESTAMP=1040324224;
 SET @@session.pseudo_thread_id=2;
 drop temporary table t3;
 
-select * from t2;
+select * from t2 ORDER BY f;
 drop table t1,t2;
 
 # Create last a temporary table that is not dropped at end to ensure that we

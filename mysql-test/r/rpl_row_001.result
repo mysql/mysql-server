@@ -7,25 +7,25 @@ start slave;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/std_data/words.dat' INTO TABLE t1;
-SELECT * FROM t1 LIMIT 10;
+SELECT * FROM t1  ORDER BY word LIMIT 10;
 word
 Aarhus
+Aarhus
+Aarhus
+Aarhus
+Aaron
+Aaron
+Aaron
 Aaron
 Ababa
-aback
-abaft
-abandon
-abandoned
-abandoning
-abandonment
-abandons
+Ababa
 STOP SLAVE;
 SET PASSWORD FOR root@"localhost" = PASSWORD('foo');
 START SLAVE;
 SET PASSWORD FOR root@"localhost" = PASSWORD('');
 CREATE TABLE t3(n INT);
 INSERT INTO t3 VALUES(1),(2);
-SELECT * FROM t3;
+SELECT * FROM t3 ORDER BY n;
 n
 1
 2

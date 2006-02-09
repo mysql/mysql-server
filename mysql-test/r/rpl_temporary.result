@@ -32,7 +32,7 @@ insert into t3 select * from t1 where f>=4;
 drop temporary table t3;
 insert into t2 select count(*) from t3;
 drop temporary table t3;
-select * from t2;
+select * from t2 ORDER BY f;
 f
 5
 7
@@ -68,7 +68,7 @@ insert into t2 select count(*) from t3;
 SET TIMESTAMP=1040324224;
 SET @@session.pseudo_thread_id=2;
 drop temporary table t3;
-select * from t2;
+select * from t2 ORDER BY f;
 f
 5
 7

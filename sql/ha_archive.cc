@@ -177,7 +177,9 @@ handlerton archive_hton = {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter interface */
-  HTON_NO_FLAGS
+  HTON_NO_FLAGS,
+  NULL, /* binlog_func */
+  NULL /* binlog_log_query */
 };
 
 static handler *archive_create_handler(TABLE_SHARE *table)

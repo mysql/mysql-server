@@ -1,15 +1,17 @@
 # Test for 
 # Bug #797: If a query is ignored on slave (replicate-ignore-table) the slave
 # still checks that it has the same error as on the master.
+##########################################################################
+# 2006-02-07 JBM Added error code 1022 for NDB Engine + ORDER BY
+##########################################################################
 
-# Requires statement logging
 -- source include/master-slave.inc
 
 connection master;
 create table t1 (a int primary key);
 create table t4 (a int primary key);
 # generate an error that goes to the binlog
---error 1062
+--error 1022, 1062
 insert into t1 values (1),(1);
 insert into t4 values (1),(2);
 save_master_pos;
@@ -19,7 +21,7 @@ sync_with_master;
 # check that the table has been ignored, because otherwise the test is nonsense
 show tables like 't1';
 show tables like 't4';
-SELECT * FROM test.t4;
+SELECT * FROM test.t4 ORDER BY a;
 connection master;
 drop table t1;
 save_master_pos;
@@ -53,7 +55,7 @@ connection master1;
 save_master_pos;
 connection slave;
 sync_with_master;
-SELECT * FROM test.t4;
+SELECT * FROM test.t4 ORDER BY a;
 
 connection master1;
 DROP TABLE test.t4;

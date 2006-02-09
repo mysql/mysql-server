@@ -7,14 +7,14 @@ start slave;
 create table t1 (a int primary key);
 create table t4 (a int primary key);
 insert into t1 values (1),(1);
-ERROR 23000: Duplicate entry '1' for key 1
+Got one of the listed errors
 insert into t4 values (1),(2);
 show tables like 't1';
 Tables_in_test (t1)
 show tables like 't4';
 Tables_in_test (t4)
 t4
-SELECT * FROM test.t4;
+SELECT * FROM test.t4 ORDER BY a;
 a
 1
 2
@@ -33,7 +33,7 @@ select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;
 insert into t4 values (3),(4);
-SELECT * FROM test.t4;
+SELECT * FROM test.t4 ORDER BY a;
 a
 1
 2
