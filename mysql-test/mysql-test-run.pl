@@ -1204,7 +1204,7 @@ sub kill_running_server () {
     mkpath("$opt_vardir/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
 
-    $using_ndbcluster_master= 1;
+    $using_ndbcluster_master= $opt_with_ndbcluster;
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
     ndbcluster_stop_slave();
