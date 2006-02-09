@@ -5107,56 +5107,48 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
 
 
 /*
-  Write the log entry to ensure that the shadow frm file is removed at
-  crash.
+  Log an delete/rename frm file
   SYNOPSIS
-    write_log_shadow_frm()
-    lpt                      Struct containing parameters
-    install_frm              Should we log action to install shadow frm or should
-                             the action be to remove the shadow frm file.
+    write_log_rename_delete_frm()
+    lpt                            Struct for parameters
+    next_entry                     Next reference to use in log record
+    path                           Name to rename from
+    rename_flag                    TRUE if rename, else delete
   RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
+    TRUE                           Error
+    FALSE                          Success
   DESCRIPTION
-    Prepare an entry to the table log indicating a drop/install of the shadow frm
-    file and its corresponding handler file.
+    Support routine that writes a rename or delete of an frm file into the
+    table log. It also inserts an entry that keeps track of used space into
+    the partition info object
 */
 
 bool
-write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
+write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
+                            uint next_entry,
+                            const char *from_path
+                            const char *to_path,
+                            bool rename_flag)
 {
   TABLE_LOG_ENTRY table_log_entry;
-  partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
-  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
-  char shadow_path[FN_LEN];
-  DBUG_ENTER("write_log_shadow_frm");
+  DBUG_ENTER("write_log_rename_frm");
 
-  lock_global_table_log();
-  do
-  {
-    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                         lpt->table_name, "#");
+  if (rename_flag)
+    table_log_entry.action_type= 'r';
+  else
     table_log_entry.action_type= 'd';
-    table_log_entry.next_entry= 0;
-    table_log_entry.handler_type= "frm";
-    table_log_entry.name= shadow_path;
-    
-    if (write_table_log_entry(&table_log_entry, &log_entry))
-      break;
-    insert_part_info_log_entry_list(part_info, log_entry);
-    if (write_execute_table_log_entry(log_entry->entry_pos,
-                                      FALSE, &exec_log_entry))
-      break;
-    part_info->exec_log_entry= exec_log_entry;
-    unlock_global_table_log();
-    DBUG_RETURN(FALSE);
-  } while (TRUE);
-  release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= NULL;
-  unlock_global_table_log();
-  my_error(ER_TABLE_LOG_ERROR, MYF(0));
-  DBUG_RETURN(TRUE);
+  table_log_entry.next_entry= next_entry;
+  table_log_entry.handler_type= "frm";
+  if (rename_flag)
+    table_log_entry.name= to_path;
+  table_log_entry.from_name= from_path;
+  if (write_table_log_entry(&table_log_entry, &log_entry))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  insert_part_info_log_entry_list(part_info, log_entry);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5174,24 +5166,41 @@ static
 bool
 write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
                              uint *next_entry,
-                             const char *path)
+                             const char *path,
+                             bool temp_list)
 {
   TABLE_LOG_ENTRY table_log_entry;
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
   char tmp_path[FN_LEN];
   List_iterator<partition_element> part_it(part_info->partitions);
+  List_iterator<partition_element> temp_it(part_info->temp_partitions);
+  uint no_temp_partitions= part_info->temp_partitions.elements;
   uint no_elements= part_info->partitions.elements;
   uint i= 0;
   DBUG_ENTER("write_log_dropped_partitions");
 
   table_log_entry.action_type= 'd';
-  do
+  if (temp_list)
+    no_elements= no_temp_partitions;
+  while (no_elements--)
   {
-    partition_element *part_elem= part_it++;
+    partition_element *part_elem;
+    if (temp_list)
+      part_elem= temp_it++;
+    else
+      part_elem= part_it++;
     if (part_elem->part_state == PART_TO_BE_DROPPED ||
-        part_elem->part_state == PART_TO_BE_ADDED)
+        part_elem->part_state == PART_TO_BE_ADDED ||
+        part_elem->part_state == PART_CHANGED)
     {
+      uint name_variant;
+      if (part_elem->part_state == PART_CHANGED ||
+          (part_elem->part_state == PART_TO_BE_ADDED &&
+           no_temp_partitions))
+        name_variant= TEMP_PART_NAME;
+      else
+        name_variant= NORMAL_PART_NAME;
       if (is_sub_partitioned(part_info))
       {
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -5202,11 +5211,11 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           partition_element *sub_elem= sub_it++;
           table_log_entry.next_entry= *next_entry;
           table_log_entry.handler_type=
-                 ha_resolve_storage_engine_name(sub_elem->engine_type);
+               ha_resolve_storage_engine_name(sub_elem->engine_type);
           create_subpartition_name(tmp_path, path,
                                    part_elem->partition_name,
                                    sub_elem->partition_name,
-                                   NORMAL_PART_NAME);
+                                   name_variant);
           table_log_entry.name= tmp_path;
           if (write_table_log_entry(&table_log_entry, &log_entry))
           {
@@ -5223,7 +5232,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
                ha_resolve_storage_engine_name(part_elem->engine_type);
         create_partition_name(tmp_path, path,
                               part_elem->partition_name,
-                              NORMAL_PART_NAME, TRUE);
+                              name_variant, TRUE);
         table_log_entry.name= tmp_path;
         if (write_table_log_entry(&table_log_entry, &log_entry))
         {
@@ -5233,8 +5242,109 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }
-  } while (++i < no_elements);
+  }
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Write the log entry to ensure that the shadow frm file is removed at
+  crash.
+  SYNOPSIS
+    write_log_drop_shadow_frm()
+    lpt                      Struct containing parameters
+    install_frm              Should we log action to install shadow frm or should
+                             the action be to remove the shadow frm file.
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare an entry to the table log indicating a drop/install of the shadow frm
+    file and its corresponding handler file.
+*/
+
+static
+bool
+write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
+  char shadow_path[FN_LEN];
+  DBUG_ENTER("write_log_drop_shadow_frm");
+
+  lock_global_table_log();
+  do
+  {
+    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                         lpt->table_name, "#");
+    if (write_log_rename_delete_frm(lpt, 0UL, NULL,
+                                    (const char*)shadow_path, FALSE))
+      break;
+    log_entry= part_info->first_log_entry;
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
+      break;
+    part_info->exec_log_entry= exec_log_entry;
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE);
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= NULL;
+  unlock_global_table_log();
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
+  DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Log renaming of shadow frm to real frm name and dropping of old frm
+  SYNOPSIS
+    write_log_rename_frm()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Prepare an entry to ensure that we complete the renaming of the frm
+    file if failure occurs in the middle of the rename process.
+*/
+
+static
+bool
+write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
+  char shadow_path[FN_LEN];
+  TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
+  DBUG_ENTER("write_log_drop_shadow_frm");
+
+  lock_global_table_log();
+  do
+  {
+    build_table_filename(path, sizeof(path), lpt->db,
+                         lpt->table_name, "");
+    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                         lpt->table_name, "#");
+    if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+      break;
+    log_entry= part_info->first_log_entry;
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
+      break;
+    release_part_info_log_entries(old_first_log_entry);
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE);
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= old_first_log_entry;
+  unlock_global_table_log();
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5253,6 +5363,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
     install the shadow frm file and remove the old frm file.
 */
 
+static
 bool
 write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
@@ -5269,24 +5380,18 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
                        lpt->table_name, "");
+  build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+                       lpt->table_name, "#");
   lock_global_table_log();
   do
   {
-    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path))
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
+                                     FALSE)
       break;
-    /*
-      At first we write an entry that installs the new frm file
-    */
-    build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
-                         lpt->table_name, "#");
-    table_log_entry.action_type= 'r';
-    table_log_entry.next_entry= next_entry;
-    table_log_entry.handler_type= "frm";
-    table_log_entry.name= path;
-    table_log_entry.from_name= tmp_path;
-    if (write_table_log_entry(&table_log_entry, &log_entry))
+    if (write_log_rename_delete_frm(lpt, next_entry, (const char*)path,
+                                    (const char*)tmp_path, TRUE))
       break;
-    insert_part_info_log_entry_list(part_info, log_entry);
+    log_entry= part_info->first_log_entry;
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
@@ -5307,7 +5412,7 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   executed at all if a crash before it has completed
 
   SYNOPSIS
-    write_log_add_partition()
+    write_log_add_change_partition()
     lpt                      Struct containing parameters
   RETURN VALUES
     TRUE                     Error
@@ -5315,76 +5420,46 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   DESCRIPTION
     Prepare entries to the table log indicating all partitions to drop and to
     remove the shadow frm file.
-    The removal of the shadow frm file is already in the log file so we only
-    need to link the new entries to the existing and carefully ensure that
-    the new linked list has first the dropped partitions and then the
-    drop of the shadow frm file.
     We always inject entries backwards in the list in the table log since we
     don't know the entry position until we have written it.
 */
 
+static
 bool
-write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  TABLE_LOG_ENTRY table_log_entry;
   partition_info *part_info= lpt->part_info;
-  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *log_entry, *exec_log_entry;
   char tmp_path[FN_LEN];
   char path[FN_LEN];
-  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
-  TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
-  uint next_entry= old_first_log_entry->entry_pos;
-  /* Ensure we linked the existing entries at the back */
-  DBUG_ENTER("write_log_add_partition");
+  uint next_entry= 0;
+  DBUG_ENTER("write_log_add_change_partition");
 
-  part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
                        lpt->table_name, "");
   lock_global_table_log();
   do
   {
-    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path))
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
+                                     FALSE)
+      break;
+    build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+                         lpt->table_name, "#");
+    if (write_log_rename_delete_frm(lpt, next_entry, tmp_path,
+                                    NULL, FALSE))
       break;
     log_entry= part_info->first_log_entry;
-    /* Ensure first entry is the last dropped partition */
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
-    release_part_info_log_entries(old_first_log_entry);
     unlock_global_table_log();
     DBUG_RETURN(FALSE); 
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_first_log_entry;
+  part_info->first_log_entry= NULL;
   unlock_global_table_log();
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
-}
-
-
-/*
-  Write indicator of how to abort in first phase of change partitions
-  SYNOPSIS
-    write_log_ph1_change_partition()
-    lpt                      Struct containing parameters
-  RETURN VALUES
-    TRUE                     Error
-    FALSE                    Success
-  DESCRIPTION
-    Write the log entries to remove partitions in creation when changing
-    partitions in an ADD/REORGANIZE/COALESCE command. These commands will
-    abort the entire operation if the system crashes before the next phase
-    is done.
-*/
-
-bool
-write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  DBUG_ENTER("write_log_ph1_change_partition");
-
-  lock_global_table_log();
-  unlock_global_table_log();
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -5393,7 +5468,7 @@ write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   change partitions.
 
   SYNOPSIS
-    write_log_ph2_change_partition()
+    write_log_final_change_partition()
     lpt                      Struct containing parameters
   RETURN VALUES
     TRUE                     Error
@@ -5404,14 +5479,46 @@ write_log_ph1_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     frm file.
 */
 
+static
 bool
-write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
+write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DBUG_ENTER("write_log_ph2_change_partition");
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
+  char shadow_path[FN_LEN];
+  TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
+  uint next_entry= 0;
+  DBUG_ENTER("write_log_final_change_partition");
 
   lock_global_table_log();
+  do
+  {
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
+                                     TRUE)
+      break;
+    if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
+      break;
+    build_table_filename(path, sizeof(path), lpt->db,
+                         lpt->table_name, "");
+    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                         lpt->table_name, "#");
+    if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+      break;
+    log_entry= part_info->first_log_entry;
+    if (write_execute_table_log_entry(log_entry->entry_pos,
+                                      FALSE, &exec_log_entry))
+      break;
+    release_part_info_log_entries(old_first_log_entry);
+    unlock_global_table_log();
+    DBUG_RETURN(FALSE);
+  } while (TRUE);
+  release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
-  DBUG_RETURN(FALSE);
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -5425,6 +5532,7 @@ write_log_ph2_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     TRUE                     Error
     FALSE                    Success
 */
+
 static
 bool
 write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
@@ -5641,7 +5749,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       We insert Error injections at all places where it could be interesting
       to test if recovery is properly done.
     */
-    if (write_log_shadow_frm(lpt, FALSE) ||
+    if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
@@ -5697,26 +5805,24 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       8) Remove entries from table log
       9) Complete query
     */
-    if (write_log_shadow_frm(lpt, FALSE) ||
+    if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
-        write_log_add_partition(lpt) ||
-        ERROR_INJECT_CRASH("crash_add_partition_3") ||
         mysql_change_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        ERROR_INJECT_CRASH("crash_add_partition_3") ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
+        ERROR_INJECT_CRASH("crash_add_partition_4") ||
+        write_log_rename_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
-        write_log_shadow_frm(lpt, TRUE) ||
-        ERROR_INJECT_CRASH("crash_add_partition_6") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_add_partition_7") ||
+        ERROR_INJECT_CRASH("crash_add_partition_6") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH("crash_add_partition_8")) 
+        ERROR_INJECT_CRASH("crash_add_partition_7")) 
     {
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
@@ -5778,33 +5884,31 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       14)Complete query
     */
 
-    if (write_log_shadow_frm(lpt, FALSE) ||
+    if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_2") ||
-        write_log_ph1_change_partition(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_3") ||
         mysql_change_partitions(lpt) ||
+        ERROR_INJECT_CRASH("crash_change_partition_3") ||
+        write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
-        write_log_ph2_change_partition(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_5") ||
         abort_and_upgrade_lock(lpt) ||
         table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_6") ||
+        ERROR_INJECT_CRASH("crash_change_partition_5") ||
         mysql_rename_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_7") ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_change_partition_8") ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_change_partition_9") ||
+        ERROR_INJECT_CRASH("crash_change_partition_8") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
+        ERROR_INJECT_CRASH("crash_change_partition_9") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_12") ||
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
         fast_alter_partition_error_handler(lpt);
