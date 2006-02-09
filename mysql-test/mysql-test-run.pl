@@ -1204,6 +1204,7 @@ sub kill_running_server () {
     mkpath("$opt_vardir/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
 
+    $using_ndbcluster_master= 1;
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
     ndbcluster_stop_slave();
@@ -1404,6 +1405,7 @@ sub ndbcluster_start ($) {
   }
   if ( $using_ndbcluster_master )
   {
+    # Master already started
     return 0;
   }
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
@@ -1913,7 +1915,8 @@ sub run_testcase ($) {
   {
     if ( $tinfo->{'master_restart'} or
          $master->[0]->{'running_master_is_special'} or
-         ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
+	 # Stop if cluster is started but test cases does not need cluster
+	 ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
     {
       stop_masters();
       $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
@@ -1964,12 +1967,16 @@ sub run_testcase ($) {
     {
       if ( $master->[0]->{'ndbcluster'} )
       {
+	# Cluster is not started
+
+	# Call ndbcluster_start to check if test case needs cluster
+	# Start it if not already started
 	$master->[0]->{'ndbcluster'}= ndbcluster_start($tinfo->{'ndb_test'});
-        if ( $master->[0]->{'ndbcluster'} )
-        {
-          report_failure_and_restart($tinfo);
-          return;
-        }
+	if ( $master->[0]->{'ndbcluster'} )
+	{
+	  report_failure_and_restart($tinfo);
+	  return;
+	}
       }
       if ( ! $master->[0]->{'pid'} )
       {
@@ -1986,6 +1993,7 @@ sub run_testcase ($) {
       }
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
+	# Test needs cluster, start an extra mysqld connected to cluster
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[],
 		       $using_ndbcluster_master);
@@ -2307,15 +2315,15 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--skip-innodb", $prefix);
     }
 
-    if ( $opt_skip_ndbcluster )
+    if ( $opt_skip_ndbcluster || !$using_ndbcluster)
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
-    if ( $using_ndbcluster )
+    else
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-                  $opt_ndbconnectstring);
+		  $opt_ndbconnectstring);
     }
   }
 
@@ -2494,6 +2502,7 @@ sub mysqld_start ($$$$$) {
   my $extra_opt=         shift;
   my $slave_master_info= shift;
   my $using_ndbcluster=  shift;
+
 
   my $args;                             # Arg vector
   my $exe;
