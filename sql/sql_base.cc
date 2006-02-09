@@ -3858,13 +3858,37 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                     register_tree_change, actual_table);
   }
 
+  if (fld)
+  {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* Check if there are sufficient access rights to the found field. */
-  if (fld && check_privileges &&
-      check_column_grant_in_table_ref(thd, *actual_table, name, length))
-    fld= WRONG_GRANT;
+    /* Check if there are sufficient access rights to the found field. */
+    if (check_privileges &&
+        check_column_grant_in_table_ref(thd, *actual_table, name, length))
+      fld= WRONG_GRANT;
+    else
 #endif
-
+      if (thd->set_query_id)
+      {
+        /*
+         * get rw_set correct for this field so that the handler
+         * knows that this field is involved in the query and gets
+         * retrieved/updated
+         */
+        Field *field_to_set= NULL;
+        if (fld == view_ref_found)
+        {
+          Item *it= (*ref)->real_item();
+          if (it->type() == Item::FIELD_ITEM)
+            field_to_set= ((Item_field*)it)->field;
+        }
+        else
+          field_to_set= fld;
+        if (field_to_set)
+          field_to_set->table->file->
+            ha_set_bit_in_rw_set(field_to_set->fieldnr,
+                                 (bool)(thd->set_query_id-1));
+      }
+  }
   DBUG_RETURN(fld);
 }
 
@@ -5044,6 +5068,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   DBUG_ENTER("setup_fields");
 
   thd->set_query_id=set_query_id;
+  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   if (allow_sum_func)
     thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
@@ -5070,6 +5095,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     {
       thd->lex->allow_sum_func= save_allow_sum_func;
       thd->set_query_id= save_set_query_id;
+      DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
       DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
@@ -5081,6 +5107,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   }
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->set_query_id= save_set_query_id;
+  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   DBUG_RETURN(test(thd->net.report_error));
 }
 
@@ -5527,6 +5554,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     arena= 0;                                   // For easier test
 
   thd->set_query_id=1;
+  DBUG_PRINT("info", ("thd->set_query_id: %d", thd->set_query_id));
   select_lex->cond_count= 0;
 
   for (table= tables; table; table= table->next_local)
