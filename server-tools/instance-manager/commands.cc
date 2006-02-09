@@ -483,7 +483,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       read_buff.reserve(0, buff_size);
 
       /* read in one chunk */
-      read_len= my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
+      read_len= (int)my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
       if ((read_len= my_read(fd, (byte*) read_buff.buffer,
                              buff_size, MYF(0))) < 0)
