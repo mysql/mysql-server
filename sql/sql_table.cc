@@ -282,6 +282,7 @@ typedef struct st_global_table_log
   File file_id;
   uint name_len;
   uint handler_type_len;
+  uint io_size;
 } GLOBAL_TABLE_LOG;
 
 GLOBAL_TABLE_LOG global_table_log;
@@ -361,6 +362,8 @@ write_table_log_header()
   int2store(&global_table_log.file_entry[4], const_var);
   const_var= 32;
   int2store(&global_table_log.file_entry[6], const_var);
+  const_var= IO_SIZE;
+  int4store(&global_table_log.file_entry[8], const_var);
   if (write_table_log_file_entry(0UL))
     error= TRUE;
   DBUG_RETURN(error);
@@ -384,9 +387,10 @@ read_table_log_file_entry(uint entry_no)
   bool error= FALSE;
   File file_id= global_table_log.file_id;
   char *file_entry= (char*)global_table_log.file_entry;
+  uint io_size= global_table_log.io_size;
   DBUG_ENTER("read_table_log_file_entry");
 
-  if (my_pread(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
+  if (my_pread(file_id, file_entry, io_size, io_size * entry_no, MYF(0)))
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -429,6 +433,7 @@ read_table_log_header()
   char *file_entry= (char*)global_table_log.file_entry;
   char file_name[FN_REFLEN];
   uint entry_no;
+  bool successful_open= FALSE;
   DBUG_ENTER("read_table_log_header");
 
   bzero(file_entry, sizeof(global_table_log.file_entry));
@@ -439,10 +444,14 @@ read_table_log_header()
     {
       /* Write message into error log */
     }
+    else
+      successful_open= TRUE;
   }
   entry_no= uint4korr(&file_entry[0]);
   global_table_log.name_len= uint2korr(&file_entry[4]);
   global_table_log.handler_type_len= uint2korr(&file_entry[6]);
+  if (successful_open) 
+    global_table_log.io_size= uint4korr(&file_entry[8]);
   global_table_log.first_free= NULL;
   global_table_log.first_used= NULL;
   global_table_log.no_entries= 0;
