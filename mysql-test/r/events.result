@@ -55,7 +55,7 @@ SHOW GRANTS;
 Grants for ev_test@localhost
 GRANT USAGE ON *.* TO 'ev_test'@'localhost'
 GRANT ALL PRIVILEGES ON `events_test`.* TO 'ev_test'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `events_test2`.* TO 'ev_test'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, TRIGGER ON `events_test2`.* TO 'ev_test'@'localhost'
 "Here comes an error:";
 SHOW EVENTS;
 ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_test2'
@@ -184,8 +184,6 @@ set global event_scheduler=0;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")

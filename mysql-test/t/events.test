@@ -175,6 +175,7 @@ select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 --sleep 1
 --echo "Should see 2 processes, one locked on get_lock("
+#--replace_column 1 # 6 #
 #show processlist;
 --echo "Shutting down the scheduler, it should wait for the running event"
 set global event_scheduler=0;
