@@ -799,7 +799,7 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 
-struct TABLE_LOG_MEMORY_ENTRY;
+struct st_table_log_memory_entry;
 
 class partition_info : public Sql_alloc
 {
@@ -848,8 +848,8 @@ public:
 
   Item *item_free_list;
 
-  TABLE_LOG_MEMORY_ENTRY *first_log_entry;
-  TABLE_LOG_MEMORY_ENTRY *exec_log_entry;
+  st_table_log_memory_entry *first_log_entry;
+  st_table_log_memory_entry *exec_log_entry;
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
@@ -961,6 +961,7 @@ public:
     part_field_array(NULL), subpart_field_array(NULL),
     full_part_field_array(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
+    first_log_entry(NULL), exec_log_entry(NULL),
     list_array(NULL),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
