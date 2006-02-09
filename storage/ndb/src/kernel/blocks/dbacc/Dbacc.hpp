@@ -1061,7 +1061,7 @@ private:
   Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
   union {
-  Uint32 ckeys[2048];
+  Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
   Uint64 ckeys_align;
   };
   

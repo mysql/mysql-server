@@ -2495,3 +2495,37 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (x varchar(10));
+INSERT INTO t1 VALUES (null), ('foo'), ('bar'), (null);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT IF(x IS NULL, 'blank', 'not blank') FROM v1 GROUP BY x;
+IF(x IS NULL, 'blank', 'not blank')
+blank
+not blank
+not blank
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM t1 GROUP BY x;
+x
+blank
+not blank
+not blank
+Warnings:
+Warning	1052	Column 'x' in group statement is ambiguous
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1;
+x
+blank
+not blank
+not blank
+blank
+SELECT IF(x IS NULL, 'blank', 'not blank') AS y FROM v1 GROUP BY y;
+y
+blank
+not blank
+SELECT IF(x IS NULL, 'blank', 'not blank') AS x FROM v1 GROUP BY x;
+x
+blank
+not blank
+not blank
+Warnings:
+Warning	1052	Column 'x' in group statement is ambiguous
+DROP VIEW v1;
+DROP TABLE t1;
