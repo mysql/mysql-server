@@ -217,6 +217,9 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	CXXFLAGS=\"$CXXFLAGS\" \
 	./configure \
  	    $* \
+	    --with-mysqld-ldflags='-static' \
+	    --with-client-ldflags='-static' \
+	    --with-zlib-dir=bundled \
 	    --enable-assembler \
 	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
