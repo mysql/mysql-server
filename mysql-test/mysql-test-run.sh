@@ -1382,7 +1382,7 @@ start_master()
   fi
   if [ x$MASTER_MYSQLDBINLOG = x1 ]
   then
-    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1"
+    MASTER_MYSQLD_BINLOG_OPT="--log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1"
   fi
   if [ -z "$DO_BENCH" -a -z "$DO_STRESS"  ]
   then
@@ -1409,6 +1409,7 @@ start_master()
           --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
+           $MASTER_MYSQLD_BINLOG_OPT \
            $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
@@ -1432,6 +1433,7 @@ start_master()
           --loose-binlog-show-xid=0 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
+           $MASTER_MYSQLD_BINLOG_OPT \
            $EXTRA_MASTER_MYSQLD_OPT $EXTRA_MASTER_OPT \
            $NOT_FIRST_MASTER_EXTRA_OPTS"
   fi
@@ -1574,7 +1576,7 @@ start_slave()
 
   if [ x$SLAVE_MYSQLDBINLOG = x1 ]
   then
-    EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin --log-slave-updates"
+    SLAVE_MYSQLD_BINLOG_OPT="--log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin --log-slave-updates"
   fi
 
   $RM -f $slave_datadir/log.*
@@ -1603,6 +1605,7 @@ start_slave()
           --log-bin-trust-function-creators \
           --loose-binlog-show-xid=0 \
            $SMALL_SERVER \
+           $SLAVE_MYSQLD_BINLOG_OPT \
            $EXTRA_SLAVE_MYSQLD_OPT $EXTRA_SLAVE_OPT \
            $USE_NDBCLUSTER_SLAVE_OPT"
   CUR_MYERR=$slave_err
