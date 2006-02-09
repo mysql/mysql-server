@@ -334,7 +334,8 @@ write_table_log_file_entry(uint entry_no)
   char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("write_table_log_file_entry");
 
-  if (my_pwrite(file_id, file_entry, IO_SIZE, IO_SIZE * entry_no, MYF(0)))
+  if (my_pwrite(file_id, file_entry,
+                IO_SIZE, IO_SIZE * entry_no, MYF(0)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -640,10 +641,10 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
             table_log_entry->next_entry);
   strcpy(&global_table_log.file_entry[6], table_log_entry->name);
   if (table_log_entry->action_type == 'r')
-    global_table_log.file_entry[6 + FN_LEN]= 0;
-  else
     strcpy(&global_table_log.file_entry[6 + FN_LEN],
           table_log_entry->from_name);
+  else
+    global_table_log.file_entry[6 + FN_LEN]= 0;
   strcpy(&global_table_log.file_entry[6 + (2*FN_LEN)],
          table_log_entry->handler_type);
   if (get_free_table_log_entry(active_entry, &write_header))
@@ -700,9 +701,12 @@ write_execute_table_log_entry(uint first_entry,
   file_entry[6]= 0;
   file_entry[6 + FN_LEN]= 0;
   file_entry[6 + 2*FN_LEN]= 0;
-  if (get_free_table_log_entry(active_entry, &write_header))
+  if (!(*active_entry))
   {
-    DBUG_RETURN(TRUE);
+    if (get_free_table_log_entry(active_entry, &write_header))
+    {
+      DBUG_RETURN(TRUE);
+    }
   }
   if (write_table_log_file_entry((*active_entry)->entry_pos))
   {
