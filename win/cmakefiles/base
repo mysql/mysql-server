@@ -32,4 +32,4 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR CMAKE_GENERATOR MATCHES "Visu
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__")
 
 SUBDIRS(vio dbug strings regex mysys extra zlib storage/innobase storage/heap storage/myisam storage/myisammrg 
-			  extra/yassl extra/yassl/taocrypt client sql)
+			  extra/yassl extra/yassl/taocrypt client sql server-tools/instance-manager)
