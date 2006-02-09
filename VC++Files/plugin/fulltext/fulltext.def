@@ -1,0 +1,5 @@
+LIBRARY	fulltext
+EXPORTS
+  _mysql_plugin_interface_version_
+  _mysql_plugin_declarations_
+ 
