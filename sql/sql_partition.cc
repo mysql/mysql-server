@@ -5102,7 +5102,6 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
     release_table_log_memory_entry(log_entry);
     log_entry= log_entry->next_log_entry;
   }
-  part_info->first_log_entry= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -5129,6 +5128,7 @@ write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
   TABLE_LOG_ENTRY table_log_entry;
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
   char shadow_path[FN_LEN];
   DBUG_ENTER("write_log_shadow_frm");
 
@@ -5145,14 +5145,16 @@ write_log_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt, bool install_frm)
     if (write_table_log_entry(&table_log_entry, &log_entry))
       break;
     insert_part_info_log_entry_list(part_info, log_entry);
-    if (write_execute_table_log_entry(log_entry->entry_pos, &log_entry))
+    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
       break;
-    part_info->exec_log_entry= log_entry;
+    part_info->exec_log_entry= exec_log_entry;
     unlock_global_table_log();
     DBUG_RETURN(FALSE);
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
+  part_info->first_log_entry= NULL;
   unlock_global_table_log();
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -5179,12 +5181,13 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
   char tmp_path[FN_LEN];
   List_iterator<partition_element> part_it(part_info->partitions);
   uint no_elements= part_info->partitions.elements;
+  uint i;
   DBUG_ENTER("write_log_dropped_partitions");
 
   table_log_entry.action_type= 'd';
   do
   {
-    partition_element part_elem= part_it++;
+    partition_element *part_elem= part_it++;
     if (part_elem->part_state == PART_TO_BE_DROPPED ||
         part_elem->part_state == PART_TO_BE_ADDED)
     {
@@ -5230,7 +5233,6 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
     }
   } while (++i < no_elements);
   DBUG_RETURN(FALSE);
-error:
 }
 
 
@@ -5255,10 +5257,11 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   TABLE_LOG_ENTRY table_log_entry;
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
   char tmp_path[FN_LEN];
   char path[FN_LEN];
   uint next_entry= 0;
-  TABLE_LOG_MEMORY_ENTRY *old_log_entry= part_info->first_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_drop_partition");
 
   part_info->first_log_entry= NULL;
@@ -5282,16 +5285,16 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_table_log_entry(&table_log_entry, &log_entry))
       break;
     insert_part_info_log_entry_list(part_info, log_entry);
-    log_entry= part_info->exec_log_entry;
-    if (write_execute_table_log_entry(log_entry->entry_pos, NULL))
+    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
       break;
     release_part_info_log_entries(old_first_log_entry);
     unlock_global_table_log();
     DBUG_RETURN(FALSE); 
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_log_entry;
+  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -5320,14 +5323,14 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 bool
 write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DBUG_ENTER("write_log_add_partition");
   TABLE_LOG_ENTRY table_log_entry;
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
   char tmp_path[FN_LEN];
   char path[FN_LEN];
-  TABLE_LOG_MEMORY_ENTRY *old_log_entry= part_info->first_log_entry;
-  uint next_entry= old_log_entry->entry_pos;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
+  uint next_entry= old_first_log_entry->entry_pos;
   /* Ensure we linked the existing entries at the back */
   DBUG_ENTER("write_log_add_partition");
 
@@ -5341,15 +5344,16 @@ write_log_add_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
       break;
     log_entry= part_info->first_log_entry;
     /* Ensure first entry is the last dropped partition */
-    if (write_execute_table_log_entry(log_entry->entry_pos, NULL))
+    if (write_execute_table_log_entry(log_entry->entry_pos, &exec_log_entry))
       break;
     release_part_info_log_entries(old_first_log_entry);
     unlock_global_table_log();
     DBUG_RETURN(FALSE); 
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_log_entry;
+  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
+  my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -5473,6 +5477,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   DBUG_ENTER("fast_alter_partition_table");
 
   lpt->thd= thd;
+  lpt->part_info= part_info;
   lpt->create_info= create_info;
   lpt->create_list= create_list;
   lpt->key_list= key_list;

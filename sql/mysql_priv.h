@@ -1164,6 +1164,7 @@ typedef struct st_lock_param_type
   uint key_count;
   uint db_options;
   uint pack_frm_len;
+  partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);

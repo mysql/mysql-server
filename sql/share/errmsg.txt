@@ -5798,3 +5798,5 @@ ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible."
 ER_CANT_READ_LOCK_LOG_TABLE
         eng "You can't use usual read lock with log tables. Try READ LOCAL instead."
+ER_TABLE_LOG_ERROR
+        eng "Error in table log"
