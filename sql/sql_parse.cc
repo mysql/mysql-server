@@ -3743,6 +3743,8 @@ end_with_restore_list:
         res= evex_drop_event(thd, lex->et, lex->drop_if_exists, &rows_affected);
       default:;
       }
+      DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
+                  res, rows_affected));
       if (!res)
         send_ok(thd, rows_affected);
 
