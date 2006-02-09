@@ -31,6 +31,7 @@
 
 extern  ulong thread_created;
 extern const char *my_localhost;
+extern pthread_attr_t connection_attrib;
 
 pthread_mutex_t LOCK_event_arrays,
                 LOCK_workers_count,
@@ -41,7 +42,7 @@ bool evex_is_running= false;
 
 ulonglong evex_main_thread_id= 0;
 ulong opt_event_executor;
-volatile my_bool event_executor_running_global_var;
+my_bool event_executor_running_global_var;
 static my_bool evex_mutexes_initted= false;
 static uint workers_count;
 
@@ -102,7 +103,7 @@ init_events()
   {
 #ifndef DBUG_FAULTY_THR
     //TODO Andrey: Change the error code returned!
-    if (pthread_create(&th, NULL, event_executor_main, (void*)NULL))
+    if (pthread_create(&th, &connection_attrib, event_executor_main,(void*)NULL))
       DBUG_RETURN(ER_SLAVE_THREAD);
 #else
     event_executor_main(NULL);
@@ -351,7 +352,7 @@ event_executor_main(void *arg)
       ++iter_num;
       DBUG_PRINT("info", ("  Spawning a thread %d", iter_num));
 #ifndef DBUG_FAULTY_THR
-      if (pthread_create(&th, NULL, event_executor_worker, (void*)et))
+      if (pthread_create(&th,&connection_attrib,event_executor_worker,(void*)et))
       {
         sql_print_error("Problem while trying to create a thread");
         UNLOCK_MUTEX_AND_BAIL_OUT(LOCK_event_arrays, err);
