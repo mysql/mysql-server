@@ -28,7 +28,7 @@ sub run_stress_test ()
 
   if ( ! $::glob_use_embedded_server and ! $::opt_local_master )
   {
-    $::master->[0]->{'pid'}= mysqld_start('master',0,[],[]);
+    $::master->[0]->{'pid'}= mysqld_start('master',0,[],[],0);
     if ( ! $::master->[0]->{'pid'} )
     {
       mtr_error("Can't start the mysqld server");
