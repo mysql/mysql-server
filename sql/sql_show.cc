@@ -4005,7 +4005,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
             store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
       key_len+= event_table->key_info->key_part[1].store_length;
     }
-    if (!(key_buf= alloc_root(thd->mem_root, key_len)))
+    if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
     {
       ret= 1;
       goto err;
