@@ -309,4 +309,18 @@ select * from t1 where code = '12' and month = 4 and year = 2004 ;
 
 drop table t1;
 
+# bug#15918 Unique Key Limit in NDB Engine
+
+create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
+engine=ndb charset=utf8;
+
+insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
+--error 1062
+insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
+select a, sha1(b) from t1;
+
+# perl -e 'print pack("H2000","e288ab6474"x200)' | sha1sum
+
+drop table t1;
+
 # End of 4.1 tests

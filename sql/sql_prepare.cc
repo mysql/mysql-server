@@ -2075,14 +2075,19 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       sl->exclude_from_table_unique_test= FALSE;
 
       /*
-        Copy WHERE clause pointers to avoid damaging they by optimisation
+        Copy WHERE, HAVING clause pointers to avoid damaging them by optimisation
       */
-      if (sl->prep_where)
-      {
-        sl->where= sl->prep_where->copy_andor_structure(thd);
-        sl->where->cleanup();
-      }
-      DBUG_ASSERT(sl->join == 0);
+     if (sl->prep_where)
+     {
+       sl->where= sl->prep_where->copy_andor_structure(thd);
+       sl->where->cleanup();
+     }
+     if (sl->prep_having)
+     {
+       sl->having= sl->prep_having->copy_andor_structure(thd);
+       sl->having->cleanup();
+     }
+     DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
       for (order= (ORDER *)sl->group_list.first; order; order= order->next)

@@ -6199,6 +6199,10 @@ uint ha_ndbcluster::max_supported_key_length() const
 {
   return NDB_MAX_KEY_SIZE;
 }
+uint ha_ndbcluster::max_supported_key_part_length() const
+{
+  return NDB_MAX_KEY_SIZE;
+}
 bool ha_ndbcluster::low_byte_first() const
 { 
 #ifdef WORDS_BIGENDIAN
