@@ -92,7 +92,9 @@ handlerton tina_hton= {
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
   NULL,    /* Fill FILES Table */
-  HTON_CAN_RECREATE
+  HTON_CAN_RECREATE,
+  NULL, /* binlog_func */
+  NULL /* binlog_log_query */
 };
 
 /*****************************************************************************
@@ -1016,6 +1018,12 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   my_close(create_file,MYF(0));
 
   DBUG_RETURN(0);
+}
+
+bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
+					   uint table_changes)
+{
+  return COMPATIBLE_DATA_YES;
 }
 
 mysql_declare_plugin
