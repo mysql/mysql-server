@@ -584,7 +584,7 @@ int ha_partition::drop_partitions(const char *path)
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   uint name_variant;
-  int  error= 1;
+  int  error= 0;
   bool reorged_parts= (m_reorged_parts > 0);
   bool temp_partitions= (m_part_info->temp_partitions.elements > 0);
   DBUG_ENTER("ha_partition::drop_partitions");
@@ -632,7 +632,7 @@ int ha_partition::drop_partitions(const char *path)
           else
             file= m_file[part];
           DBUG_PRINT("info", ("Drop subpartition %s", part_name_buff));
-          error= file->delete_table((const char *) part_name_buff);
+          error+= file->delete_table((const char *) part_name_buff);
         } while (++j < no_subparts);
       }
       else
@@ -645,7 +645,7 @@ int ha_partition::drop_partitions(const char *path)
         else
           file= m_file[i];
         DBUG_PRINT("info", ("Drop partition %s", part_name_buff));
-        error= file->delete_table((const char *) part_name_buff);
+        error+= file->delete_table((const char *) part_name_buff);
       }
       if (part_elem->part_state == PART_IS_CHANGED)
         part_elem->part_state= PART_NORMAL;
@@ -687,7 +687,7 @@ int ha_partition::rename_partitions(const char *path)
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   uint j= 0;
-  int error= 1;
+  int error= 0;
   uint temp_partitions= m_part_info->temp_partitions.elements;
   handler *file;
   partition_element *part_elem, *sub_elem;
@@ -715,8 +715,8 @@ int ha_partition::rename_partitions(const char *path)
                                    NORMAL_PART_NAME);
           DBUG_PRINT("info", ("Rename subpartition from %s to %s",
                      norm_name_buff, part_name_buff));
-          error= file->rename_table((const char *) norm_name_buff,
-                                    (const char *) part_name_buff);
+          error+= file->rename_table((const char *) norm_name_buff,
+                                     (const char *) part_name_buff);
         } while (++j < no_subparts);
       }
       else
@@ -730,8 +730,8 @@ int ha_partition::rename_partitions(const char *path)
                               TRUE);
         DBUG_PRINT("info", ("Rename partition from %s to %s",
                    norm_name_buff, part_name_buff));
-        error= file->rename_table((const char *) norm_name_buff,
-                                  (const char *) part_name_buff);
+        error+= file->rename_table((const char *) norm_name_buff,
+                                   (const char *) part_name_buff);
       }
     } while (++i < temp_partitions);
   }
@@ -765,8 +765,8 @@ int ha_partition::rename_partitions(const char *path)
                                      RENAMED_PART_NAME);
             DBUG_PRINT("info", ("Rename subpartition from %s to %s",
                        norm_name_buff, part_name_buff));
-            error= file->rename_table((const char *) norm_name_buff,
-                                      (const char *) part_name_buff);
+            error+= file->rename_table((const char *) norm_name_buff,
+                                       (const char *) part_name_buff);
           }
           file= m_new_file[part];
           create_subpartition_name(part_name_buff, path,
@@ -775,8 +775,8 @@ int ha_partition::rename_partitions(const char *path)
                                    TEMP_PART_NAME);
           DBUG_PRINT("info", ("Rename subpartition from %s to %s",
                      part_name_buff, norm_name_buff));
-          error= file->rename_table((const char *) part_name_buff,
-                                    (const char *) norm_name_buff);
+          error+= file->rename_table((const char *) part_name_buff,
+                                     (const char *) norm_name_buff);
         } while (++j < no_subparts);
       }
       else
@@ -792,8 +792,8 @@ int ha_partition::rename_partitions(const char *path)
                                 TRUE);
           DBUG_PRINT("info", ("Rename partition from %s to %s",
                      norm_name_buff, part_name_buff));
-          error= file->rename_table((const char *) norm_name_buff,
-                                    (const char *) part_name_buff);
+          error+= file->rename_table((const char *) norm_name_buff,
+                                     (const char *) part_name_buff);
         }
         file= m_new_file[i];
         create_partition_name(part_name_buff, path,
@@ -801,7 +801,7 @@ int ha_partition::rename_partitions(const char *path)
                               TRUE);
         DBUG_PRINT("info", ("Rename partition from %s to %s",
                    part_name_buff, norm_name_buff));
-        error= file->rename_table((const char *) part_name_buff,
+        error+= file->rename_table((const char *) part_name_buff,
                                   (const char *) norm_name_buff);
       }
     }
