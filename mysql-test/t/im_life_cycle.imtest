@@ -140,3 +140,12 @@ SHOW INSTANCES;
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed
 
 SHOW INSTANCES;
+
+###########################################################################
+#
+# 1.1.8. Check that Instance Manager returns an error on
+# incomplete SHOW INSTANCE STATUS command.
+#
+###########################################################################
+--error 1149
+SHOW INSTANCE STATUS;

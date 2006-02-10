@@ -418,6 +418,10 @@ bool Instance::is_running()
   if (options.mysqld_socket)
     socket= strchr(options.mysqld_socket, '=') + 1;
 
+  /* no port was specified => instance falled back to default value */
+  if (!options.mysqld_port && !options.mysqld_socket)
+    port= SERVER_DEFAULT_PORT;
+
   pthread_mutex_lock(&LOCK_instance);
 
   mysql_init(&mysql);
