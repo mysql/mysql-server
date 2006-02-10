@@ -36,6 +36,7 @@ struct Options
   static char run_as_service;        /* handle_options doesn't support bool */
   static const char *user;
 #endif
+  static bool is_forced_default_file;
   static const char *log_file_name;
   static const char *pid_file_name;
   static const char *socket_file_name;
