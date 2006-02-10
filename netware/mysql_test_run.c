@@ -1189,7 +1189,7 @@ void setup(char *file)
 ******************************************************************************/
 int main(int argc, char **argv)
 {
-  int is_ignore_list = 0;
+  int is_ignore_list= 0, autoclose= 0, individual_execution= 0;
   // setup
   setup(argv[0]);
   
@@ -1236,16 +1236,22 @@ int main(int argc, char **argv)
   {
     int i;
 
-    // single test
-    single_test = TRUE;
-
     for (i = 1 + is_ignore_list; i < argc; i++)
     {
+      if (!strncasecmp(argv[i], "--autoclose", 11))
+      {
+        autoclose= 1;
+        continue;
+      }
+      // single test
+      single_test= TRUE;
+      individual_execution= 1;
+
       // run given test
       run_test(argv[i]);
     }
   }
-  else
+  if (!individual_execution)
   {
     // run all tests
     DIR *dir = opendir(test_dir);
@@ -1297,7 +1303,8 @@ int main(int argc, char **argv)
   if (log_fd) fclose(log_fd);
 
   // keep results up
-  pressanykey();
+  if (!autoclose)
+    pressanykey();
 
   return 0;
 }
