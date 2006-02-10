@@ -308,16 +308,20 @@ row_upd_rec_sys_fields_in_recovery(
 	dulint		trx_id,	/* in: transaction id */
 	dulint		roll_ptr)/* in: roll ptr of the undo log record */
 {
-	byte*	field;
-	ulint	len;
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_trx_id(page_zip, rec,
+				rec_offs_size(offsets), trx_id, NULL);
+		page_zip_write_roll_ptr(page_zip, rec,
+				rec_offs_size(offsets), roll_ptr, NULL);
+	} else {
+		byte*	field;
+		ulint	len;
 
-	field = rec_get_nth_field(rec, offsets, pos, &len);
-	ut_ad(len == DATA_TRX_ID_LEN);
-	trx_write_trx_id(field, page_zip, trx_id);
-
-	field = rec_get_nth_field(rec, offsets, pos + 1, &len);
-	ut_ad(len == DATA_ROLL_PTR_LEN);
-	trx_write_roll_ptr(field, page_zip, roll_ptr);
+		field = rec_get_nth_field(rec, offsets, pos, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
+		trx_write_trx_id(field, trx_id);
+		trx_write_roll_ptr(field + DATA_TRX_ID_LEN, roll_ptr);
+	}
 }
 
 /*************************************************************************
@@ -346,10 +350,10 @@ row_upd_index_entry_sys_field(
 	field = dfield_get_data(dfield);
 
 	if (type == DATA_TRX_ID) {
-		trx_write_trx_id(field, NULL, val);
+		trx_write_trx_id(field, val);
 	} else {
 		ut_ad(type == DATA_ROLL_PTR);
-		trx_write_roll_ptr(field, NULL, val);
+		trx_write_roll_ptr(field, val);
 	}
 }
 
@@ -437,7 +441,9 @@ row_upd_rec_in_place(
 /*=================*/
 	rec_t*		rec,	/* in/out: record where replaced */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update)	/* in: update vector */
+	upd_t*		update,	/* in: update vector */
+	page_zip_des_t*	page_zip)/* in: compressed page with enough space
+				available, or NULL */
 {
 	upd_field_t*	upd_field;
 	dfield_t*	new_val;
@@ -447,7 +453,7 @@ row_upd_rec_in_place(
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (rec_offs_comp(offsets)) {
-		rec_set_info_bits_new(rec, NULL, update->info_bits);
+		rec_set_info_bits_new(rec, update->info_bits);
 	} else {
 		rec_set_info_bits_old(rec, update->info_bits);
 	}
@@ -461,6 +467,10 @@ row_upd_rec_in_place(
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 						dfield_get_data(new_val),
 						dfield_get_len(new_val));
+	}
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_rec(page_zip, rec, offsets);
 	}
 }
 
@@ -485,7 +495,7 @@ row_upd_write_sys_vals_to_log(
 	log_ptr += mach_write_compressed(log_ptr,
 			dict_index_get_sys_col_pos(index, DATA_TRX_ID));
 
-	trx_write_roll_ptr(log_ptr, NULL, roll_ptr);
+	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;	
 
 	log_ptr += mach_dulint_write_compressed(log_ptr, trx->id);
@@ -1410,7 +1420,9 @@ row_upd_clust_rec_by_insert(
 	btr_cur	= btr_pcur_get_btr_cur(pcur);
 	
 	if (node->state != UPD_NODE_INSERT_CLUSTERED) {
-		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
+		rec_t*		rec;
+		dict_index_t*	index;
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
@@ -1425,10 +1437,13 @@ row_upd_clust_rec_by_insert(
 		free those externally stored fields even if the delete marked
 		record is removed from the index tree, or updated. */
 
-		btr_cur_mark_extern_inherited_fields(btr_cur_get_rec(btr_cur),
-				0/*TODO*/,
-				rec_get_offsets(btr_cur_get_rec(btr_cur),
-				dict_table_get_first_index(table), offsets_,
+		rec = btr_cur_get_rec(btr_cur);
+		index = dict_table_get_first_index(table);
+
+		btr_cur_mark_extern_inherited_fields(
+				buf_block_get_page_zip(buf_block_align(rec)),
+				rec, index,
+				rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap), node->update, mtr);
 		if (check_ref) {
 			/* NOTE that the following call loses
@@ -1524,9 +1539,9 @@ row_upd_clust_rec(
 
 	mtr_commit(mtr);
 	
-	if (err == DB_SUCCESS) {
+	if (UNIV_LIKELY(err == DB_SUCCESS)) {
 
-		return(err);
+		return(DB_SUCCESS);
 	}
 
 	/* We may have to modify the tree structure: do a pessimistic descent
@@ -1560,7 +1575,7 @@ row_upd_clust_rec(
 
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
-		err = btr_store_big_rec_extern_fields(index, rec, 0/*TODO*/,
+		err = btr_store_big_rec_extern_fields(index, rec,
 			rec_get_offsets(rec, index, offsets_,
 				ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
@@ -2046,7 +2061,7 @@ row_upd_in_place_in_select(
 	err = btr_cur_update_in_place(BTR_NO_LOCKING_FLAG, btr_cur,
 						node->update, node->cmpl_info,
 						thr, mtr);
-	/* TODO: the above can fail if page_zip != NULL.
+	/* TODO: the above can fail with DB_ZIP_OVERFLOW if page_zip != NULL.
 	However, this function row_upd_in_place_in_select() is only invoked
 	when executing UPDATE statements of the built-in InnoDB SQL parser.
 	The built-in SQL is only used for InnoDB system tables, which

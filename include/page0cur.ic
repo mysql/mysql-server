@@ -181,8 +181,7 @@ page_cur_tuple_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				25 + rec_size bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dtuple_t*	tuple,  /* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
@@ -202,8 +201,7 @@ page_cur_rec_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				25 + rec_size bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	rec_t*		rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in: rec_get_offsets(rec, index) */

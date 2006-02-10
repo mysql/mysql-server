@@ -149,7 +149,8 @@ dict_hdr_create(
 
 	/*--------------------------*/	
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				DICT_HDR_SPACE, DICT_TABLES_ID, FALSE, mtr);
+				DICT_HDR_SPACE, DICT_TABLES_ID,
+				srv_sys->dummy_ind1, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -159,7 +160,8 @@ dict_hdr_create(
 							MLOG_4BYTES, mtr);
 	/*--------------------------*/	
 	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE,
-						DICT_TABLE_IDS_ID, FALSE, mtr);
+						DICT_TABLE_IDS_ID,
+						srv_sys->dummy_ind1, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -169,7 +171,8 @@ dict_hdr_create(
 							MLOG_4BYTES, mtr);
 	/*--------------------------*/	
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				DICT_HDR_SPACE, DICT_COLUMNS_ID, FALSE, mtr);
+				DICT_HDR_SPACE, DICT_COLUMNS_ID,
+				srv_sys->dummy_ind1, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -179,7 +182,8 @@ dict_hdr_create(
 							MLOG_4BYTES, mtr);
 	/*--------------------------*/	
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				DICT_HDR_SPACE, DICT_INDEXES_ID, FALSE, mtr);
+				DICT_HDR_SPACE, DICT_INDEXES_ID,
+				srv_sys->dummy_ind1, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -189,7 +193,8 @@ dict_hdr_create(
 							MLOG_4BYTES, mtr);
 	/*--------------------------*/	
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				DICT_HDR_SPACE, DICT_FIELDS_ID, FALSE, mtr);
+				DICT_HDR_SPACE, DICT_FIELDS_ID,
+				srv_sys->dummy_ind1, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);

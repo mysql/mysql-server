@@ -108,7 +108,8 @@ btr_page_empty(
 /*===========*/
 	page_t*		page,	/* in: page to be emptied */
 	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr,	/* in: mtr */
+	dict_index_t*	index);	/* in: the index of the page */
 /*****************************************************************
 Returns TRUE if the insert fits on the appropriate half-page
 with the chosen split_rec. */
@@ -261,7 +262,7 @@ btr_page_create(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
 	page_create(page, NULL, mtr,
-			UT_LIST_GET_FIRST(tree->tree_indexes)->table->comp);
+			UT_LIST_GET_FIRST(tree->tree_indexes));
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 	
 	btr_page_set_index_id(page, NULL, tree->id, mtr);
@@ -498,8 +499,8 @@ void
 btr_node_ptr_set_child_page_no(
 /*===========================*/
 	rec_t*		rec,	/* in: node pointer record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				8 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose uncompressed
+				part will be updated, or NULL */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		page_no,/* in: child node address */
 	mtr_t*		mtr)	/* in: mtr */
@@ -510,17 +511,18 @@ btr_node_ptr_set_child_page_no(
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(0 < btr_page_get_level(buf_frame_align(rec), mtr));
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
-	ut_ad(!page_zip || page_zip_available(page_zip, 8));
 
 	/* The child address is in the last field */	
 	field = rec_get_nth_field(rec, offsets,
 					rec_offs_n_fields(offsets) - 1, &len);
 
-	ut_ad(len == 4);
+	ut_ad(len == REC_NODE_PTR_SIZE);
 	
-	mlog_write_ulint(field, page_no, MLOG_4BYTES, mtr);
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, field, 4);
+		page_zip_write_node_ptr(page_zip, rec,
+				rec_offs_data_size(offsets), page_no, mtr);
+	} else {
+		mlog_write_ulint(field, page_no, MLOG_4BYTES, mtr);
 	}
 }
 
@@ -658,13 +660,13 @@ Creates the root node for a new index tree. */
 ulint
 btr_create(
 /*=======*/
-			/* out: page number of the created root, FIL_NULL if
-			did not succeed */
-	ulint	type,	/* in: type of the index */
-	ulint	space,	/* in: space where created */
-	dulint	index_id,/* in: index id */
-	ulint	comp,	/* in: nonzero=compact page format */
-	mtr_t*	mtr)	/* in: mini-transaction handle */
+				/* out: page number of the created root,
+				FIL_NULL if did not succeed */
+	ulint		type,	/* in: type of the index */
+	ulint		space,	/* in: space where created */
+	dulint		index_id,/* in: index id */
+	dict_index_t*	index,	/* in: index */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	ulint		page_no;
 	buf_frame_t*	ibuf_hdr_frame;
@@ -732,7 +734,7 @@ btr_create(
 	}
 	
 	/* Create a new index page on the the allocated segment page */
-	page = page_create(frame, NULL, mtr, comp);
+	page = page_create(frame, NULL, mtr, index);
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
@@ -759,7 +761,8 @@ btr_create(
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(page_zip_compress(page_zip, page))) {
+		if (UNIV_UNLIKELY(page_zip_compress(
+				page_zip, page, index, mtr))) {
 			/* An empty page should always be compressible */
 			ut_error;
 		}
@@ -842,7 +845,7 @@ top_loop:
 /*****************************************************************
 Reorganizes an index page. */
 static
-void
+ibool
 btr_page_reorganize_low(
 /*====================*/
 	ibool		recovery,/* in: TRUE if called in recovery:
@@ -861,6 +864,7 @@ btr_page_reorganize_low(
 	ulint	data_size2;
 	ulint	max_ins_size1;
 	ulint	max_ins_size2;
+	ibool	success = FALSE;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -888,7 +892,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, NULL, mtr, page_is_comp(page));
+	page_create(page, NULL, mtr, index);
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 	
 	/* Copy the records from the temporary space to the recreated page;
@@ -900,11 +904,13 @@ btr_page_reorganize_low(
 	page_set_max_trx_id(page, NULL, page_get_max_trx_id(new_page));
 	
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				page_zip, page, index, mtr))) {
 
-			/* Reorganizing a page should reduce entropy,
-			making the compressed page occupy less space. */
-			ut_error;
+			/* Restore the old page and exit. */
+			buf_frame_copy(page, new_page);
+
+			goto func_exit;
 		}
 	}
 
@@ -927,27 +933,33 @@ btr_page_reorganize_low(
 			(unsigned long) data_size1, (unsigned long) data_size2,
 			(unsigned long) max_ins_size1,
 			(unsigned long) max_ins_size2);
+	} else {
+		success = TRUE;
 	}
 
+func_exit:
 	buf_frame_free(new_page);
 
 	/* Restore logging mode */
 	mtr_set_log_mode(mtr, log_mode);
+
+	return(success);
 }
 
 /*****************************************************************
 Reorganizes an index page. */
 
-void
+ibool
 btr_page_reorganize(
 /*================*/
+				/* out: TRUE on success, FALSE on failure */
 	page_t*		page,	/* in: page to be reorganized */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	btr_page_reorganize_low(FALSE, page,
+	return(btr_page_reorganize_low(FALSE, page,
 				buf_block_get_page_zip(buf_block_align(page)),
-				index, mtr);
+				index, mtr));
 }
 
 /***************************************************************
@@ -985,7 +997,8 @@ btr_page_empty(
 /*===========*/
 	page_t*		page,	/* in: page to be emptied */
 	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr,	/* in: mtr */
+	dict_index_t*	index)	/* in: index of the page */
 {
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -996,7 +1009,7 @@ btr_page_empty(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, page_zip, mtr, page_is_comp(page));
+	page_create(page, page_zip, mtr, index);
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 }
 
@@ -1086,7 +1099,9 @@ btr_root_raise_and_insert(
 	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
 					                          level);
 	/* Reorganize the root to get free space */
-	btr_page_reorganize_low(FALSE, root, NULL, cursor->index, mtr);
+	if (!btr_page_reorganize_low(FALSE, root, NULL, cursor->index, mtr)) {
+		ut_error; /* TODO: page_zip */
+	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 	
@@ -1105,10 +1120,11 @@ btr_root_raise_and_insert(
 	as there is no lower alphabetical limit to records in the leftmost
 	node of a level: */
 
-	btr_set_min_rec_mark(node_ptr_rec, NULL, mtr);
+	btr_set_min_rec_mark(node_ptr_rec, mtr);
 		
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && !UNIV_UNLIKELY(page_zip_compress(page_zip, root))) {
+	    && !UNIV_UNLIKELY(page_zip_compress(page_zip, root,
+							cursor->index, mtr))) {
 		/* The root page should only contain the
 		node pointer to new_page at this point.
 		Thus, the data should fit. */
@@ -1487,8 +1503,9 @@ btr_attach_half_pages(
 /*==================*/
 	dict_tree_t*	tree,		/* in: the index tree */
 	page_t*		page,		/* in/out: page to be split */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page with
-					at least 8 bytes available, or NULL */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page whose
+					uncompressed part will be updated,
+					or NULL */
 	rec_t*		split_rec,	/* in: first record on upper
 					half page */
 	page_t*		new_page,	/* in: the new half page */
@@ -1515,7 +1532,6 @@ btr_attach_half_pages(
 			      				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(new_page),
 			      				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!page_zip || page_zip_available(page_zip, 8));
 	ut_a(page_is_comp(page) == page_is_comp(new_page));
 
 	/* Create a memory heap where the data tuple is stored */
@@ -1663,11 +1679,6 @@ func_start:
 
 	page = btr_cur_get_page(cursor);
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		if (UNIV_UNLIKELY(!page_zip_available(page_zip, 8))) {
-			ut_error; /* TODO: split the page */
-		}
-	}
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -1719,7 +1730,7 @@ func_start:
 	
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(tree, page, page_zip/* 8 */, first_rec,
+	btr_attach_half_pages(tree, page, page_zip, first_rec,
 			new_page, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
@@ -1751,8 +1762,7 @@ func_start:
 
 		page_move_rec_list_start(new_page, buf_block_get_page_zip(
 					buf_block_align(new_page)),
-					move_limit, buf_block_get_page_zip(
-					buf_block_align(page)),
+					move_limit, page_zip,
 					cursor->index, mtr);
 
 		left_page = new_page;
@@ -1764,8 +1774,7 @@ func_start:
 
 		page_move_rec_list_end(new_page, buf_block_get_page_zip(
 					buf_block_align(new_page)),
-					move_limit, buf_block_get_page_zip(
-					buf_block_align(page)),
+					move_limit, page_zip,
 					cursor->index, mtr);
 		left_page = page;
 		right_page = new_page;
@@ -1821,7 +1830,11 @@ func_start:
 	
 	/* 8. If insert did not fit, try page reorganization */
 
-	btr_page_reorganize(insert_page, cursor->index, mtr);
+	if (UNIV_UNLIKELY(!btr_page_reorganize(
+				insert_page, cursor->index, mtr))) {
+
+		goto insert_failed;
+	}
 
 	page_cur_search(insert_page, cursor->index, tuple,
 						PAGE_CUR_LE, page_cursor);
@@ -1831,7 +1844,7 @@ func_start:
 	if (UNIV_UNLIKELY(rec == NULL)) {
 		/* The insert did not fit on the page: loop back to the
 		start of the function for a new split */
-		
+insert_failed:
 		/* We play safe and reset the free bits for new_page */
 		ibuf_reset_free_bits(cursor->index, new_page);
 
@@ -1948,14 +1961,11 @@ btr_parse_set_min_rec_mark(
 	}
 
 	if (page) {
-		page_zip_des_t*	page_zip = buf_block_get_page_zip(
-						buf_block_align(page));
-
 		ut_a(!page_is_comp(page) == !comp);
 
 		rec = page + mach_read_from_2(ptr);
 
-		btr_set_min_rec_mark(rec, page_zip, mtr);
+		btr_set_min_rec_mark(rec, mtr);
 	}
 
 	return(ptr + 2);
@@ -1967,23 +1977,18 @@ Sets a record as the predefined minimum record. */
 void
 btr_set_min_rec_mark(
 /*=================*/
-	rec_t*		rec,	/* in: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	mtr_t*		mtr)	/* in: mtr */
+	rec_t*	rec,	/* in: record */
+	mtr_t*	mtr)	/* in: mtr */
 {
 	ulint	info_bits;
 
 	if (UNIV_LIKELY(page_rec_is_comp(rec))) {
 		info_bits = rec_get_info_bits(rec, TRUE);
 
-		rec_set_info_bits_new(rec, page_zip,
-				info_bits | REC_INFO_MIN_REC_FLAG);
+		rec_set_info_bits_new(rec, info_bits | REC_INFO_MIN_REC_FLAG);
 
 		btr_set_min_rec_mark_log(rec, MLOG_COMP_REC_MIN_MARK, mtr);
 	} else {
-		ut_ad(!page_zip);
-
 		info_bits = rec_get_info_bits(rec, FALSE);
 
 		rec_set_info_bits_old(rec, info_bits | REC_INFO_MIN_REC_FLAG);
@@ -2058,7 +2063,7 @@ btr_lift_page_up(
 	btr_search_drop_page_hash_index(page);
 	
 	/* Make the father empty */
-	btr_page_empty(father_page, NULL, mtr);
+	btr_page_empty(father_page, NULL, mtr, index);
 
 	/* Move records to the father */
 	if (!page_copy_rec_list_end(father_page, NULL,
@@ -2070,7 +2075,7 @@ btr_lift_page_up(
 
 	if (UNIV_LIKELY_NULL(father_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(
-				father_page_zip, father_page))) {
+				father_page_zip, father_page, index, mtr))) {
 			/* Restore the old page from temporary space */
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					father_page_zip, father_page, mtr))) {
@@ -2157,11 +2162,6 @@ btr_compress(
 
 	is_left = left_page_no != FIL_NULL;
 
-	if (!is_left && UNIV_LIKELY_NULL(page_zip)
-			&& !page_zip_available(page_zip, 8)) {
-		return(FALSE);
-	}
-
 	if (is_left) {
 
 		merge_page = btr_page_get(space, left_page_no, RW_X_LATCH,
@@ -2197,7 +2197,11 @@ btr_compress(
 
 		/* We have to reorganize merge_page */
 
-		btr_page_reorganize(merge_page, cursor->index, mtr);
+		if (UNIV_UNLIKELY(!btr_page_reorganize(
+				merge_page, cursor->index, mtr))) {
+
+			return(FALSE);
+		}
 
 		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
@@ -2228,7 +2232,7 @@ btr_compress(
 		/* Replace the address of the old child node (= page) with the 
 		address of the merge page to the right */
 
-		btr_node_ptr_set_child_page_no(node_ptr, page_zip/* 8 */,
+		btr_node_ptr_set_child_page_no(node_ptr, page_zip,
 				rec_get_offsets(node_ptr, cursor->index,
 				offsets_, ULINT_UNDEFINED, &heap),
 				right_page_no, mtr);
@@ -2315,13 +2319,14 @@ btr_discard_only_page_on_level(
 				== dict_tree_get_page(tree))) {
 		/* The father is the root page */
 
+		dict_index_t*	index = UT_LIST_GET_FIRST(tree->tree_indexes);
+
 		btr_page_empty(father_page,
 			buf_block_get_page_zip(buf_block_align(father_page)),
-			mtr);
+			mtr, index);
 
 		/* We play safe and reset the free bits for the father */
-		ibuf_reset_free_bits(UT_LIST_GET_FIRST(tree->tree_indexes),
-								father_page);
+		ibuf_reset_free_bits(index, father_page);
 	} else {
 		ut_ad(page_get_n_recs(father_page) == 1);
 
@@ -2383,21 +2388,11 @@ btr_discard_page(
 
 		/* We have to mark the leftmost node pointer on the right
 		side page as the predefined minimum record */
-		page_zip_des_t*	merge_page_zip;
-		merge_page_zip = buf_block_get_page_zip(
-				buf_block_align(merge_page));
-
-		if (UNIV_LIKELY_NULL(merge_page_zip)
-		    && UNIV_UNLIKELY(!page_zip_alloc(
-					merge_page_zip, merge_page, 5))) {
-			ut_error; /* TODO: handle this gracefully */
-		}
-
 		node_ptr = page_rec_get_next(page_get_infimum_rec(merge_page));
 
 		ut_ad(page_rec_is_user_rec(node_ptr));
 
-		btr_set_min_rec_mark(node_ptr, merge_page_zip, mtr);
+		btr_set_min_rec_mark(node_ptr, mtr);
 	}	
 	
 	btr_node_ptr_delete(tree, page, mtr);

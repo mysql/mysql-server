@@ -20,6 +20,17 @@ Created 4/20/1996 Heikki Tuuri
 #include "btr0types.h"
 
 /*************************************************************************
+Gets the offset of the trx id field, in bytes relative to the origin of
+a clustered index record. */
+
+ulint
+row_get_trx_id_offset(
+/*==================*/
+				/* out: offset of DATA_TRX_ID */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
+/*************************************************************************
 Reads the trx id field from a clustered index record. */
 UNIV_INLINE
 dulint
@@ -39,30 +50,6 @@ row_get_rec_roll_ptr(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
-/*************************************************************************
-Writes the trx id field to a clustered index record. */
-UNIV_INLINE
-void
-row_set_rec_trx_id(
-/*===============*/
-	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 10 bytes available,, or NULL */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	dulint		trx_id);/* in: value of the field */
-/*************************************************************************
-Sets the roll pointer field in a clustered index record. */
-UNIV_INLINE
-void
-row_set_rec_roll_ptr(
-/*=================*/
-	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 11 bytes available, or NULL */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	dulint		roll_ptr);/* in: value of the field */
 /*********************************************************************
 When an insert to a table is performed, this function builds the entry which
 has to be inserted to an index on the table. */

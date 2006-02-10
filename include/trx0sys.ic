@@ -214,18 +214,13 @@ UNIV_INLINE
 void
 trx_write_trx_id(
 /*=============*/
-	byte*		ptr,	/* in: pointer to memory where written */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 10 bytes available, or NULL */
-	dulint		id)	/* in: id */
+	byte*	ptr,	/* in: pointer to memory where written */
+	dulint	id)	/* in: id */
 {
-	ut_ad(DATA_TRX_ID_LEN == 6);
-	
+#if DATA_TRX_ID_LEN != 6
+# error "DATA_TRX_ID_LEN != 6"
+#endif
 	mach_write_to_6(ptr, id);
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		ut_ad(page_zip_available(page_zip, 4 + DATA_TRX_ID_LEN));
-		page_zip_write(page_zip, ptr, DATA_TRX_ID_LEN);
-	}
 }
 
 /*********************************************************************
@@ -239,8 +234,9 @@ trx_read_trx_id(
 			/* out: id */
 	byte*	ptr)	/* in: pointer to memory from where to read */
 {
-	ut_ad(DATA_TRX_ID_LEN == 6);
-	
+#if DATA_TRX_ID_LEN != 6
+# error "DATA_TRX_ID_LEN != 6"
+#endif
 	return(mach_read_from_6(ptr));
 }
 

@@ -910,7 +910,8 @@ fsp_header_init(
 	if (space == 0) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF, space,
-			ut_dulint_add(DICT_IBUF_ID_MIN, space), FALSE, mtr);
+			ut_dulint_add(DICT_IBUF_ID_MIN, space),
+			srv_sys->dummy_ind1, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}

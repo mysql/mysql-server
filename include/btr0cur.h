@@ -214,7 +214,9 @@ btr_cur_optimistic_update(
 /*======================*/
 				/* out: DB_SUCCESS, or DB_OVERFLOW if the
 				updated record does not fit, DB_UNDERFLOW
-				if the page would become too empty */
+				if the page would become too empty, or
+				DB_ZIP_OVERFLOW if there is not enough
+				space left on the compressed page */
 	ulint		flags,	/* in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/* in: cursor on the record to update;
 				cursor stays valid and positioned on the
@@ -409,12 +411,13 @@ to free the field. */
 void
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
-	rec_t*		rec,	/* in: record in a clustered index */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				n_extern * 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose uncompressed
+				part will be updated, or NULL */
+	rec_t*		rec,	/* in/out: record in a clustered index */
+	dict_index_t*	index,	/* in: index of the page */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update,	/* in: update vector */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr);	/* in: mtr, or NULL if not logged */
 /***********************************************************************
 The complement of the previous function: in an update entry may inherit
 some externally stored fields from a record. We must mark them as inherited
@@ -441,7 +444,8 @@ btr_cur_unmark_dtuple_extern_fields(
 	ulint		n_ext_vec);	/* in: number of elements in ext_vec */
 /***********************************************************************
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec. The fields are stored on pages allocated from leaf node
+them in rec.  The extern flags in rec will have to be set beforehand.
+The fields are stored on pages allocated from leaf node
 file segment of the index tree. */
 
 ulint
@@ -451,9 +455,6 @@ btr_store_big_rec_extern_fields(
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
 	rec_t*		rec,		/* in: record */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page with
-					at least 12*big_rec_vec->n_fields
-					bytes available, or NULL */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
@@ -476,12 +477,12 @@ btr_free_externally_stored_field(
 					from purge where 'data' is located on
 					an undo log page, not an index
 					page) */
-	byte*		data,		/* in: internally stored data
-					+ reference to the externally
-					stored part */
-	ulint		local_len,	/* in: length of data */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page with
-					at least 12 bytes available, or NULL */
+	rec_t*		rec,		/* in/out: record */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
+	page_zip_des_t*	page_zip,	/* in: compressed page whose
+					uncompressed part will be updated,
+					or NULL */
+	ulint		i,		/* in: field number */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
@@ -497,10 +498,9 @@ btr_rec_free_externally_stored_fields(
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
 	rec_t*		rec,	/* in: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least n_extern*12 bytes available,
-				or NULL */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
+				part will be updated, or NULL */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 				rollback and we do not want to free
 				inherited fields */
@@ -677,7 +677,7 @@ stored part. */
 						The 2 highest bits are
 						reserved to the flags below. */
 /*--------------------------------------*/
-#define BTR_EXTERN_FIELD_REF_SIZE	20
+/* #define BTR_EXTERN_FIELD_REF_SIZE	20 // moved to btr0types.h */
 
 /* The highest bit of BTR_EXTERN_LEN (i.e., the highest bit of the byte
 at lowest address) is set to 1 if this field does not 'own' the externally

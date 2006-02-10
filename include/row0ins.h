@@ -58,30 +58,6 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/* in: insert node */
 	dtuple_t*	row);	/* in: new row (or first row) for the node */
 /*******************************************************************
-Tries to insert an index entry to an index. If the index is clustered
-and a record with the same unique key is found, the other record is
-necessarily marked deleted by a committed transaction, or a unique key
-violation error occurs. The delete marked record is then updated to an
-existing record, and we must write an undo log record on the delete
-marked record. If the index is secondary, and a record with exactly the
-same fields is found, the other record is necessarily marked deleted.
-It is then unmarked. Otherwise, the entry is just inserted to the index. */
-
-ulint
-row_ins_index_entry_low(
-/*====================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL
-				if pessimistic retry needed, or error code */
-	ulint		mode,	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-				depending on whether we wish optimistic or
-				pessimistic descent down the index tree */
-	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
-				externally stored fields in entry, or NULL */
-	ulint		n_ext_vec,/* in: number of fields in ext_vec */
-	que_thr_t*	thr);	/* in: query thread */
-/*******************************************************************
 Inserts an index entry to index. Tries first optimistic, then pessimistic
 descent down the tree. If the entry matches enough to a delete marked record,
 performs the insert by updating or delete unmarking the delete marked

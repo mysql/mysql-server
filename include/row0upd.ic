@@ -106,21 +106,37 @@ void
 row_upd_rec_sys_fields(
 /*===================*/
 	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 21 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
 	dulint		roll_ptr)/* in: roll ptr of the undo log record */
 {
+	ulint	offset;
+
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!buf_block_align(rec)->is_hashed
 			|| rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(!page_zip || page_zip_available(page_zip, 21));
 
-	row_set_rec_trx_id(rec, page_zip, index, offsets, trx->id);
-	row_set_rec_roll_ptr(rec, page_zip, index, offsets, roll_ptr);
+	offset = index->trx_id_offset;
+	
+	if (!offset) {
+		offset = row_get_trx_id_offset(rec, index, offsets);
+	}
+
+	trx_write_trx_id(rec + offset, trx->id);
+	trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_write_trx_id(
+				page_zip, rec, rec_offs_data_size(offsets),
+				trx->id, NULL/* TODO: mtr */);
+		page_zip_write_roll_ptr(
+				page_zip, rec, rec_offs_data_size(offsets),
+				roll_ptr, NULL/* TODO: mtr */);
+	}
 }

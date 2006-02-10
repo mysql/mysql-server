@@ -28,52 +28,16 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 
 /*************************************************************************
-Reads the trx id or roll ptr field from a clustered index record: this function
-is slower than the specialized inline functions. */
+Gets the offset of trx id field, in bytes relative to the origin of
+a clustered index record. */
 
-dulint
-row_get_rec_sys_field(
+ulint
+row_get_trx_id_offset(
 /*==================*/
-				/* out: value of the field */
-	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
+				/* out: offset of DATA_TRX_ID */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
-{
-	ulint		pos;
-	byte*		field;
-	ulint		len;
-
-	ut_ad(index->type & DICT_CLUSTERED);
-
-	pos = dict_index_get_sys_col_pos(index, type);
-
-	field = rec_get_nth_field(rec, offsets, pos, &len);
-
-	if (type == DATA_TRX_ID) {
-
-		return(trx_read_trx_id(field));
-	} else {
-		ut_ad(type == DATA_ROLL_PTR);
-
-		return(trx_read_roll_ptr(field));
-	}
-}
-
-/*************************************************************************
-Sets the trx id or roll ptr field in a clustered index record: this function
-is slower than the specialized inline functions. */
-
-void
-row_set_rec_sys_field(
-/*==================*/
-	ulint		type,	/* in: DATA_TRX_ID or DATA_ROLL_PTR */
-	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				10 or 11 bytes available, or NULL */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	dulint		val)	/* in: value to set */
 {
 	ulint	pos;
 	byte*	field;
@@ -82,18 +46,13 @@ row_set_rec_sys_field(
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	pos = dict_index_get_sys_col_pos(index, type);
+	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 
 	field = rec_get_nth_field(rec, offsets, pos, &len);
 
-	if (type == DATA_TRX_ID) {
+	ut_ad(len == DATA_TRX_ID_LEN);
 
-		trx_write_trx_id(field, page_zip/* 10 bytes */, val);
-	} else {
-		ut_ad(type == DATA_ROLL_PTR);
-
-		trx_write_roll_ptr(field, page_zip/* 11 bytes */, val);
-	}
+	return(field - rec);
 }
 
 /*********************************************************************

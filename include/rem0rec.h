@@ -38,15 +38,25 @@ in addition to the data and the offsets */
 #define REC_STATUS_INFIMUM	2
 #define REC_STATUS_SUPREMUM	3
 
-/* The following two constants are needed in page0zip.c in order to
-efficiently access heap_no and status when compressing and
-decompressing pages. */
+/* The following four constants are needed in page0zip.c in order to
+efficiently compress and decompress pages. */
 
 /* The offset of heap_no in a compact record */
 #define REC_NEW_HEAP_NO		4
 /* The shift of heap_no in a compact record.
 The status is stored in the low-order bits. */
 #define	REC_HEAP_NO_SHIFT	3
+
+/* Length of a B-tree node pointer, in bytes */
+#define REC_NODE_PTR_SIZE	4
+
+#ifdef UNIV_DEBUG
+/* Length of the rec_get_offsets() header */
+# define REC_OFFS_HEADER_SIZE	4
+#else /* UNIV_DEBUG */
+/* Length of the rec_get_offsets() header */
+# define REC_OFFS_HEADER_SIZE	2
+#endif /* UNIV_DEBUG */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
@@ -91,10 +101,8 @@ UNIV_INLINE
 void
 rec_set_next_offs_new(
 /*==================*/
-	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				6 bytes available, or NULL */
-	ulint		next);	/* in: offset of the next record */
+	rec_t*	rec,	/* in/out: new-style physical record */
+	ulint	next);	/* in: offset of the next record */
 /**********************************************************
 The following function is used to get the number of fields
 in an old-style record. */
@@ -147,10 +155,8 @@ UNIV_INLINE
 void
 rec_set_n_owned_new(
 /*================*/
-				/* out: TRUE on success */
 	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		n_owned);/* in: the number of owned */
 /**********************************************************
 The following function is used to retrieve the info bits of
@@ -176,10 +182,8 @@ UNIV_INLINE
 void
 rec_set_info_bits_new(
 /*==================*/
-	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits);	/* in: info bits */
+	rec_t*	rec,	/* in/out: new-style physical record */
+	ulint	bits);	/* in: info bits */
 /**********************************************************
 The following function retrieves the status bits of a new-style record. */
 UNIV_INLINE
@@ -195,10 +199,8 @@ UNIV_INLINE
 void
 rec_set_status(
 /*===========*/
-	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits);	/* in: info bits */
+	rec_t*	rec,	/* in/out: physical record */
+	ulint	bits);	/* in: info bits */
 
 /**********************************************************
 The following function is used to retrieve the info and status
@@ -217,10 +219,8 @@ UNIV_INLINE
 void
 rec_set_info_and_status_bits(
 /*=========================*/
-	rec_t*		rec,	/* in/out: compact physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits);	/* in: info bits */
+	rec_t*	rec,	/* in/out: compact physical record */
+	ulint	bits);	/* in: info bits */
 
 /**********************************************************
 The following function tells if record is delete marked. */
@@ -246,8 +246,7 @@ void
 rec_set_deleted_flag_new(
 /*=====================*/
 	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		flag);	/* in: nonzero if delete marked */
 /**********************************************************
 The following function tells if a new-style record is a node pointer. */
@@ -291,10 +290,8 @@ UNIV_INLINE
 void
 rec_set_heap_no_new(
 /*================*/
-	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 6 bytes available, or NULL */
-	ulint		heap_no);/* in: the heap number */
+	rec_t*	rec,	/* in/out: physical record */
+	ulint	heap_no);/* in: the heap number */
 /**********************************************************
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format. */
@@ -304,6 +301,19 @@ rec_get_1byte_offs_flag(
 /*====================*/
 			/* out: TRUE if 1-byte form */
 	rec_t*	rec);	/* in: physical record */
+
+/**********************************************************
+Determine how many of the first n columns in a compact
+physical record are stored externally. */
+
+ulint
+rec_get_n_extern_new(
+/*=================*/
+				/* out: number of externally stored columns */
+	const rec_t*	rec,	/* in: compact physical record */
+	dict_index_t*	index,	/* in: record descriptor */
+	ulint		n);	/* in: number of columns to scan */
+
 /**********************************************************
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
@@ -325,6 +335,21 @@ rec_get_offsets_func(
 
 #define rec_get_offsets(rec,index,offsets,n,heap)	\
 	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
+
+/**********************************************************
+The following function determines the offsets to each field
+in the record.  It can reuse a previously allocated array. */
+
+void
+rec_get_offsets_reverse(
+/*====================*/
+	const byte*	extra,	/* in: the extra bytes of a compact record
+				in reverse order, excluding the fixed-size
+				REC_N_NEW_EXTRA_BYTES */
+	dict_index_t*	index,	/* in: record descriptor */
+	ibool		node_ptr,/* in: TRUE=node pointer, FALSE=leaf node */
+	ulint*		offsets);/* in/out: array consisting of offsets[0]
+				allocated elements */
 
 /****************************************************************
 Validates offsets returned by rec_get_offsets(). */

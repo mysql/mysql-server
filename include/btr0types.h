@@ -18,4 +18,9 @@ typedef struct btr_pcur_struct		btr_pcur_t;
 typedef struct btr_cur_struct 		btr_cur_t;
 typedef struct btr_search_struct	btr_search_t;
 
+/* The size of a reference to data stored on a different page.
+The reference is stored at the end of the prefix of the field
+in the index record. */
+#define BTR_EXTERN_FIELD_REF_SIZE	20
+
 #endif 

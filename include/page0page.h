@@ -295,7 +295,10 @@ page_dir_set_n_heap(
 /*================*/
 	page_t*		page,	/* in/out: index page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
+				uncompressed part will be updated, or NULL.
+				Note that the size of the dense page directory
+				in the compressed page trailer is
+				n_heap * PAGE_ZIP_DIR_SLOT_SIZE. */
 	ulint		n_heap);/* in: number of records */
 /*****************************************************************
 Gets the number of dir slots in directory. */
@@ -347,8 +350,6 @@ void
 page_dir_slot_set_rec(
 /*==================*/
 	page_dir_slot_t* slot,	/* in: directory slot */
-	page_zip_des_t*	 page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
 	rec_t*		 rec);	/* in: record on the page */
 /*******************************************************************
 Gets the number of records owned by a directory slot. */
@@ -365,8 +366,7 @@ void
 page_dir_slot_set_n_owned(
 /*======================*/
 	page_dir_slot_t*slot,	/* in/out: directory slot */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		n);	/* in: number of records owned by the slot */
 /****************************************************************
 Calculates the space reserved for directory slots of a given
@@ -404,6 +404,15 @@ page_rec_is_comp(
 				/* out: nonzero if in compact format */
 	const rec_t*	rec);	/* in: record */
 /****************************************************************
+Determine whether the page is a B-tree leaf. */
+UNIV_INLINE
+ibool
+page_is_leaf(
+/*=========*/
+				/* out: TRUE if the page is a B-tree leaf */
+	const page_t*	page)	/* in: page */
+	__attribute__((nonnull, pure));
+/****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
 rec_t*
@@ -418,12 +427,10 @@ UNIV_INLINE
 void
 page_rec_set_next(
 /*==============*/
-	rec_t*		rec,	/* in: pointer to record,
-				must not be page supremum */
-	rec_t*		next,	/* in: pointer to next record,
-				must not be page infimum */
-	page_zip_des_t*	page_zip);/* in/out: compressed page with at least
-				6 bytes available, or NULL */
+	rec_t*	rec,	/* in: pointer to record,
+			must not be page supremum */
+	rec_t*	next);	/* in: pointer to next record,
+			must not be page infimum */
 /****************************************************************
 Gets the pointer to the previous record. */
 UNIV_INLINE
@@ -562,9 +569,11 @@ page_mem_alloc(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		need,	/* in: number of bytes needed */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		heap_no);/* out: this contains the heap number
+	ulint*		heap_no,/* out: this contains the heap number
 				of the allocated record
 				if allocation succeeds */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL
+				if page_zip == NULL */
 /****************************************************************
 Puts a record to free list. */
 UNIV_INLINE
@@ -575,7 +584,10 @@ page_mem_free(
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
-	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+	dict_index_t*	index,	/* in: record descriptor */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL
+				if page_zip==NULL */
 /**************************************************************
 The index page creation function. */
 
@@ -587,7 +599,7 @@ page_create(
 					created */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
-	ulint		comp);		/* in: nonzero=compact page format */
+	dict_index_t*	index);		/* in: the index of the page */
 /*****************************************************************
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page or compress the page. */
@@ -622,7 +634,9 @@ The records are copied to the end of the record list on new_page. */
 ibool
 page_copy_rec_list_start(
 /*=====================*/
-					/* out: TRUE on success */
+					/* out: TRUE on success; FALSE on
+					compression failure (new_page will
+					be decompressed from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
@@ -685,8 +699,8 @@ void
 page_dir_split_slot(
 /*================*/
 	page_t*		page,	/* in: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 12 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be written, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 	__attribute__((nonnull(1)));
 /*****************************************************************
@@ -699,8 +713,7 @@ void
 page_dir_balance_slot(
 /*==================*/
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 15 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 	__attribute__((nonnull(1)));
 /**************************************************************
@@ -725,12 +738,12 @@ Parses a redo log record of creating a page. */
 byte*
 page_parse_create(
 /*==============*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	ulint	comp,	/* in: nonzero=compact page format */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	ulint		comp,	/* in: nonzero=compact page format */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
