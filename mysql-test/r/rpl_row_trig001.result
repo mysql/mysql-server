@@ -22,6 +22,7 @@ END//
 <End test section 2 (Tiggers & SP)>
 -----------------------------------
 DROP PROCEDURE test.p2;
+DROP PROCEDURE test.p3;
 DROP TRIGGER test.t2_ai;
 DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
