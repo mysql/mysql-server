@@ -2200,6 +2200,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   int res;
   NdbScanOperation *op;
   NdbTransaction *trans= m_active_trans;
+  part_id_range part_spec;
 
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
@@ -2211,6 +2212,35 @@ int ha_ndbcluster::full_table_scan(byte *buf)
       op->readTuples(lm, 0, parallelism))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
+
+  if (m_use_partition_function)
+  {
+    part_spec.start_part= 0;
+    part_spec.end_part= get_tot_partitions(m_part_info) - 1;
+    prune_partition_set(table, &part_spec);
+    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+                        part_spec.start_part, part_spec.end_part));
+    /*
+      If partition pruning has found no partition in set
+      we can return HA_ERR_END_OF_FILE
+      If partition pruning has found exactly one partition in set
+      we can optimize scan to run towards that partition only.
+    */
+    if (part_spec.start_part > part_spec.end_part)
+    {
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    else if (part_spec.start_part == part_spec.end_part)
+    {
+      /*
+        Only one partition is required to scan, if sorted is required we
+        don't need it any more since output from one ordered partitioned
+        index is always sorted.
+      */
+      m_active_cursor->setPartitionId(part_spec.start_part);
+    }
+  }
+
   if (generate_scan_filter(m_cond_stack, op))
     DBUG_RETURN(ndb_err(trans));
   if ((res= define_read_attrs(buf, op)))
@@ -3020,6 +3050,14 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   if (m_use_partition_function)
   {
     get_partition_set(table, buf, active_index, start_key, &part_spec);
+    DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+                        part_spec.start_part, part_spec.end_part));
+    /*
+      If partition pruning has found no partition in set
+      we can return HA_ERR_END_OF_FILE
+      If partition pruning has found exactly one partition in set
+      we can optimize scan to run towards that partition only.
+    */
     if (part_spec.start_part > part_spec.end_part)
     {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -3034,6 +3072,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
       sorted= FALSE;
     }
   }
+
   m_write_op= FALSE;
   switch (type){
   case PRIMARY_KEY_ORDERED_INDEX:
@@ -7009,6 +7048,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       get_partition_set(table, curr, active_index,
                         &multi_range_curr->start_key,
                         &part_spec);
+      DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
+                          part_spec.start_part, part_spec.end_part));
+      /*
+        If partition pruning has found no partition in set
+        we can skip this scan
+      */
       if (part_spec.start_part > part_spec.end_part)
       {
         /*
