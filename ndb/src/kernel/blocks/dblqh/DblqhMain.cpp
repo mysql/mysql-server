@@ -16176,7 +16176,7 @@ error:
 		       "Unable to restart, failed while reading redo."
 		       " Likely invalid change of configuration");
   progError(__LINE__, 
-	    ERR_INVALID_CONFIG,
+	    NDBD_EXIT_INVALID_CONFIG,
 	    buf);
 }//Dblqh::findLogfile()
 
