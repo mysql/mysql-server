@@ -10,13 +10,13 @@
 # 5. check that the slave and master BANK databases are the same
 #
  
-# kill any trailing processes
---system killall lt-bankTransactionMaker lt-bankTimer lt-bankMakeGL || true
-
 --source include/have_ndb.inc
 --source include/have_ndb_extra.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
+
+# kill any trailing processes
+--system killall lt-bankTransactionMaker lt-bankTimer lt-bankMakeGL || true
 
 --disable_warnings
 # initialize master
