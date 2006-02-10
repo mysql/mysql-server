@@ -1,6 +1,9 @@
 #
 # Test of replicating user variables
 #
+###########################################################
+# 2006-02-08 By JBM added order by for use w/ NDB engine
+###########################################################
 source include/master-slave.inc;
 
 #save_master_pos;
@@ -20,7 +23,7 @@ set @var1= "from-master-1";
 execute stmt1 using @var1;
 set @var1= "from-master-2-'',";
 execute stmt1 using @var1;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 
 set @var2= 'insert into t1 values (concat("from-var-", ?))';
 prepare stmt2 from @var2;
@@ -30,7 +33,7 @@ execute stmt2 using @var1;
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from t1;
+SELECT * FROM t1 ORDER BY n;
 
 connection master;
 
