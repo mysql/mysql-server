@@ -55,6 +55,8 @@ uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
 /* just to declare */
 char **Options::saved_argv= NULL;
+/* Remember if the config file was forced */
+bool Options::is_forced_default_file= 0;
 
 /*
   List of options, accepted by the instance manager.
@@ -118,7 +120,7 @@ static struct my_option my_long_options[] =
     " Server binary.",
     (gptr *) &Options::default_mysqld_path,
     (gptr *) &Options::default_mysqld_path,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor"
     " instances in seconds.",
@@ -254,6 +256,7 @@ int Options::load(int argc, char **argv)
     if (is_prefix(argv[1], "--defaults-file="))
     {
       Options::config_file= strchr(argv[1], '=') + 1;
+      Options::is_forced_default_file= 1;
     }
     if (is_prefix(argv[1], "--defaults-extra-file=") ||
         is_prefix(argv[1], "--no-defaults"))
