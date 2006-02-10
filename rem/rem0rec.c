@@ -137,6 +137,84 @@ rec_validate_old(
 	rec_t*	rec);	/* in: physical record */
 
 /**********************************************************
+Determine how many of the first n columns in a compact
+physical record are stored externally. */
+
+ulint
+rec_get_n_extern_new(
+/*=================*/
+				/* out: number of externally stored columns */
+	const rec_t*	rec,	/* in: compact physical record */
+	dict_index_t*	index,	/* in: record descriptor */
+	ulint		n)	/* in: number of columns to scan */
+{
+	const byte*	nulls;
+	const byte*	lens;
+	dict_field_t*	field;
+	ulint		null_mask;
+	ulint		n_extern;
+	ulint		i;
+
+	ut_ad(index->table->comp);
+	ut_ad(rec_get_status((rec_t*) rec) == REC_STATUS_ORDINARY);
+	ut_ad(n == ULINT_UNDEFINED || n <= dict_index_get_n_fields(index));
+
+	if (n == ULINT_UNDEFINED) {
+		n = dict_index_get_n_fields(index);
+	}
+
+	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+	lens = nulls - (index->n_nullable + 7) / 8;
+	null_mask = 1;
+	n_extern = 0;
+	i = 0;
+
+	/* read the lengths of fields 0..n */
+	do {
+		ulint	len;
+
+		field = dict_index_get_nth_field(index, i);
+		if (!(dtype_get_prtype(dict_col_get_type(
+					dict_field_get_col(field)))
+					& DATA_NOT_NULL)) {
+			/* nullable field => read the null flag */
+
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls--;
+				null_mask = 1;
+			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				/* No length is stored for NULL fields. */
+				continue;
+			}
+			null_mask <<= 1;
+		}
+
+		if (UNIV_UNLIKELY(!field->fixed_len)) {
+			/* Variable-length field: read the length */
+			dtype_t*	type = dict_col_get_type(
+						dict_field_get_col(field));
+			len = *lens--;
+			if (UNIV_UNLIKELY(dtype_get_len(type) > 255)
+			    || UNIV_UNLIKELY(dtype_get_mtype(type)
+							== DATA_BLOB)) {
+				if (len & 0x80) {
+					/* 1exxxxxxx xxxxxxxx */
+					if (len & 0x40) {
+						n_extern++;
+					}
+					lens--;
+				}
+			}
+		}
+	} while (++i < n);
+
+	return(n_extern);
+}
+
+/**********************************************************
 The following function determines the offsets to each field in the
 record.  The offsets are written to a previously allocated array of
 ulint, where rec_offs_n_fields(offsets) has been initialized to the
@@ -362,6 +440,118 @@ rec_get_offsets_func(
 	rec_offs_set_n_fields(offsets, n);
 	rec_init_offsets(rec, index, offsets);
 	return(offsets);
+}
+
+/**********************************************************
+The following function determines the offsets to each field
+in the record.  It can reuse a previously allocated array. */
+
+void
+rec_get_offsets_reverse(
+/*====================*/
+	const byte*	extra,	/* in: the extra bytes of a compact record
+				in reverse order, excluding the fixed-size
+				REC_N_NEW_EXTRA_BYTES */
+	dict_index_t*	index,	/* in: record descriptor */
+	ibool		node_ptr,/* in: TRUE=node pointer, FALSE=leaf node */
+	ulint*		offsets)/* in/out: array consisting of offsets[0]
+				allocated elements */
+{
+	ulint		n;
+	ulint		i;
+	ulint		offs;
+	const byte*	nulls;
+	const byte*	lens;
+	dict_field_t*	field;
+	ulint		null_mask;
+	ulint		n_node_ptr_field;
+
+	ut_ad(extra);
+	ut_ad(index);
+	ut_ad(offsets);
+	ut_ad(index->table->comp);
+
+	if (UNIV_UNLIKELY(node_ptr)) {
+		n_node_ptr_field = dict_index_get_n_unique_in_tree(index);
+		n = n_node_ptr_field + 1;
+	} else {
+		n_node_ptr_field = ULINT_UNDEFINED;
+		n = dict_index_get_n_fields(index);
+	}
+
+	ut_a(rec_offs_get_n_alloc(offsets) >= n + (1 + REC_OFFS_HEADER_SIZE));
+	rec_offs_set_n_fields(offsets, n);
+
+	nulls = extra;
+	lens = nulls + (index->n_nullable + 7) / 8;
+	i = offs = 0;
+	null_mask = 1;
+
+	/* read the lengths of fields 0..n */
+	do {
+		ulint	len;
+		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
+			len = offs += 4;
+			goto resolved;
+		}
+
+		field = dict_index_get_nth_field(index, i);
+		if (!(dtype_get_prtype(dict_col_get_type(
+					dict_field_get_col(field)))
+					& DATA_NOT_NULL)) {
+			/* nullable field => read the null flag */
+
+			if (UNIV_UNLIKELY(!(byte) null_mask)) {
+				nulls++;
+				null_mask = 1;
+			}
+
+			if (*nulls & null_mask) {
+				null_mask <<= 1;
+				/* No length is stored for NULL fields.
+				We do not advance offs, and we set
+				the length to zero and enable the
+				SQL NULL flag in offsets[]. */
+				len = offs | REC_OFFS_SQL_NULL;
+				goto resolved;
+			}
+			null_mask <<= 1;
+		}
+
+		if (UNIV_UNLIKELY(!field->fixed_len)) {
+			/* Variable-length field: read the length */
+			dtype_t*	type = dict_col_get_type(
+					dict_field_get_col(field));
+			len = *lens++;
+			if (UNIV_UNLIKELY(dtype_get_len(type) > 255)
+			    || UNIV_UNLIKELY(dtype_get_mtype(type)
+						== DATA_BLOB)) {
+				if (len & 0x80) {
+					/* 1exxxxxxx xxxxxxxx */
+					len <<= 8;
+					len |= *lens++;
+
+					offs += len & 0x3fff;
+					if (UNIV_UNLIKELY(len & 0x4000)) {
+						len = offs | REC_OFFS_EXTERNAL;
+					} else {
+						len = offs;
+					}
+
+					goto resolved;
+				}
+			}
+
+			len = offs += len;
+		} else {
+			len = offs += field->fixed_len;
+		}
+	resolved:
+		rec_offs_base(offsets)[i + 1] = len;
+	} while (++i < rec_offs_n_fields(offsets));
+
+	*rec_offs_base(offsets) =
+		((lens - 1) - extra) | REC_OFFS_COMPACT;
 }
 
 /****************************************************************
@@ -632,6 +822,9 @@ rec_set_nth_field_extern_bit_new(
 					/* toggle the extern bit */
 					len |= 0x40;
 					if (mtr) {
+						/* TODO: page_zip:
+						log this differently,
+						or remove altogether */
 						mlog_write_ulint(lens + 1, len,
 							MLOG_1BYTE, mtr);
 					} else {
@@ -904,8 +1097,7 @@ init:
 	memset (lens + 1, 0, nulls - lens);
 
 	/* Set the info bits of the record */
-	rec_set_info_and_status_bits(rec, NULL,
-				dtuple_get_info_bits(dtuple));
+	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
 
 	/* Store the data and the offsets */
 

@@ -273,7 +273,10 @@ row_ins_sec_index_entry_by_modify(
 
 		err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 						update, 0, thr, mtr);
-		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
+		switch (err) {
+		case DB_OVERFLOW:
+		case DB_UNDERFLOW:
+		case DB_ZIP_OVERFLOW:
 			err = DB_FAIL;
 		}
 	} else  {
@@ -337,7 +340,10 @@ row_ins_clust_index_entry_by_modify(
 
 		err = btr_cur_optimistic_update(0, cursor, update, 0, thr,
 								   mtr);
-		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
+		switch (err) {
+		case DB_OVERFLOW:
+		case DB_UNDERFLOW:
+		case DB_ZIP_OVERFLOW:
 			err = DB_FAIL;
 		}
 	} else  {
@@ -1919,7 +1925,7 @@ existing record, and we must write an undo log record on the delete
 marked record. If the index is secondary, and a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index. */
-
+static
 ulint
 row_ins_index_entry_low(
 /*====================*/
@@ -2063,7 +2069,9 @@ row_ins_index_entry_low(
 		}
 
 		if (err == DB_SUCCESS) {
+			/* TODO: set these before insert */
 			if (ext_vec) {
+				/* TODO: page_zip, mtr=NULL */
 				rec_set_field_extern_bits(insert_rec, index,
 						ext_vec, n_ext_vec, &mtr);
 			}
@@ -2083,7 +2091,8 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 
-		err = btr_store_big_rec_extern_fields(index, rec, 0/*TODO*/,
+		/* TODO: set the extern bits outside this function */
+		err = btr_store_big_rec_extern_fields(index, rec,
 						offsets, big_rec, &mtr);
 
 		if (modify) {
@@ -2409,7 +2418,7 @@ row_ins_step(
 			goto same_trx;
 		}	
 
-		trx_write_trx_id(node->trx_id_buf, NULL, trx->id);
+		trx_write_trx_id(node->trx_id_buf, trx->id);
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
 

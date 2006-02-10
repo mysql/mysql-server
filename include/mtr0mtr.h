@@ -129,11 +129,23 @@ flag value must give the length also! */
 						/* copy compact record list end
 						to a new created index page */
 #define MLOG_COMP_PAGE_REORGANIZE ((byte)46)	/* reorganize an index page */
-#define MLOG_COMP_DECOMPRESS ((byte)47)		/* decompress a page
+#define MLOG_ZIP_WRITE_NODE_PTR	((byte)47)	/* write the node pointer of
+						a record on a compressed
+						non-leaf B-tree page */
+#define MLOG_ZIP_WRITE_TRX_ID	((byte)48)	/* write the trx_id of
+						a record on a compressed
+						leaf B-tree page */
+#define MLOG_ZIP_WRITE_ROLL_PTR	((byte)49)	/* write the roll_ptr of
+						a record on a compressed
+						leaf B-tree page */
+#define MLOG_ZIP_WRITE_BLOB_PTR	((byte)50)	/* write the BLOB pointer
+						of an externally stored column
+						on a compressed page */
+#define MLOG_ZIP_COMPRESS	((byte)51)	/* compress a page */
+#define MLOG_ZIP_DECOMPRESS	((byte)52)	/* decompress a page
 						to undo a compressed page
 						overflow */
-
-#define MLOG_BIGGEST_TYPE	((byte)47)	/* biggest value (used in
+#define MLOG_BIGGEST_TYPE	((byte)52)	/* biggest value (used in
 						asserts) */
 					
 /*******************************************************************

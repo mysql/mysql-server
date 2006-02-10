@@ -153,13 +153,13 @@ Creates the root node for a new index tree. */
 ulint
 btr_create(
 /*=======*/
-			/* out: page number of the created root, FIL_NULL if
-			did not succeed */
-	ulint	type,	/* in: type of the index */
-	ulint	space,	/* in: space where created */
-	dulint	index_id,/* in: index id */
-	ulint	comp,	/* in: nonzero=compact page format */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: page number of the created root,
+				FIL_NULL if did not succeed */
+	ulint		type,	/* in: type of the index */
+	ulint		space,	/* in: space where created */
+	dulint		index_id,/* in: index id */
+	dict_index_t*	index,	/* in: index */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /****************************************************************
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */
@@ -199,12 +199,14 @@ btr_root_raise_and_insert(
 /*****************************************************************
 Reorganizes an index page. */
 
-void
+ibool
 btr_page_reorganize(
 /*================*/
+				/* out: TRUE on success, FALSE on failure */
 	page_t*		page,	/* in: page to be reorganized */
 	dict_index_t*	index,	/* in: record descriptor */
-	mtr_t*		mtr);	/* in: mtr */
+	mtr_t*		mtr)	/* in: mtr */
+	__attribute__((nonnull, warn_unused_result));
 /*****************************************************************
 Decides if the page should be split at the convergence point of
 inserts converging to left. */
@@ -265,10 +267,8 @@ Sets a record as the predefined minimum record. */
 void
 btr_set_min_rec_mark(
 /*=================*/
-	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	mtr_t*		mtr);	/* in: mtr */
+	rec_t*	rec,	/* in/out: record */
+	mtr_t*	mtr);	/* in: mtr */
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
 

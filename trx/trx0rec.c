@@ -807,7 +807,7 @@ trx_undo_update_rec_get_update(
 
 	upd_field = upd_get_nth_field(update, n_fields);
 	buf = mem_heap_alloc(heap, DATA_TRX_ID_LEN);
-	trx_write_trx_id(buf, NULL, trx_id);
+	trx_write_trx_id(buf, trx_id);
 
 	upd_field_set_field_no(upd_field,
 			dict_index_get_sys_col_pos(index, DATA_TRX_ID),
@@ -816,7 +816,7 @@ trx_undo_update_rec_get_update(
 
 	upd_field = upd_get_nth_field(update, n_fields + 1);
 	buf = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
-	trx_write_roll_ptr(buf, NULL, roll_ptr);
+	trx_write_roll_ptr(buf, roll_ptr);
 
 	upd_field_set_field_no(upd_field,
 			dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
@@ -1408,7 +1408,7 @@ trx_undo_prev_version_build(
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
 		*old_vers = rec_copy(buf, rec, offsets);
 		rec_offs_make_valid(*old_vers, index, offsets);
-		row_upd_rec_in_place(*old_vers, offsets, update);
+		row_upd_rec_in_place(*old_vers, offsets, update, NULL);
 	}
 
 	return(DB_SUCCESS);
