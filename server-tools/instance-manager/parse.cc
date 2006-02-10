@@ -166,7 +166,8 @@ Command *parse_command(Instance_map *map, const char *text)
     skip= true;
   case TOK_SET:
 
-    get_text_id(&text, &instance_name_len, &instance_name);
+    if (get_text_id(&text, &instance_name_len, &instance_name))
+      goto syntax_error;
     text+= instance_name_len;
 
    /* the next token should be a dot */
@@ -221,7 +222,8 @@ Command *parse_command(Instance_map *map, const char *text)
       switch (Token tok2= shift_token(&text, &word_len)) {
       case TOK_OPTIONS:
       case TOK_STATUS:
-        get_text_id(&text, &instance_name_len, &instance_name);
+        if (get_text_id(&text, &instance_name_len, &instance_name))
+          goto syntax_error;
         text+= instance_name_len;
         /* check that this is the end of the command */
         get_word(&text, &word_len);
@@ -273,7 +275,8 @@ Command *parse_command(Instance_map *map, const char *text)
               goto syntax_error;
             }
             /* get the size of the log we want to retrieve */
-            get_text_id(&text, &word_len, &log_size);
+            if (get_text_id(&text, &word_len, &log_size))
+              goto syntax_error;
             text+= word_len;
             /* this parameter is required */
             if (!word_len)
@@ -291,7 +294,6 @@ Command *parse_command(Instance_map *map, const char *text)
                                                instance_name_len, log_type,
                                                log_size, text);
 
-                //get_text_id(&text, &log_size_len, &log_size);
                 break;
               case '\0':
                 command= new Show_instance_log(map, instance_name,
