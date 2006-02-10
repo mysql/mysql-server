@@ -641,14 +641,19 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
   global_table_log.file_entry[1]= table_log_entry->action_type;
   int4store(&global_table_log.file_entry[2],
             table_log_entry->next_entry);
-  strcpy(&global_table_log.file_entry[6], table_log_entry->name);
+  DBUG_ASSERT(strlen(table_log_entry->name) < FN_LEN);
+  strncpy(&global_table_log.file_entry[6], table_log_entry->name, FN_LEN);
   if (table_log_entry->action_type == 'r')
-    strcpy(&global_table_log.file_entry[6 + FN_LEN],
-          table_log_entry->from_name);
+  {
+    DBUG_ASSERT(strlen(table_log_entry->from_name) < FN_LEN);
+    strncpy(&global_table_log.file_entry[6 + FN_LEN],
+          table_log_entry->from_name, FN_LEN);
+  }
   else
     global_table_log.file_entry[6 + FN_LEN]= 0;
-  strcpy(&global_table_log.file_entry[6 + (2*FN_LEN)],
-         table_log_entry->handler_type);
+  DBUG_ASSERT(strlen(table_log_entry->handler_type) < FN_LEN);
+  strncpy(&global_table_log.file_entry[6 + (2*FN_LEN)],
+         table_log_entry->handler_type, FN_LEN);
   if (get_free_table_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);
