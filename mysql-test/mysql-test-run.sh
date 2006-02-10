@@ -244,8 +244,13 @@ MYSQL_MANAGER_USER=root
 # an environment variable can be used to control all ports. A small
 # number is to be used, 0 - 16 or similar.
 #
+# Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+# versions of this script, else a 4.0 test run might conflict with a
+# 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+# all port numbers might not be used in this version of the script.
+#
 if [ -n "$MTR_BUILD_THREAD" ] ; then
-  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 5 + 10000`
+  MASTER_MYPORT=`expr $MTR_BUILD_THREAD '*' 10 + 10000`
   MYSQL_MANAGER_PORT=`expr $MASTER_MYPORT + 2`
   SLAVE_MYPORT=`expr $MASTER_MYPORT + 3`
   NDBCLUSTER_PORT=`expr $MASTER_MYPORT + 4`
