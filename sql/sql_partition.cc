@@ -5126,7 +5126,7 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
 bool
 write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
                             uint next_entry,
-                            const char *from_path
+                            const char *from_path,
                             const char *to_path,
                             bool rename_flag)
 {
@@ -5140,14 +5140,34 @@ write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
     table_log_entry.action_type= 'd';
   table_log_entry.next_entry= next_entry;
   table_log_entry.handler_type= "frm";
+  table_log_entry.name= to_path;
   if (rename_flag)
-    table_log_entry.name= to_path;
-  table_log_entry.from_name= from_path;
+    table_log_entry.from_name= from_path;
   if (write_table_log_entry(&table_log_entry, &log_entry))
   {
     DBUG_RETURN(TRUE);
   }
-  insert_part_info_log_entry_list(part_info, log_entry);
+  insert_part_info_log_entry_list(lpt->part_info, log_entry);
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Log final partition changes in change partition
+  SYNOPSIS
+    write_log_changed_partitions()
+    lpt                      Struct containing parameters
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+*/
+
+static
+bool
+write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
+                             uint *next_entry, const char *path)
+{
+  DBUG_ENTER("write_log_changed_partitions");
   DBUG_RETURN(FALSE);
 }
 
@@ -5319,6 +5339,7 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
   TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
+  char path[FN_LEN];
   char shadow_path[FN_LEN];
   TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   DBUG_ENTER("write_log_drop_shadow_frm");
@@ -5385,8 +5406,8 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   lock_global_table_log();
   do
   {
-    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
-                                     FALSE)
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
+                                     FALSE))
       break;
     if (write_log_rename_delete_frm(lpt, next_entry, (const char*)path,
                                     (const char*)tmp_path, TRUE))
@@ -5440,18 +5461,19 @@ write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   lock_global_table_log();
   do
   {
-    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
-                                     FALSE)
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
+                                     FALSE))
       break;
     build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
                          lpt->table_name, "#");
-    if (write_log_rename_delete_frm(lpt, next_entry, tmp_path,
-                                    NULL, FALSE))
+    if (write_log_rename_delete_frm(lpt, next_entry, NULL, tmp_path,
+                                    FALSE))
       break;
     log_entry= part_info->first_log_entry;
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
+    part_info->exec_log_entry= exec_log_entry;
     unlock_global_table_log();
     DBUG_RETURN(FALSE); 
   } while (TRUE);
@@ -5487,6 +5509,7 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   partition_info *part_info= lpt->part_info;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
   TABLE_LOG_MEMORY_ENTRY *exec_log_entry= part_info->exec_log_entry;
+  char path[FN_LEN];
   char shadow_path[FN_LEN];
   TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   uint next_entry= 0;
@@ -5495,13 +5518,13 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   lock_global_table_log();
   do
   {
-    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path),
-                                     TRUE)
+    build_table_filename(path, sizeof(path), lpt->db,
+                         lpt->table_name, "");
+    if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
+                                     TRUE))
       break;
     if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
       break;
-    build_table_filename(path, sizeof(path), lpt->db,
-                         lpt->table_name, "");
     build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
                          lpt->table_name, "#");
     if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
