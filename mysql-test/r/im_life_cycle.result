@@ -62,3 +62,5 @@ SHOW INSTANCES;
 instance_name	status
 mysqld1	online
 mysqld2	offline
+SHOW INSTANCE STATUS;
+ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
