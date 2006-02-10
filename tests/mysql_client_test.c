@@ -14708,8 +14708,7 @@ static void test_bug12744()
   rc= mysql_stmt_prepare(prep_stmt, "SELECT 1", 8);
   DIE_UNLESS(rc==0);
 
-  rc= mysql_kill(mysql, mysql_thread_id(mysql));
-  DIE_UNLESS(rc==0);
+  mysql_close(mysql);
 
   if (rc= mysql_stmt_execute(prep_stmt))
   {
@@ -14727,6 +14726,7 @@ static void test_bug12744()
     DIE_UNLESS(1==0);
   }
   rc= mysql_stmt_close(prep_stmt);
+  client_connect(0);
 }
 
 /* Bug #16144: mysql_stmt_attr_get type error */
