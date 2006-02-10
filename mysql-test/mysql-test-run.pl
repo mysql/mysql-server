@@ -1144,6 +1144,7 @@ sub environment_setup () {
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
   print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using IM_PORT          = $instance_manager->{'port'}\n";
   print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
   print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
 }
