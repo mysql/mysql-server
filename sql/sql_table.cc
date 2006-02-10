@@ -698,7 +698,7 @@ write_execute_table_log_entry(uint first_entry,
                               bool complete,
                               TABLE_LOG_MEMORY_ENTRY **active_entry)
 {
-  bool write_header;
+  bool write_header= FALSE;
   char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("write_execute_table_log_entry");
 

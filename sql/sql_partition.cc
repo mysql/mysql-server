@@ -5268,6 +5268,26 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
 
 
 /*
+  Set execute log entry in table log for this partitioned table
+  SYNOPSIS
+    set_part_info_exec_log_entry()
+    part_info                      Partition info object
+    exec_log_entry                 Log entry
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+set_part_info_exec_log_entry(partition_info *part_info,
+                             TABLE_LOG_MEMORY_ENTRY *exec_log_entry)
+{
+  part_info->exec_log_entry= exec_log_entry;
+  exec_log_entry->next_active_log_entry= NULL;
+}
+
+
+/*
   Write the log entry to ensure that the shadow frm file is removed at
   crash.
   SYNOPSIS
@@ -5294,11 +5314,11 @@ write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   char shadow_path[FN_LEN];
   DBUG_ENTER("write_log_drop_shadow_frm");
 
+  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                       lpt->table_name, "#");
   lock_global_table_log();
   do
   {
-    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                         lpt->table_name, "#");
     if (write_log_rename_delete_frm(lpt, 0UL, NULL,
                                     (const char*)shadow_path, FALSE))
       break;
@@ -5306,13 +5326,13 @@ write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
-    part_info->exec_log_entry= exec_log_entry;
     unlock_global_table_log();
+    set_part_info_exec_log_entry(part_info, exec_log_entry);
     DBUG_RETURN(FALSE);
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= NULL;
   unlock_global_table_log();
+  part_info->first_log_entry= NULL;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5342,15 +5362,16 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   char path[FN_LEN];
   char shadow_path[FN_LEN];
   TABLE_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
-  DBUG_ENTER("write_log_drop_shadow_frm");
+  DBUG_ENTER("write_log_rename_frm");
 
+  part_info->first_log_entry= NULL;
+  build_table_filename(path, sizeof(path), lpt->db,
+                       lpt->table_name, "");
+  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                       lpt->table_name, "#");
   lock_global_table_log();
   do
   {
-    build_table_filename(path, sizeof(path), lpt->db,
-                         lpt->table_name, "");
-    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                         lpt->table_name, "#");
     if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
@@ -5362,8 +5383,8 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
     DBUG_RETURN(FALSE);
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
+  part_info->first_log_entry= old_first_log_entry;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5421,8 +5442,8 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     DBUG_RETURN(FALSE); 
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
+  part_info->first_log_entry= old_first_log_entry;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5459,14 +5480,14 @@ write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   build_table_filename(path, sizeof(path), lpt->db,
                        lpt->table_name, "");
+  build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
+                       lpt->table_name, "#");
   lock_global_table_log();
   do
   {
     if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                      FALSE))
       break;
-    build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
-                         lpt->table_name, "#");
     if (write_log_rename_delete_frm(lpt, next_entry, NULL, tmp_path,
                                     FALSE))
       break;
@@ -5474,13 +5495,13 @@ write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
-    part_info->exec_log_entry= exec_log_entry;
     unlock_global_table_log();
+    set_part_info_exec_log_entry(part_info, exec_log_entry);
     DBUG_RETURN(FALSE); 
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= NULL;
   unlock_global_table_log();
+  part_info->first_log_entry= NULL;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5516,18 +5537,19 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   uint next_entry= 0;
   DBUG_ENTER("write_log_final_change_partition");
 
+  part_info->first_log_entry= NULL;
+  build_table_filename(path, sizeof(path), lpt->db,
+                       lpt->table_name, "");
+  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                       lpt->table_name, "#");
   lock_global_table_log();
   do
   {
-    build_table_filename(path, sizeof(path), lpt->db,
-                         lpt->table_name, "");
     if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                      TRUE))
       break;
     if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
       break;
-    build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                         lpt->table_name, "#");
     if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
@@ -5539,8 +5561,8 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     DBUG_RETURN(FALSE);
   } while (TRUE);
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= old_first_log_entry;
   unlock_global_table_log();
+  part_info->first_log_entry= old_first_log_entry;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5565,18 +5587,17 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
   TABLE_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
+  DBUG_ASSERT(log_entry);
   lock_global_table_log();
-  DBUG_ASSERT(part_info->exec_log_entry);
-  if (write_execute_table_log_entry(0UL, TRUE, &part_info->exec_log_entry))
+  if (write_execute_table_log_entry(0UL, TRUE, &log_entry))
   {
     DBUG_RETURN(TRUE);
   }
   release_part_info_log_entries(part_info->first_log_entry);
-  part_info->first_log_entry= NULL;
-  part_info->exec_log_entry->next_active_log_entry= NULL;
   release_part_info_log_entries(part_info->exec_log_entry);
-  part_info->exec_log_entry= NULL;
   unlock_global_table_log();
+  part_info->exec_log_entry= NULL;
+  part_info->first_log_entry= NULL;
   DBUG_RETURN(FALSE);
 }
 
