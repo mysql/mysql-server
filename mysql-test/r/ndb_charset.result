@@ -27,9 +27,9 @@ a char(3) character set latin1 collate latin1_swedish_ci primary key
 ) engine=ndb;
 insert into t1 values('aAa');
 insert into t1 values('aaa');
-ERROR 23000: Duplicate entry 'aaa' for key 1
+ERROR 23000: Duplicate entry 'aaa' for key 'PRIMARY'
 insert into t1 values('AAA');
-ERROR 23000: Duplicate entry 'AAA' for key 1
+ERROR 23000: Duplicate entry 'AAA' for key 'PRIMARY'
 select * from t1 order by a;
 a
 aAa
@@ -51,9 +51,9 @@ a varchar(20) character set latin1 collate latin1_swedish_ci primary key
 ) engine=ndb;
 insert into t1 values ('A'),('b '),('C  '),('d      '),('E'),('f');
 insert into t1 values('b');
-ERROR 23000: Duplicate entry 'b' for key 1
+ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
 insert into t1 values('a         ');
-ERROR 23000: Duplicate entry 'a         ' for key 1
+ERROR 23000: Duplicate entry 'a         ' for key 'PRIMARY'
 select a,length(a) from t1 order by a;
 a	length(a)
 A	1
@@ -112,9 +112,9 @@ unique key(a)
 ) engine=ndb;
 insert into t1 values(1, 'aAa');
 insert into t1 values(2, 'aaa');
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 insert into t1 values(3, 'AAA');
-ERROR 23000: Duplicate entry '3' for key 1
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 select * from t1 order by p;
 p	a
 1	aAa
@@ -138,9 +138,9 @@ unique key(a)
 ) engine=ndb;
 insert into t1 values (1,'A'),(2,'b '),(3,'C  '),(4,'d      '),(5,'E'),(6,'f');
 insert into t1 values(99,'b');
-ERROR 23000: Duplicate entry '99' for key 1
+ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
 insert into t1 values(99,'a         ');
-ERROR 23000: Duplicate entry '99' for key 1
+ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
 select a,length(a) from t1 order by a;
 a	length(a)
 A	1
