@@ -203,6 +203,12 @@ public:
     delete sphead;
     sphead= 0;
   }
+protected:
+  bool
+  change_security_context(THD *thd, Security_context **backup);
+
+  void
+  restore_security_context(THD *thd, Security_context *backup);
 };
 
 

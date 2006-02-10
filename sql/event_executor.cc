@@ -49,7 +49,8 @@ static uint workers_count;
 static int
 evex_load_events_from_db(THD *thd);
 
-
+bool
+evex_print_warnings(THD *thd, event_timed *et);
 
 /*
   TODO Andrey: Check for command line option whether to start
@@ -135,7 +136,8 @@ init_event_thread(THD* thd)
 {
   DBUG_ENTER("init_event_thread");
   thd->client_capabilities= 0;
-  thd->security_ctx->skip_grants();
+  thd->security_ctx->master_access= 0;
+  thd->security_ctx->db_access= 0;
   thd->security_ctx->host= (char*)my_localhost;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
@@ -204,7 +206,7 @@ event_executor_main(void *arg)
 
   if (init_event_thread(thd))
     goto err;
-  
+  thd->security_ctx->skip_grants();
   // make this thread invisible it has no vio -> show processlist won't see
   thd->system_thread= 1;
 
@@ -481,21 +483,8 @@ event_executor_worker(void *event_void)
   thd= current_thd;
 #endif
 
-  // thd->security_ctx->priv_host is char[MAX_HOSTNAME]
-  
-  strxnmov(thd->security_ctx->priv_host, sizeof(thd->security_ctx->priv_host),
-                event->definer_host.str, NullS);  
-
-  thd->security_ctx->user= thd->security_ctx->priv_user=
-                             my_strdup(event->definer_user.str, MYF(0));
-
-  thd->db= event->dbname.str;
-  if (!check_access(thd, EVENT_ACL, event->dbname.str, 0, 0, 0,
-                      is_schema_db(event->dbname.str)))
   {
     int ret;
-    DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
-               event->dbname.str, event->name.str,(int) event->expression));
     sql_print_information("    EVEX EXECUTING event %s.%s [EXPR:%d]",
                event->dbname.str, event->name.str,(int) event->expression);
 
@@ -507,10 +496,7 @@ event_executor_worker(void *event_void)
     if (ret == EVEX_COMPILE_ERROR)
       sql_print_information("    EVEX COMPILE ERROR for event %s.%s",
                              event->dbname.str, event->name.str);
-    
-    DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
-                        event->dbname.str, event->name.str,
-                        (int) event->expression, ret));
+    evex_print_warnings(thd, event);
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
@@ -521,7 +507,6 @@ event_executor_worker(void *event_void)
     delete event;
   }
 
-  thd->db= 0;
 
 err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -666,3 +651,62 @@ bool sys_var_event_executor::update(THD *thd, set_var *var)
   DBUG_RETURN(0);
 }
 
+extern LEX_STRING warning_level_names[];
+
+/*
+  Prints the stack of infos, warnings, errors from thd to
+  the console so it can be fetched by the logs-into-tables and
+  checked later.
+  
+  Synopsis
+    evex_print_warnings
+      thd    - thread used during the execution of the event
+      et     - the event itself
+  
+  Returns
+    0 - OK (always)   
+
+*/
+
+bool
+evex_print_warnings(THD *thd, event_timed *et)
+{  
+  MYSQL_ERROR *err;
+  DBUG_ENTER("evex_show_warnings");
+  char msg_buf[1024];
+  char prefix_buf[512];
+  String prefix(prefix_buf, sizeof(prefix_buf), system_charset_info);
+  prefix.length(0);
+  
+  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  while ((err= it++))
+  {
+    String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
+    err_msg.length(0);// set it to 0 or we start adding at the end
+    if (!prefix.length())
+    {
+      prefix.append("SCHEDULER: [");
+
+      append_identifier(thd,&prefix,et->definer_user.str,et->definer_user.length);
+      prefix.append('@');
+      append_identifier(thd,&prefix,et->definer_host.str,et->definer_host.length);
+      prefix.append("][", 2);
+      append_identifier(thd,&prefix, et->dbname.str, et->dbname.length);
+      prefix.append('.');
+      append_identifier(thd,&prefix, et->name.str, et->name.length);
+      prefix.append("] ", 2);
+    }
+    
+    err_msg.append(prefix);
+    err_msg.append('[');
+    err_msg.append(warning_level_names[err->level].str,
+                   warning_level_names[err->level].length, system_charset_info);
+    err_msg.append("] [");
+    err_msg.append(err->msg, strlen(err->msg), system_charset_info);
+    err_msg.append("]");
+    sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
+  }
+
+
+  DBUG_RETURN(FALSE);
+}
