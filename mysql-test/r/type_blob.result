@@ -530,9 +530,9 @@ l	longblob	NULL	YES		NULL		#
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
-ERROR 23000: Duplicate entry 'Chevy ' for key 2
+ERROR 23000: Duplicate entry 'Chevy ' for key 'txt_index'
 insert into t1 (txt) values ('Chevy'), ('CHEVY');
-ERROR 23000: Duplicate entry 'Chevy' for key 2
+ERROR 23000: Duplicate entry 'Chevy' for key 'txt_index'
 alter table t1 drop index txt_index, add index txt_index (txt(20));
 insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';

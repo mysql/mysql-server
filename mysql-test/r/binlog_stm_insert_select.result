@@ -4,7 +4,7 @@ create table t2(a int);
 insert into t2 values(1),(2);
 reset master;
 insert into t1 select * from t2;
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '2' for key 'a'
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
@@ -18,7 +18,7 @@ create table t1(a int);
 insert into t1 values(1),(1);
 reset master;
 create table t2(unique(a)) select a from t1;
-ERROR 23000: Duplicate entry '1' for key 1
+ERROR 23000: Duplicate entry '1' for key 'a'
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
