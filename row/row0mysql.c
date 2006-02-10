@@ -473,8 +473,9 @@ handle_new_error:
 	ut_a(err != DB_SUCCESS);
 	
 	trx->error_state = DB_SUCCESS;
-
-	if (err == DB_DUPLICATE_KEY) {
+	
+	if ((err == DB_DUPLICATE_KEY)
+		|| (err == DB_FOREIGN_DUPLICATE_KEY)) {
            	if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
