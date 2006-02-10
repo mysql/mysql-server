@@ -229,11 +229,33 @@ int Instance_map::load()
   uint args_used= 0;
   const char *argv_options[3];
   char **argv= (char **) &argv_options;
-
+  char defaults_file_arg[FN_REFLEN];
 
   /* the name of the program may be orbitrary here in fact */
   argv_options[0]= "mysqlmanager";
-  argv_options[1]= '\0';
+
+  /*
+    If the option file was forced by the user when starting
+    the IM with --defaults-file=xxxx, make sure it is also
+    passed as --defaults-file, not only as Options::config_file.
+    This is important for option files given with relative path:
+    e.g. --defaults-file=my.cnf.
+    Otherwise my_search_option_files will treat "my.cnf" as a group
+    name and start looking for files named "my.cnf.cnf" in all
+    default dirs. Which is not what we want.
+  */
+  if (Options::is_forced_default_file)
+  {
+    snprintf(defaults_file_arg, FN_REFLEN, "--defaults-file=%s",
+             Options::config_file);
+
+    argv_options[1]= defaults_file_arg;
+    argv_options[2]= '\0';
+
+    argc= 2;
+  }
+  else
+    argv_options[1]= '\0';
 
   /*
     If the routine failed, we'll simply fallback to defaults in
