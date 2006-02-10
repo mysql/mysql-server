@@ -82,12 +82,13 @@ int main(int argc, char *argv[])
   int return_value= 1;
   init_environment(argv[0]);
   Options options;
-  struct passwd *user_info;
 
   if (options.load(argc, argv))
     goto err;
 
 #ifndef __WIN__
+  struct passwd *user_info;
+
   if ((user_info= check_user(options.user)))
   {
       if (set_user(options.user, user_info))
