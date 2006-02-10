@@ -18,9 +18,9 @@
 ###########################################################################
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
@@ -38,9 +38,9 @@ START INSTANCE mysqld2;
 --sleep 3
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 --connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
@@ -66,9 +66,9 @@ STOP INSTANCE mysqld2;
 --sleep 3
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
