@@ -26,7 +26,7 @@ a	b	c
 3	4	1020
 5	6	130
 INSERT t1 VALUES (1,9,70) ON DUPLICATE KEY UPDATE c=c+100000, b=4;
-ERROR 23000: Duplicate entry '4' for key 2
+ERROR 23000: Duplicate entry '4' for key 'b'
 SELECT * FROM t1;
 a	b	c
 1	2	10010
@@ -132,7 +132,7 @@ a	b	c
 3	4	1020
 5	6	130
 INSERT t1 SELECT 1,9,70 FROM DUAL ON DUPLICATE KEY UPDATE c=c+100000, b=4;
-ERROR 23000: Duplicate entry '4' for key 2
+ERROR 23000: Duplicate entry '4' for key 'b'
 SELECT * FROM t1;
 a	b	c
 1	2	10010

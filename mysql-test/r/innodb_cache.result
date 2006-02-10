@@ -121,7 +121,7 @@ id	a
 begin;
 insert into t3 VALUES ( NULL, 1, 1, 2 );
 insert into t3 VALUES ( NULL, 1, 1, 2 );
-ERROR 23000: Duplicate entry '1-1' for key 2
+ERROR 23000: Duplicate entry '1-1' for key 't1_id'
 commit;
 select t1.* from t1, t2, t3 where t3.state & 1 = 0 and t3.t1_id = t1.id and t3.t2_id = t2.id and t1.id = 1 order by t1.a asc;
 id	a
