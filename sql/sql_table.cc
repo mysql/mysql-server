@@ -289,28 +289,38 @@ GLOBAL_TABLE_LOG global_table_log;
 
 pthread_mutex_t LOCK_gtl;
 
+#define TLOG_ENTRY_TYPE_POS 0
+#define TLOG_ACTION_TYPE_POS 1
+#define TLOG_PHASE_POS 2
+#define TLOG_NEXT_ENTRY_POS 4
+
+#define TLOG_NO_ENTRY_POS 0
+#define TLOG_NAME_LEN_POS 4
+#define TLOG_HANDLER_TYPE_POS 8
+#define TLOG_IO_SIZE_POS 12
 
 /*
-  Sync table log file
+  Read one entry from table log file
   SYNOPSIS
-    sync_table_log()
+    read_table_log_file_entry()
+    entry_no                     Entry number to read
   RETURN VALUES
-    TRUE                      Error
-    FALSE                     Success
+    TRUE                         Error
+    FALSE                        Success
 */
 
 static
 bool
-sync_table_log()
+read_table_log_file_entry(uint entry_no)
 {
   bool error= FALSE;
-  DBUG_ENTER("sync_table_log");
+  File file_id= global_table_log.file_id;
+  char *file_entry= (char*)global_table_log.file_entry;
+  uint io_size= global_table_log.io_size;
+  DBUG_ENTER("read_table_log_file_entry");
 
-  if (my_sync(global_table_log.file_id, MYF(0)))
-  {
-    /* Write to error log */
+  if (my_pread(file_id, file_entry, io_size, io_size * entry_no, MYF(0)))
     error= TRUE;
-  }
   DBUG_RETURN(error);
 }
 
@@ -358,43 +368,21 @@ write_table_log_header()
   bool error= FALSE;
   DBUG_ENTER("write_table_log_header");
 
-  int4store(&global_table_log.file_entry[0], global_table_log.no_entries);
+  int4store(&global_table_log.file_entry[TLOG_NO_ENTRY_POS],
+            global_table_log.no_entries);
   const_var= FN_LEN;
-  int2store(&global_table_log.file_entry[4], const_var);
-  const_var= 32;
-  int2store(&global_table_log.file_entry[6], const_var);
+  int4store(&global_table_log.file_entry[TLOG_NAME_LEN_POS],
+            const_var);
+  const_var= TLOG_HANDLER_TYPE_LEN;
+  int4store(&global_table_log.file_entry[TLOG_HANDLER_TYPE_POS],
+            const_var);
   const_var= IO_SIZE;
-  int4store(&global_table_log.file_entry[8], const_var);
+  int4store(&global_table_log.file_entry[TLOG_IO_SIZE_POS],
+            const_var);
   if (write_table_log_file_entry(0UL))
     error= TRUE;
   if (!error)
     error= sync_table_log();
-  DBUG_RETURN(error);
-}
-
-
-/*
-  Read one entry from table log file
-  SYNOPSIS
-    read_table_log_file_entry()
-    entry_no                     Entry number to read
-  RETURN VALUES
-    TRUE                         Error
-    FALSE                        Success
-*/
-
-static
-bool
-read_table_log_file_entry(uint entry_no)
-{
-  bool error= FALSE;
-  File file_id= global_table_log.file_id;
-  char *file_entry= (char*)global_table_log.file_entry;
-  uint io_size= global_table_log.io_size;
-  DBUG_ENTER("read_table_log_file_entry");
-
-  if (my_pread(file_id, file_entry, io_size, io_size * entry_no, MYF(0)))
-    error= TRUE;
   DBUG_RETURN(error);
 }
 
@@ -450,11 +438,12 @@ read_table_log_header()
     else
       successful_open= TRUE;
   }
-  entry_no= uint4korr(&file_entry[0]);
-  global_table_log.name_len= uint2korr(&file_entry[4]);
-  global_table_log.handler_type_len= uint2korr(&file_entry[6]);
+  entry_no= uint4korr(&file_entry[TLOG_NO_ENTRY_POS]);
+  global_table_log.name_len= uint4korr(&file_entry[TLOG_NAME_LEN_POS]);
+  global_table_log.handler_type_len=
+        uint4korr(&file_entry[TLOG_HANDLER_TYPE_POS]);
   if (successful_open) 
-    global_table_log.io_size= uint4korr(&file_entry[8]);
+    global_table_log.io_size= uint4korr(&file_entry[TLOG_IO_SIZE_POS]);
   global_table_log.first_free= NULL;
   global_table_log.first_used= NULL;
   global_table_log.no_entries= 0;
@@ -488,11 +477,12 @@ read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
     /* Error handling */
     DBUG_RETURN(TRUE);
   }
-  table_log_entry->entry_type= file_entry[0];
-  table_log_entry->action_type= file_entry[1];
-  table_log_entry->next_entry= uint4korr(&file_entry[2]);
-  table_log_entry->name= &file_entry[6];
-  inx= 6 + global_table_log.name_len;
+  table_log_entry->entry_type= file_entry[TLOG_ENTRY_TYPE_POS];
+  table_log_entry->action_type= file_entry[TLOG_ACTION_TYPE_POS];
+  table_log_entry->phase= file_entry[TLOG_PHASE_POS];
+  table_log_entry->next_entry= uint4korr(&file_entry[TLOG_NEXT_ENTRY_POS]);
+  table_log_entry->name= &file_entry[TLOG_NAME_POS];
+  inx= TLOG_NAME_POS + global_table_log.name_len;
   table_log_entry->from_name= &file_entry[inx];
   inx+= global_table_log.name_len;
   table_log_entry->handler_type= &file_entry[inx];
@@ -637,23 +627,27 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
   bool error, write_header;
   DBUG_ENTER("write_table_log_entry");
 
-  global_table_log.file_entry[0]= 'i';
-  global_table_log.file_entry[1]= table_log_entry->action_type;
-  int4store(&global_table_log.file_entry[2],
+  global_table_log.file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_LOG_ENTRY_CODE;
+  global_table_log.file_entry[TLOG_ACTION_TYPE_POS]=
+                                    table_log_entry->action_type;
+  global_table_log.file_entry[TLOG_PHASE_POS]= 0;
+  int4store(&global_table_log.file_entry[TLOG_NEXT_ENTRY_POS],
             table_log_entry->next_entry);
   DBUG_ASSERT(strlen(table_log_entry->name) < FN_LEN);
-  strncpy(&global_table_log.file_entry[6], table_log_entry->name, FN_LEN);
-  if (table_log_entry->action_type == 'r')
+  strncpy(&global_table_log.file_entry[TLOG_NAME_POS],
+          table_log_entry->name, FN_LEN);
+  if (table_log_entry->action_type == TLOG_RENAME_ACTION_CODE ||
+      table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE)
   {
     DBUG_ASSERT(strlen(table_log_entry->from_name) < FN_LEN);
-    strncpy(&global_table_log.file_entry[6 + FN_LEN],
+    strncpy(&global_table_log.file_entry[TLOG_NAME_POS + FN_LEN],
           table_log_entry->from_name, FN_LEN);
   }
   else
-    global_table_log.file_entry[6 + FN_LEN]= 0;
+    global_table_log.file_entry[TLOG_NAME_POS + FN_LEN]= 0;
   DBUG_ASSERT(strlen(table_log_entry->handler_type) < FN_LEN);
-  strncpy(&global_table_log.file_entry[6 + (2*FN_LEN)],
-         table_log_entry->handler_type, FN_LEN);
+  strncpy(&global_table_log.file_entry[TLOG_NAME_POS + (2*FN_LEN)],
+          table_log_entry->handler_type, FN_LEN);
   if (get_free_table_log_entry(active_entry, &write_header))
   {
     DBUG_RETURN(TRUE);
@@ -705,15 +699,16 @@ write_execute_table_log_entry(uint first_entry,
   if (!complete)
   {
     VOID(sync_table_log());
-    file_entry[0]= 'e';
+    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_EXECUTE_CODE;
   }
   else
-    file_entry[0]= 'i';
-  file_entry[1]= 0; /* Ignored for execute entries */
-  int4store(&file_entry[2], first_entry);
-  file_entry[6]= 0;
-  file_entry[6 + FN_LEN]= 0;
-  file_entry[6 + 2*FN_LEN]= 0;
+    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
+  file_entry[TLOG_ACTION_TYPE_POS]= 0; /* Ignored for execute entries */
+  file_entry[TLOG_PHASE_POS]= 0;
+  int4store(&file_entry[TLOG_NEXT_ENTRY_POS], first_entry);
+  file_entry[TLOG_NAME_POS]= 0;
+  file_entry[TLOG_NAME_POS + FN_LEN]= 0;
+  file_entry[TLOG_NAME_POS + 2*FN_LEN]= 0;
   if (!(*active_entry))
   {
     if (get_free_table_log_entry(active_entry, &write_header))
@@ -736,6 +731,88 @@ write_execute_table_log_entry(uint first_entry,
     }
   }
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  For complex rename operations we need to inactivate individual entries.
+  SYNOPSIS
+    inactivate_table_log_entry()
+    entry_no                      Entry position of record to change
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+  DESCRIPTION
+    During replace operations where we start with an existing table called
+    t1 and a replacement table called t1#temp or something else and where
+    we want to delete t1 and rename t1#temp to t1 this is not possible to
+    do in a safe manner unless the table log is informed of the phases in
+    the change.
+
+    Delete actions are 1-phase actions that can be ignored immediately after
+    being executed.
+    Rename actions from x to y is also a 1-phase action since there is no
+    interaction with any other handlers named x and y.
+    Replace action where drop y and x -> y happens needs to be a two-phase
+    action. Thus the first phase will drop y and the second phase will
+    rename x -> y.
+*/
+
+bool
+inactivate_table_log_entry(uint entry_no)
+{
+  bool error= TRUE;
+  const char *file_entry= (const char*)global_table_log.file_entry
+  DBUG_ENTER("inactivate_table_log_entry");
+
+  if (!read_table_log_file_entry(entry_no))
+  {
+    if (file_entry[TLOG_ENTRY_POS] == TLOG_LOG_ENTRY_CODE)
+    {
+      if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_DELETE_ACTION_CODE ||
+          file_entry[TLOG_ACTION_TYPE_POS] == TLOG_RENAME_ACTION_CODE ||
+          (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE &&
+           file_entry[TLOG_PHASE_POS] == 1))
+        file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_POS;
+      else if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE)
+      {
+        DBUG_ASSERT(file_entry[TLOG_PHASE_POS] == 0);
+        file_entry[TLOG_PHASE_POS]= 1;
+      }
+      else
+      {
+        DBUG_ASSERT(0);
+      }
+      if (!write_table_log_file_entry(entry_no))
+        error= FALSE;
+    }
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Sync table log file
+  SYNOPSIS
+    sync_table_log()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+static
+bool
+sync_table_log()
+{
+  bool error= FALSE;
+  DBUG_ENTER("sync_table_log");
+
+  if (my_sync(global_table_log.file_id, MYF(0)))
+  {
+    /* Write to error log */
+    error= TRUE;
+  }
+  DBUG_RETURN(error);
 }
 
 
@@ -795,7 +872,8 @@ execute_table_log_entry(uint first_entry)
       /* Write to error log and continue with next log entry */
       break;
     }
-    DBUG_ASSERT(table_log_entry.entry_type == 'i');
+    DBUG_ASSERT(table_log_entry.entry_type == TLOG_LOG_ENTRY_CODE ||
+                table_log_entry.entry_type == TLOG_IGNORE_LOG_ENTRY_CODE);
     if (execute_table_log_action(&table_log_entry))
     {
       DBUG_ASSERT(0);
@@ -831,7 +909,7 @@ execute_table_log_recovery()
       /* Write to error log */
       break;
     }
-    if (table_log_entry.entry_type == 'e')
+    if (table_log_entry.entry_type == TLOG_EXECUTE_CODE)
     {
       if (execute_table_log_entry(table_log_entry.next_entry))
       {

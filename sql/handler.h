@@ -667,6 +667,7 @@ public:
   ulonglong part_min_rows;
   char *partition_name;
   char *tablespace_name;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
   longlong range_value;
   char* part_comment;
   char* data_file_name;
@@ -677,7 +678,8 @@ public:
   
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
-    tablespace_name(NULL), range_value(0), part_comment(NULL),
+    tablespace_name(NULL), log_entry(0),
+    range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
     engine_type(NULL),part_state(PART_NORMAL),
     nodegroup_id(UNDEF_NODEGROUP)

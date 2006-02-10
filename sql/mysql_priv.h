@@ -1177,6 +1177,8 @@ typedef struct st_table_log_entry
   uint next_entry;
   char action_type;
   char entry_type;
+  char phase;
+  char not_used;
 } TABLE_LOG_ENTRY;
 
 typedef struct st_table_log_memory_entry
@@ -1187,11 +1189,22 @@ typedef struct st_table_log_memory_entry
   struct st_table_log_memory_entry *next_active_log_entry;
 } TABLE_LOG_MEMORY_ENTRY;
 
+#define TLOG_EXECUTE_CODE 'e'
+#define TLOG_LOG_ENTRY_CODE 'l'
+#define TLOG_IGNORE_LOG_ENTRY_CODE 'i'
+
+#define TLOG_DELETE_ACTION_CODE 'd'
+#define TLOG_RENAME_ACTION_CODE 'r'
+#define TLOG_REPLACE_ACTION_CODE 's'
+
+#define TLOG_HANDLER_TYPE_LEN 32
+
 bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
                            TABLE_LOG_MEMORY_ENTRY **active_entry);
 bool write_execute_table_log_entry(uint first_entry,
                                    bool complete,
                                    TABLE_LOG_MEMORY_ENTRY **active_entry);
+bool inactivate_table_log_entry(uint entry_no);
 void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
 void release_table_log();
 void execute_table_log_recovery();
