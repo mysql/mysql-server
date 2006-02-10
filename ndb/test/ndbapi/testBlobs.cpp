@@ -841,9 +841,6 @@ insertPk(int style)
       CHK(g_con->execute(NoCommit) == 0);
       CHK(writeBlobData(tup) == 0);
     }
-    // just another trap
-    if (urandom(10) == 0)
-      CHK(g_con->execute(NoCommit) == 0);
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
       g_ndb->closeTransaction(g_con);
@@ -965,21 +962,31 @@ static int
 deletePk()
 {
   DBG("--- deletePk ---");
+  unsigned n = 0;
+  CHK((g_con = g_ndb->startTransaction()) != 0);
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("deletePk pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
     CHK(g_opr->deleteTuple() == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
     if (g_opt.m_pk2len != 0)
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
+    if (++n == g_opt.m_batch) {
+      CHK(g_con->execute(Commit) == 0);
+      g_ndb->closeTransaction(g_con);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      n = 0;
+    }
     g_opr = 0;
-    g_con = 0;
     tup.m_exists = false;
   }
+  if (n != 0) {
+    CHK(g_con->execute(Commit) == 0);
+    n = 0;
+  }
+  g_ndb->closeTransaction(g_con);
+  g_con = 0;
   return 0;
 }
 
@@ -1082,18 +1089,26 @@ static int
 deleteIdx()
 {
   DBG("--- deleteIdx ---");
+  unsigned n = 0;
+  CHK((g_con = g_ndb->startTransaction()) != 0);
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("deleteIdx pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->deleteTuple() == 0);
     CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
+    if (++n == g_opt.m_batch) {
+      CHK(g_con->execute(Commit) == 0);
+      g_ndb->closeTransaction(g_con);
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      n = 0;
+    }
     g_opx = 0;
-    g_con = 0;
     tup.m_exists = false;
+  }
+  if (n != 0) {
+    CHK(g_con->execute(Commit) == 0);
+    n = 0;
   }
   return 0;
 }
@@ -1225,20 +1240,49 @@ deleteScan(bool idx)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
   CHK(g_con->execute(NoCommit) == 0);
   unsigned rows = 0;
+  unsigned n = 0;
   while (1) {
     int ret;
     tup.m_pk1 = (Uint32)-1;
     memset(tup.m_pk2, 'x', g_opt.m_pk2len);
-    CHK((ret = rs->nextResult()) == 0 || ret == 1);
+    CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
-    DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
-    CHK(rs->deleteTuple() == 0);
-    CHK(g_con->execute(NoCommit) == 0);
-    Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
-    CHK(k < g_opt.m_rows && g_tups[k].m_exists);
-    g_tups[k].m_exists = false;
-    rows++;
+    while (1) {
+      DBG("deleteScan" << (idx ? "Idx" : "") << " pk1=" << hex << tup.m_pk1);
+      Uint32 k = tup.m_pk1 - g_opt.m_pk1off;
+      CHK(k < g_opt.m_rows && g_tups[k].m_exists);
+      g_tups[k].m_exists = false;
+      CHK(rs->deleteTuple() == 0);
+      rows++;
+      tup.m_pk1 = (Uint32)-1;
+      memset(tup.m_pk2, 'x', g_opt.m_pk2len);
+      CHK((ret = rs->nextResult(false)) == 0 || ret == 1 || ret == 2);
+      if (++n == g_opt.m_batch || ret == 2) {
+        DBG("execute batch: n=" << n << " ret=" << ret);
+        switch (0) {
+        case 0: // works normally
+          CHK(g_con->execute(NoCommit) == 0);
+          CHK(true || g_con->restart() == 0);
+          break;
+        case 1: // nonsense - g_con is invalid for 2nd batch
+          CHK(g_con->execute(Commit) == 0);
+          CHK(true || g_con->restart() == 0);
+          break;
+        case 2: // DBTC sendSignalErrorRefuseLab
+          CHK(g_con->execute(NoCommit) == 0);
+          CHK(g_con->restart() == 0);
+          break;
+        case 3: // 266 time-out
+          CHK(g_con->execute(Commit) == 0);
+          CHK(g_con->restart() == 0);
+          break;
+        }
+        n = 0;
+      }
+      if (ret == 2)
+        break;
+    }
   }
   CHK(g_con->execute(Commit) == 0);
   g_ndb->closeTransaction(g_con);
@@ -1488,13 +1532,16 @@ testperf()
   // insert char (one trans)
   {
     DBG("--- insert char ---");
+    char b[20];
     t1.on();
     CHK((g_con = g_ndb->startTransaction()) != 0);
     for (Uint32 k = 0; k < g_opt.m_rowsperf; k++) {
       CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
       CHK(g_opr->insertTuple() == 0);
       CHK(g_opr->equal(cA, (char*)&k) == 0);
-      CHK(g_opr->setValue(cB, "b") == 0);
+      memset(b, 0x20, sizeof(b));
+      b[0] = 'b';
+      CHK(g_opr->setValue(cB, b) == 0);
       CHK(g_con->execute(NoCommit) == 0);
     }
     t1.off(g_opt.m_rowsperf);
@@ -1531,12 +1578,15 @@ testperf()
   {
     DBG("--- insert for read test ---");
     unsigned n = 0;
+    char b[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     for (Uint32 k = 0; k < g_opt.m_rowsperf; k++) {
       CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
       CHK(g_opr->insertTuple() == 0);
       CHK(g_opr->equal(cA, (char*)&k) == 0);
-      CHK(g_opr->setValue(cB, "b") == 0);
+      memset(b, 0x20, sizeof(b));
+      b[0] = 'b';
+      CHK(g_opr->setValue(cB, b) == 0);
       CHK((g_bh1 = g_opr->getBlobHandle(cC)) != 0);
       CHK((g_bh1->setValue("c", 1) == 0));
       if (++n == g_opt.m_batch) {
@@ -1570,7 +1620,7 @@ testperf()
       a = (Uint32)-1;
       b[0] = 0;
       CHK(g_con->execute(NoCommit) == 0);
-      CHK(a == k && strcmp(b, "b") == 0);
+      CHK(a == k && b[0] == 'b');
     }
     CHK(g_con->execute(Commit) == 0);
     t1.off(g_opt.m_rowsperf);
@@ -1596,7 +1646,7 @@ testperf()
       CHK(g_con->execute(NoCommit) == 0);
       Uint32 m = 20;
       CHK(g_bh1->readData(c, m) == 0);
-      CHK(a == k && m == 1 && strcmp(c, "c") == 0);
+      CHK(a == k && m == 1 && c[0] == 'c');
     }
     CHK(g_con->execute(Commit) == 0);
     t2.off(g_opt.m_rowsperf);
@@ -1629,7 +1679,7 @@ testperf()
       CHK((ret = rs->nextResult(true)) == 0 || ret == 1);
       if (ret == 1)
         break;
-      CHK(a < g_opt.m_rowsperf && strcmp(b, "b") == 0);
+      CHK(a < g_opt.m_rowsperf && b[0] == 'b');
       n++;
     }
     CHK(n == g_opt.m_rowsperf);
@@ -1661,7 +1711,7 @@ testperf()
         break;
       Uint32 m = 20;
       CHK(g_bh1->readData(c, m) == 0);
-      CHK(a < g_opt.m_rowsperf && m == 1 && strcmp(c, "c") == 0);
+      CHK(a < g_opt.m_rowsperf && m == 1 && c[0] == 'c');
       n++;
     }
     CHK(n == g_opt.m_rowsperf);

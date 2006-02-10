@@ -14767,7 +14767,9 @@ void Dblqh::execSr(Signal* signal)
           signal->theData[4] = logFilePtr.p->currentFilepage;
           signal->theData[5] = logFilePtr.p->currentMbyte;
           signal->theData[6] = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
-          sendSignal(cownref, GSN_DEBUG_SIG, signal, 7, JBA);
+	  signal->theData[7] = ~0;
+	  signal->theData[8] = __LINE__;
+          sendSignal(cownref, GSN_DEBUG_SIG, signal, 9, JBA);
           return;
         }//if
       }//if
@@ -14833,7 +14835,8 @@ void Dblqh::execSr(Signal* signal)
       signal->theData[5] = logFilePtr.p->currentFilepage;
       signal->theData[6] = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
       signal->theData[7] = logWord;
-      sendSignal(cownref, GSN_DEBUG_SIG, signal, 8, JBA);
+      signal->theData[8] = __LINE__;
+      sendSignal(cownref, GSN_DEBUG_SIG, signal, 9, JBA);
       return;
       break;
     }//switch
@@ -14862,8 +14865,9 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
 
   char buf[100];
   BaseString::snprintf(buf, 100, 
-	   "Error while reading REDO log.\n"
+	   "Error while reading REDO log. from %d\n"
 	   "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d",
+	   signal->theData[8],
 	   signal->theData[2], signal->theData[3], signal->theData[4],
 	   signal->theData[5], signal->theData[6], signal->theData[7]);
 
@@ -15439,6 +15443,10 @@ void Dblqh::readSrFourthZeroLab(Signal* signal)
   // to read a page from file. 
   lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
 
+  /**
+   * Make sure we dont release zero page
+   */
+  seizeLogpage(signal);
   invalidateLogAfterLastGCI(signal);
   return;
 }//Dblqh::readSrFourthZeroLab()
@@ -16096,8 +16104,22 @@ void Dblqh::findLogfile(Signal* signal,
     }//if
     locLogFilePtr.i = locLogFilePtr.p->nextLogFile;
     loopCount++;
+    if (loopCount >= flfLogPartPtr.p->noLogFiles &&
+	getNodeState().startLevel != NodeState::SL_STARTED)
+    {
+      goto error;
+    }
     ndbrequire(loopCount < flfLogPartPtr.p->noLogFiles);
   }//while
+
+error:
+  char buf[255];
+  BaseString::snprintf(buf, sizeof(buf), 
+		       "Unable to restart, failed while reading redo."
+		       " Likely invalid change of configuration");
+  progError(__LINE__, 
+	    ERR_INVALID_CONFIG,
+	    buf);
 }//Dblqh::findLogfile()
 
 /* ------------------------------------------------------------------------- */
