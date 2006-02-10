@@ -24,6 +24,11 @@
 #endif
 #include "my_pthread.h"
 
+/* IM-wide platform-independent defines */
+#define SERVER_DEFAULT_PORT 3306
+#define DEFAULT_MONITORING_INTERVAL 20
+#define DEFAULT_PORT 2273
+
 /* the pid of the manager process (of the signal thread on the LinuxThreads) */
 extern pid_t manager_pid;
 
