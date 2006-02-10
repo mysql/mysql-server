@@ -775,7 +775,7 @@ private:
 //------------------------------------
 // Methods for LCP functionality
 //------------------------------------
-  void checkKeepGci(Uint32 replicaStartIndex);
+  void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
   void checkLcpStart(Signal *, Uint32 lineNo);
   void checkStartMoreLcp(Signal *, Uint32 nodeId);
   bool reportLcpCompletion(const class LcpFragRep *);
@@ -1300,7 +1300,7 @@ private:
     }
 
     Uint32 lcpStart;
-    Uint32 lcpStartGcp; 
+    Uint32 lcpStopGcp; 
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
     Uint32 oldestRestorableGci;
     
@@ -1369,7 +1369,8 @@ private:
   Uint32 cstarttype;
   Uint32 csystemnodes;
   Uint32 currentgcp;
-  
+  Uint32 c_newest_restorable_gci;
+
   enum GcpMasterTakeOverState {
     GMTOS_IDLE = 0,
     GMTOS_INITIAL = 1,
