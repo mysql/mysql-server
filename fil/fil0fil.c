@@ -3557,6 +3557,7 @@ fil_extend_space_to_desired_size(
 
 	*actual_size = space->size;
 
+#ifndef UNIV_HOTBACKUP
 	if (space_id == 0) {
 		ulint pages_per_mb = (1024 * 1024) / UNIV_PAGE_SIZE;
 
@@ -3566,6 +3567,7 @@ fil_extend_space_to_desired_size(
 		srv_data_file_sizes[srv_n_data_files - 1] =
 				(node->size / pages_per_mb) * pages_per_mb;
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/*
         printf("Extended %s to %lu, actual size %lu pages\n", space->name,
