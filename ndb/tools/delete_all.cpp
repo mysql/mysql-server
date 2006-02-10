@@ -22,7 +22,8 @@
 #include <NdbSleep.h>
 #include <NDBT.hpp>
 
-static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism=240);
+static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
+                       bool commit_across_open_cursor, int parallelism=240);
 
 NDB_STD_OPTS_VARS;
 
@@ -81,8 +82,18 @@ int main(int argc, char** argv){
       ndbout << " Table " << argv[i] << " does not exist!" << endl;
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
+    // Check if we have any blobs
+    bool commit_across_open_cursor = true;
+    for (int j = 0; j < pTab->getNoOfColumns(); j++) {
+      NdbDictionary::Column::Type t = pTab->getColumn(j)->getType();
+      if (t == NdbDictionary::Column::Blob ||
+          t == NdbDictionary::Column::Text) {
+        commit_across_open_cursor = false;
+        break;
+      }
+    }
     ndbout << "Deleting all from " << argv[i] << "...";
-    if(clear_table(&MyNdb, pTab) == NDBT_FAILED){
+    if(clear_table(&MyNdb, pTab, commit_across_open_cursor) == NDBT_FAILED){
       res = NDBT_FAILED;
       ndbout << "FAILED" << endl;
     }
@@ -91,7 +102,8 @@ int main(int argc, char** argv){
 }
 
 
-int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
+int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
+                bool commit_across_open_cursor, int parallelism)
 {
   // Scan all records exclusive and delete 
   // them one by one
@@ -153,8 +165,12 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       } while((check = rs->nextResult(false)) == 0);
       
       if(check != -1){
-	check = pTrans->execute(Commit);   
-	pTrans->restart();
+        if (commit_across_open_cursor) {
+          check = pTrans->execute(Commit);   
+          pTrans->restart(); // new tx id
+        } else {
+          check = pTrans->execute(NoCommit);
+        }
       }
       
       err = pTrans->getNdbError();    
@@ -178,6 +194,10 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
 	par = 1;
 	goto restart;
       }
+      goto failed;
+    }
+    if (! commit_across_open_cursor && pTrans->execute(Commit) != 0) {
+      err = pTrans->getNdbError();
       goto failed;
     }
     pNdb->closeTransaction(pTrans);

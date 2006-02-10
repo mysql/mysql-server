@@ -2755,7 +2755,8 @@ dict_table_get_highest_foreign_id(
 		if (ut_strlen(foreign->id) > ((sizeof dict_ibfk) - 1) + len
 		    && 0 == ut_memcmp(foreign->id, table->name, len)
 		    && 0 == ut_memcmp(foreign->id + len,
-				dict_ibfk, (sizeof dict_ibfk) - 1)) {
+				dict_ibfk, (sizeof dict_ibfk) - 1)
+		    && foreign->id[len + ((sizeof dict_ibfk) - 1)] != '0') {
 			/* It is of the >= 4.0.18 format */
 
 			id = strtoul(foreign->id + len + ((sizeof dict_ibfk) - 1),

@@ -2966,8 +2966,8 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	  warn_res= mysql_store_result(mysql);
 	}
 	if (!warn_res)
-	  verbose_msg("Warning count is %u but didn't get any warnings\n",
-		      count);
+	  die("Warning count is %u but didn't get any warnings\n",
+	      count);
 	else
 	{
 	  dynstr_append_mem(ds, "Warnings:\n", 10);
@@ -3446,8 +3446,8 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
     {
       MYSQL_RES *warn_res= mysql_store_result(mysql);
       if (!warn_res)
-        verbose_msg("Warning count is %u but didn't get any warnings\n",
-                    count);
+        die("Warning count is %u but didn't get any warnings\n",
+	    count);
       else
       {
         dynstr_append_mem(ds, "Warnings:\n", 10);
