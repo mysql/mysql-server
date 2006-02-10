@@ -79,8 +79,8 @@ void
 row_upd_rec_sys_fields(
 /*===================*/
 	rec_t*		rec,	/* in/out: record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 21 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
@@ -140,7 +140,9 @@ row_upd_rec_in_place(
 /*=================*/
 	rec_t*		rec,	/* in/out: record where replaced */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	upd_t*		update);/* in: update vector */
+	upd_t*		update,	/* in: update vector */
+	page_zip_des_t*	page_zip);/* in: compressed page with enough space
+				available, or NULL */
 /*******************************************************************
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare

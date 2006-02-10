@@ -863,9 +863,11 @@ struct buf_block_struct{
 	ulint		curr_side;	/* BTR_SEARCH_LEFT_SIDE or
 					BTR_SEARCH_RIGHT_SIDE in hash
 					indexing */
-	page_zip_des_t	page_zip;	/* compressed page info */
 	dict_index_t*	index;		/* Index for which the adaptive
 					hash index has been created. */
+	/* TODO: how to protect this? */
+	page_zip_des_t	page_zip;	/* compressed page info */
+
 	/* 6. Debug fields */
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread

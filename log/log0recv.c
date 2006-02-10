@@ -838,7 +838,8 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
 		ptr = page_parse_create(ptr, end_ptr,
-				type == MLOG_COMP_PAGE_CREATE, page, mtr);
+				type == MLOG_COMP_PAGE_CREATE,
+				page, mtr);
 		break;
 	case MLOG_UNDO_INSERT:
 		ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
@@ -885,8 +886,28 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, FALSE,
 							ULINT_UNDEFINED);
 		break;
-	case MLOG_COMP_DECOMPRESS:
-		if (page) {
+	case MLOG_ZIP_WRITE_NODE_PTR:
+	case MLOG_ZIP_WRITE_TRX_ID:
+	case MLOG_ZIP_WRITE_ROLL_PTR:
+		ut_error; /* TODO */
+		break;
+	case MLOG_ZIP_COMPRESS:
+		if (NULL != (ptr = mlog_parse_index(
+				ptr, end_ptr, TRUE, &index))
+				&& page) {
+			ut_a(page_is_comp(page));
+			ut_a(page_zip);
+			if (UNIV_UNLIKELY(!page_zip_compress(
+					page_zip, page, index, NULL))) {
+				ut_error;
+			}
+		}
+		break;
+	case MLOG_ZIP_DECOMPRESS:
+		/* TODO: remove this? */
+		if (NULL != (ptr = mlog_parse_index(
+				ptr, end_ptr, TRUE, &index))
+				&& page) {
 			ut_a(page_is_comp(page));
 			ut_a(page_zip);
 			if (UNIV_UNLIKELY(!page_zip_decompress(

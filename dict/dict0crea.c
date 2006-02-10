@@ -634,7 +634,7 @@ dict_create_index_tree_step(
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
 	node->page_no = btr_create(index->type, index->space, index->id,
-							table->comp, &mtr);
+							index, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 					index->space, index->page_no); */
 
@@ -823,7 +823,7 @@ dict_truncate_index_tree(
 		}
 	}
 
-	root_page_no = btr_create(type, space, index_id, comp, mtr);
+	root_page_no = btr_create(type, space, index_id, index, mtr);
 	if (index) {
 		index->tree->page = root_page_no;
 	} else {

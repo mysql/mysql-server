@@ -63,6 +63,7 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_OVERFLOW 		1001
 #define DB_UNDERFLOW 		1002
 #define DB_STRONG_FAIL		1003
+#define DB_ZIP_OVERFLOW		1004
 #define DB_RECORD_NOT_FOUND	1500
 #define DB_END_OF_INDEX		1501
 

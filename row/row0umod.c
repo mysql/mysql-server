@@ -455,9 +455,12 @@ row_undo_mod_del_unmark_sec_and_undo_update(
                 	err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG
 							| BTR_NO_LOCKING_FLAG,
  						btr_cur, update, 0, thr, &mtr);
-                	if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
-                        	err = DB_FAIL;
-                	}
+			switch (err) {
+			case DB_OVERFLOW:
+			case DB_UNDERFLOW:
+			case DB_ZIP_OVERFLOW:
+				err = DB_FAIL;
+			}
        		} else  {
                 	ut_a(mode == BTR_MODIFY_TREE);
                 	err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG

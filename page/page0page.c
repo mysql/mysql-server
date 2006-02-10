@@ -242,9 +242,11 @@ page_mem_alloc(
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		need,	/* in: number of bytes needed */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		heap_no)/* out: this contains the heap number
+	ulint*		heap_no,/* out: this contains the heap number
 				of the allocated record
 				if allocation succeeds */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL
+				if page_zip == NULL */
 {
 	rec_t*	rec;
 	byte*	block;
@@ -252,7 +254,18 @@ page_mem_alloc(
 	ulint	garbage;
 	
 	ut_ad(page && heap_no);
-	ut_ad(!page_zip || page_zip_validate(page_zip, page));
+
+	/* TODO: add parameter n_extra */
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_ad(page_is_comp(page));
+		ut_ad(page_zip_validate(page_zip, page));
+
+		if (!page_zip_alloc(page_zip, page, index, mtr, need, 1)) {
+
+			return(NULL);
+		}
+	}
 
 	/* If there are records in the free list, look if the first is
 	big enough */
@@ -324,10 +337,17 @@ page_create_write_log(
 	buf_frame_t*	frame,	/* in: a buffer frame where the page is
 				created */
 	mtr_t*		mtr,	/* in: mini-transaction handle */
-	ulint		comp)	/* in: nonzero=compact page format */
+	ibool		comp)	/* in: TRUE=compact page format */
 {
-	mlog_write_initial_log_record(frame,
-			comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE, mtr);
+	ulint	type;
+
+	if (UNIV_LIKELY(comp)) {
+		type = MLOG_COMP_PAGE_CREATE;
+	} else {
+		type = MLOG_PAGE_CREATE;
+	}
+
+	mlog_write_initial_log_record(frame, type, mtr);
 }
 
 /***************************************************************
@@ -336,20 +356,27 @@ Parses a redo log record of creating a page. */
 byte*
 page_parse_create(
 /*==============*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
-	ulint	comp,	/* in: nonzero=compact page format */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr)	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr __attribute__((unused)), /* in: buffer end */
+	ulint		comp,	/* in: nonzero=compact page format */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ut_ad(ptr && end_ptr);
 
 	/* The record is empty, except for the record initial part */
 
 	if (page) {
-		page_create(page, buf_block_get_page_zip(
-				buf_block_align(page)), mtr, comp);
+		dict_index_t*	index;
+
+		if (UNIV_LIKELY(comp)) {
+			index = srv_sys->dummy_ind2;
+		} else {
+			index = srv_sys->dummy_ind1;
+		}
+
+		page_create(page, NULL, mtr, index);
 	}
 
 	return(ptr);
@@ -366,7 +393,7 @@ page_create(
 					page is created */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
-	ulint		comp)		/* in: nonzero=compact page format */
+	dict_index_t*	index)		/* in: the index of the page */
 {
 	page_dir_slot_t* slot;
 	mem_heap_t*	heap;
@@ -376,19 +403,10 @@ page_create(
 	rec_t*		infimum_rec;
 	rec_t*		supremum_rec;
 	page_t*		page;
-	dict_index_t*	index;
 	ulint*		offsets;
-#if 1 /* testing */
-	byte		zip_data[512];
-#endif
+	const ibool	comp = index->table->comp;
 
-	if (UNIV_LIKELY(comp)) {
-		index = srv_sys->dummy_ind2;
-	} else {
-		index = srv_sys->dummy_ind1;
-		ut_ad(!page_zip);
-	}
-	
+	ut_ad(!page_zip || comp);
 	ut_ad(frame && mtr);
 	ut_ad(PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE
 	      <= PAGE_DATA);
@@ -435,7 +453,7 @@ page_create(
 		ut_a(infimum_rec == page + PAGE_NEW_INFIMUM);
 
 		rec_set_n_owned_new(infimum_rec, NULL, 1);
-		rec_set_heap_no_new(infimum_rec, NULL, 0);
+		rec_set_heap_no_new(infimum_rec, 0);
 	} else {
 		ut_a(infimum_rec == page + PAGE_OLD_INFIMUM);
 
@@ -464,7 +482,7 @@ page_create(
 		ut_a(supremum_rec == page + PAGE_NEW_SUPREMUM);
 
 		rec_set_n_owned_new(supremum_rec, NULL, 1);
-		rec_set_heap_no_new(supremum_rec, NULL, 1);
+		rec_set_heap_no_new(supremum_rec, 1);
 	} else {
 		ut_a(supremum_rec == page + PAGE_OLD_SUPREMUM);
 
@@ -501,41 +519,30 @@ page_create(
 	/* Set the slots to point to infimum and supremum. */
 
 	slot = page_dir_get_nth_slot(page, 0);
-	page_dir_slot_set_rec(slot, NULL, infimum_rec);
+	page_dir_slot_set_rec(slot, infimum_rec);
 
 	slot = page_dir_get_nth_slot(page, 1);
-	page_dir_slot_set_rec(slot, NULL, supremum_rec);
+	page_dir_slot_set_rec(slot, supremum_rec);
 
 	/* Set the next pointers in infimum and supremum */
 
 	if (UNIV_LIKELY(comp)) {
-		rec_set_next_offs_new(infimum_rec, NULL, PAGE_NEW_SUPREMUM);
-		rec_set_next_offs_new(supremum_rec, NULL, 0);
+		rec_set_next_offs_new(infimum_rec, PAGE_NEW_SUPREMUM);
+		rec_set_next_offs_new(supremum_rec, 0);
 	} else {
 		rec_set_next_offs_old(infimum_rec, PAGE_OLD_SUPREMUM);
 		rec_set_next_offs_old(supremum_rec, 0);
 	}
 
-#if 1 /* testing */
-	if (UNIV_LIKELY(comp)) {
-		page_zip = &buf_block_align(page)->page_zip;
-		page_zip->data = zip_data;
-		page_zip->size = sizeof zip_data;
-		page_zip->m_start = page_zip->m_end = 0;
-	}
-#endif
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		ut_ad(comp);
 
-		if (!page_zip_compress(page_zip, page)) {
+		if (!page_zip_compress(page_zip, page, index, mtr)) {
 			/* The compression of a newly created page
 			should always succeed. */
 			ut_error;
 		}
 	}
-#if 1 /* testing */
-	buf_block_align(page)->page_zip.data = 0;
-#endif
 
 	return(page);
 }
@@ -644,7 +651,7 @@ page_copy_rec_list_end(
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page))) {
+					new_page, index, mtr))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page, mtr))) {
@@ -674,7 +681,9 @@ The records are copied to the end of the record list on new_page. */
 ibool
 page_copy_rec_list_start(
 /*=====================*/
-					/* out: TRUE on success */
+					/* out: TRUE on success; FALSE on
+					compression failure (new_page will
+					be decompressed from new_page_zip) */
 	page_t*		new_page,	/* in/out: index page to copy to */
 	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
 	rec_t*		rec,		/* in: record on page */
@@ -725,7 +734,7 @@ page_copy_rec_list_start(
 
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		if (UNIV_UNLIKELY(!page_zip_compress(new_page_zip,
-					new_page))) {
+					new_page, index, mtr))) {
 
 			if (UNIV_UNLIKELY(!page_zip_decompress(
 					new_page_zip, new_page, mtr))) {
@@ -899,7 +908,7 @@ page_delete_rec_list_end(
 			offsets = rec_get_offsets(rec2, index, offsets,
 						ULINT_UNDEFINED, &heap);
 
-			if (1 /* TODO: UNIV_LIKELY_NULL(page_zip) */) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
 				/* Clear the data bytes of the deleted
 				record in order to improve the
 				compression ratio of the page.  The
@@ -948,7 +957,7 @@ page_delete_rec_list_end(
 		slot_index = page_dir_find_owner_slot(rec2);
 		slot = page_dir_get_nth_slot(page, slot_index);
 
-		if (1 /* TODO: UNIV_UNLIKELY(page_zip != NULL) */) {
+		if (UNIV_LIKELY_NULL(page_zip)) {
 			ulint	n_slots;
 			rec2 = rec;
 			do {
@@ -957,14 +966,12 @@ page_delete_rec_list_end(
 				for deleted records. */
 				rec2[-REC_N_NEW_EXTRA_BYTES] = 0;
 				rec2 = rec_get_next_ptr(rec2, TRUE);
-			}
-			while (rec2);
+			} while (rec2);
 
 			/* The compression algorithm expects the removed
 			slots in the page directory to be cleared. */
 
 			n_slots = page_dir_get_n_slots(page) - slot_index - 1;
-			ut_ad(n_slots > 0);
 			ut_ad(n_slots < UNIV_PAGE_SIZE / PAGE_DIR_SLOT_SIZE);
 
 			memset(slot - (n_slots * PAGE_DIR_SLOT_SIZE), 0,
@@ -987,19 +994,17 @@ page_delete_rec_list_end(
 		slot = page_dir_get_nth_slot(page, slot_index);
 	}
 
-	page_dir_slot_set_rec(slot, page_zip,
-			page_get_supremum_rec(page));
+	page_dir_slot_set_rec(slot, page_get_supremum_rec(page));
 	page_dir_slot_set_n_owned(slot, page_zip, n_owned);
 
 	page_dir_set_n_slots(page, page_zip, slot_index + 1);
 	
 	/* Remove the record chain segment from the record chain */
-	page_rec_set_next(prev_rec, page_get_supremum_rec(page), page_zip);
+	page_rec_set_next(prev_rec, page_get_supremum_rec(page));
 
 	/* Catenate the deleted chain segment to the page free list */
 
-	page_rec_set_next(last_rec, page_header_get_ptr(page, PAGE_FREE),
-			page_zip);
+	page_rec_set_next(last_rec, page_header_get_ptr(page, PAGE_FREE));
 	page_header_set_ptr(page, page_zip, PAGE_FREE, rec);
 
 	page_header_set_field(page, page_zip, PAGE_GARBAGE,
@@ -1007,6 +1012,9 @@ page_delete_rec_list_end(
 
 	page_header_set_field(page, page_zip, PAGE_N_RECS,
 				(ulint)(page_get_n_recs(page) - n_recs));
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_dir_rewrite(page_zip, page);
+	}
 }	
 
 /*****************************************************************
@@ -1157,7 +1165,7 @@ page_move_rec_list_start(
 
 		/* Recreate the page: note that global data on page (possible
 		segment headers, next page-field, etc.) is preserved intact */
-		page_create(page, NULL, mtr, TRUE);
+		page_create(page, NULL, mtr, index);
 		buf_block_align(page)->check_index_page_at_flush = TRUE;
 
 		/* Copy the records from the temporary space to the
@@ -1176,7 +1184,8 @@ page_move_rec_list_start(
 		buf_frame_free(temp_page);
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page))) {
+		if (UNIV_UNLIKELY(!page_zip_compress(
+				page_zip, page, index, mtr))) {
 
 			/* Reorganizing a page should reduce entropy,
 			making the compressed page occupy less space. */
@@ -1218,8 +1227,7 @@ void
 page_dir_delete_slot(
 /*=================*/
 	page_t*		page,	/* in/out: the index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 10 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		slot_no)/* in: slot to be deleted */
 {
 	page_dir_slot_t*	slot;
@@ -1227,7 +1235,6 @@ page_dir_delete_slot(
 	ulint			i;
 	ulint			n_slots;
 
-	ut_ad(!page_zip || page_zip_available(page_zip, 10));
 	ut_ad(!page_zip || page_is_comp(page));
 	ut_ad(slot_no > 0);
 	ut_ad(slot_no + 1 < page_dir_get_n_slots(page));
@@ -1250,8 +1257,7 @@ page_dir_delete_slot(
 	for (i = slot_no + 1; i < n_slots; i++) {
 		rec_t*	rec;
 		rec = page_dir_slot_get_rec(page_dir_get_nth_slot(page, i));
-		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i - 1),
-				page_zip, rec);
+		page_dir_slot_set_rec(page_dir_get_nth_slot(page, i - 1), rec);
 	}
 
 	/* 4. Zero out the last slot, which will be removed */
@@ -1270,9 +1276,7 @@ void
 page_dir_add_slots(
 /*===============*/
 	page_t*		page,	/* in/out: the index page */
-	page_zip_des_t*	page_zip,/* in/out: comprssed page with at least
-				n * PAGE_DIR_SLOT_SIZE bytes available,
-				or NULL */
+	page_zip_des_t*	page_zip,/* in/out: comprssed page, or NULL */
 	ulint		start,	/* in: the slot above which the new slots
 				are added */
 	ulint		n)	/* in: number of slots to add
@@ -1289,9 +1293,6 @@ page_dir_add_slots(
 
 	ut_ad(start < n_slots - 1);
 
-	ut_ad(!page_zip
-		|| page_zip_available(page_zip, n * PAGE_DIR_SLOT_SIZE));
-
 	/* Update the page header */
 	page_dir_set_n_slots(page, page_zip, n_slots + n);
 
@@ -1303,7 +1304,7 @@ page_dir_add_slots(
 		rec = page_dir_slot_get_rec(slot);
 
 		slot = page_dir_get_nth_slot(page, i + n);
-		page_dir_slot_set_rec(slot, page_zip, rec);
+		page_dir_slot_set_rec(slot, rec);
 	}
 }
 
@@ -1314,8 +1315,8 @@ void
 page_dir_split_slot(
 /*================*/
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 12 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page whose
+				uncompressed part will be written, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 {		
 	rec_t*			rec;
@@ -1326,7 +1327,6 @@ page_dir_split_slot(
 	ulint			n_owned;
 
 	ut_ad(page);
-	ut_ad(!page_zip || page_zip_available(page_zip, 12));
 	ut_ad(!page_zip || page_is_comp(page));
 	ut_ad(slot_no > 0);
 
@@ -1350,7 +1350,7 @@ page_dir_split_slot(
 	/* 2. We add one directory slot immediately below the slot to be
 	split. */
 
-	page_dir_add_slots(page, page_zip/* 2 */, slot_no - 1, 1);
+	page_dir_add_slots(page, page_zip, slot_no - 1, 1);
 
 	/* The added slot is now number slot_no, and the old slot is
 	now number slot_no + 1 */
@@ -1360,14 +1360,13 @@ page_dir_split_slot(
 
 	/* 3. We store the appropriate values to the new slot. */
 	
-	page_dir_slot_set_rec(new_slot, page_zip, rec);
-	page_dir_slot_set_n_owned(new_slot, page_zip/* 5 */, n_owned / 2);
+	page_dir_slot_set_rec(new_slot, rec);
+	page_dir_slot_set_n_owned(new_slot, page_zip, n_owned / 2);
 	
 	/* 4. Finally, we update the number of records field of the 
 	original slot */
 
-	page_dir_slot_set_n_owned(slot, page_zip/* 5 */,
-				n_owned - (n_owned / 2));
+	page_dir_slot_set_n_owned(slot, page_zip, n_owned - (n_owned / 2));
 }
 
 /*****************************************************************
@@ -1379,8 +1378,7 @@ void
 page_dir_balance_slot(
 /*==================*/
 	page_t*		page,	/* in/out: index page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 15 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		slot_no)/* in: the directory slot */
 {
 	page_dir_slot_t*	slot;
@@ -1391,7 +1389,6 @@ page_dir_balance_slot(
 	rec_t*			new_rec;
 
 	ut_ad(page);
-	ut_ad(!page_zip || page_zip_available(page_zip, 15));
 	ut_ad(!page_zip || page_is_comp(page));
 	ut_ad(slot_no > 0);
 
@@ -1434,7 +1431,7 @@ page_dir_balance_slot(
 			rec_set_n_owned_old(new_rec, n_owned + 1);
 		}
 
-		page_dir_slot_set_rec(slot, page_zip, new_rec);
+		page_dir_slot_set_rec(slot, new_rec);
 
 		page_dir_slot_set_n_owned(up_slot, page_zip, up_n_owned -1);
 	} else {

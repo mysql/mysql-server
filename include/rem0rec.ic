@@ -380,10 +380,8 @@ UNIV_INLINE
 void
 rec_set_next_offs_new(
 /*==================*/
-	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
-				6 bytes available, or NULL */
-	ulint		next)	/* in: offset of the next record */
+	rec_t*	rec,	/* in/out: new-style physical record */
+	ulint	next)	/* in: offset of the next record */
 {
 	ut_ad(rec);
 	ut_ad(UNIV_PAGE_SIZE > next);
@@ -403,9 +401,6 @@ rec_set_next_offs_new(
 	}
 
 	mach_write_to_2(rec - REC_NEXT, field_value);
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, rec - REC_NEXT, 2);
-	}
 }
 
 /**********************************************************
@@ -546,16 +541,14 @@ UNIV_INLINE
 void
 rec_set_n_owned_new(
 /*================*/
-				/* out: TRUE on success */
 	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		n_owned)/* in: the number of owned */
 {
 	rec_set_bit_field_1(rec, n_owned, REC_NEW_N_OWNED,
 				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, rec - REC_NEW_N_OWNED, 1);
+		page_zip_rec_set_owned(page_zip, rec, n_owned);
 	}
 }
 
@@ -592,16 +585,11 @@ UNIV_INLINE
 void
 rec_set_info_bits_new(
 /*==================*/
-	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits)	/* in: info bits */
+	rec_t*	rec,	/* in/out: new-style physical record */
+	ulint	bits)	/* in: info bits */
 {
 	rec_set_bit_field_1(rec, bits, REC_NEW_INFO_BITS,
 				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, rec - REC_NEW_INFO_BITS, 1);
-	}
 }
 
 /**********************************************************
@@ -610,16 +598,11 @@ UNIV_INLINE
 void
 rec_set_status(
 /*===========*/
-	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits)	/* in: info bits */
+	rec_t*	rec,	/* in/out: physical record */
+	ulint	bits)	/* in: info bits */
 {
 	rec_set_bit_field_1(rec, bits, REC_NEW_STATUS,
 				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, rec - REC_NEW_STATUS, 1);
-	}
 }
 
 /**********************************************************
@@ -653,17 +636,15 @@ UNIV_INLINE
 void
 rec_set_info_and_status_bits(
 /*=========================*/
-	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
-	ulint		bits)	/* in: info bits */
+	rec_t*	rec,	/* in/out: physical record */
+	ulint	bits)	/* in: info bits */
 {
 #if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) \
 & (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)
 # error "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap"
 #endif
-	rec_set_status(rec, page_zip, bits & REC_NEW_STATUS_MASK);
-	rec_set_info_bits_new(rec, page_zip, bits & ~REC_NEW_STATUS_MASK);
+	rec_set_status(rec, bits & REC_NEW_STATUS_MASK);
+	rec_set_info_bits_new(rec, bits & ~REC_NEW_STATUS_MASK);
 }
 
 /**********************************************************
@@ -716,8 +697,7 @@ void
 rec_set_deleted_flag_new(
 /*=====================*/
 	rec_t*		rec,	/* in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		flag)	/* in: nonzero if delete marked */
 {
 	ulint	val;
@@ -730,7 +710,11 @@ rec_set_deleted_flag_new(
 		val &= ~REC_INFO_DELETED_FLAG;
 	}
 
-	rec_set_info_bits_new(rec, page_zip, val);
+	rec_set_info_bits_new(rec, val);
+
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		page_zip_rec_set_deleted(page_zip, rec, flag);
+	}
 }
 
 /**********************************************************
@@ -794,16 +778,11 @@ UNIV_INLINE
 void
 rec_set_heap_no_new(
 /*================*/
-	rec_t*		rec,	/* in/out: physical record */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 6 bytes available, or NULL */
-	ulint		heap_no)/* in: the heap number */
+	rec_t*	rec,	/* in/out: physical record */
+	ulint	heap_no)/* in: the heap number */
 {
 	rec_set_bit_field_2(rec, heap_no, REC_NEW_HEAP_NO,
 				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write(page_zip, rec - REC_NEW_HEAP_NO, 2);
-	}
 }
 
 /**********************************************************
@@ -879,14 +858,6 @@ rec_2_get_field_end_info(
 
 	return(mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2)));
 }
-
-#ifdef UNIV_DEBUG
-/* Length of the rec_get_offsets() header */
-# define REC_OFFS_HEADER_SIZE	4
-#else /* UNIV_DEBUG */
-/* Length of the rec_get_offsets() header */
-# define REC_OFFS_HEADER_SIZE	2
-#endif /* UNIV_DEBUG */
 
 /* Get the base address of offsets.  The extra_size is stored at
 this position, and following positions hold the end offsets of
@@ -1472,6 +1443,7 @@ rec_get_end(
 	rec_t*		rec,	/* in: pointer to record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	return(rec + rec_offs_data_size(offsets));
 }
 
@@ -1485,6 +1457,7 @@ rec_get_start(
 	rec_t*		rec,	/* in: pointer to record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	return(rec - rec_offs_extra_size(offsets));
 }
 

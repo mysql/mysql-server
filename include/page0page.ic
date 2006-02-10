@@ -159,6 +159,7 @@ page_header_reset_last_insert(
 {
 	ut_ad(page && mtr);
 
+	/* TODO: log this differently for page_zip */
 	mlog_write_ulint(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0,
 							MLOG_2BYTES, mtr);
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -204,6 +205,18 @@ page_rec_is_comp(
 	}
 #endif
 	return(page_is_comp(ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
+}
+
+/****************************************************************
+Determine whether the page is a B-tree leaf. */
+UNIV_INLINE
+ibool
+page_is_leaf(
+/*=========*/
+				/* out: TRUE if the page is a B-tree leaf */
+	const page_t*	page)	/* in: page */
+{
+	return(!*(const uint16*) (page + (PAGE_HEADER + PAGE_LEVEL)));
 }
 
 /****************************************************************
@@ -433,17 +446,6 @@ page_dir_set_n_slots(
 				uncompressed part will be updated, or NULL */
 	ulint		n_slots)/* in: number of slots */
 {
-#ifdef UNIV_DEBUG
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* Ensure that the modification log will not be overwritten. */
-		ulint	n_slots_old = page_dir_get_n_slots(page);
-		if (n_slots > n_slots_old) {
-			ut_ad(page_zip_available_noninline(page_zip,
-					(n_slots - n_slots_old)
-					* PAGE_DIR_SLOT_SIZE));
-		}
-	}
-#endif /* UNIV_DEBUG */
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
 }
 
@@ -467,7 +469,10 @@ page_dir_set_n_heap(
 /*================*/
 	page_t*		page,	/* in/out: index page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
+				uncompressed part will be updated, or NULL.
+				Note that the size of the dense page directory
+				in the compressed page trailer is
+				n_heap * PAGE_ZIP_DIR_SLOT_SIZE. */
 	ulint		n_heap)	/* in: number of records */
 {
 	ut_ad(n_heap < 0x8000);
@@ -532,18 +537,11 @@ void
 page_dir_slot_set_rec(
 /*==================*/
 	page_dir_slot_t* slot,	/* in: directory slot */
-	page_zip_des_t*	 page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
 	rec_t*		 rec)	/* in: record on the page */
 {
 	ut_ad(page_rec_check(rec));
 
 	mach_write_to_2(slot, ut_align_offset(rec, UNIV_PAGE_SIZE));
-#if 0 /* TODO */
-	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_zip_write_trailer(page_zip, slot, 2);
-	}
-#endif
 }
 
 /*******************************************************************
@@ -570,8 +568,7 @@ void
 page_dir_slot_set_n_owned(
 /*======================*/
 	page_dir_slot_t*slot,	/* in/out: directory slot */
-	page_zip_des_t*	page_zip,/* in/out: compressed page with
-				at least 5 bytes available, or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	ulint		n)	/* in: number of records owned by the slot */
 {
 	rec_t*	rec	= page_dir_slot_get_rec(slot);
@@ -643,12 +640,10 @@ UNIV_INLINE
 void
 page_rec_set_next(
 /*==============*/
-	rec_t*		rec,		/* in: pointer to record,
-					must not be page supremum */
-	rec_t*		next,		/* in: pointer to next record,
-					must not be page infimum */
-	page_zip_des_t*	page_zip)	/* in/out: compressed page with
-					at least 6 bytes available, or NULL */
+	rec_t*	rec,		/* in: pointer to record,
+				must not be page supremum */
+	rec_t*	next)		/* in: pointer to next record,
+				must not be page infimum */
 {
 	ulint	offs;
 
@@ -666,10 +661,9 @@ page_rec_set_next(
 	}
 
 	if (page_rec_is_comp(rec)) {
-		rec_set_next_offs_new(rec, page_zip, offs);
+		rec_set_next_offs_new(rec, offs);
 	} else {
 		rec_set_next_offs_old(rec, offs);
-		ut_ad(!page_zip);
 	}
 }
 
@@ -880,31 +874,38 @@ page_mem_free(
 	page_zip_des_t*	page_zip,/* in/out: compressed page with at least
 				6 bytes available, or NULL */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	dict_index_t*	index,	/* in: record descriptor */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL
+				if page_zip==NULL */
 {
 	rec_t*		free;
 	ulint		garbage;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
 	free = page_header_get_ptr(page, PAGE_FREE);
 
-	page_rec_set_next(rec, free, page_zip);
+	page_rec_set_next(rec, free);
 	page_header_set_ptr(page, page_zip, PAGE_FREE, rec);
 
-	if (rec_offs_comp(offsets)/* TODO: UNIV_LIKELY_NULL(page_zip) */) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
 		ut_ad(rec_offs_comp(offsets));
 
 		/* The compression algorithm expects info_bits and n_owned
 		to be 0 for deleted records. */
 		rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
-		
+
+		/* Update the dense page directory. */
+		page_zip_dir_delete(page_zip, rec, free);
+
 		/* Clear the data bytes of the deleted record in order
-		to improve the compression ratio of the page.  The extra
-		bytes of the record cannot be cleared, because
+		to improve the compression ratio of the page.  The fixed extra
+		bytes of the record, which will be omitted from the
+		stream compression algorithm, cannot be cleared, because
 		page_mem_alloc() needs them in order to determine the size
 		of the deleted record. */
-		memset(rec, 0, rec_offs_data_size(offsets));
+		page_zip_clear_rec(page_zip, rec, index, offsets, mtr);
 	}
 
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
