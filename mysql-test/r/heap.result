@@ -702,11 +702,11 @@ insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd
 ERROR 23000: Duplicate entry 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl' for key 1
 drop table t1;
 CREATE TABLE t1 (a int, key(a)) engine=heap;
-insert delayed into t1 values (0);
+insert into t1 values (0);
 delete from t1;
 select * from t1;
 a
-insert delayed into t1 values (0), (1);
+insert into t1 values (0), (1);
 select * from t1 where a = 0;
 a
 0
