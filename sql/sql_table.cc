@@ -864,20 +864,22 @@ release_table_log()
   TABLE_LOG_MEMORY_ENTRY *used_list= global_table_log.first_used;
   DBUG_ENTER("release_table_log");
 
-  VOID(pthread_mutex_destroy(&LOCK_gtl));
+  lock_global_table_log();
   while (used_list)
   {
-    TABLE_LOG_MEMORY_ENTRY *tmp= used_list;
+    TABLE_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
     my_free((char*)used_list, MYF(0));
-    used_list= tmp->next_log_entry;
+    used_list= tmp;
   }
   while (free_list)
   {
-    TABLE_LOG_MEMORY_ENTRY *tmp= free_list;
+    TABLE_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
     my_free((char*)free_list, MYF(0));
-    free_list= tmp->next_log_entry;
+    free_list= tmp;
   }
   VOID(my_close(global_table_log.file_id, MYF(0)));
+  unlock_global_table_log();
+  VOID(pthread_mutex_destroy(&LOCK_gtl));
   DBUG_VOID_RETURN;
 }
 
