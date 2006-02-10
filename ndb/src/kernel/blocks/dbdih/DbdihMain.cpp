@@ -674,6 +674,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     jam();
     coldgcp = SYSFILE->newestRestorableGCI;
     crestartGci = SYSFILE->newestRestorableGCI;
+    c_newest_restorable_gci = SYSFILE->newestRestorableGCI;
     Sysfile::setRestartOngoing(SYSFILE->systemRestartBits);
     currentgcp = coldgcp + 1;
     cnewgcp = coldgcp + 1;
@@ -692,6 +693,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ok = true;
     jam();
     cgcpParticipantState = GCP_PARTICIPANT_COPY_GCI_RECEIVED;
+    c_newest_restorable_gci = SYSFILE->newestRestorableGCI;
     setNodeInfo(signal);
     break;
   }//if
@@ -7790,6 +7792,8 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     signal->theData[1] = coldgcp;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
+    c_newest_restorable_gci = coldgcp;
+
     CRASH_INSERTION(7004);
     emptyWaitGCPMasterQueue(signal);    
     cgcpStatus = GCP_READY;
@@ -9192,7 +9196,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
   }//if
   c_lcpState.ctimer += 32;
   if ((c_nodeStartMaster.blockLcp == true) ||
-      ((c_lcpState.lcpStartGcp + 1) > currentgcp)) {
+      (c_lcpState.lcpStopGcp >= c_newest_restorable_gci)) {
     jam();
     /* --------------------------------------------------------------------- */
     // No reason to start juggling the states and checking for start of LCP if
@@ -9275,7 +9279,6 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   /* ----------------------------------------------------------------------- */
   c_lcpState.ctimer = 0;
   c_lcpState.keepGci = coldgcp;
-  c_lcpState.lcpStartGcp = currentgcp;
   /* ----------------------------------------------------------------------- */
   /*       UPDATE THE NEW LATEST LOCAL CHECKPOINT ID.                        */
   /* ----------------------------------------------------------------------- */
@@ -9347,7 +9350,7 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
   cnoOfActiveTables++;
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
-  checkKeepGci(fragPtr.p->storedReplicas);
+  checkKeepGci(tabPtr, fragId, fragPtr.p, fragPtr.p->storedReplicas);
   fragId++;
   if (fragId >= tabPtr.p->totalfragments) {
     jam();
@@ -10205,6 +10208,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   signal->theData[0] = NDB_LE_LocalCheckpointCompleted; //Event type
   signal->theData[1] = SYSFILE->latestLCP_ID;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  c_lcpState.lcpStopGcp = c_newest_restorable_gci;
   
   /**
    * Start checking for next LCP
@@ -10639,7 +10643,8 @@ void Dbdih::checkEscalation()
 /*       DESCRIPTION: CHECK FOR MINIMUM GCI RESTORABLE WITH NEW LOCAL    */
 /*                    CHECKPOINT.                                        */
 /*************************************************************************/
-void Dbdih::checkKeepGci(Uint32 replicaStartIndex) 
+void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*, 
+			 Uint32 replicaStartIndex) 
 {
   ReplicaRecordPtr ckgReplicaPtr;
   ckgReplicaPtr.i = replicaStartIndex;
@@ -10661,7 +10666,6 @@ void Dbdih::checkKeepGci(Uint32 replicaStartIndex)
     if (oldestRestorableGci > c_lcpState.oldestRestorableGci) {
       jam();
       c_lcpState.oldestRestorableGci = oldestRestorableGci;
-      ndbrequire(((int)c_lcpState.oldestRestorableGci) >= 0);
     }//if
     ckgReplicaPtr.i = ckgReplicaPtr.p->nextReplica;
   }//while
@@ -10955,7 +10959,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   do {
     ndbrequire(lcpNo < MAX_LCP_STORED);
     if (fmgReplicaPtr.p->lcpStatus[lcpNo] == ZVALID &&
-	fmgReplicaPtr.p->maxGciStarted[lcpNo] <= coldgcp)
+	fmgReplicaPtr.p->maxGciStarted[lcpNo] < c_newest_restorable_gci)
     {
       jam();
       keepGci = fmgReplicaPtr.p->maxGciCompleted[lcpNo];
@@ -11077,7 +11081,7 @@ void Dbdih::initCommonData()
 
   c_lcpState.clcpDelay = 0;
   c_lcpState.lcpStart = ZIDLE;
-  c_lcpState.lcpStartGcp = 0;
+  c_lcpState.lcpStopGcp = 0;
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   c_lcpState.currentFragment.tableId = 0;
   c_lcpState.currentFragment.fragmentId = 0;
@@ -11113,6 +11117,7 @@ void Dbdih::initCommonData()
   csystemnodes = 0;
   c_updateToLock = RNIL;
   currentgcp = 0;
+  c_newest_restorable_gci = 0;
   cverifyQueueCounter = 0;
   cwaitLcpSr = false;
 
@@ -11188,6 +11193,7 @@ void Dbdih::initRestartInfo()
   currentgcp = 2;
   cnewgcp = 2;
   crestartGci = 1;
+  c_newest_restorable_gci = 1;
 
   SYSFILE->keepGCI             = 1;
   SYSFILE->oldestRestorableGCI = 1;
@@ -13155,9 +13161,9 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == 7001) {
     infoEvent("c_lcpState.keepGci = %d",
               c_lcpState.keepGci);
-    infoEvent("c_lcpState.lcpStatus = %d, clcpStartGcp = %d",
+    infoEvent("c_lcpState.lcpStatus = %d, clcpStopGcp = %d",
               c_lcpState.lcpStatus, 
-	      c_lcpState.lcpStartGcp);
+	      c_lcpState.lcpStopGcp);
     infoEvent("cgcpStartCounter = %d, cimmediateLcpStart = %d",
               cgcpStartCounter, c_lcpState.immediateLcpStart);
   }//if  
@@ -13338,8 +13344,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("lcpStatus = %d (update place = %d) ",
 	      c_lcpState.lcpStatus, c_lcpState.lcpStatusUpdatedPlace);
     infoEvent
-      ("lcpStart = %d lcpStartGcp = %d keepGci = %d oldestRestorable = %d",
-       c_lcpState.lcpStart, c_lcpState.lcpStartGcp, 
+      ("lcpStart = %d lcpStopGcp = %d keepGci = %d oldestRestorable = %d",
+       c_lcpState.lcpStart, c_lcpState.lcpStopGcp, 
        c_lcpState.keepGci, c_lcpState.oldestRestorableGci);
     
     infoEvent
