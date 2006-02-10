@@ -5135,9 +5135,9 @@ write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ENTER("write_log_rename_frm");
 
   if (rename_flag)
-    table_log_entry.action_type= 'r';
+    table_log_entry.action_type= TLOG_RENAME_ACTION_CODE;
   else
-    table_log_entry.action_type= 'd';
+    table_log_entry.action_type= TLOG_DELETE_ACTION_CODE;
   table_log_entry.next_entry= next_entry;
   table_log_entry.handler_type= "frm";
   table_log_entry.name= to_path;
@@ -5160,6 +5160,18 @@ write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
   RETURN VALUES
     TRUE                     Error
     FALSE                    Success
+  DESCRIPTION
+    This code is used to perform safe ADD PARTITION for HASH partitions
+    and COALESCE for HASH partitions and REORGANIZE for any type of
+    partitions.
+    We prepare entries for all partitions except the reorganised partitions
+    in REORGANIZE partition, those are handled by
+    write_log_dropped_partitions. For those partitions that are replaced
+    special care is needed to ensure that this is performed correctly and
+    this requires a two-phased approach with this log as a helper for this.
+
+    This code is closely intertwined with the code in rename_partitions in
+    the partition handler.
 */
 
 static
@@ -5167,7 +5179,84 @@ bool
 write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
                              uint *next_entry, const char *path)
 {
+  TABLE_LOG_ENTRY table_log_entry;
+  partition_info *part_info= lpt->part_info;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  char tmp_path[FN_LEN];
+  char normal_path[FN_LEN];
+  List_iterator<partition_element> part_it(part_info->partitions);
+  uint temp_partitions= part_info->temp_partitions.elements;
+  uint no_elements= part_info->partitions.elements;
+  uint i= 0;
   DBUG_ENTER("write_log_changed_partitions");
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    if (part_elem->part_state == PART_IS_CHANGED ||
+        (part_elem->part_state == PART_IS_ADDED && temp_partitions))
+    {
+      if (is_sub_partitioned(part_info))
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        uint no_subparts= part_info->no_subparts;
+        uint j= 0;
+        do
+        {
+          partition_element *sub_elem= sub_it++;
+          table_log_entry.next_entry= *next_entry;
+          table_log_entry.handler_type=
+               ha_resolve_storage_engine_name(sub_elem->engine_type);
+          create_subpartition_name(tmp_path, path,
+                                   part_elem->partition_name,
+                                   sub_elem->partition_name,
+                                   TEMP_PART_NAME);
+          create_subpartition_name(normal_path, path,
+                                   part_elem->partition_name,
+                                   sub_elem->partition_name,
+                                   NORMAL_PART_NAME);
+          table_log_entry.name= norm_path;
+          table_log_entry.from_name= tmp_path;
+          if (part_elem->part_state == PART_IS_CHANGED)
+            table_log_entry->action_type= TLOG_REPLACE_ACTION_CODE;
+          else
+            table_log_entry->action_type= TLOG_RENAME_ACTION_CODE;
+          if (write_table_log_entry(&table_log_entry, &log_entry))
+          {
+            DBUG_RETURN(TRUE);
+          }
+          *next_entry= log_entry->entry_pos;
+          sub_elem->log_entry= log_entry;
+          insert_part_info_log_entry_list(part_info, log_entry);
+        } while (++j < no_subparts);
+      }
+      else
+      {
+        table_log_entry.next_entry= *next_entry;
+        table_log_entry.handler_type=
+               ha_resolve_storage_engine_name(part_elem->engine_type);
+        create_partition_name(tmp_path, path,
+                              part_elem->partition_name,
+                              TEMP_PART_NAME, TRUE);
+        create_partition_name(normal_path, path,
+                              part_elem->partition_name,
+                              NORMAL_PART_NAME, TRUE);
+        table_log_entry.name= normal_path;
+        table_log_entry.from_name= tmp_path;
+        if (part_elem->part_state == PART_IS_CHANGED)
+          table_log_entry->action_type= TLOG_REPLACE_ACTION_CODE;
+        else
+          table_log_entry->action_type= TLOG_RENAME_ACTION_CODE;
+        if (write_table_log_entry(&table_log_entry, &log_entry))
+        {
+          DBUG_RETURN(TRUE);
+        }
+        *next_entry= log_entry->entry_pos;
+        part_elem->table_log_entry= log_entry;
+        insert_part_info_log_entry_list(part_info, log_entry);
+      }
+    }
+  } while (++i < no_elements)
   DBUG_RETURN(FALSE);
 }
 
@@ -5200,7 +5289,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
   uint i= 0;
   DBUG_ENTER("write_log_dropped_partitions");
 
-  table_log_entry.action_type= 'd';
+  table_log_entry.action_type= TLOG_DELETE_ACTION_CODE;
   if (temp_list)
     no_elements= no_temp_partitions;
   while (no_elements--)
@@ -5242,6 +5331,8 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
             DBUG_RETURN(TRUE);
           }
           *next_entry= log_entry->entry_pos;
+          if (temp_list)
+            sub_elem->table_log_entry= log_entry;
           insert_part_info_log_entry_list(part_info, log_entry);
         } while (++j < no_subparts);
       }
@@ -5259,6 +5350,8 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           DBUG_RETURN(TRUE);
         }
         *next_entry= log_entry->entry_pos;
+        if (temp_list)
+          part_elem->table_log_entry= log_entry;
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }
@@ -5961,10 +6054,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_9") ||
-        mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         write_log_completed(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
       abort();
