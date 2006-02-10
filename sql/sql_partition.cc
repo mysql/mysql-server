@@ -5450,7 +5450,8 @@ bool
 write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   partition_info *part_info= lpt->part_info;
-  TABLE_LOG_MEMORY_ENTRY *log_entry, *exec_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  TABLE_LOG_MEMORY_ENTRY *exec_log_entry= NULL;
   char tmp_path[FN_LEN];
   char path[FN_LEN];
   uint next_entry= 0;
@@ -5779,7 +5780,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
-        (not_completed= FALSE) ||
+        ((not_completed= FALSE), FALSE) ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -5796,6 +5797,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
+      abort();
       if (!not_completed)
         abort();
       fast_alter_partition_error_handler(lpt);
@@ -5845,7 +5847,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                         thd->query, thd->query_length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         write_log_rename_frm(lpt) ||
-        (not_completed= FALSE) ||
+        ((not_completed= FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_6") ||
@@ -5853,6 +5855,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_completed(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_7")) 
     {
+      abort();
       if (!not_completed)
         abort();
       fast_alter_partition_error_handler(lpt);
@@ -5923,7 +5926,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_3") ||
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
-        (not_completed= FALSE) ||
+        ((not_completed= FALSE), FALSE) ||
         abort_and_upgrade_lock(lpt) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
@@ -5943,6 +5946,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_11") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
+      abort();
       if (!not_completed)
         abort();
       fast_alter_partition_error_handler(lpt);
