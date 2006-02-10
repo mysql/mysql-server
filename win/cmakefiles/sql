@@ -76,14 +76,14 @@ ADD_CUSTOM_COMMAND(
 #ADD_CUSTOM_COMMAND(
 #	SOURCE ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in
 #	OUTPUT ${PROJECT_SOURCE_DIR}/include/mysql_version.h
-#	COMMAND ${PROJECT_SOURCE_DIR}/win/config-version.js
+#	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-version.js
 #	DEPENDS ${PROJECT_SOURCE_DIR}/include/mysql_version.h.in)
 
 # Handlerton file
 ADD_CUSTOM_COMMAND(
 	SOURCE ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in
 	OUTPUT ${PROJECT_SOURCE_DIR}/sql/handlerton.cc
-	COMMAND ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
+	COMMAND cscript.exe ${PROJECT_SOURCE_DIR}/win/config-handlerton.js ARGS ${PROJECT_SOURCE_DIR}/win/configure.data
 	DEPENDS ${PROJECT_SOURCE_DIR}/sql/handlerton.cc.in)
 
 # Error file
