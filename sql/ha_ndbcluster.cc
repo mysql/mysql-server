@@ -73,8 +73,6 @@ handlerton ndbcluster_hton = {
   HTON_NO_FLAGS
 };
 
-#define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-
 #define NDB_FAILED_AUTO_INCREMENT ~(Uint64)0
 #define NDB_AUTO_INCREMENT_RETRIES 10
 
@@ -871,7 +869,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
   }
 
   // Used for hidden key only
-  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, NULL);
+  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, m_ref);
   DBUG_RETURN(m_value[fieldnr].rec == NULL);
 }
 
@@ -2201,13 +2199,10 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_PRINT("info", ("Using hidden key"));
       
       // Require that the PK for this record has previously been 
-      // read into m_value
-      uint no_fields= table->s->fields;
-      const NdbRecAttr* rec= m_value[no_fields].rec;
-      DBUG_ASSERT(rec);
-      DBUG_DUMP("key", (char*)rec->aRef(), NDB_HIDDEN_PRIMARY_KEY_LENGTH);
+      // read into m_ref
+      DBUG_DUMP("key", m_ref, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
-      if (set_hidden_key(op, no_fields, rec->aRef()))
+      if (set_hidden_key(op, table->s->fields, m_ref))
         ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -2288,11 +2283,8 @@ int ha_ndbcluster::delete_row(const byte *record)
     {
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
-      uint no_fields= table->s->fields;
-      const NdbRecAttr* rec= m_value[no_fields].rec;
-      DBUG_ASSERT(rec != NULL);
       
-      if (set_hidden_key(op, no_fields, rec->aRef()))
+      if (set_hidden_key(op, table->s->fields, m_ref))
         ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -2839,17 +2831,15 @@ void ha_ndbcluster::position(const byte *record)
   {
     // No primary key, get hidden key
     DBUG_PRINT("info", ("Getting hidden key"));
-    int hidden_no= table->s->fields;
-    const NdbRecAttr* rec= m_value[hidden_no].rec;
-    memcpy(ref, (const void*)rec->aRef(), ref_length);
 #ifndef DBUG_OFF
+    int hidden_no= table->s->fields;
     const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
                 hidden_col->getAutoIncrement() &&
-                rec != NULL && 
                 ref_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
 #endif
+    memcpy(ref, m_ref, ref_length);
   }
   
   DBUG_DUMP("ref", (char*)ref, ref_length);
