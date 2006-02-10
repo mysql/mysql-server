@@ -8,13 +8,12 @@
 #ifdef __WIN__
 
 #define vsnprintf _vsnprintf
+#define snprintf _snprintf
 
 #define SIGKILL 9
 #define SHUT_RDWR 0x2
 
 /*TODO:  fix this */
-#define DEFAULT_MONITORING_INTERVAL 20
-#define DEFAULT_PORT 2273
 #define PROTOCOL_VERSION 10
 
 typedef int pid_t;
