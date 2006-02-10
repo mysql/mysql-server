@@ -101,6 +101,7 @@ typedef struct my_xpath_st
   MY_XPATH_FUNC *func;   /* last scanned function creator             */
   Item *item;            /* current expression                        */
   Item *context;         /* last scanned context                      */
+  Item *rootelement;     /* The root element                          */
   String *context_cache; /* last context provider                     */
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
   CHARSET_INFO *cs;      /* character set/collation string comparison */
@@ -1464,6 +1465,8 @@ static int my_xpath_parse_LocationPath(MY_XPATH *xpath)
 {
   Item *context= xpath->context;
 
+  if (!xpath->context)
+    xpath->context= xpath->rootelement;
   int rc= my_xpath_parse_RelativeLocationPath(xpath) || 
           my_xpath_parse_AbsoluteLocationPath(xpath);
 
@@ -1496,7 +1499,7 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath)
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
     return 0;
 
-  xpath->context= new Item_nodeset_func_rootelement(xpath->pxml);
+  xpath->context= xpath->rootelement;
 
   if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
   {
@@ -2291,6 +2294,8 @@ my_xpath_parse(MY_XPATH *xpath, const char *str, const char *strend)
   my_xpath_lex_init(&xpath->query, str, strend);
   my_xpath_lex_init(&xpath->prevtok, str, strend);
   my_xpath_lex_scan(xpath, &xpath->lasttok, str, strend);
+
+  xpath->rootelement= new Item_nodeset_func_rootelement(xpath->pxml);
 
   return
      my_xpath_parse_Expr(xpath) &&
