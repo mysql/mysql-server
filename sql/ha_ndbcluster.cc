@@ -2552,7 +2552,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       // read into m_ref
       DBUG_DUMP("key", m_ref, NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
-      if (set_hidden_key(op, table->fields, m_ref))
+      if (set_hidden_key(op, table->s->fields, m_ref))
         ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -2660,7 +2660,7 @@ int ha_ndbcluster::delete_row(const byte *record)
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
       
-      if (set_hidden_key(op, table->fields, m_ref))
+      if (set_hidden_key(op, table->s->fields, m_ref))
         ERR_RETURN(op->getNdbError());
     } 
     else 
