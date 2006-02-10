@@ -2264,6 +2264,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   return pending;              /* This is the current pending event */
 }
 
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 /*
   Instansiate the versions we need, we have -fno-implicit-template as
   compiling option.
@@ -2282,6 +2283,7 @@ template Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       my_size_t colcnt, my_size_t, bool,
 				       Update_rows_log_event *);
+#endif
 static char const* 
 field_type_name(enum_field_types type) 
 {
