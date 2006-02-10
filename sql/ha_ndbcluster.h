@@ -27,6 +27,8 @@
 
 #include <ndbapi_limits.h>
 
+#define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
 class NdbTransaction;  // Forward declaration
@@ -681,6 +683,7 @@ private:
   // NdbRecAttr has no reference to blob
   typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
+  byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
   bool m_use_write;
   bool m_ignore_dup_key;
   bool m_primary_key_update;
