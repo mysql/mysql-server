@@ -357,3 +357,29 @@ explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 drop table t1;
 
+#
+# BUG#17314: Index_merge/intersection not choosen by the optimizer for MERGE tables
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+  a int, b int, 
+  filler1 char(200), filler2 char(200),
+  key(a),key(b)
+);
+insert into t1 select @v:= A.a, @v, 't1', 'filler2' from t0 A, t0 B, t0 C;
+create table t2 like t1;
+
+create table t3 (
+  a int, b int, 
+  filler1 char(200), filler2 char(200),
+  key(a),key(b)
+) engine=merge union=(t1,t2);
+
+--replace_column 9 #
+explain select * from t1 where a=1 and b=1;
+--replace_column 9 #
+explain select * from t3 where a=1 and b=1;
+
+drop table t3;
+drop table t0, t1, t2;
