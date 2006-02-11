@@ -5215,12 +5215,12 @@ write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
                                    part_elem->partition_name,
                                    sub_elem->partition_name,
                                    NORMAL_PART_NAME);
-          table_log_entry.name= norm_path;
+          table_log_entry.name= normal_path;
           table_log_entry.from_name= tmp_path;
           if (part_elem->part_state == PART_IS_CHANGED)
-            table_log_entry->action_type= TLOG_REPLACE_ACTION_CODE;
+            table_log_entry.action_type= TLOG_REPLACE_ACTION_CODE;
           else
-            table_log_entry->action_type= TLOG_RENAME_ACTION_CODE;
+            table_log_entry.action_type= TLOG_RENAME_ACTION_CODE;
           if (write_table_log_entry(&table_log_entry, &log_entry))
           {
             DBUG_RETURN(TRUE);
@@ -5244,19 +5244,19 @@ write_log_changed_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
         table_log_entry.name= normal_path;
         table_log_entry.from_name= tmp_path;
         if (part_elem->part_state == PART_IS_CHANGED)
-          table_log_entry->action_type= TLOG_REPLACE_ACTION_CODE;
+          table_log_entry.action_type= TLOG_REPLACE_ACTION_CODE;
         else
-          table_log_entry->action_type= TLOG_RENAME_ACTION_CODE;
+          table_log_entry.action_type= TLOG_RENAME_ACTION_CODE;
         if (write_table_log_entry(&table_log_entry, &log_entry))
         {
           DBUG_RETURN(TRUE);
         }
         *next_entry= log_entry->entry_pos;
-        part_elem->table_log_entry= log_entry;
+        part_elem->log_entry= log_entry;
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }
-  } while (++i < no_elements)
+  } while (++i < no_elements);
   DBUG_RETURN(FALSE);
 }
 
@@ -5332,7 +5332,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
           }
           *next_entry= log_entry->entry_pos;
           if (temp_list)
-            sub_elem->table_log_entry= log_entry;
+            sub_elem->log_entry= log_entry;
           insert_part_info_log_entry_list(part_info, log_entry);
         } while (++j < no_subparts);
       }
@@ -5351,7 +5351,7 @@ write_log_dropped_partitions(ALTER_PARTITION_PARAM_TYPE *lpt,
         }
         *next_entry= log_entry->entry_pos;
         if (temp_list)
-          part_elem->table_log_entry= log_entry;
+          part_elem->log_entry= log_entry;
         insert_part_info_log_entry_list(part_info, log_entry);
       }
     }

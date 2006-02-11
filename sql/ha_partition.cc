@@ -101,7 +101,9 @@ handlerton partition_hton = {
   partition_flags, /* Partition flags */
   alter_table_flags, /* Partition flags */
   NULL, /* Alter Tablespace */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL, /* binlog function */
+  NULL  /* binlog query */
 };
 
 /*
@@ -495,10 +497,9 @@ int ha_partition::create_handler_files(const char *path,
   {
     char name[FN_REFLEN];
     char old_name[FN_REFLEN];
-    char *par_str= ".par";
 
-    strxmov(name, path, par_str, NullS);
-    strxmov(old_name, old_path, par_str, NullS);
+    strxmov(name, path, ha_par_ext, NullS);
+    strxmov(old_name, old_path, ha_par_ext, NullS);
     if (my_delete(name, MYF(MY_WME)) ||
         my_rename(old_name, name, MYF(MY_WME)))
     {
@@ -763,7 +764,7 @@ int ha_partition::rename_partitions(const char *path)
             if (file->delete_table((const char *) norm_name_buff) ||
               inactivate_table_log_entry(sub_elem->log_entry->entry_pos))
               error= 1;
-            VOID(synch_table_log());
+            VOID(sync_table_log());
           }
           file= m_new_file[part];
           create_subpartition_name(part_name_buff, path,
@@ -792,7 +793,7 @@ int ha_partition::rename_partitions(const char *path)
           if (file->delete_table((const char *) norm_name_buff) ||
             inactivate_table_log_entry(part_elem->log_entry->entry_pos))
             error= 1;
-          VOID(synch_table_log());
+          VOID(sync_table_log());
         }
         file= m_new_file[i];
         create_partition_name(part_name_buff, path,
@@ -809,7 +810,7 @@ int ha_partition::rename_partitions(const char *path)
       }
     }
   } while (++i < no_parts);
-  VOID(synch_table_log());
+  VOID(sync_table_log());
   DBUG_RETURN(error);
 }
 

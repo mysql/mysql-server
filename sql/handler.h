@@ -658,6 +658,7 @@ typedef struct {
 
 #define UNDEF_NODEGROUP 65535
 class Item;
+struct st_table_log_memory_entry;
 
 class partition_element :public Sql_alloc {
 public:
@@ -667,7 +668,7 @@ public:
   ulonglong part_min_rows;
   char *partition_name;
   char *tablespace_name;
-  TABLE_LOG_MEMORY_ENTRY *log_entry;
+  st_table_log_memory_entry *log_entry;
   longlong range_value;
   char* part_comment;
   char* data_file_name;
@@ -801,7 +802,6 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 
-struct st_table_log_memory_entry;
 
 class partition_info : public Sql_alloc
 {
