@@ -476,8 +476,8 @@ sub command_line_setup () {
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000;
-    $opt_slave_myport=    $opt_master_myport + 3;
-    $opt_ndbcluster_port= $opt_master_myport + 4;
+    $opt_slave_myport=    $opt_master_myport + 2; # and 3 4
+    $opt_ndbcluster_port= $opt_master_myport + 5;
   }
 
   # Read the command line
@@ -985,12 +985,14 @@ sub environment_setup () {
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
-  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
@@ -1004,11 +1006,15 @@ sub environment_setup () {
     }
   }
 
+  $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
+
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MTR_BUILD_THREAD = $ENV{MTR_BUILD_THREAD}\n";
   print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
+  print "Using SLAVE_MYPORT1    = $ENV{SLAVE_MYPORT1}\n";
+  print "Using SLAVE_MYPORT2    = $ENV{SLAVE_MYPORT2}\n";
   print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
 }
 
