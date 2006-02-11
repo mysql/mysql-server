@@ -1129,12 +1129,14 @@ sub environment_setup () {
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
@@ -1168,6 +1170,8 @@ sub environment_setup () {
   print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1        = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT          = $ENV{SLAVE_MYPORT}\n";
+  print "Using SLAVE_MYPORT1         = $ENV{SLAVE_MYPORT1}\n";
+  print "Using SLAVE_MYPORT2         = $ENV{SLAVE_MYPORT2}\n";
   print "Using NDBCLUSTER_PORT       = $ENV{NDBCLUSTER_PORT}\n";
   print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
   print "Using IM_PORT               = $ENV{IM_PORT}\n";
