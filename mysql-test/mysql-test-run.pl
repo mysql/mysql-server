@@ -510,8 +510,8 @@ sub command_line_setup () {
   {
     # Up to two masters, up to three slaves
     $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000; # and 1
-    $opt_slave_myport=    $opt_master_myport + 2;
-    $opt_ndbcluster_port= $opt_master_myport + 3;  # and 4 5
+    $opt_slave_myport=    $opt_master_myport + 2;  # and 3 4
+    $opt_ndbcluster_port= $opt_master_myport + 5;
     $im_port=             $opt_master_myport + 6;
     $im_mysqld1_port=     $opt_master_myport + 7;
     $im_mysqld2_port=     $opt_master_myport + 8;
@@ -1110,16 +1110,21 @@ sub environment_setup () {
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
+  $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
+
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+  $ENV{'IM_PORT'}=            $instance_manager->{port};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
@@ -1138,15 +1143,19 @@ sub environment_setup () {
     }
   }
 
+  $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
+
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
+  print "Using MTR_BUILD_THREAD = $ENV{MTR_BUILD_THREAD}\n";
   print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
   print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
-  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
-  print "Using IM_PORT          = $instance_manager->{'port'}\n";
-  print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
-  print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
+  print "Using SLAVE_MYPORT1    = $ENV{SLAVE_MYPORT1}\n";
+  print "Using SLAVE_MYPORT2    = $ENV{SLAVE_MYPORT2}\n";
+  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
+  print "Using IM_PORT          = $ENV{IM_PORT}\n";
+  print "Using IM_MYSQLD1_PORT  = $ENV{IM_MYSQLD1_PORT}\n";
+  print "Using IM_MYSQLD2_PORT  = $ENV{IM_MYSQLD2_PORT}\n";
 }
 
 
