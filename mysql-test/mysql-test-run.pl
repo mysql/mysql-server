@@ -512,15 +512,26 @@ sub command_line_setup () {
   my $im_mysqld1_port=   9312;
   my $im_mysqld2_port=   9314;
 
+  #
+  # To make it easier for different devs to work on the same host,
+  # an environment variable can be used to control all ports. A small
+  # number is to be used, 0 - 16 or similar.
+  #
+  # Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+  # versions of this script, else a 4.0 test run might conflict with a
+  # 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+  # all port numbers might not be used in this version of the script.
+  #
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
-    $opt_slave_myport=    $opt_master_myport + 16;
-    $opt_ndbcluster_port= $opt_master_myport + 24;
-    $opt_ndbcluster_port_slave= $opt_master_myport + 32;
-    $im_port=             $opt_master_myport + 10;
-    $im_mysqld1_port=     $opt_master_myport + 12;
-    $im_mysqld2_port=     $opt_master_myport + 14;
+    # Up to two masters, up to three slaves
+    $opt_master_myport=         $ENV{'MTR_BUILD_THREAD'} * 10 + 10000; # and 1
+    $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
+    $opt_ndbcluster_port=       $opt_master_myport + 5;
+    $opt_ndbcluster_port_slave= $opt_master_myport + 6;
+    $im_port=                   $opt_master_myport + 7;
+    $im_mysqld1_port=           $opt_master_myport + 8;
+    $im_mysqld2_port=           $opt_master_myport + 9;
   }
 
   # Read the command line
@@ -1131,6 +1142,7 @@ sub environment_setup () {
   $ENV{'NDBCLUSTER_PORT_SLAVE'}=$opt_ndbcluster_port_slave;
 
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+  $ENV{'IM_PORT'}=            $instance_manager->{port};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
@@ -1149,15 +1161,18 @@ sub environment_setup () {
     }
   }
 
+  $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
+
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
-  print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
-  print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
-  print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
-  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
+  print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
+  print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
+  print "Using MASTER_MYPORT1        = $ENV{MASTER_MYPORT1}\n";
+  print "Using SLAVE_MYPORT          = $ENV{SLAVE_MYPORT}\n";
+  print "Using NDBCLUSTER_PORT       = $ENV{NDBCLUSTER_PORT}\n";
   print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
-  print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
-  print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
+  print "Using IM_PORT               = $ENV{IM_PORT}\n";
+  print "Using IM_MYSQLD1_PORT       = $ENV{IM_MYSQLD1_PORT}\n";
+  print "Using IM_MYSQLD2_PORT       = $ENV{IM_MYSQLD2_PORT}\n";
 }
 
 
