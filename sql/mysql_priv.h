@@ -1206,6 +1206,7 @@ bool write_execute_table_log_entry(uint first_entry,
                                    TABLE_LOG_MEMORY_ENTRY **active_entry);
 bool inactivate_table_log_entry(uint entry_no);
 void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
+bool sync_table_log();
 void release_table_log();
 void execute_table_log_recovery();
 bool execute_table_log_entry(uint first_entry);

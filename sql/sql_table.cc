@@ -293,6 +293,7 @@ pthread_mutex_t LOCK_gtl;
 #define TLOG_ACTION_TYPE_POS 1
 #define TLOG_PHASE_POS 2
 #define TLOG_NEXT_ENTRY_POS 4
+#define TLOG_NAME_POS 8
 
 #define TLOG_NO_ENTRY_POS 0
 #define TLOG_NAME_LEN_POS 4
@@ -762,18 +763,18 @@ bool
 inactivate_table_log_entry(uint entry_no)
 {
   bool error= TRUE;
-  const char *file_entry= (const char*)global_table_log.file_entry
+  char *file_entry= (char*)global_table_log.file_entry;
   DBUG_ENTER("inactivate_table_log_entry");
 
   if (!read_table_log_file_entry(entry_no))
   {
-    if (file_entry[TLOG_ENTRY_POS] == TLOG_LOG_ENTRY_CODE)
+    if (file_entry[TLOG_ENTRY_TYPE_POS] == TLOG_LOG_ENTRY_CODE)
     {
       if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_DELETE_ACTION_CODE ||
           file_entry[TLOG_ACTION_TYPE_POS] == TLOG_RENAME_ACTION_CODE ||
           (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE &&
            file_entry[TLOG_PHASE_POS] == 1))
-        file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_POS;
+        file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
       else if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE)
       {
         DBUG_ASSERT(file_entry[TLOG_PHASE_POS] == 0);
@@ -800,7 +801,6 @@ inactivate_table_log_entry(uint entry_no)
     FALSE                     Success
 */
 
-static
 bool
 sync_table_log()
 {
