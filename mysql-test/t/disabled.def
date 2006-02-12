@@ -13,3 +13,4 @@
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 subselect       : Bug#15706
 ndb_load        : Bug #17233
+rpl_until       : Unstable test case, bug#15886
