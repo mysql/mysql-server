@@ -279,7 +279,7 @@ then
   gcclib=`@CC@ --print-libgcc-file`
   if test $? -ne 0
   then
-    print "Warning: Couldn't find libgcc.a!"
+    echo "Warning: Couldn't find libgcc.a!"
   else
     $CP $gcclib libmygcc.a
   fi
