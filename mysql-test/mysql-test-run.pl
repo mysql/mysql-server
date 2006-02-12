@@ -1905,7 +1905,7 @@ EOF
 ;
 
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
-    print OUT "old-log-format\n" if $instance->{'old_log_format'};
+    print OUT "log-output=FILE\n" if $instance->{'old_log_format'};
     print OUT "\n";
   }
 
