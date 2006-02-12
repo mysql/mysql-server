@@ -576,7 +576,7 @@ CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
 
 SHOW_COMP_OPTION have_row_based_replication;
-SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -1193,9 +1193,6 @@ void clean_up(bool print_message)
   multi_keycache_free();
   free_status_vars();
   end_thr_alarm(1);			/* Free allocated memory */
-#ifdef USE_RAID
-  end_raid();
-#endif
   my_free_open_file_info();
   my_free((char*) global_system_variables.date_format,
 	  MYF(MY_ALLOW_ZERO_PTR));
@@ -7093,11 +7090,6 @@ static void mysql_init_variables(void)
   max_system_variables.ndb_index_stat_update_freq=~0L;
 #else
   have_ndbcluster=SHOW_OPTION_NO;
-#endif
-#ifdef USE_RAID
-  have_raid=SHOW_OPTION_YES;
-#else
-  have_raid=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_OPENSSL
   have_openssl=SHOW_OPTION_YES;
