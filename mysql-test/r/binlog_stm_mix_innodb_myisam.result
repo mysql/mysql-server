@@ -185,7 +185,7 @@ master-bin.000001	258	Query	1	#	use `test`; insert into t1 values(18)
 master-bin.000001	346	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
-alter table t2 type=MyISAM;
+alter table t2 engine=MyISAM;
 insert into t1 values (1);
 begin;
 select * from t1 for update;
@@ -239,20 +239,20 @@ master-bin.000001	373	Query	1	#	use `test`; delete from t1
 master-bin.000001	450	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	477	Query	1	#	use `test`; delete from t2
 master-bin.000001	554	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	581	Query	1	#	use `test`; alter table t2 type=MyISAM
-master-bin.000001	670	Query	1	#	use `test`; insert into t1 values (1)
-master-bin.000001	758	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	785	Query	1	#	use `test`; insert into t2 values (20)
-master-bin.000001	874	Query	1	#	use `test`; drop table t1,t2
-master-bin.000001	953	Query	1	#	use `test`; create temporary table ti (a int) engine=innodb
-master-bin.000001	1063	Query	1	#	use `test`; insert into ti values(1)
-master-bin.000001	1150	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	1177	Query	1	#	use `test`; create temporary table t1 (a int) engine=myisam
-master-bin.000001	1287	Query	1	#	use `test`; insert t1 values (1)
-master-bin.000001	1370	Query	1	#	use `test`; create table t0 (n int)
-master-bin.000001	1456	Query	1	#	use `test`; insert t0 select * from t1
-master-bin.000001	1545	Query	1	#	use `test`; insert into t0 select GET_LOCK("lock1",null)
-master-bin.000001	1652	Query	1	#	use `test`; create table t2 (n int) engine=innodb
-master-bin.000001	1752	Query	1	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
+master-bin.000001	581	Query	1	#	use `test`; alter table t2 engine=MyISAM
+master-bin.000001	672	Query	1	#	use `test`; insert into t1 values (1)
+master-bin.000001	760	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	787	Query	1	#	use `test`; insert into t2 values (20)
+master-bin.000001	876	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	955	Query	1	#	use `test`; create temporary table ti (a int) engine=innodb
+master-bin.000001	1065	Query	1	#	use `test`; insert into ti values(1)
+master-bin.000001	1152	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	1179	Query	1	#	use `test`; create temporary table t1 (a int) engine=myisam
+master-bin.000001	1289	Query	1	#	use `test`; insert t1 values (1)
+master-bin.000001	1372	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	1458	Query	1	#	use `test`; insert t0 select * from t1
+master-bin.000001	1547	Query	1	#	use `test`; insert into t0 select GET_LOCK("lock1",null)
+master-bin.000001	1654	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	1754	Query	1	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
 do release_lock("lock1");
 drop table t0,t2;
