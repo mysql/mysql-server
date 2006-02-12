@@ -304,8 +304,16 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
+const char *log_output_names[] =
+{ "NONE", "FILE", "TABLE", NullS};
+TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
+				 log_output_names, NULL};
+
 /* static variables */
 
+/* the default log output is log tables */
+static const char *log_output_str= "TABLE";
+static ulong log_output_options= LOG_TABLE;
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
@@ -339,9 +347,6 @@ static my_bool opt_sync_bdb_logs;
 
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
-#ifdef WITH_CSV_STORAGE_ENGINE
-bool opt_old_log_format, opt_both_log_formats;
-#endif
 bool opt_disable_networking=0, opt_skip_show_db=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
@@ -2402,8 +2407,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       sql_print_information("Got signal %d to shutdown mysqld",sig);
 #endif
       /* switch to the old log message processing */
-      logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
-                          opt_log ? LEGACY:NONE);
+      logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
+                          opt_log ? LOG_FILE:LOG_NONE);
       DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
       if (!abort_loop)
       {
@@ -2432,8 +2437,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       /* reenable logs after the options were reloaded */
-      logger.set_handlers(LEGACY, opt_slow_log ? CSV:NONE,
-                          opt_log ? CSV:NONE);
+      logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_TABLE:LOG_NONE,
+                          opt_log ? LOG_TABLE:LOG_NONE);
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:
@@ -3091,25 +3096,38 @@ static int init_server_components()
 
 #ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
-    opt_old_log_format= TRUE;
+    log_output_options= LOG_FILE;
   else
     logger.init_log_tables();
 
-  if (opt_old_log_format || (have_csv_db != SHOW_OPTION_YES))
-    logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
-                        opt_log ? LEGACY:NONE);
+  if (log_output_options & LOG_NONE)
+  {
+    /*
+      Issue a warining if there were specified additional options to the
+      log-output along with NONE. Probably this wasn't what user wanted.
+    */
+    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+      sql_print_warning("There were other values specified to "
+                        "log-output besides NONE. Disabling slow "
+                        "and general logs anyway.");
+    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
+  }
   else
-    if (opt_both_log_formats)
-      logger.set_handlers(LEGACY,
-                          opt_slow_log ? LEGACY_AND_CSV:NONE,
-                          opt_log ? LEGACY_AND_CSV:NONE);
-    else
-      /* the default is CSV log tables */
-      logger.set_handlers(LEGACY, opt_slow_log ? CSV:NONE,
-                          opt_log ? CSV:NONE);
+  {
+    /* fall back to the log files if tables are not present */
+    if (have_csv_db == SHOW_OPTION_NO)
+    {
+      sql_print_error("CSV engine is not present, falling back to the "
+                      "log files");
+      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+    }
+
+    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
+                        opt_log ? log_output_options:LOG_NONE);
+  }
 #else
-  logger.set_handlers(LEGACY, opt_slow_log ? LEGACY:NONE,
-                      opt_log ? LEGACY:NONE);
+  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
+                      opt_log ? LOG_FILE:LOG_NONE);
 #endif
 
   if (opt_update_log)
@@ -4689,7 +4707,7 @@ enum options_mysqld
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
-  OPT_ABORT_SLAVE_EVENT_COUNT, OPT_OLD_LOG_FORMAT, OPT_BOTH_LOG_FORMATS,
+  OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_INNODB_DATA_HOME_DIR,
   OPT_INNODB_DATA_FILE_PATH,
   OPT_INNODB_LOG_GROUP_HOME_DIR,
@@ -4832,6 +4850,7 @@ enum options_mysqld
   OPT_LOG_SLOW_ADMIN_STATEMENTS,
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_DIR,
+  OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT
 };
 
@@ -5230,6 +5249,13 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   {"log-long-format", '0',
    "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef WITH_CSV_STORAGE_ENGINE
+  {"log-output", OPT_LOG_OUTPUT,
+   "Syntax: log-output[=value[,value...]], where \"value\" could be TABLE, "
+   "FILE or NONE.",
+   (gptr*) &log_output_str, (gptr*) &log_output_str, 0,
+   GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
    (gptr*) &opt_log_queries_not_using_indexes, (gptr*) &opt_log_queries_not_using_indexes,
@@ -5251,16 +5277,6 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
     "Log slow queries to this log file. Defaults logging to hostname-slow.log file. Must be enabled to activate other slow log options.",
    (gptr*) &opt_slow_logname, (gptr*) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
-#ifdef WITH_CSV_STORAGE_ENGINE
-  {"old-log-format", OPT_OLD_LOG_FORMAT,
-   "Enable old log file format. (No SELECT * FROM logs)",
-   (gptr*) &opt_old_log_format, 0, 0, GET_BOOL, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"both-log-formats", OPT_BOTH_LOG_FORMATS,
-   "Enable old log file format along with log tables",
-   (gptr*) &opt_both_log_formats, 0, 0, GET_BOOL, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif
   {"log-tc", OPT_LOG_TC,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled)",
@@ -6954,10 +6970,6 @@ static void mysql_init_variables(void)
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   opt_log= opt_update_log= opt_slow_log= 0;
-#ifdef WITH_CSV_STORAGE_ENGINE
-  opt_old_log_format= 0;
-  opt_both_log_formats= 0;
-#endif
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
@@ -7366,12 +7378,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_slow_log= 1;
     break;
 #ifdef WITH_CSV_STORAGE_ENGINE
-  case (int) OPT_OLD_LOG_FORMAT:
-    opt_old_log_format= 1;
+  case  OPT_LOG_OUTPUT:
+  {
+    if (!argument || !argument[0])
+    {
+      log_output_options= LOG_TABLE;
+      log_output_str= log_output_typelib.type_names[1];
+    }
+    else
+    {
+      log_output_str= argument;
+      if ((log_output_options=
+           find_bit_type(argument, &log_output_typelib)) == ~(ulong) 0)
+      {
+        fprintf(stderr, "Unknown option to log-output: %s\n", argument);
+        exit(1);
+      }
+    }
     break;
-  case (int) OPT_BOTH_LOG_FORMATS:
-    opt_both_log_formats= 1;
-    break;
+  }
 #endif
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
