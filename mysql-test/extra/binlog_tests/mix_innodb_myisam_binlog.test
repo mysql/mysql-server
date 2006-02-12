@@ -197,7 +197,7 @@ connection con3;
 delete from t1;
 delete from t2;
 --disable_warnings
-alter table t2 type=MyISAM;
+alter table t2 engine=MyISAM;
 --enable_warnings
 insert into t1 values (1);
 begin;
