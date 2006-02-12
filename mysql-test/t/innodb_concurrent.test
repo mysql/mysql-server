@@ -11,7 +11,7 @@
 
 connection default;
 drop table if exists t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 connect (thread1, localhost, mysqltest,,);
 connection thread1;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -57,7 +57,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -132,7 +132,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -175,7 +175,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -218,7 +218,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -261,7 +261,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -305,7 +305,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");

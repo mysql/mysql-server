@@ -5761,7 +5761,7 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
 the table in MySQL. */
 
 int
