@@ -399,9 +399,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     share->avg_row_length= uint4korr(head+34);
     share-> row_type= (row_type) head[40];
-    share->raid_type=   head[41];
-    share->raid_chunks= head[42];
-    share->raid_chunksize= uint4korr(head+43);
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
   }
@@ -1941,12 +1938,6 @@ File create_frm(THD *thd, const char *name, const char *db,
   if (create_info->min_rows > UINT_MAX32)
     create_info->min_rows= UINT_MAX32;
 
-  /*
-    Ensure that raid_chunks can't be larger than 255, as this would cause
-    problems with drop database
-  */
-  set_if_smaller(create_info->raid_chunks, 255);
-
   if ((file= my_create(name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     uint key_length, tmp_key_length;
@@ -1979,9 +1970,13 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
     fileinfo[40]= (uchar) create_info->row_type;
-    fileinfo[41]= (uchar) create_info->raid_type;
-    fileinfo[42]= (uchar) create_info->raid_chunks;
-    int4store(fileinfo+43,create_info->raid_chunksize);
+    /* Next few bytes were for RAID support */
+    fileinfo[41]= 0;
+    fileinfo[42]= 0;
+    fileinfo[43]= 0;
+    fileinfo[44]= 0;
+    fileinfo[45]= 0;
+    fileinfo[46]= 0;
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
@@ -2018,9 +2013,6 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->table_options= share->db_create_options;
   create_info->avg_row_length= share->avg_row_length;
   create_info->row_type= share->row_type;
-  create_info->raid_type= share->raid_type;
-  create_info->raid_chunks= share->raid_chunks;
-  create_info->raid_chunksize= share->raid_chunksize;
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
 
