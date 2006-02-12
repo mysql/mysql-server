@@ -185,39 +185,57 @@ sub mtr_report_stats ($) {
   }
 
   # ----------------------------------------------------------------------
+  # If a debug run, there might be interesting information inside
+  # the "var/log/*.err" files. We save this info in "var/log/warnings"
   # ----------------------------------------------------------------------
 
   if ( ! $::glob_use_running_server )
   {
+    # Save and report if there was any fatal warnings/errors in err logs
 
-    # Report if there was any fatal warnings/errors in the log files
-    #
-    unlink("$::opt_vardir/log/warnings");
-    unlink("$::opt_vardir/log/warnings.tmp");
-    # Remove some non fatal warnings from the log files
+    my $warnlog= "$::opt_vardir/log/warnings";
 
-# FIXME what is going on ????? ;-)
-#    sed -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
-#        var/log/*.err \
-#        | sed -e 's!Warning:  Table:.* on rename!!g' \
-#        > var/log/warnings.tmp;
-#
-#    found_error=0;
-#    # Find errors
-#    for i in "^Warning:" "^Error:" "^==.* at 0x"
-#    do
-#      if ( $GREP "$i" var/log/warnings.tmp >> var/log/warnings )
-#    {
-#        found_error=1
-#      }
-#    done
-#    unlink("$::opt_vardir/log/warnings.tmp");
-#    if ( $found_error=  "1" )
-#      {
-#      print "WARNING: Got errors/warnings while running tests. Please examine\n"
-#      print "$::opt_vardir/log/warnings for details.\n"
-#    }
-#  }
+    unless ( open(WARN, ">$warnlog") )
+    {
+      mtr_warning("can't write to the file \"$warnlog\": $!");
+    }
+    else
+    {
+      my $found_problems= 0;            # Some warnings are errors...
+
+      # We report different types of problems in order
+      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
+      {
+        foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
+        {
+          unless ( open(ERR, $errlog) )
+          {
+            mtr_warning("can't read $errlog");
+            next;
+          }
+          while ( <ERR> )
+          {
+            # Skip some non fatal warnings from the log files
+            if ( /Warning:\s+Table:.* on (delete|rename)/ or
+                 /Warning:\s+Setting lower_case_table_names=2/ or
+                 /Warning:\s+One can only use the --user.*root/ )
+            {
+              next;                       # Skip these lines
+            }
+            if ( /$pattern/ )
+            {
+              $found_problems= 1;
+              print WARN $_;
+            }
+          }
+        }
+        if ( $found_problems )
+        {
+          mtr_warning("Got errors/warnings while running tests, please examine",
+                      "\"$warnlog\" for details.");
+        }
+      }
+    }
   }
 
   print "\n";
