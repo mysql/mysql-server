@@ -824,7 +824,7 @@ sub sleep_until_file_created ($$$) {
     }
 
     # Check if it died after the fork() was successful 
-    if ( waitpid($pid,&WNOHANG) == $pid )
+    if ( $pid > 0 && waitpid($pid,&WNOHANG) == $pid )
     {
       return 0;
     }
@@ -848,14 +848,16 @@ sub sleep_until_file_created ($$$) {
 sub mtr_kill_processes ($) {
   my $pids = shift;
 
-  foreach my $sig (15,9)
+  foreach my $sig (15, 9)
   {
-    my $retries= 20;                    # FIXME 20 seconds, this is silly!
-    kill($sig, @{$pids});
-    while ( $retries-- and  kill(0, @{$pids}) )
+    my $retries= 10;
+    while (1)
     {
-      mtr_debug("Sleep 1 second waiting for processes to die");
-      sleep(1)                      # Wait one second
+      kill($sig, @{$pids});
+      last unless kill (0, @{$pids}) and $retries--;
+
+      mtr_debug("Sleep 2 second waiting for processes to die");
+      sleep(2);
     }
   }
 }
@@ -877,7 +879,14 @@ sub mtr_exit ($) {
 #  cluck("Called mtr_exit()");
   mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
-  kill('HUP', -$$);
+  # ToDo: Signalling -$$ will only work if we are the process group
+  # leader (in fact on QNX it will signal our session group leader,
+  # which might be Do-compile or Pushbuild, causing tests to be
+  # aborted). So we only do it if we are the group leader. We might
+  # set ourselves as the group leader at startup (with
+  # POSIX::setpgrp(0,0)), but then care must be needed to always do
+  # proper child process cleanup.
+  kill('HUP', -$$) if $$ == getpgrp();
   sleep 2;
   exit($code);
 }
