@@ -118,14 +118,6 @@ drop table t1;
 #drop table t1;
 
 #
-# Test for deprecated TYPE= syntax
-#
-
-create table t1 (id int) type=heap;
-alter table t1 type=myisam;
-drop table t1;
-
-#
 # Test for deprecated table_type variable
 #
 set table_type=MYISAM;

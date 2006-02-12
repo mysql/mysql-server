@@ -69,7 +69,7 @@ foreach $table (@ARGV)
     }
   }
   print "converting $table\n" if ($opt_verbose);
-  if (!$dbh->do("ALTER TABLE $table type=$opt_type"))
+  if (!$dbh->do("ALTER TABLE $table ENGINE=$opt_type"))
   {
     print STDERR "Can't convert $table: Error $DBI::errstr\n";
     exit(1) if (!$opt_force);
@@ -114,7 +114,7 @@ Conversion of a MySQL tables to other table types.
 --socket='/path/to/socket'
   Socket to connect with.
 
---type='table-type'
+--ENGINE='table-type'
   Converts tables to the given table type (Default: $opt_type)
   MySQL 3.23 supports at least the BDB, ISAM and MYISAM types.
 
