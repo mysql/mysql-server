@@ -1353,10 +1353,6 @@ void ha_myisam::info(uint flag)
     if (share->tmp_table == NO_TMP_TABLE)
       pthread_mutex_unlock(&share->mutex);
 
-    raid_type= info.raid_type;
-    raid_chunks= info.raid_chunks;
-    raid_chunksize= info.raid_chunksize;
-
    /*
      Set data_file_name and index_file_name to point at the symlink value
      if table is symlinked (Ie;  Real name is not same as generated name)
@@ -1432,12 +1428,6 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
     create_info->auto_increment_value=auto_increment_value;
-  }
-  if (!(create_info->used_fields & HA_CREATE_USED_RAID))
-  {
-    create_info->raid_type= raid_type;
-    create_info->raid_chunks= raid_chunks;
-    create_info->raid_chunksize= raid_chunksize;
   }
   create_info->data_file_name=data_file_name;
   create_info->index_file_name=index_file_name;
@@ -1630,11 +1620,6 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 			      (ulonglong) 0);
   create_info.data_file_length= ((ulonglong) share->max_rows *
 				 share->avg_row_length);
-  create_info.raid_type=info->raid_type;
-  create_info.raid_chunks= (info->raid_chunks ? info->raid_chunks :
-			    RAID_DEFAULT_CHUNKS);
-  create_info.raid_chunksize= (info->raid_chunksize ? info->raid_chunksize :
-                               RAID_DEFAULT_CHUNKSIZE);
   create_info.data_file_name=  info->data_file_name;
   create_info.index_file_name= info->index_file_name;
 
@@ -1759,9 +1744,6 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   uint options= table->s->db_options_in_use;
 
   if (info->auto_increment_value != auto_increment_value ||
-      info->raid_type != raid_type ||
-      info->raid_chunks != raid_chunks ||
-      info->raid_chunksize != raid_chunksize ||
       info->data_file_name != data_file_name ||
       info->index_file_name != index_file_name ||
       table_changes == IS_EQUAL_NO)
