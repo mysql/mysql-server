@@ -146,8 +146,6 @@ select "Mark that we woke up from TRUNCATE in the test"
 
 connection con1;
 
-disconnect con2;
-
 use test;
 
 #
@@ -162,7 +160,8 @@ insert into bug16905 values ('новое');
 select * from mysql.general_log;
 drop table bug16905;
 
-
+# kill all connections
 disconnect con1;
+disconnect con2;
 --enable_ps_protocol
 
