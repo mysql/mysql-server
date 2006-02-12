@@ -4284,9 +4284,6 @@ void ha_partition::info(uint flag)
       sortkey:                  Never used at any place so ignored
       ref_length:               We set this to the value calculated
       and stored in local object
-      raid_type:                Set by first handler (MyISAM)
-      raid_chunks:              Set by first handler (MyISAM)
-      raid_chunksize:           Set by first handler (MyISAM)
       create_time:              Creation time of table
       Set by first handler
 
@@ -4297,9 +4294,6 @@ void ha_partition::info(uint flag)
     file= m_file[0];
     file->info(HA_STATUS_CONST);
     create_time= file->create_time;
-    raid_type= file->raid_type;
-    raid_chunks= file->raid_chunks;
-    raid_chunksize= file->raid_chunksize;
     ref_length= m_ref_length;
   }
   if (flag & HA_STATUS_ERRKEY)
