@@ -155,6 +155,7 @@ our $path_client_bindir;
 our $path_language;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
+our $path_slave_load_tmpdir;     # What is this?!
 our $path_mysqltest_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
@@ -470,6 +471,9 @@ sub initial_setup () {
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
 
+  # needs to be same length to test logging (FIXME what???)
+  $path_slave_load_tmpdir=  "../../var/tmp";
+
   $path_my_basedir=
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
@@ -666,6 +670,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
 
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+  $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
   # FIXME maybe not needed?
   $path_manager_log= "$opt_vardir/log/manager.log"
     unless $path_manager_log;
