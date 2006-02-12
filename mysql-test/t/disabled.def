@@ -14,8 +14,6 @@ events               : Test case instability - infinite locking. To be fixed.
 func_group           : Bug#15448
 func_math            : Bug#15448
 group_min_max        : Bug#15448 
-innodb_concurrent    : Results are not deterministic, Elliot will fix (bug#3300) [BUG CLOSED]
-innodb_unsafe_binlog : re-enable with InnoDB 5.1 snapshot containing bug#15650 [BUG CLOSED]
 #ndb_alter_table_row : sometimes wrong error 1015!=1046
 ndb_autodiscover     : Needs to be fixed w.r.t binlog
 ndb_autodiscover2    : Needs to be fixed w.r.t binlog
@@ -29,7 +27,6 @@ rpl_bit_npk          : Bug#13418
 rpl_ddl              : Bug#15963 SBR does not show "Definer" correctly
 rpl_ndb_auto_inc     : Bug#17086
 rpl_ndb_basic        : Bug#16228 [IN REVIEW]
-rpl_ndb_log          : Bug#17081 [BUG CLOSED]
 rpl_ndb_relay_space  : Bug#16993
 rpl_sp               : Bug#16456
 rpl_until            : Unstable test case, bug#15886
