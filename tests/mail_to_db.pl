@@ -253,7 +253,7 @@ CREATE TABLE my_mail
  KEY (message_id),
  KEY (in_reply_to),
  PRIMARY KEY (mail_from, date, hash))
- TYPE=MyISAM COMMENT=''
+ ENGINE=MyISAM COMMENT=''
 EOF
   $sth = $dbh->prepare($query) or die $DBI::errstr;
   $sth->execute() or die "Couldn't create table: $DBI::errstr\n";
