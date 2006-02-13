@@ -304,7 +304,7 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-(cd mysql-debug-%{mysql_version} && make test-force) || true
+(cd mysql-debug-%{mysql_version} && make -i test-force) || true
 
 # Build release binary.
 (cd mysql-release-%{mysql_version} &&
@@ -328,7 +328,7 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-(cd  mysql-release-%{mysql_version} && make test-force) || true
+(cd  mysql-release-%{mysql_version} && make -i test-force) || true
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -648,7 +648,25 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Fri Dec 12 2005 Rodrigo Novo <rodrigo@mysql.com>
+* Mon Feb 13 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Use "-i" on "make test-force";
+  this is essential for later evaluation of this log file.
+
+* Thu Feb 09 2006 Kent Boortz <kent@mysql.com>
+
+- Pass '-static' to libtool, link static with our own libraries, dynamic
+  with system libraries.  Link with the bundled zlib.
+
+* Wed Feb 08 2006 Kristian Nielsen <knielsen@mysql.com>
+
+- Modified RPM spec to match new 5.1 debug+max combined community packaging.
+
+* Sun Dec 18 2005 Kent Boortz <kent@mysql.com>
+
+- Added "client/mysqlslap"
+
+* Mon Dec 12 2005 Rodrigo Novo <rodrigo@mysql.com>
 
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
