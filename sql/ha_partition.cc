@@ -1937,7 +1937,8 @@ bool ha_partition::create_handler_file(const char *name)
 	name_buffer_ptr+= name_add(name_buffer_ptr,
 				   part_name,
 				   subpart_name);
-	*engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
+        *engine_array= (uchar) ha_legacy_type(subpart_elem->engine_type);
+        DBUG_PRINT("info", ("engine: %u", *engine_array));
 	engine_array++;
       }
     }
@@ -1954,7 +1955,7 @@ bool ha_partition::create_handler_file(const char *name)
     Create and write and close file
     to be used at open, delete_table and rename_table
   */
-  fn_format(file_name, name, "", ".par", MY_APPEND_EXT);
+  fn_format(file_name, name, "", ha_par_ext, MY_APPEND_EXT);
   if ((file= my_create(file_name, CREATE_MODE, O_RDWR | O_TRUNC,
 		       MYF(MY_WME))) >= 0)
   {
