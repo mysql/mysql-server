@@ -29,7 +29,6 @@
 
 #include "client_priv.h"
 #include "mysql_version.h"
-#undef SAFE_MUTEX
 #include <my_pthread.h>
 
 
