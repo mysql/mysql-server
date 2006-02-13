@@ -138,14 +138,10 @@ typedef struct st_log_info
 */
 #define MAX_LOG_HANDLERS_NUM 3
 
-enum enum_printer
-{
-  NONE,
-  LEGACY,
-  CSV,
-  LEGACY_AND_CSV
-};
-
+/* log event handler flags */
+#define LOG_NONE       1
+#define LOG_FILE       2
+#define LOG_TABLE      4
 
 class Log_event;
 class Rows_log_event;
@@ -368,7 +364,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len)= 0;
+                           const char *sql_text, uint sql_text_len,
+                           CHARSET_INFO *client_cs)= 0;
   virtual ~Log_event_handler() {}
 };
 
@@ -403,7 +400,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len);
+                           const char *sql_text, uint sql_text_len,
+                            CHARSET_INFO *client_cs);
   bool flush(THD *thd, TABLE_LIST *close_slow_Log,
              TABLE_LIST* close_general_log);
   void close_log_table(uint log_type, bool lock_in_use);
@@ -431,7 +429,8 @@ public:
   virtual bool log_general(time_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
-                           const char *sql_text, uint sql_text_len);
+                           const char *sql_text, uint sql_text_len,
+                           CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
 };
@@ -500,12 +499,12 @@ public:
   bool reopen_log_table(uint log_type);
 
   /* we use this function to setup all enabled log event handlers */
-  int set_handlers(enum enum_printer error_log_printer,
-                   enum enum_printer slow_log_printer,
-                   enum enum_printer general_log_printer);
-  void init_error_log(enum enum_printer error_log_printer);
-  void init_slow_log(enum enum_printer slow_log_printer);
-  void init_general_log(enum enum_printer general_log_printer);
+  int set_handlers(uint error_log_printer,
+                   uint slow_log_printer,
+                   uint general_log_printer);
+  void init_error_log(uint error_log_printer);
+  void init_slow_log(uint slow_log_printer);
+  void init_general_log(uint general_log_printer);
  };
 
 #endif /* LOG_H */

@@ -30,11 +30,9 @@ liboptions_a_CXXFLAGS= $(CXXFLAGS) \
 	-DDEFAULT_PID_FILE_NAME="$(localstatedir)/mysqlmanager.pid" \
 	-DDEFAULT_LOG_FILE_NAME="$(localstatedir)/mysqlmanager.log" \
 	-DDEFAULT_SOCKET_FILE_NAME="/tmp/mysqlmanager.sock" \
-	-DDEFAULT_PASSWORD_FILE_NAME="$(sysconfdir)/mysqlmanager.passwd" \
+	-DDEFAULT_PASSWORD_FILE_NAME="/etc/mysqlmanager.passwd" \
 	-DDEFAULT_MYSQLD_PATH="$(libexecdir)/mysqld$(EXEEXT)" \
-	-DDEFAULT_MONITORING_INTERVAL="20" \
-	-DDEFAULT_PORT="2273" \
-        -DDEFAULT_CONFIG_FILE="/etc/my.cnf" \
+	-DDEFAULT_CONFIG_FILE="/etc/my.cnf" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
@@ -79,7 +77,8 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
                         mysql_manager_error.h \
                         portability.h
 
-mysqlmanager_LDADD=	liboptions.a \
+mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
+			liboptions.a \
 			libnet.a \
 			$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/mysys/libmysys.a \

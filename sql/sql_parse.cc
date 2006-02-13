@@ -3743,6 +3743,8 @@ end_with_restore_list:
         res= evex_drop_event(thd, lex->et, lex->drop_if_exists, &rows_affected);
       default:;
       }
+      DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
+                  res, rows_affected));
       if (!res)
         send_ok(thd, rows_affected);
 
@@ -4490,21 +4492,17 @@ end_with_restore_list:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
-      sp_head *sp;
       int result;
-      char *db, *name;
+      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
-      if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-        sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
-                            &thd->sp_proc_cache, FALSE);
-      else
-        sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
-                            &thd->sp_func_cache, FALSE);
+      result= sp_routine_exists_in_table(thd, type, lex->spname);
       mysql_reset_errors(thd, 0);
-      if (sp)
+      if (result == SP_OK)
       {
-        db= thd->strdup(sp->m_db.str);
-	name= thd->strdup(sp->m_name.str);
+        char *db= lex->spname->m_db.str;
+	char *name= lex->spname->m_name.str;
+
 	if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
                                  lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
           goto error;
@@ -4644,7 +4642,7 @@ end_with_restore_list:
       else
         sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, lex->spname,
                             &thd->sp_func_cache, FALSE);
-      if (!sp || !sp->show_routine_code(thd))
+      if (!sp || sp->show_routine_code(thd))
       {
         /* We don't distinguish between errors for now */
         my_error(ER_SP_DOES_NOT_EXIST, MYF(0),

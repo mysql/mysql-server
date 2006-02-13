@@ -94,7 +94,7 @@ CREATE TABLE t1
   b VARCHAR(50) NOT NULL DEFAULT '',
   PRIMARY KEY  (a),
   KEY b (b(10))
-) TYPE=InnoDB CHARACTER SET 'ujis' COLLATE 'ujis_japanese_ci';
+) ENGINE=InnoDB CHARACTER SET 'ujis' COLLATE 'ujis_japanese_ci';
 --enable_warnings
 INSERT INTO t1 (a, b) VALUES (0, 'aaabbbcccddd');
 INSERT INTO t1 (a, b) VALUES (1, 'eeefffggghhh');
@@ -110,7 +110,7 @@ CREATE TABLE t1
   b VARCHAR(50) NOT NULL DEFAULT '',
   PRIMARY KEY  (a),
   KEY b (b(10))
-) TYPE=MyISAM CHARACTER SET 'ujis' COLLATE 'ujis_japanese_ci';
+) ENGINE=MyISAM CHARACTER SET 'ujis' COLLATE 'ujis_japanese_ci';
 --enable_warnings
 INSERT INTO t1 (a, b) VALUES (0, 'aaabbbcccddd');
 INSERT INTO t1 (a, b) VALUES (1, 'eeefffggghhh');

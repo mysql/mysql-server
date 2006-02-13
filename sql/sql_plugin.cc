@@ -345,7 +345,7 @@ struct st_plugin_int *plugin_lock(LEX_STRING *name, int type)
   rw_wrlock(&THR_LOCK_plugin);
   if ((rc= plugin_find_internal(name, type)))
   {
-    if (rc->state == PLUGIN_IS_READY)
+    if (rc->state == PLUGIN_IS_READY || rc->state == PLUGIN_IS_UNINITIALIZED)
       rc->ref_count++;
     else
       rc= 0;

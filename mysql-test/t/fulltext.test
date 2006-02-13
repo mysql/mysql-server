@@ -371,4 +371,16 @@ CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+#
+# BUG#14496: Crash or strange results with prepared statement,
+#            MATCH and FULLTEXT
+#
+CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a));
+INSERT INTO t1 VALUES('test'),('test1'),('test');
+PREPARE stmt from "SELECT a, MATCH(a) AGAINST('test1 test') FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
 # End of 4.1 tests

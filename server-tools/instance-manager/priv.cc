@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include <mysql_com.h>
 #include "priv.h"
 #include "portability.h"
 
@@ -52,7 +53,7 @@ unsigned long net_buffer_length= 16384;
 
 unsigned long max_allowed_packet= 16384;
 
-unsigned long net_read_timeout= 30;             // same as in mysqld
+unsigned long net_read_timeout= NET_WAIT_TIMEOUT;    // same as in mysqld
 
 unsigned long net_write_timeout= 60;            // same as in mysqld
 

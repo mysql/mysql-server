@@ -1234,15 +1234,6 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CONNECTION="));
       append_unescaped(packet, share->connect_string.str, share->connect_string.length);
     }
-    if (file->raid_type)
-    {
-      uint length;
-      length= my_snprintf(buff,sizeof(buff),
-			  " RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-			  my_raid_type(file->raid_type), file->raid_chunks,
-			  file->raid_chunksize/RAID_BLOCK_SIZE);
-      packet->append(buff, length);
-    }
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
@@ -2591,15 +2582,6 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
-    if (file->raid_type)
-    {
-      char buff[100];
-      my_snprintf(buff,sizeof(buff),
-                  " raid_type=%s raid_chunks=%d raid_chunksize=%ld",
-                  my_raid_type(file->raid_type), file->raid_chunks,
-                  file->raid_chunksize/RAID_BLOCK_SIZE);
-      ptr=strmov(ptr,buff);
-    }
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
@@ -4005,7 +3987,7 @@ int fill_schema_events(THD *thd, TABLE_LIST *tables, COND *cond)
             store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
       key_len+= event_table->key_info->key_part[1].store_length;
     }
-    if (!(key_buf= alloc_root(thd->mem_root, key_len)))
+    if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
     {
       ret= 1;
       goto err;

@@ -18,9 +18,9 @@
 ###########################################################################
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
@@ -38,9 +38,9 @@ START INSTANCE mysqld2;
 --sleep 3
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 --connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
@@ -66,9 +66,9 @@ STOP INSTANCE mysqld2;
 --sleep 3
 
 SHOW INSTANCES;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld2;
 
 ###########################################################################
@@ -140,3 +140,12 @@ SHOW INSTANCES;
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed
 
 SHOW INSTANCES;
+
+###########################################################################
+#
+# 1.1.8. Check that Instance Manager returns an error on
+# incomplete SHOW INSTANCE STATUS command.
+#
+###########################################################################
+--error 1149
+SHOW INSTANCE STATUS;

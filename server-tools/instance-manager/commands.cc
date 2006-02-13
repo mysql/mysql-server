@@ -25,6 +25,7 @@
 #include "options.h"
 
 #include <m_string.h>
+#include <m_ctype.h>
 #include <mysql.h>
 #include <my_dir.h>
 
@@ -58,6 +59,31 @@ static inline int put_to_buff(Buffer *buff, const char *str, uint *position)
     return 1;
 
   *position+= len;
+  return 0;
+}
+
+
+static int parse_version_number(const char *version_str, char *version,
+                                uint version_size)
+{
+  const char *start= version_str;
+  const char *end;
+
+  // skip garbage
+  while (!my_isdigit(default_charset_info, *start))
+    start++;
+
+  end= start;
+  // skip digits and dots
+  while (my_isdigit(default_charset_info, *end) || *end == '.')
+    end++;
+
+  if ((uint)(end - start) >= version_size)
+    return -1;
+
+  strncpy(version, start, end-start);
+  version[end-start]= '\0';
+
   return 0;
 }
 
@@ -174,9 +200,10 @@ int Show_instance_status::execute(struct st_net *net,
 {
   enum { MAX_VERSION_LENGTH= 40 };
   Buffer send_buff;  /* buffer for packets */
-  LIST name, status, version;
+  LIST name, status, version, version_number;
   LIST *field_list;
-  NAME_WITH_LENGTH name_field, status_field, version_field;
+  NAME_WITH_LENGTH name_field, status_field, version_field,
+                   version_number_field;
   uint position=0;
 
   if (!instance_name)
@@ -192,7 +219,11 @@ int Show_instance_status::execute(struct st_net *net,
   version_field.name= (char*) "version";
   version_field.length= MAX_VERSION_LENGTH;
   version.data= &version_field;
+  version_number_field.name= (char*) "version_number";
+  version_number_field.length= MAX_VERSION_LENGTH;
+  version_number.data= &version_number_field;
   field_list= list_add(NULL, &version);
+  field_list= list_add(field_list, &version_number);
   field_list= list_add(field_list, &status);
   field_list= list_add(field_list, &name);
 
@@ -210,10 +241,21 @@ int Show_instance_status::execute(struct st_net *net,
       store_to_protocol_packet(&send_buff, (char*) "offline", &position);
 
     if (instance->options.mysqld_version)
+    {
+      char parsed_version[MAX_VERSION_LENGTH];
+
+      parse_version_number(instance->options.mysqld_version, parsed_version,
+                           sizeof(parsed_version));
+      store_to_protocol_packet(&send_buff, parsed_version, &position);
+
       store_to_protocol_packet(&send_buff, instance->options.mysqld_version,
                                &position);
+    }
     else
+    {
       store_to_protocol_packet(&send_buff, (char*) "unknown", &position);
+      store_to_protocol_packet(&send_buff, (char*) "unknown", &position);
+    }
 
 
     if (send_buff.is_error() ||
@@ -483,7 +525,7 @@ int Show_instance_log::execute(struct st_net *net, ulong connection_id)
       read_buff.reserve(0, buff_size);
 
       /* read in one chunk */
-      read_len= my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
+      read_len= (int)my_seek(fd, file_stat.st_size - size, MY_SEEK_SET, MYF(0));
 
       if ((read_len= my_read(fd, (byte*) read_buff.buffer,
                              buff_size, MYF(0))) < 0)
