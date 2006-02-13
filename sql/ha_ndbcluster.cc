@@ -4805,7 +4805,11 @@ bool ndbcluster_init()
                         opt_ndbcluster_connectstring));
     goto ndbcluster_init_error;
   }
-
+  {
+    char buf[128];
+    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%d", server_id);
+    g_ndb_cluster_connection->set_name(buf);
+  }
   g_ndb_cluster_connection->set_optimized_node_selection
     (opt_ndb_optimized_node_selection);
 
