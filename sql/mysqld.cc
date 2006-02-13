@@ -1170,7 +1170,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  my_dbopt_free();
+  my_database_names_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
@@ -1283,6 +1283,7 @@ static void wait_for_signal_thread_to_end()
 static void clean_up_mutexes()
 {
   (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
+  (void) pthread_mutex_destroy(&LOCK_lock_db);
   (void) pthread_mutex_destroy(&LOCK_Acl);
   (void) rwlock_destroy(&LOCK_grant);
   (void) pthread_mutex_destroy(&LOCK_open);
@@ -2838,7 +2839,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
-  if (my_dbopt_init())
+  if (my_database_names_init())
     return 1;
 
   /*
@@ -2892,6 +2893,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 static int init_thread_environment()
 {
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_open, NULL);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
@@ -5232,8 +5234,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   */
   {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a function is allowed only to users having the SUPER privilege and only "
-   "if this function may not break binary logging."
+   "a function (a trigger) is allowed only to users having the SUPER privilege "
+   "and only if this function (trigger) may not break binary logging."
 #ifdef HAVE_ROW_BASED_REPLICATION
    " If using --binlog-format=row, the security issues do not exist and the "
    "binary logging cannot break so this option is automatically set to 1."
