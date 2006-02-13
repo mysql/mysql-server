@@ -97,10 +97,14 @@ connection master;
 ALTER PROCEDURE test.p1 MODIFIES SQL DATA;
 #show binlog events;
 
+# Cleanup
+
+connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
+sync_slave_with_master;
 
 # End of 5.0 test case
