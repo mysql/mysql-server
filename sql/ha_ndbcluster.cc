@@ -993,8 +993,8 @@ bool ha_ndbcluster::uses_blob_value()
     -2   Meta data has changed; Re-read data and try again
 */
 
-static int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
-                   uint pack_length)
+int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
+            uint pack_length)
 {
   DBUG_ENTER("cmp_frm");
   /*
