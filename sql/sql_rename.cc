@@ -31,7 +31,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
   second entry is the new name.
 */
 
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
+bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 {
   bool error= 1;
   TABLE_LIST *ren_table= 0;
@@ -79,7 +79,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   }
 
   /* Lets hope this doesn't fail as the result will be messy */ 
-  if (!error)
+  if (!silent && !error)
   {
     if (mysql_bin_log.is_open())
     {

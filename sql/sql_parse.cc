@@ -3065,7 +3065,7 @@ end_with_restore_list:
       }
     }
     query_cache_invalidate3(thd, first_table, 0);
-    if (end_active_trans(thd) || mysql_rename_tables(thd, first_table))
+    if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
       goto error;
     break;
   }
@@ -3641,6 +3641,48 @@ end_with_restore_list:
       goto error;
     }
     res= mysql_rm_db(thd, lex->name, lex->drop_if_exists, 0);
+    break;
+  }
+  case SQLCOM_RENAME_DB:
+  {
+    LEX_STRING *olddb, *newdb;
+    List_iterator <LEX_STRING> db_list(lex->db_list);
+    olddb= db_list++;
+    newdb= db_list++;
+    if (end_active_trans(thd))
+    {
+      res= 1;
+      break;
+    }
+#ifdef HAVE_REPLICATION
+    if (thd->slave_thread && 
+       (!rpl_filter->db_ok(olddb->str) ||
+        !rpl_filter->db_ok(newdb->str) ||
+        !rpl_filter->db_ok_with_wild_table(olddb->str) ||
+        !rpl_filter->db_ok_with_wild_table(newdb->str)))
+    {
+      res= 1;
+      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      break;
+    }
+#endif
+    if (check_access(thd,ALTER_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
+        check_access(thd,DROP_ACL,olddb->str,0,1,0,is_schema_db(olddb->str)) ||
+        check_access(thd,CREATE_ACL,newdb->str,0,1,0,is_schema_db(newdb->str)))
+    {
+      res= 1;
+      break;
+    }
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      res= 1;
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      goto error;
+    }
+    res= mysql_rename_db(thd, olddb, newdb);
+    if (!res)
+      send_ok(thd);
     break;
   }
   case SQLCOM_ALTER_DB:

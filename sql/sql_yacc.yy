@@ -868,7 +868,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
-	table_to_table_list table_to_table opt_table_list opt_as
+	db_to_db table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list
@@ -5483,6 +5483,13 @@ rename:
 	}
 	table_to_table_list
 	{}
+	| RENAME DATABASE
+          {
+            Lex->db_list.empty();
+            Lex->sql_command= SQLCOM_RENAME_DB;
+          }
+          db_to_db
+          {}
 	| RENAME USER clear_privileges rename_list
           {
 	    Lex->sql_command = SQLCOM_RENAME_USER;
@@ -5516,6 +5523,17 @@ table_to_table:
 	      !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
 				     TL_IGNORE))
 	    YYABORT;
+	};
+
+db_to_db:
+	ident TO_SYM ident
+	{
+	  LEX *lex=Lex;
+          if (Lex->db_list.push_back((LEX_STRING*)
+                                     sql_memdup(&$1, sizeof(LEX_STRING))) ||
+              Lex->db_list.push_back((LEX_STRING*)
+                                     sql_memdup(&$3, sizeof(LEX_STRING))))
+              YYABORT;
 	};
 
 keycache:
