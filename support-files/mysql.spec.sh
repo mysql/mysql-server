@@ -322,7 +322,7 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-make test-force || true
+make -i test-force || true
 
 # Save mysqld-max
 # check if mysqld was installed in .libs/
@@ -388,7 +388,7 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-make test-force || true
+make -i test-force || true
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -719,6 +719,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 10 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Use "-i" on "make test-force";
+  this is essential for later evaluation of this log file.
+
 * Fri Dec 12 2005 Rodrigo Novo <rodrigo@mysql.com>
 
 - Added zlib to the list of (static) libraries installed
