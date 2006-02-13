@@ -469,6 +469,14 @@ extern "C" {
    */
   void ndb_mgm_destroy_handle(NdbMgmHandle * handle);
 
+  /**
+   * Set a name of the handle.  Name is reported in cluster log.
+   *
+   * @param   handle        Management handle
+   * @param   name          Name
+   */
+  void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Connect/Disconnect Management Server
