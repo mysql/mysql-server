@@ -14,17 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ARRAY_LIST_HPP
-#define ARRAY_LIST_HPP
+#ifndef KERNEL_RECORDS_HPP
+#define KERNEL_RECORDS_HPP
 
-#include "ArrayPool.hpp"
-#include "DLList.hpp"
-#include "Array.hpp"
+/**
+ * Record types
+ */
 
-template <class T>
-class ArrayList : public DLList<T> {
-public:
-  ArrayList(ArrayPool<T> & thePool) : DLList<T>(thePool) { }  
-};
+/**
+ * Resource groups
+ */
 
 #endif

@@ -23,7 +23,6 @@
 #include <ndb_limits.h>
 #include <trigger_definitions.h>
 #include <pc.hpp>
-#include <ArrayList.hpp>
 #include <DLHashTable.hpp>
 #include <DLFifoList.hpp>
 #include <CArray.hpp>
@@ -646,7 +645,7 @@ public:
   void decrease_ref_count(Uint32 obj_ptr_i);
 
 public:
-  Dbdict(const class Configuration &);
+  Dbdict(Block_context& ctx);
   virtual ~Dbdict();
 
 private:

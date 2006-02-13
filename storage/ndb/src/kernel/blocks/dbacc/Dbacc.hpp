@@ -606,7 +606,7 @@ struct Tabrec {
   typedef Ptr<Tabrec> TabrecPtr;
 
 public:
-  Dbacc(const class Configuration &);
+  Dbacc(Block_context&);
   virtual ~Dbacc();
 
   // pointer to TUP instance in this thread

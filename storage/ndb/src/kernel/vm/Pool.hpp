@@ -14,17 +14,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ARRAY_FIFOLIST_HPP
-#define ARRAY_FIFOLIST_HPP
+#ifndef NDB_POOL_HPP
+#define NDB_POOL_HPP
 
-#include "ArrayPool.hpp"
-#include "DLFifoList.hpp"
-#include "Array.hpp"
+#include <kernel_types.h>
 
-template <class T>
-class ArrayFifoList : public DLFifoList<T> {
-public:
-  ArrayFifoList(ArrayPool<T> & thePool) : DLFifoList<T>(thePool) { }  
+struct Record_info
+{
+  Uint32 m_size;
+  Uint32 m_offset_next_pool;
+  Uint32 m_type_id;
+};
+
+struct Resource_limit
+{
+  Uint32 m_min;
+  Uint32 m_max;
+  Uint32 m_curr;
+  Uint32 m_resource_id;
+};
+
+struct Pool_context
+{
+  class SimulatedBlock* m_block;
+  struct Resource_limit* m_resource_limit;
 };
 
 #endif

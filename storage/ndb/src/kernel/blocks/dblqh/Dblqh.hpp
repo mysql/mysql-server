@@ -2068,7 +2068,7 @@ public:
   };
   
 public:
-  Dblqh(const class Configuration &);
+  Dblqh(Block_context& ctx);
   virtual ~Dblqh();
 
   void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);
