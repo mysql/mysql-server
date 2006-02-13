@@ -1126,6 +1126,7 @@ char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool write_all);
 bool partition_key_modified(TABLE *table, List<Item> &fields);
+void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
