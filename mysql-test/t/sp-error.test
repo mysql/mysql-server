@@ -1704,9 +1704,21 @@ drop procedure bug15091;
 
 
 #
+# BUG#16896: Stored function: unused AGGREGATE-clause in CREATE FUNCTION
+#
+--disable_warnings
+drop function if exists bug16896;
+--enable_warnings
+
+--error ER_SP_NO_AGGREGATE
+create aggregate function bug16896() returns int return 1;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
 #drop procedure if exists bugNNNN|
 #--enable_warnings
 #create procedure bugNNNN...
+
