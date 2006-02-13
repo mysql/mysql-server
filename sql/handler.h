@@ -266,7 +266,7 @@ enum enum_binlog_command {
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO             (1L << 0)
-#define HA_CREATE_USED_RAID             (1L << 1)
+#define HA_CREATE_USED_RAID             (1L << 1) //RAID is no longer availble
 #define HA_CREATE_USED_UNION            (1L << 2)
 #define HA_CREATE_USED_INSERT_METHOD    (1L << 3)
 #define HA_CREATE_USED_MIN_ROWS         (1L << 4)
@@ -1068,14 +1068,12 @@ typedef struct st_ha_create_information
   ulonglong auto_increment_value;
   ulong table_options;
   ulong avg_row_length;
-  ulong raid_chunksize;
   ulong used_fields;
   SQL_LIST merge_list;
   handlerton *db_type;
   enum row_type row_type;
   uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
-  uint raid_type,raid_chunks;
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
   bool table_existed;			/* 1 in create if table existed */
@@ -1204,7 +1202,6 @@ public:
   ulonglong auto_increment_value;
   ha_rows records;			/* Records in table */
   ha_rows deleted;			/* Deleted records */
-  ulong raid_chunksize;
   ulong mean_rec_length;		/* physical reclength */
   time_t create_time;			/* When table was created */
   time_t check_time;
@@ -1228,7 +1225,6 @@ public:
   /* Length of ref (1-8 or the clustered key length) */
   uint ref_length;
   uint block_size;			/* index block size */
-  uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
   bool  auto_increment_column_changed;
@@ -1245,7 +1241,7 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
+    ft_handler(0), inited(NONE), implicit_emptied(0),
     pushed_cond(NULL)
     {}
   virtual ~handler(void)

@@ -405,12 +405,14 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
 
   See ha_example.cc for a longer description.
 */
-ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
+ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, 
+                                     TABLE *table, int *rc)
 {
   ARCHIVE_SHARE *share;
   char meta_file_name[FN_REFLEN];
   uint length;
   char *tmp_name;
+  DBUG_ENTER("ha_archive::get_share");
 
   pthread_mutex_lock(&archive_mutex);
   length=(uint) strlen(table_name);
@@ -425,7 +427,8 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
                           NullS)) 
     {
       pthread_mutex_unlock(&archive_mutex);
-      return NULL;
+      *rc= HA_ERR_OUT_OF_MEM;
+      DBUG_RETURN(NULL);
     }
 
     share->use_count= 0;
@@ -468,9 +471,14 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     thr_lock_init(&share->lock);
   }
   share->use_count++;
+  DBUG_PRINT("info", ("archive table %.*s has %d open handles now", 
+                      share->table_name_length, share->table_name,
+                      share->use_count));
+  if (share->crashed)
+    *rc= HA_ERR_CRASHED_ON_USAGE;
   pthread_mutex_unlock(&archive_mutex);
 
-  return share;
+  DBUG_RETURN(share);
 }
 
 
@@ -481,14 +489,23 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
 int ha_archive::free_share(ARCHIVE_SHARE *share)
 {
   int rc= 0;
+  DBUG_ENTER("ha_archive::free_share");
+  DBUG_PRINT("info", ("archive table %.*s has %d open handles on entrance", 
+                      share->table_name_length, share->table_name,
+                      share->use_count));
+
   pthread_mutex_lock(&archive_mutex);
   if (!--share->use_count)
   {
     hash_delete(&archive_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
-    (void)write_meta_file(share->meta_file, share->rows_recorded, 
-                          share->auto_increment_value, FALSE);
+    if (share->crashed)
+      (void)write_meta_file(share->meta_file, share->rows_recorded,
+                            share->auto_increment_value, TRUE);
+    else
+      (void)write_meta_file(share->meta_file, share->rows_recorded,
+                            share->auto_increment_value, FALSE);
     if (azclose(&(share->archive_write)))
       rc= 1;
     if (my_close(share->meta_file, MYF(0)))
@@ -497,7 +514,7 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
   }
   pthread_mutex_unlock(&archive_mutex);
 
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -524,10 +541,23 @@ const char **ha_archive::bas_ext() const
 */
 int ha_archive::open(const char *name, int mode, uint open_options)
 {
+  int rc= 0;
   DBUG_ENTER("ha_archive::open");
 
-  if (!(share= get_share(name, table)))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM); // Not handled well by calling code!
+  DBUG_PRINT("info", ("archive table was opened for crash %s", 
+                      (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
+  share= get_share(name, table, &rc);
+
+  if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+  {
+    free_share(share);
+    DBUG_RETURN(rc);
+  }
+  else if (rc == HA_ERR_OUT_OF_MEM)
+  {
+    DBUG_RETURN(rc);
+  }
+
   thr_lock_data_init(&share->lock,&lock,NULL);
 
   if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
@@ -537,10 +567,14 @@ int ha_archive::open(const char *name, int mode, uint open_options)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
-  if (open_options & HA_OPEN_FOR_REPAIR)
+  DBUG_PRINT("info", ("archive table was crashed %s", 
+                      rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
+  if (rc == HA_ERR_CRASHED_ON_USAGE && open_options & HA_OPEN_FOR_REPAIR)
+  {
     DBUG_RETURN(0);
-
-  DBUG_RETURN(share->crashed ? HA_ERR_CRASHED_ON_USAGE : 0);
+  }
+  else
+    DBUG_RETURN(rc);
 }
 
 
@@ -926,6 +960,7 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     scan_rows= share->rows_recorded;
+    DBUG_PRINT("info", ("archive will retrieve %llu rows", scan_rows));
     records= 0;
 
     /* 
@@ -937,6 +972,7 @@ int ha_archive::rnd_init(bool scan)
       pthread_mutex_lock(&share->mutex);
       if (share->dirty == TRUE)
       {
+        DBUG_PRINT("info", ("archive flushing out rows for scan"));
         azflush(&(share->archive_write), Z_SYNC_FLUSH);
         share->dirty= FALSE;
       }
@@ -1176,6 +1212,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
         share->rows_recorded++;
       }
     }
+    DBUG_PRINT("info", ("recovered %llu archive rows", share->rows_recorded));
 
     my_free((char*)buf, MYF(0));
     if (rc && rc != HA_ERR_END_OF_FILE)
@@ -1200,9 +1237,23 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       azwrite(&writer, block, read);
   }
 
-  azclose(&writer);
+  azflush(&writer, Z_SYNC_FLUSH);
+  share->dirty= FALSE;
+  azclose(&(share->archive_write));
+  share->archive_write= writer; 
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
+
+  /*
+    Now we need to reopen our read descriptor since it has changed.
+  */
+  azclose(&archive);
+  if (!(azopen(&archive, share->data_file_name, O_RDONLY|O_BINARY)))
+  {
+    rc= HA_ERR_CRASHED_ON_USAGE;
+    goto error;
+  }
+
 
   DBUG_RETURN(0); 
 

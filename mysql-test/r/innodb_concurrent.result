@@ -1,7 +1,7 @@
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -106,7 +106,7 @@ eta	tipo	c
 2	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 1	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -239,7 +239,7 @@ a	b
 1	1
  commit;
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -323,7 +323,7 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -407,7 +407,7 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -478,7 +478,7 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -549,7 +549,7 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 drop table t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) type=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255)) ENGINE=innodb;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");

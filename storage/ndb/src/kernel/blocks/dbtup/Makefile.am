@@ -5,7 +5,7 @@ include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-ndbtest_PROGRAMS = test_varpage
+EXTRA_PROGRAMS = test_varpage
 test_varpage_SOURCES = test_varpage.cpp tuppage.cpp
 test_varpage_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \

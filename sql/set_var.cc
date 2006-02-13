@@ -629,14 +629,12 @@ sys_var_have_variable sys_have_federated_db("have_federated_engine",
                                             &have_federated_db);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
-sys_var_have_variable sys_have_isam("have_isam", &have_isam);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
                                             &have_partition_db);
 sys_var_have_variable sys_have_query_cache("have_query_cache",
                                            &have_query_cache);
-sys_var_have_variable sys_have_raid("have_raid", &have_raid);
 sys_var_have_variable sys_have_rtree_keys("have_rtree_keys", &have_rtree_keys);
 sys_var_have_variable sys_have_symlink("have_symlink", &have_symlink);
 sys_var_have_variable sys_have_row_based_replication("have_row_based_replication",&have_row_based_replication);
@@ -750,12 +748,10 @@ SHOW_VAR init_vars[]= {
   {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
-  {sys_have_isam.name,        (char*) &have_isam,                   SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
   {sys_have_query_cache.name, (char*) &have_query_cache,            SHOW_HAVE},
-  {sys_have_raid.name,        (char*) &have_raid,                   SHOW_HAVE},
   {sys_have_row_based_replication.name, (char*) &have_row_based_replication, SHOW_HAVE},
   {sys_have_rtree_keys.name,  (char*) &have_rtree_keys,             SHOW_HAVE},
   {sys_have_symlink.name,     (char*) &have_symlink,                SHOW_HAVE},

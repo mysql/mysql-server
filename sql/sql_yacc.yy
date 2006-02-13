@@ -516,11 +516,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  QUARTER_SYM
 %token  QUERY_SYM
 %token  QUICK
-%token  RAID_0_SYM
-%token  RAID_CHUNKS
-%token  RAID_CHUNKSIZE
-%token  RAID_STRIPED_SYM
-%token  RAID_TYPE
 %token  RAND
 %token  RANGE_SYM
 %token  READS_SYM
@@ -753,7 +748,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         union_opt select_derived_init option_type2
 
 %type <ulong_num>
-	ulong_num raid_types merge_insert_types
+	ulong_num merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num size_number
@@ -868,7 +863,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
-	table_to_table_list table_to_table opt_table_list opt_as
+	db_to_db table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list
@@ -3996,7 +3991,6 @@ create_table_options:
 
 create_table_option:
 	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
-	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine");   Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -4027,21 +4021,6 @@ create_table_option:
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
-	| RAID_TYPE opt_equal raid_types
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_TYPE", "PARTITION");
-	    YYABORT;
-	  }
-	| RAID_CHUNKS opt_equal ulong_num
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKS", "PARTITION");
-	    YYABORT;
-	  }
-	| RAID_CHUNKSIZE opt_equal ulong_num
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKSIZE", "PARTITION");
-	    YYABORT;
-	  }
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -4120,11 +4099,6 @@ row_types:
 	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
 	| REDUNDANT_SYM	{ $$= ROW_TYPE_REDUNDANT; }
 	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; };
-
-raid_types:
-	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
-	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
-	| ulong_num	 { $$=$1;};
 
 merge_insert_types:
        NO_SYM            { $$= MERGE_INSERT_DISABLED; }
@@ -5511,6 +5485,13 @@ rename:
 	}
 	table_to_table_list
 	{}
+	| RENAME DATABASE
+          {
+            Lex->db_list.empty();
+            Lex->sql_command= SQLCOM_RENAME_DB;
+          }
+          db_to_db
+          {}
 	| RENAME USER clear_privileges rename_list
           {
 	    Lex->sql_command = SQLCOM_RENAME_USER;
@@ -5544,6 +5525,17 @@ table_to_table:
 	      !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
 				     TL_IGNORE))
 	    YYABORT;
+	};
+
+db_to_db:
+	ident TO_SYM ident
+	{
+	  LEX *lex=Lex;
+          if (Lex->db_list.push_back((LEX_STRING*)
+                                     sql_memdup(&$1, sizeof(LEX_STRING))) ||
+              Lex->db_list.push_back((LEX_STRING*)
+                                     sql_memdup(&$3, sizeof(LEX_STRING))))
+              YYABORT;
 	};
 
 keycache:
@@ -9496,11 +9488,6 @@ keyword_sp:
 	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
-	| RAID_0_SYM		{}
-	| RAID_CHUNKS		{}
-	| RAID_CHUNKSIZE	{}
-	| RAID_STRIPED_SYM	{}
-	| RAID_TYPE		{}
         | REBUILD_SYM           {}
         | RECOVER_SYM           {}
 	| REDO_BUFFER_SIZE_SYM	{}
