@@ -893,6 +893,8 @@ page_cur_insert_rec_low(
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record or NULL */
 	ulint*		offsets,/* in: rec_get_offsets(rec, index) or NULL */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	byte*		insert_buf	= NULL;
@@ -952,6 +954,11 @@ page_cur_insert_rec_low(
 
 	ut_ad(insert_rec);
 	ut_ad(rec_size == rec_offs_size(offsets));
+
+	/* Set the "extern storage" flags */
+	if (UNIV_UNLIKELY(n_ext)) {
+		rec_set_field_extern_bits(insert_rec, index, ext, n_ext, mtr);
+	}
 	
 	/* 4. Insert the record in the linked list of records */
 	current_rec = cursor->rec;

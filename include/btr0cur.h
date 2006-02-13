@@ -159,6 +159,8 @@ btr_cur_optimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
@@ -185,6 +187,8 @@ btr_cur_pessimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************

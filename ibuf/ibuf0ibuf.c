@@ -2660,8 +2660,8 @@ ibuf_insert_low(
 	if (mode == BTR_MODIFY_PREV) {
 		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
 						ibuf_entry, &ins_rec,
-						&dummy_big_rec, thr,
-						&mtr);
+						&dummy_big_rec, NULL, 0,
+						thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(buf_frame_align(ins_rec), NULL,
@@ -2681,8 +2681,8 @@ ibuf_insert_low(
 						 | BTR_NO_UNDO_LOG_FLAG,
 						cursor,
 						ibuf_entry, &ins_rec,
-						&dummy_big_rec, thr,
-						&mtr);
+						&dummy_big_rec, NULL, 0,
+						thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(buf_frame_align(ins_rec), NULL,
@@ -2848,7 +2848,7 @@ ibuf_insert_to_index_page(
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
 		rec = page_cur_tuple_insert(&page_cur, NULL,
-					entry, index, mtr);
+					entry, index, NULL, 0, mtr);
 		
 		if (UNIV_UNLIKELY(rec == NULL)) {
 			/* If the record did not fit, reorganize */
@@ -2861,7 +2861,7 @@ ibuf_insert_to_index_page(
 			/* This time the record must fit */
 			if (UNIV_UNLIKELY(!page_cur_tuple_insert(
 						&page_cur, NULL,
-						entry, index, mtr))) {
+						entry, index, NULL, 0, mtr))) {
 
 				ut_print_timestamp(stderr);
 
