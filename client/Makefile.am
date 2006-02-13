@@ -49,7 +49,8 @@ mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
 				$(top_srcdir)/mysys/base64.c
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysqlslap_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS)
-mysqlimport_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS)
+mysqlimport_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+				$(top_builddir)/mysys/libmysys.a 
 mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
@@ -58,7 +59,8 @@ mysqlslap_SOURCES=              mysqlslap.c $(top_srcdir)/mysys/my_lock.c \
 				$(top_srcdir)/mysys/my_alarm.c \
   				$(yassl_dummy_link_fix)
 mysqldump_SOURCES=              mysqldump.c my_user.c $(yassl_dummy_link_fix)
-mysqlimport_SOURCES=            mysqlimport.c $(yassl_dummy_link_fix)
+mysqlimport_SOURCES=            mysqlimport.c \
+				$(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
 
