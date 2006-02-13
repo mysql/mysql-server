@@ -61,14 +61,14 @@ SELECT USER();
 CALL test.p3();
 CALL test.p2();
 
+# Cleanup
 connection master;
-
-# lets cleanup
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p3;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+sync_slave_with_master;
 
 # End of 5.0 test case
 

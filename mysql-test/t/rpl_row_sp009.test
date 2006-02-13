@@ -94,14 +94,12 @@ connection slave;
 sync_with_master;
 SELECT * FROM test.t2 ORDER BY a;
 
-
+# Cleanup
 connection master;
 #show binlog events;
-# lets cleanup
-
 DROP PROCEDURE test.p1;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-
+sync_slave_with_master;
 
 # End of 5.0 test case

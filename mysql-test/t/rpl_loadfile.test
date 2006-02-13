@@ -40,8 +40,10 @@ sync_slave_with_master;
 connection slave;
 SELECT * FROM test.t1 ORDER BY blob_column;
 
-# Lets cleanup
+# Cleanup
 connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
+sync_slave_with_master;
+
 # End of 5.0 test case
