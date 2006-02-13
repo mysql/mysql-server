@@ -10,6 +10,7 @@
 #
 ##############################################################################
 
+archive              : Change between azio and gzio is causing an issue
 events               : Test case instability - infinite locking. To be fixed.
 func_group           : Bug#15448
 func_math            : Bug#15448
