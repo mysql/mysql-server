@@ -309,7 +309,7 @@ BuildMySQL "--enable-shared \
 		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
 		--with-server-suffix='-Max'"
 
-make test-force || true
+make -i test-force || true
 
 # Save mysqld-max
 mv sql/mysqld sql/mysqld-max
@@ -363,7 +363,7 @@ BuildMySQL "--disable-shared \
 		--without-openssl"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
-make test-force || true
+make -i test-force || true
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -689,6 +689,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 10 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Use "-i" on "make test-force";
+  this is essential for later evaluation of this log file.
+
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
 - Avoid using the "bundled" zlib on "shared" builds: 
