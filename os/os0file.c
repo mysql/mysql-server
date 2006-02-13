@@ -518,61 +518,36 @@ os_file_create_tmpfile(void)
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
 {
-#ifdef __NETWARE__
+#ifdef UNIV_HOTBACKUP
+	ut_error;
+
+	return(NULL);
+#else
+# ifdef __NETWARE__
 	FILE*	file	= tmpfile();
-#else /* __NETWARE__ */
+# else /* __NETWARE__ */
 	FILE*	file	= NULL;
-	int	fd	= -1;
-# ifdef UNIV_HOTBACKUP
-	int	tries;
-	for (tries = 10; tries--; ) {
-		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
-		if (!name) {
-			break;
-		}
-
-		fd = open(name,
-#  ifdef __WIN__
-			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
-#  endif /* __WIN__ */
-			O_CREAT | O_EXCL | O_RDWR,
-			S_IREAD | S_IWRITE);
-		if (fd >= 0) {
-#  ifndef __WIN__
-			unlink(name);
-#  endif /* !__WIN__ */
-			free(name);
-			break;
-		}
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Warning: "
-			"unable to create temporary file %s, retrying\n",
-			name);
-		free(name);
-	}
-# else /* UNIV_HOTBACKUP */
-	fd = innobase_mysql_tmpfile();
-# endif /* UNIV_HOTBACKUP */
+	int	fd	= innobase_mysql_tmpfile();
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
-#endif /* __NETWARE__ */
+# endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
-#ifndef __NETWARE__
+# ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
-#endif /* !__NETWARE__ */
+# endif /* !__NETWARE__ */
 	}
 
 	return(file);
+#endif /* UNIV_HOTBACKUP */
 }
 
 /***************************************************************************
