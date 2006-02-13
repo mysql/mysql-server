@@ -1237,10 +1237,16 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       azwrite(&writer, block, read);
   }
 
-  azflush(&writer, Z_SYNC_FLUSH);
+  azclose(&writer);
   share->dirty= FALSE;
   azclose(&(share->archive_write));
-  share->archive_write= writer; 
+  if (!(azopen(&(share->archive_write), share->data_file_name, 
+               O_WRONLY|O_APPEND|O_BINARY)))
+  {
+    DBUG_PRINT("info", ("Could not open archive write file"));
+    rc= HA_ERR_CRASHED_ON_USAGE;
+    goto error;
+  }
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
 
