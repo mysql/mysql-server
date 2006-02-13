@@ -195,10 +195,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   /*
     There is no DETERMINISTIC clause for triggers, so can't check it.
     But a trigger can in theory be used to do nasty things (if it supported
-    DROP for example) so we do the check for privileges. For now there is
-    already a stronger test right above; but when this stronger test will
-    be removed, the test below will hold. Because triggers have the same
-    nature as functions regarding binlogging: their body is implicitely
+    DROP for example) so we do the check for privileges. Triggers have the
+    same nature as functions regarding binlogging: their body is implicitely
     binlogged, so they share the same danger, so trust_function_creators
     applies to them too.
   */

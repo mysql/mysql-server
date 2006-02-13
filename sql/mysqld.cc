@@ -5234,8 +5234,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   */
   {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a function is allowed only to users having the SUPER privilege and only "
-   "if this function may not break binary logging."
+   "a function (a trigger) is allowed only to users having the SUPER privilege "
+   "and only if this function (trigger) may not break binary logging."
 #ifdef HAVE_ROW_BASED_REPLICATION
    " If using --binlog-format=row, the security issues do not exist and the "
    "binary logging cannot break so this option is automatically set to 1."
