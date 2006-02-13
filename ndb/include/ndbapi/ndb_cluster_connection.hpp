@@ -41,6 +41,14 @@ public:
   ~Ndb_cluster_connection();
 
   /**
+   * Set a name on the connection, which will be reported in cluster log
+   *
+   * @param name
+   *
+   */
+  void set_name(const char *name);
+
+  /**
    * Connect to a cluster management server
    *
    * @param no_retries specifies the number of retries to attempt
