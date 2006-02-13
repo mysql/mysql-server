@@ -27,11 +27,12 @@ save_master_pos;
 sync_slave_with_master;
 connection slave;
 SELECT * FROM test.t1 ORDER BY a DESC;
-connection master;
-# Lets cleanup
-#show binlog events;
 
+# Cleanup
+#show binlog events;
+connection master;
 DROP TABLE test.t1;
+sync_slave_with_master;
 
 # End of 5.0 test case
 
