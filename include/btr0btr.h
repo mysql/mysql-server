@@ -195,6 +195,8 @@ btr_root_raise_and_insert(
 				the cursor is positioned on the predecessor
 				of the inserted record */
 	dtuple_t*	tuple,	/* in: tuple to insert */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Reorganizes an index page. */
@@ -249,6 +251,8 @@ btr_page_split_and_insert(
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
 	dtuple_t*	tuple,	/* in: tuple to insert */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr);	/* in: mtr */
 /***********************************************************
 Inserts a data tuple to a tree on a non-leaf level. It is assumed
