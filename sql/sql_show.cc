@@ -1138,7 +1138,7 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       to the CREATE TABLE statement
     */
 
-    if ((for_str= file->get_tablespace_name()))
+    if ((for_str= file->get_tablespace_name(thd)))
     {
       packet->append(" TABLESPACE ");
       packet->append(for_str, strlen(for_str));
