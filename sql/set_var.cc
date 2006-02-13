@@ -835,6 +835,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_fast_shutdown.name,(char*) &sys_innodb_fast_shutdown, SHOW_SYS},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
+  {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -854,7 +855,6 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
-  {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
