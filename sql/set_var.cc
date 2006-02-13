@@ -629,7 +629,6 @@ sys_var_have_variable sys_have_federated_db("have_federated_engine",
                                             &have_federated_db);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
-sys_var_have_variable sys_have_isam("have_isam", &have_isam);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
@@ -749,7 +748,6 @@ SHOW_VAR init_vars[]= {
   {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
-  {sys_have_isam.name,        (char*) &have_isam,                   SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
