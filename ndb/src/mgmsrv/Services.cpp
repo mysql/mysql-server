@@ -35,6 +35,7 @@
 #include <base64.h>
 
 extern bool g_StopServer;
+extern EventLogger g_eventLogger;
 
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
 static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
@@ -135,6 +136,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("password", String, Mandatory, "Password"),
     MGM_ARG("public key", String, Mandatory, "Public key"),
     MGM_ARG("endian", String, Optional, "Endianness"),
+    MGM_ARG("name", String, Optional, "Name of connection"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
   
@@ -411,6 +413,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * password;
   const char * public_key;
   const char * endian= NULL;
+  const char * name= NULL;
   union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
@@ -421,6 +424,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("password", &password);
   args.get("public key", &public_key);
   args.get("endian", &endian);
+  args.get("name", &name);
 
   endian_check.l = 1;
   if(endian 
@@ -489,6 +493,9 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   m_output->println("");
   m_allocated_resources->reserve_node(tmp);
   
+  if (name)
+    g_eventLogger.info("Node %d: %s", tmp, name);
+
   return;
 }
 

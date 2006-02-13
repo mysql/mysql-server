@@ -50,7 +50,8 @@ static int _print_data = 0;
 static int _print_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
-  
+BaseString g_options("ndb_restore");
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_restore"),
@@ -248,6 +249,14 @@ main(int argc, char** argv)
   {
     exitHandler(NDBT_FAILED);
   }
+
+  g_options.appfmt(" -b %d", ga_backupId);
+  g_options.appfmt(" -n %d", ga_nodeId);
+  if (_restore_meta)
+    g_options.appfmt(" -m");
+  if (_restore_data)
+    g_options.appfmt(" -r");
+  g_options.appfmt(" -p %d", ga_nParallelism);
 
   g_connect_string = opt_connect_str;
 
