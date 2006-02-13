@@ -724,7 +724,7 @@ private:
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
                              void *tab);
-  char* get_tablespace_name();
+  char* get_tablespace_name(THD *thd);
   int set_range_data(void *tab, partition_info* part_info);
   int set_list_data(void *tab, partition_info* part_info);
   int complemented_pk_read(const byte *old_data, byte *new_data,
