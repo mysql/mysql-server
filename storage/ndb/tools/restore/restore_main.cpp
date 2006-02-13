@@ -459,7 +459,7 @@ main(int argc, char** argv)
     g_options.appfmt(" -r");
   if (ga_restore_epoch)
     g_options.appfmt(" -e");
-  if (_restore_disk)
+  if (_no_restore_disk)
     g_options.appfmt(" -d");
   g_options.appfmt(" -p %d", ga_nParallelism);
 
