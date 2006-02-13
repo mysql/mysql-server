@@ -105,7 +105,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
-  uint plugin_dir_len, dummy_errors;
+  uint plugin_dir_len, dummy_errors, dlpathlen;
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
@@ -133,15 +133,24 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
   }
   bzero(&plugin_dl, sizeof(plugin_dl));
   /* Compile dll path */
-  strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS);
+  dlpathlen=
+    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
+    dlpath;
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
   {
+    const char *errmsg=dlerror();
+    if (!strncmp(dlpath, errmsg, dlpathlen))
+    { // if errmsg starts from dlpath, trim this prefix.
+      errmsg+=dlpathlen;
+      if (*errmsg == ':') errmsg++;
+      if (*errmsg == ' ') errmsg++;
+    }
     if (report & REPORT_TO_USER)
-      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, errno, dlerror());
+      my_error(ER_CANT_OPEN_LIBRARY, MYF(0), dlpath, errno, errmsg);
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, dlerror());
+      sql_print_error(ER(ER_CANT_OPEN_LIBRARY), dlpath, errno, errmsg);
     DBUG_RETURN(0);
   }
   /* Determine interface version */
