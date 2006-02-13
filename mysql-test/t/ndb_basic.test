@@ -404,7 +404,9 @@ drop table t1;
 #
 # test the limit of no of attributes in one table
 #
-
+# also tests bug#17179, more than 31 attributes in
+# a partitioned table
+#
 create table t1 (
 c1 int,
 c2 int,
@@ -534,7 +536,7 @@ c125 int,
 c126 int,
 c127 int,
 c128 int,
-primary key(c1)) engine=ndb;
+primary key using hash(c1)) engine=ndb partition by key(c1);
 drop table t1;
 
 #

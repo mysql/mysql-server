@@ -3912,8 +3912,18 @@ Field *find_field_in_table_sef(TABLE *table, const char *name)
 {
   Field **field_ptr;
   if (table->s->name_hash.records)
+  {
     field_ptr= (Field**)hash_search(&table->s->name_hash,(byte*) name,
                                     strlen(name));
+    if (field_ptr)
+    {
+      /*
+        field_ptr points to field in TABLE_SHARE. Convert it to the matching
+        field in table
+      */
+      field_ptr= (table->field + (field_ptr - table->s->field));
+    }
+  }
   else
   {
     if (!(field_ptr= table->field))
