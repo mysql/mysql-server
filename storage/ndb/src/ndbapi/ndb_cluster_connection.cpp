@@ -262,7 +262,8 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
 Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 							 connect_string)
   : Ndb_cluster_connection(*this),
-    m_optimized_node_selection(1)
+    m_optimized_node_selection(1),
+    m_name(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
@@ -287,7 +288,11 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     delete m_config_retriever;
     m_config_retriever= 0;
   }
-
+  if (m_name)
+  {
+    NdbMgmHandle h= m_config_retriever->get_mgmHandle();
+    ndb_mgm_set_name(h, m_name);
+  }
   m_transporter_facade=
     TransporterFacade::theFacadeInstance= 
     new TransporterFacade();
@@ -326,7 +331,23 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     ndb_print_state_mutex= NULL;
   }
 #endif
+  if (m_name)
+    free(m_name);
+
   DBUG_VOID_RETURN;
+}
+
+void
+Ndb_cluster_connection_impl::set_name(const char *name)
+{
+  if (m_name)
+    free(m_name);
+  m_name= strdup(name);
+  if (m_config_retriever && m_name)
+  {
+    NdbMgmHandle h= m_config_retriever->get_mgmHandle();
+    ndb_mgm_set_name(h, m_name);
+  }
 }
 
 void
@@ -478,6 +499,11 @@ Ndb_cluster_connection_impl::do_test()
     }
   }
   delete [] nodes;
+}
+
+void Ndb_cluster_connection::set_name(const char *name)
+{
+  m_impl.set_name(name);
 }
 
 int Ndb_cluster_connection::connect(int no_retries, int retry_delay_in_seconds,

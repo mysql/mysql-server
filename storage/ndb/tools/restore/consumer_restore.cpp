@@ -30,6 +30,8 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
                           Uint32 hash_value);
 
 extern const char * g_connect_string;
+extern BaseString g_options;
+
 bool
 BackupRestore::init()
 {
@@ -39,6 +41,7 @@ BackupRestore::init()
     return true;
 
   m_cluster_connection = new Ndb_cluster_connection(g_connect_string);
+  m_cluster_connection->set_name(g_options.c_str());
   if(m_cluster_connection->connect(12, 5, 1) != 0)
   {
     return false;
