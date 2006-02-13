@@ -5109,7 +5109,7 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
 /*
   Log an delete/rename frm file
   SYNOPSIS
-    write_log_rename_delete_frm()
+    write_log_replace_delete_frm()
     lpt                            Struct for parameters
     next_entry                     Next reference to use in log record
     path                           Name to rename from
@@ -5118,30 +5118,30 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
     TRUE                           Error
     FALSE                          Success
   DESCRIPTION
-    Support routine that writes a rename or delete of an frm file into the
+    Support routine that writes a replace or delete of an frm file into the
     table log. It also inserts an entry that keeps track of used space into
     the partition info object
 */
 
 bool
-write_log_rename_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
+write_log_replace_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
                             uint next_entry,
                             const char *from_path,
                             const char *to_path,
-                            bool rename_flag)
+                            bool replace_flag)
 {
   TABLE_LOG_ENTRY table_log_entry;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
-  DBUG_ENTER("write_log_rename_frm");
+  DBUG_ENTER("write_log_replace_frm");
 
-  if (rename_flag)
-    table_log_entry.action_type= TLOG_RENAME_ACTION_CODE;
+  if (replace_flag)
+    table_log_entry.action_type= TLOG_REPLACE_ACTION_CODE;
   else
     table_log_entry.action_type= TLOG_DELETE_ACTION_CODE;
   table_log_entry.next_entry= next_entry;
   table_log_entry.handler_type= "frm";
   table_log_entry.name= to_path;
-  if (rename_flag)
+  if (replace_flag)
     table_log_entry.from_name= from_path;
   if (write_table_log_entry(&table_log_entry, &log_entry))
   {
@@ -5468,6 +5468,7 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
+    part_info->frm_log_entry= log_entry;
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
@@ -5478,6 +5479,7 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   release_part_info_log_entries(part_info->first_log_entry);
   unlock_global_table_log();
   part_info->first_log_entry= old_first_log_entry;
+  part_info->frm_log_entry= NULL;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5527,6 +5529,7 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     (const char*)tmp_path, TRUE))
       break;
     log_entry= part_info->first_log_entry;
+    part_info->frm_log_entry= log_entry;
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
@@ -5537,6 +5540,7 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   release_part_info_log_entries(part_info->first_log_entry);
   unlock_global_table_log();
   part_info->first_log_entry= old_first_log_entry;
+  part_info->frm_log_entry= NULL;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }
@@ -5646,6 +5650,7 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
+    part_info->frm_log_entry= log_entry;
     if (write_execute_table_log_entry(log_entry->entry_pos,
                                       FALSE, &exec_log_entry))
       break;
@@ -5656,6 +5661,7 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   release_part_info_log_entries(part_info->first_log_entry);
   unlock_global_table_log();
   part_info->first_log_entry= old_first_log_entry;
+  part_info->frm_log_entry= NULL;
   my_error(ER_TABLE_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
 }

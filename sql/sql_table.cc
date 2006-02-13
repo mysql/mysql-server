@@ -1136,12 +1136,17 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     */
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
+        inactivate_table_log_entry(part_info->frm_log_entry->entry_pos) ||
+        sync_table_log() ||
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path, TRUE))
     {
       error= 1;
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
+    inactivate_table_log_entry(part_info->frm_log_entry->entry_pos);
+    part_info->frm_log_entry= NULL;
+    VOID(sync_table_log());
   }
 
 end:
