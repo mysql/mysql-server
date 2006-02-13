@@ -144,6 +144,10 @@ NdbEventOperation::print()
 /*
  * Internal for the mysql server
  */
+const NdbDictionary::Table *NdbEventOperation::getTable() const
+{
+  return m_impl.m_eventImpl->m_tableImpl->m_facade;
+}
 const NdbDictionary::Event *NdbEventOperation::getEvent() const
 {
   return m_impl.m_eventImpl->m_facade;
