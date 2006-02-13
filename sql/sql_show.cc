@@ -365,6 +365,13 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     if (!table_list->view || thd->net.last_errno != ER_VIEW_INVALID)
       DBUG_RETURN(TRUE);
+
+    /* 
+       Need this for proper processing of multiple sql statements        
+       sent as single command     
+    */    
+    thd->net.report_error= 0;
+
     /*
       Clear all messages with 'error' level status and
       issue a warning with 'warning' level status in 
