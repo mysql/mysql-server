@@ -62,6 +62,7 @@ private:
   Vector<Node> m_all_nodes;
   void init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
+  void set_name(const char *name);
   
   TransporterFacade *m_transporter_facade;
   ConfigRetriever *m_config_retriever;
@@ -69,6 +70,7 @@ private:
   int (*m_connect_callback)(void);
 
   int m_optimized_node_selection;
+  char *m_name;
 };
 
 #endif
