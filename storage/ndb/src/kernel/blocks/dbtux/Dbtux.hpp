@@ -102,7 +102,7 @@ class Configuration;
 
 class Dbtux : public SimulatedBlock {
 public:
-  Dbtux(const Configuration& conf);
+  Dbtux(Block_context& ctx);
   virtual ~Dbtux();
 
   // pointer to TUP instance in this thread

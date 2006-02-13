@@ -158,8 +158,8 @@ void Dblqh::initRecords()
   bat[1].bits.v = 5;
 }//Dblqh::initRecords()
 
-Dblqh::Dblqh(const class Configuration & conf):
-  SimulatedBlock(DBLQH, conf),
+Dblqh::Dblqh(Block_context& ctx):
+  SimulatedBlock(DBLQH, ctx),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
@@ -167,24 +167,7 @@ Dblqh::Dblqh(const class Configuration & conf):
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {
-  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dblqh);
-
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
-			    &log_page_size);
-
-  /**
-   * Always set page size in half MBytes
-   */
-  clogPageFileSize= (log_page_size / sizeof(LogPageRecord));
-  Uint32 mega_byte_part= clogPageFileSize & 15;
-  if (mega_byte_part != 0) {
-    jam();
-    clogPageFileSize+= (16 - mega_byte_part);
-  }
 
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);

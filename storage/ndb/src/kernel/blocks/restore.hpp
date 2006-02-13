@@ -30,7 +30,7 @@
 class Restore : public SimulatedBlock
 {
 public:
-  Restore(const Configuration & conf);
+  Restore(Block_context& ctx);
   virtual ~Restore();
   BLOCK_DEFINES(Restore);
   

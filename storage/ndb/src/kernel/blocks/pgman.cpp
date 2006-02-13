@@ -47,8 +47,8 @@ static bool g_dbg_lcp = false;
 #define DBG_LCP(x) if(g_dbg_lcp) ndbout << x
 #endif
 
-Pgman::Pgman(const Configuration & conf) :
-  SimulatedBlock(PGMAN, conf),
+Pgman::Pgman(Block_context& ctx) :
+  SimulatedBlock(PGMAN, ctx),
   m_file_map(m_data_buffer_pool),
   m_page_hashlist(m_page_entry_pool),
   m_page_stack(m_page_entry_pool),
@@ -116,7 +116,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint64 page_buffer = 64*1024*1024;

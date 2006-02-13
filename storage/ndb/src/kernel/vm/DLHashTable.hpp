@@ -18,7 +18,7 @@
 #define DL_HASHTABLE_HPP
 
 #include <ndb_global.h>
-#include "ArrayList.hpp"
+#include "ArrayPool.hpp"
 
 /**
  * DLHashTable implements a hashtable using chaining

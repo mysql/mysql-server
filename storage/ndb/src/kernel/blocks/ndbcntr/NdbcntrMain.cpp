@@ -137,7 +137,7 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
       jam();
       Uint32 to_3= 0;
       const ndb_mgm_configuration_iterator * p = 
-	theConfiguration.getOwnConfigIterator();
+	m_ctx.m_config.getOwnConfigIterator();
       ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT, &to_3);
       BaseString tmp;
       tmp.append("Shutting down node as total restart time exceeds "
@@ -239,7 +239,7 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -259,7 +259,7 @@ void Ndbcntr::execSTTOR(Signal* signal)
 
   switch (cstartPhase) {
   case 0:
-    if(theConfiguration.getInitialStart()){
+    if(m_ctx.m_config.getInitialStart()){
       jam();
       c_fsRemoveCount = 0;
       clearFilesystem(signal);
@@ -502,7 +502,7 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   Uint32 to_3 = 0;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   
   ndbrequire(p != 0);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTIAL_TIMEOUT, &to_1);
@@ -1971,8 +1971,8 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if (dumpState->args[0] == DumpStateOrd::NdbcntrTestStopOnError){
-    if (theConfiguration.stopOnError() == true)
-      ((Configuration&)theConfiguration).stopOnError(false);
+    if (m_ctx.m_config.stopOnError() == true)
+      ((Configuration&)m_ctx.m_config).stopOnError(false);
     
     const BlockReference tblockref = calcNdbCntrBlockRef(getOwnNodeId());
       
@@ -2098,7 +2098,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
     if(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo)) {
       jam();
       if(StopReq::getPerformRestart(c_stopRec.stopReq.requestInfo)){
-	((Configuration&)theConfiguration).stopOnError(false);
+	((Configuration&)m_ctx.m_config).stopOnError(false);
       }
     }
     if(!c_stopRec.checkNodeFail(signal)){

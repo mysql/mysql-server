@@ -1061,7 +1061,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   jamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequireErr(p != 0, NDBD_EXIT_INVALID_CONFIG);
 
   initData();
@@ -1147,7 +1147,7 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
 {
   jamEntry();
   cntrlblockref = signal->theData[0];
-  if(theConfiguration.getInitialStart()){
+  if(m_ctx.m_config.getInitialStart()){
     sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
   } else {
     readGciFileLab(signal);
@@ -11456,7 +11456,7 @@ void Dbdih::initCommonData()
   memset(&sysfileData[0], 0, sizeof(sysfileData));
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   c_lcpState.clcpDelay = 20;

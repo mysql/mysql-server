@@ -606,7 +606,7 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   jamEntry();
   
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   initData();

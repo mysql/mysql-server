@@ -47,15 +47,15 @@
 EventLogger g_eventLogger;
 extern int simulate_error_during_shutdown;
 
-Cmvmi::Cmvmi(const Configuration & conf) :
-  SimulatedBlock(CMVMI, conf)
-  ,theConfig((Configuration&)conf)
+Cmvmi::Cmvmi(Block_context& ctx) :
+  SimulatedBlock(CMVMI, ctx)
   ,subscribers(subscriberPool)
 {
   BLOCK_CONSTRUCTOR(Cmvmi);
 
   Uint32 long_sig_buffer_size;
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  const ndb_mgm_configuration_iterator * p = 
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ndb_mgm_get_int_parameter(p, CFG_DB_LONG_SIGNAL_BUFFER,  
@@ -94,7 +94,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   
   subscriberPool.setSize(5);
   
-  const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
+  const ndb_mgm_configuration_iterator * db = m_ctx.m_config.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 logLevel;
     if(!ndb_mgm_get_int_parameter(db, CFG_MIN_LOGLEVEL+j, &logLevel)){
@@ -103,7 +103,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
     }
   }
   
-  ndb_mgm_configuration_iterator * iter = theConfig.getClusterConfigIterator();
+  ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
   for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
     jam();
     Uint32 nodeId;
@@ -318,7 +318,7 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint64 page_buffer = 64*1024*1024;
@@ -365,7 +365,7 @@ void Cmvmi::execSTTOR(Signal* signal)
   } else {
     jam();
 
-    if(theConfig.lockPagesInMainMemory()){
+    if(m_ctx.m_config.lockPagesInMainMemory()){
       int res = NdbMem_MemLockAll();
       if(res != 0){
 	g_eventLogger.warning("Failed to memlock pages");
@@ -938,7 +938,7 @@ void Cmvmi::handleSET_VAR_REQ(Signal* signal) {
 
   switch (var) {
   case MaxNoOfSavedMessages:
-    theConfig.maxNoOfErrorLogs(val);
+    m_ctx.m_config.maxNoOfErrorLogs(val);
     sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
     break;
     
@@ -959,12 +959,12 @@ void Cmvmi::handleSET_VAR_REQ(Signal* signal) {
     break;
 
   case TimeBetweenWatchDogCheck:
-    theConfig.timeBetweenWatchDogCheck(val);
+    m_ctx.m_config.timeBetweenWatchDogCheck(val);
     sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
     break;
 
   case StopOnError:
-    theConfig.stopOnError(val);
+    m_ctx.m_config.stopOnError(val);
     sendSignal(CMVMI_REF, GSN_SET_VAR_CONF, signal, 1, JBB);
     break;
     
@@ -1086,9 +1086,9 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   
   if (dumpState->args[0] == DumpStateOrd::CmvmiSetRestartOnErrorInsert){
     if(signal->getLength() == 1)
-      theConfig.setRestartOnErrorInsert((int)NRT_NoStart_Restart);
+      m_ctx.m_config.setRestartOnErrorInsert((int)NRT_NoStart_Restart);
     else
-      theConfig.setRestartOnErrorInsert(signal->theData[1]);
+      m_ctx.m_config.setRestartOnErrorInsert(signal->theData[1]);
   }
 
   if (dumpState->args[0] == DumpStateOrd::CmvmiTestLongSigWithDelay) {
