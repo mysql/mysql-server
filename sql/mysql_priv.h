@@ -611,6 +611,7 @@ void write_bin_log(THD *thd, bool clear_error,
 bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
+bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 void mysql_client_binlog_statement(THD *thd);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
@@ -623,7 +624,7 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name);
 void close_cached_table(THD *thd, TABLE *table);
-bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
+bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
@@ -1228,10 +1229,12 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
+bool my_database_names_init(void);
+void my_database_names_free(void);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
-bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
-void my_dbopt_free(void);
+extern int creating_database; // How many database locks are made
+extern int creating_table;    // How many mysql_create_table() are running
 
 /*
   External variables
@@ -1305,7 +1308,6 @@ extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
-extern bool opt_old_log_format;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
@@ -1334,7 +1336,7 @@ extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
+extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
@@ -1365,7 +1367,7 @@ extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
 
 extern String null_string;
-extern HASH open_cache;
+extern HASH open_cache, lock_db_cache;
 extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
@@ -1432,7 +1434,6 @@ extern handlerton myisam_hton;
 extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
 
-extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_row_based_replication;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache;

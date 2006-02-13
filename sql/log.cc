@@ -610,7 +610,7 @@ void LOGGER::init_base()
     file_log_handler= new Log_to_file_event_handler;
 
   /* by default we use traditional error log */
-  init_error_log(LEGACY);
+  init_error_log(LOG_FILE);
 
   file_log_handler->init_pthread_objects();
   (void) pthread_mutex_init(&LOCK_logger, MY_MUTEX_INIT_SLOW);
@@ -819,41 +819,47 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
   return error;
 }
 
-void LOGGER::init_error_log(enum enum_printer error_log_printer)
+void LOGGER::init_error_log(uint error_log_printer)
 {
-  switch (error_log_printer) {
-  case NONE:
+  if (error_log_printer & LOG_NONE)
+  {
     error_log_handler_list[0]= 0;
-    break;
-  case LEGACY:
+    return;
+  }
+
+  switch (error_log_printer) {
+  case LOG_FILE:
     error_log_handler_list[0]= file_log_handler;
     error_log_handler_list[1]= 0;
     break;
     /* these two are disabled for now */
-  case CSV:
+  case LOG_TABLE:
     DBUG_ASSERT(0);
     break;
-  case LEGACY_AND_CSV:
+  case LOG_TABLE|LOG_FILE:
     DBUG_ASSERT(0);
     break;
   }
 }
 
-void LOGGER::init_slow_log(enum enum_printer slow_log_printer)
+void LOGGER::init_slow_log(uint slow_log_printer)
 {
-  switch (slow_log_printer) {
-  case NONE:
+  if (slow_log_printer & LOG_NONE)
+  {
     slow_log_handler_list[0]= 0;
-    break;
-  case LEGACY:
+    return;
+  }
+
+  switch (slow_log_printer) {
+  case LOG_FILE:
     slow_log_handler_list[0]= file_log_handler;
     slow_log_handler_list[1]= 0;
     break;
-  case CSV:
+  case LOG_TABLE:
     slow_log_handler_list[0]= table_log_handler;
     slow_log_handler_list[1]= 0;
     break;
-  case LEGACY_AND_CSV:
+  case LOG_TABLE|LOG_FILE:
     slow_log_handler_list[0]= file_log_handler;
     slow_log_handler_list[1]= table_log_handler;
     slow_log_handler_list[2]= 0;
@@ -861,21 +867,24 @@ void LOGGER::init_slow_log(enum enum_printer slow_log_printer)
   }
 }
 
-void LOGGER::init_general_log(enum enum_printer general_log_printer)
+void LOGGER::init_general_log(uint general_log_printer)
 {
-  switch (general_log_printer) {
-  case NONE:
+  if (general_log_printer & LOG_NONE)
+  {
     general_log_handler_list[0]= 0;
-    break;
-  case LEGACY:
+    return;
+  }
+
+  switch (general_log_printer) {
+  case LOG_FILE:
     general_log_handler_list[0]= file_log_handler;
     general_log_handler_list[1]= 0;
     break;
-  case CSV:
+  case LOG_TABLE:
     general_log_handler_list[0]= table_log_handler;
     general_log_handler_list[1]= 0;
     break;
-  case LEGACY_AND_CSV:
+  case LOG_TABLE|LOG_FILE:
     general_log_handler_list[0]= file_log_handler;
     general_log_handler_list[1]= table_log_handler;
     general_log_handler_list[2]= 0;
@@ -906,20 +915,20 @@ bool Log_to_csv_event_handler::init()
   return (open_log_table(QUERY_LOG_GENERAL) || open_log_table(QUERY_LOG_SLOW));
 }
 
-int LOGGER::set_handlers(enum enum_printer error_log_printer,
-                         enum enum_printer slow_log_printer,
-                         enum enum_printer general_log_printer)
+int LOGGER::set_handlers(uint error_log_printer,
+                         uint slow_log_printer,
+                         uint general_log_printer)
 {
   /* error log table is not supported yet */
-  DBUG_ASSERT(error_log_printer < CSV);
+  DBUG_ASSERT(error_log_printer < LOG_TABLE);
 
   lock();
 
-  if ((slow_log_printer >= CSV || general_log_printer >= CSV) &&
+  if ((slow_log_printer & LOG_TABLE || general_log_printer & LOG_TABLE) &&
       !is_log_tables_initialized)
   {
-    slow_log_printer= LEGACY;
-    general_log_printer= LEGACY;
+    slow_log_printer= (slow_log_printer & ~LOG_TABLE) | LOG_FILE;
+    general_log_printer= (general_log_printer & ~LOG_TABLE) | LOG_FILE;
 
     sql_print_error("Failed to initialize log tables. "
                     "Falling back to the old-fashioned logs");
