@@ -124,10 +124,12 @@ SELECT * FROM t2 ORDER BY a;
 
 # First lets cleanup
 
+connection master;
 DROP PROCEDURE test.p1;
 DROP PROCEDURE test.p2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+sync_slave_with_master;
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

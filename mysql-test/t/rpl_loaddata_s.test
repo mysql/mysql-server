@@ -22,3 +22,8 @@ sync_with_master;
 select count(*) from test.t1; # check that LOAD was replicated
 --replace_column 2 # 5 #
 show binlog events from 102; # should be nothing
+
+# Cleanup
+connection master;
+drop table test.t1;
+sync_slave_with_master;

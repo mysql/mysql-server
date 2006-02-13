@@ -42,8 +42,11 @@ SHOW TABLES;
 SELECT COUNT(*) FROM mysqltest.t1;
 
 #show binlog events;
+
+# Cleanup
 connection master;
 DROP DATABASE mysqltest;
 DROP TABLE test.t1;
+sync_slave_with_master;
 
 # End of test

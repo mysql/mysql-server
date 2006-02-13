@@ -429,17 +429,10 @@ CALL p1('test');
 SELECT * FROM t1;
 
 sync_slave_with_master;
-connection slave;
-
 SELECT * FROM t1;
 
-# Cleanup.
-
+# Cleanup
 connection master;
-
 DROP PROCEDURE p1;
-
-# cleanup
-connection master;
 drop table t1;
-reset master;
+sync_slave_with_master;

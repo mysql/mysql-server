@@ -66,16 +66,15 @@ connection slave;
 sync_with_master;
 SELECT * FROM test.t2;
 
+# Cleanup
 connection master;
 #show binlog events;
-# lets cleanup
-
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP PROCEDURE IF EXISTS test.p3;
 DROP PROCEDURE IF EXISTS test.p4;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
-
+sync_slave_with_master;
 
 # End of 5.0 test case
