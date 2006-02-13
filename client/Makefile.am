@@ -49,6 +49,7 @@ mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
 				$(top_srcdir)/mysys/base64.c
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysqlslap_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS)
+mysqlimport_LDADD =		$(LDADD) $(CXXLDFLAGS) $(CLIENT_THREAD_LIBS)
 mysqltestmanager_pwgen_SOURCES =   mysqlmanager-pwgen.c 
 mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
