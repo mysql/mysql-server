@@ -29,10 +29,13 @@
 
 #include "client_priv.h"
 #include "mysql_version.h"
+#undef SAFE_MUTEX
 #include <my_pthread.h>
+
 
 /* Global Thread counter */
 int counter= 0;
+pthread_mutex_t counter_mutex;
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -113,8 +116,9 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"local", 'L', "Read all files through the client.", (gptr*) &opt_local_file,
    (gptr*) &opt_local_file, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"lock-tables", 'l', "Lock all tables for write.", (gptr*) &lock_tables,
-   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"lock-tables", 'l', "Lock all tables for write (this disables threads).",
+    (gptr*) &lock_tables, (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 
+    0, 0, 0, 0, 0, 0},
   {"low-priority", OPT_LOW_PRIORITY,
    "Use LOW_PRIORITY when updating the table.", (gptr*) &opt_low_priority,
    (gptr*) &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -531,7 +535,9 @@ error:
   if (sock)
     db_disconnect(current_host, sock);
 
+  pthread_mutex_lock(&counter_mutex);
   counter--;
+  pthread_mutex_unlock(&counter_mutex);
   return 0;
 }
 
@@ -551,10 +557,11 @@ int main(int argc, char **argv)
     return(1);
   }
 
-  if (opt_use_threads)
+  if (opt_use_threads && !lock_tables)
   {
     pthread_t mainthread;            /* Thread descriptor */
     pthread_attr_t attr;          /* Thread attributes */
+    VOID(pthread_mutex_init(&counter_mutex, NULL));
 
     for (; *argv != NULL; argv++) // Loop through tables
     {
@@ -569,7 +576,9 @@ sanity_label:
         sleep(1);
         goto sanity_label;
       }
+      pthread_mutex_lock(&counter_mutex);
       counter++;
+      pthread_mutex_unlock(&counter_mutex);
       pthread_attr_init(&attr);
       pthread_attr_setdetachstate(&attr,
                                    PTHREAD_CREATE_DETACHED);
@@ -578,7 +587,9 @@ sanity_label:
       if (pthread_create(&mainthread, &attr, (void *)worker_thread, 
                          (void *)*argv) != 0)
       {
+        pthread_mutex_lock(&counter_mutex);
         counter--;
+        pthread_mutex_unlock(&counter_mutex);
         fprintf(stderr,"%s: Could not create thread\n",
                 my_progname);
       }
@@ -593,6 +604,7 @@ loop_label:
       sleep(1);
       goto loop_label;
     }
+    VOID(pthread_mutex_destroy(&counter_mutex));
   }
   else
   {
