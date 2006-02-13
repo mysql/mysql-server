@@ -28,6 +28,8 @@
 #include <io.h>
 #endif
 
+int creating_table= 0;        // How many mysql_create_table are running
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -1973,7 +1975,7 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
   Create a table
 
   SYNOPSIS
-    mysql_create_table()
+    mysql_create_table_internal()
     thd			Thread object
     db			Database
     table_name		Table name
@@ -1996,11 +1998,12 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
     TRUE  error
 */
 
-bool mysql_create_table(THD *thd,const char *db, const char *table_name,
-                        HA_CREATE_INFO *create_info,
-                        List<create_field> &fields,
-                        List<Key> &keys,bool internal_tmp_table,
-                        uint select_field_count)
+bool mysql_create_table_internal(THD *thd,
+                                const char *db, const char *table_name,
+                                HA_CREATE_INFO *create_info,
+                                List<create_field> &fields,
+                                List<Key> &keys,bool internal_tmp_table,
+                                uint select_field_count)
 {
   char		path[FN_REFLEN];
   uint          path_length;
@@ -2009,7 +2012,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   KEY		*key_info_buffer;
   handler	*file;
   bool		error= TRUE;
-  DBUG_ENTER("mysql_create_table");
+  DBUG_ENTER("mysql_create_table_internal");
 
   /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
@@ -2288,6 +2291,49 @@ warn:
   create_info->table_existed= 1;		// Mark that table existed
   goto unlock_and_end;
 }
+
+
+/*
+  Database locking aware wrapper for mysql_create_table_internal(),
+*/
+
+bool mysql_create_table(THD *thd, const char *db, const char *table_name,
+                        HA_CREATE_INFO *create_info,
+                        List<create_field> &fields,
+                        List<Key> &keys,bool internal_tmp_table,
+                        uint select_field_count)
+{
+  bool result;
+  DBUG_ENTER("mysql_create_table");
+
+  /* Wait for any database locks */
+  pthread_mutex_lock(&LOCK_lock_db);
+  while (!thd->killed &&
+         hash_search(&lock_db_cache,(byte*) db, strlen(db)))
+  {
+    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
+    pthread_mutex_lock(&LOCK_lock_db);
+  }
+
+  if (thd->killed)
+  {
+    pthread_mutex_unlock(&LOCK_lock_db);
+    DBUG_RETURN(TRUE);
+  }
+  creating_table++;
+  pthread_mutex_unlock(&LOCK_lock_db);
+
+  result= mysql_create_table_internal(thd, db, table_name, create_info,
+                                      fields, keys, internal_tmp_table,
+                                      select_field_count);
+
+  pthread_mutex_lock(&LOCK_lock_db);
+  if (!--creating_table && creating_database)
+    pthread_cond_signal(&COND_refresh);
+  pthread_mutex_unlock(&LOCK_lock_db);
+  DBUG_RETURN(result);
+}
+
 
 /*
 ** Give the key name after the first field with an optional '_#' after
