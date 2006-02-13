@@ -1239,7 +1239,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   azflush(&writer, Z_SYNC_FLUSH);
   share->dirty= FALSE;
-  azclose(share->archive_write);
+  azclose(&(share->archive_write));
   share->archive_write= writer; 
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
