@@ -510,9 +510,9 @@ static char *field_escape(char *to,const char *from,uint length)
 }
 
 
-int
-worker_thread(char *raw_table_name)
+pthread_handler_t worker_thread(void *arg)
 {
+  char *raw_table_name= (char *)arg;
   MYSQL *sock= 0;
   if (!(sock= db_connect(current_host,current_db,current_user,opt_password)))
   {
@@ -562,7 +562,7 @@ int main(int argc, char **argv)
     pthread_attr_t attr;          /* Thread attributes */
     VOID(pthread_mutex_init(&counter_mutex, NULL));
 
-    for (; *argv != NULL; argv++) // Loop through tables
+    for (; *argv != NULL; argv++) /* Loop through tables */
     {
       /*
         If we hit thread count limit we loop until some threads exit.
@@ -583,7 +583,7 @@ sanity_label:
                                    PTHREAD_CREATE_DETACHED);
 
       /* now create the thread */
-      if (pthread_create(&mainthread, &attr, (void *)worker_thread, 
+      if (pthread_create(&mainthread, &attr, worker_thread, 
                          (void *)*argv) != 0)
       {
         pthread_mutex_lock(&counter_mutex);
