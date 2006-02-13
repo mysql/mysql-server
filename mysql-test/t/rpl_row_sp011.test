@@ -78,15 +78,13 @@ CALL test.p1();
 #SELECT * FROM test.t2;
 sync_slave_with_master;
 #SELECT * FROM test.t2;
-connection master;
-
-#show binlog events;
-# lets cleanup
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/sp011_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > ./var/tmp/sp011_slave.sql
 
-
+# Cleanup
+connection master;
+#show binlog events;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP PROCEDURE IF EXISTS test.p2;
 DROP PROCEDURE IF EXISTS test.p3;
@@ -96,9 +94,7 @@ DROP PROCEDURE IF EXISTS test.p6;
 DROP PROCEDURE IF EXISTS test.p7;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
-
-
-# First lets cleanup
+sync_slave_with_master;
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file
