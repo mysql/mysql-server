@@ -67,6 +67,7 @@ enum enum_sql_command {
   SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
   SQLCOM_GRANT,
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
+  SQLCOM_RENAME_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
@@ -817,6 +818,7 @@ typedef struct st_lex
     required a local context, the parser pops the top-most context.
   */
   List<Name_resolution_context> context_stack;
+  List<LEX_STRING>     db_list;
 
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   create_field	      *last_field;
