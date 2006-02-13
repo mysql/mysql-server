@@ -562,7 +562,7 @@ c125 int,
 c126 int,
 c127 int,
 c128 int,
-primary key(c1)) engine=ndb;
+primary key using hash(c1)) engine=ndb partition by key(c1);
 drop table t1;
 create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
