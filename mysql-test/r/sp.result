@@ -3410,7 +3410,7 @@ begin
 select bug12379();
 end|
 select bug12379()|
-ERROR 23000: Duplicate entry 'X' for key 1
+ERROR 23000: Duplicate entry 'X' for key 'PRIMARY'
 select 1|
 1
 1
@@ -3427,7 +3427,7 @@ select 3|
 3
 3
 call bug12379_3()|
-ERROR 23000: Duplicate entry 'X' for key 1
+ERROR 23000: Duplicate entry 'X' for key 'PRIMARY'
 select 4|
 4
 4
@@ -3482,7 +3482,7 @@ s1
 0
 1
 call bug6127()|
-ERROR 23000: Duplicate entry '0' for key 1
+ERROR 23000: Duplicate entry '0' for key 's1'
 select * from t3|
 s1
 0
@@ -4011,8 +4011,6 @@ NULL	1
 call bug14643_2()|
 Handler
 boo
-2
-2
 Handler
 boo
 drop procedure bug14643_1|
@@ -4356,6 +4354,11 @@ done
 call bug14498_3()|
 v
 maybe
+Handler
+error
+End
+done
+call bug14498_4()|
 Handler
 error
 End

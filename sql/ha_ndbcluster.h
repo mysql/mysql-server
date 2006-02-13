@@ -31,6 +31,8 @@
 #include <NdbApi.hpp>
 #include <ndbapi_limits.h>
 
+#define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
 class NdbTransaction;  // Forward declaration
@@ -604,6 +606,7 @@ class ha_ndbcluster: public handler
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
   uint max_supported_key_length() const;
+  uint max_supported_key_part_length() const;
 
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
@@ -817,6 +820,7 @@ private:
   NDB_INDEX_DATA  m_index[MAX_KEY];
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
+  byte m_ref[NDB_HIDDEN_PRIMARY_KEY_LENGTH];
   partition_info *m_part_info;
   byte *m_rec0;
   Field **m_part_field_array;

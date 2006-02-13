@@ -138,9 +138,14 @@ int Instance_options::fill_instance_version()
 
   if (*result != '\0')
   {
+    char *start;
     /* chop the newline from the end of the version string */
     result[strlen(result) - NEWLINE_LEN]= '\0';
-    mysqld_version= strdup_root(&alloc, result);
+    /* trim leading whitespaces */
+    start= result;
+    while (my_isspace(default_charset_info, *start))
+      ++start;
+    mysqld_version= strdup_root(&alloc, start);
   }
 err:
   return rc;
@@ -167,8 +172,6 @@ err:
 int Instance_options::fill_log_options()
 {
   Buffer buff;
-  uint position= 0;
-  char **tmp_argv= argv;
   enum { MAX_LOG_OPTION_LENGTH= 256 };
   char datadir[MAX_LOG_OPTION_LENGTH];
   char hostname[MAX_LOG_OPTION_LENGTH];

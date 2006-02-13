@@ -65,7 +65,7 @@ if (!$opt_skip_create)
   }
   # Create the table we use to signal that we should end the test
   $dbh->do("drop table if exists $abort_table");
-  $dbh->do("create table $abort_table (id int(6) not null) type=heap") ||
+  $dbh->do("create table $abort_table (id int(6) not null) ENGINE=heap") ||
     die $DBI::errstr;
 }
 

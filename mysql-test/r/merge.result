@@ -548,9 +548,9 @@ select * from t4 where a+0 > 90;
 a	b
 99	1
 insert t5 values (1,1);
-ERROR 23000: Duplicate entry '1-1' for key 1
+ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
 insert t6 values (2,1);
-ERROR 23000: Duplicate entry '2-1' for key 1
+ERROR 23000: Duplicate entry '2-1' for key 'PRIMARY'
 insert t5 values (1,1) on duplicate key update b=b+10;
 insert t6 values (2,1) on duplicate key update b=b+20;
 select * from t5 where a < 3;
