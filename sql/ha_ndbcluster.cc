@@ -8915,9 +8915,9 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 /*
   get table space info for SHOW CREATE TABLE
 */
-char* ha_ndbcluster::get_tablespace_name()
+char* ha_ndbcluster::get_tablespace_name(THD *thd)
 {
-  Ndb *ndb= get_ndb();
+  Ndb *ndb= check_ndb_in_thd(thd);
   NDBDICT *ndbdict= ndb->getDictionary();
   NdbError ndberr;
   Uint32 id;
@@ -8941,11 +8941,11 @@ char* ha_ndbcluster::get_tablespace_name()
   }
 err:
   if (ndberr.status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   return 0;
