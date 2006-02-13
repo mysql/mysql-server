@@ -38,6 +38,107 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
          
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
+
+
+/* Database lock hash */
+HASH lock_db_cache;
+pthread_mutex_t LOCK_lock_db;
+int creating_database= 0;  // how many database locks are made
+
+
+/* Structure for database lock */
+typedef struct my_dblock_st
+{
+  char *name;        /* Database name        */
+  uint name_length;  /* Database length name */
+} my_dblock_t;
+
+
+/*
+  lock_db key.
+*/
+
+static byte* lock_db_get_key(my_dblock_t *ptr, uint *length,
+                             my_bool not_used __attribute__((unused)))
+{
+  *length= ptr->name_length;
+  return (byte*) ptr->name;
+}
+
+
+/*
+  Free lock_db hash element.
+*/
+
+static void lock_db_free_element(void *ptr)
+{
+  my_free((gptr) ptr, MYF(0));
+}
+
+
+/*
+  Put a database lock entry into the hash.
+  
+  DESCRIPTION
+    Insert a database lock entry into hash.
+    LOCK_db_lock must be previously locked.
+  
+  RETURN VALUES
+    0 on success.
+    1 on error.
+*/
+
+static my_bool lock_db_insert(const char *dbname, uint length)
+{
+  my_dblock_t *opt;
+  my_bool error= 0;
+  DBUG_ENTER("lock_db_insert");
+  
+  safe_mutex_assert_owner(&LOCK_lock_db);
+
+  if (!(opt= (my_dblock_t*) hash_search(&lock_db_cache,
+                                        (byte*) dbname, length)))
+  { 
+    /* Db is not in the hash, insert it */
+    char *tmp_name;
+    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+                         &opt, (uint) sizeof(*opt), &tmp_name, length+1,
+                         NullS))
+    {
+      error= 1;
+      goto end;
+    }
+    
+    opt->name= tmp_name;
+    strmov(opt->name, dbname);
+    opt->name_length= length;
+    
+    if ((error= my_hash_insert(&lock_db_cache, (byte*) opt)))
+    {
+      my_free((gptr) opt, MYF(0));
+      goto end;
+    }
+  }
+
+end:
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Delete a database lock entry from hash.
+*/
+
+void lock_db_delete(const char *name, uint length)
+{
+  my_dblock_t *opt;
+  safe_mutex_assert_owner(&LOCK_lock_db);
+  opt= (my_dblock_t *)hash_search(&lock_db_cache, (const byte*) name, length);
+  DBUG_ASSERT(opt != NULL);
+  hash_delete(&lock_db_cache, (byte*) opt);
+}
+
+
 /* Database options hash */
 static HASH dboptions;
 static my_bool dboptions_init= 0;
@@ -90,10 +191,10 @@ static void free_dbopt(void *dbopt)
 
 
 /* 
-  Initialize database option hash
+  Initialize database option hash and locked database hash.
 
   SYNOPSIS
-    my_dbopt_init()
+    my_database_names()
 
   NOTES
     Must be called before any other database function is called.
@@ -103,7 +204,7 @@ static void free_dbopt(void *dbopt)
     1	Fatal error
 */
 
-bool my_dbopt_init(void)
+bool my_database_names_init(void)
 {
   bool error= 0;
   (void) my_rwlock_init(&LOCK_dboptions, NULL);
@@ -113,26 +214,37 @@ bool my_dbopt_init(void)
     error= hash_init(&dboptions, lower_case_table_names ? 
                      &my_charset_bin : system_charset_info,
                      32, 0, 0, (hash_get_key) dboptions_get_key,
-                     free_dbopt,0);
+                     free_dbopt,0) ||
+           hash_init(&lock_db_cache, lower_case_table_names ? 
+                     &my_charset_bin : system_charset_info,
+                     32, 0, 0, (hash_get_key) lock_db_get_key,
+                     lock_db_free_element,0);
+
   }
   return error;
 }
 
 
+
 /* 
-  Free database option hash.
+  Free database option hash and locked databases hash.
 */
 
-void my_dbopt_free(void)
+void my_database_names_free(void)
 {
   if (dboptions_init)
   {
     dboptions_init= 0;
     hash_free(&dboptions);
     (void) rwlock_destroy(&LOCK_dboptions);
+    hash_free(&lock_db_cache);
   }
 }
 
+
+/*
+  Cleanup cached options
+*/
 
 void my_dbopt_cleanup(void)
 {
@@ -1218,4 +1330,313 @@ end:
     thd->variables.collation_database= thd->db_charset;
   }
   DBUG_RETURN(0);
+}
+
+
+static int
+lock_databases(THD *thd, const char *db1, uint length1,
+                         const char *db2, uint length2)
+{
+  pthread_mutex_lock(&LOCK_lock_db);
+  while (!thd->killed &&
+         (hash_search(&lock_db_cache,(byte*) db1, length1) ||
+          hash_search(&lock_db_cache,(byte*) db2, length2)))
+  {
+    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
+    pthread_mutex_lock(&LOCK_lock_db);
+  }
+
+  if (thd->killed)
+  {
+    pthread_mutex_unlock(&LOCK_lock_db);
+    return 1;
+  }
+
+  lock_db_insert(db1, length1);
+  lock_db_insert(db2, length2);
+  creating_database++;
+
+  /*
+    Wait if a concurent thread is creating a table at the same time.
+    The assumption here is that it will not take too long until
+    there is a point in time when a table is not created.
+  */
+
+  while (!thd->killed && creating_table)
+  {
+    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
+    pthread_mutex_lock(&LOCK_lock_db);
+  }
+
+  if (thd->killed)
+  {
+    lock_db_delete(db1, length1);
+    lock_db_delete(db2, length2);
+    creating_database--;
+    pthread_mutex_unlock(&LOCK_lock_db);
+    pthread_cond_signal(&COND_refresh);
+    return(1);
+  }
+
+  /*
+    We can unlock now as the hash will protect against anyone creating a table
+    in the databases we are using
+  */
+  pthread_mutex_unlock(&LOCK_lock_db);
+  return 0;
+}
+
+
+/*
+  Rename database.
+
+  SYNOPSIS
+    mysql_rename_db()
+    thd                 Thread handler
+    olddb               Old database name
+    newdb               New database name
+
+  DESCRIPTION
+   This function is invoked whenever a RENAME DATABASE query is executed:
+
+     RENAME DATABASE 'olddb' TO 'newdb'.
+
+  NOTES
+
+    If we have managed to rename (move) tables to the new database
+    but something failed on a later step, then we store the
+    RENAME DATABASE event in the log. mysql_rename_db() is atomic in
+    the sense that it will rename all or none of the tables.
+
+  TODO:
+    - Better trigger, stored procedure, event, grant handling,
+      see the comments below.
+      NOTE: It's probably a good idea to call wait_if_global_read_lock()
+      once in mysql_rename_db(), instead of locking inside all
+      the required functions for renaming triggerts, SP, events, grants, etc.
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
+
+bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
+{
+  int error= 0, change_to_newdb= 0;
+  char path[FN_REFLEN+16];
+  uint length;
+  HA_CREATE_INFO create_info;
+  MY_DIR *dirp;
+  TABLE_LIST *table_list;
+  SELECT_LEX *sl= thd->lex->current_select;
+  DBUG_ENTER("mysql_rename_db");
+
+  if (lock_databases(thd, old_db->str, old_db->length,
+                          new_db->str, new_db->length))
+    return 1;
+
+  /*
+    Let's remember if we should do "USE newdb" afterwards.
+    thd->db will be cleared in mysql_rename_db()
+  */
+  if (thd->db && !strcmp(thd->db, old_db->str))
+    change_to_newdb= 1;
+
+  build_table_filename(path, sizeof(path)-1, old_db->str, "", MY_DB_OPT_FILE);
+  if ((load_db_opt(thd, path, &create_info)))
+    create_info.default_table_charset= thd->variables.collation_server;
+
+  length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "");
+  if (length && path[length-1] == FN_LIBCHAR)
+    path[length-1]=0;                            // remove ending '\'
+  if ((error= my_access(path,F_OK)))
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), old_db->str);
+    goto exit;
+  }
+
+  /* Step1: Create the new database */
+  if ((error= mysql_create_db(thd, new_db->str, &create_info, 1)))
+    goto exit;
+
+  /* Step2: Move tables to the new database */
+  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
+  {
+    uint nfiles= (uint) dirp->number_off_files;
+    for (uint idx=0 ; idx < nfiles && !thd->killed ; idx++)
+    {
+      FILEINFO *file= dirp->dir_entry + idx;
+      char *extension, tname[FN_REFLEN];
+      LEX_STRING table_str;
+      DBUG_PRINT("info",("Examining: %s", file->name));
+
+      /* skiping non-FRM files */
+      if (my_strcasecmp(files_charset_info,
+                        (extension= fn_rext(file->name)), reg_ext))
+        continue;
+
+      /* A frm file found, add the table info rename list */
+      *extension= '\0';
+      
+      table_str.length= filename_to_tablename(file->name,
+                                              tname, sizeof(tname)-1);
+      table_str.str= sql_memdup(tname, table_str.length + 1);
+      Table_ident *old_ident= new Table_ident(thd, *old_db, table_str, 0);
+      Table_ident *new_ident= new Table_ident(thd, *new_db, table_str, 0);
+      if (!old_ident || !new_ident ||
+          !sl->add_table_to_list(thd, old_ident, NULL,
+                                 TL_OPTION_UPDATING, TL_IGNORE) ||
+          !sl->add_table_to_list(thd, new_ident, NULL,
+                                 TL_OPTION_UPDATING, TL_IGNORE))
+      {
+        error= 1;
+        my_dirend(dirp);
+        goto exit;
+      }
+    }
+    my_dirend(dirp);  
+  }
+
+  if ((table_list= thd->lex->query_tables) &&
+      (error= mysql_rename_tables(thd, table_list, 1)))
+  {
+    /*
+      Failed to move all tables from the old database to the new one.
+      In the best case mysql_rename_tables() moved all tables back to the old
+      database. In the worst case mysql_rename_tables() moved some tables
+      to the new database, then failed, then started to move the tables back,  and
+      then failed again. In this situation we have some tables in the
+      old database and some tables in the new database.
+      Let's delete the option file, and then the new database directory.
+      If some tables were left in the new directory, rmdir() will fail.
+      It garantees we never loose any tables.
+    */
+    build_table_filename(path, sizeof(path)-1, new_db->str,"",MY_DB_OPT_FILE);
+    my_delete(path, MYF(MY_WME));
+    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "");
+    if (length && path[length-1] == FN_LIBCHAR)
+      path[length-1]=0;                            // remove ending '\'
+    rmdir(path);
+    goto exit;
+  }
+
+
+  /*
+    Step3: move all remaining files to the new db's directory.
+    Skip db opt file: it's been created by mysql_create_db() in
+    the new directory, and will be dropped by mysql_rm_db() in the old one.
+    Trigger TRN and TRG files are be moved as regular files at the moment,
+    without any special treatment.
+
+    Triggers without explicit database qualifiers in table names work fine: 
+      use d1;
+      create trigger trg1 before insert on t2 for each row set @a:=1
+      rename database d1 to d2;
+
+    TODO: Triggers, having the renamed database explicitely written
+    in the table qualifiers.
+    1. when the same database is renamed:
+        create trigger d1.trg1 before insert on d1.t1 for each row set @a:=1;
+        rename database d1 to d2;
+      Problem: After database renaming, the trigger's body
+               still points to the old database d1.
+    2. when another database is renamed:
+        create trigger d3.trg1 before insert on d3.t1 for each row
+          insert into d1.t1 values (...);
+        rename database d1 to d2;
+      Problem: After renaming d1 to d2, the trigger's body
+               in the database d3 still points to database d1.
+  */
+
+  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
+  {
+    uint nfiles= (uint) dirp->number_off_files;
+    for (uint idx=0 ; idx < nfiles ; idx++)
+    {
+      FILEINFO *file= dirp->dir_entry + idx;
+      char oldname[FN_REFLEN], newname[FN_REFLEN];
+      DBUG_PRINT("info",("Examining: %s", file->name));
+
+      /* skiping . and .. and MY_DB_OPT_FILE */
+      if ((file->name[0] == '.' &&
+           (!file->name[1] || (file->name[1] == '.' && !file->name[2]))) ||
+          !my_strcasecmp(files_charset_info, file->name, MY_DB_OPT_FILE))
+        continue;
+
+      /* pass empty file name, and file->name as extension to avoid encoding */
+      build_table_filename(oldname, sizeof(oldname)-1,
+                           old_db->str, "", file->name);
+      build_table_filename(newname, sizeof(newname)-1,
+                           new_db->str, "", file->name);
+      my_rename(oldname, newname, MYF(MY_WME));
+    }
+    my_dirend(dirp);  
+  }
+
+  /*
+    Step4: TODO: moving stored procedures in the 'proc' system table
+    We need a new function: sp_move_db_routines(thd, olddb, newdb)
+    Which will basically have the same effect with:
+    UPDATE proc SET db='newdb' WHERE db='olddb'
+    Note, for 5.0 to 5.1 upgrade purposes we don't really need it.
+
+    The biggest problem here is that we can't have a lock on LOCK_open() while
+    calling open_table() for 'proc'.
+
+    Two solutions:
+    - Start by opening the 'event' and 'proc' (and other) tables for write
+      even before creating the 'to' database.  (This will have the nice
+      effect of blocking another 'rename database' while the lock is active).
+    - Use the solution "Disable create of new tables during lock table"
+
+    For an example of how to read through all rows, see:
+    sql_help.cc::search_topics()
+  */
+
+  /*
+    Step5: TODO: moving events in the 'event' system table
+    We need a new function evex_move_db_events(thd, olddb, newdb)
+    Which will have the same effect with:
+    UPDATE event SET db='newdb' WHERE db='olddb'
+    Note, for 5.0 to 5.1 upgrade purposes we don't really need it.
+  */
+
+  /*
+    Step6: TODO: moving grants in the 'db', 'tables_priv', 'columns_priv'.
+    Update each grant table, doing the same with:
+    UPDATE system_table SET db='newdb' WHERE db='olddb'
+  */
+
+  /*
+    Step7: drop the old database.
+    remove_db_from_cache(olddb) and query_cache_invalidate(olddb)
+    are done inside mysql_rm_db(), no needs to execute them again.
+    mysql_rm_db() also "unuses" if we drop the current database.
+  */
+  error= mysql_rm_db(thd, old_db->str, 0, 1);
+
+  /* Step8: logging */
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, TRUE);
+    thd->clear_error();
+    mysql_bin_log.write(&qinfo);
+  }
+
+  /* Step9: Let's do "use newdb" if we renamed the current database */
+  if (change_to_newdb)
+    error|= mysql_change_db(thd, new_db->str, 0);
+
+exit:
+  pthread_mutex_lock(&LOCK_lock_db);
+  /* Remove the databases from db lock cache */
+  lock_db_delete(old_db->str, old_db->length);
+  lock_db_delete(new_db->str, new_db->length);
+  creating_database--;
+  /* Signal waiting CREATE TABLE's to continue */
+  pthread_cond_signal(&COND_refresh);
+  pthread_mutex_unlock(&LOCK_lock_db);
+
+  DBUG_RETURN(error);
 }
