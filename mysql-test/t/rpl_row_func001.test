@@ -48,9 +48,10 @@ connection master;
 #Used for debugging
 #show binlog events;
 
-# Lets cleanup
+# Cleanup
 
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
+sync_slave_with_master;
 
 # End of 5.0 test case

@@ -67,15 +67,14 @@ save_master_pos;
 connection slave;
 sync_with_master;
 SELECT * FROM test.t1 ORDER BY id;
+
+# Cleanup
 connection master;
-
 #show binlog events; 
-
-# cleanup
-
 DROP TRIGGER test.t2_ai;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
+sync_slave_with_master;
 
 # End of 5.0 test case

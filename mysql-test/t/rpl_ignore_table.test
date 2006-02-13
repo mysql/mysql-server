@@ -23,6 +23,8 @@ UPDATE test.t4 NATURAL JOIN test.t1 SET t1.a=5;
 sync_slave_with_master;
 SELECT * FROM t4;
 
+# Cleanup
 connection master;
 DROP TABLE t1;
 DROP TABLE t4;
+sync_slave_with_master;
