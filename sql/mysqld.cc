@@ -8150,7 +8150,6 @@ static void create_pid_file()
 /*****************************************************************************
   Instantiate have_xyx for missing storage engines
 *****************************************************************************/
-#undef have_isam
 #undef have_berkeley_db
 #undef have_innodb
 #undef have_ndbcluster
@@ -8163,7 +8162,6 @@ static void create_pid_file()
 
 SHOW_COMP_OPTION have_berkeley_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
-SHOW_COMP_OPTION have_isam= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_archive_db= SHOW_OPTION_NO;
