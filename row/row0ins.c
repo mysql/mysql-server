@@ -2053,6 +2053,7 @@ row_ins_index_entry_low(
 							ext_vec, n_ext_vec,
 							thr, &mtr);
 		} else {
+			ut_ad(!n_ext_vec);
 			err = row_ins_sec_index_entry_by_modify(mode, &cursor,
 								entry,
 								thr, &mtr);
@@ -2061,27 +2062,20 @@ row_ins_index_entry_low(
 	} else {
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(0, &cursor, entry,
-					&insert_rec, &big_rec, thr, &mtr);
+					&insert_rec, &big_rec,
+					ext_vec, n_ext_vec, thr, &mtr);
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_insert(0, &cursor, entry,
-					&insert_rec, &big_rec, thr, &mtr);
-		}
-
-		if (err == DB_SUCCESS) {
-			/* TODO: set these before insert */
-			if (ext_vec) {
-				/* TODO: page_zip, mtr=NULL */
-				rec_set_field_extern_bits(insert_rec, index,
-						ext_vec, n_ext_vec, &mtr);
-			}
+					&insert_rec, &big_rec,
+					ext_vec, n_ext_vec, thr, &mtr);
 		}
 	}
 
 function_exit:
 	mtr_commit(&mtr);
 
-	if (big_rec) {
+	if (UNIV_LIKELY_NULL(big_rec)) {
 		rec_t*		rec;
 		mtr_start(&mtr);
 	

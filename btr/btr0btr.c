@@ -1029,6 +1029,8 @@ btr_root_raise_and_insert(
 				the cursor is positioned on the predecessor
 				of the inserted record */
 	dtuple_t*	tuple,	/* in: tuple to insert */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_tree_t*	tree;
@@ -1110,7 +1112,7 @@ btr_root_raise_and_insert(
 	page_cur_set_before_first(root, page_cursor);
 
 	node_ptr_rec = page_cur_tuple_insert(page_cursor, NULL,
-					node_ptr, cursor->index, mtr);
+					node_ptr, cursor->index, NULL, 0, mtr);
 
 	ut_ad(node_ptr_rec);
 
@@ -1146,7 +1148,7 @@ btr_root_raise_and_insert(
 				PAGE_CUR_LE, page_cursor);
 	
 	/* Split the child and insert tuple */
-	return(btr_page_split_and_insert(cursor, tuple, mtr));
+	return(btr_page_split_and_insert(cursor, tuple, ext, n_ext, mtr));
 }	
 
 /*****************************************************************
@@ -1490,7 +1492,8 @@ btr_insert_on_non_leaf_level(
 					| BTR_KEEP_SYS_FLAG
 					| BTR_NO_UNDO_LOG_FLAG,
 					&cursor, tuple,
-					&rec, &dummy_big_rec, NULL, mtr);
+					&rec, &dummy_big_rec,
+					NULL, 0, NULL, mtr);
 	ut_a(err == DB_SUCCESS);
 }
 
@@ -1639,6 +1642,8 @@ btr_page_split_and_insert(
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
 	dtuple_t*	tuple,	/* in: tuple to insert */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_tree_t*	tree;
@@ -1809,7 +1814,7 @@ func_start:
 						PAGE_CUR_LE, page_cursor);
 
 	rec = page_cur_tuple_insert(page_cursor, insert_page_zip,
-					tuple, cursor->index, mtr);
+					tuple, cursor->index, ext, n_ext, mtr);
 
 	ut_ad(!insert_page_zip
 		|| page_zip_validate(insert_page_zip, insert_page));
@@ -1839,7 +1844,7 @@ func_start:
 	page_cur_search(insert_page, cursor->index, tuple,
 						PAGE_CUR_LE, page_cursor);
 	rec = page_cur_tuple_insert(page_cursor, insert_page_zip,
-					tuple, cursor->index, mtr);
+					tuple, cursor->index, ext, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(rec == NULL)) {
 		/* The insert did not fit on the page: loop back to the

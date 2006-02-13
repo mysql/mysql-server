@@ -819,6 +819,8 @@ btr_cur_insert_if_possible(
 	page_zip_des_t*	page_zip,/* in: compressed page of cursor */
 	dtuple_t*	tuple,	/* in: tuple to insert; the size info need not
 				have been stored to tuple */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -835,7 +837,7 @@ btr_cur_insert_if_possible(
 	
 	/* Now, try the insert */
 	rec = page_cur_tuple_insert(page_cursor, page_zip,
-					tuple, cursor->index, mtr);
+					tuple, cursor->index, ext, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize */
@@ -846,7 +848,7 @@ btr_cur_insert_if_possible(
 						PAGE_CUR_LE, page_cursor);
 
 			rec = page_cur_tuple_insert(page_cursor, page_zip,
-						tuple, cursor->index, mtr);
+					tuple, cursor->index, ext, n_ext, mtr);
 		}
 	}
 
@@ -954,6 +956,8 @@ btr_cur_optimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -969,6 +973,7 @@ btr_cur_optimistic_insert(
 	ibool		inherit;
 	ulint		rec_size;
 	ulint		type;
+	mem_heap_t*	heap		= NULL;
 	ulint		err;	
 
 	*big_rec = NULL;
@@ -1003,7 +1008,7 @@ calculate_sizes_again:
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 		
-                big_rec_vec = dtuple_convert_big_rec(index, entry, NULL, 0);
+                big_rec_vec = dtuple_convert_big_rec(index, entry, ext, n_ext);
 
 		if (big_rec_vec == NULL) {
 		
@@ -1059,11 +1064,31 @@ calculate_sizes_again:
 
 	reorg = FALSE;
 
+	/* Add externally stored records, if needed */
+	if (UNIV_LIKELY_NULL(big_rec_vec)) {
+		ulint	n_more_ext = big_rec_vec->n_fields;
+		ulint*	more_ext;
+		ulint	i;
+
+		heap = mem_heap_create((n_more_ext + n_ext) * sizeof(ulint));
+		more_ext = mem_heap_alloc(heap,
+					(n_more_ext + n_ext) * sizeof(ulint));
+		if (n_ext) {
+			memcpy(more_ext, ext, n_ext * sizeof(ulint));
+		}
+
+		for (i = 0; i < n_more_ext; i++) {
+			more_ext[n_ext++] = big_rec_vec->fields[i].field_no;
+		}
+
+		ext = more_ext;
+	}
+
 	/* Now, try the insert */
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
 	*rec = page_cur_insert_rec_low(page_cursor, page_zip,
-					entry, index, NULL, NULL, mtr);
+				entry, index, NULL, NULL, ext, n_ext, mtr);
 	if (UNIV_UNLIKELY(!(*rec))) {
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(page, index, mtr))) {
@@ -1079,7 +1104,7 @@ calculate_sizes_again:
 		page_cur_search(page, index, entry, PAGE_CUR_LE, page_cursor);
 
 		*rec = page_cur_tuple_insert(page_cursor, page_zip,
-						entry, index, mtr);
+						entry, index, ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
@@ -1090,6 +1115,10 @@ calculate_sizes_again:
 				(ulong) max_size);
 			ut_error;
 		}
+	}
+
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
@@ -1145,6 +1174,8 @@ btr_cur_pessimistic_insert(
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
 				be stored externally by the caller, or
 				NULL */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext,	/* in: number of elements in vec */
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1175,7 +1206,7 @@ btr_cur_pessimistic_insert(
 	cursor->flag = BTR_CUR_BINARY;
 
 	err = btr_cur_optimistic_insert(flags, cursor, entry, rec, big_rec,
-								thr, mtr);
+							ext, n_ext, thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1230,9 +1261,11 @@ btr_cur_pessimistic_insert(
 					== buf_frame_get_page_no(page)) {
 
 		/* The page is the root page */
-		*rec = btr_root_raise_and_insert(cursor, entry, mtr);
+		*rec = btr_root_raise_and_insert(cursor, entry,
+						ext, n_ext, mtr);
 	} else {
-		*rec = btr_page_split_and_insert(cursor, entry, mtr);
+		*rec = btr_page_split_and_insert(cursor, entry,
+						ext, n_ext, mtr);
 	}
 
 	btr_cur_position(index, page_rec_get_prev(*rec), cursor);	
@@ -1740,7 +1773,9 @@ btr_cur_optimistic_update(
 								trx->id);
 	}
 
-	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry, mtr);
+	/* There are no externally stored columns in new_entry */
+	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry,
+					NULL, 0, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (!rec_get_deleted_flag(rec, page_is_comp(page))) {
@@ -1973,8 +2008,8 @@ btr_cur_pessimistic_update(
 
 	page_cur_move_to_prev(page_cursor);
 
-	/* TODO: set extern flags in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry, mtr);
+	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry,
+						ext_vect, n_ext_vect, mtr);
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
 	if (rec) {
@@ -1982,10 +2017,7 @@ btr_cur_pessimistic_update(
 					ULINT_UNDEFINED, &heap);
 
 		lock_rec_restore_from_page_infimum(rec, page);
-		/* TODO: set these before insert */
-		rec_set_field_extern_bits(rec, index,
-						ext_vect, n_ext_vect, mtr);
-		
+
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 			/* The new inserted record owns its possible externally
 			stored fields */
@@ -2014,19 +2046,18 @@ btr_cur_pessimistic_update(
 					| BTR_NO_LOCKING_FLAG
 					| BTR_KEEP_SYS_FLAG,
 					cursor, new_entry, &rec,
-					&dummy_big_rec, NULL, mtr);
+					&dummy_big_rec,
+					ext_vect, n_ext_vect, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
-
-	/* TODO: set these before insert */
-	rec_set_field_extern_bits(rec, index, ext_vect, n_ext_vect, mtr);
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* The new inserted record owns its possible externally
 		stored fields */
 
+		offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
 		btr_cur_unmark_extern_fields(
 				page_zip, rec, index, offsets, mtr);
 	}
