@@ -4757,12 +4757,39 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
 
   if (!stmt->field_count)
     DBUG_RETURN(0);
-  if ((int) stmt->state < (int) MYSQL_STMT_EXECUTE_DONE ||
-      mysql->status != MYSQL_STATUS_GET_RESULT)
+
+  if ((int) stmt->state < (int) MYSQL_STMT_EXECUTE_DONE)
   {
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     DBUG_RETURN(1);
   }
+
+  if (mysql->status == MYSQL_STATUS_READY &&
+      stmt->server_status & SERVER_STATUS_CURSOR_EXISTS)
+  {
+    /*
+      Server side cursor exist, tell server to start sending the rows
+    */
+    NET *net= &mysql->net;
+    char buff[4 /* statement id */ +
+              4 /* number of rows to fetch */];
+
+    /* Send row request to the server */
+    int4store(buff, stmt->stmt_id);
+    int4store(buff + 4, (int)~0); /* number of rows to fetch */
+    if (cli_advanced_command(mysql, COM_STMT_FETCH, buff, sizeof(buff),
+                             NullS, 0, 1))
+    {
+      set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+      DBUG_RETURN(1);
+    }
+  }
+  else if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  {
+    set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+
   if (result->data)
   {
     free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
@@ -4802,6 +4829,10 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     mysql->status= MYSQL_STATUS_READY;
     DBUG_RETURN(1);
   }
+
+  /* Assert that if there was a cursor, all rows have been fetched */
+  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY ||
+              (mysql->server_status & SERVER_STATUS_LAST_ROW_SENT));
 
   if (stmt->update_max_length)
   {
