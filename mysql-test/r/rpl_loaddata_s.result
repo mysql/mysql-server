@@ -12,3 +12,4 @@ count(*)
 2
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+drop table test.t1;
