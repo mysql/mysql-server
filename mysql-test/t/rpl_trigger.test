@@ -3,7 +3,14 @@
 # Adding statement include due to Bug 12574
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_statement.inc 
-source include/master-slave.inc;
+--source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+
+--enable_warnings
 
 #
 # #12482: Triggers has side effects with auto_increment values
