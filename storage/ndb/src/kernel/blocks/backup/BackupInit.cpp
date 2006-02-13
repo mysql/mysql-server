@@ -27,8 +27,8 @@
 
 //extern const unsigned Ndbcntr::g_sysTableCount;
 
-Backup::Backup(const Configuration & conf) :
-  SimulatedBlock(BACKUP, conf),
+Backup::Backup(Block_context& ctx) :
+  SimulatedBlock(BACKUP, ctx),
   c_nodes(c_nodePool),
   c_backups(c_backupPool)
 {
@@ -140,7 +140,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(req->noOfParameters == 0);
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
@@ -185,7 +185,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2); 
   
   { // Init all tables
-    ArrayList<Table> tables(c_tablePool);
+    SLList<Table> tables(c_tablePool);
     TablePtr ptr;
     while(tables.seize(ptr)){
       new (ptr.p) Table(c_attributePool, c_fragmentPool);
@@ -194,7 +194,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   {
-    ArrayList<BackupFile> ops(c_backupFilePool);
+    SLList<BackupFile> ops(c_backupFilePool);
     BackupFilePtr ptr;
     while(ops.seize(ptr)){
       new (ptr.p) BackupFile(* this, c_pagePool);
@@ -203,7 +203,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
   
   {
-    ArrayList<BackupRecord> recs(c_backupPool);
+    SLList<BackupRecord> recs(c_backupPool);
     BackupRecordPtr ptr;
     while(recs.seize(ptr)){
       new (ptr.p) BackupRecord(* this, c_tablePool, 

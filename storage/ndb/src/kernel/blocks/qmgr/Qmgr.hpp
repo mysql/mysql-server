@@ -180,7 +180,7 @@ public:
   };
   
 public:
-  Qmgr(const class Configuration &);
+  Qmgr(Block_context&);
   virtual ~Qmgr();
 
 private:

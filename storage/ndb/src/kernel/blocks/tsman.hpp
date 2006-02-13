@@ -30,7 +30,7 @@
 class Tsman : public SimulatedBlock
 {
 public:
-  Tsman(const Configuration & conf, class Pgman*, class Lgman*);
+  Tsman(Block_context&, Pgman*, Lgman*);
   virtual ~Tsman();
   BLOCK_DEFINES(Tsman);
   

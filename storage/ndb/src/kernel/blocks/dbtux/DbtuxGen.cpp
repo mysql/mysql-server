@@ -17,8 +17,8 @@
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
 
-Dbtux::Dbtux(const Configuration& conf) :
-  SimulatedBlock(DBTUX, conf),
+Dbtux::Dbtux(Block_context& ctx) :
+  SimulatedBlock(DBTUX, ctx),
   c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
@@ -165,7 +165,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nScanOp; 
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_INDEX, &nIndex));

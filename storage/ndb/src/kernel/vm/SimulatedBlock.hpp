@@ -51,7 +51,7 @@
 
 #include <signaldata/ReadConfig.hpp>
 #include <signaldata/UpgradeStartup.hpp>
-
+#include "ndbd_malloc_impl.hpp"
 
 /**
  * Something for filesystem access
@@ -74,6 +74,12 @@ typedef struct NewVar
   NewBaseAddrBits       bits;
 } NewVARIABLE;  /* 128 bits */
 
+struct Block_context
+{
+  class Configuration& m_config;
+  class Ndbd_mem_manager& m_mm;
+};
+
 class SimulatedBlock {
   friend class TraceLCP;
   friend class SafeCounter;
@@ -93,8 +99,8 @@ protected:
    * Constructor
    */
   SimulatedBlock(BlockNumber blockNumber,
-                 const class Configuration & theConfiguration); 
-
+		 struct Block_context & ctx); 
+  
   /**********************************************************
    * Handling of execFunctions
    */
@@ -338,6 +344,7 @@ private:
   const BlockReference theReference;
   
 protected:
+  Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
   void freeBat();
   static const NewVARIABLE* getBat    (BlockNumber blockNo);
@@ -378,11 +385,6 @@ protected:
   void infoEvent(const char * msg, ...) const ;
   void warningEvent(const char * msg, ...) const ;
   
-  /**
-   * The configuration object
-   */
-  const class Configuration & theConfiguration;
-
   /**
    * Get node state
    */
