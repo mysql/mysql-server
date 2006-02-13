@@ -145,12 +145,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select sql_no_cache last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
-ERROR 23000: Duplicate entry '254' for key 1
+ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
 select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
-ERROR 23000: Duplicate entry '255' for key 1
+ERROR 23000: Duplicate entry '255' for key 'PRIMARY'
 select last_insert_id();
 last_insert_id()
 0
@@ -178,7 +178,7 @@ select last_insert_id();
 last_insert_id()
 2
 insert into t1 values (NULL, 10);
-ERROR 23000: Duplicate entry '10' for key 2
+ERROR 23000: Duplicate entry '10' for key 'b'
 select last_insert_id();
 last_insert_id()
 0
@@ -379,7 +379,7 @@ key (rowid), unique(val));
 replace into t1 (val) values ('1'),('2');
 replace into t1 (val) values ('1'),('2');
 insert into t1 (val) values ('1'),('2');
-ERROR 23000: Duplicate entry '1' for key 2
+ERROR 23000: Duplicate entry '1' for key 'val'
 select * from t1;
 rowid	val
 3	1

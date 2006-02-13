@@ -465,6 +465,10 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_FOUND_DUPP_KEY);
 
+  	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
+
+		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
+
  	} else if (error == (int) DB_RECORD_NOT_FOUND) {
 
     		return(HA_ERR_NO_ACTIVE_RECORD);
@@ -5757,7 +5761,7 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+This is mapped to "ALTER TABLE tablename ENGINE=InnoDB", which rebuilds
 the table in MySQL. */
 
 int

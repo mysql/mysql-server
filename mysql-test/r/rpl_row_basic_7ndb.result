@@ -392,11 +392,11 @@ DROP TABLE t7;
 CREATE TABLE t7 (a INT PRIMARY KEY, b INT UNIQUE, c INT UNIQUE) ENGINE = 'NDB'  ;
 INSERT INTO t7 VALUES (99,99,99);
 INSERT INTO t7 VALUES (99,22,33);
-ERROR 23000: Duplicate entry '99' for key 1
+ERROR 23000: Duplicate entry '99' for key 'PRIMARY'
 INSERT INTO t7 VALUES (11,99,33);
-ERROR 23000: Duplicate entry '11' for key 1
+ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
 INSERT INTO t7 VALUES (11,22,99);
-ERROR 23000: Duplicate entry '11' for key 1
+ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
 SELECT * FROM t7 ORDER BY a;
 a	b	c
 99	99	99

@@ -516,11 +516,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  QUARTER_SYM
 %token  QUERY_SYM
 %token  QUICK
-%token  RAID_0_SYM
-%token  RAID_CHUNKS
-%token  RAID_CHUNKSIZE
-%token  RAID_STRIPED_SYM
-%token  RAID_TYPE
 %token  RAND
 %token  RANGE_SYM
 %token  READS_SYM
@@ -753,7 +748,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         union_opt select_derived_init option_type2
 
 %type <ulong_num>
-	ulong_num raid_types merge_insert_types
+	ulong_num merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num size_number
@@ -2400,17 +2395,18 @@ sp_proc_stmt_case:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *parsing_ctx= lex->spcont;
 	    int case_expr_id= parsing_ctx->register_case_expr();
+            sp_instr_set_case_expr *i;
 	    
 	    if (parsing_ctx->push_case_expr_id(case_expr_id))
               YYABORT;
-	    
-	    sp->add_instr(
-	      new sp_instr_set_case_expr(sp->instructions(),
-	                                 parsing_ctx,
-	                                 case_expr_id,
-	                                 $3,
-	                                 lex));
-	    
+
+            i= new sp_instr_set_case_expr(sp->instructions(),
+                                          parsing_ctx,
+                                          case_expr_id,
+                                          $3,
+                                          lex);
+            sp->add_cont_backpatch(i);
+            sp->add_instr(i);
 	    sp->m_flags|= sp_head::IN_SIMPLE_CASE;
 	    sp->restore_lex(YYTHD);
 	  }
@@ -3995,7 +3991,6 @@ create_table_options:
 
 create_table_option:
 	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
-	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine");   Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -4026,21 +4021,6 @@ create_table_option:
 	| CHECKSUM_SYM opt_equal ulong_num	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM opt_equal ulong_num { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
-	| RAID_TYPE opt_equal raid_types
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_TYPE", "PARTITION");
-	    YYABORT;
-	  }
-	| RAID_CHUNKS opt_equal ulong_num
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKS", "PARTITION");
-	    YYABORT;
-	  }
-	| RAID_CHUNKSIZE opt_equal ulong_num
-	  {
-	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKSIZE", "PARTITION");
-	    YYABORT;
-	  }
 	| UNION_SYM opt_equal '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
@@ -4119,11 +4099,6 @@ row_types:
 	| COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
 	| REDUNDANT_SYM	{ $$= ROW_TYPE_REDUNDANT; }
 	| COMPACT_SYM	{ $$= ROW_TYPE_COMPACT; };
-
-raid_types:
-	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
-	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
-	| ulong_num	 { $$=$1;};
 
 merge_insert_types:
        NO_SYM            { $$= MERGE_INSERT_DISABLED; }
@@ -9495,11 +9470,6 @@ keyword_sp:
 	| QUARTER_SYM		{}
 	| QUERY_SYM		{}
 	| QUICK			{}
-	| RAID_0_SYM		{}
-	| RAID_CHUNKS		{}
-	| RAID_CHUNKSIZE	{}
-	| RAID_STRIPED_SYM	{}
-	| RAID_TYPE		{}
         | REBUILD_SYM           {}
         | RECOVER_SYM           {}
 	| REDO_BUFFER_SIZE_SYM	{}

@@ -140,7 +140,7 @@ print "  max_args      tinyint,";
 print "  date_created  datetime not null,";
 print "  last_modified timestamp not null,";
 print "  primary key   (func_id)";
-print ") type=myisam;\n\n";
+print ") ENGINE=MYISAM;\n\n";
 
 print "DROP TABLE IF EXISTS function_category_name;\n";
 print "CREATE TABLE function_category_name (";
@@ -150,14 +150,14 @@ print "  url           char(128) not null,";
 print "  date_created  datetime not null,";
 print "  last_modified timestamp not null,";
 print "  primary key   (cat_id)";
-print ") type=myisam;\n\n";
+print ") ENGINE=MYISAM;\n\n";
 
 print "DROP TABLE IF EXISTS function_category;\n";
 print "CREATE TABLE function_category (";
 print "  cat_id        smallint unsigned not null references function_category_name,";
 print "  func_id       int unsigned not null references function,";
 print "  primary key   (cat_id, func_id)";
-print ") type=myisam;\n\n";
+print ") ENGINE=MYISAM;\n\n";
 
 print "DELETE FROM function_category_name;\n";
 print "DELETE FROM function_category;\n";

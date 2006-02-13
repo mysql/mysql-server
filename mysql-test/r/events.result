@@ -15,20 +15,11 @@ create event event2 on schedule every 2 second starts now() ends date_add(now(),
 drop event event2;
 create event e_43 on schedule every 1 second do set @a = 5;
 set global event_scheduler = 1;
-select sleep(2);
-sleep(2)
-0
 alter event e_43 do alter event e_43 do set @a = 4;
-select sleep(3);
-sleep(3)
-0
 select db, name, body, status, interval_field, interval_value from mysql.event;
 db	name	body	status	interval_field	interval_value
 events_test	e_43	 set @a = 4	ENABLED	SECOND	1
 drop event e_43;
-select sleep(1);
-sleep(1)
-0
 set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
@@ -64,7 +55,7 @@ SHOW GRANTS;
 Grants for ev_test@localhost
 GRANT USAGE ON *.* TO 'ev_test'@'localhost'
 GRANT ALL PRIVILEGES ON `events_test`.* TO 'ev_test'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `events_test2`.* TO 'ev_test'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, TRIGGER ON `events_test2`.* TO 'ev_test'@'localhost'
 "Here comes an error:";
 SHOW EVENTS;
 ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_test2'
@@ -121,6 +112,7 @@ drop event two_event;
 drop event three_event;
 drop user ev_test@localhost;
 drop event one_event;
+"Sleep a bit so the server closes the second connection"
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
@@ -137,4 +129,68 @@ set event_scheduler=0;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
 set global event_scheduler=2;
 ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
+"DISABLE the scheduler. Testing that it does not work when the variable is 0"
+set global event_scheduler=0;
+select definer, name, db from mysql.event;
+definer	name	db
+select get_lock("test_lock1", 20);
+get_lock("test_lock1", 20)
+1
+create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
+"Should return 1 row"
+select definer, name, db from mysql.event;
+definer	name	db
+root@localhost	закачка	events_test
+"Should be only 1 process"
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+select release_lock("test_lock1");
+release_lock("test_lock1")
+1
+drop event закачка;
+"Should have 0 events"
+select count(*) from mysql.event;
+count(*)
+0
+"ENABLE the scheduler and get a lock"
+set global event_scheduler=1;
+select get_lock("test_lock2", 20);
+get_lock("test_lock2", 20)
+1
+"Create an event which tries to acquire a mutex. The event locks on the mutex"
+create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
+"Let some time pass to the event starts"
+"Should have only 3 processes: the scheduler, our conn and the locked event"
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler		NULL	Connect	#	Sleeping	NULL
+#	root		events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
+"Release the mutex, the event worker should finish."
+select release_lock("test_lock2");
+release_lock("test_lock2")
+1
+drop event закачка;
+set global event_scheduler=1;
+select get_lock("test_lock2_1", 20);
+get_lock("test_lock2_1", 20)
+1
+create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
+"Should see 2 processes, one locked on get_lock("
+"Shutting down the scheduler, it should wait for the running event"
+set global event_scheduler=0;
+"Should have only 3 processes: the scheduler, our conn and the locked event"
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+"Release the lock so the child process should finish. Hence the scheduler also"
+select release_lock("test_lock2_1");
+release_lock("test_lock2_1")
+1
+"Should have only our process now:"
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	events_test	Query	#	NULL	show processlist
+drop event закачка21;
 drop database events_test;

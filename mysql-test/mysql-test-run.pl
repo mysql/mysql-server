@@ -157,7 +157,8 @@ our $path_client_bindir;
 our $path_language;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
-our $path_mysqltest_log; 
+our $path_slave_load_tmpdir;     # What is this?!
+our $path_mysqltest_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_tmpdir;                 # A path but set directly on cmd line
@@ -485,6 +486,9 @@ sub initial_setup () {
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
 
+  # needs to be same length to test logging (FIXME what???)
+  $path_slave_load_tmpdir=  "../../var/tmp";
+
   $path_my_basedir=
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
@@ -512,15 +516,26 @@ sub command_line_setup () {
   my $im_mysqld1_port=   9312;
   my $im_mysqld2_port=   9314;
 
+  #
+  # To make it easier for different devs to work on the same host,
+  # an environment variable can be used to control all ports. A small
+  # number is to be used, 0 - 16 or similar.
+  #
+  # Note the MASTER_MYPORT has to be set the same in all 4.x and 5.x
+  # versions of this script, else a 4.0 test run might conflict with a
+  # 5.1 test run, even if different MTR_BUILD_THREAD is used. This means
+  # all port numbers might not be used in this version of the script.
+  #
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 40 + 8120;
-    $opt_slave_myport=    $opt_master_myport + 16;
-    $opt_ndbcluster_port= $opt_master_myport + 24;
-    $opt_ndbcluster_port_slave= $opt_master_myport + 32;
-    $im_port=             $opt_master_myport + 10;
-    $im_mysqld1_port=     $opt_master_myport + 12;
-    $im_mysqld2_port=     $opt_master_myport + 14;
+    # Up to two masters, up to three slaves
+    $opt_master_myport=         $ENV{'MTR_BUILD_THREAD'} * 10 + 10000; # and 1
+    $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
+    $opt_ndbcluster_port=       $opt_master_myport + 5;
+    $opt_ndbcluster_port_slave= $opt_master_myport + 6;
+    $im_port=                   $opt_master_myport + 7;
+    $im_mysqld1_port=           $opt_master_myport + 8;
+    $im_mysqld2_port=           $opt_master_myport + 9;
   }
 
   # Read the command line
@@ -680,6 +695,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
 
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+  $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
   # FIXME maybe not needed?
   $path_manager_log= "$opt_vardir/log/manager.log"
     unless $path_manager_log;
@@ -1118,12 +1134,14 @@ sub environment_setup () {
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
+  $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'path_myport'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'path_myport'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'path_myport'};
+  $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
 
@@ -1131,6 +1149,7 @@ sub environment_setup () {
   $ENV{'NDBCLUSTER_PORT_SLAVE'}=$opt_ndbcluster_port_slave;
 
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+  $ENV{'IM_PORT'}=            $instance_manager->{port};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
@@ -1149,15 +1168,20 @@ sub environment_setup () {
     }
   }
 
+  $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
+
   # We are nice and report a bit about our settings
-  print "Using MTR_BUILD_THREAD = ",$ENV{MTR_BUILD_THREAD} || 0,"\n";
-  print "Using MASTER_MYPORT    = $ENV{MASTER_MYPORT}\n";
-  print "Using MASTER_MYPORT1   = $ENV{MASTER_MYPORT1}\n";
-  print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
-  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
+  print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
+  print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
+  print "Using MASTER_MYPORT1        = $ENV{MASTER_MYPORT1}\n";
+  print "Using SLAVE_MYPORT          = $ENV{SLAVE_MYPORT}\n";
+  print "Using SLAVE_MYPORT1         = $ENV{SLAVE_MYPORT1}\n";
+  print "Using SLAVE_MYPORT2         = $ENV{SLAVE_MYPORT2}\n";
+  print "Using NDBCLUSTER_PORT       = $ENV{NDBCLUSTER_PORT}\n";
   print "Using NDBCLUSTER_PORT_SLAVE = $ENV{NDBCLUSTER_PORT_SLAVE}\n";
-  print "Using IM_MYSQLD1_PORT  = $ENV{'IM_MYSQLD1_PORT'}\n";
-  print "Using IM_MYSQLD2_PORT  = $ENV{'IM_MYSQLD2_PORT'}\n";
+  print "Using IM_PORT               = $ENV{IM_PORT}\n";
+  print "Using IM_MYSQLD1_PORT       = $ENV{IM_MYSQLD1_PORT}\n";
+  print "Using IM_MYSQLD2_PORT       = $ENV{IM_MYSQLD2_PORT}\n";
 }
 
 
@@ -1208,6 +1232,7 @@ sub kill_running_server () {
     mkpath("$opt_vardir/log"); # Needed for mysqladmin log
     mtr_kill_leftovers();
 
+    $using_ndbcluster_master= $opt_with_ndbcluster;
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
     ndbcluster_stop_slave();
@@ -1447,6 +1472,7 @@ sub ndbcluster_start ($) {
   }
   if ( $using_ndbcluster_master )
   {
+    # Master already started
     return 0;
   }
   # FIXME, we want to _append_ output to file $file_ndb_testrun_log instead of /dev/null
@@ -1879,7 +1905,7 @@ EOF
 ;
 
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
-    print OUT "old-log-format\n" if $instance->{'old_log_format'};
+    print OUT "log-output=FILE\n" if $instance->{'old_log_format'};
     print OUT "\n";
   }
 
@@ -1956,7 +1982,8 @@ sub run_testcase ($) {
   {
     if ( $tinfo->{'master_restart'} or
          $master->[0]->{'running_master_is_special'} or
-         ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
+	 # Stop if cluster is started but test cases does not need cluster
+	 ( $tinfo->{'ndb_test'} != $using_ndbcluster_master ) )
     {
       stop_masters();
       $master->[0]->{'running_master_is_special'}= 0; # Forget why we stopped
@@ -2011,12 +2038,16 @@ sub run_testcase ($) {
     {
       if ( $master->[0]->{'ndbcluster'} )
       {
+	# Cluster is not started
+
+	# Call ndbcluster_start to check if test case needs cluster
+	# Start it if not already started
 	$master->[0]->{'ndbcluster'}= ndbcluster_start($tinfo->{'ndb_test'});
-        if ( $master->[0]->{'ndbcluster'} )
-        {
-          report_failure_and_restart($tinfo);
-          return;
-        }
+	if ( $master->[0]->{'ndbcluster'} )
+	{
+	  report_failure_and_restart($tinfo);
+	  return;
+	}
       }
       if ( ! $master->[0]->{'pid'} )
       {
@@ -2033,6 +2064,7 @@ sub run_testcase ($) {
       }
       if ( $using_ndbcluster_master and ! $master->[1]->{'pid'} )
       {
+	# Test needs cluster, start an extra mysqld connected to cluster
         mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[],
@@ -2355,15 +2387,15 @@ sub mysqld_arguments ($$$$$$) {
       mtr_add_arg($args, "%s--skip-innodb", $prefix);
     }
 
-    if ( $opt_skip_ndbcluster )
+    if ( $opt_skip_ndbcluster || !$using_ndbcluster)
     {
       mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     }
-    if ( $using_ndbcluster )
+    else
     {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
-                  $opt_ndbconnectstring);
+		  $opt_ndbconnectstring);
       mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
     }
   }
@@ -2548,6 +2580,7 @@ sub mysqld_start ($$$$$) {
   my $extra_opt=         shift;
   my $slave_master_info= shift;
   my $using_ndbcluster=  shift;
+
 
   my $args;                             # Arg vector
   my $exe;
