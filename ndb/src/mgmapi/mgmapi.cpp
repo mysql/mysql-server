@@ -102,6 +102,7 @@ struct ndb_mgm_handle {
   FILE* logfile;
 #endif
   FILE *errstream;
+  char *m_name;
 };
 
 #define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
@@ -156,6 +157,7 @@ ndb_mgm_create_handle()
   h->write_timeout   = 100;
   h->cfg_i           = -1;
   h->errstream       = stdout;
+  h->m_name          = 0;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 
@@ -168,6 +170,14 @@ ndb_mgm_create_handle()
 
   DBUG_PRINT("info", ("handle=0x%x", (UintPtr)h));
   DBUG_RETURN(h);
+}
+
+extern "C"
+void
+ndb_mgm_set_name(NdbMgmHandle handle, const char *name)
+{
+  my_free(handle->m_name, MYF(MY_ALLOW_ZERO_PTR));
+  handle->m_name= my_strdup(name, MYF(MY_WME));
 }
 
 extern "C"
@@ -216,6 +226,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   }
 #endif
   (*handle)->cfg.~LocalConfig();
+  my_free((*handle)->m_name, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
   DBUG_VOID_RETURN;
@@ -1875,6 +1886,8 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   args.put("password", "mysqld");
   args.put("public key", "a public key");
   args.put("endian", (endian_check.c[sizeof(long)-1])?"big":"little");
+  if (handle->m_name)
+    args.put("name", handle->m_name);
 
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get nodeid reply", NULL, ""),
