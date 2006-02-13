@@ -1,0 +1,29 @@
+drop database if exists testdb1;
+create database testdb1 default character set latin2;
+use testdb1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+show create database testdb1;
+Database	Create Database
+testdb1	CREATE DATABASE `testdb1` /*!40100 DEFAULT CHARACTER SET latin2 */
+show tables;
+Tables_in_testdb1
+t1
+rename database testdb1 to testdb2;
+show create database testdb1;
+ERROR 42000: Unknown database 'testdb1'
+show create database testdb2;
+Database	Create Database
+testdb2	CREATE DATABASE `testdb2` /*!40100 DEFAULT CHARACTER SET latin2 */
+select database();
+database()
+testdb2
+show tables;
+Tables_in_testdb2
+t1
+select a from t1 order by a;
+a
+1
+2
+3
+drop database testdb2;

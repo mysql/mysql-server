@@ -21,7 +21,7 @@ skip-stack-trace	VALUE
 skip-innodb	VALUE
 skip-bdb	VALUE
 skip-ndbcluster	VALUE
-old-log-format	VALUE
+log-output	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
 option_name	value
 instance_name	VALUE
@@ -42,7 +42,7 @@ skip-stack-trace	VALUE
 skip-innodb	VALUE
 skip-bdb	VALUE
 skip-ndbcluster	VALUE
-old-log-format	VALUE
+log-output	VALUE
 START INSTANCE mysqld2;
 STOP INSTANCE mysqld2;
 SHOW mysqld1 LOG FILES;

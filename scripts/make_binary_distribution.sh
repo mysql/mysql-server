@@ -131,7 +131,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
   storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
-  sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
+  sql/mysqld$BS sql/mysqld-debug$BS sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqlslap$BS \
@@ -173,8 +173,9 @@ if [ x$STRIP = x1 ] ; then
   strip $BASE/bin/*
 fi
 
-# Copy not binary files
-copyfileto $BASE/bin sql/mysqld.sym.gz
+# Obsolete, starting from 5.1.6-beta
+# # Copy not binary files
+# copyfileto $BASE/bin sql/mysqld.sym.gz
 
 if [ $BASE_SYSTEM = "netware" ] ; then
     $CP netware/*.pl $BASE/scripts
@@ -304,11 +305,12 @@ else
     rm -f $BASE/README.NW
 fi
 
-# Make safe_mysqld a symlink to mysqld_safe for backwards portability
-# To be removed in MySQL 4.1
-if [ $BASE_SYSTEM != "netware" ] ; then
-  (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
-fi
+# Dropped with 5.1.6-beta
+# # Make safe_mysqld a symlink to mysqld_safe for backwards portability
+# # To be removed in MySQL 4.1
+# if [ $BASE_SYSTEM != "netware" ] ; then
+#   (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
+# fi
 
 # Clean up if we did this from a bk tree
 if [ -d $BASE/sql-bench/SCCS ] ; then
@@ -345,7 +347,7 @@ BASE=$BASE2
 if [ x"@GXX@" = x"yes" ] ; then
   gcclib=`@CC@ --print-libgcc-file`
   if [ $? -ne 0 ] ; then
-    print "Warning: Couldn't find libgcc.a!"
+    echo "Warning: Couldn't find libgcc.a!"
   else
     $CP $gcclib $BASE/lib/libmygcc.a
   fi

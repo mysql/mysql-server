@@ -1201,7 +1201,7 @@ static void test_tran_bdb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction( "
-                         "col1 int , col2 varchar(30)) TYPE= BDB");
+                         "col1 int , col2 varchar(30)) ENGINE= BDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1274,7 +1274,7 @@ static void test_tran_innodb()
 
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction(col1 int, "
-                         "col2 varchar(30)) TYPE= InnoDB");
+                         "col2 varchar(30)) ENGINE= InnoDB");
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -9798,7 +9798,7 @@ static void test_derived()
   myquery(rc);
 
   rc= mysql_query(mysql, "create table t1 (id  int(8), primary key (id)) \
-TYPE=InnoDB DEFAULT CHARSET=utf8");
+ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t1 values (1)");
@@ -9846,16 +9846,16 @@ static void test_xjoin()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2, t3, t4");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t3 (id int(8), param1_id int(8), param2_id int(8)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t1 ( id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8;");
+  rc= mysql_query(mysql, "create table t2 (id int(8), name_id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) TYPE=InnoDB DEFAULT CHARSET=utf8");
+  rc= mysql_query(mysql, "create table t4(id int(8), value varchar(10)) ENGINE=InnoDB DEFAULT CHARSET=utf8");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t3 values (1, 1, 1), (2, 2, null)");
@@ -14387,7 +14387,7 @@ static void test_bug14210()
     itself is not InnoDB related. In case the table is MyISAM this test
     is harmless.
   */
-  mysql_query(mysql, "create table t1 (a varchar(255)) type=InnoDB");
+  mysql_query(mysql, "create table t1 (a varchar(255)) engine=InnoDB");
   rc= mysql_query(mysql, "insert into t1 (a) values (repeat('a', 256))");
   myquery(rc);
   rc= mysql_query(mysql, "set @@session.max_heap_table_size=16384");
@@ -14708,8 +14708,7 @@ static void test_bug12744()
   rc= mysql_stmt_prepare(prep_stmt, "SELECT 1", 8);
   DIE_UNLESS(rc==0);
 
-  rc= mysql_kill(mysql, mysql_thread_id(mysql));
-  DIE_UNLESS(rc==0);
+  mysql_close(mysql);
 
   if (rc= mysql_stmt_execute(prep_stmt))
   {
@@ -14727,6 +14726,7 @@ static void test_bug12744()
     DIE_UNLESS(1==0);
   }
   rc= mysql_stmt_close(prep_stmt);
+  client_connect(0);
 }
 
 /* Bug #16144: mysql_stmt_attr_get type error */

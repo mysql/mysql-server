@@ -169,7 +169,7 @@ usr_id	uniq_id	increment	usr2_id	c_amount	max
 3	4	84676	NULL	NULL	NULL
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
-ERROR 23000: Duplicate entry '2-3' for key 1
+ERROR 23000: Duplicate entry '2-3' for key 'PRIMARY'
 INSERT INTO t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
 SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 LEFT JOIN t2 ON t2.id = t1.uniq_id WHERE t1.uniq_id = 4 ORDER BY t2.c_amount;
 usr_id	uniq_id	increment	usr2_id	c_amount	max
