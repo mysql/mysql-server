@@ -1291,18 +1291,85 @@ static int
 ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                          NDB_SHARE *share)
 {
+  DBUG_ENTER("ndb_handle_schema_change");
   int remote_drop_table= 0, do_close_cached_tables= 0;
+  const char *dbname= share->table->s->db.str;
+  const char *tabname= share->table->s->table_name.str;
+  bool online_alter_table= (pOp->getEventType() == NDBEVENT::TE_ALTER &&
+                            pOp->tableFrmChanged());
 
   if (pOp->getEventType() != NDBEVENT::TE_CLUSTER_FAILURE &&
       pOp->getReqNodeId() != g_ndb_cluster_connection->node_id())
   {
-    ndb->setDatabaseName(share->table->s->db.str);
+    NDBDICT *dict= ndb->getDictionary();
+    NdbDictionary::Dictionary::List index_list;
+
+    ndb->setDatabaseName(dbname);
+    // Invalidating indexes
+    if (! dict->listIndexes(index_list, tabname))
+    {
+      for (unsigned i = 0; i < index_list.count; i++) {
+        NdbDictionary::Dictionary::List::Element& index=
+          index_list.elements[i];
+        DBUG_PRINT("info", ("Invalidating index %s.%s",
+                            index.database, index.name));
+        dict->invalidateIndex(index.name, tabname);
+      }
+    }
+    // Invalidate table
     ha_ndbcluster::invalidate_dictionary_cache(share->table->s,
                                                ndb,
-                                               share->table->s->db.str,
-                                               share->table->s->table_name.str,
+                                               dbname,
+                                               tabname,
                                                TRUE);
+
+    if (online_alter_table)
+    {  
+      char key[FN_REFLEN];
+      const void *data= 0, *pack_data= 0;
+      uint length, pack_length;
+      int error;
+
+      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
+                          dbname, tabname));
+      const NDBTAB *altered_table= pOp->getEvent()->getTable();
+      bool remote_event=
+        pOp->getReqNodeId() != g_ndb_cluster_connection->node_id();
+      strxnmov(key, FN_LEN-1, mysql_data_home, "/",
+               dbname, "/", tabname, NullS);
+      /*
+        If the frm of the altered table is different than the one on
+        disk then overwrite it with the new table definition
+      */
+      if (remote_event &&
+          readfrm(key, &data, &length) == 0 &&
+          packfrm(data, length, &pack_data, &pack_length) == 0 &&
+          cmp_frm(altered_table, pack_data, pack_length))
+      {
+        DBUG_DUMP("frm", (char*)altered_table->getFrmData(), 
+                  altered_table->getFrmLength());
+        pthread_mutex_lock(&LOCK_open);
+        dict->putTable(altered_table);
+        
+        if ((error= unpackfrm(&data, &length, altered_table->getFrmData())) ||
+            (error= writefrm(key, data, length)))
+        {
+          sql_print_information("NDB: Failed write frm for %s.%s, error %d",
+                                dbname, tabname, error);
+        }
+        pthread_mutex_unlock(&LOCK_open);
+        close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0);
+      }
+    }
     remote_drop_table= 1;
+  }
+
+  // If only frm was changed continue replicating
+  if (online_alter_table)
+  {
+    /* Signal ha_ndbcluster::alter_table that drop is done */
+    (void) pthread_cond_signal(&injector_cond);
+    DBUG_RETURN(0);
   }
 
   (void) pthread_mutex_lock(&share->mutex);
@@ -1385,7 +1452,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           /* fall through */
         case SOT_ALTER_TABLE:
           /* fall through */
-          if (!ndb_binlog_running)
+          if (ndb_binlog_running)
           {
             log_query= 1;
             break; /* discovery will be handled by binlog */
@@ -1482,11 +1549,16 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
       // skip
       break;
     case NDBEVENT::TE_ALTER:
-      /* do the rename of the table in the share */
-      share->table->s->db.str= share->db;
-      share->table->s->db.length= strlen(share->db);
-      share->table->s->table_name.str= share->table_name;
-      share->table->s->table_name.length= strlen(share->table_name);
+      if (pOp->tableNameChanged())
+      {  
+        DBUG_PRINT("info", ("Detected name change of table %s.%s",
+                            share->db, share->table_name));
+        /* do the rename of the table in the share */
+        share->table->s->db.str= share->db;
+        share->table->s->db.length= strlen(share->db);
+        share->table->s->table_name.str= share->table_name;
+        share->table->s->table_name.length= strlen(share->table_name);
+      }
       ndb_handle_schema_change(thd, ndb, pOp, share);
       break;
     case NDBEVENT::TE_CLUSTER_FAILURE:
@@ -2357,17 +2429,22 @@ ndb_binlog_thread_handle_non_data_event(Ndb *ndb, NdbEventOperation *pOp,
                        share->key, share, pOp, share->op, share->op_old));
     break;
   case NDBEVENT::TE_ALTER:
-    /* ToDo: remove printout */
-    if (ndb_extra_logging)
-      sql_print_information("NDB Binlog: rename table %s%s/%s -> %s.",
-                            share_prefix, share->table->s->db.str,
-                            share->table->s->table_name.str,
-                            share->key);
-    /* do the rename of the table in the share */
-    share->table->s->db.str= share->db;
-    share->table->s->db.length= strlen(share->db);
-    share->table->s->table_name.str= share->table_name;
-    share->table->s->table_name.length= strlen(share->table_name);
+    if (pOp->tableNameChanged())
+    {
+      DBUG_PRINT("info", ("Detected name change of table %s.%s",
+                          share->db, share->table_name));
+      /* ToDo: remove printout */
+      if (ndb_extra_logging)
+        sql_print_information("NDB Binlog: rename table %s%s/%s -> %s.",
+                              share_prefix, share->table->s->db.str,
+                              share->table->s->table_name.str,
+                              share->key);
+      /* do the rename of the table in the share */
+      share->table->s->db.str= share->db;
+      share->table->s->db.length= strlen(share->db);
+      share->table->s->table_name.str= share->table_name;
+      share->table->s->table_name.length= strlen(share->table_name);
+    }
     goto drop_alter_common;
   case NDBEVENT::TE_DROP:
     if (apply_status_share == share)
