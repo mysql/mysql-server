@@ -864,4 +864,15 @@ typedef struct st_open_table_list{
   uint32 in_use,locked;
 } OPEN_TABLE_LIST;
 
+typedef struct st_table_field_w_type
+{
+  LEX_STRING name;
+  LEX_STRING type;
+  LEX_STRING cset;
+} TABLE_FIELD_W_TYPE;
 
+
+my_bool
+table_check_intact(TABLE *table, uint table_f_count,
+                   TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
+                   int error_num);
