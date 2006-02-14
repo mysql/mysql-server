@@ -148,6 +148,7 @@ sys_var_character_set_database	sys_character_set_database("character_set_databas
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
 sys_var_character_set_results sys_character_set_results("character_set_results");
+sys_var_character_set_filesystem  sys_character_set_filesystem("character_set_filesystem");
 sys_var_thd_ulong	sys_completion_type("completion_type",
 					 &SV::completion_type,
 					 check_completion_type,
@@ -580,6 +581,7 @@ sys_var *sys_variables[]=
   &sys_character_set_client,
   &sys_character_set_connection,
   &sys_character_set_results,
+  &sys_character_set_filesystem,
   &sys_charset_system,
   &sys_collation_connection,
   &sys_collation_database,
@@ -771,6 +773,7 @@ struct show_var_st init_vars[]= {
   {sys_character_set_client.name,(char*) &sys_character_set_client, SHOW_SYS},
   {sys_character_set_connection.name,(char*) &sys_character_set_connection,SHOW_SYS},
   {sys_character_set_database.name, (char*) &sys_character_set_database,SHOW_SYS},
+  {sys_character_set_filesystem.name,(char*) &sys_character_set_filesystem, SHOW_SYS},
   {sys_character_set_results.name,(char*) &sys_character_set_results, SHOW_SYS},
   {sys_character_set_server.name, (char*) &sys_character_set_server,SHOW_SYS},
   {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
@@ -835,6 +838,7 @@ struct show_var_st init_vars[]= {
   {sys_innodb_fast_shutdown.name,(char*) &sys_innodb_fast_shutdown, SHOW_SYS},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
+  {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -854,7 +858,6 @@ struct show_var_st init_vars[]= {
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
-  {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
@@ -2071,6 +2074,32 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
  {
    thd->variables.character_set_client= (global_system_variables.
 					 character_set_client);
+   thd->update_charset();
+ }
+}
+
+
+CHARSET_INFO **
+sys_var_character_set_filesystem::ci_ptr(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    return &global_system_variables.character_set_filesystem;
+  else
+    return &thd->variables.character_set_filesystem;
+}
+
+
+extern CHARSET_INFO *character_set_filesystem;
+
+void
+sys_var_character_set_filesystem::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.character_set_filesystem= character_set_filesystem;
+ else
+ {
+   thd->variables.character_set_filesystem= (global_system_variables.
+					     character_set_filesystem);
    thd->update_charset();
  }
 }
