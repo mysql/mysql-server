@@ -5370,7 +5370,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-	      if (f->type() == FIELD_TYPE_BLOB)
+	      if ((f->type() == FIELD_TYPE_BLOB) ||
+                  (f->type() == MYSQL_TYPE_VARCHAR))
 	      {
 		String tmp;
 		f->val_str(&tmp);
