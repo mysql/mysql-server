@@ -50,8 +50,8 @@ extern EventLogger g_eventLogger;
 #define DEBUG_UNDO_EXECUTION 0
 #define DEBUG_SEARCH_LOG_HEAD 0
 
-Lgman::Lgman(const Configuration & conf) :
-  SimulatedBlock(LGMAN, conf),
+Lgman::Lgman(Block_context & ctx) :
+  SimulatedBlock(LGMAN, ctx),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool)
 {
@@ -115,7 +115,7 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();

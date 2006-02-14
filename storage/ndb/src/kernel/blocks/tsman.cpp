@@ -38,8 +38,9 @@
 
 #define DBG_UNDO 0
 
-Tsman::Tsman(const Configuration & conf, class Pgman* pg, class Lgman* lg) :
-  SimulatedBlock(TSMAN, conf),
+Tsman::Tsman(Block_context& ctx,
+	     class Pgman* pg, class Lgman* lg) :
+  SimulatedBlock(TSMAN, ctx),
   m_file_hash(m_file_pool),
   m_tablespace_list(m_tablespace_pool),
   m_tablespace_hash(m_tablespace_pool),
@@ -105,7 +106,7 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -430,7 +431,8 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
 
 bool 
 Tsman::find_file_by_id(Ptr<Datafile>& ptr, 
-		       DLList<Datafile>::Head& head, Uint32 id)
+		       DLList<Datafile>::Head& head, 
+		       Uint32 id)
 {
   LocalDLList<Datafile> list(m_file_pool, head);
   for(list.first(ptr); !ptr.isNull(); list.next(ptr))

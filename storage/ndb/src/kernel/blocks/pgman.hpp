@@ -236,7 +236,7 @@
 class Pgman : public SimulatedBlock
 {
 public:
-  Pgman(const Configuration & conf);
+  Pgman(Block_context& ctx);
   virtual ~Pgman();
   BLOCK_DEFINES(Pgman);
 

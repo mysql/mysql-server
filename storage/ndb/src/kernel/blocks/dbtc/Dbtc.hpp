@@ -541,7 +541,7 @@ public:
   /**
    * The list of defined indexes
    */  
-  ArrayList<TcIndexData> c_theIndexes;
+  DLList<TcIndexData> c_theIndexes;
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
@@ -746,7 +746,7 @@ public:
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
-    ArrayList<TcIndexOperation> theSeizedIndexOperations;
+    DLList<TcIndexOperation> theSeizedIndexOperations;
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
@@ -1262,7 +1262,7 @@ public:
   typedef Ptr<TcFailRecord> TcFailRecordPtr;
 
 public:
-  Dbtc(const class Configuration &);
+  Dbtc(Block_context&);
   virtual ~Dbtc();
 
 private:

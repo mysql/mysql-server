@@ -18,8 +18,7 @@
 #define DL_HASHTABLE2_HPP
 
 #include <ndb_global.h>
-
-#include "ArrayList.hpp"
+#include "ArrayPool.hpp"
 
 /**
  * DLHashTable2 is a DLHashTable variant meant for cases where different

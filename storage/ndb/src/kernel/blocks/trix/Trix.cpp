@@ -40,8 +40,8 @@
 /**
  *
  */
-Trix::Trix(const Configuration & conf) :
-  SimulatedBlock(TRIX, conf),
+Trix::Trix(Block_context& ctx) :
+  SimulatedBlock(TRIX, ctx),
   c_theNodes(c_theNodeRecPool),
   c_masterNodeId(0),
   c_masterTrixRef(0),
@@ -105,14 +105,14 @@ Trix::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   // Allocate pool sizes
   c_theAttrOrderBufferPool.setSize(100);
   c_theSubscriptionRecPool.setSize(100);
 
-  ArrayList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
+  DLList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
   SubscriptionRecPtr subptr;
   while(subscriptions.seize(subptr) == true) {
     new (subptr.p) SubscriptionRecord(c_theAttrOrderBufferPool);

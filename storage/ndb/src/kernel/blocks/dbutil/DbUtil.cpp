@@ -49,8 +49,8 @@
  *  Constructors, startup, initializations
  **************************************************************************/
 
-DbUtil::DbUtil(const Configuration & conf) :
-  SimulatedBlock(DBUTIL, conf),
+DbUtil::DbUtil(Block_context& ctx) :
+  SimulatedBlock(DBUTIL, ctx),
   c_runningPrepares(c_preparePool),
   c_seizingTransactions(c_transactionPool),
   c_runningTransactions(c_transactionPool),
@@ -167,7 +167,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   c_pagePool.setSize(10);

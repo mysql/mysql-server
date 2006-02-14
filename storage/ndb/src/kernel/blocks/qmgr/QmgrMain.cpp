@@ -177,7 +177,7 @@ Qmgr::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -1406,7 +1406,7 @@ void Qmgr::initData(Signal* signal)
    * Timeouts
    */
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   Uint32 hbDBDB = 1500;
@@ -1437,7 +1437,7 @@ void Qmgr::initData(Signal* signal)
     sd->ticket.clear();
     sd->mask.clear();
     ndb_mgm_configuration_iterator * iter =
-      theConfiguration.getClusterConfigIterator();
+      m_ctx.m_config.getClusterConfigIterator();
     for (ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)) {
       Uint32 tmp = 0;
       if (ndb_mgm_get_int_parameter(iter, CFG_NODE_ARBIT_RANK, &tmp) == 0 && 

@@ -38,7 +38,7 @@
 class Suma : public SimulatedBlock {
   BLOCK_DEFINES(Suma);
 public:
-  Suma(const Configuration & conf);
+  Suma(Block_context& ctx);
   virtual ~Suma();
 
   /**

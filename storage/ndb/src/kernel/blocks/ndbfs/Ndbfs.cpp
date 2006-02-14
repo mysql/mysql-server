@@ -50,8 +50,8 @@ int pageSize( const NewVARIABLE* baseAddrRef )
 }
 
 
-Ndbfs::Ndbfs(const Configuration & conf) :
-  SimulatedBlock(NDBFS, conf),
+Ndbfs::Ndbfs(Block_context& ctx) :
+  SimulatedBlock(NDBFS, ctx),
   scanningInProgress(false),
   theLastId(0),
   theRequestPool(0),
@@ -98,11 +98,11 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
-  theFileSystemPath.assfmt("%sndb_%u_fs%s", theConfiguration.fileSystemPath(),
+  theFileSystemPath.assfmt("%sndb_%u_fs%s", m_ctx.m_config.fileSystemPath(),
 			   getOwnNodeId(), DIR_SEPARATOR);
-  theBackupFilePath.assign(theConfiguration.backupFilePath());
+  theBackupFilePath.assign(m_ctx.m_config.backupFilePath());
 
   theRequestPool = new Pool<Request>;
 
