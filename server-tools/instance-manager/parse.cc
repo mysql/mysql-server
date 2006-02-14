@@ -143,7 +143,7 @@ Command *parse_command(Instance_map *map, const char *text)
     instance_name_len= word_len;
     text+= word_len;
     /* it should be the end of command */
-    get_word(&text, &word_len);
+    get_word(&text, &word_len, NONSPACE);
     if (word_len)
       goto syntax_error;
 
@@ -156,7 +156,7 @@ Command *parse_command(Instance_map *map, const char *text)
     if (shift_token(&text, &word_len) != TOK_INSTANCES)
       goto syntax_error;
 
-    get_word(&text, &word_len);
+    get_word(&text, &word_len, NONSPACE);
     if (word_len)
       goto syntax_error;
 
@@ -197,7 +197,7 @@ Command *parse_command(Instance_map *map, const char *text)
     }
 
     /* should be empty */
-    get_word(&text, &word_len);
+    get_word(&text, &word_len, NONSPACE);
     if (word_len)
       goto syntax_error;
 
@@ -213,7 +213,7 @@ Command *parse_command(Instance_map *map, const char *text)
   case TOK_SHOW:
     switch (shift_token(&text, &word_len)) {
     case TOK_INSTANCES:
-      get_word(&text, &word_len);
+      get_word(&text, &word_len, NONSPACE);
       if (word_len)
         goto syntax_error;
       command= new Show_instances(map);
@@ -226,7 +226,7 @@ Command *parse_command(Instance_map *map, const char *text)
           goto syntax_error;
         text+= instance_name_len;
         /* check that this is the end of the command */
-        get_word(&text, &word_len);
+        get_word(&text, &word_len, NONSPACE);
         if (word_len)
           goto syntax_error;
         if (tok2 == TOK_STATUS)
@@ -250,7 +250,7 @@ Command *parse_command(Instance_map *map, const char *text)
         case TOK_LOG:
           switch (Token tok3= shift_token(&text, &word_len)) {
           case TOK_FILES:
-            get_word(&text, &word_len);
+            get_word(&text, &word_len, NONSPACE);
             /* check that this is the end of the command */
             if (word_len)
               goto syntax_error;
@@ -293,7 +293,10 @@ Command *parse_command(Instance_map *map, const char *text)
                 command= new Show_instance_log(map, instance_name,
                                                instance_name_len, log_type,
                                                log_size, text);
-
+                get_word(&text, &word_len, NONSPACE);
+                /* check that this is the end of the command */
+                if (word_len)
+                  goto syntax_error;
                 break;
               case '\0':
                 command= new Show_instance_log(map, instance_name,
