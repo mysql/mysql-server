@@ -1777,7 +1777,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   /**
    * Handling of unmapped extent header pages is not implemented
    */
-  int flags = 0;
+  int flags = Page_cache_client::DIRTY_REQ;
   int real_page_id;
   if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
   {
@@ -1805,30 +1805,19 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
     lsn += page->m_page_header.m_page_lsn_lo;
     
-    if (undo_lsn <= lsn)
+    /**
+     * Toggle word
+     */
+    if (DBG_UNDO)
     {
-      /**
-       * Toggle word
-       */
-      if (DBG_UNDO)
-	ndbout_c("tsman: apply %lld(%lld) %x -> %x",
-		 undo_lsn, lsn, src, (bits | (bits << UNCOMMITTED_SHIFT)));
-      
-      lsn = undo_lsn;
-      page->m_page_header.m_page_lsn_hi = lsn >> 32;
-      page->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-      ndbassert((bits & ~(COMMITTED_MASK)) == 0);
-      header->update_free_bits(page_no_in_extent, 
-			       bits | (bits << UNCOMMITTED_SHIFT));
-
-      m_page_cache_client.update_lsn(preq.m_page, lsn);
+      ndbout << "tsman: apply " << undo_lsn << "(" << lsn << ") " 
+	     << *key << " " << (src & COMMITTED_MASK) 
+	     << " -> " << bits << endl;
     }
-    else
-    {
-      if (DBG_UNDO)
-	ndbout_c("tsman: apply %lld(%lld) %x -> %x",
-		 undo_lsn, lsn, src, (bits | (bits << UNCOMMITTED_SHIFT)));
-    }
+    
+    ndbassert((bits & ~(COMMITTED_MASK)) == 0);
+    header->update_free_bits(page_no_in_extent, 
+			     bits | (bits << UNCOMMITTED_SHIFT));
     
     return 0;
   }
