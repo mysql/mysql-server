@@ -5779,10 +5779,10 @@ ER_EVENT_OPEN_TABLE_FAILED
         eng "Failed to open mysql.event"
 ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
-ER_EVENT_COL_COUNT_DOESNT_MATCH
-        eng "Column count of %s.%s is wrong. Table probably corrupted"
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+        eng "Column count of mysql.%s is wrong. Table probably corrupted. Expected %d, found %d."
 ER_EVENT_CANNOT_LOAD_FROM_TABLE
-        eng "Cannot load from mysql.event. Table probably corrupted"
+        eng "Cannot load from mysql.%s. Table probably corrupted. See error log."
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
 ER_EVENT_COMPILE_ERROR
@@ -5798,3 +5798,5 @@ ER_CANT_WRITE_LOCK_LOG_TABLE
         eng "You can't write-lock a log table. Only read access is possible."
 ER_CANT_READ_LOCK_LOG_TABLE
         eng "You can't use usual read lock with log tables. Try READ LOCAL instead."
+ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
+        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use scripts/mysql_fix_privilege_tables"

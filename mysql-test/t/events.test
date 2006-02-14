@@ -33,6 +33,138 @@ select count(*) from t_event3;
 drop event event3;
 drop table t_event3;
 
+
+set names utf8;
+#
+# SHOW CREATE EVENT test begin
+#
+CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
+SHOW CREATE EVENT root6;
+create event root7 on schedule every 2 year do select 1;
+SHOW CREATE EVENT root7;
+create event root8 on schedule every '2:5' year_month do select 1;
+SHOW CREATE EVENT root8;
+create event root8_1 on schedule every '2:15' year_month do select 1;
+SHOW CREATE EVENT root8_1;
+create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
+SHOW CREATE EVENT root9;
+create event root10 on schedule every '20:5' day_hour do select 1;
+SHOW CREATE EVENT root10;
+create event root11 on schedule every '20:25' day_hour do select 1;
+SHOW CREATE EVENT root11;
+create event root12 on schedule every '20:25' hour_minute do select 1;
+SHOW CREATE EVENT root12;
+create event root13 on schedule every '25:25' hour_minute do select 1;
+SHOW CREATE EVENT root13;
+create event root13_1 on schedule every '11:65' hour_minute do select 1;
+SHOW CREATE EVENT root13_1;
+create event root14 on schedule every '35:35' minute_second do select 1;
+SHOW CREATE EVENT root14;
+create event root15 on schedule every '35:66' minute_second do select 1;
+SHOW CREATE EVENT root15;
+create event root16 on schedule every '35:56' day_minute do select 1;
+SHOW CREATE EVENT root16;
+create event root17 on schedule every '35:12:45' day_minute do select 1;
+SHOW CREATE EVENT root17;
+create event root17_1 on schedule every '35:25:65' day_minute do select 1;
+SHOW CREATE EVENT root17_1;
+create event root18 on schedule every '35:12:45' hour_second do select 1;
+SHOW CREATE EVENT root18;
+create event root19 on schedule every '15:59:85' hour_second do select 1;
+SHOW CREATE EVENT root19;
+create event root20 on schedule every '50:20:12:45' day_second do select 1;
+SHOW CREATE EVENT root20;
+set names cp1251;
+create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
+SHOW CREATE EVENT ðóóò21;
+insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+--error 1535
+show create event root22;
+--error 1535
+SHOW EVENTS;
+drop event root22;
+drop event root6;
+drop event root7;
+drop event root8;
+drop event root8_1;
+drop event root9;
+drop event root10;
+drop event root11;
+drop event root12;
+drop event root13;
+drop event root13_1;
+drop event root14;
+drop event root15;
+drop event root16;
+drop event root17;
+drop event root17_1;
+drop event root18;
+drop event root19;
+drop event root20;
+drop event ðóóò21;
+
+set names latin1;
+#
+# SHOW CREATE EVENT test end
+#
+
+#
+# mysql.event intact checking start
+#
+# There should be at least 1 second between the ALTERs or we can't catch the change of create_time!!
+#
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+--replace_column 8 # 9 #
+SHOW EVENTS;
+ALTER TABLE mysql.event ADD dummy INT FIRST;
+--error 1525
+SHOW EVENTS;
+ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
+--error 1525
+SHOW EVENTS;
+ALTER TABLE mysql.event DROP dummy2;
+--replace_column 8 # 9 #
+SHOW EVENTS;
+CREATE TABLE event_like LIKE mysql.event;
+INSERT INTO event_like SELECT * FROM mysql.event;
+#sleep a bit or we won't catch the change of time
+--sleep 1
+ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
+#wait a bit or we won't see the difference because of seconds resolution
+--sleep 1
+SHOW CREATE TABLE mysql.event;
+--error 1526
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+--sleep 1
+ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
+--sleep 1
+--echo "This should work"
+--replace_column 8 # 9 #
+SHOW EVENTS;
+--sleep 1
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+--error 1526
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+--sleep 1
+ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
+--error 1526
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+--sleep 1
+ALTER TABLE mysql.event DROP comment, DROP starts;
+--sleep 1
+--error 1525
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+DROP TABLE mysql.event;
+CREATE TABLE mysql.event like event_like;
+INSERT INTO  mysql.event SELECT * FROM event_like;
+DROP TABLE event_like;
+--replace_column 8 # 9 #
+SHOW EVENTS;
+DROP EVENT intact_check;
+#
+# mysql.event intact checking end
+#
+
 #
 #INFORMATION_SCHEMA.EVENTS test begin
 #

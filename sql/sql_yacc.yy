@@ -8402,6 +8402,10 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
+            Lex->et= new event_timed();
+            if (!Lex->et)
+              YYABORT;
+            Lex->et->init_definer(YYTHD);
           }
       ;
 

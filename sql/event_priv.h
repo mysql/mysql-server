@@ -40,7 +40,6 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b);
 
-
 #define EXEC_QUEUE_QUEUE_NAME executing_queue
 #define EXEC_QUEUE_DARR_NAME evex_executing_queue
 
