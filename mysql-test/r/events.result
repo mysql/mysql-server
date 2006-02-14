@@ -1,5 +1,28 @@
 create database if not exists events_test;
 use events_test;
+CREATE USER pauline@localhost;
+CREATE DATABASE db_x;
+GRANT EVENT ON db_x.* TO pauline@localhost;
+USE db_x;
+CREATE TABLE x_table(a int);
+CREATE EVENT e_x1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE db_x;
+CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
+SHOW DATABASES LIKE 'db_x';
+Database (db_x)
+db_x
+SET GLOBAL event_scheduler=1;
+SHOW DATABASES LIKE 'db_x';
+Database (db_x)
+db_x
+SHOW TABLES FROM db_x;
+Tables_in_db_x
+x_table
+SET GLOBAL event_scheduler=0;
+DROP EVENT e_x1;
+DROP EVENT e_x2;
+DROP DATABASE db_x;
+DROP USER pauline@localhost;
+USE events_test;
 drop event if exists event1;
 Warnings:
 Note	1305	Event event1 does not exist
@@ -331,7 +354,7 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 #	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -349,6 +372,8 @@ set global event_scheduler=0;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
+#	event_scheduler		NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")

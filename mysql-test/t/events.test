@@ -1,5 +1,38 @@
 create database if not exists events_test;
 use events_test;
+
+#
+# START:  BUG #17289 Events: missing privilege check for drop database
+#
+CREATE USER pauline@localhost;
+CREATE DATABASE db_x;
+GRANT EVENT ON db_x.* TO pauline@localhost;
+USE db_x;
+CREATE TABLE x_table(a int);
+connect (priv_conn,localhost,pauline,,db_x);
+CREATE EVENT e_x1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE db_x;
+CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
+connection default;
+SHOW DATABASES LIKE 'db_x';
+SET GLOBAL event_scheduler=1;
+--sleep 2
+SHOW DATABASES LIKE 'db_x';
+SHOW TABLES FROM db_x;
+SET GLOBAL event_scheduler=0;
+--sleep 1
+connection priv_conn;
+DROP EVENT e_x1;
+DROP EVENT e_x2;
+disconnect priv_conn;
+connection default;
+DROP DATABASE db_x;
+DROP USER pauline@localhost;
+USE events_test;
+--sleep 1
+#
+# END:    BUG #17289 Events: missing privilege check for drop database
+#
+
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
