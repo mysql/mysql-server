@@ -435,12 +435,7 @@ public:
   bool check(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_CHAR; }
   bool update(THD *thd, set_var *var);
-  void set_default(THD *thd, enum_var_type type)
-  {
-    char buf[256];
-    DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-    DBUG_SET(buf);
-  }
+  void set_default(THD *thd, enum_var_type type) { DBUG_POP(); }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *b);
 };
 
