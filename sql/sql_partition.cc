@@ -5714,6 +5714,51 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 
 /*
+  Handle errors for ALTER TABLE for partitioning
+  SYNOPSIS
+    handle_alter_part_error()
+    lpt                        Struct carrying parameters
+    not_completed              Was request in complete phase when error occurred
+  RETURN VALUES
+    NONE
+*/
+
+void
+handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed)
+{
+  partition_info *part_info= lpt->part_info;
+  DBUG_ENTER("handle_alter_part_error");
+
+  if (!part_info->first_log_entry &&
+      execute_table_log_entry(part_info->first_log_entry))
+  {
+    /*
+      We couldn't recover from error
+    */
+  }
+  else
+  {
+    if (not_completed)
+    {
+      /*
+        We hit an error before things were completed but managed
+        to recover from the error.
+      */
+    }
+    else
+    {
+      /*
+        We hit an error after we had completed most of the operation
+        and were successful in a second attempt so the operation
+        actually is successful now.
+      */
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Actually perform the change requested by ALTER TABLE of partitions
   previously prepared.
 
@@ -5929,34 +5974,9 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
+      handle_alter_part_error(lpt, not_completed);
+      DBUG_RETURN(TRUE);
       abort();
-      if (!not_completed)
-        abort();
-      if (!part_info->first_log_entry &&
-          execute_table_log_entry(part_info->first_log_entry))
-      {
-        /*
-          We couldn't recover from error
-        */
-      }
-      else
-      {
-        if (not_completed)
-        {
-          /*
-            We hit an error before things were completed but managed
-            to recover from the error.
-          */
-        }
-        else
-        {
-          /*
-            We hit an error after we had completed most of the operation
-            and were successful in a second attempt so the operation
-            actually is successful now.
-          */
-        }
-      }
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
     }
