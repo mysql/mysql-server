@@ -206,8 +206,11 @@ event_executor_main(void *arg)
 
   if (init_event_thread(thd))
     goto err;
-  thd->security_ctx->skip_grants();
-  // make this thread invisible it has no vio -> show processlist won't see
+
+  /*
+    make this thread visible it has no vio -> show processlist won't see it
+    unless it's marked as system thread
+  */
   thd->system_thread= 1;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -653,6 +656,14 @@ bool sys_var_event_executor::update(THD *thd, set_var *var)
 
 extern LEX_STRING warning_level_names[];
 
+typedef void (*sql_print_xxx_func)(const char *format, ...);
+static sql_print_xxx_func sql_print_xxx_handlers[3] =
+{
+  sql_print_information,
+  sql_print_warning,
+  sql_print_error
+};
+
 /*
   Prints the stack of infos, warnings, errors from thd to
   the console so it can be fetched by the logs-into-tables and
@@ -704,7 +715,9 @@ evex_print_warnings(THD *thd, event_timed *et)
     err_msg.append("] [");
     err_msg.append(err->msg, strlen(err->msg), system_charset_info);
     err_msg.append("]");
-    sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
+    DBUG_ASSERT(err->level < 3);
+    (sql_print_xxx_handlers[err->level])("%*s", err_msg.length(), err_msg.c_ptr());
+//    sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
   }
 
 
