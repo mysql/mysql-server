@@ -515,7 +515,8 @@ RestoreDataIterator::getNextTuple(int  & res)
     const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
     
     // just a reminder - remove when backwards compat implemented
-    if(false && attr_desc->m_column->getNullable()){
+    if(m_currentTable->backupVersion < MAKE_VERSION(5,1,3) && 
+       attr_desc->m_column->getNullable()){
       const Uint32 ind = attr_desc->m_nullBitIndex;
       if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
 			  buf_ptr,ind)){
@@ -523,6 +524,11 @@ RestoreDataIterator::getNextTuple(int  & res)
 	attr_data->void_value = NULL;
 	continue;
       }
+    }
+
+    if (m_currentTable->backupVersion < MAKE_VERSION(5,1,3))
+    {
+      sz *= 4;
     }
     
     attr_data->null = false;
@@ -842,7 +848,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,0))
+  if (backupVersion < MAKE_VERSION(5,1,3))
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
