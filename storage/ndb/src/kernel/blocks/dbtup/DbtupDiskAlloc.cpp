@@ -287,8 +287,24 @@ Dbtup::restart_setup_page(Disk_alloc_info& alloc, Ptr<Page> pagePtr)
     extentPtr.p->m_free_space += (real_free - estimated);
     update_extent_pos(alloc, extentPtr);
   }
-}
 
+#ifdef VM_TRACE
+  {
+    Local_key page;
+    page.m_file_no = pagePtr.p->m_file_no;
+    page.m_page_no = pagePtr.p->m_page_no;
+
+    Tablespace_client tsman(0, c_tsman,
+			    0, 0, 0);
+    unsigned uncommitted, committed;
+    uncommitted = committed = ~(unsigned)0;
+    int ret = tsman.get_page_free_bits(&page, &uncommitted, &committed);
+    
+    idx = alloc.calc_page_free_bits(real_free);
+    ddassert(idx == committed);
+  }
+#endif
+}
 
 /**
  * - Page free bits -
@@ -743,10 +759,6 @@ Dbtup::disk_page_prealloc_callback_common(Signal* signal,
     
     update_extent_pos(alloc, extentPtr);
   }
-  else
-  {
-    ndbout << endl;
-  }
   
   {
     Page_request_list list(c_page_request_pool, 
@@ -771,14 +783,13 @@ Dbtup::disk_page_set_dirty(Ptr<Page> pagePtr)
   key.m_page_no = pagePtr.p->m_page_no;
   key.m_file_no = pagePtr.p->m_file_no;
 
+  pagePtr.p->nextList = pagePtr.p->prevList = RNIL;
+
   if (DBG_DISK)
     ndbout << " disk_page_set_dirty " << key << endl;
   
   Uint32 tableId = pagePtr.p->m_table_id;
   Uint32 fragId = pagePtr.p->m_fragment_id;
-  
-  Uint32 free = pagePtr.p->free_space;
-  Uint32 used = pagePtr.p->uncommitted_used_space;
   
   Ptr<Tablerec> tabPtr;
   tabPtr.i= pagePtr.p->m_table_id;
@@ -789,18 +800,27 @@ Dbtup::disk_page_set_dirty(Ptr<Page> pagePtr)
   
   Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
 
+  Uint32 free = pagePtr.p->free_space;
+  Uint32 used = pagePtr.p->uncommitted_used_space;
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
+    jam();
     restart_setup_page(alloc, pagePtr);
+    idx = alloc.calc_page_free_bits(free);
+    used = 0;
   }
+  else
+  {
+    idx &= ~0x8000;
+    ddassert(idx == alloc.calc_page_free_bits(free - used));
+  }
+  
+  ddassert(free >= used);
   
   Tablespace_client tsman(0, c_tsman,
 			  fragPtr.p->fragTableId,
 			  fragPtr.p->fragmentId,
 			  fragPtr.p->m_tablespace_id);
-  
-  ddassert(free >= used);
-  idx= alloc.calc_page_free_bits(free - used);
   
   pagePtr.p->list_index = idx;
   ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
@@ -1339,10 +1359,16 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   Uint64 lsn = 0;
   lsn += pagePtr.p->m_page_header.m_page_lsn_hi; lsn <<= 32;
   lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
+
+  undo->m_page_ptr = pagePtr;
   
   if (undo->m_lsn <= lsn)
   {
-    undo->m_page_ptr = pagePtr;
+    if (DBG_UNDO)
+    {
+      ndbout << "apply: " << undo->m_lsn << "(" << lsn << " )" 
+	     << key << " type: " << undo->m_type << endl;
+    }
     
     update = true;
     if (DBG_UNDO)
@@ -1368,13 +1394,17 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
       ndbout << "disk_restart_undo: " << undo->m_type << " " 
 	     << undo->m_key << endl;
     
-    disk_restart_undo_page_bits(signal, undo);
-    
     lsn = undo->m_lsn - 1; // make sure undo isn't run again...
-
+    
     m_pgman.update_lsn(undo->m_key, lsn);
   }
+  else if (DBG_UNDO)
+  {
+    ndbout << "ignore: " << undo->m_lsn << "(" << lsn << " )" 
+	   << key << " type: " << undo->m_type << endl;
+  }
 
+  disk_restart_undo_page_bits(signal, undo);
   disk_restart_undo_next(signal);
 }
 
