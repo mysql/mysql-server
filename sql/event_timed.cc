@@ -1051,12 +1051,13 @@ event_timed::get_create_event(THD *thd, String *buf)
    Executes the event (the underlying sp_head object);
 
    SYNOPSIS
-     evex_fill_row()
+     event_timed::execute()
        thd    THD
        mem_root  If != NULL use it to compile the event on it
 
    Returns 
           0  - success
+        -99  - No access to the database.
        -100  - event in execution (parallel execution is impossible)
       others - retcodes of sp_head::execute_procedure()
       
@@ -1065,10 +1066,12 @@ event_timed::get_create_event(THD *thd, String *buf)
 int
 event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
-  List<Item> empty_item_list;
+  Security_context *save_ctx;
   int ret= 0;
    
   DBUG_ENTER("event_timed::execute");
+  DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
+               dbname.str, name.str, (int) expression));
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   if (running) 
@@ -1080,12 +1083,35 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   VOID(pthread_mutex_unlock(&this->LOCK_running));
 
   // TODO Andrey : make this as member variable and delete in destructor
-  empty_item_list.empty();
   
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
   
-  ret= sphead->execute_procedure(thd, &empty_item_list);
+  thd->db= dbname.str;
+  thd->db_length= dbname.length;
+
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+  change_security_context(thd, &save_ctx);
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+//  if (mysql_change_db(thd, dbname.str, 0))
+  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  {
+    List<Item> empty_item_list;
+    empty_item_list.empty();
+    ret= sphead->execute_procedure(thd, &empty_item_list);
+  }
+  else
+  {
+    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
+               definer_host.str, dbname.str));
+    ret= -99;
+  }
+  restore_security_context(thd, save_ctx);
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+  thd->db= 0;
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
@@ -1098,8 +1124,58 @@ done:
     delete sphead;
     sphead= 0;
   }
+  DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
+                      dbname.str, name.str, (int) expression, ret));
 
   DBUG_RETURN(ret);
+}
+
+
+/*
+  Switches the security context
+  Synopsis
+    event_timed::change_security_context()
+      thd    - thread
+      backup - where to store the old context 
+  
+  RETURN
+    0  - OK
+    1  - Error (generates error too)
+*/
+bool
+event_timed::change_security_context(THD *thd, Security_context **backup)
+{
+  DBUG_ENTER("event_timed::change_security_context");
+  DBUG_PRINT("info",("%s@%s@%s",definer_user.str,definer_host.str, dbname.str));
+  *backup= 0;
+  if (acl_getroot_no_password(&sphead->m_security_ctx, definer_user.str,
+                              definer_host.str, definer_host.str, dbname.str))
+  {
+    my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
+    DBUG_RETURN(TRUE);
+  }
+  *backup= thd->security_ctx;
+  thd->security_ctx= &sphead->m_security_ctx;
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Restores the security context
+  Synopsis
+    event_timed::restore_security_context()
+      thd    - thread
+      backup - switch to this context
+ */
+
+void
+event_timed::restore_security_context(THD *thd, Security_context *backup)
+{
+  DBUG_ENTER("event_timed::change_security_context");
+  if (backup)
+    thd->security_ctx= backup;
+  DBUG_VOID_RETURN;
 }
 
 
