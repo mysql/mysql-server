@@ -3772,30 +3772,6 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
 }
 
 
-static LEX_STRING interval_type_to_name[] = {
-  {(char *) STRING_WITH_LEN("INTERVAL_YEAR")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_QUARTER")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_MONTH")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_DAY")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_HOUR")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_WEEK")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_SECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_MICROSECOND ")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_YEAR_MONTH")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_DAY_HOUR")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_DAY_MINUTE")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_DAY_SECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_MINUTE")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_SECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE_SECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_DAY_MICROSECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_HOUR_MICROSECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_MINUTE_MICROSECOND")}, 
-  {(char *) STRING_WITH_LEN("INTERVAL_SECOND_MICROSECOND")}
-}; 
-
-
 static interval_type get_real_interval_type(interval_type i_type)
 {
   switch (i_type) {
@@ -3869,6 +3845,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[9]->set_null();
   if (et.expression)
   {
+    String show_str;
     //type
     sch_table->field[5]->store(STRING_WITH_LEN("RECURRING"), scs);
     //execute_at
@@ -3877,9 +3854,11 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[7]->set_notnull();
     sch_table->field[7]->store((longlong) et.expression);
     //interval_type
-    LEX_STRING *ival=&interval_type_to_name[get_real_interval_type(et.interval)];
+    if (event_reconstruct_interval_expression(&show_str, et.interval,
+                                              et.expression))
+      DBUG_RETURN(1);
     sch_table->field[8]->set_notnull();
-    sch_table->field[8]->store(ival->str, ival->length, scs);
+    sch_table->field[8]->store(show_str.c_ptr(), show_str.length(), scs);
     //starts & ends
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
