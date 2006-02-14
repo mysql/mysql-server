@@ -28,6 +28,12 @@ select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
+# IN NATURAL LANGUAGE MODE
+select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE);
+select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+--error 1064
+select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
+
 # add_ft_keys() tests
 
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
