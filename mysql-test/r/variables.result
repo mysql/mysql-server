@@ -566,3 +566,21 @@ set global character_set_system = latin1;
 ERROR HY000: Variable 'character_set_system' is a read only variable
 set @@global.version_compile_os='234';
 ERROR HY000: Variable 'version_compile_os' is a read only variable
+set character_set_filesystem=latin1;
+select @@character_set_filesystem;
+@@character_set_filesystem
+latin1
+set @@global.character_set_filesystem=latin2;
+set character_set_filesystem=latin1;
+select @@character_set_filesystem;
+@@character_set_filesystem
+latin1
+set @@global.character_set_filesystem=latin2;
+set character_set_filesystem=default;
+select @@character_set_filesystem;
+@@character_set_filesystem
+latin2
+set @@global.character_set_filesystem=default;
+select @@global.character_set_filesystem;
+@@global.character_set_filesystem
+binary
