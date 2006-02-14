@@ -478,6 +478,7 @@ read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
     /* Error handling */
     DBUG_RETURN(TRUE);
   }
+  table_log_entry->entry_pos= read_entry;
   table_log_entry->entry_type= file_entry[TLOG_ENTRY_TYPE_POS];
   table_log_entry->action_type= file_entry[TLOG_ACTION_TYPE_POS];
   table_log_entry->phase= file_entry[TLOG_PHASE_POS];
@@ -544,8 +545,97 @@ static
 bool
 execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
 {
+  bool frm_action= FALSE;
+  LEX_STRING handler_name;
+  handler *file;
+  MEMROOT mem_root;
+  bool= error= TRUE;
+  char path[FN_REFLEN];
+  char from_path[FN_REFLEN];
+  char *par_ext= ".par";
   DBUG_ENTER("execute_table_log_action");
-  DBUG_RETURN(FALSE);
+
+  if (table_log_entry->entry_type == TLOG_IGNORE_LOG_ENTRY_CODE)
+  {
+    DBUG_RETURN(FALSE);
+  }
+  handler_name.str= table_log_entry->handler_type;
+  handler_name.length= strlen(table_log_entry->handler_type);
+  hton= ha_resolve_by_name(current_thd, handler_name);
+  if (!hton)
+  {
+    DBUG_RETURN(TRUE);
+  }
+  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
+  if (strcmp("frm", table_log_entry->handler_type))
+    frm_action= TRUE;
+  else
+  {
+    file= get_new_handler(table_share, &mem_root, hton);
+    if (!file)
+      goto error;
+  }
+  switch (table_log_entry->action_type)
+    case TLOG_ACTION_DELETE_CODE:
+    case TLOG_ACTION_REPLACE_CODE:
+      if (table_log_entry->action_type == TLOG_ACTION_DELETE_CODE ||
+          (table_log_entry->action_type == TLOG_ACTION_REPLACE_CODE &&
+           table_log_entry->phase == 0UL))
+      {
+        if (frm_action)
+        {
+          strxmov(path, table_log_entry->name, reg_ext, NullS);
+          VOID(my_delete(path, MYF(0)));
+          strxmov(path, table_log_entry->name, par_ext, NullS);
+          VOID(my_delete(path, MYF(0)));
+        }
+        else
+        {
+          if (file->delete_table(table_name))
+            break;
+        }
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)) &&
+            (!sync_table_log()))
+          ;
+        else
+          error= FALSE;
+        break;
+      }
+      if (table_log_entry->action_type == TLOG_ACTION_DELETE_CODE)
+        break;
+    case TLOG_ACTION_RENAME_CODE:
+      error= TRUE;
+      if (frm_action)
+      {
+        strxmov(path, table_log_entry->name, reg_ext, NullS);
+        strxmov(from_path, table_log_entry->from_name, reg_ext, NullS);
+        if (my_rename(path, from_path, MYF(0)))
+          break;
+        strxmov(path, table_log_entry->name, par_ext, NullS);
+        strxmov(from_path, table_log_entry->from_name, par_ext, NullS);
+        if (my_rename(path, from_path, MYF(0)))
+          break;
+      }
+      else
+      {
+        if (file->rename_table(table_log_entry->name,
+                               table_log_entry->from_name))
+          break;
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)) &&
+            (!sync_table_log()))
+          ;
+        else
+          error= FALSE;
+      }
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+  }
+  delete file;
+error:
+  free_root(&mem_root, MYF(0)); 
+  DBUG_RETURN(error);
 }
 
 
@@ -864,6 +954,7 @@ execute_table_log_entry(uint first_entry)
   uint read_entry= first_entry;
   DBUG_ENTER("execute_table_log_entry");
 
+  lock_global_table_log();
   do
   {
     if (read_table_log_entry(read_entry, &table_log_entry))
@@ -874,7 +965,8 @@ execute_table_log_entry(uint first_entry)
     }
     DBUG_ASSERT(table_log_entry.entry_type == TLOG_LOG_ENTRY_CODE ||
                 table_log_entry.entry_type == TLOG_IGNORE_LOG_ENTRY_CODE);
-    if (execute_table_log_action(&table_log_entry))
+
+    if (execute_table_log_action(file, &table_log_entry))
     {
       DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
@@ -882,8 +974,10 @@ execute_table_log_entry(uint first_entry)
     }
     read_entry= table_log_entry.next_entry;
   } while (read_entry);
+  unlock_global_table_log();
   DBUG_RETURN(FALSE);
 }
+
 
 /*
   Execute the table log at recovery of MySQL Server
@@ -922,6 +1016,7 @@ execute_table_log_recovery()
       }
     }
   }
+  release_handler_objects();
   VOID(init_table_log());
   DBUG_VOID_RETURN;
 }
