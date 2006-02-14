@@ -456,4 +456,18 @@ set global character_set_system = latin1;
 --error 1238
 set @@global.version_compile_os='234';
 
+#
+# Check character_set_filesystem variable
+#
+set character_set_filesystem=latin1;
+select @@character_set_filesystem;
+set @@global.character_set_filesystem=latin2;
+set character_set_filesystem=latin1;
+select @@character_set_filesystem;
+set @@global.character_set_filesystem=latin2;
+set character_set_filesystem=default;
+select @@character_set_filesystem;
+set @@global.character_set_filesystem=default;
+select @@global.character_set_filesystem;
+
 # End of 5.0 tests
