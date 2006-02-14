@@ -24,7 +24,7 @@
 #define SHOW_FUNC    SHOW_FUNC, SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_LONGLONG, \
                      SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, SHOW_HAVE,   \
                      SHOW_HA_ROWS, SHOW_SYS, SHOW_LONG_NOFLUSH
-#include <plugin.h>
+#include <mysql/plugin.h>
 #undef SHOW_FUNC
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef struct st_mysql_show_var SHOW_VAR;

@@ -32,7 +32,7 @@ extern "C" {
 #include "keycache.h"
 #endif
 #include "my_handler.h"
-#include <plugin.h>
+#include <mysql/plugin.h>
 
 /*
   There is a hard limit for the maximum number of keys as there are only

@@ -51,7 +51,7 @@ TODO:
 #include "ha_tina.h"
 #include <sys/mman.h>
 
-#include <plugin.h>
+#include <mysql/plugin.h>
 
 /* Stuff for shares */
 pthread_mutex_t tina_mutex;
