@@ -51,8 +51,6 @@
  
  - Make event_timed::get_show_create_event() work
 
- - Add function documentation whenever needed.
-
  - Add logging to file
 
  - Move comparison code to class event_timed
@@ -66,7 +64,141 @@ Warning:
 
 QUEUE EVEX_EQ_NAME;
 MEM_ROOT evex_mem_root;
+time_t mysql_event_last_create_time= 0L;
 
+
+static TABLE_FIELD_W_TYPE event_table_fields[EVEX_FIELD_COUNT] = {
+  {
+    {(char *) STRING_WITH_LEN("db")},            
+    {(char *) STRING_WITH_LEN("char(64)")},
+    {(char *) STRING_WITH_LEN("utf8")}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("name")},
+    {(char *) STRING_WITH_LEN("char(64)")},
+    {(char *) STRING_WITH_LEN("utf8")}
+  },
+  {
+    {(char *) STRING_WITH_LEN("body")},
+    {(char *) STRING_WITH_LEN("longblob")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("definer")},
+    {(char *) STRING_WITH_LEN("char(77)")},
+    {(char *) STRING_WITH_LEN("utf8")}
+  },
+  {
+    {(char *) STRING_WITH_LEN("execute_at")},
+    {(char *) STRING_WITH_LEN("datetime")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("interval_value")},
+    {(char *) STRING_WITH_LEN("int(11)")},
+    {NULL, 0}
+  },
+  {
+    {(char *) STRING_WITH_LEN("interval_field")},
+    {(char *) STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
+    "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
+    "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
+    "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
+    "'SECOND_MICROSECOND')")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("created")},
+    {(char *) STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
+    {(char *) STRING_WITH_LEN("modified")},
+    {(char *) STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("last_executed")},
+    {(char *) STRING_WITH_LEN("datetime")},
+  },
+  {
+    {(char *) STRING_WITH_LEN("starts")},
+    {(char *) STRING_WITH_LEN("datetime")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("ends")},
+    {(char *) STRING_WITH_LEN("datetime")},
+    {NULL, 0}
+  },
+  {
+    {(char *) STRING_WITH_LEN("status")},
+    {(char *) STRING_WITH_LEN("enum('ENABLED','DISABLED')")},
+    {NULL, 0}
+  }, 
+  {
+    {(char *) STRING_WITH_LEN("on_completion")},
+    {(char *) STRING_WITH_LEN("enum('DROP','PRESERVE')")},
+    {NULL, 0}
+  },
+  {
+    {(char *) STRING_WITH_LEN("sql_mode")},
+    {(char *) STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
+    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
+    "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
+    "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
+    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
+    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'HIGH_NOT_PRECEDENCE')")},
+    {NULL, 0}
+  },
+  {
+    {(char *) STRING_WITH_LEN("comment")},
+    {(char *) STRING_WITH_LEN("char(64)")},
+    {(char *) STRING_WITH_LEN("utf8")}
+  }
+};
+
+
+LEX_STRING interval_type_to_name[] = {
+  {(char *) STRING_WITH_LEN("YEAR")}, 
+  {(char *) STRING_WITH_LEN("QUARTER")}, 
+  {(char *) STRING_WITH_LEN("MONTH")}, 
+  {(char *) STRING_WITH_LEN("DAY")}, 
+  {(char *) STRING_WITH_LEN("HOUR")}, 
+  {(char *) STRING_WITH_LEN("MINUTE")}, 
+  {(char *) STRING_WITH_LEN("WEEK")}, 
+  {(char *) STRING_WITH_LEN("SECOND")}, 
+  {(char *) STRING_WITH_LEN("MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("YEAR_MONTH")}, 
+  {(char *) STRING_WITH_LEN("DAY_HOUR")}, 
+  {(char *) STRING_WITH_LEN("DAY_MINUTE")}, 
+  {(char *) STRING_WITH_LEN("DAY_SECOND")}, 
+  {(char *) STRING_WITH_LEN("HOUR_MINUTE")}, 
+  {(char *) STRING_WITH_LEN("HOUR_SECOND")}, 
+  {(char *) STRING_WITH_LEN("MINUTE_SECOND")}, 
+  {(char *) STRING_WITH_LEN("DAY_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("HOUR_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("MINUTE_MICROSECOND")}, 
+  {(char *) STRING_WITH_LEN("SECOND_MICROSECOND")}
+}; 
+
+
+
+/*
+  Inits the scheduler queue - prioritized queue from mysys/queue.c
+  
+  Synopsis
+    evex_queue_init()
+    
+      queue - pointer the the memory to be initialized as queue. has to be
+              allocated from the caller
+
+  Notes
+    During initialization the queue is sized for 30 events, and when is full
+    will auto extent with 30.
+*/
 
 void
 evex_queue_init(EVEX_QUEUE_TYPE *queue)
@@ -77,6 +209,24 @@ evex_queue_init(EVEX_QUEUE_TYPE *queue)
 }
 
 
+/*
+  Compares 2 LEX strings regarding case.
+  
+  Synopsis
+    my_time_compare()
+    
+      s - first LEX_STRING
+      t - second LEX_STRING
+      cs - charset
+
+  RETURNS:
+   -1   - s < t
+    0   - s == t
+    1   - s > t
+    
+  Notes
+    TIME.second_part is not considered during comparison
+*/
 
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
@@ -84,6 +234,24 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
                                   (unsigned char *) t.str,t.length, 0);
 }
 
+
+/*
+  Compares 2 TIME structures
+  
+  Synopsis
+    my_time_compare()
+    
+      a - first TIME
+      b - second time
+  
+  RETURNS:
+   -1   - a < b
+    0   - a == b
+    1   - a > b
+    
+  Notes
+    TIME.second_part is not considered during comparison
+*/
 
 int
 my_time_compare(TIME *a, TIME *b)
@@ -106,6 +274,24 @@ my_time_compare(TIME *a, TIME *b)
 }
 
 
+/*
+  Compares the execute_at members of 2 event_timed instances
+  
+  Synopsis
+    event_timed_compare()
+    
+      a - first event_timed object
+      b - second event_timed object
+  
+  RETURNS:
+   -1   - a->execute_at < b->execute_at
+    0   - a->execute_at == b->execute_at
+    1   - a->execute_at > b->execute_at
+    
+  Notes
+    execute_at.second_part is not considered during comparison
+*/
+
 int
 event_timed_compare(event_timed *a, event_timed *b)
 {
@@ -114,13 +300,169 @@ event_timed_compare(event_timed *a, event_timed *b)
 
 
 /*
-  Callback for the prio queue
+  Compares the execute_at members of 2 event_timed instances.
+  Used as callback for the prioritized queue when shifting
+  elements inside.
+  
+  Synopsis
+    event_timed_compare()
+  
+      vptr - not used (set it to NULL)
+      a    - first event_timed object
+      b    - second event_timed object
+  
+  RETURNS:
+   -1   - a->execute_at < b->execute_at
+    0   - a->execute_at == b->execute_at
+    1   - a->execute_at > b->execute_at
+    
+  Notes
+    execute_at.second_part is not considered during comparison
 */
 
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b)
 {
   return event_timed_compare((event_timed *)a, (event_timed *)b);
+}
+
+
+/*
+  Reconstructs interval expression from interval type and expression
+  value that is in form of a value of the smalles entity:
+  For
+    YEAR_MONTH - expression is in months
+    DAY_MINUTE - expression is in minutes
+    
+  Synopsis
+    event_reconstruct_interval_expression()
+      buf - preallocated String buffer to add the value to
+      interval - the interval type (for instance YEAR_MONTH)
+      expression - the value in the lowest entity
+  
+  RETURNS
+   0 - OK
+   1 - Error
+  
+ 
+*/
+
+int
+event_reconstruct_interval_expression(String *buf,
+                                      interval_type interval,
+                                      longlong expression)
+{
+  ulonglong expr= expression;
+  char tmp_buff[128], *end;
+  bool close_quote= TRUE;
+  int multipl= 0;
+  char separator=':';
+
+  switch (interval) {
+  case INTERVAL_YEAR_MONTH:
+    multipl= 12;
+    separator= '-';
+    goto common_1_lev_code;
+  case INTERVAL_DAY_HOUR:
+    multipl= 24;
+    separator= ' ';
+    goto common_1_lev_code;
+  case INTERVAL_HOUR_MINUTE:
+  case INTERVAL_MINUTE_SECOND:
+    multipl= 60;      
+common_1_lev_code:
+    buf->append('\'');
+    end= longlong10_to_str(expression/multipl, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));
+    expr= expr - (expr/multipl)*multipl;
+    break;
+  case INTERVAL_DAY_MINUTE:
+  {
+    int tmp_expr= expr;
+
+    tmp_expr/=(24*60);
+    buf->append('\'');
+    end= longlong10_to_str(tmp_expr, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// days
+    buf->append(' ');
+
+    tmp_expr= expr - tmp_expr*(24*60);//minutes left
+    end= longlong10_to_str(tmp_expr/60, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// hours
+
+    expr= tmp_expr - (tmp_expr/60)*60;
+    /* the code after the switch will finish */
+  }
+    break;
+  case INTERVAL_HOUR_SECOND:
+  {
+    int tmp_expr= expr;
+
+    buf->append('\'');
+    end= longlong10_to_str(tmp_expr/3600, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// hours
+    buf->append(':');
+
+    tmp_expr= tmp_expr - (tmp_expr/3600)*3600;
+    end= longlong10_to_str(tmp_expr/60, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// minutes
+
+    expr= tmp_expr - (tmp_expr/60)*60;
+    /* the code after the switch will finish */
+  }
+    break;      
+  case INTERVAL_DAY_SECOND:
+  {
+    int tmp_expr= expr;
+
+    tmp_expr/=(24*3600);
+    buf->append('\'');
+    end= longlong10_to_str(tmp_expr, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// days
+    buf->append(' ');
+
+    tmp_expr= expr - tmp_expr*(24*3600);//seconds left
+    end= longlong10_to_str(tmp_expr/3600, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// hours
+    buf->append(':');
+
+    tmp_expr= tmp_expr - (tmp_expr/3600)*3600;
+    end= longlong10_to_str(tmp_expr/60, tmp_buff, 10);
+    buf->append(tmp_buff, (uint) (end- tmp_buff));// minutes
+
+    expr= tmp_expr - (tmp_expr/60)*60;
+    /* the code after the switch will finish */
+  }
+    break;  
+  case INTERVAL_DAY_MICROSECOND:
+  case INTERVAL_HOUR_MICROSECOND:
+  case INTERVAL_MINUTE_MICROSECOND:
+  case INTERVAL_SECOND_MICROSECOND:
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
+    return 1;
+    break;
+  case INTERVAL_QUARTER:
+    expr/= 3;
+    close_quote= FALSE;
+    break;
+  case INTERVAL_WEEK:
+    expr/= 7;
+  default:
+    close_quote= FALSE;
+    break;
+  }
+  if (close_quote)
+    buf->append(separator);
+  end= longlong10_to_str(expr, tmp_buff, 10);
+  buf->append(tmp_buff, (uint) (end- tmp_buff));
+  if (close_quote)
+    buf->append('\'');
+    
+  buf->append(' ');
+  LEX_STRING *ival= &interval_type_to_name[interval];
+  buf->append(ival->str, ival->length);
+  
+  return 0;
 }
 
 
@@ -132,6 +474,7 @@ event_timed_compare_q(void *vptr, byte* a, byte *b)
       thd         Thread context
       lock_type   How to lock the table
       table       The table pointer
+
   RETURN
     1	Cannot lock table
     2   The table is corrupted - different number of fields
@@ -153,9 +496,10 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
   if (simple_open_n_lock_tables(thd, &tables))
     DBUG_RETURN(1);
   
-  if (tables.table->s->fields != EVEX_FIELD_COUNT)
+  if (table_check_intact(tables.table, EVEX_FIELD_COUNT, event_table_fields,
+                         &mysql_event_last_create_time,
+                         ER_EVENT_CANNOT_LOAD_FROM_TABLE))
   {
-    my_error(ER_EVENT_COL_COUNT_DOESNT_MATCH, MYF(0), "mysql", "event");
     close_thread_tables(thd);
     DBUG_RETURN(2);
   }
@@ -219,7 +563,6 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
 }
 
 
-
 /*
    Puts some data common to CREATE and ALTER EVENT into a row.
 
@@ -245,15 +588,9 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
   DBUG_ENTER("evex_fill_row");
 
-  if (table->s->fields != EVEX_FIELD_COUNT)
-  {
-    my_error(ER_EVENT_COL_COUNT_DOESNT_MATCH, MYF(0), "mysql", "event");
-    DBUG_RETURN(EVEX_GET_FIELD_FAILED);
-  }
-  
-  DBUG_PRINT("info", ("dbname.len=[%s]",et->dbname.str));  
-  DBUG_PRINT("info", ("name.len=[%s]",et->name.str));  
-  DBUG_PRINT("info", ("body=[%s]",et->body.str));  
+  DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));  
+  DBUG_PRINT("info", ("name  =[%s]", et->name.str));  
+  DBUG_PRINT("info", ("body  =[%s]", et->body.str));  
 
   if (table->field[field_num= EVEX_FIELD_DB]->
                   store(et->dbname.str, et->dbname.length, system_charset_info))
@@ -584,15 +921,18 @@ err:
 */
 
 static int
-db_find_event(THD *thd, sp_name *name, LEX_STRING definer, event_timed **ett,
-              TABLE *tbl)
+db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, event_timed **ett,
+              TABLE *tbl, MEM_ROOT *root)
 {
   TABLE *table;
   int ret;
   char *ptr;
-  event_timed *et;  
+  event_timed *et=NULL;
   DBUG_ENTER("db_find_event");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
+
+  if (!root)
+    root= &evex_mem_root;
 
   if (tbl)
     table= tbl;
@@ -603,7 +943,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING definer, event_timed **ett,
     goto done;
   }
 
-  if ((ret= evex_db_find_event_aux(thd, name->m_db, name->m_name, definer,
+  if ((ret= evex_db_find_event_aux(thd, name->m_db, name->m_name, *definer,
                                    table)))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
@@ -617,7 +957,7 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING definer, event_timed **ett,
 
     2)::load_from_row() is silent on error therefore we emit error msg here
   */
-  if ((ret= et->load_from_row(&evex_mem_root, table)))
+  if ((ret= et->load_from_row(root, table)))
   {
     my_error(ER_EVENT_CANNOT_LOAD_FROM_TABLE, MYF(0));
     goto done;
@@ -671,10 +1011,11 @@ evex_load_and_compile_event(THD * thd, sp_name *spn, LEX_STRING definer,
 
   thd->reset_n_backup_open_tables_state(&backup);
   // no need to use my_error() here because db_find_event() has done it
-  if ((ret= db_find_event(thd, spn, definer, &ett, NULL)))
+  ret= db_find_event(thd, spn, &definer, &ett, NULL, NULL);
+  thd->restore_backup_open_tables_state(&backup);
+  if (ret)
     goto done;
 
-  thd->restore_backup_open_tables_state(&backup);
   /*
     allocate on evex_mem_root. if you call without evex_mem_root
     then sphead will not be cleared!
@@ -705,16 +1046,31 @@ done:
 
 
 /*
-   0 - OK can drop from outside
-   1 - Scheduled from dropping, don't drop from outside
+  Removes from queue in memory the event which is identified by the tupple
+  (db, name).
+
+   SYNOPSIS
+     evex_remove_from_cache()
+  
+       db       - db name
+       name     - event name
+       use_lock - whether to lock the mutex LOCK_event_arrays or not in case it
+                  has been already locked outside
+       is_drop  - if an event is currently being executed then we can also delete
+                  the event_timed instance, so we alarm the event that it should
+                  drop itself if this parameter is set to TRUE. It's false on
+                  ALTER EVENT.
+
+   RETURNS
+     0 - OK (always)
 */
 
 static int
 evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
                        bool is_drop)
 {
+  //ToDo : Add definer to the tuple (db, name) to become triple
   uint i;
-  int ret= 0;
 
   DBUG_ENTER("evex_remove_from_cache");
   /*
@@ -744,8 +1100,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
         DBUG_PRINT("evex_remove_from_cache",
                ("running.defer mem free. is_drop=%d", is_drop));
         et->flags|= EVENT_EXEC_NO_MORE;
-        if ((et->dropped= is_drop))
-          ret= 1;
+        et->dropped= is_drop;
       }
       DBUG_PRINT("evex_remove_from_cache", ("delete from queue"));
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
@@ -758,10 +1113,8 @@ done:
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(0);
 }
-
-
 
 
 /*
@@ -821,8 +1174,8 @@ done:
           
    NOTES
      et contains data about dbname and event name. 
-     name is the new name of the event, if not null this means
-     that RENAME TO was specified in the query.
+     new_name is the new name of the event, if not null (this means
+     that RENAME TO was specified in the query)
 */
 
 int
@@ -968,3 +1321,75 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
   DBUG_RETURN(ret);
 }
 
+
+/*
+   SHOW CREATE EVENT
+
+   SYNOPSIS
+     evex_show_create_event()
+       thd        THD
+       spn        the name of the event (db, name)
+       definer    the definer of the event
+   
+   RETURNS
+     0  -  OK
+     1  - Error during writing to the wire
+          
+*/
+
+int
+evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
+{
+  int ret;
+  event_timed *et= NULL;
+  Open_tables_state backup;
+
+  DBUG_ENTER("evex_update_event");
+  DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
+
+  thd->reset_n_backup_open_tables_state(&backup);
+  ret= db_find_event(thd, spn, &definer, &et, NULL, thd->mem_root);
+  thd->restore_backup_open_tables_state(&backup);
+
+  if (!ret && et)
+  {    
+    Protocol *protocol= thd->protocol;
+    char show_str_buf[768];
+    String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
+    List<Item> field_list;
+    const char *sql_mode_str;
+    ulong sql_mode_len=0;
+    
+    show_str.length(0);
+    show_str.set_charset(system_charset_info);
+
+    if (et->get_create_event(thd, &show_str))
+      DBUG_RETURN(1);
+
+    field_list.push_back(new Item_empty_string("Event", NAME_LEN));
+
+    sql_mode_str=
+      sys_var_thd_sql_mode::symbolic_mode_representation(thd, et->sql_mode,
+                                                         &sql_mode_len);
+
+    field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
+
+    field_list.push_back(new Item_empty_string("Create Event",
+                                               show_str.length()));
+    if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF))
+      DBUG_RETURN(1);
+
+    protocol->prepare_for_resend();
+    protocol->store(et->name.str, et->name.length, system_charset_info);
+
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+
+    
+    protocol->store(show_str.c_ptr(), show_str.length(), system_charset_info);
+    ret= protocol->write();
+    send_eof(thd);
+  }
+  
+  DBUG_RETURN(ret);
+}
