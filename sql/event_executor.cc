@@ -110,6 +110,8 @@ evex_init_mutexes()
   event_executor_running_global_var= opt_event_executor;
 }
 
+extern TABLE_FIELD_W_TYPE mysql_db_table_fields[];
+extern time_t mysql_db_table_last_check;
 
 /*
   Opens mysql.db and mysql.user and checks whether
