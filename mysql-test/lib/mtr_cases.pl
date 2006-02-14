@@ -56,7 +56,7 @@ sub collect_test_cases ($) {
     # Disable some tests listed in disabled.def
     # ----------------------------------------------------------------------
     my %disabled;
-    if ( open(DISABLED, "$testdir/disabled.def" ) )
+    if ( ! $::opt_ignore_disabled_def and open(DISABLED, "$testdir/disabled.def" ) )
     {
       while ( <DISABLED> )
       {
@@ -189,8 +189,8 @@ sub collect_one_test_case($$$$$$) {
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled_file=   "$testdir/$tname.disabled";
 
-  $tinfo->{'master_opt'}= $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
-  $tinfo->{'slave_opt'}=  $::glob_win32 ? ["--default-time-zone=+3:00"] : [];
+  $tinfo->{'master_opt'}= [];
+  $tinfo->{'slave_opt'}=  [];
   $tinfo->{'slave_mi'}=   [];
 
   if ( -f $master_opt_file )
@@ -213,7 +213,6 @@ sub collect_one_test_case($$$$$$) {
         if ( defined $value )
         {
           $tinfo->{'timezone'}= $value;
-          $tinfo->{'skip'}= 1 if $::glob_win32; # FIXME server unsets TZ
           last MASTER_OPT;
         }
 
