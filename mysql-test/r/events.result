@@ -18,7 +18,7 @@ set global event_scheduler = 1;
 alter event e_43 do alter event e_43 do set @a = 4;
 select db, name, body, status, interval_field, interval_value from mysql.event;
 db	name	body	status	interval_field	interval_value
-events_test	e_43	 set @a = 4	ENABLED	SECOND	1
+events_test	e_43	set @a = 4	ENABLED	SECOND	1
 drop event e_43;
 set global event_scheduler = 0;
 create table t_event3 (a int, b float);
@@ -32,13 +32,178 @@ count(*)
 0
 drop event event3;
 drop table t_event3;
+set names utf8;
+CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;
+SHOW CREATE EVENT root6;
+Event	sql_mode	Create Event
+root6		CREATE EVENT `events_test`.`root6` ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1
+create event root7 on schedule every 2 year do select 1;
+SHOW CREATE EVENT root7;
+Event	sql_mode	Create Event
+root7		CREATE EVENT `events_test`.`root7` ON SCHEDULE EVERY 2 YEAR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root8 on schedule every '2:5' year_month do select 1;
+SHOW CREATE EVENT root8;
+Event	sql_mode	Create Event
+root8		CREATE EVENT `events_test`.`root8` ON SCHEDULE EVERY '2-5' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root8_1 on schedule every '2:15' year_month do select 1;
+SHOW CREATE EVENT root8_1;
+Event	sql_mode	Create Event
+root8_1		CREATE EVENT `events_test`.`root8_1` ON SCHEDULE EVERY '3-3' YEAR_MONTH ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root9 on schedule every 2 week ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' do select 1;
+SHOW CREATE EVENT root9;
+Event	sql_mode	Create Event
+root9		CREATE EVENT `events_test`.`root9` ON SCHEDULE EVERY 2 WEEK ON COMPLETION PRESERVE DISABLE COMMENT 'ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€ Ð½Ð° ÐºÐ¸Ñ€Ð¸Ð»Ð¸Ñ†Ð°' DO select 1
+create event root10 on schedule every '20:5' day_hour do select 1;
+SHOW CREATE EVENT root10;
+Event	sql_mode	Create Event
+root10		CREATE EVENT `events_test`.`root10` ON SCHEDULE EVERY '20 5' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root11 on schedule every '20:25' day_hour do select 1;
+SHOW CREATE EVENT root11;
+Event	sql_mode	Create Event
+root11		CREATE EVENT `events_test`.`root11` ON SCHEDULE EVERY '21 1' DAY_HOUR ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root12 on schedule every '20:25' hour_minute do select 1;
+SHOW CREATE EVENT root12;
+Event	sql_mode	Create Event
+root12		CREATE EVENT `events_test`.`root12` ON SCHEDULE EVERY '20:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root13 on schedule every '25:25' hour_minute do select 1;
+SHOW CREATE EVENT root13;
+Event	sql_mode	Create Event
+root13		CREATE EVENT `events_test`.`root13` ON SCHEDULE EVERY '25:25' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root13_1 on schedule every '11:65' hour_minute do select 1;
+SHOW CREATE EVENT root13_1;
+Event	sql_mode	Create Event
+root13_1		CREATE EVENT `events_test`.`root13_1` ON SCHEDULE EVERY '12:5' HOUR_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root14 on schedule every '35:35' minute_second do select 1;
+SHOW CREATE EVENT root14;
+Event	sql_mode	Create Event
+root14		CREATE EVENT `events_test`.`root14` ON SCHEDULE EVERY '35:35' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root15 on schedule every '35:66' minute_second do select 1;
+SHOW CREATE EVENT root15;
+Event	sql_mode	Create Event
+root15		CREATE EVENT `events_test`.`root15` ON SCHEDULE EVERY '36:6' MINUTE_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root16 on schedule every '35:56' day_minute do select 1;
+SHOW CREATE EVENT root16;
+Event	sql_mode	Create Event
+root16		CREATE EVENT `events_test`.`root16` ON SCHEDULE EVERY '1 11:56' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root17 on schedule every '35:12:45' day_minute do select 1;
+SHOW CREATE EVENT root17;
+Event	sql_mode	Create Event
+root17		CREATE EVENT `events_test`.`root17` ON SCHEDULE EVERY '35 12:45' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root17_1 on schedule every '35:25:65' day_minute do select 1;
+SHOW CREATE EVENT root17_1;
+Event	sql_mode	Create Event
+root17_1		CREATE EVENT `events_test`.`root17_1` ON SCHEDULE EVERY '36 2:5' DAY_MINUTE ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root18 on schedule every '35:12:45' hour_second do select 1;
+SHOW CREATE EVENT root18;
+Event	sql_mode	Create Event
+root18		CREATE EVENT `events_test`.`root18` ON SCHEDULE EVERY '35:12:45' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root19 on schedule every '15:59:85' hour_second do select 1;
+SHOW CREATE EVENT root19;
+Event	sql_mode	Create Event
+root19		CREATE EVENT `events_test`.`root19` ON SCHEDULE EVERY '16:0:25' HOUR_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+create event root20 on schedule every '50:20:12:45' day_second do select 1;
+SHOW CREATE EVENT root20;
+Event	sql_mode	Create Event
+root20		CREATE EVENT `events_test`.`root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
+set names cp1251;
+create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
+SHOW CREATE EVENT ðóóò21;
+Event	sql_mode	Create Event
+ðóóò21		CREATE EVENT `events_test`.`ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
+insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
+show create event root22;
+ERROR HY000: Microseconds intervals are not yet supported
+SHOW EVENTS;
+ERROR HY000: Microseconds intervals are not yet supported
+drop event root22;
+drop event root6;
+drop event root7;
+drop event root8;
+drop event root8_1;
+drop event root9;
+drop event root10;
+drop event root11;
+drop event root12;
+drop event root13;
+drop event root13_1;
+drop event root14;
+drop event root15;
+drop event root16;
+drop event root17;
+drop event root17_1;
+drop event root18;
+drop event root19;
+drop event root20;
+drop event ðóóò21;
+set names latin1;
+CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
+SHOW EVENTS;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+ALTER TABLE mysql.event ADD dummy INT FIRST;
+SHOW EVENTS;
+ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 16.
+ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
+SHOW EVENTS;
+ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 16.
+ALTER TABLE mysql.event DROP dummy2;
+SHOW EVENTS;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+CREATE TABLE event_like LIKE mysql.event;
+INSERT INTO event_like SELECT * FROM mysql.event;
+ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
+SHOW CREATE TABLE mysql.event;
+Table	Create Table
+event	CREATE TABLE `event` (
+  `db` char(20) character set utf8 collate utf8_bin NOT NULL default '',
+  `name` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  `body` longblob NOT NULL,
+  `definer` char(77) character set utf8 collate utf8_bin NOT NULL default '',
+  `execute_at` datetime default NULL,
+  `interval_value` int(11) default NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL,
+  `created` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL default '0000-00-00 00:00:00',
+  `last_executed` datetime default NULL,
+  `starts` datetime default NULL,
+  `ends` datetime default NULL,
+  `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
+  `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
+  `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  PRIMARY KEY  (`definer`,`db`,`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
+"This should work"
+SHOW EVENTS;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
+ALTER TABLE mysql.event DROP comment, DROP starts;
+SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
+ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 13.
+DROP TABLE mysql.event;
+CREATE TABLE mysql.event like event_like;
+INSERT INTO  mysql.event SELECT * FROM event_like;
+DROP TABLE event_like;
+SHOW EVENTS;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+DROP EVENT intact_check;
 create event one_event on schedule every 10 second do select 123;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	INTERVAL_SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	root@localhost	 select 123	RECURRING	NULL	10	INTERVAL_SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	10 SECOND	ENABLED	NOT PRESERVE	
 CREATE DATABASE events_test2;
 CREATE USER ev_test@localhost;
 GRANT ALL ON events_test.* to ev_test@localhost;
@@ -72,20 +237,20 @@ create event three_event on schedule every 20 second on completion preserve comm
 "Now we should see 3 events:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
 "This should show us only 3 events:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
 "This should show us only 2 events:";
 SHOW FULL EVENTS LIKE 't%event';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
 "This should show us no events:";
 SHOW FULL EVENTS FROM test LIKE '%';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
@@ -93,20 +258,20 @@ DROP DATABASE events_test2;
 "should see 1 event:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	INTERVAL_SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
 "we should see 4 events now:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	INTERVAL_SECOND	#	#	ENABLED
-events_test	one_event	root@localhost	RECURRING	NULL	10	INTERVAL_SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	ev_test@localhost	 select 123	RECURRING	NULL	20	INTERVAL_SECOND	ENABLED	NOT PRESERVE	
-NULL	events_test	three_event	ev_test@localhost	 select 123	RECURRING	NULL	20	INTERVAL_SECOND	ENABLED	PRESERVE	three event
-NULL	events_test	two_event	ev_test@localhost	 select 123	RECURRING	NULL	20	INTERVAL_SECOND	ENABLED	NOT PRESERVE	two event
-NULL	events_test	one_event	root@localhost	 select 123	RECURRING	NULL	10	INTERVAL_SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	one_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	three_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	PRESERVE	three event
+NULL	events_test	two_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	NOT PRESERVE	two event
+NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	10 SECOND	ENABLED	NOT PRESERVE	
 drop event one_event;
 drop event two_event;
 drop event three_event;
@@ -116,7 +281,7 @@ drop event one_event;
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 db	name	body	definer	convert_tz(execute_at, 'UTC', 'SYSTEM')	on_completion
-events_test	e_26	 set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
+events_test	e_26	set @a = 5	root@localhost	2017-01-01 00:00:00	DROP
 drop event e_26;
 create event e_26 on schedule at NULL disabled do set @a = 5;
 ERROR HY000: Incorrect AT value: 'NULL'

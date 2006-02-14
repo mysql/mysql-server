@@ -3799,6 +3799,14 @@ end_with_restore_list:
   }
   case SQLCOM_SHOW_CREATE_EVENT:
   {
+    DBUG_ASSERT(lex->spname);
+    DBUG_ASSERT(lex->et);
+    if (! lex->spname->m_db.str)
+    {
+      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      res= true;
+      break;
+    }
     if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
                      is_schema_db(lex->spname->m_db.str)))
       break;
@@ -3808,8 +3816,7 @@ end_with_restore_list:
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
       goto error;
     }
-    /* TODO : Implement it */
-    send_ok(thd, 1);
+    res= evex_show_create_event(thd, lex->spname, lex->et->definer);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
