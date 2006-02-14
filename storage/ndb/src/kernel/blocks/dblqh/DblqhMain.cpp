@@ -11203,12 +11203,6 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   sendSignal(BACKUP_REF, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
 
-  if (lcpPtr.p->firstFragmentFlag)
-  {
-    lcpPtr.p->m_outstanding++;
-    sendSignal(PGMAN_REF, GSN_LCP_PREPARE_REQ, signal, 
-	       LcpPrepareReq::SignalLength, JBB);
-  }
 }//Dblqh::sendLCP_FRAGIDREQ()
 
 void Dblqh::sendEMPTY_LCP_CONF(Signal* signal, bool idle)

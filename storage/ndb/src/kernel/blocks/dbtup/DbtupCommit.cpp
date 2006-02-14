@@ -56,7 +56,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
 
     if (ptr->m_header_bits & Tuple_header::LCP_KEEP)
     {
-      ndbassert(ptr.p->m_header_bits & Tuple_header::FREED);
+      ndbassert(! (ptr->m_header_bits & Tuple_header::FREED));
       ptr->m_header_bits |= Tuple_header::FREED;
       return;
     }

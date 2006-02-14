@@ -70,7 +70,6 @@ Pgman::Pgman(const Configuration & conf) :
   addRecSignal(GSN_FSWRITEREF, &Pgman::execFSWRITEREF, true);
   addRecSignal(GSN_FSWRITECONF, &Pgman::execFSWRITECONF);
 
-  addRecSignal(GSN_LCP_PREPARE_REQ, &Pgman::execLCP_PREPARE_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Pgman::execLCP_FRAG_ORD);
   addRecSignal(GSN_END_LCP_REQ, &Pgman::execEND_LCP_REQ);
   
@@ -224,20 +223,20 @@ Pgman::execCONTINUEB(Signal* signal)
     jam();
     do_lcp_loop(signal);
     break;
-  case PgmanContinueB::LCP_PREPARE:
+  case PgmanContinueB::LCP_LOCKED:
   {
     jam();
     Ptr<Page_entry> ptr;
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
-    pl.getPtr(ptr, data1);
-    if (pl.next(ptr))
+    if (data1 != RNIL)
     {
-      process_lcp_prepare(signal, ptr);
+      pl.getPtr(ptr, data1);
+      process_lcp_locked(signal, ptr);
     }
     else
     {
-      signal->theData[0] = 0;
-      sendSignal(DBLQH_REF, GSN_LCP_PREPARE_CONF, signal, 1, JBB);
+      signal->theData[0] = m_end_lcp_req.senderData;
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
     }
     return;
   }
@@ -1105,79 +1104,6 @@ Pgman::move_cleanup_ptr(Ptr<Page_entry> ptr)
 
 // LCP
 
-void
-Pgman::execLCP_PREPARE_REQ(Signal* signal)
-{
-  jamEntry();
-
-  /**
-   * Reserve pages for all LOCKED pages...
-   */
-  Ptr<Page_entry> ptr;
-  Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
-  if (pl.first(ptr))
-  {
-    process_lcp_prepare(signal, ptr);
-  }
-  else
-  {
-    signal->theData[0] = 0;
-    sendSignal(DBLQH_REF, GSN_LCP_PREPARE_CONF, signal, 1, JBB);
-  }
-}
-
-void
-Pgman::process_lcp_prepare(Signal* signal, Ptr<Page_entry> ptr)
-{
-  ndbrequire(ptr.p->m_copy_page_i == RNIL);
-  
-  Ptr<GlobalPage> copy;
-  ndbrequire(m_global_page_pool.seize(copy));
-  ptr.p->m_copy_page_i = copy.i;
-  
-  signal->theData[0] = PgmanContinueB::LCP_PREPARE;
-  signal->theData[1] = ptr.i;
-  sendSignal(PGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
-}
-
-int
-Pgman::create_copy_page(Ptr<Page_entry> ptr, Uint32 req_flags)
-{
-  if (! (req_flags & DIRTY_FLAGS) && ! (ptr.p->m_state & Page_entry::COPY))
-  {
-    return ptr.p->m_real_page_i;
-  }
-  if (! (ptr.p->m_state & Page_entry::COPY))
-  {
-    ptr.p->m_state |= Page_entry::COPY;
-    
-    Ptr<GlobalPage> src;
-    Ptr<GlobalPage> copy;
-    m_global_page_pool.getPtr(src, ptr.p->m_real_page_i);
-    m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
-    memcpy(copy.p, src.p, sizeof(GlobalPage));
-  }
-  return ptr.p->m_copy_page_i;
-}
-
-void
-Pgman::restore_copy_page(Ptr<Page_entry> ptr)
-{
-  Uint32 copyPtrI = ptr.p->m_copy_page_i;
-  if (ptr.p->m_state & Page_entry::COPY)
-  {
-    Ptr<GlobalPage> src;
-    Ptr<GlobalPage> copy;
-    m_global_page_pool.getPtr(src, ptr.p->m_real_page_i);
-    m_global_page_pool.getPtr(copy, copyPtrI);
-    memcpy(src.p, copy.p, sizeof(GlobalPage));
-  }
-  
-  m_global_page_pool.release(copyPtrI);
-  
-  ptr.p->m_state &= ~Page_entry::COPY;
-  ptr.p->m_copy_page_i = RNIL;
-}
 
 void
 Pgman::execLCP_FRAG_ORD(Signal* signal)
@@ -1251,7 +1177,8 @@ Pgman::process_lcp(Signal* signal)
       DBG_LCP("LCP " << ptr << " - ");
       
       if (ptr.p->m_last_lcp < m_last_lcp &&
-          (state & Page_entry::DIRTY))
+          (state & Page_entry::DIRTY) &&
+	  (! (state & Page_entry::LOCKED)))
       {
         if(! (state & Page_entry::BOUND))
         {
@@ -1262,8 +1189,8 @@ Pgman::process_lcp(Signal* signal)
         {
 	  DBG_LCP(" BUSY" << endl);
           break;  // wait for it
-        }
-        if (state & Page_entry::PAGEOUT)
+        } 
+	else if (state & Page_entry::PAGEOUT)
         {
 	  DBG_LCP(" PAGEOUT -> state |= LCP" << endl);
           set_page_state(ptr, state | Page_entry::LCP);
@@ -1279,11 +1206,6 @@ Pgman::process_lcp(Signal* signal)
         ptr.p->m_last_lcp = m_last_lcp;
         m_lcp_outstanding++;
       }
-      else if (ptr.p->m_copy_page_i != RNIL)
-      {
-	DBG_LCP(" NOT DIRTY" << endl);
-	restore_copy_page(ptr);	
-      }
       else
       {
 	DBG_LCP(" NOT DIRTY" << endl);
@@ -1296,14 +1218,66 @@ Pgman::process_lcp(Signal* signal)
 
   if (m_lcp_curr_bucket == ~(Uint32)0  && !m_lcp_outstanding)
   {
-    DBG_LCP("GSN_END_LCP_CONF" << endl);
-    signal->theData[0] = m_end_lcp_req.senderData;
-    sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
-    m_lcp_curr_bucket = ~(Uint32)0;
+    Ptr<Page_entry> ptr;
+    Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+    if (pl.first(ptr))
+    {
+      process_lcp_locked(signal, ptr);
+    }
+    else
+    {
+      signal->theData[0] = m_end_lcp_req.senderData;
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF, signal, 1, JBB);
+    }
     return false;
   }
-
+  
   return true;
+}
+
+void
+Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
+{
+  ptr.p->m_last_lcp = m_last_lcp;
+  if (ptr.p->m_state & Page_entry::DIRTY)
+  {
+    Ptr<GlobalPage> org, copy;
+    ndbrequire(m_global_page_pool.seize(copy));
+    m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+    memcpy(copy.p, org.p, sizeof(GlobalPage));
+    ptr.p->m_copy_page_i = copy.i;
+    
+    m_lcp_outstanding++;
+    ptr.p->m_state |= Page_entry::LCP;
+    pageout(signal, ptr);
+    return;
+  }
+  
+  Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+  pl.next(ptr);
+  
+  signal->theData[0] = PgmanContinueB::LCP_LOCKED;
+  signal->theData[1] = ptr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+}
+
+void
+Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
+{
+  Ptr<GlobalPage> org, copy;
+  m_global_page_pool.getPtr(copy, ptr.p->m_copy_page_i);
+  m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+  memcpy(org.p, copy.p, sizeof(GlobalPage));
+  m_global_page_pool.release(copy);
+
+  ptr.p->m_copy_page_i = RNIL;
+
+  Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+  pl.next(ptr);
+  
+  signal->theData[0] = PgmanContinueB::LCP_LOCKED;
+  signal->theData[1] = ptr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 // page read and write
@@ -1427,18 +1401,16 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
 
-  if (ptr.p->m_copy_page_i != RNIL)
-  {
-    jam();
-    restore_copy_page(ptr);
-    state &= ~ Page_entry::COPY;
-  }
-  
   if (state & Page_entry::LCP)
   {
     ndbrequire(m_lcp_outstanding);
     m_lcp_outstanding--;
     state &= ~ Page_entry::LCP;
+    
+    if (ptr.p->m_copy_page_i != RNIL)
+    {
+      process_lcp_locked_fswriteconf(signal, ptr);
+    }
   }
   
   set_page_state(ptr, state);
@@ -1592,9 +1564,9 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
       ! (req_flags & Page_request::UNLOCK_PAGE))
   {
     ptr.p->m_state |= (req_flags & DIRTY_FLAGS ? Page_entry::DIRTY : 0);
-    if (m_lcp_loop_on && ptr.p->m_copy_page_i != RNIL)
+    if (ptr.p->m_copy_page_i != RNIL)
     {
-      return create_copy_page(ptr, req_flags);
+      return ptr.p->m_copy_page_i;
     }
     
     return ptr.p->m_real_page_i;
