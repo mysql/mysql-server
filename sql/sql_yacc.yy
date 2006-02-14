@@ -746,6 +746,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
         union_opt select_derived_init option_type2
+        opt_natural_language_mode opt_query_expansion
+        opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
+        ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
 
 %type <ulong_num>
 	ulong_num merge_insert_types
@@ -1309,9 +1312,9 @@ create:
 	      YYABORT;
 	    sp->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
-            
-	    /* 
-              Restore flag if it was cleared above 
+
+	    /*
+              Restore flag if it was cleared above
               Be careful with counting. the block where we save the value
               is $4.
             */
@@ -1319,8 +1322,8 @@ create:
 	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	| CREATE EVENT_SYM opt_if_not_exists sp_name
-          /* 
-             BE CAREFUL when you add a new rule to update the block where 
+          /*
+             BE CAREFUL when you add a new rule to update the block where
              YYTHD->client_capabilities is set back to original value
           */
           {
@@ -1338,10 +1341,10 @@ create:
             }
 
             lex->create_info.options= $3;
-	    
+
             if (!(lex->et= new event_timed())) // implicitly calls event_timed::init()
               YYABORT;
-	    
+
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
@@ -1441,31 +1444,31 @@ ev_schedule_time: EVERY_SYM expr interval
                            str2? str2->c_ptr():"NULL");
                   YYABORT;
                   break;
-                }          
+                }
               case EVEX_BAD_PARAMS:
                 my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
                 YYABORT;
-                break;             
+                break;
               }
             }
           }
       ;
-    
-opt_ev_status: /* empty */ {$<ulong_num>$= 0;}
+
+opt_ev_status: /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->status= MYSQL_EVENT_ENABLED;
-            $<ulong_num>$= 1;	   
+            $$= 1;
           }
         | DISABLE_SYM
           {
             LEX *lex=Lex;
-            
+
             if (!lex->et_compile_phase)
               lex->et->status= MYSQL_EVENT_DISABLED;
-            $<ulong_num>$= 1;
+            $$= 1;
           }
       ;
 
@@ -1475,7 +1478,7 @@ ev_starts: /* empty */
             LEX *lex= Lex;
             if (!lex->et_compile_phase)
             {
-              
+
               switch (lex->et->init_starts(YYTHD, $2)) {
               case EVEX_PARSE_ERROR:
                 yyerror(ER(ER_SYNTAX_ERROR));
@@ -1516,28 +1519,28 @@ ev_ends: /* empty */
           }
       ;
 
-opt_ev_on_completion: /* empty */ {$<ulong_num>$= 0;}
+opt_ev_on_completion: /* empty */ { $$= 0; }
         | ev_on_completion
       ;
 
-ev_on_completion: 
+ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_PRESERVE;
-            $<ulong_num>$= 1;
+            $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
             LEX *lex=Lex;
             if (!lex->et_compile_phase)
               lex->et->on_completion= MYSQL_EVENT_ON_COMPLETION_DROP;
-            $<ulong_num>$= 1;
+            $$= 1;
           }
       ;
 
-opt_ev_comment: /* empty */ {$<ulong_num>$= 0;}
+opt_ev_comment: /* empty */ { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
@@ -1546,7 +1549,7 @@ opt_ev_comment: /* empty */ {$<ulong_num>$= 0;}
               lex->comment= $2;
               lex->et->init_comment(YYTHD, &$2);
             }
-            $<ulong_num>$= 1;
+            $$= 1;
           }
       ;
 
@@ -1554,9 +1557,9 @@ ev_sql_stmt:
           {
             LEX *lex= Lex;
             sp_head *sp;
-	    
+
             $<sphead>$= lex->sphead;
-            
+
             if (!lex->sphead)
             {
               if (!(sp= new sp_head()))
@@ -1564,14 +1567,14 @@ ev_sql_stmt:
 
               sp->reset_thd_mem_root(YYTHD);
               sp->init(lex);
-            
+
               sp->m_type= TYPE_ENUM_PROCEDURE;
-            
+
               lex->sphead= sp;
 
               bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
               lex->sphead->m_chistics= &lex->sp_chistics;
-	
+
               lex->sphead->m_body_begin= lex->ptr;
             }
 
@@ -1581,14 +1584,14 @@ ev_sql_stmt:
           ev_sql_stmt_inner
           {
             LEX *lex=Lex;
-            
+
             if (!$<sphead>1)
             {
               sp_head *sp= lex->sphead;
               // return back to the original memory root ASAP
               sp->init_strings(YYTHD, lex, NULL);
               sp->restore_thd_mem_root(YYTHD);
-	    
+
               lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
 
               lex->et->sphead= lex->sphead;
@@ -1600,14 +1603,14 @@ ev_sql_stmt:
             }
           }
       ;
-	  
+
 ev_sql_stmt_inner:
           sp_proc_stmt_statement
         | sp_proc_stmt_return
         | sp_proc_stmt_if
         | sp_proc_stmt_case_simple
         | sp_proc_stmt_case
-        | sp_labeled_control {}
+        | sp_labeled_control
         | sp_proc_stmt_unlabeled
         | sp_proc_stmt_leave
         | sp_proc_stmt_iterate
@@ -2286,7 +2289,6 @@ sp_proc_stmt:
 	| sp_proc_stmt_case_simple
         | sp_proc_stmt_case
 	| sp_labeled_control
-	  {}
 	| sp_proc_stmt_unlabeled
 	| sp_proc_stmt_leave
 	| sp_proc_stmt_iterate
@@ -4798,8 +4800,8 @@ alter:
 	  view_list_opt AS view_select view_check_option
 	  {}
 	| ALTER EVENT_SYM sp_name
-          /* 
-             BE CAREFUL when you add a new rule to update the block where 
+          /*
+             BE CAREFUL when you add a new rule to update the block where
              YYTHD->client_capabilities is set back to original value
           */
           {
@@ -4816,7 +4818,7 @@ alter:
               YYABORT;
             }
             lex->spname= 0;//defensive programming
-	    
+
             if (!(et= new event_timed()))// implicitly calls event_timed::init()
               YYABORT;
             lex->et = et;
@@ -4826,7 +4828,7 @@ alter:
               et->init_definer(YYTHD);
               et->init_name(YYTHD, $3);
             }
-            
+
             /*
                 We have to turn of CLIENT_MULTI_QUERIES while parsing a
                 stored procedure, otherwise yylex will chop it into pieces
@@ -4853,8 +4855,7 @@ alter:
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
-            if (!($<ulong_num>5 || $<ulong_num>6 || $<ulong_num>7 ||
-                  $<ulong_num>8 || $<ulong_num>9))
+            if (!($5 || $6 || $7 || $8 || $9))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
@@ -4866,7 +4867,7 @@ alter:
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_TABLESPACE;
           }
-        | ALTER LOGFILE_SYM GROUP alter_logfile_group_info 
+        | ALTER LOGFILE_SYM GROUP alter_logfile_group_info
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_LOGFILE_GROUP;
@@ -4876,34 +4877,31 @@ alter:
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= CHANGE_FILE_TABLESPACE;
           }
-        | ALTER TABLESPACE change_tablespace_access 
+        | ALTER TABLESPACE change_tablespace_access
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= ALTER_ACCESS_MODE_TABLESPACE;
           }
 	;
 
-ev_alter_on_schedule_completion: /* empty */ { $<ulong_num>$= 0;}
-        | ON SCHEDULE_SYM ev_schedule_time { $<ulong_num>$= 1; }
-        | ev_on_completion { $<ulong_num>$= 1; }
-        | ON SCHEDULE_SYM ev_schedule_time ev_on_completion { $<ulong_num>$= 1; }
+ev_alter_on_schedule_completion: /* empty */ { $$= 0;}
+        | ON SCHEDULE_SYM ev_schedule_time { $$= 1; }
+        | ev_on_completion { $$= 1; }
+        | ON SCHEDULE_SYM ev_schedule_time ev_on_completion { $$= 1; }
       ;
 
-opt_ev_rename_to: /* empty */ { $<ulong_num>$= 0;}
+opt_ev_rename_to: /* empty */ { $$= 0;}
         | RENAME TO_SYM sp_name
           {
             LEX *lex=Lex;
             lex->spname= $3; //use lex's spname to hold the new name
 	                     //the original name is in the event_timed object
-            $<ulong_num>$= 1;
+            $$= 1;
           }
       ;
- 
-opt_ev_sql_stmt: /* empty*/ { $<ulong_num>$= 0;}
-        | DO_SYM ev_sql_stmt
-          {
-            $<ulong_num>$= 1;
-          }
+
+opt_ev_sql_stmt: /* empty*/ { $$= 0;}
+        | DO_SYM ev_sql_stmt { $$= 1; }
         ;
 
 
@@ -6625,9 +6623,20 @@ geometry_function:
 	;
 
 fulltext_options:
-        /* nothing */                   { $$= FT_NL;  }
-        | WITH QUERY_SYM EXPANSION_SYM  { $$= FT_NL | FT_EXPAND; }
-        | IN_SYM BOOLEAN_SYM MODE_SYM   { $$= FT_BOOL; }
+          opt_natural_language_mode opt_query_expansion
+          { $$= $1 | $2; }
+        | IN_SYM BOOLEAN_SYM MODE_SYM
+          { $$= FT_BOOL; }
+        ;
+
+opt_natural_language_mode:
+        /* nothing */                           { $$= FT_NL;  }
+        | IN_SYM NATURAL LANGUAGE_SYM MODE_SYM  { $$= FT_NL; }
+        ;
+
+opt_query_expansion:
+        /* nothing */                           { $$= 0;         }
+        | WITH QUERY_SYM EXPANSION_SYM          { $$= FT_EXPAND; }
         ;
 
 udf_expr_list:
@@ -10889,25 +10898,25 @@ view_check_option:
 **************************************************************************/
 
 trigger_tail:
-	TRIGGER_SYM remember_name sp_name trg_action_time trg_event 
+	TRIGGER_SYM remember_name sp_name trg_action_time trg_event
 	ON table_ident FOR_SYM EACH_SYM ROW_SYM
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp;
-	 
+
 	  if (lex->sphead)
 	  {
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
 	    YYABORT;
 	  }
-	
+
 	  if (!(sp= new sp_head()))
 	    YYABORT;
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
-	
+
 	  lex->trigger_definition_begin= $2;
-	  
+
 	  sp->m_type= TYPE_ENUM_TRIGGER;
 	  lex->sphead= sp;
 	  lex->spname= $3;
@@ -10918,7 +10927,7 @@ trigger_tail:
 	  */
 	  $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	  YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
-	  
+
 	  bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  lex->sphead->m_chistics= &lex->sp_chistics;
 	  lex->sphead->m_body_begin= lex->ptr;
@@ -10929,27 +10938,27 @@ trigger_tail:
 	{
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
-	  
+
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
 	  sp->init_strings(YYTHD, lex, $3);
 	  /* Restore flag if it was cleared above */
 
 	  YYTHD->client_capabilities |= $<ulong_num>11;
 	  sp->restore_thd_mem_root(YYTHD);
-	
+
 	  if (sp->is_not_allowed_in_function("trigger"))
 	      YYABORT;
-	
+
 	  /*
 	    We have to do it after parsing trigger body, because some of
 	    sp_proc_stmt alternatives are not saving/restoring LEX, so
 	    lex->query_tables can be wiped out.
-	    
+
 	    QQ: What are other consequences of this?
-	    
+
 	    QQ: Could we loosen lock type in certain cases ?
 	  */
-	  if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
+	  if (!lex->select_lex.add_table_to_list(YYTHD, $7,
 	                                         (LEX_STRING*) 0,
 	                                         TL_OPTION_UPDATING,
 	                                         TL_WRITE))
