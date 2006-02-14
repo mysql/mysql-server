@@ -5132,7 +5132,7 @@ write_log_replace_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
 {
   TABLE_LOG_ENTRY table_log_entry;
   TABLE_LOG_MEMORY_ENTRY *log_entry;
-  DBUG_ENTER("write_log_replace_frm");
+  DBUG_ENTER("write_log_replace_delete_frm");
 
   if (replace_flag)
     table_log_entry.action_type= TLOG_REPLACE_ACTION_CODE;
@@ -5412,7 +5412,7 @@ write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   lock_global_table_log();
   do
   {
-    if (write_log_rename_delete_frm(lpt, 0UL, NULL,
+    if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                     (const char*)shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
@@ -5465,7 +5465,7 @@ write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   lock_global_table_log();
   do
   {
-    if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+    if (write_log_replace_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
     part_info->frm_log_entry= log_entry;
@@ -5525,7 +5525,7 @@ write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                      FALSE))
       break;
-    if (write_log_rename_delete_frm(lpt, next_entry, (const char*)path,
+    if (write_log_replace_delete_frm(lpt, next_entry, (const char*)path,
                                     (const char*)tmp_path, TRUE))
       break;
     log_entry= part_info->first_log_entry;
@@ -5585,7 +5585,7 @@ write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
     if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                      FALSE))
       break;
-    if (write_log_rename_delete_frm(lpt, next_entry, NULL, tmp_path,
+    if (write_log_replace_delete_frm(lpt, next_entry, NULL, tmp_path,
                                     FALSE))
       break;
     log_entry= part_info->first_log_entry;
@@ -5647,7 +5647,7 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
       break;
     if (write_log_changed_partitions(lpt, &next_entry, (const char*)path))
       break;
-    if (write_log_rename_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
+    if (write_log_replace_delete_frm(lpt, 0UL, path, shadow_path, FALSE))
       break;
     log_entry= part_info->first_log_entry;
     part_info->frm_log_entry= log_entry;
