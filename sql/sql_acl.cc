@@ -32,10 +32,6 @@
 #include "sp_head.h"
 #include "sp.h"
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-#define FIRST_NON_YN_FIELD 26
-
 time_t mysql_db_table_last_check= 0L;
 
 TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -151,6 +147,10 @@ TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+#define FIRST_NON_YN_FIELD 26
 
 class acl_entry :public hash_filo_element
 {
