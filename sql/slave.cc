@@ -2920,7 +2920,7 @@ static int has_temporary_error(THD *thd)
   MYSQL_ERROR *err;
   while ((err= it++))
   {
-    DBUG_PRINT("info", ("has warning %d %s", err->code, err->msg))
+    DBUG_PRINT("info", ("has warning %d %s", err->code, err->msg));
     switch (err->code)
     {
     case ER_GET_TEMPORARY_ERRMSG:

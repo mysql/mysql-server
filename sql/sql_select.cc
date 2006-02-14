@@ -13227,7 +13227,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
   for (i= 0; (item= it++); i++)
   {
     Field *field;
-    
+
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
     else
@@ -13246,7 +13246,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  DBUG_RETURN(TRUE);                    // Fatal error
 	item_field->name= item->name;
 #ifndef DBUG_OFF
-	if (_db_on_ && !item_field->name)
+	if (!item_field->name)
 	{
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
