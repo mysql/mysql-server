@@ -76,6 +76,7 @@ $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 #require 5.6.1;
 use File::Path;
 use File::Basename;
+use File::Copy;
 use Cwd;
 use Getopt::Long;
 use Sys::Hostname;
@@ -152,6 +153,7 @@ our $path_language;
 our $path_timefile;
 our $path_manager_log;           # Used by mysqldadmin
 our $path_slave_load_tmpdir;     # What is this?!
+our $path_mysqltest_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_tmpdir;                 # A path but set directly on cmd line
@@ -238,7 +240,7 @@ our $opt_sleep_time_after_restart=  1;
 our $opt_sleep_time_for_delete=    10;
 our $opt_testcase_timeout;
 our $opt_suite_timeout;
-my  $default_testcase_timeout=     10; # 10 min max
+my  $default_testcase_timeout=     15; # 15 min max
 my  $default_suite_timeout=       120; # 2 hours max
 
 our $opt_socket;
@@ -257,6 +259,7 @@ our $opt_user;
 our $opt_user_test;
 
 our $opt_valgrind;
+our $opt_valgrind_mysqld;
 our $opt_valgrind_mysqltest;
 our $opt_valgrind_all;
 our $opt_valgrind_options;
@@ -475,8 +478,9 @@ sub command_line_setup () {
   #
   if ( $ENV{'MTR_BUILD_THREAD'} )
   {
-    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000;
-    $opt_slave_myport=    $opt_master_myport + 2; # and 3 4
+    # Up to two masters, up to three slaves
+    $opt_master_myport=   $ENV{'MTR_BUILD_THREAD'} * 10 + 10000; # and 1
+    $opt_slave_myport=    $opt_master_myport + 2;  # and 3 4
     $opt_ndbcluster_port= $opt_master_myport + 5;
   }
 
@@ -609,6 +613,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
 
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
+  $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
   # FIXME maybe not needed?
   $path_manager_log= "$opt_vardir/log/manager.log"
     unless $path_manager_log;
@@ -725,6 +730,7 @@ sub command_line_setup () {
   #   "somestring" option is name/path of valgrind executable
 
   # Take executable path from any of them, if any
+  $opt_valgrind_mysqld= $opt_valgrind;
   $opt_valgrind= $opt_valgrind_mysqltest if $opt_valgrind_mysqltest;
   $opt_valgrind= $opt_valgrind_all       if $opt_valgrind_all;
 
@@ -834,6 +840,7 @@ sub command_line_setup () {
   }
 
   $path_timefile=  "$opt_vardir/log/mysqltest-time";
+  $path_mysqltest_log=  "$opt_vardir/log/mysqltest.log";
 }
 
 
@@ -851,7 +858,8 @@ sub executable_setup () {
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
                                            "$glob_basedir/bin");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",);
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
@@ -875,7 +883,19 @@ sub executable_setup () {
     }
     else
     {
-      $exe_mysqltest=  mtr_exe_exists("$path_client_bindir/mysqltest");
+      if ( $opt_valgrind_mysqltest )
+      {
+        # client/mysqltest might be a libtool .sh script, so look for real exe
+        # to avoid valgrinding bash ;)
+        $exe_mysqltest=
+  	  mtr_exe_exists("$path_client_bindir/.libs/lt-mysqltest",
+		         "$path_client_bindir/.libs/mysqltest",
+		         "$path_client_bindir/mysqltest");
+      }
+      else
+      {
+        $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+      }
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
 		       "/usr/bin/false");
@@ -985,6 +1005,7 @@ sub environment_setup () {
   $ENV{'USE_RUNNING_SERVER'}= $glob_use_running_server;
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQL_TEST_WINDIR'}=  $glob_mysql_test_dir;
+  $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'MASTER_WINMYSOCK'}=   $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK'}=      $master->[0]->{'path_mysock'};
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_mysock'};
@@ -995,6 +1016,8 @@ sub environment_setup () {
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'path_myport'};
 # $ENV{'MYSQL_TCP_PORT'}=     '@MYSQL_TCP_PORT@'; # FIXME
   $ENV{'MYSQL_TCP_PORT'}=     3306;
+
+  $ENV{'NDBCLUSTER_PORT'}=    $opt_ndbcluster_port;
 
   if ( $glob_cygwin_perl )
   {
@@ -1015,7 +1038,7 @@ sub environment_setup () {
   print "Using SLAVE_MYPORT     = $ENV{SLAVE_MYPORT}\n";
   print "Using SLAVE_MYPORT1    = $ENV{SLAVE_MYPORT1}\n";
   print "Using SLAVE_MYPORT2    = $ENV{SLAVE_MYPORT2}\n";
-  print "Using NDBCLUSTER_PORT  = $opt_ndbcluster_port\n";
+  print "Using NDBCLUSTER_PORT  = $ENV{NDBCLUSTER_PORT}\n";
 }
 
 
@@ -1077,10 +1100,40 @@ sub kill_and_cleanup () {
 
   mtr_report("Removing Stale Files");
 
-  rmtree("$opt_vardir/log");
-  rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
-  rmtree("$opt_vardir/run");
-  rmtree("$opt_vardir/tmp");
+  if ( $opt_vardir eq "$glob_mysql_test_dir/var" )
+  {
+    #
+    # Running with "var" in mysql-test dir
+    #
+    if ( -l "$glob_mysql_test_dir/var" )
+    {
+      # Some users creates a soft link in mysql-test/var to another area
+      # - allow it
+      mtr_report("WARNING: Using the 'mysql-test/var' symlink");
+      rmtree("$opt_vardir/log");
+      rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
+      rmtree("$opt_vardir/run");
+      rmtree("$opt_vardir/tmp");
+    }
+    else
+    {
+      # Remove the entire "var" dir
+      rmtree("$opt_vardir/");
+    }
+  }
+  else
+  {
+    #
+    # Running with "var" in some other place
+    #
+
+    # Remove the var/ dir in mysql-test dir if any
+    # this could be an old symlink that shouldn't be there
+    rmtree("$glob_mysql_test_dir/var");
+
+    # Remove the "var" dir
+    rmtree("$opt_vardir/");
+  }
 
   mkpath("$opt_vardir/log");
   mkpath("$opt_vardir/run");
@@ -1104,14 +1157,22 @@ sub kill_and_cleanup () {
     mkpath("$data_dir/test");
   }
 
-  # To make some old test cases work, we create a soft
-  # link from the old "var" location to the new one
-
-  if ( ! $glob_win32 and $opt_vardir ne "$glob_mysql_test_dir/var" )
+  # Make a link std_data_ln in var/ that points to std_data
+  if ( ! $glob_win32 )
   {
-    # FIXME why bother with the above, why not always remove all of var?!
-    rmtree("$glob_mysql_test_dir/var"); # Clean old var, FIXME or rename it?!
-    symlink($opt_vardir, "$glob_mysql_test_dir/var");
+    symlink("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
+  }
+  else
+  {
+    # on windows, copy all files from std_data into var/std_data_ln
+    mkpath("$opt_vardir/std_data_ln");
+    opendir(DIR, "$glob_mysql_test_dir/std_data")
+      or mtr_error("Can't find the std_data directory: $!");
+    for my $elem ( readdir(DIR) ) {
+      next if -d "$glob_mysql_test_dir/std_data/$elem";
+      copy("$glob_mysql_test_dir/std_data/$elem", "$opt_vardir/std_data_ln/$elem");
+    }
+    closedir(DIR);
   }
 }
 
@@ -1543,6 +1604,7 @@ sub run_testcase ($) {
       }
       if ( $opt_with_ndbcluster and ! $master->[1]->{'pid'} )
       {
+	# Test needs cluster, start an extra mysqld connected to cluster
         $master->[1]->{'pid'}=
           mysqld_start('master',1,$tinfo->{'master_opt'},[]);
         if ( ! $master->[1]->{'pid'} )
@@ -1787,7 +1849,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
   mtr_add_arg($args, "%s--tmpdir=$opt_tmpdir", $prefix);
 
-  if ( defined $opt_valgrind )
+  if ( defined $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
     mtr_add_arg($args, "%s--skip-bdb", $prefix);
@@ -1854,6 +1916,10 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--skip-innodb", $prefix);
     mtr_add_arg($args, "%s--skip-ndbcluster", $prefix);
     mtr_add_arg($args, "%s--skip-slave-start", $prefix);
+
+    # Directory where slaves find the dumps generated by "load data"
+    # on the server. The path need to have constant length otherwise
+    # test results will vary, thus a relative path is used.
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $path_slave_load_tmpdir);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
@@ -2012,7 +2078,7 @@ sub mysqld_start ($$$$) {
 
   mtr_init_args(\$args);
 
-  if ( defined $opt_valgrind )
+  if ( defined $opt_valgrind_mysqld )
   {
     valgrind_arguments($args, \$exe);
   }
