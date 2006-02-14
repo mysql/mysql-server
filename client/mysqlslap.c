@@ -55,7 +55,7 @@
   load statements, and then run all the queries in the query file
   with five clients (five times each):
 
-    mysqlslap --drop-schema --concurrency=5 \
+    mysqlslap --concurrency=5 \
               --iterations=5 --query=query.sql --create=create.sql \
               --delimiter=";"
 
@@ -425,12 +425,12 @@ static struct my_option my_long_options[] =
     (gptr*) &lock_directory, (gptr*) &lock_directory, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
-    "Number of INT columns to create table with if specifying --sql-generate-sql.",
+    "Number of INT columns to create table with if specifying --auto-generate-sql.",
     (gptr*) &num_char_cols, (gptr*) &num_char_cols, 0, GET_UINT, REQUIRED_ARG,
     1, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
     "Number of VARCHAR columns to create table with if specifying "
-      "--sql-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
+      "--auto-generate-sql.", (gptr*) &num_int_cols, (gptr*) &num_int_cols, 0,
     GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
