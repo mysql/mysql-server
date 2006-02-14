@@ -48,7 +48,7 @@ struct st_mysql_plugin _mysql_plugin_declarations_[]= {
 */
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_MY_BOOL, SHOW_INT, SHOW_LONG,
+  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
   SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC
 };
