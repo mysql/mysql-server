@@ -1235,6 +1235,7 @@ sub kill_running_server () {
     $using_ndbcluster_master= $opt_with_ndbcluster;
     ndbcluster_stop();
     $master->[0]->{'ndbcluster'}= 1;
+    $using_ndbcluster_slave= $opt_with_ndbcluster;
     ndbcluster_stop_slave();
     $slave->[0]->{'ndbcluster'}= 1;
   }
