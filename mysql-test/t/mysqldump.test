@@ -1066,7 +1066,7 @@ select * from t2;
 # The first load tests the pausing code
 --exec $MYSQL_IMPORT --use-threads=1 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
 # Now we test with multiple threads!
---exec $MYSQL_IMPORT --use-threads=5 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
+--exec $MYSQL_IMPORT --silent --use-threads=5 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
 select * from t1;
 select * from t2;
 
