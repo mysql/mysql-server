@@ -33,3 +33,10 @@ rpl_until            : Unstable test case, bug#15886
 sp-goto              : GOTO is currently is disabled - will be fixed in the future
 subselect            : Bug#15706 (ps mode) [PATCH PENDING]
 rpl_ndb_log          : result not deterministic
+sp-code              : Bug #17360
+binlog_row_mix_innodb_myisam : Bug #17386
+binlog_row_insert_select : Bug #17385
+rpl_row_basic_2myisam : Bug #17385
+rpl_row_basic_3innodb : Bug #17385
+rpl_row_create_table : Bug #17385
+mysqldump : Bug #17383 Bug #17384
