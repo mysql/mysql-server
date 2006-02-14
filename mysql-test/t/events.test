@@ -78,9 +78,9 @@ set names cp1251;
 create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
 SHOW CREATE EVENT руут21;
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
---error 1535
+--error 1235
 show create event root22;
---error 1535
+--error 1235
 SHOW EVENTS;
 drop event root22;
 drop event root6;
