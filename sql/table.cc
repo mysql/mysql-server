@@ -2419,7 +2419,7 @@ table_check_intact(TABLE *table, uint table_f_count,
   }
   else
   {
-    DBUG_PRINT("info", ("Table seems ok without through checking."));
+    DBUG_PRINT("info", ("Table seems ok without thorough checking."));
     *last_create_time= table->file->create_time;
   }
    
