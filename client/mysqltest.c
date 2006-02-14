@@ -3733,7 +3733,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
 
   if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
     die("fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
-	mysql_stmt_error(stmt), mysql_stmt_errno(stmt));
+	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
   free_replace_column();
 
@@ -4199,7 +4199,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   if (mysql_stmt_prepare(stmt, query, query_len))
   {
     handle_error(query, command,  mysql_stmt_errno(stmt),
-		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+                 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
@@ -4215,28 +4215,33 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     parameter markers.
   */
 
-#ifdef BUG14013_FIXED
-  /*
-    Use cursor when retrieving result
-  */
   if (cursor_protocol_enabled)
   {
+    /*
+      Use cursor when retrieving result
+    */
     ulong type= CURSOR_TYPE_READ_ONLY;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type))
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
-	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
+          mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
-#endif
 
   /*
     Execute the query
-   */
+  */
   if (mysql_stmt_execute(stmt))
   {
     handle_error(query, command, mysql_stmt_errno(stmt),
-		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+                 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
+
+  /*
+    When running in cursor_protocol get the warnings from execute here
+    and keep them in a separate string for later.
+  */
+  if (cursor_protocol_enabled && !disable_warnings)
+    append_warnings(&ds_execute_warnings, mysql);
 
   /*
     We instruct that we want to update the "max_length" field in
@@ -4247,7 +4252,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
     my_bool one= 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one))
       die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s",
-	  mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
+          mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
   /*
@@ -4257,7 +4262,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
   if (mysql_stmt_store_result(stmt))
   {
     handle_error(query, command, mysql_stmt_errno(stmt),
-		 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
+                 mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
@@ -4278,10 +4283,10 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
       uint num_fields= mysql_num_fields(res);
 
       if (display_metadata)
-	append_metadata(ds, fields, num_fields);
+        append_metadata(ds, fields, num_fields);
 
       if (!display_result_vertically)
-	append_table_headings(ds, fields, num_fields);
+        append_table_headings(ds, fields, num_fields);
 
       append_stmt_result(ds, stmt, fields, num_fields);
 
@@ -4303,10 +4308,11 @@ static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 
       /* Append warnings to ds - if there are any */
       if (append_warnings(&ds_execute_warnings, mysql) ||
-	  ds_prepare_warnings.length ||
-	  ds_warnings->length)
+          ds_execute_warnings.length ||
+          ds_prepare_warnings.length ||
+          ds_warnings->length)
       {
-	dynstr_append_mem(ds, "Warnings:\n", 10);
+        dynstr_append_mem(ds, "Warnings:\n", 10);
 	if (ds_warnings->length)
 	  dynstr_append_mem(ds, ds_warnings->str,
 			    ds_warnings->length);
