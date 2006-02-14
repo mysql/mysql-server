@@ -320,7 +320,8 @@ read_table_log_file_entry(uint entry_no)
   uint io_size= global_table_log.io_size;
   DBUG_ENTER("read_table_log_file_entry");
 
-  if (my_pread(file_id, file_entry, io_size, io_size * entry_no, MYF(0)))
+  if (my_pread(file_id, file_entry, io_size, io_size * entry_no,
+               MYF(MY_WME)))
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -346,7 +347,7 @@ write_table_log_file_entry(uint entry_no)
   DBUG_ENTER("write_table_log_file_entry");
 
   if (my_pwrite(file_id, file_entry,
-                IO_SIZE, IO_SIZE * entry_no, MYF(0)) != IO_SIZE)
+                IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -383,7 +384,7 @@ write_table_log_header()
   if (write_table_log_file_entry(0UL))
     error= TRUE;
   if (!error)
-    error= sync_table_log();
+    VOID(sync_table_log());
   DBUG_RETURN(error);
 }
 
@@ -430,7 +431,7 @@ read_table_log_header()
 
   bzero(file_entry, sizeof(global_table_log.file_entry));
   create_table_log_file_name(file_name);
-  if (!(my_open(file_name, O_RDWR | O_TRUNC | O_BINARY, MYF(0))))
+  if (!(my_open(file_name, O_RDWR | O_TRUNC | O_BINARY, MYF(MY_WME))))
   {
     if (read_table_log_file_entry(0UL))
     {
@@ -517,7 +518,7 @@ init_table_log()
   if ((global_table_log.file_id= my_create(file_name,
                                            CREATE_MODE,
                                            O_RDWR | O_TRUNC | O_BINARY,
-                                           MYF(0))) < 0)
+                                           MYF(MY_WME))) < 0)
   {
     /* Couldn't create table log file, this is serious error */
     abort();
@@ -564,6 +565,7 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
   hton= ha_resolve_by_name(current_thd, handler_name);
   if (!hton)
   {
+    my_error(ER_ILLEGAL_HA, table_log_entry->handler_type);
     DBUG_RETURN(TRUE);
   }
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
@@ -573,7 +575,10 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
   {
     file= get_new_handler(table_share, &mem_root, hton);
     if (!file)
+    {
+      mem_alloc_error(sizeof(handler));
       goto error;
+    }
   }
   switch (table_log_entry->action_type)
     case TLOG_ACTION_DELETE_CODE:
@@ -585,20 +590,24 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
         if (frm_action)
         {
           strxmov(path, table_log_entry->name, reg_ext, NullS);
-          VOID(my_delete(path, MYF(0)));
+          if (my_delete(path, MYF(MY_WME)))
+            break;
           strxmov(path, table_log_entry->name, par_ext, NullS);
-          VOID(my_delete(path, MYF(0)));
+          if (my_delete(path, MYF(MY_WME)))
+            break;
         }
         else
         {
           if (file->delete_table(table_name))
             break;
         }
-        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)) &&
-            (!sync_table_log()))
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
           ;
         else
+        {
+          VOID(sync_table_log());
           error= FALSE;
+        }
         break;
       }
       if (table_log_entry->action_type == TLOG_ACTION_DELETE_CODE)
@@ -609,11 +618,11 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
       {
         strxmov(path, table_log_entry->name, reg_ext, NullS);
         strxmov(from_path, table_log_entry->from_name, reg_ext, NullS);
-        if (my_rename(path, from_path, MYF(0)))
+        if (my_rename(path, from_path, MYF(MY_WME)))
           break;
         strxmov(path, table_log_entry->name, par_ext, NullS);
         strxmov(from_path, table_log_entry->from_name, par_ext, NullS);
-        if (my_rename(path, from_path, MYF(0)))
+        if (my_rename(path, from_path, MYF(MY_WME)))
           break;
       }
       else
@@ -621,11 +630,13 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
         if (file->rename_table(table_log_entry->name,
                                table_log_entry->from_name))
           break;
-        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)) &&
-            (!sync_table_log()))
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
           ;
         else
+        {
+          VOID(sync_table_log());
           error= FALSE;
+        }
       }
       break;
     default:
@@ -662,7 +673,7 @@ get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
   if (global_table_log.first_free == NULL)
   {
     if (!(used_entry= (TABLE_LOG_MEMORY_ENTRY*)my_malloc(
-                              sizeof(TABLE_LOG_MEMORY_ENTRY), MYF(0))))
+                              sizeof(TABLE_LOG_MEMORY_ENTRY), MYF(MY_WME))))
     {
       DBUG_RETURN(TRUE);
     }
@@ -748,7 +759,8 @@ write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
     error= TRUE;
   if (write_header && !error)
   {
-    if (sync_table_log() || write_table_log_header())
+    VOID(sync_table_log());
+    if (write_table_log_header())
       error= TRUE;
   }
   if (error)
@@ -1232,7 +1244,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
         inactivate_table_log_entry(part_info->frm_log_entry->entry_pos) ||
-        sync_table_log() ||
+        (sync_table_log(), FALSE) ||
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path, TRUE))
     {
