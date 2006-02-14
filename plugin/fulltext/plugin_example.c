@@ -15,7 +15,7 @@
 
 #include <stdlib.h>
 #include <ctype.h>
-#include <plugin.h>
+#include <mysql/plugin.h>
 
 long number_of_calls= 0; /* for SHOW STATUS, see below */
 
