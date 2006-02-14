@@ -89,3 +89,11 @@ SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+# Bug #16272 IF function with decimal args can produce wrong result
+#
+create table t1 (f1 int, f2 int);
+insert into t1 values(1,1),(0,0);
+select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
+drop table t1;
