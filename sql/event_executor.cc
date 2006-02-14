@@ -33,9 +33,9 @@ extern  ulong thread_created;
 extern const char *my_localhost;
 extern pthread_attr_t connection_attrib;
 
-pthread_mutex_t LOCK_event_arrays,
-                LOCK_workers_count,
-                LOCK_evex_running;
+pthread_mutex_t LOCK_event_arrays,  // mutex for when working with the queue
+                LOCK_workers_count, // mutex for when inc/dec uint workers_count
+                LOCK_evex_running;  // mutes for managing bool evex_is_running
 
 
 bool evex_is_running= false;
@@ -62,12 +62,38 @@ event_executor_worker(void *arg);
 pthread_handler_t
 event_executor_main(void *arg);
 
+
+/*
+   Returns the seconds difference of 2 TIME structs
+
+   SYNOPSIS
+     evex_time_diff()
+      a - TIME struct 1
+      b - TIME struct 2
+   
+   Returns:
+    the seconds difference
+*/
+
 static int
 evex_time_diff(TIME *a, TIME *b)
 {
   return sec_since_epoch_TIME(a) - sec_since_epoch_TIME(b);
 }
 
+
+/*
+   Inits the mutexes used by the scheduler module
+
+   SYNOPSIS
+     evex_init_mutexes()
+          
+   NOTES
+    The mutexes are :
+      LOCK_event_arrays
+      LOCK_workers_count
+      LOCK_evex_running
+*/
 
 static void
 evex_init_mutexes()
@@ -84,6 +110,75 @@ evex_init_mutexes()
 }
 
 
+/*
+  Opens mysql.db and mysql.user and checks whether
+  1. mysql.db has column Event_priv at column 20 (0 based);
+  2. mysql.user has column Event_priv at column 29 (0 based);
+  
+  Synopsis
+    evex_check_system_tables()
+*/
+
+void
+evex_check_system_tables()
+{
+  THD *thd= current_thd;
+  TABLE_LIST tables;
+  bool not_used;
+  Open_tables_state backup;
+
+  // thd is 0x0 during boot of the server. Later it's !=0x0
+  if (!thd)
+    return;
+
+  thd->reset_n_backup_open_tables_state(&backup);
+  
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "db";
+  tables.lock_type= TL_READ;
+
+  if (simple_open_n_lock_tables(thd, &tables))
+    sql_print_error("Cannot open mysql.db");
+  else
+  {
+    table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields,
+                     &mysql_db_table_last_check,ER_EVENT_CANNOT_LOAD_FROM_TABLE);                           
+    close_thread_tables(thd);
+  }
+
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "user";
+  tables.lock_type= TL_READ;
+
+  if (simple_open_n_lock_tables(thd, &tables))
+    sql_print_error("Cannot open mysql.db");
+  else
+  {
+    if (tables.table->s->fields < 29 ||
+      strncmp(tables.table->field[29]->field_name,
+                STRING_WITH_LEN("Event_priv")))
+      sql_print_error("mysql.user has no `Event_priv` column at position 29");
+
+    close_thread_tables(thd);
+  }
+
+  thd->restore_backup_open_tables_state(&backup);
+}
+
+
+/*
+   Inits the scheduler. Called on server start and every time the scheduler
+   is started with switching the event_scheduler global variable to TRUE 
+
+   SYNOPSIS
+     init_events()
+          
+   NOTES
+    Inits the mutexes used by the scheduler. Done at server start.
+*/
+
 int
 init_events()
 {
@@ -92,6 +187,8 @@ init_events()
   DBUG_ENTER("init_events");
 
   DBUG_PRINT("info",("Starting events main thread"));
+  
+  evex_check_system_tables();
 
   evex_init_mutexes();
 
@@ -114,6 +211,16 @@ init_events()
 }
 
 
+/*
+   Cleans up scheduler memory. Called on server shutdown.
+
+   SYNOPSIS
+     shutdown_events()
+          
+   NOTES
+    Destroys the mutexes.
+*/
+
 void
 shutdown_events()
 {
@@ -129,6 +236,22 @@ shutdown_events()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+   Inits an scheduler thread handler, both the main and a worker
+
+   SYNOPSIS
+     init_event_thread()
+       thd - the THD of the thread. Has to be allocated by the caller.
+          
+   NOTES
+      1. The host of the thead is my_localhost
+      2. thd->net is initted with NULL - no communication.
+  
+  Returns
+     0  - OK
+    -1  - Error
+*/
 
 static int
 init_event_thread(THD* thd)
@@ -165,6 +288,22 @@ init_event_thread(THD* thd)
   thd->set_time();
   DBUG_RETURN(0);
 }
+
+
+/*
+   The main scheduler thread. Inits the priority queue on start and
+   destroys it on thread shutdown. Forks child threads for every event
+   execution. Sleeps between thread forking and does not do a busy wait.
+
+   SYNOPSIS
+     event_executor_main() 
+       arg - unused
+          
+   NOTES
+      1. The host of the thead is my_localhost
+      2. thd->net is initted with NULL - no communication.
+  
+*/
 
 pthread_handler_t
 event_executor_main(void *arg)
@@ -437,6 +576,15 @@ err_no_thd:
 }
 
 
+/*
+   Function that executes an event in a child thread. Setups the 
+   environment for the event execution and cleans after that.
+
+   SYNOPSIS
+     event_executor_worker()
+       arg - the event_timed object to be processed
+*/
+
 pthread_handler_t
 event_executor_worker(void *event_void)
 {
@@ -562,6 +710,24 @@ err_no_thd:
 }
 
 
+/*
+   Loads all ENABLED events from mysql.event into the prioritized
+   queue. Called during scheduler main thread initialization. Compiles
+   the events. Creates event_timed instances for every ENABLED event
+   from mysql.event.
+
+   SYNOPSIS
+     evex_load_events_from_db()
+       thd - Thread context. Used for memory allocation in some cases.
+     
+   RETURNS
+     0  - OK
+    -1  - Error
+    
+   NOTES
+     Reports the error to the console
+*/
+
 static int
 evex_load_events_from_db(THD *thd)
 {
@@ -648,7 +814,22 @@ end:
 }
 
 
-bool sys_var_event_executor::update(THD *thd, set_var *var)
+/*
+   The update method of the global variable event_scheduler.
+   If event_scheduler is switched from 0 to 1 then the scheduler main
+   thread is started.
+
+   SYNOPSIS
+     event_executor_worker()
+       thd - Thread context (unused)
+       car - the new value
+   
+   Returns
+     0 - OK (always)
+*/
+
+bool
+sys_var_event_executor::update(THD *thd, set_var *var)
 {
   // here start the thread if not running.
   DBUG_ENTER("sys_var_event_executor::update");

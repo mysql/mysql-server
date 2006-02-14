@@ -116,7 +116,10 @@ event_timed::init_body(THD *thd)
   while (body.length && body_begin[body.length-1] == '\0')
     body.length--;
 
-  body.str= strmake_root(root, (char *)body_begin, body.length);
+  //the first is always space which I cannot skip in the parser
+  DBUG_ASSERT(*body_begin == ' ');
+  body.length--;
+  body.str= strmake_root(root, (char *)body_begin + 1, body.length);
 
   DBUG_VOID_RETURN;
 }
@@ -847,6 +850,15 @@ err:
 }
 
 
+/*
+  Set the internal last_executed TIME struct to now. NOW is the
+  time according to thd->query_start(), so the THD's clock.
+  
+  Synopsis
+    event_timed::drop()
+      thd - thread context
+*/
+
 void
 event_timed::mark_last_executed(THD *thd)
 {
@@ -864,7 +876,13 @@ event_timed::mark_last_executed(THD *thd)
 
 
 /*
-  Returns :
+  Drops the event
+  
+  Synopsis
+    event_timed::drop()
+      thd - thread context
+
+  RETURNS :
     0 - OK
    -1 - Cannot open mysql.event
    -2 - Cannot find the event in mysql.event (already deleted?)
@@ -883,6 +901,22 @@ event_timed::drop(THD *thd)
   DBUG_RETURN(db_drop_event(thd, this, false, &tmp));
 }
 
+
+/*
+  Saves status and last_executed_at to the disk if changed.
+  
+  Synopsis
+    event_timed::drop()
+      thd - thread context
+
+  Returns :
+    0 - OK
+    SP_OPEN_TABLE_FAILED - Error while opening mysql.event for writing
+    EVEX_WRITE_ROW_FAILED - On error to write to disk
+   
+   others - return code from SE in case deletion of the event row
+            failed.
+*/
 
 bool
 event_timed::update_fields(THD *thd)
@@ -941,40 +975,75 @@ done:
 }
 
 
-char *
-event_timed::get_show_create_event(THD *thd, uint32 *length)
+/*
+  Get SHOW CREATE EVENT as string
+  
+  thd  - Thread
+  buf  - String*, should be already allocated. CREATE EVENT goes inside.
+  
+  Returns:
+  0 - OK
+  1 - Error (for now if mysql.event has been tampered and MICROSECONDS
+      interval or derivative has been put there.
+*/
+
+int
+event_timed::get_create_event(THD *thd, String *buf)
 {
-  char *dst, *ret;
-  uint len, tmp_len;
-  DBUG_ENTER("get_show_create_event");
+  int multipl= 0;
+  char tmp_buff[128];
+  String expr_buf(tmp_buff, sizeof(tmp_buff), system_charset_info);
+  expr_buf.length(0);
+
+  DBUG_ENTER("get_create_event");
   DBUG_PRINT("ret_info",("body_len=[%d]body=[%s]", body.length, body.str));
 
-  len = strlen("CREATE EVENT `") + dbname.length + strlen("`.`") + name.length +
-        strlen("` ON SCHEDULE EVERY 5 MINUTE DO ") + body.length;// + strlen(";");
-  
-  ret= dst= (char*) alloc_root(thd->mem_root, len + 1);
-  memcpy(dst, "CREATE EVENT `", tmp_len= strlen("CREATE EVENT `"));
-  dst+= tmp_len;
-  memcpy(dst, dbname.str, tmp_len=dbname.length);
-  dst+= tmp_len;
-  memcpy(dst, "`.`", tmp_len= strlen("`.`"));
-  dst+= tmp_len;
-  memcpy(dst, name.str, tmp_len= name.length);
-  dst+= tmp_len;
-  memcpy(dst, "` ON SCHEDULE EVERY 5 MINUTE DO ",
-         tmp_len= strlen("` ON SCHEDULE EVERY 5 MINUTE DO "));
-  dst+= tmp_len;
+  if (expression &&
+      event_reconstruct_interval_expression(&expr_buf, interval, expression))
+      DBUG_RETURN(1);
 
-  memcpy(dst, body.str, tmp_len= body.length);
-  dst+= tmp_len;
-//  memcpy(dst, ";", 1);
-//  ++dst;
-  *dst= '\0';
- 
-  *length= len;
-  
-  DBUG_PRINT("ret_info",("len=%d",*length));
-  DBUG_RETURN(ret);
+  buf->append(STRING_WITH_LEN("CREATE EVENT "));
+  append_identifier(thd, buf, dbname.str, dbname.length);
+  buf->append(STRING_WITH_LEN("."));
+  append_identifier(thd, buf, name.str, name.length);
+
+  buf->append(STRING_WITH_LEN(" ON SCHEDULE "));
+  if (expression)
+  {
+    buf->append(STRING_WITH_LEN("EVERY "));
+    buf->append(expr_buf);
+  }
+  else
+  {
+    char dtime_buff[20*2+32];// +32 to make my_snprintf_{8bit|ucs2} happy
+    buf->append(STRING_WITH_LEN("AT '"));
+    /* 
+      pass the buffer and the second param tells fills the buffer and returns
+      the number of chars to copy
+    */
+    buf->append(dtime_buff, my_datetime_to_str(&execute_at, dtime_buff));
+    buf->append(STRING_WITH_LEN("'"));
+  }
+
+  if (on_completion == MYSQL_EVENT_ON_COMPLETION_DROP)
+    buf->append(STRING_WITH_LEN(" ON COMPLETION NOT PRESERVE "));
+  else
+    buf->append(STRING_WITH_LEN(" ON COMPLETION PRESERVE "));
+
+  if (status == MYSQL_EVENT_ENABLED)
+    buf->append(STRING_WITH_LEN("ENABLE"));
+  else
+    buf->append(STRING_WITH_LEN("DISABLE"));
+
+  if (comment.length)
+  {
+    buf->append(STRING_WITH_LEN(" COMMENT "));
+    append_unescaped(buf, comment.str, comment.length);
+  }
+  buf->append(STRING_WITH_LEN(" DO "));
+  buf->append(body.str, body.length);  
+
+  DBUG_RETURN(0);
 }
 
 
@@ -1035,12 +1104,20 @@ done:
 
 
 /*
+  Compiles an event before it's execution. Compiles the anonymous
+  sp_head object held by the event
+  
+  Synopsis
+    event_timed::compile()
+      thd      - thread context, used for memory allocation mostly
+      mem_root - if != NULL then this memory root is used for allocs
+                 instead of thd->mem_root   
+  
   Returns
                      0 - Success
     EVEX_COMPILE_ERROR - Error during compilation
 
 */
-
 
 int
 event_timed::compile(THD *thd, MEM_ROOT *mem_root)
@@ -1054,9 +1131,13 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   char *old_query;
   uint old_query_len;
   st_sp_chistics *p;
-  CHARSET_INFO *old_character_set_client, *old_collation_connection,
+  char create_buf[2048];
+  String show_create(create_buf, sizeof(create_buf), system_charset_info);
+  CHARSET_INFO *old_character_set_client,
+               *old_collation_connection,
                *old_character_set_results;
-
+  
+  show_create.length(0);
   old_character_set_client= thd->variables.character_set_client;
   old_character_set_results= thd->variables.character_set_results;
   old_collation_connection= thd->variables.collation_connection;
@@ -1079,7 +1160,11 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   old_query= thd->query;
   old_db= thd->db;
   thd->db= dbname.str;
-  thd->query= get_show_create_event(thd, &thd->query_length);
+
+  get_create_event(thd, &show_create);
+
+  thd->query= show_create.c_ptr();
+  thd->query_length= show_create.length();
   DBUG_PRINT("event_timed::compile", ("query:%s",thd->query));
 
   thd->lex= &lex;

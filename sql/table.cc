@@ -343,9 +343,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         allow to lock such tables for writing with any other tables (even with
         other system tables) and some privilege tables need this.
       */
-      if (!my_strcasecmp(system_charset_info, share->table_name.str, "proc")
-          || !my_strcasecmp(system_charset_info, share->table_name.str,
-                            "event"))
+      if (!my_strcasecmp(system_charset_info, share->table_name.str, "proc"))
         share->system_table= 1;
       else
       {
@@ -2290,6 +2288,144 @@ bool check_column_name(const char *name)
   /* Error if empty or too long column name */
   return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
+
+
+/*
+  Checks whether a table is intact. Should be done *just* after the table has
+  been opened.
+  
+  Synopsis
+    table_check_intact()
+      table         - the table to check
+      table_f_count - expected number of columns in the table
+      table_def     - expected structure of the table (column name and type)
+    last_create_time- the table->file->create_time of the table in memory
+                      we have checked last time
+      error_num     - ER_XXXX from the error messages file. When 0 no error
+                      is sent to the client in case types does not match.
+                      If different col number either 
+                      ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
+                      ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
+
+  RETURNS
+    0   - OK
+    1   - There was an error
+*/
+
+my_bool
+table_check_intact(TABLE *table, uint table_f_count,
+                   TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
+                   int error_num)
+{
+  uint i;
+  my_bool error= FALSE;
+  my_bool fields_diff_count;
+  DBUG_ENTER("table_check_intact");
+  DBUG_PRINT("info",("table=%s expected_count=%d",table->alias, table_f_count));
+  DBUG_PRINT("info",("last_create_time=%d", *last_create_time));
+  
+  if ((fields_diff_count= (table->s->fields != table_f_count)) ||
+      (*last_create_time != table->file->create_time))
+  {
+    DBUG_PRINT("info", ("I am suspecting, checking table"));
+    if (fields_diff_count)
+    {
+      // previous MySQL version
+      error= TRUE;
+      if (MYSQL_VERSION_ID > table->s->mysql_version)
+        my_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE, MYF(0), table->alias,
+                 table_f_count, table->s->fields, table->s->mysql_version,
+                 MYSQL_VERSION_ID);
+      else if (MYSQL_VERSION_ID == table->s->mysql_version)
+        my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,MYF(0), table->alias,
+                 table_f_count, table->s->fields);
+      else
+        /*
+          moving from newer mysql to older one -> let's say not an error but
+          will check the definition afterwards. If a column was added at the end
+          then we don't care much since it's not in the middle.
+        */
+        error= FALSE;
+    }
+    //definitely something has changed
+    char buffer[255];
+    for (i=0 ;i < table_f_count; ++i, ++table_def)
+    {      
+      Field *field= table->field[i];
+      String sql_type(buffer, sizeof(buffer), system_charset_info);
+      sql_type.length(0);
+      /*
+        name changes are not fatal, we use sequence numbers => no prob for us
+        but this can show tampered table or broken table.
+      */
+      if (!fields_diff_count || i < table->s->fields)
+      {
+        if (strncmp(field->field_name, table_def->name.str,
+                                       table_def->name.length))
+        {
+          sql_print_error("(%s) Expected field %s at position %d, found %s",
+                          table->alias, table_def->name.str, i,
+                          field->field_name);
+        }
+                        
+        /*
+          IF the type does not match than something is really wrong
+          Check up to length - 1. Why?
+          1. datetime -> datetim -> the same
+          2. int(11) -> int(11  -> the same
+          3. set('one','two') -> set('one','two'  
+             so for sets if the same prefix is there it's ok if more are
+             added as part of the set. The same is valid for enum. So a new
+             table running on a old server will be valid.
+        */ 
+        field->sql_type(sql_type);
+        if (strncmp(sql_type.c_ptr(), table_def->type.str,
+                    table_def->type.length - 1))
+        {
+          sql_print_error("(%s) Expected field %s at position %d to have type "
+                          "%s, found %s", table->alias, table_def->name.str,
+                          i, table_def->type.str, sql_type.c_ptr()); 
+          error= TRUE;
+        }
+        else if (table_def->cset.str && !field->has_charset())
+        {
+          sql_print_error("(%s) Expected field %s at position %d to have "
+                          "character set '%s' but found no such", table->alias,
+                          table_def->name.str, i, table_def->cset.str);        
+          error= TRUE;
+        }
+        else if (table_def->cset.str && 
+                 strcmp(field->charset()->csname, table_def->cset.str))
+        {
+          sql_print_error("(%s) Expected field %s at position %d to have "
+                          "character set '%s' but found '%s'", table->alias,
+                          table_def->name.str, i, table_def->cset.str,
+                          field->charset()->csname);
+          error= TRUE;
+        }
+      }
+      else
+      {
+        sql_print_error("(%s) Expected field %s at position %d to have type %s "
+                        " but no field found.", table_def->name.str,
+                        table_def->name.str, i, table_def->type.str);
+        error= TRUE;        
+      }
+    }
+    if (!error)
+      *last_create_time= table->file->create_time;
+    else if (!fields_diff_count && error_num)
+      my_error(error_num,MYF(0), table->alias, table_f_count, table->s->fields);
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Table seems ok without thorough checking."));
+    *last_create_time= table->file->create_time;
+  }
+   
+  DBUG_RETURN(error);  
+}
+
 
 /*
   Create Item_field for each column in the table.
