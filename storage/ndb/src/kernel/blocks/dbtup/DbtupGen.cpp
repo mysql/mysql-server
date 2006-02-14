@@ -51,8 +51,8 @@ void Dbtup::initData()
   init_list_sizes();
 }//Dbtup::initData()
 
-Dbtup::Dbtup(const class Configuration & conf, Pgman* pgman)
-  : SimulatedBlock(DBTUP, conf),
+Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
+  : SimulatedBlock(DBTUP, ctx),
     c_lqh(0),
     m_pgman(this, pgman),
     c_extent_hash(c_extent_pool),
@@ -280,7 +280,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ljamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_FRAG, &cnoOfFragrec));
@@ -335,7 +335,7 @@ void Dbtup::initRecords()
   unsigned i;
   Uint32 tmp;
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));

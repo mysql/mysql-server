@@ -21,7 +21,6 @@
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 
-#include <ArrayList.hpp>
 #include <ArrayPool.hpp>
 #include <SLList.hpp>
 #include <DLList.hpp>
@@ -36,6 +35,7 @@
 #include <signaldata/UtilExecute.hpp>
 #include <signaldata/UtilLock.hpp>
 #include <SimpleProperties.hpp>
+#include <Array.hpp>
 
 #define UTIL_WORDS_PER_PAGE 1023
 
@@ -61,7 +61,7 @@
 class DbUtil : public SimulatedBlock
 {
 public:
-  DbUtil(const class Configuration & conf);
+  DbUtil(Block_context& ctx);
   virtual ~DbUtil();
   BLOCK_DEFINES(DbUtil);
   

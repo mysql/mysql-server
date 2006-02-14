@@ -33,8 +33,8 @@
 
 #define PAGES LCP_RESTORE_BUFFER
 
-Restore::Restore(const Configuration & conf) :
-  SimulatedBlock(RESTORE, conf),
+Restore::Restore(Block_context& ctx) :
+  SimulatedBlock(RESTORE, ctx),
   m_file_list(m_file_pool),
   m_file_hash(m_file_pool)
 {
@@ -89,7 +89,7 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(req->noOfParameters == 0);
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
 #if 0
