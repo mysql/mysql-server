@@ -4975,14 +4975,17 @@ the generated partition syntax in a correct manner.
 static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   char path[FN_REFLEN+1];
+  int error;
+  handler *file= lpt->table->file;
   DBUG_ENTER("mysql_change_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
-  DBUG_RETURN(lpt->table->file->change_partitions(lpt->create_info, path,
-                                                  &lpt->copied,
-                                                  &lpt->deleted,
-                                                  lpt->pack_frm_data,
-                                                  lpt->pack_frm_len));
+  DBUG_RETURN(file->change_partitions(lpt->create_info,
+                                      path,
+                                      &lpt->copied,
+                                      &lpt->deleted,
+                                      lpt->pack_frm_data,
+                                      lpt->pack_frm_len));
 }
 
 
@@ -5008,10 +5011,17 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   char path[FN_REFLEN+1];
+  int error;
   DBUG_ENTER("mysql_rename_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
-  DBUG_RETURN(lpt->table->file->rename_partitions(path));
+  if ((error= lpt->table->file->rename_partitions(path)))
+  {
+    if (error != 1)
+      lpt->table->file->print_error(error, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5042,11 +5052,13 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   List_iterator<partition_element> part_it(part_info->partitions);
   uint i= 0;
   uint remove_count= 0;
+  int error;
   DBUG_ENTER("mysql_drop_partitions");
 
   build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
-  if (lpt->table->file->drop_partitions(path))
+  if ((error= lpt->table->file->drop_partitions(path)))
   {
+    lpt->table->file->print_error(error, MYF(0));
     DBUG_RETURN(TRUE);
   }
   do
@@ -5920,6 +5932,31 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       abort();
       if (!not_completed)
         abort();
+      if (!part_info->first_log_entry &&
+          execute_table_log_entry(part_info->first_log_entry))
+      {
+        /*
+          We couldn't recover from error
+        */
+      }
+      else
+      {
+        if (not_completed)
+        {
+          /*
+            We hit an error before things were completed but managed
+            to recover from the error.
+          */
+        }
+        else
+        {
+          /*
+            We hit an error after we had completed most of the operation
+            and were successful in a second attempt so the operation
+            actually is successful now.
+          */
+        }
+      }
       fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
     }
