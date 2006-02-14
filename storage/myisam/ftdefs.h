@@ -22,7 +22,7 @@
 #include <m_ctype.h>
 #include <my_tree.h>
 #include <queues.h>
-#include <plugin.h>
+#include <mysql/plugin.h>
 
 #define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
 #define misc_word_char(X)	0
