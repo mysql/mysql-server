@@ -70,7 +70,7 @@
 #include "mysql_priv.h"
 #include "ha_example.h"
 
-#include <plugin.h>
+#include <mysql/plugin.h>
 
 static handler* example_create_handler(TABLE_SHARE *table);
 static int example_init_func();
