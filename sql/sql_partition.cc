@@ -3641,14 +3641,11 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec)
         part_spec->start_part= i;
       last_partition= i;
     }
-    else
-    {
-      if (last_partition == -1)
-        /* No partition found in pruned bitmap yet */
-        part_spec->start_part= i + 1;
-    }
   }
-  if (last_partition != -1)
+  if (last_partition == -1)
+    /* No partition found in pruned bitmap */
+    part_spec->start_part= part_spec->end_part + 1;  
+  else //if (last_partition != -1)
     part_spec->end_part= last_partition;
 
   DBUG_VOID_RETURN;
