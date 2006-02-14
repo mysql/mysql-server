@@ -538,6 +538,19 @@ echo $novar1;
 --error 1
 --exec echo "let hi;" | $MYSQL_TEST  2>&1
 
+# More advanced test for bug#17280
+let $success= 1;
+--echo # Execute: --echo # <whatever> success: \$success
+--echo # <whatever> success: $success
+--echo # Execute: echo # <whatever> success: \$success ;
+echo # <whatever> success: $success ;
+
+--echo # The next two variants work fine and expand the content of \$success
+--echo # Execute: --echo \$success
+--echo $success
+--echo # Execute: echo \$success ;
+echo $success ;
+
 # ----------------------------------------------------------------------------
 # Test to assign let from query
 # let $<var_name>=`<query>`;
