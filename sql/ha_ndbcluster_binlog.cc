@@ -100,24 +100,21 @@ static TABLE_LIST binlog_tables;
 #ifndef DBUG_OFF
 static void print_records(TABLE *table, const char *record)
 {
-  if (_db_on_)
+  for (uint j= 0; j < table->s->fields; j++)
   {
-    for (uint j= 0; j < table->s->fields; j++)
+    char buf[40];
+    int pos= 0;
+    Field *field= table->field[j];
+    const byte* field_ptr= field->ptr - table->record[0] + record;
+    int pack_len= field->pack_length();
+    int n= pack_len < 10 ? pack_len : 10;
+
+    for (int i= 0; i < n && pos < 20; i++)
     {
-      char buf[40];
-      int pos= 0;
-      Field *field= table->field[j];
-      const byte* field_ptr= field->ptr - table->record[0] + record;
-      int pack_len= field->pack_length();
-      int n= pack_len < 10 ? pack_len : 10;
-      
-      for (int i= 0; i < n && pos < 20; i++)
-      {
-	pos+= sprintf(&buf[pos]," %x", (int) (unsigned char) field_ptr[i]);
-      }
-      buf[pos]= 0;
-      DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
+      pos+= sprintf(&buf[pos]," %x", (int) (unsigned char) field_ptr[i]);
     }
+    buf[pos]= 0;
+    DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
 #else
@@ -2483,7 +2480,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
         DBUG_ASSERT(ret == 0);
       }
       ndb_unpack_record(table, share->ndb_value[n], &b, table->record[n]);
-      print_records(table, table->record[n]);
+      DBUG_EXECUTE("info", print_records(table, table->record[n]););
       trans.delete_row(::server_id, injector::transaction::table(table, true),
                        &b, n_fields, table->record[n]);
     }
@@ -2502,7 +2499,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
       }
       ndb_unpack_record(table, share->ndb_value[0],
                         &b, table->record[0]);
-      print_records(table, table->record[0]);
+      DBUG_EXECUTE("info", print_records(table, table->record[0]););
       if (table->s->primary_key != MAX_KEY) 
       {
         /*
@@ -2527,7 +2524,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
           DBUG_ASSERT(ret == 0);
         }
         ndb_unpack_record(table, share->ndb_value[1], &b, table->record[1]);
-        print_records(table, table->record[1]);
+        DBUG_EXECUTE("info", print_records(table, table->record[1]););
         trans.update_row(::server_id,
                          injector::transaction::table(table, true),
                          &b, n_fields,
