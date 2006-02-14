@@ -147,10 +147,10 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"use-threads", OPT_USE_THREADS,
-    "Parrelize the loading of files. Requires an arguement for the number \
-      threads to use for loading of data.",
-      (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
-      GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Load files in parallel. The argument is the number "
+   "of threads to use for loading data.",
+   (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
+   GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
