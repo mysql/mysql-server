@@ -109,6 +109,7 @@ public:
   enum enum_event_on_completion on_completion;
   enum enum_event_status status;
   sp_head *sphead;
+  ulong sql_mode;
 
   const uchar *body_begin;
   
@@ -119,8 +120,9 @@ public:
   event_timed():running(0), status_changed(false), last_executed_changed(false),
                 expression(0), created(0), modified(0),
                 on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
-                status(MYSQL_EVENT_ENABLED), sphead(0), dropped(false),
-                free_sphead_on_delete(true), flags(0)
+                status(MYSQL_EVENT_ENABLED), sphead(0), sql_mode(0),
+                body_begin(0), dropped(false), free_sphead_on_delete(true),
+                flags(0)
                 
   {
     pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
@@ -177,8 +179,8 @@ public:
   bool
   update_fields(THD *thd);
 
-  char *
-  get_show_create_event(THD *thd, uint32 *length);
+  int
+  get_create_event(THD *thd, String *buf);
   
   int
   execute(THD *thd, MEM_ROOT *mem_root= NULL);
@@ -221,7 +223,15 @@ evex_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 int
 evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
+int
+evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer);
+
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
+
+int
+event_reconstruct_interval_expression(String *buf,
+                                      interval_type interval,
+                                      longlong expression);
 
 int
 init_events();
