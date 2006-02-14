@@ -1856,7 +1856,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
-  sighold sigset sigthreadmask \
+  sighold sigset sigthreadmask sleep \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   posix_fallocate)

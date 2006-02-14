@@ -45,7 +45,7 @@ public:
   struct my_option *option_limits;	/* Updated by by set_var_init() */
   uint name_length;			/* Updated by by set_var_init() */
   const char *name;
-  
+
   sys_after_update_func after_update;
   bool no_support_one_shot;
   sys_var(const char *name_arg)
@@ -413,7 +413,7 @@ class sys_var_thd_bit :public sys_var_thd
 public:
   ulong bit_flag;
   bool reverse;
-  sys_var_thd_bit(const char *name_arg, 
+  sys_var_thd_bit(const char *name_arg,
                   sys_check_func c_func, sys_update_func u_func,
                   ulong bit, bool reverse_arg=0)
     :sys_var_thd(name_arg), check_func(c_func), update_func(u_func),
@@ -426,6 +426,24 @@ public:
   SHOW_TYPE type() { return SHOW_MY_BOOL; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
+
+class sys_var_thd_dbug :public sys_var_thd
+{
+public:
+  sys_var_thd_dbug(const char *name_arg) :sys_var_thd(name_arg) {}
+  bool check_update_type(Item_result type) { return type != STRING_RESULT; }
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type)
+  {
+    char buf[256];
+    DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+    DBUG_SET(buf);
+  }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *b);
+};
+
 
 
 /* some variables that require special handling */

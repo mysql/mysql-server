@@ -282,7 +282,7 @@ const char *my_thread_name(void)
   if (!tmp->name[0])
   {
     long id=my_thread_id();
-    sprintf(name_buff,"T@%ld", id);
+    sprintf(name_buff,"T@%lu", id);
     strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
   }
   return tmp->name;
