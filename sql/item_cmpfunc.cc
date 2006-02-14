@@ -1383,7 +1383,8 @@ Item_func_if::fix_length_and_dec()
   max_length=
     (cached_result_type == DECIMAL_RESULT || cached_result_type == INT_RESULT) ?
     (max(args[1]->max_length - args[1]->decimals,
-         args[2]->max_length - args[2]->decimals) + decimals) :
+         args[2]->max_length - args[2]->decimals) + decimals +
+         (unsigned_flag ? 0 : 1) ) :
     max(args[1]->max_length, args[2]->max_length);
 }
 
