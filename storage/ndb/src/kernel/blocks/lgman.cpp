@@ -280,6 +280,16 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 		  waiter.p->m_size,
 		  2*File_formats::UNDO_PAGE_WORDS);
       }
+      if (!ptr.p->m_log_sync_waiters.isEmpty())
+      {
+	LocalDLFifoList<Log_waiter> 
+	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
+	Ptr<Log_waiter> waiter;
+	list.first(waiter);
+	infoEvent("  m_last_synced_lsn: %lld: %d head(waiters).m_sync_lsn: %lld",
+		  ptr.p->m_last_synced_lsn,
+		  waiter.p->m_sync_lsn);
+      }
       m_logfile_group_list.next(ptr);
     }
   }

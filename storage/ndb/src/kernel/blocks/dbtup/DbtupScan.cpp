@@ -587,8 +587,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Uint32 foundGCI;
  
   bool mm = (bits & ScanOp::SCAN_DD);
+  bool lcp = (bits & ScanOp::SCAN_LCP);
+  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
   Uint32 size = table.m_offsets[mm].m_fix_header_size +
     (bits & ScanOp::SCAN_VS ? Tuple_header::HeaderSize + 1: 0);
+
+  if (lcp && lcp_list != RNIL)
+    goto found_lcp_keep;
+  
   while (true) {
     switch (pos.m_get) {
     case ScanPos::Get_next_page:
@@ -863,6 +869,53 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  return false;
+
+found_lcp_keep:
+  Local_key tmp;
+  tmp.assref(lcp_list);
+  tmp.m_page_no = getRealpid(fragPtr.p, tmp.m_page_no);
+  
+  Ptr<Page> pagePtr;
+  c_page_pool.getPtr(pagePtr, tmp.m_page_no);
+  Tuple_header* ptr = (Tuple_header*)
+    ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
+  Uint32 headerbits = ptr->m_header_bits;
+  ndbrequire(headerbits & Tuple_header::LCP_KEEP);
+  
+  Uint32 next = ptr->m_operation_ptr_i;
+  ptr->m_operation_ptr_i = RNIL;
+  ptr->m_header_bits = headerbits & ~(Uint32)Tuple_header::FREE;
+  
+  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
+    jam();
+    setChecksum(ptr, tablePtr.p);
+  }
+  
+  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  conf->scanPtr = scan.m_userPtr;
+  conf->accOperationPtr = RNIL + 1;
+  conf->fragId = frag.fragmentId;
+  conf->localKey[0] = lcp_list;
+  conf->localKey[1] = 0;
+  conf->localKeyLength = 1;
+  conf->gci = 0;
+  Uint32 blockNo = refToBlock(scan.m_userRef);
+  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
+  
+  fragPtr.p->m_lcp_keep_list = next;
+  ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
+  if (headerbits & Tuple_header::FREED)
+  {
+    if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
+    {
+      jam();
+      free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);
+    } else {
+      jam();
+      free_fix_rec(fragPtr.p, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
+    }
+  }
   return false;
 }
 

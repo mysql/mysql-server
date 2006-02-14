@@ -30,7 +30,7 @@ private:
     BUSY_LOOP = 1,
     CLEANUP_LOOP = 2,
     LCP_LOOP = 3,
-    LCP_PREPARE = 4
+    LCP_LOCKED = 4
   };
 };
 
