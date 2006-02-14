@@ -67,6 +67,7 @@
  *      DBUG_EXECUTE_IF
  *      incremental mode (-#+t:-d,info ...)
  *      DBUG_SET, _db_explain_
+ *      thread-local settings
  *
  */
 
@@ -547,6 +548,7 @@ void _db_set_(CODE_STATE *cs, const char *control)
     if (!rel) sign=0;
     c= *control++;
     if (*control == ',') control++;
+    /* XXX when adding new cases here, don't forget _db_explain_ ! */
     switch (c) {
     case 'd':
       if (sign < 0 && control == end)
@@ -857,6 +859,7 @@ int _db_explain_ (CODE_STATE *cs, char *buf, int len)
   op_bool_to_buf('P', cs->stack->flags & PROCESS_ON);
   op_bool_to_buf('r', cs->stack->sub_level != 0);
   op_intf_to_buf('t', cs->stack->maxdepth, MAXDEPTH, TRACING);
+  op_bool_to_buf('T', cs->stack->flags & TIMESTAMP_ON);
   op_bool_to_buf('S', cs->stack->flags & SANITY_CHECK_ON);
 
   *buf= '\0';
