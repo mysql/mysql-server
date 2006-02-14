@@ -3583,23 +3583,23 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
   String tmp_str;
   TIME time;
   TABLE *show_table= tables->table;
-  handler *file= show_table->file;
+  handler *file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  partition_info *part_info= show_table->part_info;
+  partition_info *part_info;
 #endif
   DBUG_ENTER("get_schema_partitions_record");
 
   if (res)
   {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (part_info)
+    if (!tables->view)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                    thd->net.last_errno, thd->net.last_error);
-#endif
     thd->clear_error();
     DBUG_RETURN(0);
   }
+  file= show_table->file;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  part_info= show_table->part_info;
   if (part_info)
   {
     partition_element *part_elem;
