@@ -141,7 +141,6 @@ static TABLE_FIELD_W_TYPE event_table_fields[EVEX_FIELD_COUNT] = {
     {(char *) STRING_WITH_LEN("enum('DROP','PRESERVE')")},
     {NULL, 0}
   },
-/*
   {
     {(char *) STRING_WITH_LEN("sql_mode")},
     {(char *) STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
@@ -154,7 +153,6 @@ static TABLE_FIELD_W_TYPE event_table_fields[EVEX_FIELD_COUNT] = {
     "'HIGH_NOT_PRECEDENCE')")},
     {NULL, 0}
   },
-*/
   {
     {(char *) STRING_WITH_LEN("comment")},
     {(char *) STRING_WITH_LEN("char(64)")},
@@ -440,7 +438,7 @@ common_1_lev_code:
   case INTERVAL_HOUR_MICROSECOND:
   case INTERVAL_MINUTE_MICROSECOND:
   case INTERVAL_SECOND_MICROSECOND:
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0));
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
     return 1;
     break;
   case INTERVAL_QUARTER:
