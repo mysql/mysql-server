@@ -1175,6 +1175,7 @@ typedef struct st_table_log_entry
   const char *from_name;
   const char *handler_type;
   uint next_entry;
+  uint entry_pos;
   char action_type;
   char entry_type;
   char phase;
