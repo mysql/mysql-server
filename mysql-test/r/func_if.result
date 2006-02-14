@@ -121,3 +121,10 @@ a	NULLIF(a,'')
 NULL	NULL
 	NULL
 DROP TABLE t1;
+create table t1 (f1 int, f2 int);
+insert into t1 values(1,1),(0,0);
+select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
+f1	f2	if(f1, 40.0, 5.00)
+0	0	5.00
+1	1	40.00
+drop table t1;
