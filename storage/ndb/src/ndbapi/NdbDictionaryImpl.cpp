@@ -3468,7 +3468,7 @@ NdbDictionaryImpl::getEvent(const char * eventName)
     delete ev;
     DBUG_RETURN(NULL);
   }
-  if (info->m_table_impl->m_status == NdbDictionary::Object::Invalid)
+  if (info->m_table_impl->m_status != NdbDictionary::Object::Retrieved)
   {
     removeCachedObject(*info->m_table_impl);
     info= get_local_table_info(ev->getTableName(), true);
