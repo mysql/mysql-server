@@ -129,15 +129,15 @@ SHOW CREATE EVENT root20;
 Event	sql_mode	Create Event
 root20		CREATE EVENT `events_test`.`root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
 set names cp1251;
-create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1251 êîìåíòàð' do select 1;
-SHOW CREATE EVENT ðóóò21;
+create event Ã°Ã³Ã³Ã²21 on schedule every '50:23:59:95' day_second COMMENT 'Ã²Ã®Ã¢Ã  Ã¥ 1251 ÃªÃ®Ã¬Ã¥Ã­Ã²Ã Ã°' do select 1;
+SHOW CREATE EVENT Ã°Ã³Ã³Ã²21;
 Event	sql_mode	Create Event
-ðóóò21		CREATE EVENT `events_test`.`ðóóò21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'òîâà å 1251 êîìåíòàð' DO select 1
+Ã°Ã³Ã³Ã²21		CREATE EVENT `events_test`.`Ã°Ã³Ã³Ã²21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'Ã²Ã®Ã¢Ã  Ã¥ 1251 ÃªÃ®Ã¬Ã¥Ã­Ã²Ã Ã°' DO select 1
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
 show create event root22;
-ERROR HY000: Microseconds intervals are not yet supported
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
-ERROR HY000: Microseconds intervals are not yet supported
+ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 drop event root22;
 drop event root6;
 drop event root7;
@@ -157,7 +157,7 @@ drop event root17_1;
 drop event root18;
 drop event root19;
 drop event root20;
-drop event ðóóò21;
+drop event Ã°Ã³Ã³Ã²21;
 set names latin1;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
@@ -165,10 +165,10 @@ Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 16.
+ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy, ADD dummy2 VARCHAR(64) FIRST;
 SHOW EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 16.
+ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
@@ -193,6 +193,7 @@ event	CREATE TABLE `event` (
   `ends` datetime default NULL,
   `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
   `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL default '',
   `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
   PRIMARY KEY  (`definer`,`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
@@ -211,7 +212,7 @@ SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Column count of mysql.event is wrong. Table probably corrupted. Expected 15, found 13.
+ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 14. Table probably corrupted
 DROP TABLE mysql.event;
 CREATE TABLE mysql.event like event_like;
 INSERT INTO  mysql.event SELECT * FROM event_like;
@@ -354,7 +355,7 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 #	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
+#	root		events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -373,7 +374,7 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 #	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
+#	root		events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
