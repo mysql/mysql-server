@@ -2051,3 +2051,25 @@ SELECT t1.a, SUM(b) AS sum  FROM t1 GROUP BY t1.a
                     HAVING t2.c+sum > 20);
 
 DROP TABLE t1,t2,t3;
+
+#
+# Test for bug #16603: GROUP BY in a row subquery with a quantifier 
+#                      when an index is defined on the grouping field
+
+CREATE TABLE t1 (a varchar(5), b varchar(10));
+INSERT INTO t1 VALUES
+  ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
+  ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
+
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+EXPLAIN
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+
+ALTER TABLE t1 ADD INDEX(a);
+
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+EXPLAIN
+SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+
+DROP TABLE t1;
+
