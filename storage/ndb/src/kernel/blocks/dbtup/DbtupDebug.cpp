@@ -158,7 +158,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     return;
   }//if
 #endif
-#ifdef VM_TRACE
+#if defined VM_TRACE && 0
   if (type == 1211){
     ndbout_c("Startar modul test av Page Manager");
 

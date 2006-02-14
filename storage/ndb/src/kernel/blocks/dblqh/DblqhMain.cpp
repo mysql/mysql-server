@@ -882,13 +882,27 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   jamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   cnoLogFiles = 8;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
 					&cnoLogFiles));
   ndbrequire(cnoLogFiles > 0);
+
+  Uint32 log_page_size= 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  clogPageFileSize= (log_page_size / sizeof(LogPageRecord));
+  Uint32 mega_byte_part= clogPageFileSize & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    clogPageFileSize+= (16 - mega_byte_part);
+  }
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 

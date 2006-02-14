@@ -69,7 +69,7 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 #endif
 
 void 
-SimBlockList::load(const Configuration & conf){
+SimBlockList::load(Configuration & conf){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
   Dbdict* dbdict = 0;
@@ -78,36 +78,39 @@ SimBlockList::load(const Configuration & conf){
   Lgman* lg = 0;
   Tsman* ts = 0;
 
+  Block_context ctx = 
+    { conf, * (Ndbd_mem_manager*)0 };
+  
   SimulatedBlock * fs = 0;
   {
     Uint32 dl;
     const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
     if(p && !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl){
-      fs = NEW_BLOCK(VoidFs)(conf);
+      fs = NEW_BLOCK(VoidFs)(ctx);
     } else { 
-      fs = NEW_BLOCK(Ndbfs)(conf);
+      fs = NEW_BLOCK(Ndbfs)(ctx);
     }
   }
   
-  theList[0]  = pg = NEW_BLOCK(Pgman)(conf);
-  theList[1]  = lg = NEW_BLOCK(Lgman)(conf);
-  theList[2]  = ts = NEW_BLOCK(Tsman)(conf, pg, lg);
-  theList[3]  = NEW_BLOCK(Dbacc)(conf);
-  theList[4]  = NEW_BLOCK(Cmvmi)(conf);
+  theList[0]  = pg = NEW_BLOCK(Pgman)(ctx);
+  theList[1]  = lg = NEW_BLOCK(Lgman)(ctx);
+  theList[2]  = ts = NEW_BLOCK(Tsman)(ctx, pg, lg);
+  theList[3]  = NEW_BLOCK(Dbacc)(ctx);
+  theList[4]  = NEW_BLOCK(Cmvmi)(ctx);
   theList[5]  = fs;
-  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(conf);
-  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(conf);
-  theList[8]  = NEW_BLOCK(Dblqh)(conf);
-  theList[9]  = NEW_BLOCK(Dbtc)(conf);
-  theList[10] = NEW_BLOCK(Dbtup)(conf, pg);
-  theList[11] = NEW_BLOCK(Ndbcntr)(conf);
-  theList[12] = NEW_BLOCK(Qmgr)(conf);
-  theList[13] = NEW_BLOCK(Trix)(conf);
-  theList[14] = NEW_BLOCK(Backup)(conf);
-  theList[15] = NEW_BLOCK(DbUtil)(conf);
-  theList[16] = NEW_BLOCK(Suma)(conf);
-  theList[17] = NEW_BLOCK(Dbtux)(conf);
-  theList[18] = NEW_BLOCK(Restore)(conf);
+  theList[6]  = dbdict = NEW_BLOCK(Dbdict)(ctx);
+  theList[7]  = dbdih = NEW_BLOCK(Dbdih)(ctx);
+  theList[8]  = NEW_BLOCK(Dblqh)(ctx);
+  theList[9]  = NEW_BLOCK(Dbtc)(ctx);
+  theList[10] = NEW_BLOCK(Dbtup)(ctx, pg);
+  theList[11] = NEW_BLOCK(Ndbcntr)(ctx);
+  theList[12] = NEW_BLOCK(Qmgr)(ctx);
+  theList[13] = NEW_BLOCK(Trix)(ctx);
+  theList[14] = NEW_BLOCK(Backup)(ctx);
+  theList[15] = NEW_BLOCK(DbUtil)(ctx);
+  theList[16] = NEW_BLOCK(Suma)(ctx);
+  theList[17] = NEW_BLOCK(Dbtux)(ctx);
+  theList[18] = NEW_BLOCK(Restore)(ctx);
   assert(NO_OF_BLOCKS == 19);
 }
 
