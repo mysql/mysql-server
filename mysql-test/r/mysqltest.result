@@ -201,8 +201,14 @@ source database
 - world''s most
 -- popular open
 # source database
-'$message'
-"$message"
+'# MySQL: The
+- world''s most
+-- popular open
+# source database'
+"# MySQL: The
+- world''s most
+-- popular open
+# source database"
 hej
 hej 
 hej
@@ -222,6 +228,15 @@ mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Variable name in =hi does not start with '$'
 mysqltest: At line 1: Missing assignment operator in let
+# Execute: --echo # <whatever> success: $success
+# <whatever> success: 1
+# Execute: echo # <whatever> success: $success ;
+# <whatever> success: 1 
+# The next two variants work fine and expand the content of $success
+# Execute: --echo $success
+1
+# Execute: echo $success ;
+1 
 mysqltest: At line 1: Missing file name in source
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep

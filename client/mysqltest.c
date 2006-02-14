@@ -1384,38 +1384,40 @@ int do_system(struct st_query *q)
 
 /*
   Print the content between echo and <delimiter> to result file.
-  If content is a variable, the variable value will be retrieved
+  Evaluate all variables in the string before printing, allow
+  for variable names to be escaped using \
 
   SYNOPSIS
     do_echo()
     q  called command
 
   DESCRIPTION
-    Usage 1:
     echo text
     Print the text after echo until end of command to result file
 
-    Usage 2:
     echo $<var_name>
     Print the content of the variable <var_name> to result file
 
+    echo Some text $<var_name>
+    Print "Some text" plus the content of the variable <var_name> to
+    result file
+
+    echo Some text \$<var_name>
+    Print "Some text" plus $<var_name> to result file
 */
 
-int do_echo(struct st_query *q)
+int do_echo(struct st_query *command)
 {
-  char *p= q->first_argument;
-  DYNAMIC_STRING *ds;
-  VAR v;
-  var_init(&v,0,0,0,0);
+  DYNAMIC_STRING *ds, ds_echo;
 
   ds= &ds_res;
 
-  eval_expr(&v, p, 0); /* NULL terminated */
-  if (v.str_val_len)
-    dynstr_append_mem(ds, v.str_val, v.str_val_len);
+  init_dynamic_string(&ds_echo, "", 256, 256);
+  do_eval(&ds_echo, command->first_argument);
+  dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
   dynstr_append_mem(ds, "\n", 1);
-  var_free(&v);
-  q->last_argument= q->end;
+  dynstr_free(&ds_echo);
+  command->last_argument= command->end;
   return 0;
 }
 
