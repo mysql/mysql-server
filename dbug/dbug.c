@@ -1,69 +1,73 @@
 /******************************************************************************
- *									      *
- *				   N O T I C E				      *
- *									      *
- *		      Copyright Abandoned, 1987, Fred Fish		      *
- *									      *
- *									      *
- *	This previously copyrighted work has been placed into the  public     *
- *	domain	by  the  author  and  may be freely used for any purpose,     *
- *	private or commercial.						      *
- *									      *
- *	Because of the number of inquiries I was receiving about the  use     *
- *	of this product in commercially developed works I have decided to     *
- *	simply make it public domain to further its unrestricted use.	I     *
- *	specifically  would  be  most happy to see this material become a     *
- *	part of the standard Unix distributions by AT&T and the  Berkeley     *
- *	Computer  Science  Research Group, and a standard part of the GNU     *
- *	system from the Free Software Foundation.			      *
- *									      *
- *	I would appreciate it, as a courtesy, if this notice is  left  in     *
- *	all copies and derivative works.  Thank you.			      *
- *									      *
- *	The author makes no warranty of any kind  with	respect  to  this     *
+ *                                                                            *
+ *                                 N O T I C E                                *
+ *                                                                            *
+ *                    Copyright Abandoned, 1987, Fred Fish                    *
+ *                                                                            *
+ *                                                                            *
+ *      This previously copyrighted work has been placed into the  public     *
+ *      domain  by  the  author  and  may be freely used for any purpose,     *
+ *      private or commercial.                                                *
+ *                                                                            *
+ *      Because of the number of inquiries I was receiving about the  use     *
+ *      of this product in commercially developed works I have decided to     *
+ *      simply make it public domain to further its unrestricted use.   I     *
+ *      specifically  would  be  most happy to see this material become a     *
+ *      part of the standard Unix distributions by AT&T and the  Berkeley     *
+ *      Computer  Science  Research Group, and a standard part of the GNU     *
+ *      system from the Free Software Foundation.                             *
+ *                                                                            *
+ *      I would appreciate it, as a courtesy, if this notice is  left  in     *
+ *      all copies and derivative works.  Thank you.                          *
+ *                                                                            *
+ *      The author makes no warranty of any kind  with  respect  to  this     *
  *      product  and  explicitly disclaims any implied warranties of mer-     *
- *	chantability or fitness for any particular purpose.		      *
- *									      *
+ *      chantability or fitness for any particular purpose.                   *
+ *                                                                            *
  ******************************************************************************
  */
 
-
 /*
  *  FILE
  *
- *	dbug.c	 runtime support routines for dbug package
+ *      dbug.c   runtime support routines for dbug package
  *
  *  SCCS
  *
- *	@(#)dbug.c	1.25	7/25/89
+ *      @(#)dbug.c      1.25    7/25/89
  *
  *  DESCRIPTION
  *
- *	These are the runtime support routines for the dbug package.
- *	The dbug package has two main components; the user include
- *	file containing various macro definitions, and the runtime
- *	support routines which are called from the macro expansions.
+ *      These are the runtime support routines for the dbug package.
+ *      The dbug package has two main components; the user include
+ *      file containing various macro definitions, and the runtime
+ *      support routines which are called from the macro expansions.
  *
- *	Externally visible functions in the runtime support module
- *	use the naming convention pattern "_db_xx...xx_", thus
- *	they are unlikely to collide with user defined function names.
+ *      Externally visible functions in the runtime support module
+ *      use the naming convention pattern "_db_xx...xx_", thus
+ *      they are unlikely to collide with user defined function names.
  *
  *  AUTHOR(S)
  *
- *	Fred Fish		(base code)
- *	Enhanced Software Technologies, Tempe, AZ
- *	asuvax!mcdphx!estinc!fnf
+ *      Fred Fish               (base code)
+ *      Enhanced Software Technologies, Tempe, AZ
+ *      asuvax!mcdphx!estinc!fnf
  *
- *	Binayak Banerjee	(profiling enhancements)
- *	seismo!bpa!sjuvax!bbanerje
+ *      Binayak Banerjee        (profiling enhancements)
+ *      seismo!bpa!sjuvax!bbanerje
  *
- *	Michael Widenius:
- *	DBUG_DUMP	- To dump a block of memory.
+ *      Michael Widenius:
+ *      DBUG_DUMP       - To dump a block of memory.
  *      PUSH_FLAG "O"   - To be used insted of "o" if we
  *                        want flushing after each write
- *	PUSH_FLAG "A"	- as 'O', but we will append to the out file instead
- *			  of creating a new one.
- *	Check of malloc on entry/exit (option "S")
+ *      PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
+ *                        of creating a new one.
+ *      Check of malloc on entry/exit (option "S")
+ *
+ *      DBUG_EXECUTE_IF
+ *      incremental mode (-#+t:-d,info ...)
+ *      DBUG_SET, _db_explain_
+ *
  */
 
 #ifdef DBUG_OFF
@@ -76,51 +80,40 @@
 #include <process.h>
 #endif
 
-#ifdef	_DBUG_CONDITION_
-#define _DBUG_START_CONDITION_	"d:t"
-#else
-#define _DBUG_START_CONDITION_	""
-#endif
-
 /*
- *	      Manifest constants that should not require any changes.
+ *            Manifest constants which may be "tuned" if desired.
  */
 
-#define EOS		      '\000'  /* End Of String marker */
+#define PRINTBUF              1024    /* Print buffer size */
+#define INDENT                2       /* Indentation per trace level */
+#define MAXDEPTH              200     /* Maximum trace depth default */
 
 /*
- *	      Manifest constants which may be "tuned" if desired.
+ *      The following flags are used to determine which
+ *      capabilities the user has enabled with the settings
+ *      push macro.
  */
 
-#define PRINTBUF	      1024    /* Print buffer size */
-#define INDENT		      2       /* Indentation per trace level */
-#define MAXDEPTH	      200     /* Maximum trace depth default */
+#define TRACE_ON        000001  /* Trace enabled */
+#define DEBUG_ON        000002  /* Debug enabled */
+#define FILE_ON         000004  /* File name print enabled */
+#define LINE_ON         000010  /* Line number print enabled */
+#define DEPTH_ON        000020  /* Function nest level print enabled */
+#define PROCESS_ON      000040  /* Process name print enabled */
+#define NUMBER_ON       000100  /* Number each line of output */
+#define PROFILE_ON      000200  /* Print out profiling code */
+#define PID_ON          000400  /* Identify each line with process id */
+#define TIMESTAMP_ON    001000  /* timestamp every line of output */
+#define SANITY_CHECK_ON 002000  /* Check safemalloc on DBUG_ENTER */
+#define FLUSH_ON_WRITE  004000  /* Flush on every write */
+#define OPEN_APPEND     010000  /* Open for append      */
+
+#define TRACING (cs->stack->flags & TRACE_ON)
+#define DEBUGGING (cs->stack->flags & DEBUG_ON)
+#define PROFILING (cs->stack->flags & PROFILE_ON)
 
 /*
- *	The following flags are used to determine which
- *	capabilities the user has enabled with the state
- *	push macro.
- */
-
-#define TRACE_ON	000001	/* Trace enabled */
-#define DEBUG_ON	000002	/* Debug enabled */
-#define FILE_ON		000004	/* File name print enabled */
-#define LINE_ON		000010	/* Line number print enabled */
-#define DEPTH_ON	000020	/* Function nest level print enabled */
-#define PROCESS_ON	000040	/* Process name print enabled */
-#define NUMBER_ON	000100	/* Number each line of output */
-#define PROFILE_ON	000200	/* Print out profiling code */
-#define PID_ON		000400	/* Identify each line with process id */
-#define SANITY_CHECK_ON 001000	/* Check safemalloc on DBUG_ENTER */
-#define FLUSH_ON_WRITE	002000	/* Flush on every write */
-
-#define TRACING (stack -> flags & TRACE_ON)
-#define DEBUGGING (stack -> flags & DEBUG_ON)
-#define PROFILING (stack -> flags & PROFILE_ON)
-#define STREQ(a,b) (strcmp(a,b) == 0)
-
-/*
- *	Typedefs to make things more obvious.
+ *      Typedefs to make things more obvious.
  */
 
 #ifndef __WIN__
@@ -130,13 +123,13 @@ typedef int BOOLEAN;
 #endif
 
 /*
- *	Make it easy to change storage classes if necessary.
+ *      Make it easy to change storage classes if necessary.
  */
 
-#define IMPORT extern		/* Names defined externally */
-#define EXPORT			/* Allocated here, available globally */
-#define AUTO auto		/* Names to be allocated on stack */
-#define REGISTER register	/* Names to be placed in registers */
+#define IMPORT extern           /* Names defined externally */
+#define EXPORT                  /* Allocated here, available globally */
+#define AUTO auto               /* Names to be allocated on stack */
+#define REGISTER register       /* Names to be placed in registers */
 
 /*
  * The default file for profiling.  Could also add another flag
@@ -151,151 +144,148 @@ typedef int BOOLEAN;
  *
  */
 
-#define PROF_FILE	"dbugmon.out"
-#define PROF_EFMT	"E\t%ld\t%s\n"
-#define PROF_SFMT	"S\t%lx\t%lx\t%s\n"
-#define PROF_XFMT	"X\t%ld\t%s\n"
+#define PROF_FILE       "dbugmon.out"
+#define PROF_EFMT       "E\t%ld\t%s\n"
+#define PROF_SFMT       "S\t%lx\t%lx\t%s\n"
+#define PROF_XFMT       "X\t%ld\t%s\n"
 
-#ifdef M_I386		/* predefined by xenix 386 compiler */
+#ifdef M_I386           /* predefined by xenix 386 compiler */
 #define AUTOS_REVERSE 1
 #endif
 
 /*
- *	Variables which are available externally but should only
- *	be accessed via the macro package facilities.
- */
-
-EXPORT FILE *_db_fp_ = (FILE *) 0;	/* Output stream, default stderr */
-EXPORT char *_db_process_ = (char*) "dbug"; /* Pointer to process name; argv[0] */
-EXPORT FILE *_db_pfp_ = (FILE *)0;	/* Profile stream, 'dbugmon.out' */
-EXPORT BOOLEAN _db_on_ = FALSE;		/* TRUE if debugging currently on */
-EXPORT BOOLEAN _db_pon_ = FALSE;	/* TRUE if profile currently on */
-EXPORT BOOLEAN _no_db_ = FALSE;		/* TRUE if no debugging at all */
-
-/*
- *	Externally supplied functions.
+ *      Externally supplied functions.
  */
 
 #ifndef HAVE_PERROR
-static void perror ();		/* Fake system/library error print routine */
+static void perror();          /* Fake system/library error print routine */
 #endif
 
-IMPORT int _sanity(const char *file,uint line);
+IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
 
 /*
- *	The user may specify a list of functions to trace or
- *	debug.	These lists are kept in a linear linked list,
- *	a very simple implementation.
+ *      The user may specify a list of functions to trace or
+ *      debug.  These lists are kept in a linear linked list,
+ *      a very simple implementation.
  */
 
 struct link {
-    char *str;	      /* Pointer to link's contents */
     struct link *next_link;   /* Pointer to the next link */
+    char   str[1];        /* Pointer to link's contents */
 };
 
 /*
- *	Debugging states can be pushed or popped off of a
- *	stack which is implemented as a linked list.  Note
- *	that the head of the list is the current state and the
- *	stack is pushed by adding a new state to the head of the
- *	list or popped by removing the first link.
- */
-
-struct state {
-  int flags;			/* Current state flags */
-  int maxdepth;			/* Current maximum trace depth */
-  uint delay;			/* Delay after each output line */
-  int sub_level;		/* Sub this from code_state->level */
-  FILE *out_file;		/* Current output stream */
-  FILE *prof_file;		/* Current profiling stream */
-  char name[FN_REFLEN];		/* Name of output file */
-  struct link *functions;	/* List of functions */
-  struct link *p_functions;	/* List of profiled functions */
-  struct link *keywords;	/* List of debug keywords */
-  struct link *processes;	/* List of process names */
-  struct state *next_state;	/* Next state in the list */
-};
-
-
-/*
- *	Local variables not seen by user.
- */
-
-
-static my_bool init_done = FALSE; /* Set to TRUE when initialization done */
-static struct state *stack=0;
-
-typedef struct st_code_state {
-  const char *func;		/* Name of current user function */
-  const char *file;		/* Name of current user file */
-  char **framep;		/* Pointer to current frame */
-  const char *jmpfunc;		/* Remember current function for setjmp */
-  const char *jmpfile;		/* Remember current file for setjmp */
-  int lineno;			/* Current debugger output line number */
-  int level;			/* Current function nesting level */
-  int disable_output;		/* Set to it if output is disabled */
-  int jmplevel;			/* Remember nesting level at setjmp () */
-
-/*
- *	The following variables are used to hold the state information
- *	between the call to _db_pargs_() and _db_doprnt_(), during
- *	expansion of the DBUG_PRINT macro.  This is the only macro
- *	that currently uses these variables.
+ *      Debugging settings can be pushed or popped off of a
+ *      stack which is implemented as a linked list.  Note
+ *      that the head of the list is the current settings and the
+ *      stack is pushed by adding a new settings to the head of the
+ *      list or popped by removing the first link.
  *
- *	These variables are currently used only by _db_pargs_() and
- *	_db_doprnt_().
+ *      Note: if out_file is NULL, the other fields are not initialized at all!
  */
 
-  uint u_line;			/* User source code line number */
-  int  locked;			/* If locked with _db_lock_file */
-  const char *u_keyword;	/* Keyword for current macro */
+struct settings {
+  int flags;                    /* Current settings flags */
+  int maxdepth;                 /* Current maximum trace depth */
+  uint delay;                   /* Delay after each output line */
+  int sub_level;                /* Sub this from code_state->level */
+  FILE *out_file;               /* Current output stream */
+  FILE *prof_file;              /* Current profiling stream */
+  char name[FN_REFLEN];         /* Name of output file */
+  struct link *functions;       /* List of functions */
+  struct link *p_functions;     /* List of profiled functions */
+  struct link *keywords;        /* List of debug keywords */
+  struct link *processes;       /* List of process names */
+  struct settings *next;        /* Next settings in the list */
+};
+
+#define is_shared(S, V) ((S)->next && (S)->next->V == (S)->V)
+
+/*
+ *      Local variables not seen by user.
+ */
+
+
+static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
+static struct settings init_settings;
+static char *db_process= 0;     /* Pointer to process name; argv[0] */
+
+typedef struct _db_code_state_ {
+  const char *process;          /* Pointer to process name; usually argv[0] */
+  const char *func;             /* Name of current user function */
+  const char *file;             /* Name of current user file */
+  char **framep;                /* Pointer to current frame */
+  struct settings *stack;       /* debugging settings */
+  const char *jmpfunc;          /* Remember current function for setjmp */
+  const char *jmpfile;          /* Remember current file for setjmp */
+  int lineno;                   /* Current debugger output line number */
+  int level;                    /* Current function nesting level */
+  int jmplevel;                 /* Remember nesting level at setjmp() */
+
+/*
+ *      The following variables are used to hold the state information
+ *      between the call to _db_pargs_() and _db_doprnt_(), during
+ *      expansion of the DBUG_PRINT macro.  This is the only macro
+ *      that currently uses these variables.
+ *
+ *      These variables are currently used only by _db_pargs_() and
+ *      _db_doprnt_().
+ */
+
+  uint u_line;                  /* User source code line number */
+  int  locked;                  /* If locked with _db_lock_file_ */
+  const char *u_keyword;        /* Keyword for current macro */
 } CODE_STATE;
 
-	/* Parse a debug command string */
-static struct link *ListParse(char *ctlp);
-	/* Make a fresh copy of a string */
-static char *StrDup(const char *str);
-	/* Open debug output stream */
-static void DBUGOpenFile(const char *name, int append);
-#ifndef THREAD
-	/* Open profile output stream */
-static FILE *OpenProfile(const char *name);
-	/* Profile if asked for it */
-static BOOLEAN DoProfile(void);
-#endif
-	/* Return current user time (ms) */
-#ifndef THREAD
-static unsigned long Clock (void);
-#endif
-	/* Close debug output stream */
-static void CloseFile(FILE *fp);
-	/* Push current debug state */
-static void PushState(void);
-	/* Test for tracing enabled */
-static BOOLEAN DoTrace(CODE_STATE *state);
-	/* Test to see if file is writable */
+/*
+  The test below is so we could call functions with DBUG_ENTER before
+  my_thread_init().
+*/
+#define get_code_state_or_return if (!cs && !((cs=code_state()))) return
+
+        /* Handling lists */
+static struct link *ListAdd(struct link *, const char *, const char *);
+static struct link *ListDel(struct link *, const char *, const char *);
+static struct link *ListCopy(struct link *);
+static void FreeList(struct link *linkp);
+
+        /* OpenClose debug output stream */
+static void DBUGOpenFile(CODE_STATE *,const char *, const char *, int);
+static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
+        /* Push current debug settings */
+static void PushState(CODE_STATE *cs);
+        /* Test for tracing enabled */
+static BOOLEAN DoTrace(CODE_STATE *cs);
+
+        /* Test to see if file is writable */
 #if !(!defined(HAVE_ACCESS) || defined(MSDOS))
 static BOOLEAN Writable(char *pathname);
-	/* Change file owner and group */
-static void ChangeOwner(char *pathname);
-	/* Allocate memory for runtime support */
+        /* Change file owner and group */
+static void ChangeOwner(CODE_STATE *cs, char *pathname);
+        /* Allocate memory for runtime support */
 #endif
+
+static void DoPrefix(CODE_STATE *cs, uint line);
+
 static char *DbugMalloc(size_t size);
-	/* Remove leading pathname components */
-static char *BaseName(const char *pathname);
-static void DoPrefix(uint line);
-static void FreeList(struct link *linkp);
-static void Indent(int indent);
+static const char *BaseName(const char *pathname);
+static void Indent(CODE_STATE *cs, int indent);
 static BOOLEAN InList(struct link *linkp,const char *cp);
 static void dbug_flush(CODE_STATE *);
 static void DbugExit(const char *why);
-static int DelayArg(int value);
-	/* Supplied in Sys V runtime environ */
-	/* Break string into tokens */
-static char *static_strtok(char *s1,pchar chr);
+static const char *DbugStrTok(const char *s);
+
+#ifndef THREAD
+        /* Open profile output stream */
+static FILE *OpenProfile(CODE_STATE *cs, const char *name);
+        /* Profile if asked for it */
+static BOOLEAN DoProfile(CODE_STATE *);
+        /* Return current user time (ms) */
+static unsigned long Clock(void);
+#endif
 
 /*
- *	Miscellaneous printf format strings.
+ *      Miscellaneous printf format strings.
  */
 
 #define ERR_MISSING_RETURN "%s: missing DBUG_RETURN or DBUG_VOID_RETURN macro in function \"%s\"\n"
@@ -305,33 +295,20 @@ static char *static_strtok(char *s1,pchar chr);
 #define ERR_CHOWN "%s: can't change owner/group of \"%s\": "
 
 /*
- *	Macros and defines for testing file accessibility under UNIX and MSDOS.
+ *      Macros and defines for testing file accessibility under UNIX and MSDOS.
  */
 
 #undef EXISTS
 #if !defined(HAVE_ACCESS) || defined(MSDOS)
-#define EXISTS(pathname) (FALSE)	/* Assume no existance */
+#define EXISTS(pathname) (FALSE)        /* Assume no existance */
 #define Writable(name) (TRUE)
 #else
-#define EXISTS(pathname)	 (access (pathname, F_OK) == 0)
-#define WRITABLE(pathname)	 (access (pathname, W_OK) == 0)
+#define EXISTS(pathname)         (access(pathname, F_OK) == 0)
+#define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
 #endif
 #ifndef MSDOS
-#define ChangeOwner(name)
+#define ChangeOwner(cs,name)
 #endif
-
-/*
- *	Translate some calls among different systems.
- */
-
-#if defined(unix) || defined(xenix) || defined(VMS) || defined(__NetBSD__)
-# define Delay(A) sleep((uint) A)
-#elif defined(AMIGA)
-IMPORT int Delay ();			/* Pause for given number of ticks */
-#else
-static int Delay(int ticks);
-#endif
-
 
 /*
 ** Macros to allow dbugging with threads
@@ -341,593 +318,827 @@ static int Delay(int ticks);
 #include <my_pthread.h>
 pthread_mutex_t THR_LOCK_dbug;
 
-static void init_dbug_state(void)
-{
-  pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
-}
-
 static CODE_STATE *code_state(void)
 {
-  CODE_STATE *state=0;
-  struct st_my_thread_var *tmp=my_thread_var;
-  if (tmp)
+  CODE_STATE *cs=0;
+  struct st_my_thread_var *tmp;
+
+  if (!init_done)
   {
-    if (!(state=(CODE_STATE *) tmp->dbug))
+    pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
+    bzero(&init_settings, sizeof(init_settings));
+    init_settings.out_file=stderr;
+    init_settings.flags=OPEN_APPEND;
+    init_done=TRUE;
+  }
+
+  if ((tmp=my_thread_var))
+  {
+    if (!(cs=(CODE_STATE *) tmp->dbug))
     {
-      state=(CODE_STATE*) DbugMalloc(sizeof(*state));
-      bzero((char*) state,sizeof(*state));
-      state->func="?func";
-      state->file="?file";
-      tmp->dbug=(gptr) state;
+      cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
+      bzero((char*) cs,sizeof(*cs));
+      cs->process= db_process ? db_process : "dbug";
+      cs->func="?func";
+      cs->file="?file";
+      cs->stack=&init_settings;
+      tmp->dbug=(gptr) cs;
     }
   }
-  return state;
+  return cs;
 }
 
 #else /* !THREAD */
 
-#define init_dbug_state()
-#define code_state() (&static_code_state)
-#define pthread_mutex_lock(A) {}
-#define pthread_mutex_unlock(A) {}
 static CODE_STATE static_code_state=
 {
-  "?func", "?file", NULL, NullS, NullS, 0,0,0,0,0,0, NullS
+  "dbug", "?func", "?file", NULL, &init_settings,
+  NullS, NullS, 0,0,0,0,0,NullS
 };
+
+static CODE_STATE *code_state(void)
+{
+  if (!init_done)
+  {
+    bzero(&init_settings, sizeof(init_settings));
+    init_settings.out_file=stderr;
+    init_settings.flags=OPEN_APPEND;
+    init_done=TRUE;
+  }
+  return &static_code_state;
+}
+
+#define pthread_mutex_lock(A) {}
+#define pthread_mutex_unlock(A) {}
 #endif
+
+/*
+ *      Translate some calls among different systems.
+ */
+
+#ifdef HAVE_SLEEP
+/* sleep() wants seconds */
+#define Delay(A) sleep(((uint) A)/10)
+#else
+#define Delay(A) (0)
+#endif
+
+/*
+ *  FUNCTION
+ *
+ *      _db_process_       give the name to the current process/thread
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_push_(name)
+ *      char *name;
+ *
+ */
+
+void _db_process_(const char *name)
+{
+  CODE_STATE *cs=0;
+
+  if (!db_process)
+    db_process= name;
+  
+  get_code_state_or_return;
+  cs->process= name;
+}
 
 
 /*
  *  FUNCTION
  *
- *	_db_push_	push current debugger state and set up new one
+ *      _db_push_       push current debugger settings and set up new one
  *
  *  SYNOPSIS
  *
- *	VOID _db_push_ (control)
- *	char *control;
+ *      VOID _db_push_(control)
+ *      char *control;
  *
  *  DESCRIPTION
  *
- *	Given pointer to a debug control string in "control", pushes
- *	the current debug state, parses the control string, and sets
- *	up a new debug state.
- *
- *	The only attribute of the new state inherited from the previous
- *	state is the current function nesting level.  This can be
- *	overridden by using the "r" flag in the control string.
- *
- *	The debug control string is a sequence of colon separated fields
- *	as follows:
- *
- *		<field_1>:<field_2>:...:<field_N>
- *
- *	Each field consists of a mandatory flag character followed by
- *	an optional "," and comma separated list of modifiers:
- *
- *		flag[,modifier,modifier,...,modifier]
- *
- *	The currently recognized flag characters are:
- *
- *		d	Enable output from DBUG_<N> macros for
- *			for the current state.	May be followed
- *			by a list of keywords which selects output
- *			only for the DBUG macros with that keyword.
- *			A null list of keywords implies output for
- *			all macros.
- *
- *		D	Delay after each debugger output line.
- *			The argument is the number of tenths of seconds
- *			to delay, subject to machine capabilities.
- *			I.E.  -#D,20 is delay two seconds.
- *
- *		f	Limit debugging and/or tracing, and profiling to the
- *			list of named functions.  Note that a null list will
- *			disable all functions.	The appropriate "d" or "t"
- *			flags must still be given, this flag only limits their
- *			actions if they are enabled.
- *
- *		F	Identify the source file name for each
- *			line of debug or trace output.
- *
- *		i	Identify the process with the pid for each line of
- *			debug or trace output.
- *
- *		g	Enable profiling.  Create a file called 'dbugmon.out'
- *			containing information that can be used to profile
- *			the program.  May be followed by a list of keywords
- *			that select profiling only for the functions in that
- *			list.  A null list implies that all functions are
- *			considered.
- *
- *		L	Identify the source file line number for
- *			each line of debug or trace output.
- *
- *		n	Print the current function nesting depth for
- *			each line of debug or trace output.
- *
- *		N	Number each line of dbug output.
- *
- *		o	Redirect the debugger output stream to the
- *			specified file.  The default output is stderr.
- *
- *		O	As O but the file is really flushed between each
- *			write. When neaded the file is closed and reopened
- *			between each write.
- *
- *		p	Limit debugger actions to specified processes.
- *			A process must be identified with the
- *			DBUG_PROCESS macro and match one in the list
- *			for debugger actions to occur.
- *
- *		P	Print the current process name for each
- *			line of debug or trace output.
- *
- *		r	When pushing a new state, do not inherit
- *			the previous state's function nesting level.
- *			Useful when the output is to start at the
- *			left margin.
- *
- *		S	Do function _sanity(_file_,_line_) at each
- *			debugged function until _sanity() returns
- *			something that differs from 0.
- *			(Moustly used with safemalloc)
- *
- *		t	Enable function call/exit trace lines.
- *			May be followed by a list (containing only
- *			one modifier) giving a numeric maximum
- *			trace level, beyond which no output will
- *			occur for either debugging or tracing
- *			macros.  The default is a compile time
- *			option.
- *
- *	Some examples of debug control strings which might appear
- *	on a shell command line (the "-#" is typically used to
- *	introduce a control string to an application program) are:
- *
- *		-#d:t
- *		-#d:f,main,subr1:F:L:t,20
- *		-#d,input,output,files:n
- *
- *	For convenience, any leading "-#" is stripped off.
+ *      Given pointer to a debug control string in "control", pushes
+ *      the current debug settings, parses the control string, and sets
+ *      up a new debug settings with _db_set_()
  *
  */
 
-void _db_push_ (const char *control)
+void _db_push_(const char *control)
 {
-  reg1 char *scan;
-  reg2 struct link *temp;
-  CODE_STATE *state;
-  char *new_str;
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+  PushState(cs);
+  _db_set_(cs, control);
 
-  if (! _db_fp_)
-    _db_fp_= stderr;		/* Output stream, default stderr */
+}
 
-  if (*control == '-')
+/*
+ *  FUNCTION
+ *
+ *      _db_set_init_       set initial debugger settings
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_set_init_(control)
+ *      char *control;
+ *
+ *  DESCRIPTION
+ *      see _db_set_
+ *
+ */
+
+void _db_set_init_(const char *control)
+{
+  CODE_STATE cs;
+  bzero((char*) &cs,sizeof(cs));
+  cs.stack=&init_settings;
+  _db_set_(&cs, control);
+}
+
+/*
+ *  FUNCTION
+ *
+ *      _db_set_       set current debugger settings
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_set_(control)
+ *      char *control;
+ *
+ *  DESCRIPTION
+ *
+ *      Given pointer to a debug control string in "control",
+ *      parses the control string, and sets
+ *      up a current debug settings.
+ *
+ *      The debug control string is a sequence of colon separated fields
+ *      as follows:
+ *
+ *              [+]<field_1>:<field_2>:...:<field_N>
+ *
+ *      Each field consists of a mandatory flag character followed by
+ *      an optional "," and comma separated list of modifiers:
+ *
+ *              [sign]flag[,modifier,modifier,...,modifier]
+ *
+ *      See the manual for the list of supported signs, flags, and modifiers
+ *
+ *      For convenience, any leading "-#" is stripped off.
+ *
+ */
+
+void _db_set_(CODE_STATE *cs, const char *control)
+{
+  const char *end;
+  int rel=0;
+
+  get_code_state_or_return;
+
+  if (control[0] == '-' && control[1] == '#')
+    control+=2;
+
+  rel= control[0] == '+' || control[0] == '-';
+  if (!rel || (!cs->stack->out_file && !cs->stack->next))
   {
-    if (*++control == '#')
-      control++;
+    cs->stack->flags= 0;
+    cs->stack->delay= 0;
+    cs->stack->maxdepth= 0;
+    cs->stack->sub_level= 0;
+    cs->stack->out_file= stderr;
+    cs->stack->prof_file= NULL;
+    cs->stack->functions= NULL;
+    cs->stack->p_functions= NULL;
+    cs->stack->keywords= NULL;
+    cs->stack->processes= NULL;
   }
-  if (*control)
-    _no_db_=0;			/* We are using dbug after all */
+  else if (!cs->stack->out_file)
+  {
+    cs->stack->flags= cs->stack->next->flags;
+    cs->stack->delay= cs->stack->next->delay;
+    cs->stack->maxdepth= cs->stack->next->maxdepth;
+    cs->stack->sub_level= cs->stack->next->sub_level;
+    strcpy(cs->stack->name, cs->stack->next->name);
+    cs->stack->out_file= cs->stack->next->out_file;
+    cs->stack->prof_file= cs->stack->next->prof_file;
+    if (cs->stack->next == &init_settings)
+    {
+      /* never share with the global parent - it can change under your feet */
+      cs->stack->functions= ListCopy(init_settings.functions);
+      cs->stack->p_functions= ListCopy(init_settings.p_functions);
+      cs->stack->keywords= ListCopy(init_settings.keywords);
+      cs->stack->processes= ListCopy(init_settings.processes);
+    }
+    else
+    {
+      cs->stack->functions= cs->stack->next->functions;
+      cs->stack->p_functions= cs->stack->next->p_functions;
+      cs->stack->keywords= cs->stack->next->keywords;
+      cs->stack->processes= cs->stack->next->processes;
+    }
+  }
 
-  new_str = StrDup (control);
-  PushState ();
-  state=code_state();
-
-  scan = static_strtok (new_str, ':');
-  for (; scan != NULL; scan = static_strtok ((char *)NULL, ':')) {
-    switch (*scan++) {
+  end= DbugStrTok(control);
+  while (1)
+  {
+    int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
+    if (sign) control++;
+    if (!rel) sign=0;
+    c= *control++;
+    if (*control == ',') control++;
+    switch (c) {
     case 'd':
-      _db_on_ = TRUE;
-      stack -> flags |= DEBUG_ON;
-      if (*scan++ == ',') {
-	stack -> keywords = ListParse (scan);
+      if (sign < 0 && control == end)
+      {
+        if (!is_shared(cs->stack, keywords))
+          FreeList(cs->stack->keywords);
+        cs->stack->keywords=NULL;
+        cs->stack->flags &= ~DEBUG_ON;
+        break;
       }
+      if (rel && is_shared(cs->stack, keywords))
+        cs->stack->keywords= ListCopy(cs->stack->keywords);
+      if (sign < 0)
+      {
+        if (DEBUGGING)
+          cs->stack->keywords= ListDel(cs->stack->keywords, control, end);
+      break;
+      }
+      cs->stack->keywords= ListAdd(cs->stack->keywords, control, end);
+      cs->stack->flags |= DEBUG_ON;
       break;
     case 'D':
-      stack -> delay = 0;
-      if (*scan++ == ',') {
-	temp = ListParse (scan);
-	stack -> delay = DelayArg (atoi (temp -> str));
-	FreeList (temp);
-      }
+      cs->stack->delay= atoi(control);
       break;
     case 'f':
-      if (*scan++ == ',') {
-	stack -> functions = ListParse (scan);
+      if (sign < 0 && control == end)
+      {
+        if (!is_shared(cs->stack,functions))
+          FreeList(cs->stack->functions);
+        cs->stack->functions=NULL;
+        break;
       }
+      if (rel && is_shared(cs->stack,functions))
+        cs->stack->functions= ListCopy(cs->stack->functions);
+      if (sign < 0)
+        cs->stack->functions= ListDel(cs->stack->functions, control, end);
+      else
+        cs->stack->functions= ListAdd(cs->stack->functions, control, end);
       break;
     case 'F':
-      stack -> flags |= FILE_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~FILE_ON;
+      else
+        cs->stack->flags |= FILE_ON;
       break;
     case 'i':
-      stack -> flags |= PID_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~PID_ON;
+      else
+        cs->stack->flags |= PID_ON;
       break;
 #ifndef THREAD
     case 'g':
-      _db_pon_ = TRUE;
-      if (OpenProfile(PROF_FILE))
+      if (OpenProfile(cs, PROF_FILE))
       {
-	stack -> flags |= PROFILE_ON;
-	if (*scan++ == ',')
-	  stack -> p_functions = ListParse (scan);
+        cs->stack->flags |= PROFILE_ON;
+        cs->stack->p_functions= ListAdd(cs->stack->p_functions, control, end);
       }
       break;
 #endif
     case 'L':
-      stack -> flags |= LINE_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~LINE_ON;
+      else
+        cs->stack->flags |= LINE_ON;
       break;
     case 'n':
-      stack -> flags |= DEPTH_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~DEPTH_ON;
+      else
+        cs->stack->flags |= DEPTH_ON;
       break;
     case 'N':
-      stack -> flags |= NUMBER_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~NUMBER_ON;
+      else
+        cs->stack->flags |= NUMBER_ON;
       break;
     case 'A':
     case 'O':
-      stack -> flags |= FLUSH_ON_WRITE;
+      cs->stack->flags |= FLUSH_ON_WRITE;
+      /* fall through */
     case 'a':
     case 'o':
-      if (*scan++ == ',') {
-	temp = ListParse (scan);
-	DBUGOpenFile(temp -> str, (int) (scan[-2] == 'A' || scan[-2] == 'a'));
-	FreeList (temp);
-      } else {
-	DBUGOpenFile ("-",0);
+      if (sign < 0)
+      {
+        if (!is_shared(cs->stack, out_file))
+          DBUGCloseFile(cs, cs->stack->out_file);
+        cs->stack->flags &= ~FLUSH_ON_WRITE;
+        cs->stack->out_file= stderr;
+        break;
       }
+      if (c == 'a' || c == 'A')
+        cs->stack->flags |= OPEN_APPEND;
+      else
+        cs->stack->flags &= ~OPEN_APPEND;
+      if (control != end)
+        DBUGOpenFile(cs, control, end, cs->stack->flags & OPEN_APPEND);
+      else
+        DBUGOpenFile(cs, "-",0,0);
       break;
     case 'p':
-      if (*scan++ == ',') {
-	stack -> processes = ListParse (scan);
+      if (sign < 0 && control == end)
+      {
+        if (!is_shared(cs->stack,processes))
+          FreeList(cs->stack->processes);
+        cs->stack->processes=NULL;
+        break;
       }
+      if (rel && is_shared(cs->stack, processes))
+        cs->stack->processes= ListCopy(cs->stack->processes);
+      if (sign < 0)
+        cs->stack->processes= ListDel(cs->stack->processes, control, end);
+      else
+        cs->stack->processes= ListAdd(cs->stack->processes, control, end);
       break;
     case 'P':
-      stack -> flags |= PROCESS_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~PROCESS_ON;
+      else
+        cs->stack->flags |= PROCESS_ON;
       break;
     case 'r':
-      stack->sub_level= state->level;
+      cs->stack->sub_level= cs->level;
       break;
     case 't':
-      stack -> flags |= TRACE_ON;
-      if (*scan++ == ',') {
-	temp = ListParse (scan);
-	stack -> maxdepth = atoi (temp -> str);
-	FreeList (temp);
+      if (sign < 0)
+      {
+        if (control != end)
+          cs->stack->maxdepth-= atoi(control);
+        else
+          cs->stack->maxdepth= 0;
       }
+      else
+      {
+        if (control != end)
+          cs->stack->maxdepth+= atoi(control);
+        else
+          cs->stack->maxdepth= MAXDEPTH;
+      }
+      if (cs->stack->maxdepth > 0)
+        cs->stack->flags |= TRACE_ON;
+      else
+        cs->stack->flags &= ~TRACE_ON;
+      break;
+    case 'T':
+      if (sign < 0)
+        cs->stack->flags &= ~TIMESTAMP_ON;
+      else
+        cs->stack->flags |= TIMESTAMP_ON;
       break;
     case 'S':
-      stack -> flags |= SANITY_CHECK_ON;
+      if (sign < 0)
+        cs->stack->flags &= ~SANITY_CHECK_ON;
+      else
+        cs->stack->flags |= SANITY_CHECK_ON;
       break;
     }
+    if (!*end)
+      break;
+    control=end+1;
+    end= DbugStrTok(control);
   }
-  free (new_str);
 }
-
 
 /*
  *  FUNCTION
  *
- *	_db_pop_    pop the debug stack
+ *      _db_pop_    pop the debug stack
  *
  *  DESCRIPTION
  *
- *	Pops the debug stack, returning the debug state to its
- *	condition prior to the most recent _db_push_ invocation.
- *	Note that the pop will fail if it would remove the last
- *	valid state from the stack.  This prevents user errors
- *	in the push/pop sequence from screwing up the debugger.
- *	Maybe there should be some kind of warning printed if the
- *	user tries to pop too many states.
+ *      Pops the debug stack, returning the debug settings to its
+ *      condition prior to the most recent _db_push_ invocation.
+ *      Note that the pop will fail if it would remove the last
+ *      valid settings from the stack.  This prevents user errors
+ *      in the push/pop sequence from screwing up the debugger.
+ *      Maybe there should be some kind of warning printed if the
+ *      user tries to pop too many states.
  *
  */
 
-void _db_pop_ ()
+void _db_pop_()
 {
-  reg1 struct state *discard;
-  discard = stack;
-  if (discard != NULL && discard -> next_state != NULL) {
-    stack = discard -> next_state;
-    _db_fp_ = stack -> out_file;
-    _db_pfp_ = stack -> prof_file;
-    if (discard -> keywords != NULL) {
-      FreeList (discard -> keywords);
+  struct settings *discard;
+  CODE_STATE *cs=0;
+
+  get_code_state_or_return;
+
+  discard= cs->stack;
+  if (discard->next != NULL)
+  {
+    cs->stack= discard->next;
+    if (!is_shared(discard, keywords))
+      FreeList(discard->keywords);
+    if (!is_shared(discard, functions))
+      FreeList(discard->functions);
+    if (!is_shared(discard, processes))
+      FreeList(discard->processes);
+    if (!is_shared(discard, p_functions))
+      FreeList(discard->p_functions);
+    if (!is_shared(discard, out_file))
+      DBUGCloseFile(cs, discard->out_file);
+    if (discard->prof_file)
+      DBUGCloseFile(cs, discard->prof_file);
+    free((char *) discard);
+  }
+}
+
+/*
+ *  FUNCTION
+ *
+ *      _db_explain_    generates 'control' string for the current settings
+ *
+ *  RETURN
+ *      0 - ok
+ *      1  - buffer too short, output truncated
+ *
+ */
+
+/* helper macros */
+#define char_to_buf(C)    do {                  \
+        *buf++=(C);                             \
+        if (buf >= end) goto overflow;          \
+      } while (0)
+#define str_to_buf(S)    do {                   \
+        char_to_buf(',');                       \
+        buf=strnmov(buf, (S), len+1);           \
+        if (buf >= end) goto overflow;          \
+      } while (0)
+#define list_to_buf(l)  do {                    \
+        struct link *listp=(l);                 \
+        while (listp)                           \
+        {                                       \
+          str_to_buf(listp->str);               \
+          listp=listp->next_link;               \
+        }                                       \
+      } while (0)
+#define int_to_buf(i)  do {                     \
+        char b[50];                             \
+        int10_to_str((i), b, 10);               \
+        str_to_buf(b);                          \
+      } while (0)
+#define colon_to_buf   do {                     \
+        if (buf != start) char_to_buf(':');     \
+      } while(0)
+#define op_int_to_buf(C, val, def) do {         \
+        if ((val) != (def))                     \
+        {                                       \
+          colon_to_buf;                         \
+          char_to_buf((C));                     \
+          int_to_buf(val);                      \
+        }                                       \
+      } while (0)
+#define op_intf_to_buf(C, val, def, cond) do {  \
+        if ((cond))                             \
+        {                                       \
+          colon_to_buf;                         \
+          char_to_buf((C));                     \
+          if ((val) != (def)) int_to_buf(val);  \
+        }                                       \
+      } while (0)
+#define op_str_to_buf(C, val, cond) do {        \
+        if ((cond))                             \
+        {                                       \
+          char *s=(val);                        \
+          colon_to_buf;                         \
+          char_to_buf((C));                     \
+          if (*s) str_to_buf(s);                \
+        }                                       \
+      } while (0)
+#define op_list_to_buf(C, val, cond) do {       \
+        if ((cond))                             \
+        {                                       \
+          colon_to_buf;                         \
+          char_to_buf((C));                     \
+          list_to_buf(val);                     \
+        }                                       \
+      } while (0)
+#define op_bool_to_buf(C, cond) do {            \
+        if ((cond))                             \
+        {                                       \
+          colon_to_buf;                         \
+          char_to_buf((C));                     \
+        }                                       \
+      } while (0)
+
+int _db_explain_ (CODE_STATE *cs, char *buf, int len)
+{
+  char *start=buf, *end=buf+len-4;
+
+  get_code_state_or_return *buf=0;
+
+  op_list_to_buf('d', cs->stack->keywords, DEBUGGING);
+  op_int_to_buf ('D', cs->stack->delay, 0);
+  op_list_to_buf('f', cs->stack->functions, cs->stack->functions);
+  op_bool_to_buf('F', cs->stack->flags & FILE_ON);
+  op_bool_to_buf('i', cs->stack->flags & PID_ON);
+  op_list_to_buf('g', cs->stack->p_functions, PROFILING);
+  op_bool_to_buf('L', cs->stack->flags & LINE_ON);
+  op_bool_to_buf('n', cs->stack->flags & DEPTH_ON);
+  op_bool_to_buf('N', cs->stack->flags & NUMBER_ON);
+  op_str_to_buf(
+    ((cs->stack->flags & FLUSH_ON_WRITE ? 0 : 32) |
+     (cs->stack->flags & OPEN_APPEND ? 'A' : 'O')),
+    cs->stack->name, cs->stack->out_file != stderr);
+  op_list_to_buf('p', cs->stack->processes, cs->stack->processes);
+  op_bool_to_buf('P', cs->stack->flags & PROCESS_ON);
+  op_bool_to_buf('r', cs->stack->sub_level != 0);
+  op_intf_to_buf('t', cs->stack->maxdepth, MAXDEPTH, TRACING);
+  op_bool_to_buf('S', cs->stack->flags & SANITY_CHECK_ON);
+
+  *buf= '\0';
+  return 0;
+
+overflow:
+  *end++= '.';
+  *end++= '.';
+  *end++= '.';
+  *end=   '\0';
+  return 1;
+}
+
+#undef char_to_buf
+#undef str_to_buf
+#undef list_to_buf
+#undef int_to_buf
+#undef colon_to_buf
+#undef op_int_to_buf
+#undef op_intf_to_buf
+#undef op_str_to_buf
+#undef op_list_to_buf
+#undef op_bool_to_buf
+
+/*
+ *  FUNCTION
+ *
+ *      _db_explain_init_       explain initial debugger settings
+ *
+ *  DESCRIPTION
+ *      see _db_explain_
+ */
+
+int _db_explain_init_(char *buf, int len)
+{
+  CODE_STATE cs;
+  bzero((char*) &cs,sizeof(cs));
+  cs.stack=&init_settings;
+  return _db_explain_(&cs, buf, len);
+}
+
+/*
+ *  FUNCTION
+ *
+ *      _db_enter_    process entry point to user function
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_enter_(_func_, _file_, _line_,
+ *                       _sfunc_, _sfile_, _slevel_, _sframep_)
+ *      char *_func_;           points to current function name
+ *      char *_file_;           points to current file name
+ *      int _line_;             called from source line number
+ *      char **_sfunc_;         save previous _func_
+ *      char **_sfile_;         save previous _file_
+ *      int *_slevel_;          save previous nesting level
+ *      char ***_sframep_;      save previous frame pointer
+ *
+ *  DESCRIPTION
+ *
+ *      Called at the beginning of each user function to tell
+ *      the debugger that a new function has been entered.
+ *      Note that the pointers to the previous user function
+ *      name and previous user file name are stored on the
+ *      caller's stack (this is why the ENTER macro must be
+ *      the first "executable" code in a function, since it
+ *      allocates these storage locations).  The previous nesting
+ *      level is also stored on the callers stack for internal
+ *      self consistency checks.
+ *
+ *      Also prints a trace line if tracing is enabled and
+ *      increments the current function nesting depth.
+ *
+ *      Note that this mechanism allows the debugger to know
+ *      what the current user function is at all times, without
+ *      maintaining an internal stack for the function names.
+ *
+ */
+
+void _db_enter_(const char *_func_, const char *_file_,
+                uint _line_, const char **_sfunc_, const char **_sfile_,
+                uint *_slevel_, char ***_sframep_ __attribute__((unused)))
+{
+  int save_errno=errno;
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+
+  *_sfunc_= cs->func;
+  *_sfile_= cs->file;
+  cs->func=  _func_;
+  cs->file=  _file_;
+  *_slevel_=  ++cs->level;
+#ifndef THREAD
+  *_sframep_= cs->framep;
+  cs->framep= (char **) _sframep_;
+  if (DoProfile(cs))
+  {
+    long stackused;
+    if (*cs->framep == NULL)
+      stackused= 0;
+    else
+    {
+      stackused= ((long)(*cs->framep)) - ((long)(cs->framep));
+      stackused= stackused > 0 ? stackused : -stackused;
     }
-    if (discard -> functions != NULL) {
-      FreeList (discard -> functions);
-    }
-    if (discard -> processes != NULL) {
-      FreeList (discard -> processes);
-    }
-    if (discard -> p_functions != NULL) {
-      FreeList (discard -> p_functions);
-    }
-    CloseFile (discard -> out_file);
-    if (discard -> prof_file)
-      CloseFile (discard -> prof_file);
-    free ((char *) discard);
-    if (!(stack->flags & DEBUG_ON))
-      _db_on_=0;
+    (void) fprintf(cs->stack->prof_file, PROF_EFMT , Clock(), cs->func);
+#ifdef AUTOS_REVERSE
+    (void) fprintf(cs->stack->prof_file, PROF_SFMT, cs->framep, stackused, *_sfunc_);
+#else
+    (void) fprintf(cs->stack->prof_file, PROF_SFMT, (ulong) cs->framep, stackused,
+                    cs->func);
+#endif
+    (void) fflush(cs->stack->prof_file);
+  }
+#endif
+  if (DoTrace(cs))
+  {
+    if (!cs->locked)
+      pthread_mutex_lock(&THR_LOCK_dbug);
+    DoPrefix(cs, _line_);
+    Indent(cs, cs->level);
+    (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
+    dbug_flush(cs);                       /* This does a unlock */
+  }
+#ifdef SAFEMALLOC
+  if (cs->stack->flags & SANITY_CHECK_ON)
+    if (_sanity(_file_,_line_))               /* Check of safemalloc */
+      cs->stack->flags &= ~SANITY_CHECK_ON;
+#endif
+  errno=save_errno;
+}
+
+/*
+ *  FUNCTION
+ *
+ *      _db_return_    process exit from user function
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_return_(_line_, _sfunc_, _sfile_, _slevel_)
+ *      int _line_;             current source line number
+ *      char **_sfunc_;         where previous _func_ is to be retrieved
+ *      char **_sfile_;         where previous _file_ is to be retrieved
+ *      int *_slevel_;          where previous level was stashed
+ *
+ *  DESCRIPTION
+ *
+ *      Called just before user function executes an explicit or implicit
+ *      return.  Prints a trace line if trace is enabled, decrements
+ *      the current nesting level, and restores the current function and
+ *      file names from the defunct function's stack.
+ *
+ */
+
+/* helper macro */
+void _db_return_(uint _line_, const char **_sfunc_,
+                 const char **_sfile_, uint *_slevel_)
+{
+  int save_errno=errno;
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+
+  if (cs->level != (int) *_slevel_)
+  {
+    if (!cs->locked)
+      pthread_mutex_lock(&THR_LOCK_dbug);
+    (void) fprintf(cs->stack->out_file, ERR_MISSING_RETURN, cs->process,
+                   cs->func);
+    dbug_flush(cs);
   }
   else
   {
-    _db_on_=0;
-  }
-}
-
-
-/*
- *  FUNCTION
- *
- *	_db_enter_    process entry point to user function
- *
- *  SYNOPSIS
- *
- *	VOID _db_enter_ (_func_, _file_, _line_,
- *			 _sfunc_, _sfile_, _slevel_, _sframep_)
- *	char *_func_;		points to current function name
- *	char *_file_;		points to current file name
- *	int _line_;		called from source line number
- *	char **_sfunc_;		save previous _func_
- *	char **_sfile_;		save previous _file_
- *	int *_slevel_;		save previous nesting level
- *	char ***_sframep_;	save previous frame pointer
- *
- *  DESCRIPTION
- *
- *	Called at the beginning of each user function to tell
- *	the debugger that a new function has been entered.
- *	Note that the pointers to the previous user function
- *	name and previous user file name are stored on the
- *	caller's stack (this is why the ENTER macro must be
- *	the first "executable" code in a function, since it
- *	allocates these storage locations).  The previous nesting
- *	level is also stored on the callers stack for internal
- *	self consistency checks.
- *
- *	Also prints a trace line if tracing is enabled and
- *	increments the current function nesting depth.
- *
- *	Note that this mechanism allows the debugger to know
- *	what the current user function is at all times, without
- *	maintaining an internal stack for the function names.
- *
- */
-
-void _db_enter_ (
-const char *_func_,
-const char *_file_,
-uint _line_,
-const char **_sfunc_,
-const char **_sfile_,
-uint *_slevel_,
-char ***_sframep_ __attribute__((unused)))
-{
-  reg1 CODE_STATE *state;
-
-  if (!_no_db_)
-  {
-    int save_errno=errno;
-    /*
-      Sasha: the test below is so we could call functions with DBUG_ENTER
-      before my_thread_init(). I needed this because I suspected corruption
-      of a block allocated by my_thread_init() itself, so I wanted to use
-      my_malloc()/my_free() in my_thread_init()/my_thread_end()
-    */
-    if (!(state=code_state()))
-      return;
-    if (!init_done)
-      _db_push_ (_DBUG_START_CONDITION_);
-
-    *_sfunc_ = state->func;
-    *_sfile_ = state->file;
-    state->func =(char*)  _func_;
-    state->file = (char*) _file_;		/* BaseName takes time !! */
-    *_slevel_ =  ++state->level;
-#ifndef THREAD
-    *_sframep_ = state->framep;
-    state->framep = (char **) _sframep_;
-    if (DoProfile ())
-    {
-      long stackused;
-      if (*state->framep == NULL)
-      {
-	stackused = 0;
-      }
-      else
-      {
-	stackused = ((long)(*state->framep)) - ((long)(state->framep));
-	stackused = stackused > 0 ? stackused : -stackused;
-      }
-      (void) fprintf (_db_pfp_, PROF_EFMT , Clock (), state->func);
-#ifdef AUTOS_REVERSE
-      (void) fprintf (_db_pfp_, PROF_SFMT, state->framep, stackused, *_sfunc_);
-#else
-      (void) fprintf (_db_pfp_, PROF_SFMT, (ulong) state->framep, stackused,
-		      state->func);
-#endif
-      (void) fflush (_db_pfp_);
-    }
-#endif
-    if (DoTrace(state))
-    {
-      if (!state->locked)
-	pthread_mutex_lock(&THR_LOCK_dbug);
-      DoPrefix (_line_);
-      Indent (state -> level);
-      (void) fprintf (_db_fp_, ">%s\n", state->func);
-      dbug_flush (state);			/* This does a unlock */
-    }
 #ifdef SAFEMALLOC
-    if (stack->flags & SANITY_CHECK_ON && !state->disable_output)
-      if (_sanity(_file_,_line_))		/* Check of safemalloc */
-	stack -> flags &= ~SANITY_CHECK_ON;
-#endif
-    errno=save_errno;
-  }
-}
-
-/*
- *  FUNCTION
- *
- *	_db_return_    process exit from user function
- *
- *  SYNOPSIS
- *
- *	VOID _db_return_ (_line_, _sfunc_, _sfile_, _slevel_)
- *	int _line_;		current source line number
- *	char **_sfunc_;		where previous _func_ is to be retrieved
- *	char **_sfile_;		where previous _file_ is to be retrieved
- *	int *_slevel_;		where previous level was stashed
- *
- *  DESCRIPTION
- *
- *	Called just before user function executes an explicit or implicit
- *	return.  Prints a trace line if trace is enabled, decrements
- *	the current nesting level, and restores the current function and
- *	file names from the defunct function's stack.
- *
- */
-
-void _db_return_ (
-uint _line_,
-const char **_sfunc_,
-const char **_sfile_,
-uint *_slevel_)
-{
-  CODE_STATE *state;
-
-  if (!_no_db_)
-  {
-    int save_errno=errno;
-    if (!(state=code_state()))
-      return;				
-    if (!init_done)
-      _db_push_ ("");
-    if (stack->flags & (TRACE_ON | DEBUG_ON | PROFILE_ON))
+    if (cs->stack->flags & SANITY_CHECK_ON)
     {
-      if (!state->locked)
-	pthread_mutex_lock(&THR_LOCK_dbug);
-      if (state->level != (int) *_slevel_)
-	(void) fprintf (_db_fp_, ERR_MISSING_RETURN, _db_process_,
-			state->func);
-      else
-      {
-#ifdef SAFEMALLOC
-	if (stack->flags & SANITY_CHECK_ON && !state->disable_output)
-        {
-	  if (_sanity(*_sfile_,_line_))
-	    stack->flags &= ~SANITY_CHECK_ON;
-        }
-#endif
-#ifndef THREAD
-	if (DoProfile ())
-	  (void) fprintf (_db_pfp_, PROF_XFMT, Clock(), state->func);
-#endif
-	if (DoTrace (state))
-	{
-	  DoPrefix (_line_);
-	  Indent (state->level);
-	  (void) fprintf (_db_fp_, "<%s\n", state->func);
-	}
-      }
-      dbug_flush(state);
+      if (_sanity(*_sfile_,_line_))
+        cs->stack->flags &= ~SANITY_CHECK_ON;
     }
-    state->level = *_slevel_-1;
-    state->func = *_sfunc_;
-    state->file = *_sfile_;
-#ifndef THREAD
-    if (state->framep != NULL)
-      state->framep = (char **) *state->framep;
 #endif
-    errno=save_errno;
+#ifndef THREAD
+    if (DoProfile(cs))
+      (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
+#endif
+    if (DoTrace(cs))
+    {
+      if (!cs->locked)
+        pthread_mutex_lock(&THR_LOCK_dbug);
+      DoPrefix(cs, _line_);
+      Indent(cs, cs->level);
+      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      dbug_flush(cs);
+    }
   }
+  cs->level= *_slevel_-1;
+  cs->func= *_sfunc_;
+  cs->file= *_sfile_;
+#ifndef THREAD
+  if (cs->framep != NULL)
+    cs->framep= (char **) *cs->framep;
+#endif
+  errno=save_errno;
 }
 
 
 /*
  *  FUNCTION
  *
- *	_db_pargs_    log arguments for subsequent use by _db_doprnt_()
+ *      _db_pargs_    log arguments for subsequent use by _db_doprnt_()
  *
  *  SYNOPSIS
  *
- *	VOID _db_pargs_ (_line_, keyword)
- *	int _line_;
- *	char *keyword;
+ *      VOID _db_pargs_(_line_, keyword)
+ *      int _line_;
+ *      char *keyword;
  *
  *  DESCRIPTION
  *
- *	The new universal printing macro DBUG_PRINT, which replaces
- *	all forms of the DBUG_N macros, needs two calls to runtime
- *	support routines.  The first, this function, remembers arguments
- *	that are used by the subsequent call to _db_doprnt_().
+ *      The new universal printing macro DBUG_PRINT, which replaces
+ *      all forms of the DBUG_N macros, needs two calls to runtime
+ *      support routines.  The first, this function, remembers arguments
+ *      that are used by the subsequent call to _db_doprnt_().
  *
  */
 
-void _db_pargs_ (
-uint _line_,
-const char *keyword)
+void _db_pargs_(uint _line_, const char *keyword)
 {
-  CODE_STATE *state=code_state();
-  /* Sasha: pre-my_thread_init() safety */
-  if (!state)
-    return;
-  state->u_line = _line_;
-  state->u_keyword = (char*) keyword;
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+  cs->u_line= _line_;
+  cs->u_keyword= (char*) keyword;
 }
 
 
 /*
  *  FUNCTION
  *
- *	_db_doprnt_    handle print of debug lines
+ *      _db_doprnt_    handle print of debug lines
  *
  *  SYNOPSIS
  *
- *	VOID _db_doprnt_ (format, va_alist)
- *	char *format;
- *	va_dcl;
+ *      VOID _db_doprnt_(format, va_alist)
+ *      char *format;
+ *      va_dcl;
  *
  *  DESCRIPTION
  *
- *	When invoked via one of the DBUG macros, tests the current keyword
- *	set by calling _db_pargs_() to see if that macro has been selected
- *	for processing via the debugger control string, and if so, handles
- *	printing of the arguments via the format string.  The line number
- *	of the DBUG macro in the source is found in u_line.
+ *      When invoked via one of the DBUG macros, tests the current keyword
+ *      set by calling _db_pargs_() to see if that macro has been selected
+ *      for processing via the debugger control string, and if so, handles
+ *      printing of the arguments via the format string.  The line number
+ *      of the DBUG macro in the source is found in u_line.
  *
- *	Note that the format string SHOULD NOT include a terminating
- *	newline, this is supplied automatically.
+ *      Note that the format string SHOULD NOT include a terminating
+ *      newline, this is supplied automatically.
  *
  */
 
 #include <stdarg.h>
 
-void _db_doprnt_ (const char *format,...)
+void _db_doprnt_(const char *format,...)
 {
   va_list args;
-  CODE_STATE *state;
-  /* Sasha: pre-my_thread_init() safety */
-  if (!(state=code_state()))
-    return;
+
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
 
   va_start(args,format);
 
-  if (_db_keyword_ (state->u_keyword)) {
+  if (_db_keyword_(cs, cs->u_keyword))
+  {
     int save_errno=errno;
-    if (!state->locked)
+    if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix (state->u_line);
-    if (TRACING) {
-      Indent (state->level + 1);
-    } else {
-      (void) fprintf (_db_fp_, "%s: ", state->func);
-    }
-    (void) fprintf (_db_fp_, "%s: ", state->u_keyword);
-    (void) vfprintf (_db_fp_, format, args);
-    (void) fputc('\n',_db_fp_);
-    dbug_flush(state);
+    DoPrefix(cs, cs->u_line);
+    if (TRACING)
+      Indent(cs, cs->level + 1);
+    else
+      (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
+    (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
+    (void) vfprintf(cs->stack->out_file, format, args);
+    (void) fputc('\n',cs->stack->out_file);
+    dbug_flush(cs);
     errno=save_errno;
   }
   va_end(args);
@@ -941,46 +1152,42 @@ void _db_doprnt_ (const char *format,...)
  *
  *  SYNOPSIS
  *
- *	      void _db_dump_ (_line_,keyword,memory,length)
- *	      int _line_;		current source line number
- *	      char *keyword;
- *	      char *memory;		Memory to print
- *	      int length;		Bytes to print
+ *            void _db_dump_(_line_,keyword,memory,length)
+ *            int _line_;               current source line number
+ *            char *keyword;
+ *            char *memory;             Memory to print
+ *            int length;               Bytes to print
  *
  *  DESCRIPTION
  *  Dump N characters in a binary array.
  *  Is used to examine corrputed memory or arrays.
  */
 
-void _db_dump_(
-uint _line_,
-const char *keyword,
-const char *memory,
-uint length)
+void _db_dump_(uint _line_, const char *keyword, const char *memory, uint length)
 {
   int pos;
   char dbuff[90];
-  CODE_STATE *state;
-  if (!(state=code_state()))
-    return;
 
-  if (_db_keyword_ ((char*) keyword))
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+
+  if (_db_keyword_(cs, (char*) keyword))
   {
-    if (!state->locked)
+    if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
-    DoPrefix (_line_);
+    DoPrefix(cs, _line_);
     if (TRACING)
     {
-      Indent (state->level + 1);
-      pos= min(max(state->level-stack->sub_level,0)*INDENT,80);
+      Indent(cs, cs->level + 1);
+      pos= min(max(cs->level-cs->stack->sub_level,0)*INDENT,80);
     }
     else
     {
-      fprintf(_db_fp_, "%s: ", state->func);
+      fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
     sprintf(dbuff,"%s: Memory: 0x%lx  Bytes: (%d)\n",
-	    keyword,(ulong) memory, length);
-    (void) fputs(dbuff,_db_fp_);
+            keyword,(ulong) memory, length);
+    (void) fputs(dbuff,cs->stack->out_file);
 
     pos=0;
     while (length-- > 0)
@@ -988,246 +1195,297 @@ uint length)
       uint tmp= *((unsigned char*) memory++);
       if ((pos+=3) >= 80)
       {
-	fputc('\n',_db_fp_);
-	pos=3;
+        fputc('\n',cs->stack->out_file);
+        pos=3;
       }
-      fputc(_dig_vec_upper[((tmp >> 4) & 15)], _db_fp_);
-      fputc(_dig_vec_upper[tmp & 15], _db_fp_);
-      fputc(' ',_db_fp_);
+      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file);
+      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file);
+      fputc(' ',cs->stack->out_file);
     }
-    (void) fputc('\n',_db_fp_);
-    dbug_flush(state);
+    (void) fputc('\n',cs->stack->out_file);
+    dbug_flush(cs);
   }
-}
-
-
-/*
-  Enable/Disable output for this thread
-
-  SYNOPSIS
-    _db_output_()
-    flag		1 = enable output, 0 = disable_output
-
-*/
-
-void _db_output_(uint flag)
-{
-  CODE_STATE *state;
-  if (!(state=code_state()))
-    return;
-  state->disable_output= !flag;
 }
 
 
 /*
  *  FUNCTION
  *
- *	ListParse    parse list of modifiers in debug control string
+ *      ListAdd    add to the list modifiers from debug control string
  *
  *  SYNOPSIS
  *
- *	static struct link *ListParse (ctlp)
- *	char *ctlp;
+ *      static struct link *ListAdd(listp, ctlp, end)
+ *      struct link *listp;
+ *      char *ctlp;
+ *      char *end;
  *
  *  DESCRIPTION
  *
- *	Given pointer to a comma separated list of strings in "cltp",
- *	parses the list, building a list and returning a pointer to it.
- *	The original comma separated list is destroyed in the process of
- *	building the linked list, thus it had better be a duplicate
- *	if it is important.
+ *      Given pointer to a comma separated list of strings in "cltp",
+ *      parses the list, and adds it to listp, returning a pointer
+ *      to the new list
  *
- *	Note that since each link is added at the head of the list,
- *	the final list will be in "reverse order", which is not
- *	significant for our usage here.
+ *      Note that since each link is added at the head of the list,
+ *      the final list will be in "reverse order", which is not
+ *      significant for our usage here.
  *
  */
 
-static struct link *ListParse (
-char *ctlp)
+static struct link *ListAdd(struct link *head,
+                             const char *ctlp, const char *end)
 {
-  REGISTER char *start;
-  REGISTER struct link *new_malloc;
-  REGISTER struct link *head;
+  const char *start;
+  struct link *new_malloc;
+  int len;
 
-  head = NULL;
-  while (*ctlp != EOS) {
-    start = ctlp;
-    while (*ctlp != EOS && *ctlp != ',') {
+  while (ctlp < end)
+  {
+    start= ctlp;
+    while (ctlp < end && *ctlp != ',')
       ctlp++;
-    }
-    if (*ctlp == ',') {
-      *ctlp++ = EOS;
-    }
-    new_malloc = (struct link *) DbugMalloc (sizeof (struct link));
-    new_malloc -> str = StrDup (start);
-    new_malloc -> next_link = head;
-    head = new_malloc;
+    len=ctlp-start;
+    new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
+    memcpy(new_malloc->str, start, len);
+    new_malloc->str[len]=0;
+    new_malloc->next_link= head;
+    head= new_malloc;
+    ctlp++;
   }
-  return (head);
+  return head;
 }
 
 /*
  *  FUNCTION
  *
- *	InList	  test a given string for member of a given list
+ *      ListDel    remove from the list modifiers in debug control string
  *
  *  SYNOPSIS
  *
- *	static BOOLEAN InList (linkp, cp)
- *	struct link *linkp;
- *	char *cp;
+ *      static struct link *ListDel(listp, ctlp, end)
+ *      struct link *listp;
+ *      char *ctlp;
+ *      char *end;
  *
  *  DESCRIPTION
  *
- *	Tests the string pointed to by "cp" to determine if it is in
- *	the list pointed to by "linkp".  Linkp points to the first
- *	link in the list.  If linkp is NULL then the string is treated
- *	as if it is in the list (I.E all strings are in the null list).
- *	This may seem rather strange at first but leads to the desired
- *	operation if no list is given.	The net effect is that all
- *	strings will be accepted when there is no list, and when there
- *	is a list, only those strings in the list will be accepted.
+ *      Given pointer to a comma separated list of strings in "cltp",
+ *      parses the list, and removes these strings from the listp,
+ *      returning a pointer to the new list.
  *
  */
 
-static BOOLEAN InList (
-struct link *linkp,
-const char *cp)
+static struct link *ListDel(struct link *head,
+                             const char *ctlp, const char *end)
+{
+  const char *start;
+  struct link **cur;
+  int len;
+
+  while (ctlp < end)
+  {
+    start= ctlp;
+    while (ctlp < end && *ctlp != ',')
+      ctlp++;
+    len=ctlp-start;
+    cur=&head;
+    do
+    {
+      while (*cur && !strncmp((*cur)->str, start, len))
+      {
+        struct link *delme=*cur;
+        *cur=(*cur)->next_link;
+        free((char*)delme);
+      }
+    } while (*cur && *(cur=&((*cur)->next_link)));
+  }
+  return head;
+}
+
+/*
+ *  FUNCTION
+ *
+ *      ListCopy    make a copy of the list
+ *
+ *  SYNOPSIS
+ *
+ *      static struct link *ListCopy(orig)
+ *      struct link *orig;
+ *
+ *  DESCRIPTION
+ *
+ *      Given pointer to list, which contains a copy of every element from
+ *      the original list.
+ *
+ *      the orig pointer can be NULL
+ *
+ *      Note that since each link is added at the head of the list,
+ *      the final list will be in "reverse order", which is not
+ *      significant for our usage here.
+ *
+ */
+
+static struct link *ListCopy(struct link *orig)
+{
+  struct link *new_malloc;
+  struct link *head;
+  int len;
+
+  head= NULL;
+  while (orig != NULL)
+  {
+    len= strlen(orig->str);
+    new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
+    memcpy(new_malloc->str, orig->str, len);
+    new_malloc->str[len]= 0;
+    new_malloc->next_link= head;
+    head= new_malloc;
+    orig= orig->next_link;
+  }
+  return head;
+}
+
+/*
+ *  FUNCTION
+ *
+ *      InList    test a given string for member of a given list
+ *
+ *  SYNOPSIS
+ *
+ *      static BOOLEAN InList(linkp, cp)
+ *      struct link *linkp;
+ *      char *cp;
+ *
+ *  DESCRIPTION
+ *
+ *      Tests the string pointed to by "cp" to determine if it is in
+ *      the list pointed to by "linkp".  Linkp points to the first
+ *      link in the list.  If linkp is NULL then the string is treated
+ *      as if it is in the list (I.E all strings are in the null list).
+ *      This may seem rather strange at first but leads to the desired
+ *      operation if no list is given.  The net effect is that all
+ *      strings will be accepted when there is no list, and when there
+ *      is a list, only those strings in the list will be accepted.
+ *
+ */
+
+static BOOLEAN InList(struct link *linkp, const char *cp)
 {
   REGISTER struct link *scan;
   REGISTER BOOLEAN result;
 
-  if (linkp == NULL) {
-    result = TRUE;
-  } else {
-    result = FALSE;
-    for (scan = linkp; scan != NULL; scan = scan -> next_link) {
-      if (STREQ (scan -> str, cp)) {
-	result = TRUE;
-	break;
+  if (linkp == NULL)
+    result= TRUE;
+  else
+  {
+    result= FALSE;
+    for (scan= linkp; scan != NULL; scan= scan->next_link)
+    {
+      if (!strcmp(scan->str, cp))
+      {
+        result= TRUE;
+        break;
       }
     }
   }
-  return (result);
+  return result;
 }
 
 
 /*
  *  FUNCTION
  *
- *	PushState    push current state onto stack and set up new one
+ *      PushState    push current settings onto stack and set up new one
  *
  *  SYNOPSIS
  *
- *	static VOID PushState ()
+ *      static VOID PushState()
  *
  *  DESCRIPTION
  *
- *	Pushes the current state on the state stack, and initializes
- *	a new state.  The only parameter inherited from the previous
- *	state is the function nesting level.  This action can be
- *	inhibited if desired, via the "r" flag.
+ *      Pushes the current settings on the settings stack, and creates
+ *      a new settings. The new settings is NOT initialized
  *
- *	The state stack is a linked list of states, with the new
- *	state added at the head.  This allows the stack to grow
- *	to the limits of memory if necessary.
+ *      The settings stack is a linked list of settings, with the new
+ *      settings added at the head.  This allows the stack to grow
+ *      to the limits of memory if necessary.
  *
  */
 
-static void PushState ()
+static void PushState(CODE_STATE *cs)
 {
-  REGISTER struct state *new_malloc;
+  struct settings *new_malloc;
 
-  if (!init_done)
-  {
-    init_dbug_state();
-    init_done=TRUE;
-  }
-  (void) code_state();				/* Alloc memory */
-  new_malloc = (struct state *) DbugMalloc(sizeof (struct state));
-  new_malloc -> flags = 0;
-  new_malloc -> delay = 0;
-  new_malloc -> maxdepth = MAXDEPTH;
-  new_malloc -> sub_level=0;
-  new_malloc -> out_file = stderr;
-  new_malloc -> prof_file = (FILE*) 0;
-  new_malloc -> functions = NULL;
-  new_malloc -> p_functions = NULL;
-  new_malloc -> keywords = NULL;
-  new_malloc -> processes = NULL;
-  new_malloc -> next_state = stack;
-  stack=new_malloc;
+  new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
+  new_malloc->next= cs->stack;
+  new_malloc->out_file= NULL;
+  cs->stack= new_malloc;
 }
 
 
 /*
  *  FUNCTION
  *
- *	DoTrace    check to see if tracing is current enabled
+ *      DoTrace    check to see if tracing is current enabled
  *
  *  SYNOPSIS
  *
- *	static BOOLEAN DoTrace (stack)
+ *      static BOOLEAN DoTrace(stack)
  *
  *  DESCRIPTION
  *
- *	Checks to see if tracing is enabled based on whether the
- *	user has specified tracing, the maximum trace depth has
- *	not yet been reached, the current function is selected,
- *	and the current process is selected.  Returns TRUE if
- *	tracing is enabled, FALSE otherwise.
+ *      Checks to see if tracing is enabled based on whether the
+ *      user has specified tracing, the maximum trace depth has
+ *      not yet been reached, the current function is selected,
+ *      and the current process is selected.  Returns TRUE if
+ *      tracing is enabled, FALSE otherwise.
  *
  */
 
-static BOOLEAN DoTrace (CODE_STATE *state)
+static BOOLEAN DoTrace(CODE_STATE *cs)
 {
-  reg2 BOOLEAN trace=FALSE;
-
-  if (TRACING && !state->disable_output &&
-      state->level <= stack -> maxdepth &&
-      InList (stack -> functions, state->func) &&
-      InList (stack -> processes, _db_process_))
-      trace = TRUE;
-  return (trace);
+  return (TRACING && cs->level <= cs->stack->maxdepth &&
+          InList(cs->stack->functions, cs->func) &&
+          InList(cs->stack->processes, cs->process));
 }
 
 
 /*
  *  FUNCTION
  *
- *	DoProfile    check to see if profiling is current enabled
+ *      DoProfile    check to see if profiling is current enabled
  *
  *  SYNOPSIS
  *
- *	static BOOLEAN DoProfile ()
+ *      static BOOLEAN DoProfile()
  *
  *  DESCRIPTION
  *
- *	Checks to see if profiling is enabled based on whether the
- *	user has specified profiling, the maximum trace depth has
- *	not yet been reached, the current function is selected,
- *	and the current process is selected.  Returns TRUE if
- *	profiling is enabled, FALSE otherwise.
+ *      Checks to see if profiling is enabled based on whether the
+ *      user has specified profiling, the maximum trace depth has
+ *      not yet been reached, the current function is selected,
+ *      and the current process is selected.  Returns TRUE if
+ *      profiling is enabled, FALSE otherwise.
  *
  */
 
 #ifndef THREAD
-static BOOLEAN DoProfile ()
+static BOOLEAN DoProfile(CODE_STATE *cs)
 {
-  REGISTER BOOLEAN profile;
-  CODE_STATE *state;
-  state=code_state();
-
-  profile = FALSE;
-  if (PROFILING && !state->disable_output &&
-      state->level <= stack -> maxdepth &&
-      InList (stack -> p_functions, state->func) &&
-      InList (stack -> processes, _db_process_))
-    profile = TRUE;
-  return (profile);
+  return PROFILING &&
+         cs->level <= cs->stack->maxdepth &&
+         InList(cs->stack->p_functions, cs->func) &&
+         InList(cs->stack->processes, cs->process);
 }
 #endif
+
+FILE *_db_fp_(void)
+{
+  CODE_STATE *cs=0;
+  get_code_state_or_return NULL;
+  return cs->stack->out_file;
+}
+
 
 /*
  *  FUNCTION
@@ -1236,7 +1494,7 @@ static BOOLEAN DoProfile ()
  *
  *  SYNOPSIS
  *
- *      BOOLEAN _db_strict_keyword_ (keyword)
+ *      BOOLEAN _db_strict_keyword_(keyword)
  *      char *keyword;
  *
  *  DESCRIPTION
@@ -1249,93 +1507,83 @@ static BOOLEAN DoProfile ()
  *
  */
 
-BOOLEAN _db_strict_keyword_ (
-const char *keyword)
+BOOLEAN _db_strict_keyword_(const char *keyword)
 {
-  if (stack -> keywords == NULL)
+  CODE_STATE *cs=0;
+  get_code_state_or_return FALSE;
+  if (!DEBUGGING || cs->stack->keywords == NULL)
     return FALSE;
-  return _db_keyword_ (keyword);
+  return _db_keyword_(cs, keyword);
 }
 
 /*
  *  FUNCTION
  *
- *	_db_keyword_	test keyword for member of keyword list
+ *      _db_keyword_    test keyword for member of keyword list
  *
  *  SYNOPSIS
  *
- *	BOOLEAN _db_keyword_ (keyword)
- *	char *keyword;
+ *      BOOLEAN _db_keyword_(keyword)
+ *      char *keyword;
  *
  *  DESCRIPTION
  *
- *	Test a keyword to determine if it is in the currently active
- *	keyword list.  As with the function list, a keyword is accepted
- *	if the list is null, otherwise it must match one of the list
- *	members.  When debugging is not on, no keywords are accepted.
- *	After the maximum trace level is exceeded, no keywords are
- *	accepted (this behavior subject to change).  Additionally,
- *	the current function and process must be accepted based on
- *	their respective lists.
+ *      Test a keyword to determine if it is in the currently active
+ *      keyword list.  As with the function list, a keyword is accepted
+ *      if the list is null, otherwise it must match one of the list
+ *      members.  When debugging is not on, no keywords are accepted.
+ *      After the maximum trace level is exceeded, no keywords are
+ *      accepted (this behavior subject to change).  Additionally,
+ *      the current function and process must be accepted based on
+ *      their respective lists.
  *
- *	Returns TRUE if keyword accepted, FALSE otherwise.
+ *      Returns TRUE if keyword accepted, FALSE otherwise.
  *
  */
 
-BOOLEAN _db_keyword_ (
-const char *keyword)
+BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword)
 {
-  REGISTER BOOLEAN result;
-  CODE_STATE *state;
+  get_code_state_or_return FALSE;
 
-  if (!init_done)
-    _db_push_ ("");
-  /* Sasha: pre-my_thread_init() safety */
-  if (!(state=code_state()))
-    return FALSE;
-  result = FALSE;
-  if (DEBUGGING && !state->disable_output &&
-      state->level <= stack -> maxdepth &&
-      InList (stack -> functions, state->func) &&
-      InList (stack -> keywords, keyword) &&
-      InList (stack -> processes, _db_process_))
-    result = TRUE;
-  return (result);
+  return (DEBUGGING &&
+          (!TRACING || cs->level <= cs->stack->maxdepth) &&
+          InList(cs->stack->functions, cs->func) &&
+          InList(cs->stack->keywords, keyword) &&
+          InList(cs->stack->processes, cs->process));
 }
 
 /*
  *  FUNCTION
  *
- *	Indent	  indent a line to the given indentation level
+ *      Indent    indent a line to the given indentation level
  *
  *  SYNOPSIS
  *
- *	static VOID Indent (indent)
- *	int indent;
+ *      static VOID Indent(indent)
+ *      int indent;
  *
  *  DESCRIPTION
  *
- *	Indent a line to the given level.  Note that this is
- *	a simple minded but portable implementation.
- *	There are better ways.
+ *      Indent a line to the given level.  Note that this is
+ *      a simple minded but portable implementation.
+ *      There are better ways.
  *
- *	Also, the indent must be scaled by the compile time option
- *	of character positions per nesting level.
+ *      Also, the indent must be scaled by the compile time option
+ *      of character positions per nesting level.
  *
  */
 
-static void Indent (
-int indent)
+static void Indent(CODE_STATE *cs, int indent)
 {
   REGISTER int count;
 
-  indent= max(indent-1-stack->sub_level,0)*INDENT;
-  for (count = 0; count < indent ; count++)
+  indent= max(indent-1-cs->stack->sub_level,0)*INDENT;
+  for (count= 0; count < indent ; count++)
   {
     if ((count % INDENT) == 0)
-      fputc('|',_db_fp_);
+      fputc('|',cs->stack->out_file);
     else
-      fputc(' ',_db_fp_);
+      fputc(' ',cs->stack->out_file);
   }
 }
 
@@ -1343,32 +1591,29 @@ int indent)
 /*
  *  FUNCTION
  *
- *	FreeList    free all memory associated with a linked list
+ *      FreeList    free all memory associated with a linked list
  *
  *  SYNOPSIS
  *
- *	static VOID FreeList (linkp)
- *	struct link *linkp;
+ *      static VOID FreeList(linkp)
+ *      struct link *linkp;
  *
  *  DESCRIPTION
  *
- *	Given pointer to the head of a linked list, frees all
- *	memory held by the list and the members of the list.
+ *      Given pointer to the head of a linked list, frees all
+ *      memory held by the list and the members of the list.
  *
  */
 
-static void FreeList (
-struct link *linkp)
+static void FreeList(struct link *linkp)
 {
   REGISTER struct link *old;
 
-  while (linkp != NULL) {
-    old = linkp;
-    linkp = linkp -> next_link;
-    if (old -> str != NULL) {
-      free (old -> str);
-    }
-    free ((char *) old);
+  while (linkp != NULL)
+  {
+    old= linkp;
+    linkp= linkp->next_link;
+    free((char *) old);
   }
 }
 
@@ -1376,139 +1621,128 @@ struct link *linkp)
 /*
  *  FUNCTION
  *
- *	StrDup	 make a duplicate of a string in new memory
+ *      DoPrefix    print debugger line prefix prior to indentation
  *
  *  SYNOPSIS
  *
- *	static char *StrDup (my_string)
- *	char *string;
+ *      static VOID DoPrefix(_line_)
+ *      int _line_;
  *
  *  DESCRIPTION
  *
- *	Given pointer to a string, allocates sufficient memory to make
- *	a duplicate copy, and copies the string to the newly allocated
- *	memory.  Failure to allocated sufficient memory is immediately
- *	fatal.
+ *      Print prefix common to all debugger output lines, prior to
+ *      doing indentation if necessary.  Print such information as
+ *      current process name, current source file name and line number,
+ *      and current function nesting depth.
  *
  */
 
-
-static char *StrDup (const char *str)
+static void DoPrefix(CODE_STATE *cs, uint _line_)
 {
-    reg1 char *new_malloc;
-    new_malloc = DbugMalloc((size_t) strlen (str) + 1);
-    (void) strcpy (new_malloc, str);
-    return (new_malloc);
-}
-
-
-/*
- *  FUNCTION
- *
- *	DoPrefix    print debugger line prefix prior to indentation
- *
- *  SYNOPSIS
- *
- *	static VOID DoPrefix (_line_)
- *	int _line_;
- *
- *  DESCRIPTION
- *
- *	Print prefix common to all debugger output lines, prior to
- *	doing indentation if necessary.  Print such information as
- *	current process name, current source file name and line number,
- *	and current function nesting depth.
- *
- */
-
-static void DoPrefix (
-uint _line_)
-{
-  CODE_STATE *state;
-  state=code_state();
-
-  state->lineno++;
-  if (stack -> flags & PID_ON) {
+  cs->lineno++;
+  if (cs->stack->flags & PID_ON)
+  {
 #ifdef THREAD
-    (void) fprintf (_db_fp_, "%-7s: ", my_thread_name());
+    (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
 #else
-    (void) fprintf (_db_fp_, "%5d: ", (int) getpid ());
+    (void) fprintf(cs->stack->out_file, "%5d: ", (int) getpid());
 #endif
   }
-  if (stack -> flags & NUMBER_ON) {
-    (void) fprintf (_db_fp_, "%5d: ", state->lineno);
+  if (cs->stack->flags & NUMBER_ON)
+    (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
+  if (cs->stack->flags & TIMESTAMP_ON)
+  {
+    struct timeval tv;
+    struct tm *tm_p;
+    if (gettimeofday(&tv, NULL) != -1)
+    {
+      if ((tm_p= localtime(&tv.tv_sec)))
+      {
+        (void) fprintf (cs->stack->out_file,
+                        /* "%04d-%02d-%02d " */
+                        "%02d:%02d:%02d.%06d ",
+                        /*tm_p->tm_year + 1900, tm_p->tm_mon + 1, tm_p->tm_mday,*/
+                        tm_p->tm_hour, tm_p->tm_min, tm_p->tm_sec,
+                        (int) (tv.tv_usec));
+      }
+    }
   }
-  if (stack -> flags & PROCESS_ON) {
-    (void) fprintf (_db_fp_, "%s: ", _db_process_);
-  }
-  if (stack -> flags & FILE_ON) {
-    (void) fprintf (_db_fp_, "%14s: ", BaseName(state->file));
-  }
-  if (stack -> flags & LINE_ON) {
-    (void) fprintf (_db_fp_, "%5d: ", _line_);
-  }
-  if (stack -> flags & DEPTH_ON) {
-    (void) fprintf (_db_fp_, "%4d: ", state->level);
-  }
+  if (cs->stack->flags & PROCESS_ON)
+    (void) fprintf(cs->stack->out_file, "%s: ", cs->process);
+  if (cs->stack->flags & FILE_ON)
+    (void) fprintf(cs->stack->out_file, "%14s: ", BaseName(cs->file));
+  if (cs->stack->flags & LINE_ON)
+    (void) fprintf(cs->stack->out_file, "%5d: ", _line_);
+  if (cs->stack->flags & DEPTH_ON)
+    (void) fprintf(cs->stack->out_file, "%4d: ", cs->level);
 }
 
 
 /*
  *  FUNCTION
  *
- *	DBUGOpenFile	open new output stream for debugger output
+ *      DBUGOpenFile    open new output stream for debugger output
  *
  *  SYNOPSIS
  *
- *	static VOID DBUGOpenFile (name)
- *	char *name;
+ *      static VOID DBUGOpenFile(name)
+ *      char *name;
  *
  *  DESCRIPTION
  *
- *	Given name of a new file (or "-" for stdout) opens the file
- *	and sets the output stream to the new file.
+ *      Given name of a new file (or "-" for stdout) opens the file
+ *      and sets the output stream to the new file.
  *
  */
 
-static void DBUGOpenFile (const char *name,int append)
+static void DBUGOpenFile(CODE_STATE *cs,
+                         const char *name,const char *end,int append)
 {
   REGISTER FILE *fp;
   REGISTER BOOLEAN newfile;
 
   if (name != NULL)
   {
-    strmov(stack->name,name);
-    if (strcmp (name, "-") == 0)
+    if (end)
     {
-      _db_fp_ = stdout;
-      stack -> out_file = _db_fp_;
-      stack -> flags |= FLUSH_ON_WRITE;
+      int len=end-name;
+      memcpy(cs->stack->name, name, len);
+      cs->stack->name[len]=0;
+    }
+    else
+    strmov(cs->stack->name,name);
+    name=cs->stack->name;
+    if (strcmp(name, "-") == 0)
+    {
+      cs->stack->out_file= stdout;
+      cs->stack->flags |= FLUSH_ON_WRITE;
+      cs->stack->name[0]=0;
     }
     else
     {
       if (!Writable((char*)name))
       {
-	(void) fprintf (stderr, ERR_OPEN, _db_process_, name);
-	perror ("");
-	fflush(stderr);
+        (void) fprintf(stderr, ERR_OPEN, cs->process, name);
+        perror("");
+        fflush(stderr);
       }
       else
       {
-	newfile= !EXISTS (name);
-	if (!(fp = fopen(name, append ? "a+" : "w")))
-	{
-	  (void) fprintf (stderr, ERR_OPEN, _db_process_, name);
-	  perror ("");
-	  fflush(stderr);
-	}
-	else
-	{
-	  _db_fp_ = fp;
-	  stack -> out_file = fp;
-	  if (newfile) {
-	    ChangeOwner (name);
-	  }
-	}
+        newfile= !EXISTS(name);
+        if (!(fp= fopen(name, append ? "a+" : "w")))
+        {
+          (void) fprintf(stderr, ERR_OPEN, cs->process, name);
+          perror("");
+          fflush(stderr);
+        }
+        else
+        {
+          cs->stack->out_file= fp;
+          if (newfile)
+          {
+            ChangeOwner(cs, name);
+          }
+        }
       }
     }
   }
@@ -1518,59 +1752,58 @@ static void DBUGOpenFile (const char *name,int append)
 /*
  *  FUNCTION
  *
- *	OpenProfile    open new output stream for profiler output
+ *      OpenProfile    open new output stream for profiler output
  *
  *  SYNOPSIS
  *
- *	static FILE *OpenProfile (name)
- *	char *name;
+ *      static FILE *OpenProfile(name)
+ *      char *name;
  *
  *  DESCRIPTION
  *
- *	Given name of a new file, opens the file
- *	and sets the profiler output stream to the new file.
+ *      Given name of a new file, opens the file
+ *      and sets the profiler output stream to the new file.
  *
- *	It is currently unclear whether the prefered behavior is
- *	to truncate any existing file, or simply append to it.
- *	The latter behavior would be desirable for collecting
- *	accumulated runtime history over a number of separate
- *	runs.  It might take some changes to the analyzer program
- *	though, and the notes that Binayak sent with the profiling
- *	diffs indicated that append was the normal mode, but this
- *	does not appear to agree with the actual code. I haven't
- *	investigated at this time [fnf; 24-Jul-87].
+ *      It is currently unclear whether the prefered behavior is
+ *      to truncate any existing file, or simply append to it.
+ *      The latter behavior would be desirable for collecting
+ *      accumulated runtime history over a number of separate
+ *      runs.  It might take some changes to the analyzer program
+ *      though, and the notes that Binayak sent with the profiling
+ *      diffs indicated that append was the normal mode, but this
+ *      does not appear to agree with the actual code. I haven't
+ *      investigated at this time [fnf; 24-Jul-87].
  */
 
 #ifndef THREAD
-static FILE *OpenProfile (const char *name)
+static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 {
   REGISTER FILE *fp;
   REGISTER BOOLEAN newfile;
 
   fp=0;
-  if (!Writable (name))
+  if (!Writable(name))
   {
-    (void) fprintf (_db_fp_, ERR_OPEN, _db_process_, name);
-    perror ("");
+    (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
+    perror("");
     dbug_flush(0);
-    (void) Delay (stack -> delay);
+    (void) Delay(cs->stack->delay);
   }
   else
   {
-    newfile= !EXISTS (name);
-    if (!(fp = fopen (name, "w")))
+    newfile= !EXISTS(name);
+    if (!(fp= fopen(name, "w")))
     {
-      (void) fprintf (_db_fp_, ERR_OPEN, _db_process_, name);
-      perror ("");
+      (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
+      perror("");
       dbug_flush(0);
     }
     else
     {
-      _db_pfp_ = fp;
-      stack -> prof_file = fp;
+      cs->stack->prof_file= fp;
       if (newfile)
       {
-	ChangeOwner (name);
+        ChangeOwner(cs, name);
       }
     }
   }
@@ -1581,30 +1814,28 @@ static FILE *OpenProfile (const char *name)
 /*
  *  FUNCTION
  *
- *	CloseFile    close the debug output stream
+ *      DBUGCloseFile    close the debug output stream
  *
  *  SYNOPSIS
  *
- *	static VOID CloseFile (fp)
- *	FILE *fp;
+ *      static VOID DBUGCloseFile(fp)
+ *      FILE *fp;
  *
  *  DESCRIPTION
  *
- *	Closes the debug output stream unless it is standard output
- *	or standard error.
+ *      Closes the debug output stream unless it is standard output
+ *      or standard error.
  *
  */
 
-static void CloseFile (
-FILE *fp)
+static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp != stderr && fp != stdout) {
-    if (fclose (fp) == EOF) {
-      pthread_mutex_lock(&THR_LOCK_dbug);
-      (void) fprintf (_db_fp_, ERR_CLOSE, _db_process_);
-      perror ("");
-      dbug_flush(0);
-    }
+  if (fp != stderr && fp != stdout && fclose(fp) == EOF)
+  {
+    pthread_mutex_lock(&THR_LOCK_dbug);
+    (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
+    perror("");
+    dbug_flush(0);
   }
 }
 
@@ -1612,176 +1843,153 @@ FILE *fp)
 /*
  *  FUNCTION
  *
- *	DbugExit    print error message and exit
+ *      DbugExit    print error message and exit
  *
  *  SYNOPSIS
  *
- *	static VOID DbugExit (why)
- *	char *why;
+ *      static VOID DbugExit(why)
+ *      char *why;
  *
  *  DESCRIPTION
  *
- *	Prints error message using current process name, the reason for
- *	aborting (typically out of memory), and exits with status 1.
- *	This should probably be changed to use a status code
- *	defined in the user's debugger include file.
+ *      Prints error message using current process name, the reason for
+ *      aborting (typically out of memory), and exits with status 1.
+ *      This should probably be changed to use a status code
+ *      defined in the user's debugger include file.
  *
  */
 
-static void DbugExit (const char *why)
+static void DbugExit(const char *why)
 {
-  (void) fprintf (stderr, ERR_ABORT, _db_process_, why);
-  (void) fflush (stderr);
-  exit (1);
+  CODE_STATE *cs=code_state();
+  (void) fprintf(stderr, ERR_ABORT, cs ? cs->process : "(null)", why);
+  (void) fflush(stderr);
+  exit(1);
 }
 
 
 /*
  *  FUNCTION
  *
- *	DbugMalloc    allocate memory for debugger runtime support
+ *      DbugMalloc    allocate memory for debugger runtime support
  *
  *  SYNOPSIS
  *
- *	static long *DbugMalloc (size)
- *	int size;
+ *      static long *DbugMalloc(size)
+ *      int size;
  *
  *  DESCRIPTION
  *
- *	Allocate more memory for debugger runtime support functions.
- *	Failure to to allocate the requested number of bytes is
- *	immediately fatal to the current process.  This may be
- *	rather unfriendly behavior.  It might be better to simply
- *	print a warning message, freeze the current debugger state,
- *	and continue execution.
+ *      Allocate more memory for debugger runtime support functions.
+ *      Failure to to allocate the requested number of bytes is
+ *      immediately fatal to the current process.  This may be
+ *      rather unfriendly behavior.  It might be better to simply
+ *      print a warning message, freeze the current debugger cs,
+ *      and continue execution.
  *
  */
 
-static char *DbugMalloc (size_t size)
+static char *DbugMalloc(size_t size)
 {
   register char *new_malloc;
 
-  if (!(new_malloc = (char*) malloc((size_t) size)))
-    DbugExit ("out of memory");
-  return (new_malloc);
+  if (!(new_malloc= (char*) malloc((size_t) size)))
+    DbugExit("out of memory");
+  return new_malloc;
 }
 
 
 /*
- *		As strtok but two separators in a row are changed to one
- *		separator (to allow directory-paths in dos).
+ *     strtok lookalike - splits on ':', magically handles :\ and :/
  */
 
-static char *static_strtok (char *s1, pchar separator)
+static const char *DbugStrTok(const char *s)
 {
-  static char *end = NULL;
-  reg1 char *rtnval,*cpy;
-
-  rtnval = NULL;
-  if (s1 != NULL)
-    end = s1;
-  if (end != NULL && *end != EOS)
-  {
-    rtnval=cpy=end;
-    do
-    {
-      if ((*cpy++ = *end++) == separator)
-      {
-	if (*end != separator)
-	{
-	  cpy--;		/* Point at separator */
-	  break;
-	}
-	end++;			/* Two separators in a row, skip one */
-      }
-    } while (*end != EOS);
-    *cpy=EOS;			/* Replace last separator */
-  }
-  return (rtnval);
+  while (s[0] && (s[0] != ':' || (s[1] == '\\' || s[1] == '/')))
+    s++;
+  return s;
 }
 
 
 /*
  *  FUNCTION
  *
- *	BaseName    strip leading pathname components from name
+ *      BaseName    strip leading pathname components from name
  *
  *  SYNOPSIS
  *
- *	static char *BaseName (pathname)
- *	char *pathname;
+ *      static char *BaseName(pathname)
+ *      char *pathname;
  *
  *  DESCRIPTION
  *
- *	Given pointer to a complete pathname, locates the base file
- *	name at the end of the pathname and returns a pointer to
- *	it.
+ *      Given pointer to a complete pathname, locates the base file
+ *      name at the end of the pathname and returns a pointer to
+ *      it.
  *
  */
 
-static char *BaseName (const char *pathname)
+static const char *BaseName(const char *pathname)
 {
   register const char *base;
 
-  base = strrchr (pathname, FN_LIBCHAR);
+  base= strrchr(pathname, FN_LIBCHAR);
   if (base++ == NullS)
-    base = pathname;
-  return ((char*) base);
+    base= pathname;
+  return base;
 }
 
 
 /*
  *  FUNCTION
  *
- *	Writable    test to see if a pathname is writable/creatable
+ *      Writable    test to see if a pathname is writable/creatable
  *
  *  SYNOPSIS
  *
- *	static BOOLEAN Writable (pathname)
- *	char *pathname;
+ *      static BOOLEAN Writable(pathname)
+ *      char *pathname;
  *
  *  DESCRIPTION
  *
- *	Because the debugger might be linked in with a program that
- *	runs with the set-uid-bit (suid) set, we have to be careful
- *	about opening a user named file for debug output.  This consists
- *	of checking the file for write access with the real user id,
- *	or checking the directory where the file will be created.
+ *      Because the debugger might be linked in with a program that
+ *      runs with the set-uid-bit (suid) set, we have to be careful
+ *      about opening a user named file for debug output.  This consists
+ *      of checking the file for write access with the real user id,
+ *      or checking the directory where the file will be created.
  *
- *	Returns TRUE if the user would normally be allowed write or
- *	create access to the named file.  Returns FALSE otherwise.
+ *      Returns TRUE if the user would normally be allowed write or
+ *      create access to the named file.  Returns FALSE otherwise.
  *
  */
 
 
 #ifndef Writable
 
-static BOOLEAN Writable (
-char *pathname)
+static BOOLEAN Writable(char *pathname)
 {
   REGISTER BOOLEAN granted;
   REGISTER char *lastslash;
 
-  granted = FALSE;
-  if (EXISTS (pathname)) {
-    if (WRITABLE (pathname)) {
-      granted = TRUE;
-    }
-  } else {
-    lastslash = strrchr (pathname, '/');
-    if (lastslash != NULL) {
-      *lastslash = EOS;
-    } else {
-      pathname = ".";
-    }
-    if (WRITABLE (pathname)) {
-      granted = TRUE;
-    }
-    if (lastslash != NULL) {
-      *lastslash = '/';
-    }
+  granted= FALSE;
+  if (EXISTS(pathname))
+  {
+    if (WRITABLE(pathname))
+      granted= TRUE;
   }
-  return (granted);
+  else
+  {
+    lastslash= strrchr(pathname, '/');
+    if (lastslash != NULL)
+      *lastslash= '\0';
+    else
+      pathname= ".";
+    if (WRITABLE(pathname))
+      granted= TRUE;
+    if (lastslash != NULL)
+      *lastslash= '/';
+  }
+  return granted;
 }
 #endif
 
@@ -1789,35 +1997,34 @@ char *pathname)
 /*
  *  FUNCTION
  *
- *	ChangeOwner    change owner to real user for suid programs
+ *      ChangeOwner    change owner to real user for suid programs
  *
  *  SYNOPSIS
  *
- *	static VOID ChangeOwner (pathname)
+ *      static VOID ChangeOwner(pathname)
  *
  *  DESCRIPTION
  *
- *	For unix systems, change the owner of the newly created debug
- *	file to the real owner.  This is strictly for the benefit of
- *	programs that are running with the set-user-id bit set.
+ *      For unix systems, change the owner of the newly created debug
+ *      file to the real owner.  This is strictly for the benefit of
+ *      programs that are running with the set-user-id bit set.
  *
- *	Note that at this point, the fact that pathname represents
- *	a newly created file has already been established.  If the
- *	program that the debugger is linked to is not running with
- *	the suid bit set, then this operation is redundant (but
- *	harmless).
+ *      Note that at this point, the fact that pathname represents
+ *      a newly created file has already been established.  If the
+ *      program that the debugger is linked to is not running with
+ *      the suid bit set, then this operation is redundant (but
+ *      harmless).
  *
  */
 
 #ifndef ChangeOwner
-static void ChangeOwner (
-char *pathname)
+static void ChangeOwner(CODE_STATE *cs, char *pathname)
 {
-  if (chown (pathname, getuid (), getgid ()) == -1)
+  if (chown(pathname, getuid(), getgid()) == -1)
   {
-    (void) fprintf (stderr, ERR_CHOWN, _db_process_, pathname);
-    perror ("");
-    (void) fflush (stderr);
+    (void) fprintf(stderr, ERR_CHOWN, cs->process, pathname);
+    perror("");
+    (void) fflush(stderr);
   }
 }
 #endif
@@ -1826,205 +2033,144 @@ char *pathname)
 /*
  *  FUNCTION
  *
- *	_db_setjmp_    save debugger environment
+ *      _db_setjmp_    save debugger environment
  *
  *  SYNOPSIS
  *
- *	VOID _db_setjmp_ ()
+ *      VOID _db_setjmp_()
  *
  *  DESCRIPTION
  *
- *	Invoked as part of the user's DBUG_SETJMP macro to save
- *	the debugger environment in parallel with saving the user's
- *	environment.
+ *      Invoked as part of the user's DBUG_SETJMP macro to save
+ *      the debugger environment in parallel with saving the user's
+ *      environment.
  *
  */
 
 #ifdef HAVE_LONGJMP
 
-EXPORT void _db_setjmp_ ()
+EXPORT void _db_setjmp_()
 {
-  CODE_STATE *state;
-  state=code_state();
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
 
-  state->jmplevel = state->level;
-  state->jmpfunc = state->func;
-  state->jmpfile = state->file;
+  cs->jmplevel= cs->level;
+  cs->jmpfunc= cs->func;
+  cs->jmpfile= cs->file;
 }
 
 /*
  *  FUNCTION
  *
- *	_db_longjmp_	restore previously saved debugger environment
+ *      _db_longjmp_    restore previously saved debugger environment
  *
  *  SYNOPSIS
  *
- *	VOID _db_longjmp_ ()
+ *      VOID _db_longjmp_()
  *
  *  DESCRIPTION
  *
- *	Invoked as part of the user's DBUG_LONGJMP macro to restore
- *	the debugger environment in parallel with restoring the user's
- *	previously saved environment.
+ *      Invoked as part of the user's DBUG_LONGJMP macro to restore
+ *      the debugger environment in parallel with restoring the user's
+ *      previously saved environment.
  *
  */
 
-EXPORT void _db_longjmp_ ()
+EXPORT void _db_longjmp_()
 {
-  CODE_STATE *state;
-  state=code_state();
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
 
-  state->level = state->jmplevel;
-  if (state->jmpfunc) {
-    state->func = state->jmpfunc;
-  }
-  if (state->jmpfile) {
-    state->file = state->jmpfile;
-  }
+  cs->level= cs->jmplevel;
+  if (cs->jmpfunc)
+    cs->func= cs->jmpfunc;
+  if (cs->jmpfile)
+    cs->file= cs->jmpfile;
 }
 #endif
 
 /*
  *  FUNCTION
  *
- *	DelayArg   convert D flag argument to appropriate value
+ *      perror    perror simulation for systems that don't have it
  *
  *  SYNOPSIS
  *
- *	static int DelayArg (value)
- *	int value;
+ *      static VOID perror(s)
+ *      char *s;
  *
  *  DESCRIPTION
  *
- *	Converts delay argument, given in tenths of a second, to the
- *	appropriate numerical argument used by the system to delay
- *	that that many tenths of a second.  For example, on the
- *	amiga, there is a system call "Delay()" which takes an
- *	argument in ticks (50 per second).  On unix, the sleep
- *	command takes seconds.	Thus a value of "10", for one
- *	second of delay, gets converted to 50 on the amiga, and 1
- *	on unix.  Other systems will need to use a timing loop.
+ *      Perror produces a message on the standard error stream which
+ *      provides more information about the library or system error
+ *      just encountered.  The argument string s is printed, followed
+ *      by a ':', a blank, and then a message and a newline.
  *
- */
-
-#ifdef AMIGA
-#define HZ (50)			      /* Probably in some header somewhere */
-#endif
-
-static int DelayArg (
-int value)
-{
-  uint delayarg = 0;
-
-#if (unix || xenix)
-  delayarg = value / 10;	/* Delay is in seconds for sleep () */
-#endif
-#ifdef AMIGA
-  delayarg = (HZ * value) / 10; /* Delay in ticks for Delay () */
-#endif
-  return (delayarg);
-}
-
-
-/*
- *	A dummy delay stub for systems that do not support delays.
- *	With a little work, this can be turned into a timing loop.
- */
-
-#if ! defined(Delay) && ! defined(AMIGA)
-static int Delay (
-int ticks)
-{
-  return ticks;
-}
-#endif
-
-
-/*
- *  FUNCTION
+ *      An undocumented feature of the unix perror is that if the string
+ *      's' is a null string (NOT a NULL pointer!), then the ':' and
+ *      blank are not printed.
  *
- *	perror	  perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *	static VOID perror (s)
- *	char *s;
- *
- *  DESCRIPTION
- *
- *	Perror produces a message on the standard error stream which
- *	provides more information about the library or system error
- *	just encountered.  The argument string s is printed, followed
- *	by a ':', a blank, and then a message and a newline.
- *
- *	An undocumented feature of the unix perror is that if the string
- *	's' is a null string (NOT a NULL pointer!), then the ':' and
- *	blank are not printed.
- *
- *	This version just complains about an "unknown system error".
+ *      This version just complains about an "unknown system error".
  *
  */
 
 #ifndef HAVE_PERROR
-static void perror (s)
+static void perror(s)
 char *s;
 {
-  if (s && *s != EOS) {
-    (void) fprintf (stderr, "%s: ", s);
-  }
-  (void) fprintf (stderr, "<unknown system error>\n");
+  if (s && *s != '\0')
+    (void) fprintf(stderr, "%s: ", s);
+  (void) fprintf(stderr, "<unknown system error>\n");
 }
 #endif /* HAVE_PERROR */
 
 
-	/* flush dbug-stream, free mutex lock & wait delay */
-	/* This is because some systems (MSDOS!!) dosn't flush fileheader */
-	/* and dbug-file isn't readable after a system crash !! */
+        /* flush dbug-stream, free mutex lock & wait delay */
+        /* This is because some systems (MSDOS!!) dosn't flush fileheader */
+        /* and dbug-file isn't readable after a system crash !! */
 
-static void dbug_flush(CODE_STATE *state)
+static void dbug_flush(CODE_STATE *cs)
 {
 #ifndef THREAD
-  if (stack->flags & FLUSH_ON_WRITE)
+  if (cs->stack->flags & FLUSH_ON_WRITE)
 #endif
   {
 #if defined(MSDOS) || defined(__WIN__)
-    if (_db_fp_ != stdout && _db_fp_ != stderr)
+    if (cs->stack->out_file != stdout && cs->stack->out_file != stderr)
     {
-      if (!(freopen(stack->name,"a",_db_fp_)))
+      if (!(freopen(cs->stack->name,"a",cs->stack->out_file)))
       {
-	(void) fprintf(stderr, ERR_OPEN, _db_process_, stack->name);
-	fflush(stderr);
-	_db_fp_ = stdout;
-	stack -> out_file = _db_fp_;
-	stack -> flags|=FLUSH_ON_WRITE;
+        (void) fprintf(stderr, ERR_OPEN, cs->process, cs->stack->name);
+        fflush(stderr);
+        cs->stack->out_file= stderr;
       }
     }
     else
 #endif
     {
-      (void) fflush (_db_fp_);
-      if (stack->delay)
-	(void) Delay (stack->delay);
+      (void) fflush(cs->stack->out_file);
+      if (cs->stack->delay)
+        (void) Delay(cs->stack->delay);
     }
   }
-  if (!state || !state->locked)
+  if (!cs->locked)
     pthread_mutex_unlock(&THR_LOCK_dbug);
 } /* dbug_flush */
 
 
-void _db_lock_file()
+void _db_lock_file_()
 {
-  CODE_STATE *state;
-  state=code_state();
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
   pthread_mutex_lock(&THR_LOCK_dbug);
-  state->locked=1;
+  cs->locked=1;
 }
 
-void _db_unlock_file()
+void _db_unlock_file_()
 {
-  CODE_STATE *state;
-  state=code_state();
-  state->locked=0;
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+  cs->locked=0;
   pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
@@ -2046,12 +2192,12 @@ void _db_unlock_file()
  * far.
  */
 
-static unsigned long Clock ()
+static unsigned long Clock()
 {
     struct rusage ru;
 
-    (void) getrusage (RUSAGE_SELF, &ru);
-    return ((ru.ru_utime.tv_sec * 1000) + (ru.ru_utime.tv_usec / 1000));
+    (void) getrusage(RUSAGE_SELF, &ru);
+    return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
 }
 
 #elif defined(MSDOS) || defined(__WIN__) || defined(OS2)
@@ -2060,43 +2206,45 @@ static ulong Clock()
 {
   return clock()*(1000/CLOCKS_PER_SEC);
 }
-#elif defined (amiga)
+#elif defined(amiga)
 
-struct DateStamp {		/* Yes, this is a hack, but doing it right */
-	long ds_Days;		/* is incredibly ugly without splitting this */
-	long ds_Minute;		/* off into a separate file */
-	long ds_Tick;
+struct DateStamp {              /* Yes, this is a hack, but doing it right */
+        long ds_Days;           /* is incredibly ugly without splitting this */
+        long ds_Minute;         /* off into a separate file */
+        long ds_Tick;
 };
 
-static int first_clock = TRUE;
+static int first_clock= TRUE;
 static struct DateStamp begin;
 static struct DateStamp elapsed;
 
-static unsigned long Clock ()
+static unsigned long Clock()
 {
     register struct DateStamp *now;
-    register unsigned long millisec = 0;
-    extern VOID *AllocMem ();
+    register unsigned long millisec= 0;
+    extern VOID *AllocMem();
 
-    now = (struct DateStamp *) AllocMem ((long) sizeof (struct DateStamp), 0L);
-    if (now != NULL) {
-	if (first_clock == TRUE) {
-	    first_clock = FALSE;
-	    (void) DateStamp (now);
-	    begin = *now;
-	}
-	(void) DateStamp (now);
-	millisec = 24 * 3600 * (1000 / HZ) * (now -> ds_Days - begin.ds_Days);
-	millisec += 60 * (1000 / HZ) * (now -> ds_Minute - begin.ds_Minute);
-	millisec += (1000 / HZ) * (now -> ds_Tick - begin.ds_Tick);
-	(void) FreeMem (now, (long) sizeof (struct DateStamp));
+    now= (struct DateStamp *) AllocMem((long) sizeof(struct DateStamp), 0L);
+    if (now != NULL)
+    {
+        if (first_clock == TRUE)
+        {
+            first_clock= FALSE;
+            (void) DateStamp(now);
+            begin= *now;
+        }
+        (void) DateStamp(now);
+        millisec= 24 * 3600 * (1000 / HZ) * (now->ds_Days - begin.ds_Days);
+        millisec += 60 * (1000 / HZ) * (now->ds_Minute - begin.ds_Minute);
+        millisec += (1000 / HZ) * (now->ds_Tick - begin.ds_Tick);
+        (void) FreeMem(now, (long) sizeof(struct DateStamp));
     }
-    return (millisec);
+    return millisec;
 }
 #else
-static unsigned long Clock ()
+static unsigned long Clock()
 {
-    return (0);
+    return 0;
 }
 #endif /* RUSAGE */
 #endif /* THREADS */
@@ -2104,11 +2252,11 @@ static unsigned long Clock ()
 #ifdef NO_VARARGS
 
 /*
- *	Fake vfprintf for systems that don't support it.  If this
- *	doesn't work, you are probably SOL...
+ *      Fake vfprintf for systems that don't support it.  If this
+ *      doesn't work, you are probably SOL...
  */
 
-static int vfprintf (stream, format, ap)
+static int vfprintf(stream, format, ap)
 FILE *stream;
 char *format;
 va_list ap;
@@ -2116,18 +2264,18 @@ va_list ap;
     int rtnval;
     ARGS_DCL;
 
-    ARG0 =  va_arg (ap, ARGS_TYPE);
-    ARG1 =  va_arg (ap, ARGS_TYPE);
-    ARG2 =  va_arg (ap, ARGS_TYPE);
-    ARG3 =  va_arg (ap, ARGS_TYPE);
-    ARG4 =  va_arg (ap, ARGS_TYPE);
-    ARG5 =  va_arg (ap, ARGS_TYPE);
-    ARG6 =  va_arg (ap, ARGS_TYPE);
-    ARG7 =  va_arg (ap, ARGS_TYPE);
-    ARG8 =  va_arg (ap, ARGS_TYPE);
-    ARG9 =  va_arg (ap, ARGS_TYPE);
-    rtnval = fprintf (stream, format, ARGS_LIST);
-    return (rtnval);
+    ARG0=  va_arg(ap, ARGS_TYPE);
+    ARG1=  va_arg(ap, ARGS_TYPE);
+    ARG2=  va_arg(ap, ARGS_TYPE);
+    ARG3=  va_arg(ap, ARGS_TYPE);
+    ARG4=  va_arg(ap, ARGS_TYPE);
+    ARG5=  va_arg(ap, ARGS_TYPE);
+    ARG6=  va_arg(ap, ARGS_TYPE);
+    ARG7=  va_arg(ap, ARGS_TYPE);
+    ARG8=  va_arg(ap, ARGS_TYPE);
+    ARG9=  va_arg(ap, ARGS_TYPE);
+    rtnval= fprintf(stream, format, ARGS_LIST);
+    return rtnval;
 }
 
-#endif	/* NO_VARARGS */
+#endif  /* NO_VARARGS */
