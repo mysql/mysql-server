@@ -36,6 +36,9 @@ delimiter ;|
 CALL test.p1();
 SELECT * FROM test.t1 ORDER BY blob_column;
 save_master_pos;
+# Need to allow some time when NDB engine is used for
+# the injector thread to have time to populate binlog
+sleep 10;
 sync_slave_with_master;
 connection slave;
 SELECT * FROM test.t1 ORDER BY blob_column;
