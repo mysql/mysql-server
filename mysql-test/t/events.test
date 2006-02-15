@@ -356,6 +356,17 @@ select release_lock("test_lock2_1");
 show processlist;
 drop event закачка21;
 
+####
+# Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
+#
+create table t_16 (s1 int);
+--error 1422
+create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
+drop table t_16;
+#
+# end of test case
+####
+
 ##set global event_scheduler=1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
