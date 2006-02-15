@@ -1093,6 +1093,7 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
   change_security_context(thd, &save_ctx);
+
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
   if (mysql_change_db(thd, dbname.str, 0))
@@ -1108,6 +1109,7 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
     ret= -99;
   }
   restore_security_context(thd, save_ctx);
+
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
 
@@ -1145,6 +1147,7 @@ event_timed::change_security_context(THD *thd, Security_context **backup)
 {
   DBUG_ENTER("event_timed::change_security_context");
   DBUG_PRINT("info",("%s@%s@%s",definer_user.str,definer_host.str, dbname.str));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   *backup= 0;
   if (acl_getroot_no_password(&sphead->m_security_ctx, definer_user.str,
                               definer_host.str, definer_host.str, dbname.str))
@@ -1154,7 +1157,7 @@ event_timed::change_security_context(THD *thd, Security_context **backup)
   }
   *backup= thd->security_ctx;
   thd->security_ctx= &sphead->m_security_ctx;
-
+#endif
   DBUG_RETURN(FALSE);
 }
 
@@ -1171,8 +1174,10 @@ void
 event_timed::restore_security_context(THD *thd, Security_context *backup)
 {
   DBUG_ENTER("event_timed::change_security_context");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (backup)
     thd->security_ctx= backup;
+#endif
   DBUG_VOID_RETURN;
 }
 

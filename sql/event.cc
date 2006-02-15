@@ -1239,7 +1239,7 @@ int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 {
   TABLE *table;
   Open_tables_state backup;
-  uint ret;
+  int ret;
 
   DBUG_ENTER("db_drop_event");
   ret= EVEX_OPEN_TABLE_FAILED;

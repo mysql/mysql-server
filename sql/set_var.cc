@@ -3488,7 +3488,7 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
   else
     DBUG_EXPLAIN(buf, sizeof(buf));
-  (byte*) thd->strdup(buf);
+  return (byte*) thd->strdup(buf);
 }
 
 /****************************************************************************
