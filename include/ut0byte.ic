@@ -368,8 +368,9 @@ ut_bit_get_nth(
 	ulint	n)	/* in: nth bit requested */
 {
 	ut_ad(n < 8 * sizeof(ulint));
-	ut_ad(TRUE == 1);
-
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	return(1 & (a >> n));
 }
 
@@ -385,8 +386,9 @@ ut_bit_set_nth(
 	ibool	val)	/* in: value for the bit to set */
 {
 	ut_ad(n < 8 * sizeof(ulint));
-	ut_ad(TRUE == 1);
-
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	if (val) {
 		return((1 << n) | a);
 	} else {

@@ -1093,7 +1093,6 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP)
 		     || sync_thread_levels_g(array, SYNC_FSP));
 	} else if (level == SYNC_EXTERN_STORAGE) {
-		ut_a(TRUE);
 	} else if (level == SYNC_TRX_UNDO_PAGE) {
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
@@ -1116,7 +1115,6 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 	} else if (level == SYNC_TREE_NODE_FROM_HASH) {
-		ut_a(1);
 	} else if (level == SYNC_TREE_NODE_NEW) {
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
 		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));

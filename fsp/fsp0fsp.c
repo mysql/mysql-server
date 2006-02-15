@@ -610,8 +610,10 @@ xdes_calc_descriptor_page(
 				/* out: descriptor page offset */
 	ulint	offset)		/* in: page offset */
 {
-	ut_ad(UNIV_PAGE_SIZE > XDES_ARR_OFFSET
-		+ (XDES_DESCRIBED_PER_PAGE / FSP_EXTENT_SIZE) * XDES_SIZE);
+#if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
+		+ (XDES_DESCRIBED_PER_PAGE / FSP_EXTENT_SIZE) * XDES_SIZE
+# error
+#endif
 
 	return(ut_2pow_round(offset, XDES_DESCRIBED_PER_PAGE));
 }
@@ -1279,7 +1281,9 @@ fsp_fill_free_list(
 									mtr);
 		xdes_init(descr, mtr);
 
-		ut_ad(XDES_DESCRIBED_PER_PAGE % FSP_EXTENT_SIZE == 0);
+#if XDES_DESCRIBED_PER_PAGE % FSP_EXTENT_SIZE
+# error "XDES_DESCRIBED_PER_PAGE % FSP_EXTENT_SIZE != 0"
+#endif
 
 		if (0 == i % XDES_DESCRIBED_PER_PAGE) {
 

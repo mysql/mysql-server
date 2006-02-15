@@ -20,7 +20,9 @@ trx_undo_build_roll_ptr(
 	ulint	page_no,	/* in: page number */
 	ulint	offset)		/* in: offset of the undo entry within page */
 {
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
 	ut_ad(rseg_id < 128);
 
 	return(ut_dulint_create(is_insert * 128 * 256 * 256
@@ -44,10 +46,12 @@ trx_undo_decode_roll_ptr(
 {
 	ulint	low;
 	ulint	high;
-
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	ut_ad(TRUE == 1);
-	
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	high = ut_dulint_get_high(roll_ptr);
 	low = ut_dulint_get_low(roll_ptr);
 	
@@ -70,10 +74,12 @@ trx_undo_roll_ptr_is_insert(
 	dulint	roll_ptr)	/* in: roll pointer */
 {
 	ulint	high;
-
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	ut_ad(TRUE == 1);
-
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 	high = ut_dulint_get_high(roll_ptr);
 	
 	return(high / (256 * 256 * 128));
@@ -106,8 +112,9 @@ trx_read_roll_ptr(
 			/* out: roll ptr */
 	byte*	ptr)	/* in: pointer to memory from where to read */
 {
-	ut_ad(DATA_ROLL_PTR_LEN == 7);
-	
+#if DATA_ROLL_PTR_LEN != 7
+# error "DATA_ROLL_PTR_LEN != 7"
+#endif
 	return(mach_read_from_7(ptr));
 }
 
