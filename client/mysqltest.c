@@ -2517,9 +2517,15 @@ int read_line(char *buf, int size)
       continue;
     }
 
-    /* Line counting is independent of state */
     if (c == '\n')
+    {
+      /* Line counting is independent of state */
       cur_file->lineno++;
+
+      /* Convert cr/lf to lf */
+      if (p != buf && *(p-1) == '\r')
+        *(p-1)= 0;
+    }
 
     switch(state) {
     case R_NORMAL:
