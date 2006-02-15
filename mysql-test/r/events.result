@@ -129,10 +129,10 @@ SHOW CREATE EVENT root20;
 Event	sql_mode	Create Event
 root20		CREATE EVENT `events_test`.`root20` ON SCHEDULE EVERY '50 20:12:45' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE DO select 1
 set names cp1251;
-create event Г°ГіГіГІ21 on schedule every '50:23:59:95' day_second COMMENT 'ГІГ®ГўГ  ГҐ 1251 ГЄГ®Г¬ГҐГ­ГІГ Г°' do select 1;
-SHOW CREATE EVENT Г°ГіГіГІ21;
+create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
+SHOW CREATE EVENT руут21;
 Event	sql_mode	Create Event
-Г°ГіГіГІ21		CREATE EVENT `events_test`.`Г°ГіГіГІ21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'ГІГ®ГўГ  ГҐ 1251 ГЄГ®Г¬ГҐГ­ГІГ Г°' DO select 1
+руут21		CREATE EVENT `events_test`.`руут21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND ON COMPLETION NOT PRESERVE ENABLE COMMENT 'това е 1251 коментар' DO select 1
 insert into mysql.event (db, name, body, definer, interval_value, interval_field) values (database(), "root22", "select 1", user(), 100, "SECOND_MICROSECOND");
 show create event root22;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
@@ -157,7 +157,7 @@ drop event root17_1;
 drop event root18;
 drop event root19;
 drop event root20;
-drop event Г°ГіГіГІ21;
+drop event руут21;
 set names latin1;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
@@ -354,8 +354,8 @@ create event Р·Р°РєР°С‡РєР° on schedule every 10 hour do select get_lock("test_l
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
+#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 release_lock("test_lock2")
@@ -373,8 +373,8 @@ set global event_scheduler=0;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
+#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
