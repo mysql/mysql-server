@@ -1049,7 +1049,10 @@ void stmt_fetch_close(Stmt_fetch *fetch)
   reading from the rest.
 */
 
-my_bool fetch_n(const char **query_list, unsigned query_count)
+enum fetch_type { USE_ROW_BY_ROW_FETCH= 0, USE_STORE_RESULT= 1 };
+
+my_bool fetch_n(const char **query_list, unsigned query_count,
+                enum fetch_type fetch_type)
 {
   unsigned open_statements= query_count;
   int rc, error_count= 0;
@@ -1063,6 +1066,15 @@ my_bool fetch_n(const char **query_list, unsigned query_count)
     /* Init will exit(1) in case of error */
     stmt_fetch_init(fetch, fetch - fetch_array,
                     query_list[fetch - fetch_array]);
+  }
+
+  if (fetch_type == USE_STORE_RESULT)
+  {
+    for (fetch= fetch_array; fetch < fetch_array + query_count; ++fetch)
+    {
+      rc= mysql_stmt_store_result(fetch->handle);
+      check_execute(fetch->handle, rc);
+    }
   }
 
   while (open_statements)
@@ -11867,7 +11879,8 @@ static void test_basic_cursors()
 
   fill_tables(basic_tables, sizeof(basic_tables)/sizeof(*basic_tables));
 
-  fetch_n(queries, sizeof(queries)/sizeof(*queries));
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_ROW_BY_ROW_FETCH);
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
   DBUG_VOID_RETURN;
 }
 
@@ -11880,7 +11893,8 @@ static void test_cursors_with_union()
     "SELECT t1.id FROM t1 WHERE t1.id < 5"
   };
   myheader("test_cursors_with_union");
-  fetch_n(queries, sizeof(queries)/sizeof(*queries));
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_ROW_BY_ROW_FETCH);
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
 }
 
 /*
