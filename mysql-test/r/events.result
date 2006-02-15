@@ -384,4 +384,8 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 drop event закачка21;
+create table t_16 (s1 int);
+create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+drop table t_16;
 drop database events_test;
