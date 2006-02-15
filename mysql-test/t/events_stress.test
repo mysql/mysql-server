@@ -1,0 +1,80 @@
+CREATE DATABASE IF NOT EXISTS events_test;
+#
+# DROP DATABASE test start (bug #16406)
+#
+CREATE DATABASE events_test2;
+USE events_test2;
+CREATE EVENT ev_drop1 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+CREATE EVENT ev_drop2 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+CREATE EVENT ev_drop3 ON SCHEDULE EVERY 10 MINUTE DISABLE DO SELECT 1;
+USE events_test;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test2';
+DROP DATABASE events_test2;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test2';
+
+--echo "Now testing stability - dropping db -> events while they are running"
+CREATE DATABASE events_test2;
+USE events_test2;
+--disable_query_log
+let $1= 1000;
+while ($1)
+{
+  eval CREATE EVENT ev_drop$1 ON SCHEDULE EVERY 1 SECOND DO SELECT $1;
+  dec $1;
+}
+--enable_query_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test2';
+SET GLOBAL event_scheduler=1;
+--sleep 4
+DROP DATABASE events_test2;
+
+SET GLOBAL event_scheduler=0;
+--sleep 2
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test2';
+CREATE DATABASE events_test3;
+USE events_test3;
+--disable_query_log
+let $1= 950;
+while ($1)
+{
+  eval CREATE EVENT ev_drop$1 ON SCHEDULE EVERY 1 SECOND DO SELECT $1;
+  dec $1;
+}
+--enable_query_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test3';
+--sleep 3
+CREATE DATABASE events_test4;
+USE events_test4;
+--disable_query_log
+let $1= 860;
+while ($1)
+{
+  eval CREATE EVENT ev_drop$1 ON SCHEDULE EVERY 1 SECOND DO SELECT $1;
+  dec $1;
+}
+--enable_query_log
+
+
+CREATE DATABASE events_test2;
+USE events_test2;
+--disable_query_log
+let $1= 1050;
+while ($1)
+{
+  eval CREATE EVENT ev_drop$1 ON SCHEDULE EVERY 1 SECOND DO SELECT $1;
+  dec $1;
+}
+--enable_query_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_test2';
+--sleep 6
+DROP DATABASE events_test2;
+SET GLOBAL event_scheduler=0;
+DROP DATABASE events_test3;
+SET GLOBAL event_scheduler=1;
+DROP DATABASE events_test4;
+SET GLOBAL event_scheduler=1;
+USE events_test;
+#
+# DROP DATABASE test end (bug #16406)
+#
+DROP DATABASE events_test;
