@@ -170,7 +170,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'q': silent=1; break;
   case 'S': if (stopwordlist==ft_precompiled_stopwords) stopwordlist=NULL; break;
   case '#':
-    DEBUGGER_ON;
     DBUG_PUSH (argument);
     break;
   case 'V':
