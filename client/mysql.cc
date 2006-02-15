@@ -194,7 +194,7 @@ static int com_quit(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
-           com_notee(String *str, char*),
+           com_notee(String *str, char*), com_charset(String *str,char*),
            com_prompt(String *str, char*), com_delimiter(String *str, char*),
      com_warnings(String *str, char*), com_nowarnings(String *str, char*);
 
@@ -268,6 +268,8 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
+  { "charset",    'C', com_charset,    1,
+    "Switch to another charset. Might be needed for processing binlog with multi-byte charsets." },
   { "warnings", 'W', com_warnings,  0,
     "Show warnings after every statement." },
   { "nowarning", 'w', com_nowarnings, 0,
@@ -1909,6 +1911,28 @@ com_clear(String *buffer,char *line __attribute__((unused)))
   return 0;
 }
 
+	/* ARGSUSED */
+static int
+com_charset(String *buffer __attribute__((unused)), char *line)
+{
+  char buff[256], *param;
+  CHARSET_INFO * new_cs;
+  strmake(buff, line, sizeof(buff) - 1);
+  param= get_arg(buff, 0);
+  if (!param || !*param)
+  {
+    return put_info("Usage: \\C char_setname | charset charset_name", 
+		    INFO_ERROR, 0);
+  }
+  new_cs= get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));
+  if (new_cs)
+  {
+    charset_info= new_cs;
+    put_info("Charset changed", INFO_INFO);
+  }
+  else put_info("Charset is not found", INFO_INFO);
+  return 0;
+}
 
 /*
   Execute command
