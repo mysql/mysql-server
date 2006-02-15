@@ -3605,7 +3605,52 @@ void get_full_part_id_from_key(const TABLE *table, byte *buf,
     part_spec->start_part++;
   DBUG_VOID_RETURN;
 }
-    
+
+/*
+  Prune the set of partitions to use in query 
+
+  SYNOPSIS
+    prune_partition_set()
+    table         The table object
+    out:part_spec Contains start part, end part 
+
+  DESCRIPTION
+    This function is called to prune the range of partitions to scan by
+    checking the used_partitions bitmap.
+    If start_part > end_part at return it means no partition needs to be
+    scanned. If start_part == end_part it always means a single partition
+    needs to be scanned.
+
+  RETURN VALUE
+    part_spec
+*/
+void prune_partition_set(const TABLE *table, part_id_range *part_spec)
+{
+  int last_partition= -1;
+  uint i;
+  partition_info *part_info= table->part_info;
+
+  DBUG_ENTER("prune_partition_set");
+  for (i= part_spec->start_part; i <= part_spec->end_part; i++)
+  {
+    if (bitmap_is_set(&(part_info->used_partitions), i))
+    {
+      DBUG_PRINT("info", ("Partition %d is set", i));
+      if (last_partition == -1)
+        /* First partition found in set and pruned bitmap */
+        part_spec->start_part= i;
+      last_partition= i;
+    }
+  }
+  if (last_partition == -1)
+    /* No partition found in pruned bitmap */
+    part_spec->start_part= part_spec->end_part + 1;  
+  else //if (last_partition != -1)
+    part_spec->end_part= last_partition;
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Get the set of partitions to use in query.
 
@@ -3669,6 +3714,10 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
           is needed.
         */
         get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
+        /*
+          Check if range can be adjusted by looking in used_partitions
+        */
+        prune_partition_set(table, part_spec);
         DBUG_VOID_RETURN;
       }
       else if (is_sub_partitioned(part_info))
@@ -3711,6 +3760,10 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
           */
           get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
           clear_indicator_in_key_fields(key_info);
+          /*
+            Check if range can be adjusted by looking in used_partitions
+          */
+          prune_partition_set(table, part_spec);
           DBUG_VOID_RETURN; 
         }
         else if (is_sub_partitioned(part_info))
@@ -3770,9 +3823,12 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
   }
   if (found_part_field)
     clear_indicator_in_key_fields(key_info);
+  /*
+    Check if range can be adjusted by looking in used_partitions
+  */
+  prune_partition_set(table, part_spec);
   DBUG_VOID_RETURN;
 }
-
 
 /*
    If the table is partitioned we will read the partition info into the
