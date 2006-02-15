@@ -191,10 +191,8 @@ public:
   int flush() const;
 
 private:
-  STATIC_CONST( MAX_FILE_NAME_SIZE = 128 );
-
   FILE* m_file;
-  char m_fileName[MAX_FILE_NAME_SIZE];
+  char m_fileName[PATH_MAX];
   const char* m_fileMode;
   /* Prohibit */
   File_class (const File_class& aCopy);
