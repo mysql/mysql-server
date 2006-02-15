@@ -200,7 +200,7 @@ private:
   int get_page_free_bits(Signal*, Local_key*, unsigned*, unsigned*);
   int unmap_page(Signal*, Local_key*, unsigned uncommitted_bits);
   int restart_undo_page_free_bits(Signal*, Uint32, Uint32, Local_key*, 
-				  unsigned committed_bits, Uint64 lsn);
+				  unsigned committed_bits, Uint64, Uint64);
   
   int alloc_extent(Signal* signal, Uint32 tablespace, Local_key* key);
   int alloc_page_from_extent(Signal*, Uint32, Local_key*, Uint32 bits);
@@ -283,7 +283,8 @@ public:
   /**
    * Undo handling of page bits
    */
-  int restart_undo_page_free_bits(Local_key*, unsigned bits, Uint64 lsn);
+  int restart_undo_page_free_bits(Local_key*, unsigned bits, 
+				  Uint64 lsn, Uint64 page_lsn);
   
   /**
    * Get tablespace info
@@ -382,14 +383,16 @@ inline
 int 
 Tablespace_client::restart_undo_page_free_bits(Local_key* key, 
 					       unsigned committed_bits,
-					       Uint64 lsn)
+					       Uint64 lsn,
+					       Uint64 page_lsn)
 {
   return m_tsman->restart_undo_page_free_bits(m_signal,
 					      m_table_id,
 					      m_fragment_id,
 					      key, 
 					      committed_bits,
-					      lsn);
+					      lsn,
+					      page_lsn);
 }
 
 

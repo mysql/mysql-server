@@ -1747,7 +1747,8 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
 				   Uint32 fragId,
 				   Local_key *key, 
 				   unsigned bits,
-				   Uint64 undo_lsn)
+				   Uint64 undo_lsn,
+				   Uint64 page_lsn)
 {
   jamEntry();
   
@@ -1790,6 +1791,20 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     File_formats::Datafile::Extent_header* header = 
       page->get_header(extent_no, size);
     
+    Uint64 lsn = 0;
+    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
+    lsn += page->m_page_header.m_page_lsn_lo;
+
+    if (undo_lsn > lsn && undo_lsn > page_lsn)
+    {
+      if (DBG_UNDO)
+	ndbout << "tsman: ignore " << undo_lsn << "(" << lsn << ", "
+	       << page_lsn << ") " 
+	       << *key << " "
+	       << " -> " << bits << endl;
+      return 0;
+    }
+    
     if (header->m_table == RNIL)
     {
       if (DBG_UNDO)
@@ -1797,15 +1812,11 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
       return 0;
     }
 
-    ndbrequire(header->m_table == tableId);
-    ndbrequire(header->m_fragment_id == fragId);
-    
     Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
     Uint32 src = header->get_free_bits(page_no_in_extent);
-    
-    Uint64 lsn = 0;
-    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
-    lsn += page->m_page_header.m_page_lsn_lo;
+        
+    ndbrequire(header->m_table == tableId);
+    ndbrequire(header->m_fragment_id == fragId);
     
     /**
      * Toggle word

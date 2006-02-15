@@ -20,9 +20,31 @@
 /**
  * Record types
  */
+#define PGMAN_PAGE_REQUEST      1
+
+#define LGMAN_LOG_BUFFER_WAITER 2
+#define LGMAN_LOG_SYNC_WAITER   3
+
+#define DBTUP_PAGE_REQUEST      4
+#define DBTUP_EXTENT_INFO       5
 
 /**
  * Resource groups
  */
+
+/**
+ * Operations for dd
+ *    PGMAN_PAGE_REQUEST
+ *    LGMAN_LOG_BUFFER_WAITER
+ *    LGMAN_LOG_SYNC_WAITER
+ *    DBTUP_PAGE_REQUEST
+ */
+#define RG_DISK_OPERATIONS      1
+
+/**
+ * Records for dd
+ *   DBTUP_EXTENT_INFO
+ */
+#define RG_DISK_RECORDS         2
 
 #endif

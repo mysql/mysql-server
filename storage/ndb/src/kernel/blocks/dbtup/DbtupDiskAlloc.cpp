@@ -1478,13 +1478,17 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
   Uint32 free = pageP->free_space;
   Uint32 new_bits = alloc.calc_page_free_bits(free);
   pageP->list_index = 0x8000 | new_bits;
+
+  Uint64 lsn = 0;
+  lsn += pageP->m_page_header.m_page_lsn_hi; lsn <<= 32;
+  lsn += pageP->m_page_header.m_page_lsn_lo;
   
   Tablespace_client tsman(signal, c_tsman,
 			  fragPtrP->fragTableId,
 			  fragPtrP->fragmentId,
 			  fragPtrP->m_tablespace_id);
   
-  tsman.restart_undo_page_free_bits(&undo->m_key, new_bits, undo->m_lsn);
+  tsman.restart_undo_page_free_bits(&undo->m_key, new_bits, undo->m_lsn, lsn);
 }
 
 int
