@@ -157,8 +157,9 @@ mem_area_get_free(
 				/* out: TRUE if free */
 	mem_area_t*	area)	/* in: area */
 {
-	ut_ad(TRUE == MEM_AREA_FREE);
-
+#if TRUE != MEM_AREA_FREE
+# error "TRUE != MEM_AREA_FREE"
+#endif
 	return(area->size_and_free & MEM_AREA_FREE);
 }
 
@@ -171,8 +172,9 @@ mem_area_set_free(
 	mem_area_t*	area,	/* in: area */
 	ibool		free)	/* in: free bit value */
 {
-	ut_ad(TRUE == MEM_AREA_FREE);
-	
+#if TRUE != MEM_AREA_FREE
+# error "TRUE != MEM_AREA_FREE"
+#endif
 	area->size_and_free = (area->size_and_free & ~MEM_AREA_FREE)
 				| free;
 }

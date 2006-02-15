@@ -351,10 +351,12 @@ page_create(
 	index = comp ? srv_sys->dummy_ind2 : srv_sys->dummy_ind1;
 	
 	ut_ad(frame && mtr);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE
-	      <= PAGE_DATA);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE
-	      <= PAGE_DATA);
+#if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
+#endif
+#if PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA"
+#endif
 
 	/* 1. INCREMENT MODIFY CLOCK */
 	buf_frame_modify_clock_inc(frame);

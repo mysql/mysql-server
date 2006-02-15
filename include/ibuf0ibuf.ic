@@ -206,8 +206,9 @@ ibuf_update_free_bits_if_full(
 	before = ibuf_index_page_calc_free_bits(max_ins_size);
 
 	if (max_ins_size >= increase) {
-		ut_ad(ULINT_UNDEFINED > UNIV_PAGE_SIZE);
-		
+#if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE
+# error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE"
+#endif
 		after = ibuf_index_page_calc_free_bits(max_ins_size
 								- increase);
 #ifdef UNIV_IBUF_DEBUG

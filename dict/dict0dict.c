@@ -1790,9 +1790,15 @@ dict_index_build_internal_clust(
 
 		trx_id_pos = new_index->n_def;
 
-		ut_ad(DATA_ROW_ID == 0);
-		ut_ad(DATA_TRX_ID == 1);
-		ut_ad(DATA_ROLL_PTR == 2);
+#if DATA_ROW_ID != 0
+# error "DATA_ROW_ID != 0"
+#endif
+#if DATA_TRX_ID != 1
+# error "DATA_TRX_ID != 1"
+#endif
+#if DATA_ROLL_PTR != 2
+# error "DATA_ROLL_PTR != 2"
+#endif
 
 		if (!(index->type & DICT_UNIQUE)) {
 			dict_index_add_col(new_index,

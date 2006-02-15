@@ -3219,7 +3219,9 @@ ask_again:
 		
 	fil_node_create(name, 1 + file_size / UNIV_PAGE_SIZE,
 					    group->archive_space_id, FALSE);
-	ut_a(RECV_SCAN_SIZE >= LOG_FILE_HDR_SIZE);
+#if RECV_SCAN_SIZE < LOG_FILE_HDR_SIZE
+# error "RECV_SCAN_SIZE < LOG_FILE_HDR_SIZE"
+#endif
 
 	/* Read the archive file header */
 	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->archive_space_id, 0, 0,
