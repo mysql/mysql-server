@@ -2002,6 +2002,7 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->mysql= mysql;
   stmt->read_row_func= stmt_read_row_no_result_set;
   stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
+  strmov(stmt->sqlstate, not_error_sqlstate);
   /* The rest of statement members was bzeroed inside malloc */
 
   DBUG_RETURN(stmt);
