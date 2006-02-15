@@ -43,13 +43,13 @@
 extern ulong opt_event_executor;
 
 enum enum_event_on_completion
-{ 
+{
   MYSQL_EVENT_ON_COMPLETION_DROP = 1,
   MYSQL_EVENT_ON_COMPLETION_PRESERVE
 };
 
 enum enum_event_status
-{ 
+{
   MYSQL_EVENT_ENABLED = 1,
   MYSQL_EVENT_DISABLED
 };
@@ -60,9 +60,9 @@ enum evex_table_field
   EVEX_FIELD_NAME,
   EVEX_FIELD_BODY,
   EVEX_FIELD_DEFINER,
-  EVEX_FIELD_EXECUTE_AT,  
-  EVEX_FIELD_INTERVAL_EXPR,  
-  EVEX_FIELD_TRANSIENT_INTERVAL,  
+  EVEX_FIELD_EXECUTE_AT,
+  EVEX_FIELD_INTERVAL_EXPR,
+  EVEX_FIELD_TRANSIENT_INTERVAL,
   EVEX_FIELD_CREATED,
   EVEX_FIELD_MODIFIED,
   EVEX_FIELD_LAST_EXECUTED,
@@ -112,7 +112,7 @@ public:
   ulong sql_mode;
 
   const uchar *body_begin;
-  
+
   bool dropped;
   bool free_sphead_on_delete;
   uint flags;//all kind of purposes
@@ -123,26 +123,26 @@ public:
                 status(MYSQL_EVENT_ENABLED), sphead(0), sql_mode(0),
                 body_begin(0), dropped(false), free_sphead_on_delete(true),
                 flags(0)
-                
+
   {
     pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
     init();
   }
- 
+
   ~event_timed()
   {
     pthread_mutex_destroy(&this->LOCK_running);
     if (free_sphead_on_delete)
 	    free_sp();
   }
-  
-  
+
+
   void
   init();
 
-  int 
+  int
   init_definer(THD *thd);
-  
+
   int
   init_execute_at(THD *thd, Item *expr);
 
@@ -157,7 +157,7 @@ public:
 
   int
   init_ends(THD *thd, Item *ends);
-  
+
   void
   init_body(THD *thd);
 
@@ -168,38 +168,38 @@ public:
   load_from_row(MEM_ROOT *mem_root, TABLE *table);
 
   bool
-  compute_next_execution_time();  
+  compute_next_execution_time();
 
   void
   mark_last_executed(THD *thd);
-  
+
   int
   drop(THD *thd);
-  
+
   bool
   update_fields(THD *thd);
 
   int
   get_create_event(THD *thd, String *buf);
-  
+
   int
   execute(THD *thd, MEM_ROOT *mem_root= NULL);
 
   int
   compile(THD *thd, MEM_ROOT *mem_root= NULL);
-  
+
   my_bool
   is_running()
   {
     my_bool ret;
-    
+
     VOID(pthread_mutex_lock(&this->LOCK_running));
     ret= running;
     VOID(pthread_mutex_unlock(&this->LOCK_running));
 
-    return ret;  
+    return ret;
   }
-  
+
   void free_sp()
   {
     delete sphead;
@@ -241,7 +241,7 @@ shutdown_events();
 
 
 // auxiliary
-int 
+int
 event_timed_compare(event_timed **a, event_timed **b);
 
 
