@@ -630,7 +630,9 @@ os_process_set_priority_boost(
 		no_boost = TRUE;
 	}
 
-	ut_a(TRUE == 1);
+#if TRUE != 1
+# error "TRUE != 1"
+#endif
 
 /* Does not do anything currently!
 	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
