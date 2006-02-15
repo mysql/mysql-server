@@ -622,7 +622,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
                                       table_ptr[i], count,
                                       (thd == logger.get_general_log_thd()) ||
                                            (thd == logger.get_slow_log_thd())))
-      return 0;
+      DBUG_RETURN(0);
   }
 
   if (!(sql_lock= (MYSQL_LOCK*)
