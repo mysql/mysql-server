@@ -284,7 +284,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'N': no_search=1; break;
   case 'S': no_stopwords=1; break;
   case '#':
-    DEBUGGER_ON;
     DBUG_PUSH (argument);
     break;
   case 'V':

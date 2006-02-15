@@ -126,10 +126,10 @@ static HASH archive_open_tables;
 #define ARN ".ARN"               // Files used during an optimize call
 #define ARM ".ARM"               // Meta file
 /*
-  uchar + uchar + ulonglong + ulonglong + ulonglong + uchar
+  uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
 */
 #define META_BUFFER_SIZE sizeof(uchar) + sizeof(uchar) + sizeof(ulonglong) \
-  + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(uchar)
+  + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(uchar)
 
 /*
   uchar + uchar
@@ -313,7 +313,8 @@ error:
   *rows will contain the current number of rows in the data file upon success.
 */
 int ha_archive::read_meta_file(File meta_file, ha_rows *rows, 
-                               ulonglong *auto_increment)
+                               ulonglong *auto_increment,
+                               ulonglong *forced_flushes)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr= meta_buffer;
@@ -336,12 +337,15 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
   ptr+= sizeof(ulonglong); // Move past check_point
   *auto_increment= uint8korr(ptr);
   ptr+= sizeof(ulonglong); // Move past auto_increment
+  *forced_flushes= uint8korr(ptr);
+  ptr+= sizeof(ulonglong); // Move past forced_flush
 
   DBUG_PRINT("ha_archive::read_meta_file", ("Check %d", (uint)meta_buffer[0]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Version %d", (uint)meta_buffer[1]));
   DBUG_PRINT("ha_archive::read_meta_file", ("Rows %llu", *rows));
   DBUG_PRINT("ha_archive::read_meta_file", ("Checkpoint %llu", check_point));
   DBUG_PRINT("ha_archive::read_meta_file", ("Auto-Increment %llu", *auto_increment));
+  DBUG_PRINT("ha_archive::read_meta_file", ("Forced Flushes %llu", *forced_flushes));
   DBUG_PRINT("ha_archive::read_meta_file", ("Dirty %d", (int)(*ptr)));
 
   if ((meta_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) || 
@@ -359,7 +363,9 @@ int ha_archive::read_meta_file(File meta_file, ha_rows *rows,
   Upon ::open() we set to dirty, and upon ::close() we set to clean.
 */
 int ha_archive::write_meta_file(File meta_file, ha_rows rows, 
-                                ulonglong auto_increment, bool dirty)
+                                ulonglong auto_increment, 
+                                ulonglong forced_flushes, 
+                                bool dirty)
 {
   uchar meta_buffer[META_BUFFER_SIZE];
   uchar *ptr= meta_buffer;
@@ -377,6 +383,8 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
   ptr += sizeof(ulonglong);
   int8store(ptr, auto_increment); 
   ptr += sizeof(ulonglong);
+  int8store(ptr, forced_flushes); 
+  ptr += sizeof(ulonglong);
   *ptr= (uchar)dirty;
   DBUG_PRINT("ha_archive::write_meta_file", ("Check %d", 
                                              (uint)ARCHIVE_CHECK_HEADER));
@@ -386,6 +394,8 @@ int ha_archive::write_meta_file(File meta_file, ha_rows rows,
   DBUG_PRINT("ha_archive::write_meta_file", ("Checkpoint %llu", check_point));
   DBUG_PRINT("ha_archive::write_meta_file", ("Auto Increment %llu",
                                              auto_increment));
+  DBUG_PRINT("ha_archive::write_meta_file", ("Forced Flushes %llu", 
+                                            forced_flushes));
   DBUG_PRINT("ha_archive::write_meta_file", ("Dirty %d", (uint)dirty));
 
   VOID(my_seek(meta_file, 0, MY_SEEK_SET, MYF(0)));
@@ -451,11 +461,14 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name,
       leave it up to the user to fix.
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded, 
-                       &share->auto_increment_value))
+                       &share->auto_increment_value,
+                       &share->forced_flushes))
       share->crashed= TRUE;
     else
       (void)write_meta_file(share->meta_file, share->rows_recorded,
-                            share->auto_increment_value, TRUE);
+                            share->auto_increment_value, 
+                            share->forced_flushes, 
+                            TRUE);
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open
@@ -500,12 +513,18 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     hash_delete(&archive_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
-    if (share->crashed)
-      (void)write_meta_file(share->meta_file, share->rows_recorded,
-                            share->auto_increment_value, TRUE);
-    else
-      (void)write_meta_file(share->meta_file, share->rows_recorded,
-                            share->auto_increment_value, FALSE);
+    /* 
+      We need to make sure we don't reset the crashed state.
+      If we open a crashed file, wee need to close it as crashed unless
+      it has been repaired.
+      Since we will close the data down after this, we go on and count
+      the flush on close;
+    */
+    share->forced_flushes++;
+    (void)write_meta_file(share->meta_file, share->rows_recorded,
+                          share->auto_increment_value, 
+                          share->forced_flushes, 
+                          share->crashed ? TRUE :FALSE);
     if (azclose(&(share->archive_write)))
       rc= 1;
     if (my_close(share->meta_file, MYF(0)))
@@ -657,7 +676,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     }
   }
 
-  write_meta_file(create_file, 0, auto_increment_value, FALSE);
+  write_meta_file(create_file, 0, auto_increment_value, 0, FALSE);
   my_close(create_file,MYF(0));
 
   /* 
@@ -800,6 +819,7 @@ int ha_archive::write_row(byte *buf)
          data 
        */
       azflush(&(share->archive_write), Z_SYNC_FLUSH);
+      share->forced_flushes++;
       /*
         Set the position of the local read thread to the beginning postion.
       */
@@ -897,6 +917,7 @@ int ha_archive::index_read_idx(byte *buf, uint index, const byte *key,
   */
   pthread_mutex_lock(&share->mutex);
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
+  share->forced_flushes++;
   pthread_mutex_unlock(&share->mutex);
 
   /*
@@ -974,6 +995,7 @@ int ha_archive::rnd_init(bool scan)
       {
         DBUG_PRINT("info", ("archive flushing out rows for scan"));
         azflush(&(share->archive_write), Z_SYNC_FLUSH);
+        share->forced_flushes++;
         share->dirty= FALSE;
       }
       pthread_mutex_unlock(&share->mutex);
@@ -1149,6 +1171,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   /* Flush any waiting data */
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
+  share->forced_flushes++;
 
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
@@ -1233,13 +1256,15 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
       goto error;
     }
 
-    while ((read= azread(&archive, block, IO_SIZE)))
+    while ((read= azread(&archive, block, IO_SIZE)) > 0)
       azwrite(&writer, block, read);
   }
 
   azclose(&writer);
   share->dirty= FALSE;
+  share->forced_flushes= 0;
   azclose(&(share->archive_write));
+  DBUG_PRINT("info", ("Reopening archive data file"));
   if (!(azopen(&(share->archive_write), share->data_file_name, 
                O_WRONLY|O_APPEND|O_BINARY)))
   {
@@ -1421,6 +1446,7 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
   thd->proc_info= "Checking table";
   /* Flush any waiting data */
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
+  share->forced_flushes++;
 
   /* 
     First we create a buffer that we can use for reading rows, and can pass

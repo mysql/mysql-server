@@ -39,6 +39,8 @@ typedef struct st_archive_share {
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
   ulonglong auto_increment_value;
+  ulonglong forced_flushes;
+  ulonglong mean_rec_length;
 } ARCHIVE_SHARE;
 
 /*
@@ -98,9 +100,13 @@ public:
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   int get_row(azio_stream *file_to_read, byte *buf);
-  int read_meta_file(File meta_file, ha_rows *rows, ulonglong *auto_increment);
+  int read_meta_file(File meta_file, ha_rows *rows, 
+                     ulonglong *auto_increment,
+                     ulonglong *forced_flushes);
   int write_meta_file(File meta_file, ha_rows rows, 
-                      ulonglong auto_increment, bool dirty);
+                      ulonglong auto_increment, 
+                      ulonglong forced_flushes, 
+                      bool dirty);
   ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table, int *rc);
   int free_share(ARCHIVE_SHARE *share);
   bool auto_repair() const { return 1; } // For the moment we just do this
