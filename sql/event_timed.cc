@@ -1061,6 +1061,7 @@ event_timed::get_create_event(THD *thd, String *buf)
 
   RETURNS
     0        success
+    -99      No rights on this.dbname.str
     -100     event in execution (parallel execution is impossible)
     others   retcodes of sp_head::execute_procedure()
 */
@@ -1089,16 +1090,12 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
   
-  thd->db= dbname.str;
-  thd->db_length= dbname.length;
-
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
   change_security_context(thd, &save_ctx);
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
-//  if (mysql_change_db(thd, dbname.str, 0))
-  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  if (mysql_change_db(thd, dbname.str, 0))
   {
     List<Item> empty_item_list;
     empty_item_list.empty();
@@ -1113,7 +1110,6 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   restore_security_context(thd, save_ctx);
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
-  thd->db= 0;
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
