@@ -36,8 +36,8 @@ evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
                        const LEX_STRING rname,
                        const LEX_STRING definer,
                        TABLE *table);
-                       
-int 
+
+int
 event_timed_compare_q(void *vptr, byte* a, byte *b);
 
 int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
