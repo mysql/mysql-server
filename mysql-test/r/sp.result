@@ -4519,4 +4519,60 @@ Handler
 Inner
 drop procedure bug15011|
 drop table t3|
+drop table if exists t3|
+drop procedure if exists bug16887|
+create table t3 ( c varchar(1) )|
+insert into t3 values
+(' '),('.'),(';'),(','),('-'),('_'),('('),(')'),('/'),('\\')|
+create procedure bug16887()
+begin
+declare i int default 10;
+again:
+while i > 0 do
+begin
+declare breakchar varchar(1);
+declare done int default 0;
+declare t3_cursor cursor for select c from t3;
+declare continue handler for not found set done = 1;
+set i = i - 1;
+select i;
+if i = 3 then
+iterate again;
+end if;
+open t3_cursor;
+loop
+fetch t3_cursor into breakchar;
+if done = 1 then
+begin
+close t3_cursor;
+iterate again;
+end;
+end if;
+end loop;
+end;
+end while;
+end|
+call bug16887()|
+i
+9
+i
+8
+i
+7
+i
+6
+i
+5
+i
+4
+i
+3
+i
+2
+i
+1
+i
+0
+drop table t3|
+drop procedure bug16887|
 drop table t1,t2;

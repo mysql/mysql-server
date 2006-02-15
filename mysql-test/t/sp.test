@@ -5312,6 +5312,60 @@ drop table t3|
 
 
 #
+# BUG#16887: Cursor causes server segfault
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug16887|
+--enable_warnings
+
+create table t3 ( c varchar(1) )|
+
+insert into t3 values
+  (' '),('.'),(';'),(','),('-'),('_'),('('),(')'),('/'),('\\')|
+
+create procedure bug16887()
+begin
+  declare i int default 10;
+
+ again:
+  while i > 0 do
+  begin
+    declare breakchar varchar(1);
+    declare done int default 0;
+    declare t3_cursor cursor for select c from t3;
+    declare continue handler for not found set done = 1;
+
+    set i = i - 1;
+    select i;
+
+    if i = 3 then
+      iterate again;
+    end if;
+
+    open t3_cursor;
+
+    loop
+      fetch t3_cursor into breakchar;
+
+      if done = 1 then
+        begin
+          close t3_cursor;
+          iterate again;
+        end;
+      end if;
+     end loop;
+   end;
+   end while;
+end|
+
+call bug16887()|
+
+drop table t3|
+drop procedure bug16887|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

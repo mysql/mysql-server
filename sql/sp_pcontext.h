@@ -119,11 +119,15 @@ class sp_pcontext : public Sql_alloc
     return m_parent;
   }
 
+  /*
+    Number of handlers/cursors to pop between this context and 'ctx'.
+    If 'exclusive' is true, don't count the last block we are leaving;
+    this is used for LEAVE where we will jump to the cpop/hpop instructions.
+  */
   uint
-  diff_handlers(sp_pcontext *ctx);
-
+  diff_handlers(sp_pcontext *ctx, bool exclusive);
   uint
-  diff_cursors(sp_pcontext *ctx);
+  diff_cursors(sp_pcontext *ctx, bool exclusive);
 
 
   //
