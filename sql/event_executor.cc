@@ -638,18 +638,18 @@ event_executor_worker(void *event_void)
 
   {
     int ret;
-    sql_print_information("    EVEX EXECUTING event %s.%s [EXPR:%d]",
+    sql_print_information("SCHEDULER: Executing event %s.%s [EXPR:%d]",
                event->dbname.str, event->name.str,(int) event->expression);
 
     ret= event->execute(thd, &worker_mem_root);
 
-    sql_print_information("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
+    evex_print_warnings(thd, event);
+    sql_print_information("SCHEDULER: Executed event %s.%s  [EXPR:%d]. RetCode=%d",
                           event->dbname.str, event->name.str,
                           (int) event->expression, ret);
     if (ret == EVEX_COMPILE_ERROR)
-      sql_print_information("    EVEX COMPILE ERROR for event %s.%s",
+      sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s",
                              event->dbname.str, event->name.str);
-    evex_print_warnings(thd, event);
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
@@ -837,6 +837,7 @@ sys_var_event_executor::update(THD *thd, set_var *var)
   DBUG_RETURN(0);
 }
 
+
 extern LEX_STRING warning_level_names[];
 
 typedef void (*sql_print_xxx_func)(const char *format, ...);
@@ -846,6 +847,7 @@ static sql_print_xxx_func sql_print_xxx_handlers[3] =
   sql_print_warning,
   sql_print_error
 };
+
 
 /*
   Prints the stack of infos, warnings, errors from thd to
@@ -892,15 +894,10 @@ evex_print_warnings(THD *thd, event_timed *et)
     }
     
     err_msg.append(prefix);
-    err_msg.append('[');
-    err_msg.append(warning_level_names[err->level].str,
-                   warning_level_names[err->level].length, system_charset_info);
-    err_msg.append("] [");
     err_msg.append(err->msg, strlen(err->msg), system_charset_info);
     err_msg.append("]");
     DBUG_ASSERT(err->level < 3);
     (sql_print_xxx_handlers[err->level])("%*s", err_msg.length(), err_msg.c_ptr());
-//    sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
   }
 
 
