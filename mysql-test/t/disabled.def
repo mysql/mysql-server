@@ -12,4 +12,3 @@
 
 sp-goto         : GOTO is currently is disabled - will be fixed in the future
 kill            : Unstable test case, bug#9712
-subselect       : Bug#15706
