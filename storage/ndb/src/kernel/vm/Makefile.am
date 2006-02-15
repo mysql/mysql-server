@@ -19,9 +19,7 @@ libkernel_a_SOURCES = \
         SectionReader.cpp \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
-	SuperPool.cpp \
-	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
-        NdbdSuperPool.cpp
+	ndbd_malloc.cpp ndbd_malloc_impl.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
