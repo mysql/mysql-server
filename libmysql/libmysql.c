@@ -179,10 +179,8 @@ void STDCALL mysql_server_end()
   if (!org_my_init_done)
   {
     my_end(0);
-#ifndef THREAD
   /* Remove TRACING, if enabled by mysql_debug() */
     DBUG_POP();
-#endif
   }
   else
     mysql_thread_end();
@@ -267,16 +265,12 @@ mysql_debug(const char *debug __attribute__((unused)))
 {
 #ifndef DBUG_OFF
   char	*env;
-  if (_db_on_)
-    return;					/* Already using debugging */
   if (debug)
   {
-    DEBUGGER_ON;
     DBUG_PUSH(debug);
   }
   else if ((env = getenv("MYSQL_DEBUG")))
   {
-    DEBUGGER_ON;
     DBUG_PUSH(env);
 #if !defined(_WINVER) && !defined(WINVER)
     puts("\n-------------------------------------------------------");
