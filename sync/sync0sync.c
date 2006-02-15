@@ -1046,107 +1046,143 @@ sync_thread_add_level(
 	or the other way around. We do not know at present if this can cause
 	unnecessary assertion failures below. */
 
-	if (level == SYNC_NO_ORDER_CHECK) {
+	switch (level) {
+	case SYNC_NO_ORDER_CHECK:
+	case SYNC_EXTERN_STORAGE:
+	case SYNC_TREE_NODE_FROM_HASH:
 		/* Do no order checking */
-
-	} else if (level == SYNC_MEM_POOL) {
+		break;
+	case SYNC_MEM_POOL:
 		ut_a(sync_thread_levels_g(array, SYNC_MEM_POOL));
-	} else if (level == SYNC_MEM_HASH) {
+		break;
+	case SYNC_MEM_HASH:
 		ut_a(sync_thread_levels_g(array, SYNC_MEM_HASH));
-	} else if (level == SYNC_RECV) {
+		break;
+	case SYNC_RECV:
 		ut_a(sync_thread_levels_g(array, SYNC_RECV));
-	} else if (level == SYNC_LOG) {
+		break;
+	case SYNC_LOG:
 		ut_a(sync_thread_levels_g(array, SYNC_LOG));
-	} else if (level == SYNC_THR_LOCAL) {
+		break;
+	case SYNC_THR_LOCAL:
 		ut_a(sync_thread_levels_g(array, SYNC_THR_LOCAL));
-	} else if (level == SYNC_ANY_LATCH) {
+		break;
+	case SYNC_ANY_LATCH:
 		ut_a(sync_thread_levels_g(array, SYNC_ANY_LATCH));
-	} else if (level == SYNC_TRX_SYS_HEADER) {
+		break;
+	case SYNC_TRX_SYS_HEADER:
 		ut_a(sync_thread_levels_g(array, SYNC_TRX_SYS_HEADER));
-	} else if (level == SYNC_DOUBLEWRITE) {
+		break;
+	case SYNC_DOUBLEWRITE:
 		ut_a(sync_thread_levels_g(array, SYNC_DOUBLEWRITE));
-	} else if (level == SYNC_BUF_BLOCK) {
+		break;
+	case SYNC_BUF_BLOCK:
 		ut_a((sync_thread_levels_contain(array, SYNC_BUF_POOL)
 			&& sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
 		     || sync_thread_levels_g(array, SYNC_BUF_BLOCK));
-	} else if (level == SYNC_BUF_POOL) {
+		break;
+	case SYNC_BUF_POOL:
 		ut_a(sync_thread_levels_g(array, SYNC_BUF_POOL));
-	} else if (level == SYNC_SEARCH_SYS) {
+		break;
+	case SYNC_SEARCH_SYS:
 		ut_a(sync_thread_levels_g(array, SYNC_SEARCH_SYS));
-	} else if (level == SYNC_TRX_LOCK_HEAP) {
+		break;
+	case SYNC_TRX_LOCK_HEAP:
 		ut_a(sync_thread_levels_g(array, SYNC_TRX_LOCK_HEAP));
-	} else if (level == SYNC_REC_LOCK) {
+		break;
+	case SYNC_REC_LOCK:
 		ut_a((sync_thread_levels_contain(array, SYNC_KERNEL)
 			&& sync_thread_levels_g(array, SYNC_REC_LOCK - 1))
 		     || sync_thread_levels_g(array, SYNC_REC_LOCK));
-	} else if (level == SYNC_KERNEL) {
+		break;
+	case SYNC_KERNEL:
 		ut_a(sync_thread_levels_g(array, SYNC_KERNEL));
-	} else if (level == SYNC_IBUF_BITMAP) {
+		break;
+	case SYNC_IBUF_BITMAP:
 		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_BITMAP_MUTEX)
 		         && sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1))
 		     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP));
-	} else if (level == SYNC_IBUF_BITMAP_MUTEX) {
+		break;
+	case SYNC_IBUF_BITMAP_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP_MUTEX));
-	} else if (level == SYNC_FSP_PAGE) {
+		break;
+	case SYNC_FSP_PAGE:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP));
-	} else if (level == SYNC_FSP) {
+		break;
+	case SYNC_FSP:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP)
 		     || sync_thread_levels_g(array, SYNC_FSP));
-	} else if (level == SYNC_EXTERN_STORAGE) {
-	} else if (level == SYNC_TRX_UNDO_PAGE) {
+		break;
+	case SYNC_TRX_UNDO_PAGE:
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
 		     || sync_thread_levels_contain(array, SYNC_PURGE_SYS)
 		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE));
-	} else if (level == SYNC_RSEG_HEADER) {
+		break;
+	case SYNC_RSEG_HEADER:
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
-	} else if (level == SYNC_RSEG_HEADER_NEW) {
+		break;
+	case SYNC_RSEG_HEADER_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_KERNEL)
 		     && sync_thread_levels_contain(array, SYNC_FSP_PAGE));
-	} else if (level == SYNC_RSEG) {
+		break;
+	case SYNC_RSEG:
 		ut_a(sync_thread_levels_g(array, SYNC_RSEG));
-	} else if (level == SYNC_TRX_UNDO) {
+		break;
+	case SYNC_TRX_UNDO:
 		ut_a(sync_thread_levels_g(array, SYNC_TRX_UNDO));
-	} else if (level == SYNC_PURGE_LATCH) {
+		break;
+	case SYNC_PURGE_LATCH:
 		ut_a(sync_thread_levels_g(array, SYNC_PURGE_LATCH));
-	} else if (level == SYNC_PURGE_SYS) {
+		break;
+	case SYNC_PURGE_SYS:
 		ut_a(sync_thread_levels_g(array, SYNC_PURGE_SYS));
-	} else if (level == SYNC_TREE_NODE) {
+		break;
+	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
-	} else if (level == SYNC_TREE_NODE_FROM_HASH) {
-	} else if (level == SYNC_TREE_NODE_NEW) {
+		break;
+	case SYNC_TREE_NODE_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
 		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
-	} else if (level == SYNC_INDEX_TREE) {
+		break;
+	case SYNC_INDEX_TREE:
 		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
 		      && sync_thread_levels_contain(array, SYNC_FSP)
 		      && sync_thread_levels_g(array, SYNC_FSP_PAGE - 1))
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
-	} else if (level == SYNC_IBUF_MUTEX) {
+		break;
+	case SYNC_IBUF_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1));
-	} else if (level == SYNC_IBUF_PESS_INSERT_MUTEX) {
+		break;
+	case SYNC_IBUF_PESS_INSERT_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
 		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
-	} else if (level == SYNC_IBUF_HEADER) {
+		break;
+	case SYNC_IBUF_HEADER:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
 		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
 		     && !sync_thread_levels_contain(array,
 						SYNC_IBUF_PESS_INSERT_MUTEX));
-	} else if (level == SYNC_DICT_AUTOINC_MUTEX) {
+		break;
+	case SYNC_DICT_AUTOINC_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_AUTOINC_MUTEX));
-	} else if (level == SYNC_DICT_OPERATION) {
+		break;
+	case SYNC_DICT_OPERATION:
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_OPERATION));
-	} else if (level == SYNC_DICT_HEADER) {
+		break;
+	case SYNC_DICT_HEADER:
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
-	} else if (level == SYNC_DICT) {
+		break;
+	case SYNC_DICT:
 #ifdef UNIV_DEBUG
 		ut_a(buf_debug_prints
 		     || sync_thread_levels_g(array, SYNC_DICT));
 #else /* UNIV_DEBUG */
 		ut_a(sync_thread_levels_g(array, SYNC_DICT));
 #endif /* UNIV_DEBUG */
-	} else {
+		break;
+	default:
 		ut_error;
 	}
 
