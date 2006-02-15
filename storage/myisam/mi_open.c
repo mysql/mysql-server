@@ -208,9 +208,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (len != MI_BASE_INFO_SIZE)
     {
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
-			    len,MI_BASE_INFO_SIZE))
+			    len,MI_BASE_INFO_SIZE));
     }
-    disk_pos= (char*) 
+    disk_pos= (char*)
       my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 

@@ -518,7 +518,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       sql_print_error("Plugin '%s' init function returned error.",
                       plugin->name.str);
       DBUG_PRINT("warning", ("Plugin '%s' init function returned error.",
-                             plugin->name.str))
+                             plugin->name.str));
       goto err;
     }
   }
@@ -531,7 +531,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       sql_print_error("Plugin '%s' handlerton init returned error.",
                       plugin->name.str);
       DBUG_PRINT("warning", ("Plugin '%s' handlerton init returned error.",
-                             plugin->name.str))
+                             plugin->name.str));
       goto err;
     }
     break;
@@ -580,7 +580,7 @@ static void plugin_call_deinitializer(void)
         if (tmp->plugin->deinit())
         {
           DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                                 tmp->name.str))
+                                 tmp->name.str));
         }
       }
       tmp->state= PLUGIN_IS_UNINITIALIZED;

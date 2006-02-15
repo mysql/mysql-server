@@ -1,15 +1,3 @@
-Some extra options to DBUG_PUSH:
-
-O,logfile   - As in "o,logfile", but do a close and reopen each time anything
-	      is written to the logfile. This is needed when one expects
-	      the program to crash anywhere, in which case one doesn't
-	      (at least in MSDOS) get a full log-file.
-
-If one wants a logfile with a ':' in the filename, one can get it by
-giving a double ':'.  (As in "O,c::\tmp\log")
-
-DBUG_DUMP("keyword",memory-position,length) writes a hexdump of the
-given memory-area to the outputfile.
 
 All changes that I or other people at MySQL AB have done to all files
 in the dbug library (Mainly in dbug.c, dbug_analyze.c, dbug_long.h,
@@ -18,3 +6,4 @@ dbug.h) are put in public domain, as the rest of the dbug.c library)
 To my knowledge, all code in dbug library is in public domain.
 
 Michael Widenius
+
