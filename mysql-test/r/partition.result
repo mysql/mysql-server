@@ -278,3 +278,14 @@ partition p1 values in (14)
 insert into t1 values (10,1);
 ERROR HY000: Table has no partition for value 11
 drop table t1;
+create table t1 (f1 integer,f2 integer, f3 varchar(10), primary key(f1,f2))
+partition by range(f1) subpartition by hash(f2) subpartitions 2
+(partition p1 values less than (0),
+partition p2 values less than (2),
+partition p3 values less than (2147483647));
+insert into t1 values(10,10,'10');
+insert into t1 values(2,2,'2');
+select * from t1 where f1 = 2;
+f1	f2	f3
+2	2	2
+drop table t1;
