@@ -14743,6 +14743,21 @@ static void test_bug12744()
   client_connect(0);
 }
 
+/* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
+
+static void test_bug16143()
+{
+  MYSQL_STMT *stmt;
+  myheader("test_bug16143");
+
+  stmt= mysql_stmt_init(mysql);
+  /* Check mysql_stmt_sqlstate return "no error" */
+  DIE_UNLESS(strcmp(mysql_stmt_sqlstate(stmt), "00000") == 0);
+
+  mysql_stmt_close(stmt);
+}
+
+
 /* Bug #16144: mysql_stmt_attr_get type error */
 
 static void test_bug16144()
@@ -15087,6 +15102,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug15510", test_bug15510 },
   { "test_opt_reconnect", test_opt_reconnect },
   { "test_bug12744", test_bug12744 },
+  { "test_bug16143", test_bug16143 },
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { 0, 0 }
