@@ -214,6 +214,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     WSACleanup();
 #endif /* __WIN__ */
   my_init_done=0;
+  DBUG_VOID_RETURN;
 } /* my_end */
 
 
