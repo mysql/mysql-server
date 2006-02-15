@@ -5747,51 +5747,72 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
   partition_info *part_info= lpt->part_info;
   DBUG_ENTER("handle_alter_part_error");
 
-#if 0
   if (!part_info->first_log_entry &&
       execute_table_log_entry(part_info->first_log_entry))
   {
     /*
-      We couldn't recover from error
+      We couldn't recover from error, most likely manual interaction is required.
     */
+    write_log_completed(lpt, FALSE);
+    release_log_entries(part_info);
     if (not_completed)
     {
+      char *text1= "Operation was unsuccessful, table is still intact, ";
       if (drop_partition)
       {
         /* Table is still ok, but we left a shadow frm file behind. */
-        write_log_completed(lpt, TRUE);
-        release_log_entries(part_info);
-        push_warning(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
-"Operation was unsuccessful, table still intact, shadow frm file left behind"
-                    );
+        char *text2= "but it is possible that a shadow frm file was left behind";
+        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                            "%s \n %s", text1, text2);
+      }
+      else
+      {
+        char *text2= "but it is possible that a shadow frm file was left behind.";
+        char *text3= "It is also possible that temporary partitions are left behind, ";
+        char *text4= "these could be empty or more or less filled with records";
+        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                            "%s \n %s \n %s \n %s", text1, text2, text3, text4);
       }
     }
     else
     {
-      if (frm_install && drop_partition)
+      if (frm_install)
       {
         /*
            Failed during install of shadow frm file, table isn't intact
            and dropped partitions are still there
         */
+        char *text1= "Failed during alter of partitions, table is no longer intact, ";
+        char *text2= "The frm file is in an unknown state, and a backup";
+        char *text3= " is required.
+        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                           "%s \n %s%s\n", text1, text2, text3);
       }
       else if (drop_partition)
       {
         /*
           Table is ok, we have switched to new table but left dropped partitions
           still in their places. We remove the log records and ask the user to
-          perform the action manually. We remove the log records and ask the user to
-          perform the action manually.
+          perform the action manually. We remove the log records and ask the user
+          to perform the action manually.
         */
         char *text1= "Failed during drop of partitions, table is intact, ";
         char *text2= "Manual drop of remaining partitions is required";
-        write_log_completed(lpt, TRUE);
-        release_log_entries(part_info);
         push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
                            "%s\n%s", text1, text2);
       }
-      else (frm_install)
+      else
       {
+        /*
+          We failed during renaming of partitions. The table is most certainly in
+          a very bad state so we give user warning and disable the table by
+          writing an ancient frm version into it.
+        */
+        char *text1= "Failed during renaming of partitions. We are now in a position"
+        char *text2= " where table is not reusable";
+        char *text3= "Table is disabled by writing ancient frm file version into it";
+        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                           "%s%s\n%s", text1, text2, text3);
       }
     }
     
@@ -5821,7 +5842,6 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
       "Operation was successfully completed after failure of normal operation");
     }
   }
-#endif
   DBUG_VOID_RETURN;
 }
 
