@@ -1094,12 +1094,8 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (!DBUG_IN_USE)
-  {
-    if (global_system_variables.log_warnings)
-      sql_print_warning("Got signal %d from thread %d",
-		      sig,my_thread_id());
-  }
+  if (global_system_variables.log_warnings)
+    sql_print_warning("Got signal %d from thread %d", sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -1720,7 +1716,7 @@ void end_thread(THD *thd, bool put_in_cache)
       ! abort_loop && !kill_cached_threads)
   {
     /* Don't kill the thread, just put it in cache for reuse */
-    DBUG_PRINT("info", ("Adding thread to cache"))
+    DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -1741,13 +1737,13 @@ void end_thread(THD *thd, bool put_in_cache)
     }
   }
 
-  DBUG_PRINT("info", ("sending a broadcast"))
+  DBUG_PRINT("info", ("sending a broadcast"));
 
   /* Tell main we are ready */
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   (void) pthread_cond_broadcast(&COND_thread_count);
-  DBUG_PRINT("info", ("unlocked thread_count mutex"))
+  DBUG_PRINT("info", ("unlocked thread_count mutex"));
 #ifdef ONE_THREAD
   if (!(test_flags & TEST_NO_THREADS))	// For debugging under Linux
 #endif
@@ -3484,8 +3480,6 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
-  DEBUGGER_OFF;
-
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter) 
@@ -7076,7 +7070,6 @@ static void mysql_init_variables(void)
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
-  
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -7178,7 +7171,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
-    DBUG_PUSH(argument ? argument : default_dbug_option);
+    DBUG_SET(argument ? argument : default_dbug_option);
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
