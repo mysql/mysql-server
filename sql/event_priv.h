@@ -19,6 +19,10 @@
 #include "mysql_priv.h"
 
 
+#define EVENT_EXEC_STARTED      0
+#define EVENT_EXEC_ALREADY_EXEC 1
+#define EVENT_EXEC_CANT_FORK    2
+
 #define EVEX_USE_QUEUE
 
 #define UNLOCK_MUTEX_AND_BAIL_OUT(__mutex, __label) \
@@ -32,10 +36,10 @@ int
 my_time_compare(TIME *a, TIME *b);
 
 int
-evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
-                       const LEX_STRING rname,
-                       const LEX_STRING definer,
-                       TABLE *table);
+evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
+                          const LEX_STRING ev_name,
+                          const LEX_STRING user_name,
+                          TABLE *table);
                        
 int 
 event_timed_compare_q(void *vptr, byte* a, byte *b);
