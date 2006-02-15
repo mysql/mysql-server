@@ -2666,8 +2666,6 @@ We the people	in order to perform
 a more perfect	union
 test.t1: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
 test.t2: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
-test.t1: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
-test.t2: Records: 2  Deleted: 0  Skipped: 0  Warnings: 0
 select * from t1;
 a	b
 Duck, Duck	goose
