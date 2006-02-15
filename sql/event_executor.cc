@@ -638,18 +638,20 @@ event_executor_worker(void *event_void)
 
   {
     int ret;
-    sql_print_information("SCHEDULER: Executing event %s.%s [EXPR:%d]",
-               event->dbname.str, event->name.str,(int) event->expression);
+    sql_print_information("SCHEDULER: Executing event %s.%s of %s [EXPR:%d]",
+                          event->dbname.str, event->name.str,
+                          event->definer.str, (int) event->expression);
 
     ret= event->execute(thd, &worker_mem_root);
 
     evex_print_warnings(thd, event);
-    sql_print_information("SCHEDULER: Executed event %s.%s  [EXPR:%d]. RetCode=%d",
-                          event->dbname.str, event->name.str,
-                          (int) event->expression, ret);
+    sql_print_information("SCHEDULER: Executed event %s.%s of %s  [EXPR:%d]. "
+                          "RetCode=%d",  event->dbname.str, event->name.str,
+                          event->definer.str, (int) event->expression, ret);
     if (ret == EVEX_COMPILE_ERROR)
-      sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s",
-                             event->dbname.str, event->name.str);
+      sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of",
+                            event->dbname.str, event->name.str,
+                            event->definer.str);
   }
   if ((event->flags & EVENT_EXEC_NO_MORE) || event->status==MYSQL_EVENT_DISABLED)
   {
