@@ -518,7 +518,7 @@ my_bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (!args->arg_count)
   {
-    strcpy(message,"myfunc_double must have at least on argument");
+    strcpy(message,"myfunc_double must have at least one argument");
     return 1;
   }
   /*
