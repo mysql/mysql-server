@@ -239,20 +239,4 @@
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \
   memcpy((to), (void*)(from), (size_t)(no_of_words << 2));
 
-template <class T>
-struct Ptr {
-  T * p;
-  Uint32 i;
-  inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
-};
-
-template <class T>
-struct ConstPtr {
-  const T * p;
-  Uint32 i;
-  inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
-};
-
 #endif
