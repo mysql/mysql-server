@@ -2795,7 +2795,7 @@ void ndb_unpack_record(TABLE *table, NdbValue *value,
         ndb_blob->getDefined(isNull);
         if (isNull == 1)
         {
-          DBUG_PRINT("info",("[%u] NULL", col_no))
+          DBUG_PRINT("info",("[%u] NULL", col_no));
           field->set_null(row_offset);
         }
         else if (isNull == -1)
@@ -2833,15 +2833,18 @@ void ha_ndbcluster::unpack_record(byte *buf)
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     const NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
-    DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
+    DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no,
                           hidden_col->getName(), rec->u_64_value()));
-  } 
-  //print_results();
+  }
+  //DBUG_EXECUTE("value", print_results(););
 #endif
 }
 
 /*
   Utility function to print/dump the fetched field
+  to avoid unnecessary work, wrap in DBUG_EXECUTE as in:
+
+    DBUG_EXECUTE("value", print_results(););
  */
 
 void ha_ndbcluster::print_results()
@@ -2849,8 +2852,6 @@ void ha_ndbcluster::print_results()
   DBUG_ENTER("print_results");
 
 #ifndef DBUG_OFF
-  if (!_db_on_)
-    DBUG_VOID_RETURN;
 
   char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
   String type(buf_type, sizeof(buf_type), &my_charset_bin);
@@ -6450,7 +6451,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 
   if (!is_autocommit)
   {
-    DBUG_PRINT("exit", ("Can't register table during transaction"))
+    DBUG_PRINT("exit", ("Can't register table during transaction"));
     DBUG_RETURN(FALSE);
   }
 
@@ -6458,7 +6459,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
   {
     *engine_data= 0;
-    DBUG_PRINT("exit", ("Error, could not get commitcount"))
+    DBUG_PRINT("exit", ("Error, could not get commitcount"));
     DBUG_RETURN(FALSE);
   }
   *engine_data= commit_count;

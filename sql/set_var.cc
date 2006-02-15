@@ -205,6 +205,9 @@ sys_var_long_ptr	sys_concurrent_insert("concurrent_insert",
                                               &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
+#ifndef DBUG_OFF
+sys_var_thd_dbug        sys_dbug("debug");
+#endif
 sys_var_enum		sys_delay_key_write("delay_key_write",
 					    &delay_key_write_options,
 					    &delay_key_write_typelib,
@@ -720,13 +723,16 @@ SHOW_VAR init_vars[]= {
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {sys_date_format.name,      (char*) &sys_date_format,		    SHOW_SYS},
   {sys_datetime_format.name,  (char*) &sys_datetime_format,	    SHOW_SYS},
+#ifndef DBUG_OFF
+  {sys_dbug.name,             (char*) &sys_dbug,                    SHOW_SYS},
+#endif
   {sys_default_week_format.name, (char*) &sys_default_week_format,  SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
   {sys_div_precincrement.name,(char*) &sys_div_precincrement,SHOW_SYS},
-  {sys_engine_condition_pushdown.name, 
+  {sys_engine_condition_pushdown.name,
    (char*) &sys_engine_condition_pushdown,                          SHOW_SYS},
   {sys_event_executor.name,   (char*) &sys_event_executor,          SHOW_SYS},
   {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
@@ -3457,6 +3463,33 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   return sys_var_bool_ptr::update(thd, var);
 }
 
+/* even session variable here requires SUPER, because of -#o,file */
+bool sys_var_thd_dbug::check(THD *thd, set_var *var)
+{
+  return check_global_access(thd, SUPER_ACL);
+}
+
+bool sys_var_thd_dbug::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
+  else
+  {
+    DBUG_POP();
+    DBUG_PUSH(var ? var->value->str_value.c_ptr() : "");
+  }
+  return 0;
+}
+
+byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
+{
+  char buf[256];
+  if (type == OPT_GLOBAL)
+    DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+  else
+    DBUG_EXPLAIN(buf, sizeof(buf));
+  (byte*) thd->strdup(buf);
+}
 
 /****************************************************************************
   Used templates
