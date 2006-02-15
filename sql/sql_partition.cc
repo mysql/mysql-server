@@ -3912,27 +3912,6 @@ end:
 
 /*
   SYNOPSIS
-    fast_alter_partition_error_handler()
-    lpt                           Container for parameters
-
-  RETURN VALUES
-    None
-
-  DESCRIPTION
-    Support routine to clean up after failures of on-line ALTER TABLE
-    for partition management.
-*/
-
-static void fast_alter_partition_error_handler(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  DBUG_ENTER("fast_alter_partition_error_handler");
-  /* TODO: WL 2826 Error handling */
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  SYNOPSIS
     fast_end_partition()
     thd                           Thread object
     out:copied                    Number of records copied
@@ -3952,6 +3931,7 @@ static void fast_alter_partition_error_handler(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 static int fast_end_partition(THD *thd, ulonglong copied,
                               ulonglong deleted,
+                              TABLE *table,
                               TABLE_LIST *table_list, bool is_empty,
                               ALTER_PARTITION_PARAM_TYPE *lpt,
                               bool written_bin_log)
@@ -3979,7 +3959,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
     send_ok(thd,copied+deleted,0L,tmp_name);
     DBUG_RETURN(FALSE);
   }
-  fast_alter_partition_error_handler(lpt);
+  table->file->print_error(error, MYF(0));
   DBUG_RETURN(TRUE);
 }
 
@@ -4202,7 +4182,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
-        DBUG_RETURN(fast_end_partition(thd, ULL(0), ULL(0), NULL,
+        DBUG_RETURN(fast_end_partition(thd, ULL(0), ULL(0),
+                                       table, NULL,
                                        TRUE, NULL, FALSE));
       }
       else if (new_part_no > curr_part_no)
@@ -5691,25 +5672,61 @@ write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 */
 
 static
-bool
-write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
+void
+write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt, bool dont_crash)
 {
   partition_info *part_info= lpt->part_info;
+  uint count_loop= 0;
+  bool success;
   TABLE_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
   DBUG_ASSERT(log_entry);
   lock_global_table_log();
-  if (write_execute_table_log_entry(0UL, TRUE, &log_entry))
+  do
   {
-    DBUG_RETURN(TRUE);
+    if (!(success= write_execute_table_log_entry(0UL, TRUE, &log_entry)))
+      break;
+    my_sleep(1); 
+  } while (count_loop++ < 20);
+  if (!success && !dont_crash)
+  {
+    /*
+      Failed to write 20 consecutive attempts to write. Bad...
+      We have completed the operation but have log records to REMOVE
+      stuff that shouldn't be removed. What clever things could one do
+      here?
+    */
+    abort();
   }
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
   unlock_global_table_log();
   part_info->exec_log_entry= NULL;
   part_info->first_log_entry= NULL;
-  DBUG_RETURN(FALSE);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+   Release all log entries
+   SYNOPSIS
+     release_log_entries()
+     part_info                  Partition info struct
+   RETURN VALUES
+     NONE
+*/
+
+static
+void
+release_log_entries(partition *part_info)
+{
+  lock_global_table_log();
+  release_part_info_log_entries(part_info->first_log_entry);
+  release_part_info_log_entries(part_info->exec_log_entry);
+  unlock_global_table_log();
+  part_info->first_log_entry= NULL;
+  part_info->exec_log_entry= NULL;
 }
 
 
@@ -5724,36 +5741,87 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt)
 */
 
 void
-handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed)
+handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
+                        bool drop_partition, bool frm_install)
 {
   partition_info *part_info= lpt->part_info;
   DBUG_ENTER("handle_alter_part_error");
 
+#if 0
   if (!part_info->first_log_entry &&
       execute_table_log_entry(part_info->first_log_entry))
   {
     /*
       We couldn't recover from error
     */
+    if (not_completed)
+    {
+      if (drop_partition)
+      {
+        /* Table is still ok, but we left a shadow frm file behind. */
+        write_log_completed(lpt, TRUE);
+        release_log_entries(part_info);
+        push_warning(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+"Operation was unsuccessful, table still intact, shadow frm file left behind"
+                    );
+      }
+    }
+    else
+    {
+      if (frm_install && drop_partition)
+      {
+        /*
+           Failed during install of shadow frm file, table isn't intact
+           and dropped partitions are still there
+        */
+      }
+      else if (drop_partition)
+      {
+        /*
+          Table is ok, we have switched to new table but left dropped partitions
+          still in their places. We remove the log records and ask the user to
+          perform the action manually. We remove the log records and ask the user to
+          perform the action manually.
+        */
+        char *text1= "Failed during drop of partitions, table is intact, ";
+        char *text2= "Manual drop of remaining partitions is required";
+        write_log_completed(lpt, TRUE);
+        release_log_entries(part_info);
+        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                           "%s\n%s", text1, text2);
+      }
+      else (frm_install)
+      {
+      }
+    }
+    
   }
   else
   {
+    release_log_entries(part_info);
     if (not_completed)
     {
       /*
         We hit an error before things were completed but managed
-        to recover from the error.
+        to recover from the error. An error occurred and we have
+        restored things to original so no need for further action.
       */
+      ;
     }
     else
     {
       /*
         We hit an error after we had completed most of the operation
         and were successful in a second attempt so the operation
-        actually is successful now.
+        actually is successful now. We need to issue a warning that
+        even though we reported an error the operation was successfully
+        completed.
       */
+      push_warning(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+      "Operation was successfully completed after failure of normal operation");
     }
   }
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5799,6 +5867,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   ALTER_PARTITION_PARAM_TYPE lpt_obj;
   ALTER_PARTITION_PARAM_TYPE *lpt= &lpt_obj;
   bool written_bin_log= TRUE;
+  bool not_completed= TRUE;
+  bool frm_install= FALSE;
   DBUG_ENTER("fast_alter_partition_table");
 
   lpt->thd= thd;
@@ -5844,7 +5914,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
          (table->file->repair_partitions(thd))))
     {
-      fast_alter_partition_error_handler(lpt);
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(TRUE);
     }
   }
@@ -5892,7 +5962,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     if (mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM) ||
         mysql_change_partitions(lpt))
     {
-      fast_alter_partition_error_handler(lpt);
       DBUG_RETURN(TRUE);
     }
   }
@@ -5950,7 +6019,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       We insert Error injections at all places where it could be interesting
       to test if recovery is properly done.
     */
-    bool not_completed= TRUE;
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
@@ -5958,26 +6026,25 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         ((not_completed= FALSE), FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
+        (abort_and_upgrade_lock(lpt, FALSE), FALSE) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        (close_open_tables_and_downgrade(lpt), FALSE) || 
-        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE), FALSE) ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
+        ((frm_install= TRUE), FALSE) ||
+        mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
+        ((frm_install= FALSE), FALSE) ||
+        (close_open_tables_and_downgrade(lpt), FALSE) || 
         ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         mysql_drop_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_7") ||
-        write_log_completed(lpt) ||
+        (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
-      handle_alter_part_error(lpt, not_completed);
-      DBUG_RETURN(TRUE);
-      abort();
-      fast_alter_partition_error_handler(lpt);
+      handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
       DBUG_RETURN(TRUE);
     }
   }
@@ -6011,14 +6078,13 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       8) Remove entries from table log
       9) Complete query
     */
-    bool not_completed= TRUE;
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) ||
+        (abort_and_upgrade_lock(lpt, FALSE), FALSE) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
@@ -6026,16 +6092,14 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_rename_frm(lpt) ||
         ((not_completed= FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
+        ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_6") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
-        write_log_completed(lpt) ||
+        (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_7")) 
     {
-      abort();
-      if (!not_completed)
-        abort();
-      fast_alter_partition_error_handler(lpt);
+      handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       DBUG_RETURN(TRUE);
     }
   }
@@ -6094,7 +6158,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       13)Wait until all accesses using the old frm file has completed
       14)Complete query
     */
-    bool not_completed= TRUE;
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
@@ -6104,7 +6167,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         ((not_completed= FALSE), FALSE) ||
-        abort_and_upgrade_lock(lpt) ||
+        (abort_and_upgrade_lock(lpt, FALSE), FALSE) ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
@@ -6112,19 +6175,17 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (table->file->extra(HA_EXTRA_PREPARE_FOR_DELETE), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         mysql_rename_partitions(lpt) ||
+        ((frm_install= TRUE), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
         (close_open_tables_and_downgrade(lpt), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_9") ||
-        write_log_completed(lpt) ||
+        (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_10") ||
         (mysql_wait_completed_table(lpt, table), FALSE))
     {
-      abort();
-      if (!not_completed)
-        abort();
-      fast_alter_partition_error_handler(lpt);
+      handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       DBUG_RETURN(TRUE);
     }
   }
@@ -6133,7 +6194,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     user
   */
   DBUG_RETURN(fast_end_partition(thd, lpt->copied, lpt->deleted,
-                                 table_list, FALSE, lpt,
+                                 table, table_list, FALSE, lpt,
                                  written_bin_log));
 }
 #endif

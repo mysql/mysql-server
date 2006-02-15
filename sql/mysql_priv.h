@@ -1218,7 +1218,8 @@ void unlock_global_table_log();
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt,
+                            bool can_be_killed);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
