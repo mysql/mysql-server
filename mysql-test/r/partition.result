@@ -278,3 +278,9 @@ partition p1 values in (14)
 insert into t1 values (10,1);
 ERROR HY000: Table has no partition for value 11
 drop table t1;
+create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
+partition by hash(f_int1) partitions 2;
+insert into t1 values (1,1),(2,2);
+replace into t1 values (1,1),(2,2);
+drop table t1;
+End of 5.1 tests
