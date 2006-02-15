@@ -730,10 +730,10 @@ build_query_string(void)
   strmov(ptr->string, query_string.str);
   DBUG_PRINT("info", ("user_supplied_query %s", ptr->string));
   dynstr_free(&query_string);
-  DBUG_RETURN(0);
+  DBUG_RETURN(ptr);
 }
 
-static int 
+static int
 get_options(int *argc,char ***argv)
 {
   int ho_error;
