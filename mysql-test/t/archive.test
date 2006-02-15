@@ -1344,9 +1344,11 @@ CHECK TABLE t2;
 SELECT * FROM t2;
 
 
-# Just test syntax, we will never know if the output is right or wrong
-# Must be the last test
+# We won't know exactly about what is going on internally,
+# but we will see if the row makes it in!!
 INSERT DELAYED INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
+FLUSH TABLE t2;
+SELECT * FROM t2;
 
 # Adding test for alter table
 ALTER TABLE t2 DROP COLUMN fld6; 
