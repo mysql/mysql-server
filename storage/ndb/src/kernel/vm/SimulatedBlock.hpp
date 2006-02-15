@@ -28,6 +28,7 @@
 #include <GlobalSignalNumbers.h>
 
 #include "pc.hpp"
+#include "Pool.hpp"
 #include <NodeInfo.hpp>
 #include <NodeState.hpp>
 #include "GlobalData.hpp"
