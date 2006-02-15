@@ -64,11 +64,11 @@ NdbConfig_NdbCfgName(int with_ndb_home){
   int len= 0;
 
   if (with_ndb_home) {
-    buf= NdbConfig_AllocHomePath(128);
+    buf= NdbConfig_AllocHomePath(PATH_MAX);
     len= strlen(buf);
   } else
-    buf= NdbMem_Allocate(128);
-  basestring_snprintf(buf+len, 128, "Ndb.cfg");
+    buf= NdbMem_Allocate(PATH_MAX);
+  basestring_snprintf(buf+len, PATH_MAX, "Ndb.cfg");
   return buf;
 }
 
@@ -90,56 +90,56 @@ char *get_prefix_buf(int len, int node_id)
 
 char* 
 NdbConfig_ErrorFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_error.log");
+  basestring_snprintf(buf+len, PATH_MAX, "_error.log");
   return buf;
 }
 
 char*
 NdbConfig_ClusterLogFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_cluster.log");
+  basestring_snprintf(buf+len, PATH_MAX, "_cluster.log");
   return buf;
 }
 
 char*
 NdbConfig_SignalLogFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_signal.log");
+  basestring_snprintf(buf+len, PATH_MAX, "_signal.log");
   return buf;
 }
 
 char*
 NdbConfig_TraceFileName(int node_id, int file_no){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_trace.log.%u", file_no);
+  basestring_snprintf(buf+len, PATH_MAX, "_trace.log.%u", file_no);
   return buf;
 }
 
 char*
 NdbConfig_NextTraceFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_trace.log.next");
+  basestring_snprintf(buf+len, PATH_MAX, "_trace.log.next");
   return buf;
 }
 
 char*
 NdbConfig_PidFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, ".pid");
+  basestring_snprintf(buf+len, PATH_MAX, ".pid");
   return buf;
 }
 
 char*
 NdbConfig_StdoutFileName(int node_id){
-  char *buf= get_prefix_buf(128, node_id);
+  char *buf= get_prefix_buf(PATH_MAX, node_id);
   int len= strlen(buf);
-  basestring_snprintf(buf+len, 128, "_out.log");
+  basestring_snprintf(buf+len, PATH_MAX, "_out.log");
   return buf;
 }
