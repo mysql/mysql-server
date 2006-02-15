@@ -255,6 +255,9 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_ALTER_FUNCTION:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_CREATE_EVENT:
+  case SQLCOM_ALTER_EVENT:
+  case SQLCOM_DROP_EVENT:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
