@@ -3754,7 +3754,7 @@ void get_partition_set(const TABLE *table, byte *buf, const uint index,
         subpartitions. This is a range without holes.
       */
       DBUG_ASSERT(sub_part == no_parts);
-      part_spec->start_part= part_part * part_info->no_parts;
+      part_spec->start_part= part_part * part_info->no_subparts;
       part_spec->end_part= part_spec->start_part+part_info->no_subparts - 1;
     }
     else
