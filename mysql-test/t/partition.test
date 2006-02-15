@@ -353,3 +353,13 @@ insert into t1 values (10,1);
 
 drop table t1;
 
+#
+# Bug #16782: Crash using REPLACE on table with primary key
+#
+create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
+  partition by hash(f_int1) partitions 2;
+insert into t1 values (1,1),(2,2);
+replace into t1 values (1,1),(2,2);
+drop table t1;
+
+--echo End of 5.1 tests
