@@ -240,10 +240,33 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
 {
   THD *thd= current_thd;
   MEM_ROOT *mem_root= &share->mem_root;
+  int do_event_op= ndb_binlog_running;
 
   share->op= 0;
   share->table= 0;
-  if (!ndb_binlog_running)
+
+  if (!schema_share &&
+      strcmp(share->db, NDB_REP_DB) == 0 &&
+      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
+    do_event_op= 1;
+
+  {
+    int i, no_nodes= g_ndb_cluster_connection->no_db_nodes();
+    share->subscriber_bitmap= (MY_BITMAP*)
+      alloc_root(mem_root, no_nodes * sizeof(MY_BITMAP));
+    for (i= 0; i < no_nodes; i++)
+    {
+      bitmap_init(&share->subscriber_bitmap[i],
+                  (Uint32*)alloc_root(mem_root, max_ndb_nodes/8),
+                  max_ndb_nodes, false);
+      bitmap_clear_all(&share->subscriber_bitmap[i]);
+    }
+    bitmap_init(&share->slock_bitmap, share->slock,
+                sizeof(share->slock)*8, false);
+    bitmap_clear_all(&share->slock_bitmap);
+  }
+
+  if (!do_event_op)
   {
     if (_table)
     {
@@ -318,21 +341,6 @@ void ndbcluster_binlog_init_share(NDB_SHARE *share, TABLE *_table)
     share->ndb_value[1]= (NdbValue*)
       alloc_root(mem_root, sizeof(NdbValue) * table->s->fields
                  +1 /*extra for hidden key*/);
-    {
-      int i, no_nodes= g_ndb_cluster_connection->no_db_nodes();
-      share->subscriber_bitmap= (MY_BITMAP*)
-        alloc_root(mem_root, no_nodes * sizeof(MY_BITMAP));
-      for (i= 0; i < no_nodes; i++)
-      {
-        bitmap_init(&share->subscriber_bitmap[i],
-                    (Uint32*)alloc_root(mem_root, max_ndb_nodes/8),
-                    max_ndb_nodes, false);
-        bitmap_clear_all(&share->subscriber_bitmap[i]);
-      }
-      bitmap_init(&share->slock_bitmap, share->slock,
-                  sizeof(share->slock)*8, false);
-      bitmap_clear_all(&share->slock_bitmap);
-    }
     if (table->s->primary_key == MAX_KEY)
       share->flags|= NSF_HIDDEN_PK;
     if (table->s->blob_fields != 0)
@@ -1361,6 +1369,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
     switch (ev_type)
     {
     case NDBEVENT::TE_UPDATE:
+      /* fall through */
     case NDBEVENT::TE_INSERT:
     {
       Cluster_replication_schema *schema= (Cluster_replication_schema *)
@@ -1378,21 +1387,20 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         {
         case SOT_DROP_TABLE:
           /* binlog dropping table after any table operations */
-          post_epoch_log_list->push_back(schema, mem_root);
+          if (ndb_binlog_running)
+            post_epoch_log_list->push_back(schema, mem_root);
           log_query= 0;
           break;
         case SOT_RENAME_TABLE:
           /* fall through */
         case SOT_ALTER_TABLE:
-          /* fall through */
-          if (!ndb_binlog_running)
+          if (ndb_binlog_running)
           {
             log_query= 1;
             break; /* discovery will be handled by binlog */
           }
           /* fall through */
         case SOT_CREATE_TABLE:
-          /* fall through */
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
@@ -1410,7 +1418,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                     TRUE,    /* print error */
                     TRUE);   /* don't binlog the query */
           /* binlog dropping database after any table operations */
-          post_epoch_log_list->push_back(schema, mem_root);
+          if (ndb_binlog_running)
+            post_epoch_log_list->push_back(schema, mem_root);
           log_query= 0;
           break;
         case SOT_CREATE_DB:
@@ -1466,7 +1475,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           }
         }
 
-        if (log_query)
+        if (log_query && ndb_binlog_running)
         {
           char *thd_db_save= thd->db;
           thd->db= schema->db;
@@ -1755,6 +1764,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
                                    const char *table_name,
                                    my_bool share_may_exist)
 {
+  int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_create_binlog_setup");
   DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s  share_may_exist: %d",
                       key, key_len, db, table_name, share_may_exist));
@@ -1795,7 +1805,12 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
                     "allocating table share for %s failed", key);
   }
 
-  if (!ndb_binlog_running)
+  if (!schema_share &&
+      strcmp(share->db, NDB_REP_DB) == 0 &&
+      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
+    do_event_op= 1;
+
+  if (!do_event_op)
   {
     share->flags|= NSF_NO_BINLOG;
     pthread_mutex_unlock(&ndbcluster_mutex);

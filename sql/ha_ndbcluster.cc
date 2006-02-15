@@ -34,6 +34,7 @@
 #include <ndbapi/NdbIndexStat.hpp>
 
 #include "ha_ndbcluster_binlog.h"
+#include "ha_ndbcluster_tables.h"
 
 #ifdef ndb_dynamite
 #undef assert
@@ -4381,6 +4382,12 @@ int ha_ndbcluster::create(const char *name,
       const NDBTAB *t= dict->getTable(m_tabname);
       String event_name(INJECTOR_EVENT_LEN);
       ndb_rep_event_name(&event_name,m_dbname,m_tabname);
+      int do_event_op= ndb_binlog_running;
+
+      if (!schema_share &&
+          strcmp(share->db, NDB_REP_DB) == 0 &&
+          strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
+        do_event_op= 1;
 
       /*
         Always create an event for the table, as other mysql servers
@@ -4389,7 +4396,7 @@ int ha_ndbcluster::create(const char *name,
       if (ndbcluster_create_event(ndb, t, event_name.c_ptr(), share) < 0)
       {
         /* this is only a serious error if the binlog is on */
-	if (share && ndb_binlog_running)
+	if (share && do_event_op)
 	{
           push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                               ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
@@ -4402,14 +4409,14 @@ int ha_ndbcluster::create(const char *name,
         sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
                               event_name.c_ptr());
 
-      if (share && ndb_binlog_running &&
+      if (share && do_event_op &&
           ndbcluster_create_event_ops(share, t, event_name.c_ptr()) < 0)
       {
         sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
                         " Event: %s", name2);
         /* a warning has been issued to the client */
       }
-      if (share && !ndb_binlog_running)
+      if (share && !do_event_op)
         share->flags|= NSF_NO_BINLOG;
       ndbcluster_log_schema_op(current_thd, share,
                                current_thd->query, current_thd->query_length,
@@ -4692,9 +4699,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
       ERR_RETURN(dict->getNdbError());
   }
 #ifdef HAVE_NDB_BINLOG
-  NDB_SHARE *share= 0;
-  if (ndb_binlog_running &&
-      (share= get_share(from, 0, false)))
+  NDB_SHARE *share= get_share(from, 0, false);
+  if (share)
   {
     int r= rename_share(share, to);
     DBUG_ASSERT(r == 0);
@@ -4755,7 +4761,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: RENAME Event: %s",
                               event_name.c_ptr());
-      if (share)
+      if (share && ndb_binlog_running)
       {
         if (ndbcluster_create_event_ops(share, ndbtab,
                                         event_name.c_ptr()) < 0)
@@ -6615,16 +6621,19 @@ static int rename_share(NDB_SHARE *share, const char *new_key)
              ("db.tablename: %s.%s  use_count: %d  commit_count: %d",
               share->db, share->table_name,
               share->use_count, share->commit_count));
-  DBUG_PRINT("rename_share",
-             ("table->s->db.table_name: %s.%s",
-              share->table->s->db.str, share->table->s->table_name.str));
-
-  if (share->op == 0)
+  if (share->table)
   {
-    share->table->s->db.str= share->db;
-    share->table->s->db.length= strlen(share->db);
-    share->table->s->table_name.str= share->table_name;
-    share->table->s->table_name.length= strlen(share->table_name);
+    DBUG_PRINT("rename_share",
+               ("table->s->db.table_name: %s.%s",
+                share->table->s->db.str, share->table->s->table_name.str));
+
+    if (share->op == 0)
+    {
+      share->table->s->db.str= share->db;
+      share->table->s->db.length= strlen(share->db);
+      share->table->s->table_name.str= share->table_name;
+      share->table->s->table_name.length= strlen(share->table_name);
+    }
   }
   /* else rename will be handled when the ALTER event comes */
   share->old_names= old_key;
