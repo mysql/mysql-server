@@ -64,7 +64,7 @@ SHOW GRANTS;
 Grants for ev_test@localhost
 GRANT USAGE ON *.* TO 'ev_test'@'localhost'
 GRANT ALL PRIVILEGES ON `events_test`.* TO 'ev_test'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE ON `events_test2`.* TO 'ev_test'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, TRIGGER ON `events_test2`.* TO 'ev_test'@'localhost'
 "Here comes an error:";
 SHOW EVENTS;
 ERROR 42000: Access denied for user 'ev_test'@'localhost' to database 'events_test2'
