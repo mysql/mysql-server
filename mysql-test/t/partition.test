@@ -368,3 +368,15 @@ insert into t1 values(2,2,'2');
 select * from t1 where f1 = 2;
 drop table t1;
 
+#
+# Bug #16907 Partitions: crash, SELECT goes into last partition, UNIQUE INDEX
+#
+create table t1 (f1 integer,f2 integer, unique index(f1))
+partition by range(f1 div 2)
+subpartition by hash(f1) subpartitions 2
+(partition partb values less than (2),
+partition parte values less than (4),
+partition partf values less than (10000));
+insert into t1 values(10,1);
+select * from t1 where f1 = 10;
+drop table t1;
