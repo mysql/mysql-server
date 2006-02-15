@@ -353,3 +353,30 @@ insert into t1 values (10,1);
 
 drop table t1;
 
+#
+# Bug#16901 Partitions: crash, SELECT, column of part.
+#           function=first column of primary key
+#
+create table t1 (f1 integer,f2 integer, f3 varchar(10), primary key(f1,f2))
+partition by range(f1) subpartition by hash(f2) subpartitions 2
+(partition p1 values less than (0),
+ partition p2 values less than (2),
+ partition p3 values less than (2147483647));
+
+insert into t1 values(10,10,'10');
+insert into t1 values(2,2,'2');
+select * from t1 where f1 = 2;
+drop table t1;
+
+#
+# Bug #16907 Partitions: crash, SELECT goes into last partition, UNIQUE INDEX
+#
+create table t1 (f1 integer,f2 integer, unique index(f1))
+partition by range(f1 div 2)
+subpartition by hash(f1) subpartitions 2
+(partition partb values less than (2),
+partition parte values less than (4),
+partition partf values less than (10000));
+insert into t1 values(10,1);
+select * from t1 where f1 = 10;
+drop table t1;
