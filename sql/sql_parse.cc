@@ -3773,6 +3773,12 @@ end_with_restore_list:
                        is_schema_db(lex->et->dbname.str)))
         break;
 
+      if (end_active_trans(thd))
+      {
+        res= -1;
+        break;
+      }
+
       switch (lex->sql_command) {
       case SQLCOM_CREATE_EVENT:
         res= evex_create_event(thd, lex->et, (uint) lex->create_info.options,
