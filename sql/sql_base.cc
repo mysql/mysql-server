@@ -6107,7 +6107,8 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt,
+                            bool can_be_killed)
 {
   uint flags= RTFC_WAIT_OTHER_THREAD_FLAG | RTFC_CHECK_KILLED_FLAG;
   int error= FALSE;
@@ -6117,7 +6118,7 @@ bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   VOID(pthread_mutex_lock(&LOCK_open));
   mysql_lock_abort(lpt->thd, lpt->table, TRUE);
   VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
-  if (lpt->thd->killed)
+  if (can_be_killed && lpt->thd->killed)
   {
     lpt->thd->no_warnings_for_error= 0;
     error= TRUE;
