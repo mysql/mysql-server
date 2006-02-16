@@ -412,21 +412,30 @@ event_timed::init_definer(THD *thd)
 {
   DBUG_ENTER("event_timed::init_definer");
 
+  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
+                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
+                     thd->security_ctx->priv_user));
   definer_user.str= strdup_root(thd->mem_root, thd->security_ctx->priv_user);
   definer_user.length= strlen(thd->security_ctx->priv_user);
 
+  DBUG_PRINT("info",("init definer_host thd->s_c->priv_host=0x%lx",
+                     thd->security_ctx->priv_host));
   definer_host.str= strdup_root(thd->mem_root, thd->security_ctx->priv_host);
   definer_host.length= strlen(thd->security_ctx->priv_host);
 
+  DBUG_PRINT("info",("init definer as whole"));
   definer.length= definer_user.length + definer_host.length + 1;
   definer.str= alloc_root(thd->mem_root, definer.length + 1);
 
+  DBUG_PRINT("info",("copy the user"));
   memcpy(definer.str, definer_user.str, definer_user.length);
   definer.str[definer_user.length]= '@';
 
+  DBUG_PRINT("info",("copy the host"));
   memcpy(definer.str + definer_user.length + 1, definer_host.str,
          definer_host.length);
   definer.str[definer.length]= '\0';
+  DBUG_PRINT("info",("definer initted"));
 
   DBUG_RETURN(0);
 }
@@ -908,7 +917,7 @@ event_timed::drop(THD *thd)
   Saves status and last_executed_at to the disk if changed.
 
   SYNOPSIS
-    event_timed::drop()
+    event_timed::update_fields()
       thd - thread context
 
   RETURN VALUE
@@ -945,7 +954,7 @@ event_timed::update_fields(THD *thd)
   }
 
 
-  if ((ret= evex_db_find_event_aux(thd, dbname, name, definer, table)))
+  if ((ret= evex_db_find_event_by_name(thd, dbname, name, definer, table)))
     goto done;
 
   store_record(table,record[1]);
@@ -1061,6 +1070,7 @@ event_timed::get_create_event(THD *thd, String *buf)
 
   RETURNS
     0        success
+    -99      No rights on this.dbname.str
     -100     event in execution (parallel execution is impossible)
     others   retcodes of sp_head::execute_procedure()
 */
@@ -1068,10 +1078,14 @@ event_timed::get_create_event(THD *thd, String *buf)
 int
 event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
-  List<Item> empty_item_list;
+  Security_context *save_ctx;
+  /* this one is local and not needed after exec */
+  Security_context security_ctx;
   int ret= 0;
 
   DBUG_ENTER("event_timed::execute");
+  DBUG_PRINT("info", ("    EVEX EXECUTING event %s.%s [EXPR:%d]",
+               dbname.str, name.str, (int) expression));
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   if (running)
@@ -1082,27 +1096,107 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   running= true;
   VOID(pthread_mutex_unlock(&this->LOCK_running));
 
-  // TODO Andrey : make this as member variable and delete in destructor
-  empty_item_list.empty();
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+  change_security_context(thd, &security_ctx, &save_ctx);
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
 
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
-
-  ret= sphead->execute_procedure(thd, &empty_item_list);
+  /* Now we are sure we have valid this->sphead so we can copy the context */
+  sphead->m_security_ctx= security_ctx;
+  thd->db= dbname.str;
+  thd->db_length= dbname.length;
+  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  {
+    List<Item> empty_item_list;
+    empty_item_list.empty();
+    ret= sphead->execute_procedure(thd, &empty_item_list);
+  }
+  else
+  {
+    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
+               definer_host.str, dbname.str));
+    ret= -99;
+  }
+  restore_security_context(thd, save_ctx);
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+  thd->db= 0;
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
   VOID(pthread_mutex_unlock(&this->LOCK_running));
 
 done:
-  // Don't cache sphead if allocated on another mem_root
+  /*
+    1. Don't cache sphead if allocated on another mem_root
+    2. Don't call security_ctx.destroy() because this will free our dbname.str
+       name.str and definer.str
+  */
   if (mem_root && sphead)
   {
     delete sphead;
     sphead= 0;
   }
+  DBUG_PRINT("info", ("    EVEX EXECUTED event %s.%s  [EXPR:%d]. RetCode=%d",
+                      dbname.str, name.str, (int) expression, ret));
 
   DBUG_RETURN(ret);
+}
+
+
+/*
+  Switches the security context
+  Synopsis
+    event_timed::change_security_context()
+      thd    - thread
+      backup - where to store the old context 
+  
+  RETURN
+    0  - OK
+    1  - Error (generates error too)
+*/
+bool
+event_timed::change_security_context(THD *thd, Security_context *s_ctx,
+                                     Security_context **backup)
+{
+  DBUG_ENTER("event_timed::change_security_context");
+  DBUG_PRINT("info",("%s@%s@%s",definer_user.str,definer_host.str, dbname.str));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  s_ctx->init();
+  *backup= 0;
+  if (acl_getroot_no_password(s_ctx, definer_user.str, definer_host.str,
+                             definer_host.str, dbname.str))
+  {
+    my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
+    DBUG_RETURN(TRUE);
+  }
+  *backup= thd->security_ctx;
+  thd->security_ctx= s_ctx;
+#endif
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Restores the security context
+  Synopsis
+    event_timed::restore_security_context()
+      thd    - thread
+      backup - switch to this context
+ */
+
+void
+event_timed::restore_security_context(THD *thd, Security_context *backup)
+{
+  DBUG_ENTER("event_timed::change_security_context");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (backup)
+    thd->security_ctx= backup;
+#endif
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1128,6 +1222,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   MEM_ROOT *tmp_mem_root= 0;
   LEX *old_lex= thd->lex, lex;
   char *old_db;
+  int old_db_length;
   event_timed *ett;
   sp_name *spn;
   char *old_query;
@@ -1161,7 +1256,9 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   old_query_len= thd->query_length;
   old_query= thd->query;
   old_db= thd->db;
+  old_db_length= thd->db_length;
   thd->db= dbname.str;
+  thd->db_length= dbname.length;
 
   get_create_event(thd, &show_create);
 
@@ -1227,3 +1324,135 @@ done:
   DBUG_RETURN(ret);
 }
 
+
+/*
+  Checks whether this thread can lock the object for modification ->
+  preventing being spawned for execution, and locks if possible.
+  use ::can_spawn_now() only for basic checking because a race
+  condition may occur between the check and eventual modification (deletion)
+  of the object.
+
+  Returns
+    true  - locked
+    false - cannot lock
+*/
+
+my_bool
+event_timed::can_spawn_now_n_lock(THD *thd)
+{
+  my_bool ret= FALSE;
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    in_spawned_thread= TRUE;
+    ret= TRUE;
+    locked_by_thread_id= thd->thread_id;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  return ret;  
+}
+
+
+extern pthread_attr_t connection_attrib;
+
+/*
+  Checks whether is possible and forks a thread. Passes self as argument.
+  
+  Returns
+  EVENT_EXEC_STARTED       - OK
+  EVENT_EXEC_ALREADY_EXEC  - Thread not forked, already working
+  EVENT_EXEC_CANT_FORK     - Unable to spawn thread (error)
+*/
+
+int
+event_timed::spawn_now(void * (*thread_func)(void*))
+{  
+  int ret= EVENT_EXEC_STARTED;
+  static uint exec_num= 0;
+  DBUG_ENTER("event_timed::spawn_now");
+  DBUG_PRINT("info", ("[%s.%s]", dbname.str, name.str));
+
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    pthread_t th;
+    in_spawned_thread= true;
+    if (pthread_create(&th, &connection_attrib, thread_func, (void*)this))
+    {
+      DBUG_PRINT("info", ("problem while spawning thread"));
+      ret= EVENT_EXEC_CANT_FORK;
+      in_spawned_thread= false;
+    }
+#ifndef DBUG_OFF
+    else
+    {
+      sql_print_information("SCHEDULER: Started thread %d", ++exec_num);
+      DBUG_PRINT("info", ("thread spawned"));
+    }
+#endif
+  }
+  else
+  {
+    DBUG_PRINT("info", ("already in spawned thread. skipping"));
+    ret= EVENT_EXEC_ALREADY_EXEC;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+
+  DBUG_RETURN(ret);  
+}
+
+
+void
+event_timed::spawn_thread_finish(THD *thd)
+{
+  DBUG_ENTER("event_timed::spawn_thread_finish");
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  in_spawned_thread= false;
+  if ((flags & EVENT_EXEC_NO_MORE) || status == MYSQL_EVENT_DISABLED)
+  {
+    DBUG_PRINT("info", ("%s exec no more. to drop=%d", name.str, dropped));
+    if (dropped)
+      drop(thd);
+    VOID(pthread_mutex_unlock(&this->LOCK_running));
+    delete this;
+    DBUG_VOID_RETURN;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Unlocks the object after it has been locked with ::can_spawn_now_n_lock()
+
+  Returns
+    0 - ok
+    1 - not locked by this thread
+  
+*/
+ 
+
+int
+event_timed::spawn_unlock(THD *thd)
+{
+  int ret= 0;
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    if (locked_by_thread_id == thd->thread_id)
+    {        
+      in_spawned_thread= FALSE;
+      locked_by_thread_id= 0;
+    }
+    else
+    {
+      sql_print_error("A thread tries to unlock when he hasn't locked. "
+                      "thread_id=%ld locked by %ld",
+                      thd->thread_id, locked_by_thread_id);
+      DBUG_ASSERT(0);
+      ret= 1;
+    }
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  return ret;  
+}

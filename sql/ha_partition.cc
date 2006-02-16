@@ -360,7 +360,7 @@ int ha_partition::ha_initialise()
     other parameters are calculated on demand.
     HA_FILE_BASED is always set for partition handler since we use a
     special file for handling names of partitions, engine types.
-    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER,
+    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPP_POS,
     HA_CAN_INSERT_DELAYED is disabled until further investigated.
   */
   m_table_flags= m_file[0]->table_flags();
@@ -383,8 +383,8 @@ int ha_partition::ha_initialise()
       m_pkey_is_clustered= FALSE;
     m_table_flags&= file->table_flags();
   } while (*(++file_array));
-  m_table_flags&= ~(HA_CAN_GEOMETRY & HA_CAN_FULLTEXT &
-                    HA_CAN_SQL_HANDLER & HA_CAN_INSERT_DELAYED);
+  m_table_flags&= ~(HA_CAN_GEOMETRY | HA_CAN_FULLTEXT | HA_DUPP_POS |
+                    HA_CAN_SQL_HANDLER | HA_CAN_INSERT_DELAYED);
   m_table_flags|= HA_FILE_BASED | HA_REC_NOT_IN_SEQ;
   DBUG_RETURN(0);
 }
@@ -1937,7 +1937,8 @@ bool ha_partition::create_handler_file(const char *name)
 	name_buffer_ptr+= name_add(name_buffer_ptr,
 				   part_name,
 				   subpart_name);
-	*engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
+        *engine_array= (uchar) ha_legacy_type(subpart_elem->engine_type);
+        DBUG_PRINT("info", ("engine: %u", *engine_array));
 	engine_array++;
       }
     }
@@ -1954,7 +1955,7 @@ bool ha_partition::create_handler_file(const char *name)
     Create and write and close file
     to be used at open, delete_table and rename_table
   */
-  fn_format(file_name, name, "", ".par", MY_APPEND_EXT);
+  fn_format(file_name, name, "", ha_par_ext, MY_APPEND_EXT);
   if ((file= my_create(file_name, CREATE_MODE, O_RDWR | O_TRUNC,
 		       MYF(MY_WME))) >= 0)
   {
@@ -4683,6 +4684,7 @@ int ha_partition::extra(enum ha_extra_function operation)
   case HA_EXTRA_PREPARE_FOR_UPDATE:
   case HA_EXTRA_PREPARE_FOR_DELETE:
   case HA_EXTRA_FORCE_REOPEN:
+  case HA_EXTRA_FLUSH_CACHE:
   {
     if (m_myisam)
       DBUG_RETURN(loop_extra(operation));
