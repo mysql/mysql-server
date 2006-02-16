@@ -203,9 +203,11 @@ class MYSQL_LOG: public TC_LOG
   bool no_auto_events;
   friend class Log_event;
 
-public:
   ulonglong m_table_map_version;
 
+  int write_to_file(IO_CACHE *cache);
+
+public:
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -232,8 +234,11 @@ public:
 #if !defined(MYSQL_CLIENT)
   bool is_table_mapped(TABLE *table) const
   {
-    return table->s->table_map_version == m_table_map_version;
+    return table->s->table_map_version == table_map_version();
   }
+
+  ulonglong table_map_version() const { return m_table_map_version; }
+  void update_table_map_version() { ++m_table_map_version; }
 
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
 
@@ -301,8 +306,6 @@ public:
 
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
-
-  bool write_table_map(THD *thd, IO_CACHE *cache, TABLE *table, bool is_trans);
 
   void start_union_events(THD *thd);
   void stop_union_events(THD *thd);

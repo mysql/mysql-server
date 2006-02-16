@@ -1041,6 +1041,12 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
 
   if (end_ev)
   {
+    /*
+      We can always end the statement when ending a transaction since
+      transactions are not allowed inside stored functions.  If they
+      were, we would have to ensure that we're not ending a statement
+      inside a stored function.
+     */
     thd->binlog_flush_pending_rows_event(true);
     error= mysql_bin_log.write(thd, trans_log, end_ev);
   }
@@ -1060,7 +1066,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
     generated instead of the one that was written to the thrown-away
     transaction cache.
   */
-  ++mysql_bin_log.m_table_map_version;
+  mysql_bin_log.update_table_map_version();
 
   statistic_increment(binlog_cache_use, &LOCK_status);
   if (trans_log->disk_writes != 0)
@@ -2596,6 +2602,38 @@ int THD::binlog_setup_trx_data()
   DBUG_RETURN(0);
 }
 
+int THD::binlog_write_table_map(TABLE *table, bool is_trans)
+{
+  DBUG_ENTER("THD::binlog_write_table_map");
+  DBUG_PRINT("enter", ("table=%p (%s: #%u)",
+                       table, table->s->table_name, table->s->table_map_id));
+
+  /* Pre-conditions */
+  DBUG_ASSERT(binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+
+  Table_map_log_event::flag_set const
+    flags= Table_map_log_event::TM_NO_FLAGS;
+
+  Table_map_log_event
+    the_event(this, table, table->s->table_map_id, is_trans, flags);
+
+  /*
+    This function is called from ha_external_lock() after the storage
+    engine has registered for the transaction.
+   */
+  if (is_trans)
+    trans_register_ha(this, options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
+                      &binlog_hton);
+
+  if (int error= mysql_bin_log.write(&the_event))
+    DBUG_RETURN(error);
+
+  ++binlog_table_maps;
+  table->s->table_map_version= mysql_bin_log.table_map_version();
+  DBUG_RETURN(0);
+}
+
 Rows_log_event*
 THD::binlog_get_pending_rows_event() const
 {
@@ -2613,8 +2651,12 @@ THD::binlog_get_pending_rows_event() const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 {
+  if (ha_data[binlog_hton.slot] == NULL)
+    binlog_setup_trx_data();
+
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) ha_data[binlog_hton.slot];
+
   DBUG_ASSERT(trx_data);
   trx_data->pending= ev;
 }
@@ -2658,15 +2700,6 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
     pthread_mutex_lock(&LOCK_log);
 
     /*
-      Write a table map if necessary
-    */
-    if (pending->maybe_write_table_map(thd, file, this))
-    {
-      pthread_mutex_unlock(&LOCK_log);
-      DBUG_RETURN(2);
-    }
-
-    /*
       Write pending event to log file or transaction cache
     */
     if (pending->write(file))
@@ -2707,18 +2740,8 @@ int MYSQL_LOG::flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 
     pthread_mutex_unlock(&LOCK_log);
   }
-  else if (event && event->get_cache_stmt())  /* && pending == 0 */
-  {
-    /*
-      If we are setting a non-null event for a table that is
-      transactional, we start a transaction here as well.
-     */
-    trans_register_ha(thd,
-                      thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
-                      &binlog_hton);
-  }
 
-  trx_data->pending= event;
+  thd->binlog_set_pending_rows_event(event);
 
   DBUG_RETURN(error);
 }
@@ -2750,21 +2773,13 @@ bool MYSQL_LOG::write(Log_event *event_info)
     mutex, we do this before aquiring the LOCK_log mutex in this
     function.
 
-    This is not optimal, but necessary in the current implementation
-    since there is code that writes rows to system tables without
-    using some way to flush the pending event (e.g., binlog_query()).
-
-    TODO: There shall be no writes to any system table after calling
-    binlog_query(), so these writes has to be moved to before the call
-    of binlog_query() for correct functioning.
-
-    This is necessesary not only for RBR, but the master might crash
-    after binlogging the query but before changing the system tables.
-    This means that the slave and the master are not in the same state
-    (after the master has restarted), so therefore we have to
-    eliminate this problem.
+    We only end the statement if we are in a top-level statement.  If
+    we are inside a stored function, we do not end the statement since
+    this will close all tables on the slave.
   */
-  thd->binlog_flush_pending_rows_event(true);
+  bool const end_stmt=
+    thd->prelocked_mode && thd->lex->requires_prelocking();
+  thd->binlog_flush_pending_rows_event(end_stmt);
 
   pthread_mutex_lock(&LOCK_log);
 
@@ -2787,8 +2802,9 @@ bool MYSQL_LOG::write(Log_event *event_info)
 	(!binlog_filter->db_ok(local_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("info",("db_ok('%s')==%d", local_db, 
-			 binlog_filter->db_ok(local_db)));
+      DBUG_PRINT("info",("OPTION_BIN_LOG is %s, db_ok('%s') == %d",
+                         (thd->options & OPTION_BIN_LOG) ? "set" : "clear",
+                         local_db, binlog_filter->db_ok(local_db)));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -3503,44 +3519,6 @@ void MYSQL_LOG::signal_update()
   pthread_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;
 }
-
-#ifndef MYSQL_CLIENT
-bool MYSQL_LOG::write_table_map(THD *thd, IO_CACHE *file, TABLE* table,
-                                bool is_transactional)
-{
-  DBUG_ENTER("MYSQL_LOG::write_table_map()");
-  DBUG_PRINT("enter", ("table=%p (%s: %u)",
-                       table, table->s->table_name, table->s->table_map_id));
-
-  /* Pre-conditions */
-  DBUG_ASSERT(binlog_row_based && is_open());
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
-
-#ifndef DBUG_OFF
-  /*
-    We only need to execute under the LOCK_log mutex if we are writing
-    to the log file; otherwise, we are writing to a thread-specific
-    transaction cache and there is no need to serialize this event
-    with events in other threads.
-   */
-  if (file == &log_file)
-    safe_mutex_assert_owner(&LOCK_log);
-#endif
-
-  Table_map_log_event::flag_set const
-    flags= Table_map_log_event::TM_NO_FLAGS;
-
-  Table_map_log_event
-    the_event(thd, table, table->s->table_map_id, is_transactional, flags);
-
-  if (the_event.write(file))
-    DBUG_RETURN(1);
-
-  table->s->table_map_version= m_table_map_version;
-  DBUG_RETURN(0);
-}
-#endif /* !defined(MYSQL_CLIENT) */
-
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,

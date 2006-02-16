@@ -417,19 +417,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
     {
-#ifdef HAVE_ROW_BASED_REPLICATION
-      /*
-        We need to do the job that is normally done inside
-        binlog_query() here, which is to ensure that the pending event
-        is written before tables are unlocked and before any other
-        events are written.  We also need to update the table map
-        version for the binary log to mark that table maps are invalid
-        after this point.
-      */
-      if (binlog_row_based)
-        thd->binlog_flush_pending_rows_event(true);
-      else
-#endif
       {
 	/*
 	  Make sure last block (the one which caused the error) gets
