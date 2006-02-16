@@ -103,7 +103,7 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
-    
+
   pthread_mutex_lock(&mp->global);
   if (mp->count > 0 && pthread_equal(pthread_self(),mp->thread))
   {
@@ -121,6 +121,7 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
+  mp->thread= pthread_self();
   if (mp->count++)
   {
     fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, \
@@ -128,7 +129,6 @@ line %d more than 1 time\n", file,line);
     fflush(stderr);
     abort();
   }
-  mp->thread=pthread_self();
   mp->file= file;
   mp->line=line;
   pthread_mutex_unlock(&mp->global);
@@ -154,6 +154,7 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
+  mp->thread= 0;
   mp->count--;
 #ifdef __WIN__
   pthread_mutex_unlock(&mp->mutex);
@@ -207,6 +208,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
     fflush(stderr);
     abort();
   }
+  mp->thread=pthread_self();
   if (mp->count++)
   {
     fprintf(stderr,
@@ -215,7 +217,6 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
     fflush(stderr);
     abort();
   }
-  mp->thread=pthread_self();
   mp->file= file;
   mp->line=line;
   pthread_mutex_unlock(&mp->global);
@@ -245,6 +246,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
   }
 #endif
   pthread_mutex_lock(&mp->global);
+  mp->thread=pthread_self();
   if (mp->count++)
   {
     fprintf(stderr,
@@ -253,7 +255,6 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
     fflush(stderr);
     abort();
   }
-  mp->thread=pthread_self();
   mp->file= file;
   mp->line=line;
   pthread_mutex_unlock(&mp->global);
