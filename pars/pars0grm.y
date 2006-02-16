@@ -44,6 +44,8 @@ yylex(void);
 %token PARS_PROCEDURE_TOKEN
 %token PARS_IN_TOKEN
 %token PARS_OUT_TOKEN
+%token PARS_BINARY_TOKEN
+%token PARS_BLOB_TOKEN
 %token PARS_INT_TOKEN
 %token PARS_INTEGER_TOKEN
 %token PARS_FLOAT_TOKEN
@@ -448,7 +450,8 @@ fetch_statement:
 ;
 
 column_def:
-	PARS_ID_TOKEN type_name	{ $$ = pars_column_def($1, $2); }
+	PARS_ID_TOKEN type_name	opt_column_len
+				{ $$ = pars_column_def($1, $2, $3); }
 ;
 
 column_def_list:
@@ -456,6 +459,11 @@ column_def_list:
 	| column_def_list ',' column_def
 				{ $$ = que_node_list_add_last($1, $3); }
 ;
+
+opt_column_len:
+	/* Nothing */		{ $$ = NULL; }
+	| '(' PARS_INT_LIT ')'
+				{ $$ = $2; }
 
 not_fit_in_memory:
 	/* Nothing */		{ $$ = NULL; }
@@ -507,6 +515,8 @@ rollback_statement:
 type_name:
 	PARS_INT_TOKEN		{ $$ = &pars_int_token; }
 	| PARS_CHAR_TOKEN	{ $$ = &pars_char_token; }
+	| PARS_BINARY_TOKEN	{ $$ = &pars_binary_token; }
+	| PARS_BLOB_TOKEN	{ $$ = &pars_blob_token; }
 ;
 
 parameter_declaration:
