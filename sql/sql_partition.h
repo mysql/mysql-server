@@ -92,6 +92,7 @@ int get_parts_for_update(const byte *old_data, byte *new_data,
                          longlong *func_value);
 int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id);
+void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           handler *file, ulonglong max_rows);
 bool fix_partition_func(THD *thd, const char *name, TABLE *table,
