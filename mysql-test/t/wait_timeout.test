@@ -3,9 +3,25 @@
 #
 --disable_reconnect
 select 1;
-# wait_timeout is 2, so we should get disconnected now
---sleep 5
+# wait_timeout is 1, so we should get disconnected now
+--sleep 2
+# When the connection is closed in this way, the error code should
+# be consistent see bug#2845 for an explanation
 --error 2006
 select 2;
 --enable_reconnect
 select 3;
+
+# Do the same test as above on a TCP connection
+connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+--disable_reconnect
+select 1;
+# wait_timeout is 1, so we should get disconnected now
+--sleep 2
+# When the connection is closed in this way, the error code should
+# be consistent see bug#2845 for an explanation
+--error 2006
+select 2;
+--enable_reconnect
+select 3;
+disconnect con1;
