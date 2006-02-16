@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TRIGGER test.t1_bi_t2;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+CREATE TABLE test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d FLOAT, PRIMARY KEY(n))ENGINE=NDB;
+CREATE TABLE test.t2 (n MEDIUMINT NOT NULL, f FLOAT, PRIMARY KEY(n))ENGINE=NDB;
+CREATE TRIGGER test.t1_bi_t2 BEFORE INSERT ON test.t2 FOR EACH ROW INSERT INTO test.t1 VALUES (NULL, 1.234)//
+INSERT INTO test.t2 VALUES (1, 0.0);
+INSERT INTO test.t2 VALUES (1, 0.0);
+Got one of the listed errors
+select * from test.t1;
+n	d
+1	1.234
+select * from test.t2;
+n	f
+1	0
+select * from test.t1;
+n	d
+1	1.234
+select * from test.t2;
+n	f
+1	0
+DROP TRIGGER test.t1_bi_t2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
