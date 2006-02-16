@@ -450,10 +450,10 @@ skip_secondaries:
 			that the space id of the undo log record is 0! */
 
 			rec = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
-				     + internal_offset;
+				     + offset;
 
 #ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(buf_frame_align(data_field),
+			buf_page_dbg_add_level(buf_frame_align(rec),
 						SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -464,7 +464,8 @@ skip_secondaries:
 				byte*	field = rec_get_nth_field(
 						rec, offsets, j, &len);
 
-				if (UNIV_UNLIKELY(rec + offset == field)) {
+				if (UNIV_UNLIKELY(rec + internal_offset
+						== field)) {
 					ut_a(len == ufield->new_val.len);
 					ut_a(rec_offs_nth_extern(offsets, j));
 					goto found_field;
