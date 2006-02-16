@@ -434,4 +434,8 @@ insert into t1 values ('ab');
 select * from t1;
 insert into t1 values ('abc');
 select * from t1;
+--disable_query_log
+--disable_warnings
 drop table t1;
+--enable_warnings
+--enable_query_log

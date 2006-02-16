@@ -742,7 +742,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
-                               MYSQL_LOCK **lock);
+                               MYSQL_LOCK **lock,
+                               TABLEOP_HOOKS *hooks);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
