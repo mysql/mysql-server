@@ -508,7 +508,12 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_GET_FIELD_FAILED;
       goto done;
     }
-    if (sp->m_name.length > table->field[MYSQL_PROC_FIELD_NAME]->field_length)
+
+    if ((system_charset_info->cset->numchars(system_charset_info,
+                                             sp->m_name.str,
+                                             sp->m_name.str+sp->m_name.length) *
+         table->field[MYSQL_PROC_FIELD_NAME]->charset()->mbmaxlen) >
+        table->field[MYSQL_PROC_FIELD_NAME]->field_length)
     {
       ret= SP_BAD_IDENTIFIER;
       goto done;
