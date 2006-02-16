@@ -519,6 +519,7 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
   {
     NDBINDEX *index = (NDBINDEX *) m_index[i].index;
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
+    if (!index && !unique_index) continue;
     NDB_INDEX_TYPE idx_type= m_index[i].type;
 
     switch (idx_type) {
@@ -1076,7 +1077,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   m_table= (void *)tab; 
   m_table_info= NULL; // Set in external lock
   
-  DBUG_RETURN(open_indexes(ndb, table));
+  DBUG_RETURN(open_indexes(ndb, table, FALSE));
 }
 
 static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
@@ -1249,7 +1250,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
 /*
   Associate index handles for each index of a table
 */
-int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
+int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error)
 {
   uint i;
   int error= 0;
@@ -1263,7 +1264,10 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
   for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
     if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
-      break;
+      if (ignore_error)
+        m_index[i].index= m_index[i].unique_index= NULL;
+      else
+        break;
   }
   
   DBUG_RETURN(error);
@@ -3699,7 +3703,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       {
         m_table= (void *)tab;
         m_table_version = tab->getObjectVersion();
-        if (!(my_errno= open_indexes(ndb, table)))
+        if (!(my_errno= open_indexes(ndb, table, FALSE)))
           DBUG_RETURN(my_errno);
       }
       m_table_info= tab_info;
