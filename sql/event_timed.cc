@@ -985,6 +985,7 @@ done:
   DBUG_RETURN(ret);
 }
 
+extern LEX_STRING interval_type_to_name[];
 
 /*
   Get SHOW CREATE EVENT as string
@@ -1025,6 +1026,9 @@ event_timed::get_create_event(THD *thd, String *buf)
   {
     buf->append(STRING_WITH_LEN("EVERY "));
     buf->append(expr_buf);
+    buf->append(' ');
+    LEX_STRING *ival= &interval_type_to_name[interval];
+    buf->append(ival->str, ival->length);
   }
   else
   {

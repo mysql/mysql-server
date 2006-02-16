@@ -171,7 +171,7 @@ set names latin1;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
 ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table probably corrupted
@@ -181,7 +181,7 @@ ERROR HY000: Column count of mysql.event is wrong. Expected 16, found 17. Table 
 ALTER TABLE mysql.event DROP dummy2;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
@@ -212,7 +212,7 @@ ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin d
 "This should work"
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ERROR HY000: Cannot load from mysql.event. Table probably corrupted. See error log.
@@ -228,15 +228,15 @@ INSERT INTO  mysql.event SELECT * FROM event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	intact_check	root@localhost	RECURRING	NULL	10	10 HOUR	#	#	ENABLED
+events_test	intact_check	root@localhost	RECURRING	NULL	10	HOUR	#	#	ENABLED
 DROP EVENT intact_check;
 create event one_event on schedule every 10 second do select 123;
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	10 SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	SECOND	ENABLED	NOT PRESERVE	
 CREATE DATABASE events_test2;
 CREATE USER ev_test@localhost;
 GRANT ALL ON events_test.* to ev_test@localhost;
@@ -270,20 +270,20 @@ create event three_event on schedule every 20 second on completion preserve comm
 "Now we should see 3 events:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us only 3 events:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us only 2 events:";
 SHOW FULL EVENTS LIKE 't%event';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
 "This should show us no events:";
 SHOW FULL EVENTS FROM test LIKE '%';
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
@@ -291,20 +291,20 @@ DROP DATABASE events_test2;
 "should see 1 event:";
 SHOW EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
 "we should see 4 events now:";
 SHOW FULL EVENTS;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	one_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	three_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	two_event	ev_test@localhost	RECURRING	NULL	20	20 SECOND	#	#	ENABLED
-events_test	one_event	root@localhost	RECURRING	NULL	10	10 SECOND	#	#	ENABLED
+events_test	one_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	three_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	two_event	ev_test@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+events_test	one_event	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
 SELECT EVENT_CATALOG, EVENT_SCHEMA, EVENT_NAME, DEFINER, EVENT_BODY, EVENT_TYPE, EXECUTE_AT, INTERVAL_VALUE, INTERVAL_FIELD, STATUS,ON_COMPLETION, EVENT_COMMENT from information_schema.events;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	EVENT_BODY	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	STATUS	ON_COMPLETION	EVENT_COMMENT
-NULL	events_test	one_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	NOT PRESERVE	
-NULL	events_test	three_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	PRESERVE	three event
-NULL	events_test	two_event	ev_test@localhost	select 123	RECURRING	NULL	20	20 SECOND	ENABLED	NOT PRESERVE	two event
-NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	10 SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	one_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	
+NULL	events_test	three_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	PRESERVE	three event
+NULL	events_test	two_event	ev_test@localhost	select 123	RECURRING	NULL	20	SECOND	ENABLED	NOT PRESERVE	two event
+NULL	events_test	one_event	root@localhost	select 123	RECURRING	NULL	10	SECOND	ENABLED	NOT PRESERVE	
 drop event one_event;
 drop event two_event;
 drop event three_event;
@@ -383,6 +383,7 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 #	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")
