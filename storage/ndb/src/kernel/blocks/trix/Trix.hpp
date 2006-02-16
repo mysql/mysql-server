@@ -20,7 +20,6 @@
 #include <SimulatedBlock.hpp>
 #include <trigger_definitions.h>
 #include <DataBuffer.hpp>
-#include <ArrayList.hpp>
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateTrig.hpp>
@@ -36,7 +35,7 @@
 class Trix : public SimulatedBlock
 {
 public:
-  Trix(const class Configuration & conf);
+  Trix(Block_context&);
   virtual ~Trix();
 
 public:
@@ -89,7 +88,7 @@ private:
   /**
    * The list of other NDB nodes
    */  
-  ArrayList<NodeRecord> c_theNodes;
+  DLList<NodeRecord> c_theNodes;
 
   Uint32 c_masterNodeId;
   BlockReference c_masterTrixRef;
@@ -136,7 +135,7 @@ private:
   /**
    * The list of other subscriptions
    */  
-  ArrayList<SubscriptionRecord> c_theSubscriptions;
+  DLList<SubscriptionRecord> c_theSubscriptions;
 
   // System start
   void execREAD_CONFIG_REQ(Signal* signal);

@@ -21,7 +21,6 @@
 #include <SimulatedBlock.hpp>
 #include <ndb_limits.h>
 #include <trigger_definitions.h>
-#include <ArrayList.hpp>
 #include <AttributeHeader.hpp>
 #include <Bitmask.hpp>
 #include <signaldata/TupKey.hpp>
@@ -604,6 +603,7 @@ struct Fragrecord {
   SLList<Page>::Head m_empty_pages; // Empty pages not in logical/physical map
   
   Uint32 m_lcp_scan_op;
+  Uint32 m_lcp_keep_list;
 
   State fragStatus;
   Uint32 fragTableId;
@@ -946,16 +946,16 @@ ArrayPool<TupTriggerData> c_triggerPool;
     } m_attributes[2];
     
     // Lists of trigger data for active triggers
-    ArrayList<TupTriggerData> afterInsertTriggers;
-    ArrayList<TupTriggerData> afterDeleteTriggers;
-    ArrayList<TupTriggerData> afterUpdateTriggers;
-    ArrayList<TupTriggerData> subscriptionInsertTriggers;
-    ArrayList<TupTriggerData> subscriptionDeleteTriggers;
-    ArrayList<TupTriggerData> subscriptionUpdateTriggers;
-    ArrayList<TupTriggerData> constraintUpdateTriggers;
+    DLList<TupTriggerData> afterInsertTriggers;
+    DLList<TupTriggerData> afterDeleteTriggers;
+    DLList<TupTriggerData> afterUpdateTriggers;
+    DLList<TupTriggerData> subscriptionInsertTriggers;
+    DLList<TupTriggerData> subscriptionDeleteTriggers;
+    DLList<TupTriggerData> subscriptionUpdateTriggers;
+    DLList<TupTriggerData> constraintUpdateTriggers;
     
     // List of ordered indexes
-    ArrayList<TupTriggerData> tuxCustomTriggers;
+    DLList<TupTriggerData> tuxCustomTriggers;
     
     Uint32 fragid[MAX_FRAG_PER_NODE];
     Uint32 fragrec[MAX_FRAG_PER_NODE];
@@ -1157,7 +1157,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   };
   typedef Ptr<BuildIndexRec> BuildIndexPtr;
   ArrayPool<BuildIndexRec> c_buildIndexPool;
-  ArrayList<BuildIndexRec> c_buildIndexList;
+  DLList<BuildIndexRec> c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
 
   /**
@@ -1194,8 +1194,10 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
     STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREE        = 0x00800000 ); // On free list of page
+    STATIC_CONST( FREED       = 0x00800000 ); // Is freed
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
+    STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
+    STATIC_CONST( FREE        = 0x02800000 ); // Is free
     
     Uint32 get_tuple_version() const { 
       return m_header_bits & TUP_VERSION_MASK;
@@ -1344,7 +1346,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(const class Configuration &, Pgman*);
+  Dbtup(Block_context&, Pgman*);
   virtual ~Dbtup();
 
   /*
@@ -2009,7 +2011,7 @@ private:
 //------------------------------------------------------------------
 // Trigger handling routines
 //------------------------------------------------------------------
-  ArrayList<TupTriggerData>*
+  DLList<TupTriggerData>*
   findTriggerList(Tablerec* table,
                   TriggerType::Value ttype,
                   TriggerActionTime::Value ttime,
@@ -2046,19 +2048,19 @@ private:
                              Tablerec* regTablePtr);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
-                             ArrayList<TupTriggerData>& triggerList, 
+                             DLList<TupTriggerData>& triggerList, 
                              Operationrec* regOperPtr);
 
   void fireDeferredTriggers(KeyReqStruct *req_struct,
-                            ArrayList<TupTriggerData>& triggerList,
+                            DLList<TupTriggerData>& triggerList,
                             Operationrec* regOperPtr);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
-                            ArrayList<TupTriggerData>& triggerList,
+                            DLList<TupTriggerData>& triggerList,
                             Operationrec* regOperPtr);
 
   void executeTriggers(KeyReqStruct *req_struct,
-                       ArrayList<TupTriggerData>& triggerList,
+                       DLList<TupTriggerData>& triggerList,
                        Operationrec* regOperPtr);
 
   void executeTrigger(KeyReqStruct *req_struct,

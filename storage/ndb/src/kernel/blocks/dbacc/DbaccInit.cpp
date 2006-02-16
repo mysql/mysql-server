@@ -82,8 +82,8 @@ void Dbacc::initRecords()
 				ctablesize);
 }//Dbacc::initRecords()
 
-Dbacc::Dbacc(const class Configuration & conf):
-  SimulatedBlock(DBACC, conf),
+Dbacc::Dbacc(Block_context& ctx):
+  SimulatedBlock(DBACC, ctx),
   c_tup(0)
 {
   BLOCK_CONSTRUCTOR(Dbacc);

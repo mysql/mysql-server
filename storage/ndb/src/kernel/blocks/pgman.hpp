@@ -236,7 +236,7 @@
 class Pgman : public SimulatedBlock
 {
 public:
-  Pgman(const Configuration & conf);
+  Pgman(Block_context& ctx);
   virtual ~Pgman();
   BLOCK_DEFINES(Pgman);
 
@@ -305,7 +305,6 @@ private:
       ,PAGEIN  = 0x0100 // paging in
       ,PAGEOUT = 0x0200 // paging out
       ,LOGSYNC = 0x0400 // undo WAL as part of pageout
-      ,COPY    = 0x0800 // Copy page for LCP
       ,LCP     = 0x1000 // page is LCP flushed
       ,HOT     = 0x2000 // page is hot
       ,ONSTACK = 0x4000 // page is on LIRS stack
@@ -419,7 +418,6 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
-  void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAG_ORD(Signal*);
   void execEND_LCP_REQ(Signal*);
   
@@ -462,9 +460,8 @@ private:
   void move_cleanup_ptr(Ptr<Page_entry> ptr);
 
   bool process_lcp(Signal*);
-  void process_lcp_prepare(Signal* signal, Ptr<Page_entry> ptr);
-  int create_copy_page(Ptr<Page_entry>, Uint32 req_flags);
-  void restore_copy_page(Ptr<Page_entry>);
+  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
+  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
   void pagein(Signal*, Ptr<Page_entry>);
   void fsreadreq(Signal*, Ptr<Page_entry>);

@@ -111,8 +111,8 @@ void Dbdih::initRecords()
   bat[21].bits.v = 5;
 }//Dbdih::initRecords()
 
-Dbdih::Dbdih(const class Configuration & config):
-  SimulatedBlock(DBDIH, config),
+Dbdih::Dbdih(Block_context& ctx):
+  SimulatedBlock(DBDIH, ctx),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool)
 {

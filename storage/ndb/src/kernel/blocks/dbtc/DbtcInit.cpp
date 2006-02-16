@@ -94,7 +94,7 @@ void Dbtc::initRecords()
   */
 
   // Init all index operation records
-  ArrayList<TcIndexOperation> indexOps(c_theIndexOperationPool);
+  SLList<TcIndexOperation> indexOps(c_theIndexOperationPool);
   TcIndexOperationPtr ioptr;
   while(indexOps.seize(ioptr) == true) {
     p= ioptr.p;
@@ -156,8 +156,8 @@ void Dbtc::initRecords()
   
 }//Dbtc::initRecords()
 
-Dbtc::Dbtc(const class Configuration & conf):
-  SimulatedBlock(DBTC, conf),
+Dbtc::Dbtc(Block_context& ctx):
+  SimulatedBlock(DBTC, ctx),
   c_theDefinedTriggers(c_theDefinedTriggerPool),
   c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),
@@ -169,7 +169,8 @@ Dbtc::Dbtc(const class Configuration & conf):
 {
   BLOCK_CONSTRUCTOR(Dbtc);
   
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  const ndb_mgm_configuration_iterator * p = 
+    ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 transactionBufferMemory = 0;

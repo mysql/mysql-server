@@ -38,8 +38,8 @@
 
 #define DEBUG(x) { ndbout << "FS::" << x << endl; }
 
-VoidFs::VoidFs(const Configuration & conf) :
-  SimulatedBlock(NDBFS, conf)
+VoidFs::VoidFs(Block_context & ctx) :
+  SimulatedBlock(NDBFS, ctx)
 {
   BLOCK_CONSTRUCTOR(VoidFs);
   

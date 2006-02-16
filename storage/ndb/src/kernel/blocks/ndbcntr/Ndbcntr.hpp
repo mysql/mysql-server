@@ -152,7 +152,7 @@ public:
   static const SysTable g_sysTable_NDBEVENTS_0;
 
 public:
-  Ndbcntr(const class Configuration &);
+  Ndbcntr(Block_context&);
   virtual ~Ndbcntr();
 
 private:
