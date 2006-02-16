@@ -23,6 +23,7 @@ DROP EVENT e_x2;
 DROP DATABASE db_x;
 DROP USER pauline@localhost;
 USE events_test;
+SET GLOBAL event_scheduler=0;
 drop event if exists event1;
 Warnings:
 Note	1305	Event event1 does not exist
@@ -43,6 +44,14 @@ select db, name, body, status, interval_field, interval_value from mysql.event;
 db	name	body	status	interval_field	interval_value
 events_test	e_43	set @a = 4	ENABLED	SECOND	1
 drop event e_43;
+"Let's check whether we can use non-qualified names"
+create table non_qualif(a int);
+create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
+select * from non_qualif;
+a
+800219
+drop event non_qualif_ev;
+drop table non_qualif;
 set global event_scheduler = 0;
 create table t_event3 (a int, b float);
 drop event if exists event3;
@@ -374,7 +383,6 @@ show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
 #	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
-#	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
 release_lock("test_lock2_1")

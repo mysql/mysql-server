@@ -412,21 +412,30 @@ event_timed::init_definer(THD *thd)
 {
   DBUG_ENTER("event_timed::init_definer");
 
+  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
+                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
+                     thd->security_ctx->priv_user));
   definer_user.str= strdup_root(thd->mem_root, thd->security_ctx->priv_user);
   definer_user.length= strlen(thd->security_ctx->priv_user);
 
+  DBUG_PRINT("info",("init definer_host thd->s_c->priv_host=0x%lx",
+                     thd->security_ctx->priv_host));
   definer_host.str= strdup_root(thd->mem_root, thd->security_ctx->priv_host);
   definer_host.length= strlen(thd->security_ctx->priv_host);
 
+  DBUG_PRINT("info",("init definer as whole"));
   definer.length= definer_user.length + definer_host.length + 1;
   definer.str= alloc_root(thd->mem_root, definer.length + 1);
 
+  DBUG_PRINT("info",("copy the user"));
   memcpy(definer.str, definer_user.str, definer_user.length);
   definer.str[definer_user.length]= '@';
 
+  DBUG_PRINT("info",("copy the host"));
   memcpy(definer.str + definer_user.length + 1, definer_host.str,
          definer_host.length);
   definer.str[definer.length]= '\0';
+  DBUG_PRINT("info",("definer initted"));
 
   DBUG_RETURN(0);
 }
@@ -1070,6 +1079,8 @@ int
 event_timed::execute(THD *thd, MEM_ROOT *mem_root)
 {
   Security_context *save_ctx;
+  /* this one is local and not needed after exec */
+  Security_context security_ctx;
   int ret= 0;
 
   DBUG_ENTER("event_timed::execute");
@@ -1085,18 +1096,19 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
   running= true;
   VOID(pthread_mutex_unlock(&this->LOCK_running));
 
-  // TODO Andrey : make this as member variable and delete in destructor
-  
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+  change_security_context(thd, &security_ctx, &save_ctx);
+  DBUG_PRINT("info", ("master_access=%d db_access=%d",
+             thd->security_ctx->master_access, thd->security_ctx->db_access));
+
   if (!sphead && (ret= compile(thd, mem_root)))
     goto done;
-  
-  DBUG_PRINT("info", ("master_access=%d db_access=%d",
-             thd->security_ctx->master_access, thd->security_ctx->db_access));
-  change_security_context(thd, &save_ctx);
-
-  DBUG_PRINT("info", ("master_access=%d db_access=%d",
-             thd->security_ctx->master_access, thd->security_ctx->db_access));
-  if (mysql_change_db(thd, dbname.str, 0))
+  /* Now we are sure we have valid this->sphead so we can copy the context */
+  sphead->m_security_ctx= security_ctx;
+  thd->db= dbname.str;
+  thd->db_length= dbname.length;
+  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
   {
     List<Item> empty_item_list;
     empty_item_list.empty();
@@ -1109,16 +1121,20 @@ event_timed::execute(THD *thd, MEM_ROOT *mem_root)
     ret= -99;
   }
   restore_security_context(thd, save_ctx);
-
   DBUG_PRINT("info", ("master_access=%d db_access=%d",
              thd->security_ctx->master_access, thd->security_ctx->db_access));
+  thd->db= 0;
 
   VOID(pthread_mutex_lock(&this->LOCK_running));
   running= false;
   VOID(pthread_mutex_unlock(&this->LOCK_running));
 
 done:
-  // Don't cache sphead if allocated on another mem_root
+  /*
+    1. Don't cache sphead if allocated on another mem_root
+    2. Don't call security_ctx.destroy() because this will free our dbname.str
+       name.str and definer.str
+  */
   if (mem_root && sphead)
   {
     delete sphead;
@@ -1143,20 +1159,22 @@ done:
     1  - Error (generates error too)
 */
 bool
-event_timed::change_security_context(THD *thd, Security_context **backup)
+event_timed::change_security_context(THD *thd, Security_context *s_ctx,
+                                     Security_context **backup)
 {
   DBUG_ENTER("event_timed::change_security_context");
   DBUG_PRINT("info",("%s@%s@%s",definer_user.str,definer_host.str, dbname.str));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  s_ctx->init();
   *backup= 0;
-  if (acl_getroot_no_password(&sphead->m_security_ctx, definer_user.str,
-                              definer_host.str, definer_host.str, dbname.str))
+  if (acl_getroot_no_password(s_ctx, definer_user.str, definer_host.str,
+                             definer_host.str, dbname.str))
   {
     my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
     DBUG_RETURN(TRUE);
   }
   *backup= thd->security_ctx;
-  thd->security_ctx= &sphead->m_security_ctx;
+  thd->security_ctx= s_ctx;
 #endif
   DBUG_RETURN(FALSE);
 }

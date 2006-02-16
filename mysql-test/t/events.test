@@ -28,11 +28,11 @@ connection default;
 DROP DATABASE db_x;
 DROP USER pauline@localhost;
 USE events_test;
---sleep 1
 #
 # END:    BUG #17289 Events: missing privilege check for drop database
 #
-
+SET GLOBAL event_scheduler=0;
+--sleep 1
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
@@ -56,6 +56,14 @@ alter event e_43 do alter event e_43 do set @a = 4;
 select db, name, body, status, interval_field, interval_value from mysql.event;
 drop event e_43;
 --sleep 1
+
+--echo "Let's check whether we can use non-qualified names"
+create table non_qualif(a int);
+create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
+--sleep 2
+select * from non_qualif;
+drop event non_qualif_ev;
+drop table non_qualif;
 set global event_scheduler = 0;
 
 create table t_event3 (a int, b float);
