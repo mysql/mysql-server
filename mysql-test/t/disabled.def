@@ -37,3 +37,4 @@ binlog_row_insert_select : Bug #17385
 rpl_row_basic_2myisam : Bug #17385
 rpl_row_basic_3innodb : Bug #17385
 rpl_row_create_table : Bug #17385
+ndb_load        : Bug#17233
