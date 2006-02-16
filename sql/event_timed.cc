@@ -117,7 +117,7 @@ event_timed::init_body(THD *thd)
     body.length--;
 
   //the first is always space which I cannot skip in the parser
-  DBUG_ASSERT(*body_begin == ' ');
+  DBUG_ASSERT(my_isspace(thd->variables.character_set_client, *body_begin));
   body.length--;
   body.str= strmake_root(root, (char *)body_begin + 1, body.length);
 
