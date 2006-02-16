@@ -211,8 +211,13 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     TRUE  Error sending data to client
 */
 
-static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
-static int warning_level_length[]= { 4, 7, 5, 1 };
+LEX_STRING warning_level_names[]=
+{
+  {(char*) STRING_WITH_LEN("Note")},
+  {(char*) STRING_WITH_LEN("Warning")},
+  {(char*) STRING_WITH_LEN("Error")},
+  {(char*) STRING_WITH_LEN("?")}
+};
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
@@ -246,8 +251,8 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     if (idx > unit->select_limit_cnt)
       break;
     protocol->prepare_for_resend();
-    protocol->store(warning_level_names[err->level],
-		    warning_level_length[err->level], system_charset_info);
+    protocol->store(warning_level_names[err->level].str,
+		    warning_level_names[err->level].length, system_charset_info);
     protocol->store((uint32) err->code);
     protocol->store(err->msg, strlen(err->msg), system_charset_info);
     if (protocol->write())
