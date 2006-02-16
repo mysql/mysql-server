@@ -3770,7 +3770,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       table->field[9]->set_notnull();
     }
 
-    if (is_sub_partitioned(part_info))
+    if (part_info->is_sub_partitioned())
     {
       /* Subpartition method */
       if (part_info->list_of_subpart_fields)
