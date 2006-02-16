@@ -25,11 +25,6 @@ SHOW TABLES;
 Tables_in_test_ignore
 t2
 INSERT INTO t2 VALUES (3,3), (4,4);
-SHOW BINLOG EVENTS FROM 102;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	195	use `test`; CREATE TABLE t1 (a INT, b INT)
-master-bin.000001	195	Table_map	1	235	test.t1
-master-bin.000001	235	Write_rows	1	282	
 **** On Slave ****
 SHOW DATABASES;
 Database
