@@ -39,6 +39,7 @@ class AlterTableReq {
   friend class NdbEventOperationImpl;
   friend class NdbDictInterface;
   friend class Dbdict;
+  friend class Suma;
 
   /**
    * For printing
