@@ -493,24 +493,6 @@ btr_free_externally_stored_field(
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
-/***************************************************************
-Frees the externally stored fields for a record. */
-
-void
-btr_rec_free_externally_stored_fields(
-/*==================================*/
-	dict_index_t*	index,	/* in: index of the data, the index
-				tree MUST be X-latched */
-	rec_t*		rec,	/* in: record */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	page_zip_des_t*	page_zip,/* in: compressed page whose uncompressed
-				part will be updated, or NULL */
-	ibool		do_not_free_inherited,/* in: TRUE if called in a
-				rollback and we do not want to free
-				inherited fields */
-	mtr_t*		mtr);	/* in: mini-transaction handle which contains
-				an X-latch to record page and to the index
-				tree */
 /***********************************************************************
 Copies an externally stored field of a record to mem heap. */
 
@@ -522,22 +504,6 @@ btr_rec_copy_externally_stored_field(
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		no,	/* in: field number */
 	ulint*		len,	/* out: length of the field */
-	mem_heap_t*	heap);	/* in: mem heap */
-/***********************************************************************
-Copies an externally stored field of a record to mem heap. Parameter
-data contains a pointer to 'internally' stored part of the field:
-possibly some data, and the reference to the externally stored part in
-the last 20 bytes of data. */
-
-byte*
-btr_copy_externally_stored_field(
-/*=============================*/
-				/* out: the whole field copied to heap */
-	ulint*		len,	/* out: length of the whole field */
-	byte*		data,	/* in: 'internally' stored part of the
-				field containing also the reference to
-				the external part */
-	ulint		local_len,/* in: length of data */
 	mem_heap_t*	heap);	/* in: mem heap */
 /***********************************************************************
 Stores the positions of the fields marked as extern storage in the update
