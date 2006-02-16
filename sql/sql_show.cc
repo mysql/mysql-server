@@ -1519,6 +1519,119 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   DBUG_VOID_RETURN;
 }
 
+int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
+{
+  TABLE *table= tables->table;
+  CHARSET_INFO *cs= system_charset_info;
+  char *user;
+  bool verbose;
+  ulong max_query_length;
+  time_t now= time(0);
+  DBUG_ENTER("fill_process_list");
+
+  user= thd->security_ctx->master_access & PROCESS_ACL ?
+        NullS : thd->security_ctx->priv_user;
+  verbose= thd->lex->verbose;
+  max_query_length= PROCESS_LIST_WIDTH;
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+
+  if (!thd->killed)
+  {
+    I_List_iterator<THD> it(threads);
+    THD* tmp;
+
+    while ((tmp= it++))
+    {
+      Security_context *tmp_sctx= tmp->security_ctx;
+      struct st_my_thread_var *mysys_var;
+      const char *val;
+
+      if ((!tmp->vio_ok() && !tmp->system_thread) ||
+          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
+        continue;
+
+      restore_record(table, s->default_values);
+      /* ID */
+      table->field[0]->store((longlong) tmp->thread_id, TRUE);
+      /* USER */
+      val= tmp_sctx->user ? tmp_sctx->user :
+            (tmp->system_thread ? "system user" : "unauthenticated user");
+      table->field[1]->store(val, strlen(val), cs);
+      /* HOST */
+      if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
+          thd->security_ctx->host_or_ip[0])
+      {
+        char host[LIST_PROCESS_HOST_LEN + 1];
+        my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
+                    tmp_sctx->host_or_ip, tmp->peer_port);
+        table->field[2]->store(host, strlen(host), cs);
+      }
+      else
+        table->field[2]->store(tmp_sctx->host_or_ip,
+                               strlen(tmp_sctx->host_or_ip), cs);
+      /* DB */
+      if (tmp->db)
+      {
+        table->field[3]->store(tmp->db, strlen(tmp->db), cs);
+        table->field[3]->set_notnull();
+      }
+
+      if ((mysys_var= tmp->mysys_var))
+        pthread_mutex_lock(&mysys_var->mutex);
+      /* COMMAND */
+      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
+        table->field[4]->store(val, strlen(val), cs);
+      else
+        table->field[4]->store(command_name[tmp->command].str,
+                               command_name[tmp->command].length, cs);
+      /* TIME */
+      table->field[5]->store((uint32)(tmp->start_time ?
+                                      now - tmp->start_time : 0), TRUE);
+      /* STATE */
+#ifndef EMBEDDED_LIBRARY
+      val= (char*) (tmp->locked ? "Locked" :
+                    tmp->net.reading_or_writing ?
+                    (tmp->net.reading_or_writing == 2 ?
+                     "Writing to net" :
+                     tmp->command == COM_SLEEP ? "" :
+                     "Reading from net") :
+                    tmp->proc_info ? tmp->proc_info :
+                    tmp->mysys_var &&
+                    tmp->mysys_var->current_cond ?
+                    "Waiting on cond" : NullS);
+#else
+      val= (char *) "Writing to net";
+#endif
+      if (val)
+      {
+        table->field[6]->store(val, strlen(val), cs);
+        table->field[6]->set_notnull();
+      }
+
+      if (mysys_var)
+        pthread_mutex_unlock(&mysys_var->mutex);
+
+      /* INFO */
+      if (tmp->query)
+      {
+        table->field[7]->store(tmp->query,
+                               min(max_query_length, tmp->query_length), cs);
+        table->field[7]->set_notnull();
+      }
+
+      if (schema_table_store_record(thd, table))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_thread_count));
+        DBUG_RETURN(1);
+      }
+    }
+  }
+
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  DBUG_RETURN(0);
+}
+
 /*****************************************************************************
   Status functions
 *****************************************************************************/
@@ -4924,6 +5037,20 @@ ST_FIELD_INFO variables_fields_info[]=
 };
 
 
+ST_FIELD_INFO processlist_fields_info[]=
+{
+  {"ID", 4, MYSQL_TYPE_LONG, 0, 0, "Id"},
+  {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User"},
+  {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host"},
+  {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
+  {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
+  {"TIME", 4, MYSQL_TYPE_LONG, 0, 0, "Time"},
+  {"STATE", 30, MYSQL_TYPE_STRING, 0, 1, "State"},
+  {"INFO", PROCESS_LIST_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
 ST_FIELD_INFO plugin_fields_info[]=
 {
   {"PLUGIN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
@@ -5014,6 +5141,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    get_all_tables, 0, get_schema_partitions_record, 1, 2, 0},
   {"PLUGINS", plugin_fields_info, create_schema_table,
     fill_plugins, make_old_format, 0, -1, -1, 0},
+  {"PROCESSLIST", processlist_fields_info, create_schema_table,
+    fill_schema_processlist, make_old_format, 0, -1, -1, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"SCHEMATA", schema_fields_info, create_schema_table,
