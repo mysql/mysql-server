@@ -76,19 +76,31 @@ public:
   EventBufData *m_head, *m_tail;
   unsigned m_count;
   unsigned m_sz;
+
+  // distinct ops per gci (assume no hash needed)
+  struct Gci_op { NdbEventOperationImpl* op; Uint32 event_types; };
+  Gci_op* m_gci_op_list;
+  Uint32 m_gci_op_count;
+  Uint32 m_gci_op_alloc;
+private:
+  void add_gci_op(Gci_op g);
 };
 
 inline
 EventBufData_list::EventBufData_list()
   : m_head(0), m_tail(0),
     m_count(0),
-    m_sz(0)
+    m_sz(0),
+    m_gci_op_list(NULL),
+    m_gci_op_count(0),
+    m_gci_op_alloc(0)
 {
 }
 
 inline
 EventBufData_list::~EventBufData_list()
 {
+  delete [] m_gci_op_list;
 }
 
 inline
@@ -110,6 +122,9 @@ void EventBufData_list::remove_first()
 inline
 void EventBufData_list::append(EventBufData *data)
 {
+  Gci_op g = { data->m_event_op, 1 << (Uint32)data->sdata->operation };
+  add_gci_op(g);
+
   data->m_next= 0;
   if (m_tail)
     m_tail->m_next= data;
@@ -130,6 +145,10 @@ void EventBufData_list::append(EventBufData *data)
 inline
 void EventBufData_list::append(const EventBufData_list &list)
 {
+  Uint32 i;
+  for (i = 0; i < list.m_gci_op_count; i++)
+    add_gci_op(list.m_gci_op_list[i]);
+
   if (m_tail)
     m_tail->m_next= list.m_head;
   else
@@ -265,7 +284,6 @@ private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
 };
 
-
 class NdbEventBuffer {
 public:
   NdbEventBuffer(Ndb*);
@@ -303,6 +321,8 @@ public:
 
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
   NdbEventOperation *nextEvent();
+  NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
+                                               Uint32* event_types);
 
   NdbEventOperationImpl *move_data();
 

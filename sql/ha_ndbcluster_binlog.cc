@@ -2829,10 +2829,41 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
         assert(pOp->getGCI() <= ndb_latest_received_binlog_epoch);
         bzero((char*) &row, sizeof(row));
         injector::transaction trans= inj->new_trans(thd);
+        { // pass table map before epoch
+          Uint32 iter=0;
+          const NdbEventOperation* gci_op;
+          Uint32 event_types;
+          while ((gci_op=ndb->getGCIEventOperations(&iter, &event_types))
+              != NULL)
+          {
+            NDB_SHARE* share=(NDB_SHARE*)gci_op->getCustomData();
+            DBUG_PRINT("info", ("per gci op %p share %p event types 0x%x",
+                                gci_op, share, event_types));
+            // this should not happen
+            if (share == NULL || share->table == NULL)
+            {
+              DBUG_PRINT("info", ("no share or table !"));
+              continue;
+            }
+            TABLE* table=share->table;
+            const LEX_STRING& name=table->s->table_name;
+            DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+            injector::transaction::table tbl(table, true);
+            // TODO enable when mats patch pushed
+            //trans.use_table(::server_id, tbl);
+          }
+        }
         gci= pOp->getGCI();
         if (apply_status_share)
         {
           TABLE *table= apply_status_share->table;
+
+          const LEX_STRING& name=table->s->table_name;
+          DBUG_PRINT("info", ("use_table: %.*s", name.length, name.str));
+          injector::transaction::table tbl(table, true);
+          // TODO enable when mats patch pushed
+          //trans.use_table(::server_id, tbl);
+
           MY_BITMAP b;
           uint32 bitbuf;
           DBUG_ASSERT(table->s->fields <= sizeof(bitbuf) * 8);
