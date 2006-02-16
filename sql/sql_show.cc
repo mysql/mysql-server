@@ -3920,6 +3920,7 @@ static interval_type get_real_interval_type(interval_type i_type)
   return INTERVAL_SECOND;
 }
 
+extern LEX_STRING interval_type_to_name[];
 
 static int
 fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
@@ -3958,14 +3959,16 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     //execute_at
     sch_table->field[6]->set_null();
     //interval_value
-    sch_table->field[7]->set_notnull();
-    sch_table->field[7]->store((longlong) et.expression);
     //interval_type
     if (event_reconstruct_interval_expression(&show_str, et.interval,
                                               et.expression))
       DBUG_RETURN(1);
+    sch_table->field[7]->set_notnull();
+    sch_table->field[7]->store(show_str.c_ptr(), show_str.length(), scs);
+
+    LEX_STRING *ival= &interval_type_to_name[et.interval];
     sch_table->field[8]->set_notnull();
-    sch_table->field[8]->store(show_str.c_ptr(), show_str.length(), scs);
+    sch_table->field[8]->store(ival->str, ival->length, scs);
     //starts & ends
     sch_table->field[10]->set_notnull();
     sch_table->field[10]->store_time(&et.starts, MYSQL_TIMESTAMP_DATETIME);
@@ -4792,7 +4795,7 @@ ST_FIELD_INFO events_fields_info[]=
   {"EVENT_BODY", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EVENT_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
-  {"INTERVAL_VALUE", 11, MYSQL_TYPE_LONG, 0, 1, "Interval value"},
+  {"INTERVAL_VALUE", 256, MYSQL_TYPE_STRING, 0, 1, "Interval value"},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field"},
   {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
