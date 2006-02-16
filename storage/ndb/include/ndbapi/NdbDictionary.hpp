@@ -1597,6 +1597,14 @@ public:
      */
     const Table * getTable(const char * name) const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /*
+     * Save a table definition in dictionary cache
+     * @param table Object to put into cache
+     */
+    void putTable(const Table * table);
+#endif
+
     /**
      * Get index with given name, NULL if undefined
      * @param indexName  Name of index to get.
