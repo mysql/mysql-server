@@ -1,8 +1,7 @@
 #####################################
 # Wrapper for rpl_insert_ignore.test#
 #####################################
--- source include/not_ndb_default.inc
--- source include/have_innodb.inc
-let $engine_type=innodb;
+-- source include/have_ndb.inc
+let $engine_type=NDB;
 let $engine_type2=myisam;
 -- source extra/rpl_tests/rpl_insert_ignore.test

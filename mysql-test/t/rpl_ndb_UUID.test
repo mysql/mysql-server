@@ -1,7 +1,6 @@
 ########################################################
 # By JBM 2005-02-15 Wrapped to allow reuse of test code#
-# Added to skip if ndb is default                      #
 ########################################################
--- source include/not_ndb_default.inc
-let $engine_type=MYISAM;
--- source extra/rpl_tests/rpl_row_001.test
+--source include/have_ndb.inc
+let $engine_type=NDB;
+--source extra/rpl_tests/rpl_row_UUID.test
