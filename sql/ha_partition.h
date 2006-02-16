@@ -135,7 +135,7 @@ public:
   virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;
-     m_is_sub_partitioned= is_sub_partitioned(part_info);
+     m_is_sub_partitioned= part_info->is_sub_partitioned();
   }
   /*
     -------------------------------------------------------------------------
