@@ -7,7 +7,7 @@ start slave;
 create table t1(a int not null primary key) engine=myisam;
 insert delayed into t1 values (1),(2),(3);
 flush tables;
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
 2
@@ -19,7 +19,7 @@ master-bin.000001	102	Query	1	222	use `test`; create table t1(a int not null pri
 master-bin.000001	222	Table_map	1	261	test.t1
 master-bin.000001	261	Write_rows	1	305	
 master-bin.000001	305	Query	1	380	use `test`; flush tables
-select * from t1;
+SELECT * FROM t1 ORDER BY a;
 a
 1
 2
