@@ -182,6 +182,7 @@ AC_DEFUN([NDBCLUSTER_WORKAROUNDS], [
 
 AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
+  AC_MSG_RESULT([Using NDB Cluster])
   with_partition="yes"
   ndb_cxxflags_fix=""
   TEST_NDBCLUSTER="--ndbcluster"
