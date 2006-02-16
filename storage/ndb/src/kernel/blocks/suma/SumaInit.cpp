@@ -19,8 +19,8 @@
 #include <Properties.hpp>
 #include <Configuration.hpp>
 
-Suma::Suma(const Configuration & conf) :
-  SimulatedBlock(SUMA, conf),
+Suma::Suma(Block_context& ctx) :
+  SimulatedBlock(SUMA, ctx),
   c_metaSubscribers(c_subscriberPool),
   c_removeDataSubscribers(c_subscriberPool),
   c_tables(c_tablePool),

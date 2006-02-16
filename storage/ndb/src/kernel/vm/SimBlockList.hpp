@@ -27,7 +27,7 @@ public:
   SimBlockList();
   ~SimBlockList();
   
-  void load(const Configuration & conf);
+  void load(Configuration & conf);
   void unload();
 private:
   int noOfBlocks;

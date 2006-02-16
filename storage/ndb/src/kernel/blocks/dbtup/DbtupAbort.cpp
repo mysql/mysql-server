@@ -172,7 +172,7 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
        */
       ndbout_c("clearing ALLOC");
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-      tuple_ptr->m_header_bits |= Tuple_header::FREE;
+      tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
   }
   

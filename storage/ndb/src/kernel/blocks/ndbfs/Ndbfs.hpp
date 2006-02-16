@@ -34,7 +34,7 @@
 class Ndbfs : public SimulatedBlock
 {
 public:
-  Ndbfs(const class Configuration & conf);
+  Ndbfs(Block_context&);
   virtual ~Ndbfs();
 
   virtual const char* get_filename(Uint32 fd) const;
@@ -99,7 +99,7 @@ private:
 class VoidFs : public SimulatedBlock
 {
 public:
-  VoidFs(const class Configuration & conf);
+  VoidFs(Block_context&);
   virtual ~VoidFs();
 
 protected:

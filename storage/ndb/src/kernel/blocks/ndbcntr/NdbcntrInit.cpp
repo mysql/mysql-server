@@ -35,8 +35,8 @@ void Ndbcntr::initRecords()
   // Records with dynamic sizes
 }//Ndbcntr::initRecords()
 
-Ndbcntr::Ndbcntr(const class Configuration & conf):
-  SimulatedBlock(NDBCNTR, conf),
+Ndbcntr::Ndbcntr(Block_context& ctx):
+  SimulatedBlock(NDBCNTR, ctx),
   cnoWaitrep6(0),
   cnoWaitrep7(0),
   c_stopRec(* this),

@@ -325,7 +325,7 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
   jamEntry();
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_DIR_RANGE, &cdirrangesize));

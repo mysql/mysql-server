@@ -138,8 +138,9 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->fragmentId= fragId;
   regFragPtr.p->m_tablespace_id= tablespace;
   regFragPtr.p->m_undo_complete= false;
-  regFragPtr.p->m_lcp_scan_op= RNIL; 
-
+  regFragPtr.p->m_lcp_scan_op = RNIL; 
+  regFragPtr.p->m_lcp_keep_list = RNIL;
+  
   Uint32 noAllocatedPages= allocFragPages(regFragPtr.p, pages);
   
   if (noAllocatedPages == 0) {

@@ -45,8 +45,8 @@ void Qmgr::initRecords()
   // Records with dynamic sizes
 }//Qmgr::initRecords()
 
-Qmgr::Qmgr(const class Configuration & conf)
-  : SimulatedBlock(QMGR, conf)
+Qmgr::Qmgr(Block_context& ctx)
+  : SimulatedBlock(QMGR, ctx)
 {
   BLOCK_CONSTRUCTOR(Qmgr);
 
