@@ -194,29 +194,92 @@ my_bool net_realloc(NET *net, ulong length)
   DBUG_RETURN(0);
 }
 
-	/* Remove unwanted characters from connection */
+
+/*
+  Check if there is any data to be read from the socket
+
+  SYNOPSIS
+    net_data_is_ready()
+    sd   socket descriptor
+
+  DESCRIPTION
+    Check if there is any data to be read from the socket.
+
+  RETURN VALUES
+    0	No data to read
+    1	Data or EOF to read
+*/
+
+static my_bool net_data_is_ready(my_socket sd)
+{
+  fd_set sfds;
+  struct timeval tv;
+  int res;
+
+  FD_ZERO(&sfds);
+  FD_SET(sd, &sfds);
+
+  tv.tv_sec= tv.tv_usec= 0;
+
+  if ((res= select(sd+1, &sfds, NULL, NULL, &tv)) < 0)
+    return FALSE;
+  else
+    return test(res ? FD_ISSET(sd, &sfds) : 0);
+}
+
+
+/*
+  Remove unwanted characters from connection
+  and check if disconnected
+
+  SYNOPSIS
+    net_clear()
+    net			NET handler
+
+  DESCRIPTION
+    Read from socket until there is nothing more to read. Discard
+    what is read.
+
+    If there is anything when to read 'net_clear' is called this
+    normally indicates an error in the protocol.
+
+    When connection is properly closed (for TCP it means with
+    a FIN packet), then select() considers a socket "ready to read",
+    in the sense that there's EOF to read, but read() returns 0.
+
+*/
 
 void net_clear(NET *net)
 {
+  int count;
   DBUG_ENTER("net_clear");
-#if !defined(EXTRA_DEBUG) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
+  while(net_data_is_ready(net->vio->sd))
   {
-    int count;					/* One may get 'unused' warn */
-    my_bool old_mode;
-    if (!vio_blocking(net->vio, FALSE, &old_mode))
+    /* The socket is ready */
+    if ((count= vio_read(net->vio, (char*) (net->buff),
+                         (uint32) net->max_packet)) > 0)
     {
-      while ((count = vio_read(net->vio, (char*) (net->buff),
-			       (uint32) net->max_packet)) > 0)
-	DBUG_PRINT("info",("skipped %d bytes from file: %s",
-			   count, vio_description(net->vio)));
-      vio_blocking(net->vio, TRUE, &old_mode);
+      DBUG_PRINT("info",("skipped %d bytes from file: %s",
+                         count, vio_description(net->vio)));
+#ifdef EXTRA_DEBUG
+      fprintf(stderr,"skipped %d bytes from file: %s\n",
+              count, vio_description(net->vio));
+#endif
+    }
+    else
+    {
+      DBUG_PRINT("info",("socket ready but only EOF to read - disconnected"));
+      net->error= 2;
+      break;
     }
   }
-#endif /* EXTRA_DEBUG */
+#endif
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;
   DBUG_VOID_RETURN;
 }
+
 
 	/* Flush write_buffer if not empty. */
 
