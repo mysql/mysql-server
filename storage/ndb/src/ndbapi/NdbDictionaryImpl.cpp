@@ -1320,6 +1320,8 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
   
   m_localHash.put(impl->m_internalName.c_str(), info);
   
+  addBlobTables(*impl);
+
   m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
 }
