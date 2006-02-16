@@ -2383,7 +2383,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
-			       MYSQL_LOCK **lock)
+			       MYSQL_LOCK **lock,
+                               TABLEOP_HOOKS *hooks)
 {
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE_SHARE share;
@@ -2462,6 +2463,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
            save us from that ?
   */
   table->reginfo.lock_type=TL_WRITE;
+  hooks->prelock(&table, 1);                    // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
@@ -5105,7 +5107,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  if (to->file->external_lock(thd, F_WRLCK))
+  if (to->file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
 
   /* We can abort alter table for any table type */
@@ -5245,7 +5247,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
-  if (to->file->external_lock(thd,F_UNLCK))
+  if (to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
