@@ -2069,7 +2069,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
-			       MYSQL_LOCK **lock)
+			       MYSQL_LOCK **lock,
+                               TABLEOP_HOOKS *hooks)
 {
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE_SHARE share;
@@ -2148,6 +2149,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
            save us from that ?
   */
   table->reginfo.lock_type=TL_WRITE;
+  hooks->prelock(&table, 1);                    // Call prelock hooks
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
                                     MYSQL_LOCK_IGNORE_FLUSH, &not_used)))
   {
