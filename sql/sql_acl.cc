@@ -3266,16 +3266,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   grant_option=TRUE;
   thd->mem_root= old_root;
-  /*
-    This flush is here only becuase there is code that writes rows to
-    system tables after executing a binlog_query().
-
-    TODO: Ensure that no writes are executed after a binlog_query() by
-    moving the writes to before calling binlog_query(). Then remove
-    this line (and add an assert inside send_ok() that checks that
-    everything is in a consistent state).
-   */
-  thd->binlog_flush_pending_rows_event(true);
   rw_unlock(&LOCK_grant);
   if (!result && !no_error)
     send_ok(thd);
