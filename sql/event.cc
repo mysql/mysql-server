@@ -457,11 +457,7 @@ common_1_lev_code:
   buf->append(tmp_buff, (uint) (end- tmp_buff));
   if (close_quote)
     buf->append('\'');
-    
-  buf->append(' ');
-  LEX_STRING *ival= &interval_type_to_name[interval];
-  buf->append(ival->str, ival->length);
-  
+
   return 0;
 }
 
@@ -1092,6 +1088,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
 {
   //ToDo : Add definer to the tuple (db, name) to become triple
   uint i;
+  int ret= 0;
 
   DBUG_ENTER("evex_remove_from_cache");
   /*
@@ -1126,6 +1123,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
       DBUG_PRINT("evex_remove_from_cache", ("delete from queue"));
       evex_queue_delete_element(&EVEX_EQ_NAME, i);
       // ok, we have cleaned
+      ret= 0;
       goto done;
     }
   }
@@ -1134,7 +1132,7 @@ done:
   if (use_lock)
     VOID(pthread_mutex_unlock(&LOCK_event_arrays));
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 
