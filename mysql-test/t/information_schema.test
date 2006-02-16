@@ -821,3 +821,16 @@ group by column_type order by num;
 #
 
 select * from information_schema.engines WHERE ENGINE="MyISAM";
+
+#
+# INFORMATION_SCHEMA.PROCESSLIST
+#
+
+grant select on *.* to user3148@localhost;
+connect (con3148,localhost,user3148,,test);
+connection con3148;
+select user,db from information_schema.processlist;
+connection default;
+drop user user3148@localhost;
+
+
