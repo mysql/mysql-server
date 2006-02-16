@@ -950,15 +950,16 @@ set time_zone=default;
 #
 --disable_warnings
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
+--enable_warnings
+
 CREATE TABLE `t1 test` (
   `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
---enable_warnings
 
 DELIMITER //;
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
@@ -973,11 +974,10 @@ SELECT * FROM `t2 test`;
 # quoted
 --exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
 
---disable_warnings
 DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
---enable_warnings
+
 #
 # BUG# 12838 mysqldump -x with views exits with error 
 #
