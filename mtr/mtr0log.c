@@ -307,8 +307,6 @@ mlog_write_string(
 	ulint		len,	/* in: string length */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
-	byte*	log_ptr;
-
 	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
 	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
@@ -318,7 +316,26 @@ mlog_write_string(
 	ut_ad(ptr && mtr);
 	ut_a(len < UNIV_PAGE_SIZE);
 
-	ut_memcpy(ptr, str, len);
+	memcpy(ptr, str, len);
+
+	mlog_log_string(ptr, len, mtr);
+}
+
+/************************************************************
+Logs a write of a string to a file page buffered in the buffer pool.
+Writes the corresponding log record to the mini-transaction log. */
+
+void
+mlog_log_string(
+/*============*/
+	byte*	ptr,	/* in: pointer written to */
+	ulint	len,	/* in: string length */
+	mtr_t*	mtr)	/* in: mini-transaction handle */
+{
+	byte*	log_ptr;
+
+	ut_ad(ptr && mtr);
+	ut_ad(len <= UNIV_PAGE_SIZE);
 
 	log_ptr = mlog_open(mtr, 30);
 	
@@ -330,7 +347,7 @@ mlog_write_string(
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_WRITE_STRING,
 								log_ptr, mtr);
-	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
+	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
 	log_ptr += 2;
 	
 	mach_write_to_2(log_ptr, len);
@@ -338,7 +355,7 @@ mlog_write_string(
 
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(mtr, str, len);
+	mlog_catenate_string(mtr, ptr, len);
 }
 
 /************************************************************
