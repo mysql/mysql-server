@@ -392,6 +392,8 @@ btr_page_free_low(
 /*==============*/
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */	
+	ulint		space,	/* in: space */
+	ulint		page_no,/* in: page number */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
 #ifdef UNIV_BTR_PRINT

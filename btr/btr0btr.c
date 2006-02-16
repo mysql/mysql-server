@@ -436,13 +436,13 @@ btr_page_free_low(
 /*==============*/
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */	
+	ulint		space,	/* in: space */
+	ulint		page_no,/* in: page number */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	fseg_header_t*	seg_header;
 	page_t*		root;
-	ulint		space;
-	ulint		page_no;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
@@ -466,9 +466,6 @@ btr_page_free_low(
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 	}
 
-	space = buf_frame_get_space_id(page);
-	page_no = buf_frame_get_page_no(page);
-	
 	fseg_free_page(seg_header, space, page_no, mtr);
 }	
 
@@ -484,12 +481,17 @@ btr_page_free(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint		level;
+	ulint		space;
+	ulint		page_no;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
 	
-	btr_page_free_low(tree, page, level, mtr);
+	space = buf_frame_get_space_id(page);
+	page_no = buf_frame_get_page_no(page);
+	
+	btr_page_free_low(tree, page, space, page_no, level, mtr);
 }	
 
 /******************************************************************

@@ -46,6 +46,16 @@ mlog_write_string(
 	ulint		len,	/* in: string length */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
+Logs a write of a string to a file page buffered in the buffer pool.
+Writes the corresponding log record to the mini-transaction log. */
+
+void
+mlog_log_string(
+/*============*/
+	byte*	ptr,	/* in: pointer written to */
+	ulint	len,	/* in: string length */
+	mtr_t*	mtr);	/* in: mini-transaction handle */
+/************************************************************
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
 
