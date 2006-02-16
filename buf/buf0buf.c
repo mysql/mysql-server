@@ -464,11 +464,16 @@ buf_block_init(
 	byte*		frame)	/* in: pointer to buffer frame, or NULL if in
 				the case of AWE there is no frame */
 {
+	block->magic_n = 0;
+
 	block->state = BUF_BLOCK_NOT_USED;
 	
 	block->frame = frame;
 
 	block->awe_info = NULL;
+
+	block->buf_fix_count = 0;
+	block->io_fix = 0;
 
 	block->modify_clock = ut_dulint_zero;
 	
