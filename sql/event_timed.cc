@@ -908,7 +908,7 @@ event_timed::drop(THD *thd)
   Saves status and last_executed_at to the disk if changed.
 
   SYNOPSIS
-    event_timed::drop()
+    event_timed::update_fields()
       thd - thread context
 
   RETURN VALUE
@@ -945,7 +945,7 @@ event_timed::update_fields(THD *thd)
   }
 
 
-  if ((ret= evex_db_find_event_aux(thd, dbname, name, definer, table)))
+  if ((ret= evex_db_find_event_by_name(thd, dbname, name, definer, table)))
     goto done;
 
   store_record(table,record[1]);
@@ -1204,6 +1204,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   MEM_ROOT *tmp_mem_root= 0;
   LEX *old_lex= thd->lex, lex;
   char *old_db;
+  int old_db_length;
   event_timed *ett;
   sp_name *spn;
   char *old_query;
@@ -1237,7 +1238,9 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   old_query_len= thd->query_length;
   old_query= thd->query;
   old_db= thd->db;
+  old_db_length= thd->db_length;
   thd->db= dbname.str;
+  thd->db_length= dbname.length;
 
   get_create_event(thd, &show_create);
 
@@ -1303,3 +1306,135 @@ done:
   DBUG_RETURN(ret);
 }
 
+
+/*
+  Checks whether this thread can lock the object for modification ->
+  preventing being spawned for execution, and locks if possible.
+  use ::can_spawn_now() only for basic checking because a race
+  condition may occur between the check and eventual modification (deletion)
+  of the object.
+
+  Returns
+    true  - locked
+    false - cannot lock
+*/
+
+my_bool
+event_timed::can_spawn_now_n_lock(THD *thd)
+{
+  my_bool ret= FALSE;
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    in_spawned_thread= TRUE;
+    ret= TRUE;
+    locked_by_thread_id= thd->thread_id;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  return ret;  
+}
+
+
+extern pthread_attr_t connection_attrib;
+
+/*
+  Checks whether is possible and forks a thread. Passes self as argument.
+  
+  Returns
+  EVENT_EXEC_STARTED       - OK
+  EVENT_EXEC_ALREADY_EXEC  - Thread not forked, already working
+  EVENT_EXEC_CANT_FORK     - Unable to spawn thread (error)
+*/
+
+int
+event_timed::spawn_now(void * (*thread_func)(void*))
+{  
+  int ret= EVENT_EXEC_STARTED;
+  static uint exec_num= 0;
+  DBUG_ENTER("event_timed::spawn_now");
+  DBUG_PRINT("info", ("[%s.%s]", dbname.str, name.str));
+
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    pthread_t th;
+    in_spawned_thread= true;
+    if (pthread_create(&th, &connection_attrib, thread_func, (void*)this))
+    {
+      DBUG_PRINT("info", ("problem while spawning thread"));
+      ret= EVENT_EXEC_CANT_FORK;
+      in_spawned_thread= false;
+    }
+#ifndef DBUG_OFF
+    else
+    {
+      sql_print_information("SCHEDULER: Started thread %d", ++exec_num);
+      DBUG_PRINT("info", ("thread spawned"));
+    }
+#endif
+  }
+  else
+  {
+    DBUG_PRINT("info", ("already in spawned thread. skipping"));
+    ret= EVENT_EXEC_ALREADY_EXEC;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+
+  DBUG_RETURN(ret);  
+}
+
+
+void
+event_timed::spawn_thread_finish(THD *thd)
+{
+  DBUG_ENTER("event_timed::spawn_thread_finish");
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  in_spawned_thread= false;
+  if ((flags & EVENT_EXEC_NO_MORE) || status == MYSQL_EVENT_DISABLED)
+  {
+    DBUG_PRINT("info", ("%s exec no more. to drop=%d", name.str, dropped));
+    if (dropped)
+      drop(thd);
+    VOID(pthread_mutex_unlock(&this->LOCK_running));
+    delete this;
+    DBUG_VOID_RETURN;
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Unlocks the object after it has been locked with ::can_spawn_now_n_lock()
+
+  Returns
+    0 - ok
+    1 - not locked by this thread
+  
+*/
+ 
+
+int
+event_timed::spawn_unlock(THD *thd)
+{
+  int ret= 0;
+  VOID(pthread_mutex_lock(&this->LOCK_running));
+  if (!in_spawned_thread)
+  {
+    if (locked_by_thread_id == thd->thread_id)
+    {        
+      in_spawned_thread= FALSE;
+      locked_by_thread_id= 0;
+    }
+    else
+    {
+      sql_print_error("A thread tries to unlock when he hasn't locked. "
+                      "thread_id=%ld locked by %ld",
+                      thd->thread_id, locked_by_thread_id);
+      DBUG_ASSERT(0);
+      ret= 1;
+    }
+  }
+  VOID(pthread_mutex_unlock(&this->LOCK_running));
+  return ret;  
+}

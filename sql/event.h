@@ -79,6 +79,8 @@ class event_timed
 {
   event_timed(const event_timed &);	/* Prevent use of these */
   void operator=(event_timed &);
+  my_bool in_spawned_thread;
+  ulong locked_by_thread_id;
   my_bool running;
   pthread_mutex_t LOCK_running;
 
@@ -117,13 +119,14 @@ public:
   bool free_sphead_on_delete;
   uint flags;//all kind of purposes
 
-  event_timed():running(0), status_changed(false), last_executed_changed(false),
-                expression(0), created(0), modified(0),
-                on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
-                status(MYSQL_EVENT_ENABLED), sphead(0), sql_mode(0),
-                body_begin(0), dropped(false), free_sphead_on_delete(true),
-                flags(0)
-
+  event_timed():in_spawned_thread(0),locked_by_thread_id(0),
+                running(0), status_changed(false),
+                last_executed_changed(false), expression(0), created(0),
+                modified(0), on_completion(MYSQL_EVENT_ON_COMPLETION_DROP),
+                status(MYSQL_EVENT_ENABLED), sphead(0), sql_mode(0), 
+                body_begin(0), dropped(false),
+                free_sphead_on_delete(true), flags(0)
+                
   {
     pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
     init();
@@ -200,7 +203,44 @@ public:
     return ret;
   }
 
-  void free_sp()
+  /*
+    Checks whether the object is being used in a spawned thread.
+    This method is for very basic checking. Use ::can_spawn_now_n_lock()
+    for most of the cases.
+  */
+
+  my_bool
+  can_spawn_now()
+  {
+    my_bool ret;
+    VOID(pthread_mutex_lock(&this->LOCK_running));
+    ret= !in_spawned_thread;
+    VOID(pthread_mutex_unlock(&this->LOCK_running));
+    return ret;  
+  }
+
+  /*
+    Checks whether this thread can lock the object for modification ->
+    preventing being spawned for execution, and locks if possible.
+    use ::can_spawn_now() only for basic checking because a race
+    condition may occur between the check and eventual modification (deletion)
+    of the object.
+  */
+
+  my_bool
+  can_spawn_now_n_lock(THD *thd);
+
+  int
+  spawn_unlock(THD *thd);
+
+  int
+  spawn_now(void * (*thread_func)(void*));
+  
+  void
+  spawn_thread_finish(THD *thd);
+  
+  void
+  free_sp()
   {
     delete sphead;
     sphead= 0;
@@ -238,6 +278,10 @@ int
 event_reconstruct_interval_expression(String *buf,
                                       interval_type interval,
                                       longlong expression);
+
+int
+evex_drop_db_events(THD *thd, char *db);
+
 
 int
 init_events();
