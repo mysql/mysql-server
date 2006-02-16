@@ -274,7 +274,6 @@ drop event one_event;
 
 --echo "Sleep a bit so the server closes the second connection"
 --sleep 2
-
 create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
