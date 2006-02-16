@@ -1272,7 +1272,7 @@ int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
     goto done;
   }
 
-  if (!(ret= evex_db_find_event_aux(thd, et->dbname,et->name,et->definer,table)))
+  if (!(ret= evex_db_find_event_aux(thd, et, table)))
   {
     if ((ret= table->file->ha_delete_row(table->record[0])))
     { 	
@@ -1452,7 +1452,7 @@ evex_drop_db_events(THD *thd, char *db)
   READ_RECORD read_record_info;
   MYSQL_LOCK *lock;
   int ret= 0;
-  int i;
+  uint i;
   LEX_STRING db_lex= {db, strlen(db)};
   
   DBUG_ENTER("evex_drop_db_events");  
