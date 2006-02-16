@@ -191,7 +191,7 @@ end:
 bool partition_info::set_up_default_subpartitions(handler *file, 
                                                   ulonglong max_rows)
 {
-  uint i, j; //, no_parts, no_subparts;
+  uint i, j;
   char *default_name, *name_ptr;
   bool result= TRUE;
   partition_element *part_elem;
@@ -200,16 +200,11 @@ bool partition_info::set_up_default_subpartitions(handler *file,
 
   if (no_subparts == 0)
     no_subparts= file->get_default_no_partitions(max_rows);
-//  no_parts= part_info->no_parts;
-  //no_subparts= part_info->no_subparts;
   if (unlikely((no_parts * no_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
     goto end;
   }
-//  if (unlikely((!(default_name=
-  //           create_default_partition_names(no_subparts, (uint)0, TRUE)))))
-    //goto end;
   i= 0;
   do
   {
@@ -277,6 +272,17 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
   DBUG_RETURN(FALSE);
 }
 
+/*
+  A support function to check if a partition element's name is unique
+  
+  SYNOPSIS
+    has_unique_name()
+    partition_element  element to check
+
+  RETURN VALUES
+    TRUE               Has unique name
+    FALSE              Doesn't
+*/
 bool partition_info::has_unique_name(partition_element *element)
 {
   DBUG_ENTER("partition_info::has_unique_name");
