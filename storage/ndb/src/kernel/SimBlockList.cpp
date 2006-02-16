@@ -78,8 +78,7 @@ SimBlockList::load(Configuration & conf){
   Lgman* lg = 0;
   Tsman* ts = 0;
 
-  Block_context ctx = 
-    { conf, * (Ndbd_mem_manager*)0 };
+  Block_context ctx(conf, * (Ndbd_mem_manager*)0);
   
   SimulatedBlock * fs = 0;
   {
