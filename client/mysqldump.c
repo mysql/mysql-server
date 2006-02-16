@@ -2905,7 +2905,7 @@ static int get_actual_table_name(const char *old_table_name,
     }
     mysql_free_result(table_res);
   }
-  return retval;
+  DBUG_RETURN(retval);
 }
 
 
@@ -2920,7 +2920,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   DBUG_ENTER("dump_selected_tables");
 
   if (init_dumping(db))
-    return 1;
+    DBUG_RETURN(1);
 
   /* Init hash table for storing the actual name of tables to dump */
   if (hash_init(&dump_tables, charset_info, 16, 0, 0,
