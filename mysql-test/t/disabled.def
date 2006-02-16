@@ -20,7 +20,6 @@ ndb_autodiscover2    : Needs to be fixed w.r.t binlog
 ndb_binlog_basic     : Results are not deterministic, Tomas will fix
 ndb_binlog_ddl_multi : Bug#17038 [PATCH PENDING]
 ndb_gis              : garbled msgs from corrupt THD*
-ndb_load             : Bug#17233
 partition_03ndb      : Bug#16385
 ps_7ndb              : dbug assert in RBR mode when executing test suite
 rpl_bit_npk          : Bug#13418

@@ -515,6 +515,28 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
   SYNOPSIS
     evex_db_find_event_aux()
       thd    Thread context
+      et     evet_timed object containing dbname, name & definer
+      table  TABLE object for open mysql.event table.
+
+  RETURN VALUE
+    0                  - Routine found
+    EVEX_KEY_NOT_FOUND - No routine with given name
+*/
+
+inline int
+evex_db_find_event_aux(THD *thd, event_timed *et, TABLE *table)
+{
+  return evex_db_find_event_by_name(thd, et->dbname, et->name,
+                                    et->definer, table);
+}
+
+
+/*
+  Find row in open mysql.event table representing event
+
+  SYNOPSIS
+    evex_db_find_event_by_name()
+      thd    Thread context
       dbname Name of event's database
       rname  Name of the event inside the db  
       table  TABLE object for open mysql.event table.
@@ -525,13 +547,13 @@ evex_open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table)
 */
 
 int
-evex_db_find_event_aux(THD *thd, const LEX_STRING dbname,
-                       const LEX_STRING ev_name,
-                       const LEX_STRING user_name,
-                       TABLE *table)
+evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
+                          const LEX_STRING ev_name,
+                          const LEX_STRING user_name,
+                          TABLE *table)
 {
   byte key[MAX_KEY_LENGTH];
-  DBUG_ENTER("evex_db_find_event_aux");
+  DBUG_ENTER("evex_db_find_event_by_name");
   DBUG_PRINT("enter", ("name: %.*s", ev_name.length, ev_name.str));
 
   /*
@@ -710,7 +732,7 @@ db_create_event(THD *thd, event_timed *et, my_bool create_if_not,
   }
   
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!evex_db_find_event_aux(thd, et->dbname, et->name, et->definer, table))
+  if (!evex_db_find_event_aux(thd, et, table))
   {
     if (create_if_not)
     {
@@ -848,7 +870,7 @@ db_update_event(THD *thd, event_timed *et, sp_name *new_name)
       goto err;    
     }
   
-    if (!evex_db_find_event_aux(thd, new_name->m_db, new_name->m_name,
+    if (!evex_db_find_event_by_name(thd, new_name->m_db, new_name->m_name,
                                 et->definer, table))
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
@@ -861,8 +883,7 @@ db_update_event(THD *thd, event_timed *et, sp_name *new_name)
     overwrite the key and SE will tell us that it cannot find the already found
     row (copied into record[1] later
   */
-  if (EVEX_KEY_NOT_FOUND == evex_db_find_event_aux(thd, et->dbname, et->name,
-                                                   et->definer, table))
+  if (EVEX_KEY_NOT_FOUND == evex_db_find_event_aux(thd, et, table))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), et->name.str);
     goto err;    
@@ -943,8 +964,8 @@ db_find_event(THD *thd, sp_name *name, LEX_STRING *definer, event_timed **ett,
     goto done;
   }
 
-  if ((ret= evex_db_find_event_aux(thd, name->m_db, name->m_name, *definer,
-                                   table)))
+  if ((ret= evex_db_find_event_by_name(thd, name->m_db, name->m_name, *definer,
+                                       table)))
   {
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name->m_name.str);
     goto done;    
@@ -1089,7 +1110,7 @@ evex_remove_from_cache(LEX_STRING *db, LEX_STRING *name, bool use_lock,
     if (!sortcmp_lex_string(*name, et->name, system_charset_info) &&
         !sortcmp_lex_string(*db, et->dbname, system_charset_info))
     {
-      if (!et->is_running())
+      if (et->can_spawn_now())
       {
         DBUG_PRINT("evex_remove_from_cache", ("not running - free and delete"));
         et->free_sp();
@@ -1239,7 +1260,7 @@ int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
 {
   TABLE *table;
   Open_tables_state backup;
-  uint ret;
+  int ret;
 
   DBUG_ENTER("db_drop_event");
   ret= EVEX_OPEN_TABLE_FAILED;
@@ -1251,7 +1272,7 @@ int db_drop_event(THD *thd, event_timed *et, bool drop_if_exists,
     goto done;
   }
 
-  if (!(ret= evex_db_find_event_aux(thd, et->dbname,et->name,et->definer,table)))
+  if (!(ret= evex_db_find_event_aux(thd, et, table)))
   {
     if ((ret= table->file->ha_delete_row(table->record[0])))
     { 	
@@ -1391,5 +1412,189 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
     send_eof(thd);
   }
   
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  evex_drop_db_events - Drops all events in the selected database
+  
+  thd  - Thread
+  db   - ASCIIZ the name of the database
+  
+  Returns:
+    0  - OK
+    1  - Failed to delete a specific row
+    2  - Got NULL while reading db name from a row
+
+  Note:
+    The algo is the following
+    1. Go through the in-memory cache, if the scheduler is working
+       and for every event whose dbname matches the database we drop
+       check whether is currently in execution:
+       - event_timed::can_spawn() returns true -> the event is not
+         being executed in a child thread. The reason not to use
+         event_timed::is_running() is that the latter shows only if
+         it is being executed, which is 99% of the time in the thread
+         but there are some initiliazations before and after the
+         anonymous SP is being called. So if we delete in this moment
+         -=> *boom*, so we have to check whether the thread has been
+         spawned and can_spawn() is the right method.
+       - event_timed::can_spawn() returns false -> being runned ATM
+         just set the flags so it should drop itself.
+
+*/
+
+int
+evex_drop_db_events(THD *thd, char *db)
+{
+  TABLE *table;
+  READ_RECORD read_record_info;
+  MYSQL_LOCK *lock;
+  int ret= 0;
+  uint i;
+  LEX_STRING db_lex= {db, strlen(db)};
+  
+  DBUG_ENTER("evex_drop_db_events");  
+  DBUG_PRINT("info",("dropping events from %s", db));
+
+
+  VOID(pthread_mutex_lock(&LOCK_event_arrays));
+
+  if ((ret= evex_open_event_table(thd, TL_WRITE, &table)))
+  {
+    sql_print_error("Table mysql.event is damaged.");
+    VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  }
+
+  DBUG_PRINT("info",("%d elements in the queue",
+             evex_queue_num_elements(EVEX_EQ_NAME)));
+  VOID(pthread_mutex_lock(&LOCK_evex_running));
+  if (!evex_is_running)
+    goto skip_memory;
+
+  for (i= 0; i < evex_queue_num_elements(EVEX_EQ_NAME); ++i)
+  {
+    event_timed *et= evex_queue_element(&EVEX_EQ_NAME, i, event_timed*);
+    if (sortcmp_lex_string(et->dbname, db_lex, system_charset_info))
+      continue;
+
+    if (et->can_spawn_now_n_lock(thd))
+    {
+      DBUG_PRINT("info",("event %s not running - direct delete", et->name.str));
+      if (!(ret= evex_db_find_event_aux(thd, et, table)))
+      {
+        DBUG_PRINT("info",("event %s found on disk", et->name.str));
+        if ((ret= table->file->ha_delete_row(table->record[0])))
+        {
+          sql_print_error("Error while deleting a row - dropping "
+                          "a database. Skipping the rest.");
+          my_error(ER_EVENT_DROP_FAILED, MYF(0), et->name.str);
+          goto end;
+        }
+        DBUG_PRINT("info",("deleted event [%s] num [%d]. Time to free mem",
+                   et->name.str, i));
+      }
+      else if (ret == EVEX_KEY_NOT_FOUND)
+      {
+        sql_print_error("Expected to find event %s.%s of %s on disk-not there.",
+                         et->dbname.str, et->name.str, et->definer.str);
+      }
+      et->free_sp();
+      delete et;
+      et= 0;
+      /* no need to call et->spawn_unlock because we already cleaned et */
+    }
+    else
+    {
+      DBUG_PRINT("info",("event %s is running. setting exec_no_more and dropped",
+                  et->name.str));
+      et->flags|= EVENT_EXEC_NO_MORE;
+      et->dropped= TRUE;
+    }
+    DBUG_PRINT("info",("%d elements in the queue",
+               evex_queue_num_elements(EVEX_EQ_NAME)));
+    evex_queue_delete_element(&EVEX_EQ_NAME, i);// 1 is top
+    DBUG_PRINT("info",("%d elements in the queue",
+               evex_queue_num_elements(EVEX_EQ_NAME)));
+    /*
+      decrease so we start at the same position, there will be
+      less elements in the queue, it will still be ordered so on
+      next iteration it will be again i the current element or if
+      no more we finish.
+    */
+    --i;
+  }
+
+skip_memory:
+  /*
+   The reasoning behind having two loops is the following:
+   If there was only one loop, the table-scan, then for every element which
+   matches, the queue in memory has to be searched to remove the element.
+   While if we go first over the queue and remove what's in there we have only
+   one pass over it and after finishing it, moving to table-scan for the disabled
+   events. This needs quite less time and means quite less locking on
+   LOCK_event_arrays.
+  */
+  DBUG_PRINT("info",("Mem-cache checked, now going to db for disabled events"));
+  /* only enabled events are in memory, so we go now and delete the rest */
+  init_read_record(&read_record_info, thd, table ,NULL,1,0);
+  while (!(read_record_info.read_record(&read_record_info)) && !ret)
+  {
+    char *et_db;
+
+    if ((et_db= get_field(thd->mem_root, table->field[EVEX_FIELD_DB])) == NULL)
+    {
+      ret= 2;
+      break;
+    }
+    
+    LEX_STRING et_db_lex= {et_db, strlen(et_db)};
+    if (!sortcmp_lex_string(et_db_lex, db_lex, system_charset_info))
+    {
+      event_timed ett;
+      char *ptr;
+      
+      if ((ptr= get_field(thd->mem_root, table->field[EVEX_FIELD_STATUS]))
+           == NullS)
+      {
+        sql_print_error("Error while loading from mysql.event. "
+                        "Table probably corrupted");
+        goto end;
+      }
+      /*
+        When not running nothing is in memory so we have to clean
+        everything.
+        We don't delete EVENT_ENABLED events when the scheduler is running
+        because maybe this is an event which we asked to drop itself when
+        it is finished and it hasn't finished yet, so we don't touch it.
+        It will drop itself. The not running ENABLED events has been already
+        deleted from ha_delete_row() above in the loop over the QUEUE
+        (in case the executor is running).
+        'D' stands for DISABLED, 'E' for ENABLED - it's an enum
+      */
+      if ((evex_is_running && ptr[0] == 'D') || !evex_is_running)
+      {
+        DBUG_PRINT("info", ("Dropping %s.%s", et_db, ett.name.str));
+        if ((ret= table->file->ha_delete_row(table->record[0])))
+        {
+          my_error(ER_EVENT_DROP_FAILED, MYF(0), ett.name.str);
+          goto end;
+        }
+      }
+    }
+  }
+  DBUG_PRINT("info",("Disk checked for disabled events. Finishing."));
+
+end:
+  VOID(pthread_mutex_unlock(&LOCK_evex_running));
+  VOID(pthread_mutex_unlock(&LOCK_event_arrays));
+  end_read_record(&read_record_info);
+
+  thd->version--;  // Force close to free memory
+
+  close_thread_tables(thd);
+
   DBUG_RETURN(ret);
 }
