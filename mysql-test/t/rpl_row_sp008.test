@@ -46,11 +46,6 @@ connection slave;
 sync_with_master;
 SELECT * FROM test.t2;
 
-connection master;
-let $VERSION=`select version()`;
---replace_result $VERSION VERSION
-show binlog events;
-
 # Cleanup
 
 connection master;
