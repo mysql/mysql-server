@@ -5524,14 +5524,17 @@ int ndbcluster_find_all_files(THD *thd)
     for (uint i= 0 ; i < list.count ; i++)
     {
       NDBDICT::List::Element& elmt= list.elements[i];
+      int do_handle_table= 0;
       if (IS_TMP_PREFIX(elmt.name))
       {
         DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
         continue;
       }
       DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-      if (!(elmt.state == NDBOBJ::StateBuilding ||
-            elmt.state == NDBOBJ::StateOnline))
+      if (elmt.state == NDBOBJ::StateOnline ||
+          elmt.state == NDBOBJ::StateBackup)
+        do_handle_table= 1;
+      else if (!(elmt.state == NDBOBJ::StateBuilding))
       {
         sql_print_information("NDB: skipping setup table %s.%s, in state %d",
                               elmt.database, elmt.name, elmt.state);
@@ -5543,7 +5546,7 @@ int ndbcluster_find_all_files(THD *thd)
 
       if (!(ndbtab= dict->getTable(elmt.name)))
       {
-        if (elmt.state == NDBOBJ::StateOnline)
+        if (do_handle_table)
           sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
                           elmt.database, elmt.name,
                           dict->getNdbError().code,
