@@ -659,11 +659,8 @@ static int ndbcluster_create_apply_status_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    strxnmov(buf, sizeof(buf),
-             mysql_data_home,
-             "/" NDB_REP_DB "/" NDB_APPLY_TABLE,
-             reg_ext, NullS);
-    unpack_filename(buf,buf);
+    build_table_filename(buf, sizeof(buf),
+                         NDB_REP_DB, NDB_APPLY_TABLE, reg_ext);
     my_delete(buf, MYF(0));
   }
 
@@ -711,11 +708,8 @@ static int ndbcluster_create_schema_table(THD *thd)
     if so, remove it since there is none in Ndb
   */
   {
-    strxnmov(buf, sizeof(buf),
-             mysql_data_home,
-             "/" NDB_REP_DB "/" NDB_SCHEMA_TABLE,
-             reg_ext, NullS);
-    unpack_filename(buf,buf);
+    build_table_filename(buf, sizeof(buf),
+                         NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext);
     my_delete(buf, MYF(0));
   }
 
@@ -940,8 +934,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   if (get_a_share)
   {
     char key[FN_REFLEN];
-    (void)strxnmov(key, FN_REFLEN, share_prefix, db,
-                   "/", table_name, NullS);
+    build_table_filename(key, sizeof(key), db, table_name, "");
     share= get_share(key, 0, false, false);
   }
 
@@ -1434,8 +1427,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         case SOT_CLEAR_SLOCK:
         {
           char key[FN_REFLEN];
-          (void)strxnmov(key, FN_REFLEN, share_prefix, schema->db,
-                         "/", schema->name, NullS);
+          build_table_filename(key, sizeof(key),
+                               schema->db, schema->name, "");
           NDB_SHARE *share= get_share(key, 0, false, false);
           if (share)
           {
