@@ -21,6 +21,7 @@
 #include "ndbd_malloc.hpp"
 
 #include <pc.hpp>
+#include "Pool.hpp"
 #include <ErrorReporter.hpp>
 #include <NdbMem.h>
 #include <Bitmask.hpp>
