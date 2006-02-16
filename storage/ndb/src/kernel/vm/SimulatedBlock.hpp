@@ -77,6 +77,8 @@ typedef struct NewVar
 
 struct Block_context
 {
+  Block_context(class Configuration& cfg, class Ndbd_mem_manager& mm)
+    : m_config(cfg), m_mm(mm) {}
   class Configuration& m_config;
   class Ndbd_mem_manager& m_mm;
 };
