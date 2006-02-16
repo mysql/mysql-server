@@ -3016,10 +3016,43 @@ template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const 
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
+  DBUG_ENTER("handler::ha_external_lock");
   int error;
   if (unlikely(error= external_lock(thd, lock_type)))
-    return error;
-  return 0;
+    DBUG_RETURN(error);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  if (table->file->is_injective())
+    DBUG_RETURN(0);
+
+  /*
+    There is a number of statements that are logged statement-based
+    but call external lock. For these, we do not need to generate a
+    table map.
+
+    TODO: The need for this switch is an indication that the model for
+    locking combined with row-based replication needs to be looked
+    over. Ideally, no such special handling should be needed.
+   */
+  switch (thd->lex->sql_command)
+  {
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_ALTER_TABLE:
+    DBUG_RETURN(0);
+  }
+
+  /*
+    If we are locking a table for writing, we generate a table map.
+    For all other kinds of locks, we don't do anything.
+   */
+  if (lock_type == F_WRLCK && check_table_binlog_row_based(thd, table))
+  {
+    int const has_trans= table->file->has_transactions();
+    error= thd->binlog_write_table_map(table, has_trans);
+    if (unlikely(error))
+      DBUG_RETURN(error);
+  }
+#endif
+  DBUG_RETURN(0);
 }
 
 int handler::ha_write_row(byte *buf)

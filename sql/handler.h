@@ -871,7 +871,35 @@ typedef struct st_ha_create_information
   bool store_on_disk;                   /* 1 if table stored on disk */
 } HA_CREATE_INFO;
 
+/*
+  Class for maintaining hooks used inside operations on tables such
+  as: create table functions, delete table functions, and alter table
+  functions.
 
+  Class is using the Template Method pattern to separate the public
+  usage interface from the private inheritance interface.  This
+  imposes no overhead, since the public non-virtual function is small
+  enough to be inlined.
+
+  The hooks are usually used for functions that does several things,
+  e.g., create_table_from_items(), which both create a table and lock
+  it.
+ */
+class TABLEOP_HOOKS
+{
+public:
+  inline void prelock(TABLE **tables, uint count)
+  {
+    do_prelock(tables, count);
+  }
+
+private:
+  /* Function primitive that is called prior to locking tables */
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    /* Default is to do nothing */
+  }
+};
 
 typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
