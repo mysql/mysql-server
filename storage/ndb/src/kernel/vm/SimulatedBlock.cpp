@@ -46,11 +46,11 @@
 // Constructor, Destructor
 //
 SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
-			       const class Configuration & conf) 
+			       struct Block_context & ctx) 
   : theNodeId(globalData.ownId),
     theNumber(blockNumber),
     theReference(numberToRef(blockNumber, globalData.ownId)),
-    theConfiguration(conf),
+    m_ctx(ctx),
     m_global_page_pool(globalData.m_global_page_pool),
     c_fragmentInfoHash(c_fragmentInfoPool),
     c_linearFragmentSendList(c_fragmentSendPool),
@@ -724,9 +724,9 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
   // Pack status of interesting config variables 
   // so that we can print them in error.log
   int magicStatus = 
-    (theConfiguration.stopOnError()<<1) + 
-    (theConfiguration.getInitialStart()<<2) + 
-    (theConfiguration.getDaemonMode()<<3);
+    (m_ctx.m_config.stopOnError()<<1) + 
+    (m_ctx.m_config.getInitialStart()<<2) + 
+    (m_ctx.m_config.getDaemonMode()<<3);
   
 
   /* Add line number to block name */

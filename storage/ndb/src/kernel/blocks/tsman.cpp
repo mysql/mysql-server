@@ -38,8 +38,9 @@
 
 #define DBG_UNDO 0
 
-Tsman::Tsman(const Configuration & conf, class Pgman* pg, class Lgman* lg) :
-  SimulatedBlock(TSMAN, conf),
+Tsman::Tsman(Block_context& ctx,
+	     class Pgman* pg, class Lgman* lg) :
+  SimulatedBlock(TSMAN, ctx),
   m_file_hash(m_file_pool),
   m_tablespace_list(m_tablespace_pool),
   m_tablespace_hash(m_tablespace_pool),
@@ -105,7 +106,7 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -430,7 +431,8 @@ Tsman::execDROP_FILEGROUP_REQ(Signal* signal){
 
 bool 
 Tsman::find_file_by_id(Ptr<Datafile>& ptr, 
-		       DLList<Datafile>::Head& head, Uint32 id)
+		       DLList<Datafile>::Head& head, 
+		       Uint32 id)
 {
   LocalDLList<Datafile> list(m_file_pool, head);
   for(list.first(ptr); !ptr.isNull(); list.next(ptr))
@@ -1745,7 +1747,8 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
 				   Uint32 fragId,
 				   Local_key *key, 
 				   unsigned bits,
-				   Uint64 undo_lsn)
+				   Uint64 undo_lsn,
+				   Uint64 page_lsn)
 {
   jamEntry();
   
@@ -1777,7 +1780,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
   /**
    * Handling of unmapped extent header pages is not implemented
    */
-  int flags = 0;
+  int flags = Page_cache_client::DIRTY_REQ;
   int real_page_id;
   if ((real_page_id = m_page_cache_client.get_page(signal, preq, flags)) > 0)
   {
@@ -1788,6 +1791,20 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     File_formats::Datafile::Extent_header* header = 
       page->get_header(extent_no, size);
     
+    Uint64 lsn = 0;
+    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
+    lsn += page->m_page_header.m_page_lsn_lo;
+
+    if (undo_lsn > lsn && undo_lsn > page_lsn)
+    {
+      if (DBG_UNDO)
+	ndbout << "tsman: ignore " << undo_lsn << "(" << lsn << ", "
+	       << page_lsn << ") " 
+	       << *key << " "
+	       << " -> " << bits << endl;
+      return 0;
+    }
+    
     if (header->m_table == RNIL)
     {
       if (DBG_UNDO)
@@ -1795,40 +1812,25 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
       return 0;
     }
 
+    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
+    Uint32 src = header->get_free_bits(page_no_in_extent);
+        
     ndbrequire(header->m_table == tableId);
     ndbrequire(header->m_fragment_id == fragId);
     
-    Uint32 page_no_in_extent = (key->m_page_no - data_off) % size;
-    Uint32 src = header->get_free_bits(page_no_in_extent);
-    
-    Uint64 lsn = 0;
-    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
-    lsn += page->m_page_header.m_page_lsn_lo;
-    
-    if (undo_lsn <= lsn)
+    /**
+     * Toggle word
+     */
+    if (DBG_UNDO)
     {
-      /**
-       * Toggle word
-       */
-      if (DBG_UNDO)
-	ndbout_c("tsman: apply %lld(%lld) %x -> %x",
-		 undo_lsn, lsn, src, (bits | (bits << UNCOMMITTED_SHIFT)));
-      
-      lsn = undo_lsn;
-      page->m_page_header.m_page_lsn_hi = lsn >> 32;
-      page->m_page_header.m_page_lsn_lo = lsn & 0xFFFFFFFF;
-      ndbassert((bits & ~(COMMITTED_MASK)) == 0);
-      header->update_free_bits(page_no_in_extent, 
-			       bits | (bits << UNCOMMITTED_SHIFT));
-
-      m_page_cache_client.update_lsn(preq.m_page, lsn);
+      ndbout << "tsman: apply " << undo_lsn << "(" << lsn << ") " 
+	     << *key << " " << (src & COMMITTED_MASK) 
+	     << " -> " << bits << endl;
     }
-    else
-    {
-      if (DBG_UNDO)
-	ndbout_c("tsman: apply %lld(%lld) %x -> %x",
-		 undo_lsn, lsn, src, (bits | (bits << UNCOMMITTED_SHIFT)));
-    }
+    
+    ndbassert((bits & ~(COMMITTED_MASK)) == 0);
+    header->update_free_bits(page_no_in_extent, 
+			     bits | (bits << UNCOMMITTED_SHIFT));
     
     return 0;
   }

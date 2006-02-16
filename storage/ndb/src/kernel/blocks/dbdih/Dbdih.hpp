@@ -21,7 +21,6 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include "Sysfile.hpp"
-#include <ArrayList.hpp>
 #include <SignalCounter.hpp>
 
 #include <signaldata/MasterLCP.hpp>
@@ -570,7 +569,7 @@ public:
   typedef Ptr<TakeOverRecord> TakeOverRecordPtr;
   
 public:
-  Dbdih(const class Configuration &);
+  Dbdih(Block_context& ctx);
   virtual ~Dbdih();
 
   struct RWFragment {
@@ -1554,13 +1553,13 @@ private:
    * Pool/list of WaitGCPProxyRecord record
    */
   ArrayPool<WaitGCPProxyRecord> waitGCPProxyPool;
-  ArrayList<WaitGCPProxyRecord> c_waitGCPProxyList;
+  DLList<WaitGCPProxyRecord> c_waitGCPProxyList;
 
   /**
    * Pool/list of WaitGCPMasterRecord record
    */
   ArrayPool<WaitGCPMasterRecord> waitGCPMasterPool;
-  ArrayList<WaitGCPMasterRecord> c_waitGCPMasterList;
+  DLList<WaitGCPMasterRecord> c_waitGCPMasterList;
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);

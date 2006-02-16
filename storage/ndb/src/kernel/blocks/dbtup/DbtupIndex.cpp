@@ -420,7 +420,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
       tablePtr.p->m_attributes[MM].m_no_of_varsize > 0;
     if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
       ljam();
-      const ArrayList<TupTriggerData>& triggerList = 
+      const DLList<TupTriggerData>& triggerList = 
 	tablePtr.p->tuxCustomTriggers;
 
       TriggerPtr triggerPtr;

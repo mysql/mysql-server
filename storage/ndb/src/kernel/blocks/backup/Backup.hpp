@@ -27,12 +27,12 @@
 #include <SimpleProperties.hpp>
 
 #include <SLList.hpp>
-#include <ArrayList.hpp>
 #include <DLFifoList.hpp>
 #include <SignalCounter.hpp>
 #include <blocks/mutexes.hpp>
 
 #include <NdbTCP.h>
+#include <Array.hpp>
 
 /**
  * Backup - This block manages database backup and restore
@@ -40,7 +40,7 @@
 class Backup : public SimulatedBlock
 {
 public:
-  Backup(const Configuration & conf);
+  Backup(Block_context& ctx);
   virtual ~Backup();
   BLOCK_DEFINES(Backup);
   

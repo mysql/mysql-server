@@ -31,7 +31,7 @@
 class Lgman : public SimulatedBlock
 {
 public:
-  Lgman(const Configuration & conf);
+  Lgman(Block_context& ctx);
   virtual ~Lgman();
   BLOCK_DEFINES(Lgman);
   

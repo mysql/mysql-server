@@ -36,13 +36,13 @@
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-ArrayList<Dbtup::TupTriggerData>*
+DLList<Dbtup::TupTriggerData>*
 Dbtup::findTriggerList(Tablerec* table,
                        TriggerType::Value ttype,
                        TriggerActionTime::Value ttime,
                        TriggerEvent::Value tevent)
 {
-  ArrayList<TupTriggerData>* tlist = NULL;
+  DLList<TupTriggerData>* tlist = NULL;
   switch (ttype) {
   case TriggerType::SUBSCRIPTION:
   case TriggerType::SUBSCRIPTION_BEFORE:
@@ -239,7 +239,7 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   TriggerActionTime::Value ttime = req->getTriggerActionTime();
   TriggerEvent::Value tevent = req->getTriggerEvent();
 
-  ArrayList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
+  DLList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
   ndbrequire(tlist != NULL);
 
   TriggerPtr tptr;
@@ -332,7 +332,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigReq* req, BlockNumber sender)
 
   //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
 
-  ArrayList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
+  DLList<TupTriggerData>* tlist = findTriggerList(table, ttype, ttime, tevent);
   ndbrequire(tlist != NULL);
 
   Ptr<TupTriggerData> ptr;
@@ -548,7 +548,7 @@ end:
 
 void 
 Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
-                             ArrayList<TupTriggerData>& triggerList, 
+                             DLList<TupTriggerData>& triggerList, 
                              Operationrec* const regOperPtr)
 {
   TriggerPtr trigPtr;
@@ -570,7 +570,7 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
 void 
 Dbtup::fireDeferredTriggers(Signal* signal,
                             KeyReqStruct *req_struct,
-                            ArrayList<TupTriggerData>& triggerList, 
+                            DLList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr)
 {
   TriggerPtr trigPtr;
@@ -591,7 +591,7 @@ Dbtup::fireDeferredTriggers(Signal* signal,
 
 void 
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
-                            ArrayList<TupTriggerData>& triggerList, 
+                            DLList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr)
 {
   
@@ -620,7 +620,7 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
 }
 
 void Dbtup::executeTriggers(KeyReqStruct *req_struct,
-                            ArrayList<TupTriggerData>& triggerList, 
+                            DLList<TupTriggerData>& triggerList, 
                             Operationrec* regOperPtr)
 {
   TriggerPtr trigPtr;
@@ -1103,7 +1103,7 @@ Dbtup::addTuxEntries(Signal* signal,
                      Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   Uint32 failPtrI;
   triggerList.first(triggerPtr);
@@ -1224,7 +1224,7 @@ Dbtup::removeTuxEntries(Signal* signal,
                         Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const ArrayList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {

@@ -14,17 +14,37 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ARRAY_LIST_HPP
-#define ARRAY_LIST_HPP
+#ifndef KERNEL_RECORDS_HPP
+#define KERNEL_RECORDS_HPP
 
-#include "ArrayPool.hpp"
-#include "DLList.hpp"
-#include "Array.hpp"
+/**
+ * Record types
+ */
+#define PGMAN_PAGE_REQUEST      1
 
-template <class T>
-class ArrayList : public DLList<T> {
-public:
-  ArrayList(ArrayPool<T> & thePool) : DLList<T>(thePool) { }  
-};
+#define LGMAN_LOG_BUFFER_WAITER 2
+#define LGMAN_LOG_SYNC_WAITER   3
+
+#define DBTUP_PAGE_REQUEST      4
+#define DBTUP_EXTENT_INFO       5
+
+/**
+ * Resource groups
+ */
+
+/**
+ * Operations for dd
+ *    PGMAN_PAGE_REQUEST
+ *    LGMAN_LOG_BUFFER_WAITER
+ *    LGMAN_LOG_SYNC_WAITER
+ *    DBTUP_PAGE_REQUEST
+ */
+#define RG_DISK_OPERATIONS      1
+
+/**
+ * Records for dd
+ *   DBTUP_EXTENT_INFO
+ */
+#define RG_DISK_RECORDS         2
 
 #endif

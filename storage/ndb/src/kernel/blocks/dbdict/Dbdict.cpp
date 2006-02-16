@@ -1476,8 +1476,8 @@ Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-Dbdict::Dbdict(const class Configuration & conf):
-  SimulatedBlock(DBDICT, conf),
+Dbdict::Dbdict(Block_context& ctx):
+  SimulatedBlock(DBDICT, ctx),
   c_attributeRecordHash(c_attributeRecordPool),
   c_file_hash(c_file_pool),
   c_filegroup_hash(c_filegroup_pool),
@@ -1504,10 +1504,6 @@ Dbdict::Dbdict(const class Configuration & conf):
 {
   BLOCK_CONSTRUCTOR(Dbdict);
   
-  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
-  ndbrequire(p != 0);
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &c_maxNoOfTriggers);
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdict::execDUMP_STATE_ORD);
   addRecSignal(GSN_GET_TABINFOREQ, &Dbdict::execGET_TABINFOREQ);
@@ -2019,10 +2015,12 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   jamEntry();
  
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
   
   Uint32 attributesize, tablerecSize;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+					&c_maxNoOfTriggers));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,&attributesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &tablerecSize));
 

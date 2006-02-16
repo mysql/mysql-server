@@ -50,8 +50,8 @@ extern EventLogger g_eventLogger;
 #define DEBUG_UNDO_EXECUTION 0
 #define DEBUG_SEARCH_LOG_HEAD 0
 
-Lgman::Lgman(const Configuration & conf) :
-  SimulatedBlock(LGMAN, conf),
+Lgman::Lgman(Block_context & ctx) :
+  SimulatedBlock(LGMAN, ctx),
   m_logfile_group_list(m_logfile_group_pool),
   m_logfile_group_hash(m_logfile_group_pool)
 {
@@ -115,7 +115,7 @@ Lgman::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 senderData = req->senderData;
 
   const ndb_mgm_configuration_iterator * p = 
-    theConfiguration.getOwnConfigIterator();
+    m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -279,6 +279,16 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 		  ptr.p->m_free_buffer_words,
 		  waiter.p->m_size,
 		  2*File_formats::UNDO_PAGE_WORDS);
+      }
+      if (!ptr.p->m_log_sync_waiters.isEmpty())
+      {
+	LocalDLFifoList<Log_waiter> 
+	  list(m_log_waiter_pool, ptr.p->m_log_sync_waiters);
+	Ptr<Log_waiter> waiter;
+	list.first(waiter);
+	infoEvent("  m_last_synced_lsn: %lld: %d head(waiters).m_sync_lsn: %lld",
+		  ptr.p->m_last_synced_lsn,
+		  waiter.p->m_sync_lsn);
       }
       m_logfile_group_list.next(ptr);
     }

@@ -21,14 +21,14 @@
 #include <SimulatedBlock.hpp>
 #include <LogLevel.hpp>
 
-#include <ArrayList.hpp>
+#include <DLList.hpp>
 
 /**
  * Cmvmi class
  */
 class Cmvmi : public SimulatedBlock {
 public:
-  Cmvmi(const Configuration & conf);
+  Cmvmi(Block_context&);
   virtual ~Cmvmi();
   
 private:
@@ -79,8 +79,6 @@ private:
   LogLevel clogLevel;
   NdbNodeBitmask c_dbNodes;
 
-  class Configuration & theConfig;
-
   /**
    * This struct defines the data needed for a EVENT_REP subscriber
    */
@@ -112,7 +110,7 @@ private:
   /**
    * List of current subscribers
    */
-  ArrayList<EventRepSubscriber> subscribers;
+  DLList<EventRepSubscriber> subscribers;
 
 private:
   // Declared but not defined
