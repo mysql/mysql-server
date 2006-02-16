@@ -2214,7 +2214,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   if (m_use_partition_function)
   {
     part_spec.start_part= 0;
-    part_spec.end_part= get_tot_partitions(m_part_info) - 1;
+    part_spec.end_part= m_part_info->get_tot_partitions() - 1;
     prune_partition_set(table, &part_spec);
     DBUG_PRINT("info", ("part_spec.start_part = %u, part_spec.end_part = %u",
                         part_spec.start_part, part_spec.end_part));
@@ -5203,7 +5203,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info)
   m_part_info= part_info;
   if (!(m_part_info->part_type == HASH_PARTITION &&
         m_part_info->list_of_part_fields &&
-        !is_sub_partitioned(m_part_info)))
+        !m_part_info->is_sub_partitioned()))
     m_use_partition_function= TRUE;
 }
 
@@ -9316,7 +9316,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     uint ng;
     part_elem= part_it++;
-    if (!is_sub_partitioned(part_info))
+    if (!part_info->is_sub_partitioned())
     {
       ng= part_elem->nodegroup_id;
       if (first && ng == UNDEF_NODEGROUP)
