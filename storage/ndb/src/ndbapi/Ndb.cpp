@@ -1293,6 +1293,16 @@ NdbEventOperation *Ndb::nextEvent()
   return theEventBuffer->nextEvent();
 }
 
+const NdbEventOperation*
+Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+{
+  NdbEventOperationImpl* op =
+    theEventBuffer->getGCIEventOperations(iter, event_types);
+  if (op != NULL)
+    return op->m_facade;
+  return NULL;
+}
+
 Uint64 Ndb::getLatestGCI()
 {
   return theEventBuffer->getLatestGCI();

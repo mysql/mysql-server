@@ -1081,6 +1081,19 @@ NdbEventBuffer::nextEvent()
   DBUG_RETURN_EVENT(0);
 }
 
+NdbEventOperationImpl*
+NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+{
+  if (*iter < m_available_data.m_gci_op_count)
+  {
+    EventBufData_list::Gci_op g = m_available_data.m_gci_op_list[(*iter)++];
+    if (event_types != NULL)
+      *event_types = g.event_types;
+    return g.op;
+  }
+  return NULL;
+}
+
 void
 NdbEventBuffer::lock()
 {
@@ -2061,7 +2074,36 @@ NdbEventBuffer::free_list(EventBufData_list &list)
   }
 
   // list returned to m_free_data
-  new (&list) EventBufData_list;
+  list.m_head = list.m_tail = NULL;
+  list.m_count = list.m_sz = 0;
+}
+
+void
+EventBufData_list::add_gci_op(Gci_op g)
+{
+  assert(g.op != NULL);
+  Uint32 i;
+  for (i = 0; i < m_gci_op_count; i++) {
+    if (m_gci_op_list[i].op == g.op)
+      break;
+  }
+  if (i < m_gci_op_count) {
+    m_gci_op_list[i].event_types |= g.event_types;
+  } else {
+    if (m_gci_op_count == m_gci_op_alloc) {
+      Uint32 n = 1 + 2 * m_gci_op_alloc;
+      Gci_op* old_list = m_gci_op_list;
+      m_gci_op_list = new Gci_op [n];
+      if (m_gci_op_alloc != 0) {
+        Uint32 bytes = m_gci_op_alloc * sizeof(Gci_op);
+        memcpy(m_gci_op_list, old_list, bytes);
+        delete [] old_list;
+      }
+      m_gci_op_alloc = n;
+    }
+    assert(m_gci_op_count < m_gci_op_alloc);
+    m_gci_op_list[m_gci_op_count++] = g;
+  }
 }
 
 NdbEventOperation*
