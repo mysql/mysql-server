@@ -2600,22 +2600,13 @@ void ha_partition::unlock_row()
     ha_berkeley.cc has a variant of how to store it intact by "packing" it
     for ha_berkeley's own native storage type.
 
-    See the note for update_row() on auto_increments and timestamps. This
-    case also applied to write_row().
-
     Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
     sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 
     ADDITIONAL INFO:
 
-    Most handlers set timestamp when calling write row if any such fields
-    exists. Since we are calling an underlying handler we assume the´
-    underlying handler will assume this responsibility.
-
-    Underlying handlers will also call update_auto_increment to calculate
-    the new auto increment value. We will catch the call to
-    get_auto_increment and ensure this increment value is maintained by
-    only one of the underlying handlers.
+    We have to set timestamp fields and auto_increment fields, because those
+    may be used in determining which partition the row should be written to.
 */
 
 int ha_partition::write_row(byte * buf)
@@ -2628,6 +2619,17 @@ int ha_partition::write_row(byte * buf)
 #endif
   DBUG_ENTER("ha_partition::write_row");
   DBUG_ASSERT(buf == m_rec0);
+
+  /* If we have a timestamp column, update it to the current time */
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
+
+  /*
+    If we have an auto_increment column and we are writing a changed row
+    or a new row, then update the auto_increment value in the record.
+  */
+  if (table->next_number_field && buf == table->record[0])
+    update_auto_increment();
 
 #ifdef NOT_NEEDED
   if (likely(buf == rec0))
