@@ -397,4 +397,24 @@ create table t_16 (s1 int);
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 drop table t_16;
+create event white_space
+on schedule every 10 hour
+disable
+do
+select 1;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 1
+drop event white_space;
+create event white_space on schedule every 10 hour disable do
+select 2;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 2
+drop event white_space;
+create event white_space on schedule every 10 hour disable do	select 3;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_body
+events_test	white_space	root@localhost	select 3
+drop event white_space;
 drop database events_test;
