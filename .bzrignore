@@ -1273,3 +1273,4 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+scripts/mysql_upgrade
