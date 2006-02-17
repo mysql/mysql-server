@@ -2632,6 +2632,7 @@ private:
 			     Uint32 gci, Uint32 logfile_group_id);
 
   void undo_createtable_callback(Signal* signal, Uint32 opPtrI, Uint32 unused);
+  void undo_createtable_logsync_callback(Signal* signal, Uint32, Uint32);
 
   void disk_page_set_dirty(Ptr<Page>);
   void restart_setup_page(Disk_alloc_info&, Ptr<Page>);
