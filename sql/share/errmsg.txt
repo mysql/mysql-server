@@ -5804,3 +5804,5 @@ ER_FOREIGN_DUPLICATE_KEY 23000 S1009
 	eng "Upholding foreign key constraints for table '%.64s', entry '%-.64s', key %d would lead to a duplicate entry"
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use scripts/mysql_fix_privilege_tables"
+ER_TABLE_NEEDS_UPGRADE
+         eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"

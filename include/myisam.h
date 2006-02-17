@@ -371,6 +371,7 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 */
 
 #define TT_USEFRM               1
+#define TT_FOR_UPGRADE          2
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
