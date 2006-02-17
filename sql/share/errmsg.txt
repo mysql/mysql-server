@@ -5607,3 +5607,5 @@ ER_SP_PROC_TABLE_CORRUPT
 	eng "Failed to load routine %s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
 ER_SP_WRONG_NAME 42000
 	eng "Incorrect routine name '%-.64s'"
+ER_TABLE_NEEDS_UPGRADE
+         eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"
