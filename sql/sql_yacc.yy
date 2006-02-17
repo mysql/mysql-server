@@ -628,6 +628,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  UNTIL_SYM
 %token  UPDATE_SYM
 %token  UPDATE_SYM
+%token  UPGRADE_SYM
 %token  USAGE
 %token  USER
 %token  USE_FRM
@@ -3836,7 +3837,8 @@ mi_check_type:
 	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
 	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; };
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
+        | FOR_SYM UPGRADE_SYM { Lex->check_opt.sql_flags|= TT_FOR_UPGRADE; };
 
 optimize:
 	OPTIMIZE opt_no_write_to_binlog table_or_tables
