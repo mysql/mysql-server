@@ -73,10 +73,18 @@ mlog_catenate_ulint(
 
 	mlog = &(mtr->log);
 
-	ut_ad(MLOG_1BYTE == 1);
-	ut_ad(MLOG_2BYTES == 2);
-	ut_ad(MLOG_4BYTES == 4);
-
+#if MLOG_1BYTE != 1
+# error "MLOG_1BYTE != 1"
+#endif
+#if MLOG_2BYTES != 2
+# error "MLOG_2BYTES != 2"
+#endif
+#if MLOG_4BYTES != 4
+# error "MLOG_4BYTES != 4"
+#endif
+#if MLOG_8BYTES != 8
+# error "MLOG_8BYTES != 8"
+#endif
 	ptr = dyn_array_push(mlog, type);
 
 	if (type == MLOG_4BYTES) {

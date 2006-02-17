@@ -408,10 +408,12 @@ page_create(
 
 	ut_ad(!page_zip || comp);
 	ut_ad(frame && mtr);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE
-	      <= PAGE_DATA);
-	ut_ad(PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE
-	      <= PAGE_DATA);
+#if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
+#endif
+#if PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA
+# error "PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA"
+#endif
 
 	/* The infimum and supremum records use a dummy index. */
 	if (UNIV_LIKELY(comp)) {

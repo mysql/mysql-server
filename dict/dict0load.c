@@ -385,13 +385,23 @@ dict_load_columns(
 		field = rec_get_nth_field_old(rec, 6, &len);
 		prtype = mach_read_from_4(field);
 
-		if (dtype_is_non_binary_string_type(mtype, prtype)
-		    && dtype_get_charset_coll(prtype) == 0) {
-			/* This is a non-binary string type, and the table
-			was created with < 4.1.2. Use the default charset. */
+		if (dtype_get_charset_coll(prtype) == 0
+				&& dtype_is_string_type(mtype)) {
+			/* The table was created with < 4.1.2. */
 
-			prtype = dtype_form_prtype(prtype,
+			if (dtype_is_binary_string_type(mtype, prtype)) {
+				/* Use the binary collation for
+				string columns of binary type. */
+
+				prtype = dtype_form_prtype(prtype,
+					DATA_MYSQL_BINARY_CHARSET_COLL);
+			} else {
+				/* Use the default charset for
+				other than binary columns. */
+
+				prtype = dtype_form_prtype(prtype,
 					data_mysql_default_charset_coll);
+			}
 		}
 
 		field = rec_get_nth_field_old(rec, 7, &len);

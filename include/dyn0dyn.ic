@@ -106,7 +106,9 @@ dyn_array_create(
 				size sizeof(dyn_array_t) */
 {
 	ut_ad(arr);
-	ut_ad(DYN_ARRAY_DATA_SIZE < DYN_BLOCK_FULL_FLAG);
+#if DYN_ARRAY_DATA_SIZE >= DYN_BLOCK_FULL_FLAG
+# error "DYN_ARRAY_DATA_SIZE >= DYN_BLOCK_FULL_FLAG"
+#endif
 
 	arr->heap = NULL;
 	arr->used = 0;
