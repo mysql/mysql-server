@@ -1285,7 +1285,7 @@ end:
 /*
   Handle _non_ data events from the storage nodes
 */
-static int
+int
 ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                          NDB_SHARE *share)
 {
@@ -1294,12 +1294,18 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   if (pOp->getEventType() != NDBEVENT::TE_CLUSTER_FAILURE &&
       pOp->getReqNodeId() != g_ndb_cluster_connection->node_id())
   {
-    ndb->setDatabaseName(share->table->s->db.str);
-    ha_ndbcluster::invalidate_dictionary_cache(share->table->s,
-                                               ndb,
-                                               share->table->s->db.str,
-                                               share->table->s->table_name.str,
-                                               TRUE);
+    TABLE_SHARE *table_share= share->table->s;
+    TABLE* table= share->table;
+    
+    /* 
+       Invalidate table and all it's indexes
+    */
+    ha_ndbcluster table_handler(table_share);
+    table_handler.set_dbname(share->key);
+    table_handler.set_tabname(share->key);
+    table_handler.open_indexes(ndb, table, TRUE);
+    table_handler.invalidate_dictionary_cache(TRUE);
+
     remote_drop_table= 1;
   }
 
