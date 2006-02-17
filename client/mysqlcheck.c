@@ -80,7 +80,7 @@ static struct my_option my_long_options[] =
    "Check only tables that have changed since last check or haven't been closed properly.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"check-upgrade", 'g',
-   "Check tables for version dependent changes.May be used with auto-repair to correct tables requiring version dependent updates.",
+   "Check tables for version-dependent changes. May be used with --auto-repair to correct tables requiring version-dependent updates.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
