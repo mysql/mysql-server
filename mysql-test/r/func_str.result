@@ -1023,3 +1023,10 @@ select format(d, 2) from t1;
 format(d, 2)
 NULL
 drop table t1;
+create table t1 (c varchar(40));
+insert into t1 values ('y,abc'),('y,abc');
+select c, substring_index(lcase(c), @q:=',', -1) as res from t1;
+c	res
+y,abc	abc
+y,abc	abc
+drop table t1;
