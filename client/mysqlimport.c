@@ -381,10 +381,10 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
 
 
 
-static MYSQL* db_connect(char *host, char *database,
+static MYSQL *db_connect(char *host, char *database,
                          char *user, char *passwd)
 {
-  MYSQL* mysql;
+  MYSQL *mysql;
   if (verbose)
     fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
   if (!(mysql= mysql_init(NULL)))
@@ -516,7 +516,7 @@ pthread_handler_t worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;
-  MYSQL* mysql;
+  MYSQL *mysql;
   if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
   {
     goto error;
@@ -609,7 +609,7 @@ loop_label:
   }
   else
   {
-    MYSQL* mysql= 0;
+    MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
     {
       free_defaults(argv_to_free);
