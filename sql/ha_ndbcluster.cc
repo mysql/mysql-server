@@ -5525,7 +5525,7 @@ int ndbcluster_find_all_files(THD *thd)
     {
       NDBDICT::List::Element& elmt= list.elements[i];
       int do_handle_table= 0;
-      if (IS_TMP_PREFIX(elmt.name))
+      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
       {
         DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
         continue;
@@ -5662,7 +5662,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   for (i= 0 ; i < list.count ; i++)
   {
     NDBDICT::List::Element& elmt= list.elements[i];
-    if (IS_TMP_PREFIX(elmt.name))
+    if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
     {
       DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
       continue;
