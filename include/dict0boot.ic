@@ -50,7 +50,9 @@ dict_sys_read_row_id(
 			/* out: row id */
 	byte*	field)	/* in: record field */
 {
-	ut_ad(DATA_ROW_ID_LEN == 6);
+#if DATA_ROW_ID_LEN != 6
+# error "DATA_ROW_ID_LEN != 6"
+#endif
 
 	return(mach_read_from_6(field));
 }				
@@ -64,7 +66,9 @@ dict_sys_write_row_id(
 	byte*	field,	/* in: record field */
 	dulint	row_id)	/* in: row id */
 {
-	ut_ad(DATA_ROW_ID_LEN == 6);
+#if DATA_ROW_ID_LEN != 6
+# error "DATA_ROW_ID_LEN != 6"
+#endif
 
 	mach_write_to_6(field, row_id);
 }				

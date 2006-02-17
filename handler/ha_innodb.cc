@@ -137,8 +137,6 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-uint 	innobase_init_flags 	= 0;
-ulong 	innobase_cache_size 	= 0;
 ulong 	innobase_large_page_size = 0;
 
 /* The default values for the following, type long or longlong, start-up
@@ -187,8 +185,6 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 ulong	innobase_active_counter	= 0;
 
-char*	innobase_home 	= NULL;
-
 static HASH 	innobase_open_tables;
 
 #ifdef __NETWARE__  	/* some special cleanup for NetWare */
@@ -208,6 +204,7 @@ static int innobase_release_savepoint(THD* thd, void *savepoint);
 static handler *innobase_create_handler(TABLE_SHARE *table);
 
 handlerton innobase_hton = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION,
   "InnoDB",
   SHOW_OPTION_YES,
   "Supports transactions, row-level locking, and foreign keys", 
@@ -231,16 +228,9 @@ handlerton innobase_hton = {
   innobase_create_handler,	/* Create a new handler */
   innobase_drop_database,	/* Drop a database */
   innobase_end,			/* Panic call */
-  innobase_release_temporary_latches,    /* Release temporary latches */
-  innodb_export_status,		/* Update Statistics */
   innobase_start_trx_and_assign_read_view,    /* Start Consistent Snapshot */
   innobase_flush_logs,		/* Flush logs */
   innobase_show_status,		/* Show status */
-#ifdef HAVE_REPLICATION
-  innobase_repl_report_sent_binlog,    /* Replication Report Sent Binlog */
-#else
-  NULL,
-#endif
   HTON_NO_FLAGS
 };
 
@@ -259,7 +249,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/* in: transaction handle */
 
-struct show_var_st innodb_status_variables[]= {
+SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,     SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -359,7 +349,7 @@ innodb_srv_conc_enter_innodb(
 /*=========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
@@ -376,7 +366,7 @@ innodb_srv_conc_exit_innodb(
 /*========================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-	if (UNIV_LIKELY(srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD)) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
 	}
@@ -467,6 +457,10 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_DUPLICATE_KEY) {
 
     		return(HA_ERR_FOUND_DUPP_KEY);
+
+  	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
+
+		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
 
  	} else if (error == (int) DB_RECORD_NOT_FOUND) {
 
@@ -833,9 +827,10 @@ ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
                   HA_CAN_INDEX_BLOBS |
                   HA_CAN_SQL_HANDLER |
                   HA_NOT_EXACT_COUNT |
+                  HA_PRIMARY_KEY_ALLOW_RANDOM_ACCESS |
                   HA_PRIMARY_KEY_IN_READ_INDEX |
+                  HA_CAN_GEOMETRY |
                   HA_TABLE_SCAN_ON_INDEX),
-  last_dup_key((uint) -1),
   start_of_scan(0),
   num_write_row(0)
 {}
@@ -1004,6 +999,11 @@ innobase_query_caching_of_table_permitted(
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
+
+		mutex_enter_noninline(&kernel_mutex);
+		trx_print(stderr, trx, 1024);
+		mutex_exit_noninline(&kernel_mutex);
+		ut_error;
 	}
 
 	innobase_release_stat_resources(trx);
@@ -1238,7 +1238,7 @@ innobase_init(void)
 				"innobase_buffer_pool_size can't be over 4GB"
 				" on 32-bit systems");
 
-			DBUG_RETURN(0);
+			goto error;
 		}
 
 		if (innobase_log_file_size > UINT_MAX32) {
@@ -1246,7 +1246,7 @@ innobase_init(void)
 				"innobase_log_file_size can't be over 4GB"
 				" on 32-bit systems");
 
-			DBUG_RETURN(0);
+			goto error;
 		}
 	}
 
@@ -1411,6 +1411,7 @@ innobase_init(void)
 
 	ut_a(DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL ==
 					my_charset_latin1.number);
+	ut_a(DATA_MYSQL_BINARY_CHARSET_COLL == my_charset_bin.number);
 
 	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
 	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
@@ -1975,6 +1976,11 @@ innobase_repl_report_sent_binlog(
 {
         int     cmp;
         ibool   can_release_threads     = 0;
+
+	if (!innodb_inited) {
+		
+		return 0;
+	}
 
         /* If synchronous replication is not switched on, or this thd is
         sending binlog to a slave where we do not need synchronous replication,
@@ -2806,6 +2812,7 @@ get_innobase_type_from_mysql_type(
 					return(DATA_DOUBLE);
 		case FIELD_TYPE_DECIMAL:
 					return(DATA_DECIMAL);
+		case FIELD_TYPE_GEOMETRY:
 		case FIELD_TYPE_TINY_BLOB:
 		case FIELD_TYPE_MEDIUM_BLOB:
 		case FIELD_TYPE_BLOB:
@@ -2866,8 +2873,6 @@ ha_innobase::store_key_val_for_row(
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
-	ulint		blob_len;
-	byte*		blob_data;
 	ibool		is_null;
 
   	DBUG_ENTER("store_key_val_for_row");
@@ -2922,14 +2927,18 @@ ha_innobase::store_key_val_for_row(
 			ulint	len;
 			byte*	data;
 			ulint	key_len;
+			ulint	true_len;
 			CHARSET_INFO*	cs;
 			int	error=0;
 
+			key_len = key_part->length;
+
 			if (is_null) {
-				buff += key_part->length + 2;
+				buff += key_len + 2;
 				
 				continue;
 			}
+			cs = field->charset();
 
 			lenlen = (ulint)
 				(((Field_varstring*)field)->length_bytes);
@@ -2939,32 +2948,33 @@ ha_innobase::store_key_val_for_row(
 				+ (ulint)get_field_offset(table, field)),
 				lenlen);
 
-			/* In a column prefix index, we may need to truncate
-			the stored value: */
-		
-			cs = key_part->field->charset();
+			true_len = len;
 
-			if (cs->mbmaxlen > 1 && key_part->length > 0) {
-				key_len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) data,
-					(const char *) data + key_part->length,
-					key_part->length / cs->mbmaxlen, 
-					&error);
-			} else {
-				key_len = key_part->length;
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
+
+			if (len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) data,
+						(const char *) data + len,
+						key_len / cs->mbmaxlen, 
+						&error);
 			}
 
-			if (len > key_len) {
-				len = key_len;
+			/* In a column prefix index, we may need to truncate
+			the stored value: */
+
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* The length in a key value is always stored in 2
 			bytes */
 
-			row_mysql_store_true_var_len((byte*)buff, len, 2);
+			row_mysql_store_true_var_len((byte*)buff, true_len, 2);
 			buff += 2;
 
-			memcpy(buff, data, len);
+			memcpy(buff, data, true_len);
 
 			/* Note that we always reserve the maximum possible
 			length of the true VARCHAR in the key value, though
@@ -2972,7 +2982,7 @@ ha_innobase::store_key_val_for_row(
 			actual data. The rest of the space was reset to zero
 			in the bzero() call above. */
 
-			buff += key_part->length;
+			buff += key_len;
 
 		} else if (mysql_type == FIELD_TYPE_TINY_BLOB
 		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
@@ -2982,58 +2992,66 @@ ha_innobase::store_key_val_for_row(
 			CHARSET_INFO*	cs;
 			ulint		key_len;
 			ulint		len;
+			ulint		true_len;
 			int		error=0;
+			ulint		blob_len;
+			byte*		blob_data;
 
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
+			key_len = key_part->length;
+
 		        if (is_null) {
-				buff += key_part->length + 2;
+				buff += key_len + 2;
 				 
 				continue;
 			}
 		    
+			cs = field->charset();
+
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
 				+ (ulint)get_field_offset(table, field)),
 					(ulint) field->pack_length());
 
+			true_len = blob_len;
+
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
+
+			/* For multi byte character sets we need to calculate
+			the true length of the key */
+			
+			if (blob_len > 0 && cs->mbmaxlen > 1) {
+				true_len = (ulint) cs->cset->well_formed_len(cs,
+						(const char *) blob_data,
+						(const char *) blob_data 
+							+ blob_len,
+						key_len / cs->mbmaxlen,
+						&error);
+			}
 
 			/* All indexes on BLOB and TEXT are column prefix
 			indexes, and we may need to truncate the data to be
 			stored in the key value: */
 
-			cs = key_part->field->charset();
-			
-			if (cs->mbmaxlen > 1 && key_part->length > 0) {
-				key_len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) blob_data,
-					(const char *) blob_data 
-						+ key_part->length,
-					key_part->length / cs->mbmaxlen,
-					&error);
-			} else {
-				key_len = key_part->length;
-			}
-
-			if (blob_len > key_len) {
-				blob_len = key_len;
+			if (true_len > key_len) {
+				true_len = key_len;
 			}
 
 			/* MySQL reserves 2 bytes for the length and the
 			storage of the number is little-endian */
 
 			innobase_write_to_2_little_endian(
-					(byte*)buff, (ulint)blob_len);
+					(byte*)buff, true_len);
 			buff += 2;
 
-			memcpy(buff, blob_data, blob_len);
+			memcpy(buff, blob_data, true_len);
 
 			/* Note that we always reserve the maximum possible
 			length of the BLOB prefix in the key value. */
 
-			buff += key_part->length;
+			buff += key_len;
 		} else {
 			/* Here we handle all other data types except the
 			true VARCHAR, BLOB and TEXT. Note that the column
@@ -3041,38 +3059,64 @@ ha_innobase::store_key_val_for_row(
 			index. */
 
 			CHARSET_INFO*		cs;
-			ulint			len;
+			ulint			true_len;
+			ulint			key_len;
 			const mysql_byte*	src_start;
 			int			error=0;
+			enum_field_types	real_type;
+
+			key_len = key_part->length;
 
 		        if (is_null) {
-				 buff += key_part->length;
+				 buff += key_len;
 				 
 				 continue;
 			}
 
-			cs = key_part->field->charset();
 			src_start = record + key_part->offset;
+			real_type = field->real_type();
+			true_len = key_len;
 
-			if (key_part->length > 0 && cs->mbmaxlen > 1) {
-				len = (ulint) cs->cset->well_formed_len(cs, 
-					(const char *) src_start,
-					(const char *) src_start + key_part->length,
-					key_part->length / cs->mbmaxlen, 
-					&error);
-			} else {
-				len = key_part->length;
+			/* Character set for the field is defined only
+			to fields whose type is string and real field
+			type is not enum or set. For these fields check
+			if character set is multi byte. */
+
+			if (real_type != FIELD_TYPE_ENUM 
+				&& real_type != FIELD_TYPE_SET
+				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
+					|| mysql_type == MYSQL_TYPE_STRING)) {
+
+				cs = field->charset();
+
+				/* For multi byte character sets we need to 
+				calculate the true length of the key */
+
+				if (key_len > 0 && cs->mbmaxlen > 1) {
+
+					true_len = (ulint) 
+						cs->cset->well_formed_len(cs,
+							(const char *)src_start,
+							(const char *)src_start 
+								+ key_len,
+							key_len / cs->mbmaxlen,
+							&error);
+				}
 			}
 
-			memcpy(buff, src_start, len);
-			buff+=len;
+			memcpy(buff, src_start, true_len);
+			buff += true_len;
 
-			/* Pad the unused space with spaces */
+			/* Pad the unused space with spaces. Note that no 
+			padding is ever needed for UCS-2 because in MySQL, 
+			all UCS2 characters are 2 bytes, as MySQL does not 
+			support surrogate pairs, which are needed to represent
+			characters in the range U+10000 to U+10FFFF. */
 
-			if (len < key_part->length) {
-				len = key_part->length - len;
-				memset(buff, ' ', len);
-				buff+=len;
+			if (true_len < key_len) {
+				ulint pad_len = key_len - true_len;
+				memset(buff, ' ', pad_len);
+				buff += pad_len;
 			}
 		}
   	}
@@ -3790,9 +3834,9 @@ ha_innobase::delete_row(
 }
 
 /**************************************************************************
-Removes a new lock set on a row. This can be called after a row has been read
-in the processing of an UPDATE or a DELETE query, if the option
-innodb_locks_unsafe_for_binlog is set. */
+Removes a new lock set on a row, if it was not read optimistically. This can 
+be called after a row has been read in the processing of an UPDATE or a DELETE
+query, if the option innodb_locks_unsafe_for_binlog is set. */
 
 void
 ha_innobase::unlock_row(void)
@@ -3802,7 +3846,7 @@ ha_innobase::unlock_row(void)
 
 	DBUG_ENTER("ha_innobase::unlock_row");
 
-	if (last_query_id != user_thd->query_id) {
+	if (UNIV_UNLIKELY(last_query_id != user_thd->query_id)) {
 		ut_print_timestamp(stderr);
 		sql_print_error("last_query_id is %lu != user_thd_query_id is "
 				"%lu", (ulong) last_query_id,
@@ -3810,9 +3854,45 @@ ha_innobase::unlock_row(void)
 		mem_analyze_corruption((byte *) prebuilt->trx);
 		ut_error;
 	}
-	
-	if (srv_locks_unsafe_for_binlog) {
+
+	switch (prebuilt->row_read_type) {
+	case ROW_READ_WITH_LOCKS:
+		if (!srv_locks_unsafe_for_binlog) {
+			break;
+		}
+		/* fall through */
+	case ROW_READ_TRY_SEMI_CONSISTENT:
 		row_unlock_for_mysql(prebuilt, FALSE);
+		break;
+	case ROW_READ_DID_SEMI_CONSISTENT:
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+		break;
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+bool
+ha_innobase::was_semi_consistent_read(void)
+/*=======================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	return(prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT);
+}
+
+/* See handler.h and row0mysql.h for docs on this function. */
+void
+ha_innobase::try_semi_consistent_read(bool yes)
+/*===========================================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	if (yes && srv_locks_unsafe_for_binlog) {
+		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
+	} else {
+		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 }
 
@@ -4327,6 +4407,13 @@ ha_innobase::rnd_init(
 		err = change_active_index(primary_key);
 	}
 
+	/* Don't use semi-consistent read in random row reads (by position).
+	This means we must disable semi_consistent_read if scan is false */
+
+	if (!scan) {
+		try_semi_consistent_read(0);
+	}
+
   	start_of_scan = 1;
 
  	return(err);
@@ -4805,7 +4892,7 @@ ha_innobase::create(
 		srv_lower_case_table_names = FALSE;
 	}
 
-	fn_format(name2, name, "", "", 2);	// Remove the .frm extension
+	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
 
@@ -5766,6 +5853,7 @@ ha_innobase::update_table_comment(
 	uint	length			= (uint) strlen(comment);
 	char*				str;
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	long	flen;
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -5785,42 +5873,42 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	/* output the data to a temporary file */
 
-		/* output the data to a temporary file */
-		fprintf(file, "InnoDB free: %lu kB",
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
+
+	fprintf(srv_dict_tmpfile, "InnoDB free: %lu kB",
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file,
+	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if (length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(file);
-			flen = (uint) fread(pos, 1, flen, file);
-			pos[flen] = 0;
-		}
-
-		fclose(file);
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (length + flen + 3 > 64000) {
+		flen = 64000 - 3 - length;
 	}
+
+	/* allocate buffer for the full string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(length + flen + 3, MYF(0));
+
+	if (str) {
+		char* pos	= str + length;
+		if (length) {
+			memcpy(str, comment, length);
+			*pos++ = ';';
+			*pos++ = ' ';
+		}
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
+		pos[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
         prebuilt->trx->op_info = (char*)"";
 
@@ -5839,6 +5927,7 @@ ha_innobase::get_foreign_key_create_info(void)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str	= 0;
+	long	flen;
 
 	ut_a(prebuilt != NULL);
 
@@ -5848,46 +5937,41 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = os_file_create_tmpfile()) {
-		long	flen;
+	prebuilt->trx->op_info = (char*)"getting info on foreign keys";
 
-		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+	/* In case MySQL calls this in the middle of a SELECT query,
+	release possible adaptive hash latch to avoid
+	deadlocks of threads */
 
-		/* In case MySQL calls this in the middle of a SELECT query,
-		release possible adaptive hash latch to avoid
-		deadlocks of threads */
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-		trx_search_latch_release_if_reserved(prebuilt->trx);
+	mutex_enter_noninline(&srv_dict_tmpfile_mutex);
+	rewind(srv_dict_tmpfile);
 
-		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file,
+	/* output the data to a temporary file */
+	dict_print_info_on_foreign_keys(TRUE, srv_dict_tmpfile,
 				prebuilt->trx, prebuilt->table);
-		prebuilt->trx->op_info = (char*)"";
+	prebuilt->trx->op_info = (char*)"";
 
-		flen = ftell(file);
-		if (flen < 0) {
-			flen = 0;
-		} else if (flen > 64000 - 1) {
-			flen = 64000 - 1;
-		}
-
-		/* allocate buffer for the string, and
-		read the contents of the temporary file */
-
-		str = my_malloc(flen + 1, MYF(0));
-
-		if (str) {
-			rewind(file);
-			flen = (uint) fread(str, 1, flen, file);
-			str[flen] = 0;
-		}
-
-		fclose(file);
-	} else {
-		/* unable to create temporary file */
-          	str = my_strdup(
-"/* Error: cannot display foreign key constraints */", MYF(0));
+	flen = ftell(srv_dict_tmpfile);
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
+		flen = 64000 - 1;
 	}
+
+	/* allocate buffer for the string, and
+	read the contents of the temporary file */
+
+	str = my_malloc(flen + 1, MYF(0));
+
+	if (str) {
+		rewind(srv_dict_tmpfile);
+		flen = (uint) fread(str, 1, flen, srv_dict_tmpfile);
+		str[flen] = 0;
+	}
+
+	mutex_exit_noninline(&srv_dict_tmpfile_mutex);
 
   	return(str);
 }
@@ -6318,14 +6402,17 @@ ha_innobase::external_lock(
 		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
 		an InnoDB table lock if it is released immediately at the end
 		of LOCK TABLES, and InnoDB's table locks in that case cause
-		VERY easily deadlocks. We do not set InnoDB table locks when
-		MySQL sets them at the start of a stored procedure call
-		(MySQL does have thd->in_lock_tables TRUE there). */
+		VERY easily deadlocks. 
+
+		We do not set InnoDB table locks if user has not explicitly
+		requested a table lock. Note that thd->in_lock_tables
+		can  be TRUE on some cases e.g. at the start of a stored
+		procedure call (SQLCOM_CALL). */
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
 
 			if (thd->in_lock_tables &&
-			    thd->lex->sql_command != SQLCOM_CALL &&
+			    thd->lex->sql_command == SQLCOM_LOCK_TABLES &&
 			    thd->variables.innodb_table_locks &&
 			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
 
@@ -6479,10 +6566,11 @@ ha_innobase::transactional_table_lock(
 Here we export InnoDB status variables to MySQL.  */
 
 int
-innodb_export_status(void)
-/*======================*/
+innodb_export_status()
+/*==================*/
 {
-  srv_export_innodb_status();
+  if (innodb_inited)
+    srv_export_innodb_status();
   return 0;
 }
 
@@ -6569,7 +6657,8 @@ innodb_show_status(
 
 	bool result = FALSE;
 
-	if (stat_print(thd, innobase_hton.name, "", str)) {
+	if (stat_print(thd, innobase_hton.name, strlen(innobase_hton.name), 
+                       STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
 	my_free(str, MYF(0));
@@ -6594,6 +6683,7 @@ innodb_mutex_show_status(
   ulint   rw_lock_count_os_wait= 0;
   ulint   rw_lock_count_os_yield= 0;
   ulonglong rw_lock_wait_time= 0;
+  uint    hton_name_len= strlen(innobase_hton.name), buf1len, buf2len;
   DBUG_ENTER("innodb_mutex_show_status");
 
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
@@ -6608,16 +6698,17 @@ innodb_mutex_show_status(
     {
       if (mutex->count_using > 0)
       {
-	my_snprintf(buf1, sizeof(buf1), "%s:%s",
-		    mutex->cmutex_name, mutex->cfile_name);
-	my_snprintf(buf2, sizeof(buf2),
-		    "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		    "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		    mutex->count_using, mutex->count_spin_loop,
-		    mutex->count_spin_rounds,
-		    mutex->count_os_wait, mutex->count_os_yield,
-		    mutex->lspent_time/1000);
-	if (stat_print(thd, innobase_hton.name, buf1, buf2))
+	buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%s",
+		             mutex->cmutex_name, mutex->cfile_name);
+	buf2len= my_snprintf(buf2, sizeof(buf2),
+		             "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+		             "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+		             mutex->count_using, mutex->count_spin_loop,
+		             mutex->count_spin_rounds,
+		             mutex->count_os_wait, mutex->count_os_yield,
+		             mutex->lspent_time/1000);
+	if (stat_print(thd, innobase_hton.name, hton_name_len, 
+                       buf1, buf1len, buf2, buf2len))
         {
 #ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
           mutex_exit(&mutex_list_mutex);
@@ -6639,15 +6730,16 @@ innodb_mutex_show_status(
     mutex = UT_LIST_GET_NEXT(list, mutex);
   }
 
-  my_snprintf(buf2, sizeof(buf2),
-	      "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-	      "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-	      rw_lock_count, rw_lock_count_spin_loop,
-	      rw_lock_count_spin_rounds,
-	      rw_lock_count_os_wait, rw_lock_count_os_yield,
-	      rw_lock_wait_time/1000);
+  buf2len= my_snprintf(buf2, sizeof(buf2),
+	               "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+	               "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+	               rw_lock_count, rw_lock_count_spin_loop,
+	               rw_lock_count_spin_rounds,
+	               rw_lock_count_os_wait, rw_lock_count_os_yield,
+	               rw_lock_wait_time/1000);
 
-  if (stat_print(thd, innobase_hton.name, "rw_lock_mutexes", buf2))
+  if (stat_print(thd, innobase_hton.name, hton_name_len, 
+                 STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len))
   {
     DBUG_RETURN(1);
   }
@@ -6808,7 +6900,7 @@ ha_innobase::store_lock(
 
 	} else if (lock_type != TL_IGNORE) {
 
-	        /* We set possible LOCK_X value in external_lock, not yet
+		/* We set possible LOCK_X value in external_lock, not yet
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
@@ -6817,7 +6909,7 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
-                /* Starting from 5.0.7, we weaken also the table locks
+		/* Starting from 5.0.7, we weaken also the table locks
 		set at the start of a MySQL stored procedure call, just like
 		we weaken the locks set at the start of an SQL statement.
 		MySQL does set thd->in_lock_tables TRUE there, but in reality
@@ -6840,25 +6932,36 @@ ha_innobase::store_lock(
 			lock_type = TL_READ_NO_INSERT;
 		}
 
-    		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
-		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
+		/* If we are not doing a LOCK TABLE, DISCARD/IMPORT
+		TABLESPACE or TRUNCATE TABLE then allow multiple 
+		writers. Note that ALTER TABLE uses a TL_WRITE_ALLOW_READ
+		< TL_WRITE_CONCURRENT_INSERT.
 
-    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-	 	    lock_type <= TL_WRITE)
+		We especially allow multiple writers if MySQL is at the 
+		start of a stored procedure call (SQLCOM_CALL) 
+		(MySQL does have thd->in_lock_tables TRUE there). */
+
+    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT 
+		    && lock_type <= TL_WRITE)
 		    && (!thd->in_lock_tables
-		        || thd->lex->sql_command == SQLCOM_CALL)
+			|| thd->lex->sql_command == SQLCOM_CALL)
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
-                    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
+		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
-      			lock_type = TL_WRITE_ALLOW_WRITE;
+			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
 
 		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
 		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
 		would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
 		to t2. Convert the lock to a normal read lock to allow
-		concurrent inserts to t2. */
+		concurrent inserts to t2. 
+
+		We especially allow concurrent inserts if MySQL is at the 
+		start of a stored procedure call (SQLCOM_CALL) 
+		(MySQL does have thd->in_lock_tables TRUE there). */
       		
 		if (lock_type == TL_READ_NO_INSERT
 		    && (!thd->in_lock_tables
@@ -6867,10 +6970,10 @@ ha_innobase::store_lock(
 			lock_type = TL_READ;
 		}
 		
- 		lock.type = lock_type;
-  	}
+		lock.type = lock_type;
+	}
 
-  	*to++= &lock;
+	*to++= &lock;
 
 	return(to);
 }

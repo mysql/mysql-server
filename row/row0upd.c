@@ -565,7 +565,9 @@ row_upd_index_write_log(
 	
 	for (i = 0; i < n_fields; i++) {
 
-		ut_ad(MLOG_BUF_MARGIN > 30);
+#if MLOG_BUF_MARGIN <= 30
+# error "MLOG_BUF_MARGIN <= 30"
+#endif
 
 		if (log_ptr + 30 > buf_end) {
 			mlog_close(mtr, log_ptr);

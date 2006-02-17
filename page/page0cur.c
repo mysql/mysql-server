@@ -1471,8 +1471,10 @@ page_cur_delete_rec(
 	record pointer in slot. In the following if-clause we assume that
 	prev_rec is owned by the same slot, i.e., PAGE_DIR_SLOT_MIN_N_OWNED
 	>= 2. */
-	
-	ut_ad(PAGE_DIR_SLOT_MIN_N_OWNED >= 2);
+
+#if PAGE_DIR_SLOT_MIN_N_OWNED < 2
+# error "PAGE_DIR_SLOT_MIN_N_OWNED < 2"
+#endif
 	ut_ad(cur_n_owned > 1);
 
 	if (current_rec == page_dir_slot_get_rec(cur_dir_slot)) {

@@ -473,8 +473,9 @@ handle_new_error:
 	ut_a(err != DB_SUCCESS);
 	
 	trx->error_state = DB_SUCCESS;
-
-	if (err == DB_DUPLICATE_KEY) {
+	
+	if ((err == DB_DUPLICATE_KEY)
+		|| (err == DB_FOREIGN_DUPLICATE_KEY)) {
            	if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -625,6 +626,8 @@ row_create_prebuilt(
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
+
+	prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 
 	prebuilt->sel_graph = NULL;
 
@@ -1486,11 +1489,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 
@@ -1520,11 +1519,7 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(clust_pcur);
 
-		mutex_enter(&kernel_mutex);
-
-		lock_rec_reset_and_release_wait(rec);
-
-		mutex_exit(&kernel_mutex);
+		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 	}
@@ -3490,7 +3485,8 @@ row_is_mysql_tmp_table_name(
 	const char*	name)	/* in: table name in the form
 				'database/tablename' */
 {
-	return(strstr(name, "/#sql") != NULL);
+	/* return(strstr(name, "/#sql") != NULL); */
+	return(strstr(name, "/@0023sql") != NULL);
 }
 
 /*************************************************************************

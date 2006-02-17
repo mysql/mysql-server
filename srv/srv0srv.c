@@ -258,9 +258,10 @@ threads waiting for locks are not counted into the number because otherwise
 we could get a deadlock. MySQL creates a thread for each user session, and
 semaphore contention and convoy problems can occur withput this restriction.
 Value 10 should be good if there are less than 4 processors + 4 disks in the
-computer. Bigger computers need bigger values. */
+computer. Bigger computers need bigger values. Value 0 will disable the
+concurrency check. */
 
-ulong	srv_thread_concurrency	= SRV_CONCURRENCY_THRESHOLD;
+ulong	srv_thread_concurrency	= 0;
 ulong   srv_commit_concurrency  = 0;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
@@ -397,6 +398,18 @@ mutex_t	srv_innodb_monitor_mutex;
 mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 FILE*	srv_monitor_file;
+/* Mutex for locking srv_dict_tmpfile.
+This mutex has a very high rank; threads reserving it should not
+be holding any InnoDB latches. */
+mutex_t	srv_dict_tmpfile_mutex;
+/* Temporary file for output from the data dictionary */
+FILE*	srv_dict_tmpfile;
+/* Mutex for locking srv_misc_tmpfile.
+This mutex has a very low rank; threads reserving it should not
+acquire any further latches or sleep before releasing this one. */
+mutex_t	srv_misc_tmpfile_mutex;
+/* Temporary file for miscellanous diagnostic output */
+FILE*	srv_misc_tmpfile;
 
 ulint	srv_main_thread_process_no	= 0;
 ulint	srv_main_thread_id		= 0;
@@ -1129,7 +1142,7 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	if (srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 	
 		return;
 	}
@@ -1155,7 +1168,7 @@ srv_conc_force_exit_innodb(
 {
 	srv_conc_slot_t*	slot	= NULL;
 
-	if (srv_thread_concurrency >= SRV_CONCURRENCY_THRESHOLD) {
+	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 	
 		return;
 	}

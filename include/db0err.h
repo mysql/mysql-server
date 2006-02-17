@@ -57,6 +57,10 @@ Created 5/24/1996 Heikki Tuuri
 					buffer pool (for big transactions,
 					InnoDB stores the lock structs in the
 					buffer pool) */
+#define DB_FOREIGN_DUPLICATE_KEY 46	/* foreign key constraints
+					activated by the operation would
+					lead to a duplicate key in some
+					table */
 
 /* The following are partial failure codes */
 #define DB_FAIL 		1000

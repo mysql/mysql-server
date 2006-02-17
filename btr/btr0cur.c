@@ -2000,6 +2000,7 @@ btr_cur_pessimistic_update(
 	if (UNIV_UNLIKELY(rec_get_converted_size(index, new_entry) >=
 		ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
 		REC_MAX_DATA_SIZE))) {
+		ulint	i;
 
                 big_rec_vec = dtuple_convert_big_rec(index, new_entry,
                 					ext_vect, n_ext_vect);

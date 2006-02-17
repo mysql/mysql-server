@@ -555,6 +555,15 @@ row_ins_cascade_calc_update_vec(
 					default:
 						ut_error;
 					case 1:
+						if (UNIV_UNLIKELY(
+							dtype_get_charset_coll(
+							dtype_get_prtype(type))
+					== DATA_MYSQL_BINARY_CHARSET_COLL)) {
+						    /* Do not pad BINARY
+						    columns. */
+						    return(ULINT_UNDEFINED);
+						}
+
 						/* space=0x20 */
 						memset(pad_start, 0x20,
 							pad_end - pad_start);
@@ -594,20 +603,21 @@ row_ins_set_detailed(
 	trx_t*		trx,		/* in: transaction */
 	dict_foreign_t*	foreign)	/* in: foreign key constraint */
 {
-		
-	FILE*	tf = os_file_create_tmpfile();
+	mutex_enter(&srv_misc_tmpfile_mutex);
+	rewind(srv_misc_tmpfile);
 
-	if (tf) {
-		ut_print_name(tf, trx, foreign->foreign_table_name);
-		dict_print_info_on_foreign_key_in_create_format(tf, trx,
-			foreign, FALSE);
-
-		trx_set_detailed_error_from_file(trx, tf);
-
-		fclose(tf);
+	if (os_file_set_eof(srv_misc_tmpfile)) {
+		ut_print_name(srv_misc_tmpfile, trx,
+				foreign->foreign_table_name);
+		dict_print_info_on_foreign_key_in_create_format(
+				srv_misc_tmpfile,
+				trx, foreign, FALSE);
+		trx_set_detailed_error_from_file(trx, srv_misc_tmpfile);
 	} else {
-		trx_set_detailed_error(trx, "temp file creation failed");
+		trx_set_detailed_error(trx, "temp file operation failed");
 	}
+
+	mutex_exit(&srv_misc_tmpfile_mutex);
 }
 
 /*************************************************************************
@@ -715,7 +725,7 @@ row_ins_foreign_report_add_err(
 	}
 
 	if (rec) {
-		rec_print(ef, rec, foreign->foreign_index);
+		rec_print(ef, rec, foreign->referenced_index);
 	}
 	putc('\n', ef);
 
@@ -1382,6 +1392,21 @@ run_again:
 						thr, foreign, &pcur, entry,
 									&mtr);
 					if (err != DB_SUCCESS) {
+						/* Since reporting a plain
+						"duplicate key" error
+						message to the user in
+						cases where a long CASCADE
+						operation would lead to a
+						duplicate key in some
+						other table is very
+						confusing, map duplicate
+						key errors resulting from
+						FK constraints to a
+						separate error code. */
+				    
+						if (err == DB_DUPLICATE_KEY) {
+						    err = DB_FOREIGN_DUPLICATE_KEY;
+						}
 
 						break;
 					}
