@@ -4709,30 +4709,6 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   return 0;
 }
 
-// XXX temp
-void
-NdbDictionaryImpl::fix_blob_events(const NdbDictionary::Table* table, const char* ev_name)
-{
-  const NdbTableImpl& t = table->m_impl;
-  const NdbEventImpl* ev = getEvent(ev_name);
-  assert(ev != NULL);
-  Uint32 i;
-  for (i = 0; i < t.m_columns.size(); i++) {
-    assert(t.m_columns[i] != NULL);
-    const NdbColumnImpl& c = *t.m_columns[i];
-    if (! c.getBlobType() || c.getPartSize() == 0)
-      continue;
-    char bename[200];
-    NdbBlob::getBlobEventName(bename, ev, &c);
-    // following fixes dict cache blob table
-    NdbEventImpl* bev = getEvent(bename);
-    if (c.m_blobTable != bev->m_tableImpl) {
-      // XXX const violation
-      ((NdbColumnImpl*)&c)->m_blobTable = bev->m_tableImpl;
-    }
-  }
-}
-
 template class Vector<int>;
 template class Vector<Uint16>;
 template class Vector<Uint32>;
