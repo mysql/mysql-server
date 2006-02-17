@@ -370,9 +370,9 @@ enum ha_base_keytype {
 #define HA_ERR_FOREIGN_DUPLICATE_KEY 163 /* Upholding foreign key constraints
                                             would lead to a duplicate key
                                             error in some other table. */
+#define HA_ERR_TABLE_NEEDS_UPGRADE 164  /* The table changed in storage engine */
 
-#define HA_ERR_LAST               163  /* Copy last error no */
-
+#define HA_ERR_LAST              164  /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 

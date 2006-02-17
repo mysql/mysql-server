@@ -27,12 +27,13 @@ SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
 # take a backup on master
 --exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "start backup" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -d sys --delimiter=',' SYSTAB_0 | grep 520093696 > var/tmp.dat
-CREATE TEMPORARY TABLE cluster_replication.backup_info (id INT, backup_id INT) ENGINE=HEAP;
+CREATE TEMPORARY TABLE IF NOT EXISTS cluster_replication.backup_info (id INT, backup_id INT)ENGINE=HEAP;
+DELETE FROM cluster_replication.backup_info;
 LOAD DATA INFILE '../../var/tmp.dat' INTO TABLE cluster_replication.backup_info FIELDS TERMINATED BY ',';
 --replace_column 1 <the_backup_id>
 SELECT @the_backup_id:=backup_id FROM cluster_replication.backup_info;
 let the_backup_id=`select @the_backup_id` ;
-
+DROP TABLE cluster_replication.backup_info;
 # update a row
 UPDATE t1 SET c2=0 WHERE c3="row2";
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
@@ -129,3 +130,5 @@ connection slave;
 reset slave;
 # should now contain nothing
 select * from cluster_replication.apply_status;
+
+# End 5.1 Test

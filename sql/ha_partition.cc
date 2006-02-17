@@ -1078,9 +1078,9 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
   else if (flag == ANALYZE_PARTS)
     error= file->analyze(thd, check_opt);
   else if (flag == CHECK_PARTS)
-    error= file->check(thd, check_opt);
+    error= file->ha_check(thd, check_opt);
   else if (flag == REPAIR_PARTS)
-    error= file->repair(thd, check_opt);
+    error= file->ha_repair(thd, check_opt);
   else
   {
     DBUG_ASSERT(FALSE);

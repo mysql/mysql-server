@@ -34,7 +34,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-               tty_password = 0, opt_frm = 0;
+               tty_password = 0, opt_frm = 0,
+               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
@@ -48,7 +49,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
 
-enum operations {DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE};
+enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 static struct my_option my_long_options[] =
 {
@@ -78,6 +79,9 @@ static struct my_option my_long_options[] =
   {"check-only-changed", 'C',
    "Check only tables that have changed since last check or haven't been closed properly.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"check-upgrade", 'g',
+   "Check tables for version dependent changes.May be used with auto-repair to correct tables requiring version dependent updates.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -98,6 +102,12 @@ static struct my_option my_long_options[] =
   {"fast",'F', "Check only tables that haven't been closed properly.",
    (gptr*) &opt_fast, (gptr*) &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
+  {"fix-db-names", OPT_FIX_DB_NAMES, "Fix database names.",
+    (gptr*) &opt_fix_db_names, (gptr*) &opt_fix_db_names,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
+    (gptr*) &opt_fix_table_names, (gptr*) &opt_fix_table_names,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -171,6 +181,7 @@ static int process_all_databases();
 static int process_databases(char **db_names);
 static int process_selected_tables(char *db, char **table_names, int tables);
 static int process_all_tables_in_db(char *database);
+static int process_one_db(char *database);
 static int use_db(char *database);
 static int handle_request_for_tables(char *tables, uint length);
 static int dbConnect(char *host, char *user,char *passwd);
@@ -251,6 +262,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     what_to_do = DO_OPTIMIZE;
     break;
+  case OPT_FIX_DB_NAMES:
+    what_to_do= DO_UPGRADE;
+    default_charset= (char*) "utf8";
+    opt_databases= 1;
+    break;
+  case OPT_FIX_TABLE_NAMES:
+    what_to_do= DO_UPGRADE;
+    default_charset= (char*) "utf8";
+    break;
   case 'p':
     if (argument)
     {
@@ -267,6 +287,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'r':
     what_to_do = DO_REPAIR;
+    break;
+  case 'g':
+    what_to_do= DO_CHECK;
+    opt_upgrade= 1;
     break;
   case 'W':
 #ifdef __WIN__
@@ -369,7 +393,7 @@ static int process_all_databases()
   }
   while ((row = mysql_fetch_row(tableres)))
   {
-    if (process_all_tables_in_db(row[0]))
+    if (process_one_db(row[0]))
       result = 1;
   }
   return result;
@@ -382,7 +406,7 @@ static int process_databases(char **db_names)
   int result = 0;
   for ( ; *db_names ; db_names++)
   {
-    if (process_all_tables_in_db(*db_names))
+    if (process_one_db(*db_names))
       result = 1;
   }
   return result;
@@ -495,6 +519,43 @@ static int process_all_tables_in_db(char *database)
 } /* process_all_tables_in_db */
 
 
+
+static int fix_object_name(const char *obj, const char *name)
+{
+  char qbuf[100 + NAME_LEN*4];
+  int rc= 0;
+  if (strncmp(name, "#mysql50#", 9))
+    return 1;
+  sprintf(qbuf, "RENAME %s `%s` TO `%s`", obj, name, name + 9);
+  if (mysql_query(sock, qbuf))
+  {
+    fprintf(stderr, "Failed to %s\n", qbuf);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    rc= 1;
+  }
+  if (verbose)
+    printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
+  return rc;
+}
+
+
+static int process_one_db(char *database)
+{
+  if (what_to_do == DO_UPGRADE)
+  {
+    int rc= 0;
+    if (opt_fix_db_names && !strncmp(database,"#mysql50#", 9))
+    {
+      rc= fix_object_name("DATABASE", database);
+      database+= 9;
+    }
+    if (rc || !opt_fix_table_names)
+      return rc;
+  }
+  return process_all_tables_in_db(database);
+}
+
+
 static int use_db(char *database)
 {
   if (mysql_get_server_version(sock) >= 50003 &&
@@ -525,6 +586,7 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
     op = "REPAIR";
@@ -538,6 +600,8 @@ static int handle_request_for_tables(char *tables, uint length)
   case DO_OPTIMIZE:
     op = "OPTIMIZE";
     break;
+  case DO_UPGRADE:
+    return fix_object_name("TABLE", tables);
   }
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
