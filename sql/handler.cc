@@ -2081,10 +2081,7 @@ static bool update_frm_version(TABLE *table, bool needs_lock)
   if (table->s->mysql_version != MYSQL_VERSION_ID)
     DBUG_RETURN(0);
 
-  strxnmov(path, sizeof(path)-1, mysql_data_home, "/", table->s->db, "/",
-           table->s->table_name, reg_ext, NullS);
-  if (!unpack_filename(path, path))
-    DBUG_RETURN(1);
+  strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
 
   if (needs_lock)
     pthread_mutex_lock(&LOCK_open);
@@ -2092,8 +2089,8 @@ static bool update_frm_version(TABLE *table, bool needs_lock)
   if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
-    char *key= table->s->table_cache_key;
-    uint key_length= table->s->key_length;
+    char *key= table->s->table_cache_key.str;
+    uint key_length= table->s->table_cache_key.length;
     TABLE *entry;
     HASH_SEARCH_STATE state;
 
