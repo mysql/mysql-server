@@ -47,7 +47,6 @@ static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
                 opt_low_priority= 0, tty_password= 0;
 static my_bool opt_use_threads= 0;
 static uint     opt_local_file=0;
-static MYSQL	mysql_connection;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
@@ -283,7 +282,7 @@ static int get_options(int *argc, char ***argv)
 
 
 
-static int write_to_table(char *filename, MYSQL *sock)
+static int write_to_table(char *filename, MYSQL *mysql)
 {
   char tablename[FN_REFLEN], hard_path[FN_REFLEN],
        sql_statement[FN_REFLEN*16+256], *end;
@@ -301,9 +300,9 @@ static int write_to_table(char *filename, MYSQL *sock)
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
     snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
-    if (mysql_query(sock, sql_statement))
+    if (mysql_query(mysql, sql_statement))
     {
-      db_error_with_table(sock, tablename);
+      db_error_with_table(mysql, tablename);
       DBUG_RETURN(1);
     }
   }
@@ -342,17 +341,17 @@ static int write_to_table(char *filename, MYSQL *sock)
     end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
   *end= '\0';
 
-  if (mysql_query(sock, sql_statement))
+  if (mysql_query(mysql, sql_statement))
   {
-    db_error_with_table(sock, tablename);
+    db_error_with_table(mysql, tablename);
     DBUG_RETURN(1);
   }
   if (!silent)
   {
-    if (mysql_info(sock)) /* If NULL-pointer, print nothing */
+    if (mysql_info(mysql)) /* If NULL-pointer, print nothing */
     {
       fprintf(stdout, "%s.%s: %s\n", current_db, tablename,
-	      mysql_info(sock));
+	      mysql_info(mysql));
     }
   }
   DBUG_RETURN(0);
@@ -360,7 +359,7 @@ static int write_to_table(char *filename, MYSQL *sock)
 
 
 
-static void lock_table(MYSQL *sock, int tablecount, char **raw_tablename)
+static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
 {
   DYNAMIC_STRING query;
   int i;
@@ -375,70 +374,72 @@ static void lock_table(MYSQL *sock, int tablecount, char **raw_tablename)
     dynstr_append(&query, tablename);
     dynstr_append(&query, " WRITE,");
   }
-  if (mysql_real_query(sock, query.str, query.length-1))
-    db_error(sock); /* We shall countinue here, if --force was given */
+  if (mysql_real_query(mysql, query.str, query.length-1))
+    db_error(mysql); /* We shall countinue here, if --force was given */
 }
 
 
 
 
-static MYSQL *db_connect(char *host, char *database, char *user, char *passwd)
+static MYSQL* db_connect(char *host, char *database,
+                         char *user, char *passwd)
 {
-  MYSQL *sock;
+  MYSQL* mysql;
   if (verbose)
     fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
-  mysql_init(&mysql_connection);
+  if (!(mysql= mysql_init(NULL)))
+    return 0;
   if (opt_compress)
-    mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
+    mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_local_file)
-    mysql_options(&mysql_connection,MYSQL_OPT_LOCAL_INFILE,
+    mysql_options(mysql,MYSQL_OPT_LOCAL_INFILE,
 		  (char*) &opt_local_file);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
-    mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (opt_protocol)
-    mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+    mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
-    mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+    mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
-				 database,opt_mysql_port,opt_mysql_unix_port,
-				 0)))
+  if (!(mysql_real_connect(mysql,host,user,passwd,
+                           database,opt_mysql_port,opt_mysql_unix_port,
+                           0)))
   {
     ignore_errors=0;	  /* NO RETURN FROM db_error */
-    db_error(&mysql_connection);
+    db_error(mysql);
   }
-  mysql_connection.reconnect= 0;
+  mysql->reconnect= 0;
   if (verbose)
     fprintf(stdout, "Selecting database %s\n", database);
-  if (mysql_select_db(sock, database))
+  if (mysql_select_db(mysql, database))
   {
     ignore_errors=0;
-    db_error(&mysql_connection);
+    db_error(mysql);
   }
-  return sock;
+  return mysql;
 }
 
 
 
-static void db_disconnect(char *host, MYSQL *sock)
+static void db_disconnect(char *host, MYSQL *mysql)
 {
   if (verbose)
     fprintf(stdout, "Disconnecting from %s\n", host ? host : "localhost");
-  mysql_close(sock);
+  mysql_close(mysql);
 }
 
 
 
-static void safe_exit(int error, MYSQL *sock)
+static void safe_exit(int error, MYSQL *mysql)
 {
   if (ignore_errors)
     return;
-  if (sock)
-    mysql_close(sock);
+  if (mysql)
+    mysql_close(mysql);
   exit(error);
 }
 
@@ -446,8 +447,8 @@ static void safe_exit(int error, MYSQL *sock)
 
 static void db_error_with_table(MYSQL *mysql, char *table)
 {
-  my_printf_error(0,"Error: %s, when using table: %s",
-		  MYF(0), mysql_error(mysql), table);
+  my_printf_error(0,"Error: %d, %s, when using table: %s",
+		  MYF(0), mysql_errno(mysql), mysql_error(mysql), table);
   safe_exit(1, mysql);
 }
 
@@ -455,7 +456,7 @@ static void db_error_with_table(MYSQL *mysql, char *table)
 
 static void db_error(MYSQL *mysql)
 {
-  my_printf_error(0,"Error: %s", MYF(0), mysql_error(mysql));
+  my_printf_error(0,"Error: %d %s", MYF(0), mysql_errno(mysql), mysql_error(mysql));
   safe_exit(1, mysql);
 }
 
@@ -509,41 +510,42 @@ static char *field_escape(char *to,const char *from,uint length)
   return to;
 }
 
+int exitcode= 0;
 
 pthread_handler_t worker_thread(void *arg)
 {
+  int error;
   char *raw_table_name= (char *)arg;
-  MYSQL *sock= 0;
-  if (!(sock= db_connect(current_host,current_db,current_user,opt_password)))
+  MYSQL* mysql;
+  if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
   {
     goto error;
   }
 
-  if (mysql_query(sock, "set @@character_set_database=binary;"))
+  if (mysql_query(mysql, "set @@character_set_database=binary;"))
   {
-    db_error(sock); /* We shall countinue here, if --force was given */
+    db_error(mysql); /* We shall countinue here, if --force was given */
     goto error;
   }
 
-  /*
-    We should do something about the error
-  */
-  write_to_table(raw_table_name, sock);
+  if((error= write_to_table(raw_table_name, mysql)))
+    if (exitcode == 0)
+      exitcode= error;
 
 error:
-  if (sock)
-    db_disconnect(current_host, sock);
+  if (mysql)
+    db_disconnect(current_host, mysql);
 
   pthread_mutex_lock(&counter_mutex);
   counter--;
   pthread_mutex_unlock(&counter_mutex);
-  return 0;
+  return error;
 }
 
 
 int main(int argc, char **argv)
 {
-  int exitcode=0, error=0;
+  int error=0;
   char **argv_to_free;
   MY_INIT(argv[0]);
 
@@ -607,26 +609,26 @@ loop_label:
   }
   else
   {
-    MYSQL *sock= 0;
-    if (!(sock= db_connect(current_host,current_db,current_user,opt_password)))
+    MYSQL* mysql= 0;
+    if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
     {
       free_defaults(argv_to_free);
       return(1); /* purecov: deadcode */
     }
 
-    if (mysql_query(sock, "set @@character_set_database=binary;"))
+    if (mysql_query(mysql, "set @@character_set_database=binary;"))
     {
-      db_error(sock); /* We shall countinue here, if --force was given */
+      db_error(mysql); /* We shall countinue here, if --force was given */
       return(1);
     }
 
     if (lock_tables)
-      lock_table(sock, argc, argv);
+      lock_table(mysql, argc, argv);
     for (; *argv != NULL; argv++)
-      if ((error=write_to_table(*argv, sock)))
+      if ((error=write_to_table(*argv, mysql)))
         if (exitcode == 0)
           exitcode = error;
-    db_disconnect(current_host, sock);
+    db_disconnect(current_host, mysql);
   }
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef HAVE_SMEM
