@@ -452,7 +452,7 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     }
 
     // set to first tuple position
-    const Uint32 firstTupleNo = ! buildPtr.p->m_build_vs ? 0 : 1;
+    const Uint32 firstTupleNo = 0;
     buildPtr.p->m_fragNo= 0;
     buildPtr.p->m_pageId= 0;
     buildPtr.p->m_tupleNo= firstTupleNo;
