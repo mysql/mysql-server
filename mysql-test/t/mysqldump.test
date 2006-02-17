@@ -1049,6 +1049,7 @@ SET SQL_MODE = @old_sql_mode;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 
+--disable_parsing
 #
 # Added for use-thread option
 #
@@ -1072,3 +1073,4 @@ select * from t2;
 
 drop table t1;
 drop table t2;
+--enable_parsing
