@@ -629,7 +629,8 @@ fi
 %files shared
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/*.so*
+%{_libdir}/libmysql*.so*
+%{_libdir}/libndb*.so*
 
 %files bench
 %defattr(-, root, root, 0755)
