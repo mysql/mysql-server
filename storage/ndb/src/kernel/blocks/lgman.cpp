@@ -90,7 +90,7 @@ Lgman::Lgman(Block_context & ctx) :
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
 
-  m_last_lsn = 0;
+  m_last_lsn = 1;
   m_logfile_group_pool.setSize(10);
   m_logfile_group_hash.setSize(10);
   m_file_pool.setSize(10);
