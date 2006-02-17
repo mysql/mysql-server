@@ -50,11 +50,6 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                handler *file, KEY **key_info_buffer,
                                uint *key_count, int select_field_count);
 
-static int mysql_copy_create_lists(List<create_field> *orig_create_list,
-                                   List<Key> *orig_key,
-                                   List<create_field> *new_create_list,
-                                   List<Key> *new_key);
-
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
 
@@ -164,8 +159,7 @@ uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 */
 
 static int mysql_copy_create_list(List<create_field> *orig_create_list,
-
-                                   List<create_field> *new_create_list)
+                                  List<create_field> *new_create_list)
 {
   List_iterator<create_field> prep_field_it(*orig_create_list);
   create_field *prep_field;
@@ -205,7 +199,7 @@ static int mysql_copy_key_list(List<Key> *orig_key,
 {
   List_iterator<Key> prep_key_it(*orig_key);
   Key *prep_key;
-  DBUG_ENTER("mysql_copy_create_lists");
+  DBUG_ENTER("mysql_copy_key_list");
 
   while ((prep_key= prep_key_it++))
   {
@@ -217,7 +211,8 @@ static int mysql_copy_key_list(List<Key> *orig_key,
     while ((prep_col= prep_col_it++))
     {
       key_part_spec *prep_key_part;
-      if (prep_key_part= new key_part_spec(*prep_col))
+
+      if (!(prep_key_part= new key_part_spec(*prep_col)))
       {
         mem_alloc_error(sizeof(key_part_spec));
         DBUG_RETURN(TRUE);
@@ -228,11 +223,11 @@ static int mysql_copy_key_list(List<Key> *orig_key,
         DBUG_RETURN(TRUE);
       }
     }
-    if ((temp_key= new Key(prep_key->type, prep_key->name,
-                           prep_key->algorithm,
-                           prep_key->generated,
-                           prep_columns,
-                           prep_key->parser_name)))
+    if (!(temp_key= new Key(prep_key->type, prep_key->name,
+                            prep_key->algorithm,
+                            prep_key->generated,
+                            prep_columns,
+                            prep_key->parser_name)))
     {
       mem_alloc_error(sizeof(Key));
       DBUG_RETURN(TRUE);

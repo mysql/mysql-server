@@ -312,4 +312,7 @@ partition by hash(f_int1) partitions 2;
 insert into t1 values (1,1),(2,2);
 replace into t1 values (1,1),(2,2);
 drop table t1;
+create table t1 (s1 int, unique (s1)) partition by list (s1) (partition x1 VALUES in (10), partition x2 values in (20));
+alter table t1 add partition (partition x3 values in (30));
+drop table t1;
 End of 5.1 tests
