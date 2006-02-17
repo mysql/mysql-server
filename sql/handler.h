@@ -43,6 +43,9 @@
 #define HA_ADMIN_TRY_ALTER       -7
 #define HA_ADMIN_WRONG_CHECKSUM  -8
 #define HA_ADMIN_NOT_BASE_TABLE  -9
+#define HA_ADMIN_NEEDS_UPGRADE  -10
+#define HA_ADMIN_NEEDS_ALTER    -11
+#define HA_ADMIN_NEEDS_CHECK    -12
 
 /* Bits in table_flags() to show what database can do */
 
@@ -1660,10 +1663,26 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
 
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+protected:
+  /* to be implemented in handlers */
 
   /* admin commands - called from mysql_admin_table */
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+
+  /*
+     in these two methods check_opt can be modified
+     to specify CHECK option to use to call check()
+     upon the table
+  */
+  virtual int check_for_upgrade(HA_CHECK_OPT *check_opt)
+  { return 0; }
+public:
+  int ha_check_for_upgrade(HA_CHECK_OPT *check_opt);
+  int check_old_types();
+  /* to be actually called to get 'check()' functionality*/
+  int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
+   
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /*
@@ -1672,8 +1691,11 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+protected:
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+public:
+  int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)

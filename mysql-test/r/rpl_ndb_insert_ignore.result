@@ -1,0 +1,70 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned,
+unique (b)
+) ENGINE=NDB;
+CREATE TABLE t2 (
+a int unsigned, # to force INSERT SELECT to have a certain order
+b int unsigned
+) ENGINE=NDB;
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 5);
+INSERT INTO t2 VALUES (4, 3);
+INSERT INTO t2 VALUES (5, 4);
+INSERT INTO t2 VALUES (6, 6);
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned,
+unique (b)
+) ENGINE=myisam;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+drop table t1, t2;
