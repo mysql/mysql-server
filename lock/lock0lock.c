@@ -2553,10 +2553,10 @@ lock_rec_move(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (UNIV_LIKELY(comp)) {
-		receiver_heap_no = rec_get_heap_no_new(donator);
+		receiver_heap_no = rec_get_heap_no_new(receiver);
 		donator_heap_no = rec_get_heap_no_new(donator);
 	} else {
-		receiver_heap_no = rec_get_heap_no_old(donator);
+		receiver_heap_no = rec_get_heap_no_old(receiver);
 		donator_heap_no = rec_get_heap_no_old(donator);
 	}
 
