@@ -34,7 +34,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-               tty_password = 0, opt_frm = 0;
+               tty_password = 0, opt_frm = 0, opt_upgrade= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
@@ -77,6 +77,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0},
   {"check-only-changed", 'C',
    "Check only tables that have changed since last check or haven't been closed properly.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"check-upgrade", 'g',
+   "Check tables for version dependent changes.May be used with auto-repair to correct tables requiring version dependent updates.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -267,6 +270,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'r':
     what_to_do = DO_REPAIR;
+    break;
+  case 'g':
+    what_to_do= DO_CHECK;
+    opt_upgrade= 1;
     break;
   case 'W':
 #ifdef __WIN__
@@ -525,6 +532,7 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
     op = "REPAIR";
