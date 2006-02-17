@@ -156,7 +156,7 @@ our $path_mysqltest_log;
 our $path_slave_load_tmpdir;     # What is this?!
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
-our $opt_vardir_unix;            # Always unix formatted opt_vardir
+our $opt_vardir_trace;           # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
 
 our $opt_usage;
@@ -641,7 +641,7 @@ sub command_line_setup () {
   {
     $opt_vardir= "$glob_mysql_test_dir/var";
   }
-  $opt_vardir_unix= $opt_vardir;
+  $opt_vardir_trace= $opt_vardir;
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
            ($glob_win32 and $opt_vardir =~ m,^[a-z]:/,i) )
@@ -2161,12 +2161,12 @@ sub mysqld_arguments ($$$$$) {
     if ( $type eq 'master' )
     {
       mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/master%s.trace",
-                  $prefix, $opt_vardir_unix, $sidx);
+                  $prefix, $opt_vardir_trace, $sidx);
     }
     if ( $type eq 'slave' )
     {
       mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/slave%s.trace",
-                  $prefix, $opt_vardir_unix, $sidx);
+                  $prefix, $opt_vardir_trace, $sidx);
     }
   }
 
@@ -2496,7 +2496,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlcheck .=
-      " --debug=d:t:A,$opt_vardir_unix/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
   }
 
   my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
@@ -2505,7 +2505,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
-      " --debug=d:t:A,$opt_vardir_unix/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
   }
   my $cmdline_mysqlimport= "$exe_mysqlimport -uroot " .
                          "--port=$master->[0]->{'path_myport'} " .
@@ -2513,7 +2513,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlimport .=
-      " --debug=d:t:A,$opt_vardir_unix/log/mysqlimport.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlimport.trace";
   }
 
   my $cmdline_mysqlshow= "$exe_mysqlshow -uroot " .
@@ -2522,7 +2522,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlshow .=
-      " --debug=d:t:A,$opt_vardir_unix/log/mysqlshow.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlshow.trace";
   }
 
   my $cmdline_mysqlbinlog=
@@ -2533,7 +2533,7 @@ sub run_mysqltest ($) {
   if ( $opt_debug )
   {
     $cmdline_mysqlbinlog .=
-      " --debug=d:t:A,$opt_vardir_unix/log/mysqlbinlog.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqlbinlog.trace";
   }
 
   my $cmdline_mysql=
@@ -2665,7 +2665,7 @@ sub run_mysqltest ($) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir_unix);
+    mtr_add_arg($args, "--debug=d:t:A,%s/log/mysqltest.trace", $opt_vardir_trace);
   }
 
   if ( $opt_ssl_supported )
