@@ -1108,8 +1108,8 @@ calculate_sizes_again:
 	/* Now, try the insert */
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
-	*rec = page_cur_insert_rec_low(page_cursor, page_zip,
-				entry, index, NULL, NULL, ext, n_ext, mtr);
+	*rec = page_cur_tuple_insert(page_cursor, page_zip,
+					entry, index, ext, n_ext, mtr);
 	if (UNIV_UNLIKELY(!(*rec))) {
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(page, index, mtr))) {
@@ -2007,6 +2007,12 @@ btr_cur_pessimistic_update(
 
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
+		}
+
+		/* Add the externally stored records. */
+		for (i = 0; i < big_rec_vec->n_fields; i++) {
+			ext_vect[n_ext_vect++] =
+					big_rec_vec->fields[i].field_no;
 		}
 	}
 
