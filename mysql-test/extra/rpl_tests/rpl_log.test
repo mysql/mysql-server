@@ -36,7 +36,6 @@ drop table t1;
 eval create table t1 (word char(20) not null)ENGINE=$engine_type;
 load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
-drop table t1;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\//
@@ -68,8 +67,7 @@ flush logs;
 # To make it predictable, we do a useless update now, but which has the
 # interest of making the slave catch both rotate events.
 
-eval create table t5 (a int)ENGINE=$engine_type;
-drop table t5;
+eval create table t3 (a int)ENGINE=$engine_type;
 
 # Sync slave and force it to start on another binary log
 
@@ -86,9 +84,8 @@ connection master;
 
 # Create some entries for second log
 
-eval create table t1 (n int)ENGINE=$engine_type;
-insert into t1 values (1);
-drop table t1;
+eval create table t2 (n int)ENGINE=$engine_type;
+insert into t2 values (1);
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\//
@@ -125,3 +122,9 @@ show slave status;
 
 --error 1220
 show binlog events in 'slave-bin.000005' from 4;
+
+# The table drops caused Cluster Replication wrapper to fail as event ID would never be the same.# Moving drops here.
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
