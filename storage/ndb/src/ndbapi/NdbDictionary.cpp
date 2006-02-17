@@ -1502,12 +1502,6 @@ NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
 }
 
-void
-NdbDictionary::Dictionary::fix_blob_events(const Table* table, const char* ev_name)
-{
-  m_impl.fix_blob_events(table, ev_name);
-}
-
 // printers
 
 NdbOut&
