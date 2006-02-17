@@ -1622,7 +1622,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   save_vio = thd->net.vio;
   thd->net.vio = 0;
   /* Rebuild the index file from the copied data file (with REPAIR) */
-  error=file->repair(thd,&check_opt) != 0;
+  error=file->ha_repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
     my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name);
