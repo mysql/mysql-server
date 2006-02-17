@@ -215,3 +215,19 @@ select UpdateXML(@xml, '/a/b/@bb1', '');
 select UpdateXML(@xml, '/a/b/@bb1', 'bb3="bb3"');
 select UpdateXML(@xml, '/a/b/@bb2', '');
 select UpdateXML(@xml, '/a/b/@bb2', 'bb3="bb3"');
+
+#
+#  Bug#16234 XML: Crash if ExtractValue()
+#
+SET @xml= '<order><clerk>lesser wombat</clerk></order>';
+select extractvalue(@xml,'order/clerk');
+select extractvalue(@xml,'/order/clerk');
+
+#
+# Bug#16314 XML: extractvalue() crash if vertical bar
+#
+select extractvalue('<a><b>B</b></a>','/a|/b');
+select extractvalue('<a><b>B</b></a>','/a|b');
+select extractvalue('<a>a<b>B</b></a>','/a|/b');
+select extractvalue('<a>a<b>B</b></a>','/a|b');
+select extractvalue('<a>a<b>B</b></a>','a|/b');
