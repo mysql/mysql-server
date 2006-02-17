@@ -1058,15 +1058,20 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (i == primary_key && !strcmp(key_info->name, primary_key_name))
     {
       found_primary=1;
-      packet->append(STRING_WITH_LEN("PRIMARY "));
+      /*
+        No space at end, because a space will be added after where the
+        identifier would go, but that is not added for primary key.
+      */
+      packet->append(STRING_WITH_LEN("PRIMARY KEY"));
     }
     else if (key_info->flags & HA_NOSAME)
-      packet->append(STRING_WITH_LEN("UNIQUE "));
+      packet->append(STRING_WITH_LEN("UNIQUE KEY "));
     else if (key_info->flags & HA_FULLTEXT)
-      packet->append(STRING_WITH_LEN("FULLTEXT "));
+      packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
-      packet->append(STRING_WITH_LEN("SPATIAL "));
-    packet->append(STRING_WITH_LEN("KEY "));
+      packet->append(STRING_WITH_LEN("SPATIAL KEY "));
+    else
+      packet->append(STRING_WITH_LEN("KEY "));
 
     if (!found_primary)
      append_identifier(thd, packet, key_info->name, strlen(key_info->name));
