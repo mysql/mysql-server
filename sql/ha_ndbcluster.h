@@ -691,6 +691,10 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
   friend int ndbcluster_drop_database_impl(const char *path);
+  friend int ndb_handle_schema_change(THD *thd, 
+                                      Ndb *ndb, NdbEventOperation *pOp,
+                                      NDB_SHARE *share);
+
   int alter_table_name(const char *to);
   static int delete_table(ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
@@ -708,7 +712,7 @@ private:
   int create_indexes(Ndb *ndb, TABLE *tab);
   void clear_index(int i);
   void clear_indexes();
-  int open_indexes(Ndb *ndb, TABLE *tab);
+  int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
