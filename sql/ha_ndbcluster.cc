@@ -5848,7 +5848,7 @@ static bool ndbcluster_init()
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
 #endif
-    h.flags=            HTON_NO_FLAGS;
+    h.flags=            HTON_TEMPORARY_NOT_SUPPORTED;
   }
 
   // Set connectstring if specified
