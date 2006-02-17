@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_row_insert_select : Bug #17385
 events                  : Test case instability - infinite locking. To be fixed.
 func_group              : Bug#15448
 func_math               : Bug#15448
