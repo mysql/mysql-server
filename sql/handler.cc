@@ -359,6 +359,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
   SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
   SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
+  SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1975,6 +1976,9 @@ void handler::print_error(int error, myf errflag)
     my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
     DBUG_VOID_RETURN;
   }
+  case HA_ERR_TABLE_NEEDS_UPGRADE:
+    textno=ER_TABLE_NEEDS_UPGRADE;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -2014,6 +2018,103 @@ bool handler::get_error_message(int error, String* buf)
 {
   return FALSE;
 }
+
+
+int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  KEY *keyinfo, *keyend;
+  KEY_PART_INFO *keypart, *keypartend;
+
+  if (!table->s->mysql_version)
+  {
+    /* check for blob-in-key error */
+    keyinfo= table->key_info;
+    keyend= table->key_info + table->s->keys;
+    for (; keyinfo < keyend; keyinfo++)
+    {
+      keypart= keyinfo->key_part;
+      keypartend= keypart + keyinfo->key_parts;
+      for (; keypart < keypartend; keypart++)
+      {
+        if (!keypart->fieldnr)
+          continue;
+        Field *field= table->field[keypart->fieldnr-1];
+        if (field->type() == FIELD_TYPE_BLOB)
+        {
+          if (check_opt->sql_flags & TT_FOR_UPGRADE)
+            check_opt->flags= T_MEDIUM;
+          return HA_ADMIN_NEEDS_CHECK;
+        }
+      }
+    }
+  }
+  return check_for_upgrade(check_opt);
+}
+
+
+int handler::check_old_types()
+{
+  Field** field;
+
+  if (!table->s->mysql_version)
+  {
+    /* check for bad DECIMAL field */
+    for (field= table->field; (*field); field++)
+    {
+      if ((*field)->type() == FIELD_TYPE_NEWDECIMAL)
+      {
+        return HA_ADMIN_NEEDS_ALTER;
+      }
+    }
+  }
+  return 0;
+}
+
+
+static bool update_frm_version(TABLE *table, bool needs_lock)
+{
+  char path[FN_REFLEN];
+  File file;
+  int result= 1;
+  DBUG_ENTER("update_frm_version");
+
+  if (table->s->mysql_version != MYSQL_VERSION_ID)
+    DBUG_RETURN(0);
+
+  strxnmov(path, sizeof(path)-1, mysql_data_home, "/", table->s->db, "/",
+           table->s->table_name, reg_ext, NullS);
+  if (!unpack_filename(path, path))
+    DBUG_RETURN(1);
+
+  if (needs_lock)
+    pthread_mutex_lock(&LOCK_open);
+
+  if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
+  {
+    uchar version[4];
+    char *key= table->s->table_cache_key;
+    uint key_length= table->s->key_length;
+    TABLE *entry;
+    HASH_SEARCH_STATE state;
+
+    int4store(version, MYSQL_VERSION_ID);
+
+    if ((result= my_pwrite(file,(byte*) version,4,51L,MYF_RW)))
+      goto err;
+
+    for (entry=(TABLE*) hash_first(&open_cache,(byte*) key,key_length, &state);
+         entry;
+         entry= (TABLE*) hash_next(&open_cache,(byte*) key,key_length, &state))
+      entry->s->mysql_version= MYSQL_VERSION_ID;
+  }
+err:
+  if (file >= 0)
+    VOID(my_close(file,MYF(MY_WME)));
+  if (needs_lock)
+    pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(result);
+}
+
 
 
 /* Return key if error because of duplicated keys */
@@ -2089,6 +2190,56 @@ void handler::drop_table(const char *name)
 {
   close();
   delete_table(name);
+}
+
+
+/*
+   Performs checks upon the table.
+
+   SYNOPSIS
+   check()
+   thd                thread doing CHECK TABLE operation
+   check_opt          options from the parser
+
+   NOTES
+
+   RETURN
+   HA_ADMIN_OK                 Successful upgrade
+   HA_ADMIN_NEEDS_UPGRADE      Table has structures requiring upgrade
+   HA_ADMIN_NEEDS_ALTER        Table has structures requiring ALTER TABLE
+   HA_ADMIN_NOT_IMPLEMENTED
+*/
+
+int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
+{
+  int error;
+
+  if ((table->s->mysql_version >= MYSQL_VERSION_ID) &&
+      (check_opt->sql_flags & TT_FOR_UPGRADE))
+    return 0;
+
+  if (table->s->mysql_version < MYSQL_VERSION_ID)
+  {
+    if ((error= check_old_types()))
+      return error;
+    error= ha_check_for_upgrade(check_opt);
+    if (error && (error != HA_ADMIN_NEEDS_CHECK))
+      return error;
+    if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE))
+      return 0;
+  }
+  if ((error= check(thd, check_opt)))
+    return error;
+  return update_frm_version(table, 0);
+}
+
+
+int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  int result;
+  if ((result= repair(thd, check_opt)))
+    return result;
+  return update_frm_version(table, 0);
 }
 
 
