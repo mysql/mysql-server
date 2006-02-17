@@ -1,0 +1,28 @@
+--disable_warnings
+drop database if exists `testdb1`;
+drop database if exists `testdb-1`;
+drop database if exists `#mysql50#testdb-1`;
+--enable_warnings
+create database `testdb1`;
+create database `#mysql50#testdb-1`;
+create table `testdb1`.`t1` (a int);
+create table `testdb1`.`#mysql50#t-1` (a int);
+create table `#mysql50#testdb-1`.`t1` (a int);
+create table `#mysql50#testdb-1`.`#mysql50#t-1` (a int);
+show create database `testdb1`;
+--error 1049
+show create database `testdb-1`;
+show create database `#mysql50#testdb-1`;
+show tables in `testdb1`;
+show tables in `#mysql50#testdb-1`;
+
+--exec $MYSQL_CHECK --all-databases --fix-db-names --fix-table-names
+
+show create database `testdb1`;
+show create database `testdb-1`;
+--error 1049
+show create database `#mysql50#testdb-1`;
+show tables in `testdb1`;
+show tables in `testdb-1`;
+drop database `testdb1`;
+drop database `testdb-1`;
