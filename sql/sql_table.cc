@@ -42,7 +42,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    ha_rows *copied,ha_rows *deleted);
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
 static bool check_engine(THD *thd, const char *table_name,
-                         handlerton **new_engine);                             
+                         HA_CREATE_INFO *create_info);                             
 static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
                                List<create_field> *fields,
                                List<Key> *keys, bool tmp_table,
@@ -2021,7 +2021,7 @@ bool mysql_create_table_internal(THD *thd,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (check_engine(thd, table_name, &create_info->db_type))
+  if (check_engine(thd, table_name, create_info))
     DBUG_RETURN(TRUE);
   db_options= create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
@@ -2145,22 +2145,6 @@ bool mysql_create_table_internal(THD *thd,
         DBUG_RETURN(TRUE);
       }
     }
-  }
-#endif
-
-#ifdef NOT_USED
-  /*
-    if there is a technical reason for a handler not to have support
-    for temp. tables this code can be re-enabled.
-    Otherwise, if a handler author has a wish to prohibit usage of
-    temporary tables for his handler he should implement a check in
-    ::create() method
-  */
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      (file->table_flags() & HA_NO_TEMP_TABLES))
-  {
-    my_error(ER_ILLEGAL_HA, MYF(0), table_name);
-    goto err;
   }
 #endif
 
@@ -4010,7 +3994,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (check_engine(thd, new_name, &create_info->db_type))
+  if (check_engine(thd, new_name, create_info))
     DBUG_RETURN(TRUE);
   new_db_type= create_info->db_type;
   if (create_info->row_type == ROW_TYPE_NOT_USED)
@@ -5435,8 +5419,9 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
 }
 
 static bool check_engine(THD *thd, const char *table_name,
-                         handlerton **new_engine)
+                         HA_CREATE_INFO *create_info)
 {
+  handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
@@ -5451,6 +5436,17 @@ static bool check_engine(THD *thd, const char *table_name,
                        ER(ER_WARN_USING_OTHER_HANDLER),
                        ha_resolve_storage_engine_name(*new_engine),
                        table_name);
+  }
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE &&
+      ha_check_storage_engine_flag(*new_engine, HTON_TEMPORARY_NOT_SUPPORTED))
+  {
+    if (create_info->used_fields & HA_CREATE_USED_ENGINE)
+    {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), (*new_engine)->name, "TEMPORARY");
+      *new_engine= 0;
+      return TRUE;
+    }
+    *new_engine= &myisam_hton;
   }
   return FALSE;
 }

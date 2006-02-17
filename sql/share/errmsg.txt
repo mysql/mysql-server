@@ -5806,3 +5806,5 @@ ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use scripts/mysql_fix_privilege_tables"
 ER_TABLE_NEEDS_UPGRADE
          eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"
+ER_ILLEGAL_HA_CREATE_OPTION
+        eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
