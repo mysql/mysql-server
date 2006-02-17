@@ -1624,17 +1624,6 @@ dict_index_add_col(
 	if (!(dtype_get_prtype(&col->type) & DATA_NOT_NULL)) {
 		index->n_nullable++;
 	}
-
-	if (index->n_def > 1) {
-		const dict_field_t*	field2 =
-			dict_index_get_nth_field(index, index->n_def - 2);
-		field->fixed_offs = (!field2->fixed_len ||
-					field2->fixed_offs == ULINT_UNDEFINED)
-				? ULINT_UNDEFINED
-				: field2->fixed_len + field2->fixed_offs;
-	} else {
-		field->fixed_offs = 0;
-	}
 }
 
 /***********************************************************************
@@ -1793,9 +1782,15 @@ dict_index_build_internal_clust(
 
 		trx_id_pos = new_index->n_def;
 
-		ut_ad(DATA_ROW_ID == 0);
-		ut_ad(DATA_TRX_ID == 1);
-		ut_ad(DATA_ROLL_PTR == 2);
+#if DATA_ROW_ID != 0
+# error "DATA_ROW_ID != 0"
+#endif
+#if DATA_TRX_ID != 1
+# error "DATA_TRX_ID != 1"
+#endif
+#if DATA_ROLL_PTR != 2
+# error "DATA_ROLL_PTR != 2"
+#endif
 
 		if (!(index->type & DICT_UNIQUE)) {
 			dict_index_add_col(new_index,
@@ -2186,8 +2181,9 @@ dict_foreign_error_report(
 	fputs(msg, file);
 	fputs(" Constraint:\n", file);
 	dict_print_info_on_foreign_key_in_create_format(file, NULL, fk, TRUE);
+	putc('\n', file);
 	if (fk->foreign_index) {
-		fputs("\nThe index in the foreign key in table is ", file);
+		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
 		fputs(
 "\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
@@ -2795,7 +2791,8 @@ dict_table_get_highest_foreign_id(
 		if (ut_strlen(foreign->id) > ((sizeof dict_ibfk) - 1) + len
 		    && 0 == ut_memcmp(foreign->id, table->name, len)
 		    && 0 == ut_memcmp(foreign->id + len,
-				dict_ibfk, (sizeof dict_ibfk) - 1)) {
+				dict_ibfk, (sizeof dict_ibfk) - 1)
+		    && foreign->id[len + ((sizeof dict_ibfk) - 1)] != '0') {
 			/* It is of the >= 4.0.18 format */
 
 			id = strtoul(foreign->id + len + ((sizeof dict_ibfk) - 1),

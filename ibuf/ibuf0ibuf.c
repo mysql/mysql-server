@@ -630,7 +630,9 @@ ibuf_bitmap_page_get_bits(
 	ulint	value;
 
 	ut_ad(bit < IBUF_BITS_PER_PAGE);
-	ut_ad(IBUF_BITS_PER_PAGE % 2 == 0);
+#if IBUF_BITS_PER_PAGE % 2
+# error "IBUF_BITS_PER_PAGE % 2 != 0"
+#endif
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 						MTR_MEMO_PAGE_X_FIX));
 
@@ -672,7 +674,9 @@ ibuf_bitmap_page_set_bits(
 	ulint	map_byte;
 
 	ut_ad(bit < IBUF_BITS_PER_PAGE);
-	ut_ad(IBUF_BITS_PER_PAGE % 2 == 0);
+#if IBUF_BITS_PER_PAGE % 2
+# error "IBUF_BITS_PER_PAGE % 2 != 0"
+#endif
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 						MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_IBUF_DEBUG

@@ -563,7 +563,9 @@ dtuple_convert_big_rec(
 		/* We do not store externally fields which are smaller than
 		DICT_MAX_INDEX_COL_LEN */
 
-		ut_a(DICT_MAX_INDEX_COL_LEN > REC_1BYTE_OFFS_LIMIT);
+#if DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT
+# error "DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT"
+#endif
 
 		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
 						+ DICT_MAX_INDEX_COL_LEN) {

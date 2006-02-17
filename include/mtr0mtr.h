@@ -47,10 +47,10 @@ flag value must give the length also! */
 						has been called only once,
 						this flag is ORed to the type
 						of that first log record */
-#define	MLOG_1BYTE		((byte)1) 	/* one byte is written */
-#define	MLOG_2BYTES		((byte)2)	/* 2 bytes ... */
-#define	MLOG_4BYTES		((byte)4)	/* 4 bytes ... */
-#define	MLOG_8BYTES		((byte)8)	/* 8 bytes ... */
+#define	MLOG_1BYTE		(1)	 	/* one byte is written */
+#define	MLOG_2BYTES		(2)		/* 2 bytes ... */
+#define	MLOG_4BYTES		(4)		/* 4 bytes ... */
+#define	MLOG_8BYTES		(8)		/* 8 bytes ... */
 #define	MLOG_REC_INSERT		((byte)9)	/* record insert */
 #define	MLOG_REC_CLUST_DELETE_MARK ((byte)10) 	/* mark clustered index record
 						deleted */

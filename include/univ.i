@@ -84,8 +84,8 @@ memory is read outside the allocated blocks. */
 some consistency checks to code. They use a little CPU time. */
 #define UNIV_RELEASE_NOT_YET_STABLE
 
-/*
 #define UNIV_DEBUG
+/*
 #define UNIV_MEM_DEBUG
 #define UNIV_IBUF_DEBUG
 #define UNIV_SYNC_DEBUG
@@ -127,13 +127,7 @@ by one. */
 #ifdef __WIN__
 #define UNIV_INLINE	__inline
 #else
-/* config.h contains the right def for 'inline' for the current compiler */
-#if (__GNUC__ == 2)
-#define UNIV_INLINE  extern inline
-#else
-/* extern inline doesn't work with gcc 3.0.2 */
 #define UNIV_INLINE static inline
-#endif
 #endif
 
 #else
@@ -271,6 +265,9 @@ it is read or written. */
 #define UNIV_LIKELY(cond) UNIV_EXPECT(cond, TRUE)
 /* Tell the compiler that cond is unlikely to hold */
 #define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, FALSE)
+
+/* Compile-time constant of the given array's size. */
+#define UT_ARR_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #include <stdio.h>
 #include "ut0dbg.h"

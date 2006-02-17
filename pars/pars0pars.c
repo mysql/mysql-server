@@ -62,6 +62,8 @@ pars_res_word_t	pars_rnd_str_token = {PARS_RND_STR_TOKEN};
 pars_res_word_t	pars_count_token = {PARS_COUNT_TOKEN};
 pars_res_word_t	pars_sum_token = {PARS_SUM_TOKEN};
 pars_res_word_t	pars_distinct_token = {PARS_DISTINCT_TOKEN};
+pars_res_word_t	pars_binary_token = {PARS_BINARY_TOKEN};
+pars_res_word_t	pars_blob_token = {PARS_BLOB_TOKEN};
 pars_res_word_t	pars_int_token = {PARS_INT_TOKEN};
 pars_res_word_t	pars_char_token = {PARS_CHAR_TOKEN};
 pars_res_word_t	pars_float_token = {PARS_FLOAT_TOKEN};
@@ -1078,17 +1080,38 @@ static
 void
 pars_set_dfield_type(
 /*=================*/
-	dfield_t*	dfield,	/* in: dfield */
-	pars_res_word_t* type)	/* in: pointer to a type token */
+	dfield_t*		dfield,	/* in: dfield */
+	pars_res_word_t* 	type,	/* in: pointer to a type token */
+	ulint			len)	/* in: length, or 0 */
 {
 	if (type == &pars_int_token) {
+		if (len != 0) {
+			ut_error;
+		}
 
 		dtype_set(dfield_get_type(dfield), DATA_INT, 0, 4, 0);
 
 	} else if (type == &pars_char_token) {
+		if (len != 0) {
+			ut_error;
+		}
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
 							DATA_ENGLISH, 0, 0);
+	} else if (type == &pars_binary_token) {
+		if (len == 0) {
+			ut_error;
+		}
+		
+		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
+			DATA_BINARY_TYPE, len, 0);
+	} else if (type == &pars_blob_token) {
+		if (len != 0) {
+			ut_error;
+		}
+		
+		dtype_set(dfield_get_type(dfield), DATA_BLOB,
+			DATA_BINARY_TYPE, 0, 0);
 	} else {
 		ut_error;
 	}
@@ -1111,7 +1134,7 @@ pars_variable_declaration(
 
 	node->param_type = PARS_NOT_PARAM;
 
-	pars_set_dfield_type(que_node_get_val(node), type);
+	pars_set_dfield_type(que_node_get_val(node), type, 0);
 	
 	return(node);
 }
@@ -1475,12 +1498,23 @@ Parses a column definition at a table creation. */
 sym_node_t*
 pars_column_def(
 /*============*/
-					/* out: column sym table node */
-	sym_node_t*	sym_node,	/* in: column node in the symbol
-					table */
-	pars_res_word_t* type)		/* in: data type */
+						/* out: column sym table
+						node */
+	sym_node_t*		sym_node,	/* in: column node in the
+						symbol table */
+	pars_res_word_t* 	type,		/* in: data type */
+	sym_node_t*		len)		/* in: length of column, or
+						NULL */
 {
-	pars_set_dfield_type(que_node_get_val(sym_node), type);
+	ulint len2;
+
+	if (len) {
+		len2 = eval_node_get_int_val(len);
+	} else {
+		len2 = 0;
+	}
+	
+	pars_set_dfield_type(que_node_get_val(sym_node), type, len2);
 
 	return(sym_node);
 }

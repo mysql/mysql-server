@@ -46,6 +46,8 @@ extern pars_res_word_t	pars_rnd_str_token;
 extern pars_res_word_t	pars_count_token;
 extern pars_res_word_t	pars_sum_token;
 extern pars_res_word_t	pars_distinct_token;
+extern pars_res_word_t	pars_binary_token;
+extern pars_res_word_t	pars_blob_token;
 extern pars_res_word_t	pars_int_token;
 extern pars_res_word_t	pars_char_token;
 extern pars_res_word_t	pars_float_token;
@@ -336,10 +338,13 @@ Parses a column definition at a table creation. */
 sym_node_t*
 pars_column_def(
 /*============*/
-					/* out: column sym table node */
-	sym_node_t*	sym_node,	/* in: column node in the symbol
-					table */
-	pars_res_word_t* type);		/* in: data type */
+						/* out: column sym table
+						node */
+	sym_node_t*		sym_node,	/* in: column node in the
+						symbol table */
+	pars_res_word_t* 	type,		/* in: data type */
+	sym_node_t*		len);		/* in: length of column, or
+						NULL */
 /*************************************************************************
 Parses a table creation operation. */
 

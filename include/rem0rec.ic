@@ -315,9 +315,12 @@ rec_get_next_offs(
 	ulint	comp)	/* in: nonzero=compact page format */
 {	
 	ulint	field_value;
-		
-	ut_ad(REC_NEXT_MASK == 0xFFFFUL);
-	ut_ad(REC_NEXT_SHIFT == 0);
+#if REC_NEXT_MASK != 0xFFFFUL
+# error "REC_NEXT_MASK != 0xFFFFUL"
+#endif
+#if REC_NEXT_SHIFT
+# error "REC_NEXT_SHIFT != 0"
+#endif
 
 	field_value = mach_read_from_2(rec - REC_NEXT);
 

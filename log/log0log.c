@@ -1699,7 +1699,9 @@ log_group_checkpoint(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
+#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
+# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
+#endif
 	
 	buf = group->checkpoint_buf;
 	

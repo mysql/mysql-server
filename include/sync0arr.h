@@ -66,14 +66,14 @@ sync_array_wait_event(
         sync_array_t*	arr,	/* in: wait array */
         ulint   	index);  /* in: index of the reserved cell */
 /**********************************************************************
-Frees the cell. NOTE! sync_array_wait_event frees the cell
-automatically! */
+Frees the cell safely by reserving the sync array mutex and decrementing
+n_reserved if necessary. Should only be called from mutex_spin_wait. */
 
 void
-sync_array_free_cell(
-/*=================*/
+sync_array_free_cell_protected(
+/*===========================*/
 	sync_array_t*	arr,	/* in: wait array */
-        ulint    	index);  /* in: index of the cell in array */
+        ulint    	index);	/* in: index of the cell in array */
 /**************************************************************************
 Looks for the cells in the wait array which refer
 to the wait object specified,
