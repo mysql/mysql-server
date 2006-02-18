@@ -233,20 +233,25 @@ end	@	#	#
 delete from t2;
 alter table t2 add unique (a);
 drop function fn1;
-create function fn1()
+create function fn1(x int)
 returns int
 begin
-insert into t2 values(20),(20);
+insert into t2 values(x),(x);
 return 10;
 end|
-select fn1();
+do fn1(100);
+Warnings:
+Error	1062	Duplicate entry '100' for key 1
+select fn1(20);
 ERROR 23000: Duplicate entry '20' for key 1
 select * from t2;
 a
 20
+100
 select * from t2;
 a
 20
+100
 create trigger trg before insert on t1 for each row set new.a= 10;
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 delete from t1;
@@ -324,7 +329,7 @@ insert into t1 values (x);
 return x+2;
 end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete t1,t2 from t1,t2
-master-bin.000001	#	Query	1	#	use `mysqltest1`; DO `fn1`(20)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(20)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t2 values(fn1(21))
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1()
@@ -351,13 +356,14 @@ end
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t2
 master-bin.000001	#	Query	1	#	use `mysqltest1`; alter table t2 add unique (a)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; drop function fn1
-master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create function fn1(x int)
 returns int
 begin
-insert into t2 values(20),(20);
+insert into t2 values(x),(x);
 return 10;
 end
-master-bin.000001	#	Query	1	#	use `mysqltest1`; DO `fn1`()
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(100)
+master-bin.000001	#	Query	1	#	use `mysqltest1`; SELECT `fn1`(20)
 master-bin.000001	#	Query	1	#	use `mysqltest1`; delete from t1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row set new.a= 10
 master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values (1)
@@ -415,4 +421,3 @@ col
 test
 DROP PROCEDURE p1;
 drop table t1;
-reset master;
