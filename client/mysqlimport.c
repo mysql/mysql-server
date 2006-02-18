@@ -539,7 +539,7 @@ error:
   pthread_mutex_lock(&counter_mutex);
   counter--;
   pthread_mutex_unlock(&counter_mutex);
-  return error;
+  return 0;
 }
 
 
