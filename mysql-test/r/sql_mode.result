@@ -478,4 +478,20 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER="root"@"localhost" SQL SECURITY DEFINER VI
 create view v2 as select a from t2 where a in (select a from v1);
 drop view v2, v1;
 drop table t1, t2;
+select @@sql_mode;
+@@sql_mode
+ANSI_QUOTES
+set sql_mode=2097152;
+select @@sql_mode;
+@@sql_mode
+STRICT_TRANS_TABLES
+set sql_mode=16384+(65536*4);
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_TABLE_OPTIONS,ANSI
+set sql_mode=2147483648;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '2147483648'
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_TABLE_OPTIONS,ANSI
 SET @@SQL_MODE=@OLD_SQL_MODE;
