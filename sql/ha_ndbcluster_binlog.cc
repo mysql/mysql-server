@@ -2082,23 +2082,6 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
     if (share->flags & NSF_BLOB_FLAG)
       op->mergeEvents(true); // currently not inherited from event
 
-    if (share->flags & NSF_BLOB_FLAG)
-    {
-      /*
-       * Given servers S1 S2, following results in out-of-date
-       * event->m_tableImpl and column->m_blobTable.
-       *
-       * S1: create table t1(a int primary key);
-       * S2: drop table t1;
-       * S1: create table t2(a int primary key, b blob);
-       * S1: alter table t2 add x int;
-       * S1: alter table t2 drop x;
-       *
-       * TODO fix at right place before we get here
-       */
-      ndb->getDictionary()->fix_blob_events(ndbtab, event_name);
-    }
-
     int n_columns= ndbtab->getNoOfColumns();
     int n_fields= table ? table->s->fields : 0; // XXX ???
     for (int j= 0; j < n_columns; j++)
