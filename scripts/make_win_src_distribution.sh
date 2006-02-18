@@ -250,7 +250,7 @@ copy_dir_dirs() {
 #
 
 for i in client dbug extra storage/heap include storage/archive storage/example \
-         libmysql libmysqld storage/myisam storage/example \
+         include/mysql libmysql libmysqld storage/myisam storage/example \
          storage/myisammrg mysys regex sql strings sql-common sql/examples \
          tools vio zlib
 do
