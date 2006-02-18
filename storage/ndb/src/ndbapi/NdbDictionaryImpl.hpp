@@ -546,7 +546,7 @@ public:
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
-  int invalidateObject(NdbTableImpl &);
+  int invalidateObject(NdbTableImpl &, bool lock = true);
   int removeCachedObject(NdbTableImpl &, bool lock = true);
 
   int createIndex(NdbIndexImpl &ix);
@@ -604,8 +604,6 @@ public:
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
 
-  // XXX temp
-  void fix_blob_events(const NdbDictionary::Table* table, const char* ev_name);
 private:
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);
