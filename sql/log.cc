@@ -1099,6 +1099,7 @@ static int binlog_commit(THD *thd, bool all)
     DBUG_RETURN(0);
   }
   Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+  qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
   DBUG_RETURN(binlog_end_trans(thd, trx_data, &qev));
 }
 
@@ -1125,6 +1126,7 @@ static int binlog_rollback(THD *thd, bool all)
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
+    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev);
   }
   else
@@ -3019,7 +3021,9 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         Imagine this is rollback due to net timeout, after all statements of
         the transaction succeeded. Then we want a zero-error code in BEGIN.
         In other words, if there was a really serious error code it's already
-        in the statement's events.
+        in the statement's events, there is no need to put it also in this
+        internally generated event, and as this event is generated late it
+        would lead to false alarms.
         This is safer than thd->clear_error() against kills at shutdown.
       */
       qinfo.error_code= 0;

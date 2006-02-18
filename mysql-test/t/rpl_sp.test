@@ -296,21 +296,19 @@ alter table t2 add unique (a);
 drop function fn1;
 
 delimiter |;
-create function fn1()
+create function fn1(x int)
        returns int
 begin
-  insert into t2 values(20),(20);
+  insert into t2 values(x),(x);
   return 10;
 end|
 
 delimiter ;|
 
-# Because of BUG#14769 the following statement requires that we start
-# slave with --slave-skip-errors=1062. When that bug is fixed, that
-# option can be removed.
+do fn1(100);
 
 --error 1062
-select fn1();
+select fn1(20);
 
 select * from t2;
 sync_slave_with_master;
