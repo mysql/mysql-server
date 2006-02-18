@@ -270,17 +270,3 @@ disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
-
-# we check that the error code of the "ROLLBACK" event is 0 and not
-# ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
-# and does not make slave to stop)
---exec $MYSQL_BINLOG --start-position=547 $MYSQL_TEST_DIR/var/log/master-bin.000001 > var/tmp/mix_innodb_myisam_binlog.output
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval select
-(@a:=load_file("$MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval select
-@a like "%#%error_code=0%ROLLBACK;%ROLLBACK /* added by mysqlbinlog */;%",
-@a not like "%#%error_code=%error_code=%";
-drop table t1, t2;
