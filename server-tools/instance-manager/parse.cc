@@ -290,6 +290,7 @@ Command *parse_command(Instance_map *map, const char *text)
                 get_word(&text, &word_len);
                 if (!word_len)
                   goto syntax_error;
+                text+= word_len;
                 command= new Show_instance_log(map, instance_name,
                                                instance_name_len, log_type,
                                                log_size, text);
