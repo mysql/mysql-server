@@ -9,17 +9,12 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-events                  : Test case instability - infinite locking. To be fixed.
-func_group              : Bug#15448
-func_math               : Bug#15448
-group_min_max           : Bug#15448 
 #ndb_alter_table_row    : sometimes wrong error 1015!=1046
 ndb_autodiscover        : Needs to be fixed w.r.t binlog
 ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 ndb_binlog_basic        : Results are not deterministic, Tomas will fix
 ndb_binlog_ddl_multi    : Bug#17038 [PATCH PENDING]
 ndb_dd_backuprestore    : Bug#17045 NdbDictionaryImpl::fix_blob_events causes core 
-ndb_gis                 : garbled msgs from corrupt THD*
 ndb_load                : Bug#17233
 partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
@@ -35,9 +30,6 @@ rpl_ndb_insert_ignore   : Bugs: #17431: INSERT IGNORE INTO returns failed: 1296
 rpl_ndb_relay_space     : Bug#16993
 rpl_ndb_multi_update3   : Bug#17400: delete & update of rows in table without pk fails
 rpl_ndb_sp007           : Bug #17290
-rpl_row_create_table    : Bug #17385
-rpl_row_basic_2myisam   : Bug #17385
-rpl_row_basic_3innodb   : Bug #17385
 rpl_sp                  : Bug#16456
 rpl_until               : Unstable test case, bug#15886
 sp-goto                 : GOTO is currently is disabled - will be fixed in the future
