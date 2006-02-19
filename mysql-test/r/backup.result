@@ -6,20 +6,26 @@ Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/bogus/t4.frm' (Errcode: X)
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	status	OK
+Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/tmp/t4.frm' (Errcode: X)
 drop table t4;
 restore table t4 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	restore	status	OK
+Warnings:
+Warning	1287	'RESTORE TABLE' is deprecated; use 'Command will be removed in next version.' instead
 select count(*) from t4;
 count(*)
 0
@@ -28,15 +34,20 @@ insert into t1 values (23),(45),(67);
 backup table t1 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	backup	status	OK
+Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 drop table t1;
 restore table t1 from '../bogus';
 Table	Op	Msg_type	Msg_text
 t1	restore	error	Failed copying .frm file
 Warnings:
+Warning	1287	'RESTORE TABLE' is deprecated; use 'Command will be removed in next version.' instead
 Error	29	File 'MYSQLTEST_VARDIR/bogus/t1.frm' not found (Errcode: X)
 restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
+Warnings:
+Warning	1287	'RESTORE TABLE' is deprecated; use 'Command will be removed in next version.' instead
 select n from t1;
 n
 23
@@ -50,12 +61,16 @@ backup table t2,t3 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t2	backup	status	OK
 test.t3	backup	status	OK
+Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 drop table t1,t2,t3;
 restore table t1,t2,t3 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
 test.t2	restore	status	OK
 test.t3	restore	status	OK
+Warnings:
+Warning	1287	'RESTORE TABLE' is deprecated; use 'Command will be removed in next version.' instead
 select n from t1;
 n
 23
@@ -75,10 +90,14 @@ drop table t1,t2,t3,t4;
 restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
+Warnings:
+Warning	1287	'RESTORE TABLE' is deprecated; use 'Command will be removed in next version.' instead
 rename table t1 to t5;
 lock tables t5 write;
 backup table t5 to '../tmp';
 unlock tables;
 Table	Op	Msg_type	Msg_text
 test.t5	backup	status	OK
+Warnings:
+Warning	1287	'BACKUP TABLE' is deprecated; use 'Command will be removed in next version.' instead
 drop table t5;
