@@ -34,13 +34,14 @@ rpl_ndb_insert_ignore   : Bugs: #17431: INSERT IGNORE INTO returns failed: 1296
 #rpl_ndb_log            : result not deterministic
 rpl_ndb_relay_space     : Bug#16993
 rpl_ndb_multi_update3   : Bug#17400: delete & update of rows in table without pk fails
-rpl_ndb_sp007           : Bug #17290
-rpl_row_create_table    : Bug #17385
-rpl_row_basic_2myisam   : Bug #17385
-rpl_row_basic_3innodb   : Bug #17385
+rpl_ndb_sp007           : Bug#17290
+rpl_row_create_table    : Bug#17385
+rpl_row_basic_2myisam   : Bug#17385
+rpl_row_basic_3innodb   : Bug#17385
 rpl_sp                  : Bug#16456
 rpl_until               : Unstable test case, bug#15886
 sp-goto                 : GOTO is currently is disabled - will be fixed in the future
-rpl_ndb_blob            : Bug #17505
-rpl_ndb_blob2           : Bug #17505
+rpl_ndb_blob            : Bug#17505
+rpl_ndb_blob2           : Bug#17505
 rpl_ndb_log             : results are not deterministic
+mysqldump               : Bug#17443 mysqlimport --use-threads=5 gives crashes
