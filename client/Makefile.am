@@ -27,7 +27,7 @@ INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/regex \
                                 $(openssl_includes) $(yassl_includes) 
 LIBS =				@CLIENT_LIBS@
-LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
+LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
                                 $(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
 				mysqldump mysqlimport mysqltest mysqlbinlog \
@@ -61,7 +61,7 @@ mysqltestmanagerc_SOURCES=      mysqlmanagerc.c $(yassl_dummy_link_fix)
 mysqlcheck_SOURCES=             mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=              mysqlshow.c $(yassl_dummy_link_fix)
 mysqlslap_SOURCES=              mysqlslap.c \
-  				$(yassl_dummy_link_fix)
+				$(yassl_dummy_link_fix)
 mysqldump_SOURCES=              mysqldump.c my_user.c $(yassl_dummy_link_fix)
 mysqlimport_SOURCES=            mysqlimport.c \
 				$(yassl_dummy_link_fix)
@@ -75,14 +75,14 @@ link_sources:
 	for f in $(sql_src) ; do \
 	  rm -f $$f; \
 	  @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
-         done; \
+        done; \
         for f in $(strings_src) ; do \
           rm -f $(srcdir)/$$f; \
           @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
-         done; \
-         rm -f $(srcdir)/my_user.c; \
-         @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c;
-	
+        done; \
+        rm -f $(srcdir)/my_user.c; \
+        @LN_CP_F@ $(top_srcdir)/sql-common/my_user.c my_user.c
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

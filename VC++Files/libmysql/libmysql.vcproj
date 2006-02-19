@@ -22,7 +22,7 @@
 				Optimization="0"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories=".,..\include,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT"
+				PreprocessorDefinitions="_DEBUG;__WIN__;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/libmysql.pch"
 				AssemblerListingLocation=".\debug/"
@@ -95,7 +95,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 				InlineFunctionExpansion="1"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories=".,..\include,../zlib,../extra/yassl/include"
-				PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT"
+				PreprocessorDefinitions="NDEBUG;DBUG_OFF;__WIN__;_WINDOWS;USE_TLS;MYSQL_CLIENT"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
@@ -163,7 +163,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -171,7 +171,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -182,7 +182,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -190,7 +190,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -201,7 +201,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -209,7 +209,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -220,7 +220,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -228,7 +228,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -239,7 +239,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -247,7 +247,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -258,7 +258,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -266,7 +266,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -277,7 +277,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -285,7 +285,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -296,7 +296,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -304,7 +304,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -315,7 +315,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -323,7 +323,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -334,7 +334,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -342,7 +342,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -353,7 +353,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -361,7 +361,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -372,7 +372,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -380,7 +380,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -391,7 +391,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -399,7 +399,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -410,7 +410,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -418,7 +418,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -429,7 +429,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -437,7 +437,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -448,7 +448,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -456,7 +456,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -467,7 +467,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -475,7 +475,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -486,7 +486,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -494,7 +494,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -505,7 +505,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -513,7 +513,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -524,7 +524,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -532,7 +532,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -543,7 +543,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -551,7 +551,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -562,7 +562,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -570,7 +570,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -581,7 +581,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -589,7 +589,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -600,7 +600,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -608,7 +608,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -619,7 +619,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -627,7 +627,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -638,7 +638,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -646,7 +646,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -657,7 +657,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -665,7 +665,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -676,7 +676,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -684,7 +684,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -695,7 +695,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -703,7 +703,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -714,7 +714,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -722,7 +722,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -733,7 +733,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -741,7 +741,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -752,7 +752,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -760,7 +760,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -771,7 +771,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -779,7 +779,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -790,7 +790,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -798,7 +798,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -809,7 +809,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -817,7 +817,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -828,7 +828,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -836,7 +836,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -847,7 +847,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -855,7 +855,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -869,7 +869,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -877,7 +877,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -888,7 +888,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -896,7 +896,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -907,7 +907,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -915,7 +915,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -926,7 +926,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -934,7 +934,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -945,7 +945,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -953,7 +953,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -964,7 +964,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -972,7 +972,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -983,7 +983,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -991,7 +991,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1002,7 +1002,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1010,7 +1010,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1021,7 +1021,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1029,7 +1029,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1040,7 +1040,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1048,7 +1048,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1059,7 +1059,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1067,7 +1067,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1078,7 +1078,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1086,7 +1086,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1097,7 +1097,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1105,7 +1105,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1116,7 +1116,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1124,7 +1124,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1135,7 +1135,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1143,7 +1143,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1154,7 +1154,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1162,7 +1162,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1173,7 +1173,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1181,7 +1181,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1192,7 +1192,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1200,7 +1200,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1211,7 +1211,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1219,7 +1219,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1230,7 +1230,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1238,7 +1238,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1249,7 +1249,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1257,7 +1257,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1268,7 +1268,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1276,7 +1276,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1287,7 +1287,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1295,7 +1295,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1306,7 +1306,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1314,7 +1314,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1325,7 +1325,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1333,7 +1333,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1344,7 +1344,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1352,7 +1352,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1363,7 +1363,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1371,7 +1371,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1382,7 +1382,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1390,7 +1390,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1401,7 +1401,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1409,7 +1409,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1420,7 +1420,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1428,7 +1428,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1439,7 +1439,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1447,7 +1447,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1458,7 +1458,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1466,7 +1466,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1477,7 +1477,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1485,7 +1485,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1496,7 +1496,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1504,7 +1504,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1515,7 +1515,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1523,7 +1523,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1534,7 +1534,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1542,7 +1542,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1553,7 +1553,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1561,7 +1561,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1572,7 +1572,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1580,7 +1580,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1591,7 +1591,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1599,7 +1599,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1610,7 +1610,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1618,7 +1618,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1629,7 +1629,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1637,7 +1637,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1648,7 +1648,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1656,7 +1656,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1667,7 +1667,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1675,7 +1675,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1686,7 +1686,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1694,7 +1694,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1705,7 +1705,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1713,7 +1713,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1724,7 +1724,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1732,7 +1732,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1743,7 +1743,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1751,7 +1751,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1765,7 +1765,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1773,7 +1773,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1784,7 +1784,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1792,7 +1792,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1803,7 +1803,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1811,7 +1811,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1822,7 +1822,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1830,7 +1830,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1841,7 +1841,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1849,7 +1849,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1860,7 +1860,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1868,7 +1868,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1882,7 +1882,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1890,7 +1890,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1901,7 +1901,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1909,7 +1909,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1920,7 +1920,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1928,7 +1928,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1939,7 +1939,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1947,7 +1947,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1958,7 +1958,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1966,7 +1966,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1977,7 +1977,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -1985,7 +1985,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -1996,7 +1996,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2004,7 +2004,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2015,7 +2015,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2023,7 +2023,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2034,7 +2034,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2042,7 +2042,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2053,7 +2053,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2061,7 +2061,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2072,7 +2072,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2080,7 +2080,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2091,7 +2091,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2099,7 +2099,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2110,7 +2110,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2118,7 +2118,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2129,7 +2129,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2137,7 +2137,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2148,7 +2148,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2156,7 +2156,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2167,7 +2167,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2175,7 +2175,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2186,7 +2186,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2194,7 +2194,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2205,7 +2205,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2213,7 +2213,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2224,7 +2224,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2232,7 +2232,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2243,7 +2243,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2251,7 +2251,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2262,7 +2262,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2270,7 +2270,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 		<File
@@ -2281,7 +2281,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="_DEBUG;_WINDOWS;SAFE_MUTEX;USE_TLS;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 			<FileConfiguration
 				Name="Release|Win32">
@@ -2289,7 +2289,7 @@ xcopy     debug\libmysql.lib ..\lib_debug\ /y
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions="DBUG_OFF;_WINDOWS;USE_TLS;NDEBUG;MYSQL_CLIENT;$(NoInherit)"/>
+					PreprocessorDefinitions=""/>
 			</FileConfiguration>
 		</File>
 	</Files>
