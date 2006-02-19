@@ -256,3 +256,27 @@ master-bin.000001	1654	Query	1	#	use `test`; create table t2 (n int) engine=inno
 master-bin.000001	1754	Query	1	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `test`.`t1`,`test`.`ti`
 do release_lock("lock1");
 drop table t0,t2;
+reset master;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+select get_lock("a",10);
+get_lock("a",10)
+1
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+select get_lock("a",10);
+get_lock("a",10)
+1
+select
+(@a:=load_file("MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
+is not null;
+(@a:=load_file("MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
+is not null
+1
+select
+@a like "%#%error_code=0%ROLLBACK;%ROLLBACK /* added by mysqlbinlog */;%",
+@a not like "%#%error_code=%error_code=%";
+@a like "%#%error_code=0%ROLLBACK;%ROLLBACK /* added by mysqlbinlog */;%"	@a not like "%#%error_code=%error_code=%"
+1	1
+drop table t1, t2;

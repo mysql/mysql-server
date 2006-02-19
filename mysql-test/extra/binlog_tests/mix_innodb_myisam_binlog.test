@@ -250,5 +250,23 @@ show binlog events from 102;
 do release_lock("lock1");
 drop table t0,t2;
 
-
 # End of 4.1 tests
+
+# Test for BUG#16559 (ROLLBACK should always have a zero error code in
+# binlog). Has to be here and not earlier, as the SELECTs influence
+# XIDs differently between normal and ps-protocol (and SHOW BINLOG
+# EVENTS above read XIDs).
+
+connect (con4,localhost,root,,);
+connection con3;
+reset master;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=myisam;
+select get_lock("a",10);
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+disconnect con3;
+
+connection con4;
+select get_lock("a",10); # wait for rollback to finish
