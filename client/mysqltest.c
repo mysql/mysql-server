@@ -157,6 +157,7 @@ static uint global_expected_errors;
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
+const char *opt_include= 0;
 static int port = 0;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0;
@@ -3117,6 +3118,8 @@ static struct my_option my_long_options[] =
 #endif
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
+   (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
    (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -4923,6 +4926,11 @@ int main(int argc, char **argv)
     - detect if there was never a command sent to the server
   */
   var_set_errno(-1);
+
+  if (opt_include)
+  {
+    open_file(opt_include);
+  }
 
   while (!abort_flag && !read_query(&q))
   {
