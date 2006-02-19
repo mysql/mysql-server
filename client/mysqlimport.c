@@ -516,7 +516,11 @@ pthread_handler_t worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;
-  MYSQL *mysql;
+  MYSQL *mysql= 0;
+
+  if (mysql_thread_init())
+    goto error;
+  
   if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
   {
     goto error;
@@ -528,6 +532,9 @@ pthread_handler_t worker_thread(void *arg)
     goto error;
   }
 
+  /*
+    We are not currently catching the error here.
+  */
   if((error= write_to_table(raw_table_name, mysql)))
     if (exitcode == 0)
       exitcode= error;
@@ -539,6 +546,8 @@ error:
   pthread_mutex_lock(&counter_mutex);
   counter--;
   pthread_mutex_unlock(&counter_mutex);
+  my_thread_end();
+
   return 0;
 }
 
