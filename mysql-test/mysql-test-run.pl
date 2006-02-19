@@ -508,13 +508,15 @@ sub command_line_setup () {
   # These are defaults for things that are set on the command line
 
   $opt_suite=        "main";    # Special default suite
-  my $opt_master_myport= 9306;
-  my $opt_slave_myport=  9308;
-  $opt_ndbcluster_port=  9350;
+  my $opt_comment;
+
+  my $opt_master_myport=       9306;
+  my $opt_slave_myport=        9308;
+  $opt_ndbcluster_port=        9350;
   $opt_ndbcluster_port_slave=  9358;
-  my $im_port=           9310;
-  my $im_mysqld1_port=   9312;
-  my $im_mysqld2_port=   9314;
+  my $im_port=                 9310;
+  my $im_mysqld1_port=         9312;
+  my $im_mysqld2_port=         9314;
 
   #
   # To make it easier for different devs to work on the same host,
@@ -626,6 +628,7 @@ sub command_line_setup () {
              'big-test'                 => \$opt_big_test,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
+             'comment=s'                => \$opt_comment,
              'local'                    => \$opt_local,
              'local-master'             => \$opt_local_master,
              'netware'                  => \$opt_netware,
@@ -652,9 +655,14 @@ sub command_line_setup () {
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
 
-  if ( $opt_usage )
+  usage("") if $opt_usage;
+
+  if ( $opt_comment )
   {
-    usage("");
+    print "\n";
+    print '#' x 78, "\n";
+    print "# $opt_comment\n";
+    print '#' x 78, "\n\n";
   }
 
   foreach my $arg ( @ARGV )
