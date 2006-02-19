@@ -548,8 +548,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   if (regTabPtr.p->m_no_of_disk_attributes)
   {
     ljam();
-    if(!(getNodeState().getSystemRestartInProgress() && 
-	 getNodeState().startLevel == NodeState::SL_STARTING && 
+    if(!(getNodeState().startLevel == NodeState::SL_STARTING && 
 	 getNodeState().starting.startPhase <= 4))
     {
       Callback cb;
