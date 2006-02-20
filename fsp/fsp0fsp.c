@@ -893,9 +893,13 @@ fsp_header_init(
 
 	fsp_init_file_page(page, mtr);
 
+	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
+					MLOG_2BYTES, mtr);
+
 	header = FSP_HEADER_OFFSET + page;
 
 	mlog_write_ulint(header + FSP_SPACE_ID, space, MLOG_4BYTES, mtr);
+	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr); 
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr); 
@@ -1254,6 +1258,8 @@ fsp_fill_free_list(
 								SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 				fsp_init_file_page(descr_page, mtr);
+				mlog_write_ulint(descr_page + FIL_PAGE_TYPE,
+					FIL_PAGE_TYPE_XDES, MLOG_2BYTES, mtr);
 			}
 
 			/* Initialize the ibuf bitmap page in a separate
@@ -1720,7 +1726,8 @@ fsp_alloc_seg_inode_page(
 
 	buf_block_align(page)->check_index_page_at_flush = FALSE;
 
-	fil_page_set_type(page, FIL_PAGE_INODE);
+	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_INODE,
+						MLOG_2BYTES, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -2091,6 +2098,8 @@ fseg_create_general(
 
 		header = byte_offset
 			 + buf_page_get(space, page, RW_X_LATCH, mtr);
+		mlog_write_ulint(header - byte_offset + FIL_PAGE_TYPE,
+					FIL_PAGE_TYPE_SYS, MLOG_2BYTES, mtr);
 	}	
 
 	mlog_write_ulint(header + FSEG_HDR_OFFSET,
