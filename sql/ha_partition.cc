@@ -714,10 +714,10 @@ int ha_partition::rename_partitions(const char *path)
         DBUG_PRINT("info", ("Delete partition %s", norm_name_buff));
         if ((ret_error= file->delete_table((const char *) norm_name_buff)))
           error= ret_error;
-        else if (inactivate_table_log_entry(sub_elem->log_entry->entry_pos))
+        else if (inactivate_table_log_entry(part_elem->log_entry->entry_pos))
           error= 1;
         else
-          sub_elem->log_entry= NULL; /* Indicate success */
+          part_elem->log_entry= NULL; /* Indicate success */
       }
     } while (++i < temp_partitions);
     VOID(sync_table_log());
@@ -780,8 +780,8 @@ int ha_partition::rename_partitions(const char *path)
                                    TEMP_PART_NAME);
           DBUG_PRINT("info", ("Rename subpartition from %s to %s",
                      part_name_buff, norm_name_buff));
-          if ((ret_error= file->rename_table((const char *) norm_name_buff,
-                                             (const char *) part_name_buff)))
+          if ((ret_error= file->rename_table((const char *) part_name_buff,
+                                             (const char *) norm_name_buff)))
             error= ret_error;
           else if (inactivate_table_log_entry(sub_elem->log_entry->entry_pos))
             error= 1;
@@ -797,7 +797,7 @@ int ha_partition::rename_partitions(const char *path)
         if (part_elem->part_state == PART_IS_CHANGED)
         {
           file= m_reorged_file[part_count++];
-          DBUG_PRINT("info", ("Delete subpartition %s", norm_name_buff));
+          DBUG_PRINT("info", ("Delete partition %s", norm_name_buff));
           if ((ret_error= file->delete_table((const char *) norm_name_buff)))
             error= ret_error;
           else if (inactivate_table_log_entry(part_elem->log_entry->entry_pos))
@@ -810,8 +810,8 @@ int ha_partition::rename_partitions(const char *path)
                               TRUE);
         DBUG_PRINT("info", ("Rename partition from %s to %s",
                    part_name_buff, norm_name_buff));
-        if ((ret_error= file->rename_table((const char *) norm_name_buff,
-                                           (const char *) part_name_buff)))
+        if ((ret_error= file->rename_table((const char *) part_name_buff,
+                                           (const char *) norm_name_buff)))
           error= ret_error;
         else if (inactivate_table_log_entry(part_elem->log_entry->entry_pos))
           error= 1;
