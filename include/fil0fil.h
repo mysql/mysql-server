@@ -74,7 +74,7 @@ extern fil_addr_t	fil_addr_null;
 					The opposite does not hold.
 
 					In tablespaces created by
-					MySQL/InnoDB 5.1.19 or later, the
+					MySQL/InnoDB 5.1.7 or later, the
 					contents of this field is valid
 					for all uncompressed pages. */
 #define FIL_PAGE_FILE_FLUSH_LSN	26	/* this is only defined for the
@@ -97,7 +97,7 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_UNDO_LOG	2	/* Undo log page */
 #define FIL_PAGE_INODE		3	/* Index node */
 #define FIL_PAGE_IBUF_FREE_LIST	4	/* Insert buffer free list */
-/* File page types introduced in MySQL/InnoDB 5.1.19 */
+/* File page types introduced in MySQL/InnoDB 5.1.7 */
 #define FIL_PAGE_TYPE_ALLOCATED	0	/* Freshly allocated page */
 #define FIL_PAGE_IBUF_BITMAP	5	/* Insert buffer bitmap */
 #define FIL_PAGE_TYPE_SYS	6	/* System page */
