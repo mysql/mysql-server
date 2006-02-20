@@ -364,21 +364,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
-    if (having->with_sum_func)
-      having->split_sum_func2(thd, ref_pointer_array, all_fields,
-                              &having, TRUE);
     thd->lex->allow_sum_func= save_allow_sum_func;
-  }
-  if (select_lex->inner_sum_func_list)
-  {
-    Item_sum *end=select_lex->inner_sum_func_list;
-    Item_sum *item_sum= end;  
-    do
-    { 
-      item_sum= item_sum->next;
-      item_sum->split_sum_func2(thd, ref_pointer_array,
-                                all_fields, item_sum->ref_by, FALSE);
-    } while (item_sum != end);
   }
 
   if (!thd->lex->view_prepare_mode)
@@ -395,6 +381,21 @@ JOIN::prepare(Item ***rref_pointer_array,
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
       }
     }
+  }
+
+  if (having && having->with_sum_func)
+    having->split_sum_func2(thd, ref_pointer_array, all_fields,
+                            &having, TRUE);
+  if (select_lex->inner_sum_func_list)
+  {
+    Item_sum *end=select_lex->inner_sum_func_list;
+    Item_sum *item_sum= end;  
+    do
+    { 
+      item_sum= item_sum->next;
+      item_sum->split_sum_func2(thd, ref_pointer_array,
+                                all_fields, item_sum->ref_by, FALSE);
+    } while (item_sum != end);
   }
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
