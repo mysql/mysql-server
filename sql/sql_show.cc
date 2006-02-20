@@ -3954,8 +3954,16 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   sch_table->field[3]->store(et.definer.str, et.definer.length, scs);
   sch_table->field[4]->store(et.body.str, et.body.length, scs);
 
-  // [9] is SQL_MODE and is NULL for now, will be fixed later
-  sch_table->field[9]->set_null();
+  // [9] is SQL_MODE 
+  {
+    const char *sql_mode_str="";
+    ulong sql_mode_len=0;
+    sql_mode_str=
+           sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,
+                                                              &sql_mode_len);  
+    sch_table->field[9]->store((const char*)sql_mode_str, sql_mode_len, scs);
+  }
+  
   if (et.expression)
   {
     String show_str;
@@ -4802,7 +4810,7 @@ ST_FIELD_INFO events_fields_info[]=
   {"EXECUTE_AT", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Execute at"},
   {"INTERVAL_VALUE", 256, MYSQL_TYPE_STRING, 0, 1, "Interval value"},
   {"INTERVAL_FIELD", 18, MYSQL_TYPE_STRING, 0, 1, "Interval field"},
-  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"SQL_MODE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"STARTS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Starts"},
   {"ENDS", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Ends"},
   {"STATUS", 8, MYSQL_TYPE_STRING, 0, 0, "Status"},
