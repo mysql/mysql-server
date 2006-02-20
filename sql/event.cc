@@ -623,10 +623,18 @@ evex_fill_row(THD *thd, TABLE *table, event_timed *et, my_bool is_update)
 
   table->field[EVEX_FIELD_STATUS]->store((longlong)et->status);
 
+  /*
+    Change the SQL_MODE only if body was present in an ALTER EVENT and of course
+    always during CREATE EVENT.
+  */ 
   if (et->body.str)
+  {
+    table->field[EVEX_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode);
+
     if (table->field[field_num= EVEX_FIELD_BODY]->
                      store(et->body.str, et->body.length, system_charset_info))
       goto trunc_err;
+  }
 
   if (et->starts.year)
   {
