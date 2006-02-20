@@ -321,7 +321,7 @@ read_table_log_file_entry(uint entry_no)
   DBUG_ENTER("read_table_log_file_entry");
 
   if (my_pread(file_id, file_entry, io_size, io_size * entry_no,
-               MYF(MY_WME)))
+               MYF(MY_WME)) != IO_SIZE)
     error= TRUE;
   DBUG_RETURN(error);
 }
@@ -549,23 +549,24 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
   bool frm_action= FALSE;
   LEX_STRING handler_name;
   handler *file;
-  MEMROOT mem_root;
-  bool= error= TRUE;
+  MEM_ROOT mem_root;
+  bool error= TRUE;
   char path[FN_REFLEN];
   char from_path[FN_REFLEN];
-  char *par_ext= ".par";
+  char *par_ext= (char*)".par";
+  handlerton *hton;
   DBUG_ENTER("execute_table_log_action");
 
   if (table_log_entry->entry_type == TLOG_IGNORE_LOG_ENTRY_CODE)
   {
     DBUG_RETURN(FALSE);
   }
-  handler_name.str= table_log_entry->handler_type;
+  handler_name.str= (char*)table_log_entry->handler_type;
   handler_name.length= strlen(table_log_entry->handler_type);
-  hton= ha_resolve_by_name(current_thd, handler_name);
+  hton= ha_resolve_by_name(current_thd, &handler_name);
   if (!hton)
   {
-    my_error(ER_ILLEGAL_HA, table_log_entry->handler_type);
+    my_error(ER_ILLEGAL_HA, MYF(0), table_log_entry->handler_type);
     DBUG_RETURN(TRUE);
   }
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
@@ -573,7 +574,9 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
     frm_action= TRUE;
   else
   {
-    file= get_new_handler(table_share, &mem_root, hton);
+    TABLE_SHARE dummy;
+    bzero(&dummy, sizeof(TABLE_SHARE));
+    file= get_new_handler(&dummy, &mem_root, hton);
     if (!file)
     {
       mem_alloc_error(sizeof(handler));
@@ -581,10 +584,12 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
     }
   }
   switch (table_log_entry->action_type)
-    case TLOG_ACTION_DELETE_CODE:
-    case TLOG_ACTION_REPLACE_CODE:
-      if (table_log_entry->action_type == TLOG_ACTION_DELETE_CODE ||
-          (table_log_entry->action_type == TLOG_ACTION_REPLACE_CODE &&
+  {
+    case TLOG_DELETE_ACTION_CODE:
+    case TLOG_REPLACE_ACTION_CODE:
+    {
+      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE ||
+          (table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE &&
            table_log_entry->phase == 0UL))
       {
         if (frm_action)
@@ -598,7 +603,7 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
         }
         else
         {
-          if (file->delete_table(table_name))
+          if (file->delete_table(table_log_entry->name))
             break;
         }
         if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
@@ -610,9 +615,11 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
         }
         break;
       }
-      if (table_log_entry->action_type == TLOG_ACTION_DELETE_CODE)
+      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE)
         break;
-    case TLOG_ACTION_RENAME_CODE:
+    }
+    case TLOG_RENAME_ACTION_CODE:
+    {
       error= TRUE;
       if (frm_action)
       {
@@ -639,6 +646,7 @@ execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
         }
       }
       break;
+    }
     default:
       DBUG_ASSERT(0);
       break;
@@ -978,7 +986,7 @@ execute_table_log_entry(uint first_entry)
     DBUG_ASSERT(table_log_entry.entry_type == TLOG_LOG_ENTRY_CODE ||
                 table_log_entry.entry_type == TLOG_IGNORE_LOG_ENTRY_CODE);
 
-    if (execute_table_log_action(file, &table_log_entry))
+    if (execute_table_log_action(&table_log_entry))
     {
       DBUG_ASSERT(0);
       /* Write to error log and continue with next log entry */
@@ -1028,7 +1036,6 @@ execute_table_log_recovery()
       }
     }
   }
-  release_handler_objects();
   VOID(init_table_log());
   DBUG_VOID_RETURN;
 }
@@ -1231,6 +1238,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   }
   if (flags & WFRM_INSTALL_SHADOW)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    partition_info *part_info= lpt->part_info;
+#endif
     /*
       Build frm file name
     */
@@ -1243,17 +1253,21 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     */
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
+#ifdef WITH_PARTITION_STORAGE_ENGINE
         inactivate_table_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_table_log(), FALSE) ||
+#endif
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->create_handler_files(path, shadow_path, TRUE))
     {
       error= 1;
     }
     VOID(pthread_mutex_unlock(&LOCK_open));
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     inactivate_table_log_entry(part_info->frm_log_entry->entry_pos);
     part_info->frm_log_entry= NULL;
     VOID(sync_table_log());
+#endif
   }
 
 end:

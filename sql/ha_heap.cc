@@ -57,7 +57,9 @@ handlerton heap_hton= {
   NULL,    /* Partition flags */
   NULL,    /* Alter table flags */
   NULL,    /* Alter Tablespace */
-  HTON_CAN_RECREATE
+  HTON_CAN_RECREATE,
+  NULL,    /* binlog func */
+  NULL     /* binlog query */ 
 };
 
 static handler *heap_create_handler(TABLE_SHARE *table)
