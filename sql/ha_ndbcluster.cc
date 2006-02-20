@@ -4430,29 +4430,24 @@ int ha_ndbcluster::create(const char *name,
         Always create an event for the table, as other mysql servers
         expect it to be there.
       */
-      if (ndbcluster_create_event(ndb, t, event_name.c_ptr(), share) < 0)
+      if (!ndbcluster_create_event(ndb, t, event_name.c_ptr(), share,
+                                   share && do_event_op /* push warning */))
       {
-        /* this is only a serious error if the binlog is on */
-	if (share && do_event_op)
-	{
-          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                              ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                              "Creating event for logging table failed. "
-                              "See error log for details.");
-	}
-        break;
+        if (ndb_extra_logging)
+          sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
+                                event_name.c_ptr());
+        if (share && do_event_op &&
+            ndbcluster_create_event_ops(share, t, event_name.c_ptr()))
+        {
+          sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
+                          " Event: %s", name);
+          /* a warning has been issued to the client */
+        }
       }
-      if (ndb_extra_logging)
-        sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
-                              event_name.c_ptr());
-
-      if (share && do_event_op &&
-          ndbcluster_create_event_ops(share, t, event_name.c_ptr()) < 0)
-      {
-        sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
-                        " Event: %s", name);
-        /* a warning has been issued to the client */
-      }
+      /*
+        warning has been issued if ndbcluster_create_event failed
+        and (share && do_event_op)
+      */
       if (share && !do_event_op)
         share->flags|= NSF_NO_BINLOG;
       ndbcluster_log_schema_op(current_thd, share,
@@ -4793,31 +4788,24 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     ndb_rep_event_name(&event_name, to + sizeof(share_prefix) - 1, 0);
     const NDBTAB *ndbtab= dict->getTable(new_tabname);
 
-    if (ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share) >= 0)
+    if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
+                                 share && ndb_binlog_running /* push warning */))
     {
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: RENAME Event: %s",
                               event_name.c_ptr());
-      if (share && ndb_binlog_running)
+      if (share && ndb_binlog_running &&
+          ndbcluster_create_event_ops(share, ndbtab, event_name.c_ptr()))
       {
-        if (ndbcluster_create_event_ops(share, ndbtab,
-                                        event_name.c_ptr()) < 0)
-        {
-          sql_print_error("NDB Binlog: FAILED create event operations "
-                          "during RENAME. Event %s", event_name.c_ptr());
-          /* a warning has been issued to the client */
-        }
+        sql_print_error("NDB Binlog: FAILED create event operations "
+                        "during RENAME. Event %s", event_name.c_ptr());
+        /* a warning has been issued to the client */
       }
     }
-    else
-    {
-      sql_print_error("NDB Binlog: FAILED create event during RENAME. "
-                      "Event: %s", event_name.c_ptr());
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                          "Creating event for logging table failed. "
-                          "See error log for details.");
-    }
+    /*
+      warning has been issued if ndbcluster_create_event failed
+      and (share && ndb_binlog_running)
+    */
     if (!is_old_table_tmpfile)
       ndbcluster_log_schema_op(current_thd, share,
                                current_thd->query, current_thd->query_length,
