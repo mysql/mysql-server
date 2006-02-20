@@ -1093,12 +1093,14 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
   if (s1 && s1 != s0) {
     const char* s2 = strchr(s1 + 1, table_name_separator);
     if (s2 && s2 != s1 + 1) {
-      char buf[200];
-      sprintf(buf, "%.*s", s1 - s0, s0);
-      setDatabaseName(buf);
-      sprintf(buf, "%.*s", s2 - (s1 + 1), s1 + 1);
-      setDatabaseSchemaName(buf);
-      return 0;
+      char buf[NAME_LEN + 1];
+      if (s1 - s0 <= NAME_LEN && s2 - (s1 + 1) <= NAME_LEN) {
+        sprintf(buf, "%.*s", s1 - s0, s0);
+        setDatabaseName(buf);
+        sprintf(buf, "%.*s", s2 - (s1 + 1), s1 + 1);
+        setDatabaseSchemaName(buf);
+        return 0;
+      }
     }
   }
   return -1;
