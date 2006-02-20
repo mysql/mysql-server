@@ -4923,8 +4923,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
   */
   {"log-bin-trust-function-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
    "If equal to 0 (the default), then when --log-bin is used, creation of "
-   "a function is allowed only to users having the SUPER privilege and only "
-   "if this function may not break binary logging.",
+   "a stored function is allowed only to users having the SUPER privilege and"
+   " only if this function may not break binary logging.",
    (gptr*) &trust_function_creators, (gptr*) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
