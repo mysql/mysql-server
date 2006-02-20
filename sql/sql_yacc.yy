@@ -1419,6 +1419,8 @@ ev_schedule_time: EVERY_SYM expr interval
                 break;
               case EVEX_BAD_PARAMS:
                 my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
+              case EVEX_MICROSECOND_UNSUP:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
                 YYABORT;
                 break;
               }
