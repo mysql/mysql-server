@@ -435,7 +435,7 @@ read_table_log_header()
   {
     if (read_table_log_file_entry(0UL))
     {
-      /* Write message into error log */
+      ; /* Write message into error log */
     }
     else
       successful_open= TRUE;
@@ -446,6 +446,8 @@ read_table_log_header()
         uint4korr(&file_entry[TLOG_HANDLER_TYPE_POS]);
   if (successful_open) 
     global_table_log.io_size= uint4korr(&file_entry[TLOG_IO_SIZE_POS]);
+  else
+    global_table_log.io_size= IO_SIZE;
   global_table_log.first_free= NULL;
   global_table_log.first_used= NULL;
   global_table_log.no_entries= 0;
@@ -513,6 +515,7 @@ init_table_log()
   char file_name[FN_REFLEN];
   DBUG_ENTER("init_table_log");
 
+  global_table_log.io_size= IO_SIZE;
   create_table_log_file_name(file_name);
   VOID(my_delete(file_name, MYF(0)));
   if ((global_table_log.file_id= my_create(file_name,
