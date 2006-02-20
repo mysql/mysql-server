@@ -2913,17 +2913,19 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             DBUG_ASSERT(share != 0);
           }
 #endif
-          // set injector_ndb database/schema from table internal name
-          int ret= ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
-          assert(ret == 0);
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
             ndb_binlog_thread_handle_data_event(ndb, pOp, row, trans);
           else
+          {
+            // set injector_ndb database/schema from table internal name
+            int ret= ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
+            assert(ret == 0);
             ndb_binlog_thread_handle_non_data_event(ndb, pOp, row);
-          // reset to catch errors
-          ndb->setDatabaseName("");
-          ndb->setDatabaseSchemaName("");
+            // reset to catch errors
+            ndb->setDatabaseName("");
+            ndb->setDatabaseSchemaName("");
+          }
 
           pOp= ndb->nextEvent();
         } while (pOp && pOp->getGCI() == gci);
