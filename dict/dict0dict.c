@@ -1605,12 +1605,11 @@ dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
 	dict_col_t*	col,		/* in: column */
-	ulint		order,		/* in: order criterion */
 	ulint		prefix_len)	/* in: column prefix length */
 {
 	dict_field_t*	field;
 
-	dict_mem_index_add_field(index, col->name, order, prefix_len);
+	dict_mem_index_add_field(index, col->name, prefix_len);
 
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
@@ -1653,8 +1652,7 @@ dict_index_copy(
 	for (i = start; i < end; i++) {
 
 		field = dict_index_get_nth_field(index2, i);
-		dict_index_add_col(index1, field->col, field->order,
-						      field->prefix_len);
+		dict_index_add_col(index1, field->col, field->prefix_len);
 	}
 }
 
@@ -1758,7 +1756,7 @@ dict_index_build_internal_clust(
 
 		/* Add the mix id column */
 		dict_index_add_col(new_index,
-			  dict_table_get_sys_col(table, DATA_MIX_ID), 0, 0);
+			  dict_table_get_sys_col(table, DATA_MIX_ID), 0);
 
 		/* Copy the rest of fields */
 		dict_index_copy(new_index, index, table->mix_len,
@@ -1802,15 +1800,15 @@ dict_index_build_internal_clust(
 
 		if (!(index->type & DICT_UNIQUE)) {
 			dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_ROW_ID), 0, 0);
+			   dict_table_get_sys_col(table, DATA_ROW_ID), 0);
 			trx_id_pos++;
 		}
 
 		dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_TRX_ID), 0, 0);
+			   dict_table_get_sys_col(table, DATA_TRX_ID), 0);
 	
 		dict_index_add_col(new_index,
-			   dict_table_get_sys_col(table, DATA_ROLL_PTR), 0, 0);
+			   dict_table_get_sys_col(table, DATA_ROLL_PTR), 0);
 
 		for (i = 0; i < trx_id_pos; i++) {
 
@@ -1864,7 +1862,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->type.mtype != DATA_SYS);
 
 		if (col->aux == ULINT_UNDEFINED) {
-			dict_index_add_col(new_index, col, 0, 0);
+			dict_index_add_col(new_index, col, 0);
 		}
 	}
 
@@ -1968,7 +1966,7 @@ dict_index_build_internal_non_clust(
 		field = dict_index_get_nth_field(clust_index, i);
 
 		if (field->col->aux == ULINT_UNDEFINED) {
-			dict_index_add_col(new_index, field->col, 0,
+			dict_index_add_col(new_index, field->col,
 						      field->prefix_len);
 		}
 	}

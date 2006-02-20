@@ -922,7 +922,7 @@ srv_init(void)
 	srv_sys->dummy_ind1 = dict_mem_index_create("SYS_DUMMY1",
 					"SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
 	dict_index_add_col(srv_sys->dummy_ind1,
-			dict_table_get_nth_col(table, 0), 0, 0);
+			dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind1->table = table;
 	/* create dummy table and index for new-style infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
@@ -932,7 +932,7 @@ srv_init(void)
 	srv_sys->dummy_ind2 = dict_mem_index_create("SYS_DUMMY2",
 					"SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
 	dict_index_add_col(srv_sys->dummy_ind2,
-			dict_table_get_nth_col(table, 0), 0, 0);
+			dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind2->table = table;
 
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */

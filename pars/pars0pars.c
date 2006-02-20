@@ -1643,7 +1643,7 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		dict_mem_index_add_field(index, column->name, 0, 0);
+		dict_mem_index_add_field(index, column->name, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
