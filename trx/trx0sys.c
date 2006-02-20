@@ -819,6 +819,9 @@ trx_sysf_create(
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
 
+	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS,
+					MLOG_2BYTES, mtr);
+
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
@@ -828,8 +831,11 @@ trx_sysf_create(
 	/* Reset the rollback segment slots */
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 
+		trx_sysf_rseg_set_space(sys_header, i, ULINT_UNDEFINED, mtr);
 		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
 	}
+
+	/* The remaining area (up to the page trailer) is uninitialized. */
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no,

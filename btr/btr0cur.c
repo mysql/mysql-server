@@ -3392,6 +3392,9 @@ btr_store_big_rec_extern_fields(
 				return(DB_OUT_OF_FILE_SPACE);
 			}
 
+			mlog_write_ulint(page + FIL_PAGE_TYPE,
+					FIL_PAGE_TYPE_BLOB, MLOG_2BYTES, &mtr);
+
 			page_no = buf_frame_get_page_no(page);
 
 			if (prev_page_no != FIL_NULL) {

@@ -574,18 +574,18 @@ ibuf_bitmap_page_init(
 {
 	ulint	bit_offset;
 	ulint	byte_offset;
-	ulint	i;
 
 	/* Write all zeros to the bitmap */
 
 	bit_offset = XDES_DESCRIBED_PER_PAGE * IBUF_BITS_PER_PAGE;
 
-	byte_offset = bit_offset / 8 + 1;
+	byte_offset = bit_offset / 8 + 1; /* better: (bit_offset + 7) / 8 */
 
-	for (i = IBUF_BITMAP; i < IBUF_BITMAP + byte_offset; i++) {
+	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 
-		*(page + i) = (byte)0;
-	}
+	memset(page + IBUF_BITMAP, 0, byte_offset);
+
+	/* The remaining area (up to the page trailer) is uninitialized. */
 
 	mlog_write_initial_log_record(page, MLOG_IBUF_BITMAP_INIT, mtr);
 }
@@ -1680,7 +1680,8 @@ ibuf_add_free_page(
 	flst_add_last(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		      page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, &mtr);
 
-	fil_page_set_type(page, FIL_PAGE_IBUF_FREE_LIST);
+	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_IBUF_FREE_LIST,
+						MLOG_2BYTES, &mtr);
 
 	ibuf_data->seg_size++;
 	ibuf_data->free_list_len++;
