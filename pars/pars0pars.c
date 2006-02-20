@@ -1080,16 +1080,25 @@ static
 void
 pars_set_dfield_type(
 /*=================*/
-	dfield_t*		dfield,	/* in: dfield */
-	pars_res_word_t* 	type,	/* in: pointer to a type token */
-	ulint			len)	/* in: length, or 0 */
+	dfield_t*		dfield,		/* in: dfield */
+	pars_res_word_t* 	type,		/* in: pointer to a type
+						token */
+	ulint			len,		/* in: length, or 0 */
+	ibool			is_not_null)	/* in: if TRUE, column is
+						NOT NULL. */
 {
+	ulint flags = 0;
+
+	if (is_not_null) {
+		flags |= DATA_NOT_NULL;
+	}
+	
 	if (type == &pars_int_token) {
 		if (len != 0) {
 			ut_error;
 		}
 
-		dtype_set(dfield_get_type(dfield), DATA_INT, 0, 4, 0);
+		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4, 0);
 
 	} else if (type == &pars_char_token) {
 		if (len != 0) {
@@ -1097,7 +1106,21 @@ pars_set_dfield_type(
 		}
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-							DATA_ENGLISH, 0, 0);
+			DATA_ENGLISH | flags, 0, 0);
+	} else if (type == &pars_binary_token) {
+		if (len == 0) {
+			ut_error;
+		}
+		
+		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
+			DATA_BINARY_TYPE | flags, len, 0);
+	} else if (type == &pars_blob_token) {
+		if (len != 0) {
+			ut_error;
+		}
+		
+		dtype_set(dfield_get_type(dfield), DATA_BLOB,
+			DATA_BINARY_TYPE | flags, 0, 0);
 	} else if (type == &pars_binary_token) {
 		if (len == 0) {
 			ut_error;
@@ -1134,7 +1157,7 @@ pars_variable_declaration(
 
 	node->param_type = PARS_NOT_PARAM;
 
-	pars_set_dfield_type(que_node_get_val(node), type, 0);
+	pars_set_dfield_type(que_node_get_val(node), type, 0, FALSE);
 	
 	return(node);
 }
@@ -1503,8 +1526,10 @@ pars_column_def(
 	sym_node_t*		sym_node,	/* in: column node in the
 						symbol table */
 	pars_res_word_t* 	type,		/* in: data type */
-	sym_node_t*		len)		/* in: length of column, or
+	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_not_null)	/* in: if not NULL, column
+						is of type NOT NULL. */
 {
 	ulint len2;
 
@@ -1514,7 +1539,8 @@ pars_column_def(
 		len2 = 0;
 	}
 	
-	pars_set_dfield_type(que_node_get_val(sym_node), type, len2);
+	pars_set_dfield_type(que_node_get_val(sym_node), type, len2,
+		is_not_null != NULL);
 
 	return(sym_node);
 }
