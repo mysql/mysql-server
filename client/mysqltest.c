@@ -3704,7 +3704,7 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
 
   if (glob_replace_regex)
   {
-    if (!multi_reg_replace_regex, (char*)val))
+    if (!multi_reg_replace(glob_replace_regex, (char*)val))
     {
       val= glob_replace_regex->buf;
       len= strlen(val);
