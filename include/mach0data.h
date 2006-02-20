@@ -281,7 +281,7 @@ Reads a float. It is stored in a little-endian format. */
 UNIV_INLINE
 float
 mach_float_read(
-/*=============*/
+/*============*/
 			/* out: float read */
 	byte*   b);      /* in: pointer to memory from where to read */
 /*************************************************************
@@ -289,7 +289,7 @@ Writes a float. It is stored in a little-endian format. */
 UNIV_INLINE
 void
 mach_float_write(
-/*==============*/
+/*=============*/
 	byte*   b,      /* in: pointer to memory where to write */
 	float 	d);	/* in: float */
 /*************************************************************

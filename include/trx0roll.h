@@ -232,7 +232,7 @@ were set after this savepoint are deleted. */
 
 ulint
 trx_release_savepoint_for_mysql(
-/*================================*/
+/*============================*/
 						/* out: if no savepoint
 						of the name found then
 						DB_NO_SAVEPOINT,

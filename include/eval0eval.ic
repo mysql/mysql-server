@@ -149,7 +149,7 @@ Gets a iboolean value from a query node. */
 UNIV_INLINE
 ibool
 eval_node_get_ibool_val(
-/*===================*/
+/*====================*/
 				/* out: iboolean value */
 	que_node_t*	node)	/* in: query graph node */
 {
@@ -170,7 +170,7 @@ Sets a iboolean value as the value of a function node. */
 UNIV_INLINE
 void
 eval_node_set_ibool_val(
-/*===================*/
+/*====================*/
 	func_node_t*	func_node,	/* in: function node */
 	ibool		val)		/* in: value to set */
 {

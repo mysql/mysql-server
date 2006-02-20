@@ -1433,7 +1433,7 @@ debugging purposes. */
 
 void
 page_print(
-/*======*/
+/*=======*/
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		dn,	/* in: print dn first and last entries

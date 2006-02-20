@@ -1143,7 +1143,7 @@ records */
 static
 ulint
 row_ins_set_exclusive_rec_lock(
-/*============================*/
+/*===========================*/
 				/* out: DB_SUCCESS or error code */
 	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or
 				LOCK_REC_NOT_GAP type lock */

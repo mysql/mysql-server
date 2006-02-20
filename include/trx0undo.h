@@ -71,7 +71,7 @@ Gets an undo log page and x-latches it. */
 UNIV_INLINE
 page_t*
 trx_undo_page_get(
-/*===============*/
+/*==============*/
 				/* out: pointer to page x-latched */
 	ulint	space,		/* in: space where placed */
 	ulint	page_no,	/* in: page number */
@@ -81,7 +81,7 @@ Gets an undo log page and s-latches it. */
 UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
-/*=========================*/
+/*========================*/
 				/* out: pointer to page s-latched */
 	ulint	space,		/* in: space where placed */
 	ulint	page_no,	/* in: page number */
@@ -278,7 +278,7 @@ Parses the redo log entry of an undo log page initialization. */
 
 byte*
 trx_undo_parse_page_init(
-/*======================*/
+/*=====================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */

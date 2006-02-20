@@ -302,7 +302,7 @@ Reads 8 bytes from a file page buffered in the buffer pool. */
 
 dulint
 mtr_read_dulint(
-/*===========*/
+/*============*/
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
 	mtr_t*		mtr __attribute__((unused)))

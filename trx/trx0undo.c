@@ -81,7 +81,7 @@ Initializes the fields in an undo log segment page. */
 static
 void
 trx_undo_page_init(
-/*================*/
+/*===============*/
 	page_t* undo_page,	/* in: undo log segment page */
 	ulint	type,		/* in: undo log segment type */
 	mtr_t*	mtr);		/* in: mtr */
@@ -307,7 +307,7 @@ Writes the mtr log entry of an undo log page initialization. */
 UNIV_INLINE
 void
 trx_undo_page_init_log(
-/*====================*/
+/*===================*/
 	page_t* undo_page,	/* in: undo log page */
 	ulint	type,		/* in: undo log type */
 	mtr_t*	mtr)		/* in: mtr */
@@ -322,7 +322,7 @@ Parses the redo log entry of an undo log page initialization. */
 
 byte*
 trx_undo_parse_page_init(
-/*======================*/
+/*=====================*/
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
@@ -350,7 +350,7 @@ Initializes the fields in an undo log segment page. */
 static
 void
 trx_undo_page_init(
-/*================*/
+/*===============*/
 	page_t* undo_page,	/* in: undo log segment page */
 	ulint	type,		/* in: undo log segment type */
 	mtr_t*	mtr)		/* in: mtr */

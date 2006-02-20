@@ -477,7 +477,7 @@ searching for a lock in the hash table. */
 UNIV_INLINE
 ulint
 lock_rec_fold(
-/*===========*/
+/*==========*/
 			/* out: folded value */
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
