@@ -6671,7 +6671,7 @@ Implements the SHOW MUTEX STATUS command. . */
 
 bool
 innodb_mutex_show_status(
-/*===============*/
+/*=====================*/
   THD*  thd,  /* in: the MySQL query thread of the caller */
   stat_print_fn *stat_print)
 {

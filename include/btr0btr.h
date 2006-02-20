@@ -412,7 +412,7 @@ the index. */
 
 ibool
 btr_index_rec_validate(
-/*====================*/
+/*===================*/
 					/* out: TRUE if ok */
 	rec_t*		rec,		/* in: index record */
 	dict_index_t*	index,		/* in: index */

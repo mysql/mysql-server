@@ -1067,7 +1067,7 @@ Sets the nth bit of a record lock to TRUE. */
 UNIV_INLINE
 void
 lock_rec_set_nth_bit(
-/*==================*/
+/*=================*/
 	lock_t*	lock,	/* in: record lock */
 	ulint	i)	/* in: index of the bit */
 {

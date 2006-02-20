@@ -494,7 +494,7 @@ Checks if a table is in the dictionary cache. */
 UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
-/*==============================*/
+/*=============================*/
 					/* out: table, NULL if not found */
 	const char*	table_name)	/* in: table name */
 {

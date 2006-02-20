@@ -533,7 +533,7 @@ Allocates large pages memory. */
 
 void*
 os_mem_alloc_large(
-/*=================*/
+/*===============*/
       /* out: allocated memory */
   ulint	n, /* in: number of bytes */
 	ibool set_to_zero, /* in: TRUE if allocated memory should be set
@@ -595,7 +595,7 @@ Frees large pages memory. */
 
 void
 os_mem_free_large(
-/*=================*/
+/*==============*/
 	void	*ptr)	/* in: number of bytes */
 {
 #ifdef HAVE_LARGE_PAGES

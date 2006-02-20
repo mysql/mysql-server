@@ -80,7 +80,7 @@ os_thread_create(
 						thread */
 int
 os_thread_join(
-/*=============*/
+/*===========*/
   os_thread_id_t  thread_id);	/* in: id of the thread to join */
 /*********************************************************************
 Exits the current thread. */

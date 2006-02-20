@@ -284,7 +284,7 @@ TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
-/*=====================*/
+/*====================*/
 			/* out: TRUE if the infimum record */
 	ulint	offset)	/* in: record offset on page */
 {

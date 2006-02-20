@@ -116,7 +116,7 @@ Allocates large pages memory. */
 
 void*
 os_mem_alloc_large(
-/*=================*/
+/*===============*/
       /* out: allocated memory */
 	ulint   n,     /* in: number of bytes */
   ibool   set_to_zero, /* in: TRUE if allocated memory should be set
@@ -128,7 +128,7 @@ Frees large pages memory. */
 
 void
 os_mem_free_large(
-/*=================*/
+/*==============*/
 void    *ptr);  /* in: number of bytes */
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
