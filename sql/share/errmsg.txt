@@ -5781,7 +5781,7 @@ ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Table probably corrupted"
-ER_EVENT_CANNOT_LOAD_FROM_TABLE
+ER_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. Table probably corrupted. See error log."
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
