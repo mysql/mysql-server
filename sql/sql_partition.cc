@@ -5678,7 +5678,7 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt, bool dont_crash)
 {
   partition_info *part_info= lpt->part_info;
   uint count_loop= 0;
-  bool success;
+  bool not_success;
   TABLE_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
@@ -5686,11 +5686,11 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt, bool dont_crash)
   lock_global_table_log();
   do
   {
-    if (!(success= write_execute_table_log_entry(0UL, TRUE, &log_entry)))
+    if (!(not_success= write_execute_table_log_entry(0UL, TRUE, &log_entry)))
       break;
     my_sleep(1); 
   } while (count_loop++ < 20);
-  if (!success && !dont_crash)
+  if (not_success && !dont_crash)
   {
     /*
       Failed to write 20 consecutive attempts to write. Bad...
