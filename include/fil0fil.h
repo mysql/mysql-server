@@ -63,7 +63,20 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_LSN		16	/* lsn of the end of the newest
 					modification log record to the page */
 #define	FIL_PAGE_TYPE		24	/* file page type: FIL_PAGE_INDEX,...,
-					2 bytes */
+					2 bytes.
+
+					The contents of this field can only
+					be trusted in the following case:
+					if the page is an uncompressed
+					B-tree index page, then it is
+					guaranteed that the value is
+					FIL_PAGE_INDEX.
+					The opposite does not hold.
+
+					In tablespaces created by
+					MySQL/InnoDB 5.1.19 or later, the
+					contents of this field is valid
+					for all uncompressed pages. */
 #define FIL_PAGE_FILE_FLUSH_LSN	26	/* this is only defined for the
 					first page in a data file: the file
 					has been flushed to disk at least up
@@ -79,11 +92,19 @@ extern fil_addr_t	fil_addr_null;
 					to the last 4 bytes of FIL_PAGE_LSN */
 #define FIL_PAGE_DATA_END	8
 
-/* File page types */
-#define FIL_PAGE_INDEX		17855
-#define FIL_PAGE_UNDO_LOG	2
-#define FIL_PAGE_INODE		3
-#define FIL_PAGE_IBUF_FREE_LIST	4
+/* File page types (values of FIL_PAGE_TYPE) */
+#define FIL_PAGE_INDEX		17855	/* B-tree node */
+#define FIL_PAGE_UNDO_LOG	2	/* Undo log page */
+#define FIL_PAGE_INODE		3	/* Index node */
+#define FIL_PAGE_IBUF_FREE_LIST	4	/* Insert buffer free list */
+/* File page types introduced in MySQL/InnoDB 5.1.19 */
+#define FIL_PAGE_TYPE_ALLOCATED	0	/* Freshly allocated page */
+#define FIL_PAGE_IBUF_BITMAP	5	/* Insert buffer bitmap */
+#define FIL_PAGE_TYPE_SYS	6	/* System page */
+#define FIL_PAGE_TYPE_TRX_SYS	7	/* Transaction system data */
+#define FIL_PAGE_TYPE_FSP_HDR	8	/* File space header */
+#define FIL_PAGE_TYPE_XDES	9	/* Extent descriptor page */
+#define FIL_PAGE_TYPE_BLOB	10	/* Uncompressed BLOB page */
 
 /* Space types */
 #define FIL_TABLESPACE 		501
