@@ -884,6 +884,7 @@ public:
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class Ndb;
     friend class NdbDictionaryImpl;
     friend class NdbTableImpl;
     friend class NdbEventOperationImpl;

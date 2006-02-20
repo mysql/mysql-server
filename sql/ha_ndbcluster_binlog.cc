@@ -2065,7 +2065,19 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
       DBUG_RETURN(-1);
     }
 
-    NdbEventOperation *op= ndb->createEventOperation(event_name);
+    NdbEventOperation* op;
+    if (do_schema_share)
+      op= ndb->createEventOperation(event_name);
+    else
+    {
+      // set injector_ndb database/schema from table internal name
+      int ret= ndb->setDatabaseAndSchemaName(ndbtab);
+      assert(ret == 0);
+      op= ndb->createEventOperation(event_name);
+      // reset to catch errors
+      ndb->setDatabaseName("");
+      ndb->setDatabaseSchemaName("");
+    }
     if (!op)
     {
       pthread_mutex_unlock(&injector_mutex);
@@ -2632,7 +2644,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     goto err;
   }
 
-  if (!(ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+  // empty database and schema
+  if (!(ndb= new Ndb(g_ndb_cluster_connection, "", "")) ||
       ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Ndb object failed");
@@ -2885,11 +2898,17 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             DBUG_ASSERT(share != 0);
           }
 #endif
+          // set injector_ndb database/schema from table internal name
+          int ret= ndb->setDatabaseAndSchemaName(pOp->getEvent()->getTable());
+          assert(ret == 0);
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
             ndb_binlog_thread_handle_data_event(ndb, pOp, row, trans);
           else
             ndb_binlog_thread_handle_non_data_event(ndb, pOp, row);
+          // reset to catch errors
+          ndb->setDatabaseName("");
+          ndb->setDatabaseSchemaName("");
 
           pOp= ndb->nextEvent();
         } while (pOp && pOp->getGCI() == gci);
