@@ -603,6 +603,64 @@ struct Query_cache_query_flags
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
+/*
+  Error injector Macros to enable easy testing of recovery after failures
+  in various error cases.
+*/
+#ifndef ERROR_INJECT_SUPPORT
+
+#define ERROR_INJECT(x) 0
+#define ERROR_INJECT_ACTION(x,action) 0
+#define ERROR_INJECT_CRASH(x) 0
+#define ERROR_INJECT_VALUE(x) 0
+#define ERROR_INJECT_VALUE_ACTION(x,action) 0
+#define ERROR_INJECT_VALUE_CRASH(x) 0
+#define SET_ERROR_INJECT_VALUE(x)
+
+#else
+
+#define SET_ERROR_INJECT_VALUE(x) \
+  current_thd->error_inject_value= (x)
+
+inline bool
+my_error_inject_name(const char *dbug_str)
+{
+  if (_db_on_ && _db_strict_keyword_ (dbug_str))
+  {
+    DBUG_DEL_KEYWORD(dbug_str);
+    return 1;
+  }
+  return 0;
+}
+
+
+inline bool
+my_error_inject(int value)
+{
+  THD *thd= current_thd;
+  if (thd->error_inject_value == (uint)value)
+  {
+    thd->error_inject_value= 0;
+    return 1;
+  }
+  return 0;
+}
+
+#define ERROR_INJECT_CRASH(code) \
+  DBUG_EXECUTE_COND(code, abort())
+#define ERROR_INJECT_ACTION(code, action) \
+  (my_error_inject_name(code) ? ((action), 0) : 0)
+#define ERROR_INJECT(code) \
+  my_error_inject_name(code)
+#define ERROR_INJECT_VALUE(value) \
+  my_error_inject(value)
+#define ERROR_INJECT_VALUE_ACTION(value,action) \
+  (my_error_inject(value) ? (action) : 0)
+#define ERROR_INJECT_VALUE_CRASH(value) \
+  (my_error_inject(value) ? abort() : 0)
+
+#endif
+
 uint build_table_path(char *buff, size_t bufflen, const char *db,
                       const char *table, const char *ext);
 void write_bin_log(THD *thd, bool clear_error,
@@ -1078,6 +1136,16 @@ uint prep_alter_part_table(THD *thd, TABLE *table, ALTER_INFO *alter_info,
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 
+#define NORMAL_PART_NAME 0
+#define TEMP_PART_NAME 1
+#define RENAMED_PART_NAME 2
+void create_partition_name(char *out, const char *in1,
+                           const char *in2, uint name_variant,
+                           bool translate);
+void create_subpartition_name(char *out, const char *in1,
+                              const char *in2, const char *in3,
+                              uint name_variant);
+
 typedef struct st_lock_param_type
 {
   ulonglong copied;
@@ -1097,14 +1165,62 @@ typedef struct st_lock_param_type
   uint key_count;
   uint db_options;
   uint pack_frm_len;
+  partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
 void mem_alloc_error(size_t size);
-#define WFRM_INITIAL_WRITE 1
-#define WFRM_CREATE_HANDLER_FILES 2
+
+typedef struct st_table_log_entry
+{
+  const char *name;
+  const char *from_name;
+  const char *handler_type;
+  uint next_entry;
+  uint entry_pos;
+  char action_type;
+  char entry_type;
+  char phase;
+  char not_used;
+} TABLE_LOG_ENTRY;
+
+typedef struct st_table_log_memory_entry
+{
+  uint entry_pos;
+  struct st_table_log_memory_entry *next_log_entry;
+  struct st_table_log_memory_entry *prev_log_entry;
+  struct st_table_log_memory_entry *next_active_log_entry;
+} TABLE_LOG_MEMORY_ENTRY;
+
+#define TLOG_EXECUTE_CODE 'e'
+#define TLOG_LOG_ENTRY_CODE 'l'
+#define TLOG_IGNORE_LOG_ENTRY_CODE 'i'
+
+#define TLOG_DELETE_ACTION_CODE 'd'
+#define TLOG_RENAME_ACTION_CODE 'r'
+#define TLOG_REPLACE_ACTION_CODE 's'
+
+#define TLOG_HANDLER_TYPE_LEN 32
+
+bool write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
+                           TABLE_LOG_MEMORY_ENTRY **active_entry);
+bool write_execute_table_log_entry(uint first_entry,
+                                   bool complete,
+                                   TABLE_LOG_MEMORY_ENTRY **active_entry);
+bool inactivate_table_log_entry(uint entry_no);
+void release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry);
+bool sync_table_log();
+void release_table_log();
+void execute_table_log_recovery();
+bool execute_table_log_entry(uint first_entry);
+void lock_global_table_log();
+void unlock_global_table_log();
+
+#define WFRM_WRITE_SHADOW 1
+#define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
-bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
+bool abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt,
+                            bool can_be_killed);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
 void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table);
 
@@ -1275,6 +1391,9 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
+#ifdef ERROR_INJECT_SUPPORT
+extern ulong error_inject_code, error_inject_value;
+#endif
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
