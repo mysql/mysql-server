@@ -436,7 +436,7 @@ TRUE if the record is the infimum record on a page. */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
-/*=====================*/
+/*====================*/
 			/* out: TRUE if the infimum record */
 	ulint	offset);/* in: record offset on page */
 
@@ -733,7 +733,7 @@ debugging purposes. */
 
 void
 page_print(
-/*======*/
+/*=======*/
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		dn,	/* in: print dn first and last entries

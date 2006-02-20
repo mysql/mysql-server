@@ -182,7 +182,7 @@ The following function tells if a new-style record is a node pointer. */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
-/*=================*/
+/*==================*/
 			/* out: TRUE if node pointer */
 	rec_t*	rec);	/* in: physical record */
 /**********************************************************
@@ -191,7 +191,7 @@ of the record in the heap of the index page. */
 UNIV_INLINE
 ulint
 rec_get_heap_no(
-/*=============*/
+/*============*/
 			/* out: heap order number */
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp);	/* in: nonzero=compact page format */
@@ -201,7 +201,7 @@ field in the record. */
 UNIV_INLINE
 void
 rec_set_heap_no(
-/*=============*/
+/*============*/
 	rec_t*	rec,	/* in: physical record */
 	ulint	comp,	/* in: nonzero=compact page format */
 	ulint	heap_no);/* in: the heap number */
@@ -399,7 +399,7 @@ The following function returns the number of fields in a record. */
 UNIV_INLINE
 ulint
 rec_offs_n_fields(
-/*===============*/
+/*==============*/
 				/* out: number of fields */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************

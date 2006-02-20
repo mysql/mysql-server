@@ -216,7 +216,7 @@ aligned address. */
 UNIV_INLINE
 ulint
 ut_align_offset(
-/*==========*/
+/*============*/
 					/* out: distance from aligned
 					pointer */
 	const void*	ptr,		/* in: pointer */

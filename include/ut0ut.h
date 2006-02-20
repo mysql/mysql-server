@@ -231,7 +231,7 @@ Outputs a fixed-length string, quoted as an SQL identifier. */
 
 void
 ut_print_namel(
-/*==========*/
+/*===========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction (NULL=no quotes) */
 	const char*	name,	/* in: name to print */

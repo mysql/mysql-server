@@ -844,7 +844,7 @@ the buffer pool. */
 
 void
 buf_page_make_young(
-/*=================*/
+/*================*/
 	buf_frame_t*	frame)	/* in: buffer frame of a file page */
 {
 	buf_block_t*	block;

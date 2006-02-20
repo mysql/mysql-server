@@ -65,7 +65,7 @@ random number to work reliably. */
 UNIV_INLINE
 ulint
 ut_hash_ulint(
-/*=========*/
+/*==========*/
 				/* out: hash value */
 	ulint    key,           /* in: value to be hashed */
 	ulint    table_size);   /* in: hash table size */

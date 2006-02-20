@@ -1140,7 +1140,7 @@ Add a column to the dummy index */
 static
 void
 ibuf_dummy_index_add_col(
-/*====================*/
+/*=====================*/
 	dict_index_t*	index,	/* in: dummy index */
 	dtype_t*	type,	/* in: the data type of the column */
 	ulint		len)	/* in: length of the column */
@@ -1160,7 +1160,7 @@ Deallocates a dummy index for inserting a record to a non-clustered index.
 static
 void
 ibuf_dummy_index_free(
-/*====================*/
+/*==================*/
 	dict_index_t*	index)	/* in: dummy index */
 {
 	dict_table_t*	table = index->table;

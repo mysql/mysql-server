@@ -1642,7 +1642,7 @@ Decrements the count of pending insert buffer page merges. */
 
 void
 fil_decr_pending_ibuf_merges(
-/*========================*/
+/*=========================*/
 	ulint	id)	/* in: space id */
 {
 	fil_system_t*	system		= fil_system;

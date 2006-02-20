@@ -2551,7 +2551,7 @@ This function returns information about the specified file */
 
 ibool
 os_file_get_status(
-/*===========*/
+/*===============*/
 				/* out: TRUE if stat information found */
 	const char*	path,	/* in:  pathname of the file */
 	os_file_stat_t* stat_info) /* information of a file in a directory */

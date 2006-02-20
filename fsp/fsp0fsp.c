@@ -791,7 +791,7 @@ Inits a file page whose prior contents should be ignored. */
 static
 void
 fsp_init_file_page_low(
-/*=====================*/
+/*===================*/
 	byte*	ptr)	/* in: pointer to a page */
 {
 	page_t*	page;
