@@ -155,7 +155,14 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     }
     thd->proc_info="Table lock";
     thd->locked=1;
-    rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks,
+    /* Copy the lock data array. thr_multi_lock() reorders its contens. */
+    memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
+           sql_lock->lock_count * sizeof(*sql_lock->locks));
+    /* Lock on the copied half of the lock data array. */
+    if (thr_multi_lock(sql_lock->locks + sql_lock->lock_count,
+                       sql_lock->lock_count))
+    rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
+                                                     sql_lock->lock_count,
                                                      sql_lock->lock_count,
                                                      thd->lock_id)];
     if (rc > 1)                                 /* a timeout or a deadlock */
@@ -659,13 +666,20 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     }
   }
 
+  /*
+    Allocating twice the number of pointers for lock data for use in
+    thr_mulit_lock(). This function reorders the lock data, but cannot
+    update the table values. So the second part of the array is copied
+    from the first part immediately before calling thr_multi_lock().
+  */
   if (!(sql_lock= (MYSQL_LOCK*)
-	my_malloc(sizeof(*sql_lock)+
-		  sizeof(THR_LOCK_DATA*)*tables+sizeof(table_ptr)*lock_count,
+	my_malloc(sizeof(*sql_lock) +
+		  sizeof(THR_LOCK_DATA*) * tables * 2 +
+                  sizeof(table_ptr) * lock_count,
 		  MYF(0))))
     DBUG_RETURN(0);
   locks= locks_buf= sql_lock->locks= (THR_LOCK_DATA**) (sql_lock + 1);
-  to= table_buf= sql_lock->table= (TABLE**) (locks + tables);
+  to= table_buf= sql_lock->table= (TABLE**) (locks + tables * 2);
   sql_lock->table_count=lock_count;
   sql_lock->lock_count=tables;
 
