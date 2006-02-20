@@ -1,13 +1,29 @@
 SET storage_engine=ndbcluster;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER, g POINT);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_line  (fid INTEGER, g LINESTRING);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_polygon   (fid INTEGER, g POLYGON);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_point (fid INTEGER, g MULTIPOINT);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_line (fid INTEGER, g MULTILINESTRING);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_polygon  (fid INTEGER, g MULTIPOLYGON);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_geometrycollection  (fid INTEGER, g GEOMETRYCOLLECTION);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_geometry (fid INTEGER, g GEOMETRY);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
@@ -416,6 +432,8 @@ mpg multipolygon,
 gc  geometrycollection,
 gm  geometry
 );
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 gp	point	YES		NULL	
@@ -427,6 +445,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 gp	point	YES		NULL	
@@ -440,6 +460,8 @@ gm	geometry	YES		NULL
 fid	int(11)	YES		NULL	
 DROP TABLE t1;
 create table t1 (a geometry not null);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -447,6 +469,8 @@ insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
 create table t1 (fl geometry);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 insert into t1 values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (1.11);
@@ -459,13 +483,29 @@ drop table t1;
 set engine_condition_pushdown = on;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER, g POINT);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_line  (fid INTEGER, g LINESTRING);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_polygon   (fid INTEGER, g POLYGON);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_point (fid INTEGER, g MULTIPOINT);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_line (fid INTEGER, g MULTILINESTRING);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_multi_polygon  (fid INTEGER, g MULTIPOLYGON);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_geometrycollection  (fid INTEGER, g GEOMETRYCOLLECTION);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 CREATE TABLE gis_geometry (fid INTEGER, g GEOMETRY);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
@@ -874,6 +914,8 @@ mpg multipolygon,
 gc  geometrycollection,
 gm  geometry
 );
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 gp	point	YES		NULL	
@@ -885,6 +927,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 gp	point	YES		NULL	
@@ -898,6 +942,8 @@ gm	geometry	YES		NULL
 fid	int(11)	YES		NULL	
 DROP TABLE t1;
 create table t1 (a geometry not null);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -905,6 +951,8 @@ insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
 create table t1 (fl geometry);
+Warnings:
+Error	1538	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 insert into t1 values (1);
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (1.11);
