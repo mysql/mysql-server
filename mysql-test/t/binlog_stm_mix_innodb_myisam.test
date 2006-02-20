@@ -11,10 +11,10 @@
 # we check that the error code of the "ROLLBACK" event is 0 and not
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
---exec $MYSQL_BINLOG --start-position=551 $MYSQL_TEST_DIR/var/log/master-bin.000001 > var/tmp/mix_innodb_myisam_binlog.output
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --start-position=551 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
-(@a:=load_file("$MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
+(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
 is not null;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval select
