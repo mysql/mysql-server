@@ -1147,7 +1147,7 @@ static void do_exec(struct st_query *query)
   do_eval(&ds_cmd, cmd);
   cmd= ds_cmd.str;
 
-  DBUG_PRINT("info", ("Executing '%' as '%s'",
+  DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       query->first_argument, cmd));
 
   if (!(res_file= popen(cmd, "r")) && query->abort_on_error)
