@@ -450,8 +450,8 @@ fetch_statement:
 ;
 
 column_def:
-	PARS_ID_TOKEN type_name	opt_column_len
-				{ $$ = pars_column_def($1, $2, $3); }
+	PARS_ID_TOKEN type_name	opt_column_len opt_not_null
+				{ $$ = pars_column_def($1, $2, $3, $4); }
 ;
 
 column_def_list:
@@ -464,6 +464,14 @@ opt_column_len:
 	/* Nothing */		{ $$ = NULL; }
 	| '(' PARS_INT_LIT ')'
 				{ $$ = $2; }
+;
+
+opt_not_null:
+	/* Nothing */		{ $$ = NULL; }
+	| PARS_NOT_TOKEN PARS_NULL_LIT
+				{ $$ = &pars_int_token;
+					/* pass any non-NULL pointer */ }
+;
 
 not_fit_in_memory:
 	/* Nothing */		{ $$ = NULL; }
@@ -514,6 +522,7 @@ rollback_statement:
 
 type_name:
 	PARS_INT_TOKEN		{ $$ = &pars_int_token; }
+	| PARS_INTEGER_TOKEN	{ $$ = &pars_int_token; }
 	| PARS_CHAR_TOKEN	{ $$ = &pars_char_token; }
 	| PARS_BINARY_TOKEN	{ $$ = &pars_binary_token; }
 	| PARS_BLOB_TOKEN	{ $$ = &pars_blob_token; }
