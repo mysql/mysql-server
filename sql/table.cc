@@ -633,36 +633,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-    if (share->mysql_version > 50105 && next_chunk + 5 < buff_end)
+#if 0
+    if (share->mysql_version == 50106)
     {
       /*
-        Partition state was introduced to support partition management in version 5.1.5
-      */
-      uint32 part_state_len= uint4korr(next_chunk);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((share->part_state_len= part_state_len))
-        if (!(share->part_state=
-              (uchar*) memdup_root(&share->mem_root, next_chunk + 4,
-                                   part_state_len)))
-        {
-          my_free(buff, MYF(0));
-          goto err;
-        }
-#else
-      if (part_state_len)
-      {
-        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
-        goto err;
-      }
-#endif
-      next_chunk+= 4 + part_state_len;
-    }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    else
-    {
-      share->part_state_len= 0;
-      share->part_state= NULL;
+         Partition state array was here in version 5.1.6, this code makes
+         it possible to load a 5.1.6 table in later versions. Can most
+         likely be removed at some point in time.
+       */
+      next_chunk+= 4;
     }
 #endif
     keyinfo= share->key_info;
