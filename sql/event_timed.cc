@@ -44,7 +44,9 @@ event_timed::init()
 
   definer_user.str= definer_host.str= 0;
   definer_user.length= definer_host.length= 0;
-    
+
+  sql_mode= 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -569,6 +571,9 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
   else
     et->comment.length= 0;
     
+
+  et->sql_mode= (ulong) table->field[EVEX_FIELD_SQL_MODE]->val_int();
+
   DBUG_RETURN(0);
 error:
   DBUG_RETURN(EVEX_GET_FIELD_FAILED);
@@ -1054,6 +1059,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   char *old_query;
   uint old_query_len;
   st_sp_chistics *p;
+  ulong old_sql_mode= thd->variables.sql_mode;
   CHARSET_INFO *old_character_set_client, *old_collation_connection,
                *old_character_set_results;
 
@@ -1069,6 +1075,8 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   thd->update_charset();
   
   DBUG_ENTER("event_timed::compile");
+  DBUG_PRINT("info",("old_sql_mode=%d new_sql_mode=%d",old_sql_mode, sql_mode));
+  thd->variables.sql_mode= this->sql_mode;
   // change the memory root for the execution time
   if (mem_root)
   {
@@ -1108,9 +1116,8 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   sphead= lex.et->sphead;
   sphead->m_db= dbname;
   //copy also chistics since they will vanish otherwise we get 0x0 pointer
-  // Todo : Handle sql_mode !!
   sphead->set_definer(definer.str, definer.length);
-  sphead->set_info(0, 0, &lex.sp_chistics, 0/*sql_mode*/);
+  sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
   sphead->optimize();
   ret= 0;
 done:
@@ -1124,11 +1131,12 @@ done:
   thd->query_length= old_query_len;
   thd->db= old_db;
 
+  thd->variables.sql_mode= old_sql_mode;
   thd->variables.character_set_client= old_character_set_client;
   thd->variables.character_set_results= old_character_set_results;
   thd->variables.collation_connection= old_collation_connection;
   thd->update_charset();
-
+  
   /*
     Change the memory root for the execution time.
   */
