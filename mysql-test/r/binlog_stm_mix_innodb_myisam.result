@@ -269,9 +269,9 @@ select get_lock("a",10);
 get_lock("a",10)
 1
 select
-(@a:=load_file("MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
 is not null;
-(@a:=load_file("MYSQL_TEST_DIR/var/tmp/mix_innodb_myisam_binlog.output"))
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
 is not null
 1
 select

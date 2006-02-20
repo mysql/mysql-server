@@ -143,6 +143,7 @@ our $glob_use_running_server=     0;
 our $glob_use_running_ndbcluster= 0;
 our $glob_use_running_ndbcluster_slave= 0;
 our $glob_use_embedded_server=    0;
+our $glob_mysqld_restart=         0;
 our @glob_test_mode;
 
 our $using_ndbcluster_master= 0;
@@ -162,6 +163,7 @@ our $path_mysqltest_log;
 our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $opt_tmpdir;                 # A path but set directly on cmd line
+our $opt_restart_cleanup;        # Source a file with SQL drop statements
 
 our $opt_usage;
 our $opt_suite;
@@ -508,13 +510,15 @@ sub command_line_setup () {
   # These are defaults for things that are set on the command line
 
   $opt_suite=        "main";    # Special default suite
-  my $opt_master_myport= 9306;
-  my $opt_slave_myport=  9308;
-  $opt_ndbcluster_port=  9350;
+  my $opt_comment;
+
+  my $opt_master_myport=       9306;
+  my $opt_slave_myport=        9308;
+  $opt_ndbcluster_port=        9350;
   $opt_ndbcluster_port_slave=  9358;
-  my $im_port=           9310;
-  my $im_mysqld1_port=   9312;
-  my $im_mysqld2_port=   9314;
+  my $im_port=                 9310;
+  my $im_mysqld1_port=         9312;
+  my $im_mysqld2_port=         9314;
 
   #
   # To make it easier for different devs to work on the same host,
@@ -624,6 +628,7 @@ sub command_line_setup () {
 
              # Misc
              'big-test'                 => \$opt_big_test,
+             'comment=s'                => \$opt_comment,
              'debug'                    => \$opt_debug,
              'fast'                     => \$opt_fast,
              'local'                    => \$opt_local,
@@ -631,6 +636,7 @@ sub command_line_setup () {
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
+             'restart-cleanup'          => \$opt_restart_cleanup,
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
@@ -652,9 +658,14 @@ sub command_line_setup () {
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
 
-  if ( $opt_usage )
+  usage("") if $opt_usage;
+
+  if ( $opt_comment )
   {
-    usage("");
+    print "\n";
+    print '#' x 78, "\n";
+    print "# $opt_comment\n";
+    print '#' x 78, "\n\n";
   }
 
   foreach my $arg ( @ARGV )
@@ -2234,6 +2245,7 @@ sub report_failure_and_restart ($) {
   {
     stop_masters_slaves();
   }
+  $glob_mysqld_restart= 1;
   print "Resuming Tests\n\n";
 }
 
@@ -3053,6 +3065,12 @@ sub run_mysqltest ($) {
   if ( $opt_sleep )
   {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
+  }
+
+  if ( $opt_restart_cleanup and $glob_mysqld_restart )
+  {
+    mtr_add_arg($args, "--include=%s", "include/drop-on-restart.inc");
+    $glob_mysqld_restart= 0;
   }
 
   if ( $opt_debug )
