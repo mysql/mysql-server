@@ -77,7 +77,7 @@ t1	CREATE TABLE `t1` (
   `b` char(10) character set latin1 collate latin1_bin NOT NULL default '',
   `c` int(11) NOT NULL default '0',
   `d` int(11) default NULL,
-  PRIMARY KEY  USING HASH (`a`,`b`,`c`)
+  PRIMARY KEY USING HASH (`a`,`b`,`c`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY (b) 
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null primary key)

@@ -390,7 +390,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
 flush tables;
 alter table t1 modify a varchar(10) not null;
@@ -398,7 +398,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
 drop table if exists t1, t2;
 create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;

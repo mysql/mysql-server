@@ -76,6 +76,7 @@ TODO:
 #define RAND_STRING_SIZE 126
 
 #include "client_priv.h"
+#include <my_pthread.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
@@ -89,7 +90,6 @@ TODO:
 #include <sys/wait.h>
 #endif
 #include <ctype.h>
-#include <my_pthread.h>
 
 #define MYSLAPLOCK "/myslaplock.lck"
 #define MYSLAPLOCK_DIR "/tmp"
@@ -170,6 +170,7 @@ typedef struct thread_context thread_context;
 struct thread_context {
   statement *stmt;
   ulonglong limit;
+  bool thread;
 };
 
 typedef struct conclusions conclusions;
@@ -974,6 +975,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 
   con.stmt= stmts;
   con.limit= limit;
+  con.thread= opt_use_threads ? 1 :0;
 
   lock_file= my_open(lock_file_str, O_CREAT|O_WRONLY|O_TRUNC, MYF(0));
 
@@ -1096,8 +1098,8 @@ int
 run_task(thread_context *con)
 {
   ulonglong counter= 0, queries;
-  File lock_file;
-  MYSQL mysql;
+  File lock_file= -1;
+  MYSQL *mysql;
   MYSQL_RES *result;
   MYSQL_ROW row;
   statement *ptr;
@@ -1105,19 +1107,25 @@ run_task(thread_context *con)
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt->string));
 
-  mysql_init(&mysql);
+  if (!(mysql= mysql_init(NULL)))
+    goto end;
+
+  if (con->thread && mysql_thread_init())
+    goto end;
 
   DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
   lock_file= my_open(lock_file_str, O_RDWR, MYF(0));
   my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
   if (!opt_only_print) 
   {
-    if (!(mysql_real_connect(&mysql, host, user, opt_password,
-                             "mysqlslap", opt_mysql_port, opt_mysql_unix_port,
-                             0)))
+    if (!(mysql= mysql_real_connect(NULL, host, user, opt_password,
+                                    create_schema_string, 
+                                    opt_mysql_port, 
+                                    opt_mysql_unix_port,
+                                    0)))
     {
-      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
-      exit(1);
+      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(mysql));
+      goto end;
     }
   }
   DBUG_PRINT("info", ("connected."));
@@ -1133,15 +1141,15 @@ limit_not_met:
       }
       else
       {
-        if (mysql_real_query(&mysql, ptr->string, ptr->length))
+        if (mysql_real_query(mysql, ptr->string, ptr->length))
         {
           fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
-                  my_progname, (uint)ptr->length, ptr->string, mysql_error(&mysql));
-          exit(1);
+                  my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+          goto end;
         }
-        if (mysql_field_count(&mysql))
+        if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(&mysql);
+          result= mysql_store_result(mysql);
           while ((row = mysql_fetch_row(result)))
             counter++;
           mysql_free_result(result);
@@ -1150,18 +1158,25 @@ limit_not_met:
       queries++;
 
       if (con->limit && queries == con->limit)
-        DBUG_RETURN(0);
+        goto end;
     }
 
   if (con->limit && queries < con->limit)
     goto limit_not_met;
 
-  my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
-  my_close(lock_file, MYF(0));
+end:
+
+  if (lock_file != -1)
+  {
+    my_lock(lock_file, F_UNLCK, 0, F_TO_EOF, MYF(0));
+    my_close(lock_file, MYF(0));
+  }
 
   if (!opt_only_print) 
-    mysql_close(&mysql);
+    mysql_close(mysql);
 
+  if (con->thread)
+    my_thread_end();
   DBUG_RETURN(0);
 }
 
