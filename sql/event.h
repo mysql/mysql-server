@@ -112,7 +112,6 @@ public:
   enum enum_event_status status;
   sp_head *sphead;
   ulong sql_mode;
-
   const uchar *body_begin;
 
   bool dropped;

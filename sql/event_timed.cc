@@ -45,6 +45,8 @@ event_timed::init()
   definer_user.str= definer_host.str= 0;
   definer_user.length= definer_host.length= 0;
 
+  sql_mode= 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -579,6 +581,9 @@ event_timed::load_from_row(MEM_ROOT *mem_root, TABLE *table)
     et->comment.length= strlen(et->comment.str);
   else
     et->comment.length= 0;
+    
+
+  et->sql_mode= (ulong) table->field[EVEX_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(0);
 error:
@@ -1232,6 +1237,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   char *old_query;
   uint old_query_len;
   st_sp_chistics *p;
+  ulong old_sql_mode= thd->variables.sql_mode;
   char create_buf[2048];
   String show_create(create_buf, sizeof(create_buf), system_charset_info);
   CHARSET_INFO *old_character_set_client,
@@ -1251,6 +1257,8 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
   thd->update_charset();
 
   DBUG_ENTER("event_timed::compile");
+  DBUG_PRINT("info",("old_sql_mode=%d new_sql_mode=%d",old_sql_mode, sql_mode));
+  thd->variables.sql_mode= this->sql_mode;
   /* Change the memory root for the execution time */
   if (mem_root)
   {
@@ -1302,7 +1310,7 @@ event_timed::compile(THD *thd, MEM_ROOT *mem_root)
     TODO: Handle sql_mode!!
   */
   sphead->set_definer(definer.str, definer.length);
-  sphead->set_info(0, 0, &lex.sp_chistics, 0/*sql_mode*/);
+  sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
   sphead->optimize();
   ret= 0;
 done:
@@ -1316,6 +1324,7 @@ done:
   thd->query_length= old_query_len;
   thd->db= old_db;
 
+  thd->variables.sql_mode= old_sql_mode;
   thd->variables.character_set_client= old_character_set_client;
   thd->variables.character_set_results= old_character_set_results;
   thd->variables.collation_connection= old_collation_connection;
