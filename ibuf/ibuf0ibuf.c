@@ -545,8 +545,8 @@ ibuf_data_init_for_space(
 	index = dict_mem_index_create(buf, "CLUST_IND", space,
 				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,2);
 
-	dict_mem_index_add_field(index, "PAGE_NO", 0, 0);
-	dict_mem_index_add_field(index, "TYPES", 0, 0);
+	dict_mem_index_add_field(index, "PAGE_NO", 0);
+	dict_mem_index_add_field(index, "TYPES", 0);
 
 	index->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
@@ -1152,7 +1152,7 @@ ibuf_dummy_index_add_col(
 		dtype_get_len(type),
 		dtype_get_prec(type));
 	dict_index_add_col(index,
-		dict_table_get_nth_col(index->table, i), 0, len);
+		dict_table_get_nth_col(index->table, i), len);
 }
 /************************************************************************
 Deallocates a dummy index for inserting a record to a non-clustered index.

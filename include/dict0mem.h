@@ -33,9 +33,6 @@ combination of types */
 				other index */
 #define	DICT_IBUF 	8	/* insert buffer tree */
 				
-/* Flags for ordering an index field: OR'ing of the flags allowed */
-#define	DICT_DESCEND	1	/* in descending order (default ascending) */
-
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
 #define	DICT_TABLE_CLUSTER_MEMBER	2
@@ -116,8 +113,6 @@ dict_mem_index_add_field(
 /*=====================*/
 	dict_index_t*	index,		/* in: index */
 	const char*	name,		/* in: column name */
-	ulint		order,		/* in: order criterion; 0 means an
-					ascending order */
 	ulint		prefix_len);	/* in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
@@ -163,8 +158,6 @@ UTF-8 charset. In that charset, a character may take at most 3 bytes. */
 struct dict_field_struct{
 	dict_col_t*	col;		/* pointer to the table column */
 	const char*	name;		/* name of the column */
-	ulint		order;		/* flags for ordering this field:
-					DICT_DESCEND, ... */
 	ulint		prefix_len;	/* 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));

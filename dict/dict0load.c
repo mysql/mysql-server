@@ -533,7 +533,7 @@ dict_load_fields(
 		field = rec_get_nth_field_old(rec, 4, &len);
 
 		dict_mem_index_add_field(index,
-                                         mem_heap_strdupl(heap, (char*) field, len), 0, prefix_len);
+                                         mem_heap_strdupl(heap, (char*) field, len), prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
