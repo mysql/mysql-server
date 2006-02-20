@@ -343,8 +343,10 @@ pars_column_def(
 	sym_node_t*		sym_node,	/* in: column node in the
 						symbol table */
 	pars_res_word_t* 	type,		/* in: data type */
-	sym_node_t*		len);		/* in: length of column, or
+	sym_node_t*		len,		/* in: length of column, or
 						NULL */
+	void*			is_not_null);	/* in: if not NULL, column
+						is of type NOT NULL. */
 /*************************************************************************
 Parses a table creation operation. */
 
