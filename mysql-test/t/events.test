@@ -374,6 +374,27 @@ drop table t_16;
 # end of test case
 ####
 
+#
+# START: BUG #17453: Creating Event crash the server
+#
+create event white_space
+on schedule every 10 hour
+disable
+do
+select 1;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+drop event white_space;
+create event white_space on schedule every 10 hour disable do
+select 2;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+drop event white_space;
+create event white_space on schedule every 10 hour disable do	select 3;
+select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
+drop event white_space;
+#
+# END:  BUG #17453: Creating Event crash the server
+#
+
 ##set global event_scheduler=1;
 ##select get_lock("test_lock3", 20);
 ##create event закачка on schedule every 10 hour do select get_lock("test_lock3", 20);
