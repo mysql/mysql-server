@@ -934,6 +934,7 @@ scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
 scripts/mysql_tableinfo
+scripts/mysql_upgrade
 scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
@@ -1613,4 +1614,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-scripts/mysql_upgrade

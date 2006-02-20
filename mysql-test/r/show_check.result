@@ -141,7 +141,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 flush tables;
@@ -248,7 +248,7 @@ t1	CREATE TABLE `t1` (
   `type_blob` blob,
   `type_medium_blob` mediumblob,
   `type_long_blob` longblob,
-  PRIMARY KEY  (`type_tiny`),
+  PRIMARY KEY (`type_tiny`),
   KEY `type_short` (`type_short`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
 insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
@@ -549,7 +549,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  PRIMARY KEY  USING HASH (`c1`),
+  PRIMARY KEY USING HASH (`c1`),
   KEY `c2` USING BTREE (`c2`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
