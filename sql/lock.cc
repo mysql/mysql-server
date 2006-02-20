@@ -499,112 +499,91 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   NOTE
     This is mainly meant for MERGE tables in INSERT ... SELECT
     situations. The 'real', underlying tables can be found only after
-    the table is opened. The easier way is to check this after the
-    tables are locked.
+    the MERGE tables are opened. This function assumes that the tables are
+    already locked.
+
+    Temporary tables are ignored here like they are ignored in
+    get_lock_data(). If we allow two opens on temporary tables later,
+    both functions should be checked.
 
   RETURN
-    1           A table from 'tables' matches a lock on 'table'.
-    0           No duplicate lock is present.
-    -1          Error.
+    NULL        No duplicate lock found.
+    ! NULL      First table from 'haystack' that matches a lock on 'needle'.
 */
 
 TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack)
 {
-  uint                  count;
-  uint                  dup_pos;
-  TABLE                 *write_lock_used; /* dummy */
-  TABLE                 **tables1;
-  TABLE                 **tables2;
-  TABLE                 **table_ptr;
-  TABLE_LIST            *tlist_ptr;
-  MYSQL_LOCK            *sql_lock1;
-  MYSQL_LOCK            *sql_lock2;
-  THR_LOCK_DATA         **lock_data1;
-  THR_LOCK_DATA         **end_data1;
+  MYSQL_LOCK            *mylock;
+  TABLE                 **lock_tables;
+  TABLE                 *table;
+  TABLE                 *table2;
+  THR_LOCK_DATA         **lock_locks;
+  THR_LOCK_DATA         **table_lock_data;
+  THR_LOCK_DATA         **end_data;
   THR_LOCK_DATA         **lock_data2;
   THR_LOCK_DATA         **end_data2;
-  THR_LOCK              *lock1;
   DBUG_ENTER("mysql_lock_have_duplicate");
 
   /* Table may not be defined for derived or view tables. */
-  if (! needle->table)
-    DBUG_RETURN(NULL);
+  if (! (table= needle->table))
+    goto end;
 
-  /* Get lock(s) for needle. */
-  tables1= &needle->table;
-  if (! (sql_lock1= get_lock_data(thd, tables1, 1, 1, &write_lock_used)))
-    goto err0;
+  /* A temporary table does not have locks. */
+  if (table->s->tmp_table == TMP_TABLE)
+    goto end;
 
-  /* Count real tables in list. */
-  count=0;
-  for (tlist_ptr = haystack; tlist_ptr; tlist_ptr= tlist_ptr->next_global)
-    if (! tlist_ptr->placeholder() && ! tlist_ptr->schema_table)
-      count++;
-  /* Allocate a table array. */
-  if (! (tables2= (TABLE**) sql_alloc(sizeof(TABLE*) * count)))
-    goto err1;
-  table_ptr= tables2;
-  /* Assign table pointers. */
-  for (tlist_ptr = haystack; tlist_ptr; tlist_ptr= tlist_ptr->next_global)
-    if (! tlist_ptr->placeholder() && ! tlist_ptr->schema_table)
-      *(table_ptr++)= tlist_ptr->table;
-  /* Get lock(s) for haystack. */
-  if (! (sql_lock2= get_lock_data(thd, tables2, count, 1, &write_lock_used)))
-    goto err1;
+  /* Get command lock or LOCK TABLES lock. Maybe empty for INSERT DELAYED. */
+  if (! (mylock= thd->lock ? thd->lock : thd->locked_tables))
+    goto end;
 
-  /* Initialize duplicate position to an impossible value. */
-  dup_pos= UINT_MAX;
-  /*
-    Find a duplicate lock.
-    In case of merge tables, sql_lock1 can have more than 1 lock.
-  */
-  for (lock_data1= sql_lock1->locks,
-         end_data1= lock_data1 + sql_lock1->lock_count;
-       lock_data1 < end_data1;
-       lock_data1++)
+  /* If we have less than two tables, we cannot have duplicates. */
+  if (mylock->table_count < 2)
+    goto end;
+
+  lock_locks=  mylock->locks;
+  lock_tables= mylock->table;
+
+  /* Prepare table related variables that don't change in loop. */
+  DBUG_ASSERT(table == lock_tables[table->lock_position]);
+  table_lock_data= lock_locks + table->lock_data_start;
+  end_data= table_lock_data + table->lock_count;
+
+  for (; haystack; haystack= haystack->next_global)
   {
-    lock1= (*lock_data1)->lock;
-    for (lock_data2= sql_lock2->locks,
-           end_data2= lock_data2 + sql_lock2->lock_count;
+    if (haystack->placeholder() || haystack->schema_table)
+      continue;
+    table2= haystack->table;
+    if (table2->s->tmp_table == TMP_TABLE)
+      continue;
+
+    /* All tables in list must be in lock. */
+    DBUG_ASSERT(table2 == lock_tables[table2->lock_position]);
+
+    for (lock_data2=  lock_locks + table2->lock_data_start,
+           end_data2= lock_data2 + table2->lock_count;
          lock_data2 < end_data2;
          lock_data2++)
     {
-      if ((*lock_data2)->lock == lock1)
+      THR_LOCK_DATA **lock_data;
+      THR_LOCK *lock2= (*lock_data2)->lock;
+
+      for (lock_data= table_lock_data;
+           lock_data < end_data;
+           lock_data++)
       {
-        DBUG_PRINT("ingo", ("duplicate lock found"));
-        /* Change duplicate position to the real value. */
-        dup_pos= lock_data2 - sql_lock2->locks;
-        goto end;
+        if ((*lock_data)->lock == lock2)
+        {
+          DBUG_PRINT("info", ("haystack match: '%s'", haystack->table_name));
+          DBUG_RETURN(haystack);
+        }
       }
     }
   }
 
  end:
-  tlist_ptr= NULL; /* In case that no duplicate was found. */
-  if (dup_pos != UINT_MAX)
-  {
-    /* Duplicate found. Search the matching TABLE_LIST object. */
-    count= 0;
-    for (tlist_ptr = haystack; tlist_ptr; tlist_ptr= tlist_ptr->next_global)
-    {
-      if (! tlist_ptr->placeholder() && ! tlist_ptr->schema_table)
-      {
-        count+= tlist_ptr->table->file->lock_count();
-        if (count > dup_pos)
-          break;
-      }
-    }
-  }
-  my_free((gptr) sql_lock2, MYF(0));
-  my_free((gptr) sql_lock1, MYF(0));
-  DBUG_RETURN(tlist_ptr);
-
- err1:
-  my_free((gptr) sql_lock1, MYF(0));
- err0:
-  /* This non-null but special value indicates error, if caller cares. */
-  DBUG_RETURN(needle);
+  DBUG_PRINT("info", ("no duplicate found"));
+  DBUG_RETURN(NULL);
 }
 
 
@@ -693,6 +672,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   for (i=0 ; i < count ; i++)
   {
     TABLE *table;
+    enum thr_lock_type lock_type;
+
     if ((table=table_ptr[i])->s->tmp_table == TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
