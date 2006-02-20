@@ -5350,7 +5350,11 @@ restore:
 	RESTORE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_RESTORE_TABLE;
-           WARN_DEPRECATED("RESTORE TABLE", "Command will be removed in next version.");
+           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                               ER_WARN_DEPRECATED_STATEMENT,
+                               ER(ER_WARN_DEPRECATED_STATEMENT),
+                               "RESTORE TABLE", "5.2",
+                               "mysqldump, mysql, MySQL Administrator");
 	}
 	table_list FROM TEXT_STRING_sys
         {
@@ -5361,7 +5365,11 @@ backup:
 	BACKUP_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_BACKUP_TABLE;
-           WARN_DEPRECATED("BACKUP TABLE", "Command will be removed in next version.");
+           push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                               ER_WARN_DEPRECATED_STATEMENT,
+                               ER(ER_WARN_DEPRECATED_STATEMENT),
+                               "BACKUP TABLE", "5.2",
+                               "mysqldump, mysql, MySQL Administrator");
 	}
 	table_list TO_SYM TEXT_STRING_sys
         {
@@ -8668,7 +8676,11 @@ load:   LOAD DATA_SYM
         LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  LEX *lex=Lex;
-          WARN_DEPRECATED("LOAD TABLE from MASTER", "Command will be removed in next version.");
+          push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_WARN_DEPRECATED_STATEMENT,
+                              ER(ER_WARN_DEPRECATED_STATEMENT),
+                              "LOAD TABLE FROM MASTER", "5.2",
+                              "mysqldump, mysql, MySQL Administrator");
           if (lex->sphead)
 	  {
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "LOAD TABLE");
