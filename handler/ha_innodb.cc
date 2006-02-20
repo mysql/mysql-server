@@ -4781,12 +4781,8 @@ create_index(
 
 		field_lengths[i] = key_part->length;
 
-		/* We assume all fields should be sorted in ascending
-		order, hence the '0': */
-
 		dict_mem_index_add_field(index,
-				(char*) key_part->field->field_name,
-				0, prefix_len);
+			(char*) key_part->field->field_name, prefix_len);
 	}
 
 	/* Even though we've defined max_supported_key_part_length, we

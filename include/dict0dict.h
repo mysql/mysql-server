@@ -660,7 +660,6 @@ dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
 	dict_col_t*	col,		/* in: column */
-	ulint		order,		/* in: order criterion */
 	ulint		prefix_len);	/* in: column prefix length */
 /***********************************************************************
 Copies types of fields contained in index to tuple. */
@@ -679,13 +678,6 @@ dict_index_get_tree(
 /*================*/
 				/* out: index tree */
 	dict_index_t*	index);	/* in: index */
-/*************************************************************************
-Gets the field order criterion. */
-UNIV_INLINE
-ulint
-dict_field_get_order(
-/*=================*/
-	dict_field_t*	field);
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE

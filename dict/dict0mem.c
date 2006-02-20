@@ -261,8 +261,6 @@ dict_mem_index_add_field(
 /*=====================*/
 	dict_index_t*	index,		/* in: index */
 	const char*	name,		/* in: column name */
-	ulint		order,		/* in: order criterion; 0 means an
-					ascending order */
 	ulint		prefix_len)	/* in: 0 or the column prefix length
 					in a MySQL index like
 					INDEX (textcol(25)) */
@@ -277,8 +275,6 @@ dict_mem_index_add_field(
 	field = dict_index_get_nth_field(index, index->n_def - 1);	
 
 	field->name = name;
-	field->order = order;
-
 	field->prefix_len = prefix_len;
 }
 
