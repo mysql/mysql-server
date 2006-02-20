@@ -5116,6 +5116,7 @@ release_part_info_log_entries(TABLE_LOG_MEMORY_ENTRY *log_entry)
     the partition info object
 */
 
+static
 bool
 write_log_replace_delete_frm(ALTER_PARTITION_PARAM_TYPE *lpt,
                             uint next_entry,
@@ -5719,7 +5720,7 @@ write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt, bool dont_crash)
 
 static
 void
-release_log_entries(partition *part_info)
+release_log_entries(partition_info *part_info)
 {
   lock_global_table_log();
   release_part_info_log_entries(part_info->first_log_entry);
@@ -5748,7 +5749,7 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
   DBUG_ENTER("handle_alter_part_error");
 
   if (!part_info->first_log_entry &&
-      execute_table_log_entry(part_info->first_log_entry))
+      execute_table_log_entry(part_info->first_log_entry->entry_pos))
   {
     /*
       We couldn't recover from error, most likely manual interaction is required.
@@ -5757,19 +5758,24 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
     release_log_entries(part_info);
     if (not_completed)
     {
-      char *text1= "Operation was unsuccessful, table is still intact, ";
+      char *text1= 
+      (char*)"Operation was unsuccessful, table is still intact, ";
       if (drop_partition)
       {
         /* Table is still ok, but we left a shadow frm file behind. */
-        char *text2= "but it is possible that a shadow frm file was left behind";
+        char *text2=
+      (char*)"but it is possible that a shadow frm file was left behind";
         push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
                             "%s \n %s", text1, text2);
       }
       else
       {
-        char *text2= "but it is possible that a shadow frm file was left behind.";
-        char *text3= "It is also possible that temporary partitions are left behind, ";
-        char *text4= "these could be empty or more or less filled with records";
+        char *text2=
+      (char*)"but it is possible that a shadow frm file was left behind.";
+        char *text3=
+      (char*)"It is also possible that temporary partitions are left behind, ";
+        char *text4=
+      (char*)"these could be empty or more or less filled with records";
         push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
                             "%s \n %s \n %s \n %s", text1, text2, text3, text4);
       }
@@ -5782,11 +5788,14 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
            Failed during install of shadow frm file, table isn't intact
            and dropped partitions are still there
         */
-        char *text1= "Failed during alter of partitions, table is no longer intact, ";
-        char *text2= "The frm file is in an unknown state, and a backup";
-        char *text3= " is required.
-        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
-                           "%s \n %s%s\n", text1, text2, text3);
+        char *text1=
+      (char*)"Failed during alter of partitions, table is no longer intact, ";
+        char *text2=
+      (char*)"The frm file is in an unknown state, and a backup";
+        char *text3=
+      (char*)" is required.";
+        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                            "%s \n %s%s\n", text1, text2, text3);
       }
       else if (drop_partition)
       {
@@ -5796,10 +5805,12 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
           perform the action manually. We remove the log records and ask the user
           to perform the action manually.
         */
-        char *text1= "Failed during drop of partitions, table is intact, ";
-        char *text2= "Manual drop of remaining partitions is required";
-        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
-                           "%s\n%s", text1, text2);
+        char *text1=
+      (char*)"Failed during drop of partitions, table is intact, ";
+        char *text2=
+      (char*)"Manual drop of remaining partitions is required";
+        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                            "%s\n%s", text1, text2);
       }
       else
       {
@@ -5808,11 +5819,14 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
           a very bad state so we give user warning and disable the table by
           writing an ancient frm version into it.
         */
-        char *text1= "Failed during renaming of partitions. We are now in a position"
-        char *text2= " where table is not reusable";
-        char *text3= "Table is disabled by writing ancient frm file version into it";
-        push_warning_print(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
-                           "%s%s\n%s", text1, text2, text3);
+        char *text1=
+      (char*)"Failed during renaming of partitions. We are now in a position";
+        char *text2=
+      (char*)" where table is not reusable";
+        char *text3=
+      (char*)"Table is disabled by writing ancient frm file version into it";
+        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+                            "%s%s\n%s", text1, text2, text3);
       }
     }
     
@@ -5839,7 +5853,7 @@ handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt, bool not_completed,
         completed.
       */
       push_warning(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
-      "Operation was successfully completed after failure of normal operation");
+   "Operation was successfully completed after failure of normal operation");
     }
   }
   DBUG_VOID_RETURN;
@@ -5924,15 +5938,16 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       In this case it is enough to call optimise_partitions, there is no
       need to change frm files or anything else.
     */
+    int error;
     written_bin_log= FALSE;
     if (((alter_info->flags & ALTER_OPTIMIZE_PARTITION) &&
-         (table->file->optimize_partitions(thd))) ||
+         (error= table->file->optimize_partitions(thd))) ||
         ((alter_info->flags & ALTER_ANALYZE_PARTITION) &&
-         (table->file->analyze_partitions(thd))) ||
+         (error= table->file->analyze_partitions(thd))) ||
         ((alter_info->flags & ALTER_CHECK_PARTITION) &&
-         (table->file->check_partitions(thd))) ||
+         (error= table->file->check_partitions(thd))) ||
         ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
-         (table->file->repair_partitions(thd))))
+         (error= table->file->repair_partitions(thd))))
     {
       table->file->print_error(error, MYF(0));
       DBUG_RETURN(TRUE);

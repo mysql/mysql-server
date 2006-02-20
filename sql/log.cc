@@ -101,7 +101,9 @@ handlerton binlog_hton = {
   NULL,                         /* Partition flags */
   NULL,                         /* Alter table flags */
   NULL,                         /* Alter Tablespace */
-  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN
+  HTON_NOT_USER_SELECTABLE | HTON_HIDDEN,
+  NULL,                         /* binlog func */
+  NULL                          /* binlog query */
 };
 
 
