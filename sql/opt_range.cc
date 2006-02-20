@@ -1951,9 +1951,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           read_time= (double) HA_POS_ERROR;
           goto free_mem;
         }
-        if (tree->type != SEL_TREE::KEY &&
-            tree->type != SEL_TREE::KEY_SMALLER)
-          goto free_mem;
+        /*
+          If the tree can't be used for range scans, proceed anyway, as we
+          can construct a group-min-max quick select
+        */
+        if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+          tree= NULL;
       }
     }
 
