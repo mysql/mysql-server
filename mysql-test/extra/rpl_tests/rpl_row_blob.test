@@ -40,6 +40,7 @@ SELECT LENGTH(data) FROM test.t1 WHERE c1 = 3;
 save_master_pos;
 connection slave;
 sync_with_master; 
+sleep 5;
 --echo
 --echo **** Data Insert Validation Slave Section test.t1 ****
 --echo
@@ -61,10 +62,10 @@ SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
 # Sleep is needed for NDB to allow time for
 # Injector thread to populate the bin log.
-sleep 10;
 save_master_pos;
 connection slave;
 sync_with_master; 
+sleep 5;
 --echo
 --echo **** Data Update Validation Slave Section test.t1 ****
 --echo
@@ -135,6 +136,7 @@ FROM test.t2 WHERE c1=2;
 save_master_pos;
 connection slave;
 sync_with_master; 
+sleep 5;
 --echo
 --echo **** Data Insert Validation Slave Section test.t2 ****
 --echo
@@ -159,10 +161,10 @@ SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=2;
 # Sleep is needed for NDB to allow time for
 # Injector thread to populate the bin log.
-sleep 15;
 save_master_pos;
 connection slave;
 sync_with_master; 
+sleep 5;
 --echo
 --echo **** Data Update Validation Slave Section test.t2 ****
 --echo
