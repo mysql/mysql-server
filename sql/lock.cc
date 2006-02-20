@@ -159,8 +159,6 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
            sql_lock->lock_count * sizeof(*sql_lock->locks));
     /* Lock on the copied half of the lock data array. */
-    if (thr_multi_lock(sql_lock->locks + sql_lock->lock_count,
-                       sql_lock->lock_count))
     rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                      sql_lock->lock_count,
                                                      sql_lock->lock_count,
