@@ -4929,7 +4929,7 @@ drop procedure bug5967|
 #
 --disable_warnings
 drop procedure if exists bug13012|
---enable_warnings
+# Disable warnings also for BACKUP/RESTORE: they are deprecated.
 create procedure bug13012()
 BEGIN
   REPAIR TABLE t1;
@@ -4938,6 +4938,7 @@ BEGIN
   RESTORE TABLE t1 FROM '../tmp';
 END|
 call bug13012()|
+--enable_warnings
 drop procedure bug13012|
 create view v1 as select * from t1|
 create procedure bug13012()
