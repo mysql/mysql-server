@@ -145,11 +145,13 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+#if 0
   {"use-threads", OPT_USE_THREADS,
    "Load files in parallel. The argument is the number "
    "of threads to use for loading data.",
    (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -299,7 +301,11 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
+#ifdef HAVE_SNPRINTF
     snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
+#else
+    sprintf(sql_statement, "DELETE FROM %s", tablename);
+#endif
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);
@@ -516,7 +522,11 @@ pthread_handler_t worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;
-  MYSQL *mysql;
+  MYSQL *mysql= 0;
+
+  if (mysql_thread_init())
+    goto error;
+  
   if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
   {
     goto error;
@@ -528,6 +538,9 @@ pthread_handler_t worker_thread(void *arg)
     goto error;
   }
 
+  /*
+    We are not currently catching the error here.
+  */
   if((error= write_to_table(raw_table_name, mysql)))
     if (exitcode == 0)
       exitcode= error;
@@ -539,6 +552,8 @@ error:
   pthread_mutex_lock(&counter_mutex);
   counter--;
   pthread_mutex_unlock(&counter_mutex);
+  my_thread_end();
+
   return 0;
 }
 

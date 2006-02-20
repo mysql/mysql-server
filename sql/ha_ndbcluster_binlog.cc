@@ -1858,8 +1858,7 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
     /*
       create the event operations for receiving logging events
     */
-    if (ndbcluster_create_event_ops(share, ndbtab,
-                                    event_name.c_ptr()) < 0)
+    if (ndbcluster_create_event_ops(share, ndbtab, event_name.c_ptr()))
     {
       sql_print_error("NDB Binlog:"
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
@@ -1874,7 +1873,8 @@ int ndbcluster_create_binlog_setup(Ndb *ndb, const char *key,
 
 int
 ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
-                        const char *event_name, NDB_SHARE *share)
+                        const char *event_name, NDB_SHARE *share,
+                        int push_warning)
 {
   DBUG_ENTER("ndbcluster_create_event");
   DBUG_PRINT("info", ("table=%s version=%d event=%s share=%s",
@@ -1901,8 +1901,14 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     if (share->flags & NSF_BLOB_FLAG)
     {
       sql_print_error("NDB Binlog: logging of table %s "
-                      "with no PK and blob attributes is not supported",
+                      "with BLOB attribute and no PK is not supported",
                       share->key);
+      if (push_warning)
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_ILLEGAL_HA_CREATE_OPTION, ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ndbcluster_hton.name,
+                            "Binlog of table with BLOB attribute and no PK");
+        
       share->flags|= NSF_NO_BINLOG;
       DBUG_RETURN(-1);
     }
@@ -1935,17 +1941,16 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
 
   if (dict->createEvent(my_event)) // Add event to database
   {
-#ifdef NDB_BINLOG_EXTRA_WARNINGS
-    /*
-      failed, print a warning
-    */
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        dict->getNdbError().code,
-                        dict->getNdbError().message, "NDB");
-#endif
     if (dict->getNdbError().classification != NdbError::SchemaObjectExists)
     {
+      /*
+        failed, print a warning
+      */
+      if (push_warning)
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            dict->getNdbError().code,
+                            dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
                       "Event: %s  Error Code: %d  Message: %s", event_name,
                       dict->getNdbError().code, dict->getNdbError().message);
@@ -1957,6 +1962,11 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     */
     if (dict->dropEvent(my_event.getName()))
     {
+      if (push_warning)
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            dict->getNdbError().code,
+                            dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
                       " Attempt to correct with drop failed. "
                       "Event: %s Error Code: %d Message: %s",
@@ -1971,6 +1981,11 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     */
     if (dict->createEvent(my_event))
     {
+      if (push_warning)
+        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            dict->getNdbError().code,
+                            dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
                       " Attempt to correct with drop ok, but create failed. "
                       "Event: %s Error Code: %d Message: %s",
