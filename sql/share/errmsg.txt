@@ -5810,3 +5810,5 @@ ER_ILLEGAL_HA_CREATE_OPTION
         eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
 ER_CANT_CHANGE_TX_ISOLATION 25001
 	eng "Transaction isolation level can't be changed while a transaction is in progress"
+ER_TABLE_LOG_ERROR
+        eng "Error in table log"
