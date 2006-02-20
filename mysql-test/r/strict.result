@@ -1268,7 +1268,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   `b` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(a int, b timestamp default 20050102030405);
@@ -1278,7 +1278,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   `b` timestamp NOT NULL default '2005-01-02 03:04:05',
-  PRIMARY KEY  (`a`)
+  PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 set @@sql_mode='traditional';

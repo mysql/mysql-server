@@ -749,12 +749,6 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   written into binary log. Instead we catch function calls the statement
   makes and write it into binary log separately (see #3).
   
-  We actually can easily write SELECT statements into the binary log in the 
-  right order (we don't have issues with const tables being unlocked early
-  because SELECTs that use FUNCTIONs unlock all tables at once) We don't do 
-  it because replication slave thread currently can't execute SELECT
-  statements. Fixing this is on the TODO.
-  
   2. PROCEDURE calls
 
   CALL statements are not written into binary log. Instead
@@ -775,7 +769,7 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
      function execution (grep for start_union_events and stop_union_events)
 
    If the answers are No and Yes, we write the function call into the binary
-   log as "DO spfunc(<param1value>, <param2value>, ...)"
+   log as "SELECT spfunc(<param1value>, <param2value>, ...)"
   
   
   4. Miscellaneous issues.
@@ -1327,7 +1321,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       char buf[256];
       String bufstr(buf, sizeof(buf), &my_charset_bin);
       bufstr.length(0);
-      bufstr.append(STRING_WITH_LEN("DO "));
+      bufstr.append(STRING_WITH_LEN("SELECT "));
       append_identifier(thd, &bufstr, m_name.str, m_name.length);
       bufstr.append('(');
       for (uint i=0; i < argcount; i++)

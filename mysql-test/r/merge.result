@@ -265,7 +265,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL,
   `othr` int(11) NOT NULL,
-  PRIMARY KEY  (`incr`)
+  PRIMARY KEY (`incr`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 alter table t3 drop primary key;
 show create table t3;
@@ -315,14 +315,14 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL auto_increment,
-  PRIMARY KEY  (`a`,`b`)
+  PRIMARY KEY (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL auto_increment,
-  PRIMARY KEY  (`a`,`b`)
+  PRIMARY KEY (`a`,`b`)
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
 insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);

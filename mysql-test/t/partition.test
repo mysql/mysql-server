@@ -401,4 +401,11 @@ insert into t1 values (1,1),(2,2);
 replace into t1 values (1,1),(2,2);
 drop table t1;
 
+#
+# Bug #17169: Partitions: out of memory if add partition and unique
+#
+create table t1 (s1 int, unique (s1)) partition by list (s1) (partition x1 VALUES in (10), partition x2 values in (20));
+alter table t1 add partition (partition x3 values in (30));
+drop table t1;
+
 --echo End of 5.1 tests

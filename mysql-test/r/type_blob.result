@@ -714,7 +714,7 @@ t1	CREATE TABLE `t1` (
   `c` tinyblob NOT NULL,
   `d` int(11) NOT NULL default '0',
   `e` int(11) default NULL,
-  PRIMARY KEY  (`a`,`b`,`c`(255),`d`),
+  PRIMARY KEY (`a`,`b`,`c`(255),`d`),
   KEY `a` (`a`,`b`,`d`,`e`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
