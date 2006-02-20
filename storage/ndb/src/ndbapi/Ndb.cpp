@@ -1035,39 +1035,37 @@ convertEndian(Uint32 Data)
   return Data;
 #endif
 }
+
+// <internal>
 const char * Ndb::getCatalogName() const
 {
   return theImpl->m_dbname.c_str();
 }
 
-
 void Ndb::setCatalogName(const char * a_catalog_name)
 {
-  if (a_catalog_name)
-  {
+  // TODO can table_name_separator be escaped?
+  if (a_catalog_name && ! strchr(a_catalog_name, table_name_separator)) {
     theImpl->m_dbname.assign(a_catalog_name);
     theImpl->update_prefix();
   }
 }
-
 
 const char * Ndb::getSchemaName() const
 {
   return theImpl->m_schemaname.c_str();
 }
 
-
 void Ndb::setSchemaName(const char * a_schema_name)
 {
-  if (a_schema_name) {
+  // TODO can table_name_separator be escaped?
+  if (a_schema_name && ! strchr(a_schema_name, table_name_separator)) {
     theImpl->m_schemaname.assign(a_schema_name);
     theImpl->update_prefix();
   }
 }
+// </internal>
  
-/*
-Deprecated functions
-*/
 const char * Ndb::getDatabaseName() const
 {
   return getCatalogName();
@@ -1086,6 +1084,24 @@ const char * Ndb::getDatabaseSchemaName() const
 void Ndb::setDatabaseSchemaName(const char * a_schema_name)
 {
   setSchemaName(a_schema_name);
+}
+
+int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
+{
+  const char* s0 = t->m_impl.m_internalName.c_str();
+  const char* s1 = strchr(s0, table_name_separator);
+  if (s1 && s1 != s0) {
+    const char* s2 = strchr(s1 + 1, table_name_separator);
+    if (s2 && s2 != s1 + 1) {
+      char buf[200];
+      sprintf(buf, "%.*s", s1 - s0, s0);
+      setDatabaseName(buf);
+      sprintf(buf, "%.*s", s2 - (s1 + 1), s1 + 1);
+      setDatabaseSchemaName(buf);
+      return 0;
+    }
+  }
+  return -1;
 }
  
 bool Ndb::usingFullyQualifiedNames()
@@ -1149,9 +1165,16 @@ Ndb::internalize_table_name(const char *external_name) const
   if (fullyQualifiedNames)
   {
     /* Internal table name format <db>/<schema>/<table>
-       <db>/<schema> is already available in m_prefix
+       <db>/<schema>/ is already available in m_prefix
        so just concat the two strings
      */
+#ifdef VM_TRACE
+    // verify that m_prefix looks like abc/def/
+    const char* s0 = theImpl->m_prefix.c_str();
+    const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
+    const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
+    assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+#endif
     ret.assfmt("%s%s",
                theImpl->m_prefix.c_str(),
                external_name);

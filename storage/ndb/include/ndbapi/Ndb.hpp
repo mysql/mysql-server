@@ -1147,6 +1147,15 @@ public:
    */
   void setDatabaseSchemaName(const char * aDatabaseSchemaName);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /** Set database and schema name to match previously retrieved table
+   *
+   * Returns non-zero if table internal name does not contain
+   * non-empty database and schema names
+   */
+  int setDatabaseAndSchemaName(const NdbDictionary::Table* t);
+#endif
+
   /**
    * Initializes the Ndb object
    *
