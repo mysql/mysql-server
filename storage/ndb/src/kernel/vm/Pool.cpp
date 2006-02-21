@@ -14,35 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef SimBlockList_H
-#define SimBlockList_H
 
-#include <SimulatedBlock.hpp>
+#include "Pool.hpp"
+#include "SimulatedBlock.hpp"
 
-class EmulatorData;
-
-class SimBlockList 
+void*
+Pool_context::alloc_page(Uint32 type_id, Uint32 *i)
 {
-public:
-  SimBlockList();
-  ~SimBlockList();
+  return m_block->m_ctx.m_mm.alloc_page(type_id, i);
+}
   
-  void load(EmulatorData&);
-  void unload();
-private:
-  int noOfBlocks;
-  SimulatedBlock** theList;
-};
-
-inline
-SimBlockList::SimBlockList(){
-  noOfBlocks = 0;
-  theList    = 0;
+void 
+Pool_context::release_page(Uint32 type_id, Uint32 i, void* p)
+{
+  m_block->m_ctx.m_mm.release_page(type_id, i, p);
 }
 
-inline
-SimBlockList::~SimBlockList(){
-  unload();
+void
+Pool_context::handle_abort(const AbortArg &)
+{
+  
 }
-
-#endif

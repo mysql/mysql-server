@@ -18,17 +18,6 @@
 #define KERNEL_RECORDS_HPP
 
 /**
- * Record types
- */
-#define PGMAN_PAGE_REQUEST      1
-
-#define LGMAN_LOG_BUFFER_WAITER 2
-#define LGMAN_LOG_SYNC_WAITER   3
-
-#define DBTUP_PAGE_REQUEST      4
-#define DBTUP_EXTENT_INFO       5
-
-/**
  * Resource groups
  */
 
@@ -46,5 +35,22 @@
  *   DBTUP_EXTENT_INFO
  */
 #define RG_DISK_RECORDS         2
+
+/**
+ * 
+ */
+#define RG_RESERVED             0
+#define RG_COUNT                3
+
+/**
+ * Record types
+ */
+#define PGMAN_PAGE_REQUEST      MAKE_TID(1, RG_DISK_OPERATIONS)
+
+#define LGMAN_LOG_BUFFER_WAITER MAKE_TID(2, RG_DISK_OPERATIONS)
+#define LGMAN_LOG_SYNC_WAITER   MAKE_TID(3, RG_DISK_OPERATIONS)
+
+#define DBTUP_PAGE_REQUEST      MAKE_TID(4, RG_DISK_OPERATIONS)
+#define DBTUP_EXTENT_INFO       MAKE_TID(5, RG_DISK_RECORDS)
 
 #endif
