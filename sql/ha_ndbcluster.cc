@@ -4463,7 +4463,9 @@ int ha_ndbcluster::create(const char *name,
   DBUG_RETURN(my_errno);
 }
 
-int ha_ndbcluster::create_handler_files(const char *file) 
+int ha_ndbcluster::create_handler_files(const char *file,
+                                        const char *old_name,
+                                        bool rename_flag) 
 { 
   const char *name;
   Ndb* ndb;
@@ -4474,6 +4476,10 @@ int ha_ndbcluster::create_handler_files(const char *file)
 
   DBUG_ENTER("create_handler_files");
 
+  if (rename_flag)
+  {
+    DBUG_RETURN(FALSE);
+  }
   if (!(ndb= get_ndb()))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
