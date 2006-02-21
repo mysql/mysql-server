@@ -31,8 +31,8 @@ connection master;
 # Should drop the non-temporary table t1 and the temporary table t2
 DROP TABLE t1,t2;
 let $VERSION=`select version()`;
---replace_result $VERSION VERSION
-SHOW BINLOG EVENTS;
+#--replace_result $VERSION VERSION
+#SHOW BINLOG EVENTS;
 SHOW TABLES;
 sync_slave_with_master;
 --echo **** On Slave ****
