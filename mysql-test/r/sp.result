@@ -539,7 +539,7 @@ drop procedure if exists into_outfile|
 create procedure into_outfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into outfile "/tmp/spout" from test.t1;
+select * into outfile "../tmp/spout" from test.t1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_outfile("ofile", 1)|
@@ -549,7 +549,7 @@ drop procedure if exists into_dumpfile|
 create procedure into_dumpfile(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-select * into dumpfile "/tmp/spdump" from test.t1 limit 1;
+select * into dumpfile "../tmp/spdump" from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_dumpfile("dfile", 1)|
