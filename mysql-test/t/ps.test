@@ -763,5 +763,27 @@ execute stmt using @like;
 deallocate prepare stmt;
 drop table t1;
 
-# End of 4.1 tests
 
+#
+# Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
+# recreated with PS/SP"
+#
+
+drop table if exists t1;
+prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
+execute stmt;
+--disable_warnings
+insert into t1 (a) values (repeat('a', 20));
+--enable_warnings
+select length(a) from t1;
+drop table t1;
+execute stmt;
+--disable_warnings
+insert into t1 (a) values (repeat('a', 20));
+--enable_warnings
+# Check that the data is truncated to the same length
+select length(a) from t1;
+drop table t1;
+deallocate prepare stmt;
+
+# End of 4.1 tests

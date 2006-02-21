@@ -4480,6 +4480,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 						  NOT_FIXED_DEC-1) : 0;
   new_field->sql_type=type;
   new_field->length=0;
+  new_field->char_length= 0;
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
@@ -4750,6 +4751,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 					    FIELD_TYPE_STRING :
 					    new_field->sql_type,
 					    new_field->length);
+  new_field->char_length= new_field->length;
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
