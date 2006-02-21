@@ -2979,7 +2979,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
   ppar->last_subpart_partno= 
     used_subpart_fields?(int)(used_part_fields + used_subpart_fields - 1): -1;
 
-  if (is_sub_partitioned(part_info))
+  if (part_info->is_sub_partitioned())
   {
     ppar->mark_full_partition_used=  mark_full_partition_used_with_parts;
     ppar->get_top_partition_id_func= part_info->get_part_partition_id;
