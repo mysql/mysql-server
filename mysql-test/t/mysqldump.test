@@ -647,7 +647,7 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
  
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\\\t1" 2>&1
 
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
@@ -840,11 +840,11 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---exec echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
---exec echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
---exec rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 #
 # Test of fix to BUG 12597
@@ -960,15 +960,16 @@ set time_zone=default;
 #
 --disable_warnings
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
+--enable_warnings
+
 CREATE TABLE `t1 test` (
   `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
---enable_warnings
 
 DELIMITER //;
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
@@ -983,11 +984,10 @@ SELECT * FROM `t2 test`;
 # quoted
 --exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
 
---disable_warnings
 DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
---enable_warnings
+
 #
 # BUG# 12838 mysqldump -x with views exits with error 
 #
@@ -1049,8 +1049,37 @@ SET SQL_MODE = @old_sql_mode;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 
---disable_parsing
 #
+
+#
+# Bug 14871 Invalid view dump output
+#
+
+create table t1 (a int);
+insert into t1 values (289), (298), (234), (456), (789);
+create definer = CURRENT_USER view v1 as select * from t1;
+create SQL SECURITY INVOKER view v2 as select * from t1;
+create view v3 as select * from t1 with local check option;
+create algorithm=merge view v4 as select * from t1 with cascaded check option;
+create algorithm =temptable view v5 as select * from t1;
+
+# dump tables and views
+--exec $MYSQL_DUMP test > var/tmp/bug14871.sql
+
+# drop the db, tables and views
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
+# Reload dump
+--exec $MYSQL test < var/tmp/bug14871.sql
+
+# check that all tables and views could be created
+show tables;
+select * from v3 order by a;
+
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
 # Added for use-thread option
 #
 create table t1 (a text , b text);
@@ -1070,7 +1099,22 @@ select * from t2;
 --exec $MYSQL_IMPORT --silent --use-threads=5 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
 select * from t1;
 select * from t2;
+# Now we test with multiple threads, but less threads than files.
+create table words(a varchar(255));
+create table words2(b varchar(255));
+--exec $MYSQL_IMPORT --silent --use-threads=2 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt $MYSQLTEST_VARDIR/std_data_ln/words.dat $MYSQLTEST_VARDIR/std_data_ln/words2.dat
+select * from t1;
+select * from t2;
+select * from words;
+select * from words2;
+
+# Drop table "words" and run with threads, should fail
+drop table words;
+--replace_regex /.*mysqlimport/mysql-import/
+--error 1
+--exec $MYSQL_IMPORT --silent --use-threads=2 test $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt $MYSQLTEST_VARDIR/std_data_ln/words.dat $MYSQLTEST_VARDIR/std_data_ln/words2.dat 2>&1
 
 drop table t1;
 drop table t2;
---enable_parsing
+
+drop table words2;
