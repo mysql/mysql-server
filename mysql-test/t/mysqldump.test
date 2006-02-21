@@ -1080,6 +1080,55 @@ select * from v3 order by a;
 drop table t1;
 drop view v1, v2, v3, v4, v5;
 
+
+
+#
+# Bug #16878 dump of trigger
+#
+
+create table t1 (a int, created datetime);
+create table t2 (b int, created datetime);
+create trigger tr1 before insert on t1 for each row set
+new.created=now();
+delimiter |;
+create trigger tr2 after insert on t1
+for each row
+begin
+  insert into t2 set b=new.a and created=new.created;
+end|
+delimiter ;|
+
+# dump table and trigger
+--exec $MYSQL_DUMP test > var/tmp/bug16878.sql
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+
+# reload dump
+--exec $MYSQL test < var/tmp/bug16878.sql
+--replace_column 6 #
+show triggers;
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+
+
+#
+# Bug#14857 Reading dump files with single statement stored routines fails.
+# fixed by patch for bug#16878
+#
+#
+DELIMITER |;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+DELIMITER ;|
+show create function f;
+show create procedure p;
+drop function f;
+drop procedure p;
+
 # Added for use-thread option
 #
 create table t1 (a text , b text);
