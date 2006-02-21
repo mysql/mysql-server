@@ -1603,6 +1603,8 @@ sp_head::reset_lex(THD *thd)
   sublex->trg_table_fields.empty();
   sublex->sp_lex_in_use= FALSE;
 
+  sublex->in_comment= oldlex->in_comment;
+
   /* Reset type info. */
 
   sublex->charset= NULL;
