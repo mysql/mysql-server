@@ -702,13 +702,13 @@ drop procedure if exists into_outfile|
 create procedure into_outfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
-  select * into outfile "/tmp/spout" from test.t1;
+  select * into outfile "../tmp/spout" from test.t1;
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-system rm -f /tmp/spout|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spout
 call into_outfile("ofile", 1)|
-system rm -f /tmp/spout|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spout
 delete from t1|
 drop procedure into_outfile|
 
@@ -718,13 +718,13 @@ drop procedure if exists into_dumpfile|
 create procedure into_dumpfile(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
-  select * into dumpfile "/tmp/spdump" from test.t1 limit 1;
+  select * into dumpfile "../tmp/spdump" from test.t1 limit 1;
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-system rm -f /tmp/spdump|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spdump
 call into_dumpfile("dfile", 1)|
-system rm -f /tmp/spdump|
+--system rm -f $MYSQLTEST_VARDIR/tmp/spdump
 delete from t1|
 drop procedure into_dumpfile|
 
