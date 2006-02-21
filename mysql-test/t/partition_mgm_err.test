@@ -216,6 +216,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT) PARTITION BY HASH(a);
 ALTER TABLE t1 ADD PARTITION PARTITIONS 4;
+DROP TABLE t1;
 
 #
 #BUG 15408: Partitions: subpartition names are not unique
