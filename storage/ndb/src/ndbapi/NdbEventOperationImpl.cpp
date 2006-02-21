@@ -350,10 +350,8 @@ NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo, int n)
       // to hide blob op it is linked under main op, not under m_ndb
       NdbEventOperation* tmp =
         m_ndb->theEventBuffer->createEventOperation(bename, m_error);
-      if (tmp == NULL) {
-        m_error.code = m_ndb->theEventBuffer->m_error.code;
+      if (tmp == NULL)
         DBUG_RETURN(NULL);
-      }
       tBlobOp = &tmp->m_impl;
 
       // pointer to main table op
