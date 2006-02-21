@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  This file was introduced as a container for general functionality related
+  This file is a container for general functionality related
   to partitioning introduced in MySQL version 5.1. It contains functionality
-  used by all handlers that support partitioning, which in the first version
-  is the partitioning handler itself and the NDB handler.
+  used by all handlers that support partitioning, such as
+  the partitioning handler itself and the NDB handler.
 
   The first version was written by Mikael Ronstrom.
 
@@ -26,7 +26,7 @@
   partitioning and composite partitioning (hereafter called subpartitioning)
   where each RANGE/LIST partitioning is HASH partitioned. The hash function
   can either be supplied by the user or by only a list of fields (also
-  called KEY partitioning, where the MySQL server will use an internal
+  called KEY partitioning), where the MySQL server will use an internal
   hash function.
   There are quite a few defaults that can be used as well.
 */
