@@ -1050,6 +1050,36 @@ DROP TRIGGER tr1;
 DROP TABLE t1;
 
 #
+
+#
+# Bug 14871 Invalid view dump output
+#
+
+create table t1 (a int);
+insert into t1 values (289), (298), (234), (456), (789);
+create definer = CURRENT_USER view v1 as select * from t1;
+create SQL SECURITY INVOKER view v2 as select * from t1;
+create view v3 as select * from t1 with local check option;
+create algorithm=merge view v4 as select * from t1 with cascaded check option;
+create algorithm =temptable view v5 as select * from t1;
+
+# dump tables and views
+--exec $MYSQL_DUMP test > var/tmp/bug14871.sql
+
+# drop the db, tables and views
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
+# Reload dump
+--exec $MYSQL test < var/tmp/bug14871.sql
+
+# check that all tables and views could be created
+show tables;
+select * from v3 order by a;
+
+drop table t1;
+drop view v1, v2, v3, v4, v5;
+
 # Added for use-thread option
 #
 create table t1 (a text , b text);
