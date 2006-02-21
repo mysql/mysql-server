@@ -754,6 +754,30 @@ echo test3stop
 --delimiter ;
 echo test4;
 
+
+# ----------------------------------------------------------------------------
+# Test if
+# ----------------------------------------------------------------------------
+
+let $counter=10;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=10);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=10);
+}
+let $counter=0;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=0);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=0);
+}
+
 # ----------------------------------------------------------------------------
 # Test while, { and }
 # ----------------------------------------------------------------------------
@@ -767,7 +791,12 @@ while ($i)
 # One liner
 #let $i=1;while ($i){echo $i;dec $i;}
 
-
+let $i=0;
+while (!$i)
+{
+  echo Testing while with not;
+  inc $i;
+}
 
 # Exceed max nesting level
 --error 1

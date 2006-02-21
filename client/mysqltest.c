@@ -2712,12 +2712,41 @@ int do_done(struct st_query *q)
 }
 
 
+/*
+  Process start of a "if" or "while" statement
+
+  SYNOPSIS
+   do_block()
+    cmd        Type of block
+    q	       called command
+
+  DESCRIPTION
+    if ([!]<expr>)
+    {
+      <block statements>
+    }
+
+    while ([!]<expr>)
+    {
+      <block statements>
+    }
+
+    Evaluates the <expr> and if it evaluates to
+    greater than zero executes the following code block.
+    A '!' can be used before the <expr> to indicate it should
+    be executed if it evaluates to zero.
+
+ */
+
 int do_block(enum block_cmd cmd, struct st_query* q)
 {
   char *p= q->first_argument;
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
+  my_bool not_expr= FALSE;
+  DBUG_ENTER("do_block");
+  DBUG_PRINT("enter", ("%s", cmd_name));
 
   /* Check stack overflow */
   if (cur_block == block_stack_end)
@@ -2738,8 +2767,16 @@ int do_block(enum block_cmd cmd, struct st_query* q)
 
   /* Parse and evaluate test expression */
   expr_start= strchr(p, '(');
-  if (!expr_start)
+  if (!expr_start++)
     die("missing '(' in %s", cmd_name);
+
+  /* Check for !<expr> */
+  if (*expr_start == '!')
+  {
+    not_expr= TRUE;
+    expr_start++; /* Step past the '!' */
+  }
+  /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
   if (!expr_end)
     die("missing ')' in %s", cmd_name);
@@ -2753,14 +2790,20 @@ int do_block(enum block_cmd cmd, struct st_query* q)
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
-  eval_expr(&v, ++expr_start, &expr_end);
+  eval_expr(&v, expr_start, &expr_end);
 
   /* Define inner block */
   cur_block++;
   cur_block->cmd= cmd;
   cur_block->ok= (v.int_val ? TRUE : FALSE);
 
+  if (not_expr)
+    cur_block->ok = !cur_block->ok;
+
+  DBUG_PRINT("info", ("OK: %d", cur_block->ok));
+
   var_free(&v);
+  DBUG_VOID_RETURN;
   return 0;
 }
 
@@ -3616,8 +3659,6 @@ static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
                          const char* val, ulonglong len, bool is_null)
 {
-
-  char buf[256];
   if (col_idx < max_replace_column && replace_column[col_idx])
   {
     val= replace_column[col_idx];
