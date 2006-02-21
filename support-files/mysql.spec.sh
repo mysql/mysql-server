@@ -709,7 +709,7 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Mon Feb 20 03:04:32 CET 2006
+* Mon Feb 20 2006 Kent Boortz <kent@mysql.com>
 
 - Reintroduced a max build
 - Limited testing of 'debug' and 'max' servers
