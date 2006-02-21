@@ -19,6 +19,22 @@
 
 #include <kernel_types.h>
 
+/**
+ * Type id is 11 bits record type, and 5 bits resource id
+ *   -> 2048 different kind of records and 32 different resource groups
+ * 
+ * Resource id is used to handle configuration parameters
+ *
+ * see blocks/records_types.hpp
+ */
+#define RG_BITS 5
+#define RG_MASK ((1 << RG_BITS) - 1)
+#define MAKE_TID(TID,RG) ((TID << RG_BITS) | RG)
+
+/**
+ * Record_info
+ *
+ */
 struct Record_info
 {
   Uint16 m_size;
@@ -27,6 +43,9 @@ struct Record_info
   Uint16 m_offset_magic;
 };
 
+/**
+ * Resource_limit
+ */
 struct Resource_limit
 {
   Uint32 m_min;
@@ -38,7 +57,6 @@ struct Resource_limit
 struct Pool_context
 {
   class SimulatedBlock* m_block;
-  struct Resource_limit* m_resource_limit;
   
   /**
    * Alloc consekutive pages
@@ -48,7 +66,7 @@ struct Pool_context
    *
    * Will handle resource limit 
    */
-  void* alloc_page(Uint32 *i);
+  void* alloc_page(Uint32 type_id, Uint32 *i);
   
   /**
    * Release pages
@@ -56,7 +74,7 @@ struct Pool_context
    *   @param i   : in : i value of first page
    *   @param p   : in : pointer to first page
    */
-  void release_page(Uint32 i, void* p);
+  void release_page(Uint32 type_id, Uint32 i, void* p);
 
   /**
    * Alloc consekutive pages
@@ -70,7 +88,7 @@ struct Pool_context
    *
    * Will handle resource limit 
    */
-  void* alloc_pages(Uint32 *i, Uint32 *cnt, Uint32 min = 1);
+  void* alloc_pages(Uint32 type_id, Uint32 *i, Uint32 *cnt, Uint32 min =1);
   
   /**
    * Release pages
@@ -79,7 +97,7 @@ struct Pool_context
    *   @param p   : in : pointer to first page
    *   @param cnt : in : no of pages to release
    */
-  void release_pages(Uint32 i, void* p, Uint32 cnt);
+  void release_pages(Uint32 type_id, Uint32 i, void* p, Uint32 cnt);
   
   /**
    * Pool abort
