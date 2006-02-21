@@ -145,13 +145,11 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-#if 0
   {"use-threads", OPT_USE_THREADS,
    "Load files in parallel. The argument is the number "
    "of threads to use for loading data.",
    (gptr*) &opt_use_threads, (gptr*) &opt_use_threads, 0, 
    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -292,7 +290,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   DBUG_PRINT("enter",("filename: %s",filename));
 
   fn_format(tablename, filename, "", "", 1 | 2); /* removes path & ext. */
-  if (! opt_local_file)
+  if (!opt_local_file)
     strmov(hard_path,filename);
   else
     my_load_path(hard_path, filename, NULL); /* filename includes the path */
@@ -640,9 +638,9 @@ loop_label:
     if (lock_tables)
       lock_table(mysql, argc, argv);
     for (; *argv != NULL; argv++)
-      if ((error=write_to_table(*argv, mysql)))
+      if ((error= write_to_table(*argv, mysql)))
         if (exitcode == 0)
-          exitcode = error;
+          exitcode= error;
     db_disconnect(current_host, mysql);
   }
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
