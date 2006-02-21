@@ -14,7 +14,7 @@ ndb_autodiscover        : Needs to be fixed w.r.t binlog
 ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 ndb_binlog_basic        : Results are not deterministic, Tomas will fix
 ndb_binlog_ddl_multi    : Bug#17038 [PATCH PENDING]
-ndb_dd_backuprestore    : Bug#17045 NdbDictionaryImpl::fix_blob_events causes core 
+ndb_dd_backuprestore    : Need to fix result
 ndb_load                : Bug#17233
 partition_03ndb         : Bug#16385
 ps_7ndb                 : dbug assert in RBR mode when executing test suite
