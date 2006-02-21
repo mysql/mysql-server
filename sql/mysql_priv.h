@@ -625,9 +625,12 @@ struct Query_cache_query_flags
 inline bool
 my_error_inject_name(const char *dbug_str)
 {
-  if (_db_on_ && _db_strict_keyword_ (dbug_str))
+  const char *extra_str= "-d,";
+  char total_str[200];
+  if (_db_strict_keyword_ (dbug_str))
   {
-    DBUG_DEL_KEYWORD(dbug_str);
+    strxmov(total_str, extra_str, dbug_str, NullS);
+    DBUG_SET(total_str);
     return 1;
   }
   return 0;
@@ -647,7 +650,7 @@ my_error_inject(int value)
 }
 
 #define ERROR_INJECT_CRASH(code) \
-  DBUG_EXECUTE_COND(code, abort())
+  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
 #define ERROR_INJECT_ACTION(code, action) \
   (my_error_inject_name(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
