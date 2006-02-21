@@ -371,15 +371,12 @@ row_purge_upd_exist_or_extern(
 	ulint		page_no;
 	ulint		offset;
 	ulint		i;
-	ulint*		offsets;
 	mtr_t		mtr;
 	
 	ut_ad(node);
-	offsets = NULL;
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
-		heap = NULL;
 		goto skip_secondaries;
 	}
 
@@ -399,7 +396,7 @@ row_purge_upd_exist_or_extern(
 		node->index = dict_table_get_next_index(node->index);
 	}
 
-	mem_heap_empty(heap);	
+	mem_heap_free(heap);	
 
 skip_secondaries:
 	/* Free possible externally stored fields */
@@ -408,9 +405,8 @@ skip_secondaries:
 		ufield = upd_get_nth_field(node->update, i);
 
 		if (UNIV_UNLIKELY(ufield->extern_storage)) {
-			byte*	rec;
-			ulint	j;
 			ulint	internal_offset;
+			byte*	data_field;
 
 			/* We use the fact that new_val points to
 			node->undo_rec and get thus the offset of
@@ -449,43 +445,21 @@ skip_secondaries:
 			/* We assume in purge of externally stored fields
 			that the space id of the undo log record is 0! */
 
-			rec = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
-				     + offset;
+			data_field = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
+				     + offset + internal_offset;
 
 #ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(buf_frame_align(rec),
+			buf_page_dbg_add_level(buf_frame_align(data_field),
 						SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
-
-			offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-			for (j = 0; j < rec_offs_n_fields(offsets); j++) {
-				ulint	len;
-				byte*	field = rec_get_nth_field(
-						rec, offsets, j, &len);
-
-				if (UNIV_UNLIKELY(rec + internal_offset
-						== field)) {
-					ut_a(len == ufield->new_val.len);
-					ut_a(rec_offs_nth_extern(offsets, j));
-					goto found_field;
-				}
-			}
-
-			/* field not found */
-			ut_error;
-			
-found_field:
-			btr_free_externally_stored_field(index, rec, offsets,
-					buf_block_get_page_zip(
-					buf_block_align(rec)),
-					j, FALSE, &mtr);
+			ut_a(ufield->new_val.len >= BTR_EXTERN_FIELD_REF_SIZE);
+			btr_free_externally_stored_field(index, data_field
+						+ ufield->new_val.len
+						- BTR_EXTERN_FIELD_REF_SIZE,
+						NULL, NULL, NULL, 0,
+						FALSE, &mtr);
 			mtr_commit(&mtr);
 		}
-	}
-
-	if (heap) {
-		mem_heap_free(heap);
 	}
 }
 
