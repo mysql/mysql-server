@@ -2393,16 +2393,18 @@ row_sel_field_store_in_mysql_format(
 	} else if (templ->type == DATA_MYSQL) {
 		memcpy(dest, data, len);
 
+#if defined(UNIV_RELEASE_NOT_YET_STABLE) || defined(UNIV_DEBUG)
 		ut_a(templ->mysql_col_len >= len);
 		ut_a(templ->mbmaxlen >= templ->mbminlen);
 
 		ut_a(templ->mbmaxlen > templ->mbminlen
 			|| templ->mysql_col_len == len);
+		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
+#endif /* UNIV_RELEASE_NOT_YET_STABLE || UNIV_DEBUG */
 		/* The following assertion would fail for old tables
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 			|| !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_a(len * templ->mbmaxlen >= templ->mysql_col_len);
 
 		if (templ->mbminlen != templ->mbmaxlen) {
 			/* Pad with spaces. This undoes the stripping
@@ -2412,6 +2414,7 @@ row_sel_field_store_in_mysql_format(
 			memset(dest + len, 0x20, templ->mysql_col_len - len);
 		}
 	} else {
+#if defined(UNIV_RELEASE_NOT_YET_STABLE) || defined(UNIV_DEBUG)
 		ut_a(templ->type == DATA_CHAR
 			|| templ->type == DATA_FIXBINARY
 			/*|| templ->type == DATA_SYS_CHILD
@@ -2419,6 +2422,7 @@ row_sel_field_store_in_mysql_format(
 			|| templ->type == DATA_FLOAT
 			|| templ->type == DATA_DOUBLE
 			|| templ->type == DATA_DECIMAL);
+#endif /* UNIV_RELEASE_NOT_YET_STABLE || UNIV_DEBUG */
 		ut_ad(templ->mysql_col_len == len);
 
 		memcpy(dest, data, len);

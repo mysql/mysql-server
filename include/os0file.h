@@ -183,7 +183,10 @@ void
 os_io_init_simple(void);
 /*===================*/
 /***************************************************************************
-Creates a temporary file. */
+Creates a temporary file.  This function is like tmpfile(3), but
+the temporary file is created in the MySQL temporary directory.
+On Netware, this function is like tmpfile(3), because the C run-time
+library of Netware does not expose the delete-on-close flag. */
 
 FILE*
 os_file_create_tmpfile(void);

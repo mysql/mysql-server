@@ -198,7 +198,8 @@ and unique key errors */
 FILE*	dict_foreign_err_file		= NULL;
 mutex_t	dict_foreign_err_mutex; 	/* mutex protecting the foreign
 					and unique error buffers */
-	
+
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 
@@ -209,6 +210,7 @@ dict_casedn_str(
 {
 	innobase_casedn_str(a);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************************
 Checks if the database name in two table names is the same. */

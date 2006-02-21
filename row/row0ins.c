@@ -1137,6 +1137,7 @@ row_ins_set_shared_rec_lock(
 	return(err);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Sets a exclusive lock on a record. Used in locking possible duplicate key
 records */
@@ -1166,6 +1167,7 @@ row_ins_set_exclusive_rec_lock(
 
 	return(err);
 }
+#endif /* !UNIV_HOTBACKUP */
 	
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
@@ -1564,6 +1566,7 @@ row_ins_check_foreign_constraints(
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************
 Checks if a unique key violation to rec would occur at the index entry
 insert. */
@@ -1615,6 +1618,7 @@ row_ins_dupl_error_with_rec(
 
 	return(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 }	
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Scans a unique non-clustered index at a given index entry to determine

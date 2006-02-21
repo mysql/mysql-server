@@ -277,6 +277,7 @@ btr_node_ptr_delete(
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: page whose node pointer is deleted */
 	mtr_t*		mtr);	/* in: mtr */
+#ifdef UNIV_DEBUG
 /****************************************************************
 Checks that the node pointer to a page is appropriate. */
 
@@ -287,6 +288,7 @@ btr_check_node_ptr(
 	dict_tree_t*	tree,	/* in: index tree */
 	page_t*		page,	/* in: index page */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* UNIV_DEBUG */
 /*****************************************************************
 Tries to merge the page first to the left immediate brother if such a
 brother exists, and the node pointers to the current page and to the

@@ -57,6 +57,7 @@ cmp_debug_dtuple_rec_with_match(
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
@@ -75,7 +76,7 @@ innobase_mysql_cmp(
 	unsigned char*	b,		/* in: data field */
 	unsigned int	b_length);	/* in: data field length,
 					not UNIV_SQL_NULL */
-
+#endif /* !UNIV_HOTBACKUP */
 /*************************************************************************
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
@@ -148,6 +149,7 @@ cmp_types_are_equal(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************
 Innobase uses this function to compare two data fields for which the data type
 is such that we must compare whole fields or call MySQL to do the comparison */
@@ -276,6 +278,7 @@ cmp_whole_field(
 
 	return(0);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************
 This function is used to compare two data fields for which we know the
@@ -294,6 +297,7 @@ cmp_data_data_slow(
 				buffer) */
 	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	data1_byte;
 	ulint	data2_byte;
 	ulint	cur_bytes;
@@ -388,6 +392,12 @@ cmp_data_data_slow(
 		data1++;
 		data2++;
 	}
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* !UNIV_HOTBACKUP */
 
 	return(0);		/* Not reached */
 }
@@ -423,6 +433,7 @@ cmp_dtuple_rec_with_match(
 				matched; when function returns, contains the
 				value for current comparison */
 {
+#ifndef UNIV_HOTBACKUP
 	dtype_t*	cur_type;	/* pointer to type of the current
 					field in dtuple */
 	dfield_t*	dtuple_field;	/* current field in logical record */
@@ -624,6 +635,13 @@ order_resolved:
 	*matched_bytes = cur_bytes;
 
 	return(ret);
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+	return(0);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /******************************************************************
@@ -712,6 +730,7 @@ cmp_rec_rec_with_match(
 				matched; when the function returns, contains
 				the value for the current comparison */
 {
+#ifndef UNIV_HOTBACKUP
 	dtype_t* cur_type;	/* pointer to type struct of the
 				current field in index */
 	ulint	rec1_n_fields;	/* the number of fields in rec */
@@ -919,6 +938,13 @@ order_resolved:
 	*matched_bytes = cur_bytes;
 
 	return(ret);
+#else /* !UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+	return(0);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifdef UNIV_DEBUG

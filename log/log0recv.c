@@ -3064,22 +3064,22 @@ recv_reset_log_files_for_backup(
 	byte*		buf;
 	ulint		i;
 	ulint		log_dir_len;
-	char*		name;
-	static const
-	char		logfilename[] = "ib_logfile";
+	char		name[5000];
+	static const char ib_logfile_basename[] = "ib_logfile";
 
 	log_dir_len = strlen(log_dir);
-	/* reserve space for log_dir, "ib_logfile" and a number */
-	name = memcpy(mem_alloc(log_dir_len + ((sizeof logfilename) + 11)),
-		log_dir, log_dir_len);
-	memcpy(name + log_dir_len, logfilename, sizeof logfilename);
-
+	/* full path name of ib_logfile consists of log dir path + basename
+	   + number. This must fit in the name buffer.
+	*/
+	ut_a(log_dir_len + strlen(ib_logfile_basename) + 11  < sizeof(name));
+	
 	buf = ut_malloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
         memset(buf, '\0', LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 
 	for (i = 0; i < n_log_files; i++) {
 
-		sprintf(name + log_dir_len + sizeof logfilename, "%lu", (ulong) i);
+		sprintf(name, "%s%s%lu", log_dir,
+			ib_logfile_basename, (ulong)i);
 
 		log_file = os_file_create_simple(name, OS_FILE_CREATE,
 						OS_FILE_READ_WRITE, &success);
@@ -3117,7 +3117,7 @@ recv_reset_log_files_for_backup(
 	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 							LOG_BLOCK_HDR_SIZE);
-	strcpy(name + log_dir_len + sizeof logfilename, "0");
+	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 
 	log_file = os_file_create_simple(name, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
@@ -3132,7 +3132,6 @@ recv_reset_log_files_for_backup(
 	os_file_flush(log_file);
 	os_file_close(log_file);
 
-	mem_free(name);
 	ut_free(buf);
 }
 #endif /* UNIV_HOTBACKUP */
