@@ -339,10 +339,12 @@ ulint		srv_n_rows_inserted		= 0;
 ulint		srv_n_rows_updated		= 0;
 ulint		srv_n_rows_deleted		= 0;
 ulint		srv_n_rows_read			= 0;
+#ifndef UNIV_HOTBACKUP
 static ulint	srv_n_rows_inserted_old		= 0;
 static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
+#endif /* !UNIV_HOTBACKUP */
 
 ulint		srv_n_lock_wait_count		= 0;
 ulint		srv_n_lock_wait_current_count	= 0;
@@ -663,6 +665,7 @@ srv_table_get_nth_slot(
 	return(srv_sys->threads + index);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Gets the number of threads in the system. */
 
@@ -771,6 +774,7 @@ srv_suspend_thread(void)
 
 	return(event);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Releases threads of the type given from suspension in the thread table.

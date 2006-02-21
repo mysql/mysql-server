@@ -68,20 +68,20 @@ ibool		srv_have_fullfsync = FALSE;
 
 ibool		srv_start_raw_disk_in_use  = FALSE;
 
-static ibool	srv_start_has_been_called  = FALSE;
-
 ulint           srv_sizeof_trx_t_in_ha_innodb_cc;
 
 ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
+#ifndef UNIV_HOTBACKUP
+static ibool	srv_start_has_been_called  = FALSE;
 static ibool	srv_was_started      = FALSE;
+#endif /* !UNIV_HOTBACKUP */
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
 ulint		srv_shutdown_state = 0;
 
-ibool		measure_cont	= FALSE;
-
+#ifndef UNIV_HOTBACKUP
 static os_file_t	files[1000];
 
 static mutex_t		ios_mutex;
@@ -96,6 +96,7 @@ static os_fast_mutex_t	srv_os_test_mutex;
 
 /* Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
+#endif /* !UNIV_HOTBACKUP */
 
 #define SRV_N_PENDING_IOS_PER_THREAD 	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
@@ -420,6 +421,7 @@ srv_parse_log_group_home_dirs(
 	return(TRUE);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 I/o-handler thread function. */
 static
@@ -463,6 +465,7 @@ io_handler_thread(
 	return(0);
 #endif
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef __WIN__
 #define SRV_PATH_SEPARATOR	'\\'
@@ -516,6 +519,7 @@ srv_add_path_separator_if_needed(
 	return(out_str);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Calculates the low 32 bits when a file size which is given as a number
 database pages is converted to the number of bytes. */
@@ -544,7 +548,6 @@ srv_calc_high32(
 	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Creates or opens the log files and closes them. */
 static

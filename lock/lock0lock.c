@@ -396,7 +396,7 @@ lock_deadlock_recursive(
 	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_IS_START */
-	uint depth);            /* in: recursion depth: if this exceeds
+	ulint	depth);		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
 
@@ -1529,7 +1529,8 @@ lock_rec_has_expl(
 
 	return(NULL);
 }
-			
+
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Checks if some other transaction has a lock request in the queue. */
 static
@@ -1572,6 +1573,7 @@ lock_rec_other_has_expl_req(
 
 	return(NULL);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Checks if some other transaction has a conflicting explicit lock request
@@ -3230,7 +3232,7 @@ lock_deadlock_recursive(
 	ulint*	cost,		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_IS_START */
-	uint depth)		/* in: recursion depth: if this exceeds
+	ulint	depth)		/* in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_IS_START */
 {
@@ -4169,6 +4171,7 @@ lock_rec_print(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Calculates the number of record lock structs in the record lock hash table. */
 static
@@ -4198,7 +4201,6 @@ lock_get_n_rec_locks(void)
 	return(n_locks);
 }
 
-#ifndef UNIV_HOTBACKUP	
 /*************************************************************************
 Prints info of locks for all transactions. */
 

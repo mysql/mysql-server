@@ -8,6 +8,7 @@ Created 1/16/1996 Heikki Tuuri
 
 #include "mach0data.h"
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Get the variable length bounds of the given character set.
 
@@ -20,6 +21,7 @@ innobase_get_cset_width(
 	ulint	cset,		/* in: MySQL charset-collation code */
 	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
 	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
+#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************************
 Gets the MySQL charset-collation code for MySQL string types. */
@@ -55,9 +57,21 @@ dtype_set_mblen(
 {
 	ut_ad(type);
 	if (dtype_is_string_type(type->mtype)) {
+#ifndef UNIV_HOTBACKUP
 		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
 				&type->mbminlen, &type->mbmaxlen);
 		ut_ad(type->mbminlen <= type->mbmaxlen);
+#else /* !UNIV_HOTBACKUP */
+#ifdef notdefined
+printf("ibbackup: DEBUG: type->mtype=%lu, type->prtype=%lu\n",
+		  type->mtype, type->prtype);
+#endif
+		ut_a(type->mtype <= DATA_BINARY);
+#ifdef notdefined
+		ut_a(type->prtype == (DATA_BINARY | DATA_NOT_NULL));
+#endif
+		type->mbminlen = type->mbmaxlen = 1;
+#endif /* !UNIV_HOTBACKUP */
 	} else {
 		type->mbminlen = type->mbmaxlen = 0;
 	}
@@ -338,7 +352,6 @@ dtype_new_read_for_order_and_null_size(
 	dtype_set_mblen(type);
 }
 
-#ifndef UNIV_HOTBACKUP
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE
@@ -383,6 +396,11 @@ dtype_get_fixed_size(
 			if (type->prtype & DATA_BINARY_TYPE) {
 				return(dtype_get_len(type));
 			} else {
+#ifdef UNIV_HOTBACKUP
+				if (type->mbminlen == type->mbmaxlen) {
+					return(dtype_get_len(type));
+				}
+#else /* UNIV_HOTBACKUP */
 				/* We play it safe here and ask MySQL for
 				mbminlen and mbmaxlen.  Although
 				type->mbminlen and type->mbmaxlen are
@@ -414,6 +432,7 @@ dtype_get_fixed_size(
 				if (mbminlen == mbmaxlen) {
 					return(dtype_get_len(type));
 				}
+#endif /* !UNIV_HOTBACKUP */
 			}
 			/* fall through for variable-length charsets */
 	case DATA_VARCHAR:
@@ -485,7 +504,6 @@ dtype_get_min_size(
 
 	return(0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************************
 Returns a stored SQL NULL size for a type. For fixed length types it is

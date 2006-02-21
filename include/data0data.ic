@@ -9,7 +9,9 @@ Created 5/30/1994 Heikki Tuuri
 #include "mem0mem.h"
 #include "ut0rnd.h"
 
+#ifdef UNIV_DEBUG
 extern byte data_error;
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */
