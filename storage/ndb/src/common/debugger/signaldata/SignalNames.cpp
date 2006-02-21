@@ -624,5 +624,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_PREPARE_REQ,  "LCP_PREPARE_REQ" }
   ,{ GSN_LCP_PREPARE_REF,  "LCP_PREPARE_REF" }
   ,{ GSN_LCP_PREPARE_CONF, "LCP_PREPARE_CONF" }
+
+  ,{ GSN_DICT_COMMIT_REQ,  "DICT_COMMIT_REQ"}
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);
