@@ -855,6 +855,27 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   return 0;
 }
 
+/*
+  Open a new .sql file to dump the table or view into
+
+  SYNOPSIS
+    open_sql_file_for_table
+    name      name of the table or view
+
+  RETURN VALUES
+    0        Failed to open file
+    > 0      Handle of the open file
+*/
+static FILE* open_sql_file_for_table(const char* table)
+{
+  FILE* res;
+  char filename[FN_REFLEN], tmp_path[FN_REFLEN];
+  convert_dirname(tmp_path,path,NullS);
+  res= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
+		O_WRONLY, MYF(MY_WME));
+  return res;
+}
+
 
 static void safe_exit(int error)
 {
@@ -1406,11 +1427,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (path)
       {
-        char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-        convert_dirname(tmp_path,path,NullS);
-        sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
-				 O_WRONLY, MYF(MY_WME));
-        if (!sql_file)			/* If file couldn't be opened */
+        if (!(sql_file= open_sql_file_for_table(table)))
         {
 	  safe_exit(EX_MYSQLERR);
 	  DBUG_RETURN(0);
@@ -1575,11 +1592,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     {
       if (path)
       {
-        char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-        convert_dirname(tmp_path,path,NullS);
-        sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
-				 O_WRONLY, MYF(MY_WME));
-        if (!sql_file)			/* If file couldn't be opened */
+        if (!(sql_file= open_sql_file_for_table(table)))
         {
 	  safe_exit(EX_MYSQLERR);
 	  DBUG_RETURN(0);
@@ -3213,6 +3226,41 @@ cleanup:
 
 
 /*
+  Replace a substring
+
+  SYNOPSIS
+    replace
+    ds_str      The string to search and perform the replace in
+    search_str  The string to search for
+    search_len  Length of the string to search for
+    replace_str The string to replace with
+    replace_len Length of the string to replace with
+
+  RETURN
+    0 String replaced
+    1 Could not find search_str in str
+*/
+
+static int replace(DYNAMIC_STRING *ds_str,
+                   const char *search_str, ulong search_len,
+                   const char *replace_str, ulong replace_len)
+{
+  const char *start= strstr(ds_str->str, search_str);
+  if (!start)
+    return 1;
+  DYNAMIC_STRING ds_tmp;
+  init_dynamic_string(&ds_tmp, "",
+		      ds_str->length + replace_len, 256);
+  dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
+  dynstr_append_mem(&ds_tmp, replace_str, replace_len);
+  dynstr_append(&ds_tmp, start + search_len);
+  dynstr_set(ds_str, ds_tmp.str);
+  dynstr_free(&ds_tmp);
+  return 0;
+}
+
+
+/*
   Getting VIEW structure
 
   SYNOPSIS
@@ -3233,11 +3281,11 @@ static my_bool get_view_structure(char *table, char* db)
   char	     *result_table, *opt_quoted_table;
   char	     table_buff[NAME_LEN*2+3];
   char	     table_buff2[NAME_LEN*2+3];
-  char       buff[20+FN_REFLEN];
+  char       query[QUERY_LENGTH];
   FILE       *sql_file = md_result_file;
   DBUG_ENTER("get_view_structure");
 
-  if (tFlag)
+  if (tFlag) /* Don't write table creation info */
     DBUG_RETURN(0);
 
   if (verbose)
@@ -3251,35 +3299,31 @@ static my_bool get_view_structure(char *table, char* db)
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
-  sprintf(buff,"show create table %s", result_table);
-  if (mysql_query(sock, buff))
+  snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
+  if (mysql_query_with_error_report(sock, &table_res, query))
   {
-    fprintf(stderr, "%s: Can't get CREATE TABLE for view %s (%s)\n",
-            my_progname, result_table, mysql_error(sock));
     safe_exit(EX_MYSQLERR);
     DBUG_RETURN(0);
   }
 
-  if (path)
-  {
-    char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-    convert_dirname(tmp_path,path,NullS);
-    sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
-                       O_WRONLY, MYF(MY_WME));
-    if (!sql_file)			/* If file couldn't be opened */
-    {
-      safe_exit(EX_MYSQLERR);
-      DBUG_RETURN(1);
-    }
-    write_header(sql_file, db);
-  }
-  table_res= mysql_store_result(sock);
+  /* Check if this is a view */
   field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
     if (verbose)
       fprintf(stderr, "-- It's base table, skipped\n");
     DBUG_RETURN(0);
+  }
+
+  /* If requested, open separate .sql file for this view */
+  if (path)
+  {
+    if (!(sql_file= open_sql_file_for_table(table)))
+    {
+      safe_exit(EX_MYSQLERR);
+      DBUG_RETURN(1);
+    }
+    write_header(sql_file, db);
   }
 
   if (!opt_xml && opt_comments)
@@ -3297,11 +3341,102 @@ static my_bool get_view_structure(char *table, char* db)
     check_io(sql_file);
   }
 
-  row= mysql_fetch_row(table_res);
-  fprintf(sql_file, "/*!50001 %s*/;\n", row[1]);
-  check_io(sql_file);
-  mysql_free_result(table_res);
 
+  snprintf(query, sizeof(query),
+           "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE "               \
+           "FROM information_schema.views "                             \
+           "WHERE table_name=\"%s\" AND table_schema=\"%s\"", table, db);
+  if (mysql_query(sock, query))
+  {
+    /*
+      Use the raw output from SHOW CREATE TABLE if
+       information_schema query fails.
+     */
+    row= mysql_fetch_row(table_res);
+    fprintf(sql_file, "/*!50001 %s */;\n", row[1]);
+    check_io(sql_file);
+    mysql_free_result(table_res);
+  }
+  else
+  {
+    char *ptr;
+    ulong *lengths;
+    char search_buf[256], replace_buf[256];
+    ulong search_len, replace_len;
+    DYNAMIC_STRING ds_view;
+
+    /* Save the result of SHOW CREATE TABLE in ds_view */
+    row= mysql_fetch_row(table_res);
+    lengths= mysql_fetch_lengths(table_res);
+    init_dynamic_string(&ds_view, row[1], lengths[1] + 1, 1024);
+    mysql_free_result(table_res);
+
+    /* Get the result from "select ... information_schema" */
+    if (!(table_res= mysql_store_result(sock)))
+    {
+      safe_exit(EX_MYSQLERR);
+      DBUG_RETURN(1);
+    }
+    row= mysql_fetch_row(table_res);
+    lengths= mysql_fetch_lengths(table_res);
+
+    /*
+      "WITH %s CHECK OPTION" is available from 5.0.2
+      Surround it with !50002 comments
+    */
+    if (strcmp(row[0], "NONE"))
+    {
+
+      ptr= search_buf;
+      search_len= (ulong)(strxmov(ptr, "WITH ", row[0],
+                                  " CHECK OPTION", NullS) - ptr);
+      ptr= replace_buf;
+      replace_len=(ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
+                                  " CHECK OPTION", NullS) - ptr);
+      replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
+    }
+
+    /*
+      "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
+      Surround it with !50013 comments
+    */
+    {
+      uint       user_name_len;
+      char       user_name_str[USERNAME_LENGTH + 1];
+      char       quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
+      uint       host_name_len;
+      char       host_name_str[HOSTNAME_LENGTH + 1];
+      char       quoted_host_name_str[HOSTNAME_LENGTH * 2 + 3];
+
+      parse_user(row[1], lengths[1], user_name_str, &user_name_len,
+		 host_name_str, &host_name_len);
+
+      ptr= search_buf;
+      search_len=
+        (ulong)(strxmov(ptr, "DEFINER=",
+                        quote_name(user_name_str, quoted_user_name_str, FALSE),
+                        "@",
+                        quote_name(host_name_str, quoted_host_name_str, FALSE),
+                        " SQL SECURITY ", row[2], NullS) - ptr);
+      ptr= replace_buf;
+      replace_len=
+        (ulong)(strxmov(ptr, "*/\n/*!50013 DEFINER=",
+                        quote_name(user_name_str, quoted_user_name_str, FALSE),
+                        "@",
+                        quote_name(host_name_str, quoted_host_name_str, FALSE),
+                        " SQL SECURITY ", row[2],
+                        " */\n/*!50001", NullS) - ptr);
+      replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
+    }
+
+    /* Dump view structure to file */
+    fprintf(sql_file, "/*!50001 %s */;\n", ds_view.str);
+    check_io(sql_file);
+    mysql_free_result(table_res);
+    dynstr_free(&ds_view);
+  }
+
+  /* If a separate .sql file was opened, close it now */
   if (sql_file != md_result_file)
   {
     fputs("\n", sql_file);
