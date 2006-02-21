@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,23 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
-/*
-  This file was introduced as a container for general functionality related
-  to partitioning introduced in MySQL version 5.1. It contains functionality
-  used by all handlers that support partitioning, which in the first version
-  is the partitioning handler itself and the NDB handler.
-
-  The first version was written by Mikael Ronstrom.
-
-  This version supports RANGE partitioning, LIST partitioning, HASH
-  partitioning and composite partitioning (hereafter called subpartitioning)
-  where each RANGE/LIST partitioning is HASH partitioned. The hash function
-  can either be supplied by the user or by only a list of fields (also
-  called KEY partitioning, where the MySQL server will use an internal
-  hash function.
-  There are quite a few defaults that can be used as well.
-*/
 
 /* Some general useful functions */
 
@@ -164,6 +147,7 @@ end:
   DBUG_RETURN(result);
 }
 
+
 /*
   Set up all the default subpartitions not set-up by the user in the SQL
   statement. Also perform a number of checks that the default partitioning
@@ -235,6 +219,7 @@ end:
   DBUG_RETURN(result);
 }
 
+
 /*
   Support routine for check_partition_info
 
@@ -272,6 +257,7 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
   DBUG_RETURN(FALSE);
 }
 
+
 /*
   A support function to check if a partition element's name is unique
   
@@ -283,6 +269,7 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
     TRUE               Has unique name
     FALSE              Doesn't
 */
+
 bool partition_info::has_unique_name(partition_element *element)
 {
   DBUG_ENTER("partition_info::has_unique_name");
@@ -297,14 +284,16 @@ bool partition_info::has_unique_name(partition_element *element)
                         name_to_check)) && el != element)
         DBUG_RETURN(FALSE);
 
-    if (el->subpartitions.is_empty()) continue;
-    List_iterator<partition_element> subparts_it(el->subpartitions);
-    partition_element *sub_el;
-    while (sub_el= (subparts_it++))
+    if (!el->subpartitions.is_empty()) 
     {
-      if (!(my_strcasecmp(system_charset_info, sub_el->partition_name, 
-                          name_to_check)) && sub_el != element)
-          DBUG_RETURN(FALSE);
+      partition_element *sub_el;    
+      List_iterator<partition_element> subparts_it(el->subpartitions);
+      while (sub_el= (subparts_it++))
+      {
+        if (!(my_strcasecmp(system_charset_info, sub_el->partition_name, 
+                            name_to_check)) && sub_el != element)
+            DBUG_RETURN(FALSE);
+      }
     }
   } 
   DBUG_RETURN(TRUE);
@@ -326,6 +315,7 @@ bool partition_info::has_unique_name(partition_element *element)
     Checks that the list of names in the partitions doesn't contain any
     duplicated names.
 */
+
 char *partition_info::has_unique_names()
 {
   DBUG_ENTER("partition_info::has_unique_names");
@@ -338,13 +328,15 @@ char *partition_info::has_unique_names()
     if (! has_unique_name(el))
       DBUG_RETURN(el->partition_name);
       
-    if (el->subpartitions.is_empty()) continue;
-    List_iterator<partition_element> subparts_it(el->subpartitions);
-    partition_element *subel;
-    while (subel= (subparts_it++))
+    if (!el->subpartitions.is_empty())
     {
-      if (! has_unique_name(subel))
-        DBUG_RETURN(subel->partition_name);
+      List_iterator<partition_element> subparts_it(el->subpartitions);
+      partition_element *subel;
+      while (subel= (subparts_it++))
+      {
+        if (! has_unique_name(subel))
+          DBUG_RETURN(subel->partition_name);
+      }
     }
   } 
   DBUG_RETURN(NULL);
