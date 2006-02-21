@@ -52,8 +52,8 @@ static
 bool
 do_malloc(Uint32 pages, InitChunk* chunk)
 {
-  void * ptr;
   pages += 1;
+  void * ptr = 0;
   Uint32 sz = pages;
   if (strcmp(f_method, "sbrk") == 0)
   {
@@ -92,7 +92,7 @@ do_malloc(Uint32 pages, InitChunk* chunk)
       }
     }
   }
-  
+
   chunk->m_cnt = sz;
   chunk->m_ptr = (Alloc_page*)ptr;
   const UintPtr align = sizeof(Alloc_page) - 1;
@@ -101,6 +101,26 @@ do_malloc(Uint32 pages, InitChunk* chunk)
     chunk->m_cnt--;
     chunk->m_ptr = (Alloc_page*)((UintPtr(ptr) + align) & ~align);
   }
+
+#ifdef UNIT_TEST
+  ndbout_c("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);
+  if (1)
+  {
+    Uint32 sum = 0;
+    Alloc_page* page = chunk->m_ptr;
+    for (Uint32 i = 0; i<chunk->m_cnt; i++, page++)
+    {
+      page->m_data[0*1024] = 0;
+      page->m_data[1*1024] = 0;
+      page->m_data[2*1024] = 0;
+      page->m_data[3*1024] = 0;
+      page->m_data[4*1024] = 0;
+      page->m_data[5*1024] = 0;
+      page->m_data[6*1024] = 0;
+      page->m_data[7*1024] = 0;
+    }
+  }
+#endif
   
   return true;
 }
@@ -286,6 +306,10 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 			  __LINE__, start, cnt);
       return;
     }
+
+#ifdef UNIT_TEST
+    ndbout_c("creating bitmap page %d", start_bmp);
+#endif
     
     Alloc_page* bmp = m_base_page + start;
     memset(bmp, 0, sizeof(Alloc_page));
@@ -388,7 +412,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
    */
 
   Int32 min_list = log2(min - 1);
-  assert(list >= min_list);
+  assert((Int32)list >= min_list);
   for (i = list - 1; i >= min_list; i--) 
   {
     if ((start = m_buddy_lists[i]))
@@ -552,33 +576,60 @@ struct Timer
   Uint32 cnt;
 
   Timer() { sum = cnt = 0;}
+
+  struct timeval st;
+
+  void start() {
+    gettimeofday(&st, 0);
+  }
+
+  Uint64 calc_diff() {
+    struct timeval st2;
+    gettimeofday(&st2, 0);
+    Uint64 diff = st2.tv_sec;
+    diff -= st.tv_sec;
+    diff *= 1000000;
+    diff += st2.tv_usec;
+    diff -= st.tv_usec;
+    return diff;
+  }
+  
+  void stop() {
+    add(calc_diff());
+  }
   
   void add(Uint64 diff) { sum += diff; cnt++;}
 
   void print(const char * title) const {
-    printf("%s %lld %d -> %d/s\n", title, sum, cnt, Uint32(1000*cnt/sum));
+    float ps = sum;
+    ps /= cnt;
+    printf("%s %fus/call %lld %d\n", title, ps, sum, cnt);
   }
 };
 
 int 
-main(void)
+main(int argc, char** argv)
 {
+  int sz = 3*32768;
+  if (argc > 1)
+    sz = 32*atoi(argv[1]);
+
   char buf[255];
   Timer timer[4];
-  printf("Startar modul test av Page Manager\n");
+  printf("Startar modul test av Page Manager %dMb\n", (sz >> 5));
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("keso");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
-
+  
 #define DEBUG 0
 
   Ndbd_mem_manager mem;
   Resource_limit rl;
   rl.m_min = 0;
-  rl.m_max = 2*32768 + 2*16384;
+  rl.m_max = sz;
   rl.m_curr = 0;
   rl.m_resource_id = 0;
   mem.set_resource_limit(rl);
@@ -592,7 +643,7 @@ main(void)
   printf("pid: %d press enter to continue\n", getpid());
   fgets(buf, sizeof(buf), stdin);
   Vector<Chunk> chunks;
-  const Uint32 LOOPS = 1000000;
+  const Uint32 LOOPS = 100000000;
   for(Uint32 i = 0; i<LOOPS; i++){
     //mem.dump();
     
@@ -625,10 +676,10 @@ main(void)
       const int ch = rand() % chunks.size();
       Chunk chunk = chunks[ch];
       chunks.erase(ch);
+      timer[0].start();
       Uint64 start = NdbTick_CurrentMillisecond();      
       mem.release(chunk.pageId, chunk.pageCount);
-      Uint64 stop = NdbTick_CurrentMillisecond();
-      timer[0].add(stop-start);
+      timer[0].stop();
       if(DEBUG)
 	printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
     }
@@ -644,9 +695,9 @@ main(void)
       {
 	printf(" alloc %d -> ", alloc); fflush(stdout);
       }
-      Uint64 start = NdbTick_CurrentMillisecond();      
+      timer[0].start();
       mem.alloc(&chunk.pageId, &chunk.pageCount, 1);
-      Uint64 stop = NdbTick_CurrentMillisecond();      
+      Uint64 diff = timer[0].calc_diff();
 
       if (DEBUG)
 	printf("%d %d", chunk.pageId, chunk.pageCount);
@@ -654,17 +705,17 @@ main(void)
       if(chunk.pageCount != 0){
 	chunks.push_back(chunk);
 	if(chunk.pageCount != alloc) {
-	  timer[2].add(stop-start);
+	  timer[2].add(diff);
 	  if (DEBUG)
 	    printf(" -  Tried to allocate %d - only allocated %d - free: %d",
 		   alloc, chunk.pageCount, 0);
 	}
 	else
 	{
-	  timer[1].add(stop-start);
+	  timer[1].add(diff);
 	}
       } else {
-	timer[3].add(stop-start);
+	timer[3].add(diff);
 	if (DEBUG)
 	  printf("  Failed to alloc %d pages with %d pages free",
 		 alloc, 0);
