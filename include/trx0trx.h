@@ -357,7 +357,7 @@ trx_print(
 /*======*/
 	FILE*	f,		/* in: output stream */
 	trx_t*	trx,		/* in: transaction */
-	uint	max_query_len);	/* in: max query length to print, or 0 to
+	ulint	max_query_len);	/* in: max query length to print, or 0 to
 				   use the default max length */
 
 #ifndef UNIV_HOTBACKUP

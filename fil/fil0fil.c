@@ -510,10 +510,12 @@ fil_node_open_file(
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
+	ibool		success;
+#ifndef UNIV_HOTBACKUP
 	byte*		buf2;
 	byte*		page;
-	ibool		success;
 	ulint		space_id;
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
@@ -546,9 +548,6 @@ fil_node_open_file(
 			ut_a(0);
 		}
 
-		ut_a(space->purpose != FIL_LOG);
-		ut_a(space->id != 0);
-
 		os_file_get_size(node->handle, &size_low, &size_high);
 
 		size_bytes = (((ib_longlong)size_high) << 32)
@@ -557,6 +556,9 @@ fil_node_open_file(
 		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 
 #else
+		ut_a(space->purpose != FIL_LOG);
+		ut_a(space->id != 0);
+
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 	        	fprintf(stderr,
 "InnoDB: Error: the size of single-table tablespace file %s\n"
@@ -2805,6 +2807,7 @@ fil_load_single_table_tablespace(
 								filename);
 	srv_normalize_path_for_win(filepath);
 #ifdef __WIN__
+# ifndef UNIV_HOTBACKUP
 	/* If lower_case_table_names is 0 or 2, then MySQL allows database
 	directory names with upper case letters. On Windows, all table and
 	database names in InnoDB are internally always in lower case. Put the
@@ -2812,6 +2815,7 @@ fil_load_single_table_tablespace(
 	internal data dictionary. */
 
 	dict_casedn_str(filepath);
+# endif /* !UNIV_HOTBACKUP */
 #endif
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_ONLY, &success);

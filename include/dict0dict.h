@@ -26,6 +26,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 
@@ -33,6 +34,7 @@ void
 dict_casedn_str(
 /*============*/
 	char*	a);	/* in/out: string to put in lower case */
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************************
 Get the database name length in a table name. */
 

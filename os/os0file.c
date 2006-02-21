@@ -502,7 +502,8 @@ os_io_init_simple(void)
 
 #if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
 /*************************************************************************
-Creates a temporary file. This function is defined in ha_innodb.cc. */
+Creates a temporary file that will be deleted on close.
+This function is defined in ha_innodb.cc. */
 
 int
 innobase_mysql_tmpfile(void);
@@ -511,7 +512,10 @@ innobase_mysql_tmpfile(void);
 #endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
 
 /***************************************************************************
-Creates a temporary file. */
+Creates a temporary file.  This function is like tmpfile(3), but
+the temporary file is created in the MySQL temporary directory.
+On Netware, this function is like tmpfile(3), because the C run-time
+library of Netware does not expose the delete-on-close flag. */
 
 FILE*
 os_file_create_tmpfile(void)
@@ -536,7 +540,7 @@ os_file_create_tmpfile(void)
 			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
 #  endif /* __WIN__ */
 			O_CREAT | O_EXCL | O_RDWR,
-			S_IREAD | S_IWRITE);
+			0600);
 		if (fd >= 0) {
 #  ifndef __WIN__
 			unlink(name);

@@ -2413,6 +2413,7 @@ btr_print_tree(
 }
 #endif /* UNIV_BTR_PRINT */
 
+#ifdef UNIV_DEBUG
 /****************************************************************
 Checks that the node pointer to a page is appropriate. */
 
@@ -2458,6 +2459,7 @@ btr_check_node_ptr(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /****************************************************************
 Display identification information for a record. */

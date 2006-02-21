@@ -32,7 +32,7 @@ copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
 void innobase_mysql_print_thd(
 	FILE*	f,
 	void*	thd,
-	uint	max_query_len);
+	ulint	max_query_len);
 
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
@@ -1690,7 +1690,7 @@ trx_print(
 /*======*/
 	FILE*	f,		/* in: output stream */
 	trx_t*	trx,		/* in: transaction */
-	uint	max_query_len)	/* in: max query length to print, or 0 to
+	ulint	max_query_len)	/* in: max query length to print, or 0 to
 				   use the default max length */
 {
 	ibool	newline;
@@ -1950,7 +1950,7 @@ trx_recover_for_mysql(
 	ulint	len)		/* in: number of slots in xid_list */
 {
 	trx_t*	trx;
-	int	count = 0;
+	ulint	count = 0;
 
 	ut_ad(xid_list);
 	ut_ad(len);
@@ -1985,7 +1985,7 @@ trx_recover_for_mysql(
 
 			count++;
 		
-			if ((uint)count == len ) {
+			if (count == len) {
 				break;
 			}
 		}
@@ -1998,8 +1998,8 @@ trx_recover_for_mysql(
 	if (count > 0){
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: %d transactions in prepared state after recovery\n",
-			count);
+"  InnoDB: %lu transactions in prepared state after recovery\n",
+			(ulong) count);
 	}
 
 	return (count);			
