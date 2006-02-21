@@ -57,6 +57,7 @@ dict_mem_table_create(
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;
 	table->comp = comp;
+	table->zip = 0;
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
 	table->mem_fix = 0;
