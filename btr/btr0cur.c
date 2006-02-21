@@ -38,8 +38,6 @@ Created 10/16/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "zlib.h"
 
-#define ZIP_BLOB TRUE /* testing */
-
 #ifdef UNIV_DEBUG
 /* If the following is set to TRUE, this module prints a lot of
 trace information of individual record operations */
@@ -841,7 +839,7 @@ btr_cur_insert_if_possible(
 	dtuple_t*	tuple,	/* in: tuple to insert; the size info need not
 				have been stored to tuple */
 	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of elements in ext */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t*	page_cursor;
@@ -3517,8 +3515,9 @@ btr_store_big_rec_extern_fields(
 	space_id = buf_frame_get_space_id(rec);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(rec));
+	ut_ad(!page_zip == !index->table->zip);
 
-	if (ZIP_BLOB || UNIV_LIKELY_NULL(page_zip)) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
 
 		c_stream.zalloc = (alloc_func) 0;
@@ -3549,7 +3548,7 @@ btr_store_big_rec_extern_fields(
 
 		prev_page_no = FIL_NULL;
 
-		if (ZIP_BLOB || UNIV_LIKELY_NULL(page_zip)) {
+		if (UNIV_LIKELY_NULL(page_zip)) {
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
@@ -3572,7 +3571,7 @@ btr_store_big_rec_extern_fields(
 
 				mtr_commit(&mtr);
 
-				if (ZIP_BLOB || UNIV_LIKELY_NULL(page_zip)) {
+				if (UNIV_LIKELY_NULL(page_zip)) {
 					deflateEnd(&c_stream);
 				}
 
@@ -3592,7 +3591,7 @@ btr_store_big_rec_extern_fields(
 							SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
-				if (ZIP_BLOB||UNIV_LIKELY_NULL(page_zip)) {
+				if (UNIV_LIKELY_NULL(page_zip)) {
 					next_ptr = prev_page;
 				} else {
 					next_ptr = prev_page + FIL_PAGE_DATA
@@ -3603,7 +3602,7 @@ btr_store_big_rec_extern_fields(
 						page_no, MLOG_4BYTES, &mtr);
 			}
 
-			if (UNIV_LIKELY_NULL(ZIP_BLOB||page_zip)) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
 				int	err;
 
 				c_stream.next_out = page + 4;
@@ -3667,9 +3666,7 @@ btr_store_big_rec_extern_fields(
 							FIL_PAGE_DATA,
 							MLOG_4BYTES, &mtr);
 				}
-#if ZIP_BLOB
-				if (page_zip)
-#endif
+
 				page_zip_write_blob_ptr(page_zip, rec,
 					index, offsets,
 					big_rec_vec->fields[i].field_no, &mtr);
@@ -3755,7 +3752,7 @@ next_zip_page:
 		}
 	}
 
-	if (ZIP_BLOB||UNIV_LIKELY_NULL(page_zip)) {
+	if (UNIV_LIKELY_NULL(page_zip)) {
 		deflateEnd(&c_stream);
 	}
 
@@ -3851,7 +3848,7 @@ btr_free_externally_stored_field(
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
-		if (ZIP_BLOB||UNIV_LIKELY_NULL(page_zip)) {
+		if (UNIV_UNLIKELY(index->table->zip)) {
 			next_page_no = mach_read_from_4(page);
 
 			btr_page_free_low(index->tree, page,
@@ -4179,6 +4176,6 @@ btr_rec_copy_externally_stored_field(
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
 
 	return(btr_copy_externally_stored_field(len, data,
-					ZIP_BLOB,
-					local_len, heap));
+				!!buf_block_get_page_zip(buf_block_align(rec)),
+				local_len, heap));
 }
