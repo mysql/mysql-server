@@ -18,6 +18,92 @@
 
 #include "ndbd_malloc_impl.hpp"
 #include <ndb_global.h>
+#include <EventLogger.hpp>
+
+#ifndef UNIT_TEST
+extern EventLogger g_eventLogger;
+#else
+extern EventLogger g_eventLogger;
+#endif
+
+#ifdef NDBD_MALLOC_METHOD
+#if NDBD_MALLOC_METHOD == sbrk
+static const char * f_method = "sbrk";
+#else
+static const char * f_method = "malloc";
+#endif
+#elif SIZEOF_CHARP == 8
+static const char * f_method = "sbrk";
+#else
+static const char * f_method = "malloc";
+#endif
+#define MAX_CHUNKS 10
+
+struct InitChunk
+{
+  Uint32 m_cnt;
+  Uint32 m_start;
+  Alloc_page* m_ptr;
+};
+
+#include <NdbOut.hpp>
+
+static
+bool
+do_malloc(Uint32 pages, InitChunk* chunk)
+{
+  void * ptr;
+  pages += 1;
+  Uint32 sz = pages;
+  if (strcmp(f_method, "sbrk") == 0)
+  {
+    ptr = 0;
+    while (ptr == 0)
+    {
+      ptr = sbrk(sizeof(Alloc_page) * sz);
+      if (ptr == (void*)-1)
+      {
+	ptr = 0;
+	sz = 1 + (9 * sz) / 10;
+	if (pages >= 32 && sz < 32)
+	{
+	  sz = pages;
+	  f_method = "malloc";
+	  g_eventLogger.info("sbrk(%lld) failed, trying malloc",
+			     (Uint64)(sizeof(Alloc_page) * sz));
+	  break;
+	}
+      }
+    }
+  }
+  if (strcmp(f_method, "malloc") == 0)
+  {
+    ptr = 0;
+    while (ptr == 0)
+    {
+      ptr = malloc(sizeof(Alloc_page) * sz);
+      if (ptr == 0)
+      {
+	sz = 1 + (9 * sz) / 10;
+	if (pages >= 32 && sz < 32)
+	{
+	  return false;
+	}
+      }
+    }
+  }
+  
+  chunk->m_cnt = sz;
+  chunk->m_ptr = (Alloc_page*)ptr;
+  const UintPtr align = sizeof(Alloc_page) - 1;
+  if (UintPtr(ptr) & align)
+  {
+    chunk->m_cnt--;
+    chunk->m_ptr = (Alloc_page*)((UintPtr(ptr) + align) & ~align);
+  }
+  
+  return true;
+}
 
 Uint32
 Ndbd_mem_manager::log2(Uint32 input)
@@ -33,67 +119,196 @@ Ndbd_mem_manager::log2(Uint32 input)
   return output;
 }
 
-Ndbd_mem_manager::Ndbd_mem_manager(Uint32 default_grow)
+Ndbd_mem_manager::Ndbd_mem_manager()
 {
-  m_grow_size = default_grow;
-  bzero(m_buddy_lists, sizeof(m_buddy_lists));
-  m_base = 0;
   m_base_page = 0;
-  
-  m_pages_alloc = 0;
-  m_pages_used = 0;
+  bzero(m_buddy_lists, sizeof(m_buddy_lists));
+  bzero(m_resource_limit, sizeof(m_resource_limit));
   
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
   {
+    g_eventLogger.error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
     abort();
   }
 }
 
-bool
-Ndbd_mem_manager::init(Uint32 pages)
+void
+Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 {
-  assert(m_base == 0);
-  assert(m_base_page == 0);
-  assert(m_pages_alloc == 0);
-  pages = pages ? pages : m_grow_size;
+  Uint32 id = rl.m_resource_id;
+  assert(id < XX_RL_COUNT);
   
-  m_base = malloc((2 + pages) * sizeof(Alloc_page));
-  UintPtr ptr = (UintPtr)m_base;
-  UintPtr rem = ptr % sizeof(Alloc_page);
-  if (rem)
+  Uint32 reserve = id ? rl.m_min : 0;
+  Uint32 current_reserved = m_resource_limit[0].m_min;
+  
+  m_resource_limit[id] = rl;
+  m_resource_limit[id].m_curr = 0;
+  m_resource_limit[0].m_min = current_reserved + reserve;
+}
+
+bool
+Ndbd_mem_manager::init(bool alloc_less_memory)
+{
+  assert(m_base_page == 0);
+
+  Uint32 pages = 0;
+  Uint32 max_page = 0;
+  if (m_resource_limit[0].m_max)
   {
-    ptr += sizeof(Alloc_page) - rem;
-  }
+    pages = m_resource_limit[0].m_max;
+  } 
   else
   {
-    pages++;
+    pages = m_resource_limit[0].m_min; // reserved
   }
-  m_base_page = (Alloc_page*)ptr;
-  m_pages_alloc += pages;
-  m_pages_used += pages;
+  assert(pages);
+  
+  g_eventLogger.info("Ndbd_mem_manager::init(%d) min: %dMb initial: %dMb",
+		     alloc_less_memory,
+		     (sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
+		     (sizeof(Alloc_page)*m_resource_limit[0].m_max)>>20);
+  
+  /**
+   * Do malloc
+   */
 
-  Uint32 bmp = (pages + (1 << BPP_2LOG) - 1) >> BPP_2LOG;
-  for(Uint32 i = 0; i < bmp; i++)
+  Uint32 cnt = 0;
+  struct InitChunk chunks[MAX_CHUNKS];
+  bzero(chunks, sizeof(chunks));
+
+  Uint32 allocated = 0;
+  while (cnt < MAX_CHUNKS && allocated < pages)
   {
-    Uint32 start = i * (1 << BPP_2LOG);
-    Uint32 end = start + (1 << BPP_2LOG);
-    end = end > m_pages_alloc ? m_pages_alloc : end - 1;
-    Alloc_page *ptr = m_base_page + start;
-    BitmaskImpl::clear(BITMAP_WORDS, ptr->m_data);
+    InitChunk chunk; 
+    Uint32 remaining = pages - allocated;
     
-    release(start+1, end - 1 - start);    
+    if (do_malloc(pages - allocated, &chunk))
+    {
+      Uint32 i = 0;
+      for(; i<cnt ; i++)
+      {
+	if (chunk.m_ptr < chunks[i].m_ptr)
+	{
+	  for (Uint32 j = cnt; j > i; j--)
+	    chunks[j] = chunks[j-1];
+	  break;
+	}
+      }
+      cnt++;
+      chunks[i] = chunk;
+      allocated += chunk.m_cnt;
+    }
+    else
+    {
+      break;
+    }
+  }
+  
+  if (allocated < m_resource_limit[0].m_min)
+  {
+    g_eventLogger.
+      error("Unable to alloc min memory from OS: min: %lldMb "
+	    " allocated: %lldMb", 
+	    (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min) >> 20,
+	    (Uint64)(sizeof(Alloc_page)*allocated) >> 20);
+    return false;
+  }
+  else if (allocated < pages)
+  {
+    g_eventLogger.
+      warning("Unable to alloc requested memory from OS: min: %lldMb"
+	      " requested: %lldMb allocated: %lldMb",
+	      (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
+	      (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_max)>>20,
+	      (Uint64)(sizeof(Alloc_page)*allocated)>>20);
+    if (!alloc_less_memory)
+      return false;
+  }
+  
+  m_base_page = chunks[0].m_ptr;
+  
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    UintPtr start = UintPtr(chunks[i].m_ptr) - UintPtr(m_base_page);
+    start >>= (2 + BMW_2LOG);
+    UintPtr last = start + chunks[i].m_cnt;
+    chunks[i].m_start = start;
+    assert((Uint64(start) >> 32) == 0);
+    
+    if (last > max_page)
+      max_page = last;
+  }
+  m_resource_limit[0].m_resource_id = max_page;
+  
+  for (Uint32 i = 0; i<cnt; i++)
+  {
+    grow(chunks[i].m_start, chunks[i].m_cnt);
+  }
+  
+  return true;
+}
+
+#include <NdbOut.hpp>
+
+void
+Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
+{
+  assert(cnt);
+  Uint32 start_bmp = start >> BPP_2LOG;
+  Uint32 last_bmp = (start + cnt - 1) >> BPP_2LOG;
+  
+#if SIZEOF_CHARP == 4
+  assert(start_bmp == 0 && last_bmp == 0);
+#endif
+  
+  if (start_bmp != last_bmp)
+  {
+    Uint32 tmp = ((start_bmp + 1) << BPP_2LOG) - start;
+    grow(start, tmp);
+    grow((start_bmp + 1) << BPP_2LOG, cnt - tmp);
+    return;
+  }
+  
+  if ((start + cnt) == ((start_bmp + 1) << BPP_2LOG))
+  {
+    cnt--; // last page is always marked as empty
+  }
+  
+  if (!m_used_bitmap_pages.get(start_bmp))
+  {
+    if (start != (start_bmp << BPP_2LOG))
+    {
+      ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d"
+	       " - Unable to use due to bitmap pages missaligned!!",
+	       __LINE__, start, cnt, start, (start_bmp << BPP_2LOG));
+      g_eventLogger.error("ndbd_malloc_impl.cpp:%d:grow(%d, %d)"
+			  " - Unable to use due to bitmap pages missaligned!!",
+			  __LINE__, start, cnt);
+      return;
+    }
+    
+    Alloc_page* bmp = m_base_page + start;
+    memset(bmp, 0, sizeof(Alloc_page));
+    m_used_bitmap_pages.set(start_bmp);
+    cnt--;
+    start++;
   }
 
-  return true;
+  if (cnt)
+  {
+    m_resource_limit[0].m_curr += cnt;
+    m_resource_limit[0].m_max += cnt;
+    release(start, cnt);
+  }
 }
 
 void
 Ndbd_mem_manager::release(Uint32 start, Uint32 cnt)
 {
-  assert(m_pages_used >= cnt);
+  assert(m_resource_limit[0].m_curr >= cnt);
   assert(start);
-  m_pages_used -= cnt;
-
+  m_resource_limit[0].m_curr -= cnt;
+  
   set(start, start+cnt-1);
   
   release_impl(start, cnt);
@@ -131,7 +346,8 @@ Ndbd_mem_manager::release_impl(Uint32 start, Uint32 cnt)
 void
 Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 {
-  Uint32 start, i;
+  Int32 i;
+  Uint32 start;
   Uint32 cnt = * pages;
   Uint32 list = log2(cnt - 1);
   
@@ -160,8 +376,8 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 	clear(start, start+cnt-1);
       }
       * ret = start;
-      m_pages_used += cnt;
-      assert(m_pages_used <= m_pages_alloc);
+      m_resource_limit[0].m_curr += cnt;
+      assert(m_resource_limit[0].m_curr <= m_resource_limit[0].m_max);
       return;
     }
   }
@@ -171,7 +387,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
    *   search in other lists...
    */
 
-  Uint32 min_list = log2(min - 1);
+  Int32 min_list = log2(min - 1);
   assert(list >= min_list);
   for (i = list - 1; i >= min_list; i--) 
   {
@@ -192,31 +408,12 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 
       * ret = start;
       * pages = sz;
-      m_pages_used += sz;
-      assert(m_pages_used <= m_pages_alloc);
+      m_resource_limit[0].m_curr += sz;
+      assert(m_resource_limit[0].m_curr <= m_resource_limit[0].m_max);
       return;
     }
   }
   * pages = 0;
-}
-
-void*
-Ndbd_mem_manager::alloc(Uint32 *pages, Uint32 min)
-{
-  Uint32 ret;
-  alloc(&ret, pages, min);
-  if (pages)
-  {
-    return m_base_page + ret;
-  }
-  return 0;
-}
-
-void
-Ndbd_mem_manager::release(void* ptr, Uint32 cnt)
-{
-  Uint32 page = ((Alloc_page*)ptr) - m_base_page;
-  release(page, cnt);
 }
 
 void
@@ -284,25 +481,6 @@ Ndbd_mem_manager::remove_free_list(Uint32 start, Uint32 list)
   return size;
 }
 
-Uint32
-Ndbd_mem_manager::get_no_allocated_pages() const
-{
-  return m_pages_alloc;
-}
-
-Uint32
-Ndbd_mem_manager::get_no_used_pages() const
-{
-  return m_pages_used;
-}
-
-Uint32
-Ndbd_mem_manager::get_no_free_pages() const
-{
-  return m_pages_alloc - m_pages_used;
-}
-
-
 void
 Ndbd_mem_manager::dump() const
 {
@@ -321,31 +499,105 @@ Ndbd_mem_manager::dump() const
   }
 }
 
+void*
+Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx < XX_RL_COUNT);
+  Resource_limit tot = m_resource_limit[0];
+  Resource_limit rl = m_resource_limit[idx];
+
+  Uint32 add = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
+  Uint32 limit = (rl.m_max == 0 || rl.m_curr < rl.m_max) ? 0 : 1; // Over limit
+  Uint32 free = (tot.m_min + tot.m_curr < tot.m_max) ? 1 : 0; // Has free
+  
+  if (likely(add == 0 || (limit == 0 && free == 1)))
+  {
+    Uint32 cnt = 1;
+    alloc(i, &cnt, 1);
+    assert(cnt);
+    m_resource_limit[0].m_curr = tot.m_curr + add;
+    m_resource_limit[idx].m_curr = rl.m_curr + 1;
+    return m_base_page + *i;
+  }
+  return 0;
+}
+
+void
+Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, void * p)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx < XX_RL_COUNT);
+  Resource_limit tot = m_resource_limit[0];
+  Resource_limit rl = m_resource_limit[idx];
+
+  Uint32 sub = (rl.m_curr < rl.m_min) ? 0 : 1; // Over min ?
+  release(i, 1);
+  m_resource_limit[0].m_curr = tot.m_curr - sub;
+}
+
 #ifdef UNIT_TEST
 
 #include <Vector.hpp>
+#include <NdbTick.h>
 
 struct Chunk {
   Uint32 pageId;
   Uint32 pageCount;
 };
 
+struct Timer
+{
+  Uint64 sum;
+  Uint32 cnt;
+
+  Timer() { sum = cnt = 0;}
+  
+  void add(Uint64 diff) { sum += diff; cnt++;}
+
+  void print(const char * title) const {
+    printf("%s %lld %d -> %d/s\n", title, sum, cnt, Uint32(1000*cnt/sum));
+  }
+};
+
 int 
 main(void)
 {
+  char buf[255];
+  Timer timer[4];
   printf("Startar modul test av Page Manager\n");
+  g_eventLogger.createConsoleHandler();
+  g_eventLogger.setCategory("keso");
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
+
 #define DEBUG 0
 
   Ndbd_mem_manager mem;
-  mem.init(32000);
+  Resource_limit rl;
+  rl.m_min = 0;
+  rl.m_max = 2*32768 + 2*16384;
+  rl.m_curr = 0;
+  rl.m_resource_id = 0;
+  mem.set_resource_limit(rl);
+  rl.m_min = 32768;
+  rl.m_max = 0;
+  rl.m_resource_id = 1;
+  mem.set_resource_limit(rl);
+  
+  mem.init();
+  mem.dump();
+  printf("pid: %d press enter to continue\n", getpid());
+  fgets(buf, sizeof(buf), stdin);
   Vector<Chunk> chunks;
-  const Uint32 LOOPS = 100000;
+  const Uint32 LOOPS = 1000000;
   for(Uint32 i = 0; i<LOOPS; i++){
     //mem.dump();
     
     // Case
     Uint32 c = (rand() % 100);
-    const Uint32 free = mem.get_no_allocated_pages() - mem.get_no_used_pages();
     if (c < 60)
     {
       c = 0;
@@ -359,17 +611,8 @@ main(void)
       c = 2;
     }
     
-    Uint32 alloc = 0;
-    if(free <= 1)
-    {
-      c = 0;
-      alloc = 1;
-    } 
-    else 
-    {
-      alloc = 1 + (rand() % (free - 1));
-    }  
-
+    Uint32 alloc = 1 + rand() % 3200;
+    
     if(chunks.size() == 0 && c == 0)
     {
       c = 1 + rand() % 2;
@@ -382,38 +625,52 @@ main(void)
       const int ch = rand() % chunks.size();
       Chunk chunk = chunks[ch];
       chunks.erase(ch);
+      Uint64 start = NdbTick_CurrentMillisecond();      
       mem.release(chunk.pageId, chunk.pageCount);
+      Uint64 stop = NdbTick_CurrentMillisecond();
+      timer[0].add(stop-start);
       if(DEBUG)
 	printf(" release %d %d\n", chunk.pageId, chunk.pageCount);
     }
       break;
     case 2: { // Seize(n) - fail
-      alloc += free;
+      alloc += 32000;
       // Fall through
     }
     case 1: { // Seize(n) (success)
       Chunk chunk;
       chunk.pageCount = alloc;
-      mem.alloc(&chunk.pageId, &chunk.pageCount, 1);
       if (DEBUG)
-	printf(" alloc %d -> %d %d", alloc, chunk.pageId, chunk.pageCount);
+      {
+	printf(" alloc %d -> ", alloc); fflush(stdout);
+      }
+      Uint64 start = NdbTick_CurrentMillisecond();      
+      mem.alloc(&chunk.pageId, &chunk.pageCount, 1);
+      Uint64 stop = NdbTick_CurrentMillisecond();      
+
+      if (DEBUG)
+	printf("%d %d", chunk.pageId, chunk.pageCount);
       assert(chunk.pageCount <= alloc);
       if(chunk.pageCount != 0){
 	chunks.push_back(chunk);
 	if(chunk.pageCount != alloc) {
+	  timer[2].add(stop-start);
 	  if (DEBUG)
 	    printf(" -  Tried to allocate %d - only allocated %d - free: %d",
-		   alloc, chunk.pageCount, free);
+		   alloc, chunk.pageCount, 0);
+	}
+	else
+	{
+	  timer[1].add(stop-start);
 	}
       } else {
+	timer[3].add(stop-start);
 	if (DEBUG)
 	  printf("  Failed to alloc %d pages with %d pages free",
-		 alloc, free);
+		 alloc, 0);
       }
       if (DEBUG)
 	printf("\n");
-      if(alloc == 1 && free > 0)
-	assert(chunk.pageCount == alloc);
     }
       break;
     }
@@ -424,6 +681,15 @@ main(void)
       mem.release(chunk.pageId, chunk.pageCount);      
       chunks.erase(chunks.size() - 1);
     }
+
+  const char *title[] = {
+    "release   ",
+    "alloc full",
+    "alloc part",
+    "alloc fail"
+  };
+  for(Uint32 i = 0; i<4; i++)
+    timer[i].print(title[i]);
 }
 
 template class Vector<Chunk>;

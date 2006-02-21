@@ -20,6 +20,7 @@
 #include <kernel_types.h>
 #include <Bitmask.hpp>
 #include <assert.h>
+#include "Pool.hpp"
 
 /**
  * 13 -> 8192 words -> 32768 bytes
@@ -51,25 +52,22 @@ struct Free_page_data
 class Ndbd_mem_manager 
 {
 public:
-  Ndbd_mem_manager(Uint32 default_grow = 32);
-
+  Ndbd_mem_manager();
+  
+  void set_resource_limit(const Resource_limit& rl);
+  
+  bool init(bool allow_alloc_less_than_requested = true);
+  void grow(Uint32 start, Uint32 cnt);
+  void* get_memroot() const { return (void*)m_base_page;}
+  
   void alloc(Uint32* ret, Uint32 *pages, Uint32 min_requested);
   void release(Uint32 start, Uint32 cnt);
-
-  Uint32 get_no_allocated_pages() const;
-  Uint32 get_no_used_pages() const;
-  Uint32 get_no_free_pages() const;
-
-  bool init(Uint32 pages = 0);
-  bool grow(Uint32 pages = 0);
-
+  
   void dump() const ;
-
-  void* get_memroot() const { return (void*)m_base_page;}
-
-  void* alloc(Uint32 * pages, Uint32 min_requested);
-  void release(void* ptr, Uint32 cnt);
-
+  
+  void* alloc_page(Uint32 type, Uint32* i);
+  void release_page(Uint32 type, Uint32 i, void * p);
+  
   /**
    * Compute 2log of size 
    * @note size = 0     -> 0
@@ -78,18 +76,15 @@ public:
   static Uint32 log2(Uint32 size);
 
 private:
+#define XX_RL_COUNT 3
   /**
    * Return pointer to free page data on page
    */
   static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
+  Bitmask<1> m_used_bitmap_pages;
   
-  Uint32 m_pages_alloc;
-  Uint32 m_pages_used;
-  
-  Uint32 m_grow_size;
   Uint32 m_buddy_lists[16];
-  
-  void * m_base;
+  Resource_limit m_resource_limit[XX_RL_COUNT]; // RG_COUNT in record_types.hpp
   Alloc_page * m_base_page;
   
   void release_impl(Uint32 start, Uint32 cnt);  
@@ -121,7 +116,7 @@ Ndbd_mem_manager::set(Uint32 first, Uint32 last)
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
-  assert(bmp < m_pages_alloc);
+  assert(bmp < m_resource_limit[0].m_resource_id);
 
   first -= bmp;
   last -= bmp;
@@ -139,7 +134,7 @@ Ndbd_mem_manager::clear(Uint32 first, Uint32 last)
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
-  assert(bmp < m_pages_alloc);
+  assert(bmp < m_resource_limit[0].m_resource_id);
   
   first -= bmp;
   last -= bmp;
@@ -157,7 +152,7 @@ Ndbd_mem_manager::clear_and_set(Uint32 first, Uint32 last)
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
-  assert(bmp < m_pages_alloc);
+  assert(bmp < m_resource_limit[0].m_resource_id);
   
   first -= bmp;
   last -= bmp;
@@ -177,7 +172,7 @@ Ndbd_mem_manager::check(Uint32 first, Uint32 last)
 #if ((SPACE_PER_BMP_2LOG < 32) && (SIZEOF_CHARP == 4)) || (SIZEOF_CHARP == 8)
   Uint32 bmp = first & ~((1 << BPP_2LOG) - 1);
   assert((first >> BPP_2LOG) == (last >> BPP_2LOG));
-  assert(bmp < m_pages_alloc);
+  assert(bmp < m_resource_limit[0].m_resource_id);
   
   first -= bmp;
   last -= bmp;
