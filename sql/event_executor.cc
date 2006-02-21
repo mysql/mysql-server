@@ -268,7 +268,7 @@ init_event_thread(THD* thd)
   thd->client_capabilities= 0;
   thd->security_ctx->master_access= 0;
   thd->security_ctx->db_access= 0;
-  thd->security_ctx->host= (char*)my_localhost;
+  thd->security_ctx->host_or_ip= (char*)my_localhost;
   my_net_init(&thd->net, 0);
   thd->net.read_timeout = slave_net_timeout;
   thd->slave_thread= 0;

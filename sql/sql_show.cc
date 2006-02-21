@@ -3956,7 +3956,7 @@ fill_events_copy_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   // [9] is SQL_MODE 
   {
-    const char *sql_mode_str="";
+    byte *sql_mode_str;
     ulong sql_mode_len=0;
     sql_mode_str=
            sys_var_thd_sql_mode::symbolic_mode_representation(thd, et.sql_mode,

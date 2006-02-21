@@ -111,17 +111,21 @@ void
 event_timed::init_body(THD *thd)
 {
   DBUG_ENTER("event_timed::init_body");
-  MEM_ROOT *root= thd->mem_root;
+  DBUG_PRINT("info", ("body=[%s] body_begin=0x%ld end=0x%ld", body_begin,
+             body_begin, thd->lex->ptr));
 
   body.length= thd->lex->ptr - body_begin;
   // Trim nuls at the end
   while (body.length && body_begin[body.length-1] == '\0')
     body.length--;
 
-  //the first is always space which I cannot skip in the parser
-  DBUG_ASSERT(my_isspace(thd->variables.character_set_client, *body_begin));
-  body.length--;
-  body.str= strmake_root(root, (char *)body_begin + 1, body.length);
+  /* the first is always whitespace which I cannot skip in the parser */
+  while (my_isspace(thd->variables.character_set_client, *body_begin))
+  {
+    ++body_begin;
+    --body.length;
+  }
+  body.str= strmake_root(thd->mem_root, (char *)body_begin, body.length);
 
   DBUG_VOID_RETURN;
 }
