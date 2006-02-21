@@ -1188,7 +1188,7 @@ public:
   /*
     The value of 'length' before a call to create_length_to_internal_length
   */
-  uint32 chars_length;
+  uint32 char_length;
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
