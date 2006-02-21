@@ -144,6 +144,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 my_bool myfunc_double_init(UDF_INIT *, UDF_ARGS *args, char *message);
 double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		     char *error);
+my_bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		    char *error);
 my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
@@ -597,6 +598,14 @@ longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   return val;
 }
 
+/*
+  At least one of _init/_deinit is needed unless the server is started
+  with --allow_suspicious_udfs.
+*/
+my_bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+{
+  return 0;
+}
 
 /*
   Simple example of how to get a sequences starting from the first argument
