@@ -18,8 +18,8 @@ end|
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock('test_bug16407', 60)
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('test_bug16407', 60)
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
@@ -72,17 +72,17 @@ set global event_scheduler= 1;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
-#	root		events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
-#	root		events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_2', 60)
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 set global event_scheduler= 0;
 select * from events_smode_test order by ev_name, a;
 ev_name	a
@@ -121,16 +121,16 @@ set global event_scheduler= 1;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
-#	root		events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
-#	root		events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
+#	root	localhost	events_test	Connect	#	User lock	select get_lock('ee_16407_5', 60)
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler		NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 select * from events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_6	2004-02-29

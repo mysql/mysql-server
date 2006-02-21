@@ -1384,7 +1384,7 @@ evex_show_create_event(THD *thd, sp_name *spn, LEX_STRING definer)
     char show_str_buf[768];
     String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
     List<Item> field_list;
-    const char *sql_mode_str;
+    byte *sql_mode_str;
     ulong sql_mode_len=0;
     
     show_str.length(0);
