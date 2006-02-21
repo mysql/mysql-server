@@ -50,7 +50,7 @@ UNIV_INLINE
 que_thr_t*
 que_fork_get_first_thr(
 /*===================*/
-	que_fork_t*	fork); 	/* in: query fork */
+	que_fork_t*	fork);	/* in: query fork */
 /***************************************************************************
 Gets the child node of the first thr in a fork. */
 UNIV_INLINE
@@ -174,7 +174,7 @@ que_thr_handle_error(
 	byte*		err_str,/* in, own: error string or NULL; NOTE: the
 				function will take care of freeing of the
 				string! */
-	ulint		err_len);/* in: error string length */	
+	ulint		err_len);/* in: error string length */
 /**************************************************************************
 Moves a suspended query thread to the QUE_THR_RUNNING state and releases
 a single worker thread to execute it. This function should be used to end
@@ -216,7 +216,7 @@ que_fork_start_command(
 				QUE_THR_RUNNING state, or NULL; the query
 				thread should be executed by que_run_threads
 				by the caller */
-	que_fork_t* 	fork);	/* in: a query fork */
+	que_fork_t*	fork);	/* in: a query fork */
 /***************************************************************************
 Gets the trx of a query thread. */
 UNIV_INLINE
@@ -359,7 +359,7 @@ struct que_thr_struct{
 					the control came */
 	ulint		resource;	/* resource usage of the query thread
 					thus far */
-  	ulint   	lock_state;	/* lock state of thread (table or
+	ulint		lock_state;	/* lock state of thread (table or
 					row) */
 };
 
@@ -411,7 +411,7 @@ struct que_fork_struct{
 	/*------------------------------*/
 	mem_heap_t*	heap;		/* memory heap where the fork was
 					created */
-	
+
 };
 
 /* Query fork (or graph) types */
@@ -485,9 +485,9 @@ struct que_fork_struct{
 #define QUE_THR_ERROR		8
 
 /* Query thread lock states */
-#define QUE_THR_LOCK_NOLOCK     0
-#define QUE_THR_LOCK_ROW        1
-#define QUE_THR_LOCK_TABLE      2
+#define QUE_THR_LOCK_NOLOCK	0
+#define QUE_THR_LOCK_ROW	1
+#define QUE_THR_LOCK_TABLE	2
 
 /* From where the cursor position is counted */
 #define QUE_CUR_NOT_DEFINED	1

@@ -29,7 +29,7 @@ sess_t*
 sess_open(void)
 /*===========*/
 					/* out, own: session object */
-{	
+{
 	sess_t*	sess;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -54,7 +54,7 @@ void
 sess_close(
 /*=======*/
 	sess_t*	sess)	/* in, own: session object */
-{	
+{
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */

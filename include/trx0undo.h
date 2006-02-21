@@ -162,7 +162,7 @@ trx_undo_get_first_rec(
 /*===================*/
 			/* out: undo log record, the page latched, NULL if
 			none */
-	ulint	space,	/* in: undo log header space */	
+	ulint	space,	/* in: undo log header space */
 	ulint	page_no,/* in: undo log header page number */
 	ulint	offset,	/* in: undo log header offset on page */
 	ulint	mode,	/* in: latching mode: RW_S_LATCH or RW_X_LATCH */
@@ -217,7 +217,7 @@ trx_undo_lists_init(
 /*================*/
 				/* out: the combined size of undo log segments
 				in pages */
-	trx_rseg_t*	rseg);	/* in: rollback segment memory object */	
+	trx_rseg_t*	rseg);	/* in: rollback segment memory object */
 /**************************************************************************
 Assigns an undo log for a transaction. A new undo log is created or a cached
 undo log reused. */
@@ -322,7 +322,7 @@ trx_undo_parse_discard_latest(
 #define	TRX_UNDO_TO_PURGE	4	/* update undo segment will not be
 					reused: it can be freed in purge when
 					all undo data in it is removed */
-#define	TRX_UNDO_PREPARED	5	/* contains an undo log of an 
+#define	TRX_UNDO_PREPARED	5	/* contains an undo log of an
 					prepared transaction */
 
 /* Transaction undo log memory object; this is protected by the undo_mutex
@@ -346,7 +346,7 @@ struct trx_undo_struct{
 					field */
 	dulint		trx_id;		/* id of the trx assigned to the undo
 					log */
-	XID             xid;		/* X/Open XA transaction 
+	XID		xid;		/* X/Open XA transaction
 					identification */
 	ibool		dict_operation;	/* TRUE if a dict operation trx */
 	dulint		table_id;	/* if a dict operation, then the table
@@ -482,7 +482,7 @@ is not needed by the user. The XID wastes about 150 bytes of space in every
 undo log. In the history list we may have millions of undo logs, which means
 quite a large overhead. */
 
-/* X/Open XA Transaction Identification (XID)                  */
+/* X/Open XA Transaction Identification (XID) */
 
 #define	TRX_UNDO_XA_FORMAT	(TRX_UNDO_LOG_OLD_HDR_SIZE)
 #define	TRX_UNDO_XA_TRID_LEN	(TRX_UNDO_XA_FORMAT + 4)
@@ -496,4 +496,4 @@ quite a large overhead. */
 #include "trx0undo.ic"
 #endif
 
-#endif 
+#endif

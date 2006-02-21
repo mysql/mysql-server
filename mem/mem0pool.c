@@ -194,7 +194,7 @@ mem_pool_create(
 	ulint		used;
 
 	ut_a(size > 10000);
-	
+
 	pool = ut_malloc(sizeof(mem_pool_t));
 
 	/* We do not set the memory to zero (FALSE) in the pool,
@@ -223,7 +223,7 @@ mem_pool_create(
 		if (ut_2_exp(i) > size - used) {
 
 			/* ut_2_log rounds upward */
-		
+
 			i--;
 		}
 
@@ -240,7 +240,7 @@ mem_pool_create(
 	ut_ad(size >= used);
 
 	pool->reserved = 0;
-	
+
 	return(pool);
 }
 
@@ -266,17 +266,17 @@ mem_pool_fill_free_list(
 	if (i >= 63) {
 		/* We come here when we have run out of space in the
 		memory pool: */
-     
+
 		return(FALSE);
 	}
 
 	area = UT_LIST_GET_FIRST(pool->free_list[i + 1]);
 
 	if (area == NULL) {
-	        if (UT_LIST_GET_LEN(pool->free_list[i + 1]) > 0) {
-	    		ut_print_timestamp(stderr);
+		if (UT_LIST_GET_LEN(pool->free_list[i + 1]) > 0) {
+			ut_print_timestamp(stderr);
 
-	                fprintf(stderr,
+			fprintf(stderr,
 "  InnoDB: Error: mem pool free list %lu length is %lu\n"
 "InnoDB: though the list is empty!\n",
 			(ulong) i + 1,
@@ -294,7 +294,7 @@ mem_pool_fill_free_list(
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
-	        mem_analyze_corruption((byte*)area);
+		mem_analyze_corruption((byte*)area);
 
 		ut_error;
 	}
@@ -307,14 +307,14 @@ mem_pool_fill_free_list(
 	mem_area_set_free(area2, TRUE);
 
 	UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area2);
-	
+
 	mem_area_set_size(area, ut_2_exp(i));
 
 	UT_LIST_ADD_FIRST(free_list, pool->free_list[i], area);
 
 	return(TRUE);
 }
-	
+
 /************************************************************************
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*! */
@@ -358,7 +358,7 @@ mem_area_alloc(
 	}
 
 	if (!mem_area_get_free(area)) {
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu though the\n"
 "InnoDB: element is not marked free!\n",
 			(ulong) n);
@@ -370,7 +370,7 @@ mem_area_alloc(
 		hex dump above */
 
 		if (mem_area_get_free(area)) {
-		        fprintf(stderr,
+			fprintf(stderr,
 "InnoDB: Probably a race condition because now the area is marked free!\n");
 		}
 
@@ -378,7 +378,7 @@ mem_area_alloc(
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
-	        fprintf(stderr,
+		fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu\n"
 "InnoDB: though the list length is 0!\n",
 			(ulong) n);
@@ -387,20 +387,20 @@ mem_area_alloc(
 		ut_error;
 	}
 
-	ut_ad(mem_area_get_size(area) == ut_2_exp(n));	
+	ut_ad(mem_area_get_size(area) == ut_2_exp(n));
 
 	mem_area_set_free(area, FALSE);
-	
+
 	UT_LIST_REMOVE(free_list, pool->free_list[n], area);
 
 	pool->reserved += mem_area_get_size(area);
-	
+
 	mem_n_threads_inside--;
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
-	
-	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area))); 
+
+	return((void*)(MEM_AREA_EXTRA_SIZE + ((byte*)area)));
 }
 
 /************************************************************************
@@ -419,7 +419,7 @@ mem_area_get_buddy(
 	ut_ad(size != 0);
 
 	if (((((byte*)area) - pool->buf) % (2 * size)) == 0) {
-	
+
 		/* The buddy is in a higher address */
 
 		buddy = (mem_area_t*)(((byte*)area) + size);
@@ -458,7 +458,7 @@ mem_area_free(
 	void*		new_ptr;
 	ulint		size;
 	ulint		n;
-	
+
 	/* It may be that the area was really allocated from the OS with
 	regular malloc: check if ptr points within our memory pool */
 
@@ -470,8 +470,8 @@ mem_area_free(
 
 	area = (mem_area_t*) (((byte*)ptr) - MEM_AREA_EXTRA_SIZE);
 
-        if (mem_area_get_free(area)) {
-	        fprintf(stderr,
+	if (mem_area_get_free(area)) {
+		fprintf(stderr,
 "InnoDB: Error: Freeing element to mem pool free list though the\n"
 "InnoDB: element is marked free!\n");
 
@@ -480,9 +480,9 @@ mem_area_free(
 	}
 
 	size = mem_area_get_size(area);
-	
-        if (size == 0) {
-	        fprintf(stderr,
+
+	if (size == 0) {
+		fprintf(stderr,
 "InnoDB: Error: Mem area size is 0. Possibly a memory overrun of the\n"
 "InnoDB: previous allocated area!\n");
 
@@ -490,7 +490,7 @@ mem_area_free(
 		ut_error;
 	}
 
-#ifdef UNIV_LIGHT_MEM_DEBUG	
+#ifdef UNIV_LIGHT_MEM_DEBUG
 	if (((byte*)area) + size < pool->buf + pool->size) {
 
 		ulint	next_size;
@@ -498,7 +498,7 @@ mem_area_free(
 		next_size = mem_area_get_size(
 					(mem_area_t*)(((byte*)area) + size));
 		if (ut_2_power_up(next_size) != next_size) {
-		        fprintf(stderr,
+			fprintf(stderr,
 "InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
 "InnoDB: Possibly a memory overrun of the buffer being freed here.\n",
 			  (ulong) size, (ulong) next_size);
@@ -509,9 +509,9 @@ mem_area_free(
 	}
 #endif
 	buddy = mem_area_get_buddy(area, size, pool);
-	
+
 	n = ut_2_log(size);
-	
+
 	mutex_enter(&(pool->mutex));
 	mem_n_threads_inside++;
 
@@ -534,7 +534,7 @@ mem_area_free(
 		}
 
 		/* Remove the buddy from its free list and merge it to area */
-		
+
 		UT_LIST_REMOVE(free_list, pool->free_list[n], buddy);
 
 		pool->reserved += ut_2_exp(n);
@@ -554,7 +554,7 @@ mem_area_free(
 
 		pool->reserved -= size;
 	}
-	
+
 	mem_n_threads_inside--;
 	mutex_exit(&(pool->mutex));
 
@@ -578,9 +578,9 @@ mem_pool_validate(
 	mutex_enter(&(pool->mutex));
 
 	free = 0;
-	
+
 	for (i = 0; i < 64; i++) {
-	
+
 		UT_LIST_VALIDATE(free_list, mem_area_t, pool->free_list[i]);
 
 		area = UT_LIST_GET_FIRST(pool->free_list[i]);
@@ -592,7 +592,7 @@ mem_pool_validate(
 			buddy = mem_area_get_buddy(area, ut_2_exp(i), pool);
 
 			ut_a(!buddy || !mem_area_get_free(buddy)
-	    		     || (ut_2_exp(i) != mem_area_get_size(buddy)));
+				|| (ut_2_exp(i) != mem_area_get_size(buddy)));
 
 			area = UT_LIST_GET_NEXT(free_list, area);
 
@@ -613,7 +613,7 @@ Prints info of a memory pool. */
 void
 mem_pool_print_info(
 /*================*/
-	FILE*	        outfile,/* in: output file to write to */
+	FILE*		outfile,/* in: output file to write to */
 	mem_pool_t*	pool)	/* in: memory pool */
 {
 	ulint		i;
@@ -631,11 +631,11 @@ mem_pool_print_info(
 			  "Free list length %lu for blocks of size %lu\n",
 			  (ulong) UT_LIST_GET_LEN(pool->free_list[i]),
 			  (ulong) ut_2_exp(i));
-		}	
+		}
 	}
 
 	fprintf(outfile, "Pool size %lu, reserved %lu.\n", (ulong) pool->size,
-						       (ulong) pool->reserved);
+		(ulong) pool->reserved);
 	mutex_exit(&(pool->mutex));
 }
 
@@ -653,7 +653,7 @@ mem_pool_get_reserved(
 	mutex_enter(&(pool->mutex));
 
 	reserved = pool->reserved;
-	
+
 	mutex_exit(&(pool->mutex));
 
 	return(reserved);

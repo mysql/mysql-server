@@ -93,7 +93,7 @@ dict_table_get_n_user_cols(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(table->cached);
-	
+
 	return(table->n_cols - DATA_N_SYS_COLS);
 }
 
@@ -127,7 +127,7 @@ dict_table_get_n_cols(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(table->cached);
-	
+
 	return(table->n_cols);
 }
 
@@ -164,7 +164,7 @@ dict_table_get_sys_col(
 	ut_ad(sys < DATA_N_SYS_COLS);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	col = dict_table_get_nth_col(table, table->n_cols 
+	col = dict_table_get_nth_col(table, table->n_cols
 					   - DATA_N_SYS_COLS + sys);
 	ut_ad(col->type.mtype == DATA_SYS);
 	ut_ad(col->type.prtype == (sys | DATA_NOT_NULL));
@@ -202,7 +202,7 @@ dict_index_get_n_fields(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	
+
 	return(index->n_fields);
 }
 
@@ -222,7 +222,7 @@ dict_index_get_n_unique(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(index->cached);
-	
+
 	return(index->n_uniq);
 }
 
@@ -241,7 +241,7 @@ dict_index_get_n_unique_in_tree(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(index->cached);
-	
+
 	if (index->type & DICT_CLUSTERED) {
 
 		return(dict_index_get_n_unique(index));
@@ -324,7 +324,7 @@ dict_index_get_tree(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	return(index->tree);
-}	
+}
 
 /*************************************************************************
 Gets the field column. */
@@ -487,7 +487,7 @@ dict_table_check_if_in_cache_low(
 {
 	dict_table_t*	table;
 	ulint		table_fold;
-	
+
 	ut_ad(table_name);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -512,14 +512,14 @@ dict_table_get_low(
 	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
-	
+
 	ut_ad(table_name);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
 	table = dict_table_check_if_in_cache_low(table_name);
-	
+
 	if (table == NULL) {
 		table = dict_load_table(table_name);
 	}
@@ -544,7 +544,7 @@ dict_table_get_on_id_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 	UT_NOT_USED(trx);
-	
+
 	/* Look for the table name in the hash table */
 	fold = ut_fold_dulint(table_id);
 
@@ -559,9 +559,9 @@ dict_table_get_on_id_low(
 
 		/* lock_push(trx, table, LOCK_DICT_MEM_FIX) */
 	}
-	
+
 	/* TODO: should get the type information from MySQL */
-	
+
 	return(table);
 }
 
@@ -574,9 +574,9 @@ dict_table_release(
 	dict_table_t*	table)	/* in: table to be released */
 {
 	mutex_enter(&(dict_sys->mutex));
-	
-	table->mem_fix--;	
-	
+
+	table->mem_fix--;
+
 	mutex_exit(&(dict_sys->mutex));
 }
 
@@ -591,7 +591,7 @@ dict_table_get_index(
 	const char*	name)	/* in: index name */
 {
 	dict_index_t*	index	= NULL;
-	
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
@@ -601,7 +601,7 @@ dict_table_get_index(
 		}
 
 		index = dict_table_get_next_index(index);
-	}	
-	
+	}
+
 	return(index);
 }

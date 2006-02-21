@@ -34,8 +34,8 @@ Used to initialize allocated memory. */
 void
 mem_init_buf(
 /*=========*/
-	byte*   buf,    /* in: pointer to buffer */
-	ulint    n);     /* in: length of buffer */
+	byte*	buf,	/* in: pointer to buffer */
+	ulint	 n);	 /* in: length of buffer */
 /*******************************************************************
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory.*/
@@ -43,8 +43,8 @@ Used to erase freed memory.*/
 void
 mem_erase_buf(
 /*==========*/
-	byte*   buf,    /* in: pointer to buffer */
-	ulint    n);     /* in: length of buffer */
+	byte*	buf,	/* in: pointer to buffer */
+	ulint	 n);	 /* in: length of buffer */
 /*******************************************************************
 Inserts a created memory heap to the hash table of
 current allocated memory heaps.

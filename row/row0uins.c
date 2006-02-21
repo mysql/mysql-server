@@ -39,14 +39,14 @@ row_undo_ins_remove_clust_rec(
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	undo_node_t*	node)	/* in: undo node */
 {
-	btr_cur_t*	btr_cur;		
+	btr_cur_t*	btr_cur;
 	ibool		success;
 	ulint		err;
 	ulint		n_tries		= 0;
 	mtr_t		mtr;
-	
+
 	mtr_start(&mtr);
-	
+
 	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, &(node->pcur),
 									&mtr);
 	ut_a(success);
@@ -55,7 +55,7 @@ row_undo_ins_remove_clust_rec(
 
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
-	
+
 		dict_drop_index_tree(btr_pcur_get_rec(&(node->pcur)), &mtr);
 
 		mtr_commit(&mtr);
@@ -66,9 +66,9 @@ row_undo_ins_remove_clust_rec(
 						&(node->pcur), &mtr);
 		ut_a(success);
 	}
-		
+
 	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
-	
+
 	success = btr_cur_optimistic_delete(btr_cur, &mtr);
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
@@ -81,7 +81,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
-	
+
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
 							&(node->pcur), &mtr);
 	ut_a(success);
@@ -100,7 +100,7 @@ retry:
 		n_tries++;
 
 		os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
-			
+
 		goto retry;
 	}
 
@@ -125,13 +125,13 @@ row_undo_ins_remove_sec_low(
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry to remove */
 {
-	btr_pcur_t	pcur;		
+	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	ibool		found;
 	ibool		success;
 	ulint		err;
 	mtr_t		mtr;
-	
+
 	log_free_check();
 	mtr_start(&mtr);
 
@@ -181,11 +181,11 @@ row_undo_ins_remove_sec(
 {
 	ulint	err;
 	ulint	n_tries	= 0;
-	
+
 	/* Try first optimistic descent to the B-tree */
 
 	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry);
-								
+
 	if (err == DB_SUCCESS) {
 
 		return(err);
@@ -204,7 +204,7 @@ retry:
 		n_tries++;
 
 		os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
-			
+
 		goto retry;
 	}
 
@@ -228,7 +228,7 @@ row_undo_ins_parse_undo_rec(
 	ibool		dummy_extern;
 
 	ut_ad(node);
-	
+
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
 					&dummy_extern, &undo_no, &table_id);
 	ut_ad(type == TRX_UNDO_INSERT_REC);
@@ -249,11 +249,11 @@ row_undo_ins_parse_undo_rec(
 	}
 
 	clust_index = dict_table_get_first_index(node->table);
-	
+
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 								node->heap);
 }
-	
+
 /***************************************************************
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
@@ -271,17 +271,17 @@ row_undo_ins(
 
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
-	
+
 	row_undo_ins_parse_undo_rec(node);
 
 	if (node->table == NULL) {
-	  	found = FALSE;
+		found = FALSE;
 	} else {
-	  	found = row_undo_search_clust_to_pcur(node);
+		found = row_undo_search_clust_to_pcur(node);
 	}
 
 	if (!found) {
-	        trx_undo_rec_release(node->trx, node->undo_no);
+		trx_undo_rec_release(node->trx, node->undo_no);
 
 		return(DB_SUCCESS);
 	}
@@ -298,11 +298,11 @@ row_undo_ins(
 
 			return(err);
 		}
-		
+
 		node->index = dict_table_get_next_index(node->index);
 	}
 
 	err = row_undo_ins_remove_clust_rec(node);
-		
+
 	return(err);
 }
