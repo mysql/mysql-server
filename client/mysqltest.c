@@ -74,7 +74,6 @@
 #define MAX_QUERY     (256*1024)
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
-#define PAD_SIZE	128
 #define MAX_CONS	128
 #define MAX_INCLUDE_DEPTH 16
 #define INIT_Q_LINES	  1024
@@ -275,18 +274,6 @@ typedef struct
   int alloced;
 } VAR;
 
-#if defined(__NETWARE__) || defined(__WIN__)
-/*
-  Netware doesn't proved environment variable substitution that is done
-  by the shell in unix environments. We do this in the following function:
-*/
-
-static char *subst_env_var(const char *cmd);
-static FILE *my_popen(const char *cmd, const char *mode);
-#undef popen
-#define popen(A,B) my_popen((A),(B))
-#endif /* __NETWARE__ */
-
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
@@ -465,19 +452,19 @@ typedef struct st_pointer_array {		/* when using array-strings */
 struct st_replace;
 struct st_replace *init_replace(my_string *from, my_string *to, uint count,
 				my_string word_end_chars);
-uint replace_strings(struct st_replace *rep, my_string *start,
-		     uint *max_length, const char *from);
 void free_replace();
 static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
+static void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+                                   const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-static int initialize_replace_buffer(void);
 static void do_eval(DYNAMIC_STRING *query_eval, const char *query);
 static void str_to_file(const char *fname, char *str, int size);
-int do_server_op(struct st_query *q,const char *op);
+
+#ifdef __WIN__
+static void free_win_path_patterns();
+#endif
 
 struct st_replace *glob_replace;
-static char *out_buff;
-static uint out_length;
 static int eval_result = 0;
 
 /* For column replace */
@@ -505,7 +492,7 @@ static void handle_no_error(struct st_query *q);
 static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
 {
   const char *p;
-  register char c;
+  register char c, next_c;
   register int escaped = 0;
   VAR* v;
   DBUG_ENTER("do_eval");
@@ -527,13 +514,19 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
       }
       break;
     case '\\':
+      next_c= *(p+1);
       if (escaped)
       {
 	escaped = 0;
 	dynstr_append_mem(query_eval, p, 1);
       }
-      else
+      else if (next_c == '\\' || next_c == '$')
+      {
+        /* Set escaped only if next char is \ or $ */
 	escaped = 1;
+      }
+      else
+	dynstr_append_mem(query_eval, p, 1);
       break;
     default:
       dynstr_append_mem(query_eval, p, 1);
@@ -609,6 +602,9 @@ static void free_used_memory()
   free_defaults(default_argv);
   mysql_server_end();
   free_re();
+#ifdef __WIN__
+  free_win_path_patterns();
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -971,17 +967,7 @@ int do_require_manager(struct st_query *query __attribute__((unused)) )
 }
 
 #ifndef EMBEDDED_LIBRARY
-int do_server_start(struct st_query *q)
-{
-  return do_server_op(q, "start");
-}
-
-int do_server_stop(struct st_query *q)
-{
-  return do_server_op(q, "stop");
-}
-
-int do_server_op(struct st_query *q, const char *op)
+static int do_server_op(struct st_query *q, const char *op)
 {
   char *p= q->first_argument;
   char com_buf[256], *com_p;
@@ -1011,6 +997,17 @@ int do_server_op(struct st_query *q, const char *op)
   q->last_argument= p;
   return 0;
 }
+
+int do_server_start(struct st_query *q)
+{
+  return do_server_op(q, "start");
+}
+
+int do_server_stop(struct st_query *q)
+{
+  return do_server_op(q, "stop");
+}
+
 #endif
 
 
@@ -1064,16 +1061,21 @@ int do_source(struct st_query *query)
     expected error array, previously set with the --error command.
     It can thus be used to execute a command that shall fail.
 
+  NOTE
+     Although mysqltest is executed from cygwin shell, the command will be
+     executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
+     system for those commands.
 */
 
 static void do_exec(struct st_query *query)
 {
   int error;
-  DYNAMIC_STRING *ds= NULL;
   char buf[1024];
   FILE *res_file;
   char *cmd= query->first_argument;
+  DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
+  DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
@@ -1081,24 +1083,28 @@ static void do_exec(struct st_query *query)
     die("Missing argument in exec");
   query->last_argument= query->end;
 
-  DBUG_PRINT("info", ("Executing '%s'", cmd));
+  init_dynamic_string(&ds_cmd, 0, strlen(cmd)+256, 256);
+  /* Eval the command, thus replacing all environment variables */
+  do_eval(&ds_cmd, cmd);
+  cmd= ds_cmd.str;
+
+  DBUG_PRINT("info", ("Executing '%s' as '%s'",
+                      query->first_argument, cmd));
 
   if (!(res_file= popen(cmd, "r")) && query->abort_on_error)
-    die("popen(\"%s\", \"r\") failed", cmd);
+    die("popen(\"%s\", \"r\") failed", query->first_argument);
 
-  if (disable_result_log)
+  while (fgets(buf, sizeof(buf), res_file))
   {
-    while (fgets(buf, sizeof(buf), res_file))
+    if (disable_result_log)
     {
       buf[strlen(buf)-1]=0;
       DBUG_PRINT("exec_result",("%s", buf));
     }
-  }
-  else
-  {
-    ds= &ds_res;
-    while (fgets(buf, sizeof(buf), res_file))
-      replace_dynstr_append(ds, buf);
+    else
+    {
+      replace_dynstr_append(&ds_res, buf);
+    }
   }
   error= pclose(res_file);
   if (error != 0)
@@ -1107,7 +1113,7 @@ static void do_exec(struct st_query *query)
     my_bool ok= 0;
 
     if (query->abort_on_error)
-      die("command \"%s\" failed", cmd);
+      die("command \"%s\" failed", query->first_argument);
 
     DBUG_PRINT("info",
                ("error: %d, status: %d", error, status));
@@ -1122,19 +1128,19 @@ static void do_exec(struct st_query *query)
       {
         ok= 1;
         DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
-                            cmd, status));
+                            query->first_argument, status));
       }
     }
     if (!ok)
       die("command \"%s\" failed with wrong error: %d",
-          cmd, status);
+          query->first_argument, status);
   }
   else if (query->expected_errno[0].type == ERR_ERRNO &&
            query->expected_errno[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
     die("command \"%s\" succeeded - should have failed with errno %d...",
-        cmd, query->expected_errno[0].code.errnum);
+        query->first_argument, query->expected_errno[0].code.errnum);
   }
 
   free_replace();
@@ -1346,38 +1352,49 @@ int do_modify_var(struct st_query *query, const char *name,
 }
 
 
-int do_system(struct st_query *q)
+/*
+
+  SYNOPSIS
+  do_system
+    command	called command
+
+  DESCRIPTION
+    system <command>
+
+    Eval the query to expand any $variables in the command.
+    Execute the command withe the "system" command.
+
+  NOTE
+   If mysqltest is executed from cygwin shell, the command will be
+   executed in cygwin shell. Thus commands like "rm" etc can be used.
+ */
+
+int do_system(struct st_query *command)
 {
-  DYNAMIC_STRING *ds;
-  char *p=q->first_argument;
-  VAR v;
-  var_init(&v, 0, 0, 0, 0);
-  eval_expr(&v, p, 0); /* NULL terminated */
-  ds= &ds_res;
+  DYNAMIC_STRING ds_cmd;
 
-  if (v.str_val_len)
-  {
-    char expr_buf[1024];
-    if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
-      v.str_val_len = sizeof(expr_buf) - 1;
-    memcpy(expr_buf, v.str_val, v.str_val_len);
-    expr_buf[v.str_val_len] = 0;
-    DBUG_PRINT("info", ("running system command '%s'", expr_buf));
-    if (system(expr_buf))
-    {
-      if (q->abort_on_error)
-        die("system command '%s' failed", expr_buf);
-
-      /* If ! abort_on_error, log message and continue */
-      dynstr_append(ds, "system command '");
-      replace_dynstr_append(ds, expr_buf);
-      dynstr_append(ds, "' failed\n");
-    }
-  }
-  else
+  if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
-  var_free(&v);
-  q->last_argument= q->end;
+
+  init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
+
+  /* Eval the system command, thus replacing all environment variables */
+  do_eval(&ds_cmd, command->first_argument);
+
+  DBUG_PRINT("info", ("running system command '%s' as '%s'",
+                      command->first_argument, ds_cmd.str));
+  if (system(ds_cmd.str))
+  {
+    if (command->abort_on_error)
+      die("system command '%s' failed", command->first_argument);
+
+    /* If ! abort_on_error, log message and continue */
+    dynstr_append(&ds_res, "system command '");
+    replace_dynstr_append(&ds_res, command->first_argument);
+    dynstr_append(&ds_res, "' failed\n");
+  }
+
+  command->last_argument= command->end;
   return 0;
 }
 
@@ -1859,8 +1876,7 @@ static void get_replace(struct st_query *q)
   if (!(glob_replace=init_replace((char**) from_array.typelib.type_names,
 				  (char**) to_array.typelib.type_names,
 				  (uint) from_array.typelib.count,
-				  word_end_chars)) ||
-      initialize_replace_buffer())
+				  word_end_chars)))
     die("Can't initialize replace from '%s'", q->query);
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
@@ -1876,7 +1892,6 @@ void free_replace()
   {
     my_free((char*) glob_replace,MYF(0));
     glob_replace=0;
-    my_free(out_buff,MYF(MY_WME));
   }
   DBUG_VOID_RETURN;
 }
@@ -2740,7 +2755,7 @@ int read_query(struct st_query** q_ptr)
     check_eol_junk(read_query_buf);
     DBUG_RETURN(1);
   }
-
+  
   DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
@@ -3055,24 +3070,127 @@ void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 }
 
 
-/* Append the string to ds, with optional replace */
+#ifdef __WIN__
 
-static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
-				      int len)
+DYNAMIC_ARRAY patterns;
+
+/*
+  init_win_path_patterns
+
+  DESCRIPTION
+   Setup string patterns that will be used to detect filenames that
+   needs to be converted from Win to Unix format
+
+*/
+
+static void init_win_path_patterns()
 {
-  if (glob_replace)
+  /* List of string patterns to match in order to find paths */
+  const char* paths[] = { "$MYSQL_TEST_DIR", "./test/", 0 };
+  int num_paths= 2;
+  int i;
+  char* p;
+
+  DBUG_ENTER("init_win_path_patterns");
+
+  my_init_dynamic_array(&patterns, sizeof(const char*), 16, 16);
+
+  /* Loop through all paths in the array */
+  for (i= 0; i < num_paths; i++)
   {
-    len=(int) replace_strings(glob_replace, &out_buff, &out_length, val);
-    if (len == -1)
-      die("Out of memory in replace");
-    val=out_buff;
+    VAR* v;
+    if (*(paths[i]) == '$')
+    {
+      v= var_get(paths[i], 0, 0, 0);
+      p= my_strdup(v->str_val, MYF(MY_FAE));
+    }
+    else
+      p= my_strdup(paths[i], MYF(MY_FAE));
+
+    if (insert_dynamic(&patterns, (gptr) &p))
+        die(NullS);
+
+    DBUG_PRINT("info", ("p: %s", p));
+    while (*p)
+    {
+      if (*p == '/')
+        *p='\\';
+      p++;
+    }
   }
-  dynstr_append_mem(ds, val, len);
+  DBUG_VOID_RETURN;
+}
+
+static void free_win_path_patterns()
+{
+  int i= 0;
+  for (i=0 ; i < patterns.elements ; i++)
+  {
+    const char** pattern= dynamic_element(&patterns, i, const char**);
+    my_free((gptr) *pattern, MYF(0));
+  }
+  delete_dynamic(&patterns);
+}
+
+/*
+  fix_win_paths
+
+  DESCRIPTION
+   Search the string 'val' for the patterns that are known to be
+   strings that contain filenames. Convert all \ to / in the
+   filenames that are found.
+
+   Ex:
+   val = 'Error "c:\mysql\mysql-test\var\test\t1.frm" didn't exist'
+          => $MYSQL_TEST_DIR is found by strstr
+          => all \ from c:\mysql\m... until next space is converted into /
+*/
+
+static void fix_win_paths(const char* val, int len)
+{
+  uint i;
+  char *p;
+
+  DBUG_ENTER("fix_win_paths");
+  for (i= 0; i < patterns.elements; i++)
+  {
+    const char** pattern= dynamic_element(&patterns, i, const char**);
+    DBUG_PRINT("info", ("pattern: %s", *pattern));
+    /* Search for the path in string */
+    while ((p= strstr(val, *pattern)))
+    {
+      DBUG_PRINT("info", ("Found %s in val p: %s", *pattern, p));
+
+      while (*p && !my_isspace(charset_info, *p))
+      {
+        if (*p == '\\')
+          *p= '/';
+        p++;
+      }
+      DBUG_PRINT("info", ("Converted \\ to /, p: %s", p));
+    }
+  }
+  DBUG_PRINT("exit", (" val: %s, len: %d", val, len));
+  DBUG_VOID_RETURN;
+}
+#endif
+
+/* Append the string to ds, with optional replace */
+static void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
+                                      const char *val,  int len)
+{
+#ifdef __WIN__
+  fix_win_paths(val, len);
+#endif
+
+  if (glob_replace)
+    replace_strings_append(glob_replace, ds, val, len);
+  else
+    dynstr_append_mem(ds, val, len);
 }
 
 
 /* Append zero-terminated string to ds, with optional replace */
-
 static void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val)
 {
   replace_dynstr_append_mem(ds, val, strlen(val));
@@ -4382,6 +4500,10 @@ int main(int argc, char **argv)
 
   init_var_hash(&cur_con->mysql);
 
+#ifdef __WIN__
+  init_win_path_patterns();
+#endif
+
   /*
     Initialize $mysql_errno with -1, so we can
     - distinguish it from valid values ( >= 0 ) and
@@ -5443,60 +5565,57 @@ static uint replace_len(my_string str)
 }
 
 
-	/* Replace strings;  Return length of result string */
-
-uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
-		     const char *from)
+/* Replace strings while appending to ds */
+void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
+                            const char *str, int len)
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
-  my_string to,end,pos,new_str;
+  const char *start, *from;
+  DBUG_ENTER("replace_strings_append");
 
-  end=(to= *start) + *max_length-1;
+  start= from= str;
   rep_pos=rep+1;
   for (;;)
   {
+    /* Loop through states */
+    DBUG_PRINT("info", ("Looping through states"));
     while (!rep_pos->found)
-    {
-      rep_pos= rep_pos->next[(uchar) *from];
-      if (to == end)
-      {
-	(*max_length)+=8192;
-	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
-	  return (uint) -1;
-	to=new_str+(to - *start);
-	end=(*start=new_str)+ *max_length-1;
-      }
-      *to++= *from++;
-    }
+      rep_pos= rep_pos->next[(uchar) *from++];
+
+    /* Does this state contain a string to be replaced */
     if (!(rep_str = ((REPLACE_STRING*) rep_pos))->replace_string)
-      return (uint) (to - *start)-1;
-    to-=rep_str->to_offset;
-    for (pos=rep_str->replace_string; *pos ; pos++)
     {
-      if (to == end)
-      {
-	(*max_length)*=2;
-	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
-	  return (uint) -1;
-	to=new_str+(to - *start);
-	end=(*start=new_str)+ *max_length-1;
-      }
-      *to++= *pos;
+      /* No match found */
+      dynstr_append_mem(ds, start, from - start - 1);
+      DBUG_PRINT("exit", ("Found no more string to replace, appended: %s", start));
+      DBUG_VOID_RETURN;
     }
+
+    /* Found a string that needs to be replaced */
+    DBUG_PRINT("info", ("found: %d, to_offset: %d, from_offset: %d, string: %s",
+                        rep_str->found, rep_str->to_offset,
+                        rep_str->from_offset, rep_str->replace_string));
+
+    /* Append part of original string before replace string */
+    dynstr_append_mem(ds, start, (from - rep_str->to_offset) - start);
+
+    /* Append replace string */
+    dynstr_append_mem(ds, rep_str->replace_string,
+                      strlen(rep_str->replace_string));
+
     if (!*(from-=rep_str->from_offset) && rep_pos->found != 2)
-      return (uint) (to - *start);
+    {
+      /* End of from string */
+      DBUG_PRINT("exit", ("Found end of from string"));
+      DBUG_VOID_RETURN;
+    }
+    DBUG_ASSERT(from <= str+len);
+    start= from;
     rep_pos=rep;
   }
 }
 
-static int initialize_replace_buffer(void)
-{
-  out_length=8192;
-  if (!(out_buff=my_malloc(out_length,MYF(MY_WME))))
-    return(1);
-  return 0;
-}
 
 /****************************************************************************
  Replace results for a column
@@ -5555,105 +5674,6 @@ static void get_replace_column(struct st_query *q)
   q->last_argument= q->end;
 }
 
-#if defined(__NETWARE__) || defined(__WIN__)
-/*
-  Substitute environment variables with text.
 
-  SYNOPSIS
-    subst_env_var()
-    arg			String that should be substitute
-
-  DESCRIPTION
-    This function takes a string as an input and replaces the
-    environment variables, that starts with '$' character, with it value.
-
-  NOTES
-    Return string must be freed with my_free()
-
-  RETURN
-    String with environment variables replaced.
-*/
-
-static char *subst_env_var(const char *str)
-{
-  char *result;
-  char *pos;
-
-  result= pos= my_malloc(MAX_QUERY, MYF(MY_FAE));
-  while (*str)
-  {
-    /*
-      need this only when we want to provide the functionality of
-      escaping through \ 'backslash'
-      if ((result == pos && *str=='$') ||
-          (result != pos && *str=='$' && str[-1] !='\\'))
-    */
-    if (*str == '$')
-    {
-      char env_var[256], *env_pos= env_var, *subst;
-
-      /* Search for end of environment variable */
-      for (str++;
-           *str && !isspace(*str) && *str != '\\' && *str != '/' &&
-             *str != '$';
-           str++)
-        *env_pos++= *str;
-      *env_pos= 0;
-
-      if (!(subst= getenv(env_var)))
-      {
-        my_free(result, MYF(0));
-        die("MYSQLTEST.NLM: Environment variable %s is not defined",
-            env_var);
-      }
-
-      /* get the string to be substitued for env_var  */
-      pos= strmov(pos, subst);
-      /* Process delimiter in *str again */
-    }
-    else
-      *pos++= *str++;
-  }
-  *pos= 0;
-  return result;
-}
-
-
-/*
-  popen replacement for Netware
-
-  SYNPOSIS
-    my_popen()
-    name		Command to execute (with possible env variables)
-    mode		Mode for popen.
-
-  NOTES
-    Environment variable expansion does not take place for popen function
-    on NetWare, so we use this function to wrap around popen to do this.
-
-    For the moment we ignore 'mode' and always use 'r0'
-
-  RETURN
-    # >= 0	File handle
-    -1		Error
-*/
-
-#undef popen                                    /* Remove wrapper */
-#ifdef __WIN__
-#define popen _popen                           /* redefine for windows */
-#endif
-
-FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
-{
-  char *subst_cmd;
-  FILE *res_file;
-
-  subst_cmd= subst_env_var(cmd);
-  res_file= popen(subst_cmd, "r0");
-  my_free(subst_cmd, MYF(0));
-  return res_file;
-}
-
-#endif /* __NETWARE__ or  __WIN__*/
 
 
