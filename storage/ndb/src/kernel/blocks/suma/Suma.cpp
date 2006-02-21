@@ -42,6 +42,7 @@
 #include <signaldata/GCPSave.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihFragCount.hpp>
 #include <signaldata/SystemError.hpp>
@@ -3440,7 +3441,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   DBUG_VOID_RETURN;
 }
 
-static Uint32 b_dti_buf[10000];
+static Uint32 b_dti_buf[MAX_WORDS_META_FILE];
 
 void
 Suma::execALTER_TAB_REQ(Signal *signal)
@@ -3462,7 +3463,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   }
 
   DBUG_PRINT("info",("alter table id: %d[i=%u]", tableId, tabPtr.i));
-
+  Table::State old_state = tabPtr.p->m_state;
   tabPtr.p->m_state = Table::ALTERED;
   // triggers must be removed, waiting for sub stop req for that
 
@@ -3519,6 +3520,11 @@ Suma::execALTER_TAB_REQ(Signal *signal)
                            SubTableData::SignalLength, JBB, ptr, 1, c);
       DBUG_PRINT("info",("sent to subscriber %d", subbPtr.i));
     }
+  }
+  if (AlterTableReq::getFrmFlag(changeMask))
+  {
+    // Frm changes only are handled on-line
+    tabPtr.p->m_state = old_state;
   }
   DBUG_VOID_RETURN;
 }
