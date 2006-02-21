@@ -363,7 +363,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 #	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
@@ -382,7 +382,7 @@ set global event_scheduler=0;
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
 #	root	localhost	events_test	Query	#	NULL	show processlist
-#	event_scheduler	connecting host	NULL	Connect	#	Sleeping	NULL
+#	event_scheduler	localhost	NULL	Connect	#	Sleeping	NULL
 #	root	localhost	events_test	Connect	#	User lock	select get_lock("test_lock2_1", 20)
 "Release the lock so the child process should finish. Hence the scheduler also"
 select release_lock("test_lock2_1");
