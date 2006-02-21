@@ -2650,3 +2650,39 @@ DELIMITER ;
 
 DROP TRIGGER tr1;
 DROP TABLE t1;
+create table t1 (a int, created datetime);
+create table t2 (b int, created datetime);
+create trigger tr1 before insert on t1 for each row set
+new.created=now();
+create trigger tr2 after insert on t1
+for each row
+begin
+insert into t2 set b=new.a and created=new.created;
+end|
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+show triggers;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
+tr1	INSERT	t1	set
+new.created=now()	BEFORE	#		root@localhost
+tr2	INSERT	t1	begin
+insert into t2 set b=new.a and created=new.created;
+end	AFTER	#		root@localhost
+drop trigger tr1;
+drop trigger tr2;
+drop table t1, t2;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+show create function f;
+Function	sql_mode	Create Function
+f		CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42
+show create procedure p;
+Procedure	sql_mode	Create Procedure
+p		CREATE PROCEDURE `p`()
+select 42
+drop function f;
+drop procedure p;
