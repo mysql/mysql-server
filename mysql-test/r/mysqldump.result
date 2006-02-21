@@ -2399,10 +2399,10 @@ drop table t1;
 set global time_zone=default;
 set time_zone=default;
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t1 test` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;

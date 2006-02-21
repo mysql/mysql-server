@@ -647,7 +647,7 @@ select '------ Testing with illegal table names ------' as test_sequence ;
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\t1" 2>&1
  
 --error 6
---exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\t1" 2>&1
+--exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "\\\\\\t1" 2>&1
 
 --error 6
 --exec $MYSQL_DUMP --compact --skip-comments mysqldump_test_db  "t\1" 2>&1
@@ -840,11 +840,11 @@ DROP TABLE t1, t2;
 # Bugs #9136, #12917: problems with --defaults-extra-file option
 #
 
---exec echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
---exec echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "[mysqltest1]" > $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system echo "port=1234" >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
 --exec $MYSQL_MY_PRINT_DEFAULTS -c $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1
 --exec $MYSQL_MY_PRINT_DEFAULTS -e $MYSQLTEST_VARDIR/tmp/tmp.cnf mysqltest1 mysqltest1
---exec rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
+--system rm $MYSQLTEST_VARDIR/tmp/tmp.cnf
 
 #
 # Test of fix to BUG 12597
@@ -960,15 +960,16 @@ set time_zone=default;
 #
 --disable_warnings
 DROP TABLE IF EXISTS `t1 test`;
+DROP TABLE IF EXISTS `t2 test`;
+--enable_warnings
+
 CREATE TABLE `t1 test` (
   `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t2 test` (
   `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
---enable_warnings
 
 DELIMITER //;
 CREATE TRIGGER `test trig` BEFORE INSERT ON `t1 test` FOR EACH ROW BEGIN
@@ -983,11 +984,10 @@ SELECT * FROM `t2 test`;
 # quoted
 --exec $MYSQL_DUMP --skip-comments --compatible=ansi --triggers test
 
---disable_warnings
 DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
---enable_warnings
+
 #
 # BUG# 12838 mysqldump -x with views exits with error 
 #
