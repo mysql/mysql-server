@@ -10,6 +10,9 @@
 #
 ##############################################################################
 #ndb_alter_table_row    : sometimes wrong error 1015!=1046
+events_bugs             : test case unstable (race conditions). andrey will fix
+events_stress           : test case unstable. andrey will fix
+events                  : test case unstable. andrey will fix
 ndb_autodiscover        : Needs to be fixed w.r.t binlog
 ndb_autodiscover2       : Needs to be fixed w.r.t binlog
 ndb_binlog_basic        : Results are not deterministic, Tomas will fix
