@@ -665,6 +665,7 @@ typedef struct {
 
 #define UNDEF_NODEGROUP 65535
 class Item;
+struct st_table_log_memory_entry;
 
 class partition_element :public Sql_alloc {
 public:
@@ -674,6 +675,7 @@ public:
   ulonglong part_min_rows;
   char *partition_name;
   char *tablespace_name;
+  st_table_log_memory_entry *log_entry;
   longlong range_value;
   char* part_comment;
   char* data_file_name;
@@ -684,7 +686,8 @@ public:
   
   partition_element()
   : part_max_rows(0), part_min_rows(0), partition_name(NULL),
-    tablespace_name(NULL), range_value(0), part_comment(NULL),
+    tablespace_name(NULL), log_entry(0),
+    range_value(0), part_comment(NULL),
     data_file_name(NULL), index_file_name(NULL),
     engine_type(NULL),part_state(PART_NORMAL),
     nodegroup_id(UNDEF_NODEGROUP)
@@ -806,6 +809,7 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 
+
 class partition_info : public Sql_alloc
 {
 public:
@@ -852,7 +856,10 @@ public:
   Item *subpart_expr;
 
   Item *item_free_list;
-  
+
+  st_table_log_memory_entry *first_log_entry;
+  st_table_log_memory_entry *exec_log_entry;
+  st_table_log_memory_entry *frm_log_entry;
   /* 
     A bitmap of partitions used by the current query. 
     Usage pattern:
@@ -964,6 +971,7 @@ public:
     part_field_array(NULL), subpart_field_array(NULL),
     full_part_field_array(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
+    first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     list_array(NULL),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
@@ -1804,7 +1812,11 @@ public:
   virtual void drop_table(const char *name);
   
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
-  virtual int create_handler_files(const char *name) { return FALSE;}
+  virtual int create_handler_files(const char *name, const char *old_name,
+                                   bool rename_flag)
+  {
+    return FALSE;
+  }
 
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,

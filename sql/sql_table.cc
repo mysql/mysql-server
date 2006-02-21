@@ -241,6 +241,886 @@ static int mysql_copy_key_list(List<Key> *orig_key,
   DBUG_RETURN(FALSE);
 }
 
+/*
+--------------------------------------------------------------------------
+
+   MODULE: Table log
+   -----------------
+
+   This module is used to ensure that we can recover from crashes that occur
+   in the middle of a meta-data operation in MySQL. E.g. DROP TABLE t1, t2;
+   We need to ensure that both t1 and t2 are dropped and not only t1 and
+   also that each table drop is entirely done and not "half-baked".
+
+   To support this we create log entries for each meta-data statement in the
+   table log while we are executing. These entries are dropped when the
+   operation is completed.
+
+   At recovery those entries that were not completed will be executed.
+
+   There is only one table log in the system and it is protected by a mutex
+   and there is a global struct that contains information about its current
+   state.
+
+   History:
+   First version written in 2006 by Mikael Ronstrom
+--------------------------------------------------------------------------
+*/
+
+
+typedef struct st_global_table_log
+{
+  char file_entry[IO_SIZE];
+  char file_name_str[FN_REFLEN];
+  char *file_name;
+  TABLE_LOG_MEMORY_ENTRY *first_free;
+  TABLE_LOG_MEMORY_ENTRY *first_used;
+  uint no_entries;
+  File file_id;
+  uint name_len;
+  uint handler_type_len;
+  uint io_size;
+} GLOBAL_TABLE_LOG;
+
+GLOBAL_TABLE_LOG global_table_log;
+
+pthread_mutex_t LOCK_gtl;
+
+#define TLOG_ENTRY_TYPE_POS 0
+#define TLOG_ACTION_TYPE_POS 1
+#define TLOG_PHASE_POS 2
+#define TLOG_NEXT_ENTRY_POS 4
+#define TLOG_NAME_POS 8
+
+#define TLOG_NO_ENTRY_POS 0
+#define TLOG_NAME_LEN_POS 4
+#define TLOG_HANDLER_TYPE_POS 8
+#define TLOG_IO_SIZE_POS 12
+
+/*
+  Read one entry from table log file
+  SYNOPSIS
+    read_table_log_file_entry()
+    entry_no                     Entry number to read
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+*/
+
+static
+bool
+read_table_log_file_entry(uint entry_no)
+{
+  bool error= FALSE;
+  File file_id= global_table_log.file_id;
+  char *file_entry= (char*)global_table_log.file_entry;
+  uint io_size= global_table_log.io_size;
+  DBUG_ENTER("read_table_log_file_entry");
+
+  if (my_pread(file_id, file_entry, io_size, io_size * entry_no,
+               MYF(MY_WME)) != IO_SIZE)
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Write one entry from table log file
+  SYNOPSIS
+    write_table_log_file_entry()
+    entry_no                     Entry number to read
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+*/
+
+static
+bool
+write_table_log_file_entry(uint entry_no)
+{
+  bool error= FALSE;
+  File file_id= global_table_log.file_id;
+  char *file_entry= (char*)global_table_log.file_entry;
+  DBUG_ENTER("write_table_log_file_entry");
+
+  if (my_pwrite(file_id, file_entry,
+                IO_SIZE, IO_SIZE * entry_no, MYF(MY_WME)) != IO_SIZE)
+    error= TRUE;
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Write table log header
+  SYNOPSIS
+    write_table_log_header()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+static
+bool
+write_table_log_header()
+{
+  uint16 const_var;
+  bool error= FALSE;
+  DBUG_ENTER("write_table_log_header");
+
+  int4store(&global_table_log.file_entry[TLOG_NO_ENTRY_POS],
+            global_table_log.no_entries);
+  const_var= FN_LEN;
+  int4store(&global_table_log.file_entry[TLOG_NAME_LEN_POS],
+            const_var);
+  const_var= TLOG_HANDLER_TYPE_LEN;
+  int4store(&global_table_log.file_entry[TLOG_HANDLER_TYPE_POS],
+            const_var);
+  const_var= IO_SIZE;
+  int4store(&global_table_log.file_entry[TLOG_IO_SIZE_POS],
+            const_var);
+  if (write_table_log_file_entry(0UL))
+    error= TRUE;
+  if (!error)
+    VOID(sync_table_log());
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Create table log file name
+  SYNOPSIS
+    create_table_log_file_name()
+    file_name                   Filename setup
+  RETURN VALUES
+    NONE
+*/
+
+static
+void
+create_table_log_file_name(char *file_name)
+{
+  strxmov(file_name, mysql_data_home, "/", "table_log.log", NullS);
+}
+
+
+/*
+  Read header of table log file
+  SYNOPSIS
+    read_table_log_header()
+  RETURN VALUES
+    > 0                  Last entry in table log
+    0                    No entries in table log
+  DESCRIPTION
+    When we read the table log header we get information about maximum sizes
+    of names in the table log and we also get information about the number
+    of entries in the table log.
+*/
+
+static
+uint
+read_table_log_header()
+{
+  char *file_entry= (char*)global_table_log.file_entry;
+  char file_name[FN_REFLEN];
+  uint entry_no;
+  bool successful_open= FALSE;
+  DBUG_ENTER("read_table_log_header");
+
+  bzero(file_entry, sizeof(global_table_log.file_entry));
+  create_table_log_file_name(file_name);
+  if (!(my_open(file_name, O_RDWR | O_TRUNC | O_BINARY, MYF(MY_WME))))
+  {
+    if (read_table_log_file_entry(0UL))
+    {
+      ; /* Write message into error log */
+    }
+    else
+      successful_open= TRUE;
+  }
+  entry_no= uint4korr(&file_entry[TLOG_NO_ENTRY_POS]);
+  global_table_log.name_len= uint4korr(&file_entry[TLOG_NAME_LEN_POS]);
+  global_table_log.handler_type_len=
+        uint4korr(&file_entry[TLOG_HANDLER_TYPE_POS]);
+  if (successful_open) 
+    global_table_log.io_size= uint4korr(&file_entry[TLOG_IO_SIZE_POS]);
+  else
+    global_table_log.io_size= IO_SIZE;
+  global_table_log.first_free= NULL;
+  global_table_log.first_used= NULL;
+  global_table_log.no_entries= 0;
+  VOID(pthread_mutex_init(&LOCK_gtl, MY_MUTEX_INIT_FAST));
+  DBUG_RETURN(entry_no);
+}
+
+
+/*
+  Read a table log entry
+  SYNOPSIS
+    read_table_log_entry()
+    read_entry               Number of entry to read
+    out:entry_info           Information from entry
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Read a specified entry in the table log
+*/
+
+bool
+read_table_log_entry(uint read_entry, TABLE_LOG_ENTRY *table_log_entry)
+{
+  char *file_entry= (char*)&global_table_log.file_entry;
+  uint inx;
+  DBUG_ENTER("read_table_log_entry");
+
+  if (read_table_log_file_entry(read_entry))
+  {
+    /* Error handling */
+    DBUG_RETURN(TRUE);
+  }
+  table_log_entry->entry_pos= read_entry;
+  table_log_entry->entry_type= file_entry[TLOG_ENTRY_TYPE_POS];
+  table_log_entry->action_type= file_entry[TLOG_ACTION_TYPE_POS];
+  table_log_entry->phase= file_entry[TLOG_PHASE_POS];
+  table_log_entry->next_entry= uint4korr(&file_entry[TLOG_NEXT_ENTRY_POS]);
+  table_log_entry->name= &file_entry[TLOG_NAME_POS];
+  inx= TLOG_NAME_POS + global_table_log.name_len;
+  table_log_entry->from_name= &file_entry[inx];
+  inx+= global_table_log.name_len;
+  table_log_entry->handler_type= &file_entry[inx];
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Initialise table log
+  SYNOPSIS
+    init_table_log()
+  RETURN VALUES
+    TRUE                     Error
+    FALSE                    Success
+  DESCRIPTION
+    Write the header of the table log file and length of names. Also set
+    number of entries to zero.
+*/
+
+static
+bool
+init_table_log()
+{
+  bool error= FALSE;
+  char file_name[FN_REFLEN];
+  DBUG_ENTER("init_table_log");
+
+  global_table_log.io_size= IO_SIZE;
+  create_table_log_file_name(file_name);
+  VOID(my_delete(file_name, MYF(0)));
+  if ((global_table_log.file_id= my_create(file_name,
+                                           CREATE_MODE,
+                                           O_RDWR | O_TRUNC | O_BINARY,
+                                           MYF(MY_WME))) < 0)
+  {
+    /* Couldn't create table log file, this is serious error */
+    abort();
+  }
+  if (write_table_log_header())
+  {
+    /* Write to error log */
+    error= TRUE;
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Execute one action in a table log entry
+  SYNOPSIS
+    execute_table_log_action()
+    table_log_entry              Information in action entry to execute
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+static
+bool
+execute_table_log_action(TABLE_LOG_ENTRY *table_log_entry)
+{
+  bool frm_action= FALSE;
+  LEX_STRING handler_name;
+  handler *file;
+  MEM_ROOT mem_root;
+  bool error= TRUE;
+  char path[FN_REFLEN];
+  char from_path[FN_REFLEN];
+  char *par_ext= (char*)".par";
+  handlerton *hton;
+  DBUG_ENTER("execute_table_log_action");
+
+  if (table_log_entry->entry_type == TLOG_IGNORE_LOG_ENTRY_CODE)
+  {
+    DBUG_RETURN(FALSE);
+  }
+  handler_name.str= (char*)table_log_entry->handler_type;
+  handler_name.length= strlen(table_log_entry->handler_type);
+  hton= ha_resolve_by_name(current_thd, &handler_name);
+  if (!hton)
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), table_log_entry->handler_type);
+    DBUG_RETURN(TRUE);
+  }
+  init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0); 
+  if (strcmp("frm", table_log_entry->handler_type))
+    frm_action= TRUE;
+  else
+  {
+    TABLE_SHARE dummy;
+    bzero(&dummy, sizeof(TABLE_SHARE));
+    file= get_new_handler(&dummy, &mem_root, hton);
+    if (!file)
+    {
+      mem_alloc_error(sizeof(handler));
+      goto error;
+    }
+  }
+  switch (table_log_entry->action_type)
+  {
+    case TLOG_DELETE_ACTION_CODE:
+    case TLOG_REPLACE_ACTION_CODE:
+    {
+      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE ||
+          (table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE &&
+           table_log_entry->phase == 0UL))
+      {
+        if (frm_action)
+        {
+          strxmov(path, table_log_entry->name, reg_ext, NullS);
+          if (my_delete(path, MYF(MY_WME)))
+            break;
+          strxmov(path, table_log_entry->name, par_ext, NullS);
+          if (my_delete(path, MYF(MY_WME)))
+            break;
+        }
+        else
+        {
+          if (file->delete_table(table_log_entry->name))
+            break;
+        }
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
+          ;
+        else
+        {
+          VOID(sync_table_log());
+          error= FALSE;
+        }
+        break;
+      }
+      if (table_log_entry->action_type == TLOG_DELETE_ACTION_CODE)
+        break;
+    }
+    case TLOG_RENAME_ACTION_CODE:
+    {
+      error= TRUE;
+      if (frm_action)
+      {
+        strxmov(path, table_log_entry->name, reg_ext, NullS);
+        strxmov(from_path, table_log_entry->from_name, reg_ext, NullS);
+        if (my_rename(path, from_path, MYF(MY_WME)))
+          break;
+        strxmov(path, table_log_entry->name, par_ext, NullS);
+        strxmov(from_path, table_log_entry->from_name, par_ext, NullS);
+        if (my_rename(path, from_path, MYF(MY_WME)))
+          break;
+      }
+      else
+      {
+        if (file->rename_table(table_log_entry->name,
+                               table_log_entry->from_name))
+          break;
+        if ((!inactivate_table_log_entry(table_log_entry->entry_pos)))
+          ;
+        else
+        {
+          VOID(sync_table_log());
+          error= FALSE;
+        }
+      }
+      break;
+    }
+    default:
+      DBUG_ASSERT(0);
+      break;
+  }
+  delete file;
+error:
+  free_root(&mem_root, MYF(0)); 
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Get a free entry in the table log
+  SYNOPSIS
+    get_free_table_log_entry()
+    out:active_entry                A table log memory entry returned
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+static
+bool
+get_free_table_log_entry(TABLE_LOG_MEMORY_ENTRY **active_entry,
+                         bool *write_header)
+{
+  uint entry_no;
+  TABLE_LOG_MEMORY_ENTRY *used_entry;
+  TABLE_LOG_MEMORY_ENTRY *first_used= global_table_log.first_used;
+  DBUG_ENTER("get_free_table_log_entry");
+
+  if (global_table_log.first_free == NULL)
+  {
+    if (!(used_entry= (TABLE_LOG_MEMORY_ENTRY*)my_malloc(
+                              sizeof(TABLE_LOG_MEMORY_ENTRY), MYF(MY_WME))))
+    {
+      DBUG_RETURN(TRUE);
+    }
+    global_table_log.no_entries++;
+    used_entry->entry_pos= entry_no= global_table_log.no_entries;
+    *write_header= TRUE;
+  }
+  else
+  {
+    used_entry= global_table_log.first_free;
+    global_table_log.first_free= used_entry->next_log_entry;
+    entry_no= used_entry->entry_pos;
+    *write_header= FALSE;
+  }
+  /*
+    Move from free list to used list
+  */
+  used_entry->next_log_entry= first_used;
+  used_entry->prev_log_entry= NULL;
+  global_table_log.first_used= used_entry;
+  if (first_used)
+    first_used->prev_log_entry= used_entry;
+
+  *active_entry= used_entry;
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  External interface methods for the Table log Module
+  ---------------------------------------------------
+*/
+
+/*
+  SYNOPSIS
+    write_table_log_entry()
+    table_log_entry         Information about log entry
+    out:entry_written       Entry information written into   
+
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+
+  DESCRIPTION
+    A careful write of the table log is performed to ensure that we can
+    handle crashes occurring during CREATE and ALTER TABLE processing.
+*/
+
+bool
+write_table_log_entry(TABLE_LOG_ENTRY *table_log_entry,
+                      TABLE_LOG_MEMORY_ENTRY **active_entry)
+{
+  bool error, write_header;
+  DBUG_ENTER("write_table_log_entry");
+
+  global_table_log.file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_LOG_ENTRY_CODE;
+  global_table_log.file_entry[TLOG_ACTION_TYPE_POS]=
+                                    table_log_entry->action_type;
+  global_table_log.file_entry[TLOG_PHASE_POS]= 0;
+  int4store(&global_table_log.file_entry[TLOG_NEXT_ENTRY_POS],
+            table_log_entry->next_entry);
+  DBUG_ASSERT(strlen(table_log_entry->name) < FN_LEN);
+  strncpy(&global_table_log.file_entry[TLOG_NAME_POS],
+          table_log_entry->name, FN_LEN);
+  if (table_log_entry->action_type == TLOG_RENAME_ACTION_CODE ||
+      table_log_entry->action_type == TLOG_REPLACE_ACTION_CODE)
+  {
+    DBUG_ASSERT(strlen(table_log_entry->from_name) < FN_LEN);
+    strncpy(&global_table_log.file_entry[TLOG_NAME_POS + FN_LEN],
+          table_log_entry->from_name, FN_LEN);
+  }
+  else
+    global_table_log.file_entry[TLOG_NAME_POS + FN_LEN]= 0;
+  DBUG_ASSERT(strlen(table_log_entry->handler_type) < FN_LEN);
+  strncpy(&global_table_log.file_entry[TLOG_NAME_POS + (2*FN_LEN)],
+          table_log_entry->handler_type, FN_LEN);
+  if (get_free_table_log_entry(active_entry, &write_header))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  error= FALSE;
+  if (write_table_log_file_entry((*active_entry)->entry_pos))
+    error= TRUE;
+  if (write_header && !error)
+  {
+    VOID(sync_table_log());
+    if (write_table_log_header())
+      error= TRUE;
+  }
+  if (error)
+    release_table_log_memory_entry(*active_entry);
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Write final entry in the table log
+  SYNOPSIS
+    write_execute_table_log_entry()
+    first_entry                    First entry in linked list of entries
+                                   to execute, if 0 = NULL it means that
+                                   the entry is removed and the entries
+                                   are put into the free list.
+    in:out:exec_entry              Entry to execute, 0 = NULL if the entry
+                                   is written first time and needs to be
+                                   returned. In this case the entry written
+                                   is returned in this parameter
+  RETURN VALUES
+    TRUE                           Error
+    FALSE                          Success
+
+  DESCRIPTION
+    This is the last write in the table log. The previous log entries have
+    already been written but not yet synched to disk.
+*/ 
+
+bool
+write_execute_table_log_entry(uint first_entry,
+                              bool complete,
+                              TABLE_LOG_MEMORY_ENTRY **active_entry)
+{
+  bool write_header= FALSE;
+  char *file_entry= (char*)global_table_log.file_entry;
+  DBUG_ENTER("write_execute_table_log_entry");
+
+  if (!complete)
+  {
+    VOID(sync_table_log());
+    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_EXECUTE_CODE;
+  }
+  else
+    file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
+  file_entry[TLOG_ACTION_TYPE_POS]= 0; /* Ignored for execute entries */
+  file_entry[TLOG_PHASE_POS]= 0;
+  int4store(&file_entry[TLOG_NEXT_ENTRY_POS], first_entry);
+  file_entry[TLOG_NAME_POS]= 0;
+  file_entry[TLOG_NAME_POS + FN_LEN]= 0;
+  file_entry[TLOG_NAME_POS + 2*FN_LEN]= 0;
+  if (!(*active_entry))
+  {
+    if (get_free_table_log_entry(active_entry, &write_header))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  if (write_table_log_file_entry((*active_entry)->entry_pos))
+  {
+    release_table_log_memory_entry(*active_entry);
+    DBUG_RETURN(TRUE);
+  }
+  VOID(sync_table_log());
+  if (write_header)
+  {
+    if (write_table_log_header())
+    {
+      release_table_log_memory_entry(*active_entry);
+      DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  For complex rename operations we need to inactivate individual entries.
+  SYNOPSIS
+    inactivate_table_log_entry()
+    entry_no                      Entry position of record to change
+  RETURN VALUES
+    TRUE                         Error
+    FALSE                        Success
+  DESCRIPTION
+    During replace operations where we start with an existing table called
+    t1 and a replacement table called t1#temp or something else and where
+    we want to delete t1 and rename t1#temp to t1 this is not possible to
+    do in a safe manner unless the table log is informed of the phases in
+    the change.
+
+    Delete actions are 1-phase actions that can be ignored immediately after
+    being executed.
+    Rename actions from x to y is also a 1-phase action since there is no
+    interaction with any other handlers named x and y.
+    Replace action where drop y and x -> y happens needs to be a two-phase
+    action. Thus the first phase will drop y and the second phase will
+    rename x -> y.
+*/
+
+bool
+inactivate_table_log_entry(uint entry_no)
+{
+  bool error= TRUE;
+  char *file_entry= (char*)global_table_log.file_entry;
+  DBUG_ENTER("inactivate_table_log_entry");
+
+  if (!read_table_log_file_entry(entry_no))
+  {
+    if (file_entry[TLOG_ENTRY_TYPE_POS] == TLOG_LOG_ENTRY_CODE)
+    {
+      if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_DELETE_ACTION_CODE ||
+          file_entry[TLOG_ACTION_TYPE_POS] == TLOG_RENAME_ACTION_CODE ||
+          (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE &&
+           file_entry[TLOG_PHASE_POS] == 1))
+        file_entry[TLOG_ENTRY_TYPE_POS]= TLOG_IGNORE_LOG_ENTRY_CODE;
+      else if (file_entry[TLOG_ACTION_TYPE_POS] == TLOG_REPLACE_ACTION_CODE)
+      {
+        DBUG_ASSERT(file_entry[TLOG_PHASE_POS] == 0);
+        file_entry[TLOG_PHASE_POS]= 1;
+      }
+      else
+      {
+        DBUG_ASSERT(0);
+      }
+      if (!write_table_log_file_entry(entry_no))
+        error= FALSE;
+    }
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Sync table log file
+  SYNOPSIS
+    sync_table_log()
+  RETURN VALUES
+    TRUE                      Error
+    FALSE                     Success
+*/
+
+bool
+sync_table_log()
+{
+  bool error= FALSE;
+  DBUG_ENTER("sync_table_log");
+
+  if (my_sync(global_table_log.file_id, MYF(0)))
+  {
+    /* Write to error log */
+    error= TRUE;
+  }
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Release a log memory entry
+  SYNOPSIS
+    release_table_log_memory_entry()
+    log_memory_entry                Log memory entry to release
+  RETURN VALUES
+    NONE
+*/
+
+void
+release_table_log_memory_entry(TABLE_LOG_MEMORY_ENTRY *log_entry)
+{
+  TABLE_LOG_MEMORY_ENTRY *first_free= global_table_log.first_free;
+  TABLE_LOG_MEMORY_ENTRY *next_log_entry= log_entry->next_log_entry;
+  TABLE_LOG_MEMORY_ENTRY *prev_log_entry= log_entry->prev_log_entry;
+  DBUG_ENTER("release_table_log_memory_entry");
+
+  global_table_log.first_free= log_entry;
+  log_entry->next_log_entry= first_free;
+
+  if (prev_log_entry)
+    prev_log_entry->next_log_entry= next_log_entry;
+  else
+    global_table_log.first_used= next_log_entry;
+  if (next_log_entry)
+    next_log_entry->prev_log_entry= prev_log_entry;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Execute one entry in the table log. Executing an entry means executing
+  a linked list of actions.
+  SYNOPSIS
+    execute_table_log_entry()
+    first_entry                Reference to first action in entry
+  RETURN VALUES
+    TRUE                       Error
+    FALSE                      Success
+*/
+
+bool
+execute_table_log_entry(uint first_entry)
+{
+  TABLE_LOG_ENTRY table_log_entry;
+  uint read_entry= first_entry;
+  DBUG_ENTER("execute_table_log_entry");
+
+  lock_global_table_log();
+  do
+  {
+    if (read_table_log_entry(read_entry, &table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log and continue with next log entry */
+      break;
+    }
+    DBUG_ASSERT(table_log_entry.entry_type == TLOG_LOG_ENTRY_CODE ||
+                table_log_entry.entry_type == TLOG_IGNORE_LOG_ENTRY_CODE);
+
+    if (execute_table_log_action(&table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log and continue with next log entry */
+      break;
+    }
+    read_entry= table_log_entry.next_entry;
+  } while (read_entry);
+  unlock_global_table_log();
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Execute the table log at recovery of MySQL Server
+  SYNOPSIS
+    execute_table_log_recovery()
+  RETURN VALUES
+    NONE
+*/
+
+void
+execute_table_log_recovery()
+{
+  uint no_entries, i;
+  TABLE_LOG_ENTRY table_log_entry;
+  DBUG_ENTER("execute_table_log_recovery");
+
+  no_entries= read_table_log_header();
+  for (i= 0; i < no_entries; i++)
+  {
+    if (read_table_log_entry(i, &table_log_entry))
+    {
+      DBUG_ASSERT(0);
+      /* Write to error log */
+      break;
+    }
+    if (table_log_entry.entry_type == TLOG_EXECUTE_CODE)
+    {
+      if (execute_table_log_entry(table_log_entry.next_entry))
+      {
+        /*
+           Currently errors are either crashing or ignored so we should
+           never end up here
+        */
+        abort();
+        DBUG_VOID_RETURN;
+      }
+    }
+  }
+  VOID(init_table_log());
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Release all memory allocated to the table log
+  SYNOPSIS
+    release_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+release_table_log()
+{
+  TABLE_LOG_MEMORY_ENTRY *free_list= global_table_log.first_free;
+  TABLE_LOG_MEMORY_ENTRY *used_list= global_table_log.first_used;
+  DBUG_ENTER("release_table_log");
+
+  lock_global_table_log();
+  while (used_list)
+  {
+    TABLE_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
+    my_free((char*)used_list, MYF(0));
+    used_list= tmp;
+  }
+  while (free_list)
+  {
+    TABLE_LOG_MEMORY_ENTRY *tmp= free_list->next_log_entry;
+    my_free((char*)free_list, MYF(0));
+    free_list= tmp;
+  }
+  VOID(my_close(global_table_log.file_id, MYF(0)));
+  unlock_global_table_log();
+  VOID(pthread_mutex_destroy(&LOCK_gtl));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Lock mutex for global table log
+  SYNOPSIS
+    lock_global_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+lock_global_table_log()
+{
+  DBUG_ENTER("lock_global_table_log");
+
+  VOID(pthread_mutex_lock(&LOCK_gtl));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Unlock mutex for global table log
+  SYNOPSIS
+    unlock_global_table_log()
+  RETURN VALUES
+    NONE
+*/
+
+void
+unlock_global_table_log()
+{
+  DBUG_ENTER("unlock_global_table_log");
+
+  VOID(pthread_mutex_unlock(&LOCK_gtl));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+---------------------------------------------------------------------------
+
+  END MODULE Table log
+  --------------------
+
+---------------------------------------------------------------------------
+*/
+
 
 /*
   SYNOPSIS
@@ -274,83 +1154,66 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   */
   int error= 0;
   char path[FN_REFLEN+1];
+  char shadow_path[FN_REFLEN+1];
+  char shadow_frm_name[FN_REFLEN+1];
   char frm_name[FN_REFLEN+1];
   DBUG_ENTER("mysql_write_frm");
 
-  if (flags & WFRM_INITIAL_WRITE)
+  /*
+    Build shadow frm file name
+  */
+  build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
+                       lpt->table_name, "#");
+  strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
+  if (flags & WFRM_WRITE_SHADOW)
   {
-    error= mysql_copy_create_list(lpt->create_list,
-                                  &lpt->new_create_list);
-    error+= mysql_copy_key_list(lpt->key_list,
-                                &lpt->new_key_list);
-    if (error)
+    if (mysql_copy_create_list(lpt->create_list,
+                               &lpt->new_create_list) ||
+        mysql_copy_key_list(lpt->key_list,
+                            &lpt->new_key_list) ||
+        mysql_prepare_table(lpt->thd, lpt->create_info,
+                            &lpt->new_create_list,
+                            &lpt->new_key_list,
+                            /*tmp_table*/ 1,
+                            &lpt->db_options,
+                            lpt->table->file,
+                            &lpt->key_info_buffer,
+                            &lpt->key_count,
+                            /*select_field_count*/ 0))
     {
       DBUG_RETURN(TRUE);
     }
-  }
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
-  strxmov(frm_name, path, reg_ext, NullS);
-  if ((flags & WFRM_INITIAL_WRITE) &&
-      (mysql_prepare_table(lpt->thd, lpt->create_info, &lpt->new_create_list,
-                           &lpt->new_key_list,/*tmp_table*/ 1, &lpt->db_options,
-                           lpt->table->file, &lpt->key_info_buffer,
-                           &lpt->key_count, /*select_field_count*/ 0)))
-  {
-    DBUG_RETURN(TRUE);
-  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  {
-    partition_info *part_info= lpt->table->part_info;
-    char *part_syntax_buf;
-    uint syntax_len, i;
-    bool any_unnormal_state= FALSE;
-
-    if (part_info)
     {
-      uint max_part_state_len= part_info->partitions.elements +
-                           part_info->temp_partitions.elements;
-      if (!(part_info->part_state= (uchar*)sql_alloc(max_part_state_len)))
+      partition_info *part_info= lpt->table->part_info;
+      char *part_syntax_buf;
+      uint syntax_len;
+
+      if (part_info)
       {
-        DBUG_RETURN(TRUE);
+        if (!(part_syntax_buf= generate_partition_syntax(part_info,
+                                                         &syntax_len,
+                                                         TRUE, FALSE)))
+        {
+          DBUG_RETURN(TRUE);
+        }
+        part_info->part_info_string= part_syntax_buf;
+        part_info->part_info_len= syntax_len;
       }
-      part_info->part_state_len= 0;
-      if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                       &syntax_len,
-                                                       TRUE, FALSE)))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      for (i= 0; i < part_info->part_state_len; i++)
-      {
-        enum partition_state part_state=
-                        (enum partition_state)part_info->part_state[i];
-        if (part_state != PART_NORMAL && part_state != PART_IS_ADDED)
-          any_unnormal_state= TRUE;
-      }
-      if (!any_unnormal_state)
-      {
-        part_info->part_state= NULL;
-        part_info->part_state_len= 0;
-      }
-      part_info->part_info_string= part_syntax_buf;
-      part_info->part_info_len= syntax_len;
     }
-  }
 #endif
-  /*
-    We write the frm file with the LOCK_open mutex since otherwise we could
-    overwrite the frm file as another is reading it in open_table.
-  */
-  lpt->create_info->table_options= lpt->db_options;
-  VOID(pthread_mutex_lock(&LOCK_open));
-  if ((mysql_create_frm(lpt->thd, frm_name, lpt->db, lpt->table_name,
-                        lpt->create_info, lpt->new_create_list, lpt->key_count,
-                        lpt->key_info_buffer, lpt->table->file)) ||
-      ((flags & WFRM_CREATE_HANDLER_FILES) &&
-       lpt->table->file->create_handler_files(path)))
-  {
-    error= 1;
-    goto end;
+    /* Write shadow frm file */
+    lpt->create_info->table_options= lpt->db_options;
+    if ((mysql_create_frm(lpt->thd, shadow_frm_name, lpt->db,
+                          lpt->table_name, lpt->create_info,
+                          lpt->new_create_list, lpt->key_count,
+                          lpt->key_info_buffer, lpt->table->file)) ||
+         lpt->table->file->create_handler_files(shadow_path, NULL, FALSE))
+    {
+      my_delete(shadow_frm_name, MYF(0));
+      error= 1;
+      goto end;
+    }
   }
   if (flags & WFRM_PACK_FRM)
   {
@@ -362,7 +1225,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     */
     const void *data= 0;
     uint length= 0;
-    if (readfrm(path, &data, &length) ||
+    if (readfrm(shadow_path, &data, &length) ||
         packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
     {
       my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
@@ -371,11 +1234,43 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       error= 1;
       goto end;
     }
-    error= my_delete(frm_name, MYF(MY_WME));
+    error= my_delete(shadow_frm_name, MYF(MY_WME));
   }
-  /* Frm file have been updated to reflect the change about to happen.  */
+  if (flags & WFRM_INSTALL_SHADOW)
+  {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    partition_info *part_info= lpt->part_info;
+#endif
+    /*
+      Build frm file name
+    */
+    build_table_filename(path, sizeof(path), lpt->db,
+                         lpt->table_name, "");
+    strxmov(frm_name, path, reg_ext, NullS);
+    /*
+      When we are changing to use new frm file we need to ensure that we
+      don't collide with another thread in process to open the frm file.
+    */
+    VOID(pthread_mutex_lock(&LOCK_open));
+    if (my_delete(frm_name, MYF(MY_WME)) ||
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+        inactivate_table_log_entry(part_info->frm_log_entry->entry_pos) ||
+        (sync_table_log(), FALSE) ||
+#endif
+        my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
+        lpt->table->file->create_handler_files(path, shadow_path, TRUE))
+    {
+      error= 1;
+    }
+    VOID(pthread_mutex_unlock(&LOCK_open));
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    inactivate_table_log_entry(part_info->frm_log_entry->entry_pos);
+    part_info->frm_log_entry= NULL;
+    VOID(sync_table_log());
+#endif
+  }
+
 end:
-  VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(error);
 }
 
@@ -4693,7 +5588,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path));
+              table->file->create_handler_files(reg_path, NULL, FALSE));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
         goto err;
@@ -4739,7 +5634,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= (mysql_create_frm(thd, reg_path, db, table_name,
                                create_info, prepared_create_list, key_count,
                                key_info_buffer, table->file) ||
-              table->file->create_handler_files(reg_path));
+              table->file->create_handler_files(reg_path, NULL, FALSE));
       VOID(pthread_mutex_unlock(&LOCK_open));
       if (error)
         goto err;
@@ -4962,7 +5857,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       VOID(pthread_mutex_lock(&LOCK_open));
     }
     /* Tell the handler that a new frm file is in place. */
-    if (table->file->create_handler_files(reg_path))
+    if (table->file->create_handler_files(reg_path, NULL, FALSE))
     {
       VOID(pthread_mutex_unlock(&LOCK_open));
       goto err;
