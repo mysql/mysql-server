@@ -1395,7 +1395,7 @@ extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
 #ifdef ERROR_INJECT_SUPPORT
-extern ulong error_inject_code, error_inject_value;
+extern ulong error_inject_value;
 #endif
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;

@@ -127,11 +127,6 @@
 #    define DBUG_SETJMP setjmp
 #    define DBUG_LONGJMP longjmp
 #    define DBUG_DUMP(keyword,a1)
-#    define DBUG_EXECUTE_IF(keyword, a1)
-#    define DBUG_EXECUTE_COND(keyword, a1) 0
-#    define DBUG_COND(keyword) 0
-#    define DBUG_ADD_KEYWORD(key)
-#    define DBUG_DEL_KEYWORD(key)
 # else
 #    define DBUG_ENTER(a) \
 	auto char *_db_func_; auto char *_db_file_; auto int _db_level_; \
@@ -162,12 +157,4 @@
 #    define DBUG_SETJMP(a1) (_db_setjmp_ (), setjmp (a1))
 #    define DBUG_LONGJMP(a1,a2) (_db_longjmp_ (), longjmp (a1, a2))
 #    define DBUG_DUMP(keyword,a1,a2) _db_dump_(__LINE__,keyword,a1,a2)
-#    define DBUG_EXECUTE_IF(keyword,a1) \
-        {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}}
-#    define DBUG_EXECUTE_COND(keyword, a1) \
-        (_db_on_ ? ((_db_strict_keyword_ (keyword)) ? ((a1), 0) : 0) : 0)
-#    define DBUG_COND(keyword) \
-        ((_db_on_ && _db_strict_keyword_ (keyword)) ? 1 : 0)
-#    define DBUG_ADD_KEYWORD(key) _db_add_strict_keyword_(key)
-#    define DBUG_DEL_KEYWORD(key) _db_del_strict_keyword_(key)
 # endif
