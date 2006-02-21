@@ -2633,3 +2633,17 @@ end	AFTER	#		root@localhost
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+show create function f;
+Function	sql_mode	Create Function
+f		CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42
+show create procedure p;
+Procedure	sql_mode	Create Procedure
+p		CREATE PROCEDURE `p`()
+select 42
+drop function f;
+drop procedure p;

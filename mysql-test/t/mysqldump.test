@@ -1066,3 +1066,21 @@ show triggers;
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+
+
+#
+# Bug#14857 Reading dump files with single statement stored routines fails.
+# fixed by patch for bug#16878
+#
+#
+DELIMITER |;
+/*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
+return 42 */|
+/*!50003 CREATE PROCEDURE `p`()
+select 42 */|
+DELIMITER ;|
+show create function f;
+show create procedure p;
+drop function f;
+drop procedure p;
+
