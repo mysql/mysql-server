@@ -118,7 +118,7 @@ ulint
 row_search_for_mysql(
 /*=================*/
 					/* out: DB_SUCCESS,
-					DB_RECORD_NOT_FOUND, 
+					DB_RECORD_NOT_FOUND,
 					DB_END_OF_INDEX, DB_DEADLOCK,
 					DB_LOCK_TABLE_FULL,
 					or DB_TOO_BIG_RECORD */
@@ -133,7 +133,7 @@ row_search_for_mysql(
 					the end of the index, depending on
 					'mode' */
 	ulint		match_mode,	/* in: 0 or ROW_SEL_EXACT or
-					ROW_SEL_EXACT_PREFIX */ 
+					ROW_SEL_EXACT_PREFIX */
 	ulint		direction);	/* in: 0 or ROW_SEL_NEXT or
 					ROW_SEL_PREV; NOTE: if this is != 0,
 					then prebuilt must have a pcur
@@ -238,8 +238,8 @@ struct plan_struct{
 					this pcur to search the clustered
 					index */
 	mem_heap_t*	old_vers_heap;	/* memory heap used in building an old
-					version of a row, or NULL */	
-};	
+					version of a row, or NULL */
+};
 
 struct sel_node_struct{
 	que_common_t	common;		/* node type: QUE_NODE_SELECT */
@@ -296,7 +296,7 @@ struct sel_node_struct{
 					so that they do not change between
 					fetches */
 };
-	
+
 /* Select node states */
 #define	SEL_NODE_CLOSED		0	/* it is a declared cursor which is not
 					currently open */
@@ -335,7 +335,7 @@ struct row_printf_node_struct{
 #define ROW_SEL_PREV		2
 
 #define ROW_SEL_EXACT		1	/* search using a complete key value */
-#define ROW_SEL_EXACT_PREFIX 	2	/* search using a key prefix which
+#define ROW_SEL_EXACT_PREFIX	2	/* search using a key prefix which
 					must match to rows: the prefix may
 					contain an incomplete field (the
 					last field in prefix may be just
@@ -345,4 +345,4 @@ struct row_printf_node_struct{
 #include "row0sel.ic"
 #endif
 
-#endif 
+#endif

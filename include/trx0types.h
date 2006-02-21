@@ -42,4 +42,4 @@ typedef byte	trx_upagef_t;
 /* Undo log record */
 typedef	byte	trx_undo_rec_t;
 
-#endif 
+#endif

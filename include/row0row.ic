@@ -53,7 +53,7 @@ row_get_rec_trx_id(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (offset) {
 		return(trx_read_trx_id(rec + offset));
 	} else {
@@ -79,7 +79,7 @@ row_get_rec_roll_ptr(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (offset) {
 		return(trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
 	} else {
@@ -105,7 +105,7 @@ row_set_rec_trx_id(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (offset) {
 		trx_write_trx_id(rec + offset, trx_id);
 	} else {
@@ -131,11 +131,11 @@ row_set_rec_roll_ptr(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	offset = index->trx_id_offset;
-	
+
 	if (offset) {
 		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	} else {
-	 	row_set_rec_sys_field(DATA_ROLL_PTR,
+		row_set_rec_sys_field(DATA_ROLL_PTR,
 				rec, index, offsets, roll_ptr);
 	}
 }
@@ -163,10 +163,10 @@ row_build_row_ref_fast(
 	ulint		ref_len;
 	ulint		field_no;
 	ulint		i;
-	
+
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ref_len = dtuple_get_n_fields(ref);
-	
+
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
 

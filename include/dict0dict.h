@@ -765,7 +765,7 @@ dict_tree_build_node_ptr(
 				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
 	mem_heap_t*	heap,	/* in: memory heap where pointer created */
-	ulint           level);  /* in: level of rec in tree: 0 means leaf
+	ulint		level);	 /* in: level of rec in tree: 0 means leaf
 				level */
 /**************************************************************************
 Copies an initial segment of a physical record, long enough to specify an
@@ -867,7 +867,7 @@ dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/* in: table */
 	ibool		has_dict_mutex);/* in: TRUE if the caller has the
-					dictionary mutex */	
+					dictionary mutex */
 /*************************************************************************
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -935,13 +935,13 @@ struct dict_sys_struct{
 					header and flushed to a file; in
 					recovery this must be derived from
 					the log records */
-	hash_table_t* 	table_hash;	/* hash table of the tables, based
+	hash_table_t*	table_hash;	/* hash table of the tables, based
 					on name */
-	hash_table_t* 	table_id_hash;	/* hash table of the tables, based
+	hash_table_t*	table_id_hash;	/* hash table of the tables, based
 					on id */
-	hash_table_t* 	col_hash;	/* hash table of the columns */
+	hash_table_t*	col_hash;	/* hash table of the columns */
 	UT_LIST_BASE_NODE_T(dict_table_t)
-			table_LRU; 	/* LRU list of tables */
+			table_LRU;	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied
 					by the data dictionary table and
 					index objects */

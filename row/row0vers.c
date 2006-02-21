@@ -62,7 +62,7 @@ row_vers_impl_x_locked_off_kernel(
 	ulint		err;
 	mtr_t		mtr;
 	ulint		comp;
-	
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -71,12 +71,12 @@ row_vers_impl_x_locked_off_kernel(
 	mutex_exit(&kernel_mutex);
 
 	mtr_start(&mtr);
-	
+
 	/* Search for the clustered index record: this is a time-consuming
 	operation: therefore we release the kernel mutex; also, the release
 	is required by the latching order convention. The latch on the
 	clustered index locks the top of the stack of versions. We also
-	reserve purge_latch to lock the bottom of the version stack. */	
+	reserve purge_latch to lock the bottom of the version stack. */
 
 	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
 							&clust_index, &mtr);
@@ -96,7 +96,7 @@ row_vers_impl_x_locked_off_kernel(
 		mutex_enter(&kernel_mutex);
 		mtr_commit(&mtr);
 
-	        return(NULL);
+		return(NULL);
 	}
 
 	heap = mem_heap_create(1024);
@@ -107,7 +107,7 @@ row_vers_impl_x_locked_off_kernel(
 	mtr_s_lock(&(purge_sys->latch), &mtr);
 
 	mutex_enter(&kernel_mutex);
-	
+
 	trx = NULL;
 	if (!trx_is_active(trx_id)) {
 		/* The transaction that modified or inserted clust_rec is no
@@ -179,7 +179,7 @@ row_vers_impl_x_locked_off_kernel(
 		may assert the following: */
 
 		ut_ad(err == DB_SUCCESS);
-						
+
 		if (prev_version == NULL) {
 			/* It was a freshly inserted version: there is an
 			implicit x-lock on rec */
@@ -273,7 +273,7 @@ row_vers_must_preserve_del_marked(
 
 		/* A purge operation is not yet allowed to remove this
 		delete marked record */
-			
+
 		return(TRUE);
 	}
 
@@ -313,7 +313,7 @@ row_vers_old_has_index_entry(
 	ulint		comp;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
+		|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -333,7 +333,7 @@ row_vers_old_has_index_entry(
 						rec, clust_offsets, heap);
 		entry = row_build_index_entry(row, index, heap);
 
- 		/* NOTE that we cannot do the comparison as binary
+		/* NOTE that we cannot do the comparison as binary
 		fields because the row is maybe being modified so that
 		the clustered index record has already been updated
 		to a different binary value in a char field, but the
@@ -373,7 +373,7 @@ row_vers_old_has_index_entry(
 					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);
 
- 			/* NOTE that we cannot do the comparison as binary
+			/* NOTE that we cannot do the comparison as binary
 			fields because maybe the secondary index record has
 			already been updated to a different binary value in
 			a char field, but the collation identifies the old
@@ -428,7 +428,7 @@ row_vers_build_for_consistent_read(
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
+		|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -558,8 +558,8 @@ row_vers_build_for_semi_consistent_read(
 		mutex_exit(&kernel_mutex);
 
 		if (!version_trx
-		    || version_trx->conc_state == TRX_NOT_STARTED
-		    || version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+			|| version_trx->conc_state == TRX_NOT_STARTED
+			|| version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */

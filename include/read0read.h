@@ -69,7 +69,7 @@ read_view_print(
 /*============*/
 	read_view_t*	view);	/* in: read view */
 /*************************************************************************
-Create a consistent cursor view for mysql to be used in cursors. In this 
+Create a consistent cursor view for mysql to be used in cursors. In this
 consistent read view modifications done by the creating transaction or future
 transactions are not visible. */
 
@@ -91,7 +91,7 @@ This function sets a given consistent cursor view to a transaction
 read view if given consistent cursor view is not NULL. Otherwise, function
 restores a global read view to a transaction read view. */
 
-void 
+void
 read_cursor_set_for_mysql(
 /*======================*/
 	trx_t*		trx,	/* in: transaction where cursor is set */
@@ -134,10 +134,10 @@ is allocated and pointer to a read view. */
 struct cursor_view_struct{
 	mem_heap_t*	heap;
 				/* Memory heap for the cursor view */
-	read_view_t*	read_view;	
+	read_view_t*	read_view;
 				/* Consistent read view of the cursor*/
 	ulint		n_mysql_tables_in_use;
-                                /* number of Innobase tables used in the
+				/* number of Innobase tables used in the
 				  processing of this cursor */
 };
 
@@ -145,4 +145,4 @@ struct cursor_view_struct{
 #include "read0read.ic"
 #endif
 
-#endif 
+#endif
