@@ -25,4 +25,4 @@ typedef struct col_assign_node_struct	col_assign_node_t;
 
 typedef UT_LIST_BASE_NODE_T(sym_node_t)	sym_node_list_t;
 
-#endif 
+#endif

@@ -74,15 +74,15 @@ read_view_oldest_copy_or_open_new(
 	}
 
 	view_copy = read_view_create_low(n, heap);
-	
+
 	/* Insert the id of the creator in the right place of the descending
 	array of ids, if needs_insert is TRUE: */
 
 	i = 0;
 	while (i < n) {
 		if (needs_insert
-		    && (i >= old_view->n_trx_ids
-		     || ut_dulint_cmp(old_view->creator->id,
+			&& (i >= old_view->n_trx_ids
+				|| ut_dulint_cmp(old_view->creator->id,
 					read_view_get_nth_trx_id(old_view, i))
 				> 0)) {
 
@@ -100,8 +100,8 @@ read_view_oldest_copy_or_open_new(
 	}
 
 	view_copy->creator = cr_trx;
-	
-  	view_copy->low_limit_no = old_view->low_limit_no;
+
+	view_copy->low_limit_no = old_view->low_limit_no;
 	view_copy->low_limit_id = old_view->low_limit_id;
 
 	view_copy->can_be_too_old = FALSE;
@@ -142,7 +142,7 @@ read_view_open_now(
 
 	/* No future transactions should be visible in the view */
 
-  	view->low_limit_no = trx_sys->max_trx_id;
+	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
 
 	view->can_be_too_old = FALSE;
@@ -153,8 +153,8 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
-                if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
-                                        trx->conc_state == TRX_PREPARED)) {
+		if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
+					trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -169,13 +169,13 @@ read_view_open_now(
 			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
 
 				view->low_limit_no = trx->no;
-			}	
+			}
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
-	view->n_trx_ids = n;		
+	view->n_trx_ids = n;
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
@@ -185,7 +185,7 @@ read_view_open_now(
 	}
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
-	
+
 	return(view);
 }
 
@@ -201,7 +201,7 @@ read_view_close(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
-} 
+}
 
 /*************************************************************************
 Closes a consistent read view for MySQL. This function is called at an SQL
@@ -225,7 +225,7 @@ read_view_close_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 }
-	
+
 /*************************************************************************
 Prints a read view to stderr. */
 
@@ -236,14 +236,14 @@ read_view_print(
 {
 	ulint	n_ids;
 	ulint	i;
-	
+
 	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
 			(ulong) ut_dulint_get_high(view->low_limit_no),
 			(ulong) ut_dulint_get_low(view->low_limit_no));
 
 	fprintf(stderr, "Read view up limit trx id %lu %lu\n",
 			(ulong) ut_dulint_get_high(view->up_limit_id),
-			(ulong) ut_dulint_get_low(view->up_limit_id));		
+			(ulong) ut_dulint_get_low(view->up_limit_id));
 
 	fprintf(stderr, "Read view low limit trx id %lu %lu\n",
 			(ulong) ut_dulint_get_high(view->low_limit_id),
@@ -261,7 +261,7 @@ read_view_print(
 }
 
 /*************************************************************************
-Create a consistent cursor view for mysql to be used in cursors. In this 
+Create a consistent cursor view for mysql to be used in cursors. In this
 consistent read view modifications done by the creating transaction or future
 transactions are not visible. */
 
@@ -278,7 +278,7 @@ read_cursor_view_create_for_mysql(
 
 	ut_a(cr_trx);
 
-	/* Use larger heap than in trx_create when creating a read_view 
+	/* Use larger heap than in trx_create when creating a read_view
 	because cursors are quite long. */
 
 	heap = mem_heap_create(512);
@@ -286,15 +286,15 @@ read_cursor_view_create_for_mysql(
 	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(cursor_view_t));
 	curview->heap = heap;
 
-        /* Drop cursor tables from consideration when evaluating the need of
-          auto-commit */
+	/* Drop cursor tables from consideration when evaluating the need of
+	  auto-commit */
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 	cr_trx->n_mysql_tables_in_use = 0;
 
 	mutex_enter(&kernel_mutex);
 
 	curview->read_view = read_view_create_low(
-				UT_LIST_GET_LEN(trx_sys->trx_list), 
+				UT_LIST_GET_LEN(trx_sys->trx_list),
 					curview->heap);
 
 	view = curview->read_view;
@@ -302,7 +302,7 @@ read_cursor_view_create_for_mysql(
 
 	/* No future transactions should be visible in the view */
 
-  	view->low_limit_no = trx_sys->max_trx_id;
+	view->low_limit_no = trx_sys->max_trx_id;
 	view->low_limit_id = view->low_limit_no;
 
 	view->can_be_too_old = FALSE;
@@ -315,7 +315,7 @@ read_cursor_view_create_for_mysql(
 	semi-consistent high-granularity read view is implemented. */
 
 	while (trx) {
-                if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
+		if (trx != cr_trx && (trx->conc_state == TRX_ACTIVE ||
 					trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
@@ -331,13 +331,13 @@ read_cursor_view_create_for_mysql(
 			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
 
 				view->low_limit_no = trx->no;
-			}	
+			}
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
-	view->n_trx_ids = n;		
+	view->n_trx_ids = n;
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
@@ -347,7 +347,7 @@ read_cursor_view_create_for_mysql(
 	}
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
-	
+
 	mutex_exit(&kernel_mutex);
 
 	return(curview);
@@ -364,11 +364,11 @@ read_cursor_view_close_for_mysql(
 	cursor_view_t*	curview)/* in: cursor view to be closed */
 {
 	ut_a(curview);
-	ut_a(curview->read_view); 
+	ut_a(curview->read_view);
 	ut_a(curview->heap);
 
-        /* Add cursor's tables to the global count of active tables that
-          belong to this transaction */
+	/* Add cursor's tables to the global count of active tables that
+	  belong to this transaction */
 	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
 	mutex_enter(&kernel_mutex);
@@ -380,13 +380,13 @@ read_cursor_view_close_for_mysql(
 
 	mem_heap_free(curview->heap);
 }
-	
+
 /*************************************************************************
 This function sets a given consistent cursor view to a transaction
 read view if given consistent cursor view is not NULL. Otherwise, function
 restores a global read view to a transaction read view. */
 
-void 
+void
 read_cursor_set_for_mysql(
 /*======================*/
 	trx_t*		trx,	/* in: transaction where cursor is set */

@@ -159,7 +159,7 @@ row_undo_search_clust_to_pcur(
 	mtr_start(&mtr);
 
 	clust_index = dict_table_get_first_index(node->table);
-	
+
 	found = row_search_on_row_ref(&(node->pcur), BTR_MODIFY_LEAF,
 					node->table, node->ref, &mtr);
 
@@ -175,10 +175,10 @@ row_undo_search_clust_to_pcur(
 		BEFORE releasing the latch on the clustered index page: this
 		is to make sure that some thread will eventually undo the
 		modification corresponding to node->roll_ptr. */
-		
+
 		/* fputs("--------------------undoing a previous version\n",
 			stderr); */
-		   
+
 		ret = FALSE;
 	} else {
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
@@ -195,7 +195,7 @@ row_undo_search_clust_to_pcur(
 	}
 	return(ret);
 }
-	
+
 /***************************************************************
 Fetches an undo log record and does the undo for the recorded operation.
 If none left, or a partial rollback completed, returns control to the
@@ -213,9 +213,9 @@ row_undo(
 	trx_t*	trx;
 	dulint	roll_ptr;
 	ibool	froze_data_dict	= FALSE;
-	
+
 	ut_ad(node && thr);
-	
+
 	trx = node->trx;
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
@@ -248,12 +248,12 @@ row_undo(
 		again in this same rollback, restoring the previous version */
 
 		roll_ptr = node->new_roll_ptr;
-		
+
 		node->undo_rec = trx_undo_get_undo_rec_low(roll_ptr,
 								node->heap);
 		node->roll_ptr = roll_ptr;
 		node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
-		
+
 		if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
 
 			node->state = UNDO_NODE_INSERT;
@@ -263,15 +263,15 @@ row_undo(
 	}
 
 	/* Prevent DROP TABLE etc. while we are rolling back this row.
-        If we are doing a TABLE CREATE or some other dictionary operation,
-        then we already have dict_operation_lock locked in x-mode. Do not
-        try to lock again in s-mode, because that would cause a hang. */
+	If we are doing a TABLE CREATE or some other dictionary operation,
+	then we already have dict_operation_lock locked in x-mode. Do not
+	try to lock again in s-mode, because that would cause a hang. */
 
 	if (trx->dict_operation_lock_mode == 0) {
-        
-	        row_mysql_freeze_data_dictionary(trx);
 
-	        froze_data_dict = TRUE;
+		row_mysql_freeze_data_dictionary(trx);
+
+		froze_data_dict = TRUE;
 	}
 
 	if (node->state == UNDO_NODE_INSERT) {
@@ -286,14 +286,14 @@ row_undo(
 
 	if (froze_data_dict) {
 
-	        row_mysql_unfreeze_data_dictionary(trx);
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */
 	btr_pcur_close(&(node->pcur));
 
 	mem_heap_empty(node->heap);
-	
+
 	thr->run_node = node;
 
 	return(err);
@@ -316,9 +316,9 @@ row_undo_step(
 	ut_ad(thr);
 
 	srv_activity_count++;
-	
+
 	trx = thr_get_trx(thr);
-	
+
 	node = thr->run_node;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_UNDO);
@@ -338,13 +338,13 @@ row_undo_step(
 			"InnoDB: Error 13 means out of tablespace.\n"
 			"InnoDB: Consider increasing your tablespace.\n");
 
-			exit(1);			
+			exit(1);
 		}
-		
+
 		ut_error;
 
 		return(NULL);
 	}
 
 	return(thr);
-} 
+}

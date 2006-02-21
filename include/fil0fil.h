@@ -107,7 +107,7 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_BLOB	10	/* Uncompressed BLOB page */
 
 /* Space types */
-#define FIL_TABLESPACE 		501
+#define FIL_TABLESPACE		501
 #define FIL_LOG			502
 
 extern ulint	fil_n_log_flushes;
@@ -310,13 +310,13 @@ datadir that we should use in replaying the file operations. */
 byte*
 fil_op_log_parse_or_replay(
 /*=======================*/
-                        	/* out: end of log record, or NULL if the
+				/* out: end of log record, or NULL if the
 				record was not completely contained between
 				ptr and end_ptr */
-        byte*   ptr,    	/* in: buffer containing the log record body,
+	byte*	ptr,		/* in: buffer containing the log record body,
 				or an initial segment of it, if the record does
 				not fir completely between ptr and end_ptr */
-        byte*   end_ptr,	/* in: buffer end */
+	byte*	end_ptr,	/* in: buffer end */
 	ulint	type,		/* in: the type of this log record */
 	ibool	do_replay,	/* in: TRUE if we want to replay the
 				operation, and not just parse the log record */
@@ -640,7 +640,7 @@ void
 fil_aio_wait(
 /*=========*/
 	ulint	segment);	/* in: the number of the segment in the aio
-				array to wait for */ 
+				array to wait for */
 /**************************************************************************
 Flushes to disk possible writes cached by the OS. If the space does not exist
 or is being dropped, does not do anything. */
@@ -686,7 +686,7 @@ Sets the file page type. */
 void
 fil_page_set_type(
 /*==============*/
-	byte* 	page,	/* in: file page */
+	byte*	page,	/* in: file page */
 	ulint	type);	/* in: type */
 /*************************************************************************
 Gets the file page type. */
@@ -696,7 +696,7 @@ fil_page_get_type(
 /*==============*/
 			/* out: type; NOTE that if the type has not been
 			written to page, the return value not defined */
-	byte* 	page);	/* in: file page */
+	byte*	page);	/* in: file page */
 
 
 typedef	struct fil_space_struct	fil_space_t;

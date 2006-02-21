@@ -180,7 +180,7 @@ ibuf_page_low(
 /***************************************************************************
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
-file segment, and the thread did not own the fsp latch before this call. */ 
+file segment, and the thread did not own the fsp latch before this call. */
 
 void
 ibuf_free_excess_pages(
@@ -304,4 +304,4 @@ for the file segment from which the pages for the ibuf tree are allocated */
 #include "ibuf0ibuf.ic"
 #endif
 
-#endif 
+#endif

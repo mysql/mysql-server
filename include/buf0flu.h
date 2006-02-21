@@ -110,11 +110,11 @@ available to replacement in the free list and at the end of the LRU list (to
 make sure that a read-ahead batch can be read efficiently in a single
 sweep). */
 
-#define BUF_FLUSH_FREE_BLOCK_MARGIN 	(5 + BUF_READ_AHEAD_AREA)
-#define BUF_FLUSH_EXTRA_MARGIN 		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
+#define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
+#define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
 
 #ifndef UNIV_NONINL
 #include "buf0flu.ic"
 #endif
-				
+
 #endif

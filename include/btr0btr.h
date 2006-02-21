@@ -43,7 +43,7 @@ optimization */
 /* This flag ORed to latch mode says that we can ignore possible
 UNIQUE definition on secondary indexes when we decide if we can use the
 insert buffer to speed up inserts */
-#define BTR_IGNORE_SEC_UNIQUE	2048	
+#define BTR_IGNORE_SEC_UNIQUE	2048
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */
@@ -144,7 +144,7 @@ UNIV_INLINE
 ulint
 btr_node_ptr_get_child_page_no(
 /*===========================*/
-			   	/* out: child node address */
+				/* out: child node address */
 	rec_t*		rec,	/* in: node pointer record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /****************************************************************
@@ -376,7 +376,7 @@ void
 btr_page_free(
 /*==========*/
 	dict_tree_t*	tree,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */	
+	page_t*		page,	/* in: page to be freed, x-latched */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
 Frees a file page used in an index tree. Can be used also to BLOB
@@ -387,7 +387,7 @@ void
 btr_page_free_low(
 /*==============*/
 	dict_tree_t*	tree,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */	
+	page_t*		page,	/* in: page to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
 #ifdef UNIV_BTR_PRINT
@@ -431,11 +431,11 @@ btr_validate_tree(
 	dict_tree_t*	tree,	/* in: tree */
 	trx_t*		trx);	/* in: transaction or NULL */
 
-#define BTR_N_LEAF_PAGES 	1
+#define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
 
 #ifndef UNIV_NONINL
 #include "btr0btr.ic"
 #endif
 
-#endif 
+#endif

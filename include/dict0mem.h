@@ -29,10 +29,10 @@ Created 1/8/1996 Heikki Tuuri
 combination of types */
 #define DICT_CLUSTERED	1	/* clustered index */
 #define DICT_UNIQUE	2	/* unique index */
-#define	DICT_UNIVERSAL 	4	/* index which can contain records from any
+#define	DICT_UNIVERSAL	4	/* index which can contain records from any
 				other index */
-#define	DICT_IBUF 	8	/* insert buffer tree */
-				
+#define	DICT_IBUF	8	/* insert buffer tree */
+
 /* Types for a table object */
 #define DICT_TABLE_ORDINARY		1
 #define	DICT_TABLE_CLUSTER_MEMBER	2
@@ -143,7 +143,7 @@ struct dict_col_struct{
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */
-	ulint		aux;	/* this is used as an auxiliary variable 
+	ulint		aux;	/* this is used as an auxiliary variable
 				in some of the functions below */
 };
 
@@ -269,7 +269,7 @@ struct dict_foreign_struct{
 					constraint is defined: we allow the
 					indexes to contain more fields than
 					mentioned in the constraint, as long
-					as the first fields are as mentioned */ 
+					as the first fields are as mentioned */
 	dict_index_t*	foreign_index;	/* foreign index; we require that
 					both tables contain explicitly defined
 					indexes for the constraint: InnoDB
@@ -334,7 +334,7 @@ struct dict_table_struct{
 				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /* node of the LRU list of tables */
-	ulint		mem_fix;/* count of how many times the table 
+	ulint		mem_fix;/* count of how many times the table
 				and its indexes has been fixed in memory;
 				currently NOT used */
 	ulint		n_mysql_handles_opened;
@@ -397,9 +397,9 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/* other indexes in database pages */
-	ibool           stat_initialized; /* TRUE if statistics have
+	ibool		stat_initialized; /* TRUE if statistics have
 				been calculated the first time
-			        after database startup or table creation */
+				after database startup or table creation */
 	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
 				we add 1 to this number; we calculate new
@@ -421,11 +421,11 @@ struct dict_table_struct{
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
-				next inserted row */	
+				next inserted row */
 	ulint		magic_n;/* magic number */
 };
 #define	DICT_TABLE_MAGIC_N	76333786
-					
+
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif
