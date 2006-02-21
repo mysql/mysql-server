@@ -3779,12 +3779,15 @@ btr_free_externally_stored_field(
 					from purge where 'data' is located on
 					an undo log page, not an index
 					page) */
-	rec_t*		rec,		/* in/out: record */
-	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
-	page_zip_des_t*	page_zip,	/* in: compressed page whose
-					uncompressed part will be updated,
+	byte*		field_ref,	/* in/out: field reference */
+	rec_t*		rec,		/* in: record containing field_ref, for
+					page_zip_write_blob_ptr(), or NULL */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index),
 					or NULL */
-	ulint		i,		/* in: field number */
+	page_zip_des_t*	page_zip,	/* in: compressed page corresponding
+					to rec, or NULL if rec == NULL */
+	ulint		i,		/* in: field number of field_ref;
+					ignored if rec == NULL */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
@@ -3794,7 +3797,6 @@ btr_free_externally_stored_field(
 {
 	page_t*	page;
 	page_t*	rec_page;
-	byte*	field_ref;
 	ulint	space_id;
 	ulint	page_no;
 	ulint	next_page_no;
@@ -3802,17 +3804,20 @@ btr_free_externally_stored_field(
 
 	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(rec),
+	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(field_ref),
 							MTR_MEMO_PAGE_X_FIX));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
-	{
+#ifdef UNIV_DEBUG
+	if (rec) {
 		ulint	local_len;
-		field_ref = rec_get_nth_field(rec, offsets, i, &local_len);
+		byte*	f = rec_get_nth_field(rec, offsets, i, &local_len);
 		ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
-		field_ref += local_len;
+		f += local_len;
+		ut_ad(f == field_ref);
 	}
+#endif /* UNIV_DEBUG */
 	
 	for (;;) {
 		mtr_start(&mtr);
@@ -3858,11 +3863,10 @@ btr_free_externally_stored_field(
 			mlog_write_ulint(field_ref + BTR_EXTERN_LEN + 4,
 						0,
 						MLOG_4BYTES, &mtr);
-#if ZIP_BLOB
-			if (page_zip)
-#endif
-			page_zip_write_blob_ptr(page_zip, rec, index, offsets,
-								i, &mtr);
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				page_zip_write_blob_ptr(page_zip,
+						rec, index, offsets, i, &mtr);
+			}
 		} else {
 			ulint	extern_len	= mach_read_from_4(
 					field_ref + BTR_EXTERN_LEN + 4);
@@ -3935,10 +3939,15 @@ btr_rec_free_externally_stored_fields(
 
 	for (i = 0; i < n_fields; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
+			ulint	len;
+			byte*	data = rec_get_nth_field(
+					rec, offsets, i, &len);
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			btr_free_externally_stored_field(index, rec, offsets,
-						page_zip, i,
- 						do_not_free_inherited, mtr);
+			btr_free_externally_stored_field(index,
+					data + len - BTR_EXTERN_FIELD_REF_SIZE,
+					rec, offsets, page_zip, i,
+					do_not_free_inherited, mtr);
 		}
 	}
 }
@@ -3979,10 +3988,16 @@ btr_rec_free_updated_extern_fields(
 		ufield = upd_get_nth_field(update, i);
 	
 		if (rec_offs_nth_extern(offsets, ufield->field_no)) {
+			ulint	len;
+			byte*	data = rec_get_nth_field(
+					rec, offsets, ufield->field_no, &len);
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			btr_free_externally_stored_field(index, rec, offsets,
-						page_zip, ufield->field_no,
-						do_not_free_inherited, mtr);
+			btr_free_externally_stored_field(index,
+					data + len - BTR_EXTERN_FIELD_REF_SIZE,
+					rec, offsets, page_zip,
+					ufield->field_no,
+					do_not_free_inherited, mtr);
 		}
 	}
 }

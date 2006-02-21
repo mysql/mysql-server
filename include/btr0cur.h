@@ -481,12 +481,15 @@ btr_free_externally_stored_field(
 					from purge where 'data' is located on
 					an undo log page, not an index
 					page) */
-	rec_t*		rec,		/* in/out: record */
-	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
-	page_zip_des_t*	page_zip,	/* in: compressed page whose
-					uncompressed part will be updated,
+	byte*		field_ref,	/* in/out: field reference */
+	rec_t*		rec,		/* in: record containing field_ref, for
+					page_zip_write_blob_ptr(), or NULL */
+	const ulint*	offsets,	/* in: rec_get_offsets(rec, index),
 					or NULL */
-	ulint		i,		/* in: field number */
+	page_zip_des_t*	page_zip,	/* in: compressed page corresponding
+					to rec, or NULL if rec == NULL */
+	ulint		i,		/* in: field number of field_ref;
+					ignored if rec == NULL */
 	ibool		do_not_free_inherited,/* in: TRUE if called in a
 					rollback and we do not want to free
 					inherited fields */
