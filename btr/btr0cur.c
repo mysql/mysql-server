@@ -1202,13 +1202,14 @@ btr_cur_pessimistic_insert(
 {
 	dict_index_t*	index		= cursor->index;
 	big_rec_t*	big_rec_vec	= NULL;
+	mem_heap_t*	heap		= NULL;
 	page_t*		page;
 	ulint		err;
 	ibool		dummy_inh;
 	ibool		success;
 	ulint		n_extents	= 0;
 	ulint		n_reserved;
-	
+
 	ut_ad(dtuple_check_typed(entry));
 
 	*big_rec = NULL;
@@ -1278,6 +1279,26 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
+	/* Add externally stored records, if needed */
+	if (UNIV_LIKELY_NULL(big_rec_vec)) {
+		ulint	n_more_ext = big_rec_vec->n_fields;
+		ulint*	more_ext;
+		ulint	i;
+
+		heap = mem_heap_create((n_more_ext + n_ext) * sizeof(ulint));
+		more_ext = mem_heap_alloc(heap,
+					(n_more_ext + n_ext) * sizeof(ulint));
+		if (n_ext) {
+			memcpy(more_ext, ext, n_ext * sizeof(ulint));
+		}
+
+		for (i = 0; i < n_more_ext; i++) {
+			more_ext[n_ext++] = big_rec_vec->fields[i].field_no;
+		}
+
+		ext = more_ext;
+	}
+
 	if (dict_tree_get_page(index->tree)
 					== buf_frame_get_page_no(page)) {
 
@@ -1287,6 +1308,10 @@ btr_cur_pessimistic_insert(
 	} else {
 		*rec = btr_page_split_and_insert(cursor, entry,
 						ext, n_ext, mtr);
+	}
+
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 	btr_cur_position(index, page_rec_get_prev(*rec), cursor);	
@@ -3615,7 +3640,6 @@ btr_store_big_rec_extern_fields(
 						MLOG_4BYTES, &mtr);
 
 				if (err == Z_STREAM_END) {
-fprintf(stderr,"in:%lu out:%lu\n", c_stream.total_in, c_stream.total_out);
 					mlog_write_ulint(field_ref
 							+ BTR_EXTERN_LEN + 4,
 							c_stream.total_in,
@@ -4011,7 +4035,7 @@ btr_copy_externally_stored_field(
 	memcpy(buf, data, local_len);
 	copied_len = local_len;
 
-	if (extern_len == 0) {
+	if (UNIV_UNLIKELY(extern_len == 0)) {
 		*len = copied_len;
 		
 		return(buf);
@@ -4071,7 +4095,9 @@ btr_copy_externally_stored_field(
 				ut_a(!d_stream.avail_out);
 
 				inflateEnd(&d_stream);
-				*len = d_stream.total_out;
+				ut_ad(buf + local_len + d_stream.total_out ==
+					d_stream.next_out);
+				*len = d_stream.next_out - buf;
 				return(buf);
 			}
 
