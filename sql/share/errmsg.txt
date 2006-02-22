@@ -5813,3 +5813,7 @@ ER_CANT_CHANGE_TX_ISOLATION 25001
 ER_WARN_DEPRECATED_STATEMENT
         eng  "The '%s' statement is deprecated and will be removed in MySQL %s. Please use client programs (e.g. %s) instead."
 
+ER_TABLE_NEEDS_UPGRADE
+         eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" to fix it!"
+ER_SP_NO_AGGREGATE 42000
+	eng "AGGREGATE is not supported for stored functions"
