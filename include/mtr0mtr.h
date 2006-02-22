@@ -145,9 +145,11 @@ flag value must give the length also! */
 #define MLOG_ZIP_DECOMPRESS	((byte)52)	/* decompress a page
 						to undo a compressed page
 						overflow */
-#define MLOG_BIGGEST_TYPE	((byte)52)	/* biggest value (used in
+#define MLOG_ZIP_WRITE_HEADER	((byte)53)	/* write to compressed page
+						header */
+#define MLOG_BIGGEST_TYPE	((byte)53)	/* biggest value (used in
 						asserts) */
-					
+
 /*******************************************************************
 Starts a mini-transaction and creates a mini-transaction handle 
 and buffer in the memory buffer given by the caller. */

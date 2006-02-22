@@ -4883,13 +4883,14 @@ lock_rec_insert_check_and_lock(
 		lock_mutex_exit_kernel();
 
 		if (!(index->type & DICT_CLUSTERED)) {
+			buf_block_t*	block = buf_block_align(rec);
 
 			/* Update the page max trx id field */
-			page_update_max_trx_id(buf_frame_align(rec),
-							NULL/*TODO*/,
-							thr_get_trx(thr)->id);
+			page_update_max_trx_id(buf_block_get_frame(block),
+						buf_block_get_page_zip(block),
+						thr_get_trx(thr)->id);
 		}
-		
+
 		*inherit = FALSE;
 
 		return(DB_SUCCESS);
@@ -4921,12 +4922,13 @@ lock_rec_insert_check_and_lock(
 
 	lock_mutex_exit_kernel();
 
-	if (!(index->type & DICT_CLUSTERED) && (err == DB_SUCCESS)) {
+	if ((err == DB_SUCCESS) && !(index->type & DICT_CLUSTERED)) {
+		buf_block_t*	block = buf_block_align(rec);
 
 		/* Update the page max trx id field */
-		page_update_max_trx_id(buf_frame_align(rec),
-							NULL/*TODO*/,
-							thr_get_trx(thr)->id);
+		page_update_max_trx_id(buf_block_get_frame(block),
+					buf_block_get_page_zip(block),
+					thr_get_trx(thr)->id);
 	}
 
 #ifdef UNIV_DEBUG
@@ -5103,11 +5105,12 @@ lock_sec_rec_modify_check_and_lock(
 #endif /* UNIV_DEBUG */
 
 	if (err == DB_SUCCESS) {
-		/* Update the page max trx id field */
+		buf_block_t*	block = buf_block_align(rec);
 
-		page_update_max_trx_id(buf_frame_align(rec),
-							NULL/*TODO*/,
-							thr_get_trx(thr)->id);
+		/* Update the page max trx id field */
+		page_update_max_trx_id(buf_block_get_frame(block),
+						buf_block_get_page_zip(block),
+						thr_get_trx(thr)->id);
 	}
 
 	return(err);

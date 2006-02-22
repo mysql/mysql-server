@@ -219,24 +219,30 @@ mlog_write_ulint(
 	mtr_t*	mtr)	/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
-	
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+
+	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
 	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
 	}
 
-	if (type == MLOG_1BYTE) {
+	switch (type) {
+	case MLOG_1BYTE:
 		mach_write_to_1(ptr, val);
-	} else if (type == MLOG_2BYTES) {
+		break;
+	case MLOG_2BYTES:
 		mach_write_to_2(ptr, val);
-	} else {
-		ut_ad(type == MLOG_4BYTES);
+		break;
+	case MLOG_4BYTES:
 		mach_write_to_4(ptr, val);
+		break;
+	default:
+		ut_error;
 	}
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 5);
-	
+
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
 
@@ -245,9 +251,9 @@ mlog_write_ulint(
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
 
-	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
+	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
 	log_ptr += 2;
-	
+
 	log_ptr += mach_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
@@ -338,7 +344,7 @@ mlog_log_string(
 	ut_ad(len <= UNIV_PAGE_SIZE);
 
 	log_ptr = mlog_open(mtr, 30);
-	
+
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
 
@@ -349,7 +355,7 @@ mlog_log_string(
 								log_ptr, mtr);
 	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
 	log_ptr += 2;
-	
+
 	mach_write_to_2(log_ptr, len);
 	log_ptr += 2;
 

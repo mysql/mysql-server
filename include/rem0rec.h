@@ -455,18 +455,6 @@ rec_offs_any_extern(
 				/* out: TRUE if a field is stored externally */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /***************************************************************
-Sets the ith field extern storage bit. */
-UNIV_INLINE
-void
-rec_set_nth_field_extern_bit(
-/*=========================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		i,	/* in: ith field */
-	mtr_t*		mtr);	/* in: mtr holding an X-latch to the page
-				where rec is, or NULL; in the NULL case
-				we do not write to log about the change */
-/***************************************************************
 Sets TRUE the extern storage bits of fields mentioned in an array. */
 
 void
@@ -475,10 +463,7 @@ rec_set_field_extern_bits(
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	vec,	/* in: array of field numbers */
-	ulint		n_fields,/* in: number of fields numbers */
-	mtr_t*		mtr);	/* in: mtr holding an X-latch to the page
-				where rec is, or NULL; in the NULL case
-				we do not write to log about the change */
+	ulint		n_fields);/* in: number of fields numbers */
 /*************************************************************** 
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len

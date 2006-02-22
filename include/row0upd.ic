@@ -113,8 +113,6 @@ row_upd_rec_sys_fields(
 	trx_t*		trx,	/* in: transaction */
 	dulint		roll_ptr)/* in: roll ptr of the undo log record */
 {
-	ulint	offset;
-
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
@@ -122,21 +120,21 @@ row_upd_rec_sys_fields(
 			|| rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	offset = index->trx_id_offset;
-	
-	if (!offset) {
-		offset = row_get_trx_id_offset(rec, index, offsets);
-	}
-
-	trx_write_trx_id(rec + offset, trx->id);
-	trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
-
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_zip_write_trx_id(
 				page_zip, rec, rec_offs_data_size(offsets),
-				trx->id, NULL/* TODO: mtr */);
+				trx->id, NULL);
 		page_zip_write_roll_ptr(
 				page_zip, rec, rec_offs_data_size(offsets),
-				roll_ptr, NULL/* TODO: mtr */);
+				roll_ptr, NULL);
+	} else {
+		ulint	offset = index->trx_id_offset;
+
+		if (!offset) {
+			offset = row_get_trx_id_offset(rec, index, offsets);
+		}
+
+		trx_write_trx_id(rec + offset, trx->id);
+		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	}
 }

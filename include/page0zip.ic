@@ -427,6 +427,17 @@ page_zip_available(
 }
 
 /**************************************************************************
+Write a log record of writing to the uncompressed header portion of a page. */
+
+void
+page_zip_write_header_log(
+/*======================*/
+	const page_zip_des_t*	page_zip,/* in: compressed page */
+	ulint			offset,	/* in: offset to the data */
+	ulint			length,	/* in: length of the data */
+	mtr_t*			mtr);	/* in: mini-transaction */
+
+/**************************************************************************
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
 However, the data portion of the uncompressed page may differ from
@@ -438,7 +449,8 @@ page_zip_write_header(
 /*==================*/
 	page_zip_des_t*	page_zip,/* in/out: compressed page */
 	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length)	/* in: length of the data */
+	ulint		length,	/* in: length of the data */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 {
 	ulint	pos;
 
@@ -453,6 +465,10 @@ page_zip_write_header(
 
 	/* The following would fail in page_cur_insert_rec_low(). */
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
+
+	if (UNIV_LIKELY_NULL(mtr)) {
+		page_zip_write_header_log(page_zip, pos, length, mtr);
+	}
 }
 
 #ifdef UNIV_MATERIALIZE
