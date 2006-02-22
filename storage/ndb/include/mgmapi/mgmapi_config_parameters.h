@@ -88,10 +88,11 @@
 #define CFG_DB_STRING_MEMORY          161 /* used from 5.1 */
 #define CFG_DB_INITIAL_OPEN_FILES     162 /* used from 5.1 */
 
-#define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
-
 #define CFG_DB_DISK_PAGE_BUFFER_MEMORY 160
 #define CFG_DB_STRING_MEMORY          161
+
+#define CFG_DB_SGA                    198 /* super pool mem */
+#define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
