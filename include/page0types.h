@@ -114,22 +114,4 @@ page_zip_dir_delete(
 	const byte*	free)	/* in: previous start of the free list */
 	__attribute__((nonnull));
 
-#ifdef UNIV_DEBUG
-/**************************************************************************
-Determine if enough space is available in the modification log. */
-
-ibool
-page_zip_available_noninline(
-/*=========================*/
-					/* out: TRUE if enough space
-					is available */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ulint			length,	/* in: sum of length in
-					page_zip_write() calls */
-	ulint			n_write,/* in: number of page_zip_write() */
-	ulint			n_heap)	/* in: number of records that
-					will be allocated from the heap */
-	__attribute__((warn_unused_result, nonnull, pure));
-#endif /* UNIV_DEBUG */
-
 #endif 
