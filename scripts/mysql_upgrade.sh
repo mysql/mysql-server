@@ -39,6 +39,7 @@ parse_arguments() {
       --ldata=*|--data=*|--datadir=*) DATADIR=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --force) force=1 ;;
       --verbose) verbose=1 ;;
+      --help) help_option=1 ;;
       *)
         if test -n "$pick_args"
         then
@@ -84,9 +85,26 @@ bindir=
 MY_BASEDIR_VERSION=
 verbose=0
 force=0
+help_option=0
 
 parse_arguments `$print_defaults $defaults mysqld mysql_upgrade`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+if test $help_option = 1
+then
+  echo "MySQL utility script to upgrade database to the current server version"
+  echo ""
+  echo "It takes the following arguments:"
+  echo "  --help     Show this help message"
+  echo "  --basedir  Specifies the directory where MySQL is installed"
+  echo "  --datadir  Specifies the data directory"
+  echo "  --force    Mysql_upgrade.info file will be ignored"
+  echo "  --user     Username for server login if not current user"
+  echo "  --verbose  Display more output about the process"
+  echo ""
+
+  exit 0
+fi
 
 #
 # Try to find where binaries are installed
