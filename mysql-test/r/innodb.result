@@ -856,7 +856,7 @@ create table t1 (a char(20), index (a(5))) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(20) default NULL,
+  `a` char(20) DEFAULT NULL,
   KEY `a` (`a`(5))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
@@ -1587,7 +1587,7 @@ create table t2 (id int(11) not null auto_increment, id2 int(11) not null, const
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL auto_increment,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `id2` int(11) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `id` (`id`,`id2`),
@@ -1598,7 +1598,7 @@ create table t2 (id int(11) not null auto_increment, id2 int(11) not null, const
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL auto_increment,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `id2` int(11) NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1607,7 +1607,7 @@ alter table t2 add index id_test (id), add index id_test2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL auto_increment,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `id2` int(11) NOT NULL,
   KEY `id_test` (`id`),
   KEY `id_test2` (`id`,`id2`),
@@ -1620,8 +1620,8 @@ create table t2 (a int auto_increment primary key, b int, index(b), foreign key 
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL auto_increment,
-  `b` int(11) default NULL,
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b_2` (`b`),
   KEY `b` (`b`),
@@ -1632,8 +1632,8 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL auto_increment,
-  `b` int(11) default NULL,
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`),
@@ -1843,40 +1843,40 @@ concat('*',v,'*',c,'*',t,'*')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` varchar(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
   `t` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
   `t` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 modify t varchar(10);
@@ -1885,9 +1885,9 @@ Note	1265	Data truncated for column 't' at row 2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) default NULL,
-  `c` varchar(10) default NULL,
-  `t` varchar(10) default NULL
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
@@ -1898,8 +1898,8 @@ create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `v` (`v`),
   KEY `c` (`c`),
@@ -2117,8 +2117,8 @@ alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(300) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -2197,8 +2197,8 @@ alter table t1 drop key v, add key v (v(30));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(300) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -2277,8 +2277,8 @@ alter table t1 modify v varchar(600), drop key v, add key v (v);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(600) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(600) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
@@ -2355,8 +2355,8 @@ create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL,
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
   `t` text,
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
@@ -2367,15 +2367,15 @@ create table t1 (v char(10) character set utf8);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) character set utf8 default NULL
+  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` varchar(10) default NULL,
-  `c` char(10) default NULL
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
@@ -2417,7 +2417,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext character set utf8
+  `v` mediumtext CHARACTER SET utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 set storage_engine=MyISAM;
@@ -2544,8 +2544,8 @@ character set = latin1 engine = innodb;
 show create table t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `col1` varchar(512) default NULL,
-  `col2` varchar(512) default NULL,
+  `col1` varchar(512) DEFAULT NULL,
+  `col2` varchar(512) DEFAULT NULL,
   KEY `col1` (`col1`,`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
@@ -2568,7 +2568,7 @@ Warning	1071	Specified key was too long; max key length is 767 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` varchar(768) default NULL,
+  `col1` varchar(768) DEFAULT NULL,
   KEY `col1` (`col1`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2, t3, t4;

@@ -11,8 +11,8 @@ CREATE TABLE gis_geometry (fid INTEGER, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) default NULL,
-  `g` point default NULL
+  `fid` int(11) DEFAULT NULL,
+  `g` point DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra

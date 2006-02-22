@@ -157,7 +157,7 @@ create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t` varchar(4) character set cp1251 NOT NULL default ''
+  `t` varchar(4) CHARACTER SET cp1251 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select
@@ -191,11 +191,11 @@ ab	a 	ab	a 	6100
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(2) NOT NULL default '',
-  `c2` varbinary(2) NOT NULL default '',
-  `c3` varbinary(2) NOT NULL default '',
-  `c4` varbinary(2) NOT NULL default '',
-  `c5` varbinary(2) NOT NULL default ''
+  `c1` varbinary(2) NOT NULL DEFAULT '',
+  `c2` varbinary(2) NOT NULL DEFAULT '',
+  `c3` varbinary(2) NOT NULL DEFAULT '',
+  `c4` varbinary(2) NOT NULL DEFAULT '',
+  `c5` varbinary(2) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select
@@ -224,11 +224,11 @@ c1	c2	c3	c4	c5
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) character set utf8 NOT NULL default '',
-  `c2` varchar(2) character set utf8 NOT NULL default '',
-  `c3` varchar(2) character set utf8 NOT NULL default '',
-  `c4` varchar(2) character set utf8 NOT NULL default '',
-  `c5` varchar(2) character set utf8 NOT NULL default ''
+  `c1` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c2` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c3` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c4` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a binary(4), b char(4) character set koi8r);

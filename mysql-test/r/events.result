@@ -188,22 +188,22 @@ ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin d
 SHOW CREATE TABLE mysql.event;
 Table	Create Table
 event	CREATE TABLE `event` (
-  `db` char(20) character set utf8 collate utf8_bin NOT NULL default '',
-  `name` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  `db` char(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `body` longblob NOT NULL,
-  `definer` char(77) character set utf8 collate utf8_bin NOT NULL default '',
-  `execute_at` datetime default NULL,
-  `interval_value` int(11) default NULL,
-  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL,
-  `created` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
-  `modified` timestamp NOT NULL default '0000-00-00 00:00:00',
-  `last_executed` datetime default NULL,
-  `starts` datetime default NULL,
-  `ends` datetime default NULL,
-  `status` enum('ENABLED','DISABLED') NOT NULL default 'ENABLED',
-  `on_completion` enum('DROP','PRESERVE') NOT NULL default 'DROP',
-  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL default '',
-  `comment` char(64) character set utf8 collate utf8_bin NOT NULL default '',
+  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `execute_at` datetime DEFAULT NULL,
+  `interval_value` int(11) DEFAULT NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') DEFAULT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `last_executed` datetime DEFAULT NULL,
+  `starts` datetime DEFAULT NULL,
+  `ends` datetime DEFAULT NULL,
+  `status` enum('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED',
+  `on_completion` enum('DROP','PRESERVE') NOT NULL DEFAULT 'DROP',
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE') NOT NULL DEFAULT '',
+  `comment` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   PRIMARY KEY (`definer`,`db`,`name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Events'
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
