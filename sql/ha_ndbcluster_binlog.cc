@@ -1320,11 +1320,16 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
        Invalidate table and all it's indexes
     */
     ndb->setDatabaseName(share->table->s->db.str);
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    DBUG_ASSERT(thd_ndb != NULL);
+    Ndb* old_ndb= thd_ndb->ndb;
+    thd_ndb->ndb= ndb;
     ha_ndbcluster table_handler(table_share);
     table_handler.set_dbname(share->key);
     table_handler.set_tabname(share->key);
     table_handler.open_indexes(ndb, table, TRUE);
     table_handler.invalidate_dictionary_cache(TRUE);
+    thd_ndb->ndb= old_ndb;
     
     if (online_alter_table)
     {  
@@ -1349,7 +1354,10 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
         DBUG_DUMP("frm", (char*)altered_table->getFrmData(), 
                   altered_table->getFrmLength());
         pthread_mutex_lock(&LOCK_open);
-        dict->putTable(altered_table);
+         const NDBTAB *old= dict->getTable(tabname);
+        if (!old &&
+            old->getObjectVersion() != altered_table->getObjectVersion())
+          dict->putTable(altered_table);
         
         if ((error= unpackfrm(&data, &length, altered_table->getFrmData())) ||
             (error= writefrm(key, data, length)))
@@ -1359,12 +1367,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
         }
         pthread_mutex_unlock(&LOCK_open);
         close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0);
-        /*
+        pthread_mutex_lock(&LOCK_open);
         if ((error= ndbcluster_binlog_open_table(thd, share, 
                                                  table_share, table)))
           sql_print_information("NDB: Failed to re-open table %s.%s",
                                 dbname, tabname);
-        */
+        pthread_mutex_unlock(&LOCK_open);
       }
     }
     remote_drop_table= 1;
@@ -2172,7 +2180,6 @@ ndbcluster_create_event_ops(NDB_SHARE *share, const NDBTAB *ndbtab,
       op= ndb->createEventOperation(event_name);
       // reset to catch errors
       ndb->setDatabaseName("");
-      ndb->setDatabaseSchemaName("");
     }
     if (!op)
     {
@@ -2745,8 +2752,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
     goto err;
   }
 
-  // empty database and schema
-  if (!(ndb= new Ndb(g_ndb_cluster_connection, "", "")) ||
+  // empty database
+  if (!(ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Ndb object failed");
@@ -3010,7 +3017,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
             ndb_binlog_thread_handle_non_data_event(ndb, pOp, row);
             // reset to catch errors
             ndb->setDatabaseName("");
-            ndb->setDatabaseSchemaName("");
           }
 
           pOp= ndb->nextEvent();
